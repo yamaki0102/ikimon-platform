@@ -1,0 +1,179 @@
+{
+    "root": {
+        "question": "何を見つけましたか？",
+        "options": [
+            {
+                "id": "creature",
+                "label": "生きもの",
+                "sub": "Creature",
+                "icon": "bug",
+                "next": "creature_type",
+                "color": "text-blue-400"
+            },
+            {
+                "id": "plant",
+                "label": "植物",
+                "sub": "Plant",
+                "icon": "leaf",
+                "next": "plant_type",
+                "color": "text-green-400"
+            },
+            {
+                "id": "fungi",
+                "label": "キノコ・他",
+                "sub": "Fungi",
+                "icon": "sprout",
+                "result": "Fungi",
+                "color": "text-orange-400"
+            }
+        ]
+    },
+    "creature_type": {
+        "question": "どこにいましたか？",
+        "options": [
+            {
+                "id": "land",
+                "label": "陸・空",
+                "sub": "Land / Air",
+                "icon": "footprint",
+                "next": "animal_morph",
+                "color": "text-amber-400"
+            },
+            {
+                "id": "water",
+                "label": "水中・水辺",
+                "sub": "Water",
+                "icon": "waves",
+                "result": "Aquatic",
+                "color": "text-cyan-400"
+            }
+        ]
+    },
+    "animal_morph": {
+        "question": "どんな形でしたか？",
+        "options": [
+            {
+                "id": "insect",
+                "label": "虫 (6本足)",
+                "sub": "Insect",
+                "icon": "bug",
+                "next": "insect_group",
+                "color": "text-green-500"
+            },
+            {
+                "id": "bird",
+                "label": "鳥",
+                "sub": "Bird",
+                "icon": "bird",
+                "result": "Aves",
+                "color": "text-sky-400"
+            },
+            {
+                "id": "beast",
+                "label": "獣 / 動物",
+                "sub": "Mammal",
+                "icon": "dog",
+                "result": "Mammalia",
+                "color": "text-orange-500"
+            },
+            {
+                "id": "spider",
+                "label": "クモ (8本足)",
+                "sub": "Spider",
+                "icon": "spider",
+                "result": "Arachnida",
+                "color": "text-purple-400"
+            },
+            {
+                "id": "reptile",
+                "label": "トカゲ・ヘビ",
+                "sub": "Reptile",
+                "icon": "snail",
+                "result": "Reptilia",
+                "color": "text-lime-500"
+            }
+        ]
+    },
+    "insect_group": {
+        "question": "一番近い見た目は？",
+        "options": [
+            {
+                "id": "butterfly",
+                "label": "チョウ・ガ",
+                "sub": "Butterfly / Moth",
+                "icon": "feather",
+                "result": "Lepidoptera",
+                "color": "text-pink-400"
+            },
+            {
+                "id": "beetle",
+                "label": "甲虫・カメムシ",
+                "sub": "Beetle / Bug",
+                "icon": "shield",
+                "result": "Coleoptera",
+                "color": "text-amber-600"
+            },
+            {
+                "id": "dragonfly",
+                "label": "トンボ",
+                "sub": "Dragonfly",
+                "icon": "plane",
+                "result": "トンボ",
+                "color": "text-blue-500"
+            },
+            {
+                "id": "bee",
+                "label": "ハチ・アリ",
+                "sub": "Bee / Ant",
+                "icon": "zap",
+                "result": "ハチ",
+                "color": "text-yellow-400"
+            },
+            {
+                "id": "grasshopper",
+                "label": "バッタ・コオロギ",
+                "sub": "Grasshopper",
+                "icon": "activity",
+                "result": "バッタ",
+                "color": "text-green-600"
+            },
+            {
+                "id": "cicada",
+                "label": "セミ",
+                "sub": "Cicada",
+                "icon": "mic-2",
+                "result": "セミ",
+                "color": "text-orange-400"
+            }
+        ]
+    },
+    "plant_type": {
+        "question": "植物の種類は？",
+        "options": [
+            {
+                "id": "tree",
+                "label": "木",
+                "sub": "Tree",
+                "icon": "trees",
+                "result": "木",
+                "color": "text-green-700"
+            },
+            {
+                "id": "flower",
+                "label": "草花",
+                "sub": "Flower",
+                "icon": "flower",
+                "result": "花",
+                "color": "text-pink-500"
+            },
+            {
+                "id": "grass",
+                "label": "草・シダ",
+                "sub": "Grass",
+                "icon": "wind",
+                "result": "Grass",
+                "color": "text-green-400"
+            }
+        ]
+    }
+}

@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"remote.autoForwardPorts": false,
+		"remote.portsAttributes": {
+			"8080": {
+				"label": "ikimon Dev Server",
+				"onAutoForward": "openBrowserOnce"
+			}
+		}
+	}
+}

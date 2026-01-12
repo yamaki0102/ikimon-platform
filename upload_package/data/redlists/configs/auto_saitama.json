@@ -1,0 +1,11 @@
+[
+    {
+        "id": "auto_saitama_mock",
+        "name": "Saitama Red List (Auto-Detected)",
+        "url": "https://example.com/redlist/saitama",
+        "type": "html_table",
+        "selectors": [],
+        "scope": "local",
+        "authority": "Saitama Red List (The Seeker)"
+    }
+]

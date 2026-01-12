@@ -1,0 +1,55 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: gd, mbstring, json
+      
+      - name: Validate PHP syntax
+        run: |
+          find upload_package -name "*.php" -exec php -l {} \; 2>&1 | grep -v "No syntax errors"
+          if [ ${PIPESTATUS[0]} -eq 0 ]; then
+            echo "✅ All PHP files have valid syntax"
+          else
+            echo "❌ PHP syntax errors found"
+            exit 1
+          fi
+      
+      - name: Deploy via rsync
+        uses: burnett01/rsync-deployments@6.0.0
+        with:
+          switches: -avzr --delete --exclude='.git*' --exclude='data/' --exclude='uploads/'
+          path: upload_package/
+          remote_path: ${{ secrets.REMOTE_PATH }}
+          remote_host: ${{ secrets.REMOTE_HOST }}
+          remote_user: ${{ secrets.REMOTE_USER }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Notify success
+        if: success()
+        run: echo "🚀 Deployment successful!"
+      
+      - name: Notify failure
+        if: failure()
+        run: echo "❌ Deployment failed!"
+
+# Required GitHub Secrets:
+# - REMOTE_HOST: your-server.com
+# - REMOTE_USER: ssh-username
+# - REMOTE_PATH: /path/to/public_html/
+# - SSH_PRIVATE_KEY: -----BEGIN OPENSSH PRIVATE KEY-----...

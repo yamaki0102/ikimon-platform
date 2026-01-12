@@ -1,0 +1,11 @@
+[
+    {
+        "id": "auto_taketomi_mock",
+        "name": "Taketomi Town Red List (Auto-Detected)",
+        "url": "https://example.com/redlist/town/taketomi-town",
+        "type": "html_table",
+        "selectors": [],
+        "scope": "local",
+        "authority": "Taketomi Town Red List (The Seeker)"
+    }
+]

@@ -1,0 +1,33 @@
+{
+    "source_metadata": {
+        "book_year": 1955,
+        "inferred_title": "昭和昆虫図鑑"
+    },
+    "higher_taxonomy": [
+        {
+            "rank": "Family",
+            "name_ja": "コシブトハナバチ科 (Anthophoridae)",
+            "traits_extracted": "口吻が長く、飛翔力が強い。単独生活をするものが多い。",
+            "historical_note": "現在はミツバチ科 (Apidae) に統合されている場合が多い旧分類。"
+        }
+    ],
+    "species_entries": [
+        {
+            "name_ja_old": "クマバチ",
+            "scientific_name_old": "Xylocopa appendiculata",
+            "facts": {
+                "body_length": "20-25mm",
+                "season": "4月〜10月",
+                "nesting": "枯れ木や竹筒に穴を掘る"
+            },
+            "historical_narrative": "フジの花を好み、ホバリングを行う。大型で羽音が凄まじいため恐れられるが、性質は極めて温厚。オスは針を持たず、動くものを追う習性がある。",
+            "modern_mapping_status": "pending_check",
+            "modern_mapping": {
+                "name_ja": "キムネクマバチ",
+                "scientific_name": "Xylocopa appendiculata circumvolans",
+                "status": "MAPPED_CONFIDENT",
+                "note": "Current standard name is distinct from the general genus name."
+            }
+        }
+    ]
+}

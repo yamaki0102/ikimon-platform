@@ -1,0 +1,16 @@
+[
+    {
+        "id": "template_pref_name",
+        "name": "Template Prefecture Red List",
+        "url": "https://example.com/redlist/template",
+        "type": "html_table",
+        "selectors": {
+            "row": "CSS_SELECTOR_FOR_ROW",
+            "name": "CSS_SELECTOR_FOR_NAME",
+            "scientific_name": "CSS_SELECTOR_FOR_SCI_NAME",
+            "category": "CSS_SELECTOR_FOR_CATEGORY"
+        },
+        "scope": "local",
+        "authority": "◯◯県レッドデータブック"
+    }
+]
