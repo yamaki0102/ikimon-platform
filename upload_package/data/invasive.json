@@ -1,0 +1,20 @@
+[
+    {
+        "key": 2364814,
+        "scientificName": "Procambarus clarkii",
+        "name": "アメリカザリガニ",
+        "category": "特定外来生物"
+    },
+    {
+        "key": 2433552,
+        "scientificName": "Micropterus salmoides",
+        "name": "オオクチバス",
+        "category": "特定外来生物"
+    },
+    {
+        "key": 5219404,
+        "scientificName": "Procyon lotor",
+        "name": "アライグマ",
+        "category": "特定外来生物"
+    }
+]

@@ -1,0 +1,1812 @@
+[
+    {
+        "id": "obs_69548f9a55f57",
+        "user_id": "user_69548f9a55ef8",
+        "user_name": "渡辺 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef8",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-31 06:26:51",
+        "created_at": "2025-12-31 06:26:51",
+        "lat": 34.70715,
+        "lng": 137.68607,
+        "cultivation": "cultivated",
+        "note": " #16",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "7239cc8b5b5fdbd1ee351ae6ad7807cd",
+            "name": "ショウリョウバッタ",
+            "scientific_name": "Acrida cinerea",
+            "rank": "species"
+        },
+        "verification_test_flag": "updated_1767170803"
+    },
+    {
+        "id": "obs_69548f9a56013",
+        "user_id": "user_69548f9a55ef3",
+        "user_name": "佐々木 翼",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef3",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_flower.png"
+        ],
+        "observed_at": "2025-12-30 17:43:40",
+        "created_at": "2025-12-30 17:43:40",
+        "lat": 34.73278,
+        "lng": 137.65030000000002,
+        "cultivation": "wild",
+        "note": " #93",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "830eeb2309a16036bb6f66b7e1254835",
+            "name": "アジサイ",
+            "scientific_name": "Hydrangea macrophylla",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56041",
+        "user_id": "user_69548f9a55ee7",
+        "user_name": "加藤 恵",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee7",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-28 19:42:52",
+        "created_at": "2025-12-28 19:42:52",
+        "lat": 34.74187,
+        "lng": 137.68752,
+        "cultivation": "wild",
+        "note": " #118",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "dee7a9982ef45730219e658acb82e7a8",
+            "name": "オオバコ",
+            "scientific_name": "Plantago asiatica",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56015",
+        "user_id": "user_69548f9a55edd",
+        "user_name": "山崎 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edd",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-27 23:23:27",
+        "created_at": "2025-12-27 23:23:27",
+        "lat": 34.78816,
+        "lng": 137.71892,
+        "cultivation": "wild",
+        "note": "公園で見つけました。 #94",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "d1812e6b0ef82d3fdd2006bb248ad739",
+            "name": "ナマズ",
+            "scientific_name": "Silurus asotus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f50",
+        "user_id": "user_69548f9a55ef8",
+        "user_name": "渡辺 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef8",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_mammal.png"
+        ],
+        "observed_at": "2025-12-27 21:57:06",
+        "created_at": "2025-12-27 21:57:06",
+        "lat": 34.72494,
+        "lng": 137.66577,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #13",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "0107d09aca873dfef5fbf7f5daa28f40",
+            "name": "アライグマ",
+            "scientific_name": "Procyon lotor",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a5603b",
+        "user_id": "user_69548f9a55edd",
+        "user_name": "山崎 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edd",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-26 11:11:42",
+        "created_at": "2025-12-26 11:11:42",
+        "lat": 34.69658,
+        "lng": 137.73554000000001,
+        "cultivation": "wild",
+        "note": "動きが早かった。 #114",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "907e98b5fdcf7000fac6362b543efac6",
+            "name": "メダカ",
+            "scientific_name": "Oryzias latipes",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f73",
+        "user_id": "user_ya_001",
+        "user_name": "八巻 毅",
+        "user_avatar": "https:\/\/i.pravatar.cc\/300?u=yamaki",
+        "user_rank": "認定研究者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-25 23:10:18",
+        "created_at": "2025-12-25 23:10:18",
+        "lat": 34.73441,
+        "lng": 137.75269,
+        "cultivation": "wild",
+        "note": "公園で見つけました。 #29",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "890e2525facb93c584dd1e223c8836c4",
+            "name": "ナナホシテントウ",
+            "scientific_name": "Coccinella septempunctata",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a560bb",
+        "user_id": "user_69548f9a55ee7",
+        "user_name": "加藤 恵",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee7",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_flower.png"
+        ],
+        "observed_at": "2025-12-24 17:13:08",
+        "created_at": "2025-12-24 17:13:08",
+        "lat": 34.65052,
+        "lng": 137.66013,
+        "cultivation": "wild",
+        "note": "これは何でしょうか？ #179",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "aa3561d12b4a04f0a164ea0bd5d3ab90",
+            "name": "ヒマワリ",
+            "scientific_name": "Helianthus annuus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56095",
+        "user_id": "user_69548f9a55ee4",
+        "user_name": "中村 翼",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee4",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-24 11:22:50",
+        "created_at": "2025-12-24 11:22:50",
+        "lat": 34.70198,
+        "lng": 137.76311,
+        "cultivation": "cultivated",
+        "note": "大量に発生していました。 #161",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "9f842445f94746cb42ac31f75cad36c7",
+            "name": "フナ",
+            "scientific_name": "Carassius",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a5606a",
+        "user_id": "user_69548f9a55f00",
+        "user_name": "木村 さくら",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f00",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-23 21:30:26",
+        "created_at": "2025-12-23 21:30:26",
+        "lat": 34.78441,
+        "lng": 137.76071,
+        "cultivation": "cultivated",
+        "note": "大量に発生していました。 #141",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "5e8ba5334afd1f8c569b10cb8e694bd2",
+            "name": "オニヤンマ",
+            "scientific_name": "Anotogaster sieboldii",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fc7",
+        "user_id": "user_69548f9a55f00",
+        "user_name": "木村 さくら",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f00",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-23 21:11:38",
+        "created_at": "2025-12-23 21:11:38",
+        "lat": 34.7322,
+        "lng": 137.66188,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #54",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "6681e1d7eb8e414ef709c80587416a28",
+            "name": "カブトムシ",
+            "scientific_name": "Trypoxylus dichotomus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56083",
+        "user_id": "user_69548f9a55efc",
+        "user_name": "伊藤 大輔",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efc",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-23 20:32:55",
+        "created_at": "2025-12-23 20:32:55",
+        "lat": 34.71601,
+        "lng": 137.6923,
+        "cultivation": "wild",
+        "note": " #155",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "dee7a9982ef45730219e658acb82e7a8",
+            "name": "オオバコ",
+            "scientific_name": "Plantago asiatica",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a560a1",
+        "user_id": "user_69548f9a55eda",
+        "user_name": "斎藤 葵",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eda",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-23 09:34:54",
+        "created_at": "2025-12-23 09:34:54",
+        "lat": 34.746449999999996,
+        "lng": 137.74789,
+        "cultivation": "cultivated",
+        "note": "大量に発生していました。 #165",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "0263dfb5f7bb8b674cdacc6c04659430",
+            "name": "ヒメジョオン",
+            "scientific_name": "Erigeron annuus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56023",
+        "user_id": "user_69548f9a55ed7",
+        "user_name": "佐々木 ゆかり",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ed7",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-23 01:04:39",
+        "created_at": "2025-12-23 01:04:39",
+        "lat": 34.68125,
+        "lng": 137.71915,
+        "cultivation": "wild",
+        "note": " #100",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "9332a61fa68760db1984f08b2ffbe46f",
+            "name": "オイカワ",
+            "scientific_name": "Opsariichthys platypus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56054",
+        "user_id": "user_69548f9a55efd",
+        "user_name": "阿部 智子",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efd",
+        "user_rank": "熟練者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-19 18:22:45",
+        "created_at": "2025-12-19 18:22:45",
+        "lat": 34.66156,
+        "lng": 137.71401,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #129",
+        "status": "Casual",
+        "taxon": {
+            "key": "dee7a9982ef45730219e658acb82e7a8",
+            "name": "オオバコ",
+            "scientific_name": "Plantago asiatica",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f90",
+        "user_id": "user_69548f9a55ed9",
+        "user_name": "佐々木 誠",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ed9",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-19 11:51:05",
+        "created_at": "2025-12-19 11:51:05",
+        "lat": 34.69646,
+        "lng": 137.72311,
+        "cultivation": "wild",
+        "note": "綺麗な色でした。 #39",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "9f842445f94746cb42ac31f75cad36c7",
+            "name": "フナ",
+            "scientific_name": "Carassius",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a560cb",
+        "user_id": "user_69548f9a55f01",
+        "user_name": "清水 真由美",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f01",
+        "user_rank": "博士",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-19 00:13:56",
+        "created_at": "2025-12-19 00:13:56",
+        "lat": 34.66531,
+        "lng": 137.67788000000002,
+        "cultivation": "cultivated",
+        "note": " #189",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "66c4acef2cd2b2046c3323d5ad3268fd",
+            "name": "ドクダミ",
+            "scientific_name": "Houttuynia cordata",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fce",
+        "user_id": "user_69548f9a55efb",
+        "user_name": "中島 花子",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efb",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_flower.png"
+        ],
+        "observed_at": "2025-12-18 08:36:26",
+        "created_at": "2025-12-18 08:36:26",
+        "lat": 34.75119,
+        "lng": 137.73649,
+        "cultivation": "wild",
+        "note": "これは何でしょうか？ #57",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "aa3561d12b4a04f0a164ea0bd5d3ab90",
+            "name": "ヒマワリ",
+            "scientific_name": "Helianthus annuus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f37",
+        "user_id": "user_69548f9a55f04",
+        "user_name": "阿部 直人",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f04",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-17 19:57:31",
+        "created_at": "2025-12-17 19:57:31",
+        "lat": 34.65321,
+        "lng": 137.69834,
+        "cultivation": "wild",
+        "note": "公園で見つけました。 #4",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "f759f21eb07c53f9f9ba03eca7423a1f",
+            "name": "ツユクサ",
+            "scientific_name": "Commelina communis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f64",
+        "user_id": "user_69548f9a55eea",
+        "user_name": "松本 智子",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eea",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-17 07:26:22",
+        "created_at": "2025-12-17 07:26:22",
+        "lat": 34.64499,
+        "lng": 137.74616,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #22",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "68f08be4b2a13127a7454b96a240f4d6",
+            "name": "セイヨウタンポポ",
+            "scientific_name": "Taraxacum officinale",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f8c",
+        "user_id": "user_69548f9a55ee7",
+        "user_name": "加藤 恵",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee7",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-17 01:22:28",
+        "created_at": "2025-12-17 01:22:28",
+        "lat": 34.751799999999996,
+        "lng": 137.69941,
+        "cultivation": "wild",
+        "note": "これは何でしょうか？ #37",
+        "status": "Casual",
+        "taxon": {
+            "key": "cda9814effb1a8067eafc61faf875894",
+            "name": "ツバメ",
+            "scientific_name": "Hirundo rustica",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f42",
+        "user_id": "user_69548f9a55f02",
+        "user_name": "石川 崇",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f02",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_mammal.png"
+        ],
+        "observed_at": "2025-12-16 05:47:00",
+        "created_at": "2025-12-16 05:47:00",
+        "lat": 34.649519999999995,
+        "lng": 137.68777,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #8",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "aa675937a77d957b65d5ee384db33f56",
+            "name": "ニホンイタチ",
+            "scientific_name": "Mustela itatsi",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fe1",
+        "user_id": "user_69548f9a55edb",
+        "user_name": "田中 真由美",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edb",
+        "user_rank": "認定研究者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-13 09:23:24",
+        "created_at": "2025-12-13 09:23:24",
+        "lat": 34.64578,
+        "lng": 137.68842,
+        "cultivation": "wild",
+        "note": " #64",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "68f08be4b2a13127a7454b96a240f4d6",
+            "name": "セイヨウタンポポ",
+            "scientific_name": "Taraxacum officinale",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fa1",
+        "user_id": "user_69548f9a55ef6",
+        "user_name": "木村 健太",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef6",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-12 16:48:17",
+        "created_at": "2025-12-12 16:48:17",
+        "lat": 34.680479999999996,
+        "lng": 137.72596000000001,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #47",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "9bc2b436a6d1b0295a25ba1029e9b50a",
+            "name": "ミンミンゼミ",
+            "scientific_name": "Hyalessa maculaticollis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a5600c",
+        "user_id": "user_69548f9a55eed",
+        "user_name": "小川 健一",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eed",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-12 09:40:44",
+        "created_at": "2025-12-12 09:40:44",
+        "lat": 34.72845,
+        "lng": 137.71208000000001,
+        "cultivation": "wild",
+        "note": " #89",
+        "status": "Casual",
+        "taxon": {
+            "key": "77516dc5137d242cc33af2b9d4c95084",
+            "name": "アブラゼミ",
+            "scientific_name": "Graptopsaltria nigrofuscata",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fda",
+        "user_id": "user_69548f9a55efb",
+        "user_name": "中島 花子",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efb",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-11 09:20:29",
+        "created_at": "2025-12-11 09:20:29",
+        "lat": 34.69058,
+        "lng": 137.71932,
+        "cultivation": "wild",
+        "note": "綺麗な色でした。 #63",
+        "status": "Casual",
+        "taxon": {
+            "key": "38eb747c8f7f7b480fc5056b221974f8",
+            "name": "ヒヨドリ",
+            "scientific_name": "Hypsipetes amaurotis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fc9",
+        "user_id": "user_69548f9a55ef4",
+        "user_name": "小林 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef4",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-09 22:05:09",
+        "created_at": "2025-12-09 22:05:09",
+        "lat": 34.76245,
+        "lng": 137.73654,
+        "cultivation": "wild",
+        "note": "綺麗な色でした。 #55",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "22247a3c217fe22c007b22e12483b065",
+            "name": "モンシロチョウ",
+            "scientific_name": "Pieris rapae",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56045",
+        "user_id": "user_69548f9a55ed7",
+        "user_name": "佐々木 ゆかり",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ed7",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-09 16:46:34",
+        "created_at": "2025-12-09 16:46:34",
+        "lat": 34.64013,
+        "lng": 137.7264,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #120",
+        "status": "Casual",
+        "taxon": {
+            "key": "9901dfce328c753f80b8aa72c8ceab3b",
+            "name": "キジバト",
+            "scientific_name": "Streptopelia orientalis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a5604a",
+        "user_id": "user_69548f9a55ed9",
+        "user_name": "佐々木 誠",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ed9",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-08 18:28:41",
+        "created_at": "2025-12-08 18:28:41",
+        "lat": 34.704029999999996,
+        "lng": 137.76819,
+        "cultivation": "wild",
+        "note": "大量に発生していました。 #123",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "812b1f2690fb5f898ff7521d9475a5ea",
+            "name": "コイ",
+            "scientific_name": "Cyprinus carpio",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f71",
+        "user_id": "user_69548f9a55f02",
+        "user_name": "石川 崇",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f02",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-08 15:12:27",
+        "created_at": "2025-12-08 15:12:27",
+        "lat": 34.67908,
+        "lng": 137.70983,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #28",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "9901dfce328c753f80b8aa72c8ceab3b",
+            "name": "キジバト",
+            "scientific_name": "Streptopelia orientalis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a560d1",
+        "user_id": "user_69548f9a55ee3",
+        "user_name": "林 陽菜",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee3",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-08 00:09:08",
+        "created_at": "2025-12-08 00:09:08",
+        "lat": 34.64985,
+        "lng": 137.70175,
+        "cultivation": "wild",
+        "note": " #192",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "afa55f620da05840ae2c312e086ada2d",
+            "name": "ハシブトガラス",
+            "scientific_name": "Corvus macrorhynchos",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fff",
+        "user_id": "user_69548f9a55eff",
+        "user_name": "佐藤 あゆみ",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eff",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-04 23:48:25",
+        "created_at": "2025-12-04 23:48:25",
+        "lat": 34.76345,
+        "lng": 137.75591,
+        "cultivation": "wild",
+        "note": " #81",
+        "status": "Casual",
+        "taxon": {
+            "key": "9901dfce328c753f80b8aa72c8ceab3b",
+            "name": "キジバト",
+            "scientific_name": "Streptopelia orientalis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f5e",
+        "user_id": "user_69548f9a55edc",
+        "user_name": "山田 大樹",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edc",
+        "user_rank": "認定研究者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-04 07:51:51",
+        "created_at": "2025-12-04 07:51:51",
+        "lat": 34.679069999999996,
+        "lng": 137.79891,
+        "cultivation": "wild",
+        "note": " #19",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "0263dfb5f7bb8b674cdacc6c04659430",
+            "name": "ヒメジョオン",
+            "scientific_name": "Erigeron annuus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fe9",
+        "user_id": "user_69548f9a55edd",
+        "user_name": "山崎 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edd",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-04 06:00:43",
+        "created_at": "2025-12-04 06:00:43",
+        "lat": 34.65657,
+        "lng": 137.7738,
+        "cultivation": "wild",
+        "note": "大量に発生していました。 #68",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "5e8ba5334afd1f8c569b10cb8e694bd2",
+            "name": "オニヤンマ",
+            "scientific_name": "Anotogaster sieboldii",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a5600e",
+        "user_id": "user_69548f9a55efc",
+        "user_name": "伊藤 大輔",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efc",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_flower.png"
+        ],
+        "observed_at": "2025-12-02 22:54:15",
+        "created_at": "2025-12-02 22:54:15",
+        "lat": 34.77845,
+        "lng": 137.66751,
+        "cultivation": "wild",
+        "note": " #90",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "aa3561d12b4a04f0a164ea0bd5d3ab90",
+            "name": "ヒマワリ",
+            "scientific_name": "Helianthus annuus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56036",
+        "user_id": "user_ya_001",
+        "user_name": "八巻 毅",
+        "user_avatar": "https:\/\/i.pravatar.cc\/300?u=yamaki",
+        "user_rank": "認定研究者",
+        "photos": [
+            "uploads\/sample_flower.png"
+        ],
+        "observed_at": "2025-12-02 17:00:21",
+        "created_at": "2025-12-02 17:00:21",
+        "lat": 34.73858,
+        "lng": 137.76568,
+        "cultivation": "wild",
+        "note": " #111",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "830eeb2309a16036bb6f66b7e1254835",
+            "name": "アジサイ",
+            "scientific_name": "Hydrangea macrophylla",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56072",
+        "user_id": "user_69548f9a55f08",
+        "user_name": "小林 美咲",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f08",
+        "user_rank": "認定研究者",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-01 21:16:05",
+        "created_at": "2025-12-01 21:16:05",
+        "lat": 34.74762,
+        "lng": 137.64997,
+        "cultivation": "wild",
+        "note": " #145",
+        "status": "Casual",
+        "taxon": {
+            "key": "d1812e6b0ef82d3fdd2006bb248ad739",
+            "name": "ナマズ",
+            "scientific_name": "Silurus asotus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "8cdfc85cc6690981",
+        "user_id": "guest_7839bc1b",
+        "observed_at": "2025-12-31 11:51",
+        "lat": 34.713341,
+        "lng": 137.716908,
+        "cultivation": "wild",
+        "note": "",
+        "photos": [
+            "uploads\/photos\/8cdfc85cc6690981\/photo_0.webp"
+        ],
+        "status": "ていあん",
+        "created_at": "2025-12-31 11:51:07",
+        "updated_at": "2026-01-01 19:29:01",
+        "identifications": [
+            {
+                "id": "a62abc64",
+                "user_id": "user_ya_001",
+                "user_name": "八巻 毅",
+                "user_avatar": "https:\/\/i.pravatar.cc\/300?u=yamaki",
+                "taxon_key": 2481700,
+                "taxon_name": "ヤマシギ",
+                "scientific_name": "Scolopax rusticola Linnaeus, 1758",
+                "confidence": "確実",
+                "life_stage": "adult",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": null,
+                    "phylum": null,
+                    "order": null,
+                    "family": null,
+                    "genus": null
+                },
+                "note": "この鳥は、**「ヤマシギ（山鷸）」** だと思われます。\n\n英名では「Eurasian Woodcock」と呼ばれ、ハトより少し大きいくらいの、ずんぐりとした体型が特徴の鳥です。\n\n写真から判断できる特徴は以下の通りです。\n\n### ヤマシギであると推測される理由\n\n* **頭の模様:** 頭頂部の黒い線が、**横（左右）** に走っています。\n* ※よく似た鳥に「タシギ」がいますが、タシギは頭の線が**縦（くちばしから背中方向）** に走っているため見分けがつきます。\n\n\n* **体型:** 全体的に丸っこく、太っているように見える「ずんぐり」とした体型をしています。\n* **くちばし:** 非常に長く、まっすぐな形をしています。これで土の中のミミズなどを探して食べます。\n* **目:** 目が頭のかなり後ろの方（高い位置）についています。これは、くちばしを地面に刺している最中でも、敵が来ないか周囲（ほぼ360度）を見渡せるようになっています。\n* **撮影状況:** 夜間または暗い場所に見えますが、ヤマシギは**夜行性**の傾向が強く、夕方から夜にかけて活動することが多いです。\n\n### 生息場所\n\n名前の通り「山」や森林、少し開けた林縁部などの地面にいることが多いですが、渡りの時期や冬場には公園や庭の植え込みなど、身近な場所にひょっこり現れることもあります。\n\n---\n\n**次のステップとして**\nもしよろしければ、この写真を撮影されたのは、どのような場所（森の中、水辺、市街地の公園など）でしたか？ 場所の情報があると、より確実な判断ができるかもしれません。",
+                "created_at": "2026-01-01 19:29:01",
+                "weight": 1
+            }
+        ],
+        "taxon": {
+            "name": "ヤマシギ",
+            "scientific_name": "Scolopax rusticola Linnaeus, 1758",
+            "key": 2481700,
+            "rank": "species",
+            "lineage": {
+                "kingdom": null,
+                "phylum": null,
+                "order": null,
+                "family": null,
+                "genus": null
+            }
+        }
+    },
+    {
+        "id": "a85a5b3bee0e62c0",
+        "user_id": "guest_772c7937",
+        "observed_at": "2025-12-31 11:53",
+        "lat": 34.7108,
+        "lng": 137.7261,
+        "cultivation": "wild",
+        "note": "",
+        "photos": [
+            "uploads\/photos\/a85a5b3bee0e62c0\/photo_0.webp",
+            "uploads\/photos\/a85a5b3bee0e62c0\/photo_1.webp",
+            "uploads\/photos\/a85a5b3bee0e62c0\/photo_2.webp"
+        ],
+        "status": "Needs ID",
+        "created_at": "2025-12-31 11:53:31",
+        "updated_at": "2025-12-31 11:53:31",
+        "identifications": [],
+        "taxon": null
+    },
+    {
+        "id": "obs_69548f9a55f57",
+        "user_id": "user_69548f9a55ef8",
+        "user_name": "渡辺 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef8",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-31 06:26:51",
+        "created_at": "2025-12-31 06:26:51",
+        "lat": 34.70715,
+        "lng": 137.68607,
+        "cultivation": "cultivated",
+        "note": " #16",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "7239cc8b5b5fdbd1ee351ae6ad7807cd",
+            "name": "ショウリョウバッタ",
+            "scientific_name": "Acrida cinerea",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56013",
+        "user_id": "user_69548f9a55ef3",
+        "user_name": "佐々木 翼",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef3",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_flower.png"
+        ],
+        "observed_at": "2025-12-30 17:43:40",
+        "created_at": "2025-12-30 17:43:40",
+        "lat": 34.73278,
+        "lng": 137.65030000000002,
+        "cultivation": "wild",
+        "note": " #93",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "830eeb2309a16036bb6f66b7e1254835",
+            "name": "アジサイ",
+            "scientific_name": "Hydrangea macrophylla",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56041",
+        "user_id": "user_69548f9a55ee7",
+        "user_name": "加藤 恵",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee7",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-28 19:42:52",
+        "created_at": "2025-12-28 19:42:52",
+        "lat": 34.74187,
+        "lng": 137.68752,
+        "cultivation": "wild",
+        "note": " #118",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "dee7a9982ef45730219e658acb82e7a8",
+            "name": "オオバコ",
+            "scientific_name": "Plantago asiatica",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56015",
+        "user_id": "user_69548f9a55edd",
+        "user_name": "山崎 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edd",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-27 23:23:27",
+        "created_at": "2025-12-27 23:23:27",
+        "lat": 34.78816,
+        "lng": 137.71892,
+        "cultivation": "wild",
+        "note": "公園で見つけました。 #94",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "d1812e6b0ef82d3fdd2006bb248ad739",
+            "name": "ナマズ",
+            "scientific_name": "Silurus asotus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f50",
+        "user_id": "user_69548f9a55ef8",
+        "user_name": "渡辺 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef8",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_mammal.png"
+        ],
+        "observed_at": "2025-12-27 21:57:06",
+        "created_at": "2025-12-27 21:57:06",
+        "lat": 34.72494,
+        "lng": 137.66577,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #13",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "0107d09aca873dfef5fbf7f5daa28f40",
+            "name": "アライグマ",
+            "scientific_name": "Procyon lotor",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a5603b",
+        "user_id": "user_69548f9a55edd",
+        "user_name": "山崎 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edd",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-26 11:11:42",
+        "created_at": "2025-12-26 11:11:42",
+        "lat": 34.69658,
+        "lng": 137.73554000000001,
+        "cultivation": "wild",
+        "note": "動きが早かった。 #114",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "907e98b5fdcf7000fac6362b543efac6",
+            "name": "メダカ",
+            "scientific_name": "Oryzias latipes",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f73",
+        "user_id": "user_ya_001",
+        "user_name": "八巻 毅",
+        "user_avatar": "https:\/\/i.pravatar.cc\/300?u=yamaki",
+        "user_rank": "認定研究者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-25 23:10:18",
+        "created_at": "2025-12-25 23:10:18",
+        "lat": 34.73441,
+        "lng": 137.75269,
+        "cultivation": "wild",
+        "note": "公園で見つけました。 #29",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "890e2525facb93c584dd1e223c8836c4",
+            "name": "ナナホシテントウ",
+            "scientific_name": "Coccinella septempunctata",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a560bb",
+        "user_id": "user_69548f9a55ee7",
+        "user_name": "加藤 恵",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee7",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_flower.png"
+        ],
+        "observed_at": "2025-12-24 17:13:08",
+        "created_at": "2025-12-24 17:13:08",
+        "lat": 34.65052,
+        "lng": 137.66013,
+        "cultivation": "wild",
+        "note": "これは何でしょうか？ #179",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "aa3561d12b4a04f0a164ea0bd5d3ab90",
+            "name": "ヒマワリ",
+            "scientific_name": "Helianthus annuus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56095",
+        "user_id": "user_69548f9a55ee4",
+        "user_name": "中村 翼",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee4",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-24 11:22:50",
+        "created_at": "2025-12-24 11:22:50",
+        "lat": 34.70198,
+        "lng": 137.76311,
+        "cultivation": "cultivated",
+        "note": "大量に発生していました。 #161",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "9f842445f94746cb42ac31f75cad36c7",
+            "name": "フナ",
+            "scientific_name": "Carassius",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a5606a",
+        "user_id": "user_69548f9a55f00",
+        "user_name": "木村 さくら",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f00",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-23 21:30:26",
+        "created_at": "2025-12-23 21:30:26",
+        "lat": 34.78441,
+        "lng": 137.76071,
+        "cultivation": "cultivated",
+        "note": "大量に発生していました。 #141",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "5e8ba5334afd1f8c569b10cb8e694bd2",
+            "name": "オニヤンマ",
+            "scientific_name": "Anotogaster sieboldii",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fc7",
+        "user_id": "user_69548f9a55f00",
+        "user_name": "木村 さくら",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f00",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-23 21:11:38",
+        "created_at": "2025-12-23 21:11:38",
+        "lat": 34.7322,
+        "lng": 137.66188,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #54",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "6681e1d7eb8e414ef709c80587416a28",
+            "name": "カブトムシ",
+            "scientific_name": "Trypoxylus dichotomus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56083",
+        "user_id": "user_69548f9a55efc",
+        "user_name": "伊藤 大輔",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efc",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-23 20:32:55",
+        "created_at": "2025-12-23 20:32:55",
+        "lat": 34.71601,
+        "lng": 137.6923,
+        "cultivation": "wild",
+        "note": " #155",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "dee7a9982ef45730219e658acb82e7a8",
+            "name": "オオバコ",
+            "scientific_name": "Plantago asiatica",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a560a1",
+        "user_id": "user_69548f9a55eda",
+        "user_name": "斎藤 葵",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eda",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-23 09:34:54",
+        "created_at": "2025-12-23 09:34:54",
+        "lat": 34.746449999999996,
+        "lng": 137.74789,
+        "cultivation": "cultivated",
+        "note": "大量に発生していました。 #165",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "0263dfb5f7bb8b674cdacc6c04659430",
+            "name": "ヒメジョオン",
+            "scientific_name": "Erigeron annuus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56023",
+        "user_id": "user_69548f9a55ed7",
+        "user_name": "佐々木 ゆかり",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ed7",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-23 01:04:39",
+        "created_at": "2025-12-23 01:04:39",
+        "lat": 34.68125,
+        "lng": 137.71915,
+        "cultivation": "wild",
+        "note": " #100",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "9332a61fa68760db1984f08b2ffbe46f",
+            "name": "オイカワ",
+            "scientific_name": "Opsariichthys platypus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56054",
+        "user_id": "user_69548f9a55efd",
+        "user_name": "阿部 智子",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efd",
+        "user_rank": "熟練者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-19 18:22:45",
+        "created_at": "2025-12-19 18:22:45",
+        "lat": 34.66156,
+        "lng": 137.71401,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #129",
+        "status": "Casual",
+        "taxon": {
+            "key": "dee7a9982ef45730219e658acb82e7a8",
+            "name": "オオバコ",
+            "scientific_name": "Plantago asiatica",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f90",
+        "user_id": "user_69548f9a55ed9",
+        "user_name": "佐々木 誠",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ed9",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-19 11:51:05",
+        "created_at": "2025-12-19 11:51:05",
+        "lat": 34.69646,
+        "lng": 137.72311,
+        "cultivation": "wild",
+        "note": "綺麗な色でした。 #39",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "9f842445f94746cb42ac31f75cad36c7",
+            "name": "フナ",
+            "scientific_name": "Carassius",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a560cb",
+        "user_id": "user_69548f9a55f01",
+        "user_name": "清水 真由美",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f01",
+        "user_rank": "博士",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-19 00:13:56",
+        "created_at": "2025-12-19 00:13:56",
+        "lat": 34.66531,
+        "lng": 137.67788000000002,
+        "cultivation": "cultivated",
+        "note": " #189",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "66c4acef2cd2b2046c3323d5ad3268fd",
+            "name": "ドクダミ",
+            "scientific_name": "Houttuynia cordata",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fce",
+        "user_id": "user_69548f9a55efb",
+        "user_name": "中島 花子",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efb",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_flower.png"
+        ],
+        "observed_at": "2025-12-18 08:36:26",
+        "created_at": "2025-12-18 08:36:26",
+        "lat": 34.75119,
+        "lng": 137.73649,
+        "cultivation": "wild",
+        "note": "これは何でしょうか？ #57",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "aa3561d12b4a04f0a164ea0bd5d3ab90",
+            "name": "ヒマワリ",
+            "scientific_name": "Helianthus annuus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f37",
+        "user_id": "user_69548f9a55f04",
+        "user_name": "阿部 直人",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f04",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-17 19:57:31",
+        "created_at": "2025-12-17 19:57:31",
+        "lat": 34.65321,
+        "lng": 137.69834,
+        "cultivation": "wild",
+        "note": "公園で見つけました。 #4",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "f759f21eb07c53f9f9ba03eca7423a1f",
+            "name": "ツユクサ",
+            "scientific_name": "Commelina communis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f64",
+        "user_id": "user_69548f9a55eea",
+        "user_name": "松本 智子",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eea",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-17 07:26:22",
+        "created_at": "2025-12-17 07:26:22",
+        "lat": 34.64499,
+        "lng": 137.74616,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #22",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "68f08be4b2a13127a7454b96a240f4d6",
+            "name": "セイヨウタンポポ",
+            "scientific_name": "Taraxacum officinale",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f8c",
+        "user_id": "user_69548f9a55ee7",
+        "user_name": "加藤 恵",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee7",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-17 01:22:28",
+        "created_at": "2025-12-17 01:22:28",
+        "lat": 34.751799999999996,
+        "lng": 137.69941,
+        "cultivation": "wild",
+        "note": "これは何でしょうか？ #37",
+        "status": "Casual",
+        "taxon": {
+            "key": "cda9814effb1a8067eafc61faf875894",
+            "name": "ツバメ",
+            "scientific_name": "Hirundo rustica",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f42",
+        "user_id": "user_69548f9a55f02",
+        "user_name": "石川 崇",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f02",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_mammal.png"
+        ],
+        "observed_at": "2025-12-16 05:47:00",
+        "created_at": "2025-12-16 05:47:00",
+        "lat": 34.649519999999995,
+        "lng": 137.68777,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #8",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "aa675937a77d957b65d5ee384db33f56",
+            "name": "ニホンイタチ",
+            "scientific_name": "Mustela itatsi",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fe1",
+        "user_id": "user_69548f9a55edb",
+        "user_name": "田中 真由美",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edb",
+        "user_rank": "認定研究者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-13 09:23:24",
+        "created_at": "2025-12-13 09:23:24",
+        "lat": 34.64578,
+        "lng": 137.68842,
+        "cultivation": "wild",
+        "note": " #64",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "68f08be4b2a13127a7454b96a240f4d6",
+            "name": "セイヨウタンポポ",
+            "scientific_name": "Taraxacum officinale",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fa1",
+        "user_id": "user_69548f9a55ef6",
+        "user_name": "木村 健太",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef6",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-12 16:48:17",
+        "created_at": "2025-12-12 16:48:17",
+        "lat": 34.680479999999996,
+        "lng": 137.72596000000001,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #47",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "9bc2b436a6d1b0295a25ba1029e9b50a",
+            "name": "ミンミンゼミ",
+            "scientific_name": "Hyalessa maculaticollis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a5600c",
+        "user_id": "user_69548f9a55eed",
+        "user_name": "小川 健一",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eed",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-12 09:40:44",
+        "created_at": "2025-12-12 09:40:44",
+        "lat": 34.72845,
+        "lng": 137.71208000000001,
+        "cultivation": "wild",
+        "note": " #89",
+        "status": "Casual",
+        "taxon": {
+            "key": "77516dc5137d242cc33af2b9d4c95084",
+            "name": "アブラゼミ",
+            "scientific_name": "Graptopsaltria nigrofuscata",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fda",
+        "user_id": "user_69548f9a55efb",
+        "user_name": "中島 花子",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efb",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-11 09:20:29",
+        "created_at": "2025-12-11 09:20:29",
+        "lat": 34.69058,
+        "lng": 137.71932,
+        "cultivation": "wild",
+        "note": "綺麗な色でした。 #63",
+        "status": "Casual",
+        "taxon": {
+            "key": "38eb747c8f7f7b480fc5056b221974f8",
+            "name": "ヒヨドリ",
+            "scientific_name": "Hypsipetes amaurotis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fc9",
+        "user_id": "user_69548f9a55ef4",
+        "user_name": "小林 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef4",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-09 22:05:09",
+        "created_at": "2025-12-09 22:05:09",
+        "lat": 34.76245,
+        "lng": 137.73654,
+        "cultivation": "wild",
+        "note": "綺麗な色でした。 #55",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "22247a3c217fe22c007b22e12483b065",
+            "name": "モンシロチョウ",
+            "scientific_name": "Pieris rapae",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56045",
+        "user_id": "user_69548f9a55ed7",
+        "user_name": "佐々木 ゆかり",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ed7",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-09 16:46:34",
+        "created_at": "2025-12-09 16:46:34",
+        "lat": 34.64013,
+        "lng": 137.7264,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #120",
+        "status": "Casual",
+        "taxon": {
+            "key": "9901dfce328c753f80b8aa72c8ceab3b",
+            "name": "キジバト",
+            "scientific_name": "Streptopelia orientalis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a5604a",
+        "user_id": "user_69548f9a55ed9",
+        "user_name": "佐々木 誠",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ed9",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-08 18:28:41",
+        "created_at": "2025-12-08 18:28:41",
+        "lat": 34.704029999999996,
+        "lng": 137.76819,
+        "cultivation": "wild",
+        "note": "大量に発生していました。 #123",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "812b1f2690fb5f898ff7521d9475a5ea",
+            "name": "コイ",
+            "scientific_name": "Cyprinus carpio",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f71",
+        "user_id": "user_69548f9a55f02",
+        "user_name": "石川 崇",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f02",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-08 15:12:27",
+        "created_at": "2025-12-08 15:12:27",
+        "lat": 34.67908,
+        "lng": 137.70983,
+        "cultivation": "wild",
+        "note": "初めて見ました！ #28",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "9901dfce328c753f80b8aa72c8ceab3b",
+            "name": "キジバト",
+            "scientific_name": "Streptopelia orientalis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a560d1",
+        "user_id": "user_69548f9a55ee3",
+        "user_name": "林 陽菜",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee3",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-08 00:09:08",
+        "created_at": "2025-12-08 00:09:08",
+        "lat": 34.64985,
+        "lng": 137.70175,
+        "cultivation": "wild",
+        "note": " #192",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "afa55f620da05840ae2c312e086ada2d",
+            "name": "ハシブトガラス",
+            "scientific_name": "Corvus macrorhynchos",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fff",
+        "user_id": "user_69548f9a55eff",
+        "user_name": "佐藤 あゆみ",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eff",
+        "user_rank": "観察者",
+        "photos": [
+            "uploads\/sample_bird.png"
+        ],
+        "observed_at": "2025-12-04 23:48:25",
+        "created_at": "2025-12-04 23:48:25",
+        "lat": 34.76345,
+        "lng": 137.75591,
+        "cultivation": "wild",
+        "note": " #81",
+        "status": "Casual",
+        "taxon": {
+            "key": "9901dfce328c753f80b8aa72c8ceab3b",
+            "name": "キジバト",
+            "scientific_name": "Streptopelia orientalis",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55f5e",
+        "user_id": "user_69548f9a55edc",
+        "user_name": "山田 大樹",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edc",
+        "user_rank": "認定研究者",
+        "photos": [
+            "uploads\/sample_plant.png"
+        ],
+        "observed_at": "2025-12-04 07:51:51",
+        "created_at": "2025-12-04 07:51:51",
+        "lat": 34.679069999999996,
+        "lng": 137.79891,
+        "cultivation": "wild",
+        "note": " #19",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "0263dfb5f7bb8b674cdacc6c04659430",
+            "name": "ヒメジョオン",
+            "scientific_name": "Erigeron annuus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a55fe9",
+        "user_id": "user_69548f9a55edd",
+        "user_name": "山崎 愛",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edd",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_insect.png"
+        ],
+        "observed_at": "2025-12-04 06:00:43",
+        "created_at": "2025-12-04 06:00:43",
+        "lat": 34.65657,
+        "lng": 137.7738,
+        "cultivation": "wild",
+        "note": "大量に発生していました。 #68",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "5e8ba5334afd1f8c569b10cb8e694bd2",
+            "name": "オニヤンマ",
+            "scientific_name": "Anotogaster sieboldii",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a5600e",
+        "user_id": "user_69548f9a55efc",
+        "user_name": "伊藤 大輔",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efc",
+        "user_rank": "ビギナー",
+        "photos": [
+            "uploads\/sample_flower.png"
+        ],
+        "observed_at": "2025-12-02 22:54:15",
+        "created_at": "2025-12-02 22:54:15",
+        "lat": 34.77845,
+        "lng": 137.66751,
+        "cultivation": "wild",
+        "note": " #90",
+        "status": "Research Grade",
+        "taxon": {
+            "key": "aa3561d12b4a04f0a164ea0bd5d3ab90",
+            "name": "ヒマワリ",
+            "scientific_name": "Helianthus annuus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56036",
+        "user_id": "user_ya_001",
+        "user_name": "八巻 毅",
+        "user_avatar": "https:\/\/i.pravatar.cc\/300?u=yamaki",
+        "user_rank": "認定研究者",
+        "photos": [
+            "uploads\/sample_flower.png"
+        ],
+        "observed_at": "2025-12-02 17:00:21",
+        "created_at": "2025-12-02 17:00:21",
+        "lat": 34.73858,
+        "lng": 137.76568,
+        "cultivation": "wild",
+        "note": " #111",
+        "status": "Needs ID",
+        "taxon": {
+            "key": "830eeb2309a16036bb6f66b7e1254835",
+            "name": "アジサイ",
+            "scientific_name": "Hydrangea macrophylla",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "obs_69548f9a56072",
+        "user_id": "user_69548f9a55f08",
+        "user_name": "小林 美咲",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f08",
+        "user_rank": "認定研究者",
+        "photos": [
+            "uploads\/sample_fish.png"
+        ],
+        "observed_at": "2025-12-01 21:16:05",
+        "created_at": "2025-12-01 21:16:05",
+        "lat": 34.74762,
+        "lng": 137.64997,
+        "cultivation": "wild",
+        "note": " #145",
+        "status": "Casual",
+        "taxon": {
+            "key": "d1812e6b0ef82d3fdd2006bb248ad739",
+            "name": "ナマズ",
+            "scientific_name": "Silurus asotus",
+            "rank": "species"
+        }
+    },
+    {
+        "id": "8cdfc85cc6690981",
+        "user_id": "guest_7839bc1b",
+        "observed_at": "2025-12-31 11:51",
+        "lat": 34.713341,
+        "lng": 137.716908,
+        "cultivation": "wild",
+        "note": "",
+        "photos": [
+            "uploads\/photos\/8cdfc85cc6690981\/photo_0.webp"
+        ],
+        "status": "Needs ID",
+        "created_at": "2025-12-31 11:51:07",
+        "updated_at": "2025-12-31 11:51:07",
+        "identifications": [],
+        "taxon": null
+    },
+    {
+        "id": "a85a5b3bee0e62c0",
+        "user_id": "guest_772c7937",
+        "observed_at": "2025-12-31 11:53",
+        "lat": 34.7108,
+        "lng": 137.7261,
+        "cultivation": "wild",
+        "note": "",
+        "photos": [
+            "uploads\/photos\/a85a5b3bee0e62c0\/photo_0.webp",
+            "uploads\/photos\/a85a5b3bee0e62c0\/photo_1.webp",
+            "uploads\/photos\/a85a5b3bee0e62c0\/photo_2.webp"
+        ],
+        "status": "Needs ID",
+        "created_at": "2025-12-31 11:53:31",
+        "updated_at": "2025-12-31 11:53:31",
+        "identifications": [],
+        "taxon": null
+    }
+]

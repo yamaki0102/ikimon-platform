@@ -1,0 +1,878 @@
+[
+    {
+        "id": "user_69548f9a55eb8",
+        "name": "阿部 誠",
+        "rank": "熟練者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eb8",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ed7",
+        "name": "佐々木 ゆかり",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ed7",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ed9",
+        "name": "佐々木 誠",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ed9",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55eda",
+        "name": "斎藤 葵",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eda",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55edb",
+        "name": "田中 真由美",
+        "rank": "認定研究者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edb",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55edc",
+        "name": "山田 大樹",
+        "rank": "認定研究者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edc",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55edd",
+        "name": "山崎 愛",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edd",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ede",
+        "name": "佐々木 智子",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ede",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55edf",
+        "name": "井上 結衣",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55edf",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ee0",
+        "name": "加藤 直人",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee0",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ee1",
+        "name": "中島 大樹",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee1",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ee2",
+        "name": "石井 剛",
+        "rank": "熟練者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee2",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ee3",
+        "name": "林 陽菜",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee3",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ee4",
+        "name": "中村 翼",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee4",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ee5",
+        "name": "林 拓海",
+        "rank": "博士",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee5",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ee6",
+        "name": "石井 誠",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee6",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ee7",
+        "name": "加藤 恵",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee7",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ee8",
+        "name": "山本 愛",
+        "rank": "認定研究者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee8",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ee9",
+        "name": "中島 美咲",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ee9",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55eea",
+        "name": "松本 智子",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eea",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55eeb",
+        "name": "吉田 大樹",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eeb",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55eec",
+        "name": "山口 三郎",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eec",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55eed",
+        "name": "小川 健一",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eed",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55eee",
+        "name": "中村 陽菜",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eee",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55eef",
+        "name": "森 ゆかり",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eef",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ef0",
+        "name": "池田 一郎",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef0",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ef1",
+        "name": "石井 剛",
+        "rank": "認定研究者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef1",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ef2",
+        "name": "佐々木 真由美",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef2",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ef3",
+        "name": "佐々木 翼",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef3",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ef4",
+        "name": "小林 愛",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef4",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ef5",
+        "name": "中島 翔太",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef5",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ef6",
+        "name": "木村 健太",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef6",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ef7",
+        "name": "山口 三郎",
+        "rank": "認定研究者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef7",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ef8",
+        "name": "渡辺 愛",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef8",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55ef9",
+        "name": "斎藤 美優",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55ef9",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55efa",
+        "name": "松本 陽菜",
+        "rank": "博士",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efa",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55efb",
+        "name": "中島 花子",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efb",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55efc",
+        "name": "伊藤 大輔",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efc",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55efd",
+        "name": "阿部 智子",
+        "rank": "熟練者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efd",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55efe",
+        "name": "鈴木 太郎",
+        "rank": "熟練者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55efe",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55eff",
+        "name": "佐藤 あゆみ",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55eff",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55f00",
+        "name": "木村 さくら",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f00",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55f01",
+        "name": "清水 真由美",
+        "rank": "博士",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f01",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55f02",
+        "name": "石川 崇",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f02",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55f03",
+        "name": "鈴木 三郎",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f03",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55f04",
+        "name": "阿部 直人",
+        "rank": "観察者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f04",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55f05",
+        "name": "小川 陽菜",
+        "rank": "博士",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f05",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55f06",
+        "name": "山下 剛",
+        "rank": "認定研究者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f06",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55f07",
+        "name": "清水 翔太",
+        "rank": "ビギナー",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f07",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_69548f9a55f08",
+        "name": "小林 美咲",
+        "rank": "認定研究者",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=user_69548f9a55f08",
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_ya_001",
+        "name": "八巻 毅",
+        "rank": "認定研究者",
+        "avatar": "https:\/\/i.pravatar.cc\/300?u=yamaki",
+        "score": 50,
+        "post_count": 3,
+        "id_count": 0,
+        "badges": [
+            "beginner_observer"
+        ],
+        "is_seed": true,
+        "seed_version": "legacy"
+    },
+    {
+        "id": "user_admin_001",
+        "name": "管理者",
+        "email": "admin@ikimon.life",
+        "password_hash": "$2y$12$1Z0tWbVJO7X5SO8HjvPpSu5a7bGSyM3nQpPmPNTI5rjVLHZwAxRVu",
+        "role": "Admin",
+        "rank": "管理者",
+        "avatar": "assets\/img\/icon-192.png",
+        "created_at": "2026-01-11 15:00:00",
+        "last_login_at": null,
+        "banned": false
+    },
+    {
+        "id": "seed_69633fb6cd4a4",
+        "name": "森 愛",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4a4",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4c3",
+        "name": "石井 大樹",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4c3",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4c5",
+        "name": "高橋 七海",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4c5",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4c7",
+        "name": "小林 健一",
+        "rank": "博士",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4c7",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4c8",
+        "name": "高橋 拓海",
+        "rank": "熟練者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4c8",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4c9",
+        "name": "石川 恵",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4c9",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4ca",
+        "name": "小川 大樹",
+        "rank": "熟練者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4ca",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4cb",
+        "name": "阿部 恵",
+        "rank": "博士",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4cb",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4cc",
+        "name": "石川 花子",
+        "rank": "認定研究者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4cc",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4cd",
+        "name": "加藤 健一",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4cd",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4ce",
+        "name": "伊藤 恵",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4ce",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4cf",
+        "name": "森 崇",
+        "rank": "博士",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4cf",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4d0",
+        "name": "佐々木 一郎",
+        "rank": "認定研究者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4d0",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4d1",
+        "name": "渡辺 大樹",
+        "rank": "博士",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4d1",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4d2",
+        "name": "石川 あゆみ",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4d2",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4d3",
+        "name": "池田 翼",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4d3",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4d4",
+        "name": "山田 直人",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4d4",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4d5",
+        "name": "阿部 結衣",
+        "rank": "熟練者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4d5",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4d6",
+        "name": "橋本 陽菜",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4d6",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4d7",
+        "name": "渡辺 大輔",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4d7",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4d8",
+        "name": "中村 ゆかり",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4d8",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4d9",
+        "name": "小林 あゆみ",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4d9",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4da",
+        "name": "石川 葵",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4da",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4db",
+        "name": "山田 陽菜",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4db",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4dc",
+        "name": "石井 翼",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4dc",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4dd",
+        "name": "中村 誠",
+        "rank": "認定研究者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4dd",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4de",
+        "name": "中島 さくら",
+        "rank": "熟練者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4de",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4df",
+        "name": "斎藤 健太",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4df",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4e0",
+        "name": "林 翼",
+        "rank": "熟練者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4e0",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4e1",
+        "name": "石川 恵",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4e1",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4e2",
+        "name": "木村 一郎",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4e2",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4e3",
+        "name": "田中 拓海",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4e3",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4e4",
+        "name": "田中 太郎",
+        "rank": "熟練者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4e4",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4e5",
+        "name": "林 愛",
+        "rank": "博士",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4e5",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4e6",
+        "name": "木村 大輔",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4e6",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4e7",
+        "name": "鈴木 七海",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4e7",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4e8",
+        "name": "山崎 智子",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4e8",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4e9",
+        "name": "林 拓海",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4e9",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4ea",
+        "name": "加藤 七海",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4ea",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4eb",
+        "name": "清水 剛",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4eb",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4ec",
+        "name": "松本 大輔",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4ec",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4ed",
+        "name": "林 誠",
+        "rank": "認定研究者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4ed",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4ee",
+        "name": "山下 崇",
+        "rank": "認定研究者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4ee",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4ef",
+        "name": "山下 結衣",
+        "rank": "熟練者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4ef",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4f0",
+        "name": "山本 あゆみ",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4f0",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4f1",
+        "name": "阿部 美優",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4f1",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4f2",
+        "name": "松本 愛",
+        "rank": "ビギナー",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4f2",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4f3",
+        "name": "山口 恵",
+        "rank": "博士",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4f3",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4f4",
+        "name": "鈴木 結衣",
+        "rank": "観察者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4f4",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    },
+    {
+        "id": "seed_69633fb6cd4f5",
+        "name": "橋本 葵",
+        "rank": "熟練者",
+        "role": "Observer",
+        "avatar": "https:\/\/i.pravatar.cc\/150?u=seed_69633fb6cd4f5",
+        "is_seed": true,
+        "seed_version": "2026-01-full"
+    }
+]

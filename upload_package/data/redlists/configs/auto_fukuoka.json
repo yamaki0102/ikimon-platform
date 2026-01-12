@@ -1,0 +1,11 @@
+[
+    {
+        "id": "auto_fukuoka_mock",
+        "name": "Fukuoka Red List (Auto-Detected)",
+        "url": "https://example.com/redlist/fukuoka",
+        "type": "html_table",
+        "selectors": [],
+        "scope": "local",
+        "authority": "Fukuoka Red List (The Seeker)"
+    }
+]

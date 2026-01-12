@@ -1,0 +1,66 @@
+[
+    {
+        "name": "アライグマ",
+        "scientific_name": "Procyon lotor",
+        "category": "特定外来生物",
+        "risk_level": "High",
+        "description": "北米原産。農作物被害や生態系への影響が甚大。",
+        "action": "絶対に餌付けしない。見かけたら自治体へ連絡。"
+    },
+    {
+        "name": "オオクチバス",
+        "scientific_name": "Micropterus salmoides",
+        "category": "特定外来生物",
+        "risk_level": "High",
+        "description": "北米原産。在来魚類・甲殻類を捕食。",
+        "action": "生体輸送は法律で禁止されています（リリース禁止区域あり）。"
+    },
+    {
+        "name": "ブルーギル",
+        "scientific_name": "Lepomis macrochirus",
+        "category": "特定外来生物",
+        "risk_level": "High",
+        "description": "北米原産。高い繁殖力で在来種を圧迫。",
+        "action": "生体輸送は法律で禁止されています。"
+    },
+    {
+        "name": "カミツキガメ",
+        "scientific_name": "Chelydra serpentina",
+        "category": "特定外来生物",
+        "risk_level": "High",
+        "description": "北米・中米原産。攻撃性が高く危険。",
+        "action": "手を出さない。見かけたら警察や自治体へ。"
+    },
+    {
+        "name": "ヒアリ",
+        "scientific_name": "Solenopsis invicta",
+        "category": "特定外来生物",
+        "risk_level": "Critical",
+        "description": "南米原産。強い毒を持つ。",
+        "action": "絶対に触らない。発見場所を刺激せず自治体へ通報。"
+    },
+    {
+        "name": "セアカゴケグモ",
+        "scientific_name": "Latrodectus hasseltii",
+        "category": "特定外来生物",
+        "risk_level": "High",
+        "description": "オーストラリア原産。メスは毒を持つ。",
+        "action": "素手で触らない。家庭用殺虫剤で駆除可能。"
+    },
+    {
+        "name": "アメリカザリガニ",
+        "scientific_name": "Procambarus clarkii",
+        "category": "条件付特定外来生物",
+        "risk_level": "Medium",
+        "description": "北米原産。水草を切断し環境を変えてしまう。",
+        "action": "野外への放出は法律で禁止されています。"
+    },
+    {
+        "name": "アカミミガメ",
+        "scientific_name": "Trachemys scripta",
+        "category": "条件付特定外来生物",
+        "risk_level": "Medium",
+        "description": "北米原産。在来カメ類の生息地を奪う。",
+        "action": "野外への放出は法律で禁止されています。"
+    }
+]

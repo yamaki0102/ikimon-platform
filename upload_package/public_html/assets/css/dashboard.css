@@ -1,0 +1,23 @@
+/* Dashboard Specific Styles */
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    color: #9ca3af;
+    transition: all 0.2s;
+}
+
+.sidebar-link:hover,
+.sidebar-link.active {
+    background: rgba(74, 222, 128, 0.1);
+    color: #4ade80;
+}
+
+.glass-panel {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}

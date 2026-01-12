@@ -1,0 +1,229 @@
+<?php
+require_once __DIR__ . '/../../libs/Auth.php';
+Auth::init();
+Auth::requireRole('Analyst');
+?>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed-ID Verification | ikimon Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Montserrat:wght@800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #f1f5f9; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden" x-data="verificationApp()">
+    
+    <!-- Sidebar (Simplified) -->
+    <aside class="w-20 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-6 gap-6">
+        <a href="index.php" class="p-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition">
+            <i data-lucide="arrow-left" class="w-6 h-6"></i>
+        </a>
+        <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center font-black text-slate-900">i</div>
+        <div class="flex-1"></div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col relative">
+        <!-- Header -->
+        <header class="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/50">
+            <div class="flex items-center gap-4">
+                <h1 class="font-bold text-lg">Verification Queue</h1>
+                <span class="px-2 py-1 bg-slate-800 rounded text-xs text-slate-400 font-mono" x-text="queue.length + ' Pending'"></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500">Expert Mode</span>
+                <div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+            </div>
+        </header>
+
+        <!-- Deck Area -->
+        <div class="flex-1 overflow-hidden relative flex items-center justify-center bg-[#05070a]">
+            
+            <!-- Loading State -->
+            <div x-show="loading" class="absolute inset-0 flex items-center justify-center z-50 bg-[#05070a]">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+            </div>
+
+            <!-- Empty State -->
+            <div x-show="!loading && queue.length === 0" class="text-center">
+                <div class="mb-4 inline-flex p-4 rounded-full bg-slate-800">
+                    <i data-lucide="check-check" class="w-12 h-12 text-emerald-500"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">Queue Cleared!</h2>
+                <p class="text-slate-400">Great work, expert.</p>
+                <button @click="fetchQueue()" class="mt-6 px-6 py-2 bg-slate-800 hover:bg-slate-700 rounded-full font-bold transition">Check Again</button>
+            </div>
+
+            <!-- Card Stack -->
+            <template x-if="currentObs">
+                <div class="w-full max-w-5xl h-full p-6 flex gap-6">
+                    
+                    <!-- Image Panel (Left) -->
+                    <div class="flex-1 relative rounded-3xl overflow-hidden glass-panel group">
+                        <img :src="currentObs.image_url" class="w-full h-full object-contain bg-black">
+                        
+                        <!-- Metadata Overlay -->
+                        <div class="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/90 to-transparent">
+                            <p class="text-gray-400 text-xs font-mono mb-1" x-text="currentObs.observed_at"></p>
+                            <p class="text-white font-bold text-lg flex items-center gap-2">
+                                <i data-lucide="map-pin" class="w-4 h-4 text-emerald-500"></i>
+                                <span x-text="currentObs.location_name || 'Unknown Location'"></span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Action Panel (Right) -->
+                    <div class="w-96 flex flex-col gap-4">
+                        
+                        <!-- User Claim -->
+                        <div class="p-4 rounded-2xl bg-slate-800 border border-slate-700">
+                            <p class="text-xs text-slate-500 uppercase font-bold mb-2">User Claimed</p>
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
+                                    <i data-lucide="help-circle" class="w-5 h-5 text-slate-400"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-lg" x-text="currentObs.taxon.name || 'Unknown'"></p>
+                                    <p class="text-xs text-slate-400 italic">Confidence: Low</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Verify Form -->
+                        <div class="flex-1 p-6 rounded-3xl bg-slate-800/50 border border-emerald-500/20 flex flex-col">
+                            <h3 class="font-bold text-emerald-400 mb-4 flex items-center gap-2">
+                                <i data-lucide="microscope" class="w-5 h-5"></i>
+                                Expert Identification
+                            </h3>
+
+                            <!-- Auto-Suggest Buttons -->
+                            <div class="grid grid-cols-2 gap-2 mb-6">
+                                <template x-for="suggestion in suggestions">
+                                    <button @click="idForm.name = suggestion" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-emerald-500/20 text-xs font-bold text-left truncate transition">
+                                        <span x-text="suggestion"></span>
+                                    </button>
+                                </template>
+                            </div>
+
+                            <!-- Manual Input -->
+                            <div class="mb-4">
+                                <label class="block text-xs font-bold text-slate-400 mb-1">Species Name</label>
+                                <input type="text" x-model="idForm.name" class="w-full bg-black/30 border border-slate-600 rounded-xl px-4 py-3 text-white focus:border-emerald-500 focus:outline-none">
+                            </div>
+
+                            <div class="mb-6">
+                                <label class="block text-xs font-bold text-slate-400 mb-1">Comment (Optional)</label>
+                                <textarea x-model="idForm.comment" rows="3" class="w-full bg-black/30 border border-slate-600 rounded-xl px-4 py-3 text-white focus:border-emerald-500 focus:outline-none text-sm"></textarea>
+                            </div>
+
+                            <div class="mt-auto flex gap-3">
+                                <button @click="skip()" class="flex-1 py-3 rounded-xl bg-slate-700 font-bold hover:bg-slate-600 transition">Skip</button>
+                                <button @click="verify()" class="flex-[2] py-3 rounded-xl bg-emerald-500 text-black font-black hover:bg-emerald-400 transition flex items-center justify-center gap-2">
+                                    <i data-lucide="check" class="w-5 h-5"></i>
+                                    Verify
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </template>
+
+        </div>
+    </main>
+
+    <script>
+        function verificationApp() {
+            return {
+                loading: true,
+                queue: [],
+                currentIndex: 0,
+                idForm: { name: '', comment: '' },
+                suggestions: ['Tanuki', 'Red Fox', 'Cabbage White', 'Dandelion', 'Monarch'], // Mock suggestions
+
+                get currentObs() {
+                    return this.queue[this.currentIndex];
+                },
+
+                async init() {
+                    await this.fetchQueue();
+                },
+
+                async fetchQueue() {
+                    this.loading = true;
+                    try {
+                        const res = await fetch('../api/admin/get_queue.php');
+                        const data = await res.json();
+                        if (data.success) {
+                            this.queue = data.data;
+                            this.currentIndex = 0;
+                            this.resetForm();
+                        }
+                    } catch (error) {
+                        console.error('Error fetching queue:', error);
+                    } finally {
+                        this.loading = false;
+                        // Re-init icons after DOM update
+                        setTimeout(() => lucide.createIcons(), 100);
+                    }
+                },
+
+                resetForm() {
+                    if (this.currentObs) {
+                        this.idForm.name = this.currentObs.taxon.name || '';
+                        this.idForm.comment = '';
+                    }
+                },
+
+                skip() {
+                    this.next();
+                },
+
+                async verify() {
+                    const obs = this.currentObs;
+                    if (!obs) return;
+
+                    // Optimistic UI update
+                    const payload = {
+                        id: obs.id,
+                        species_name: this.idForm.name,
+                        comment: this.idForm.comment,
+                        status: 'Research Grade'
+                    };
+
+                    try {
+                        await fetch('../api/admin/verify.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        // Success toast?
+                    } catch (e) {
+                        alert('Verification failed');
+                    }
+
+                    this.next();
+                },
+
+                next() {
+                    this.currentIndex++;
+                    if (this.currentIndex >= this.queue.length) {
+                        // Queue finished
+                        this.queue = [];
+                    } else {
+                        this.resetForm();
+                        // Preload next image?
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+[
+    {
+        "id": "a844936a529af742",
+        "user_id": "user_ya_001",
+        "type": "badge_earned",
+        "title": "バッジ獲得！: ビギナー観察者",
+        "message": "新しいバッジ「ビギナー観察者」を獲得しました。",
+        "link": "profile.php",
+        "is_read": true,
+        "created_at": "2026-01-01 11:51:35"
+    },
+    {
+        "id": "5e9a32b7e0d2f5bb",
+        "user_id": "guest_7839bc1b",
+        "type": "id_added",
+        "title": "新しい名前の提案",
+        "message": "八巻 毅 さんが「ヤマシギ」と判定しました。",
+        "link": "observation_detail.php?id=8cdfc85cc6690981",
+        "is_read": false,
+        "created_at": "2026-01-01 19:29:01"
+    }
+]

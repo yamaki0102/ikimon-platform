@@ -1,0 +1,38 @@
+{
+    "folders": [
+        {
+            "name": "ikimon.life Root",
+            "path": "../"
+        }
+    ],
+    "settings": {
+        "files.encoding": "utf8",
+        "files.eol": "\n",
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "files.exclude": {
+            "**/.git": true,
+            "**/.DS_Store": true,
+            "**/Thumbs.db": true,
+            ".vscode": false
+        },
+        "search.exclude": {
+            "**/node_modules": true,
+            "**/vendor": true,
+            "**/.git": true,
+            "**/upload_package/data/legacy_ingest": false
+        },
+        "emmet.triggerExpansionOnTab": true,
+        "html.format.enable": true,
+        "php.suggest.basic": false
+    },
+    "extensions": {
+        "recommendations": [
+            "bmewburn.vscode-intelephense-client",
+            "bradlc.vscode-tailwindcss",
+            "esbenp.prettier-vscode",
+            "junstyle.php-cs-fixer",
+            "streetsidesoftware.code-spell-checker"
+        ]
+    }
+}

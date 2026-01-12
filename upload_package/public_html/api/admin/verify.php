@@ -1,0 +1,47 @@
+<?php
+require_once __DIR__ . '/../../../libs/Auth.php';
+require_once __DIR__ . '/../../../libs/DataStore.php';
+
+Auth::init();
+if (!Auth::hasRole('Analyst')) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Forbidden']);
+    exit;
+}
+
+$input = json_decode(file_get_contents('php://input'), true);
+if (!$input || !isset($input['id'])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid ID']);
+    exit;
+}
+
+$id = $input['id'];
+$obs = DataStore::findById('observations', $id);
+
+if (!$obs) {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'error' => 'Not Found']);
+    exit;
+}
+
+// Update fields
+$obs['status'] = 'Research Grade'; // Verified!
+$obs['verified_by'] = Auth::user()['id'] ?? 'admin';
+$obs['verified_at'] = date('Y-m-d H:i:s');
+
+if (!empty($input['species_name'])) {
+    if (empty($obs['taxon'])) {
+        $obs['taxon'] = ['name' => htmlspecialchars($input['species_name'])];
+    } else {
+        $obs['taxon']['name'] = htmlspecialchars($input['species_name']);
+    }
+}
+
+// Save back
+DataStore::upsert('observations', $obs);
+
+// TODO: Add comment if provided (would need a separate Comments store or embedded Comments array)
+
+header('Content-Type: application/json');
+echo json_encode(['success' => true]);

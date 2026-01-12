@@ -1,0 +1,66 @@
+/**
+ * Design Tokens
+ * Based on designbasic.md
+ */
+
+:root {
+  /* Colors - Neo Naturalism (2026) */
+  --color-primary: #10b981;
+  /* Vibrant Emerald */
+  --color-primary-dark: #059669;
+  --color-secondary: #f59e0b;
+  /* Warm Amber */
+  --color-accent: #0ea5e9;
+  /* Sky Blue */
+
+  --color-bg-base: #111815;
+  /* Deep Warm Charcoal (Organic Dark) */
+  --color-bg-surface: #1c2420;
+  /* Soft dark surface */
+
+  --color-text: #f8fafc;
+  /* Soft White */
+  --color-text-muted: #94a3b8;
+  /* Slate 400 */
+  --color-border: rgba(255, 255, 255, 0.1);
+
+  /* Glass Effects */
+  --glass-surface: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-highlight: rgba(255, 255, 255, 0.1);
+
+  /* Status Colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* Spacing Scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Semantic Spacing */
+  --space-xs: var(--space-2);
+  --space-sm: var(--space-4);
+  --space-md: var(--space-6);
+  --space-lg: var(--space-12);
+  --space-xl: var(--space-16);
+
+  /* Radius */
+  --radius-sm: 0.5rem;
+  /* 8px */
+  --radius-md: 1.5rem;
+  /* 24px */
+  --radius-lg: 3rem;
+  /* 48px */
+  --radius-full: 9999px;
+
+  /* Fonts */
+  --font-heading: 'Zen Kaku Gothic New', 'Montserrat', sans-serif;
+  --font-body: 'Noto Sans JP', sans-serif;
+}

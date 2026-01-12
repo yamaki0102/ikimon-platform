@@ -1,0 +1,33 @@
+{
+    "name": "ikimon/platform",
+    "description": "Citizen science biodiversity visualization platform",
+    "type": "project",
+    "license": "proprietary",
+    "autoload": {
+        "classmap": [
+            "upload_package/libs/"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": ">=8.1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:unit": "phpunit --testsuite Unit",
+        "test:feature": "phpunit --testsuite Feature",
+        "lint": "find upload_package -name '*.php' -exec php -l {} \\;",
+        "setup:db": "php upload_package/scripts/setup_sqlite.php"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}
