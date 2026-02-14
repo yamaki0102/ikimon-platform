@@ -93,6 +93,19 @@ php tools/lint.php
 composer test
 ```
 
+## リポジトリ情報
+
+| 項目 | 値 |
+|-----|-----|
+| **GitHub リポ** | `yamaki0102/ikimon-platform` |
+| **ローカルパス** | `G:\...\antigravity\ikimon\ikimon.life` |
+| **ローカル git remote** | `yamaki0102/antigravity`（モノリポ、ikimon コードとは別） |
+
+### ⚠️ Google Drive 注意事項
+- ローカルが Google Drive 同期下にあるため、**`.git/index.lock` が同期プロセスに掌まれて git 操作が失敗する**ことがある
+- jj も同様にメタデータエラーを起こす場合がある
+- 対策: `/snapshot` ワークフローの GitHub API フォールバックを使う
+
 ## ワークフロー索引
 
 | コマンド | ファイル | 用途 |
@@ -100,6 +113,7 @@ composer test
 | `/deploy` | `.agent/workflows/deploy.md` | 本番デプロイ（バックアップ → SCP → 検証） |
 | `/pre-release` | `.agent/workflows/pre-release.md` | リリース前品質ゲート（lint + パス + ブラウザ + API） |
 | `/quick-check` | `.agent/workflows/quick-check.md` | 日常開発用 30秒チェック |
+| `/snapshot` | `.agent/workflows/snapshot.md` | GitHub Push（Google Drive lock 対策付き） |
 | `/systematic-debug` | `.agent/workflows/systematic-debug.md` | 構造化デバッグ（4フェーズ） |
 
 ## CI/CD (GitHub Actions)
@@ -113,3 +127,8 @@ composer test
 - ✅ Phase 13: SiteManager / GeoJSON / Dashboard / Editor
 - ✅ Phase 14A: レポートMVP (RedListManager, BIS, TNFD LEAP)
 - 🔲 Phase 14B: 投稿体験強化 (post.php, 同定ブリッジ)
+
+## 世代ログ（Oreshika Heritage）
+| 世代 | 日付 | ⚔️ | 🛡️ | 🧠 | 💬 | 🔮 | 主な学び |
+|---|---|:---:|:---:|:---:|:---:|:---:|---|
+| Gen-1 | 2026-02-14 | +2 | +2 | +1 | +1 | +1 | Google Drive lock → API フォールバック、ikimon-platform リポ発見 |
