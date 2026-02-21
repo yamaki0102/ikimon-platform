@@ -456,110 +456,134 @@ if ($isGuest) {
                                             <i data-lucide="chevron-right" class="w-4 h-4 text-faint flex-shrink-0"></i>
                                         </button>
                                     </template>
-                                <p class="text-[10px] text-faint px-2 mt-1.5">✨ 名前がわからなくても投稿OK！誰かが助けてくれます🐾</p>
-                            </div>
-
-                            <!-- Evidence UI (Morphological/Ecological Traits) -->
-                            <div x-show="taxon_name.trim().length > 0" x-transition.duration.300ms class="bg-primary/5 border border-primary/20 rounded-2xl p-4 mt-2">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <label class="block text-[11px] font-black text-primary uppercase tracking-widest">同定のエビデンス（証拠）</label>
-                                    <span class="text-[9px] text-white bg-primary px-2 py-0.5 rounded-full font-bold">必須</span>
+                                    <p class="text-[10px] text-faint px-2 mt-1.5">✨ 名前がわからなくても投稿OK！誰かが助けてくれます🐾</p>
                                 </div>
-                                <p class="text-[10px] text-muted mb-3 leading-relaxed">
-                                    データの信頼性（Data Quality）を高めるため、同定の決め手となった特徴を選んでください。
-                                </p>
-                                <div class="space-y-3">
-                                    <!-- Morphological Traits -->
-                                    <div>
-                                        <div class="text-[10px] font-bold text-faint mb-1.5 flex items-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> 形態的特徴</div>
-                                        <div class="flex flex-wrap gap-2">
-                                            <template x-for="trait in [
+
+                                <!-- Soft Validation Alarms (Ecological Constraints) -->
+                                <div x-show="validating || validationWarnings.length > 0" x-transition class="mt-2" style="display: none;">
+                                    <!-- Loading state -->
+                                    <div x-show="validating" class="flex items-center gap-2 px-3 py-2 bg-surface border border-border rounded-xl">
+                                        <i data-lucide="loader-2" class="w-3.5 h-3.5 text-muted animate-spin"></i>
+                                        <span class="text-[10px] text-muted font-bold">生態データをAI検証中...</span>
+                                    </div>
+                                    <!-- Warnings -->
+                                    <template x-if="validationWarnings.length > 0">
+                                        <div class="space-y-1.5">
+                                            <template x-for="warning in validationWarnings">
+                                                <div class="flex gap-2.5 items-start p-3 bg-warning/10 border border-warning/30 rounded-xl relative overflow-hidden">
+                                                    <div class="absolute top-0 left-0 w-1 h-full bg-warning"></div>
+                                                    <i data-lucide="alert-triangle" class="w-4 h-4 text-warning flex-shrink-0 mt-0.5"></i>
+                                                    <div>
+                                                        <div class="text-[10px] font-black text-warning tracking-wider uppercase mb-0.5" x-text="warning.type === 'season' ? '時期の確認' : warning.type === 'habitat' ? '生息環境の確認' : warning.type === 'altitude' ? '標高の確認' : '生態の確認'"></div>
+                                                        <div class="text-[11px] text-warning-dark font-medium leading-relaxed" x-text="warning.message"></div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Evidence UI (Morphological/Ecological Traits) -->
+                                <div x-show="taxon_name.trim().length > 0" x-transition.duration.300ms class="bg-primary/5 border border-primary/20 rounded-2xl p-4 mt-2">
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <label class="block text-[11px] font-black text-primary uppercase tracking-widest">同定のエビデンス（証拠）</label>
+                                        <span class="text-[9px] text-white bg-primary px-2 py-0.5 rounded-full font-bold">必須</span>
+                                    </div>
+                                    <p class="text-[10px] text-muted mb-3 leading-relaxed">
+                                        データの信頼性（Data Quality）を高めるため、同定の決め手となった特徴を選んでください。
+                                    </p>
+                                    <div class="space-y-3">
+                                        <!-- Morphological Traits -->
+                                        <div>
+                                            <div class="text-[10px] font-bold text-faint mb-1.5 flex items-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> 形態的特徴</div>
+                                            <div class="flex flex-wrap gap-2">
+                                                <template x-for="trait in [
                                                 {id: 'color_pattern', label: '体色・模様', emoji: '🎨'},
                                                 {id: 'shape', label: '全体的な形', emoji: '📐'},
                                                 {id: 'size', label: 'サイズ感', emoji: '📏'},
                                                 {id: 'specific_part', label: '特定の部位（羽、葉など）', emoji: '🔍'}
                                             ]">
-                                                <button type="button" @click="toggleEvidence(trait.id)"
-                                                    class="px-3 py-2 rounded-xl border transition text-xs font-bold flex items-center gap-1.5"
-                                                    :class="evidence_tags.includes(trait.id) ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20' : 'bg-surface border-border text-muted hover:border-primary/30'">
-                                                    <span x-text="trait.emoji"></span>
-                                                    <span x-text="trait.label"></span>
-                                                </button>
-                                            </template>
+                                                    <button type="button" @click="toggleEvidence(trait.id)"
+                                                        class="px-3 py-2 rounded-xl border transition text-xs font-bold flex items-center gap-1.5"
+                                                        :class="evidence_tags.includes(trait.id) ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20' : 'bg-surface border-border text-muted hover:border-primary/30'">
+                                                        <span x-text="trait.emoji"></span>
+                                                        <span x-text="trait.label"></span>
+                                                    </button>
+                                                </template>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <!-- Ecological Traits -->
-                                    <div>
-                                        <div class="text-[10px] font-bold text-faint mb-1.5 flex items-center gap-1"><i data-lucide="footprints" class="w-3 h-3"></i> 生態的特徴・その他</div>
-                                        <div class="flex flex-wrap gap-2">
-                                            <template x-for="trait in [
+                                        <!-- Ecological Traits -->
+                                        <div>
+                                            <div class="text-[10px] font-bold text-faint mb-1.5 flex items-center gap-1"><i data-lucide="footprints" class="w-3 h-3"></i> 生態的特徴・その他</div>
+                                            <div class="flex flex-wrap gap-2">
+                                                <template x-for="trait in [
                                                 {id: 'behavior', label: '行動・鳴き声', emoji: '🎵'},
                                                 {id: 'habitat', label: '生息環境', emoji: '🏞️'},
                                                 {id: 'host_plant', label: '食草・寄主', emoji: '🌿'},
                                                 {id: 'expert_id', label: '専門家・図鑑', emoji: '📖'}
                                             ]">
-                                                <button type="button" @click="toggleEvidence(trait.id)"
-                                                    class="px-3 py-2 rounded-xl border transition text-xs font-bold flex items-center gap-1.5"
-                                                    :class="evidence_tags.includes(trait.id) ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20' : 'bg-surface border-border text-muted hover:border-primary/30'">
-                                                    <span x-text="trait.emoji"></span>
-                                                    <span x-text="trait.label"></span>
-                                                </button>
-                                            </template>
+                                                    <button type="button" @click="toggleEvidence(trait.id)"
+                                                        class="px-3 py-2 rounded-xl border transition text-xs font-bold flex items-center gap-1.5"
+                                                        :class="evidence_tags.includes(trait.id) ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20' : 'bg-surface border-border text-muted hover:border-primary/30'">
+                                                        <span x-text="trait.emoji"></span>
+                                                        <span x-text="trait.label"></span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div x-show="taxon_name.trim().length > 0 && evidence_tags.length === 0" class="mt-3 text-[10px] font-bold text-danger bg-danger/10 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                                        <i data-lucide="alert-circle" class="w-3 h-3"></i> 名前を入力した場合は、少なくとも1つのエビデンスを選択してください
+                                    </div>
+                                </div>
+                                <!-- Status (野生/植栽) -->
+                                <div>
+                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">状態 <span class="text-primary normal-case">デフォルト: 野生</span></label>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <label class="cursor-pointer">
+                                            <input type="radio" value="wild" x-model="cultivation" class="hidden peer">
+                                            <div class="text-center py-3 rounded-2xl border border-border bg-surface peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition text-xs font-bold text-muted">
+                                                <i data-lucide="trees" class="w-4 h-4 mx-auto mb-1"></i>
+                                                野生
+                                            </div>
+                                        </label>
+                                        <label class="cursor-pointer">
+                                            <input type="radio" value="cultivated" x-model="cultivation" class="hidden peer">
+                                            <div class="text-center py-3 rounded-2xl border border-border bg-surface peer-checked:bg-secondary peer-checked:text-white peer-checked:border-secondary transition text-xs font-bold text-muted">
+                                                <i data-lucide="flower-2" class="w-4 h-4 mx-auto mb-1"></i>
+                                                植栽・飼育
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Biome Selection (Moved) -->
+                                <div>
+                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">環境（バイオーム）</label>
+                                    <div class="relative">
+                                        <select x-model="biome" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 text-xs font-bold text-text focus:outline-none focus:border-primary appearance-none">
+                                            <option value="unknown">不明 / わからない</option>
+                                            <option value="forest">🌲 森林 (Forest)</option>
+                                            <option value="grassland">🍃 草地・河川敷 (Grassland)</option>
+                                            <option value="wetland">💧 湿地・水辺 (Wetland)</option>
+                                            <option value="coastal">🌊 海岸・干潟 (Coastal)</option>
+                                            <option value="urban">🏢 都市・公園 (Urban)</option>
+                                            <option value="farmland">🌾 農地・里山 (Farmland)</option>
+                                        </select>
+                                        <div class="absolute right-4 top-3.5 text-muted pointer-events-none">
+                                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
                                         </div>
                                     </div>
                                 </div>
-                                <div x-show="taxon_name.trim().length > 0 && evidence_tags.length === 0" class="mt-3 text-[10px] font-bold text-danger bg-danger/10 px-3 py-1.5 rounded-lg flex items-center gap-1">
-                                    <i data-lucide="alert-circle" class="w-3 h-3"></i> 名前を入力した場合は、少なくとも1つのエビデンスを選択してください
-                                </div>
-                            </div>
-                            <!-- Status (野生/植栽) -->
-                            <div>
-                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">状態 <span class="text-primary normal-case">デフォルト: 野生</span></label>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <label class="cursor-pointer">
-                                        <input type="radio" value="wild" x-model="cultivation" class="hidden peer">
-                                        <div class="text-center py-3 rounded-2xl border border-border bg-surface peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition text-xs font-bold text-muted">
-                                            <i data-lucide="trees" class="w-4 h-4 mx-auto mb-1"></i>
-                                            野生
-                                        </div>
-                                    </label>
-                                    <label class="cursor-pointer">
-                                        <input type="radio" value="cultivated" x-model="cultivation" class="hidden peer">
-                                        <div class="text-center py-3 rounded-2xl border border-border bg-surface peer-checked:bg-secondary peer-checked:text-white peer-checked:border-secondary transition text-xs font-bold text-muted">
-                                            <i data-lucide="flower-2" class="w-4 h-4 mx-auto mb-1"></i>
-                                            植栽・飼育
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
 
-                            <!-- Biome Selection (Moved) -->
-                            <div>
-                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">環境（バイオーム）</label>
-                                <div class="relative">
-                                    <select x-model="biome" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 text-xs font-bold text-text focus:outline-none focus:border-primary appearance-none">
-                                        <option value="unknown">不明 / わからない</option>
-                                        <option value="forest">🌲 森林 (Forest)</option>
-                                        <option value="grassland">🍃 草地・河川敷 (Grassland)</option>
-                                        <option value="wetland">💧 湿地・水辺 (Wetland)</option>
-                                        <option value="coastal">🌊 海岸・干潟 (Coastal)</option>
-                                        <option value="urban">🏢 都市・公園 (Urban)</option>
-                                        <option value="farmland">🌾 農地・里山 (Farmland)</option>
-                                    </select>
-                                    <div class="absolute right-4 top-3.5 text-muted pointer-events-none">
-                                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                                <!-- 🪨 Substrate/Terrain Tags (100-Year Archive Fusion) -->
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2 px-2">
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest">地面の状態</label>
+                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">任意・複数選択可</span>
                                     </div>
-                                </div>
-                            </div>
-
-                            <!-- 🪨 Substrate/Terrain Tags (100-Year Archive Fusion) -->
-                            <div>
-                                <div class="flex items-center gap-2 mb-2 px-2">
-                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest">地面の状態</label>
-                                    <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">任意・複数選択可</span>
-                                </div>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="tag in [
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="tag in [
                                         {id: 'rock', label: '岩場', emoji: '🪨'},
                                         {id: 'sand', label: '砂地', emoji: '🏖️'},
                                         {id: 'gravel', label: '砂利', emoji: '🫘'},
@@ -569,113 +593,113 @@ if ($isGuest) {
                                         {id: 'water', label: '水辺', emoji: '💧'},
                                         {id: 'artificial', label: '人工物', emoji: '🏗️'}
                                     ]">
-                                        <button type="button" @click="toggleSubstrate(tag.id)"
-                                            class="px-3 py-2 rounded-xl border transition text-xs font-bold flex items-center gap-1.5"
-                                            :class="substrate_tags.includes(tag.id) ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20' : 'border-border bg-surface text-muted hover:border-primary/30'">
-                                            <span x-text="tag.emoji"></span>
-                                            <span x-text="tag.label"></span>
-                                        </button>
-                                    </template>
+                                            <button type="button" @click="toggleSubstrate(tag.id)"
+                                                class="px-3 py-2 rounded-xl border transition text-xs font-bold flex items-center gap-1.5"
+                                                :class="substrate_tags.includes(tag.id) ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20' : 'border-border bg-surface text-muted hover:border-primary/30'">
+                                                <span x-text="tag.emoji"></span>
+                                                <span x-text="tag.label"></span>
+                                            </button>
+                                        </template>
+                                    </div>
+                                    <p class="text-[10px] text-faint px-2 mt-1.5">🌍 地面の状態を記録すると、100年後の環境変化を追跡できるデータになります</p>
                                 </div>
-                                <p class="text-[10px] text-faint px-2 mt-1.5">🌍 地面の状態を記録すると、100年後の環境変化を追跡できるデータになります</p>
-                            </div>
 
 
-                            <!-- Life Stage -->
-                            <div>
-                                <div class="flex items-center gap-2 mb-2 px-2">
-                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest">ライフステージ</label>
-                                    <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">任意</span>
-                                </div>
-                                <div class="flex flex-wrap gap-2">
-                                    <template x-for="stage in [
+                                <!-- Life Stage -->
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2 px-2">
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest">ライフステージ</label>
+                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">任意</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="stage in [
                                         {id: 'adult', label: '成体', sub: '成虫・成魚・成獣', icon: 'crown'},
                                         {id: 'juvenile', label: '幼体', sub: '幼虫・稚魚・芽生え', icon: 'sprout'},
                                         {id: 'egg', label: '卵・種子', sub: '卵塚・胞子も', icon: 'circle-dot'},
                                         {id: 'trace', label: '痕跡', sub: '足跡・糞・巣・脱皮', icon: 'footprints'}
                                     ]">
+                                            <label class="cursor-pointer">
+                                                <input type="radio" :value="stage.id" x-model="life_stage" class="hidden peer">
+                                                <div class="px-3 py-2 rounded-xl border border-border bg-surface peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition text-muted flex flex-col items-center gap-0.5 min-w-[72px]">
+                                                    <i :data-lucide="stage.icon" class="w-4 h-4"></i>
+                                                    <span class="text-xs font-bold" x-text="stage.label"></span>
+                                                    <span class="text-[8px] opacity-60" x-text="stage.sub"></span>
+                                                </div>
+                                            </label>
+                                        </template>
                                         <label class="cursor-pointer">
-                                            <input type="radio" :value="stage.id" x-model="life_stage" class="hidden peer">
-                                            <div class="px-3 py-2 rounded-xl border border-border bg-surface peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition text-muted flex flex-col items-center gap-0.5 min-w-[72px]">
-                                                <i :data-lucide="stage.icon" class="w-4 h-4"></i>
-                                                <span class="text-xs font-bold" x-text="stage.label"></span>
-                                                <span class="text-[8px] opacity-60" x-text="stage.sub"></span>
+                                            <input type="radio" value="unknown" x-model="life_stage" class="hidden peer">
+                                            <div class="px-3 py-2 rounded-xl border border-border bg-surface peer-checked:bg-muted peer-checked:text-white peer-checked:border-muted transition text-xs font-bold text-faint flex flex-col items-center gap-0.5 min-w-[72px]">
+                                                <i data-lucide="help-circle" class="w-4 h-4"></i>
+                                                不明
                                             </div>
                                         </label>
-                                    </template>
-                                    <label class="cursor-pointer">
-                                        <input type="radio" value="unknown" x-model="life_stage" class="hidden peer">
-                                        <div class="px-3 py-2 rounded-xl border border-border bg-surface peer-checked:bg-muted peer-checked:text-white peer-checked:border-muted transition text-xs font-bold text-faint flex flex-col items-center gap-0.5 min-w-[72px]">
-                                            <i data-lucide="help-circle" class="w-4 h-4"></i>
-                                            不明
-                                        </div>
-                                    </label>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <!-- Note -->
-                            <div>
-                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">メモ</label>
-                                <textarea x-model="note" placeholder="行動、環境、気づいたことを記録..." class="w-full bg-surface border border-border rounded-2xl px-4 py-3 h-24 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-text placeholder-faint font-medium"></textarea>
-                            </div>
+                                <!-- Note -->
+                                <div>
+                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">メモ</label>
+                                    <textarea x-model="note" placeholder="行動、環境、気づいたことを記録..." class="w-full bg-surface border border-border rounded-2xl px-4 py-3 h-24 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-text placeholder-faint font-medium"></textarea>
+                                </div>
 
-                            <!-- CC License Selector -->
-                            <div>
-                                <div class="flex items-center gap-2 mb-2 px-2">
-                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest">ライセンス</label>
-                                    <span class="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">おすすめ: CC BY</span>
+                                <!-- CC License Selector -->
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2 px-2">
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest">ライセンス</label>
+                                        <span class="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">おすすめ: CC BY</span>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="cursor-pointer block">
+                                            <input type="radio" value="CC-BY" x-model="license" class="hidden peer">
+                                            <div class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-surface peer-checked:bg-primary/10 peer-checked:border-primary/40 transition">
+                                                <span class="text-lg">🌍</span>
+                                                <div class="flex-1">
+                                                    <span class="text-xs font-bold text-text">CC BY（表示）</span>
+                                                    <span class="block text-[10px] text-muted">クレジット表示で誰でも利用OK。GBIF共有対象 ✓</span>
+                                                </div>
+                                                <div class="w-4 h-4 rounded-full border-2 border-border peer-checked:border-primary flex items-center justify-center">
+                                                    <div class="w-2 h-2 rounded-full" :class="license === 'CC-BY' ? 'bg-primary' : ''"></div>
+                                                </div>
+                                            </div>
+                                        </label>
+                                        <label class="cursor-pointer block">
+                                            <input type="radio" value="CC0" x-model="license" class="hidden peer">
+                                            <div class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-surface peer-checked:bg-primary/10 peer-checked:border-primary/40 transition">
+                                                <span class="text-lg">🔓</span>
+                                                <div class="flex-1">
+                                                    <span class="text-xs font-bold text-text">CC0（パブリックドメイン）</span>
+                                                    <span class="block text-[10px] text-muted">制限なし。最もオープン。GBIF共有対象 ✓</span>
+                                                </div>
+                                                <div class="w-4 h-4 rounded-full border-2 border-border flex items-center justify-center">
+                                                    <div class="w-2 h-2 rounded-full" :class="license === 'CC0' ? 'bg-primary' : ''"></div>
+                                                </div>
+                                            </div>
+                                        </label>
+                                        <label class="cursor-pointer block">
+                                            <input type="radio" value="CC-BY-NC" x-model="license" class="hidden peer">
+                                            <div class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-surface peer-checked:bg-secondary/10 peer-checked:border-secondary/40 transition">
+                                                <span class="text-lg">🔒</span>
+                                                <div class="flex-1">
+                                                    <span class="text-xs font-bold text-text">CC BY-NC（表示-非営利）</span>
+                                                    <span class="block text-[10px] text-muted">商用利用不可。GBIF共有対象外</span>
+                                                </div>
+                                                <div class="w-4 h-4 rounded-full border-2 border-border flex items-center justify-center">
+                                                    <div class="w-2 h-2 rounded-full" :class="license === 'CC-BY-NC' ? 'bg-secondary' : ''"></div>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <p class="text-[10px] text-faint px-2 mt-1.5">
+                                        💡 CC BY を選ぶと、あなたの記録が世界中の研究に活用されます。
+                                        <a href="faq.php#e1" class="text-primary underline">詳しくはFAQ</a>
+                                    </p>
                                 </div>
-                                <div class="space-y-2">
-                                    <label class="cursor-pointer block">
-                                        <input type="radio" value="CC-BY" x-model="license" class="hidden peer">
-                                        <div class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-surface peer-checked:bg-primary/10 peer-checked:border-primary/40 transition">
-                                            <span class="text-lg">🌍</span>
-                                            <div class="flex-1">
-                                                <span class="text-xs font-bold text-text">CC BY（表示）</span>
-                                                <span class="block text-[10px] text-muted">クレジット表示で誰でも利用OK。GBIF共有対象 ✓</span>
-                                            </div>
-                                            <div class="w-4 h-4 rounded-full border-2 border-border peer-checked:border-primary flex items-center justify-center">
-                                                <div class="w-2 h-2 rounded-full" :class="license === 'CC-BY' ? 'bg-primary' : ''"></div>
-                                            </div>
-                                        </div>
-                                    </label>
-                                    <label class="cursor-pointer block">
-                                        <input type="radio" value="CC0" x-model="license" class="hidden peer">
-                                        <div class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-surface peer-checked:bg-primary/10 peer-checked:border-primary/40 transition">
-                                            <span class="text-lg">🔓</span>
-                                            <div class="flex-1">
-                                                <span class="text-xs font-bold text-text">CC0（パブリックドメイン）</span>
-                                                <span class="block text-[10px] text-muted">制限なし。最もオープン。GBIF共有対象 ✓</span>
-                                            </div>
-                                            <div class="w-4 h-4 rounded-full border-2 border-border flex items-center justify-center">
-                                                <div class="w-2 h-2 rounded-full" :class="license === 'CC0' ? 'bg-primary' : ''"></div>
-                                            </div>
-                                        </div>
-                                    </label>
-                                    <label class="cursor-pointer block">
-                                        <input type="radio" value="CC-BY-NC" x-model="license" class="hidden peer">
-                                        <div class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-surface peer-checked:bg-secondary/10 peer-checked:border-secondary/40 transition">
-                                            <span class="text-lg">🔒</span>
-                                            <div class="flex-1">
-                                                <span class="text-xs font-bold text-text">CC BY-NC（表示-非営利）</span>
-                                                <span class="block text-[10px] text-muted">商用利用不可。GBIF共有対象外</span>
-                                            </div>
-                                            <div class="w-4 h-4 rounded-full border-2 border-border flex items-center justify-center">
-                                                <div class="w-2 h-2 rounded-full" :class="license === 'CC-BY-NC' ? 'bg-secondary' : ''"></div>
-                                            </div>
-                                        </div>
-                                    </label>
-                                </div>
-                                <p class="text-[10px] text-faint px-2 mt-1.5">
-                                    💡 CC BY を選ぶと、あなたの記録が世界中の研究に活用されます。
-                                    <a href="faq.php#e1" class="text-primary underline">詳しくはFAQ</a>
-                                </p>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Navigator Component -->
+                    <!-- Navigator Component -->
 
             </form>
         </main>

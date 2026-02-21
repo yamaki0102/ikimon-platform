@@ -1,0 +1,44 @@
+{
+    "10.1111\/ddi.13401": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:21:34",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": "The study projects that increased frequency and\/or intensity of climate extreme events associated with ongoing climate change are expected to reduce overall invasion risk for the examined species, though local increases in favourability are possible."
+            },
+            "identification_keys": []
+        },
+        "review_status": "pending"
+    },
+    "b243da57-a154-3a39-9e7d-81459560e06a": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:21:38",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": null
+            },
+            "identification_keys": []
+        },
+        "review_status": "pending"
+    },
+    "10.2779\/797642": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:21:42",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": null
+            },
+            "identification_keys": []
+        },
+        "review_status": "pending"
+    }
+}

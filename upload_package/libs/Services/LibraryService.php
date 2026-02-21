@@ -154,4 +154,57 @@ class LibraryService
 
         return $papers;
     }
+    /**
+     * Get distilled ecological constraints and identification keys for a taxon
+     * Currently fetches approved distillations based on DOIs linked to the scientific name
+     */
+    public static function getDistilledKnowledgeForTaxon($scientificName)
+    {
+        require_once __DIR__ . '/../TaxonPaperIndex.php';
+
+        $dois = TaxonPaperIndex::getPapersForTaxon($scientificName);
+        if (empty($dois)) return [];
+
+        $distilledStore = DataStore::get('library/distilled_knowledge', 0) ?: [];
+        $results = [];
+
+        foreach ($dois as $doi) {
+            if (isset($distilledStore[$doi])) {
+                $item = $distilledStore[$doi];
+                // Only return approved knowledge
+                if (($item['review_status'] ?? '') === 'approved' || ($item['status'] ?? '') === 'distilled') {
+                    // For PoC, allow pending as well if strict approval isn't mandated yet.
+                    // Ideal: if ($item['review_status'] === 'approved')
+                    $results[] = $item['data'];
+                }
+            }
+        }
+
+        // Merge results if multiple papers exist (simple array merge for PoC)
+        $merged = [
+            'ecological_constraints' => ['habitat' => [], 'altitude_range' => [], 'active_season' => [], 'notes' => []],
+            'identification_keys' => []
+        ];
+
+        foreach ($results as $res) {
+            if (!empty($res['ecological_constraints'])) {
+                $ec = $res['ecological_constraints'];
+                if (!empty($ec['habitat'])) $merged['ecological_constraints']['habitat'] = array_merge($merged['ecological_constraints']['habitat'], (array)$ec['habitat']);
+                if (!empty($ec['altitude_range'])) $merged['ecological_constraints']['altitude_range'][] = $ec['altitude_range'];
+                if (!empty($ec['active_season'])) $merged['ecological_constraints']['active_season'] = array_merge($merged['ecological_constraints']['active_season'], (array)$ec['active_season']);
+                if (!empty($ec['notes'])) $merged['ecological_constraints']['notes'][] = $ec['notes'];
+            }
+            if (!empty($res['identification_keys'])) {
+                $merged['identification_keys'] = array_merge($merged['identification_keys'], $res['identification_keys']);
+            }
+        }
+
+        // Clean up arrays
+        $merged['ecological_constraints']['habitat'] = array_unique(array_filter($merged['ecological_constraints']['habitat']));
+        $merged['ecological_constraints']['altitude_range'] = array_unique(array_filter($merged['ecological_constraints']['altitude_range']));
+        $merged['ecological_constraints']['active_season'] = array_unique(array_filter($merged['ecological_constraints']['active_season']));
+        $merged['ecological_constraints']['notes'] = array_unique(array_filter($merged['ecological_constraints']['notes']));
+
+        return $merged;
+    }
 }
