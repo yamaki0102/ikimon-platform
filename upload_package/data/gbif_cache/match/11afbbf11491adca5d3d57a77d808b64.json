@@ -1,0 +1,18 @@
+{
+    "taxon_key": 10950537,
+    "scientific_name": "Rana japonica japonica Boulenger, 1879",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 82,
+    "accepted_key": 2426816,
+    "accepted_name": "Rana japonica",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Anura",
+    "family": "Ranidae",
+    "genus": "Rana",
+    "rank": "SUBSPECIES",
+    "original_query": "Rana (Rana) japonica japonica GÜNTHER, 1858",
+    "_cached_at": 1770420013
+}

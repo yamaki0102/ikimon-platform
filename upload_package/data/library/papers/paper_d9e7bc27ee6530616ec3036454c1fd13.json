@@ -1,0 +1,20 @@
+{
+    "id": "paper_d9e7bc27ee6530616ec3036454c1fd13",
+    "doi": "10.2173\/tbna.583.p",
+    "title": "Common Myna (Acridotheres tristis)",
+    "year": 2001,
+    "container_title": "Birds of North America (print)",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/tbna.583.p",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/tbna.583.p",
+        "dc:title": "Common Myna (Acridotheres tristis)",
+        "dc:date": 2001,
+        "dc:source": "Birds of North America (print)",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

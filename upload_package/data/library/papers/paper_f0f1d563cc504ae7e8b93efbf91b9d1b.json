@@ -1,0 +1,20 @@
+{
+    "id": "paper_f0f1d563cc504ae7e8b93efbf91b9d1b",
+    "doi": "10.1111\/j.1474-919x.1976.tb03521.x",
+    "title": "BREEDING OF THE NANKEEN NIGHT HERON NYCTICORAX CALEDONICUS WHILE IN JUVENILE PLUMAGE",
+    "year": 1976,
+    "container_title": "Ibis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1111\/j.1474-919x.1976.tb03521.x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1111\/j.1474-919x.1976.tb03521.x",
+        "dc:title": "BREEDING OF THE NANKEEN NIGHT HERON NYCTICORAX CALEDONICUS WHILE IN JUVENILE PLUMAGE",
+        "dc:date": 1976,
+        "dc:source": "Ibis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

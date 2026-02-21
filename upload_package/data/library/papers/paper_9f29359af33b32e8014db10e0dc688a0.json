@@ -1,0 +1,20 @@
+{
+    "id": "paper_9f29359af33b32e8014db10e0dc688a0",
+    "doi": "10.1646\/0006-3606(2001)033[0542:fcoaib]2.0.co;2",
+    "title": "Fast Colonization of an Introduced Bird: the Case of Pycnonotus jocosus on the Mascarene Islands1",
+    "year": 2001,
+    "container_title": "BIOTROPICA",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1646\/0006-3606(2001)033[0542:fcoaib]2.0.co;2",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1646\/0006-3606(2001)033[0542:fcoaib]2.0.co;2",
+        "dc:title": "Fast Colonization of an Introduced Bird: the Case of Pycnonotus jocosus on the Mascarene Islands1",
+        "dc:date": 2001,
+        "dc:source": "BIOTROPICA",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

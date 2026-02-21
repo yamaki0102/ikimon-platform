@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p49_60b1612a18ac2c78234081206b5f89e4",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 49,
+    "taxon_name": "スズガエル (続き)",
+    "scientific_name": "Bombina orientalis (BOULENGER, 1890)",
+    "family": "スズガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.49)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Bombina orientalis (BOULENGER, 1890)",
+        "dwc:vernacularName": "スズガエル (続き)",
+        "dwc:occurrenceRemarks": "どにすみ，3月から6月頃までの間に産卵する．卵塊は不規則で，止水の水底などに産みつけられ，黒褐色の卵を含んでいる．卵の直径は2.5mmぐらい．\n\n【第9図版】",
+        "dwc:taxonConceptID": "gbif:2423441",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Bombina orientalis (BOULENGER, 1890)",
+        "dwc:family": "Bombinatoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2423441,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Bombinatoridae",
+    "gbif_match_type": "EXACT"
+}

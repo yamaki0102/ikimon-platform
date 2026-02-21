@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_64ec6d524c2484cb5258bcee64691c1e_179962d63077d25cd695bce3ba7beed8",
+    "paper_id": "paper_64ec6d524c2484cb5258bcee64691c1e",
+    "doi": "10.21203\/rs.3.rs-3326985\/v1",
+    "query_id": "jp_insect_dorcus_hopei",
+    "query_label": "Dorcus hopei binodulosus Japan",
+    "scientific_name": "Dorcus hopei",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.21203\/rs.3.rs-3326985\/v1",
+        "dwc:scientificName": "Dorcus hopei",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:7697962",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Dorcus hopei",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Lucanidae"
+    },
+    "gbif_taxon_key": 7697962,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Lucanidae"
+}

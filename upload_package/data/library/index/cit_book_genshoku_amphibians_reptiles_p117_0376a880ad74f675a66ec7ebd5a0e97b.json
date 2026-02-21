@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p117_0376a880ad74f675a66ec7ebd5a0e97b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 117,
+    "taxon_name": "フトオヤモリ属",
+    "scientific_name": "Gehyra GRAY, 1834",
+    "family": "ヤモリ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.117)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Gehyra GRAY, 1834",
+        "dwc:vernacularName": "フトオヤモリ属",
+        "dwc:occurrenceRemarks": "　体背の鱗は粒状でいちよう．♂には前肛部と大腿部の下面とに小孔の列がある．指趾は完全に離れているかあるいは基部にみずかき状の膜をそなえ，各指（趾）は著しく拡がっている．それぞれの指（趾）下板は．幅が広くて単一であるか．あるいは中央で2分しているが．少なくとも部分的には2分していることが多い．*) 第2〜5指（趾）の末端節は細長くて多少とも側扁し，明瞭な爪をそなえ，また．吸盤の末端より前から急に上反しているが，第1指（趾）には遊離した末端節がなく，爪も非常に小さくて\n\n*) この属の模式種である G. oceanica (LESSON, 1830) (ポリネシアやニューギニアに分布) では，指（趾）下板が2分していない．",
+        "dwc:taxonConceptID": "gbif:2446193",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Gehyra GRAY, 1834",
+        "dwc:family": "Gekkonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2446193,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gekkonidae",
+    "gbif_match_type": "HIGHERRANK"
+}

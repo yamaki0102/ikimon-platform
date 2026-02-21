@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p143_1c8895316b56f48a06fca5bc786eb698",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 143,
+    "taxon_name": "Unknown",
+    "scientific_name": "Eumeces elegans",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.143)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Plestiodon elegans",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Distinct blue stripes (presumably young\/subadult pattern shown or described).",
+        "dwc:taxonConceptID": "gbif:5960586",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eumeces elegans",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5960586,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Plestiodon elegans",
+    "gbif_accepted_key": 5960584,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "EXACT"
+}

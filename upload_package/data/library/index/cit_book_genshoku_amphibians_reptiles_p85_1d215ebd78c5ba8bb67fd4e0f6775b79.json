@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p85_1d215ebd78c5ba8bb67fd4e0f6775b79",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 85,
+    "taxon_name": "アイフィンガーガエル (続き)",
+    "scientific_name": "Rhacophorus eiffingeri (BOETTGER, 1895)",
+    "family": "アオガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.85)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Kurixalus eiffingeri",
+        "dwc:vernacularName": "アイフィンガーガエル (続き)",
+        "dwc:occurrenceRemarks": "が広く，長さよりも幅の方が大きい．吻は短かいが，かなり厚くて背面が多少凹み，吻端が比較的とがっている．外鼻孔は吻の背側にあって．その位置が吻端に接近している．眼鼻線はにおいが著しく，外鼻孔を経て前方に延び，胞端の上側で左右が会合する．頰部の凹みは著しく，上下に平行した2本の溝状で．下方の溝が眼の下側を走いて上唇の上側を限っている．眼は大きくてよく突出し，その長径が吻端から眼の前端までの距離に等しいかあるいはそれよりもやや短かい．左右の上眼瞼の間隔は．上眼瞼の幅よりも大きい．鼓膜は小さいが明瞭，垂直方向の楕円形を呈し．その長径は眼の長径の半分ぐらいである．鋤骨歯板は長楕円形でやや斜向し．左右の内鼻孔の間にあって，外側が内鼻孔の内縁に接している．背面の皮膚はおおむね平滑であるが，後方では多数の顆粒をそなえ，胴の後部にも小さい顆粒がある．側面から腹部にかけての部分と大腿部の下面との皮膚は多角形の粗雑な顆粒におおわれ．咽頭部は細かくてにぶい顆粒をそなえている．背側線上にはひだがない．眼の後端から鼓膜の上縁を経て前肢の基部上側に至る隆条は．比較的短かいが顕著で，また，かなり急激に下方へ曲がっている．四肢はよく発達し，前肢の全長が体長の2\/3を越える．第4指は第2指よりも長く．第3指が最長で第1指が最短．第2〜4指の吸盤は第1指のものより明らかに大きくて，その長径が鼓膜の長径にほぼ等しいかあるいは後者よりやや大きい．後肢は強壮で，大腿部と脛部との長さの和が眼の前端から肛門までの距離にほぼ等しいかあるいはそれよりも多少長く，後肢を体軸と直角に伸ばして膝関節を折り曲げると脛跗関節がいくらか行き違う．内蹠隆起は楕円形で小さいが明瞭，外蹠隆起は認められない．吸盤は第3〜5趾のものが他の趾のものより大きいが，前肢のものよりは小さい．みずかきは指間になく，趾間でも比較的発達が悪くて第5趾以外では吸盤に届かず．第4趾で第3関節に達するに過ぎない．体長：♂で30〜39mm，♀で35〜40mm．\n　琉球列島と台湾とに分布し，琉球では沖縄本島，石垣島．西表島などから知られている．奄美大島からも記録されたが，確認の必要があるように思われる．生活環境はシュレーゲルアオガエルの場合とよく似ているが，産卵習性や卵塊のようすなどは全く知られていない．",
+        "dwc:taxonConceptID": "gbif:11042293",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus eiffingeri (BOETTGER, 1895)",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 11042293,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Kurixalus eiffingeri",
+    "gbif_accepted_key": 2423840,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "EXACT"
+}

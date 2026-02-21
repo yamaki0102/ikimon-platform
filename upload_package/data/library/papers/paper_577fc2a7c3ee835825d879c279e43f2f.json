@@ -1,0 +1,20 @@
+{
+    "id": "paper_577fc2a7c3ee835825d879c279e43f2f",
+    "doi": "10.1163\/156853889x00214",
+    "title": "Neoplasia of the stomach in wild Japanese newt Cynops pyrrhogaster",
+    "year": 1989,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/156853889x00214",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/156853889x00214",
+        "dc:title": "Neoplasia of the stomach in wild Japanese newt Cynops pyrrhogaster",
+        "dc:date": 1989,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

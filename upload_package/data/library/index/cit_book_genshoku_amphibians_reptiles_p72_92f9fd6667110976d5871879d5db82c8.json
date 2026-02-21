@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p72_92f9fd6667110976d5871879d5db82c8",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 72,
+    "taxon_name": "ハナサキガエル (続き)",
+    "scientific_name": "Rana (Rana ?) narina STEJNEGER, 1901",
+    "family": "アカガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.72)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana (Rana ?) narina STEJNEGER, 1901",
+        "dwc:vernacularName": "ハナサキガエル (続き)",
+        "dwc:occurrenceRemarks": "腿部と脛部とを重ねて体の正中線と直角になるように伸ばすと，左右の脛跗関節が大幅に行き違う，外蹠隆起がない．指趾は長く，先端がふくれて小さい吸盤になっている．みずかきは趾間によく発達し，第4趾以外では吸盤の基部に達している．体長：65〜85mm．\n　琉球列島の奄美大島，徳之島，沖縄本島，石垣島，西表島などの諸島と台湾とに分布し，森林の中の渓流の近くで見かけることが多いが，少なくとも沖縄本島では，かなり開けた場所にもいる．水しぶきの吹きつけるような岩の上を平気で歩き，時には木にも登る．体が大きいのですぐ見つかるが，跳躍力が非常に大きくてあまり捕らえやすくはない．\n　なお，イイジマガエル R. ijimai (STEJNEGER, 1901) は，本種の同物異名である．",
+        "dwc:taxonConceptID": "gbif:2422253",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Rana (Rana ?) narina STEJNEGER, 1901",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2422253,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "HIGHERRANK"
+}

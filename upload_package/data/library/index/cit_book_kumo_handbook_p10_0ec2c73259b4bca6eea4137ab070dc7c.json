@@ -1,0 +1,47 @@
+{
+    "id": "cit_book_kumo_handbook_p10_0ec2c73259b4bca6eea4137ab070dc7c",
+    "book_id": "book_kumo_handbook",
+    "page": 10,
+    "taxon_name": "ミヤグモ",
+    "scientific_name": "Ariadna lateralis",
+    "family": "エンマグモ科 Segestriidae",
+    "data_icons": {
+        "size": "female: 12〜20mm, male: 10〜15mm",
+        "season": "一年中",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "樹皮のすき間に作られた住居",
+        "メス背面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.10)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Ariadna lateralis",
+        "dwc:vernacularName": "ミヤグモ",
+        "dwc:occurrenceRemarks": "全身光沢のある黒褐色。樹林地や公園、寺社で見られ、人工物や樹皮のすき間、岩の割れ目などに筒状の住居を作る。黒色のクモはさまざまなグループで見られるが、腹部が円筒状で、第1脚〜第3脚を前方に伸ばす (第3脚が前を向く) という特徴から本種と識別できる。",
+        "dwc:taxonConceptID": "gbif:5169905",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Ariadna lateralis",
+        "dwc:family": "Segestriidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 5169905,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Segestriidae",
+    "gbif_match_type": "EXACT"
+}

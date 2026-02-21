@@ -1,0 +1,20 @@
+{
+    "id": "paper_bde18d88ad6e632858cb1b106eb336df",
+    "doi": "10.5040\/9781472918611.ch-017",
+    "title": "The Little Egret Egretta Garzetta",
+    "year": 0,
+    "container_title": "The Herons of Europe",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472918611.ch-017",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472918611.ch-017",
+        "dc:title": "The Little Egret Egretta Garzetta",
+        "dc:date": 0,
+        "dc:source": "The Herons of Europe",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

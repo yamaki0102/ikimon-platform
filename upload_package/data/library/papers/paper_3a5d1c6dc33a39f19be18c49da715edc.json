@@ -1,0 +1,20 @@
+{
+    "id": "paper_3a5d1c6dc33a39f19be18c49da715edc",
+    "doi": "10.2173\/tbna.657.p",
+    "title": "Pacific Loon (Gavia pacifica) and Arctic loon (Gavia arctica)",
+    "year": 2002,
+    "container_title": "Birds of North America (print)",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/tbna.657.p",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/tbna.657.p",
+        "dc:title": "Pacific Loon (Gavia pacifica) and Arctic loon (Gavia arctica)",
+        "dc:date": 2002,
+        "dc:source": "Birds of North America (print)",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

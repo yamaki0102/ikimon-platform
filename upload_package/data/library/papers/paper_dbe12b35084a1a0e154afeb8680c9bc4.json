@@ -1,0 +1,20 @@
+{
+    "id": "paper_dbe12b35084a1a0e154afeb8680c9bc4",
+    "doi": "10.5852\/ejt.2024.942.2581",
+    "title": "Twenty-one new species of the Neotropical rove beetle genus Neolindus Scheerpeltz (Coleoptera, Staphylinidae, Paederinae)",
+    "year": 2024,
+    "container_title": "European Journal of Taxonomy",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5852\/ejt.2024.942.2581",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5852\/ejt.2024.942.2581",
+        "dc:title": "Twenty-one new species of the Neotropical rove beetle genus Neolindus Scheerpeltz (Coleoptera, Staphylinidae, Paederinae)",
+        "dc:date": 2024,
+        "dc:source": "European Journal of Taxonomy",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

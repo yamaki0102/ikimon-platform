@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p140_f253eb95956872734690f590a4b873a1",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 140,
+    "taxon_name": "オカダトカゲ (続き)",
+    "scientific_name": "Eumeces okadae STEJNEGER, 1907",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.140)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Eumeces okadae STEJNEGER, 1907",
+        "dwc:vernacularName": "オカダトカゲ (続き)",
+        "dwc:occurrenceRemarks": "記載された．その後．TAYLOR (1935) は，鱗列数や幼時の斑紋に見られる相違を重視してこれを種に昇格させたが，岡田 (1939) が TAYLOR の意見を認めなかったので，現在ではオカダトカゲをトカゲの1亜種と見る傾向が強い．しかし，トカゲ属の動物の分類にきわめて重要な幼時の斑紋が，両者の間で著しく異なっている上に，少なくとも私達の調べたオカダトカゲの若い個体（三宅島産の3点；いずれも生品）では尾が青くない．このような差異は，トカゲ属のように特徴の不安定な動物群では，十分に種の標徴とみなし得るものであるように思われる．鱗列数の異常に少ないことを別にすれば．オカダトカゲよりもむしろ次のバーバートカゲの方が日本内地のトカゲに近いのではなかろうか．",
+        "dwc:taxonConceptID": "gbif:1",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Eumeces okadae STEJNEGER, 1907",
+        "dwc:family": null,
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 1,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": null,
+    "gbif_match_type": "HIGHERRANK"
+}

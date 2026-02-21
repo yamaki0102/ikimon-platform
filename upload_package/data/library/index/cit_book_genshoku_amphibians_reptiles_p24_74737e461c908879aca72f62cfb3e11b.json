@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p24_74737e461c908879aca72f62cfb3e11b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 24,
+    "taxon_name": "ヒダサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) naevius kimurae DUNN, 1923",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "80〜130mm",
+        "season": null,
+        "distribution": "本州中央部の山地"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.24)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hynobius (Hynobius) naevius kimurae DUNN, 1923",
+        "dwc:vernacularName": "ヒダサンショウウオ",
+        "dwc:occurrenceRemarks": "　基亜種とは，鋤口蓋歯列が原則としてU字形であること，胴が比較的長いことなどの点で，またオキサンショウウオとは，四肢が短かいことと尾がほとんど側扁していないこととによって区別できる．基亜種と同様に体色の変異が著しいが，本亜種では斑紋の白い個体が非常に少なく，普通は不規則な細かい黄斑を散布している．また，腹面には一般に斑紋がない．体長：80〜130mm．\n　この亜種は，本州中央部の山地に拡がっている．その分布の西限は基亜種の分布の東限とほぼ一致し，東限は関東山脈と新潟県の南西部とを結ぶ線の付近にあるらしい．\n　なお，これまでに広く採用されてきたヒダサンショウウオの学名は H. kimurae DUNN であるが，DUNN (1923) によってなされた種小名の綴りの改訂は，動物命名規約上有効であるかどうか疑わしい．",
+        "dwc:taxonConceptID": "gbif:2431154",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hynobius (Hynobius) naevius kimurae DUNN, 1923",
+        "dwc:family": "Hynobiidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2431154,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hynobiidae",
+    "gbif_match_type": "HIGHERRANK"
+}

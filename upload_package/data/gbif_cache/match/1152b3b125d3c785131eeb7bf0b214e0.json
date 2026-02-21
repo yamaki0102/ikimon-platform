@@ -1,0 +1,18 @@
+{
+    "taxon_key": 9199,
+    "scientific_name": "Agamidae",
+    "status": "ACCEPTED",
+    "match_type": "HIGHERRANK",
+    "confidence": 94,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Agamidae",
+    "genus": null,
+    "rank": "FAMILY",
+    "original_query": "Agamidae",
+    "_cached_at": 1770420174
+}

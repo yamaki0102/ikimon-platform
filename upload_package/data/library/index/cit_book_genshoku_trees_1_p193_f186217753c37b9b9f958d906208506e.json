@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p193_f186217753c37b9b9f958d906208506e",
+    "book_id": "book_genshoku_trees_1",
+    "page": 193,
+    "taxon_name": "O",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.193)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "O",
+        "dwc:occurrenceRemarks": "Olea V 159\n  europaea V 159\nOplopanax V 96\n  japonicus V 96\nOrixa V 2\n  japonica V 3\nOsmanthus V 157\n  asiaticus V 158\n  x fortunei V 158\n  fragrans V 157\n  --var. aurantiacus V 157\n  heterophyllus V 158\n  ilicifolius V 158\n  --f. variegatus V 158\nOstrya IV 31\n  japonica IV 31"
+    }
+}

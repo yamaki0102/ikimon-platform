@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p353_c7454e391588f5fd5aa882715e58c716",
+    "book_id": "book_genshoku_trees_2",
+    "page": 353,
+    "taxon_name": "学名索引 (353頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.353)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "学名索引 (353頁)",
+        "dwc:occurrenceRemarks": "1. 学名はアルファベット順に配列してある。\n2. 数字は頁を示す。\n3. 学名のあとのIV, V は、それぞれ「コンパクト版 4, 5」を意味する。\n\nA\n\nAbelia V 205\n  grandiflora V 206\n  serrata V 206\n  spathulata V 205\n  tetrasepala V 205\nAbies V 254\n  amabilis V 258\n  balsamea V 256\n  concolor V 256\n  firma V 257\n  grandis V 259\n  magnifica V 259\n  mariesii V 254\n  procera V 259\n  sachalinensis V 258\n  ――var. mayriana V 258\n  umbellata V 256\n  veitchii V 254\nAbutilon V 66\n  megapotamicum V 66\nAcacia IV 261, 262\n  baileyana IV 261\n  confusa IV 262\n  decurrens var. dealbata IV 262\nAcalypha IV 264\n  wilkesiana IV 264\nAcanthopanax V 94\n  divaricatum V 95\n  sciadophylloides V 95\n  sieboldianum V 95\n  spinosus V 94\nAcer V 12\n  amoenum V 23\n  ――'Kasennishiki' V 24\n  ――'Sazanami' V 24\n  ――'Ukon' V 23\n  ――var. matsumurae cv.\n\n  sangokaku V 25\n  argutum V 15\n  buergerianum V 21\n  capillipes V 16\n  carpinifolium V 23\n  cissifolium V 22\n  crataegifolium V 17\n  diabolicum V 20\n  distylum V 23\n  ginnala V 18\n  japonicum V 14\n  ――f. aconitifolium V 14\n  micranthum V 17\n  miyabei V 19\n  mono V 19\n  ――f. dissectum V 19\n  negundo V 18\n  nikoense V 22\n  nipponicum V 18\n  palmatum V 12\n  ――'Iijimasunago' V 25\n  ――'Seigen' V 24\n  ――var. amoenum V 12\n  ――var. dissectum V 12\n  ――var. matsumurae V 13\n  pycnanthum V 20\n  rubrum V 20\n  rufinerve V 16\n  shirasawanum V 15\n  sieboldianum V 14\n  saccharum V 22\n  tenuifolium V 15\n  tschonoskii V 17\n  ukurunduense V 16\nAchras V 148\n  sapota V 148\nActinidia IV 118\n  arguta IV 119\n  chinensis IV 120\n  kolomikta IV 119"
+    }
+}

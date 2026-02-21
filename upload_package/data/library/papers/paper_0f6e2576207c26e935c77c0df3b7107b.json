@@ -1,0 +1,20 @@
+{
+    "id": "paper_0f6e2576207c26e935c77c0df3b7107b",
+    "doi": "10.25221\/fee.530.1",
+    "title": "THE THICK-BELLIED KATYDID DERACANTHA ONOS (ORTHOPTERA, TETTIGONIIDAE, ZICHYINI): DISTRIBUTION PATTERNS AND ECOLOGO-GEOGRAPHIC MODELLING",
+    "year": 2025,
+    "container_title": "Far Eastern entomologist",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.25221\/fee.530.1",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.25221\/fee.530.1",
+        "dc:title": "THE THICK-BELLIED KATYDID DERACANTHA ONOS (ORTHOPTERA, TETTIGONIIDAE, ZICHYINI): DISTRIBUTION PATTERNS AND ECOLOGO-GEOGRAPHIC MODELLING",
+        "dc:date": 2025,
+        "dc:source": "Far Eastern entomologist",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

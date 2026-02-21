@@ -1,0 +1,20 @@
+{
+    "id": "paper_ac1833c6d58045c343d745035fbf047d",
+    "doi": "10.1080\/00368555.2020.12293533",
+    "title": "Citizen Science: iNaturalist: Citizen Science for the Digital Age",
+    "year": 2020,
+    "container_title": "The Science Teacher",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1080\/00368555.2020.12293533",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1080\/00368555.2020.12293533",
+        "dc:title": "Citizen Science: iNaturalist: Citizen Science for the Digital Age",
+        "dc:date": 2020,
+        "dc:source": "The Science Teacher",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

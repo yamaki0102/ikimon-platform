@@ -1,0 +1,20 @@
+{
+    "id": "paper_73211d037a3c805c2f1c03c7b20141fa",
+    "doi": "10.1201\/9781351071130-95",
+    "title": "Quercus Suber L. (FAGACEAE) — Cork Oak",
+    "year": 2018,
+    "container_title": "CRC Handbook of Nuts",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1201\/9781351071130-95",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1201\/9781351071130-95",
+        "dc:title": "Quercus Suber L. (FAGACEAE) — Cork Oak",
+        "dc:date": 2018,
+        "dc:source": "CRC Handbook of Nuts",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

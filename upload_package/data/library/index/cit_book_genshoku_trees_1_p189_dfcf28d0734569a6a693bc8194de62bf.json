@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p189_dfcf28d0734569a6a693bc8194de62bf",
+    "book_id": "book_genshoku_trees_1",
+    "page": 189,
+    "taxon_name": "G",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.189)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "G",
+        "dwc:occurrenceRemarks": "Gardenia V 174\n  jasminoides V 174\n  --f. grandiflora V 174\n  --var. radicans V 175\nGaultheria V 136\n  adenothrix V 136\n  miqueliana V 136\nGenista IV 240\n  tinctoria IV 240\nGinkgo V 270\n  biloba V 270\nGleditsia IV 260\n  japonica IV 260\nGlochidion IV 271\n  obovatum IV 271\nGlyptostrobus V 266\n  pensilis V 266\nGmelina V 183\n  arborea V 183\nGrevillea V 17\n  robusta V 17\nGymnocladus IV 258\n  chinensis IV 258\nGynura V 230\n  bicolor V 230"
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_f07e7a83ee485c99180250cc8f7dd47c_5b6673a0e6cb74da30a431e86bbaf973",
+    "paper_id": "paper_f07e7a83ee485c99180250cc8f7dd47c",
+    "doi": "10.1186\/s40657-017-0067-4",
+    "query_id": "jp_bird_5232483_en",
+    "query_label": "Mergus squamatus Japan (ecology\/distribution)",
+    "scientific_name": "Mergus squamatus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1186\/s40657-017-0067-4",
+        "dwc:scientificName": "Mergus squamatus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:5232483",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Mergus squamatus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 5232483,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p223_e2239bca4ee940733fabe26d5113fb3d",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 223,
+    "taxon_name": "アオマダラウミヘビ",
+    "scientific_name": "Laticauda colubrina",
+    "family": "ウミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.223)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Laticauda colubrina",
+        "dwc:vernacularName": "アオマダラウミヘビ",
+        "dwc:occurrenceRemarks": "Plate 37 illustration (119). Lighter blue\/black banding, yellow snout.",
+        "dwc:taxonConceptID": "gbif:8374394",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Laticauda colubrina",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 8374394,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "EXACT"
+}

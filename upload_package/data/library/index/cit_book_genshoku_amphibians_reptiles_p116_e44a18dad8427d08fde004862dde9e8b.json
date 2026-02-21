@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p116_e44a18dad8427d08fde004862dde9e8b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 116,
+    "taxon_name": "ヤモリ科 (続き)",
+    "scientific_name": "Gekkonidae",
+    "family": "ヤモリ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.116)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Gekkonidae",
+        "dwc:vernacularName": "ヤモリ科 (続き)",
+        "dwc:occurrenceRemarks": "　約80属 700種以上を含む非常に大きい科であって，全世界の熱帯および亜熱帯地方に広く分布し，温帯地方にもある程度侵入している．化石の資料は非常に少ないが，遅くとも第三紀の後半には出現していたことがわかっている．系統上の位置はまだ明らかにされていないが，原始的な性質と非常に特殊化した形態とを兼ねそなえているので，いずれにしても特別の主科を形成するものと一般に考えられている．少なくとも4亜科に区分され．そのうちの2亜科の代表者が日本にいる．\n\n<亜科の検索表>\n1 (2) 眼瞼は不動，眼が透明な膜でおおわれている：邦産種では指趾に吸盤がある----------ヤモリ亜科．\n2 (1) 眼瞼は可動，眼が透明な膜でおおわれていない：指趾は細長く，下画に吸盤がない----------トカゲモドキ亜科．",
+        "dwc:taxonConceptID": "gbif:5666",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Gekkonidae",
+        "dwc:family": "Gekkonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5666,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gekkonidae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_ebe769a1dc8279f3ee1f3d6f1c5c696d",
+    "doi": "10.2307\/3503534",
+    "title": "Natural History of the Giant Sand Treader Camel Cricket, Daihinibaenetes giganteus Tinkham (Orthoptera: Rhaphidophoridae)",
+    "year": 1997,
+    "container_title": "Journal of Orthoptera Research",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/3503534",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/3503534",
+        "dc:title": "Natural History of the Giant Sand Treader Camel Cricket, Daihinibaenetes giganteus Tinkham (Orthoptera: Rhaphidophoridae)",
+        "dc:date": 1997,
+        "dc:source": "Journal of Orthoptera Research",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_2ef397c5ec210cdce30b96781d5aa416",
+    "doi": "10.1007\/978-3-319-22246-2_12",
+    "title": "Effects of the Recent World Invasion by Ring-Necked Parakeets Psittacula krameri",
+    "year": 2015,
+    "container_title": "Problematic Wildlife",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1007\/978-3-319-22246-2_12",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/978-3-319-22246-2_12",
+        "dc:title": "Effects of the Recent World Invasion by Ring-Necked Parakeets Psittacula krameri",
+        "dc:date": 2015,
+        "dc:source": "Problematic Wildlife",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,46 @@
+{
+    "id": "cit_book_kumo_handbook_p13_0a19b842f694c214d0baa1809d46e176",
+    "book_id": "book_kumo_handbook",
+    "page": 13,
+    "taxon_name": "ヤマウズグモ",
+    "scientific_name": "Octonoba varians",
+    "family": "ウズグモ科 Uloboridae",
+    "data_icons": {
+        "size": "female: 4〜6mm, male: 3〜5mm",
+        "season": "夏",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網（隠れ帯）"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.13)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Octonoba varians",
+        "dwc:vernacularName": "ヤマウズグモ",
+        "dwc:occurrenceRemarks": "体色は黒く、腹部に数個の突起がある。山地に生息し、渓流沿いや林道、渓流の岩のすき間などの薄暗い場所に水平円網を張る。カタハリウズグモ同様、直線や渦巻状の隠れ帯を作る。",
+        "dwc:taxonConceptID": "gbif:2142392",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Octonoba varians",
+        "dwc:family": "Uloboridae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2142392,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Uloboridae",
+    "gbif_match_type": "EXACT"
+}

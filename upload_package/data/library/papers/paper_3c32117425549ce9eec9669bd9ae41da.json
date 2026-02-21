@@ -1,0 +1,20 @@
+{
+    "id": "paper_3c32117425549ce9eec9669bd9ae41da",
+    "doi": "10.11609\/jott.zpj.1509.2551-97",
+    "title": "Checklist of spiders (Arachnida: Araneae) of South Asia including the 2006 update of Indian spider checklist",
+    "year": 2007,
+    "container_title": "Zoos' Print Journal",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11609\/jott.zpj.1509.2551-97",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11609\/jott.zpj.1509.2551-97",
+        "dc:title": "Checklist of spiders (Arachnida: Araneae) of South Asia including the 2006 update of Indian spider checklist",
+        "dc:date": 2007,
+        "dc:source": "Zoos' Print Journal",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_5c4a44513111edcf699884df8132c953",
+    "doi": "10.3354\/esr01213",
+    "title": "Increased abundance and range expansion of harlequin ducks Histrionicus histrionicus wintering in Eastern Canada",
+    "year": 2022,
+    "container_title": "Endangered Species Research",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3354\/esr01213",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3354\/esr01213",
+        "dc:title": "Increased abundance and range expansion of harlequin ducks Histrionicus histrionicus wintering in Eastern Canada",
+        "dc:date": 2022,
+        "dc:source": "Endangered Species Research",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

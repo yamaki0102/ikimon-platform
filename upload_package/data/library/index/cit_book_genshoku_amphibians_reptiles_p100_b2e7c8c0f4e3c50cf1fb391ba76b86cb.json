@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p100_b2e7c8c0f4e3c50cf1fb391ba76b86cb",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 100,
+    "taxon_name": "ヒメウミガメ",
+    "scientific_name": "Lepidochelys olivacea olivacea (ESCHSCHOLTZ, 1829)",
+    "family": "ウミガメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.100)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lepidochelys olivacea olivacea (ESCHSCHOLTZ, 1829)",
+        "dwc:vernacularName": "ヒメウミガメ",
+        "dwc:occurrenceRemarks": "　背甲は暗灰緑色または黒っぽい暗褐色．個体によっては全体に黒褐色えあることもあり．また緑色を帯びていることもある．腹面は黄緑色または灰白色．吻は比較的短かくて先端がにぶい（頭骨の吻幅はかなりとがっている）．鱗板のようすはアカウミガメとほぼ同様であるが，属の項に記したような相違もある．背甲は短かい卵形で，鱗板が敷石状．後縁はやや鋸歯状．背中線上に不連続なにぶい隆条があり，若い個体では両側にも左右1本ずつのにぶい隆条がある．第1椎甲板は長さよりも幅広く．中央部の椎甲板は細長い長方形．最後部の1枚はもっとも大きくて幅が広い．第1肋甲板は小形．中央部のものは非常に幅が広い．腹甲の前後端はともに円く．側方には不連続なにぶい隆条が左右1本ずつある．腋下甲板，鼠径甲板，四肢などの鱗のようすはアカウミガメとほぼ同様．十分に老熟した個体では甲長 80cm に達したものが知られているが，一般に甲長 60cm ぐらいのものが多い．\n　分布域はアカウミガメの場合とほぼ同様で，アフリカの西部にまで割り込んでいるという．他のウミガメ類と違って，太平洋やインド洋の亜種と大西洋の亜種とが明確に区別され．種信がしばしば別種（時には別属）の取扱いを受けているが，分化の程度が実際にどこまで進んでいるかは明らかでない．海岸の砂中に深さ 50cm ぐらいの穴を掘って産卵する．卵は球形で直径 35〜45mm ぐらい．一回の産卵数は 100〜170個ぐらいである．雑食性であるが，貝類や魚類を好んで食う．",
+        "dwc:taxonConceptID": "gbif:2442153",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Lepidochelys olivacea olivacea (ESCHSCHOLTZ, 1829)",
+        "dwc:family": "Cheloniidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2442153,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Cheloniidae",
+    "gbif_match_type": "HIGHERRANK"
+}

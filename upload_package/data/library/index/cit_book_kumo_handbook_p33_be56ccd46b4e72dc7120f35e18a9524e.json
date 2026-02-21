@@ -1,0 +1,49 @@
+{
+    "id": "cit_book_kumo_handbook_p33_be56ccd46b4e72dc7120f35e18a9524e",
+    "book_id": "book_kumo_handbook",
+    "page": 33,
+    "taxon_name": "アカイロトリノフンダマシ",
+    "scientific_name": "Cyrtarachne yunohamensis",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 5〜7mm, male: 1.5〜2.0mm",
+        "season": "夏",
+        "distribution": "本州（関東以南）・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "卵のう",
+        "葉裏に潜むメス",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.33)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Cyrtarachne yunohamensis",
+        "dwc:vernacularName": "アカイロトリノフンダマシ",
+        "dwc:occurrenceRemarks": "メスの腹部は赤色で、数対の白斑が入る（個体差あり）。白い斑紋の形と位置関係で識別できる。全体が黒い黒色型もあり、他種（シロオビトリノフンダマシ）と紛らわしいが、斑紋の有無で識別できる。里山から山地に生息し、昼は葉裏に潜む。オスは体が小さく赤色、緑色、黒色型もある。同属他種に比べて個体数は少ない。",
+        "dwc:taxonConceptID": "gbif:2160962",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Cyrtarachne yunohamensis",
+        "dwc:family": "Araneidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2160962,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Araneidae",
+    "gbif_match_type": "FUZZY"
+}

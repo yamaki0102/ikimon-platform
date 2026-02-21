@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p216_4dc712ceff2f8812fae8c71007750019",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 216,
+    "taxon_name": "ヒャン",
+    "scientific_name": "Calliophis japonicus japonicus",
+    "family": "コブラ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.216)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Sinomicrurus japonicus",
+        "dwc:vernacularName": "ヒャン",
+        "dwc:occurrenceRemarks": "Plate 36 illustration (116). Striped form.",
+        "dwc:taxonConceptID": "gbif:5226795",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Calliophis japonicus japonicus",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5226795,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Sinomicrurus japonicus",
+    "gbif_accepted_key": 2469812,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2157402,
+    "scientific_name": "Parasteatoda tepidariorum (C.L.Koch, 1841)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Theridiidae",
+    "genus": "Parasteatoda",
+    "rank": "SPECIES",
+    "original_query": "Parasteatoda tepidariorum",
+    "_cached_at": 1771646820
+}

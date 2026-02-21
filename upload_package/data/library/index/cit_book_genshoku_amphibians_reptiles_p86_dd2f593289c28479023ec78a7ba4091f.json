@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p86_dd2f593289c28479023ec78a7ba4091f",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 86,
+    "taxon_name": "ニホンカジカガエル",
+    "scientific_name": "Rhacophorus japonicus (HALLOWELL, 1860)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.86)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Buergeria japonica",
+        "dwc:vernacularName": "ニホンカジカガエル",
+        "dwc:occurrenceRemarks": "　背面は褐色または暗褐色．個体によっては赤味の強いこともある．上唇と眼の前とに黒褐色の小斑があり，眼の後角から前肢の基部に向かう隆条の下側も黒褐色に縁取られている．左右の上眼瞼の間には黒褐色の横帯か浅い逆V字形の斑紋があり，その後方には前肢の基部の背側付近を横切る同じ色の短かい横帯（または浅い逆V字形の斑紋）があって，両側で前後に分かれて，前方の枝が上眼瞼の後縁まで伸長している．この斑紋より後方には，黒褐色の不規則な小斑が散在する．前肢基部の後方には，体側に黒っぽい斑点を密布している部分がある．四肢の背面には黒褐色の横帯があり，とくに前膊部，大腿部および脛部の各2本が顕著であるが，大腿部と脛部とに4本ずつの横帯をそなえている個体も多い．腹面は黄白色で，下顎の周縁部に黒い小斑が並",
+        "dwc:taxonConceptID": "gbif:10948115",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus japonicus (HALLOWELL, 1860)",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10948115,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Buergeria japonica",
+    "gbif_accepted_key": 5217229,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "EXACT"
+}

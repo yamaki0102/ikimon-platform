@@ -1,0 +1,20 @@
+{
+    "id": "paper_368448731fa8d183425fd25b8446f265",
+    "doi": "10.11646\/zootaxa.3948.1.3",
+    "title": "Taxonomy of the water beetle genus Limnebius Leach in southern Africa (Coleoptera:  Hydraenidae)",
+    "year": 2015,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.3948.1.3",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.3948.1.3",
+        "dc:title": "Taxonomy of the water beetle genus Limnebius Leach in southern Africa (Coleoptera:  Hydraenidae)",
+        "dc:date": 2015,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

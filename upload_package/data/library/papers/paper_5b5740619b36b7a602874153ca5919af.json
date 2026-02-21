@@ -1,0 +1,20 @@
+{
+    "id": "paper_5b5740619b36b7a602874153ca5919af",
+    "doi": "10.1590\/s1984-29612017023",
+    "title": "Parasitic survey on introduced monk parakeets (Myiopsitta monachus) in Santiago, Chile",
+    "year": 2017,
+    "container_title": "Revista Brasileira de Parasitologia Veterinária",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1590\/s1984-29612017023",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1590\/s1984-29612017023",
+        "dc:title": "Parasitic survey on introduced monk parakeets (Myiopsitta monachus) in Santiago, Chile",
+        "dc:date": 2017,
+        "dc:source": "Revista Brasileira de Parasitologia Veterinária",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

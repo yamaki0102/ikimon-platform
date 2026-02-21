@@ -1,0 +1,47 @@
+{
+    "id": "cit_book_kumo_handbook_p23_bf6e6492edec80b0a1c1fba0aa431045",
+    "book_id": "book_kumo_handbook",
+    "page": 23,
+    "taxon_name": "ハツリグモ",
+    "scientific_name": "Acusilas coccineus",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 5〜10mm, male: 5〜6mm",
+        "season": "夏",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "枯葉のつるされた網",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.23)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Acusilas coccineus",
+        "dwc:vernacularName": "ハツリグモ",
+        "dwc:occurrenceRemarks": "体色は鮮やかな赤色（または肉色）で、主に山地に分布。ススキの葉や林道など、垂直に円網を張る。名前の通り、円網の中央に枯れ葉をつり、クモはその中に潜む。枯れ葉の大きさにあわせて網を作る。",
+        "dwc:taxonConceptID": "gbif:2159107",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Acusilas coccineus",
+        "dwc:family": "Araneidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2159107,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Araneidae",
+    "gbif_match_type": "EXACT"
+}

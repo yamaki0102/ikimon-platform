@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_091aedb1fb3ebf26455ab33a55d7916b_cdd2ecdef07c79ad974e1b1544c1e98d",
+    "paper_id": "paper_091aedb1fb3ebf26455ab33a55d7916b",
+    "doi": "10.2307\/4447",
+    "query_id": "jp_bird_2498326_en",
+    "query_label": "Bucephala clangula Japan (ecology\/distribution)",
+    "scientific_name": "Bucephala clangula",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2307\/4447",
+        "dwc:scientificName": "Bucephala clangula",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2498326",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Bucephala clangula",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 2498326,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

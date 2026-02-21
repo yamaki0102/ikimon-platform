@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p64_15fcd53471721ebc18a605752d364cc8",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 64,
+    "taxon_name": "トノサマガエル (続き)",
+    "scientific_name": "Rana (Rana) nigromaculata HALLOWELL, 1860",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": "60〜90mm",
+        "season": null,
+        "distribution": "本州, 四国, 九州, 大隅群島, 朝鮮, シナ, 対馬"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.64)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Pelophylax nigromaculatus",
+        "dwc:vernacularName": "トノサマガエル (続き)",
+        "dwc:occurrenceRemarks": "細く，頭部も長くて頭長が頭幅より大きい．吻はよく突出し，吻端から眼の前端までの長さが眼径よりも大きく，吻端がにぶくとがっている．外鼻孔は吻端と眼の前端とのほぼ中央にあることが多く，左右両孔の間隔は上眼瞼の間隔よりも大きい．眼鼻線にはにぶいが明瞭．頰部は明らかに凹んでいる．眼は中庸．上眼瞼の幅は左右の上眼瞼の間隔より明らかに大きい．鼓膜はほぼ円形でつねに顕著であるが，その直径が眼径よりは少し小さい．眼の後端に始まって．鼓膜の背縁から後縁に周り，前肢基部の前背側に向かう浅い溝は明瞭で，その後背縁がにぶいひだになって前背方で背側隆条と融合していることも少なくない．上唇の後部は多少とも隆起し，後方に続いて前肢基部の背側に達する隆条を形成している．鋤骨歯板は卵形でよく隆起し，左右の内鼻孔の間にあってかなり斜向している．それぞれの歯板には2〜3個の歯がある．♂には1対の外声嚢があって，上唇の後部から後方へ延びる隆条の下側に畳み込まれる．体表の皮膚はおおむね平滑であるが，左右の背側隆条の間には，短かくて不規則な隆条が縦列に並んでいる．同じような隆条は体側にも見られるが，背面のものほど顕著ではない．背側線の隆条は，比較的細いが明瞭で，眼の後端から後肢基部の背側までほぼなめらかに続いている．四肢はかなり長く，大腿部と脛部との長さの和が，眼の前端から肛門までの距離に等しいかあるいはそれよりも大きい．また，後肢を体軸と直角に伸ばして膝関節を折り曲げると，左右の脛跗関節は接し合う．指は比較的細長く，第2指が最短で第3指が最長．第1指と第4指とは長さがほぼ等しいかあるいはそのいずれかが他方よりわずかに長い．内蹠隆起は長楕円形で大きく，隆起も著しい．外蹠隆起は小さいが明瞭．第4趾は非常に長く，第3趾の末端が第4趾の最後の関節に達しない．みずかきはよく発達しているが，ダルマガエルの場合に比べるとやや発達が悪く，第4趾で最後の関節を越えないことが多い．また，切れ込みも後者の場合より多少深いのを原則とする．体長：60〜90mm．\n　本州の大部分，四国，九州，大隅群島，朝鮮，シナなどに分布し，対馬からも記録されている．各地にもっとも普通なカエルの一つであるが，関東地方から仙台平野にかけての一帯と，越後平野の低湿地とにはいない（ダルマガエルの項を参照）．従って，これまで関東地方などで“トノサマガエル”と呼ばれていたカエルは，少なくともその大部分が次のダルマガエルの東日本型である．このような事情が明らかになったのは，主として守屋 (1954, 1956 など) の広汎な研究の結果によるものであるが，*) その内容が一般にあまり知られていないのは残念なことである．\n　トノサマガエルには地方的な変異が少なく，以前にシナなどの個体群が亜種に細分されたこともあるが，現在ではその必要性が認められていない．**) 繁殖期は場所に",
+        "dwc:taxonConceptID": "gbif:2426635",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Rana) nigromaculata HALLOWELL, 1860",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2426635,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Pelophylax nigromaculatus",
+    "gbif_accepted_key": 2426634,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

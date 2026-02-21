@@ -1,0 +1,20 @@
+{
+    "id": "paper_2d6b167ab9876e02199a0e8a0023e57f",
+    "doi": "10.5040\/9781472927040.0281",
+    "title": "Psittacula krameri Rose-ringed Parakeet Perruche à collier",
+    "year": 0,
+    "container_title": "The Birds of Africa : The Malagasy Region",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472927040.0281",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472927040.0281",
+        "dc:title": "Psittacula krameri Rose-ringed Parakeet Perruche à collier",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa : The Malagasy Region",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

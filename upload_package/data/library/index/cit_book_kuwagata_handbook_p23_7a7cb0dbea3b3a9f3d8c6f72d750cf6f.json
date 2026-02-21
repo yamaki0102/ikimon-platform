@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_kuwagata_handbook_p23_7a7cb0dbea3b3a9f3d8c6f72d750cf6f",
+    "book_id": "book_kuwagata_handbook",
+    "page": 23,
+    "taxon_name": "タテヅノマルバネクワガタ種群",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "VISUAL_LIST",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kuwagata_handbook (p.23)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "タテヅノマルバネクワガタ種群",
+        "dwc:occurrenceRemarks": ""
+    }
+}

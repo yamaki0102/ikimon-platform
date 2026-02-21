@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p176_deb45987c638c98deec373c8da308395",
+    "book_id": "book_genshoku_trees_1",
+    "page": 176,
+    "taxon_name": "あ行",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.176)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "あ行",
+        "dwc:occurrenceRemarks": "アサノハカエデ(チャボモミジ) V 258\nアシ IV 132\n――(ヨシ) IV 132\nアジサイ IV 147\n――(ホンアジサイ) IV 147\n――(ハイドランジア) IV 147\nアシタバ IV 151\nアズキナシ(ハカリノメ) IV 205\nアスナロ V 277\n――(ヒバ) V 277\nアセビ IV 140\nアダン V 218\nアツバキミガヨラン V 215\nアツモリソウ IV 142\nアナナス V 220\nアブラギリ IV 272\nアブラチャン IV 120\nアベマキ IV 39\nアメリカサイカチ IV 258\nアメリカスズカケノキ IV 144\nアメリカデイゴ(カイコウズ) IV 250\nアメリカトネリコ V 163\nアメリカハナノキ V 259\nアメリカフウ IV 145\nアメリカフヨウ V 66\nアメリカヤマボウシ(ハナミズキ) IV 266"
+    }
+}

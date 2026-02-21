@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p41_e6dd2b26d56a757e58043c21f3961878",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 41,
+    "taxon_name": "ヒキガエル亜目",
+    "scientific_name": "Suborder ARCIFERA",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.41)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Suborder ARCIFERA",
+        "dwc:vernacularName": "ヒキガエル亜目",
+        "dwc:occurrenceRemarks": "　鎖骨と烏喙骨との内端部は，内方に向かって弓状に曲がり上下に重なり合った前烏喙軟骨によって結ばれている．\n　ほとんど全世界に広く分布し，多種多様な形態のカエルに分化している．7科ぐらいに分類され，そのうちの3科の代表者が日本から記録されている．"
+    }
+}

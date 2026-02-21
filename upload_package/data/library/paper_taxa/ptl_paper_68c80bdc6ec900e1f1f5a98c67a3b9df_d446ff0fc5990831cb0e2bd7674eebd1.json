@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_68c80bdc6ec900e1f1f5a98c67a3b9df_d446ff0fc5990831cb0e2bd7674eebd1",
+    "paper_id": "paper_68c80bdc6ec900e1f1f5a98c67a3b9df",
+    "doi": "10.2326\/osj.9.131",
+    "query_id": "jp_bird_2480839_en",
+    "query_label": "Gorsachius goisagi Japan (ecology\/distribution)",
+    "scientific_name": "Gorsachius goisagi",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2326\/osj.9.131",
+        "dwc:scientificName": "Gorsachius goisagi",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2480839",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Gorsachius goisagi",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ardeidae"
+    },
+    "gbif_taxon_key": 2480839,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ardeidae"
+}

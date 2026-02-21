@@ -1,0 +1,20 @@
+{
+    "id": "paper_3dbe28d3c2a880df30a194392cc2b474",
+    "doi": "10.54102\/ajt.koxts",
+    "title": "The first species in the wolf spider genus Venator from Tasmania (Araneae, Lycosidae)",
+    "year": 2023,
+    "container_title": "Australian Journal of Taxonomy",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.54102\/ajt.koxts",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.54102\/ajt.koxts",
+        "dc:title": "The first species in the wolf spider genus Venator from Tasmania (Araneae, Lycosidae)",
+        "dc:date": 2023,
+        "dc:source": "Australian Journal of Taxonomy",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

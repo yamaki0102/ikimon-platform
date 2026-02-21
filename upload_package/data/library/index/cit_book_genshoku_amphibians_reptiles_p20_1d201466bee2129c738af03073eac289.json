@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p20_1d201466bee2129c738af03073eac289",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 20,
+    "taxon_name": "エゾサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) retardatus DUNN, 1923",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "110〜180mm",
+        "season": "4月〜6月頃",
+        "distribution": "北海道全島 (平地から高山帯)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.20)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hynobius (Hynobius) retardatus DUNN, 1923",
+        "dwc:vernacularName": "エゾサンショウウオ",
+        "dwc:occurrenceRemarks": "　本邦産カスミサンショウウオ亜属のうちでは最大の種で，一見クロサンショウウオによく似ている．体の背面はいちように青味を帯びた暗褐色または黒褐色．腹面は灰色で，微細な暗褐色の点を密布していることがある．頭部は卵形で大きく，吻端が比較的細いが，個体によっては吻端の円いものもある．頸長は頭幅よりも明らかに大きい．鼻孔は吻端の近くにあり，耳腺は大きくて明瞭，その上縁の溝線も深い．鋤口蓋歯列は浅いV字形で，前方に向かって著しく開いている．胴は短かく，肋条の数は背面に11本，腹面に9〜10本．四肢は長く，5趾性で，前後肢を体側に沿って伸長すると1肋条分以上重なり合う．尾は非常に長く，後方に向かって著しく側扁し，先端部は鋭いがとがっていない．体長：110〜180mm（尾は体長の1\/2を越えることが多い）．\n　この種は，形態上クロサンショウウオに似た点が多いが，系統的にはむしろトウホクサンショウウオの北海道における置換種と見るべきものであろう．北海道全島に広く分布し，垂直的には平地から高山帯にまで拡がっていて，トムラウシ山，夕張岳，日高山脈の幌尻岳などのほとんど頂上に近い場所でも採れている．\n　場所によって4月から6月頃までの間に，雪解け水で水の集まる池沼や湿原などに産卵する．卵嚢は細長いひも状でらせん形に巻き，表面にしわが多いが透明，水底に沈んでいる樹枝などに1対ずつ産みつけられる．卵の上半は暗褐色，下面は灰白色で，1卵嚢中に30〜60個ぐらい含まれている．",
+        "dwc:taxonConceptID": "gbif:2431158",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hynobius (Hynobius) retardatus DUNN, 1923",
+        "dwc:family": "Hynobiidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2431158,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hynobiidae",
+    "gbif_match_type": "EXACT"
+}

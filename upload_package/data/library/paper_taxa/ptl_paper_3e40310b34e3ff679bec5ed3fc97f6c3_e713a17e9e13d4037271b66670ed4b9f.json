@@ -1,0 +1,14 @@
+{
+    "id": "ptl_paper_3e40310b34e3ff679bec5ed3fc97f6c3_e713a17e9e13d4037271b66670ed4b9f",
+    "paper_id": "paper_3e40310b34e3ff679bec5ed3fc97f6c3",
+    "doi": "10.1038\/s41597-023-02113-2",
+    "query_id": "alien_bird_2479407_ja",
+    "query_label": "オキナインコ Japan (keyword search)",
+    "scientific_name": null,
+    "jp_name": "オキナインコ",
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1038\/s41597-023-02113-2",
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "オキナインコ"
+    }
+}

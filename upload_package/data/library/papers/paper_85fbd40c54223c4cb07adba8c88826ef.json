@@ -1,0 +1,20 @@
+{
+    "id": "paper_85fbd40c54223c4cb07adba8c88826ef",
+    "doi": "10.1017\/s0007485300006118",
+    "title": "Trap catches of the coconut rhinoceros beetle Oryctes rhinoceros (L.) (Coleoptera, Scarabaeidae, Dynastinae) in New Britain",
+    "year": 1975,
+    "container_title": "Bulletin of Entomological Research",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1017\/s0007485300006118",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1017\/s0007485300006118",
+        "dc:title": "Trap catches of the coconut rhinoceros beetle Oryctes rhinoceros (L.) (Coleoptera, Scarabaeidae, Dynastinae) in New Britain",
+        "dc:date": 1975,
+        "dc:source": "Bulletin of Entomological Research",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

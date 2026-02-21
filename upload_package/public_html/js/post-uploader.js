@@ -1,0 +1,724 @@
+/**
+ * post-uploader.js — ikimon.life 投稿フォーム Alpine.js コンポーネント
+ * post.php から分離。PHP動的値は window.__POST_CONFIG 経由で注入。
+ * @version 4.0 — Multi-Photo Intelligence (GPS best-select + burst detect + session link)
+ */
+function uploader() {
+    const config = window.__POST_CONFIG || {};
+    return {
+        AiAssist: window.AiAssist,
+        photos: [],
+        observed_at: '',
+        lat: '34.7108',
+        lng: '137.7261',
+        cultivation: 'wild',
+        life_stage: 'unknown',
+        taxon_name: '',
+        taxon_slug: '',
+        taxon_rank: '',
+        taxon_source: '',
+        inat_taxon_id: null,
+        taxon_thumbnail: '',
+        suggestions: [],
+        showSuggestions: false,
+        searchTimer: null,
+        note: '',
+        license: 'CC-BY',
+        event_id: null,
+        event_name: '',
+        locationName: '',
+        addressQuery: '',
+        addressResults: [],
+        showAddressSuggestions: false,
+        gpsAccuracy: null,
+        locationSource: 'default',
+        exifToast: '',
+        exifToastVisible: false,
+        deviceGps: null,
+        // GPS conflict modal state
+        gpsConflict: false,
+        gpsConflictData: null,   // { exifLat, exifLng, deviceLat, deviceLng, distance }
+        // Date discrepancy warning
+        dateWarning: '',
+        dateWarningVisible: false,
+        // Multi-Photo Intelligence state
+        _exifData: [],           // EXIF data from all photos [{lat, lng, date, orientation, imgDirection}]
+        _burstDetected: false,   // True if consecutive photos <30s apart
+        activeSessionId: null,   // Free Roam session auto-link
+        lastObservationId: null,
+        submitting: false,
+        progress: 0,
+        success: false,
+        map: null,
+        marker: null,
+        isLoggedIn: config.isLoggedIn ?? false,
+        isGuest: config.isGuest ?? true,
+        guestPostCount: config.guestPostCount ?? 0,
+        guestPostLimit: config.guestPostLimit ?? 3,
+        csrfToken: config.csrfToken ?? '',
+        survey_id: config.survey_id ?? null,
+        biome: 'unknown',
+        substrate_tags: [],
+        evidence_tags: [],
+
+        async loadHistory() {
+            if (!this.isLoggedIn) {
+                alert('履歴を見るにはログインしてね 🔑\n投稿は誰でもできるよ！');
+                return;
+            }
+            try {
+                const res = await fetch('api/get_last_observation.php');
+                const json = await res.json();
+                if (json.success) {
+                    const d = json.data;
+                    this.lat = d.lat;
+                    this.lng = d.lng;
+                    this.cultivation = d.cultivation;
+                    if (this.map && this.marker) {
+                        this.map.flyTo([this.lat, this.lng], 16);
+                        this.marker.setLatLng([this.lat, this.lng]);
+                    }
+                }
+            } catch (e) { }
+        },
+
+        init() {
+            // URL params (from id_wizard etc.)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('taxon_name')) this.taxon_name = urlParams.get('taxon_name');
+            if (urlParams.get('note')) this.note = urlParams.get('note');
+            if (urlParams.get('event_id')) {
+                this.event_id = urlParams.get('event_id');
+                this.event_name = urlParams.get('event_name') || '観察会';
+            }
+
+            // 日時を現在時刻にプリセット
+            const now = new Date();
+            this.observed_at = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0') + 'T' +
+                String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0');
+
+            // GPS自動取得
+            if ('geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        this.lat = pos.coords.latitude.toFixed(6);
+                        this.lng = pos.coords.longitude.toFixed(6);
+                        this.gpsAccuracy = pos.coords.accuracy;
+                        this.locationSource = 'gps';
+                        this.deviceGps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        this.reverseGeocode(this.lat, this.lng);
+                        if (this.map && this.marker) {
+                            this.map.flyTo([this.lat, this.lng], 15);
+                            this.marker.setLatLng([this.lat, this.lng]);
+                        }
+                    },
+                    () => {
+                        /* 失敗時は静かにデフォルト座標を維持 */
+                    }, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+                );
+            }
+
+            // Draft Recovery
+            const draft = localStorage.getItem('draft_obs');
+            if (draft) {
+                try {
+                    const d = JSON.parse(draft);
+                    if (d.note) this.note = d.note;
+                    if (d.cultivation) this.cultivation = d.cultivation;
+                } catch (e) { }
+            }
+
+            // Free Roam Session auto-link: check localStorage for active session
+            try {
+                const activeSession = localStorage.getItem('ikimon_active_session');
+                if (activeSession) {
+                    const session = JSON.parse(activeSession);
+                    if (session.id && session.status === 'active') {
+                        this.activeSessionId = session.id;
+                        console.log('[Session Link] Active session found:', session.id);
+                    }
+                }
+            } catch (e) { /* no active session */ }
+
+            // Auto-Save Draft
+            this.$watch('note', val => this.saveDraft());
+            this.$watch('cultivation', val => this.saveDraft());
+
+            // Camera shortcut: post.php?camera=1 → auto-open camera
+            if (urlParams.get('camera') === '1') {
+                this.$nextTick(() => {
+                    if (this.$refs.cameraInput) this.$refs.cameraInput.click();
+                });
+            }
+
+            // Map Init is triggered from handleFiles() when first photo is added
+        },
+
+        initMapNow() {
+            const container = document.getElementById('map');
+            if (!container || container.offsetWidth === 0) {
+                setTimeout(() => this.initMapNow(), 100);
+                return;
+            }
+            // Fix Leaflet default marker icon (CDN path resolution issue)
+            delete L.Icon.Default.prototype._getIconUrl;
+            L.Icon.Default.mergeOptions({
+                iconRetinaUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+                iconUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png',
+                shadowUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png',
+            });
+            this.map = L.map('map').setView([this.lat, this.lng], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap',
+                maxZoom: 19
+            }).addTo(this.map);
+
+            this.marker = L.marker([this.lat, this.lng], {
+                draggable: true
+            }).addTo(this.map);
+
+            this.marker.on('dragend', () => {
+                const pos = this.marker.getLatLng();
+                this.lat = pos.lat.toFixed(6);
+                this.lng = pos.lng.toFixed(6);
+                this.locationSource = 'manual';
+                this.reverseGeocode(this.lat, this.lng);
+                if (navigator.vibrate) navigator.vibrate(10);
+            });
+            this.map.on('click', (e) => {
+                this.marker.setLatLng(e.latlng);
+                this.lat = e.latlng.lat.toFixed(6);
+                this.lng = e.latlng.lng.toFixed(6);
+                this.locationSource = 'manual';
+                this.reverseGeocode(this.lat, this.lng);
+                if (navigator.vibrate) navigator.vibrate(10);
+            });
+
+            // Ensure tiles render after container appears
+            setTimeout(() => this.map.invalidateSize(), 200);
+        },
+
+        async reverseGeocode(lat, lng) {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16&accept-language=ja`);
+                const data = await res.json();
+                if (data.address) {
+                    const a = data.address;
+                    this.locationName = [a.city || a.town || a.village, a.suburb || a.neighbourhood || a.hamlet].filter(Boolean).join(' ') || data.display_name?.split(',').slice(0, 2).join(', ') || '';
+                }
+            } catch (e) {
+                /* Silent fail */
+            }
+        },
+
+        async searchAddress() {
+            const q = this.addressQuery.trim();
+            if (q.length < 2) {
+                this.addressResults = [];
+                this.showAddressSuggestions = false;
+                return;
+            }
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=jp&limit=5&accept-language=ja`);
+                this.addressResults = await res.json();
+                this.showAddressSuggestions = this.addressResults.length > 0;
+                this.$nextTick(() => lucide.createIcons());
+            } catch (e) {
+                this.addressResults = [];
+            }
+        },
+
+        selectAddress(addr) {
+            this.lat = parseFloat(addr.lat).toFixed(6);
+            this.lng = parseFloat(addr.lon).toFixed(6);
+            this.locationName = addr.display_name.split(',').slice(0, 3).join(', ');
+            this.addressQuery = '';
+            this.showAddressSuggestions = false;
+            this.locationSource = 'manual';
+            if (this.map && this.marker) {
+                this.map.flyTo([this.lat, this.lng], 16);
+                this.marker.setLatLng([this.lat, this.lng]);
+            }
+            if (navigator.vibrate) navigator.vibrate(30);
+        },
+
+        resetForm() {
+            this.photos = [];
+            this.taxon_name = '';
+            this.taxon_slug = '';
+            this.taxon_rank = '';
+            this.taxon_source = '';
+            this.inat_taxon_id = null;
+            this.taxon_thumbnail = '';
+            this.note = '';
+            this.license = 'CC-BY';
+            this.life_stage = 'unknown';
+            this.cultivation = 'wild';
+            this.biome = 'unknown';
+            this.substrate_tags = [];
+            this.evidence_tags = [];
+            this.submitting = false;
+            this.success = false;
+            this.progress = 0;
+            this.lastObservationId = null;
+            this.event_id = null;
+            this.event_name = '';
+            const now = new Date();
+            this.observed_at = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0') + 'T' +
+                String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0');
+            this.$nextTick(() => lucide.createIcons());
+        },
+
+        saveDraft() {
+            localStorage.setItem('draft_obs', JSON.stringify({
+                note: this.note,
+                cultivation: this.cultivation,
+                timestamp: Date.now()
+            }));
+        },
+
+        handleFiles(e) {
+            if (navigator.vibrate) navigator.vibrate(50);
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const photo = {
+                        file: file,
+                        preview: ev.target.result,
+                        size: file.size,
+                        compressed: false,
+                        blob: null
+                    };
+                    this.photos.push(photo);
+                    this.compressPhoto(photo);
+                    // AI Assist: 写真変更時にリセット
+                    if (window.AiAssist) AiAssist.reset();
+                    // Analytics: 写真追加イベント
+                    if (window.ikimonAnalytics) ikimonAnalytics.track('photo_added', {
+                        count: this.photos.length
+                    });
+
+                    // Init map when first photo is added (container becomes visible)
+                    if (this.photos.length === 1 && !this.map) {
+                        setTimeout(() => this.initMapNow(), 300);
+                    }
+
+                    // Multi-Photo EXIF Intelligence — process ALL photos
+                    if (typeof EXIF !== 'undefined') {
+                        this._processExif(file, this.photos.length);
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        },
+
+        removePhoto(index) {
+            this.photos.splice(index, 1);
+            if (navigator.vibrate) navigator.vibrate(20);
+        },
+
+        async compressPhoto(photo) {
+            const img = new Image();
+            img.src = photo.preview;
+            await new Promise(resolve => img.onload = resolve);
+            const canvas = document.createElement('canvas');
+            let w = img.width;
+            let h = img.height;
+            const max = 1280;
+            if (w > max || h > max) {
+                if (w > h) {
+                    h = Math.round(h * max / w);
+                    w = max;
+                } else {
+                    w = Math.round(w * max / h);
+                    h = max;
+                }
+            }
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            canvas.toBlob(b => {
+                photo.blob = b;
+                photo.compressed = true;
+            }, 'image/webp', 0.8);
+        },
+
+        redirectToLogin() {
+            window.location.href = 'login.php?redirect=' + encodeURIComponent('post.php');
+        },
+
+        async submit() {
+            // ゲスト上限チェック (サーバー側でも検証するが、UXのためクライアント側でも)
+            if (this.isGuest && this.guestPostCount >= this.guestPostLimit) {
+                if (confirm('ゲストの投稿上限(' + this.guestPostLimit + '件)に達したよ！\nログインすると無制限に投稿できるよ 🔑')) {
+                    this.redirectToLogin();
+                }
+                return;
+            }
+
+            // Evidence Validation (同定入力時必須)
+            const isNameEntered = this.taxon_name.trim().length > 0;
+            if (isNameEntered && this.evidence_tags.length === 0) {
+                alert('同定の精度を高めるため、「同定のエビデンス（証拠）」を1つ以上選択してください 🙇\n\n（「全体的な形」「生息環境」など決め手になった特徴を選んでね）');
+                return;
+            }
+
+            if (navigator.vibrate) navigator.vibrate(50);
+
+            this.submitting = true;
+            // Analytics: 投稿送信イベント
+            if (window.ikimonAnalytics) ikimonAnalytics.track('post_submit', {
+                photo_count: this.photos.length,
+                has_taxon: !!this.taxon_name
+            });
+
+            const formData = new FormData();
+            formData.append('observed_at', this.observed_at || new Date().toISOString().slice(0, 16));
+            console.log('[SUBMIT] lat:', this.lat, 'lng:', this.lng, 'type:', typeof this.lat);
+            formData.append('lat', this.lat);
+            formData.append('lng', this.lng);
+            formData.append('csrf_token', this.csrfToken);
+            formData.append('cultivation', this.cultivation);
+            formData.append('life_stage', this.life_stage);
+            formData.append('taxon_name', this.taxon_name);
+            formData.append('taxon_slug', this.taxon_slug);
+            if (this.taxon_rank) formData.append('taxon_rank', this.taxon_rank);
+            if (this.taxon_source) formData.append('taxon_source', this.taxon_source);
+            if (this.inat_taxon_id) formData.append('inat_taxon_id', this.inat_taxon_id);
+            if (this.taxon_thumbnail) formData.append('taxon_thumbnail', this.taxon_thumbnail);
+            formData.append('note', this.note);
+            formData.append('license', this.license);
+            if (this.event_id) formData.append('event_id', this.event_id);
+            if (this.survey_id) formData.append('survey_id', this.survey_id);
+            if (this.activeSessionId) formData.append('session_id', this.activeSessionId);
+            if (this.biome && this.biome !== 'unknown') formData.append('biome', this.biome);
+            if (this.substrate_tags.length > 0) formData.append('substrate_tags', JSON.stringify(this.substrate_tags));
+            if (this.evidence_tags.length > 0) formData.append('evidence_tags', JSON.stringify(this.evidence_tags));
+
+            // AI Assist: 提案データを記録に添付（精度評価ループ用）
+            if (window.AiAssist && AiAssist.asked && AiAssist.suggestions.length > 0) {
+                formData.append('ai_hint', JSON.stringify({
+                    suggestions: AiAssist.suggestions,
+                    processing_ms: AiAssist.processingMs
+                }));
+            }
+
+            // Use compressed blob if available, else original
+            for (let i = 0; i < this.photos.length; i++) {
+                const photo = this.photos[i];
+                if (photo.compressed && photo.blob) {
+                    formData.append('photos[]', photo.blob, `photo_${i}.webp`);
+                } else {
+                    formData.append('photos[]', photo.file);
+                }
+            }
+
+            // Network Logic with Offline Fallback
+            try {
+                const res = await fetch('api/post_observation.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const text = await res.text();
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch (e) {
+                    // Server returned non-JSON (500 error, HTML error page, etc.)
+                    console.error('Server Error (non-JSON):', text.slice(0, 200));
+                    alert('サーバーエラーが発生したよ 🙇\nもう一度試してみてね。\n\n' + text.slice(0, 80));
+                    this.submitting = false;
+                    return;
+                }
+
+                if (result.success) {
+                    this.lastObservationId = result.id;
+
+                    // Dispatch Gamification Event if present
+                    if (result.gamification_events && result.gamification_events.length > 0) {
+                        window.dispatchEvent(new CustomEvent('gamification-event', {
+                            detail: result.gamification_events
+                        }));
+                    }
+
+                    // Analytics: 投稿成功イベント
+                    if (window.ikimonAnalytics) ikimonAnalytics.track('post_success', {
+                        obs_id: result.id
+                    });
+                    this.completeSubmission();
+                } else {
+                    console.error('Submission Failed:', result);
+                    alert('ごめん、ちょっとうまくいかなかった 🙇\n' + (result.message || result.error || 'もう一度試してみてね'));
+                    this.submitting = false;
+                }
+            } catch (e) {
+                // TypeError from fetch = genuine network failure (DNS, no connection, etc.)
+                // Only save to offline queue for actual network errors
+                if (e instanceof TypeError || !navigator.onLine) {
+                    console.log('Network unavailable, saving to Outbox...', e);
+                    try {
+                        await window.offlineManager.saveObservation(formData);
+                        this.progress = 100;
+                        this.success = true;
+                        if (navigator.vibrate) navigator.vibrate([50, 50]);
+                        alert('📱 端末に保存したよ！\nネットが繋がったら自動で送信されるから安心してね。');
+                        localStorage.removeItem('draft_obs');
+                        setTimeout(() => window.location.href = 'index.php', 500);
+                    } catch (dbError) {
+                        console.error('IndexedDB Failed:', dbError);
+                        alert('ごめん、保存がうまくいかなかった... 🙇\nもう一回試してみてね');
+                        this.submitting = false;
+                    }
+                } else {
+                    // Non-network error (e.g. CORS, abort, etc.)
+                    console.error('Submit error (not network):', e);
+                    alert('送信エラーが発生したよ 🙇\n' + e.message + '\n\nもう一度試してみてね。');
+                    this.submitting = false;
+                }
+            }
+        },
+
+        completeSubmission() {
+            this.progress = 100;
+            this.success = true;
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            localStorage.removeItem('draft_obs');
+            // ゲスト投稿カウントをクライアント側でも更新
+            if (this.isGuest) {
+                this.guestPostCount++;
+            }
+            this.$nextTick(() => lucide.createIcons());
+        },
+
+        async searchTaxon() {
+            const q = this.taxon_name.trim();
+            if (q.length < 1) {
+                this.suggestions = [];
+                this.showSuggestions = false;
+                return;
+            }
+            this.taxon_slug = '';
+            this.taxon_rank = '';
+            this.taxon_source = '';
+            this.inat_taxon_id = null;
+            this.taxon_thumbnail = '';
+            try {
+                const res = await fetch('api/taxon_suggest.php?q=' + encodeURIComponent(q));
+                const data = await res.json();
+                this.suggestions = data.results || [];
+                this.showSuggestions = this.suggestions.length > 0;
+            } catch (e) {
+                this.suggestions = [];
+            }
+        },
+
+        selectTaxon(s) {
+            this.taxon_name = s.jp_name || s.sci_name;
+            this.taxon_slug = s.slug;
+            this.taxon_rank = s.rank || '';
+            this.taxon_source = s.source || '';
+            this.inat_taxon_id = s.inat_taxon_id || null;
+            this.taxon_thumbnail = s.thumbnail_url || '';
+            this.showSuggestions = false;
+            if (navigator.vibrate) navigator.vibrate(30);
+        },
+
+        toggleSubstrate(tagId) {
+            const idx = this.substrate_tags.indexOf(tagId);
+            if (idx >= 0) {
+                this.substrate_tags.splice(idx, 1);
+            } else {
+                this.substrate_tags.push(tagId);
+            }
+            if (navigator.vibrate) navigator.vibrate(15);
+        },
+
+        toggleEvidence(tagId) {
+            const idx = this.evidence_tags.indexOf(tagId);
+            if (idx >= 0) {
+                this.evidence_tags.splice(idx, 1);
+            } else {
+                this.evidence_tags.push(tagId);
+            }
+            if (navigator.vibrate) navigator.vibrate(15);
+        },
+
+        /**
+         * Multi-Photo EXIF processor — called for each photo
+         * Handles: GPS best-selection, burst detection, date extraction, conflict modal
+         */
+        async _processExif(file, photoIndex) {
+            try {
+                const exif = await EXIF.readFromFile(file);
+                const entry = {
+                    index: photoIndex,
+                    lat: exif.lat,
+                    lng: exif.lng,
+                    date: exif.date || null,
+                    orientation: exif.orientation || null,
+                    imgDirection: exif.imgDirection || null
+                };
+                this._exifData.push(entry);
+                console.log(`[EXIF #${photoIndex}]`, entry);
+
+                const isFirstPhoto = (photoIndex === 1);
+                const toastParts = [];
+
+                // === Date: use first photo's date ===
+                if (isFirstPhoto && exif.date) {
+                    try {
+                        const parts = exif.date.split(' ');
+                        const dt = parts[0].replace(/:/g, '-') + 'T' + parts[1].slice(0, 5);
+                        this.observed_at = dt;
+                        toastParts.push('🕐 撮影日時');
+                    } catch (e) { /* ignore parse errors */ }
+
+                    // Date discrepancy warning (>24h old photo)
+                    try {
+                        const parts = exif.date.split(' ');
+                        const exifDate = new Date(parts[0].replace(/:/g, '-') + 'T' + parts[1]);
+                        const hoursAgo = (Date.now() - exifDate.getTime()) / (1000 * 60 * 60);
+                        if (hoursAgo > 24) {
+                            const daysAgo = Math.floor(hoursAgo / 24);
+                            this.dateWarning = daysAgo === 1
+                                ? '⏰ この写真は昨日撮影されたものです'
+                                : `⏰ この写真は${daysAgo}日前に撮影されたものです`;
+                            this.dateWarningVisible = true;
+                            setTimeout(() => { this.dateWarningVisible = false; }, 6000);
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+
+                // === GPS: best-selection across all photos ===
+                if (exif.lat !== null && exif.lng !== null) {
+                    const absLat = Math.abs(exif.lat);
+                    const absLng = Math.abs(exif.lng);
+                    const isNullIsland = (absLat < 0.01 && absLng < 0.01);
+                    const isOutOfRange = (absLat > 90 || absLng > 180);
+
+                    if (!isNullIsland && !isOutOfRange) {
+                        // For first photo with valid GPS, or if no GPS was set yet from EXIF
+                        const hasExifGps = this.locationSource === 'exif';
+                        if (!hasExifGps) {
+                            console.log(`[EXIF GPS #${photoIndex}] Using as primary:`, exif.lat, exif.lng);
+                            if (this.deviceGps) {
+                                const dist = this._haversine(
+                                    this.deviceGps.lat, this.deviceGps.lng,
+                                    exif.lat, exif.lng
+                                );
+                                console.log('[EXIF vs Device GPS] distance:', Math.round(dist), 'm');
+                                if (dist > 500) {
+                                    this.gpsConflictData = {
+                                        exifLat: exif.lat, exifLng: exif.lng,
+                                        deviceLat: this.deviceGps.lat, deviceLng: this.deviceGps.lng,
+                                        distance: Math.round(dist)
+                                    };
+                                    this.gpsConflict = true;
+                                    if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
+                                }
+                            }
+                            this._applyExifGps(exif.lat, exif.lng);
+                            toastParts.push('📍 撮影場所');
+                        } else {
+                            console.log(`[EXIF GPS #${photoIndex}] Additional GPS point:`, exif.lat, exif.lng, '(primary already set)');
+                        }
+                    }
+                }
+
+                // === Burst Detection: check time difference with previous photo ===
+                if (!this._burstDetected && this._exifData.length >= 2 && exif.date) {
+                    const prev = this._exifData[this._exifData.length - 2];
+                    if (prev.date) {
+                        try {
+                            const curParts = exif.date.split(' ');
+                            const prevParts = prev.date.split(' ');
+                            const curTime = new Date(curParts[0].replace(/:/g, '-') + 'T' + curParts[1]);
+                            const prevTime = new Date(prevParts[0].replace(/:/g, '-') + 'T' + prevParts[1]);
+                            const diffSec = Math.abs(curTime - prevTime) / 1000;
+                            if (diffSec <= 30) {
+                                this._burstDetected = true;
+                                toastParts.push('📸 連続撮影を検出');
+                                console.log(`[Burst] Photos ${photoIndex - 1} & ${photoIndex}: ${diffSec}s apart`);
+                            }
+                        } catch (e) { /* ignore */ }
+                    }
+                }
+
+                // Show toast
+                if (toastParts.length > 0) {
+                    this.exifToast = toastParts.join(' と ') + ' を写真から自動検出！';
+                    this.exifToastVisible = true;
+                    if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+                    setTimeout(() => { this.exifToastVisible = false; }, 4000);
+                }
+            } catch (e) {
+                console.warn('[EXIF] Failed to read:', e);
+            }
+        },
+
+        /** Apply EXIF GPS to map and state */
+        _applyExifGps(lat, lng) {
+            this.lat = lat.toFixed(6);
+            this.lng = lng.toFixed(6);
+            this.locationSource = 'exif';
+            this.reverseGeocode(this.lat, this.lng);
+            const applyToMap = () => {
+                if (this.map && this.marker) {
+                    this.map.flyTo([lat, lng], 16);
+                    this.marker.setLatLng([lat, lng]);
+                } else {
+                    setTimeout(applyToMap, 500);
+                }
+            };
+            applyToMap();
+        },
+
+        /** User chose: use photo (EXIF) location */
+        usePhotoLocation() {
+            this.gpsConflict = false;
+            // Already applied by default, just confirm
+            if (navigator.vibrate) navigator.vibrate(30);
+        },
+
+        /** User chose: use device (current) location */
+        useDeviceLocation() {
+            if (this.gpsConflictData) {
+                this.lat = this.gpsConflictData.deviceLat.toFixed(6);
+                this.lng = this.gpsConflictData.deviceLng.toFixed(6);
+                this.locationSource = 'gps';
+                this.reverseGeocode(this.lat, this.lng);
+                if (this.map && this.marker) {
+                    this.map.flyTo([this.lat, this.lng], 16);
+                    this.marker.setLatLng([this.lat, this.lng]);
+                }
+            }
+            this.gpsConflict = false;
+            this.gpsConflictData = null;
+            if (navigator.vibrate) navigator.vibrate(30);
+        },
+
+        /** Haversine distance in meters between two lat/lng points */
+        _haversine(lat1, lng1, lat2, lng2) {
+            const R = 6371000;
+            const toRad = d => d * Math.PI / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLng = toRad(lng2 - lng1);
+            const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLng / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+    }
+}

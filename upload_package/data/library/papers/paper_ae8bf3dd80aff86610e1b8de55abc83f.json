@@ -1,0 +1,20 @@
+{
+    "id": "paper_ae8bf3dd80aff86610e1b8de55abc83f",
+    "doi": "10.2173\/tbna.276.p",
+    "title": "Marbled Murrelet (Brachyramphus marmoratus)",
+    "year": 1997,
+    "container_title": "Birds of North America (print)",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/tbna.276.p",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/tbna.276.p",
+        "dc:title": "Marbled Murrelet (Brachyramphus marmoratus)",
+        "dc:date": 1997,
+        "dc:source": "Birds of North America (print)",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

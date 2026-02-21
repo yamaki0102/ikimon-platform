@@ -1,0 +1,49 @@
+{
+    "id": "cit_book_kumo_handbook_p40_e0a702a25a5fcd5341d78e92d167577e",
+    "book_id": "book_kumo_handbook",
+    "page": 40,
+    "taxon_name": "イナダハリゲコモリグモ",
+    "scientific_name": "Pardosa laura",
+    "family": "コモリグモ科 Lycosidae",
+    "data_icons": {
+        "size": "female: 6〜8mm, male: 3〜5mm",
+        "season": "春〜夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "ハリゲコモリグモ（オス）(脚は白くて黒斑)",
+        "腹部背面",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.40)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Pardosa laura",
+        "dwc:vernacularName": "イナダハリゲコモリグモ",
+        "dwc:occurrenceRemarks": "平地の林床などに多く観察され、腹部に数対の黒条がある。平地から山地にかけて生息し、樹林地の落葉層を徘徊する。同属にハリゲコモリグモ（P. palustris）、ハタハリゲコモリグモなどの外見の似た種が多く、オスは触肢の構造で、メスは外雌器の形状で識別する必要がある。全体に黒っぽいこと、脚にしま模様がなく黒褐色であることで識別できる。",
+        "dwc:taxonConceptID": "gbif:2145962",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Pardosa laura",
+        "dwc:family": "Lycosidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2145962,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Lycosidae",
+    "gbif_match_type": "EXACT"
+}

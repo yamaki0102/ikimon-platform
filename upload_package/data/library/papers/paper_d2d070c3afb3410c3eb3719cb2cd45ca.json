@@ -1,0 +1,20 @@
+{
+    "id": "paper_d2d070c3afb3410c3eb3719cb2cd45ca",
+    "doi": "10.1079\/pwkb.species.14482",
+    "title": "Cryptomeria japonica (Japanese cedar)",
+    "year": 2022,
+    "container_title": "PlantwisePlus Knowledge Bank",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1079\/pwkb.species.14482",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1079\/pwkb.species.14482",
+        "dc:title": "Cryptomeria japonica (Japanese cedar)",
+        "dc:date": 2022,
+        "dc:source": "PlantwisePlus Knowledge Bank",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

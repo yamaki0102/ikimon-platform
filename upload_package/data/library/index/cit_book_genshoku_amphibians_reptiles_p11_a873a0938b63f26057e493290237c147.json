@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p11_a873a0938b63f26057e493290237c147",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 11,
+    "taxon_name": "カエル目 (Salientia)",
+    "scientific_name": "Salientia",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.11)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Salientia",
+        "dwc:vernacularName": "カエル目 (Salientia)",
+        "dwc:occurrenceRemarks": "3.　カエル目 Salientia.　いわゆるカエルの類全部を包括し，成体の体が一般に太短かくて尾のないこと，後肢の関節が著しく発達して跳躍に適した構造に変わっていること，変態が完全で幼生（いわゆるオタマジャクシ）と成体との形態が非常に異なることなどの点で，他の脊椎動物群と混同されることがない．比較的新しい時代になってから急激な分化を遂げたもので，分類がきわめて難しく，亜目でさえまだ十分には系統づけられていない．無尾目 Anura とも呼ばれている．",
+        "dwc:taxonConceptID": "gbif:4983739",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Salientia",
+        "dwc:family": "Salientia",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 4983739,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Salientia",
+    "gbif_match_type": "HIGHERRANK"
+}

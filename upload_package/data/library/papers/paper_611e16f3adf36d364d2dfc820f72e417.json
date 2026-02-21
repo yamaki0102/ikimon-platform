@@ -1,0 +1,20 @@
+{
+    "id": "paper_611e16f3adf36d364d2dfc820f72e417",
+    "doi": "10.1093\/wentk\/9780199922017.003.0009",
+    "title": "Detection and Eradication of Introduced Species",
+    "year": 2013,
+    "container_title": "Invasive Species",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1093\/wentk\/9780199922017.003.0009",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1093\/wentk\/9780199922017.003.0009",
+        "dc:title": "Detection and Eradication of Introduced Species",
+        "dc:date": 2013,
+        "dc:source": "Invasive Species",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p128_466bc12d3aac8680c29c0a35efd9c233",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 128,
+    "taxon_name": "トカゲモドキ科",
+    "scientific_name": "Eublepharinae",
+    "family": "トカゲモドキ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.128)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Eublepharinae",
+        "dwc:vernacularName": "トカゲモドキ科",
+        "dwc:occurrenceRemarks": "　眼は透明な膜でおおわれていないが，眼瞼は可動で，完全に眼を閉じることができる．瞳孔は垂直方向の楕円形．左右の頭頂骨は癒合して単一になっている．脊椎骨は前凹形．指趾は細長くて，指（趾）下板が吸盤に変形していない．\n　5属を含み，分布がかなり不連続で，琉球列島中央部，海南島，インドシナ，マレイ半島，スマトラ，ボルネオ，インド中央部から中近東地方にかけての一帯．アフリカ東北部および西部．北アメリカ南部，中央アメリカなどから知られている．しばしば独立の科とみなされ．ヤモリ主科の属以上の分類を検討し直した UNDERWOOD (1954) なども．この類に独自の科を認めている．一方では，SMITH (1935) や ROMER (1956)などのように，トカゲモドキ類をヤモリ科の1亜科とする考え認めない学者もある．しかし，トカゲモドキ類と真のヤモリ類との間に見られる脊椎骨の形態の相違は，少なくとも亜科を区分する場合には，十分な根拠になり得るものであろうと思われる．前者をヤモリ科の亜科と見るかそれとも独立の科とみなすかという問題の最終的な解決は．今後の広汎な研究の結果にまたねばならないが，本書では一応先の方の立場を採っておいた．"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_91619c48e68b7f95dfd0a56a60bedc76",
+    "doi": "10.1007\/bf00657663",
+    "title": "Stridulation and tegminal resonance in the tree cricket Oecanthus nigricornis (Orthoptera: Gryllidae: Oecanthinae)",
+    "year": 1979,
+    "container_title": "Journal of Comparative Physiology A",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/bf00657663",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/bf00657663",
+        "dc:title": "Stridulation and tegminal resonance in the tree cricket Oecanthus nigricornis (Orthoptera: Gryllidae: Oecanthinae)",
+        "dc:date": 1979,
+        "dc:source": "Journal of Comparative Physiology A",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

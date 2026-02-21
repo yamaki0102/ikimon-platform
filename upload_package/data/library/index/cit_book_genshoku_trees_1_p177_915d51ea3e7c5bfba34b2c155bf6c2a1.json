@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p177_915d51ea3e7c5bfba34b2c155bf6c2a1",
+    "book_id": "book_genshoku_trees_1",
+    "page": 177,
+    "taxon_name": "え行",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.177)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "え行",
+        "dwc:occurrenceRemarks": "エゴノキ V 152\nエゾイタヤ V 242\nエゾエノキ IV 46\nエミーオア(エリカ) V 125\nエニシダ IV 240\nエノキ IV 46\nエビガライチゴ IV 158\nエビネ IV 142\nエビラフジ(ツヅラフジ) IV 106\nエフデラン V 225\nエリカ V 124\n――'エミーオア' V 125\n――'クリスマスパレード' V 124\n――'ドクター・ウォレス' V 125\nエルム(ニレ) IV 48\nエンジュ IV 252\nエンドウ IV 239"
+    }
+}

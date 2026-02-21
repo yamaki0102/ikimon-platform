@@ -72,6 +72,7 @@ class LibraryService
                 // Fetch book details
                 $book = DataStore::get("library/references/{$json['book_id']}");
                 $json['book_title'] = $book['title'] ?? $json['book_id'];
+                $json['book_year'] = $book['year'] ?? '';
                 $citations[] = $json;
             }
         }

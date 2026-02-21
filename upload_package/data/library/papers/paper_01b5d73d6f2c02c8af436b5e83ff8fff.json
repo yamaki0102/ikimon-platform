@@ -1,0 +1,20 @@
+{
+    "id": "paper_01b5d73d6f2c02c8af436b5e83ff8fff",
+    "doi": "10.1163\/15707563-bja10057",
+    "title": "Conservation biology of the critically endangered salamander, Paradactylodon persicus gorganensis (Clergue-Gazeau &amp; Thorn, 1979) (Amphibia: Hynobiidae) in northeastern Iran",
+    "year": 2021,
+    "container_title": "Animal Biology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/15707563-bja10057",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/15707563-bja10057",
+        "dc:title": "Conservation biology of the critically endangered salamander, Paradactylodon persicus gorganensis (Clergue-Gazeau &amp; Thorn, 1979) (Amphibia: Hynobiidae) in northeastern Iran",
+        "dc:date": 2021,
+        "dc:source": "Animal Biology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_b22b0bad4edf7d7c7a7e21905c36dd56",
+    "doi": "10.3157\/0002-8320(2006)132[229:siattm]2.0.co;2",
+    "title": "Studies in Australian Tettigoniidae: The Mecopodine Katydids Part 2 (Orthoptera: Tettigoniidae; Mecopodinae; Sexavaini) Queensland Palm Katydid",
+    "year": 2006,
+    "container_title": "Transactions of the American Entomological Society",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3157\/0002-8320(2006)132[229:siattm]2.0.co;2",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3157\/0002-8320(2006)132[229:siattm]2.0.co;2",
+        "dc:title": "Studies in Australian Tettigoniidae: The Mecopodine Katydids Part 2 (Orthoptera: Tettigoniidae; Mecopodinae; Sexavaini) Queensland Palm Katydid",
+        "dc:date": 2006,
+        "dc:source": "Transactions of the American Entomological Society",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

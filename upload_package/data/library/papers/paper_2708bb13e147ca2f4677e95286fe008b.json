@@ -1,0 +1,20 @@
+{
+    "id": "paper_2708bb13e147ca2f4677e95286fe008b",
+    "doi": "10.1007\/s10453-018-9511-0",
+    "title": "Comparability between Durham method and real-time monitoring for long-term observation of Japanese cedar (Cryptomeria japonica) and Japanese cypress (Cryptomeria obtusa) pollen counts in Niigata prefecture, Japan",
+    "year": 2018,
+    "container_title": "Aerobiologia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/s10453-018-9511-0",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/s10453-018-9511-0",
+        "dc:title": "Comparability between Durham method and real-time monitoring for long-term observation of Japanese cedar (Cryptomeria japonica) and Japanese cypress (Cryptomeria obtusa) pollen counts in Niigata prefecture, Japan",
+        "dc:date": 2018,
+        "dc:source": "Aerobiologia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

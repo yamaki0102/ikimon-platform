@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_5f16dfeffacf286da6503462f83e7ec9_a5a723f3dde8a10c207ea36b09dd8e1f",
+    "paper_id": "paper_5f16dfeffacf286da6503462f83e7ec9",
+    "doi": "10.5962\/p.323270",
+    "query_id": "jp_bird_2498388_en",
+    "query_label": "Aix galericulata Japan (ecology\/distribution)",
+    "scientific_name": "Aix galericulata",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.5962\/p.323270",
+        "dwc:scientificName": "Aix galericulata",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2498388",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Aix galericulata",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 2498388,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

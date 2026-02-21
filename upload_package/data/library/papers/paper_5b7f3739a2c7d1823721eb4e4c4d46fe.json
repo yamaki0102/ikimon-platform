@@ -1,0 +1,20 @@
+{
+    "id": "paper_5b7f3739a2c7d1823721eb4e4c4d46fe",
+    "doi": "10.1007\/978-3-642-40462-7_4",
+    "title": "Auditory Parasitoid Flies Exploiting Acoustic Communication of Insects",
+    "year": 2013,
+    "container_title": "Animal Signals and Communication",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1007\/978-3-642-40462-7_4",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/978-3-642-40462-7_4",
+        "dc:title": "Auditory Parasitoid Flies Exploiting Acoustic Communication of Insects",
+        "dc:date": 2013,
+        "dc:source": "Animal Signals and Communication",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

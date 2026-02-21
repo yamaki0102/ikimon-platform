@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_070d31c6b10ab1e00942f6c6d4704c59_be5e4133df5f1f5b28441e024407a888",
+    "paper_id": "paper_070d31c6b10ab1e00942f6c6d4704c59",
+    "doi": "10.1654\/1525-2647(2002)069[0033:phcftj]2.0.co;2",
+    "query_id": "jp_herp_andrias_japonicus",
+    "query_label": "Andrias japonicus Japan (Oo-sanshouuo)",
+    "scientific_name": "Andrias japonicus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1654\/1525-2647(2002)069[0033:phcftj]2.0.co;2",
+        "dwc:scientificName": "Andrias japonicus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2432039",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Andrias japonicus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Cryptobranchidae"
+    },
+    "gbif_taxon_key": 2432039,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Cryptobranchidae"
+}

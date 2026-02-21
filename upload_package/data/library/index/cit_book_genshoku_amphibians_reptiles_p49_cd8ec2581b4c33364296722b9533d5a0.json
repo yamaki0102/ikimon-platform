@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p49_cd8ec2581b4c33364296722b9533d5a0",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 49,
+    "taxon_name": "アマガエル属",
+    "scientific_name": "Genus Hyla LAURENTI, 1768",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.49)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Genus Hyla LAURENTI, 1768",
+        "dwc:vernacularName": "アマガエル属",
+        "dwc:occurrenceRemarks": "　体表の皮膚はおおむねなめらかで，粗雑な隆起がなく，とくに頭部で硬化していない．瞳孔は水平方向の楕円形．鼓膜は明瞭であるかあるいは皮膚におおわれている．舌は卵形で，端縁が円いかあるいは多少えぐれ．少なくとも後部を引き起こすことができる．左右 内鼻孔の間かその後方に1対の鋤骨歯板が原則として存在するが，稀には鋤骨歯のなくなっているものもある．上顎に歯をそなえ，下顎は無歯，趾間にはつねにみずかきがあるが，指間にはみずかきのあるものとないものとがある．指趾の先端部は多少ともふくれ，吸盤を形成している．幼生では，噴水孔が体の左側に，また，肛門は腹面の正中線上か体の右側かに開き，尾の背縁が胴の背面に伸長している．歯式は2\/3．\n　アジアの熱帯地方とアフリカの大部分とを除く全世界に広く分布し，250種以上を含んでいる．樹上性の種類が多いが，地上で生活するものもいくらかある．日本には次の2種を産する．",
+        "dwc:taxonConceptID": "gbif:10514845",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Genus Hyla LAURENTI, 1768",
+        "dwc:family": "Formicidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10514845,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Formicidae",
+    "gbif_match_type": "HIGHERRANK"
+}

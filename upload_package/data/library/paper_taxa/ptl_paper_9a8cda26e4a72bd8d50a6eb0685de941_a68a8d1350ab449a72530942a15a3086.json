@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_9a8cda26e4a72bd8d50a6eb0685de941_a68a8d1350ab449a72530942a15a3086",
+    "paper_id": "paper_9a8cda26e4a72bd8d50a6eb0685de941",
+    "doi": "10.13157\/arla.72.2.2025.ra6",
+    "query_id": "jp_bird_2480904_en",
+    "query_label": "Ardeola speciosa Japan (ecology\/distribution)",
+    "scientific_name": "Ardeola speciosa",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.13157\/arla.72.2.2025.ra6",
+        "dwc:scientificName": "Ardeola speciosa",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2480904",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Ardeola speciosa",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ardeidae"
+    },
+    "gbif_taxon_key": 2480904,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ardeidae"
+}

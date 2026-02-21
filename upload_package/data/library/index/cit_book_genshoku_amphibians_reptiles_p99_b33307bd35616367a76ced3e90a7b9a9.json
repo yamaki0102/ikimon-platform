@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p99_b33307bd35616367a76ced3e90a7b9a9",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 99,
+    "taxon_name": "アカウミガメ (続き)",
+    "scientific_name": "Caretta caretta gigas DERANIYAGALA, 1933",
+    "family": "ウミガメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.99)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Caretta caretta",
+        "dwc:vernacularName": "アカウミガメ (続き)",
+        "dwc:occurrenceRemarks": "これらの報告や，LOVERIDGE (1945)，LOVERIDGE & WILLIAMS (1957)，YERGER (1958) などの論文を参照し，各地の水族館などに飼育されているいわゆる“アカウミガメ”を調べた結果，日本近海にも2種の異なった“アカウミガメ”のいることが明らかになった．NISHIMURA (1967) *) および西村と原 (1967) **) は，この問題をさらに詳しく検討して．日本近海における両種の関係を明確にした．\n　アカウミガメは，日本近海にもっとも普通なウミガメであり，また日本内地で確実に繁殖する唯一の種でもある．おもに肉食性で，貝類，甲殻類，魚類などを好んで食い，性質は比較的荒い．南西日本の太平洋岸に 6〜7月頃の夜上陸し．海岸の砂中に長径 25cm，深さ 50〜75cm ぐらいの穴を掘って産卵する．卵は球形で色が白く．直径 40〜45mm ぐらい．一回の産卵数は 120〜150個ぐらいである．\n\n*) NISHIMURA, S. 1967. The loggerhead turtles in Japan and neighbouring waters (Testudinata : Cheloniidae). Publ. Seto Mar. Biol. Lab., 15, pp. 19-35.\n**) 西村三郎，原 幸治. 1967. 日本近海における Caretta と Lepidochelys (カメ目 : ウミガメ科). 爬虫両棲類学雑誌. 2. pp. 31-35.",
+        "dwc:taxonConceptID": "gbif:6156747",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Caretta caretta gigas DERANIYAGALA, 1933",
+        "dwc:family": "Cheloniidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 6156747,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Caretta caretta",
+    "gbif_accepted_key": 8894817,
+    "gbif_family": "Cheloniidae",
+    "gbif_match_type": "EXACT"
+}

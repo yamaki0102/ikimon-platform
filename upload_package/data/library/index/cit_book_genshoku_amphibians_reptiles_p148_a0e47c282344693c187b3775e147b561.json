@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p148_a0e47c282344693c187b3775e147b561",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 148,
+    "taxon_name": "キシノウエトカゲ (続き)",
+    "scientific_name": "Eumeces kishinouyei STEJNEGER, 1901",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.148)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Plestiodon kishinouyei",
+        "dwc:vernacularName": "キシノウエトカゲ (続き)",
+        "dwc:occurrenceRemarks": "接している．頸板は 2〜3 対あるが，左右で数の異なっている個体もある．眼上板は4枚で，前方の3枚または中央の2枚が額板に接し．眼前板は1枚で小形，眼前下板は2枚あってその下縁が第4上唇板に接している．前頰板は上縁が前額鼻板と前額板とに．また下縁が第 1〜2 両上唇板かに接している．後頰板は前頰板よりはるかに長く．多くは2枚の上唇板に接しているが，時には第 2〜4 番目の3枚の上唇板に接している個体もある．眼後板は2枚で，眼後下板は普通4枚が明瞭．側頭板は前列1枚，後列2枚で，前列の1枚は小形，後列の2枚は非常に大きく，後方に向かって幅が拡がっている．上唇板は7枚あって，第5枚目から急に大きくなり，第7枚目が最大．後上唇板は大きい．下唇板は通常7枚．後頤板は2枚あって対をなしていないが，稀には第2後頤板が縦に2分されていることもある．咽頭板は3対あって，最初の1対だけが正中線上で接している．体鱗は，胴の中央部で 24〜26列，項板から後肢の基部の背側までの間に 45〜48枚ぐらいあり，背面中央部の鱗列はその両側のものより多少とも幅が広い．個々の体鱗には，放射状に並んだ 4〜7 本の細い条線があって，とくに尾の背面では著しい．中央1対の肛板は非常に大きく，その外側にある2対も多少とも大きくなっている．外方の後肛板には隆条がない．四肢は強壮で，大腿部の後面には拡大された鱗の模様がなく．第4趾の下面には普通 16〜17枚の趾下板がある．尾は比較的太く，尾下板は横位．体長：260〜330mm（尾は体長の 1\/2 前後を占める）．\n　この巨大なトカゲは先島諸島の特産種で，宮古島．石垣島．西表島および与那国島から知られている．牧場などの草地を好んですみ，行動はかなり敏捷である．なお．TAYLOR (1935) によれば，与那国島産の個体は他島のものより小形であるらしいが，私達は石垣．西表両島の標本だけしか見ることができなかった．",
+        "dwc:taxonConceptID": "gbif:5789623",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eumeces kishinouyei STEJNEGER, 1901",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5789623,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Plestiodon kishinouyei",
+    "gbif_accepted_key": 5960562,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_c579abd9030aeef4b03ab9642a567d40",
+    "doi": "10.5040\/9781472926999.0294",
+    "title": "Columba livia Gmelin. Rock Dove; Feral Pigeon. Pigeon biset.",
+    "year": 0,
+    "container_title": "The Birds of Africa",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472926999.0294",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472926999.0294",
+        "dc:title": "Columba livia Gmelin. Rock Dove; Feral Pigeon. Pigeon biset.",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

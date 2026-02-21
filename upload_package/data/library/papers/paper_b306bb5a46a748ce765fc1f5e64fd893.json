@@ -1,0 +1,20 @@
+{
+    "id": "paper_b306bb5a46a748ce765fc1f5e64fd893",
+    "doi": "10.11646\/zootaxa.4779.1.6",
+    "title": "A new species of Orthetrum Newman, 1833 (Odonata: Libellulidae) from the Andaman Islands, India",
+    "year": 2020,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.4779.1.6",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.4779.1.6",
+        "dc:title": "A new species of Orthetrum Newman, 1833 (Odonata: Libellulidae) from the Andaman Islands, India",
+        "dc:date": 2020,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

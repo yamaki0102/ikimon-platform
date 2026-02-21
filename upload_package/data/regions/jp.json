@@ -1,0 +1,1188 @@
+{
+    "id": "jp",
+    "country": "JP",
+    "name": {
+        "ja": "日本（都道府県別）",
+        "en": "Japan (by Prefecture)"
+    },
+    "source": {
+        "ja": "環境省 生物多様性情報システム / 各都道府県版レッドリスト（概算）",
+        "en": "MOE Biodiversity Info System / Prefectural Red Lists (est.)"
+    },
+    "note": {
+        "ja": "推定値は面積・気候帯に基づく概算",
+        "en": "Estimates based on area and climate zone"
+    },
+    "group_labels": {
+        "insects": {
+            "ja": "昆虫類",
+            "en": "Insects"
+        },
+        "plants": {
+            "ja": "植物",
+            "en": "Plants"
+        },
+        "fungi": {
+            "ja": "菌類",
+            "en": "Fungi"
+        },
+        "spiders": {
+            "ja": "クモ類",
+            "en": "Spiders"
+        },
+        "birds": {
+            "ja": "鳥類",
+            "en": "Birds"
+        },
+        "mollusks": {
+            "ja": "貝類",
+            "en": "Mollusks"
+        },
+        "freshwater_fish": {
+            "ja": "淡水魚",
+            "en": "Freshwater Fish"
+        },
+        "mammals": {
+            "ja": "哺乳類",
+            "en": "Mammals"
+        },
+        "amphibians": {
+            "ja": "両生類",
+            "en": "Amphibians"
+        },
+        "reptiles": {
+            "ja": "爬虫類",
+            "en": "Reptiles"
+        }
+    },
+    "cities": {
+        "hokkaido": {
+            "name": {
+                "ja": "北海道",
+                "en": "Hokkaido"
+            },
+            "bbox": [
+                41.35,
+                139.33,
+                45.55,
+                145.82
+            ],
+            "estimated_species": {
+                "insects": 10500,
+                "plants": 4800,
+                "fungi": 1500,
+                "spiders": 600,
+                "birds": 450,
+                "mollusks": 280,
+                "freshwater_fish": 200,
+                "mammals": 70,
+                "amphibians": 12,
+                "reptiles": 10
+            }
+        },
+        "aomori": {
+            "name": {
+                "ja": "青森県",
+                "en": "Aomori"
+            },
+            "bbox": [
+                40.22,
+                139.49,
+                41.56,
+                141.68
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "iwate": {
+            "name": {
+                "ja": "岩手県",
+                "en": "Iwate"
+            },
+            "bbox": [
+                38.75,
+                139.69,
+                40.45,
+                142.07
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "miyagi": {
+            "name": {
+                "ja": "宮城県",
+                "en": "Miyagi"
+            },
+            "bbox": [
+                37.77,
+                140.27,
+                39.00,
+                141.68
+            ],
+            "estimated_species": {
+                "insects": 5800,
+                "plants": 3000,
+                "fungi": 900,
+                "spiders": 350,
+                "birds": 340,
+                "mollusks": 140,
+                "freshwater_fish": 110,
+                "mammals": 40,
+                "amphibians": 16,
+                "reptiles": 14
+            }
+        },
+        "akita": {
+            "name": {
+                "ja": "秋田県",
+                "en": "Akita"
+            },
+            "bbox": [
+                39.19,
+                139.69,
+                40.52,
+                140.99
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "yamagata": {
+            "name": {
+                "ja": "山形県",
+                "en": "Yamagata"
+            },
+            "bbox": [
+                37.73,
+                139.52,
+                39.21,
+                140.64
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "fukushima": {
+            "name": {
+                "ja": "福島県",
+                "en": "Fukushima"
+            },
+            "bbox": [
+                36.79,
+                139.16,
+                37.97,
+                141.05
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "ibaraki": {
+            "name": {
+                "ja": "茨城県",
+                "en": "Ibaraki"
+            },
+            "bbox": [
+                35.74,
+                139.68,
+                36.97,
+                140.85
+            ],
+            "estimated_species": {
+                "insects": 5800,
+                "plants": 3000,
+                "fungi": 900,
+                "spiders": 350,
+                "birds": 340,
+                "mollusks": 140,
+                "freshwater_fish": 110,
+                "mammals": 40,
+                "amphibians": 16,
+                "reptiles": 14
+            }
+        },
+        "tochigi": {
+            "name": {
+                "ja": "栃木県",
+                "en": "Tochigi"
+            },
+            "bbox": [
+                36.20,
+                139.33,
+                37.15,
+                140.29
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "gunma": {
+            "name": {
+                "ja": "群馬県",
+                "en": "Gunma"
+            },
+            "bbox": [
+                35.98,
+                138.63,
+                37.07,
+                139.68
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "saitama": {
+            "name": {
+                "ja": "埼玉県",
+                "en": "Saitama"
+            },
+            "bbox": [
+                35.75,
+                138.87,
+                36.29,
+                139.91
+            ],
+            "estimated_species": {
+                "insects": 5800,
+                "plants": 3000,
+                "fungi": 900,
+                "spiders": 350,
+                "birds": 340,
+                "mollusks": 140,
+                "freshwater_fish": 110,
+                "mammals": 40,
+                "amphibians": 16,
+                "reptiles": 14
+            }
+        },
+        "chiba": {
+            "name": {
+                "ja": "千葉県",
+                "en": "Chiba"
+            },
+            "bbox": [
+                34.90,
+                139.77,
+                36.11,
+                140.87
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "tokyo": {
+            "name": {
+                "ja": "東京都",
+                "en": "Tokyo"
+            },
+            "bbox": [
+                35.52,
+                138.94,
+                35.90,
+                139.92
+            ],
+            "estimated_species": {
+                "insects": 4200,
+                "plants": 2400,
+                "fungi": 650,
+                "spiders": 260,
+                "birds": 300,
+                "mollusks": 100,
+                "freshwater_fish": 80,
+                "mammals": 28,
+                "amphibians": 12,
+                "reptiles": 10
+            }
+        },
+        "kanagawa": {
+            "name": {
+                "ja": "神奈川県",
+                "en": "Kanagawa"
+            },
+            "bbox": [
+                35.13,
+                138.91,
+                35.67,
+                139.79
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "niigata": {
+            "name": {
+                "ja": "新潟県",
+                "en": "Niigata"
+            },
+            "bbox": [
+                36.73,
+                137.84,
+                38.56,
+                140.04
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "toyama": {
+            "name": {
+                "ja": "富山県",
+                "en": "Toyama"
+            },
+            "bbox": [
+                36.27,
+                136.77,
+                36.99,
+                137.76
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "ishikawa": {
+            "name": {
+                "ja": "石川県",
+                "en": "Ishikawa"
+            },
+            "bbox": [
+                36.07,
+                136.23,
+                37.85,
+                137.34
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "fukui": {
+            "name": {
+                "ja": "福井県",
+                "en": "Fukui"
+            },
+            "bbox": [
+                35.37,
+                135.54,
+                36.29,
+                136.86
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "yamanashi": {
+            "name": {
+                "ja": "山梨県",
+                "en": "Yamanashi"
+            },
+            "bbox": [
+                35.18,
+                138.18,
+                35.94,
+                139.17
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "nagano": {
+            "name": {
+                "ja": "長野県",
+                "en": "Nagano"
+            },
+            "bbox": [
+                35.19,
+                137.32,
+                37.03,
+                138.73
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "gifu": {
+            "name": {
+                "ja": "岐阜県",
+                "en": "Gifu"
+            },
+            "bbox": [
+                35.14,
+                136.26,
+                36.47,
+                137.65
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "shizuoka": {
+            "name": {
+                "ja": "静岡県",
+                "en": "Shizuoka"
+            },
+            "bbox": [
+                34.58,
+                137.49,
+                35.64,
+                139.18
+            ],
+            "estimated_species": {
+                "insects": 8427,
+                "plants": 4070,
+                "fungi": 1298,
+                "spiders": 510,
+                "birds": 421,
+                "mollusks": 213,
+                "freshwater_fish": 186,
+                "mammals": 60,
+                "amphibians": 21,
+                "reptiles": 19
+            }
+        },
+        "aichi": {
+            "name": {
+                "ja": "愛知県",
+                "en": "Aichi"
+            },
+            "bbox": [
+                34.57,
+                136.67,
+                35.43,
+                137.83
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "mie": {
+            "name": {
+                "ja": "三重県",
+                "en": "Mie"
+            },
+            "bbox": [
+                33.73,
+                135.85,
+                35.24,
+                137.03
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "shiga": {
+            "name": {
+                "ja": "滋賀県",
+                "en": "Shiga"
+            },
+            "bbox": [
+                34.76,
+                135.77,
+                35.71,
+                136.45
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "kyoto": {
+            "name": {
+                "ja": "京都府",
+                "en": "Kyoto"
+            },
+            "bbox": [
+                34.83,
+                134.85,
+                35.78,
+                136.06
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "osaka": {
+            "name": {
+                "ja": "大阪府",
+                "en": "Osaka"
+            },
+            "bbox": [
+                34.27,
+                135.09,
+                34.97,
+                135.73
+            ],
+            "estimated_species": {
+                "insects": 4200,
+                "plants": 2400,
+                "fungi": 650,
+                "spiders": 260,
+                "birds": 300,
+                "mollusks": 100,
+                "freshwater_fish": 80,
+                "mammals": 28,
+                "amphibians": 12,
+                "reptiles": 10
+            }
+        },
+        "hyogo": {
+            "name": {
+                "ja": "兵庫県",
+                "en": "Hyogo"
+            },
+            "bbox": [
+                34.15,
+                134.26,
+                35.68,
+                135.47
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "nara": {
+            "name": {
+                "ja": "奈良県",
+                "en": "Nara"
+            },
+            "bbox": [
+                33.85,
+                135.56,
+                34.77,
+                136.24
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "wakayama": {
+            "name": {
+                "ja": "和歌山県",
+                "en": "Wakayama"
+            },
+            "bbox": [
+                33.43,
+                135.07,
+                34.38,
+                136.00
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "tottori": {
+            "name": {
+                "ja": "鳥取県",
+                "en": "Tottori"
+            },
+            "bbox": [
+                35.05,
+                133.15,
+                35.61,
+                134.51
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "shimane": {
+            "name": {
+                "ja": "島根県",
+                "en": "Shimane"
+            },
+            "bbox": [
+                34.07,
+                131.66,
+                36.34,
+                133.39
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "okayama": {
+            "name": {
+                "ja": "岡山県",
+                "en": "Okayama"
+            },
+            "bbox": [
+                34.39,
+                133.25,
+                35.31,
+                134.41
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "hiroshima": {
+            "name": {
+                "ja": "広島県",
+                "en": "Hiroshima"
+            },
+            "bbox": [
+                34.05,
+                132.05,
+                35.12,
+                133.36
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "yamaguchi": {
+            "name": {
+                "ja": "山口県",
+                "en": "Yamaguchi"
+            },
+            "bbox": [
+                33.74,
+                130.82,
+                34.78,
+                132.27
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "tokushima": {
+            "name": {
+                "ja": "徳島県",
+                "en": "Tokushima"
+            },
+            "bbox": [
+                33.53,
+                133.67,
+                34.28,
+                134.80
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "kagawa": {
+            "name": {
+                "ja": "香川県",
+                "en": "Kagawa"
+            },
+            "bbox": [
+                34.08,
+                133.45,
+                34.53,
+                134.45
+            ],
+            "estimated_species": {
+                "insects": 5800,
+                "plants": 3000,
+                "fungi": 900,
+                "spiders": 350,
+                "birds": 340,
+                "mollusks": 140,
+                "freshwater_fish": 110,
+                "mammals": 40,
+                "amphibians": 16,
+                "reptiles": 14
+            }
+        },
+        "ehime": {
+            "name": {
+                "ja": "愛媛県",
+                "en": "Ehime"
+            },
+            "bbox": [
+                32.91,
+                132.01,
+                34.09,
+                133.68
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "kochi": {
+            "name": {
+                "ja": "高知県",
+                "en": "Kochi"
+            },
+            "bbox": [
+                32.71,
+                132.48,
+                33.88,
+                134.31
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "fukuoka": {
+            "name": {
+                "ja": "福岡県",
+                "en": "Fukuoka"
+            },
+            "bbox": [
+                33.00,
+                130.02,
+                33.97,
+                131.19
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "saga": {
+            "name": {
+                "ja": "佐賀県",
+                "en": "Saga"
+            },
+            "bbox": [
+                33.00,
+                129.74,
+                33.60,
+                130.56
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "nagasaki": {
+            "name": {
+                "ja": "長崎県",
+                "en": "Nagasaki"
+            },
+            "bbox": [
+                32.57,
+                128.60,
+                34.67,
+                130.39
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "kumamoto": {
+            "name": {
+                "ja": "熊本県",
+                "en": "Kumamoto"
+            },
+            "bbox": [
+                31.96,
+                130.10,
+                33.19,
+                131.26
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "oita": {
+            "name": {
+                "ja": "大分県",
+                "en": "Oita"
+            },
+            "bbox": [
+                32.72,
+                130.82,
+                33.75,
+                132.10
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 1100,
+                "spiders": 430,
+                "birds": 380,
+                "mollusks": 180,
+                "freshwater_fish": 150,
+                "mammals": 50,
+                "amphibians": 20,
+                "reptiles": 16
+            }
+        },
+        "miyazaki": {
+            "name": {
+                "ja": "宮崎県",
+                "en": "Miyazaki"
+            },
+            "bbox": [
+                31.36,
+                130.69,
+                32.84,
+                131.88
+            ],
+            "estimated_species": {
+                "insects": 8400,
+                "plants": 4100,
+                "fungi": 1300,
+                "spiders": 510,
+                "birds": 420,
+                "mollusks": 210,
+                "freshwater_fish": 180,
+                "mammals": 60,
+                "amphibians": 22,
+                "reptiles": 18
+            }
+        },
+        "kagoshima": {
+            "name": {
+                "ja": "鹿児島県",
+                "en": "Kagoshima"
+            },
+            "bbox": [
+                27.01,
+                128.40,
+                32.33,
+                131.17
+            ],
+            "estimated_species": {
+                "insects": 8800,
+                "plants": 4300,
+                "fungi": 1200,
+                "spiders": 520,
+                "birds": 430,
+                "mollusks": 350,
+                "freshwater_fish": 190,
+                "mammals": 55,
+                "amphibians": 20,
+                "reptiles": 30
+            }
+        },
+        "okinawa": {
+            "name": {
+                "ja": "沖縄県",
+                "en": "Okinawa"
+            },
+            "bbox": [
+                24.04,
+                122.93,
+                27.89,
+                131.33
+            ],
+            "estimated_species": {
+                "insects": 7200,
+                "plants": 3500,
+                "fungi": 700,
+                "spiders": 380,
+                "birds": 380,
+                "mollusks": 420,
+                "freshwater_fish": 200,
+                "mammals": 35,
+                "amphibians": 18,
+                "reptiles": 42
+            }
+        }
+    }
+}

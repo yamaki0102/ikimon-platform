@@ -1,0 +1,20 @@
+{
+    "id": "paper_1a73760117be0b61fa3eaf2d6c41425e",
+    "doi": "10.2478\/v10049-008-0004-5",
+    "title": "Gut Morphometrics in the Long-Tailed Duck Clangula Hyemalis Wintering on the Polish Baltic Coast",
+    "year": 2008,
+    "container_title": "Zoologica Poloniae",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2478\/v10049-008-0004-5",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2478\/v10049-008-0004-5",
+        "dc:title": "Gut Morphometrics in the Long-Tailed Duck Clangula Hyemalis Wintering on the Polish Baltic Coast",
+        "dc:date": 2008,
+        "dc:source": "Zoologica Poloniae",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

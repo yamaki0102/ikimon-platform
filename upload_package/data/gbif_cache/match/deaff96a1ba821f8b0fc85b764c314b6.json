@@ -1,0 +1,18 @@
+{
+    "taxon_key": 6157485,
+    "scientific_name": "Trimeresurus flavoviridis tokarensis Maki, 1931",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": 2444173,
+    "accepted_name": "Protobothrops tokarensis",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Viperidae",
+    "genus": "Protobothrops",
+    "rank": "SUBSPECIES",
+    "original_query": "Trimeresurus flavoviridis tokarensis",
+    "_cached_at": 1771646793
+}

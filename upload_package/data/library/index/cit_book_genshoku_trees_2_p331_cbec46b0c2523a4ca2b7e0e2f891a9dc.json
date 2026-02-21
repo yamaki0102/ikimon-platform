@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p331_cbec46b0c2523a4ca2b7e0e2f891a9dc",
+    "book_id": "book_genshoku_trees_2",
+    "page": 331,
+    "taxon_name": "和名索引 (331頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.331)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "和名索引 (331頁)",
+        "dwc:occurrenceRemarks": "シサナンヨウスギ V285\nシナモミ(ユサン) V260\nジムカデ V139\nジムカデ属 V139\nシモクレン(モクレン) IV74\nシモツケ IV231\nシモツケ属 IV231\nシャカトウ(バンレイシ) IV80\nシャクナゲ(アズマシャクナゲ) V127\nシャクナゲ(ホンシャクナゲ) V126\nシャクナゲ'プレジデント ルーズベルト' V131\nジャケツイバラ IV260\nジャケツイバラ属 IV260\nシャシャンボ V133\nシヤチ(チーク) V187\nジャノメアカマツ V238\nジャヤナギ IV10\nシャラノキ(ナツツバキ) IV138\nシャリントウ属 IV200\nシャリンバイ IV202\nシャリンバイ属 IV202\nジャワフトモモ(レンブ) V86\nジュズネノキ V178\nジュウラン(イトラン) V216\nシュロ V228\nシュロ属 V228\nシュロチク V229\nシュロチク属 V229\nショウジョウボク IV264\nショウベンノキ V46\nショウベンノキ属 V46\nシラカシ IV38\nシラカバ(シラカンバ) IV23\nシラカンバ IV23\nシラキ IV265\nシラキ属 IV265\nシラクタヅル(サルナシ) IV119\nシラタマカズラ V179\nシラタマノキ V136\nシラタマノキ属 V136\nシラハギ IV251\nシラヒソ V254\nシラベ(シラヒソ) V254\n\nシリアカガシ IV40\nシロイバラ(ノイバラ) IV236\nシロエニシダ IV254\nシロザクラ(イヌザクラ) IV177\nシロサワフタギ V156\nシロシデ(イヌシデ) IV28\nシロセンボンボク V217\nシロダモ IV91\nシロダモ属 IV91\nシロバイ V153\nシロバナコメツツジ(オオコメツツジ) V119\nシロバナムクゲ V62\nシロバナヤブツバキ IV121\nシロブナ(ブナ) IV49\nシロブヨウ V63\nシロマツ V243\nシロモジ IV94\nシロモジ属 IV93\nシロモノ(シラタマノキ) V136\nシロヤエムクゲ V62\nシロヤシオ(ゴヨウツツジ) V104\nシロヤナギ IV10\nシロヤマザクラ(ヤマザクラ) IV165\nシロヤマブキ IV230\nシロヤマブキ属 IV230\nシロリュウキュウ V120\nジングウツツジ V107\nシンコマツ(アカエゾマツ) V246\nシンジュ V1\nシンジュ属 V1\nジンチョウゲ V70\nじんちょうげ科 V70\nジンチョウゲ属 V70\nシンパク(ミヤマビャクシン) V278\n\nす\n\nスイカズラ V196\nすいかずら科 V196\nスイカズラ属 V196\nスイシカイドウ(ハナカイドウ) IV213\nスイショウ V264"
+    }
+}

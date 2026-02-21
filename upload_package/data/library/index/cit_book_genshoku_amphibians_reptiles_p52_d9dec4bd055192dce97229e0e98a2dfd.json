@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p52_d9dec4bd055192dce97229e0e98a2dfd",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 52,
+    "taxon_name": "ハロウエルアマガエル (続き)",
+    "scientific_name": "Hyla hallowellii THOMPSON, 1912",
+    "family": "アマガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.52)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hyla hallowellii THOMPSON, 1912",
+        "dwc:vernacularName": "ハロウエルアマガエル (続き)",
+        "dwc:occurrenceRemarks": "月から8月に及び，アマガエルのものによく似た卵塊を水溜りなどに産みつける．\n　わが国では，ハロウエルアマガエルの学名として，Hyla hallowelli VAN DENBURGH, 1912 が一般に採用されてきた．琉球列島産の爬虫類を再検討した INGER (1947) なども，これと同一の見解を採っている．しかし，この学名には，面倒な上にはなはだ不愉快な問題がある．すなわち，VAN DENBURGH の記載が発表されたのは1912年7月29日であるが，それより約1ヶ月前（6月28日）に，同じ種が J. C. THOMPSON によって Hyla hallowellii と命名されているのである．このカエルを最初に研究して新種と認めたのは VAN DENBURGH であって，その記載を含む論文はカリフォルニア科学説の研究報告に寄稿され，模式標本もそこに納められた．ところが，この論文の原稿とその作製に用いられた標本とを見た THOMPSON は，研究報告の出版までに時間的な余裕があることを見越し，大急ぎで新種の記載を書いてそれを私的に出版した．一方，このような THOMPSON の意図を察知した VAN DENBURGH も，すでに寄稿してあった原稿の要約を作りそれを私的に出版したが，新種の記載の大半はわずかの差で THOMPSON の論文に遅れる結果となった．この事件は，両生爬虫類の研究史上有名な熱鬧であるばかりでなく，琉球列島と台湾とのカエルやトカゲの学名に非常な混乱をもたらした．本書と直接に関係のあるものだけを取り上げても，ハロウエルアマガエルのほかに，イシガキトカゲ，オオシマトカゲ，サキシマスベトカゲ，アマミタカチホヘビなどが2つずつ（あるいはそれ以上）の学名を持っている．なお悪いことに，THOMPSON の論文は3部に分かれていて，それぞれの部分が異なった日付で出版されている．しかも，これらの原著は，私的な出版物であることが災いして，限られた機関にしか配布されていないので，現在では入手するのがきわめて難しい．後の研究者の判断が徒らに動揺したのは，このような事情が積み重なった結果なのである．これほど煩雑な事態を招いたのは，いうまでもなく THOMPSON の責任であり，道義上の立場から見る限りその罪状には弁護の余地がない．しかし，動物命名規約の上では，THOMPSON に先取権を認めざるを得ない種名や亜種名がかなりある．ハロウエルアマガエルの場合などもこの例である．\n　なお，INGER (1947) は，奄美大島と喜界島との個体群が異なった亜種を形成すると考え，前者に H. hallowelli schmidti という新亜種名を与えたが，このような細分が必要であろうとは思えない．",
+        "dwc:taxonConceptID": "gbif:2427606",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hyla hallowellii THOMPSON, 1912",
+        "dwc:family": "Hylidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2427606,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hylidae",
+    "gbif_match_type": "EXACT"
+}

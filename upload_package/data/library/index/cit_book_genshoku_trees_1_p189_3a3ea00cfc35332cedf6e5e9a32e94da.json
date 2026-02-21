@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p189_3a3ea00cfc35332cedf6e5e9a32e94da",
+    "book_id": "book_genshoku_trees_1",
+    "page": 189,
+    "taxon_name": "E",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.189)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "E",
+        "dwc:occurrenceRemarks": "Edgeworthia V 72\n  papyrifera V 72\nEhretia V 162\n  dicksoni var. japonica V 162\n  ovalifolia V 162\nElaeagnus IV 224\n  glabra IV 76\n  macrophylla V 76\n  multiflora V 75\n  montana V 74\n  --var. hortensis V 74\n  pungens V 75\n  umbellata V 75\nElaeocarpus V 76\n  japonicus V 55\n  sylvestris var. ellipticus V 57\nElatostema V 74\n  umbellatum V 74\nEllisiophyllum V 215\n  pinnatum V 215\nEmbelia V 138\nEmpetrum V 146\n  nigrum var. japonicum V 146\nEnkianthus V 110\n  campanulatus V 110\n  cernuus f. rubens V 129\n  --var. sikokianus V 129\n  perulatus V 137\n  subsessilis V 138\nEntada V 260\n  phaseoloides V 260\nEphippianthus V 141\n  schmidtii V 141\nEpigaea V 141\n  asiatica V 141\nEriobotrya IV 200\n  japonica IV 200\nErythrina IV 250\n  corallodendron IV 249\n  crista-galli IV 248\n  indica IV 248\nErythroxylon IV 268\n  coca IV 266\n  novogranatense IV 266\nEucalyptus V 66\n  cinerea V 266\n  globulus V 66\n  robusta V 66\nEuchresta IV 261\n  japonica IV 261\nEucommia IV 233\n  ulmoides IV 233\nEugenia V 66\n  aromatica V 66\n  uniflora V 66\nEuonymus V 36\n  alatus V 39\n  --var. rotundatus V 40\n  --f. ciliatodentatus V 40\n  fortunei var. radicans V 40\n  hamiltonianus V 42\n  japonicus V 36\n  lutchuensis V 42\n  macropterus V 39\n  melananthus V 39\n  oxyphyllus V 42\n  planipes V 42\n  sieboldianus V 41\n  --var. sanguineus V 42\n  tanakae V 39\nEuptelea IV 74\n  polyandra IV 74\nEurya IV 140\n  emarginata IV 141\n  japonica IV 140\nEuscaphis V 32\n  japonica V 32\nEvodiopanax V 93\n  innovans V 96\nExochorda IV 201\n  racemosa IV 201"
+    }
+}

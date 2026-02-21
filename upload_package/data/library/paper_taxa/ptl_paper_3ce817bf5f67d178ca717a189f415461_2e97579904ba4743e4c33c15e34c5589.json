@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_3ce817bf5f67d178ca717a189f415461_2e97579904ba4743e4c33c15e34c5589",
+    "paper_id": "paper_3ce817bf5f67d178ca717a189f415461",
+    "doi": "10.1080\/03078698.1992.9674016",
+    "query_id": "jp_bird_2481958_en",
+    "query_label": "Gavia stellata Japan (ecology\/distribution)",
+    "scientific_name": "Gavia stellata",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1080\/03078698.1992.9674016",
+        "dwc:scientificName": "Gavia stellata",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481958",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Gavia stellata",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Gaviidae"
+    },
+    "gbif_taxon_key": 2481958,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gaviidae"
+}

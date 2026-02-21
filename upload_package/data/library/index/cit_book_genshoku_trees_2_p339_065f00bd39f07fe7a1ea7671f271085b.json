@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p339_065f00bd39f07fe7a1ea7671f271085b",
+    "book_id": "book_genshoku_trees_2",
+    "page": 339,
+    "taxon_name": "和名索引 (339頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.339)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "和名索引 (339頁)",
+        "dwc:occurrenceRemarks": "ハカイドウ IV212\nハグルミ IV4\nハグルミ属 IV4\nハグマ V63\nハダフジ IV246\nハハギ(キハギ) IV252\nノバラ(ノイバラ) IV236\nノフジ(ヤマフジ) IV246\nノブドウ属 V55\nノーブルファー V259\nノボタン V89\nのぼたん科 V89\nノボタン属 V89\nノリアジサイ(ミナヅキ) IV154\nノリウツギ IV154\nノリノキ(ノリウツギ) IV154\n\nは\n\nハイイヌガヤ V282\nハイイバラ(テリハノイバラ)\n     IV237\nバイカアマチャ IV159\nバイカアマチャ属 IV159\nバイカウツギ IV159\nバイカウツギ属 IV159\nバイカシモツケ(ウメザキウツギ)\n     IV236\nバイカツツジ V120\nハイガヤ(チャボガヤ) V288\nハイデルベリー V135\nハイネズ V279\nハイノキ(イノコシバ) V152\nハイノキ(クロスバイ) V153\nはいのき科 V152\nハイノキ属 V152\nハイビャクシン V278\nハイマツ V242\nハウチワカエデ V14\nハカマカズラ IV259\nハカマカズラ属 IV259\nハカリノメ(アズキナシ) IV205\nハギ(ヤマハギ) IV250\nハギ属 IV250\nパキスタキス属 V193\nパキスタキス ルテア V193\n\nハクウンボク V151\nハクサンシャクナゲ V126\nハクサンボク V208\nハクショウ(シロマツ) V243\nバクチノキ IV178\nハクチョウゲ V180\nハクチョウゲ属 V180\nハクモクレン IV72\nハクレン(ハクモクレン) IV72\nハクロバイ IV229\nハゲシバリ(ヒメヤシャブシ)\n     IV24\nハコウツギ(ミヤマホツツジ)\n     V145\nハコネウツギ V203\nハコネグミ V75\nハコネコメツツジ V131\nハコネザクラ(マメザクラ) IV168\nハコネダケ V226\nハコネニシキウツギ(ニシキウツギ)\n     V203\nハゴノキ(ツクバネ) IV68\nハコヤナギ(ヤマナラシ) IV16\nハゴロモノキ(シノブノキ) IV66\nハジカミ(サンショウ) IV286\nハシカミ(テンニンカ) V83\nハシドイ V161\nハシドイ属 V160\nハシバミ IV18\nハシバミ属 IV18\nハズ IV270\nハズ属 IV270\nハズノキ(ハズ) IV270\nハスノハイチゴ IV225\nハスノハカズラ IV109\nハスノハカズラ属 IV109\nハスノハギリ IV94\nはすのはぎり科 IV94\nハスノハギリ属 IV94\nハゼノキ V7\nハタンキョウ(スモモ) IV190\nハチク V221\nハチジョウイチゴ IV225\nハチジョウグワ IV62\nパチラ属 V67\nバッコヤナギ(ヤマネコヤナギ)"
+    }
+}

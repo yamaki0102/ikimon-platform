@@ -1,0 +1,20 @@
+{
+    "id": "paper_d8a4c5da0f984136724e5b74617ce2fc",
+    "doi": "10.1079\/9781789242065.0063",
+    "title": "Red-billed Leiothrix (\n            Leiothrix lutea\n            Scopoli, 1786).",
+    "year": 2020,
+    "container_title": "Invasive birds: global trends and impacts",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1079\/9781789242065.0063",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1079\/9781789242065.0063",
+        "dc:title": "Red-billed Leiothrix (\n            Leiothrix lutea\n            Scopoli, 1786).",
+        "dc:date": 2020,
+        "dc:source": "Invasive birds: global trends and impacts",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

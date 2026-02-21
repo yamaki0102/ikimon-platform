@@ -1,0 +1,20 @@
+{
+    "id": "paper_107350a5ba357f258953fdb4b64c82b2",
+    "doi": "10.26749\/rstpp.133.1.23",
+    "title": "Distribution and conservation status of the Mt Mangana stag beetle, Lissotes menalcas  (Coleoptera: Lucanidae)",
+    "year": 1999,
+    "container_title": "Papers and Proceedings of the Royal Society of Tasmania",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.26749\/rstpp.133.1.23",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.26749\/rstpp.133.1.23",
+        "dc:title": "Distribution and conservation status of the Mt Mangana stag beetle, Lissotes menalcas  (Coleoptera: Lucanidae)",
+        "dc:date": 1999,
+        "dc:source": "Papers and Proceedings of the Royal Society of Tasmania",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

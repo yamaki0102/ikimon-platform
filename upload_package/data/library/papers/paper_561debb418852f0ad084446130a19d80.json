@@ -1,0 +1,20 @@
+{
+    "id": "paper_561debb418852f0ad084446130a19d80",
+    "doi": "10.1080\/00063657.2020.1732864",
+    "title": "Modelling the potential spread of the Red-billed Leiothrix Leiothrix lutea in Italy",
+    "year": 2019,
+    "container_title": "Bird Study",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1080\/00063657.2020.1732864",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1080\/00063657.2020.1732864",
+        "dc:title": "Modelling the potential spread of the Red-billed Leiothrix Leiothrix lutea in Italy",
+        "dc:date": 2019,
+        "dc:source": "Bird Study",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

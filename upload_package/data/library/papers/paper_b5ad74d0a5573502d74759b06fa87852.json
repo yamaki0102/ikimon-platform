@@ -1,0 +1,20 @@
+{
+    "id": "paper_b5ad74d0a5573502d74759b06fa87852",
+    "doi": "10.1201\/9780203752685-95",
+    "title": "QUERCUS SUBER L. (FAGACEAE) — Cork Oak",
+    "year": 2017,
+    "container_title": "Handbook of Nuts",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1201\/9780203752685-95",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1201\/9780203752685-95",
+        "dc:title": "QUERCUS SUBER L. (FAGACEAE) — Cork Oak",
+        "dc:date": 2017,
+        "dc:source": "Handbook of Nuts",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

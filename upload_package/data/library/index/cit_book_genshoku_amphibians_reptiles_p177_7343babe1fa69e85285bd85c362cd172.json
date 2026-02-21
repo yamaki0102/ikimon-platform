@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p177_7343babe1fa69e85285bd85c362cd172",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 177,
+    "taxon_name": "セダカヘビ亜科",
+    "scientific_name": "Pareinae",
+    "family": "ナミヘビ科セダカヘビ亜科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.177)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Pareinae",
+        "dwc:vernacularName": "セダカヘビ亜科",
+        "dwc:occurrenceRemarks": "　上側頭骨は非常に小さく，頭蓋と方骨との間にある骨片として認められるに過ぎない，上下両顎ともすべての歯に溝がなく，上顎骨の先端部には歯のない部分がある．上顎歯はほぼ等大で数が少ない（9本以下）．脊椎骨には，ごく前方のもの以外は腹突起がない．後方 1〜2 対の咽頭板は非常に幅が広く，いずれも下唇板に接している．左右の咽頭板の間には，正中線上を貫ぬく縦溝がない．日本産のものでは尾下板が対になっているが，他の1属（シャム，マレイ半島，ジャバ，ボルネオなどに分布している Aplopeliura）では尾下板がただ1列しかない．\n　わずかに 2属で構成されている小さい亜科であって，東南アジアから台湾にかけて 20種近く報告されている．日本からは．八重山群島固有の1種を含む次の属が知られている．\n\nセダカヘビ属 Pareas WAGLER, 1830\n　頭部は大きくて頸部と明瞭に区分され．眼は中位または大形．瞳孔は垂直方向の楕円形である．鼻板は1枚でその上に鼻孔が開き．吻端板の高さは幅とほぼ等しいかあるいは幅よりも少し大きい．頰板は，前咽頭板に接している場合と，左右連結した第1下唇板によって前咽頭板から隔てられている場合とがあるが，邦産種は後者である．上顎骨は短かくて垂直方向に拡がり． 4〜9 本の歯をそなえている．下顎歯は後方のものほど小さい．前額骨の後部は，多少とも眼窩の上に伸長している．体は多少とも側扁し，体鱗は15列．腹板には側稜がなく．肛板は単一で，尾下板は対になっている．\n　マレイ諸島から南シナにかけて分布し，一部が台湾を経て八重山群島に達している．また，西へは，ヒマラヤの東部まで拡がっている．\n\n92. イワサキセダカヘビ Pareas iwasakii (M. MAKI, 1937)\n　体が，とくに胴の前半部で著しく側扁していることによって，無毒蛇の他の邦産種とすぐ区別できる．体の背面は赤味がかった淡褐色で，胴に50個内外．尾に18個ぐら\n\n第21図．イワサキセダカヘビの頭部；左から右へ背面，腹面および左側面．"
+    }
+}

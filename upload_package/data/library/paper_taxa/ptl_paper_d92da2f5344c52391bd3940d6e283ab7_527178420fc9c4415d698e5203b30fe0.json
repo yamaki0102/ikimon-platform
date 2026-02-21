@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_d92da2f5344c52391bd3940d6e283ab7_527178420fc9c4415d698e5203b30fe0",
+    "paper_id": "paper_d92da2f5344c52391bd3940d6e283ab7",
+    "doi": "10.25226\/bboc.v142i2.2022.a6",
+    "query_id": "jp_bird_2480187_en",
+    "query_label": "Fregata minor Japan (ecology\/distribution)",
+    "scientific_name": "Fregata minor",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.25226\/bboc.v142i2.2022.a6",
+        "dwc:scientificName": "Fregata minor",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2480187",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Fregata minor",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Fregatidae"
+    },
+    "gbif_taxon_key": 2480187,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Fregatidae"
+}

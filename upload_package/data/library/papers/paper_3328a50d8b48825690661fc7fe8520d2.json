@@ -1,0 +1,20 @@
+{
+    "id": "paper_3328a50d8b48825690661fc7fe8520d2",
+    "doi": "10.2307\/1351718",
+    "title": "Food Habits and Distribution of Wintering Canvasbacks, Aythya valisineria, on Chesapeake Bay",
+    "year": 1988,
+    "container_title": "Estuaries",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/1351718",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/1351718",
+        "dc:title": "Food Habits and Distribution of Wintering Canvasbacks, Aythya valisineria, on Chesapeake Bay",
+        "dc:date": 1988,
+        "dc:source": "Estuaries",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

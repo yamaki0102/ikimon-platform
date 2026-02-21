@@ -1,0 +1,20 @@
+{
+    "id": "paper_543f4ca2f6b5dfeedd046bba00803688",
+    "doi": "10.22323\/1.478.0032",
+    "title": "Heavy Neutral Lepton searches at ATLAS",
+    "year": 2024,
+    "container_title": "Proceedings of 12th Large Hadron Collider Physics Conference — PoS(LHCP2024)",
+    "type": "proceedings-article",
+    "url": "https:\/\/doi.org\/10.22323\/1.478.0032",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.22323\/1.478.0032",
+        "dc:title": "Heavy Neutral Lepton searches at ATLAS",
+        "dc:date": 2024,
+        "dc:source": "Proceedings of 12th Large Hadron Collider Physics Conference — PoS(LHCP2024)",
+        "dc:type": "proceedings-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p179_cef7170de5224f35fb5c7f3c8806ea5a",
+    "book_id": "book_genshoku_trees_1",
+    "page": 179,
+    "taxon_name": "か行",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.179)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "か行",
+        "dwc:occurrenceRemarks": "カラタチ IV 284\nカラタネオガタマ(トウオガタマ) IV 76\nカラマツ V 264\nカリン IV 195\nカルミア V 126\nカレエダタケ(菌) IV 105\nカレン(ハナガサ) V 101\nカワノリ(カワノリグサ) IV 107\nカワヤナギ(ネコヤナギ) IV 12\n"
+    }
+}

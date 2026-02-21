@@ -1,0 +1,18 @@
+{
+    "taxon_key": 6746,
+    "scientific_name": "Ranidae",
+    "status": "ACCEPTED",
+    "match_type": "HIGHERRANK",
+    "confidence": 97,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Anura",
+    "family": "Ranidae",
+    "genus": null,
+    "rank": "FAMILY",
+    "original_query": "Rana (Rana) okinavana",
+    "_cached_at": 1770420007
+}

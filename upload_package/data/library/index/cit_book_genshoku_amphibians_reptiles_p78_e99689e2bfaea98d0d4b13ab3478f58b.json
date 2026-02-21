@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p78_e99689e2bfaea98d0d4b13ab3478f58b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 78,
+    "taxon_name": "アオガエル科 (概説)",
+    "scientific_name": "Rhacophoridae",
+    "family": "アオガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.78)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rhacophoridae",
+        "dwc:vernacularName": "アオガエル科 (概説)",
+        "dwc:occurrenceRemarks": "　大部分の群像はアカガエル科と同様であるが，指趾の末端骨と亜末端骨との間に関節骨のある点が異なっている．普通は体表の皮膚がおおむね平滑．瞳孔は横形で，その長軸が水平なものと垂直なものとがある．舌は後端が深くえぐれていてその両側が突出し，後部を自由に引き起こすことができる．上顎には原則として歯があるが，下顎には歯がない．胸骨は軟骨であることが多いが，基部の骨化していることもある．薦椎の横突起は円筒状．指趾端はふくれて吸盤になり，末端骨の先端は多少ともY字形またはT字形になっていることが多いが，にぶく終っているものもあり，また時にはとがっているものもある．\n　13属 500種以上を含み，主として旧大陸の熱帯地方やその周縁の島々（日本本土，琉球列島，台湾，フィリッピン，マレイ群島，セイシェル諸島，マダガスカルなど）に拡がっている．この分布様相は，ちょうどアマガエル科の分布の空白を埋めるような形になっていて，比較的新しく分化したアオガエル科のカエルが，これらの地域からアマガエルの類を駆逐したことを暗示している．ちなみに，アオガエルの類は，おそらくアフリカで最初に分化し，そこを分布の中心にしてアジアの熱帯地方に拡がったのではないかと考えられている．ただし，化石種は知られていない．アマガエル科の場合と同じように，樹上性の種類が多いが，渓流にすむものもあり，また．ニホンカジカガエルのように，平瀬水の溜り水などで生活できるものもある．日本には1属6種を産し，比較的北の方まで拡がっている．\n　なお，アオガエル科のカエルが，アカガエル科の類から樹上生活に適応して二次的に分化してきたものであることには，まず疑いの余地がない．この現象は．アマガエル科の類が，ヒキガエルと共通の祖先から分かれて樹上生活に適応した形であろうと考えられているのと軌を一にしている．アオガエル科のカエルとアマガエル科のものとは形態的にもよく似ていて，前烏口軟骨が単純であるか（アオガエル科）それとも上下の二重になって内方へ弓状に曲がっているか（アマガエル科）という著しい差異を別にすれば，外部には決定的な相違点のほとんどない場合さえある．",
+        "dwc:taxonConceptID": "gbif:3096",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Rhacophoridae",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 3096,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "HIGHERRANK"
+}

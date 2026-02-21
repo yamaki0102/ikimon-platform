@@ -1,0 +1,20 @@
+{
+    "id": "paper_71b4ad058339abe806318a5f909cef58",
+    "doi": "10.2216\/i0031-8884-37-6-489.1",
+    "title": "A Checklist of Benthic Marine Algae of the Tropical and Subtropical Western Atlantic: First Revision",
+    "year": 1998,
+    "container_title": "Phycologia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2216\/i0031-8884-37-6-489.1",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2216\/i0031-8884-37-6-489.1",
+        "dc:title": "A Checklist of Benthic Marine Algae of the Tropical and Subtropical Western Atlantic: First Revision",
+        "dc:date": 1998,
+        "dc:source": "Phycologia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

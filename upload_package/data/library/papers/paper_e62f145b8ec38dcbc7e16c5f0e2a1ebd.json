@@ -1,0 +1,20 @@
+{
+    "id": "paper_e62f145b8ec38dcbc7e16c5f0e2a1ebd",
+    "doi": "10.1080\/03949370.2011.643922",
+    "title": "Experimental study of dispersal behaviour in a wall lizard species (Podarcis sicula) (Sauria Lacertidae)",
+    "year": 2012,
+    "container_title": "Ethology Ecology &amp; Evolution",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1080\/03949370.2011.643922",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1080\/03949370.2011.643922",
+        "dc:title": "Experimental study of dispersal behaviour in a wall lizard species (Podarcis sicula) (Sauria Lacertidae)",
+        "dc:date": 2012,
+        "dc:source": "Ethology Ecology &amp; Evolution",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

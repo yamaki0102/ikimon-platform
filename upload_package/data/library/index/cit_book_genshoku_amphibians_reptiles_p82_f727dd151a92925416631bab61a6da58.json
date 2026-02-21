@@ -1,0 +1,47 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p82_f727dd151a92925416631bab61a6da58",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 82,
+    "taxon_name": "モリアオガエル (続き)",
+    "scientific_name": "Rhacophorus arboreus (Y. OKADA et KAWANO, 1924)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": "♂50〜70, ♀60〜90mm",
+        "season": "4〜6月",
+        "distribution": "本州, 四国, 九州 (山地)"
+    },
+    "photos": [],
+    "figures": [
+        {
+            "caption": "第2図. モリアオガエル（暗色斑紋の現われた状態を示す.",
+            "note": "Drawing of Rhacophorus arboreus highlighting dark spots."
+        }
+    ],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.82)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Zhangixalus arboreus",
+        "dwc:vernacularName": "モリアオガエル (続き)",
+        "dwc:occurrenceRemarks": "る．眼は大きくてよく突出し．その長径が吻端から眼の前端までの距離にほぼ等しいかあるいはそれよりも少し小さい．また，上眼瞼の幅は左右の上眼瞼の間隔よりも小さい．鼓膜は一般に短かい楕円形で，眼よりも明らかに小さく．また上眼瞼の幅よりも小さい．鋤骨歯板は長楕円形で左右の内鼻孔の間にあり．前端が内鼻孔の内縁に接している．それぞれの鋤骨歯板には5〜6個の歯がある．背面の皮膚は多数の微細な粒起をそなえ，体側．腹面および大腿部後下面は粗雑な多角形の顆粒におおわれているが，咽頭部は比較的平滑で微細な顆粒やにおいしわがあるに過ぎない．背側線にはひだがないが，眼の後端から鼓膜の上縁を経て後走する隆条は著しく．後方では弯曲して前肢基部の後縁に達している．四肢はシュレーゲルアオガエルの場合とほぼ同様であるが，後肢が比較的長く（大腿部と脛部との長さの和が普通は眼の前端から肛門までの距離にほぼ等しく．また後肢を体軸と直角に伸ばして膝関節を折り曲げると左右の脛跗関節が接し合う），吸盤の発達も著しくて，とくに前肢第2〜4指の吸盤の長径は鼓膜の長径よりも大きい．体長：♂で50〜70mm，♀で60〜90mm．\n　日本の固有種で，本州，四国および九州の山地に分布し，地域的に多い．樹上で生活するのが普通であるが，4〜6月頃の産卵期には低い草の上や地上にも下りる．卵塊は白い泡状でシュレーゲルアオガエルのものより大きく．普通は池や水溜りの上の木の葉や小枝からぶら下げられるが，適当な場所のない場合には草の上や地上にも産みつけられる．卵塊の表面は．次第に乾燥して黄褐色の皮になり，内部の卵を乾燥から防ぐ，卵は黄白色で直径3mmぐらい．1卵塊の中に300〜500個ぐらい含まれている．孵化した幼生は，卵塊の中である程度発育した後，卵塊の下部から水中に落ちて．ほかのカエルのオタマジャクシと同じような生活を送る．\n　モリアオガエルは．原著ではシュレーゲルアオガエルの1変種として記載されたが，その後，岡田 (1930) によって亜種に昇格され．そのまま現在に至っている．しかし，それぞれの型の分布範囲がほぼ等しい地域を占めている上に，両者が全く同一の場所で共存している例も決して少なくはない．このことだけから見ても．モリアオガエルとシュレーゲルアオガエルとが亜種的（すなわち地理的）な関係でないことは明らかである．従って，これらのカエルは，同一種の生態的に隔離された2型か，あるいは全く異なった2種であろうと考えられねばならない．そのどちらが正しいかという点にはなお異論もあろうが，斑紋の傾向や産卵習性などが著しく異なるだけでなく，両者の間には自然的にも人工的にも交雑が起らないので，本書ではモリアオガエルを独立の種とみなした．わが国ではこれまであまり重視されていないが，体の背面に暗色の斑紋が現われるかどうかということは，アオガエル類の分類にかなり価値のある特徴",
+        "dwc:taxonConceptID": "gbif:5217272",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus arboreus (Y. OKADA et KAWANO, 1924)",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5217272,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Zhangixalus arboreus",
+    "gbif_accepted_key": 10771812,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "EXACT"
+}

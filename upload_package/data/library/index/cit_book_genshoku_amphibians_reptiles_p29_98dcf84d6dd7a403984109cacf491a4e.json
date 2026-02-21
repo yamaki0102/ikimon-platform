@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p29_98dcf84d6dd7a403984109cacf491a4e",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 29,
+    "taxon_name": "オオサンショウウオ科",
+    "scientific_name": "Family Cryptobranchidae",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.29)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Family Cryptobranchidae",
+        "dwc:vernacularName": "オオサンショウウオ科",
+        "dwc:occurrenceRemarks": "　眼は非常に小さくて眼瞼がない．頭骨には涙骨と隔膜骨とがなく，鋤口蓋歯列は顎骨に接した一連の弧状となって，上顎骨歯列と平行している．\n　この科は，原始的なというよりはむしろ幼生に似た性質を多くもっていて，おそらくカスミサンショウウオ型の祖先型から，幼生成熟をするものが分かれてでき上がったのだろうと考えられている．現生種のどれもが終生水中で生活するので，形態的にかなり特殊化しているが，一般に信じられているほど起源の古いものではないらしい．現生種は2属で構成され，オオサンショウウオ属が日本とシナとに，アメリカオオサンショウウオ属 Cryptobranchus がアメリカ合衆国東部に分布している．化石種は，第三紀の中新世の末期以降に知られている．"
+    }
+}

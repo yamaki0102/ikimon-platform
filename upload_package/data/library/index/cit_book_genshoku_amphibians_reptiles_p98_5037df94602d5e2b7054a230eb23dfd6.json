@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p98_5037df94602d5e2b7054a230eb23dfd6",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 98,
+    "taxon_name": "アカウミガメ",
+    "scientific_name": "Caretta caretta gigas DERANIYAGALA, 1933",
+    "family": "ウミガメ科",
+    "data_icons": {
+        "size": "90cm (Max 300kg)",
+        "season": null,
+        "distribution": "太平洋, インド洋"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.98)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Caretta caretta",
+        "dwc:vernacularName": "アカウミガメ",
+        "dwc:occurrenceRemarks": "　背甲は一般に赤褐色．背中線上の隆条と甲の周縁部とは淡赤褐色を呈することがあり．また時には全体に黄褐色のこともある．腹甲は淡黄色または黄褐色．頭部は赤褐色ないし赤味を帯びた灰褐色で，鱗板の周縁が黄色く縁取られ．上顎頰が黒っぽい．四肢は赤褐色か黄褐色．四肢の背面は頭部と同じ色かあるいはやや黒っぽく．上腕部内側の色が淡くて黄褐色の製品に移行している．吻は短かくて吻端が丸く．上顎の前端はとがってかぎ状に曲がっている．前額板は2対とも幅が広く，後方の1対は大形．眼板は小さくて不対．鼓膜頂板も不対であるが大きく．長さと幅とがほぼ等しい．眼上板も比較的大形．これらの鱗板は，一部が分割したり，他の鱗板と癒合したりしていることが少なくない，甲は比較的長い卵形で，背中線上に不連続な隆条があり，その両側にも左右1本ずつにぶい隆条がある．これらの隆条は．老熟した個体では一般に不明瞭となる，背甲の後端は多少とも鋸歯状，後縁は多少とも鋸歯状．中央部の椎甲板は細長くてほとんど長方形に近い．第1肋甲板は小形．第2対目より後方のものは大きくて幅が広い．腹甲には不連続なにぶい隆条が左右各2本ずつあり．前縁と後端とはともに円く終る．腋下甲板は 2〜3対あり．その前に小形の鱗が並んでいる．一般に鼠径甲板がない．前肢の前縁部と後縁部とには大形の鱗が並んでいる．甲長は十分に老熟した個体で 90cm を越え，体重も 300kg を超えるが，*) 普通は甲長 70cm 以下のものが多い．\n　太平洋とインド洋との熱帯および亜熱帯海域に広く分布し．アフリカの西側にまで割り込んでいる．日本でも東北地方の近海にまで来る．基亜種 (C. caretta caretta (LINNÉ, 1758)) は大西洋に分布しているが，本亜種との間に明確な差異があるかどうかはまだはっきりしていない．\n　アガウミガメと次ぎのヒメウミガメとは一世紀以上にわたって混同され，日本でもこの両種（属）を結合した名称 (Caretta caretta olivacea) が，アガウミガメの学名として一般に採用されてきた．著者の一人も先にはこの混合名を用いている（中村，1937）．両者の差異を初めて明らかにしたのは DERANIYAGALA (1933, 1934) で．アカウミガメをこの学名で日本（琉球）から初めて記録したのはおそらく BOURRET (1941) であるが，どちらも原著が入手し難く，その詳細が最近までわからなかった．しかし，\n\n*) 基亜種ではもっと大きい個体も知られている．",
+        "dwc:taxonConceptID": "gbif:6156747",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Caretta caretta gigas DERANIYAGALA, 1933",
+        "dwc:family": "Cheloniidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 6156747,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Caretta caretta",
+    "gbif_accepted_key": 8894817,
+    "gbif_family": "Cheloniidae",
+    "gbif_match_type": "EXACT"
+}

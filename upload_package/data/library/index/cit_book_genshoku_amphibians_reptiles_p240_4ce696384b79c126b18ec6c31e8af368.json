@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p240_4ce696384b79c126b18ec6c31e8af368",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 240,
+    "taxon_name": "トカラハブ",
+    "scientific_name": "Trimeresurus flavoviridis tokarensis NAGAI, 1928",
+    "family": "クサリヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.240)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Protobothrops tokarensis",
+        "dwc:vernacularName": "トカラハブ",
+        "dwc:occurrenceRemarks": "(Duplicate content) See Page 238.",
+        "dwc:taxonConceptID": "gbif:6157485",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Trimeresurus flavoviridis tokarensis NAGAI, 1928",
+        "dwc:family": "Viperidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 6157485,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Protobothrops tokarensis",
+    "gbif_accepted_key": 2444173,
+    "gbif_family": "Viperidae",
+    "gbif_match_type": "EXACT"
+}

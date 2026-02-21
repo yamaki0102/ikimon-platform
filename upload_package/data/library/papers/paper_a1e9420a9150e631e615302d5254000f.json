@@ -1,0 +1,20 @@
+{
+    "id": "paper_a1e9420a9150e631e615302d5254000f",
+    "doi": "10.1093\/forestry\/27.1.31",
+    "title": "THE HOUSE LONGHORN BEETLE HYLOTRUPES BAJULUS L. (COL. CERAMBYCIDAE) IN GREAT BRITAIN",
+    "year": 1954,
+    "container_title": "Forestry",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1093\/forestry\/27.1.31",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1093\/forestry\/27.1.31",
+        "dc:title": "THE HOUSE LONGHORN BEETLE HYLOTRUPES BAJULUS L. (COL. CERAMBYCIDAE) IN GREAT BRITAIN",
+        "dc:date": 1954,
+        "dc:source": "Forestry",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

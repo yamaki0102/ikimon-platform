@@ -1,0 +1,20 @@
+{
+    "id": "paper_5efb436f3cb342f40c2f5a732f2f34d4",
+    "doi": "10.1163\/156853885x00164",
+    "title": "Discriminant Analysis of Amphibian habitat determinants in South-East England",
+    "year": 1985,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/156853885x00164",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/156853885x00164",
+        "dc:title": "Discriminant Analysis of Amphibian habitat determinants in South-East England",
+        "dc:date": 1985,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

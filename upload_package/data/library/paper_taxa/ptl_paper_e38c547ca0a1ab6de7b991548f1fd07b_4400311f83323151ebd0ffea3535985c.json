@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_e38c547ca0a1ab6de7b991548f1fd07b_4400311f83323151ebd0ffea3535985c",
+    "paper_id": "paper_e38c547ca0a1ab6de7b991548f1fd07b",
+    "doi": "10.5962\/p.358098",
+    "query_id": "jp_bird_2498246_en",
+    "query_label": "Melanitta perspicillata Japan (ecology\/distribution)",
+    "scientific_name": "Melanitta perspicillata",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.5962\/p.358098",
+        "dwc:scientificName": "Melanitta perspicillata",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2498246",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Melanitta perspicillata",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 2498246,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

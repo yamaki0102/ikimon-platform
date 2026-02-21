@@ -1,0 +1,20 @@
+{
+    "id": "paper_97bd19342b9e88280cbe3124a35d894e",
+    "doi": "10.2478\/s13545-012-0023-1",
+    "title": "Changes in the body composition of Velvet Scoters (Melanitta fusca) wintering in the Gulf of Gdańsk",
+    "year": 2012,
+    "container_title": "Oceanological and Hydrobiological Studies",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2478\/s13545-012-0023-1",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2478\/s13545-012-0023-1",
+        "dc:title": "Changes in the body composition of Velvet Scoters (Melanitta fusca) wintering in the Gulf of Gdańsk",
+        "dc:date": 2012,
+        "dc:source": "Oceanological and Hydrobiological Studies",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

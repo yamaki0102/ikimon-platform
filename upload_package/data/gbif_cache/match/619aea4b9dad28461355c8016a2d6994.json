@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2480934,
+    "scientific_name": "Ardea purpurea Linnaeus, 1766",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Pelecaniformes",
+    "family": "Ardeidae",
+    "genus": "Ardea",
+    "rank": "SPECIES",
+    "original_query": "Ardea purpurea",
+    "_cached_at": 1770429060
+}

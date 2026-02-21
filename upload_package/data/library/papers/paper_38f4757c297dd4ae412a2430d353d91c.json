@@ -1,0 +1,20 @@
+{
+    "id": "paper_38f4757c297dd4ae412a2430d353d91c",
+    "doi": "10.5040\/9781472926982.0069",
+    "title": "Phaethon rubricauda. Red-tailed Tropicbird. Phaéton à brins rouges.",
+    "year": 0,
+    "container_title": "The Birds of Africa",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472926982.0069",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472926982.0069",
+        "dc:title": "Phaethon rubricauda. Red-tailed Tropicbird. Phaéton à brins rouges.",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

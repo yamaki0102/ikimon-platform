@@ -1,0 +1,20 @@
+{
+    "id": "paper_cea731badebf236a4411bcfcbca7ac15",
+    "doi": "10.2173\/bow.rewbul.01",
+    "title": "Red-whiskered Bulbul (Pycnonotus jocosus)",
+    "year": 2020,
+    "container_title": "Birds of the World",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/bow.rewbul.01",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/bow.rewbul.01",
+        "dc:title": "Red-whiskered Bulbul (Pycnonotus jocosus)",
+        "dc:date": 2020,
+        "dc:source": "Birds of the World",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

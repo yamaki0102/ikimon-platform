@@ -1,0 +1,20 @@
+{
+    "id": "paper_29dd18cc83b8fa08987f6cc8f02b7d52",
+    "doi": "10.2307\/j.ctvjk2tz9.48",
+    "title": "On the Grasshopper and Cricket",
+    "year": 1991,
+    "container_title": "Complete Poems",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.2307\/j.ctvjk2tz9.48",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/j.ctvjk2tz9.48",
+        "dc:title": "On the Grasshopper and Cricket",
+        "dc:date": 1991,
+        "dc:source": "Complete Poems",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

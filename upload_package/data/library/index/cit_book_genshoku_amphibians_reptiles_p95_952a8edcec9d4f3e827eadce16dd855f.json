@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p95_952a8edcec9d4f3e827eadce16dd855f",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 95,
+    "taxon_name": "アオウミガメ",
+    "scientific_name": "Chelonia mydas japonica (THUNBERG, 1787)",
+    "family": "ウミガメ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.95)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Chelonia mydas",
+        "dwc:vernacularName": "アオウミガメ",
+        "dwc:occurrenceRemarks": "　背面は青味を帯びた灰褐色または暗褐色．老熟するに従って背甲に不規則な褐色の放射状模様が現われてくる．それぞれの鱗板の周縁は，黄白色または青灰色に縁取られていることが多い．腹面は黄白色．四肢の下面に黒褐色の斑紋をそなえていること",
+        "dwc:taxonConceptID": "gbif:5220367",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Chelonia mydas japonica (THUNBERG, 1787)",
+        "dwc:family": "Cheloniidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5220367,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Chelonia mydas",
+    "gbif_accepted_key": 2442225,
+    "gbif_family": "Cheloniidae",
+    "gbif_match_type": "EXACT"
+}

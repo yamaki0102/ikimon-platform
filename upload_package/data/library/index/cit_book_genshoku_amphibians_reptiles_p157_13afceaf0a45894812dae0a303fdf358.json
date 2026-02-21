@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p157_13afceaf0a45894812dae0a303fdf358",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 157,
+    "taxon_name": "サキシマスベトカゲ (続き)",
+    "scientific_name": "Lygosoma (Leiolopisma) reevesii boettgeri (VAN DENBURGH, 1912)",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.157)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lygosoma (Leiolopisma) reevesii boettgeri (VAN DENBURGH, 1912)",
+        "dwc:vernacularName": "サキシマスベトカゲ (続き)",
+        "dwc:occurrenceRemarks": "縦条の下側の部分には．体の全長にわたって暗褐色の不規則な斑点を密布している．腹面は黄色味を帯びた灰白色で，各下唇板の前後両縁部は黒褐色を呈する．頭部は比較的短かくて，吻端から頭頂間板の後端までの長さは両眼の間の距離の 1.5倍強．吻も短かくて吻端が円い．左右の前額板は，普通は正中線上で接して額板を前額鼻板から隔てているが，稀には両側に離れている個体もある．後鼻板がない．頰板は長大で，吻端から頰板の前端までの距離よりも長く，側縁が第 1〜2 番目（稀には第3番目）の上唇板に接している．前頭頂板は対をなし，その前端が額板の後外角に接している．頭頂間板は大きくて幅が広い．頭頂板は額板よりも明らかに大きく，後端が頭頂間板の後側で左右接している．項板は普通 3〜4 対が明瞭．眼上板は4枚あって第2枚目が最大．眼前下板も4枚あるが，第2枚目と第3枚目との間に第5上唇板が入り込んで不連\n\n第15図．サキシマスベトカゲの頭部；左から右へ背面，腹面および左側面．\n\n続となっている．眼前板は1枚で比較的大きく．眼下板も1枚で第1眼下板より大きい．頰板は2枚あってほぼ同大，下縁が第 2〜3 両上唇板に接している．側頭板は前列1枚，中列2枚．後列3枚で，中列貴方のものが最大．上唇板は7枚あって最後の一枚がもっとも大きく，下唇板も7枚あって第5枚目がもっとも長い．耳孔は大きくて明瞭．後頤板は1枚で対をなさず．咽頭板は3対あって最初の1対だけが正中線上で接し合っている．体鱗は胴の中央部で 28〜30列（稀には32列），項板から後肢の基部までの間に 59〜60枚（普通は 61〜62枚）あり，背面の鱗列は体側のものより明らかに大きい．肛板は中央の 1対が非常に大きく，その外側の1対も比較的大きい．四肢は細くて短かく．体側に沿って伸長しても指正端の間がかなり離れる．大腿部の後面には拡大された鱗の模様がない．指趾は細長くて，第4趾の下面に 14〜16枚の趾下板をそなえている．尾下板は幅が広い．体長：75〜95mm（尾は体長の 1\/2 あまりを占めている）．\n　琉球列島の特産で，石垣．宮古および沖縄の3島と尖閣列島とから報告されているが，私達は沖縄本島産の標本を見ることができなかった．主として林の周辺部などに",
+        "dwc:taxonConceptID": "gbif:2464889",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Lygosoma (Leiolopisma) reevesii boettgeri (VAN DENBURGH, 1912)",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2464889,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

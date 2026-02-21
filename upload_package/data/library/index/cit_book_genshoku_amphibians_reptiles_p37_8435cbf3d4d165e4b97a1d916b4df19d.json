@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p37_8435cbf3d4d165e4b97a1d916b4df19d",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 37,
+    "taxon_name": "種と亜種の検索表 (前半)",
+    "scientific_name": "Key to Species\/Subspecies (Part 1)",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.37)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Key to Species\/Subspecies (Part 1)",
+        "dwc:vernacularName": "種と亜種の検索表 (前半)",
+        "dwc:occurrenceRemarks": "1 (6) 耳腺はよく発達し，顕著な隆起になっている．\n2 (3) 胴部の背面には骨質の隆条がない．\n3 (4) 趾間のみずかきは発達が悪く，切れ込みが第3趾の第1関節または第4趾の第2関節を越えない：日本本土に固有……ヒキガエル．\n4 (3) 趾間のみずかきは比較的よく発達し，切れ込みが第3趾の第2関節または第4趾の第1関節に進むかあるいはそれに近い：国内では琉球列島の宮古島のみに産する……アジアヒキガエル．\n5 (2) 頭部の背面両側に骨質の著しい隆条がある……ヘリグロヒキガエル．\n6 (1) 耳腺がないか，あっても不明瞭．\n7 (10) 前肢には，肉質の袋に包まれた棘状の第1指がある．\n8 (9) 体の背面には顕著な皮膚の隆起が多数ある：奄美大島と徳之島とに産する……オットンガエル．"
+    }
+}

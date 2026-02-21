@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p187_753a4eb617675576c19a1a2dcc2533a8",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 187,
+    "taxon_name": "ヨナグニシュウダ",
+    "scientific_name": "Elaphe carinata yonaguniensis",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.187)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Elaphe carinata yonaguniensis",
+        "dwc:vernacularName": "ヨナグニシュウダ",
+        "dwc:occurrenceRemarks": "Plate 30 illustration (100). Similar to Shuuda but darker\/pattern variation.",
+        "dwc:taxonConceptID": "gbif:6162379",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Elaphe carinata yonaguniensis",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 6162379,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "EXACT"
+}

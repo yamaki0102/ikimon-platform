@@ -1,0 +1,20 @@
+{
+    "id": "paper_1189574631b6dc13ab66d60d191a1c7f",
+    "doi": "10.2307\/2407369",
+    "title": "Reproductive Character Displacement in Calopteryx (Odonata: calopterygidae)",
+    "year": 1979,
+    "container_title": "Evolution",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/2407369",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/2407369",
+        "dc:title": "Reproductive Character Displacement in Calopteryx (Odonata: calopterygidae)",
+        "dc:date": 1979,
+        "dc:source": "Evolution",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

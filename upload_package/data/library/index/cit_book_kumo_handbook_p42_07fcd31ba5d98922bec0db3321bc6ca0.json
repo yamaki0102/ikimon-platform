@@ -1,0 +1,47 @@
+{
+    "id": "cit_book_kumo_handbook_p42_07fcd31ba5d98922bec0db3321bc6ca0",
+    "book_id": "book_kumo_handbook",
+    "page": 42,
+    "taxon_name": "スジアカハシリグモ",
+    "scientific_name": "Dolomedes saganus",
+    "family": "キシダグモ科 Pisauridae",
+    "data_icons": {
+        "size": "female: 11〜18mm, male: 15〜18mm",
+        "season": "夏〜秋",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス（スジボソ型）",
+        "オス",
+        "オス触肢"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.42)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Dolomedes saganus",
+        "dwc:vernacularName": "スジアカハシリグモ",
+        "dwc:occurrenceRemarks": "体色は褐色および緑かっ色の個体もいる。主に山地に生息し、森林内や林道、渓流沿いの樹木の上にいる。同じような環境のスジブトハシリグモに似るが、本種のような赤みはなく、腹部の赤色味も無い。またスジブトハシリグモは水辺の地表近くで待ち伏せ構えるのに対し、本種は比較的樹木の上で待ち構える。",
+        "dwc:taxonConceptID": "gbif:2150983",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Dolomedes saganus",
+        "dwc:family": "Pisauridae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2150983,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Pisauridae",
+    "gbif_match_type": "EXACT"
+}

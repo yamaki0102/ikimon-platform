@@ -1,0 +1,50 @@
+[
+    {
+        "id": "beginner_observer",
+        "awarded_at": 1771585867,
+        "definition": {
+            "id": "beginner_observer",
+            "name": "Beginner Observer",
+            "name_ja": "\u30d3\u30ae\u30ca\u30fc\u89b3\u5bdf\u8005",
+            "description": "Your journey begins with the first step.",
+            "description_ja": "\u8a18\u5ff5\u3059\u3079\u304d\u6700\u521d\u306e1\u6b69\uff01",
+            "icon": "\ud83c\udf31",
+            "condition": {
+                "type": "post_count",
+                "threshold": 1
+            }
+        }
+    },
+    {
+        "id": "observer",
+        "awarded_at": 1771585867,
+        "definition": {
+            "id": "observer",
+            "name": "Observer",
+            "name_ja": "\u89b3\u5bdf\u8005",
+            "description": "Getting used to finding creatures.",
+            "description_ja": "5\u56de\u306e\u6295\u7a3f\u9054\u6210\u3002\u304a\u3081\u3067\u3068\u3046\uff01",
+            "icon": "\ud83d\udcf7",
+            "condition": {
+                "type": "post_count",
+                "threshold": 5
+            }
+        }
+    },
+    {
+        "id": "biologist_jr",
+        "awarded_at": 1771585867,
+        "definition": {
+            "id": "biologist_jr",
+            "name": "Junior Biologist",
+            "name_ja": "\u99c6\u3051\u51fa\u3057\u751f\u7269\u5b66\u8005",
+            "description": "Identifying species correctly.",
+            "description_ja": "3\u7a2e\u4ee5\u4e0a\u306e\u751f\u304d\u7269\u3092\u898b\u3064\u3051\u305f\u8a3c\u3002",
+            "icon": "\ud83e\udd8b",
+            "condition": {
+                "type": "species_count",
+                "threshold": 3
+            }
+        }
+    }
+]

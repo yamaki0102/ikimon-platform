@@ -1,0 +1,20 @@
+{
+    "id": "paper_a0f47c3bcf4f72e31e1f32a131c6e0bc",
+    "doi": "10.2326\/osj.1.123",
+    "title": "Foraging niches of introduced Red-billed Leiothrix and native species in Japan",
+    "year": 2002,
+    "container_title": "ORNITHOLOGICAL SCIENCE",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2326\/osj.1.123",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2326\/osj.1.123",
+        "dc:title": "Foraging niches of introduced Red-billed Leiothrix and native species in Japan",
+        "dc:date": 2002,
+        "dc:source": "ORNITHOLOGICAL SCIENCE",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

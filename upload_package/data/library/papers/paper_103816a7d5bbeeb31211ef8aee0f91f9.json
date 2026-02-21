@@ -1,0 +1,20 @@
+{
+    "id": "paper_103816a7d5bbeeb31211ef8aee0f91f9",
+    "doi": "10.3109\/19401736.2015.1101562",
+    "title": "Complete mitochondrial genome of the Chinese hwamei (\n            Garrulax canorus\n            )",
+    "year": 2015,
+    "container_title": "Mitochondrial DNA Part A",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3109\/19401736.2015.1101562",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3109\/19401736.2015.1101562",
+        "dc:title": "Complete mitochondrial genome of the Chinese hwamei (\n            Garrulax canorus\n            )",
+        "dc:date": 2015,
+        "dc:source": "Mitochondrial DNA Part A",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

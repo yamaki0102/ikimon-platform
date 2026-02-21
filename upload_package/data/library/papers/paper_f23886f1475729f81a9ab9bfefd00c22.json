@@ -1,0 +1,20 @@
+{
+    "id": "paper_f23886f1475729f81a9ab9bfefd00c22",
+    "doi": "10.1007\/978-3-662-02592-5_3",
+    "title": "The Katydid Spermatophore",
+    "year": 1990,
+    "container_title": "The Tettigoniidae",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1007\/978-3-662-02592-5_3",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/978-3-662-02592-5_3",
+        "dc:title": "The Katydid Spermatophore",
+        "dc:date": 1990,
+        "dc:source": "The Tettigoniidae",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

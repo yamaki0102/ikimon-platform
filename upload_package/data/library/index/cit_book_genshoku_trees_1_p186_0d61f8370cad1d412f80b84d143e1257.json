@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p186_0d61f8370cad1d412f80b84d143e1257",
+    "book_id": "book_genshoku_trees_1",
+    "page": 186,
+    "taxon_name": "C",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.186)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "C",
+        "dwc:occurrenceRemarks": "Caesalpinia IV 260\n  japonica IV 260\nCallicarpa V 185\n  dichotoma V 186\n  japonica V 185\n  mollis V 186\n  ――var. ramosissima V 186\nCallistemon V 82\n  rigidles V 82\n  speciosus V 83\nCalluna V 144\n  vulgaris V 144\nCalophyllum IV 162\n  inophyllum IV 142\nCalycanthus IV 64\n  floridus IV 64\nCamellia IV 120\n  chrysantha IV 131\n  cuspidata IV 130\n  fraterna IV 130"
+    }
+}

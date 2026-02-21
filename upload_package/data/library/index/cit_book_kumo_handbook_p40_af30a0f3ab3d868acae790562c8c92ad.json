@@ -1,0 +1,49 @@
+{
+    "id": "cit_book_kumo_handbook_p40_af30a0f3ab3d868acae790562c8c92ad",
+    "book_id": "book_kumo_handbook",
+    "page": 40,
+    "taxon_name": "ウヅキコモリグモ",
+    "scientific_name": "Pardosa astrigera",
+    "family": "コモリグモ科 Lycosidae",
+    "data_icons": {
+        "size": "female: 8〜10mm, male: 6〜8mm",
+        "season": "春〜秋",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "卵のうを付けたメス",
+        "背中の斑紋（ハの字）",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.40)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Pardosa astrigera",
+        "dwc:vernacularName": "ウヅキコモリグモ",
+        "dwc:occurrenceRemarks": "体は褐色で、平地から山地まで広く生息する。庭や水田の畔、河原など場所を選ばず、地表を徘徊して獲物を捕らえる。腹部のハの字型（山形）の斑紋が特徴的。頭胸部の中央に細い縦条模様がついていることで識別できる。",
+        "dwc:taxonConceptID": "gbif:2146466",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Pardosa astrigera",
+        "dwc:family": "Lycosidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2146466,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Lycosidae",
+    "gbif_match_type": "EXACT"
+}

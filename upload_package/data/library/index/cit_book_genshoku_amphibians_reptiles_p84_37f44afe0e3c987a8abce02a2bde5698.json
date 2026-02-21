@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p84_37f44afe0e3c987a8abce02a2bde5698",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 84,
+    "taxon_name": "アイフィンガーガエル",
+    "scientific_name": "Rhacophorus eiffingeri (BOETTGER, 1895)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.84)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Kurixalus eiffingeri",
+        "dwc:vernacularName": "アイフィンガーガエル",
+        "dwc:occurrenceRemarks": "　背部は褐色または暗褐色で，左右の上眼瞼の間に1対の黒褐色紋があり，また，背側縁に沿って，1対の不規則な黒褐色縦条をそなえていることが多い．四肢の背面には黒褐色の横帯があり．とくに前膊部の2本，大腿部の2〜3本および脛部の3本は著しい．腹面は黄白色または黄色味を帯びた灰白色で，胴の後部ではこの色が体側にも拡がっている．下顎の周縁部，体側，腹部．大腿部の後面および四肢の下面には，多数の暗褐色斑紋がある．背面が灰緑色を呈しているときには，暗色斑紋の不明瞭なことが多いが，体側と大腿部の後面とにはつねに斑紋が認められる．頭部は大きくて幅",
+        "dwc:taxonConceptID": "gbif:11042293",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus eiffingeri (BOETTGER, 1895)",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 11042293,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Kurixalus eiffingeri",
+    "gbif_accepted_key": 2423840,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "EXACT"
+}

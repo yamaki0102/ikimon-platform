@@ -1,0 +1,20 @@
+{
+    "id": "paper_50470fd36c40f4fc488833ef6b47256f",
+    "doi": "10.1111\/j.1474-919x.1954.tb02329.x",
+    "title": "BREEDING OF THE FULMAR FULMARUS GLACIALIS",
+    "year": 1954,
+    "container_title": "Ibis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1111\/j.1474-919x.1954.tb02329.x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1111\/j.1474-919x.1954.tb02329.x",
+        "dc:title": "BREEDING OF THE FULMAR FULMARUS GLACIALIS",
+        "dc:date": 1954,
+        "dc:source": "Ibis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

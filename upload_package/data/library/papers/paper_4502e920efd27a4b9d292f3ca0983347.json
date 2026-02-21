@@ -1,0 +1,20 @@
+{
+    "id": "paper_4502e920efd27a4b9d292f3ca0983347",
+    "doi": "10.2307\/1781",
+    "title": "The Life-History of the Emperor Dragonfly Anax imperator Leach (Odonata: Aeshnidae)",
+    "year": 1957,
+    "container_title": "The Journal of Animal Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/1781",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/1781",
+        "dc:title": "The Life-History of the Emperor Dragonfly Anax imperator Leach (Odonata: Aeshnidae)",
+        "dc:date": 1957,
+        "dc:source": "The Journal of Animal Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

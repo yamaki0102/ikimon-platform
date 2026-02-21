@@ -1,0 +1,20 @@
+{
+    "id": "paper_39d1c1bda0c61ef31ba812ee378f4563",
+    "doi": "10.1163\/156853889x00520",
+    "title": "Groombridge, B. (1988): World checklist of threatened amphibians and reptiles. Nature Conservancy Council, UK. 138 pp., £16.00",
+    "year": 1989,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/156853889x00520",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/156853889x00520",
+        "dc:title": "Groombridge, B. (1988): World checklist of threatened amphibians and reptiles. Nature Conservancy Council, UK. 138 pp., £16.00",
+        "dc:date": 1989,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

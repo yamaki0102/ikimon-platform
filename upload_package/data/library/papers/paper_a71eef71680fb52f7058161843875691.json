@@ -1,0 +1,20 @@
+{
+    "id": "paper_a71eef71680fb52f7058161843875691",
+    "doi": "10.2173\/bna.cremyn.02",
+    "title": "Crested Myna (Acridotheres cristatellus)",
+    "year": 1995,
+    "container_title": "The Birds of North America Online",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2173\/bna.cremyn.02",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/bna.cremyn.02",
+        "dc:title": "Crested Myna (Acridotheres cristatellus)",
+        "dc:date": 1995,
+        "dc:source": "The Birds of North America Online",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

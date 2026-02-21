@@ -1,0 +1,46 @@
+{
+    "id": "cit_book_kumo_handbook_p11_c7a92a6096e412bbd7d4d155764958b1",
+    "book_id": "book_kumo_handbook",
+    "page": 11,
+    "taxon_name": "アケボノユウレイグモ",
+    "scientific_name": "Smeringopus pallidus",
+    "family": "ユウレイグモ科 Pholcidae",
+    "data_icons": {
+        "size": "female: 6〜8mm, male: 6〜7mm",
+        "season": "一年中",
+        "distribution": "本州 (関東以南)・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "メス背面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.11)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Smeringopus pallidus",
+        "dwc:vernacularName": "アケボノユウレイグモ",
+        "dwc:occurrenceRemarks": "腹部は円筒形で、後方が尖る。背面に紫褐色のジグザグ模様が一列に並び、その両側に黒い斑点がある。脚の節の末端に白い輪がある。家屋内や軒下、神社の建物の隅、マンホールの中、側溝の蓋の裏などに生息し、不規則な網を張る。刺激を与えると体を揺する。世界中の熱帯、亜熱帯に広く分布する。",
+        "dwc:taxonConceptID": "gbif:2150319",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Smeringopus pallidus",
+        "dwc:family": "Pholcidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2150319,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Pholcidae",
+    "gbif_match_type": "EXACT"
+}

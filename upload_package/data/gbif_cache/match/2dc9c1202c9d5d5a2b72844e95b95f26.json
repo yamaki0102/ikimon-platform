@@ -1,0 +1,18 @@
+{
+    "taxon_key": 5221339,
+    "scientific_name": "Eublepharis kuroiwae",
+    "status": "SYNONYM",
+    "match_type": "HIGHERRANK",
+    "confidence": 98,
+    "accepted_key": 2446415,
+    "accepted_name": "Goniurosaurus kuroiwae",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Eublepharidae",
+    "genus": "Goniurosaurus",
+    "rank": "SPECIES",
+    "original_query": "Eublepharis kuroiwae orientalis M. MAKI, 1930",
+    "_cached_at": 1770420171
+}

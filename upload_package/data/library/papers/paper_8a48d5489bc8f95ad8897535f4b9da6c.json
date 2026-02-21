@@ -1,0 +1,20 @@
+{
+    "id": "paper_8a48d5489bc8f95ad8897535f4b9da6c",
+    "doi": "10.14258\/turczaninowia.20.4.16",
+    "title": "Conservation assessment of Pinus cernua (Pinaceae)",
+    "year": 2017,
+    "container_title": "Turczaninowia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.14258\/turczaninowia.20.4.16",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.14258\/turczaninowia.20.4.16",
+        "dc:title": "Conservation assessment of Pinus cernua (Pinaceae)",
+        "dc:date": 2017,
+        "dc:source": "Turczaninowia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

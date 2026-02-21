@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p181_c274df1984aa909ed194b8dd5dfdae59",
+    "book_id": "book_genshoku_trees_1",
+    "page": 181,
+    "taxon_name": "こ行",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.181)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "こ行",
+        "dwc:occurrenceRemarks": "コアジサイ IV 147\nコイワザクラ IV 100\nコウガイゼキショウ IV 136\nコウゾ IV 50\nコウネグミ(ツルグミ) IV 226\nコウボウムギ IV 132\nコウヤマキ V 272\nコウヨウザン V 272\nコクサギ IV 284\nコケモモ V 134\nコゴメウツギ IV 151\nコザクラ(ニワザクラ) IV 176\nコシノヒガンサクラ(タカトオコヒガン) IV 178\nコショウノキ IV 229\nコタニワタリ(オオタニワタリ) V 203\nコデマリ IV 148\nコナラ IV 40\nコノテガシワ V 276\n――(センジュ) V 276\nコハクウンボク V 155\nコバノイシカグマ V 142\nコバノガマズミ V 208\nコバノミツバツツジ V 109\nコブシ IV 80\nコブニレ(ハルニレ) IV 48\nコマユミ(ニシキギ) V 36\nゴミシ IV 76\nコムラサキ V 183\nコメツガ V 262\nコメルリソウ(ヤマルリソウ) IV 202\nコヤスノキ V 154\nゴヨウアケビ IV 105\nゴヨウツツジ(シロヤシオ) V 118\nゴヨウマツ(ヒメコマツ) V 238\nコリラ V 27\nコルクガシ V 39\nゴンズイ V 32\nコンノリ(ゴンズイ) V 32"
+    }
+}

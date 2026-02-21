@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2426803,
+    "scientific_name": "Rana dybowskii Günther, 1876",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Anura",
+    "family": "Ranidae",
+    "genus": "Rana",
+    "rank": "SPECIES",
+    "original_query": "Rana dybowskii",
+    "_cached_at": 1770420009
+}

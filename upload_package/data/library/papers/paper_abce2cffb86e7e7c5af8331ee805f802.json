@@ -1,0 +1,20 @@
+{
+    "id": "paper_abce2cffb86e7e7c5af8331ee805f802",
+    "doi": "10.1111\/j.1474-919x.1979.tb06854.x",
+    "title": "NIGHT HERONS NYCTICORAX NYCTICORAX WINTERING IN THE PO RIVER VALLEY",
+    "year": 1979,
+    "container_title": "Ibis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1111\/j.1474-919x.1979.tb06854.x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1111\/j.1474-919x.1979.tb06854.x",
+        "dc:title": "NIGHT HERONS NYCTICORAX NYCTICORAX WINTERING IN THE PO RIVER VALLEY",
+        "dc:date": 1979,
+        "dc:source": "Ibis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

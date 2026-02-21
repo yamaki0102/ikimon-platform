@@ -1,0 +1,18 @@
+{
+    "taxon_key": 11014317,
+    "scientific_name": "Megalobatrachus japonicus (Temminck, 1836)",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": 2432039,
+    "accepted_name": "Andrias japonicus",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Caudata",
+    "family": "Cryptobranchidae",
+    "genus": "Andrias",
+    "rank": "SPECIES",
+    "original_query": "Megalobatrachus japonicus",
+    "_cached_at": 1770419941
+}

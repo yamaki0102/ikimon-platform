@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2150959,
+    "scientific_name": "Dolomedes sulfureus L.Koch, 1878",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Pisauridae",
+    "genus": "Dolomedes",
+    "rank": "SPECIES",
+    "original_query": "Dolomedes sulfureus",
+    "_cached_at": 1771646872
+}

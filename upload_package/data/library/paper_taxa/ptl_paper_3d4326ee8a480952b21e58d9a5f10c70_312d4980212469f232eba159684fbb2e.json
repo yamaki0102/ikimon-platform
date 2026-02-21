@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_3d4326ee8a480952b21e58d9a5f10c70_312d4980212469f232eba159684fbb2e",
+    "paper_id": "paper_3d4326ee8a480952b21e58d9a5f10c70",
+    "doi": "10.31390\/gradschool_disstheses.5134",
+    "query_id": "jp_bird_2498264_en",
+    "query_label": "Aythya collaris Japan (ecology\/distribution)",
+    "scientific_name": "Aythya collaris",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.31390\/gradschool_disstheses.5134",
+        "dwc:scientificName": "Aythya collaris",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2498264",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Aythya collaris",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 2498264,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

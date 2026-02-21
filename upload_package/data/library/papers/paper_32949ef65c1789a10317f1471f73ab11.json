@@ -1,0 +1,20 @@
+{
+    "id": "paper_32949ef65c1789a10317f1471f73ab11",
+    "doi": "10.5962\/bhl.title.142159",
+    "title": "Oceanodroma leucorhoa and Oceanodroma castro (white-rumped storm petrel)",
+    "year": 1963,
+    "container_title": "",
+    "type": "monograph",
+    "url": "https:\/\/doi.org\/10.5962\/bhl.title.142159",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/bhl.title.142159",
+        "dc:title": "Oceanodroma leucorhoa and Oceanodroma castro (white-rumped storm petrel)",
+        "dc:date": 1963,
+        "dc:source": "",
+        "dc:type": "monograph",
+        "dc:format": "application\/json"
+    }
+}

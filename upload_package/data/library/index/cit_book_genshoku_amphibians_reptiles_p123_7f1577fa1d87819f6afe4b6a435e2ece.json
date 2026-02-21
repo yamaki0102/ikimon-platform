@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p123_7f1577fa1d87819f6afe4b6a435e2ece",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 123,
+    "taxon_name": "ホオグロヤモリ",
+    "scientific_name": "Hemidactylus frenatus DUMÉRIL et BIBRON, 1836",
+    "family": "ヤモリ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.123)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hemidactylus frenatus DUMÉRIL et BIBRON, 1836",
+        "dwc:vernacularName": "ホオグロヤモリ",
+        "dwc:occurrenceRemarks": "　体と四肢との背面は灰色，灰褐色または暗褐色．色彩がいちようなことも，黒褐色の不規則な斑紋や不連続な条線をそなえていることもある．頭部の側面には，鼻孔に始まって眼を通り項部の背側に続く淡灰色の縦条があり，その背腹両縁が黒褐色に縁取られている．これらの黒褐縦条の背方のものは，眼より後方へごくわずかしか延びていないが，腹方のものは，耳孔の上縁を経て更に後方へ伸長している．また．個体によっては，淡色の縦条と黒褐縦条の腹方のものとが体側に続き，後者が胴部で拡がって不規則な雲状模様になっていることもある．上唇板と下唇板とには黒褐色の密な小点群でできた斑紋のあるのが普通．腹面は黄白色または灰白色．尾の背面は頭胴部より多少とも色が淡いが，下面には暗褐色の小点を散布していることが多く，尾端に近づくほど小点が密になって遂には尾端部が暗褐色になることもある．頭部はかなり細長い卵形で側縁がゆるい弧をえがき，吻もかなり長くて背中線上に細長い凹みがある．吻端から眼の前端までの長さは眼と耳孔との間隔よりも明らかに大きく，吻端は円くて吻端板がかなり高い．吻端板の頂縁は，1対の鼻間板とそれに挟まれた1枚の小鱗とに接し，中央が多少とも切れ込んでいる．鼻孔は吻端部の背側にあり，鼻間板，吻端板，第1上唇板および 2〜3枚の小鱗によって囲まれている．眼はかなり大きくてほぼ円形，直径が眼と鼻孔との間隔よりは明らかに小さいが，吻端から眼の前端までの距離の半分よりは大きい．耳孔は楕円形で小さく，その長径が眼の直径の半分以下しかない．上唇板は 10〜12枚，下唇板は 8〜10枚あって，下唇板の方が上唇板よりも大形．頤板は扇形でかなり大きく，頂端部が1対の後頤板に接している．後頤板は2対あって斜め前後に並び，後側方の1対は正中線上で接し合っていないが，それぞ",
+        "dwc:taxonConceptID": "gbif:9537238",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hemidactylus frenatus DUMÉRIL et BIBRON, 1836",
+        "dwc:family": "Gekkonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9537238,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gekkonidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_db18ec4c9b5b2b3f72ca8a2c9eb9ad9c",
+    "doi": "10.1016\/j.cej.2025.170544",
+    "title": "Bioinspired core-shell zinc ferrite\/silica\/polypyrrole composite film with broadband microwave absorption based on Sasakia charonda wing morphology",
+    "year": 2025,
+    "container_title": "Chemical Engineering Journal",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/j.cej.2025.170544",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/j.cej.2025.170544",
+        "dc:title": "Bioinspired core-shell zinc ferrite\/silica\/polypyrrole composite film with broadband microwave absorption based on Sasakia charonda wing morphology",
+        "dc:date": 2025,
+        "dc:source": "Chemical Engineering Journal",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

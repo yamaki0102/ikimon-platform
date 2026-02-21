@@ -1,0 +1,20 @@
+{
+    "id": "paper_2fa8c7b5b90fcbebc804e6ee0ed6649c",
+    "doi": "10.4081\/rio.2018.356",
+    "title": "[Columba livia domestic breed, invasive entity also alien for Italy]",
+    "year": 2019,
+    "container_title": "Rivista Italiana di Ornitologia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.4081\/rio.2018.356",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.4081\/rio.2018.356",
+        "dc:title": "[Columba livia domestic breed, invasive entity also alien for Italy]",
+        "dc:date": 2019,
+        "dc:source": "Rivista Italiana di Ornitologia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

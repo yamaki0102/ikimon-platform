@@ -1,0 +1,18 @@
+{
+    "taxon_key": 3096,
+    "scientific_name": "Rhacophoridae",
+    "status": "ACCEPTED",
+    "match_type": "HIGHERRANK",
+    "confidence": 94,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Anura",
+    "family": "Rhacophoridae",
+    "genus": null,
+    "rank": "FAMILY",
+    "original_query": "Rhacophoridae",
+    "_cached_at": 1770420042
+}

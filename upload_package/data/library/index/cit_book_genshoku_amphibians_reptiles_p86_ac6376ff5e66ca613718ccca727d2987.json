@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p86_ac6376ff5e66ca613718ccca727d2987",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 86,
+    "taxon_name": "カジカガエル (続き)",
+    "scientific_name": "Rhacophorus buergeri (SCHLEGEL, 1838)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": "♂30〜40mm, ♀50〜70mm",
+        "season": "6〜8月",
+        "distribution": "本州, 四国, 九州 (山地渓流)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.86)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Buergeria buergeri",
+        "dwc:vernacularName": "カジカガエル (続き)",
+        "dwc:occurrenceRemarks": "大きくてよく突出しているが，その長径は吻端から眼の前端までの距離よりも小さく．左右の上眼瞼の間隔は上眼瞼の幅よりも大きい．鼓膜は円くて明瞭，その直径が眼の長径の半分ぐらいで，周囲が白っぽい顆粒に囲まれている．同様の顆粒は眼の下側や頰部にもある．鋤骨歯板は長楕円形でやや斜向し，左右の内鼻孔の間にあって，外側が内鼻孔の内縁に接している．それぞれの歯板には10個あまりの歯がある．背面の皮膚はおおむね平滑であるが，部分的にぶい顆粒をそなえ，とくに背側部の前方では顆粒が明瞭．背側線上にはひだがないが，眼の後端から鼓膜の上縁を経て前肢基部の上側に達する短かい弯曲した隆条は著しい．咽頭部と胸部とは平滑，腹部後方では皮膚が粗雑な顆粒におおわれている．前肢は比較的短かくて，その全長が体長の2\/3に達しない．第4指は第2指よりも長く，第3指が最長で第1指が最短．みずかきはほとんど認められない．吸盤は第3〜4指のものがほぼ同大で大きく．第2指のものがこれに次ぎ，第1指のものは小さい．第3〜4指の吸盤の長径は，鼓膜の直径にほぼ等しい．後肢はよく発達し，大腿部と脛部との長さの和が眼の前端から肛門までの距離にほぼ等しく．大腿部と脛部とが重なるように折り曲げて体軸と直角に伸ばすと左右の脛跗関節が行き違う．内蹠隆起は楕円形で著しいが，外蹠隆起は認められない．吸盤は第4趾のものがもっとも大きく，第3趾と第5趾とのものがこれに次ぎ，第1趾のものが最小．いずれも前肢第3〜4指の吸盤よりは小さい．みずかきはよく発達し，各趾の吸盤に達している．体長：♂で30〜40mm，♀で50〜70mm．\n　日本本土の固有種で，本州，四国および九州に分布し，主として山地の渓流にすんでいる．河原の大きい石の間やコケの生えた岩の上などで生活し，木に登ることはあまり多くない．6〜8月頃，よどみの石の下や草の根元などに寒天質の卵塊を産む．卵は黒褐色で直径1.5〜2.0mmぐらい．成熟したオタマジャクシはかなり大形で．灰色の体や尾に黒い斑点を散布している．♂の鳴き声が美しいのでよく飼育され．また昔から歌や詩に読まれている．\n　なお，SCHLEGEL の原記載に用いられた種名の綴りは，Hyla Bürgeri および H. Bürgerii であるが，見出しに掲げられているのは前者であって，これを改訂した \"buergeri\" を採るのが正しい．",
+        "dwc:taxonConceptID": "gbif:10953649",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus buergeri (SCHLEGEL, 1838)",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10953649,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Buergeria buergeri",
+    "gbif_accepted_key": 5217233,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "EXACT"
+}

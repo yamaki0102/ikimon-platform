@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p48_0fd9c2cb97b83034fcf8a32682b62fbe",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 48,
+    "taxon_name": "スズガエル科 (続き)",
+    "scientific_name": "Family Discoglossidae (continued)",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.48)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Family Discoglossidae (continued)",
+        "dwc:vernacularName": "スズガエル科 (続き)",
+        "dwc:occurrenceRemarks": "た方がよいという意見もあり (NOBLE, 1931 など)，その方が妥当であるようにも思われるが，本書では，どちらかといえば旧式な分類に従っておいた．"
+    }
+}

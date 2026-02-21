@@ -1,0 +1,18 @@
+{
+    "taxon_key": 8219144,
+    "scientific_name": "Dorcus rectus (Motschulsky, 1857)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Insecta",
+    "order": "Coleoptera",
+    "family": "Lucanidae",
+    "genus": "Dorcus",
+    "rank": "SPECIES",
+    "original_query": "Dorcus rectus",
+    "_cached_at": 1771646880
+}

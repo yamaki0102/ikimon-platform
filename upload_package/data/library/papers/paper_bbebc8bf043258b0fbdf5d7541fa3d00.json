@@ -1,0 +1,20 @@
+{
+    "id": "paper_bbebc8bf043258b0fbdf5d7541fa3d00",
+    "doi": "10.56178\/eh.v14i4.962",
+    "title": "Sobre la biología reproductiva del Petrel Damero (&lt;i&gt;Daption capense capense&lt;\/i&gt;) en Isla Laurie, Orcadas del Sur",
+    "year": 1997,
+    "container_title": "El Hornero",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.56178\/eh.v14i4.962",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.56178\/eh.v14i4.962",
+        "dc:title": "Sobre la biología reproductiva del Petrel Damero (&lt;i&gt;Daption capense capense&lt;\/i&gt;) en Isla Laurie, Orcadas del Sur",
+        "dc:date": 1997,
+        "dc:source": "El Hornero",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

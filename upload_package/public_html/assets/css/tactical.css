@@ -1,0 +1,320 @@
+:root {
+    /* Cyber-Natural Palette */
+    --color-biolum: 13, 162, 231;
+    /* Bioluminescent Blue */
+    --color-biolum-dim: 13, 162, 231;
+    --color-alert: 239, 68, 68;
+    /* Alert Red */
+    --color-organic: 16, 185, 129;
+    /* Organic Green */
+
+    /* Surface — Light Theme */
+    --glass-frost: rgba(255, 255, 255, 0.75);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --scanline-color: rgba(13, 162, 231, 0.04);
+}
+
+/* Base HUD Typography */
+.font-tactical {
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* Oribe Imperfection (Cyber-Wabi-Sabi) */
+.oribe-border {
+    border: 1px solid var(--glass-border);
+    clip-path: polygon(0 0,
+            100% 0,
+            100% calc(100% - 12px),
+            calc(100% - 12px) 100%,
+            0 100%);
+}
+
+.oribe-panel {
+    background: var(--glass-frost);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+}
+
+/* Animations */
+@keyframes scanline {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+}
+
+.animate-scanline::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100px;
+    background: linear-gradient(to bottom, transparent, var(--scanline-color), transparent);
+    animation: scanline 4s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes pulse-biolum {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(var(--color-biolum), 0.15);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(var(--color-biolum), 0.3);
+    }
+}
+
+.glow-biolum {
+    animation: pulse-biolum 3s ease-in-out infinite;
+}
+
+/* Utility Utilities */
+.text-biolum {
+    color: rgb(var(--color-biolum));
+}
+
+.text-shadow-biolum {
+    text-shadow: 0 0 8px rgba(var(--color-biolum), 0.4);
+}
+
+/* HUD Specific Layouts */
+.hud-corner-tl {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 50;
+}
+
+.hud-corner-tr {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 50;
+}
+
+.hud-corner-bl {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: 50;
+}
+
+.hud-corner-br {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 50;
+}
+
+.hud-reticle {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 240px;
+    height: 240px;
+    border: 1px solid rgba(var(--color-biolum), 0.08);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 40;
+}
+
+.hud-reticle::before,
+.hud-reticle::after {
+    content: '';
+    position: absolute;
+    background: rgba(var(--color-biolum), 0.15);
+}
+
+/* Crosshairs */
+.hud-reticle::before {
+    top: 50%;
+    left: -10px;
+    right: -10px;
+    height: 1px;
+}
+
+.hud-reticle::after {
+    left: 50%;
+    top: -10px;
+    bottom: -10px;
+    width: 1px;
+}
+
+/* Utilities */
+.mask-gradient-x {
+    mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+}
+
+/* Import Font */
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+/* New Bio-Radar Utilities */
+.animate-spin-slow {
+    animation: spin 10s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.clip-path-polygon {
+    clip-path: polygon(0% 0%,
+            100% 0%,
+            100% 85%,
+            95% 100%,
+            0% 100%);
+}
+
+.clip-path-hex {
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+/* ============================================
+   Phase 6: Gamification Micro-Animations
+   ============================================ */
+
+/* Pop-in: Card reveal animation */
+@keyframes pop-in {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+
+    70% {
+        transform: scale(1.08);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.animate-pop-in {
+    animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Stagger children for sequential pop */
+.pop-stagger>*:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.pop-stagger>*:nth-child(2) {
+    animation-delay: 0.10s;
+}
+
+.pop-stagger>*:nth-child(3) {
+    animation-delay: 0.15s;
+}
+
+.pop-stagger>*:nth-child(4) {
+    animation-delay: 0.20s;
+}
+
+.pop-stagger>*:nth-child(5) {
+    animation-delay: 0.25s;
+}
+
+.pop-stagger>*:nth-child(6) {
+    animation-delay: 0.30s;
+}
+
+.pop-stagger>*:nth-child(7) {
+    animation-delay: 0.35s;
+}
+
+.pop-stagger>*:nth-child(8) {
+    animation-delay: 0.40s;
+}
+
+/* Bounce tap: Haptic-like feedback */
+@keyframes haptic-tap {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(0.92);
+    }
+}
+
+.haptic-tap:active {
+    animation: haptic-tap 0.15s ease-out;
+}
+
+/* Achievement glow pulse */
+@keyframes glow-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(var(--color-organic), 0.2);
+    }
+
+    50% {
+        box-shadow: 0 0 20px 4px rgba(var(--color-organic), 0.1);
+    }
+}
+
+.animate-glow {
+    animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Counter increment effect */
+@keyframes count-up {
+    0% {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.animate-count-up {
+    animation: count-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Slide-up entrance for widgets */
+@keyframes slide-up {
+    0% {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up 0.5s ease-out both;
+}

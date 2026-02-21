@@ -1,0 +1,20 @@
+{
+    "id": "paper_16f92e7c8662d3c944cb66cf16a4c553",
+    "doi": "10.5253\/arde.2022.a18",
+    "title": "Revisiting Published Distribution Maps and Estimates of Population Size of Landbirds Breeding in Eurasia and Wintering in Africa",
+    "year": 2023,
+    "container_title": "Ardea",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5253\/arde.2022.a18",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5253\/arde.2022.a18",
+        "dc:title": "Revisiting Published Distribution Maps and Estimates of Population Size of Landbirds Breeding in Eurasia and Wintering in Africa",
+        "dc:date": 2023,
+        "dc:source": "Ardea",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_a8f32aa7b77f7299241a25953415ec14_190d46c16f0dca5b1adc08fa47fe6d8b",
+    "paper_id": "paper_a8f32aa7b77f7299241a25953415ec14",
+    "doi": "10.2173\/tbna.281.p",
+    "query_id": "jp_bird_2481606_en",
+    "query_label": "Bulweria bulwerii Japan (ecology\/distribution)",
+    "scientific_name": "Bulweria bulwerii",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/tbna.281.p",
+        "dwc:scientificName": "Bulweria bulwerii",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481606",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Bulweria bulwerii",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Procellariidae"
+    },
+    "gbif_taxon_key": 2481606,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Procellariidae"
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2426837,
+    "scientific_name": "Rana holsti Boulenger, 1892",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": 5217819,
+    "accepted_name": "Babina holsti",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Anura",
+    "family": "Ranidae",
+    "genus": "Babina",
+    "rank": "SPECIES",
+    "original_query": "Rana (Babina) holsti",
+    "_cached_at": 1770420041
+}

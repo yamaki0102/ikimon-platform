@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p110_fdfb8281e6364aafb08fa92995522a7a",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 110,
+    "taxon_name": "イシガメ (続き)",
+    "scientific_name": "Clemmys japonica (TEMMINCK et SCHLEGEL, 1835)",
+    "family": "カメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.110)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Mauremys japonica",
+        "dwc:vernacularName": "イシガメ (続き)",
+        "dwc:occurrenceRemarks": "鋸歯状を呈する，背中線上にはにぶくて不連続な隆条があるが，その両側の2本はほとんど認められない．項甲板は小形．椎甲板は幅が広くて肋甲板に匹敵する．腹甲は背甲よりわずかに短かく，前端部を除いてほぼ平坦．前端が浅くえぐれ，後端は深く切れ込んでいる．胸甲板と前腹甲板との側縁部は橋を形成し．前者は肩甲板よりも少し長い．後腹甲板の前縁から肛甲板の後端までの長さは．橋の幅にほぼ等しいかあるいはこれよりもわずかに長い．鼠径甲板は腋下甲板よりも大形．前膊部は瓦状に重なり合ったかなり大形の鱗片でおおわれているが，個々の鱗片がミナミイシガメのものほど横に細長くはない．脛部下面の鱗は比較的小形．みずかきはよく発達し．指趾の末端に達している．爪は比較的長くて強壮．尾も比較的長く，先端部が多少とも側扁し，基部には微小な円錐形の突起を多数そなえている．甲長：130〜180mm．\n　日本の固有種で，本州，四国，九州およびこれらの属島に分布している．淡水性で．動物質も植物質も食う．5〜8月頃．水辺の土中に5〜10個ぐらいの卵を産む．卵は白くて比較的球形に近い．なお，夜店などでゼニガメと呼んでいるのは本種の子であることが多いが，クサガメの子もかなり混じっている．",
+        "dwc:taxonConceptID": "gbif:5220642",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Clemmys japonica (TEMMINCK et SCHLEGEL, 1835)",
+        "dwc:family": "Geoemydidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5220642,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Mauremys japonica",
+    "gbif_accepted_key": 2443368,
+    "gbif_family": "Geoemydidae",
+    "gbif_match_type": "EXACT"
+}

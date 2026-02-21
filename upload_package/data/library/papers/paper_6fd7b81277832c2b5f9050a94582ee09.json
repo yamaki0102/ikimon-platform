@@ -1,0 +1,20 @@
+{
+    "id": "paper_6fd7b81277832c2b5f9050a94582ee09",
+    "doi": "10.1016\/s0305-1978(02)00147-3",
+    "title": "Anthocyanins in cones of Abies, Picea, Pinus, Pseudotsuga and Tsuga (Pinaceae)",
+    "year": 2003,
+    "container_title": "Biochemical Systematics and Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/s0305-1978(02)00147-3",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/s0305-1978(02)00147-3",
+        "dc:title": "Anthocyanins in cones of Abies, Picea, Pinus, Pseudotsuga and Tsuga (Pinaceae)",
+        "dc:date": 2003,
+        "dc:source": "Biochemical Systematics and Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

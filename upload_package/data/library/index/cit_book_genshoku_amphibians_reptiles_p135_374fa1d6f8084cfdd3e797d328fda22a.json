@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p135_374fa1d6f8084cfdd3e797d328fda22a",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 135,
+    "taxon_name": "トカゲ科",
+    "scientific_name": "Scincidae",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.135)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Scincidae",
+        "dwc:vernacularName": "トカゲ科",
+        "dwc:occurrenceRemarks": "　体形には変異が多くて，いわゆるトカゲ型のものから，四肢のないヘビ型のものまであるが，体表はつねに瓦状の鱗でおおわれ，それぞれの鱗に皮骨板をそなえている．頭部の鱗板は大きくてよく分化し，左右相称．眼瞼の構造には著しい変異があるが，瞳孔はほとんどつねに円い．舌は，瓦状に並んだ鱗に似た突起でおおわれ．先端が浅く切れ込んでいる．頭骨は概して細長く，眼窩の後と側頭部との橋が一般に完全（地中生活を送るものではこれらの橋の退化していることがある）．側頭窩は後頭骨の延長によって多少ともおおわれ．細長い間隙になるかあるいは完全に閉じている．左右の前顎骨は一般に離れているが，前方で癒合しているものもある．上眼窩骨があるが，普通は後頭窩骨がない．顳骨は，外方では眼窩の下側に延びていない．涙骨はなくなっているか．あっても小形で前額骨に癒合している．歯は側生．円錐形のことが多いがかなりの変異もある．また．翼骨歯のあるものも少なくない．脊椎骨は前凹形．鎖骨は内端が拡がって，そこに孔のあいていることが歩いが，地中生活を送るものでは退化している場合もある．副胸骨はよく発達している．大腿部には小孔の列がない．尾は切れやすく，また容易に再生する．\n　600種以上を含み，50近くの属に分類されている．旧大陸の熱帯地方に種類が多い",
+        "dwc:taxonConceptID": "gbif:9115",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Scincidae",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9115,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

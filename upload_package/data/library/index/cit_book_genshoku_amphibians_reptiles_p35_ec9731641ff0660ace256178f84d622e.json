@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p35_ec9731641ff0660ace256178f84d622e",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 35,
+    "taxon_name": "イボイモリ属",
+    "scientific_name": "Genus Tylototriton ANDERSON, 1871",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.35)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Genus Tylototriton ANDERSON, 1871",
+        "dwc:vernacularName": "イボイモリ属",
+        "dwc:occurrenceRemarks": "　頭部は一般に扁平で，吻端の背側から眼の背側を通って後方に延びる顕著な骨質隆条をそなえている．頭骨は幅が広く，前顎骨が1対ある．鱗骨後側部の突起は，鱗状骨に接合して幅の広い橋を形成する．上顎骨は長く後方に延び，方形顴骨を介して鱗状骨に接合する．また，翼状骨も長く，軟骨によって上顎骨に接合している．鋤口蓋歯列は逆V字形．体表の皮膚は粗雑で，胴背の両側には各側1〜2列に並んだ丸い粒起とこれらを通る斜向した隆条とのあるのを原則とするが，時には粒起の不明瞭なものもある．尾は側扁し，長さが頭胴長にほぼ等しいかあるいはそれよりも長い．幼生には比較的長い平衡桿があり，尾の背縁が胴の背面に達するのみ．\n　琉球列島の中央部，シナの南西部およびヒマラヤ東部に分布し，全部で6種しか知られていない．イモリ科のうちではもっとも原始的な属であって，現生種が第三紀に繁栄したものの遺存者であることは，化石種がヨーロッパの始新世から中新世にかけて見つかっていることでもわかる．日本には次の1種を産する．",
+        "dwc:taxonConceptID": "gbif:10514845",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Genus Tylototriton ANDERSON, 1871",
+        "dwc:family": "Formicidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10514845,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Formicidae",
+    "gbif_match_type": "HIGHERRANK"
+}

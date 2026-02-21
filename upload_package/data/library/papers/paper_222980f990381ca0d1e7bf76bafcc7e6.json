@@ -1,0 +1,20 @@
+{
+    "id": "paper_222980f990381ca0d1e7bf76bafcc7e6",
+    "doi": "10.5040\/9781472927040.0083",
+    "title": "Ixobrychus sinensis Yellow Bittern Blongios de Chine",
+    "year": 0,
+    "container_title": "The Birds of Africa : The Malagasy Region",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472927040.0083",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472927040.0083",
+        "dc:title": "Ixobrychus sinensis Yellow Bittern Blongios de Chine",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa : The Malagasy Region",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

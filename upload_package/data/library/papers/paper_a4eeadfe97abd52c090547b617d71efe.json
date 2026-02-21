@@ -1,0 +1,20 @@
+{
+    "id": "paper_a4eeadfe97abd52c090547b617d71efe",
+    "doi": "10.2326\/osj.3.13",
+    "title": "The spread of the introduced Melodious Laughing Thrush Garrulax canorus in Japan",
+    "year": 2004,
+    "container_title": "ORNITHOLOGICAL SCIENCE",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2326\/osj.3.13",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2326\/osj.3.13",
+        "dc:title": "The spread of the introduced Melodious Laughing Thrush Garrulax canorus in Japan",
+        "dc:date": 2004,
+        "dc:source": "ORNITHOLOGICAL SCIENCE",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

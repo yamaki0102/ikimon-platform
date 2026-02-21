@@ -1,0 +1,20 @@
+{
+    "id": "paper_9db486869083d7bdd23155aec2c8aa91",
+    "doi": "10.2173\/bow.nutman.01",
+    "title": "Scaly-breasted Munia (Lonchura punctulata)",
+    "year": 2020,
+    "container_title": "Birds of the World",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/bow.nutman.01",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/bow.nutman.01",
+        "dc:title": "Scaly-breasted Munia (Lonchura punctulata)",
+        "dc:date": 2020,
+        "dc:source": "Birds of the World",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

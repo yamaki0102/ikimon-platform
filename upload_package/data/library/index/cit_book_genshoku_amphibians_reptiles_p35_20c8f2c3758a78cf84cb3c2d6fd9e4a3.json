@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p35_20c8f2c3758a78cf84cb3c2d6fd9e4a3",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 35,
+    "taxon_name": "イボイモリ",
+    "scientific_name": "Tylototriton andersoni BOULENGER, 1892",
+    "family": "イモリ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.35)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Echinotriton andersoni",
+        "dwc:vernacularName": "イボイモリ",
+        "dwc:occurrenceRemarks": "　体はいちように黒褐色であるか，あるいは腹面の色が多少淡い．掌部，底部，指趾の下面，肛門の周囲および尾の下面正中線上の縦条は橙黄色または黄赤色．個体によって，胴背を斜走する隆条の側端が赤褐色を呈することも少なくない．頭部は非常に大きくて扁平，口も非常に大きくて口角がよく突出し，そこが最大幅になっている．頭長は頭幅にほぼ等しい．吻端は円く終っているかあるいはやや截断状．その前端両側に鼻孔が開いている．吻端部の背側に始まって上眼瞼の上側を通り，口角の後方に達する骨質の隆条は明瞭で，それに囲まれる部分は不規則に浅く凹んでいる．眼は小形で両側に広く離れ，長径が鼻孔と眼との間隔にほぼ等しいが，上眼瞼の発達はきわめて悪い．耳腺は細長く隆起し，その長さは両眼の前端の間隔にほぼ等しい．鋤口蓋歯列は逆V字形，左右の内鼻孔の間かあるいはそれよりもやや前方に始まって長く後方",
+        "dwc:taxonConceptID": "gbif:11050329",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Tylototriton andersoni BOULENGER, 1892",
+        "dwc:family": "Salamandridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 11050329,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Echinotriton andersoni",
+    "gbif_accepted_key": 2431817,
+    "gbif_family": "Salamandridae",
+    "gbif_match_type": "EXACT"
+}

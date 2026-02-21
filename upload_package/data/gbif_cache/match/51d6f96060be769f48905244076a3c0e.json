@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2481886,
+    "scientific_name": "Phalacrocorax capillatus (Temminck & Schlegel, 1849)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Suliformes",
+    "family": "Phalacrocoracidae",
+    "genus": "Phalacrocorax",
+    "rank": "SPECIES",
+    "original_query": "Phalacrocorax capillatus",
+    "_cached_at": 1770429236
+}

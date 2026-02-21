@@ -1,0 +1,20 @@
+{
+    "id": "paper_8680b2244f35cc7af401f9dafcad5e90",
+    "doi": "10.1675\/063.042.0305",
+    "title": "Influence of Environmental Stress and Anthropogenic Disturbance on the Energy Expenditure of Wintering Northern Pintails (Anas acuta)",
+    "year": 2019,
+    "container_title": "Waterbirds",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1675\/063.042.0305",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1675\/063.042.0305",
+        "dc:title": "Influence of Environmental Stress and Anthropogenic Disturbance on the Energy Expenditure of Wintering Northern Pintails (Anas acuta)",
+        "dc:date": 2019,
+        "dc:source": "Waterbirds",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

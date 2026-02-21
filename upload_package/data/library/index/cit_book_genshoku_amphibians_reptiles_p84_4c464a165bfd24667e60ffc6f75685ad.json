@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p84_4c464a165bfd24667e60ffc6f75685ad",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 84,
+    "taxon_name": "アマミアオガエル (続き)",
+    "scientific_name": "Rhacophorus viridis amamiensis INGER, 1947",
+    "family": "アオガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.84)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Zhangixalus amamiensis",
+        "dwc:vernacularName": "アマミアオガエル (続き)",
+        "dwc:occurrenceRemarks": "様であるが，外蹠隆起を欠如している．体長：♂で45〜60mm，♀で65〜75mm．\n　奄美大島と徳之島とに固有で，森林の中にもかなり開けた場所にもすみ，主として樹上やバナナの葉の上などで生活している．3〜6月頃，水田や水溜りの周辺の草の問やコケの下などに白い泡状の卵塊を産む．卵塊や卵のようすはモリアオガエルのものとよく似ているが，樹上に産卵することはないらしい．",
+        "dwc:taxonConceptID": "gbif:8855643",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus viridis amamiensis INGER, 1947",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 8855643,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Zhangixalus amamiensis",
+    "gbif_accepted_key": 11378117,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_39eb1dc93bd8654c2ef7cd312777666c",
+    "doi": "10.17112\/foliaenthung.2019.80.303",
+    "title": "Distribution, life history and conservation assessment of the critically endangered butterfly Pseudolucia parana (Lepidoptera: Lycaenidae)",
+    "year": 2019,
+    "container_title": "Folia Entomologica Hungarica",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.17112\/foliaenthung.2019.80.303",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.17112\/foliaenthung.2019.80.303",
+        "dc:title": "Distribution, life history and conservation assessment of the critically endangered butterfly Pseudolucia parana (Lepidoptera: Lycaenidae)",
+        "dc:date": 2019,
+        "dc:source": "Folia Entomologica Hungarica",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

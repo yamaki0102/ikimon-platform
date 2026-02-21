@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p96_005d547848acd2d3258c1bd30570015b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 96,
+    "taxon_name": "タイマイ属",
+    "scientific_name": "Eretmochelys FITZINGER, 1843",
+    "family": "ウミガメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.96)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Eretmochelys FITZINGER, 1843",
+        "dwc:vernacularName": "タイマイ属",
+        "dwc:occurrenceRemarks": "　頭部の鱗板は左右相称で，前額板が大小2対あり．前方配1対が後方のものより小さい．眼後板は原則として3対．吻は側扁し，上顎の前端が突出してかぎ状に曲がっている．上顎骨の内面には垂直方向の溝がなく，歯槽部には左右各1本の隆条があって前からへくはどよく隆起し．前顎骨の前端にまで伸長している．内鼻孔は口蓋骨におおわれていない．前顎骨の側縁は眼窩に達し，翼状骨の後部は著しく凹んでいる．下顎骨は非常に粗い．背甲の鱗板は原則として瓦状に重なり合い（非常に若い個体や極度に老熟した個体では甲板が瓦状になっていないこともある）．項甲板は横に細長いが第1肋甲板には接していない．椎甲板は5枚．肋甲板4対，縁甲板11対．臀甲板1対．椎骨板は9〜11個で，普通は幅の狭い六角形．肋骨板は8対．縁骨板は11対で，第9対目が肋骨に接していない．十分に発熱した個体では，肋骨板と縁骨板との間の間隙がなくなる．腹甲の両側には明瞭な隆条があり，また原則として大きい喉甲間板がある．亜縁甲板は4対で小孔がない．爪は原則として2個．尾は短かい．\n　単模式属で，分布域は科の分布域にほぼ等しいが，あまり北の方まで来ることは少ない．",
+        "dwc:taxonConceptID": "gbif:2442206",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Eretmochelys FITZINGER, 1843",
+        "dwc:family": "Cheloniidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2442206,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Cheloniidae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p194_5799c4edd573bcac07be2bd70655b304",
+    "book_id": "book_genshoku_trees_1",
+    "page": 194,
+    "taxon_name": "P (Continued)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.194)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "P (Continued)",
+        "dwc:occurrenceRemarks": "  regia V 226\nPoliothyrsis V 280\n  sinensis V 280\nPolygala V 282\n  macrophyllum V 282\nPopulus IV 13\n  alba IV 16\n  maximowiczii IV 24\n  nigra IV 17\n  --var. italica IV 17\n  sieboldii IV 16\nPourthiaea IV 206\n  villosa var. laevis IV 206\nPremna V 183\n  japonica V 184\n  --microphylla V 183\nPrinsepia IV 162\n  sinensis IV 162\n  uniflora IV 162\nPrunus IV 164\n  americana IV 191\n  apetala IV 176\n  armeniaca IV 183\n  --var. ansu IV 177\n  buergeriana IV 176\n  campanulata IV 196\n  cerasifera 'Pissardii' IV 195\n  cerasus IV 176\n  domestica IV 196\n  --var. insititia IV 191\n  glandulosa IV 197\n  grayana IV 168\n  incisa IV 177\n  --var. kinkiensis IV 174\n  jamasakura IV 165\n  --'Chikusi' IV 174\n  --'Gijyo' IV 175\n  --'Gozanoma' IV 175\n  --'Ichiyo' IV 175\n  --'Imose' IV 175\n  --'Jugatsu' IV 173\n  --'Kanzan' IV 172\n  --'Kikuzakura' IV 172\n  --'Kinai' IV 173\n  --'Kirin' IV 173\n  --'Kokonoye' IV 173\n  --'Mikurumagaeshi' IV 173\n  --'Ojochin' IV 175\n  --'Sekiyama' IV 172\n  --'Siofuki' IV 181\n  --'Shirofugen' IV 175\n  --'Shirotae' IV 174\n  --'Shogetsu' IV 171\n  --'Surugadainioi' IV 171\n  --'Washinowo' IV 176\n  kurilensis IV 178\n  --'Nipponica' IV 174\n  lannesiana IV 164\n  --var. speciosa IV 164\n  --'Amanyogawa' IV 180\n  --'Ariake' IV 180\n  --'Botan' IV 178\n  --'Fukurokuju' IV 179\n  --'Ukon' IV 173\n  --'Hosokawa' IV 172\n  --'Horinji' IV 176\n  --'Jo-nioi' IV 181\n  --'Minakami' IV 178\n  --'Naden' IV 172\n  --'Oh-tora-no-o' IV 174\n  --'Senriko' IV 176\n  --'Taihaku' IV 174\n  --'Takinioi' IV 174\n  --'Taoyame' IV 173\n  --'Temari' IV 173\n  --'Torano-o' IV 173\n  --'Yaye-murasaki' IV 174\n  mume IV 170\n  --'Bungo' IV 171\n  --var. microcarpa IV 184\n  --var. pendula IV 170\n  --var. pleiocarpa IV 168\n  nipponica IV 182\n  padus IV 179\n  pauciflora IV 177\n  pendula IV 166\n  --f. ascendens IV 166\n  --f. spachiana IV 166\n  persica IV 179\n  pseudo-cerasus IV 195\n  --'Semperflorens' IV 197\n  pubigera var. prattii IV 195\n  salicina IV 176\n  sargentii IV 173\n  sieboldii IV 173\n  speciosa V 190\n  spinosa IV 196\n  ssiori IV 164\n  subhirtella IV 177\n  tomentosa IV 190\n  --var. endotricha IV 190\n  triloba IV 192\n  yedoensis IV 172\n  --'Showazakura' IV 184\n  zippeliana IV 168\nPseudocydonia IV 198\n  sinensis IV 199\nPseudolarix V 267\n  amabilis V 267\nPseudosasa V 254\n  japonica V 254\n  purpurascens V 255\nPseudotsuga V 255\n  japonica V 254\nPsidium V 44\n  guajava V 44\nPsychotria V 179\n  rubra V 179\n  serpens V 179\nPterocarya IV 22\n  rhoifolia IV 4\n  stenoptera IV 4\nPterostyrax V 153\n  corymbosa V 153\n  hispida V 152\nPunica V 88\n  granatum V 88\nPyracantha IV 200\n  angustifolia IV 200\n  crenulata IV 200\nPyrus IV 214\n  communis var. sativa IV 214\n  pyrifolia IV 214\n  serotina var. culta IV 216\n  ussuriensis var. sinensis IV 214"
+    }
+}

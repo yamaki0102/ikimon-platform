@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_33a0c3b4eb6a73c956cd0cc08614e08f_75450e2872168f3253589c9ffcfda24c",
+    "paper_id": "paper_33a0c3b4eb6a73c956cd0cc08614e08f",
+    "doi": "10.2307\/j.ctt7s12c.25",
+    "query_id": "jp_bird_2481381_en",
+    "query_label": "Phoebastria immutabilis Japan (ecology\/distribution)",
+    "scientific_name": "Phoebastria immutabilis",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2307\/j.ctt7s12c.25",
+        "dwc:scientificName": "Phoebastria immutabilis",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481381",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Phoebastria immutabilis",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Diomedeidae"
+    },
+    "gbif_taxon_key": 2481381,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Diomedeidae"
+}

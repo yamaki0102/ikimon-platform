@@ -1,0 +1,18 @@
+{
+    "taxon_key": 7370915,
+    "scientific_name": "Dorcus tityus Hope, 1842",
+    "status": "ACCEPTED",
+    "match_type": "FUZZY",
+    "confidence": 93,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Insecta",
+    "order": "Coleoptera",
+    "family": "Lucanidae",
+    "genus": "Dorcus",
+    "rank": "SPECIES",
+    "original_query": "Dorcus titanus",
+    "_cached_at": 1771646885
+}

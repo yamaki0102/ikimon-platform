@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p16_98d4ce48d1ab39d98b4b93a31ec162b0",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 16,
+    "taxon_name": "カスミサンショウウオ (続き)",
+    "scientific_name": "Hynobius (Hynobius) nebulosus nebulosus (SCHLEGEL, 1838)",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "70〜110mm",
+        "season": "2月頃〜4月上旬 (12月も知られる)",
+        "distribution": "本州 (静岡以西), 四国 (瀬戸内海沿岸), 九州 (北部・北西部), 天草, 壱岐"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.16)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hynobius nebulosus",
+        "dwc:vernacularName": "カスミサンショウウオ (続き)",
+        "dwc:occurrenceRemarks": "る．頭部は卵形で幅よりも少し長く，吻端が円くて，そのすぐ内側に鼻孔をそなえている．眼も耳腺もとくに大きくはない．後者は扁平，その上縁は，眼の後端に始まって喉頭部に至る溝線で区切られている．鋤口蓋歯列は原則として深いV字形を呈するが，稀にはU字形に近い個体もある．胴は比較的長く，背面の正中線上に深い縦溝があり，また背面に13本（時には12本），腹面に10〜11本の肋条をそなえている．四肢は短かくて，前後肢を体側に沿って伸長しても指趾端の間がかなり離れる．指趾も短かい．後肢は5趾性であるが，稀には第5趾の小さくなった個体もある．尾は胴よりも短かく，後方に向かって著しく側扁し，末端がとがっている．体長：70〜110mm（尾は体長の3\/7前後を占める）．\n　本州の静岡以西の地域，四国の瀬戸内海沿岸地方，九州の北部および北西部，天草，壱岐などに分布し，低地性で，多くは平野の周辺にある丘陵地などにすんでいる．九州の南東部からも記録されているが，確かなことはわからない．繁殖期は，場所によって2月頃から4月上旬までにわたるが，一般には3月頃を最盛期とする．もっとも，12月に産卵の行なわれる地方も知られている．産卵は，池，泉，水田，小溝などのさまざまな場所になされるが，原則として流水に行なわれることはない．卵嚢はバナナ状または巻いたひも状で透明．表面にしわが多く，樹枝や水草などに1対ずつ付着される．卵は上半部が褐色か暗褐色，下部が黄白色で，1卵嚢中に30〜100個ぐらい含まれている．\n　なお，本書の第1〜2両図版に収めた7種1亜種のサンショウウオは，原則として止水性で，かなり同質的な種群を形成している．西南日本に分布する種類は一般に低地性で，山地にすむブチサンショウウオ群のものとの間に生活圏の垂直的な差が見られるが，後者の分布していない東北地方や北海道のものは高山帯にも拡がっている．",
+        "dwc:taxonConceptID": "gbif:10930428",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Hynobius (Hynobius) nebulosus nebulosus (SCHLEGEL, 1838)",
+        "dwc:family": "Hynobiidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10930428,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Hynobius nebulosus",
+    "gbif_accepted_key": 2431144,
+    "gbif_family": "Hynobiidae",
+    "gbif_match_type": "EXACT"
+}

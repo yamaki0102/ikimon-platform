@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_b8b1c0d156700f442697230dcceaed51_c6554d1ca24b03fc3eaa2280849b24f9",
+    "paper_id": "paper_b8b1c0d156700f442697230dcceaed51",
+    "doi": "10.2173\/tbna.359.p",
+    "query_id": "alien_bird_5231398_en",
+    "query_label": "Leiothrix lutea Japan (alien\/introduced)",
+    "scientific_name": "Leiothrix lutea",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/tbna.359.p",
+        "dwc:scientificName": "Leiothrix lutea",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:5231398",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Leiothrix lutea",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Leiothrichidae"
+    },
+    "gbif_taxon_key": 5231398,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Leiothrichidae"
+}

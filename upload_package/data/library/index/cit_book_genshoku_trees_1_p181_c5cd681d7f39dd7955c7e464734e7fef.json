@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p181_c5cd681d7f39dd7955c7e464734e7fef",
+    "book_id": "book_genshoku_trees_1",
+    "page": 181,
+    "taxon_name": "く行",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.181)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "く行",
+        "dwc:occurrenceRemarks": "クンシラン V 220\n――(クリビア、ウケザキクンシラン) V 222"
+    }
+}

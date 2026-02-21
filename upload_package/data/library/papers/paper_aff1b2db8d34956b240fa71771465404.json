@@ -1,0 +1,20 @@
+{
+    "id": "paper_aff1b2db8d34956b240fa71771465404",
+    "doi": "10.1111\/j.1474-919x.2006.00571.x",
+    "title": "Species delimitation in the HwameiGarrulax canorus",
+    "year": 2006,
+    "container_title": "Ibis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1111\/j.1474-919x.2006.00571.x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1111\/j.1474-919x.2006.00571.x",
+        "dc:title": "Species delimitation in the HwameiGarrulax canorus",
+        "dc:date": 2006,
+        "dc:source": "Ibis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

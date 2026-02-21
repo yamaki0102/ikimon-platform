@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p177_6a3b50f3c2f79bb7f4a0ebc48a5090a2",
+    "book_id": "book_genshoku_trees_1",
+    "page": 177,
+    "taxon_name": "い行",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.177)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "い行",
+        "dwc:occurrenceRemarks": "イヌリンゴ IV 195\nイブキ(ビャクシン) V 288\nイブキジャコウソウ V 183\nイボタノキ V 158\nイラガ(ガ) V 81\nイロハモミジ(タカオカエデ) V 240\nイワガラミ IV 151\nイワシデ IV 28\nイワダレネズ V 289\nイワツツジ V 129\nイワツクバネウツギ V 205\nイワディセン V 264\nイワナシ V 141\nイワナンテン V 128\nイングリッシュホーリー(セイヨウヒイラギ) IV 281"
+    }
+}

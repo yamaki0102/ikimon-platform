@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p61_0542cb22ecbc2848f046713030efcf64",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 61,
+    "taxon_name": "ツシマヤマアカガエル",
+    "scientific_name": "Rana (Rana) ornativentris subsp.",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": "50〜60mm",
+        "season": null,
+        "distribution": "対馬 (固有亜種)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.61)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana (Rana) ornativentris subsp.",
+        "dwc:vernacularName": "ツシマヤマアカガエル",
+        "dwc:occurrenceRemarks": "　次のヤマアカガエルに似ているが，外蹠隆起がなく，鼓膜は一般に大きくて，その直径が眼径の2\/3に等しいかあるいはそれよりも大きいのを原則とする．左右の上眼瞼の間隔は比較的広く，左右の外鼻孔の間隔よりは狭いが，普通は上眼瞼の幅に等しい．背面の皮膚には隆起がほとんどなく，背側線の隆条も比較的細い．肩胛部の逆V字形紋は一般に不完全で，全然認められないことも多く，体側には黒褐色の斑粒がないか，あっても背側隆条の外側に限られる．背中線上には後部でも白条がなく，大腿部と脛部との暗色横帯は数が少ない．しかし，眼鼻線の下側には，吻端から眼の前端に至る黒褐色の縦条がある．体長：50〜60mm．\n　対馬に固有の亜種で，丘陵地の水田の周辺などに多い．未記載であるが，新しい亜種名が与えられる予定になっている．",
+        "dwc:taxonConceptID": "gbif:2426813",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Rana (Rana) ornativentris subsp.",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2426813,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "HIGHERRANK"
+}

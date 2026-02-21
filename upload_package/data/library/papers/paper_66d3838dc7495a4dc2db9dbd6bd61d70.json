@@ -1,0 +1,20 @@
+{
+    "id": "paper_66d3838dc7495a4dc2db9dbd6bd61d70",
+    "doi": "10.34080\/os.v26.21855",
+    "title": "Changes in numbers and distribution of wintering Long-tailed Ducks Clangula hyemalis in Swedish waters during the last fifty years",
+    "year": 2016,
+    "container_title": "Ornis Svecica",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.34080\/os.v26.21855",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.34080\/os.v26.21855",
+        "dc:title": "Changes in numbers and distribution of wintering Long-tailed Ducks Clangula hyemalis in Swedish waters during the last fifty years",
+        "dc:date": 2016,
+        "dc:source": "Ornis Svecica",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

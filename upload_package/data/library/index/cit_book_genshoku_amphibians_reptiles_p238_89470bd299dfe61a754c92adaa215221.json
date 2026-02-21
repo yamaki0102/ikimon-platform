@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p238_89470bd299dfe61a754c92adaa215221",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 238,
+    "taxon_name": "サキシマハブ (続き)",
+    "scientific_name": "Trimeresurus elegans (GRAY, 1849)",
+    "family": "クサリヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.238)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Craspedocephalus gramineus",
+        "dwc:vernacularName": "サキシマハブ (続き)",
+        "dwc:occurrenceRemarks": "はジグザグにつながっていることが多いが，稀に切れて不規則な菱形状になっていることもあり．また多くは体側に1列に並んだ小形の黒紋斑がある．頭部の背面は，眼から後走して頸部に達する黒褐色斑条があり，またその下側の黄褐色の斑点群があまり明瞭ではない．頭部は非常に大きく．その長さは最大幅の1倍半を越える．吻端板は三角形に近い梯形で，その上縁は1対（左右が融合して1枚になっていることもある）の頂鱗に接し．両者の間に稜線を形作っていない．鼻板は梯形を呈し，前後2枚に分かれ．小さい鼻孔が前鼻板の後縁中央に開いている．鼻間板は小形．互鱗によって両側に隔てられ．その後方には眼上板との間に 2〜3 枚の鱗が並んでいる．頰板も小形で上下2枚の眼前板に接し．眼副板は3枚あるが中央の1枚は非常に小さくて眼の直前で上下の2枚に挟まれている．頰窩は鼻孔と眼との間のほぼまん中の位置にあり，第2上唇板．下眼前板および窩下板によって囲まれている．眼は大きくて，その長径が眼と吻端との間隔の 1\/2 に達する．眼上板は非常に大きくて外縁が眼の上に突出し．眼下板は非常に細長くて彎曲している．窩下板は眼に届かず．眼下板にも接していない．眼後板 2〜3枚．頭部背面の鱗は細かくて左右両眼上板の間で 10〜14枚あり．後頭部では隆条をそなえている．側頭部の鱗は大きくて平滑であるが，背方では体鱗と区別できなくなる．上唇板は 7〜9枚あって，第 3〜4 両上唇板が非常に大きい．後鼻板と第2上唇板との間には1列に並んだ数枚の小鱗があり．また眼下板と第4上唇板との間には2列に並んだ鱗がある．下唇板は 10〜12枚で中央部の数枚は大きく．左右の第1下唇板は頤板の後側で互に接している．咽頭板は1対あって大きく．第 1〜2 両上唇板に接し．また左右の2枚が互に接し合っている．咽頭溝は明瞭で．咽頭板と第1腹板との間の部分が 5〜8対の鱗によって挟まれている．体鱗は最外側の1列以外は明瞭な隆条と1個の鱗孔とをそなえ．頸部の後方で 29〜31列．胴の中央部で普通25列（時には23列），後方では普通19列ある．腹板は平滑で側稜がなく．その数は 180〜190枚ぐらい．尾下板は 67〜79対ぐらいある．体長：600〜1,200mm（尾の占める割合は体長の 1\/6 前後）．\n　八重山群島の特産種で，石垣島．竹富島．嘉弥真島．小浜島．黒島．西表島などに分布している．形態的にも生態的にもヒメハブとハブとの中間的性質をもち．元来は地上性であるが樹上にも普通に見られる．体が大きいだけに，咬害による被害がヒメハブよりは大きいが，ハブほど恐ろしいものでもない．\n\n130. トカラハブ Trimeresurus flavoviridis tokarensis NAGAI, 1928\n　基亜種（第42図版）とは，体鱗が胴の中央部で31列（例外的には33列）しかないことと，腹板数が 200〜210枚ぐらいしかないこととによって区別できる．体色は一般に明るく，背面の斑紋も比較的小形で，普通は楕円形の斑紋が左右交互に並んでいる．体長：600〜1,150mm.\n　トカラ群島の宝島と小宝島とに産し，性質が基亜種よりおとなしくてあまり恐れられていない．",
+        "dwc:taxonConceptID": "gbif:7598870",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Trimeresurus elegans (GRAY, 1849)",
+        "dwc:family": "Viperidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 7598870,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Craspedocephalus gramineus",
+    "gbif_accepted_key": 8425029,
+    "gbif_family": "Viperidae",
+    "gbif_match_type": "EXACT"
+}

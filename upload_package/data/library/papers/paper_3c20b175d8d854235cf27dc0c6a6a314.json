@@ -1,0 +1,20 @@
+{
+    "id": "paper_3c20b175d8d854235cf27dc0c6a6a314",
+    "doi": "10.1007\/978-3-319-75937-1_4",
+    "title": "Diversity and Ecology of Stag Beetles (Lucanidae)",
+    "year": 2018,
+    "container_title": "Zoological Monographs",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1007\/978-3-319-75937-1_4",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/978-3-319-75937-1_4",
+        "dc:title": "Diversity and Ecology of Stag Beetles (Lucanidae)",
+        "dc:date": 2018,
+        "dc:source": "Zoological Monographs",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2480187,
+    "scientific_name": "Fregata minor (Gmelin, 1789)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Suliformes",
+    "family": "Fregatidae",
+    "genus": "Fregata",
+    "rank": "SPECIES",
+    "original_query": "Fregata minor",
+    "_cached_at": 1770426448
+}

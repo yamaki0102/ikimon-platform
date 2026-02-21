@@ -1,0 +1,20 @@
+{
+    "id": "paper_9e747b7029d196d874e31b75557376c2",
+    "doi": "10.2173\/bna.pacloo.01.2",
+    "title": "Pacific Loon (Gavia pacifica)",
+    "year": 2018,
+    "container_title": "The Birds of North America Online",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2173\/bna.pacloo.01.2",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/bna.pacloo.01.2",
+        "dc:title": "Pacific Loon (Gavia pacifica)",
+        "dc:date": 2018,
+        "dc:source": "The Birds of North America Online",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

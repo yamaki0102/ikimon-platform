@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p9_e14bfde17e5d29ae2186538e31f05fc8",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 9,
+    "taxon_name": "目次 (3\/3)",
+    "scientific_name": "CONTENTS",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.9)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "CONTENTS",
+        "dwc:vernacularName": "目次 (3\/3)",
+        "dwc:occurrenceRemarks": "　　　コブラ科 Elapidae　169\n　　　　コブラ亜科 Elapinae　169\n　　　　　ワモンベニヘビ属 Calliophis (169)\n　　　ウミヘビ科 Hydrophiidae　172\n　　　　エラブウミヘビ亜科 Laticaudinae　172\n　　　　　エラブウミヘビ属 Laticauda (172)\n　　　　　カメガシラウミヘビ属 Emydocephalus (175)\n　　　　ウミヘビ亜科 Hydrophiinae　176\n　　　　　ウミヘビ属 Hydrophis (176)\n　　　　　トゲウミヘビ属 Lapemis (179)\n　　　　　セグロウミヘビ属 Pelamis (180)\n　　　クサリヘビ科 Viperidae　181\n　　　　マムシ亜科 Crotalinae　181\n　　　　　マムシ属 Agkistrodon (181)\n　　　　　ハブ属 Trimeresurus (183)\n　　用語解説　189\n　　文　献　192"
+    }
+}

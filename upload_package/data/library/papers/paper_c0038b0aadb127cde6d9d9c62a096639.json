@@ -1,0 +1,20 @@
+{
+    "id": "paper_c0038b0aadb127cde6d9d9c62a096639",
+    "doi": "10.2307\/1368187",
+    "title": "Nest Spacing and Breeding Success in the Lesser Frigatebird (Fregata ariel)",
+    "year": 1991,
+    "container_title": "The Condor",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/1368187",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/1368187",
+        "dc:title": "Nest Spacing and Breeding Success in the Lesser Frigatebird (Fregata ariel)",
+        "dc:date": 1991,
+        "dc:source": "The Condor",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

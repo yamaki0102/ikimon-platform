@@ -1,0 +1,20 @@
+{
+    "id": "paper_0dfbbc76b746fc92b3b0559f179b5d3f",
+    "doi": "10.2307\/4512200",
+    "title": "Breeding Biology and Behavior of the Oldsquaw (Clangula hyemalis L.)",
+    "year": 1976,
+    "container_title": "Bird-Banding",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/4512200",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/4512200",
+        "dc:title": "Breeding Biology and Behavior of the Oldsquaw (Clangula hyemalis L.)",
+        "dc:date": 1976,
+        "dc:source": "Bird-Banding",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

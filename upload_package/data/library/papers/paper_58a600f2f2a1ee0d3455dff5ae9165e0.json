@@ -1,0 +1,20 @@
+{
+    "id": "paper_58a600f2f2a1ee0d3455dff5ae9165e0",
+    "doi": "10.2326\/jjo.56.184",
+    "title": "The first record of the Ring-necked Duck Aythya collaris in Iwate Prefecture, Japan",
+    "year": 2007,
+    "container_title": "Japanese Journal of Ornithology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2326\/jjo.56.184",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2326\/jjo.56.184",
+        "dc:title": "The first record of the Ring-necked Duck Aythya collaris in Iwate Prefecture, Japan",
+        "dc:date": 2007,
+        "dc:source": "Japanese Journal of Ornithology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p101_0bca972b7c701e14644a3bff9eaf894b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 101,
+    "taxon_name": "オサガメ科 (続き)",
+    "scientific_name": "Dermochelyidae",
+    "family": "オサガメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.101)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Dermochelyidae",
+        "dwc:vernacularName": "オサガメ科 (続き)",
+        "dwc:occurrenceRemarks": "で構成され，化石種はヨーロッパ．アフリカ．北アメリカなどの第三紀層から見つかっている．",
+        "dwc:taxonConceptID": "gbif:5464",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Dermochelyidae",
+        "dwc:family": "Dermochelyidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5464,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Dermochelyidae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 9537647,
+    "scientific_name": "Mergus merganser Linnaeus, 1758",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Anseriformes",
+    "family": "Anatidae",
+    "genus": "Mergus",
+    "rank": "SPECIES",
+    "original_query": "Mergus merganser",
+    "_cached_at": 1770429222
+}

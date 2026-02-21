@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p184_f478d3fa5959f65b9a6e6237d31411b6",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 184,
+    "taxon_name": "ジムグリ (続き)",
+    "scientific_name": "Elaphe conspicillata (BOIE, 1826)",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.184)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Elaphe conspicillata (BOIE, 1826)",
+        "dwc:vernacularName": "ジムグリ (続き)",
+        "dwc:occurrenceRemarks": "頭部の背面には4本の黒条がある．すなわち，吻端板と鼻間板との間を横切り，鼻孔を通って第1上唇板の後部に達するもの．前額板の後縁部を横切り，眼を通って，最後から2枚目の上唇板の後縁内に達するもの，額板の中央部から後方両側に分かれて頭頂板をおおい，後頭板の背縁を沿って口角の後方に達するもの，および，左右の頭頂板間の縫合線の後部にはじまって正中線上を 5〜6 鱗分後走するものである．これらの黒条は中断していることがあり，また，最後の2つが頭頂板の上でつながり合っていることもある．上唇は帯褐色で，眼の直下の2枚の上唇板の結合部は黒い．下唇も前方の下唇板の結合部が普通は黒く，少なくとも背面の黒条に対応する部分の下唇板の周縁部は黒い．腹面は赤褐色または黒赤褐色で，それぞれの腹板にはほぼその全長に及ぶ1対または1個の四角い黒斑があり．場所によっては腹板の外角部にも小さい黒斑がある．四角い黒斑の位置は不規則であるが，ほぼ2列になっていることが多い．\n\n第24図．ジムグリの頭部；左から右へ背面，腹面および左側面．\n\n　また，それぞれの尾下板の後外角に小さい黒斑があり，個体によっては，中央の縫合線上にも小さい黒斑の存在することがある．若い個体では，背面が美しい赤褐色で多数の黒斑（または黒い横帯）があり，その周縁が黄色い．また，腹板の両側に黒斑列があり，尾下板にも四角い黒斑がある．頭部は長くて比較的細く，吻は幅が広い．吻端はゆるい弧をえがき，吻端から頭頂板の後端までの長さは両眼の間隔の2倍よりも明らかに大きい．鼻孔は吻の側面にあり，前鼻板の後縁部に開いている．後鼻板は前鼻板よりも大形．眼は比較的小形で，その長径が眼と鼻孔との間隔よりも小さい．鼻間板は横位で側方へ拡がり，前額板は鼻間板よりも明らかに大きくて後外角が眼上板の前端に接している．額板は幅の広い盾形で，前端の幅が広くて後端はとがり，普通は幅よりも少し長いが，時には幅と長さとのほぼ等しい個体もある．額板の長さと吻端から額板前端までの長さとはほぼ等しい．眼上板は比較的小形．頭頂板は大きくて幅が広く，その長さが前額板と額板との長さの和よりも明らかに小さい．左右の頭頂板の間の縫合線の長さは，額板の長さにおほ等しいかあるいはやや小さい程度．頰板",
+        "dwc:taxonConceptID": "gbif:8870734",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Elaphe conspicillata (BOIE, 1826)",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 8870734,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_950dd04167b433310efc2dfbf214cc48",
+    "doi": "10.12782\/specdiv.3.1",
+    "title": "Taxonomy and Natural History of the Funnel-Web Spider Genus Macrothele (Araneae : Hexathelidae : Macrothelinae) in the Ryukyu Islands (Japan) and Taiwan",
+    "year": 1998,
+    "container_title": "Species Diversity",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.12782\/specdiv.3.1",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.12782\/specdiv.3.1",
+        "dc:title": "Taxonomy and Natural History of the Funnel-Web Spider Genus Macrothele (Araneae : Hexathelidae : Macrothelinae) in the Ryukyu Islands (Japan) and Taiwan",
+        "dc:date": 1998,
+        "dc:source": "Species Diversity",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_fdf1dbd84bc697748a2f7085e2d0eec5_dfc884ca67aaa54c9b09db52d954acc7",
+    "paper_id": "paper_fdf1dbd84bc697748a2f7085e2d0eec5",
+    "doi": "10.2173\/bow.melthr.01",
+    "query_id": "alien_bird_2493479_en",
+    "query_label": "Garrulax canorus Japan (alien\/introduced)",
+    "scientific_name": "Garrulax canorus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/bow.melthr.01",
+        "dwc:scientificName": "Garrulax canorus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2493479",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Garrulax canorus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Leiothrichidae"
+    },
+    "gbif_taxon_key": 2493479,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Leiothrichidae"
+}

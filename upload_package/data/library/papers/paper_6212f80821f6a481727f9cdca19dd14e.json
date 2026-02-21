@@ -1,0 +1,20 @@
+{
+    "id": "paper_6212f80821f6a481727f9cdca19dd14e",
+    "doi": "10.5038\/zbqq6392",
+    "title": "Florida Breeding Bird Atlas II",
+    "year": 2023,
+    "container_title": "",
+    "type": "edited-book",
+    "url": "https:\/\/doi.org\/10.5038\/zbqq6392",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5038\/zbqq6392",
+        "dc:title": "Florida Breeding Bird Atlas II",
+        "dc:date": 2023,
+        "dc:source": "",
+        "dc:type": "edited-book",
+        "dc:format": "application\/json"
+    }
+}

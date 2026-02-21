@@ -1,0 +1,20 @@
+{
+    "id": "paper_994167b4f178380a93886e4834bcb1ad",
+    "doi": "10.2174\/1874453201104010017",
+    "title": "Resource Use by Non-Native Ring-Necked Parakeets (Psittacula krameri) and Native Starlings (Sturnus vulgaris) in Central Europe",
+    "year": 2011,
+    "container_title": "The Open Ornithology Journal",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2174\/1874453201104010017",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2174\/1874453201104010017",
+        "dc:title": "Resource Use by Non-Native Ring-Necked Parakeets (Psittacula krameri) and Native Starlings (Sturnus vulgaris) in Central Europe",
+        "dc:date": 2011,
+        "dc:source": "The Open Ornithology Journal",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_f150de7a747e200c8f2afd37f52ef3bb",
+    "doi": "10.2989\/00306525.2022.2058105",
+    "title": "How citizen scientists are rapidly generating big distribution data: lessons from the Arewa Atlas Team, Nigerian Bird Atlas Project",
+    "year": 2022,
+    "container_title": "Ostrich",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2989\/00306525.2022.2058105",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2989\/00306525.2022.2058105",
+        "dc:title": "How citizen scientists are rapidly generating big distribution data: lessons from the Arewa Atlas Team, Nigerian Bird Atlas Project",
+        "dc:date": 2022,
+        "dc:source": "Ostrich",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

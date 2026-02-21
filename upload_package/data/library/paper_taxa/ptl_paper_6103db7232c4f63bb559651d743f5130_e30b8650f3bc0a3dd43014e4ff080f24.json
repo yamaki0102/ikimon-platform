@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_6103db7232c4f63bb559651d743f5130_e30b8650f3bc0a3dd43014e4ff080f24",
+    "paper_id": "paper_6103db7232c4f63bb559651d743f5130",
+    "doi": "10.63172\/557238utpdel",
+    "query_id": "jp_bird_2480830_en",
+    "query_label": "Bubulcus ibis Japan (ecology\/distribution)",
+    "scientific_name": "Bubulcus ibis",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.63172\/557238utpdel",
+        "dwc:scientificName": "Bubulcus ibis",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2480830",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Bubulcus ibis",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ardeidae"
+    },
+    "gbif_taxon_key": 2480830,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ardeidae"
+}

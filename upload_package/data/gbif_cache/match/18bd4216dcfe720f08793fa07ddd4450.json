@@ -1,0 +1,18 @@
+{
+    "taxon_key": 6157709,
+    "scientific_name": "Gehyra variegata ogasawarasimae Okada, 1930",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": 9164170,
+    "accepted_name": "Lepidodactylus lugubris",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Gekkonidae",
+    "genus": "Lepidodactylus",
+    "rank": "SUBSPECIES",
+    "original_query": "Gehyra variegata ogasawarasimae Y. OKADA, 1930",
+    "_cached_at": 1770420145
+}

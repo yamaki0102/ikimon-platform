@@ -1,0 +1,20 @@
+{
+    "id": "paper_afda7ff95f142ef63b799389fadd94ee",
+    "doi": "10.3406\/revec.2005.1244",
+    "title": "The diet of Cormorants Phalacrocorax carbo wintering in southwestern France",
+    "year": 2005,
+    "container_title": "Revue d'Écologie (La Terre et La Vie)",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3406\/revec.2005.1244",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3406\/revec.2005.1244",
+        "dc:title": "The diet of Cormorants Phalacrocorax carbo wintering in southwestern France",
+        "dc:date": 2005,
+        "dc:source": "Revue d'Écologie (La Terre et La Vie)",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

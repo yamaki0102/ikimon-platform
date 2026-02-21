@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p48_a98e16d7920a23fb46a51c98a1cfe52f",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 48,
+    "taxon_name": "スズガエル",
+    "scientific_name": "Bombina orientalis (BOULENGER, 1890)",
+    "family": "スズガエル科",
+    "data_icons": {
+        "size": "40〜50mm",
+        "season": null,
+        "distribution": "朝鮮, 済州島, 沿海州, 満州, シナ東北部 (対馬の記録は疑問視・要再調査)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.48)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Bombina orientalis (BOULENGER, 1890)",
+        "dwc:vernacularName": "スズガエル",
+        "dwc:occurrenceRemarks": "　背面は暗緑色，青緑色または褐色で，不規則な黒い斑紋を散布し，上顎の周縁にも同じ色の斑紋が並んでいる．また，四肢の背面では，これらの斑紋が横帯を形成する．稀には，黒色の斑紋が著しく拡がって，背面が全体に黒っぽく見えるものもある．腹面は鮮明な赤色または黄赤色で，黒色の不規則な斑紋をそなえているが，その大きさや数には著しい変異がある．下顎の周縁部は，一般に黒く縁取られている．眼部はかなり大きくて扁平，幅と長さとがほぼ等しく，側縁はゆるい弧をえがいて前方へ狭まり，円い吻端に終っている．外鼻孔は吻の背側に開き，その位置が普通は吻端と眼の前端との中央より前方にあるが，時にはほぼ中央にあることもある．眼鼻線は認められないが，頰部は多少凹んでいる．眼は比較的小さいがよく突出し，上眼瞼が顆粒におおわれている．上眼瞼の幅は，左右の上眼瞼の間隔に等しいかあるいは後者より多少大きい．耳腺は不明瞭．鋤骨歯板は卵形で小さく，その前縁と内鼻孔の後縁とが同じ水準にあるかあるいはそれよりもやや後方に位置し，それぞれ3〜4個の歯をそなえている．背面の皮膚は粗雑で，大小の隆起で密におおわれ，大形の隆起の上には更に数個の小さい顆粒があって，その頂端が鋭利な突起になっている．腹面は平滑．四肢はかなり細長く，大腿部と脛部との長さの和が口角から肛門までの距離にはほぼ等しい．後肢を体軸と直角に伸ばして踵関節を折り曲げると，左右の踵関節がちょうど接し合うかあるいは多少離れる．指趾は比較的短かくて多少扁平，第1指は非常に短かく，第2指と第4指とはほぼ等長であるかあるいは後者の方がやや長く，第3指が最長．蹠部は大きいが，内蹠隆起は小さくて扁平，外蹠隆起は認められない．みずかきは趾間によく発達し，各趾で趾端の近くに達している．体長：40〜50mm．\n　朝鮮，済州島，沿海州，満州，シナの東北部などに分布し，分布域の南部では主として山地に，北部では平地に見られる．日本では対馬から記録されているが，ラベルの誤りであろうという説もあり，また，対馬にはいないといってきっている人もあるので，将来よく調べ直す必要がある．朝鮮の南西部では，渓流や湧水の周辺の草むらな",
+        "dwc:taxonConceptID": "gbif:2423441",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Bombina orientalis (BOULENGER, 1890)",
+        "dwc:family": "Bombinatoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2423441,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Bombinatoridae",
+    "gbif_match_type": "EXACT"
+}

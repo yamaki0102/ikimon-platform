@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p132_68c3b1e941795febcd6a68e877b3aba3",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 132,
+    "taxon_name": "オビトカゲモドキ",
+    "scientific_name": "Eublepharis kuroiwae splendens K. NAKAMURA et S. UÉNO, 1959",
+    "family": "トカゲモドキ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.132)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Goniurosaurus kuroiwae",
+        "dwc:vernacularName": "オビトカゲモドキ",
+        "dwc:occurrenceRemarks": "　前2亜種に比べると頭部がやや短かくて幅が広く．眼の長径が多くは眼と耳孔との間隔に等しい．後頤板は原則として分化せず．頤板の後縁が3枚の小鱗に接している．胴の背面の大きい顆粒は比較的数が少ない．胸部の鱗は細かい粒状で咽頭部のものとほとんど異ならず．前2亜種の場合のように扁平ではない．また．腹部の後方の鱗も，前2亜種の場合よりはるかに小さくて，表面が多少とも隆起している．体の背面は黒褐色．頭部と四肢とでは胴部より色が多少淡い．後頭部には桃色または橙桃色の顕著な横帯があり，側方で斜め前へ曲がって耳孔の上縁に達しているか，あるいは側方で叉状に分かれて前枝が耳孔の上縁に達している．また．個体によっては．この横帯の側端が円く拡がっていることもある．横帯の中央部は一般に直線状であるが，時には後縁の中央部が三角形に突出していることもある．同じ色の横帯が胴部に3本あり．その側端はつねに明瞭で，円く終わっているかあるいはふくれ．腹面の色との間が背面の基色によって多少とも隔てられている．これらの3本の横帯の最前のものは前肢基部の直後に位置し，中央のものは胴の中央部よりも後方にあり，最後の1本は後肢基部の直後にあって，多くは大腿部の基部背面に伸長しているが，稀には大腿部背面の斑紋との間が切れていることもある．背中線上には，細くて不明瞭な淡赤褐色の条線をそなえていることが多いが，横帯の前後では普通中断されている．頭頂部と四肢の背面とには．淡い桃色の不規則な小斑を散布し，横帯と横帯との間にも同じような斑点を散布していることが多い．また，大形の顆粒のうちにも，同じ色のものが混じっている．上唇と下唇とは灰色で，上唇の上部には淡灰褐色の縦条があり．その後端が多くは耳孔に達している．腹面はやや黄色味を帯びた白色または灰白色．尾の色や斑紋のようすはクロイワトカゲモドキの場合とほぼ同様で，尾の細長いときには 3〜4本の白い環帯をそなえているが，基方の環帯が腹面を完全に超っていないのが普通．幼時の体色は成体とほぼ同様で，横帯の数やようすにも前2亜種に見られるような変化がない．頭胴長：65〜80mm．",
+        "dwc:taxonConceptID": "gbif:5221339",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eublepharis kuroiwae splendens K. NAKAMURA et S. UÉNO, 1959",
+        "dwc:family": "Eublepharidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5221339,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Goniurosaurus kuroiwae",
+    "gbif_accepted_key": 2446415,
+    "gbif_family": "Eublepharidae",
+    "gbif_match_type": "HIGHERRANK"
+}

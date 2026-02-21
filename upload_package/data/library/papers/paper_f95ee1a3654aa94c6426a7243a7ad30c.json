@@ -1,0 +1,20 @@
+{
+    "id": "paper_f95ee1a3654aa94c6426a7243a7ad30c",
+    "doi": "10.1016\/s0304-3800(02)00131-x",
+    "title": "An individual based model for the conservation of the endangered Large Blue Butterfly, Maculinea arion (Lepidoptera: Lycaenidae)",
+    "year": 2002,
+    "container_title": "Ecological Modelling",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/s0304-3800(02)00131-x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/s0304-3800(02)00131-x",
+        "dc:title": "An individual based model for the conservation of the endangered Large Blue Butterfly, Maculinea arion (Lepidoptera: Lycaenidae)",
+        "dc:date": 2002,
+        "dc:source": "Ecological Modelling",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

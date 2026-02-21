@@ -1,0 +1,20 @@
+{
+    "id": "paper_7679227245adef3702d035f33c37dbf1",
+    "doi": "10.1016\/0045-6039(86)90023-0",
+    "title": "Cell death during normal gastrulation in the newt, Cynops pyrrhogaster",
+    "year": 1986,
+    "container_title": "Cell Differentiation",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/0045-6039(86)90023-0",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/0045-6039(86)90023-0",
+        "dc:title": "Cell death during normal gastrulation in the newt, Cynops pyrrhogaster",
+        "dc:date": 1986,
+        "dc:source": "Cell Differentiation",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p13_a11000c228e9210e2b211b2438cbf3be",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 13,
+    "taxon_name": "カスミサンショウウオ属 (概説)",
+    "scientific_name": "Genus Hynobius",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.13)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Genus Hynobius",
+        "dwc:vernacularName": "カスミサンショウウオ属 (概説)",
+        "dwc:occurrenceRemarks": "カスミサンショウウオ属　Hynobius TSCHUDI, 1838\n\n　体の背面には，淡色の不規則な斑紋や微細な斑点群のあることが多いが，眼那から尾端まで完全に続くような幅の広い縦条をそなえていることはない．頭骨はよく化骨し，背面の正中線上に完全な縫合線がある．鼻骨は大きくて，前端までよく発達している．鋤口蓋歯列はV字形またはU字形で，それぞれの歯列の内枝は外枝より明らかに長い．体表の皮膚は平滑で，胴部に背面で11本以上の肋条をそなえている．後肢は原則として5趾性であるが，ブチサンショウウオ群のものには第5趾の退化している個体の現われることがある．指趾端には角質の被物がない．肺臓がある．幼生には平衡桿のあるものとないものとがあり，普通は爪をそなえていないが，渓流性のものに...",
+        "dwc:taxonConceptID": "gbif:10514845",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Genus Hynobius",
+        "dwc:family": "Formicidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10514845,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Formicidae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_d9c15b6866675dbeb2bec3c3fee90b35_e73fe52f2ccfcb012e917c66247b3e3a",
+    "paper_id": "paper_d9c15b6866675dbeb2bec3c3fee90b35",
+    "doi": "10.1007\/s10336-025-02262-8",
+    "query_id": "jp_bird_2498027_en",
+    "query_label": "Anser fabalis Japan (ecology\/distribution)",
+    "scientific_name": "Anser fabalis",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1007\/s10336-025-02262-8",
+        "dwc:scientificName": "Anser fabalis",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2498027",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Anser fabalis",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 2498027,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

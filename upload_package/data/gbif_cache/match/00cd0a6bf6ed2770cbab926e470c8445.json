@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2453024,
+    "scientific_name": "Pareas iwasakii (Maki, 1937)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Pareidae",
+    "genus": "Pareas",
+    "rank": "SPECIES",
+    "original_query": "Pareas iwasakii (M. MAKI, 1937)",
+    "_cached_at": 1770420247
+}

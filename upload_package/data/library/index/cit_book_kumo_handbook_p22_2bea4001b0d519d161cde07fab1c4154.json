@@ -1,0 +1,48 @@
+{
+    "id": "cit_book_kumo_handbook_p22_2bea4001b0d519d161cde07fab1c4154",
+    "book_id": "book_kumo_handbook",
+    "page": 22,
+    "taxon_name": "ヤサガタアシナガグモ",
+    "scientific_name": "Tetragnatha maxillosa",
+    "family": "アシナガグモ科 Tetragnathidae",
+    "data_icons": {
+        "size": "female: 7〜13mm, male: 4〜10mm",
+        "season": "春〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "オス",
+        "メス上顎裏面",
+        "メス腹部側面",
+        "オス上顎裏面",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.22)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Tetragnatha keyserlingi",
+        "dwc:vernacularName": "ヤサガタアシナガグモ",
+        "dwc:occurrenceRemarks": "腹部は一様に茶色く、横から見ると腹部側面の模様が波状（側面に黒い波紋）になっているのが特徴。アシナガグモより全体的に細手。池の周囲、公園の池や水辺、水田、林縁、民家などさまざまな環境で見られるが、水辺を好む傾向がある。",
+        "dwc:taxonConceptID": "gbif:2151782",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Tetragnatha maxillosa",
+        "dwc:family": "Tetragnathidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2151782,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Tetragnatha keyserlingi",
+    "gbif_accepted_key": 2151941,
+    "gbif_family": "Tetragnathidae",
+    "gbif_match_type": "EXACT"
+}

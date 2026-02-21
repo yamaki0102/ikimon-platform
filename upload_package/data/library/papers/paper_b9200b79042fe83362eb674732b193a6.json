@@ -1,0 +1,20 @@
+{
+    "id": "paper_b9200b79042fe83362eb674732b193a6",
+    "doi": "10.1675\/063.032.0217",
+    "title": "Do the Height and Location of Black-Crowned Night Heron (Nycticorax nycticorax) Nests Affect Egg Production and Breeding Success?",
+    "year": 2009,
+    "container_title": "Waterbirds",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1675\/063.032.0217",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1675\/063.032.0217",
+        "dc:title": "Do the Height and Location of Black-Crowned Night Heron (Nycticorax nycticorax) Nests Affect Egg Production and Breeding Success?",
+        "dc:date": 2009,
+        "dc:source": "Waterbirds",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

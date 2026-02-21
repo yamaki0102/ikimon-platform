@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p145_74bc81910f9c6395e789d7eacfcef936",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 145,
+    "taxon_name": "オキナワトカゲ (続き)",
+    "scientific_name": "Eumeces marginatus marginatus (HALLOWELL, 1860)",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.145)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Plestiodon marginatus",
+        "dwc:vernacularName": "オキナワトカゲ (続き)",
+        "dwc:occurrenceRemarks": "60枚ぐらいある．肛板は大きくて対をなし，後肛板は小さいが明瞭な隆条をそなえている．四肢は比較的長く，大腿部の後面の鱗は多少大きくて不規則であるが，はっきりした模様にはなっていない．第4趾の下面には，17〜20枚ぐらいの趾下板をそなえている．尾は普通で．尾下板は横位．体長：150〜180mm（尾は体長の 3\/5〜2\/3）．\n　琉球列島の与論島，沖縄本島，慶良間諸島，久米島，宮古島などに分布し，海岸近や丘陵地などの草むらに多い．八重山群島．尖閣列島．台湾などからも報告されているが，記録を再検討する必要がある．",
+        "dwc:taxonConceptID": "gbif:9113095",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eumeces marginatus marginatus (HALLOWELL, 1860)",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9113095,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Plestiodon marginatus",
+    "gbif_accepted_key": 5960549,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

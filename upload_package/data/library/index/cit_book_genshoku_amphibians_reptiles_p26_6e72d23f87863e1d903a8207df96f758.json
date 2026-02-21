@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p26_6e72d23f87863e1d903a8207df96f758",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 26,
+    "taxon_name": "キタサンショウウオ属",
+    "scientific_name": "Genus Salamandrella DYBOWSKI, 1870",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.26)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Genus Salamandrella DYBOWSKI, 1870",
+        "dwc:vernacularName": "キタサンショウウオ属",
+        "dwc:occurrenceRemarks": "　体の背面には，その全長にわたって淡色の縦条がある．頭蓋は，正中線上に縫合線がなく，鱗骨と頭頂骨との全長にわたって細長い間隙となっている．鋤口蓋歯列は小さくて浅いV字形．四肢の指趾端に角質の被物がなく，後肢は4趾性で第5趾を欠除する．肺臓がある．幼生には平衡桿があるが爪はない．\n　この属の取扱いについては，これまでの研究者の間に二通りの意見があった．日本とその周辺地域の両生爬虫類をまとめて，現在の分類の基礎をつくった STEJNEGER (1907) は，キタサンショウウオ属を一応独立属として取り扱ったが，その有効性には強い疑問を投げかけている．その後，DUNN (1918, 1923) がキタサンショウウオ属とカスミサンショウウオ属とを合一してからは，国外の学者が大体この意見に従い，最近では，LIU (1950) や DARLINGTON (1957) なども，キタサンショウウオをカスミサンショウウオ属の1種としている．一方，わが国では，犬飼 (1932) がこの種の頭骨の特異性を指摘して以来，佐藤 (1937, 1943) をはじめとするすべての研究者が，キタサンショウウオ属の有効性を認めている．このような意見の相違が起った最大の原因は，キタサンショウウオの外部形態がカスミサンショウウオ属のものとほとんど異ならないという点にある．しかし，キタサンショウウオの頭骨の背面に縫合線がなくて，そこが細長い間隙になっているという事実は，たとえ外部形態に見られる特徴が顕著でないにしても，それだけで十分に属の独立性を保証するものと思われる．\n　キタサンショウウオ属は次の1種のみで構成され，国内では北海道の東部，国外では北千島，カムチャツカ，樺太，朝鮮北部，シベリアなどから，ウラル山脈の西側にまで拡がっている．このように，単一の種の拡がりがきわめて大きいことも，個々の種の分布範囲の局限されるカスミサンショウウオ属とはっきりした対照をなしている．",
+        "dwc:taxonConceptID": "gbif:10514845",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Genus Salamandrella DYBOWSKI, 1870",
+        "dwc:family": "Formicidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10514845,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Formicidae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p218_faa2b3cb776a632756088e33cd8c8b7b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 218,
+    "taxon_name": "ヒャン (続き)",
+    "scientific_name": "Calliophis japonicus japonicus GUNTHER, 1868",
+    "family": "コブラ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.218)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Sinomicrurus japonicus",
+        "dwc:vernacularName": "ヒャン (続き)",
+        "dwc:occurrenceRemarks": "14個，尾に 1〜2個あって，普通は背腹を廻っているが，時には腹面で切れていることもある．黒色の縦条は，胴部では1条しかないものと3条または5条あるものとがあるが，尾部では常に3条．通常9は1条型または3条型で，♂ は3条型または5条型である．背面正中線上の1条は常に存在し，1鱗列とその両側の各1鱗列の半分ずつとを占めているが，環帯の前後では幅が狭い．3条の縦条がある個体では，正中線上の1条の外に，外側から第3列目と第4列目との体鱗の各半分を占める黒条があり，5条型の個体では，更にその外側に不鮮明な1縦条がある．1条型の個体では，黒条外側の縦条はあまり明瞭でない．頭部の側面，額板より前方の部分および頭頂板の後半上の部分は黒い．腹面には，黒色環帯の中間に 3〜5 腹板にまたがる大きい黒色の横紋があり，体の後方では更にその前後に小形の横紋をそなえている個体が多い．また，これらが融合して，環帯と環帯との間で縦に長い紋となっている個体もある．頭部は細長くて頸部よりわずかに大きく．吻端が円い．吻端から頭頂板の後端までの長さは，両眼間の距離の2倍を越える．眼は小さくて，その直径は眼と鼻孔との間の距離よりも小さい．鼻孔は吻の側面にあり，前鼻板の後縁に開口している．前額板は幅が長さよりも大きく，額板は六角形で後角がよく突出し．その長さは最大幅の2倍を越え．左右両頭頂板の間の縫合線よりも長い．頭頂板は大形で，額板よりも明らかに長い．眼前板は小形で第3上唇板に接し，眼後板は2枚あっていずれも小形．側頭板は 1+1+2 で最後列下方のもの以外は大きい．上唇板は7枚で，第1上唇板は小さく．第 3〜4 両上唇板が眼に接し，後方の 2〜3 枚は大きい．下唇板も7枚あって最初の4枚が前咽頭板に接し，第4下唇板は非常に大きい．第1下唇板は細長くて頤板の後方で左右連結している．前後両咽頭板は長さがほぼ等しいかあるいは後方の方がわずかに短かく，後咽頭板と第1腹板との間には 3〜4枚の小さい鱗がある．体鱗は平滑で胴のどの部分においても13列．腹板は 190〜215枚ぐらい．尾下板は 27〜40枚ぐらいある．尾は円筒状で尾端が円錐形にとがっている．上顎には毒牙の後方に 4〜6本の溝のない小歯がある．体長：400〜530mm（尾は体長の 1\/10前後）．\n　上の記述は，主として奄美大島の個体群（いわゆるヒャン型のもの）に基づいているが，徳之島以南にはハイ型の個体が多い．すなわち，黒色環帯の幅が非常に狭くて少なくとも腹板の両側で中断され．縦条が太くて普通5条あるものである．この型では，黒色環帯は胴に 9〜18個，尾に 1〜2個あり．その前後の部分は白くて黒色の縦条を断ち切っている．頸部と腹面との斑紋はヒャン型のものとほぼ同様であるが，側頭部の黒斑は後方に延びて頸部で体側の縦条につながっている．また．頭頂板の合一縫合（？）比較的細長く，腹板は 185〜220枚ぐらい，尾下板は 25〜30枚ぐらいある．\n　ハイ型の個体は．従来ハイ Hemibungarus boettgeri (FRITZ, 1894) という独立種として取り扱われてきたが，ヒャン型のものとの間に形態的な差異がほとんど認められず，また．両者を区分する唯一の特徴である体の斑紋にも個体変異が大きいので．ここではハイをヒャンの同物異名とみなした．\n　ヒャンは，琉球列島の中央部と台湾とに分布し，2亜種に分けられる．基亜種は．",
+        "dwc:taxonConceptID": "gbif:5226795",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Calliophis japonicus japonicus GUNTHER, 1868",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5226795,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Sinomicrurus japonicus",
+    "gbif_accepted_key": 2469812,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "HIGHERRANK"
+}

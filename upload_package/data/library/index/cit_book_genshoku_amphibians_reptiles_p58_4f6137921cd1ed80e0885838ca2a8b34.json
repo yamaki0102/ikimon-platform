@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p58_4f6137921cd1ed80e0885838ca2a8b34",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 58,
+    "taxon_name": "Unknown",
+    "scientific_name": "Rana (Rana) okinavana",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.58)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana (Rana) okinavana",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Light brown\/reddish dorsal coloration, slender limbs.",
+        "dwc:taxonConceptID": "gbif:6746",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Rana (Rana) okinavana",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 6746,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "HIGHERRANK"
+}

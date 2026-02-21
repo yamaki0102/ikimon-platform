@@ -1,0 +1,43 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p83_e2adb7d2fa26c80d9fbe581b2c791149",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 83,
+    "taxon_name": "アマミアオガエル",
+    "scientific_name": "Rhacophorus viridis amamiensis INGER, 1947",
+    "family": "アオガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [
+        {
+            "caption": "第3図. 琉球列島産アオガエル類の右大腿部後面",
+            "note": "Top: Amami (amamiensis), Mid: Okinawa (viridis), Bot: Yaeyama (owstoni). Showing differences in thigh patterns."
+        }
+    ],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.83)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Zhangixalus amamiensis",
+        "dwc:vernacularName": "アマミアオガエル",
+        "dwc:occurrenceRemarks": "　オキナワアオガエルの亜種のうちでは体がもっとも大きく．一見モリアオガエルによく似ている．しかし，背面に暗色の斑紋が現われないことや外蹠隆起のないことなどの点で後者との区別はやさしい．\n　体の背面はいちように緑色または暗緑色で，灰褐色になっているときには暗色斑紋が現われず，黄色い小点を散布していることもない．腹面は灰白色で黄色味を帯びていることもある．また．下顎の周縁部や咽頭部に暗色の小斑を散布していることがある．体側と四肢の前後両面とには暗褐色または黒褐色の不規則な斑紋があり，それらと背面の基色との間が白い境界線になっている（とくに四肢の後縁で著しい），体側と大腿部の後面とでは，斑紋が網目状として，大腿部後面の斑紋は癒合して比較的少型の大きい斑になっていることが多い．頭部は比較的短かくて，長さと幅とがほぼ等しい．吻は比較的長くて，背面が平坦であるかあるいはやや隆起し，吻端はにぶいがモリアオガエルに比べればとがっている．外鼻孔は吻の背側にあって，その位置が眼の前端よりも明らかに吻端に近い．眼鼻線は明瞭で，その下側の頰部は凹んでいる．眼はよく突出しているが，その長径が吻端から眼の前端までの距離よりも明らかに小さく，上眼瞼の幅も左右の上眼瞼の間隔よりはるかに小さい．鼓膜はほぼ円形のことが多く，その長径は眼の長径の半分にほぼ等しく，上眼瞼の幅よりも小さい．鋤骨歯板は長楕円形でほぼ水平，左右の内鼻孔の間にあり，それぞれ10個内外の歯をそなえている．背面の皮膚はおおむね平滑であるが，少なくとも胴の前方より前の部分には微細な顆粒をそなえ，体部，腹面および大腿部の下面は粗雑な顆粒におおわれている．また，咽頭部は，細かい顆粒におおわれている．背側線にはひだがないが，眼の後端から鼓膜の上縁を経て後走する隆条は著しく，モリアオガエルの場合と同様に，後方では弯曲して前肢基部の後縁上側に達している．四肢はよく発達し，比較的強壮，長さの比率はモリアオガエルの場合とほぼ同\n\n*) ちなみに，シナの四川省や西康省に分布している R. omeimontis (STEJNEGER, 1924) は，外蹠隆起の有無を別にすれば，形態的にも生態的にも本種とよく似ている．",
+        "dwc:taxonConceptID": "gbif:8855643",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus viridis amamiensis INGER, 1947",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 8855643,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Zhangixalus amamiensis",
+    "gbif_accepted_key": 11378117,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "EXACT"
+}

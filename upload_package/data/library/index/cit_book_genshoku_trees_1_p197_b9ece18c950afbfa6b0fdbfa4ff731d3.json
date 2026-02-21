@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p197_b9ece18c950afbfa6b0fdbfa4ff731d3",
+    "book_id": "book_genshoku_trees_1",
+    "page": 197,
+    "taxon_name": "T",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.197)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "T",
+        "dwc:occurrenceRemarks": "Tamarix IV 266\n  chinensis V 266\n  juniperina V 76\nTamarindus IV 256\n  indica IV 256\nTaxodium V 267\n  distichum V 267\nTaxus IV 263\n  baccata V 288\n  cuspidata V 287\n  --var. umbraculifera V 288\nTectona V 187\n  grandis V 187\nTernstroemia IV 139\n  gymnathera IV 139\nTetracentron V 130\nTheobroma V 68\n  cacao V 68\nThuja V 274\n  occidentalis V 274\n  orientalis V 275\n  standishii V 275\nThujopsis V 277\n  dolabrata V 277\nThymus V 189\n  quinquecostatus V 189\n  vulgaris V 190\nTilia V 56\n  cordata V 60\n  japonica V 56\n  kiusiana V 58\n  maximowicziana V 58\n  miqueliana V 60\n  platyphyllos V 60\nTorreya V 289\n  nucifera V 289\n  --var. radicans V 290\nTrachelospermum V 172\n  asiaticum V 172\n  --'Ougonnishiki' V 172\n  jasminoides V 172\n  --'Variegatum' V 172\nTrachycarpus V 228\n  fortunei V 228\n  wagnerianus V 229\nTrema IV 44\n  orientalis IV 44\nTripetaleia V 183\n  bracteata V 184\n  paniculata V 84\nTripterygium V 52\n  regelii V 52\nTrochodendron IV 96\n  aralioides IV 96\nTsuga V 254\n  diversifolia V 254\n  sieboldii V 255\nTurpinia V 46\n  ternata V 46"
+    }
+}

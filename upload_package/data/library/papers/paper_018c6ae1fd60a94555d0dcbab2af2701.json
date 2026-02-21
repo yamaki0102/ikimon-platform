@@ -1,0 +1,20 @@
+{
+    "id": "paper_018c6ae1fd60a94555d0dcbab2af2701",
+    "doi": "10.1016\/j.chemosphere.2025.144202",
+    "title": "Mancozeb exposure disrupts endocrine function of the ovary and thyroid in Red Munia (Amandava amandava)",
+    "year": 2025,
+    "container_title": "Chemosphere",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/j.chemosphere.2025.144202",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/j.chemosphere.2025.144202",
+        "dc:title": "Mancozeb exposure disrupts endocrine function of the ovary and thyroid in Red Munia (Amandava amandava)",
+        "dc:date": 2025,
+        "dc:source": "Chemosphere",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

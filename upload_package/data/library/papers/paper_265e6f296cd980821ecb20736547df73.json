@@ -1,0 +1,20 @@
+{
+    "id": "paper_265e6f296cd980821ecb20736547df73",
+    "doi": "10.3389\/fmicb.2022.1081468",
+    "title": "Metagenomic analysis of gut microbiota and antibiotic-resistant genes in Anser erythropus wintering at Shengjin and Caizi Lakes in China",
+    "year": 2023,
+    "container_title": "Frontiers in Microbiology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3389\/fmicb.2022.1081468",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3389\/fmicb.2022.1081468",
+        "dc:title": "Metagenomic analysis of gut microbiota and antibiotic-resistant genes in Anser erythropus wintering at Shengjin and Caizi Lakes in China",
+        "dc:date": 2023,
+        "dc:source": "Frontiers in Microbiology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

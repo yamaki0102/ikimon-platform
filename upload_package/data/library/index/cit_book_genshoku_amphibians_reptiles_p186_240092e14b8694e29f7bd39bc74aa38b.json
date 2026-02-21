@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p186_240092e14b8694e29f7bd39bc74aa38b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 186,
+    "taxon_name": "シマヘビ",
+    "scientific_name": "Elaphe quadrivirgata",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.186)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Elaphe quadrivirgata",
+        "dwc:vernacularName": "シマヘビ",
+        "dwc:occurrenceRemarks": "Plate 29 illustration (95). Shows typical 4-striped pattern.",
+        "dwc:taxonConceptID": "gbif:2458480",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Elaphe quadrivirgata",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2458480,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "EXACT"
+}

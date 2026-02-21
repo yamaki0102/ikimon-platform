@@ -1,0 +1,20 @@
+{
+    "id": "paper_6b4f692fadc18fdc5fce5ff05ed354da",
+    "doi": "10.5962\/p.420015",
+    "title": "New Distribution Records for Sulphur and White Butterflies (Lepidoptera: Pieridae) in inland and outback Australia",
+    "year": 2014,
+    "container_title": "Metamorphosis Australia : magazine of the Butterfly &amp; Other Invertebrates Club",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.420015",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.420015",
+        "dc:title": "New Distribution Records for Sulphur and White Butterflies (Lepidoptera: Pieridae) in inland and outback Australia",
+        "dc:date": 2014,
+        "dc:source": "Metamorphosis Australia : magazine of the Butterfly &amp; Other Invertebrates Club",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

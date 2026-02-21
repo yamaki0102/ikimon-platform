@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p167_3fa39fc9a9bcf512ac30af4699fbe0a6",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 167,
+    "taxon_name": "アオカナヘビ (続き)",
+    "scientific_name": "Takydromus smaragdinus BOULENGER, 1887",
+    "family": "カナヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.167)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Takydromus smaragdinus BOULENGER, 1887",
+        "dwc:vernacularName": "アオカナヘビ (続き)",
+        "dwc:occurrenceRemarks": "えているものもある．この細かい鱗と腹板との間には，やや大形で明瞭な隆条のある鱗が，胴の中央部で各 3〜5 列に並んでいる．腹板は背板より大きくて6列に並び，咽頭板から肛板までの間に 26〜30枚ぐらいある．それぞれの腹板には，顕著な隆条と後端中央部の小刺状突起があり．これらが前後につながり合って，6本の連続した隆条を形成している．肛板は大きくて著しい隆条をそなえ．原則として1対存在する．肛板の両側には左右各1枚の比較的小さい鱗があり，肛板と同様に著しい強条をそなえている．鼠蹊腺の開口はただ1対しかない．四肢はサキシマカナヘビより短かいが構造はほぼ同様で，第4趾の下面には 26〜32枚ぐらいの趾下板がある．なお，趾下板は，部分的に2分していることが多い．尾は非常に長く．サキシマカナヘビの場合と同じような長方形の鱗におおわれている．体長：150〜200mm（尾は体長の 2\/3 以上を占めている）．\n　琉球列島中央部および南部の固有種で，北東へはトカラ群島の小宝島まで，また南西へは八重山群島の西表島までのほとんど各島に分布している．畑地や草むらなどに多く．日の当たる場所のサツマイモの葉の上などに静止しているのをよく見かける．",
+        "dwc:taxonConceptID": "gbif:2468638",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Takydromus smaragdinus BOULENGER, 1887",
+        "dwc:family": "Lacertidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2468638,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Lacertidae",
+    "gbif_match_type": "EXACT"
+}

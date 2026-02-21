@@ -1,0 +1,20 @@
+{
+    "id": "paper_25f209cc9057e902c349de9bcbbbb5f7",
+    "doi": "10.3133\/ofr20221078",
+    "title": "Abundance of eelgrass (Zostera marina) at key Black Brant (Branta bernicla nigricans) wintering sites along the northern Pacific coast of Baja California, Mexico, 1998–2012",
+    "year": 2022,
+    "container_title": "Open-File Report",
+    "type": "report-component",
+    "url": "https:\/\/doi.org\/10.3133\/ofr20221078",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3133\/ofr20221078",
+        "dc:title": "Abundance of eelgrass (Zostera marina) at key Black Brant (Branta bernicla nigricans) wintering sites along the northern Pacific coast of Baja California, Mexico, 1998–2012",
+        "dc:date": 2022,
+        "dc:source": "Open-File Report",
+        "dc:type": "report-component",
+        "dc:format": "application\/json"
+    }
+}

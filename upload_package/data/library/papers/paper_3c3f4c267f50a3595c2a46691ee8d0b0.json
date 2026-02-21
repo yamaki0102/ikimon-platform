@@ -1,0 +1,20 @@
+{
+    "id": "paper_3c3f4c267f50a3595c2a46691ee8d0b0",
+    "doi": "10.1071\/is20070",
+    "title": "Integrative taxonomy reveals multiple lineages of the spider genus Cybaeus endemic to the Ryukyu Islands, Japan (Arachnida : Araneae : Cybaeidae)",
+    "year": 2021,
+    "container_title": "Invertebrate Systematics",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1071\/is20070",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1071\/is20070",
+        "dc:title": "Integrative taxonomy reveals multiple lineages of the spider genus Cybaeus endemic to the Ryukyu Islands, Japan (Arachnida : Araneae : Cybaeidae)",
+        "dc:date": 2021,
+        "dc:source": "Invertebrate Systematics",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

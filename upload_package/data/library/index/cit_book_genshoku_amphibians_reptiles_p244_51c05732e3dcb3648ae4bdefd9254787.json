@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p244_51c05732e3dcb3648ae4bdefd9254787",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 244,
+    "taxon_name": "ハブ (続き)",
+    "scientific_name": "Trimeresurus flavoviridis flavoviridis (HALLOWELL, 1860)",
+    "family": "クサリヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.244)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Protobothrops flavoviridis",
+        "dwc:vernacularName": "ハブ (続き)",
+        "dwc:occurrenceRemarks": "大きく．第5枚目より後方のものは小形でほぼ等大．下唇板は 15〜17枚あって，中央部の 5〜6枚は比較的大きい．左右の第1下唇板は普通頤板の後側で互に接し合っているが，頤板の後角によって両側に隔てられていることもある．頤板はほぼ三角形で後角が細長くとがり．その後方には第1腹板に至るはっきりした咽頭溝があって．咽頭板より後方の部分が 6〜9対の鱗で縁取られている．前咽頭板は非常に巨大で長さが幅の2倍半を越え．後端がとがり，左右の2枚が正中線上で広く接し合っている．後咽頭板は小形で左右に離れている．体鱗は頸部の後方で 31〜37列．胴の中央部で普通35列．時には33列，37列または39列（ごく例外的には31列），後部では 23〜25列ある．最外側1列の体鱗は内側のものより大きくて平滑であるが，その他の各列のものは鱗の全長に及ぶ明瞭な隆条をそなえている．鱗孔はそれぞれの体鱗に1対ずつあってかなり明瞭．腹板には側稜がなくて 220〜236枚あり．尾下板は対になっていてその数は 75〜90ぐらいである．体長：1,000〜2,200mm（尾は体長の 1\/6 前後を占めている）．\n　よく知られているように，日本産の毒蛇のうちでハブ以上に危険なものはない．単に体が大きくて毒量が多いばかりでなく．性質が非常におくびょうですぐに相手を攻撃するので，こちらから危害を加えない限り襲ってこないような他の毒蛇とは比較にならないほど危険性が大きい．個体数も多くて，とくに徳之島などではもっとも普通なヘビの一つに数えられるほどである．人に恐れられるだけに，ハブの分布は非常によく調べられていて．琉球列島中央部の奄美群島と沖縄群島との島々のうち，奄美大島，枝手久島，加計呂麻島，請島，与路島，徳之島，伊平屋島，伊江島，水納島，瀬底島，古宇利島，屋我地島，沖縄本島，藪地島，浜比嘉島，平安座島，宮城島，伊計島，渡嘉敷島，渡名喜島，奥武島および久米島の 22島に棲息することがわかっている．\n　ハブは，平地にも山地の森林の中にもすんでいるが，どちらかといえば部落や耕地の周辺に多く，ネズミなどを求めて人家にも侵入してくる．夜行性で，昼間は石垣の間，ソテツの葉の上，木の根元などに静止し，日が暮れる頃から活動を始める．敵を攻撃できる距離は，普通の状態で体長の 1\/3程度であるが，とくに興奮している時には体長の 2\/3に及ぶ跳躍力をもっている．そうして．目にも止まらぬ速さで敵を攻撃した一瞬の後には．必ずもとの姿勢にもどって次の攻撃にそなえているので，土地の人々は．ハブに襲われることを \"ハブに打たれる\" と形容している．不幸なことに．ハブは地上でも樹上でも生活するので，思いもかけぬ所から攻撃を受けることがある．しかも，手足以外の場所に受けた咬傷は，致命的となる場合が少なくない．生活圏の広いことに伴なって，食性の幅もハブではかなり大きく，主としてネズミや小鳥を捕食する以外に．他の無毒蛇やトカゲ，カエルなどからウナギのような魚類まで食うことが知られている．なお．ハブは卵生で，7月頃に産卵する．卵は長楕円形で色が白く，地中の穴に10個ぐらいずつ産みつけられ，親ヘビによって保護されている．",
+        "dwc:taxonConceptID": "gbif:2444179",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Trimeresurus flavoviridis flavoviridis (HALLOWELL, 1860)",
+        "dwc:family": "Viperidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2444179,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Protobothrops flavoviridis",
+    "gbif_accepted_key": 2444178,
+    "gbif_family": "Viperidae",
+    "gbif_match_type": "HIGHERRANK"
+}

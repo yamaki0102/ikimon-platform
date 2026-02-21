@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p190_dd7536794b63bf90eccfd37f9b147d7f",
+    "book_id": "book_genshoku_trees_1",
+    "page": 190,
+    "taxon_name": "I",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.190)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "I",
+        "dwc:occurrenceRemarks": "Idesia V 77\n  polycarpa V 77\nIlex V 32\n  aquifolium V 39\n  chinensis V 36\n  cornuta V 38\n  crenata V 34\n  --var. paludosa V 32\n  geniculata V 39\n  integra V 35\n  latifolia V 34\n  liukiuensis V 34\n  macropoda V 39\n  mutchagara V 37\n  nipponica V 34\n  pedunculosa V 36\n  rotunda V 37\n  rugosa V 35\n  serrata V 36\n  --var. argutidens V 36\n  sugerokii var. brevipedunculata V 34\nIllicium IV 75\n  anisatum IV 75\n  religiosum IV 75\nImpatiens V 242\n  balsamina V 243\n  textori V 242\nIndigofera IV 247\n  pseudo-tinctoria IV 247\nInula V 158\n  japonica V 158"
+    }
+}

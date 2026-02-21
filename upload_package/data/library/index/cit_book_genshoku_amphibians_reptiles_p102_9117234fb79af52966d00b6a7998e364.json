@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p102_9117234fb79af52966d00b6a7998e364",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 102,
+    "taxon_name": "Unknown",
+    "scientific_name": "Dermochelys coriacea schlegelii",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.102)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Dermochelys coriacea",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Large, dark turtle with longitudinal ridges (Leatherback).",
+        "dwc:taxonConceptID": "gbif:6157157",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Dermochelys coriacea schlegelii",
+        "dwc:family": "Dermochelyidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 6157157,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Dermochelys coriacea",
+    "gbif_accepted_key": 9789983,
+    "gbif_family": "Dermochelyidae",
+    "gbif_match_type": "EXACT"
+}

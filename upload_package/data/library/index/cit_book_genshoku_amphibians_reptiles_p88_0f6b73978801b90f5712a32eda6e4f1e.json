@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p88_0f6b73978801b90f5712a32eda6e4f1e",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 88,
+    "taxon_name": "ヒメアマガエル属",
+    "scientific_name": "Microhyla TSCHUDI, 1838",
+    "family": "ジムグリガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.88)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Microhyla TSCHUDI, 1838",
+        "dwc:vernacularName": "ヒメアマガエル属",
+        "dwc:occurrenceRemarks": "　体表の皮膚は，全体に平滑であるか，あるいは体側と腹面とに顆粒をそなえている．瞳孔は円く，鼓膜は表面に現われていない．舌は楕円形で端縁が円く，後部を自由に引き起こすことができる．上顎に歯がなく，鋤骨歯板も欠除している．口蓋部は，後方に1〜2本の隆条をそなえているが，内鼻孔の後側を横切るしわ状の隆起はない．指趾の末端は多少ともふくれ，末端骨の先端は多少拡がっている．指間にはみずかきがなく，趾間にもみずかきのないことがある．幼生では，噴水孔と肛門とがともに体の正中線上にあり，尾の背縁は胴の背面に及んでいない．上唇がないかあるいはその発達がきわめて悪く，歯もなくなっている．\n　琉球列島，台湾，シナ中部および南部，インドシナ，マレイ半島，スマトラ，ジャワ，ボルネオ，インド，セイロンなどに分布し，全部で15種ほど知られている．南北両アメリカに分布している種類がこの属に含められることもあるが，ここでは属の異なるものとみなした．",
+        "dwc:taxonConceptID": "gbif:2422089",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Microhyla TSCHUDI, 1838",
+        "dwc:family": "Microhylidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2422089,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Microhylidae",
+    "gbif_match_type": "HIGHERRANK"
+}

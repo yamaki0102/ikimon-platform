@@ -1,0 +1,18 @@
+{
+    "taxon_key": 5170994,
+    "scientific_name": "Argiope bruennichi (Scopoli, 1772)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Araneidae",
+    "genus": "Argiope",
+    "rank": "SPECIES",
+    "original_query": "Argiope bruennichi",
+    "_cached_at": 1770429249
+}

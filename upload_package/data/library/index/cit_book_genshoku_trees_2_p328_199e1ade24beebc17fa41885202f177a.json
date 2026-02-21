@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p328_199e1ade24beebc17fa41885202f177a",
+    "book_id": "book_genshoku_trees_2",
+    "page": 328,
+    "taxon_name": "和名索引 (328頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.328)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "和名索引 (328頁)",
+        "dwc:occurrenceRemarks": "コムラサキシキブ V186\nコメツガ V253\nコメツツジ V119\nコメヤナギ(コゴメヤナギ) IV10\nコヤスノキ IV163\nゴヨウアケビ IV105\nゴヨウイチゴ IV221\nゴヨウツツジ V104\nゴヨウマツ V238\nコヨウラクツツジ V144\nコーラ V68\nコーラ属 V68\nコラナットノキ(コーラ) V68\nコラノキ(コーラ) V68\nコリヤナギ IV7\nコリンゴ(ズミ) IV209\nコルクガシ IV36\nコルディリネ属 V215\nゴレンシ IV263\nゴレンシ属 IV263\nゴロヒバ(クロベ) V275\nコロラドモミ(ホワイトファー) V256\nコンゴウザクラ(ウワミズザクラ) IV177\nゴンズイ V46\nゴンズイ属 V46\nゴンゼツノキ(コシアブラ) V95\nコンテリギ(ガクウツギ) IV155\nコンロンカ V176\nコンロンカ属 V176\n\nさ\n\nサイカチ IV260\nサイカチ属 IV260\nサイコクミツバツツジ V106\nザイフリボク IV201\nザイフリボク属 IV201\nサイリンヨウラク(ウスギヨウラク) V143\nサオトメバナ(ヘクソカズラ) V181\nサカイツツジ V129\nサカキ IV140\nサカキ属 IV140\n\nサカキカズラ V172\nサカキカズラ属 V172\nサガミゴウツギ(ツクバネウツギ) IV285\nサガリバナ科 V87\nサガリバナ属 V87\nサキシマスオウノキ V67\nサキシマスオウノキ属 V67\nサクラ属 IV164\nサクラ'ジュウガツザクラ' IV167\n―'シキザクラ' IV170\n―'フゲンゾウ' IV170\n―'フゲンゾウ(フゲンゾウ)' IV170\n―'カンザン' IV170\n―'セキヤマ(カンザン)' IV170\n―'イチヨウ' IV170\n―'ショウゲツ' IV171\n―'タカサゴ' IV171\n―'ナデン'(タカサゴ) IV171\n―'ムシャザクラ(タカサゴ) IV171\n―'シロタエ' IV171\n―'ヨウキヒ' IV172\n―'アマノガワ' IV172\n―'ウコン' IV172\n―'ギョイコウ' IV173\n―'スルガダイニオイ' IV173\n―'フユザクラ' IV173\n―'コバザクラ(フユザクラ)' IV173\n―'ケンロクエンキクザクラ' IV174\n―'ナラヤエザクラ' IV174\n―'ナラザクラ(ナラヤエザクラ)' IV174\n―'イチハラトラノオ' IV174\n―'ゴテンザクラ' IV175\n―'オオムラザクラ' IV175\n―'ウスズミ' IV175\n―'バイゴジュズカケザクラ' IV176\n―'ウスザクラ' IV178\n―'アサヒヤマ' IV180\n―'ワレノオ' IV180"
+    }
+}

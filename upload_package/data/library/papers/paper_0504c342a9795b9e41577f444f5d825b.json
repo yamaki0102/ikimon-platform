@@ -1,0 +1,20 @@
+{
+    "id": "paper_0504c342a9795b9e41577f444f5d825b",
+    "doi": "10.5040\/9781472926982.0024",
+    "title": "Daption capense (Linnaeus). Pintado Petrel; Cape Pigeon. Pétrel damier.",
+    "year": 0,
+    "container_title": "The Birds of Africa",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472926982.0024",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472926982.0024",
+        "dc:title": "Daption capense (Linnaeus). Pintado Petrel; Cape Pigeon. Pétrel damier.",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

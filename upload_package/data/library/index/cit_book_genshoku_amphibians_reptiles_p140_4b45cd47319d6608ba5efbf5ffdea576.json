@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p140_4b45cd47319d6608ba5efbf5ffdea576",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 140,
+    "taxon_name": "バーバートカゲ",
+    "scientific_name": "Eumeces barbouri VAN DENBURGH, 1912",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.140)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Plestiodon barbouri",
+        "dwc:vernacularName": "バーバートカゲ",
+        "dwc:occurrenceRemarks": "　形態的には日本本土のトカゲとよく似ているが，体鱗列数が非常に少なく．胴の中央部で原則として22列しかない（きわめて稀に24列のこともある）．上鼻板は前額板より多少小さいかあるいは後者とほぼ同大．左右の前額板はつねに離れている．頤板は原則として2対あるが，片側または両側に 1枚しかないこともある．後鼻板は原則として明瞭．体色や斑紋のようすもトカゲによく似ているが（第23図版第76図は若い個体の体色を示す），幼時に見られる青白色の縦条は尾の基方 1\/3 ぐらいにしか達せず，成体ではこれらの縦条が一般に認められない．体長：160〜190mm（尾は体長の 2\/3ぐらいを占めている）．\n\n第7図．バーバートカゲの頭部；左から右へ背面，腹面および左側面．\n\n　琉球列島中央部の固有種で，奄美大島．徳之島および沖縄本島から知られている．同じ地域に分布するオキナワトカゲやオオシマトカゲと違って，山地の森林地帯などにすみ，両種の間にかなり明瞭なすみ分けが見られる．なお，このような事情が明らかになったのは，主として木場 (1957,1958,1959など) の努力に負うものである．",
+        "dwc:taxonConceptID": "gbif:5960530",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eumeces barbouri VAN DENBURGH, 1912",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5960530,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Plestiodon barbouri",
+    "gbif_accepted_key": 5960529,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "EXACT"
+}

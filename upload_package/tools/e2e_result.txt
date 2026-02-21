@@ -1,0 +1,31 @@
+=== E2E 検証: aikan_hq ===
+
+1. Dashboard (site_dashboard.php?site=aikan_hq)
+   HTTP Status: 200 ✅
+   Body Length: 65617 bytes
+   Title: 愛管株式会社 本社エリア ダッシュボード | ikimon
+   Has chart: ✅
+   Has map: ✅
+   Has 観察: ✅
+   Has 種: ✅
+   Has レッドリスト: ✅
+
+2. Report (api/generate_site_report.php?site_id=aikan_hq)
+   HTTP Status: 200 ✅
+   Body Length: 37964 bytes
+   Title: 生物多様性レポート - 愛管株式会社 本社エリア
+   Has BIS: ✅
+   Has TNFD/LEAP: ✅
+   Has 種 list: ✅
+   Has レッドリスト: ✅
+   Has 月 trend: ✅
+   Has 愛管: ✅
+
+3. Data Integrity Check
+   Seed observations: 28
+   Unique species: 28
+   Within boundary: 28/28
+   All within boundary: ✅
+   Total observations: 453
+
+=== E2E 検証完了 ===

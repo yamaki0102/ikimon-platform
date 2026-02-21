@@ -1,0 +1,20 @@
+{
+    "id": "paper_509a2f26501c32edad6c830b10420edd",
+    "doi": "10.5962\/p.323986",
+    "title": "Bittern, Botaurus stellaris [Pl. 27]",
+    "year": 1873,
+    "container_title": "The birds of Great Britain",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.323986",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.323986",
+        "dc:title": "Bittern, Botaurus stellaris [Pl. 27]",
+        "dc:date": 1873,
+        "dc:source": "The birds of Great Britain",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

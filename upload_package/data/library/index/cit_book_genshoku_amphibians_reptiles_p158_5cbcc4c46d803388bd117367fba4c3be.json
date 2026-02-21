@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p158_5cbcc4c46d803388bd117367fba4c3be",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 158,
+    "taxon_name": "ヒメトカゲ属",
+    "scientific_name": "Ateuchosaurus GRAY, 1845",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.158)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Ateuchosaurus GRAY, 1845",
+        "dwc:vernacularName": "ヒメトカゲ属",
+        "dwc:occurrenceRemarks": "　前額板は小形で両側に広く離れ．額板は，非常に細長くて中央部がくびれているか，あるいは前後2枚の鱗板に分かれている．前頭頂板と頭頂間板とはよく分化しているが，頭頂板は小形で分化が悪く．側頭板や項板も小形で後方の鱗と区別できない．眼瞼はよく発達し．下眼瞼が半透明の鱗におおわれている．四肢は短かいが指趾ともに5本ずつある．\n　この亜属は，スベトカゲ属のうちでも非常に特殊化した型とみなされるもので，わずかに2種で構成され．1種が琉球列島に，また他の1種が南シナからベトナムにかけて分布している．\n\n86. ヘリグロヒメトカゲ\nLygosoma (Ateuchosaurus) pellopleuron (HALLOWELL, 1860)\n　背面は赤褐色で多数の黒い斑点があり，胴の後方では，これらの斑点が体鱗の肌角に集まって，6〜8 条の黒点列を形成していることが多い．体側には，鼻孔に始まって眼を通り，後方へいくほど色が淡くなって尾端に至る黒褐色の縦条があり．その上縁が普通は第4鱗列の中央を通っているが，個体によっては第5鱗列にあることもある．また，胴の側面では，この縦条が1鱗列とその上下の鱗列の半分ずつとをおおっているものから．腹方が次第にぼかされて下縁の明瞭でないものまである．黒褐縦条の下側の部分には，基色より多少とも色の濃い斑点の列があり．肛門のあたりから後方では，同様の斑点列が腹面にも廻り込んでいる．腹面は黄白色または黄色味を帯びた淡灰白色で，下唇から咽頭部の側縁にかけて黒褐色の斑点を密布し．胴の後部や尾には上述の斑点列をそなえている．頭部は比較的小さくて短く，吻端から頭頂間板の後端までの長さが，普通は両眼の間隔の2倍に達する．吻は短かくて比較的扁平，吻端",
+        "dwc:taxonConceptID": "gbif:2461863",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Ateuchosaurus GRAY, 1845",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2461863,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

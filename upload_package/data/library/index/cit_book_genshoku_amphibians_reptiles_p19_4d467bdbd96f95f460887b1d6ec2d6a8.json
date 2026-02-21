@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p19_4d467bdbd96f95f460887b1d6ec2d6a8",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 19,
+    "taxon_name": "トウホクサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) lichenatus BOULENGER, 1883",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "90〜140mm",
+        "season": "3月下旬から6月頃",
+        "distribution": "本州東北部 (太平洋岸は福島以北, 日本海側は新潟以北)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.19)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hynobius (Hynobius) lichenatus BOULENGER, 1883",
+        "dwc:vernacularName": "トウホクサンショウウオ",
+        "dwc:occurrenceRemarks": "　体の背面は暗褐色または黒褐色で，個体によってはほとんど無地のものもあるが，多くは淡色の斑点をそなえている．腹面は灰白色で，微小な褐色の点を密布している．頭部は卵形で吻端が円く，その幅は長さよりも小さい．鼻孔は吻端の近くにある．耳腺は顕著で，その上縁を区切る溝も明瞭．鋤口蓋歯列には変異が多くて，U字形のものもV字形のものもあるが，一般にはU字形の歯列をそなえた個体の方が多く，V字形の歯列をもったものは，どちらかといえば地域的（たとえば北上山地の東北部）に現われてくるものらしい．胴は比較的短かくて，背面に普通11本（時には12本），腹面に9本（10本のものもある）の肋条をそなえている．四肢は長く，後肢の第5趾は多くは退化している．しかし，趾の発達の程度にはかなり大きい個体変異があって，稀には第5趾の完全な個体さえある．尾は胴よりも長く，後方に向かって次第に側扁し，にぶい末端に終っている．体長：90〜140mm（尾は一般に体長の1\/2弱）．\n　本種は，本州の東北部におけるカスミサンショウウオの置換種と考えられるもので，形態的にも生態的にもカスミサンショウウオに似た点が多い．しかし，肋条の数が一般に後者よりも少ないし，また尾の上縁に黄色の条線が現われないので，ここでは一応独立種として取り扱った．本州の，太平洋岸で福島県以北，日本海側では新潟県以北の地域に広く分布し，普通は低山地に多いが，海岸や高山帯でも見つかっている．\n　場所によって，3月下旬から6月頃までの間に，細い渓流のよどみや湧水，時には浅い沼などに産卵する．卵嚢は曲がったひも状で透明，表面には多数の縦横に走る条線があり，水底の石や木の枝などに1対ずつ産みつけられる．1卵嚢中の卵数は通常20〜40個，卵の上半は黒褐色である．",
+        "dwc:taxonConceptID": "gbif:2431164",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hynobius (Hynobius) lichenatus BOULENGER, 1883",
+        "dwc:family": "Hynobiidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2431164,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hynobiidae",
+    "gbif_match_type": "EXACT"
+}

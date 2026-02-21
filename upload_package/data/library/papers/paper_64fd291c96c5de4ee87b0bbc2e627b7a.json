@@ -1,0 +1,20 @@
+{
+    "id": "paper_64fd291c96c5de4ee87b0bbc2e627b7a",
+    "doi": "10.1007\/s00248-024-02379-y",
+    "title": "Investigation of Fungal Community Structure in the Gut of the Stag Beetle Dorcus hopei (Coleoptera; Lucanidae): Comparisons Among Developmental Stages",
+    "year": 2024,
+    "container_title": "Microbial Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/s00248-024-02379-y",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/s00248-024-02379-y",
+        "dc:title": "Investigation of Fungal Community Structure in the Gut of the Stag Beetle Dorcus hopei (Coleoptera; Lucanidae): Comparisons Among Developmental Stages",
+        "dc:date": 2024,
+        "dc:source": "Microbial Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

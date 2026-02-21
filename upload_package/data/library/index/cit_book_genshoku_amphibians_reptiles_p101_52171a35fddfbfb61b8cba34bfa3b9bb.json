@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p101_52171a35fddfbfb61b8cba34bfa3b9bb",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 101,
+    "taxon_name": "オサガメ属",
+    "scientific_name": "Dermochelys BLAINVILLE, 1816",
+    "family": "オサガメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.101)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Dermochelys BLAINVILLE, 1816",
+        "dwc:vernacularName": "オサガメ属",
+        "dwc:occurrenceRemarks": "　頭部は大きく．若い個体では背面に左右相称の鱗板があるが，成熟すると消失する．頭骨の吻部は側扁せず．吻端がにぶくてその背面に外鼻孔が開く．前顎骨と鋤骨とは接合し，上顎骨を両側に隔てている．内鼻孔は口蓋骨におおわれていない．翼状骨は小形．下顎弁の前端は鋭くてかぎ状に曲がっている．背甲には7本の顕著な隆条があり，背中線上の1本はその後端が背甲の尾状突起の一部になっている．臀甲には比較的におい5本の隆条がある．四肢はよく発達し，とくに前肢は強壮．尾は短かくて．後肢の基部との間が膜でつながっている．♂の尾は♀のものよりも長い．単模式属．",
+        "dwc:taxonConceptID": "gbif:2441865",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Dermochelys BLAINVILLE, 1816",
+        "dwc:family": "Dermochelyidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2441865,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Dermochelyidae",
+    "gbif_match_type": "HIGHERRANK"
+}

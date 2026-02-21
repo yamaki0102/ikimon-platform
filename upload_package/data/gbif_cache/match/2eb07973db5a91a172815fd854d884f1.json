@@ -1,0 +1,18 @@
+{
+    "taxon_key": 4821304,
+    "scientific_name": "Typhlops braminus (Daudin, 1803)",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": 9357542,
+    "accepted_name": "Indotyphlops braminus",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Typhlopidae",
+    "genus": "Indotyphlops",
+    "rank": "SPECIES",
+    "original_query": "Typhlops braminus (DAUDIN, 1803)",
+    "_cached_at": 1770420224
+}

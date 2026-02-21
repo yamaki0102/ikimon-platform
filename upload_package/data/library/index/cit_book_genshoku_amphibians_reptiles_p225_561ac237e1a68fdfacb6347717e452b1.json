@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p225_561ac237e1a68fdfacb6347717e452b1",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 225,
+    "taxon_name": "カメガシラウミヘビ属 (概説)",
+    "scientific_name": "Emydocephalus KREFFT, 1869",
+    "family": "ウミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.225)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Emydocephalus KREFFT, 1869",
+        "dwc:vernacularName": "カメガシラウミヘビ属 (概説)",
+        "dwc:occurrenceRemarks": "　頭部は大きい鱗板でおおわれているが．鼻間板がなくて左右の鼻板は正中線上で互に接し合い．鼻孔の位置も物の背的にある．頰板がなく．上唇板と下唇板とはどちらも数が少なくなり，その代りに第2上唇板と第3下唇板とが非常に長大となっている．上顎骨は外翼骨よりも短かく．口蓋骨よりも少し前方に延び．2本の小さい溝牙以外に小歯をそなえていない．また．口蓋歯．翼骨歯．歯骨歯なども小さい．体は円筒状で比較的短かく．体鱗は 15〜19列で瓦状に並んでいる．腹板はエラブウミヘビ属のものと同様に幅が広い．\n　この属は，オーストラリアの近海に産する1種と次の1種とだけを含んでいる．\n\n121. イイジマウミヘビ Emydocephalus ijimae STEJNEGER, 1898\n　体は黄褐色．背面で 3〜4 鱗分の幅をもつ暗褐色の環帯が胴に 25〜30個．尾に 4〜6個ある．頭部は黒褐色で．前額板に始まって眼の上側を通り，前側頭板のあたりで後下方に曲がって口角に達する黄色い斑紋がある．第2上唇板と咀嚼部とには黒点を散布していることが多い．頭部は短かくて頸部より少し大きく．吻端から頭頂板の後端までの長さは両眼の間の距離の1倍半よりもはるかに短かい．吻端板は五角形で幅が高さよりも少し大きく．鼻板は非常に大形で額板に匹敵し．その中央よりやや後方に半円形の大きい鼻孔がある．前額板は普通2対あって（稀には1対しかない個体も見られる），内側の1対は外側のものよりはるかに大きいが額板よりは明らかに小さい．額板はほぼ正六角形で頭頂板よりも明らかに小さく．その長さは吻端から額板前端までの距離よりも短かい．頭頂板は短かくて幅が広く．左右各板の中央後半を縦走するひだがある．眼上板は大きくて額板に匹敵する．眼は小さく．その長径は眼と鼻孔との間の距離よりも小さい．眼前板は1枚で比較的大きく．眼後板は2枚で上板の方が下板よりも大きい．側頭板は前列2枚，後列2枚で，後列上板がもっとも大きい．上唇板は正常には3枚あるが，稀には第3上唇板のなくなっている個体もある．第2上唇板は非常に大きくて長く．上唇の大部分を占めている．頤板はV字形で，前縁から正中線上にかけて深い窪みがある．下唇板は4枚あって．第3下唇板が非常に大きい．左右の第1下唇板は，頤板の後方で互に接し合っているが．口縁には達していない．咽頭板は2対あって．前咽頭板は正中線上で左右が接しているが，後咽頭板の方は1枚の鱗によって両側に隔てられている．後咽頭板と第1腹板との間には 2〜3枚の鱗がある．体鱗は平滑であるかあるいは数本の断続した隆条をそなえ，胴の前方で15列または17列，中央部で17列または19列，後方では普通15列ある．背面中央の1鱗列は．少なくとも胴の中央部より後方では大きくなって．その幅が両側の各鱗列の幅の2倍に達する．腹板は 134〜144枚あって．後方のものは中央によい隆条をそなえ．各腹板の幅は長さの4倍に及ぶ．肛板は2分しているが尾下板は不対で，後者は ♂ で 26〜30枚，♀ で 20〜25枚ぐらいある．尾は著しく側扁し，先端が1枚の非常に大形の鱗で終っている．体長：650〜900mm（尾は体長の 1\/9ぐらいを占めている）．",
+        "dwc:taxonConceptID": "gbif:2449678",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Emydocephalus KREFFT, 1869",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2449678,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "HIGHERRANK"
+}

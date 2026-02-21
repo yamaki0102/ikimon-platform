@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p90_6c5c022df634ea843f0fa85b471d6ac0",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 90,
+    "taxon_name": "Unknown",
+    "scientific_name": "Rhacophorus eiffingeri",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.90)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Kurixalus eiffingeri",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Brown frog with distinct banding on legs.",
+        "dwc:taxonConceptID": "gbif:11042293",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus eiffingeri",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 11042293,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Kurixalus eiffingeri",
+    "gbif_accepted_key": 2423840,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "EXACT"
+}

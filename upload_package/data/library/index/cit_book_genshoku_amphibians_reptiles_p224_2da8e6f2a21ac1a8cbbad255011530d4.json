@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p224_2da8e6f2a21ac1a8cbbad255011530d4",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 224,
+    "taxon_name": "クロガシラウミヘビ",
+    "scientific_name": "Hydrophis melanocephalus",
+    "family": "ウミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.224)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hydrophis melanocephalus",
+        "dwc:vernacularName": "クロガシラウミヘビ",
+        "dwc:occurrenceRemarks": "Plate 38 illustration (122). Black head, banded body.",
+        "dwc:taxonConceptID": "gbif:5960356",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hydrophis melanocephalus",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5960356,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "EXACT"
+}

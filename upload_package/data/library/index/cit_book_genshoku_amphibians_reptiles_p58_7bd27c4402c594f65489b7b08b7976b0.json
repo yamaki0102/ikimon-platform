@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p58_7bd27c4402c594f65489b7b08b7976b0",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 58,
+    "taxon_name": "Unknown",
+    "scientific_name": "Hyla hallowellii",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.58)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hyla hallowellii",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Green dorsal coloration, slender body.",
+        "dwc:taxonConceptID": "gbif:2427606",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hyla hallowellii",
+        "dwc:family": "Hylidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2427606,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hylidae",
+    "gbif_match_type": "EXACT"
+}

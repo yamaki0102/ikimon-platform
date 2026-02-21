@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p88_d2d1db69b731e995dd0320c51848fe9f",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 88,
+    "taxon_name": "ジムグリガエル亜科",
+    "scientific_name": "Microhylinae",
+    "family": "ジムグリガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.88)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Microhylinae",
+        "dwc:vernacularName": "ジムグリガエル亜科",
+        "dwc:occurrenceRemarks": "　前鋤骨は縮小して，内鼻孔の前内縁のみにあることが多い．鎖骨がなく，また多くは前烏口骨もないが，上胸骨の痕跡は原則として存在する．\n　16属100種近くを含み，アジアの東部および南部と南北両アメリカとに分布している．日本にはヒメアマガエル属の1種だけしかいないが，朝鮮には別属（ジムグリガエル属 Kaloula GRAY, 1831）のものが侵入している．"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_e6342d32227a2b52a759ad9b6260a69e",
+    "doi": "10.1006\/anbe.2003.2236",
+    "title": "Incompatibility between antipredatory vigilance and scrounger tactic in nutmeg mannikins, Lonchura punctulata",
+    "year": 2003,
+    "container_title": "Animal Behaviour",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1006\/anbe.2003.2236",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1006\/anbe.2003.2236",
+        "dc:title": "Incompatibility between antipredatory vigilance and scrounger tactic in nutmeg mannikins, Lonchura punctulata",
+        "dc:date": 2003,
+        "dc:source": "Animal Behaviour",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

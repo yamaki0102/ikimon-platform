@@ -1,0 +1,20 @@
+{
+    "id": "paper_709fe731bcbcbee6271db1b70654ebe2",
+    "doi": "10.5962\/p.333785",
+    "title": "Butterfly Taxonomy: A Reply",
+    "year": 1982,
+    "container_title": "The Journal of Research on the Lepidoptera",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.333785",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.333785",
+        "dc:title": "Butterfly Taxonomy: A Reply",
+        "dc:date": 1982,
+        "dc:source": "The Journal of Research on the Lepidoptera",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

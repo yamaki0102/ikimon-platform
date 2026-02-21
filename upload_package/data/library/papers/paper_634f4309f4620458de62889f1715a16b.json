@@ -1,0 +1,20 @@
+{
+    "id": "paper_634f4309f4620458de62889f1715a16b",
+    "doi": "10.2307\/3503455",
+    "title": "Grasshopper Problems in Yacutia (Eastern Siberia, Russia) Grasslands",
+    "year": 1995,
+    "container_title": "Journal of Orthoptera Research",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/3503455",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/3503455",
+        "dc:title": "Grasshopper Problems in Yacutia (Eastern Siberia, Russia) Grasslands",
+        "dc:date": 1995,
+        "dc:source": "Journal of Orthoptera Research",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

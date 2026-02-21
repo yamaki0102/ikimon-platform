@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p156_791e5e6c2c643c7ae31391c5e7f1b000",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 156,
+    "taxon_name": "スベトカゲ亜属",
+    "scientific_name": "Leiolopisma DUMERIL et BIBRON, 1839",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.156)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Leiolopisma DUMERIL et BIBRON, 1839",
+        "dwc:vernacularName": "スベトカゲ亜属",
+        "dwc:occurrenceRemarks": "　前頭頂板は対をなしていることと1枚しかないとこととがあり．頭頂間板は多くは明瞭であるが，時には頭頂間板のなくなっているものもある．下眼瞼は1枚の透明な窓から成り．鱗におおわれていない．耳孔は普通明瞭であるが，鱗でおおい隠されているものもある．四肢は一般に短かく．5指5趾のものが多いが，時には4指になっているものもある．\n　スベトカゲ属の亜属のうちではもっとも大きいが，適応で外部形態に収斂現象の起こったものを寄せ集めた嫌いがあり，必ずしも同質的であるとはいえない．属の分布範囲のほとんど全域から知られ．日本には1種2亜種を産する．\n\n<亜種の検索表>\n1 (2) 体は比較的太く．項板から後肢の基部までの間に 59〜65枚ぐらいの体鱗がある；第4趾に 14〜16枚の趾下板をそなえている；琉球列島の中部および南部に産する----------サキシマスベトカゲ．\n2 (1) 体は比較的細長く．項板から後肢の基部までの間に 66〜70枚ぐらいの体鱗がある；第4趾に 11〜13枚の趾下板をそなえている；対馬に産する----------ツシマスベトカゲ．\n\n第14図．スベトカゲ亜属の2亜種の左後肢腹面；左：サキシマスベトカゲ；右：ツシマスベトカゲ．\n\n84. サキシマスベトカゲ\nLygosoma (Leiolopisma) reevesii boettgeri (VAN DENBURGH, 1912)\n　体の背面は赤褐色か暗褐色で，黒褐色の微小な斑点を散布し，鼻孔から始まって眼を通り，体の側面を後方へ走って尾端に達する黒褐色の縦条がある．この縦条は，胴の中央部で3鱗列ぐらいをおおい，その上下両縁は白く縁取られている．また，この",
+        "dwc:taxonConceptID": "gbif:2461876",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Leiolopisma DUMERIL et BIBRON, 1839",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2461876,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

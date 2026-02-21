@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_103816a7d5bbeeb31211ef8aee0f91f9_d115f7da347487de14053849c3031aa3",
+    "paper_id": "paper_103816a7d5bbeeb31211ef8aee0f91f9",
+    "doi": "10.3109\/19401736.2015.1101562",
+    "query_id": "garrulax_canorus_jp",
+    "query_label": "Garrulax canorus (Gabi-cho) Japan",
+    "scientific_name": "Garrulax canorus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.3109\/19401736.2015.1101562",
+        "dwc:scientificName": "Garrulax canorus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2493479",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Garrulax canorus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Leiothrichidae"
+    },
+    "gbif_taxon_key": 2493479,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Leiothrichidae"
+}

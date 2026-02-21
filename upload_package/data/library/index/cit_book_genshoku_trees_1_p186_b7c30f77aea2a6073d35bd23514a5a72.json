@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p186_b7c30f77aea2a6073d35bd23514a5a72",
+    "book_id": "book_genshoku_trees_1",
+    "page": 186,
+    "taxon_name": "A (Continued)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.186)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "A (Continued)",
+        "dwc:occurrenceRemarks": "  polygama IV 118\n  rufa IV 119\nAdina V 177\n  rubella V 178\nAesculus V 28\n  hippocastanum V 30\n  turbinata V 27\nAgathis V 284\nAilanthus V 1\n  altissima V 1\nAkebia IV 104\n  quinata IV 104\n  pentaphylla IV 105\n  trifoliata IV 104\nAlangium IV 201\n  platanifolium IV 201\n  ――var. macrophyllum V 90\nAlbizzia IV 262\n  julibrissin IV 262\nAlchornea IV 265\n  davidi IV 265\nAleurites IV 267\n  cordata IV 267\nAllamanda V 173\n  cathartica V 173\nAlnus IV 29\n  firma IV 24\n  hirsuta IV 21\n  japonica IV 20\n  matsumurae IV 22\n  maximowiczii IV 26\n  pendula IV 24\n  serrulatoides IV 22\n  sieboldiana IV 24\n  trabeculosa IV 20\nAmelanchier IV 201\n  asiatica IV 201\nAmpelopsis V 55\n  brevipedunculata V 55\nAnacardium V 10\n  occidentale V 10\nAndromeda V 127\n  polifolia V 131\nAndrosaemum V 80\nAnemone IV 80\nAngelica V 146\n  keiskei V 146\n  ursina V 147\nAphananthe IV 46\n  aspera IV 46\nAralia V 100\n  elata V 100\nAraucaria V 284\n  araucana V 284\nArdisia V 147\n  crenata V 148\n  crispa V 138\n  japonica V 147\n  pusilla V 147\nArenga V 234\n  pinnata V 234\nAronia V 252\n  arbutifolia V 252\nArtemisia V 60\n  sternutatoria V 62\nArundinaria V 234\n  chino V 234\n  ――var. vaginata V 235\n  graminea V 235\n  pygmaea V 237\n  simonii V 236\nAucuba V 94\n  japonica V 94\n  ――var. borealis V 94\nAzalea IV 252\n  bilimba IV 263"
+    }
+}

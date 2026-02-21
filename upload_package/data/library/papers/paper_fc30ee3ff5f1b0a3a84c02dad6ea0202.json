@@ -1,0 +1,20 @@
+{
+    "id": "paper_fc30ee3ff5f1b0a3a84c02dad6ea0202",
+    "doi": "10.1007\/bf02242086",
+    "title": "Zug und Rast von Feldgänsen(Anser anser, A. fabalis, A. brachyrhynchus, A. albifrons, A. caerulescens) auf Helgoland in den Jahren 1962–1982 mit Anmerkungen zum Vorkommen der Branta-Arten",
+    "year": 1983,
+    "container_title": "Zeitschrift für Jagdwissenschaft",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/bf02242086",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/bf02242086",
+        "dc:title": "Zug und Rast von Feldgänsen(Anser anser, A. fabalis, A. brachyrhynchus, A. albifrons, A. caerulescens) auf Helgoland in den Jahren 1962–1982 mit Anmerkungen zum Vorkommen der Branta-Arten",
+        "dc:date": 1983,
+        "dc:source": "Zeitschrift für Jagdwissenschaft",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

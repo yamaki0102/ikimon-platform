@@ -1,0 +1,18 @@
+{
+    "taxon_key": 6135317,
+    "scientific_name": "Parasteatoda japonica (Bösenberg & Strand, 1906)",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": 9396165,
+    "accepted_name": "Nihonhimea japonica",
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Theridiidae",
+    "genus": "Nihonhimea",
+    "rank": "SPECIES",
+    "original_query": "Parasteatoda japonica",
+    "_cached_at": 1771646819
+}

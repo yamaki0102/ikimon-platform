@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p8_e973c84804f62cbbb161eb3303e1b1bc",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 8,
+    "taxon_name": "目次 (2\/3)",
+    "scientific_name": "CONTENTS",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.8)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "CONTENTS",
+        "dwc:vernacularName": "目次 (2\/3)",
+        "dwc:occurrenceRemarks": "　　　イシガメ亜科 Emydinae　77\n　　　　ハコガメ属 Cyclemys (78)\n　　　　ヤマガメ属 Geoemyda (79)\n　　　　クサガメ属 Geoclemys (80)\n　　　　イシガメ属 Clemmys (81)\n　　スッポン科 Trionychidae　83\n　　　スッポン属 Trionyx (83)\n　トカゲ目 SQUAMATA　85\n　　トカゲ亜目 LACERTILIA　85\n　　　ヤモリ科 Gekkonidae　86\n　　　　ヤモリ亜科 Gekkoninae　87\n　　　　　フトオヤモリ属 Gehyra (88)\n　　　　　ヤモリ属 Gekko (91)\n　　　　　ナキヤモリ属 Hemidactylus (93)\n　　　　トカゲモドキ亜科 Eublepharinae　97\n　　　　　トカゲモドキ属 Eublepharis (97)\n　　　キノボリトカゲ科 Agamidae　102\n　　　　キノボリトカゲ属 Japalura (103)\n　　　トカゲ科 Scincidae　104\n　　　　トカゲ属 Eumeces (105)\n　　　　ミヤコトカゲ属 Emoia (115)\n　　　　スベトカゲ属 Lygosoma (117)\n　　　　オガサワラトカゲ属 Ablepharus (125)\n　　　カナヘビ科 Lacertidae　127\n　　　　サキシマカナヘビ属 Apeltonotus (128)\n　　　　カナヘビ属 Takydromus (130)\n　　ヘビ亜目 OPHIDIA　133\n　　　メクラヘビ科 Typhlopidae　135\n　　　　メクラヘビ亜科 Typhlopinae　135\n　　　　　メクラヘビ属 Typhlops (135)\n　　　ヘビ科 Colubridae　137\n　　　　セダカヘビ亜科 Pareinae　140\n　　　　　セダカヘビ属 Pareas (140)\n　　　　タカチホヘビ亜科 Xenoderminae　141\n　　　　　タカチホヘビ属 Achalinus (142)\n　　　　ヘビ亜科 Colubrinae　144\n　　　　　ヘビ属 Elaphe (145)\n　　　　　アオヘビ属 Opheodrys (153)\n　　　　　マダラヘビ属 Dinodon (156)\n　　　　　ヒメヘビ属 Calamaria (160)\n　　　　ユウダ亜科 Natricinae　162\n　　　　　ユウダ属 Natrix (162)\n　　　　　ヤマカガシ属 Rhabdophis (166)"
+    }
+}

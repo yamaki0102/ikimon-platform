@@ -1,0 +1,20 @@
+{
+    "id": "paper_d7bd0a7b13d489586a25b23029351370",
+    "doi": "10.1127\/entom.gen\/21\/1997\/253",
+    "title": "Relationships of some European Calopteryx-Species suggested by Time Analysis of Courtship Flights (Odonata: Calopterygidae)",
+    "year": 1997,
+    "container_title": "Entomologia Generalis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1127\/entom.gen\/21\/1997\/253",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1127\/entom.gen\/21\/1997\/253",
+        "dc:title": "Relationships of some European Calopteryx-Species suggested by Time Analysis of Courtship Flights (Odonata: Calopterygidae)",
+        "dc:date": 1997,
+        "dc:source": "Entomologia Generalis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_71bad6f33bae81802d149cbd7c55d2a6_cc1bf4daf0d469d0a951ad89b4453994",
+    "paper_id": "paper_71bad6f33bae81802d149cbd7c55d2a6",
+    "doi": "10.1111\/j.1751-8369.1997.tb00251.x",
+    "query_id": "jp_bird_2481890_en",
+    "query_label": "Phalacrocorax carbo Japan (ecology\/distribution)",
+    "scientific_name": "Phalacrocorax carbo",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1111\/j.1751-8369.1997.tb00251.x",
+        "dwc:scientificName": "Phalacrocorax carbo",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481890",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Phalacrocorax carbo",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Phalacrocoracidae"
+    },
+    "gbif_taxon_key": 2481890,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Phalacrocoracidae"
+}

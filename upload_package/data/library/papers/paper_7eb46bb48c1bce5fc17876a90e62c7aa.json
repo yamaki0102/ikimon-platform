@@ -1,0 +1,20 @@
+{
+    "id": "paper_7eb46bb48c1bce5fc17876a90e62c7aa",
+    "doi": "10.11646\/zootaxa.2053.1.2",
+    "title": "Myuchelys gen. nov. a new genus for Elseya latisternum and related forms of Australian freshwater turtle (Testudines: Pleurodira: Chelidae)",
+    "year": 2009,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.2053.1.2",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.2053.1.2",
+        "dc:title": "Myuchelys gen. nov. a new genus for Elseya latisternum and related forms of Australian freshwater turtle (Testudines: Pleurodira: Chelidae)",
+        "dc:date": 2009,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

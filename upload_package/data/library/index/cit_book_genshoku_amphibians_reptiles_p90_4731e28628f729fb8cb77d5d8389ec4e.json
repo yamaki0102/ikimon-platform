@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p90_4731e28628f729fb8cb77d5d8389ec4e",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 90,
+    "taxon_name": "Unknown",
+    "scientific_name": "Rhacophorus buergeri",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.90)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Buergeria buergeri",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Grayish-brown frog, adapted for rocks.",
+        "dwc:taxonConceptID": "gbif:10953649",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus buergeri",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10953649,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Buergeria buergeri",
+    "gbif_accepted_key": 5217233,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p17_e4aa571dde2575d194670d8c78811c6b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 17,
+    "taxon_name": "オオイタサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) dunni TAGO, 1931",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "100〜140mm",
+        "season": "3〜4月頃 (場所によっては12月)",
+        "distribution": "大分県, 宮崎県の海岸地帯"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.17)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hynobius (Hynobius) dunni TAGO, 1931",
+        "dwc:vernacularName": "オオイタサンショウウオ",
+        "dwc:occurrenceRemarks": "　背面は暗緑褐色またはやや黄色みを帯びた暗褐色，個体によって黒褐色の斑点を散布しているものやそれらが横につながり合っているものもある．体側から腹面にかけては色が淡く，腹面に青白色の小点を密布している．尾には黄色の縦条がないのを原則とするが，稀には背縁の一部に淡黄色の縦条をそなえている個体も現われる．頭部はかなり大きく，吻端が円くて，左右の外鼻孔が比較的離れている．眼も耳腺もかなり大きい．鋤口蓋歯列はU字形であることが多いが，V字形に近い個体もある．胴は長くて強壮，背面に12本（稀には13本），腹面に10本の肋条をそなえている．四肢も長くてよく発達し，体側に沿って伸長すると指趾が2肋条分以上重なり合う．後肢は5趾性で，第5趾は第1趾より少し長い．尾は側扁しているが比較的低く，にぶい末端に終っている．体長：100〜140mm（尾は体長の2\/5〜4\/9ぐらいを占める）．\n　この種もカスミサンショウウオに類縁が近く，東九州における後者の置換種ではないかと考えられる．しかし，両種の間には四肢の長さや頭骨の形態などに明瞭な差異があり，分布域の重なり合う場所でも今のところ中間的な個体が知られていない．オオイタサンショウウオは，大分県と宮崎県との海岸地帯に限って分布し，平地や丘陵地にすんでいる．普通は3〜4月頃（場所によっては12月に），池や水田の小溝などの止水に産卵する．卵嚢は巻いたひも状で透明，水に沈んだ木の枝などに1対ずつ付着される．卵嚢の外皮は比較的薄いが，表面はほぼなめらかで，カスミサンショウウオのもののようなしわがない．卵は黄色くて比較的小形，1卵嚢中に通常30〜70個含まれている．",
+        "dwc:taxonConceptID": "gbif:2431162",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hynobius (Hynobius) dunni TAGO, 1931",
+        "dwc:family": "Hynobiidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2431162,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hynobiidae",
+    "gbif_match_type": "EXACT"
+}

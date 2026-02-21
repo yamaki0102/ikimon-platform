@@ -1,0 +1,20 @@
+{
+    "id": "paper_5879235797d2d5a37b18d3e03d806a8f",
+    "doi": "10.2173\/bow.redava.01",
+    "title": "Red Avadavat (Amandava amandava)",
+    "year": 2020,
+    "container_title": "Birds of the World",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/bow.redava.01",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/bow.redava.01",
+        "dc:title": "Red Avadavat (Amandava amandava)",
+        "dc:date": 2020,
+        "dc:source": "Birds of the World",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

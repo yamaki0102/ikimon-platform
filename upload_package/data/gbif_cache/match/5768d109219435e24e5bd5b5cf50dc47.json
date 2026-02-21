@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2158866,
+    "scientific_name": "Neoscona punctigera (Doleschall, 1857)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Araneidae",
+    "genus": "Neoscona",
+    "rank": "SPECIES",
+    "original_query": "Neoscona punctigera",
+    "_cached_at": 1771646863
+}

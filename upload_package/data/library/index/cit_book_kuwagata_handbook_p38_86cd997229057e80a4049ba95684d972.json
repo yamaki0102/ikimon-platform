@@ -1,0 +1,50 @@
+{
+    "id": "cit_book_kuwagata_handbook_p38_86cd997229057e80a4049ba95684d972",
+    "book_id": "book_kuwagata_handbook",
+    "page": 38,
+    "taxon_name": "アカアシクワガタ",
+    "scientific_name": "Dorcus rubrofemoratus",
+    "family": null,
+    "data_icons": {
+        "size": "male: 23-59mm, female: 24-40mm",
+        "season": "",
+        "distribution": "北海道〜九州, 対馬"
+    },
+    "photos": [
+        "大型個体 (Male Large)",
+        "小型個体 (Male Small)",
+        "♀ (Female)"
+    ],
+    "figures": [
+        "1: 黒色で光沢",
+        "2: 第一内歯は中央より前方",
+        "3: 外側に反る (tibiae?)"
+    ],
+    "page_type": "SPECIES_DATA",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kuwagata_handbook (p.38)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Dorcus rubrofemoratus",
+        "dwc:vernacularName": "アカアシクワガタ",
+        "dwc:occurrenceRemarks": "生息地: ブナ林, 冷涼な地域では雑木林",
+        "dwc:taxonConceptID": "gbif:7524854",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Dorcus rubrofemoratus",
+        "dwc:family": "Lucanidae",
+        "dwc:nameAccordingTo": "book_kuwagata_handbook"
+    },
+    "gbif_taxon_key": 7524854,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Lucanidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p118_d893833f202d0a6155a3ea69a4c67e47",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 118,
+    "taxon_name": "オンナダケヤモリ",
+    "scientific_name": "Gehyra mutilata (WIEGMANN, 1835)",
+    "family": "ヤモリ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.118)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Gehyra mutilata (WIEGMANN, 1835)",
+        "dwc:vernacularName": "オンナダケヤモリ",
+        "dwc:occurrenceRemarks": "　背面は灰色または灰褐色で，個体によって赤みの強いこともある．また．色彩がいちようなもの，黒褐色の斑点を一面に散布しているもの，暗褐色の雲状斑紋をそなえているものなどの変異がある．上唇と下唇とは，いちように灰色であることも，黄白色または汚白色の基色に暗色の斑点をそなえていることもあり．眼の後方に暗色の縦条がある個体も見られる．腹面は汚白色．頭部は吻部より大きく，卵形で，幅よりもはるかに長い．吻は眼と耳孔との間隔より長く．にぶい吻端に終っている．鼻孔は小形で吻端部の背側にあり．吻端板，鼻間板，第1上唇板および 2〜3枚の小鱗によって囲まれている．眼はほぼ円形で，その直径が眼と鼻孔との間隔よりも明らかに小さい．耳孔は楕円形で小さく．その長径が眼の直径の半分以下しかない，吻端板はほぼ長方形で高さよりもはるかに幅広く，頂縁が1対の鼻間板とそれに挟まれた 1〜2枚の小鱗とに接している．上唇板は 8〜10枚，下唇板は 6〜9枚あり，下唇板は一般に上唇板よりも大きくて数が少ない．頤板はほぼ三角形でかなり大形，後頤板は2対あり，とくに内方の1対は長大で互に幅広く接し合っている．これらの後頤板の前縁は第1〜2下唇板に接していることが多いが．小鱗が介在して両者を隔てていることもある．外後頤板の外側には，更に1対のやや大きい鱗のあることが多い．背面の皮膚は，いちように細かい顆粒でおおわれているのを原則とするが，個体によって．やや大形の顆粒がごく少数混在することもある．咽頭部の顆粒は背面のものとほぼ同様．胸部より後方では，鱗が次第に大きくなって多少とも瓦状に重なり合うようになる．体側の皮膚は，にぶいひだを形成していることが少なくない．♂では，前肛部と大腿部下面との小孔列がつながり合って，25〜41個ぐらいの小孔からなる著しい点線を形成している．この小孔列は中央で折れ曲がり，側方へは大腿部の先端に達する．四肢は短かいがよく発達し，後肢の後縁に皮膚のひだをそなえている．指趾の基部には明瞭なみずかき状の膜があり．吸盤は幅が広くて指（趾）下板が2列に並んでいる．それぞれの指（趾）下板は著しく斜向し，その数は第4趾で 7〜9対ぐらい．尾は扁平で基",
+        "dwc:taxonConceptID": "gbif:2446249",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Gehyra mutilata (WIEGMANN, 1835)",
+        "dwc:family": "Gekkonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2446249,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gekkonidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p237_c1c23bcb60bdd02df20544f5e38e8b9c",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 237,
+    "taxon_name": "ヒメハブ (続き)",
+    "scientific_name": "Trimeresurus okinavensis BOULENGER, 1892",
+    "family": "クサリヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.237)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Ovophis okinavensis",
+        "dwc:vernacularName": "ヒメハブ (続き)",
+        "dwc:occurrenceRemarks": "鼻板は方形または梯形で高さの方が幅よりも大きく．上縁は鋭利状で2枚の鱗に接している．前鼻板は後鼻板よりも明らかに大きく．両板の間に鼻孔が開いている．鼻間板は小形．互鱗によって両側に隔てられ．吻端板にも接していない．鼻間板と眼上板との間には2枚の鱗がある．頰板は小形で，上下2枚の眼前板に接していることも．下眼前板だけにしか接していないこともある．上下の眼前板の間には小形の鱗がない．頰窩の位置は鼻孔よりも眼の方に近く，第2上唇板．下前前板および窩下板によって囲まれているか．あるいはこれらの3枚と頰板とによって囲まれている．眼下板は下前前板よりも短かいが幅は広い．眼は大きくて，その長径が眼と吻端との間隔の半分に等しいかまたはこれに近い．眼後板．眼下板は共に 2〜3枚で前者は小形，眼下板と第4上唇板との間には2列に並んだ鱗がある．眼上板は大きくて，その長さが眼の長径の1倍半を越える．背面の鱗は比較的大きくて左右両眼上板の間でも 6〜9枚ぐらいしかなく，後頭部では明瞭な隆条をそなえている．側頭部の鱗は下方ものほど大きく．最下列のものはほぼ平滑であるがその下側の上唇板より小さい．上唇板は 7〜8枚あって，第 3〜4 両上唇板は大形．頤板はほぼ三角形で後角がとがり．その後方には明瞭な咽頭溝がある．下唇板は 9〜10枚で，第 1〜2 下唇板または第 1〜3 下唇板が咽頭板に接し．左右の第1下唇板は頤板の後で互に接し合っている．咽頭板は1対で大きく．正中線上で互に接し合い．その後方には第1腹板までの間に 3〜4 対の鱗がある．体鱗は．頸部で 23〜28列，胴の中央部では普通23列（時には21列），胴の後部では19列あって，短かい隆条と1対の不明瞭な鱗孔とをそなえている．また．最外側の1鱗列が平滑な個体もある．腹板は平滑で側稜がなく．その数は 125〜135枚ぐらい．尾下板は 39〜55対ぐらいある．体長：300〜550mm（尾が体長の 1\/7〜1\/5を占める）．\n　分布域はハブの分布域にほぼ等しく．奄美．沖縄の両群島に限って見られる．しかし．同種の分布模様が完全に重なり合うわけでもなく．ヒメハブがいてハブのいない島もあれば．逆にハブがいてヒメハブのいない島もある．なお．高良 (1957) は．本種の分布模様とヒャンのものとがほぼ等しいことを指摘している．\n　ヒメハブは，その体つきや模様がマムシに似ているだけでなく．動作もマムシと同じように緩慢で自分から攻撃に出るようなことがない．地上性で，山道の落葉の上にとぐろを巻いたり落葉の中に体を埋めたりしてほとんど動かずにいるので．体の模様が保護色になって所在的のわかりにくいことが多い．\n\n129. サキシマハブ Trimeresurus elegans (GRAY, 1849)\n　ヒメハブに似ている点が多いが，体がはるかに大きくて長く．腹面の色が淡く．頭部背面の鱗が細かく．窩下板が眼に届かず．また腹板や尾下板の数も明らかに多い．吻端部の上縁はハブよりも鋭いが．ヒメハブよりは明らかににぶく，とくに吻端板の上縁が反り返ってはいない．\n　体の背面は褐色ないし灰褐色で暗褐色または黒褐色の斑紋をそなえ，腹面は淡黄褐色ないし黄白色で，不規則な模様になった褐色の斑点群をそなえている．背面の斑紋",
+        "dwc:taxonConceptID": "gbif:2443813",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Trimeresurus okinavensis BOULENGER, 1892",
+        "dwc:family": "Viperidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2443813,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Ovophis okinavensis",
+    "gbif_accepted_key": 2443811,
+    "gbif_family": "Viperidae",
+    "gbif_match_type": "EXACT"
+}

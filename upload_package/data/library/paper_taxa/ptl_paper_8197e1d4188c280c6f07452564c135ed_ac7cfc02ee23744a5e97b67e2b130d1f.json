@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_8197e1d4188c280c6f07452564c135ed_ac7cfc02ee23744a5e97b67e2b130d1f",
+    "paper_id": "paper_8197e1d4188c280c6f07452564c135ed",
+    "doi": "10.63172\/141492dylxru",
+    "query_id": "jp_bird_2480857_en",
+    "query_label": "Nycticorax caledonicus Japan (ecology\/distribution)",
+    "scientific_name": "Nycticorax caledonicus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.63172\/141492dylxru",
+        "dwc:scientificName": "Nycticorax caledonicus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2480857",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Nycticorax caledonicus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ardeidae"
+    },
+    "gbif_taxon_key": 2480857,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ardeidae"
+}

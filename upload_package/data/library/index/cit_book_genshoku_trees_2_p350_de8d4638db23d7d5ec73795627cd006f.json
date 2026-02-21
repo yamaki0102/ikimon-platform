@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p350_de8d4638db23d7d5ec73795627cd006f",
+    "book_id": "book_genshoku_trees_2",
+    "page": 350,
+    "taxon_name": "和名索引 (350頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.350)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "和名索引 (350頁)",
+        "dwc:occurrenceRemarks": "ヨウラクツツジ属 V143\nヨグソミネバリ IV27\nヨコグラノキ V50\nヨシノスギ(スギ) V261\nヨソゾメ(ガマズミ) V207\nヨツヅミ(ガマズミ) V207\nヨドガワツツジ V110\nヨメナノキ(ズイナ) IV159\nヨメノナミダ(ハナイカダ) V92\nヨレスギ V262\nヨロイスギ(アメリカウロコモミ)\n     V284\nヨーロッパアカマツ(オウシュウア\n     カマツ) V243\nヨーロッパイチイ(セイヨウイチイ)\n     V286\nヨーロッパウチワヤシ(チャボトウ\n     ジュロ) V235\nヨーロッパカイドウ IV215\nヨーロッパキイチゴ(ラズベリー)\n     IV229\nヨーロッパグリ(セイヨウグリ)\n     IV42\nロッパパスモモ(セイヨウスモモ)\n     IV190\nロッパパトウヒ(ドイツトウヒ)\n     V252\nロッパパナラ IV32\nロッパブナ IV51\n\nら\n\nライム IV281\nライラック(ムラサキハシドイ)\n     V160\nラカンマキ V280\nラクウショウ V263\nラジアタマツ V244\nラズベリー IV229\nラブチェーン(ハート カズラ)\n     V174\nラベンダー V188\nランタナ V183\nランタナ属 V183\nランタナ ヒブリダ V183\nランブータン V28\n\nり\n\nリキダマツ V242\nリグナムバイタ IV263\nリュウガン V26\nリュウキュウアオキ(アオキ)\n     V179\nリュウキュウコウガイ(メヒルギ)\n     V88\nリュウキュウシュロチク(カンノン\n     チク) V229\nリュウキュウツツジ(シミズササ\n     エ) V120\nリュウキュウバライチゴ(オオバ\n     イチゴ) IV228\nリュウキュウマツ V238\nリュウキュウマメガキ(シナノガキ)\n     V150\nリュウキュウヤナギ(マルバヤナギ)\n     V191\nリュウケツジュ V217\nりゅうぜつらん科 V215\nリュウノタマ(タマサンゴ) V191\nリョウブ V102\nりょうぶ科 V102\nリョウブ属 V102\nリョクガク(アオジクウメ) IV189\nリラ(ムラサキハシドイ) V160\nリンゴ IV210\nリンゴ属 IV209\nリンゴツバキ IV121\nリンショウバイ(ニワウメ) IV196\nリンショウバイ(ヒトエニワザクラ)\n     IV197\nリンネソウ V207\nリンネソウ属 V207\nリンボク IV179\n\nる\n\nルッセリア属 V193\nルリダマノキ(ルリミノキ) V186\nルリミノウシコロシ(サワフタギ)\n     V156\nルリミノキ V186"
+    }
+}

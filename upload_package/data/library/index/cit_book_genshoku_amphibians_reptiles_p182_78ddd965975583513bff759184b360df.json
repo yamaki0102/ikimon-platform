@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p182_78ddd965975583513bff759184b360df",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 182,
+    "taxon_name": "ヘビ属（ナメラ属）",
+    "scientific_name": "Elaphe FITZINGER, 1833",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.182)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Elaphe FITZINGER, 1833",
+        "dwc:vernacularName": "ヘビ属（ナメラ属）",
+        "dwc:occurrenceRemarks": "　体は長くて円筒状あるいはやや側扁し．尾も長くて尾下板が対になっている．頭部は多少とも長く，頸部よりも明らかに大きい．眼は中庸であるかあるいは比較的大キく，瞳孔が円い．鼻孔は原則として2枚の鼻板の間にある．また．原則として頰板がある．前額板は鼻間板より大きく．側頭板は明瞭．上唇板は 12〜24本あって，ほぼ等大であるか，あるいは前後いずれかのものがわずかに大きくなっている．体鱗は 19〜27列に並び，1対の鱗孔をそなえている．背方の体鱗には隆条のある場合が多いが，全体に平滑なものもある．腹板に側稜のあるものと，側稜がなくていちように曲がっているものとがある．\n　北半球に広く分布し，東南アジアなどでは赤道より南へも拡がっている．総計40種を越える主として地上性のヘビが含められているが，その分類にはかなり問題が多く．将来いくつかの属または亜属に分割される可能性が強い．日本には6種を産する．\n\n95. シマヘビ Elaphe quadrivirgata (BOIE, 1826)\n　体の背面は緑色がかった黄褐色または褐色で，胴背に4本．尾背に2本の黒褐色縦条をそなえている．これらの縦条の背方のものは，胴の大部分で第4鱗列とその両側の鱗列の半分とをおおい，後頭部から馬端まで続いている．また．側方のものは，第7鱗列の半分と第8鱗列とをおおい，頸部から肛門の位置まである．上唇は黄色く．眼の後縁から後下方に走って口角に達する黒褐色の顕著な縦条が後方の上唇板の背縁\n\n第23図．シマヘビの頭部；左から右へ背面，腹面および左側面．",
+        "dwc:taxonConceptID": "gbif:8870734",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Elaphe FITZINGER, 1833",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 8870734,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "HIGHERRANK"
+}

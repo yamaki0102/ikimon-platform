@@ -1,0 +1,20 @@
+{
+    "id": "paper_06daf92a9f67b4cc354912284f48b182",
+    "doi": "10.63172\/626648dphhag",
+    "title": "Unexpectedly large number of wandering albatrosses (Diomedea exulans) breeding on Antipodes Island, New Zealand",
+    "year": 1995,
+    "container_title": "Notornis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.63172\/626648dphhag",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.63172\/626648dphhag",
+        "dc:title": "Unexpectedly large number of wandering albatrosses (Diomedea exulans) breeding on Antipodes Island, New Zealand",
+        "dc:date": 1995,
+        "dc:source": "Notornis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_c6f5367eac4486e0e5a07a1d769c7934",
+    "doi": "10.1023\/a:1009695813606",
+    "title": "Acoustic monitoring of Orthoptera and its potential for conservation",
+    "year": 1998,
+    "container_title": "Journal of Insect Conservation",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1023\/a:1009695813606",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1023\/a:1009695813606",
+        "dc:title": "Acoustic monitoring of Orthoptera and its potential for conservation",
+        "dc:date": 1998,
+        "dc:source": "Journal of Insect Conservation",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

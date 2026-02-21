@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p61_20e75aa1358f9298426d0210fadf89fb",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 61,
+    "taxon_name": "ニホンアカガエル (続き)",
+    "scientific_name": "Rana (Rana) japonica japonica GÜNTHER, 1858",
+    "family": "アカガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.61)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana japonica",
+        "dwc:vernacularName": "ニホンアカガエル (続き)",
+        "dwc:occurrenceRemarks": "2関節に届き，切れ込みも浅い．体長：40〜70mm．\n　日本に固有の亜種で，本州，四国，九州および大隅群島に分布し，主として平地や丘陵地に多い．また，伊豆の八丈島にも移入されて定着している．1〜3月頃，水田や水溜りなどに産卵する．卵塊は球を圧平したような形で500〜3000個ぐらいの卵を含み，個々の卵は黒褐色で直径が1.5〜2.0mmぐらいある．\n　なお，この種は シナなどでいくつかの亜種に分化している．日本では，地域的な分化があまり見られないが，個体変異の幅はかなり大きい．とくに，背側隆条の多少曲がっているものに，マルテンスアカガエル R. martensii BOULENGER, 1886*) という名の与えられたことがあり，岡田および河野 (1923) はこれを R. temporaria の1変種であろうと考えた，後に，岡田 (1930, 1931, 1935) は，マルテンスアカガエルが，ニホンアカガエルとエゾアカガエルとの中間型であろうという見解を採り，学名の組合せも R. temporaria martensii と改めた．この型のカエルに関する実験的な研究はまだほとんど進んでいないが，これまでの知見を総合すると，おそらくニホンアカガエルの同物異名とみてよいものではないかと思われる．",
+        "dwc:taxonConceptID": "gbif:10950537",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Rana) japonica japonica GÜNTHER, 1858",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10950537,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Rana japonica",
+    "gbif_accepted_key": 2426816,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

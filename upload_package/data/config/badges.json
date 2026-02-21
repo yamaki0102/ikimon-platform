@@ -1,0 +1,274 @@
+[
+    {
+        "id": "survey_novice",
+        "name": "Survey Novice",
+        "name_ja": "調査員デビュー",
+        "description": "Completed your first field survey.",
+        "description_ja": "初めてのフィールド調査を完了しました。",
+        "icon": "clipboard",
+        "condition": {
+            "type": "survey_count",
+            "threshold": 1
+        }
+    },
+    {
+        "id": "survey_expert",
+        "name": "Survey Expert",
+        "name_ja": "熟練調査員",
+        "description": "Completed 10 field surveys.",
+        "description_ja": "10回のフィールド調査を完了しました。",
+        "icon": "clipboard-check",
+        "condition": {
+            "type": "survey_count",
+            "threshold": 10
+        }
+    },
+    {
+        "id": "expedition_leader",
+        "name": "Expedition Leader",
+        "name_ja": "遠征隊長",
+        "description": "Completed 50 field surveys.",
+        "description_ja": "50回のフィールド調査を完了しました。",
+        "icon": "map-marked",
+        "condition": {
+            "type": "survey_count",
+            "threshold": 50
+        }
+    },
+    {
+        "id": "beginner_observer",
+        "name": "Beginner Observer",
+        "name_ja": "ビギナー観察者",
+        "description": "Your journey begins with the first step.",
+        "description_ja": "記念すべき最初の1歩！",
+        "icon": "🌱",
+        "condition": {
+            "type": "post_count",
+            "threshold": 1
+        }
+    },
+    {
+        "id": "observer",
+        "name": "Observer",
+        "name_ja": "観察者",
+        "description": "Getting used to finding creatures.",
+        "description_ja": "5回の投稿達成。おめでとう！",
+        "icon": "📷",
+        "condition": {
+            "type": "post_count",
+            "threshold": 5
+        }
+    },
+    {
+        "id": "pro_observer",
+        "name": "Pro Observer",
+        "name_ja": "プロ観察者",
+        "description": "A seasoned naturalist.",
+        "description_ja": "20回の投稿達成。もはやベテラン！",
+        "icon": "⭐",
+        "condition": {
+            "type": "post_count",
+            "threshold": 20
+        }
+    },
+    {
+        "id": "biologist_jr",
+        "name": "Junior Biologist",
+        "name_ja": "駆け出し生物学者",
+        "description": "Identifying species correctly.",
+        "description_ja": "3種以上の生き物を見つけた証。",
+        "icon": "🦋",
+        "condition": {
+            "type": "species_count",
+            "threshold": 3
+        }
+    },
+    {
+        "id": "night_walker",
+        "name": "Night Walker",
+        "name_ja": "夜の住人",
+        "description": "Posted between 8PM and 4AM.",
+        "description_ja": "夜間の観察投稿。夜の生き物は面白い！",
+        "icon": "🦉",
+        "condition": {
+            "type": "time_range",
+            "start": "20:00",
+            "end": "04:00"
+        }
+    },
+    {
+        "id": "field_creator",
+        "name": "ikimonWalk Creator",
+        "name_ja": "ikimonWalkの開拓者",
+        "description": "Created your first ikimonWalk.",
+        "description_ja": "最初のikimonWalkを作成しました！",
+        "icon": "map",
+        "condition": {
+            "type": "my_field_count",
+            "threshold": 1
+        }
+    },
+    {
+        "id": "field_guardian",
+        "name": "Walk Guardian",
+        "name_ja": "ウォーク・ガーディアン",
+        "description": "Recorded 10 observations on your ikimonWalks.",
+        "description_ja": "ikimonWalkで10件の記録を行いました。",
+        "icon": "shield",
+        "condition": {
+            "type": "my_field_obs_count",
+            "threshold": 10
+        }
+    },
+    {
+        "id": "field_master",
+        "name": "Walk Master",
+        "name_ja": "ウォーク・マスター",
+        "description": "Recorded 50 observations on your ikimonWalks.",
+        "description_ja": "ikimonWalkで50件の記録を行いました。",
+        "icon": "crown",
+        "condition": {
+            "type": "my_field_obs_count",
+            "threshold": 50
+        }
+    },
+    {
+        "id": "field_researcher",
+        "name": "Walk Researcher",
+        "name_ja": "ウォーク研究者",
+        "description": "Achieved a Biodiversity Score (Shannon Index) > 2.0 on an ikimonWalk.",
+        "description_ja": "ikimonWalkで生物多様性指数(Shannon) 2.0以上を記録しました。",
+        "icon": "microscope",
+        "condition": {
+            "type": "my_field_score",
+            "threshold": 2.0
+        }
+    },
+    {
+        "id": "beginner_identifier",
+        "name": "Junior Guide",
+        "name_ja": "ビギナーガイド",
+        "description": "Helped identify 1 species.",
+        "description_ja": "最初の同定を行いました。",
+        "icon": "search",
+        "condition": {
+            "type": "id_count",
+            "threshold": 1
+        }
+    },
+    {
+        "id": "identifier",
+        "name": "Guide",
+        "name_ja": "ガイド",
+        "description": "Helped identify 10 species.",
+        "description_ja": "10種の同定を行いました。",
+        "icon": "search-check",
+        "condition": {
+            "type": "id_count",
+            "threshold": 10
+        }
+    },
+    {
+        "id": "expert",
+        "name": "PhD",
+        "name_ja": "博士",
+        "description": "Helped identify 50 species.",
+        "description_ja": "50種の同定を行いました。",
+        "icon": "award",
+        "condition": {
+            "type": "id_count",
+            "threshold": 50
+        }
+    },
+    {
+        "id": "insect_expert",
+        "name": "Insect Professor",
+        "name_ja": "昆虫博士",
+        "description": "Identified 20 insect species.",
+        "description_ja": "昆虫を20種同定しました。",
+        "icon": "bug",
+        "condition": {
+            "type": "taxon_id",
+            "groups": [
+                "Lepidoptera",
+                "Coleoptera",
+                "Hymenoptera",
+                "Diptera",
+                "Hemiptera",
+                "Orthoptera",
+                "Odonata"
+            ],
+            "threshold": 20
+        }
+    },
+    {
+        "id": "bird_expert",
+        "name": "Bird Professor",
+        "name_ja": "鳥博士",
+        "description": "Identified 15 bird species.",
+        "description_ja": "鳥類を15種同定しました。",
+        "icon": "feather",
+        "condition": {
+            "type": "taxon_id",
+            "groups": [
+                "Aves"
+            ],
+            "threshold": 15
+        }
+    },
+    {
+        "id": "plant_expert",
+        "name": "Plant Professor",
+        "name_ja": "植物博士",
+        "description": "Identified 15 plant species.",
+        "description_ja": "植物を15種同定しました。",
+        "icon": "flower",
+        "condition": {
+            "type": "taxon_id",
+            "groups": [
+                "Plantae"
+            ],
+            "threshold": 15
+        }
+    },
+    {
+        "id": "herp_expert",
+        "name": "Herp Professor",
+        "name_ja": "両爬博士",
+        "description": "Identified 10 reptile/amphibian species.",
+        "description_ja": "爬虫類・両生類を10種同定しました。",
+        "icon": "turtle",
+        "condition": {
+            "type": "taxon_id",
+            "groups": [
+                "Reptilia",
+                "Amphibia"
+            ],
+            "threshold": 10
+        }
+    },
+    {
+        "id": "allrounder",
+        "name": "All-Rounder",
+        "name_ja": "オールラウンダー",
+        "description": "Identified species from 5 different groups.",
+        "description_ja": "5つの異なる分類群の生き物を同定しました。",
+        "icon": "globe",
+        "condition": {
+            "type": "taxon_diversity",
+            "threshold": 5
+        }
+    },
+    {
+        "id": "trusted_expert",
+        "name": "Trusted Expert",
+        "name_ja": "信頼の専門家",
+        "description": "Reached Trust Level 4.",
+        "description_ja": "信頼レベル4に到達しました。",
+        "icon": "shield-check",
+        "condition": {
+            "type": "trust_level",
+            "threshold": 4
+        }
+    }
+]

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_trees_1_p210_687c9eee87d94c3c2de3f6c0958cde9e",
+    "book_id": "book_genshoku_trees_1",
+    "page": 210,
+    "taxon_name": "ランタナ ヒブリダ",
+    "scientific_name": "Lantana hybrida Neubert",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "SPECIES_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.210)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lantana hybrida Neubert",
+        "dwc:vernacularName": "ランタナ ヒブリダ",
+        "dwc:occurrenceRemarks": "502. ランタナ ヒブリダ (ランタナ属) [くまつづら科]\nLantana hybrida Neubert\nランタナ L. camara の園芸品種。温室内で栽培。西南暖地では露地越冬する。矮性の常緑小低木。高さ30cm内外。分枝多く、節間短く、卵形の葉が対生につく。葉は美乎縁で長さ2cm内外、表面に凹凸、濃緑色。花は小枝上き先で花茎上に頭状をなして密につく。花期は4-5月、四季咲、多花性で黄色、白色、桃色、赤色と豊富。肉質球形の核果。",
+        "dwc:taxonConceptID": "gbif:4086758",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Lantana hybrida Neubert",
+        "dwc:family": "Verbenaceae",
+        "dwc:nameAccordingTo": "book_genshoku_trees_1"
+    },
+    "gbif_taxon_key": 4086758,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Verbenaceae",
+    "gbif_match_type": "EXACT"
+}

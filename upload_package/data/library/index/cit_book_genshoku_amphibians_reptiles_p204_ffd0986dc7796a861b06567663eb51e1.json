@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p204_ffd0986dc7796a861b06567663eb51e1",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 204,
+    "taxon_name": "シロマダラ",
+    "scientific_name": "Dinodon orientale",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.204)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lycodon orientalis",
+        "dwc:vernacularName": "シロマダラ",
+        "dwc:occurrenceRemarks": "Plate 34 illustration (109). Black and white banding.",
+        "dwc:taxonConceptID": "gbif:2455588",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Dinodon orientale",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2455588,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Lycodon orientalis",
+    "gbif_accepted_key": 9501556,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "EXACT"
+}

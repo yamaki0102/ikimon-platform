@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p47_3dd9ac8057d9c3bbfa40285ff7b24b80",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 47,
+    "taxon_name": "スズガエル科",
+    "scientific_name": "Family Discoglossidae",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.47)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Family Discoglossidae",
+        "dwc:vernacularName": "スズガエル科",
+        "dwc:occurrenceRemarks": "　瞳孔の形には，円いもの，やや三角形に近いもの，垂直方向に細いものなどの変異がある．舌は，一般に端縁が円くて後部まで固着しているが，稀には端縁が多少えぐれていて，後部を自由に引き起こせるものもある．上顎に歯をそなえている．脊椎骨は後凹形で，第2〜4脊椎骨に肋骨がある．烏喙の援横突起は先端に向かって著しく拡がり，尾骨は2個の後薦椎顆に関節している．尾骨の基部背面には，横側方に突出した1対の顕著な突起がある．指趾骨の末端骨と亜末端骨との間には関節骨がない．\n　朝鮮，満州，シナ，インドシナ，フィリッピン，コーカサス，ヨーロッパ，北アフリカなどに分布し，4属8種で構成されている．日本の領域では，対馬からスズガエルの記録されたことがある．一般に体が小さくて両生的な生活をするものが多いが，完全な水生の種も知られている．化石種はヨーロッパで知られ，主として中新世の地層から見つかっている．なお，脊椎骨の構造や肋骨のようすなどを重視して，この科とコモリガエル科 Pipidae とを同じ亜目（スズガエル亜目 Opisthocoela）にまとめ"
+    }
+}

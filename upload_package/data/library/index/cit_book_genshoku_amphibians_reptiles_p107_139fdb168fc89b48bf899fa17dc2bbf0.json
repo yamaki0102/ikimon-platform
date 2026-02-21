@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p107_139fdb168fc89b48bf899fa17dc2bbf0",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 107,
+    "taxon_name": "クサガメ属",
+    "scientific_name": "Geoclemys GRAY, 1855",
+    "family": "カメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.107)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Geoclemys GRAY, 1855",
+        "dwc:vernacularName": "クサガメ属",
+        "dwc:occurrenceRemarks": "　頭部の皮膚は，頭頂部から後方で鱗に分かれている．頭骨側頭部の橋は完全．歯槽面の幅は非常に深いが隆条はない．椎骨板のうちの六角形のものは．前側縁の長さが後側縁の長さよりも明らかに短かい．腹甲は縫合線で背甲に固着し，腋下甲板と鼠径甲板とはともに明瞭．指趾間にみずかきがよく発達している．尾はあまり長くない．\n　わずかに3種で構成されていて，日本，朝鮮，シナ，台湾，インド北部などに分布している．2亜属に分けられる．",
+        "dwc:taxonConceptID": "gbif:2443249",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Geoclemys GRAY, 1855",
+        "dwc:family": "Geoemydidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2443249,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Geoemydidae",
+    "gbif_match_type": "HIGHERRANK"
+}

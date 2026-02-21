@@ -1,0 +1,20 @@
+{
+    "id": "paper_1a787107156e401d54004676fea7ce8a",
+    "doi": "10.1093\/jipm\/pmaf030",
+    "title": "Short-horned grasshopper (Orthoptera: Acrididae) ecology and management in the Western United States",
+    "year": 2025,
+    "container_title": "Journal of Integrated Pest Management",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1093\/jipm\/pmaf030",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1093\/jipm\/pmaf030",
+        "dc:title": "Short-horned grasshopper (Orthoptera: Acrididae) ecology and management in the Western United States",
+        "dc:date": 2025,
+        "dc:source": "Journal of Integrated Pest Management",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

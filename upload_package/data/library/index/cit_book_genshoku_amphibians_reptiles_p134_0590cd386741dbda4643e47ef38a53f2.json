@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p134_0590cd386741dbda4643e47ef38a53f2",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 134,
+    "taxon_name": "キノボリトカゲ属",
+    "scientific_name": "Japalura GRAY, 1853",
+    "family": "キノボリトカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.134)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Japalura GRAY, 1853",
+        "dwc:vernacularName": "キノボリトカゲ属",
+        "dwc:occurrenceRemarks": "　体は側扁していることもそうでないこともあるが，背面の鱗はつねにいちようでなく，細かいものと大形のものとが混じり合っている．背中線上のたてがみ状鱗列のようすには種類による変化があり．頸部ではかなり発達していることもあるが，胴背ではせいぜい鋸歯状で．そのような鱗列の全く分化していないものさえ知られている．鼓膜は一般に著しく．上睫板に続いて鋭い隆条を形成していることが多い．前頭部は平担であるか，あるいは多少凹んでいる．鼓膜は，鱗におおわれていることも．表面に現われていることもある．咽頭部には袋がないか．あっても非常に小形．前肢基部の前方には斜走する皮膚のしわがあって．微細な鱗におおわれている．前肛部にも大腿部にも小孔の列がない．尾は細長く．♂では基部がふくれている．\n　琉球列島，台湾，シナ中部および南部．ビルマ北部，ヒマラヤ地方，スマトラ．ボルネオなどに分布し．SMITH (1935) が属を再編成した結果．一応15種ほどに整理された．しかし，この類の分類は非常に難しく．日本周辺地域のものなども，まだ十分には研究されていない．樹上性のものも地上性のものもあるが．多くは山地にすみ．また，一般に体色を変える能力が著しい．",
+        "dwc:taxonConceptID": "gbif:2465937",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Japalura GRAY, 1853",
+        "dwc:family": "Agamidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2465937,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Agamidae",
+    "gbif_match_type": "HIGHERRANK"
+}

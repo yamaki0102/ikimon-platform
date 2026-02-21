@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p196_dd9f0859bcee4bd1bdae299125427562",
+    "book_id": "book_genshoku_trees_1",
+    "page": 196,
+    "taxon_name": "R (Continued)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.196)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "R (Continued)",
+        "dwc:occurrenceRemarks": "  illecebrosus IV 229\n  japonicus IV 221\n  kuntzeanus IV 226\n  microphyllus IV 224\n  minusculus IV 227\n  palmatus f. cephalanthus IV 224\n  parvifolius IV 227\n  peltatus IV 225\n  phoenicolasius IV 225\n  ribisifolius IV 222\n  sieboldii IV 228\n  sorbifolius IV 222\n  trifidus IV 225\n  vernus IV 228\nRuscus V 213\n  aculeatus V 213\n  hypophyllum V 213"
+    }
+}

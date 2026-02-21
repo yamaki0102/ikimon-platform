@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_trees_1_p306_eb007979520ca4d37996644598c1ffab",
+    "book_id": "book_genshoku_trees_1",
+    "page": 306,
+    "taxon_name": "ラカンマキ",
+    "scientific_name": "Podocarpus macrophyllus Lamb. var. maki Sieb.",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "SPECIES_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.306)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Podocarpus macrophyllus Lamb. var. maki Sieb.",
+        "dwc:vernacularName": "ラカンマキ",
+        "dwc:occurrenceRemarks": "752. ラカンマキ 「マキ属」[まき科]\nPodocarpus macrophyllus Lamb. var. maki Sieb.\n羅漢槙。関東以西、四国、九州に分布。常緑針葉小高木。幹は直立、高さ4-6m。多数の枝を発生し葉を密生。四方に広がる。全縁形、線状皮針形、厚質で深緑色、裏面は淡く無毛、中脈、縁辺真直。開花5月、雄花は円柱形で葉えきに2-3束生し黄白色。雌花は単生、前年枝の葉えきに単生。紫黄色、裸出。種子の肉質が秋に赤熟する。",
+        "dwc:taxonConceptID": "gbif:5285940",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Podocarpus macrophyllus Lamb. var. maki Sieb.",
+        "dwc:family": "Podocarpaceae",
+        "dwc:nameAccordingTo": "book_genshoku_trees_1"
+    },
+    "gbif_taxon_key": 5285940,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Podocarpaceae",
+    "gbif_match_type": "EXACT"
+}

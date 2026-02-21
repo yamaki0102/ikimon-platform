@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p31_661091d33313eefe80de595f11f5b7e4",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 31,
+    "taxon_name": "イモリ属",
+    "scientific_name": "Genus Triturus RAFINESQUE, 1815",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.31)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Genus Triturus RAFINESQUE, 1815",
+        "dwc:vernacularName": "イモリ属",
+        "dwc:occurrenceRemarks": "　頭部はやや扁平，普通は耳腺がよく発達しているが，亜属によっては（極東属を含む）耳腺の隆起していないものもある．頭骨の形には変異があるが，前顎骨は1個で対にならず，原則として鼻骨と額状骨とを結ぶ橋があり，また，上顎骨は短かくて，翼状骨にも鱗状骨にも接していない．鋤口蓋歯列は逆V字形．体表の皮膚はなめらかでなく，尾は側扁しているが長さにかなりの変異がある．幼生には平衡桿があり，尾の背鰭が前部の背面に及ぶ．\n　北半球に拡がり，総計20種ほどを含んでいる．しかし，分布は連続的でなく，ヨーロッパやアフリカ北西部からシベリア西部および中近東地方にかけての一帯 (Triturus 亜属)，極東地方 (Cynops 亜属)，北アメリカの太平洋岸 (Taricha 亜属) および北アメリカの東部からメキシコの北東部にかけての地域 (Diemictylus 亜属) の4地域に分かれている．これらの4群をそれぞれ独立の属と見る学者もあり (WOLTERSTORFF & HERRE, 1935など)，Zoological Record もこの分類に従っているが，少なくとも極東地方の Cynops は狭義の Triturus に類縁が近く，分布の不連続性を考慮に入れても，独立の属と認め得るほどの分化を遂げているかどうかは疑わしい．",
+        "dwc:taxonConceptID": "gbif:10514845",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Genus Triturus RAFINESQUE, 1815",
+        "dwc:family": "Formicidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10514845,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Formicidae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_28c107edb6484092307748235c70e07c_98d7e73377e30528c20883d5bf6f1814",
+    "paper_id": "paper_28c107edb6484092307748235c70e07c",
+    "doi": "10.1007\/bf02515825",
+    "query_id": "jp_tree_cryptomeria_japonica",
+    "query_label": "Cryptomeria japonica Japan (Sugi)",
+    "scientific_name": "Cryptomeria japonica",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1007\/bf02515825",
+        "dwc:scientificName": "Cryptomeria japonica",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:5284237",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Cryptomeria japonica",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Cupressaceae"
+    },
+    "gbif_taxon_key": 5284237,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Cupressaceae"
+}

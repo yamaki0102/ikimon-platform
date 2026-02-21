@@ -1,0 +1,14 @@
+{
+    "id": "ptl_paper_743ee208365c2899538de6aaef0e278c_d0006e9c28d3ad49e5f2c2ef23fcac62",
+    "paper_id": "paper_743ee208365c2899538de6aaef0e278c",
+    "doi": "10.1007\/bf01053292",
+    "query_id": "jp_insect_singing_insects",
+    "query_label": "Japan singing insects acoustic",
+    "scientific_name": "Japan singing",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1007\/bf01053292",
+        "dwc:scientificName": "Japan singing",
+        "dwc:vernacularName": null
+    }
+}

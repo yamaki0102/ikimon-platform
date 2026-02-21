@@ -1,0 +1,20 @@
+{
+    "id": "paper_bd87f2afb0e86e7f7e7c0f795ac46222",
+    "doi": "10.2307\/4079244",
+    "title": "The Fulmar in the British Isles The Breeding Distribution, History and Population of the Fulmar (Fulmarus glacialis) in the British Isles James Fisher George Waterston",
+    "year": 1942,
+    "container_title": "The Auk",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/4079244",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/4079244",
+        "dc:title": "The Fulmar in the British Isles The Breeding Distribution, History and Population of the Fulmar (Fulmarus glacialis) in the British Isles James Fisher George Waterston",
+        "dc:date": 1942,
+        "dc:source": "The Auk",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

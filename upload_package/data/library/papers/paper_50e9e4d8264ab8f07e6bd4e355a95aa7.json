@@ -1,0 +1,20 @@
+{
+    "id": "paper_50e9e4d8264ab8f07e6bd4e355a95aa7",
+    "doi": "10.3120\/0024-9637-58.4.234",
+    "title": "Population Ecology and Demography of an Endemic Subalpine Conifer (Pinus balfouriana) with a Disjunct Distribution in California",
+    "year": 2011,
+    "container_title": "Madroño",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3120\/0024-9637-58.4.234",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3120\/0024-9637-58.4.234",
+        "dc:title": "Population Ecology and Demography of an Endemic Subalpine Conifer (Pinus balfouriana) with a Disjunct Distribution in California",
+        "dc:date": 2011,
+        "dc:source": "Madroño",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

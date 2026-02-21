@@ -1,0 +1,20 @@
+{
+    "id": "paper_7718b52928679dc9178465335b936417",
+    "doi": "10.14491\/jbba.201-04",
+    "title": "Record for Juvenile Black Bittern (&lt;i&gt;Ixobrychus flavicollis&lt;\/i&gt;) from the Base of Mt. Oyama, Kanagawa Prefecture",
+    "year": 2008,
+    "container_title": "The Bulletin of the Japanese Bird Banding Association",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.14491\/jbba.201-04",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.14491\/jbba.201-04",
+        "dc:title": "Record for Juvenile Black Bittern (&lt;i&gt;Ixobrychus flavicollis&lt;\/i&gt;) from the Base of Mt. Oyama, Kanagawa Prefecture",
+        "dc:date": 2008,
+        "dc:source": "The Bulletin of the Japanese Bird Banding Association",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

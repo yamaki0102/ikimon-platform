@@ -1,0 +1,10 @@
+{
+    "id": "hamamatsu_park",
+    "name": "浜松城公園 共生エリア",
+    "owner": "浜松市",
+    "owner_org_id": "aikan_corp",
+    "description": "都市公園の中にある自然共生サイト。",
+    "created_at": "2026-02-14 11:30:41",
+    "updated_at": "2026-02-14 11:30:41",
+    "status": "active"
+}

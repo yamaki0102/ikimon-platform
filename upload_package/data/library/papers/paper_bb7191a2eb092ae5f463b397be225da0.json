@@ -1,0 +1,20 @@
+{
+    "id": "paper_bb7191a2eb092ae5f463b397be225da0",
+    "doi": "10.5040\/9781472926982.0062",
+    "title": "Gavia stellata (Pontoppidan). Red-throated Diver; Red-throated Loon. Plongeon catmarin.",
+    "year": 0,
+    "container_title": "The Birds of Africa",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472926982.0062",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472926982.0062",
+        "dc:title": "Gavia stellata (Pontoppidan). Red-throated Diver; Red-throated Loon. Plongeon catmarin.",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

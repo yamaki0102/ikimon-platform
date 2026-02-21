@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_915008b26d149ad2978b90c1ba31da07_e6a2c40d7f74ff0473e3e78743721993",
+    "paper_id": "paper_915008b26d149ad2978b90c1ba31da07",
+    "doi": "10.2173\/tbna.520.p",
+    "query_id": "alien_bird_2486151_en",
+    "query_label": "Pycnonotus jocosus Japan (alien\/introduced)",
+    "scientific_name": "Pycnonotus jocosus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/tbna.520.p",
+        "dwc:scientificName": "Pycnonotus jocosus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2486151",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Pycnonotus jocosus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Pycnonotidae"
+    },
+    "gbif_taxon_key": 2486151,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Pycnonotidae"
+}

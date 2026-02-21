@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_be2742a2ef3e1de219e60c6ca9c093e9_812afa31f825b5fe69e8b81a5c33a32d",
+    "paper_id": "paper_be2742a2ef3e1de219e60c6ca9c093e9",
+    "doi": "10.5962\/p.295494",
+    "query_id": "jp_bird_7456133_en",
+    "query_label": "Ardenna tenuirostris Japan (ecology\/distribution)",
+    "scientific_name": "Ardenna tenuirostris",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.5962\/p.295494",
+        "dwc:scientificName": "Puffinus tenuirostris",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:7456133",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Ardenna tenuirostris",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Procellariidae"
+    },
+    "gbif_taxon_key": 7456133,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Puffinus tenuirostris",
+    "gbif_accepted_key": 5229359,
+    "gbif_family": "Procellariidae"
+}

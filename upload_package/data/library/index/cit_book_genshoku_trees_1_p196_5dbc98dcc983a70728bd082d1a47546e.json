@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p196_5dbc98dcc983a70728bd082d1a47546e",
+    "book_id": "book_genshoku_trees_1",
+    "page": 196,
+    "taxon_name": "S",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.196)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "S",
+        "dwc:occurrenceRemarks": "Sabal V 230\n  japonica V 230\nSalix IV 6\n  babylonica IV 9\n  bakko IV 13\n  chaenomeloides IV 8\n  gracilistyla IV 10\n  gilgiana IV 6\n  integra IV 11\n  --var. melina-leucas IV 6\n  japonica IV 12\n  jessoensis IV 10\n  kinuyanagi IV 13\n  koriyanagi IV 7\n  leucopithecia IV 12\n  matsudana var. tortuosa IV 8\n  melanostachys IV 14\n  pet-susu IV 15\n  reinii IV 11\n  rorida IV 14\n  sachalinensis IV 14\n  serissaefolia IV 14\n  shiraii IV 10\n  subfragilis IV 10\n  sumiyoshensis IV 12\n  yoshinoi IV 7\nSambucus V 202\n  javanica V 202\n  racemosa V 203\n  --subsp. kamtschatica V 203\n  --subsp. sieboldiana V 202\nSantalum IV 66\n  album IV 66\nSapindus V 168\n  mukurossi V 168\nSapium IV 265\n  japonicum IV 265\n  sebiferum IV 266\nSasa V 223\n  kurilensis V 223\n  megalophylla V 224\n  nipponica V 224\n  palmata V 223\n  paniculata V 223\n  senanensis V 223\n  --var. nobilis V 223\n  veitchii V 223\nSchima IV 83\n  wallichii V 141\nSchisandra IV 101\n  repanda IV 101\nSchizophragma IV 153\n  hydrangeoides IV 153\n  integrifolium IV 153\nSciadopitys V 267\n  verticillata V 267\nSecurinega IV 271\n  suffruticosa IV 271\nSemiarundinaria V 232\n  fastuosa V 232\nSequoia V 264\n  sempervirens V 264\nSequoiadendron V 264\n  giganteum V 264\nSerissa V 180\n  foetida var. serissoides V 180\n  japonica V 180\nShibataea V 221\n  kumasaca V 222\nSinoaruudinaria V 232\n  pubescens V 232\n  reticulata V 235\nSkimmia IV 284\n  japonica IV 284\n  --var. intermedia f. repens IV 286\n  reevesiana IV 285\nSmilax V 212\n  biflora V 213\n  china V 214\n  nipponica V 213\n  sieboldii V 215\nSolanum V 191\n  lyratum V 192\n  pseudo-capsicum V 194\nSophora IV 252\n  japonica IV 252\nSorbaria IV 153\n  sorbifolia var. stellipila IV 153\nSorbus IV 203\n  alnifolia IV 205\n  aucuparia IV 204\n  commixta IV 203\n  --var. rufo-ferruginea IV 204\n  gracilis IV 206\n  japonica IV 205\n  matsumurana IV 205\n  sambucifolia IV 206\nSpartium IV 256\n  junceum IV 256\nSpiraea IV 153\n  betulifolia IV 155\n  blumei IV 154\n  cantoniensis IV 156\n  chamaedryfolia var. pilosa IV 154\n  japonica IV 154\n  media var. sericea IV 154\n  nervosa IV 154\n  nipponica IV 156\n  prunifolia IV 155\n  salicifolia IV 155\n  thunbergii IV 153\nStachyurus V 78\n  praecox V 78\nStaphylea V 43\n  bumalda V 43\nStauntonia IV 105\n  hexaphylla IV 105\nStephanandra IV 157\n  incisa IV 157\n  tanakae IV 158\nStewartia V 109\n  monadelpha V 110\n  pseudo-camellia V 109\n  serrata V 110\nStyrax V 138\n  japonica V 138\n  obassia V 140\n  shiraiana V 141\nSymplocos V 151\n  chinensis var. leucocarpa f. pilosa V 156\n  coreana V 154\n  glauca V 153\n  lancifolia V 153\n  lucida V 152\n  myrtacea V 153\n  prunifolia V 154\n  tanakae V 154\n  theophrustaefolia V 154"
+    }
+}

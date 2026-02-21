@@ -1,0 +1,20 @@
+{
+    "id": "paper_6b56c686690d6925a15ed9972a8cec4b",
+    "doi": "10.1127\/entom.gen\/13\/1988\/15",
+    "title": "Dispersal of Early Instars of the Mole Cricket, Scapteriscus tenuis, as a function of density, food, and pathogens (Orthoptera: Gryllotalpidae)",
+    "year": 1988,
+    "container_title": "Entomologia Generalis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1127\/entom.gen\/13\/1988\/15",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1127\/entom.gen\/13\/1988\/15",
+        "dc:title": "Dispersal of Early Instars of the Mole Cricket, Scapteriscus tenuis, as a function of density, food, and pathogens (Orthoptera: Gryllotalpidae)",
+        "dc:date": 1988,
+        "dc:source": "Entomologia Generalis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

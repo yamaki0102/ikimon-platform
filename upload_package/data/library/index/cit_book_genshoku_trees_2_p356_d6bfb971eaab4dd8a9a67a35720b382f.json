@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p356_d6bfb971eaab4dd8a9a67a35720b382f",
+    "book_id": "book_genshoku_trees_2",
+    "page": 356,
+    "taxon_name": "学名索引 (356頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.356)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "学名索引 (356頁)",
+        "dwc:occurrenceRemarks": "granthamiana IV 130\nhongkongensis IV 129\nhybridus IV 133\n  ――'Barbara Clark' IV 133\n  ――'Brian' IV 134\n  ――'Donation' IV 134\n  ――'E. G. Waterhouse' IV 134\n  ――'Flower Girl' IV 133\n  ――'Fragrant Pink' IV 133\njaponica IV 120\n  ――var. decumbens IV 128\n  ――var. macrocarpa IV 121\n  ――f. leucantha IV 121\n  ――'Amagashita' IV 126\n  ――'Apucaeformis' IV 121\n  ――'Bokuhan' IV 123\n  ――'Chosentsubaki' IV 122\n  ――'Christmas Beauty'\n     IV 135\n  ――'Daijohkan' IV 128\n  ――'Guilio Nuccio' IV 135\n  ――'Hijirimen' IV 123\n  ――'Hishikaraito' IV 127\n  ――'Kamogawa' IV 126\n  ――'Kenkyo' IV 125\n  ――'Kramer's Supreme'\n     IV 135\n  ――'Kujakutsubaki' IV 125\n  ――'Miuraotome' IV 125\n  ――'Nichigetsusei' IV 122\n  ――'Nioifubuki' IV 122\n  ――'Okinonami' IV 124\n  ――'Rosacea' IV 126\n  ――'Shirosumikura' IV 127\n  ――'Sodekakushi' IV 124\n  ――'Soshiarai' IV 124\n  ――'Tafukubenten' IV 123\n  ――'Tamanoura' IV 127\nkissi IV 131\noleifera IV 129\nreticulata IV 132\nrusticana 'Yukioguni' IV 128\nsaluenensis IV 131\nsasanqua IV 136\n  ――var. fujikoana IV 138\n  ――'Fujinomine' IV 137\n\n  ――'Kaidomaru' IV 138\n  ――'Kogyoku' IV 138\n  ――'Shichifukujin' IV 137\nteishu IV 132\nsinensis IV 129\nx vernalis 'Egao' IV 132\nwabisuke IV 132\nyunnanensis IV 129\nCampsis V 194\n  grandiflora V 194\nCanarium V 3\n  album V 3\nCaragana IV 254\n  chamlagu IV 254\nCarica V 79\n  papaya V 79\nCarissa V 173\n  carandas V 173\nCarpinus IV 29\n  cordata IV 32\n  ――japonica IV 20\n  laxiflora IV 30\n  tschonoskii IV 29\n  turczaninovii IV 30\nCarya IV 4\n  ovata IV 4\n  pecan IV 4\nCassiope V 141\n  lycopodioides V 141\nCassytha V 94\n  filiformis V 94\nCastanea IV 42, 44\n  americana IV 44\n  crenata IV 42\n  mollissima IV 42\n  sativa IV 42\nCastanopsis IV 40\n  cuspidata IV 40\n  ――var. sieboldii IV 45\nCasuarina IV 1, 2\n  equisetifolia IV 1\n  glauca IV 2\nCatalpa V 194\n  bignonioides V 194\n  ovata V 194\nCedrela V 4"
+    }
+}

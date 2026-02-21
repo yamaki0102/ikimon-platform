@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p74_ea2e5af06b496eb115f831ecaa1957e3",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 74,
+    "taxon_name": "オットンガエル",
+    "scientific_name": "Rana (Babina) subaspera BARBOUR, 1908",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.74)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Babina subaspera",
+        "dwc:vernacularName": "オットンガエル",
+        "dwc:occurrenceRemarks": "　体の背面に多数のいぼがあって一見ヒキガエルの仲間に似ているので，次のホルストガエルとの区別はたやすい．事実，奄美大島では，本種のことをしばしばガマと呼んでいる．\n　背面はいちように緑色がかった暗褐色で．体側には不規則な淡色の斑紋がある．鼓膜は暗赤褐色で，その周縁部は多少とも色が淡い．腹面は黄白色．喉頭部と前肢の腹面とは暗紫色にボカされ．後肢の腹面には同じ色の雲状斑紋がある．頭部は大きく．その幅は長さよりも大きい．吻端は多少とも円く，その長さは眼の長径にほぼ等しいが，ホルストガエルの吻端に比べると明らかに幅が広い．外鼻孔は吻端の側面にあり．眼の前端からは著しく離れている．眼鼻線はよいが，頰部は多少とも凹んでいる．上眼瞼の幅は，左右の上眼瞼の間隔よりも明らかに狭い．鼓膜は円くて明瞭，その直径は眼の長径よりもやや短かい．鋤骨歯板はよく突出し，また斜向して，その後端が左右の内鼻孔の後縁を結んだ線よりも後方にある．体表には多数の皮膚の隆起があり．とくに体側，胴の後部および後肢の背面では顕著ないぼとなっている．眼の後端に始まり鼓膜の背縁を巡って前肢の基部に達する隆条は，口角から後方へ走る隆条と会合して，鼓膜を取り囲んだ形になっている．背側線のひだは鎖線状で著しい．腹面は，♂では粒起によって粗面となり，♀では平滑．四肢は強壮で，前肢は体長の半分よりやや長く，第1指は短かくて棒状．第2指は第3指よりはるかに長く，第4指はもっとも長い．♂では，第1指と第2指との背面に，灰色の細かい突起でできた凹凸がある．後肢は体長よりはるかに長いが，大腿部と脛部との長さの和は，普通眼の後端から肛門までの距離ぐらい．これらを重ねて体の正中線と直角に伸ばしても脛跗関節が接し合わない．指趾（第1指を除く）の先端部は多少ともふくれ．みずかきは趾間に",
+        "dwc:taxonConceptID": "gbif:2426835",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Babina) subaspera BARBOUR, 1908",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2426835,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Babina subaspera",
+    "gbif_accepted_key": 5217818,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

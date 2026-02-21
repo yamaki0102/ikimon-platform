@@ -1,0 +1,18 @@
+{
+    "taxon_key": 5785098,
+    "scientific_name": "Hyla arborea japonica Günther, 1859",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": 10857535,
+    "accepted_name": "Dryophytes japonicus",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Anura",
+    "family": "Hylidae",
+    "genus": "Dryophytes",
+    "rank": "SUBSPECIES",
+    "original_query": "Hyla arborea japonica GÜNTHER, 1858",
+    "_cached_at": 1770419985
+}

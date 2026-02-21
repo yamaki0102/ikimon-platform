@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p84_8537eb01de785469e61a7218d404d16a",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 84,
+    "taxon_name": "ヤエヤマアオガエル",
+    "scientific_name": "Rhacophorus viridis owstoni (STEJNEGER, 1907)",
+    "family": "アオガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.84)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Zhangixalus viridis",
+        "dwc:vernacularName": "ヤエヤマアオガエル",
+        "dwc:occurrenceRemarks": "　基亜種によく似ているが，頭部が比較的大きくて幅も広く，後肢が比較的短かくて．大腿部と脛部との長さの和が眼の中央から肛門までの距離に等しい．背面と咽頭部との皮膚はほとんど完全に平滑で．顆粒が全く認められない．体側と大腿部後面との斑紋は点状であるが，基亜種に比べるとはるかに数が少ない．下顎の周縁部と咽頭部とには暗色の斑紋がない．体長：♂で40〜50mm，♀で45〜60mm．\n　先島諸島の固有種で，石垣島と西表島とに分布している．宮古島からもただ1例の記録があるが，確認する必要があるように思われる．基亜種やアマミアオガエルと同じように．主として樹上で生活し，甘蔗畑などにも見られる．しかし，産卵習性などについては，まだほとんどわかっていない．",
+        "dwc:taxonConceptID": "gbif:5217312",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus viridis owstoni (STEJNEGER, 1907)",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5217312,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Zhangixalus viridis",
+    "gbif_accepted_key": 10865713,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "HIGHERRANK"
+}

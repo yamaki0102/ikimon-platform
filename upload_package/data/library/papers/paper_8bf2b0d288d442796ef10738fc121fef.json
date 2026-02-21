@@ -1,0 +1,20 @@
+{
+    "id": "paper_8bf2b0d288d442796ef10738fc121fef",
+    "doi": "10.1515\/9781400851850.276",
+    "title": "Fagaceae: Beech or Oak Family",
+    "year": 2014,
+    "container_title": "Trees of Western North America",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1515\/9781400851850.276",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1515\/9781400851850.276",
+        "dc:title": "Fagaceae: Beech or Oak Family",
+        "dc:date": 2014,
+        "dc:source": "Trees of Western North America",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

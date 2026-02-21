@@ -1,0 +1,18 @@
+{
+    "taxon_key": 5171018,
+    "scientific_name": "Argiope minuta Karsch, 1879",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Araneidae",
+    "genus": "Argiope",
+    "rank": "SPECIES",
+    "original_query": "Argiope minuta",
+    "_cached_at": 1771646841
+}

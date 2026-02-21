@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p80_b9da3420c45a972618bba99f03432203",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 80,
+    "taxon_name": "シュレーゲルアオガエル",
+    "scientific_name": "Rhacophorus schlegelii (GÜNTHER, 1858)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.80)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Zhangixalus schlegelii",
+        "dwc:vernacularName": "シュレーゲルアオガエル",
+        "dwc:occurrenceRemarks": "　一見アマガエルによく似ているが，体や後肢の背面に暗色斑紋の現われることがなく，鼻孔の間隔が広くてその位置が比較的後方に寄っていることによって容易に区別できる．背面はいちように緑色または暗緑色で，黄色の小さい斑点を散布していることが多い．また，背面が淡灰褐色を呈している場合にも暗色の斑紋がない．腹面は黄白色または灰白色で，下顎の周縁部，体側，後肢（とくに大腿部）の後部などには暗褐色の不規則な小斑を密布し．大腿部後面の斑紋ははっきりしていることもいちようにボカされていることもあるが，はっきりしている場合には一般に点状で，不規則な網目状になっていることが少ない．体側の斑紋群は背方ほど色が濃く，その背縁が白っぽい縁取りになっている．また，前肢の後縁にも白線がある．頭部は短かくて幅が広く，長さよりも幅の方が大きい．吻も短かくて，背面がほぼ平坦であるかあるいは多少凹んでいる．吻端は♂では多少ともとがり，♀ではにぶい．外鼻孔は吻の背側にあり，吻端と眼の前端とのほぼ中央かあるいはわずかに前寄りに位置している．眼鼻線はにぶいが明瞭で，その下側の頰部は多少凹んでいる．眼はよく突出しているが，その長径が吻端から眼の前端までの距離よりも少し小さく，上眼瞼の幅が左右の上眼瞼の間隔よりも明らかに小さい．鼓膜は眼よりも明らかに小さいが明瞭．ほぼ円形に近いかあるいは垂直方向の短かい楕円形を呈し，その長径は左右の上眼瞼の間隔の半分よりも大きい．鋤骨歯板は長い楕円形でそれぞれ10個ぐらいの歯をそなえ，内鼻孔の間からやや斜向して，後端が内鼻孔の後縁を結ぶ線よりも後方に達している．背面の皮膚は比較的平滑であるが微細な顆粒をそなえ，体側と腹面とは比較的粗雑な多角形の顆粒におおわれている．腹面の粗雑な顆粒は，咽頭部では微細なものに変わる．背側線にはひだがないが，眼の後端から鼓膜の上縁を経て後下方た走る隆条は明瞭で，",
+        "dwc:taxonConceptID": "gbif:5217282",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rhacophorus schlegelii (GÜNTHER, 1858)",
+        "dwc:family": "Rhacophoridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5217282,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Zhangixalus schlegelii",
+    "gbif_accepted_key": 10674422,
+    "gbif_family": "Rhacophoridae",
+    "gbif_match_type": "EXACT"
+}

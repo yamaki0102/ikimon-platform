@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_aefca904eca01383a8b651371f6ea790_ff39d9489ca58c323d40d21ad1a7374d",
+    "paper_id": "paper_aefca904eca01383a8b651371f6ea790",
+    "doi": "10.1080\/00063658909477023",
+    "query_id": "jp_bird_9797180_en",
+    "query_label": "Ardea cinerea Japan (ecology\/distribution)",
+    "scientific_name": "Ardea cinerea",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1080\/00063658909477023",
+        "dwc:scientificName": "Ardea cinerea",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:9797180",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Ardea cinerea",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ardeidae"
+    },
+    "gbif_taxon_key": 9797180,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ardeidae"
+}

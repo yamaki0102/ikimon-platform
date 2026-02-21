@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p70_f261bc7aa72b871f9cad943dce286867",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 70,
+    "taxon_name": "ヌマガエル",
+    "scientific_name": "Rana (Rana) limnocharis limnocharis WIEGMANN, 1835",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.70)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Fejervarya limnocharis",
+        "dwc:vernacularName": "ヌマガエル",
+        "dwc:occurrenceRemarks": "　一見ツチガエルに似ているが，吻の背面に凹みがなく，背面の粒状突起がきわめて弱く，また腹面の皮膚が平滑で色も白っぽい．\n　体の背面は褐色か暗赤褐色で，黒褐色の不規則な斑紋を散布し，同じ色の浅いV字形の斑紋が左右の上眼瞼を結んでいる．また，背中線上に黄白色の細い縦条をそなえている個体も稀ではない．下唇には，口縁に沿って並んだ黒褐色の小斑がある．四肢の背面には黒褐色の横帯があり，その側方にも同じ色の斑紋をそなえている．大腿部の側面は黄白色で，暗褐色の斑紋が網目模様を呈し，とくに内面で著しい，腹面はいちように白色か黄白色．頭部は大きくて吻端がややとがり．その長さは幅にはほぼ等しい．外鼻孔はかなり背方にあり，その位置は眼の前端よりも吻端に近い．眼鼻線はは",
+        "dwc:taxonConceptID": "gbif:11030889",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Rana) limnocharis limnocharis WIEGMANN, 1835",
+        "dwc:family": "Dicroglossidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 11030889,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Fejervarya limnocharis",
+    "gbif_accepted_key": 2430396,
+    "gbif_family": "Dicroglossidae",
+    "gbif_match_type": "EXACT"
+}

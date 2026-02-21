@@ -1,0 +1,20 @@
+{
+    "id": "paper_ef698e88b0160053b6e623e7be800028",
+    "doi": "10.1201\/9781420039337-15",
+    "title": "Acoustic Communication in Neuropterid Insects",
+    "year": 2005,
+    "container_title": "Insect Sounds and Communication",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1201\/9781420039337-15",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1201\/9781420039337-15",
+        "dc:title": "Acoustic Communication in Neuropterid Insects",
+        "dc:date": 2005,
+        "dc:source": "Insect Sounds and Communication",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

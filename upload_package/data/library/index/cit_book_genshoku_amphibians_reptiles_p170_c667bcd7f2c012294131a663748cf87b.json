@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p170_c667bcd7f2c012294131a663748cf87b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 170,
+    "taxon_name": "タカチホヘビ属",
+    "scientific_name": "Achalinus PETERS, 1869",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.170)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Achalinus PETERS, 1869",
+        "dwc:vernacularName": "タカチホヘビ属",
+        "dwc:occurrenceRemarks": "　体鱗は小さく，たがいに瓦状に重なり合うことなく，敷石状に配列している．歯の後方の数枚はわずかに重なることもある．体鱗は21〜25列で，明瞭なキールがある．尾下板は1列．瞳孔は円形か，わずかに縦長．日本，台湾，中国南部に分布し，約10種知られるが，日本には次の1種のみが分布する．\n\n88. タカチホヘビ Achalinus spinalis PETERS, 1869\n　背面は黒褐色または灰褐色で，正中線上に1本の黒色条があるのが普通．鱗はビロード状の光沢があり，光線によって虹色に輝く．腹面は淡黄褐色．夜間，光に当たると青味を帯びた金属光沢を発する．幼蛇は成蛇と比べて色彩が鮮やかである．\n　頭部は小さく，頸部との区別はあまり明瞭でない．体鱗は23列．腹板は146〜166枚，尾下板は40〜62枚．全長：30〜55cm．\n　本州，四国，九州，屋久島，種子島，トカラ列島の中之島，奄美大島，徳之島，沖縄本島，久米島などに分布している．夜行性で，昼間は石の下や倒木の下，地中などに潜んでいる．ミミズを好んで食べる．性質は極めて温和で，手で捕らえても咬みつくことはない．八重山群島の西表島から得られた奇妙なヘビ（Ijima, 1897）は，STEJNEGER (1907) によって本種の変種 (var. werneri) として記載されたが，これはどうやら別種 (A. werneri) であるらしい．しかし，標本が失われた今日，詳細",
+        "dwc:taxonConceptID": "gbif:2458201",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Achalinus PETERS, 1869",
+        "dwc:family": "Xenodermidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2458201,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Xenodermidae",
+    "gbif_match_type": "HIGHERRANK"
+}

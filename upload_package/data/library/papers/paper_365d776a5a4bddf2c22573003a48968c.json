@@ -1,0 +1,20 @@
+{
+    "id": "paper_365d776a5a4bddf2c22573003a48968c",
+    "doi": "10.1016\/j.biocon.2004.02.018",
+    "title": "Functional conservation units for the endangered Alcon Blue butterfly Maculinea alcon in Belgium (Lepidoptera: Lycaenidae)",
+    "year": 2004,
+    "container_title": "Biological Conservation",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/j.biocon.2004.02.018",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/j.biocon.2004.02.018",
+        "dc:title": "Functional conservation units for the endangered Alcon Blue butterfly Maculinea alcon in Belgium (Lepidoptera: Lycaenidae)",
+        "dc:date": 2004,
+        "dc:source": "Biological Conservation",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

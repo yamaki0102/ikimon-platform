@@ -1,0 +1,20 @@
+{
+    "id": "paper_8197e1d4188c280c6f07452564c135ed",
+    "doi": "10.63172\/141492dylxru",
+    "title": "The first confirmed breeding by the nankeen night heron (Nycticorax caledonicus) in New Zealand",
+    "year": 1997,
+    "container_title": "Notornis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.63172\/141492dylxru",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.63172\/141492dylxru",
+        "dc:title": "The first confirmed breeding by the nankeen night heron (Nycticorax caledonicus) in New Zealand",
+        "dc:date": 1997,
+        "dc:source": "Notornis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

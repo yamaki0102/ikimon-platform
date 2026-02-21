@@ -1,0 +1,18 @@
+{
+    "taxon_key": 5229281,
+    "scientific_name": "Brachyramphus marmoratus (J.F.Gmelin, 1789)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Charadriiformes",
+    "family": "Alcidae",
+    "genus": "Brachyramphus",
+    "rank": "SPECIES",
+    "original_query": "Brachyramphus marmoratus",
+    "_cached_at": 1770429070
+}

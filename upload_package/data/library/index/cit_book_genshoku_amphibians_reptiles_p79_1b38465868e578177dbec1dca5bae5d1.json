@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p79_1b38465868e578177dbec1dca5bae5d1",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 79,
+    "taxon_name": "アオガエル属 (続き)",
+    "scientific_name": "Rhacophorus TSCHUDI, 1838",
+    "family": "アオガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.79)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rhacophorus TSCHUDI, 1838",
+        "dwc:vernacularName": "アオガエル属 (続き)",
+        "dwc:occurrenceRemarks": "いることもある．歯式は (4〜6)\/3．\n　日本，台湾，シナ，フィリッピン，インドシナ，マレイ群島，ビルマ，インド，マダガスカルなどに分布し，分類がまだ安定ではないが100種以上報告されている．生活型に変異が多く，産卵習性なども多種多様で，アカガエル科のものと同じような寒天質の卵塊を池や水溜りに産み放す種類もあれば，生きている木の葉を綴り合わせてその間に泡状の卵塊を産むものもある．\n　わが国では，モリアオガエルやオキナワアオガエルなどのような，樹上性で指趾の卵塊を産む種類に Rhacophorus を当て，カジカガエルやニホンカジカガエルのように，両生的な生活をして寒天質の卵塊を産む種類には Polypedates TSCHUDI, 1838 を用いるのがこれまでの慣習になっていた．これらの学名についてはなお問題が多く，どちらに先取権があるかという点でさえ，研究者の意見が必ずしも一致しているとはいえない．しかし，両属の模式種が同系のものであることには疑いの余地がないので，学名だけを取り上げれば，どちらかが必然的に他方の同物異名となる．本書では，現在一般に採用されている Rhacophorus の方を選んでおいた．\n　このように学名を整理してもなお残る問題は，モリアオガエル型のカエルとカジカガエル型のものとがはたして同属（または亜属）に含まれるかどうかということである．邦産種だけを見ている限りでは，これらの2系統の間に明確な差異があるように見える．従って，もしこのような形態，生態両面にわたる隔離がアオガエル類の分布域全体に及んでいるものならば．カジカガエル型のものは，別亜属または別属として，真のアオガエル類と区別されるべきであろう．この場合には，Buergeria TSCHUDI, 1838 という学名が復活してくる．しかし，南方諸地域のアオガエル類には，生態に関する報告のないものが非常に多く，また，形態だけに基づいて考えた場合には，両系統の中間に位置するような種類が決して少なくない．早急に属の細分を行なって問題を一層複雑にするよりは，当分の間広義のアオガエル属を用いて，最終的な解決を将来にゆだねた方がよいのではなかろうか．\n　アオガエル類の分類は非常に難しく，形態的にはっきりと区別のできないものでも，生態的な理由や交雑実験の結果などから見て別種と考えざるを得ない場合が起ってくる．とくに問題の多いのは狭義のアオガエルの仲間であって，岡田 (1930, 1931, 1935) がこれを R. schlegelii, R. viridis, R. owstoni の3種に分け，R. schlegelii を更に R. s. schlegelii, R. s. arboreus (arborea という形になっている），R. s. intermedius (intermedia という形になっている）の3亜種に区分したのに対して，*) INGER (1947) は，これら全部を R. schlegelii にまとめ，R. s. amamiensis という1新亜種を追加している．琉球列島に分布するアオガエル類を同一種の地方型とみなした Inger の意見は，その点に関する限りおそらく正当であろう．しかし，これらと本土のアオガエル類とを亜種的な関係とみることにはかなりの無理があるように思われる．また，\n\n*) ただし，1935年の日本動物分類では，ヤタアオガエル R. schlegelii intermedius (Y. OKADA et KAWANO, 1924) が認められていない．"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 6156744,
+    "scientific_name": "Eretmochelys imbricata squamata Agassiz, 1857",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": 8841716,
+    "accepted_name": "Eretmochelys imbricata",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Testudines",
+    "order": null,
+    "family": "Cheloniidae",
+    "genus": "Eretmochelys",
+    "rank": "SUBSPECIES",
+    "original_query": "Eretmochelys imbricata squamata AGASSIZ, 1857",
+    "_cached_at": 1770420080
+}

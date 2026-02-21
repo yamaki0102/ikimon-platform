@@ -1,0 +1,20 @@
+{
+    "id": "paper_743ee208365c2899538de6aaef0e278c",
+    "doi": "10.1007\/bf01053292",
+    "title": "Temporal pattern changes in the calling song of the katydidMygalopsis marki Bailey in response to conspecific song (Orthoptera: Tettigoniidae)",
+    "year": 1989,
+    "container_title": "Journal of Insect Behavior",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/bf01053292",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/bf01053292",
+        "dc:title": "Temporal pattern changes in the calling song of the katydidMygalopsis marki Bailey in response to conspecific song (Orthoptera: Tettigoniidae)",
+        "dc:date": 1989,
+        "dc:source": "Journal of Insect Behavior",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

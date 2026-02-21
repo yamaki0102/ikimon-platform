@@ -1,0 +1,20 @@
+{
+    "id": "paper_7115bddf2f7afad45be5324051bd6b7d",
+    "doi": "10.5040\/9781472918611.ch-016",
+    "title": "The Purple Heron Ardea Purpurea",
+    "year": 0,
+    "container_title": "The Herons of Europe",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472918611.ch-016",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472918611.ch-016",
+        "dc:title": "The Purple Heron Ardea Purpurea",
+        "dc:date": 0,
+        "dc:source": "The Herons of Europe",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

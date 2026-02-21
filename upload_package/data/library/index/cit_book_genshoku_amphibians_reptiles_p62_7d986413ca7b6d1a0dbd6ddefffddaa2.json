@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p62_7d986413ca7b6d1a0dbd6ddefffddaa2",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 62,
+    "taxon_name": "ヤマアカガエル (続き)",
+    "scientific_name": "Rana (Rana) ornativentris WERNER, 1904",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": "45〜75mm",
+        "season": "2〜3月 (低地) \/ 4〜5月 (高地・東北)",
+        "distribution": "本州, 四国, 九州, 佐渡, 大隅群島"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.62)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana (Rana) ornativentris WERNER, 1904",
+        "dwc:vernacularName": "ヤマアカガエル (続き)",
+        "dwc:occurrenceRemarks": "ていることが多い，この斑紋より後方の背中線上には，肛門の上まで延びる白っぽい縦条のあることが多いが，消失したもののように，白条の認められない個体も決して稀ではない．頭部の側面には，鼓膜の周囲を広くおおう黒斑があり，その背縁は背側隆条とその背曲部から後下方に走るにぶいしわとによって，また腹縁は上唇の後部から後方に延びる隆条によってそれぞれ限られているが，眼より前では黒条が一般にあまり明瞭でなく，眼鼻線の下側に細長い暗褐色部があるという程度のことの多く，また，この部分に斑紋や条線の全く認められない個体もある．上唇は黄白色であるが，黒褐色の顕著な斑紋をそなえている．四肢の背面には黒褐色の明瞭な横帯があるが，その数には変異が多い．前肢の外縁は不規則に波曲した黒条で縁取られ，内縁の基部にも短い黒条がある．また，同じような縁取りが，後肢の外縁にも部分的に存在する．蹠部は黒褐色，腹面は白く，下顎の周縁に黒褐色斑が並んでいる．同様な斑紋は，胸部にもよく現われる．体は比較的幅広く，頭部も幅が広くて比較的短かい．吻端はにぶく，吻端から眼の前端までの距離は，両眼の前端の間隔よりも小さい．外鼻孔は，吻端と眼の前端との中央より前にあるのが普通で，左右両孔間の距離は上眼瞼の間隔よりも大きい．眼鼻線にはにぶいが，頰部は明らかに凹んでいる．眼はよく突出し．上眼瞼の幅が左右の上眼瞼の間隔より明らかに大きく，眼径が吻端から眼の前端までの距離にほぼ等しい．鼓膜はほぼ円形またはごく短かい楕円形で，その直（長）径が眼径の半分かそれよりも多少大きい程度．上唇の後部から後方に延びて，前肢基部の前背側に円く終わる隆条は明瞭，鋤骨歯板は長楕円形で．それぞれ5個ぐらいの歯をそなえ，左右の内鼻孔の間から斜めに走って，後端が内鼻孔の後端の水準よりずっと後方に達している．♂には1対の声嚢がある．体表の皮膚はおおむねなめらかであるか，あるいは背面がやや鮫肌状を呈し，胴背には比較的少数の分布のにおい隆起がある．大腿部の後下面がにぶい顆粒で密におおわれていることは，ニホンアカガエルなどの場合とほぼ同様．背側線の隆条は比較的ふとくて，部分的に断続していることもあるが，鼓膜の後背側で外方へ明らかに曲がっている．また，この部分で分かれて前肢基部の背側に向かうにぶい隆条がある．四肢の長さにはかなりの変異があるが，大腿部と脛部との長さの和が体長よりも大きく，膝関節で折り曲げた後肢を体軸と直角に伸ばすと左右の脛跗関節が行き違う．指の長さの順序はニホンアカガエルなどの場合とほぼ同様，内蹠隆起は長楕円形でよく突出しているが，外蹠隆起は痕跡的．趾間のみずかきの状態には変異があるが，切れ込みは比較的深い．体長：45〜75mm．\n　本州，四国，九州，佐渡島，大隅群島などに分布し，主として山地に見られる．繁殖期は場所によって変わるが，標高の低い所では普通2〜3月頃，高地や本州の東北部などでは4〜5月頃に．ニホンアカガエルのものに似た卵塊を産む．個々の卵は暗褐色，直径2mm内外である．",
+        "dwc:taxonConceptID": "gbif:2426813",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Rana (Rana) ornativentris WERNER, 1904",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2426813,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

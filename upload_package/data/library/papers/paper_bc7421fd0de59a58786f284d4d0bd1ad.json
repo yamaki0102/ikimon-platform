@@ -1,0 +1,20 @@
+{
+    "id": "paper_bc7421fd0de59a58786f284d4d0bd1ad",
+    "doi": "10.11646\/zootaxa.2066.1.1",
+    "title": "New ground-spider genera and species with annexed checklist of the Gnaphosidae (Araneae) of Israel",
+    "year": 2009,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.2066.1.1",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.2066.1.1",
+        "dc:title": "New ground-spider genera and species with annexed checklist of the Gnaphosidae (Araneae) of Israel",
+        "dc:date": 2009,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

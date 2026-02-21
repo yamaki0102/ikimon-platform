@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p171_8c35957cc37cc87391ef4a9421a17502",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 171,
+    "taxon_name": "エンマヘビ属（マダラヘビ属）",
+    "scientific_name": "Dinodon DUMERIL, 1853",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.171)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Dinodon DUMERIL, 1853",
+        "dwc:vernacularName": "エンマヘビ属（マダラヘビ属）",
+        "dwc:occurrenceRemarks": "　体鱗は17〜21列で，弱くキールしているものと円滑なものとがある．尾下板は2列．上顎歯は前方のものが後方のものより大きく，ことに第 3〜5 歯の間の1個所，または第3歯の前と第5歯の後との2個所に，歯のない間隔がある．下顎歯も前方のものが後方のものより大きい．\n　日本，朝鮮，シベリア東部，中国，インドシナなどに分布し，10種余が知られている．日本には2種1亜種が分布している．\n\n91. アカマダラ Dinodon rufozonatum rufozonatum (CANTOR, 1842)\n　背面は淡紅褐色で，多数の黒褐色の横帯模様がある．この模様は胴に 50〜70個，尾に 20個あまりあって，ほぼ等間隔に並び，中央部では幅が広く（4〜5鱗列をおおう），両側では次第に狭くなっている．横帯の問の淡色部には，黒褐色の斑紋が不規則に散在する．腹面は淡黄色ないし淡黄白色で，尾下板の中央に不規則な黒斑がある．\n　頭部は頸部よりも幅が広く，吻は扁平で円味を帯びている．鼻孔は大きく，2枚の鼻板の間にある．前額板は大きく，左右の1対が広く接し合っている．額板は短かく，幅が広い．頭頂板は大きくて額板よりも長い．頰板は1枚で細長い．眼前板は1枚，眼後板は2枚．側頭板は前列2枚，後列3枚．上唇板は8枚で，第 3〜5 枚目が眼に入っている．体鱗は17列（稀に19列）で，背面中央の数列は微弱なキールをそなえ",
+        "dwc:taxonConceptID": "gbif:2455579",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Dinodon DUMERIL, 1853",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2455579,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p174_d5e4f0e0f765333011a7c402ddf4651b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 174,
+    "taxon_name": "シロマダラ",
+    "scientific_name": "Dinodon orientale (HILGENDORF, 1880)",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.174)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lycodon orientalis",
+        "dwc:vernacularName": "シロマダラ",
+        "dwc:occurrenceRemarks": "　背面は淡灰褐色で，黒褐色の不規則な横帯模様がある．この模様は幼蛇では黒色で明瞭であるが，老成すると次第に色が淡くなり，あるいは周囲の地色が黒ずんでくるために不明瞭となる．胴の横帯は 30〜45個ぐらい，尾の横帯は 14〜22個であって，胴の中央部のものでは幅が狭くなっている．腹面は灰白色または暗灰色で，黒色の斑点がある．頭部は黒色で，後頭部に後方へ湾曲した淡色の帯状斑紋がある．\n　頭頂板は大きくて額板よりはるかに長い．頰板は非常に細長く，眼には入らない．上唇板は8枚で，第 4〜5 枚（幼蛇では第 3〜5 枚）が眼に入っている．側頭板は前列2枚，後列3枚．体鱗は17列で，中央の 5〜9 列の鱗には弱いキールがあるが，幼蛇では不明瞭である．腹板は 192〜210枚，尾下板は 60〜78対．全長：30〜70cm．\n　日本（本州，四国，九州，佐渡，壱岐，伊豆大島など）の特産種である．主として平地や低山地にすみ，トカゲや小形のヘビなどを捕食する．夜行性で，昼間は石の下などに隠れているため，人目につくことが少ない．\n\n第22図．シロマダラの頭部；左から右へ背面，腹面および左側面．",
+        "dwc:taxonConceptID": "gbif:2455588",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Dinodon orientale (HILGENDORF, 1880)",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2455588,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Lycodon orientalis",
+    "gbif_accepted_key": 9501556,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "EXACT"
+}

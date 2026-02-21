@@ -1,0 +1,20 @@
+{
+    "id": "paper_65f8215985cc46da0b2ef7d6b701f080",
+    "doi": "10.1080\/17451000.2012.706304",
+    "title": "Selenium status in sea ducks (Melanitta fusca,Melanitta nigraandClangula hyemalis) wintering on the southern Baltic coast, Poland",
+    "year": 2012,
+    "container_title": "Marine Biology Research",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1080\/17451000.2012.706304",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1080\/17451000.2012.706304",
+        "dc:title": "Selenium status in sea ducks (Melanitta fusca,Melanitta nigraandClangula hyemalis) wintering on the southern Baltic coast, Poland",
+        "dc:date": 2012,
+        "dc:source": "Marine Biology Research",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

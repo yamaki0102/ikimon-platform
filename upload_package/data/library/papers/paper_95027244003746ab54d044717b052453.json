@@ -1,0 +1,20 @@
+{
+    "id": "paper_95027244003746ab54d044717b052453",
+    "doi": "10.4081\/rio.2010.89",
+    "title": "Record of the nesting of the Red Avadavat, Amandava amandava, in Basilicata (Southern Italy).",
+    "year": 2010,
+    "container_title": "Rivista Italiana di Ornitologia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.4081\/rio.2010.89",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.4081\/rio.2010.89",
+        "dc:title": "Record of the nesting of the Red Avadavat, Amandava amandava, in Basilicata (Southern Italy).",
+        "dc:date": 2010,
+        "dc:source": "Rivista Italiana di Ornitologia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

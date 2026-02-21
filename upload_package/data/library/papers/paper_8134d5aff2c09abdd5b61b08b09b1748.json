@@ -1,0 +1,20 @@
+{
+    "id": "paper_8134d5aff2c09abdd5b61b08b09b1748",
+    "doi": "10.2173\/bow.smew.01",
+    "title": "Smew (Mergellus albellus)",
+    "year": 2020,
+    "container_title": "Birds of the World",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/bow.smew.01",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/bow.smew.01",
+        "dc:title": "Smew (Mergellus albellus)",
+        "dc:date": 2020,
+        "dc:source": "Birds of the World",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_13f3140d794136b908e862b3de042d9d",
+    "doi": "10.64338\/im.1153.b491g",
+    "title": "Description of a new stag beetle, Dorcus zhangyiae Zhan, new species (Coleoptera: Lucanidae: Lucaninae), from Xizang, China",
+    "year": 2025,
+    "container_title": "Insecta Mundi",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.64338\/im.1153.b491g",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.64338\/im.1153.b491g",
+        "dc:title": "Description of a new stag beetle, Dorcus zhangyiae Zhan, new species (Coleoptera: Lucanidae: Lucaninae), from Xizang, China",
+        "dc:date": 2025,
+        "dc:source": "Insecta Mundi",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

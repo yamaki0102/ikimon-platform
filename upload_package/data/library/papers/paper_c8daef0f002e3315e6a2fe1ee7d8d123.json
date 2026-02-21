@@ -1,0 +1,20 @@
+{
+    "id": "paper_c8daef0f002e3315e6a2fe1ee7d8d123",
+    "doi": "10.2307\/4510145",
+    "title": "A Revision of the Bird Family Dicruridae",
+    "year": 1950,
+    "container_title": "Bird-Banding",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/4510145",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/4510145",
+        "dc:title": "A Revision of the Bird Family Dicruridae",
+        "dc:date": 1950,
+        "dc:source": "Bird-Banding",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

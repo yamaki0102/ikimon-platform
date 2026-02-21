@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p201_95fcd4922a2a57cf7926c3c83906e0d1",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 201,
+    "taxon_name": "サキシママダラ",
+    "scientific_name": "Dinodon rufozonatus walli",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.201)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lycodon rufozonatus",
+        "dwc:vernacularName": "サキシママダラ",
+        "dwc:occurrenceRemarks": "Plate 33 illustration (107). Similar to Aka-Madara but with different banding pattern.",
+        "dwc:taxonConceptID": "gbif:6161308",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Dinodon rufozonatus walli",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 6161308,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Lycodon rufozonatus",
+    "gbif_accepted_key": 5223677,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "FUZZY"
+}

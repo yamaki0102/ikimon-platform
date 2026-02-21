@@ -1,0 +1,20 @@
+{
+    "id": "paper_f26186202f0e14486ecb54d9ccbb4ba7",
+    "doi": "10.2326\/osj.21.133",
+    "title": "Temperature and Snow Depth Explain the Breeding Distribution Pattern of Yellow Bunting Emberiza sulphurata",
+    "year": 2022,
+    "container_title": "Ornithological Science",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2326\/osj.21.133",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2326\/osj.21.133",
+        "dc:title": "Temperature and Snow Depth Explain the Breeding Distribution Pattern of Yellow Bunting Emberiza sulphurata",
+        "dc:date": 2022,
+        "dc:source": "Ornithological Science",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

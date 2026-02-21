@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_2d12b1ac3dd07dbafc351f9eaa73cae6_383f87e9e5a503dc36d89ee103cce8c0",
+    "paper_id": "paper_2d12b1ac3dd07dbafc351f9eaa73cae6",
+    "doi": "10.61350\/sbj.23.104",
+    "query_id": "jp_bird_2481962_en",
+    "query_label": "Gavia immer Japan (ecology\/distribution)",
+    "scientific_name": "Gavia immer",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.61350\/sbj.23.104",
+        "dwc:scientificName": "Gavia immer",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481962",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Gavia immer",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Gaviidae"
+    },
+    "gbif_taxon_key": 2481962,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gaviidae"
+}

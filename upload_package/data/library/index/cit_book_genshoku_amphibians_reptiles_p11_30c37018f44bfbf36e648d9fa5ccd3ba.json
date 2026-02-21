@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p11_30c37018f44bfbf36e648d9fa5ccd3ba",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 11,
+    "taxon_name": "サンショウウオ目 (CAUDATA 概説)",
+    "scientific_name": "CAUDATA",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.11)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "CAUDATA",
+        "dwc:vernacularName": "サンショウウオ目 (CAUDATA 概説)",
+        "dwc:occurrenceRemarks": "【第1図版】\n\nサンショウウオ目　CAUDATA\n\n体は一般に細長くて，よく発達した尾をもち，四肢も原則としてよく発達しているが，後肢のある場合にその形態が前肢と著しく異なることはない．腸骨は仙該骨に癒合せず，脊椎骨の数には著しい変異があるが，少なくともその半分以上を尾椎が占めている．橈骨，尺骨，脛骨および腓骨はいずれも完全で，癒合していることがない．変態は比較的不完全で，水中で幼時を送るものでも幼生の形態が成体に似ている．しかし，外鰓は変態の終る時期まで残る．原則として卵生であるが，卵胎生のものも知られている．\n　サンショウウオ目は，200 ほどの現生種を含み，両生類のうちで次のカエル目よりも原始的な一群を形成している．しかし，これまでに知られた化石種が比較的少なくて，ジュラ紀より古い時代の地層からは全く見つかっていない上に，既知の資料でさえそのほとんど全部が現生の属に近いので，この目と古生代の両生類との系統関係はまだよくわかっていない．従って，サンショウウオ類の起源についてもいくつかの全く異なった考え方があるが，石炭紀や二畳紀に栄えたブランキオザウルスの類から分かれてきたものであろうとする学説が，今のところ真相にもっとも近いのではないかと思...",
+        "dwc:taxonConceptID": "gbif:953",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "CAUDATA",
+        "dwc:family": null,
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 953,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": null,
+    "gbif_match_type": "HIGHERRANK"
+}

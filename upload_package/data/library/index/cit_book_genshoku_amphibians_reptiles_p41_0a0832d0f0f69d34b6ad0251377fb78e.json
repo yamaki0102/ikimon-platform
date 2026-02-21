@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p41_0a0832d0f0f69d34b6ad0251377fb78e",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 41,
+    "taxon_name": "ヒキガエル科",
+    "scientific_name": "Family Bufonidae",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.41)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Family Bufonidae",
+        "dwc:vernacularName": "ヒキガエル科",
+        "dwc:occurrenceRemarks": "　頭部に耳腺が発達し，瞳孔は原則として水平であるが，稀には垂直方向の楕円形を呈することもある． 舌は一般に楕円形または卵形．端縁が円く，また原則として後部を引き起こすことができる．上下両顎に歯がない．脊椎骨は前凹形で，どの脊椎骨にも肋骨がない．烏喙の援横突起は先端に向かって拡がり，尾骨は2個の後薦椎顆に関"
+    }
+}

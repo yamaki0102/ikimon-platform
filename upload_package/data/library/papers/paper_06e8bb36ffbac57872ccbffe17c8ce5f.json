@@ -1,0 +1,20 @@
+{
+    "id": "paper_06e8bb36ffbac57872ccbffe17c8ce5f",
+    "doi": "10.2307\/jj.6230179.15",
+    "title": "Dalmatian Pelican",
+    "year": 2023,
+    "container_title": "The Birds of Ancient Egypt",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.2307\/jj.6230179.15",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/jj.6230179.15",
+        "dc:title": "Dalmatian Pelican",
+        "dc:date": 2023,
+        "dc:source": "The Birds of Ancient Egypt",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

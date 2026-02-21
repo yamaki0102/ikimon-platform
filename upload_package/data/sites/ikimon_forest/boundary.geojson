@@ -1,0 +1,39 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "site_id": "ikimon_forest",
+                "name": "ikimon\u306e\u68ee (\u672c\u793e\u5de5\u5834)"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            137.725,
+                            34.709
+                        ],
+                        [
+                            137.727,
+                            34.709
+                        ],
+                        [
+                            137.727,
+                            34.711
+                        ],
+                        [
+                            137.725,
+                            34.711
+                        ],
+                        [
+                            137.725,
+                            34.709
+                        ]
+                    ]
+                ]
+            }
+        }
+    ]
+}

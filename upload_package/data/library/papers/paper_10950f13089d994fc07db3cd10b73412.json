@@ -1,0 +1,20 @@
+{
+    "id": "paper_10950f13089d994fc07db3cd10b73412",
+    "doi": "10.21203\/rs.3.rs-2559407\/v1",
+    "title": "Individual identification of endangered amphibians using deep learning and smartphone images: case study of the Japanese giant salamander (Andrias japonicus)",
+    "year": 2023,
+    "container_title": "",
+    "type": "posted-content",
+    "url": "https:\/\/doi.org\/10.21203\/rs.3.rs-2559407\/v1",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.21203\/rs.3.rs-2559407\/v1",
+        "dc:title": "Individual identification of endangered amphibians using deep learning and smartphone images: case study of the Japanese giant salamander (Andrias japonicus)",
+        "dc:date": 2023,
+        "dc:source": "",
+        "dc:type": "posted-content",
+        "dc:format": "application\/json"
+    }
+}

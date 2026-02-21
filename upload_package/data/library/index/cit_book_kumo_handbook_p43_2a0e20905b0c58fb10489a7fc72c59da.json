@@ -1,0 +1,49 @@
+{
+    "id": "cit_book_kumo_handbook_p43_2a0e20905b0c58fb10489a7fc72c59da",
+    "book_id": "book_kumo_handbook",
+    "page": 43,
+    "taxon_name": "ササグモ",
+    "scientific_name": "Oxyopes sertatus",
+    "family": "ササグモ科 Oxyopidae",
+    "data_icons": {
+        "size": "female: 8〜11mm, male: 7〜9mm",
+        "season": "夏",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "獲物を捕らえた様子",
+        "シマササグモ（メス）",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.43)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Oxyopes sertatus",
+        "dwc:vernacularName": "ササグモ",
+        "dwc:occurrenceRemarks": "腹部の背に明るい黄色い帯があり、その中に褐色の模様がある。脚部には鋭いトゲが生える。山地から平地、市街地の公園や植え込みなどに生息し、日中に葉の上で脚を待ち構える。餌の捕獲能力が高く、自分より大きな獲物も捕食する。類似種のシマササグモとクリチャササグモとは腹部の模様や体色で容易に識別できるが、コウライササグモとの識別には交接器を見る必要がある。",
+        "dwc:taxonConceptID": "gbif:2178679",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Oxyopes sertatus",
+        "dwc:family": "Oxyopidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2178679,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Oxyopidae",
+    "gbif_match_type": "EXACT"
+}

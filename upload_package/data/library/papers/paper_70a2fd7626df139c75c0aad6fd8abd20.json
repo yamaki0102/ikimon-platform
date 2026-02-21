@@ -1,0 +1,20 @@
+{
+    "id": "paper_70a2fd7626df139c75c0aad6fd8abd20",
+    "doi": "10.1093\/jee\/79.4.961",
+    "title": "Mole Cricket (Orthoptera: Gryllotalpidae) Damage to Hemarthria altissima: Resistance or Nonpreference?",
+    "year": 1986,
+    "container_title": "Journal of Economic Entomology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1093\/jee\/79.4.961",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1093\/jee\/79.4.961",
+        "dc:title": "Mole Cricket (Orthoptera: Gryllotalpidae) Damage to Hemarthria altissima: Resistance or Nonpreference?",
+        "dc:date": 1986,
+        "dc:source": "Journal of Economic Entomology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

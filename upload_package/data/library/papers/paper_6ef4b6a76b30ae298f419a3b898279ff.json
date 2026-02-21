@@ -1,0 +1,20 @@
+{
+    "id": "paper_6ef4b6a76b30ae298f419a3b898279ff",
+    "doi": "10.5040\/9781472918611.ch-013",
+    "title": "The Cattle Egret Bubulcus Ibis",
+    "year": 0,
+    "container_title": "The Herons of Europe",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472918611.ch-013",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472918611.ch-013",
+        "dc:title": "The Cattle Egret Bubulcus Ibis",
+        "dc:date": 0,
+        "dc:source": "The Herons of Europe",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

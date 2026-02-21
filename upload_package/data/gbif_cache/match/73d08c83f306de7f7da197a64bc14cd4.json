@@ -1,0 +1,18 @@
+{
+    "taxon_key": 10940927,
+    "scientific_name": "Rana chensinensis dybowskii Günther, 1876",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": 2426803,
+    "accepted_name": "Rana dybowskii",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Anura",
+    "family": "Ranidae",
+    "genus": "Rana",
+    "rank": "SUBSPECIES",
+    "original_query": "Rana (Rana) chensinensis dybowskii GÜNTHER, 1876",
+    "_cached_at": 1770420018
+}

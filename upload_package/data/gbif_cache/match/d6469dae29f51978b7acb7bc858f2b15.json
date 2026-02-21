@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2493698,
+    "scientific_name": "Amandava amandava (Linnaeus, 1758)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Passeriformes",
+    "family": "Estrildidae",
+    "genus": "Amandava",
+    "rank": "SPECIES",
+    "original_query": "Amandava amandava",
+    "_cached_at": 1770426435
+}

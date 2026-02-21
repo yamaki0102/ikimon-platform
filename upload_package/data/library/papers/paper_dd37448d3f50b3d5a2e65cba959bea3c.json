@@ -1,0 +1,20 @@
+{
+    "id": "paper_dd37448d3f50b3d5a2e65cba959bea3c",
+    "doi": "10.1007\/978-94-015-9956-6_18",
+    "title": "Introduced Semiaquatic Birds and Mammals in Europe",
+    "year": 2002,
+    "container_title": "Invasive Aquatic Species of Europe. Distribution, Impacts and Management",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1007\/978-94-015-9956-6_18",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/978-94-015-9956-6_18",
+        "dc:title": "Introduced Semiaquatic Birds and Mammals in Europe",
+        "dc:date": 2002,
+        "dc:source": "Invasive Aquatic Species of Europe. Distribution, Impacts and Management",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

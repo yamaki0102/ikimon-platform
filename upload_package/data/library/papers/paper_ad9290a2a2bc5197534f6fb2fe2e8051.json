@@ -1,0 +1,20 @@
+{
+    "id": "paper_ad9290a2a2bc5197534f6fb2fe2e8051",
+    "doi": "10.33910\/1999-4079-2014-6-2-214-220",
+    "title": "BROODS OF THE SCALY-SIDED MERGANSER (MERGUS SQUAMATUS) IN THE RIVER BASIN OF KIEVKA AND ADJACENT TERRITORIES (PRIMORSKII KRAI)",
+    "year": 2014,
+    "container_title": "Amurian Zoological Journal",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.33910\/1999-4079-2014-6-2-214-220",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.33910\/1999-4079-2014-6-2-214-220",
+        "dc:title": "BROODS OF THE SCALY-SIDED MERGANSER (MERGUS SQUAMATUS) IN THE RIVER BASIN OF KIEVKA AND ADJACENT TERRITORIES (PRIMORSKII KRAI)",
+        "dc:date": 2014,
+        "dc:source": "Amurian Zoological Journal",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

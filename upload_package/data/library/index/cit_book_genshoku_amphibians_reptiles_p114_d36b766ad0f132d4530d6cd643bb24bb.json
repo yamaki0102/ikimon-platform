@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p114_d36b766ad0f132d4530d6cd643bb24bb",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 114,
+    "taxon_name": "トカゲ亜目",
+    "scientific_name": "LACERTILIA",
+    "family": "トカゲ亜目",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.114)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "LACERTILIA",
+        "dwc:vernacularName": "トカゲ亜目",
+        "dwc:occurrenceRemarks": "　体形には変化が大きいが，普通はよく発達した四肢をもち，眼瞼の可動であることが多い．頭蓋の前部では軟骨の化骨していることがほとんどなく．脳室の前端部が完全に閉ざされていることもない．側頭部には原則として橋があり．眼窩の後にも橋のあることが多い．上顎骨や上側頭骨は頭蓋に固着し，これらが可動であるヘビ亜目のものと著しい対照をなしている．一般に鎖頂窩がある．左右の下顎骨の前端部は，縫合線で結合しているのが普通．歯は側生であるのを原則とするが，キノボリトカゲ科やカメレオン科のように頂生のものもある．脊椎骨の数はヘビ亜目の場合よりもはるかに少なくて，後方のものに肋骨がない．胸骨は一般によく発達している．基本的には肩胛帯と腰帯とが完全で，鎖骨は内端が拡がってそこに小孔のあるのを原則とする．四肢の退化したヘビ型のものでは，肩胛帯や腰帯の退化していることもあるが，これらの完全になくなっていることはない．\n　トカゲ，ヤモリ，カメレオンなどの類を包括し，トカゲ目のうちでヘビ亜目よりも原始的な一群を形成している．中生代のジュラ紀に初めて現われ，白亜紀の終り頃から次第に隆盛となって，第三紀には著しい分化を遂げた．現生種は 2,500種以上記載されていて，6主科20科ほどに分類されることが多い．これらのうちで，ヤモリ主科"
+    }
+}

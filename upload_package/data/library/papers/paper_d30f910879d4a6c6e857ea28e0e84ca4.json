@@ -1,0 +1,20 @@
+{
+    "id": "paper_d30f910879d4a6c6e857ea28e0e84ca4",
+    "doi": "10.1007\/s003000050144",
+    "title": "Breeding cycle of the Cape petrel Daption capense at Nelson Island, Antarctica",
+    "year": 1997,
+    "container_title": "Polar Biology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/s003000050144",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/s003000050144",
+        "dc:title": "Breeding cycle of the Cape petrel Daption capense at Nelson Island, Antarctica",
+        "dc:date": 1997,
+        "dc:source": "Polar Biology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

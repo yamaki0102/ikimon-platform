@@ -1,0 +1,20 @@
+{
+    "id": "paper_accd5bd49fc2ce31319796193ee318a4",
+    "doi": "10.5038\/2074-1235.51.1.1506",
+    "title": "European-Asian Population of Great White Pelican &lt;i&gt;Pelecanus onocrotalus&lt;\/i&gt;, from Breeding to Wintering: A Review",
+    "year": 2023,
+    "container_title": "Marine Ornithology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5038\/2074-1235.51.1.1506",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5038\/2074-1235.51.1.1506",
+        "dc:title": "European-Asian Population of Great White Pelican &lt;i&gt;Pelecanus onocrotalus&lt;\/i&gt;, from Breeding to Wintering: A Review",
+        "dc:date": 2023,
+        "dc:source": "Marine Ornithology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

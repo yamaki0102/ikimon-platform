@@ -1,0 +1,20 @@
+{
+    "id": "paper_bfa850d5eb3e1ef35bba7419c981b682",
+    "doi": "10.1111\/j.1601-5223.1995.00047.x",
+    "title": "Post-Reductional Meiosis in Aeshna (Aeshnidae, Odonata)",
+    "year": 2004,
+    "container_title": "Hereditas",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1111\/j.1601-5223.1995.00047.x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1111\/j.1601-5223.1995.00047.x",
+        "dc:title": "Post-Reductional Meiosis in Aeshna (Aeshnidae, Odonata)",
+        "dc:date": 2004,
+        "dc:source": "Hereditas",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p71_6f1d24f33cadb1c7a09c221934717e65",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 71,
+    "taxon_name": "ヌマガエル (続き)",
+    "scientific_name": "Rana (Rana) limnocharis limnocharis WIEGMANN, 1835",
+    "family": "アカガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.71)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Fejervarya limnocharis",
+        "dwc:vernacularName": "ヌマガエル (続き)",
+        "dwc:occurrenceRemarks": "とんど隆起していないが，頰部は多少とも凹んでいる．眼は大きく，上眼瞼の幅は左右の上眼瞼の間隔よりも明らかに大きい，上眼瞼には弱い粒状突起のあることがあり，また，その後端から後走して鼓膜の後部を下向する隆条がある．鼓膜は楕円形で明瞭，その長径は眼の長径の1\/2〜2\/3ぐらいである．鋤骨歯板は細長くてそれぞれ3個の歯をそなえ，普通は左右の内鼻孔の間にあって著しく斜向している．♂には1対の声嚢がある．胴の背面には，大小の不規則な隆条があるが，背側隆条をそなえていない．隆条と隆条との間には弱い粒状突起のあることが多く，とくに体側で著しい．腹面は少なくともその大部分が平滑．後肢の長さには変異があるが，大腿部と脛部との長さの和は，普通眼の後端から肛門までの距離に等しい．また．大腿部と脛部とを重ねて体の正中線と直角に伸ばすと，脛跗関節が明らかに行き違う．内蹠隆起は明瞭，外蹠隆起は認め難いことが多い．指趾端はふくれていない．みずかきは各趾の1\/2以上た達している．体長：35〜60mm．\n　本州（中部地方以西），四国，九州および琉球列島に分布し，国外では，台湾，フィリッピン，シナ，東南アジア，インドなどに拡がっている．琉球列島近海にはきわめて普通で，とくに平地の水辺に多い．繁殖期は場所によって異なり，琉球列島では4月頃から，また日本内地では6〜7月頃に産卵する．卵は黄橡色で小さく，池や水田などの溜り水に産みつけられる．",
+        "dwc:taxonConceptID": "gbif:11030889",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Rana) limnocharis limnocharis WIEGMANN, 1835",
+        "dwc:family": "Dicroglossidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 11030889,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Fejervarya limnocharis",
+    "gbif_accepted_key": 2430396,
+    "gbif_family": "Dicroglossidae",
+    "gbif_match_type": "EXACT"
+}

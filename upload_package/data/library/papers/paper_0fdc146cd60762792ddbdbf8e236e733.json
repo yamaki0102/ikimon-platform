@@ -1,0 +1,20 @@
+{
+    "id": "paper_0fdc146cd60762792ddbdbf8e236e733",
+    "doi": "10.5962\/p.372501",
+    "title": "Longevity and Color Change in the Rhinoceros Beetle, Dynastes tityus L. (Coleoptera: Scarabaeidae)",
+    "year": 1969,
+    "container_title": "The Coleopterists' Bulletin",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.372501",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.372501",
+        "dc:title": "Longevity and Color Change in the Rhinoceros Beetle, Dynastes tityus L. (Coleoptera: Scarabaeidae)",
+        "dc:date": 1969,
+        "dc:source": "The Coleopterists' Bulletin",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_50e426b5d3018b5f2aa22cd2f368c6b9",
+    "doi": "10.5038\/2074-1235.37.2.832",
+    "title": "Effects of Cyclone Rosie on Breeding Red-tailed Tropicbirds Phaethon Rubricauda on Christmas Island, Indian Ocean",
+    "year": 2009,
+    "container_title": "Marine Ornithology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5038\/2074-1235.37.2.832",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5038\/2074-1235.37.2.832",
+        "dc:title": "Effects of Cyclone Rosie on Breeding Red-tailed Tropicbirds Phaethon Rubricauda on Christmas Island, Indian Ocean",
+        "dc:date": 2009,
+        "dc:source": "Marine Ornithology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

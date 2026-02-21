@@ -1,0 +1,20 @@
+{
+    "id": "paper_9b391aa03d1f85eb178005c19c2a5572",
+    "doi": "10.34080\/os.v31.22463",
+    "title": "Recension av ”European Breeding Bird Atlas 2: Distribution, Abundance and Change” (Keller V, Herrando S, Vorisek P m. fl. redaktörer, 2020)",
+    "year": 2021,
+    "container_title": "Ornis Svecica",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.34080\/os.v31.22463",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.34080\/os.v31.22463",
+        "dc:title": "Recension av ”European Breeding Bird Atlas 2: Distribution, Abundance and Change” (Keller V, Herrando S, Vorisek P m. fl. redaktörer, 2020)",
+        "dc:date": 2021,
+        "dc:source": "Ornis Svecica",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

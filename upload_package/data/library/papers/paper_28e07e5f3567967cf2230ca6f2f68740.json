@@ -1,0 +1,20 @@
+{
+    "id": "paper_28e07e5f3567967cf2230ca6f2f68740",
+    "doi": "10.1016\/j.foreco.2007.11.005",
+    "title": "Dendrochronological parameters of northern red oak (Quercus rubra L. (Fagaceae)) infested with red oak borer (Enaphalodes rufulus (Haldeman) (Coleoptera: Cerambycidae))",
+    "year": 2008,
+    "container_title": "Forest Ecology and Management",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/j.foreco.2007.11.005",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/j.foreco.2007.11.005",
+        "dc:title": "Dendrochronological parameters of northern red oak (Quercus rubra L. (Fagaceae)) infested with red oak borer (Enaphalodes rufulus (Haldeman) (Coleoptera: Cerambycidae))",
+        "dc:date": 2008,
+        "dc:source": "Forest Ecology and Management",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

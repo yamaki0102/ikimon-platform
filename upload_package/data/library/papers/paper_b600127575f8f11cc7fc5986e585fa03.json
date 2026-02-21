@@ -1,0 +1,20 @@
+{
+    "id": "paper_b600127575f8f11cc7fc5986e585fa03",
+    "doi": "10.33910\/2686-9519-2021-13-1-54-88",
+    "title": "The number and distribution of the Oriental White Stork Ciconia boyciana Swinhoe, 1873 in the Khabarovskiy Region",
+    "year": 2021,
+    "container_title": "Amurian Zoological Journal",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.33910\/2686-9519-2021-13-1-54-88",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.33910\/2686-9519-2021-13-1-54-88",
+        "dc:title": "The number and distribution of the Oriental White Stork Ciconia boyciana Swinhoe, 1873 in the Khabarovskiy Region",
+        "dc:date": 2021,
+        "dc:source": "Amurian Zoological Journal",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

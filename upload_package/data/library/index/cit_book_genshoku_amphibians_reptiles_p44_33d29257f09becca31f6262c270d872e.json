@@ -1,0 +1,32 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p44_33d29257f09becca31f6262c270d872e",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 44,
+    "taxon_name": "ヒキガエル (色彩変異)",
+    "scientific_name": "PLATE 7 - 20a",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [
+        {
+            "figure_id": "20a",
+            "caption": "20a. ヒキガエル (色彩変異)"
+        }
+    ],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.44)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "PLATE 7 - 20a",
+        "dwc:vernacularName": "ヒキガエル (色彩変異)",
+        "dwc:occurrenceRemarks": "20a. ヒキガエル (色彩変異)"
+    }
+}

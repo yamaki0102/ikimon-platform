@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_ab489582f37498cf988dfea99036aafb_d626f99d28f8f5e771d449664d342ce6",
+    "paper_id": "paper_ab489582f37498cf988dfea99036aafb",
+    "doi": "10.1007\/s10336-012-0904-5",
+    "query_id": "jp_bird_2480910_en",
+    "query_label": "Botaurus stellaris Japan (ecology\/distribution)",
+    "scientific_name": "Botaurus stellaris",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1007\/s10336-012-0904-5",
+        "dwc:scientificName": "Botaurus stellaris",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2480910",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Botaurus stellaris",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ardeidae"
+    },
+    "gbif_taxon_key": 2480910,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ardeidae"
+}

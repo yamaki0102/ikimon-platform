@@ -1,0 +1,20 @@
+{
+    "id": "paper_720544eacb29712ff0049a5ae53db07b",
+    "doi": "10.1507\/endocrj1954.30.1",
+    "title": "Seasonal changes in plasma testosterone and 5.ALPHA.-dihydrotestosterone levels in the adult male newt, Cynops pyrrhogaster pyrrhogaster.",
+    "year": 1983,
+    "container_title": "Endocrinologia Japonica",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1507\/endocrj1954.30.1",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1507\/endocrj1954.30.1",
+        "dc:title": "Seasonal changes in plasma testosterone and 5.ALPHA.-dihydrotestosterone levels in the adult male newt, Cynops pyrrhogaster pyrrhogaster.",
+        "dc:date": 1983,
+        "dc:source": "Endocrinologia Japonica",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

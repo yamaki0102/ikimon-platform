@@ -1,0 +1,20 @@
+{
+    "id": "paper_b79da4a79f51c863c009363e0076017d",
+    "doi": "10.1007\/s00300-007-0258-2",
+    "title": "Foraging areas of Wilson’s storm-petrel Oceanites oceanicus in the breeding and inter-breeding period determined by stable isotope analysis",
+    "year": 2007,
+    "container_title": "Polar Biology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/s00300-007-0258-2",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/s00300-007-0258-2",
+        "dc:title": "Foraging areas of Wilson’s storm-petrel Oceanites oceanicus in the breeding and inter-breeding period determined by stable isotope analysis",
+        "dc:date": 2007,
+        "dc:source": "Polar Biology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

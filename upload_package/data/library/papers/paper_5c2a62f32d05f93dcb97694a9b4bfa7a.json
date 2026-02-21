@@ -1,0 +1,20 @@
+{
+    "id": "paper_5c2a62f32d05f93dcb97694a9b4bfa7a",
+    "doi": "10.5852\/ejt.2018.485",
+    "title": "A revision of the spider genus Anemesia (Araneae, Cyrtaucheniidae)",
+    "year": 2018,
+    "container_title": "European Journal of Taxonomy",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5852\/ejt.2018.485",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5852\/ejt.2018.485",
+        "dc:title": "A revision of the spider genus Anemesia (Araneae, Cyrtaucheniidae)",
+        "dc:date": 2018,
+        "dc:source": "European Journal of Taxonomy",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

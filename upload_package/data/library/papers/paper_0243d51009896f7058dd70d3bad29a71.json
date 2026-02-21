@@ -1,0 +1,20 @@
+{
+    "id": "paper_0243d51009896f7058dd70d3bad29a71",
+    "doi": "10.1163\/156853975x00551",
+    "title": "Zum Aktivitätsverlauf Des Verhaltensmusters Putzen Bei Einer Gruppe Von Haubenmainahs, Acridotheres Cristatellus (Gm)",
+    "year": 1975,
+    "container_title": "Behaviour",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/156853975x00551",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/156853975x00551",
+        "dc:title": "Zum Aktivitätsverlauf Des Verhaltensmusters Putzen Bei Einer Gruppe Von Haubenmainahs, Acridotheres Cristatellus (Gm)",
+        "dc:date": 1975,
+        "dc:source": "Behaviour",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_adc4cd7c04d21c047b08cee55448a304",
+    "doi": "10.1017\/s095927090700072x",
+    "title": "Philippine bird taxonomy and conservation, a response to Collar",
+    "year": 2007,
+    "container_title": "Bird Conservation International",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1017\/s095927090700072x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1017\/s095927090700072x",
+        "dc:title": "Philippine bird taxonomy and conservation, a response to Collar",
+        "dc:date": 2007,
+        "dc:source": "Bird Conservation International",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p147_c5f81b0bc5b7cdcad3e58d347ff7f3eb",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 147,
+    "taxon_name": "アオスジトカゲ (続き)",
+    "scientific_name": "Eumeces elegans BOULENGER, 1887",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.147)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Plestiodon elegans",
+        "dwc:vernacularName": "アオスジトカゲ (続き)",
+        "dwc:occurrenceRemarks": "記録がある．これらの記録のうちには同定の疑わしいものもあるので，新しい資料に基づく詳しい検討がなされるまでは，琉球におけるアオスジトカゲの正確な分布事情がわからないのではないかと思われる．",
+        "dwc:taxonConceptID": "gbif:5960586",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eumeces elegans BOULENGER, 1887",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5960586,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Plestiodon elegans",
+    "gbif_accepted_key": 5960584,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "EXACT"
+}

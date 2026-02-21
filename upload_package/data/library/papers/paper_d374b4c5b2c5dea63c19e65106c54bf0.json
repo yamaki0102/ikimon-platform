@@ -1,0 +1,20 @@
+{
+    "id": "paper_d374b4c5b2c5dea63c19e65106c54bf0",
+    "doi": "10.1017\/cbo9781107252837.092",
+    "title": "PRUNUS CERASUS, DWARF CHERRY",
+    "year": 2014,
+    "container_title": "The Trees of Great Britain and Ireland",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1017\/cbo9781107252837.092",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1017\/cbo9781107252837.092",
+        "dc:title": "PRUNUS CERASUS, DWARF CHERRY",
+        "dc:date": 2014,
+        "dc:source": "The Trees of Great Britain and Ireland",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

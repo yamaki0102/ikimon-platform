@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p182_a9d905a26ae4abebbe6ff35ed08cd2b5",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 182,
+    "taxon_name": "属の検索表 (続き)",
+    "scientific_name": "Key to Genera (continued)",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.182)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Key to Genera (continued)",
+        "dwc:vernacularName": "属の検索表 (続き)",
+        "dwc:occurrenceRemarks": "5 (2) 瞳孔は垂直方向の楕円形；体鱗列数は原則として17列（稀には19列）----------マダラヘビ属．\n6 (1) 鼻間板，頰板および側頭板がなく．頭頂板と上唇板とが接し合っている----------ヒメヘビ属．"
+    }
+}

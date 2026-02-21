@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p129_b897a2e33873aebc2fa5fdd03093df90",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 129,
+    "taxon_name": "トカゲモドキ属 (続き)",
+    "scientific_name": "Eublepharis GRAY, 1827",
+    "family": "トカゲモドキ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.129)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Eublepharis GRAY, 1827",
+        "dwc:vernacularName": "トカゲモドキ属 (続き)",
+        "dwc:occurrenceRemarks": "いる：後頭部の横帯は多少ともY字形または浅いV字形，側方では消失していることが多い：久米島，諸名喜島および渡嘉敷島に産する----------マダラトカゲモドキ．\n4 (3) 胴部には横帯が3本しかなく．後頭部の横帯はつねに完全で中央部が多少とも弧状，体側には縦条がない：徳之島に産する----------オビトカゲモドキ．",
+        "dwc:taxonConceptID": "gbif:2445923",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Eublepharis GRAY, 1827",
+        "dwc:family": "Eublepharidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2445923,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Eublepharidae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_4c1455bd309ddb4231c72b3c3484cd48",
+    "doi": "10.2173\/nb.wispet.01",
+    "title": "Wilson's Storm-Petrel (Oceanites oceanicus)",
+    "year": 2013,
+    "container_title": "Neotropical Birds",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2173\/nb.wispet.01",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/nb.wispet.01",
+        "dc:title": "Wilson's Storm-Petrel (Oceanites oceanicus)",
+        "dc:date": 2013,
+        "dc:source": "Neotropical Birds",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

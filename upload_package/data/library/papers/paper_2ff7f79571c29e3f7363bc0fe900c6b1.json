@@ -1,0 +1,20 @@
+{
+    "id": "paper_2ff7f79571c29e3f7363bc0fe900c6b1",
+    "doi": "10.61350\/sbj.25.39",
+    "title": "Night rafting behaviour in Great Northern Divers Gavia immer and its potential use in monitoring wintering numbers",
+    "year": 2012,
+    "container_title": "Seabird Journal",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.61350\/sbj.25.39",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.61350\/sbj.25.39",
+        "dc:title": "Night rafting behaviour in Great Northern Divers Gavia immer and its potential use in monitoring wintering numbers",
+        "dc:date": 2012,
+        "dc:source": "Seabird Journal",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

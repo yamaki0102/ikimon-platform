@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p11_ae52857ab6df391b96a129695734ec76",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 11,
+    "taxon_name": "アシナシイモリ目 (Gymnophiona)",
+    "scientific_name": "Gymnophiona",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.11)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Gymnophiona",
+        "dwc:vernacularName": "アシナシイモリ目 (Gymnophiona)",
+        "dwc:occurrenceRemarks": "1.　アシナシイモリ目 Gymnophiona.　アシナシイモリ科 Caeciliidae だけで構成され，体形がミミズに似ていることによって他の目との区別はやさしい．四肢がなく，体は細長くて普通は多数の環状溝をそなえ，尾はきわめて短いかあるいは全くなっている．鼻孔と眼との間に突出し得る触手があることや，♂の体内に挿入できるような生殖器が♂にあることなどもこの類の著しい特徴である．化石種は全く知られていないが，カエル目やサンショウウオ目などとは系統が全く異なり，古生代から独自の歴史を歩んできたものであろうと考えられている．なお，この目は無足目 Apoda とも呼ばれている．",
+        "dwc:taxonConceptID": "gbif:775",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Gymnophiona",
+        "dwc:family": null,
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 775,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": null,
+    "gbif_match_type": "HIGHERRANK"
+}

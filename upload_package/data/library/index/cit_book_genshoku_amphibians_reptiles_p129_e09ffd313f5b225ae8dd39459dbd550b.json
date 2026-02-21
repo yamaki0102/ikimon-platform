@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p129_e09ffd313f5b225ae8dd39459dbd550b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 129,
+    "taxon_name": "クロイワトカゲモドキ",
+    "scientific_name": "Eublepharis kuroiwae kuroiwae (NAMIYE, 1912)",
+    "family": "トカゲモドキ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.129)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Goniurosaurus kuroiwae",
+        "dwc:vernacularName": "クロイワトカゲモドキ",
+        "dwc:occurrenceRemarks": "　体の背面は暗褐色または黒褐色，個体によって赤味を帯びていることもある．後頭部から背中線上を後走して尾の基部に達する橙褐色または淡紅色の細い縦条があり，また．頭部の背面に同じ色の小さい斑点を散布していることもある．大形の顆粒のうちには淡赤褐色のものが混在し，とくに体側では白っぽい顆粒が多い．四肢の背面は頭胴部よりも色が淡いが，赤系統の斑紋はほとんど認められない．上唇と下唇とは同色で，上唇の上側に鼻孔から眼の下側を通って耳孔に達する色の淡い縦条がある．腹面は灰白色または汚白色．尾の下面は淡褐色で先端に近づくほど色が濃くなる．尾が細長いときには，その基色が胴背の基色とほぼ同様で，3〜4本の白い環帯をそなえ．棘状の顆粒のうちに白いものを混じているが，尾が肥大しているときには，基色が灰色となり，環帯がなくなって，その代わりに不規則な白斑を散布している．尾端にはつねに白い部分がある．幼時には，淡赤褐色の短かい横帯が胴部に4本あり（前肢基部の背側に1本，前後肢の間に2本，後肢基部の直後に1本），背中線上の縦条が多くは不完全で（頸部以外では認められないこともある），淡赤褐色の不完全な縦条か小斑列かを体側に左右1本ずつそなえていることが多い．背面の横帯は多少とも不完全で，胴を完全に横切っていることがない．頭部は頸部よりはるかに大きくて比較的厚く，耳孔の直前でもっとも幅が広くて，前方へは直線状に挟まっている．吻は長くてかなり厚く，吻端が比較的とがっている．鼻孔は小さくて吻の側面に開く．眼は大きくて，その長径が，鼻孔から眼の前端までの距離にほぼ等しいかあるいはそれよりも少し大きく，眼の後端から耳孔までの距離よりは一般に少し小さいが時にはほぼ等しいこともある．耳孔は垂直方向の腎臓形で，その長径は眼の長径の半分に及ばない．吻端板はほぼ五角形で高さよりもはるかに幅広く，頂縁が1対の鼻間板とそれに挟まれた1枚（時には2枚）の小鱗とに接している．鼻孔は鼻板の後寄りに開き，吻端板には接していない．上唇板と下唇板とはともに 9〜10枚（稀には11枚）あって，一般に下唇板の方が上唇板よりも大きい．頤板は扇形で第1下唇板よりも明らかに大きく．後頤板は1対あるが小形で，1枚の小鱗によって左右に隔てられている．後頤板と第1下唇板とは，互に接し合っていることも，1枚の小鱗で隔てられていることもある．胴は長く，背面の体鱗は細かい粒状でよく隆起し，側頭部や後頭部より後方では大形で円錐形の顆粒を混在しているが，顆粒の直径が胴の中央部で顆粒と顆粒との間隔よりも小さい．咽頭部の鱗は細かくてにぶい粒状．胸部の鱗は咽頭部のものより明らかに大きくて敷石状に並び，腹部の後方では鱗が大きい板状になって多少とも瓦状に重なり合っている．前肛部には♂でも小孔の列がない．四肢は細長くてよく発達し，背面やとくに大腿部の後面に円錐形の大きい顆粒を散布している．指趾もよく発達し，",
+        "dwc:taxonConceptID": "gbif:5221339",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eublepharis kuroiwae kuroiwae (NAMIYE, 1912)",
+        "dwc:family": "Eublepharidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5221339,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Goniurosaurus kuroiwae",
+    "gbif_accepted_key": 2446415,
+    "gbif_family": "Eublepharidae",
+    "gbif_match_type": "HIGHERRANK"
+}

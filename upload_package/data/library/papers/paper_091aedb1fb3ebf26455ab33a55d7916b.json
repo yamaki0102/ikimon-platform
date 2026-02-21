@@ -1,0 +1,20 @@
+{
+    "id": "paper_091aedb1fb3ebf26455ab33a55d7916b",
+    "doi": "10.2307\/4447",
+    "title": "Breeding and Natal Dispersal of the Goldeneye, Bucephala clangula",
+    "year": 1983,
+    "container_title": "The Journal of Animal Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/4447",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/4447",
+        "dc:title": "Breeding and Natal Dispersal of the Goldeneye, Bucephala clangula",
+        "dc:date": 1983,
+        "dc:source": "The Journal of Animal Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

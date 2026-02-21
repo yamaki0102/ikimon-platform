@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p333_37d84a818292f7e080c238ff6f1ca922",
+    "book_id": "book_genshoku_trees_2",
+    "page": 333,
+    "taxon_name": "和名索引 (333頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.333)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "和名索引 (333頁)",
+        "dwc:occurrenceRemarks": "シ) V215\nセンノキ(ハリギリ) V97\nセンリョウ IV111\nせんりょう科 IV111\nセンリョウ属 IV111\n\nそ\n\nソウシカンバ(ダケカンバ) IV25\nソウシジュ IV262\nソケイ属 V169\nソシンロウバイ IV84\nソテツ V235\nそてつ科 V235\nソテツ属 V235\nソトベニハクモクレン IV74\nソバノキ(カナメモチ) IV200\nソメイヨシノ IV169\nソヨゴ V33\nソロ(アカシデ) IV30\n\nた\n\nダイオウショウ V241\nダイオウマツ(ダイオウショウ) V241\nタイサンボク IV75\nダイスギ(アシウスギ) V260\nダイダイ IV276\nダイダイ(カブス) IV276\nタイワンシャクナゲ(セイシカ) V128\nダイミュウチク(トウチク) V222\nタイミンタチバナ V148\nタイミンチク V227\nタイム V190\nタイワンアカシア(ソウシジュ) IV262\nタイワンサルスベリ(シマサルスベリ) V79\nタイワンシオジ(シマトネリコ) V166\nタイワンスギ V266\nタイワンスギ属 V266\nタイワンヘゴ(へゴ) V288\nタカオモミジ V12\n\nタカネイバラ(タカネバラ) IV238\nタカネイワヤナギ IV12\nタカネザクラ(ミネザクラ) IV168\nタカネナナカマド IV204\nタカネバラ IV238\nタカノツメ V96\nタカノツメ属 V96\nダケノハ IV269\nタギョウショウ V236\nダケカンバ IV25\nタコノキ V235\nたこのき科 V235\nタコノキ属 V235\nタズ(ニワトコ) V202\nタズノキ(ニワトコ) V202\nタチジャコウソウ(タイム) V190\nタチシャリンバイ(シャリンバイ) IV202\nタチバナ IV274\nタチバナアデク V87\nタチバナアデク属 V86\nタチバナモドキ IV206\nタチヤナギ IV8\nタツマキスギ(ヨレスギ) V262\nたで科 IV70\nタニウツギ V202\nタニウツギ属 V202\nタニワタリノキ V177\nタニワタリノキ属 V177\nタピオカノキ(キャッサバ) IV266\nタブノキ IV87\nタブノキ属 IV87\nタマアジサイ IV155\nタマイブキ V279\nタマゴノキ(キャニモモ) IV143\nタマサンゴ V191\nタマナ(テリハボク) IV142\nタマミズキ V32\nタマリンド IV258\nタマリンド属 IV258\nタムシバ IV76\nタムソンプラム(プルーン) IV191\nタラノキ V100\nタラノキ属 V100\nタラヨウ V36\nタンカン IV276"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 8104601,
+    "scientific_name": "Uncaria rhynchophylla (Miq.) Miq.",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Plantae",
+    "phylum": "Tracheophyta",
+    "class": "Magnoliopsida",
+    "order": "Gentianales",
+    "family": "Rubiaceae",
+    "genus": "Uncaria",
+    "rank": "SPECIES",
+    "original_query": "Uncaria rhynchophylla Miq.",
+    "_cached_at": 1771646889
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_a71eef71680fb52f7058161843875691_edd7fd167bf7af63de180b3840f0b033",
+    "paper_id": "paper_a71eef71680fb52f7058161843875691",
+    "doi": "10.2173\/bna.cremyn.02",
+    "query_id": "alien_bird_2489010_en",
+    "query_label": "Acridotheres cristatellus Japan (alien\/introduced)",
+    "scientific_name": "Acridotheres cristatellus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/bna.cremyn.02",
+        "dwc:scientificName": "Acridotheres cristatellus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2489010",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Acridotheres cristatellus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Sturnidae"
+    },
+    "gbif_taxon_key": 2489010,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Sturnidae"
+}

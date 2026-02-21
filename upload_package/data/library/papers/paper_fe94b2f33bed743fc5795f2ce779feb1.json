@@ -1,0 +1,20 @@
+{
+    "id": "paper_fe94b2f33bed743fc5795f2ce779feb1",
+    "doi": "10.2326\/osj.13.47",
+    "title": "The First Record of Brood Parasitism on the Introduced Red-Billed Leiothrix in Japan",
+    "year": 2014,
+    "container_title": "Ornithological Science",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2326\/osj.13.47",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2326\/osj.13.47",
+        "dc:title": "The First Record of Brood Parasitism on the Introduced Red-Billed Leiothrix in Japan",
+        "dc:date": 2014,
+        "dc:source": "Ornithological Science",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

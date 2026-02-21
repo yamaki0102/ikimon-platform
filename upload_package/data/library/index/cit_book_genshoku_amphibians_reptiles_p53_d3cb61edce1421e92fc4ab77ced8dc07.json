@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p53_d3cb61edce1421e92fc4ab77ced8dc07",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 53,
+    "taxon_name": "アカガエル科",
+    "scientific_name": "Family Ranidae",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.53)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Family Ranidae",
+        "dwc:vernacularName": "アカガエル科",
+        "dwc:occurrenceRemarks": "　瞳孔の形には著しい変異があり，水平方向または垂直方向の楕円形を呈する種類が多いが，長方形のものや菱形のものもある．舌の構造についても同様で，端縁が深くえぐれ，後部を自由に引き起こすことができるのを原則とするが，端縁の円いものやとがったものもある．上顎に歯があるが下顎にはない．上胸骨と胸骨とは，軟骨であることも基部が化骨していることもあり，また，前者の基部が叉状に分かれていることもある．薦椎の後横突起は円筒状であるかあるいは先端に向かってわずかに拡がっている．指趾の末端部は通常単純であるが，時には吸盤状にふくれていることもあり，末端骨の先端は，とがっていることも，にぶく終っていることもある．またT字形になっていることもある．指趾の末端骨と亜末端骨との間には関節骨がない．\n　アカガエル科は，非常に変化の多い動物群であって，分類がきわめて難しく，自然な亜科や属を区分するのに成功した学者がまだ現われていない．6亜科を認めようとする NOBLE (1931) の分類も，邦産種に関係のある部分がとくに不完全で，とてもそのまま採用するわけにはいかない．本書ではこの科を亜科に分割しなかったが，邦産アカガエル類の総括的な研究がなされたとしても，おそらく邦産種の全部が狭義のアカガエル亜科に含められるのではなかろうか．\n　アカガエル科の化石種は，第三紀の中新世以降にかなり見つかっている．日本でも，長野県の豊鉛山付近で発見された Rana architemporaria Y. OKADA, 1937 や，栃木県の塩原で見つかった R. siobarensis SHIKAMA, 1955 などが報告されているが，どちらも現生のヤマアカガエルに近いものであろうという程度のことしかわからない．しかし，現生種にごく近縁のアカガエルが，洪積世の初め頃から日本列島にいたことだけは確かである．"
+    }
+}

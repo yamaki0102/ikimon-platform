@@ -1,0 +1,20 @@
+{
+    "id": "paper_331b07e791eaff84f71a98eed010dba3",
+    "doi": "10.2108\/zsj.15.561",
+    "title": "Endocrine regulation of reproductive behavior in the newt Cynops pyrrhogaster",
+    "year": 2000,
+    "container_title": "Zoological Science",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2108\/zsj.15.561",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2108\/zsj.15.561",
+        "dc:title": "Endocrine regulation of reproductive behavior in the newt Cynops pyrrhogaster",
+        "dc:date": 2000,
+        "dc:source": "Zoological Science",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

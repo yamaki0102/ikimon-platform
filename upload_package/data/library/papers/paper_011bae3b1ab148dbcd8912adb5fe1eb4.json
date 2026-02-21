@@ -1,0 +1,20 @@
+{
+    "id": "paper_011bae3b1ab148dbcd8912adb5fe1eb4",
+    "doi": "10.1007\/s11284-008-0480-6",
+    "title": "Effects of fragmentation of secondary broadleaf deciduous forests on populations of the near‐threatened butterfly,\n                    Sasakia charonda\n                    (Lepidoptera, Nymphalidae), in central Japan",
+    "year": 2008,
+    "container_title": "Ecological Research",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/s11284-008-0480-6",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/s11284-008-0480-6",
+        "dc:title": "Effects of fragmentation of secondary broadleaf deciduous forests on populations of the near‐threatened butterfly,\n                    Sasakia charonda\n                    (Lepidoptera, Nymphalidae), in central Japan",
+        "dc:date": 2008,
+        "dc:source": "Ecological Research",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

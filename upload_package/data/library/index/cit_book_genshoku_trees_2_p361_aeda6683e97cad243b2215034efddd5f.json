@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p361_aeda6683e97cad243b2215034efddd5f",
+    "book_id": "book_genshoku_trees_2",
+    "page": 361,
+    "taxon_name": "学名索引 (361頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.361)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "学名索引 (361頁)",
+        "dwc:occurrenceRemarks": "Exochorda IV 236\n  racemosa IV 236\n\nF\n\nFagara IV 288, V 2\n  ailanthoides IV 288\n  fauriei V 2\n  mantchurica IV 288\nFagus IV 40\n  crenata IV 49\n  japonica IV 40\n  sylvatica IV 51\nFatshedera V 101\n  lizei V 101\nFatsia V 98\n  japonica V 98\nFeijoa V 83\n  sellowiana V 83\nFicus IV 48\n  benjamina IV 52\n  benghalensis IV 60\n  carica IV 48\n  diversifolia IV 60\n  elastica IV 50\n  ――'Apollo' IV 52\n  ――'Decora' IV 50\n  ――'Robusta' IV 50\n  erecta IV 54\n  lyrata IV 52\n  nipponica IV 56\n  pumila IV 56\n  radicans 'Variegata' IV 58\n  religiosa IV 54\n  retusa IV 54\n  rubiginosa IV 58\n  stipulata IV 56\n  triangularis IV 58\n  wightiana IV 61\nFirmiana V 69\n  simplex V 69\nForsythia V 168\n  japonica V 168\n  koreana V 168\n  suspensa V 168\n  viridissima V 169\nFortunella IV 283\n  crassifolia IV 284\n  hindsii IV 284\n  margarita IV 283\n  japonica IV 284\n  obovata IV 285\nFraxinus V 165\n  griffithii V 166\n  japonica V 165\n  lanuginosa V 165\n  longicuspis V 166\n  mandshurica V 166\n  sieboldiana V 165\n  spaethiana V 167\nFukushia V 90\n  hybrida V 90\n\nG\n\nGarcinia IV 142\n  mangostana IV 142\n  subelliptica IV 142\n  xanthochymus IV 143\nGardenia V 174\n  jasminoides f. grandiflora\n     V 174\n  radicans V 174\n  ――f. simpliciflora V 175\nGardneria V 170\n  multiflora V 170\n  nutans V 170\nGaultheria V 136\n  adenothrix V 136\n  miqueliana V 136\nGinkgo V 237\n  biloba V 237\nGleditschia IV 260\n  japonica IV 260\nGlochidion IV 271\n  obovatum IV 271\nGlyptostrobus V 264\n  pensilis V 264\nGrataeus IV 143\n  religiosa IV 143\nGrevillea IV 66\n  robusta IV 66"
+    }
+}

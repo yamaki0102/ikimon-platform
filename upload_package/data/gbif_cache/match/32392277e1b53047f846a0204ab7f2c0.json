@@ -1,0 +1,18 @@
+{
+    "taxon_key": 7190543,
+    "scientific_name": "Hydrophis ornatus ornatus (Gray, 1842)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Elapidae",
+    "genus": "Hydrophis",
+    "rank": "SUBSPECIES",
+    "original_query": "Hydrophis ornatus ornatus",
+    "_cached_at": 1771646773
+}

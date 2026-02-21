@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2151782,
+    "scientific_name": "Tetragnatha maxillosa Thorell, 1895",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": 2151941,
+    "accepted_name": "Tetragnatha keyserlingi",
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Tetragnathidae",
+    "genus": "Tetragnatha",
+    "rank": "SPECIES",
+    "original_query": "Tetragnatha maxillosa",
+    "_cached_at": 1771646832
+}

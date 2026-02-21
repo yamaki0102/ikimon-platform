@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p189_800618943025315f869e4e1f09471012",
+    "book_id": "book_genshoku_trees_1",
+    "page": 189,
+    "taxon_name": "F",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.189)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "F",
+        "dwc:occurrenceRemarks": "Fagus IV 32\n  crenata IV 34\n  japonica IV 34\nFatsia V 90\n  japonica V 90\nFeijoa V 67\n  sellowiana V 67\nFicus IV 50\n  carica IV 52\n  erecta IV 50\n  --var. sieboldii V 288\n  microcarpa IV 53\n  pumila IV 53\n  retusa IV 54\n  stipulata V 54\n  superba var. japonica IV 52\n  wightiana IV 52\nFirmiana V 276\n  simplex V 276\nFontanesia V 160\n  phyllyreoides V 160\nForsythia V 158\n  japonica V 160\n  koreana V 158\n  suspensa V 160\n  viridissima V 160\nFortunella IV 283\n  hindsii IV 284\n  japonica IV 284\n  margarita IV 283\n  obovata IV 283\nFothergilla IV 144\n  major V 105\nFragaria IV 158\n  x ananassa IV 158\nFraxinus V 164\n  griffithii V 165\n  japonica V 164\n  lanuginosa V 166\n  longicuspis V 166\n  mandshurica var. japonica V 167\n  sieboldiana V 165\n  spaethiana V 167\nFuchsia V 88\n  hybrida V 88"
+    }
+}

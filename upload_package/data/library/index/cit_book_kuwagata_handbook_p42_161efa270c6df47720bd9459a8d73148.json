@@ -1,0 +1,55 @@
+{
+    "id": "cit_book_kuwagata_handbook_p42_161efa270c6df47720bd9459a8d73148",
+    "book_id": "book_kuwagata_handbook",
+    "page": 42,
+    "taxon_name": "ヒラタクワガタ",
+    "scientific_name": "Dorcus titanus",
+    "family": null,
+    "data_icons": {
+        "size": "male: 18-85mm, female: 21-44mm",
+        "season": "",
+        "distribution": "本州（山形県以南）〜九州, 伊豆諸島, 対馬, 南西諸島"
+    },
+    "photos": [
+        "大型個体 (Male Large)",
+        "小型個体 (Male Small)",
+        "♀ (Female)"
+    ],
+    "figures": [
+        "1: 長い毛",
+        "2: 内歯",
+        "3: 小歯",
+        "4: 小歯は痕跡的",
+        "5: 頭楯の切れ込み",
+        "6: 光沢が強い",
+        "7: 明瞭な点刻列はない",
+        "8: 内側に湾曲"
+    ],
+    "page_type": "SPECIES_DATA",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kuwagata_handbook (p.42)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Dorcus titanus",
+        "dwc:vernacularName": "ヒラタクワガタ",
+        "dwc:occurrenceRemarks": "生息地: 照葉樹林, 雑木林",
+        "dwc:taxonConceptID": "gbif:7370915",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Dorcus titanus",
+        "dwc:family": "Lucanidae",
+        "dwc:nameAccordingTo": "book_kuwagata_handbook"
+    },
+    "gbif_taxon_key": 7370915,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Lucanidae",
+    "gbif_match_type": "FUZZY"
+}

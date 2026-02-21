@@ -1,0 +1,20 @@
+{
+    "id": "paper_dfa9cfb26eedd529beedce2a525d7a41",
+    "doi": "10.1093\/gao\/9781884446054.article.t067300",
+    "title": "Pica, Vittorio",
+    "year": 2003,
+    "container_title": "Oxford Art Online",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.1093\/gao\/9781884446054.article.t067300",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1093\/gao\/9781884446054.article.t067300",
+        "dc:title": "Pica, Vittorio",
+        "dc:date": 2003,
+        "dc:source": "Oxford Art Online",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

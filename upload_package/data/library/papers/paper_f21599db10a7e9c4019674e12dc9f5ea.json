@@ -1,0 +1,20 @@
+{
+    "id": "paper_f21599db10a7e9c4019674e12dc9f5ea",
+    "doi": "10.1007\/bf02513527",
+    "title": "Food limitation of population density in the orb‐wed spider,\n                    Nephila clavata",
+    "year": 1992,
+    "container_title": "Population Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/bf02513527",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/bf02513527",
+        "dc:title": "Food limitation of population density in the orb‐wed spider,\n                    Nephila clavata",
+        "dc:date": 1992,
+        "dc:source": "Population Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

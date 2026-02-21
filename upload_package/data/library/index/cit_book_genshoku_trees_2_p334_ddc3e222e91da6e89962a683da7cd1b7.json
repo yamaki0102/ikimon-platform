@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p334_ddc3e222e91da6e89962a683da7cd1b7",
+    "book_id": "book_genshoku_trees_2",
+    "page": 334,
+    "taxon_name": "和名索引 (334頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.334)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "和名索引 (334頁)",
+        "dwc:occurrenceRemarks": "ダンコウバイ(トウロウバイ) IV83\nダンコウバイ IV92\nダンチク(トウチク) V222\nタンナサワフタギ V156\nダンマルジュ(コーパルノキ) V284\n\nち\n\nチェリモヤ IV80\nチカラシバ(ナギ) V283\nチーク V187\nチーク属 V187\nチシマザサ V223\nチシマヒョウタンボク V199\nチシャノキ(エゴノキ) V151\nチシャノキ V182\nチシャノキ属 V182\nチトセカズラ V170\nチドリノキ V23\nチマキザサ V223\nチャ IV120\nチャノキ(チャ) IV120\nチャボガヤ V288\nチャボトウジュロ V235\nチャボヒバ V266\nチャマエロプス属 V235\nチャラン IV111\nチャンチン V4\nチャンチン属 V4\nチャンチンモドキ V9\nチャンチンモドキ属 V9\nチューインガムノキ(サボジラ) V148\nチュウゴクナシ(シナナシ) IV214\nチョウジガマズミ V209\nチョウジザクラ IV167\nチョウジザクラ(フジモドキ) V72\nチョウジノキ V86\nチョウジュキンカン IV285\nチョウセンゴミシ IV82\nチョウセンゴヨウ(チョウセンマツ) V240\nチョウセンニワフジ IV247\n\nチョウセンニワフジ(キダチニワフジ) V107\nチョウセンマキ V269\nチョウセンマツ V240\nチョウセンヤマツツジ V110\nチョウセンレンギョウ V169\nチョウノスケソウ IV225\nチョウノスケソウ属 IV225\nチリアロクカリア(アメリカナンヨウスギ) V284\nチリーマツ(アメリカサロコエ) V284\nチリメンカエデ V21\nチングルマ IV221\nチングルマ属 IV221\nチンバイ(ニワナナカマド) IV205\n\nつ\n\nツガ V251\nツガ属 V251\nツガザクラ V142\nツガザクラ属 V142\nツガマツ(ツガ) V252\nツキヌキニンドウ V197\nツグ(クロツグ) V234\nツクシアカツツジ(オンツツジ) V107\nツクシシャクナゲ V126\nツクシハギ IV253\nツクバネ IV68\nツクバネ属 IV68\nツクバネウツギ V205\nツクバネウツギ属 V205\nツクバネガシ IV36\nツクモヒバ V272\nツゲ V46\nつげ科 V46\nツゲ属 V46\nツゲモチ V37\nツタ V54\nツタカズラ(ナツヅタ) V54\nツタ属 V54\nツチウルシ V8\nツチノハカズラ(ハッカクカズラ) IV109"
+    }
+}

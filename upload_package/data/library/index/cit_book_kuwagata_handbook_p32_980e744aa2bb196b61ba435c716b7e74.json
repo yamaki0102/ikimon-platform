@@ -1,0 +1,52 @@
+{
+    "id": "cit_book_kuwagata_handbook_p32_980e744aa2bb196b61ba435c716b7e74",
+    "book_id": "book_kuwagata_handbook",
+    "page": 32,
+    "taxon_name": "オオクワガタ",
+    "scientific_name": "Dorcus hopei",
+    "family": null,
+    "data_icons": {
+        "size": "male: 21-77mm, female: 22-51mm",
+        "season": "",
+        "distribution": "北海道〜九州, 対馬"
+    },
+    "photos": [
+        "大型個体 (Male Large)",
+        "小型個体 (Male Small)",
+        "♀ (Female)"
+    ],
+    "figures": [
+        "1: 内歯は１つ",
+        "2: えぐれる",
+        "3: 点刻列",
+        "4: 強い光沢",
+        "5: 先端部で外側に反る"
+    ],
+    "page_type": "SPECIES_DATA",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kuwagata_handbook (p.32)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Dorcus hopei",
+        "dwc:vernacularName": "オオクワガタ",
+        "dwc:occurrenceRemarks": "生息地: 雑木林, ブナ林",
+        "dwc:taxonConceptID": "gbif:7697962",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Dorcus hopei",
+        "dwc:family": "Lucanidae",
+        "dwc:nameAccordingTo": "book_kuwagata_handbook"
+    },
+    "gbif_taxon_key": 7697962,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Lucanidae",
+    "gbif_match_type": "EXACT"
+}

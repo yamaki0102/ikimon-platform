@@ -1,0 +1,20 @@
+{
+    "id": "paper_8d5a0396ea73074756f731baab256477",
+    "doi": "10.30980\/kjo.2018.06.25.1.19",
+    "title": "First record of Laysan Albatross (Phoebastria immutabilis) in Korea",
+    "year": 2018,
+    "container_title": "The Korean Journal of Ornithology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.30980\/kjo.2018.06.25.1.19",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.30980\/kjo.2018.06.25.1.19",
+        "dc:title": "First record of Laysan Albatross (Phoebastria immutabilis) in Korea",
+        "dc:date": 2018,
+        "dc:source": "The Korean Journal of Ornithology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

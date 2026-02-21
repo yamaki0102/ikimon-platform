@@ -1,0 +1,18 @@
+{
+    "taxon_key": 1,
+    "scientific_name": "Animalia",
+    "status": "ACCEPTED",
+    "match_type": "HIGHERRANK",
+    "confidence": 92,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": null,
+    "class": null,
+    "order": null,
+    "family": null,
+    "genus": null,
+    "rank": "KINGDOM",
+    "original_query": "Eumeces okadae STEJNEGER, 1907",
+    "_cached_at": 1770420183
+}

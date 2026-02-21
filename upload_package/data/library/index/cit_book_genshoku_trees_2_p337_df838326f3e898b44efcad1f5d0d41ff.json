@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p337_df838326f3e898b44efcad1f5d0d41ff",
+    "book_id": "book_genshoku_trees_2",
+    "page": 337,
+    "taxon_name": "和名索引 (337頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.337)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "和名索引 (337頁)",
+        "dwc:occurrenceRemarks": "とちゅう科 IV48\nトチュウ属 IV48\nトドマツ V258\nトドマツ(アオトドマツ) V258\nトネリコ V165\nトネリコ属 V165\nトネリコバノカエデ V18\nトネリコバハゼノキ V9\nトビアーリス属 V78\nトビカズラ IV249\nトビカズラ属 IV249\nトビラ(トベラ) IV163\nトビラノキ(トベラ) IV163\nトベラ IV163\nとべら科 IV163\nトベラ属 IV163\nドヨウダケ(ホウライチク) V218\nドヨウフジ(ナツフジ) IV246\nドラセナ属 V217\nトラノオモミ(トウヒ) V246\nトラフセンネンボク V218\nドリアン V67\nトリガタハンショウヅル IV100\nトリトマラズ(ヘビノボラズ)\n     IV106\nドロノキ(ドロヤナギ) IV19\nドロヤナギ IV19\n\nな\n\nナガキンカン(キンカン) IV283\nナガバカワヤナギ IV6\nナガバシバミ(ツノハシバミ)\n     IV18\nナガバジュズネノキ V179\nナガバノコウヤボウキ V212\nナガミパンノキ(パラミツ) IV62\nナギ V283\nナギイカダ V213\nナギイカダ属 V213\nナシ IV216\nナシ属 IV214\nナシカズラ IV119\nなす科 V190\nナス属 V191\nナツグミ V74\n\nナツザキエリカ(ギョリュウモドキ)\n     V144\nナツダイダイ(ナツミカン) IV282\nナツツバキ IV138\nナツツバキ属 IV138\nナツハギ(ミヤギノハギ) IV251\nナツハゼ V132\nナツフジ IV246\nナツフジ属 IV246\nナツボウズ(オニシバリ) V71\nナツボダイジュ V58\nナツミカン IV282\nナツメ V48\nナツメ属 V48\nナツメヤシ V231\nナツメヤシ属 V231\nナナカマド IV203\nナナカマド属 IV203\nナナミノキ V37\nナニワズ V72\nナニワイバラ IV239\nナベイチゴ(クサイチゴ) IV228\nナラ(コナラ) IV33\nナラガシワ IV34\nナリヒラダケ V221\nナリヒラダケ属 V221\nナルト IV280\nナワシロイチゴ IV227\nナワシログミ V75\nナンキンナナカマド IV205\nナンキンハゼ IV266\nナンジャモンジャ(ヒトツバタゴ)\n     V163\nナンテン IV108\nナンテン属 IV108\nなんようすぎ科 V284\nナンヨウスギ属 V284\nナンヨウナギ(コーパルノキ)\n     V284\nナンヨウナギ属 V284\n\nに\n\nニオイイバラ(ヤブイバラ) IV240\nニオイシュロラン V215\nニオイヒバ V274"
+    }
+}

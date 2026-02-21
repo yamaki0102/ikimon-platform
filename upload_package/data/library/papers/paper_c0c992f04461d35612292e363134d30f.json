@@ -1,0 +1,20 @@
+{
+    "id": "paper_c0c992f04461d35612292e363134d30f",
+    "doi": "10.1080\/14888386.2005.9712772",
+    "title": "Effects of invasive alien plants on birds: some examples from North America",
+    "year": 2005,
+    "container_title": "Biodiversity",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1080\/14888386.2005.9712772",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1080\/14888386.2005.9712772",
+        "dc:title": "Effects of invasive alien plants on birds: some examples from North America",
+        "dc:date": 2005,
+        "dc:source": "Biodiversity",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

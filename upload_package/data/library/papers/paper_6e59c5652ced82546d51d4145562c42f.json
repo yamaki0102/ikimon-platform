@@ -1,0 +1,20 @@
+{
+    "id": "paper_6e59c5652ced82546d51d4145562c42f",
+    "doi": "10.1515\/9781400855063.3",
+    "title": "Chapter 1. Nature and Origin of the Amphibia",
+    "year": 1985,
+    "container_title": "The Amphibian Ear",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1515\/9781400855063.3",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1515\/9781400855063.3",
+        "dc:title": "Chapter 1. Nature and Origin of the Amphibia",
+        "dc:date": 1985,
+        "dc:source": "The Amphibian Ear",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

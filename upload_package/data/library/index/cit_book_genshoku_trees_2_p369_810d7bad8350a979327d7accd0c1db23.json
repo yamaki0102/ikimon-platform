@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p369_810d7bad8350a979327d7accd0c1db23",
+    "book_id": "book_genshoku_trees_2",
+    "page": 369,
+    "taxon_name": "学名索引 (369頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.369)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "学名索引 (369頁)",
+        "dwc:occurrenceRemarks": "  ――'Tsukinokatsura' IV 188\n  ――'Viridicalyx' IV 184\n  nipponica IV 168\n  x parvifolia 'Parvifolia'\n     IV 173\n  persica IV 192\n  ――var. nucipersica IV 195\n  ――var. platycarpa IV 196\n  ――'Albo-plena' IV 192\n  ――'Densa' IV 194\n  ――'Pendula' IV 193\n  ――'Pyramidalis' IV 194\n  ――'Rubro-pendula' IV 193\n  ――'Stellata' IV 194\n  ――'Versicolor' IV 193\n  ――'Yaguchi' IV 192\n  pseudo-cerasus IV 177\n  salicina IV 190\n  sargentii IV 168\n  x sieboldii 'Caespitosa'\n     IV 172\n  simonii IV 191\n  spachiana IV 166\n  ――f. ascendens IV 166\n  ――f. spachiana IV 166\n  spinulosa IV 179\n  ssiori IV 178\n  subhirtella IV 166\n  x subhirtella 'Autumnalis'\n     IV 167\n  ――'Semperflorens' IV 167\n  tomentosa IV 197\n  triloba var. petzoldii IV 195\n  x yedoensis IV 169\n  zippeliana IV 178\nPseudocydonia IV 219\n  sinensis IV 219\nPseudolarix V 225\n  japonica V 225\nPseudotsuga V 254\n  japonica V 254\n  taxifolia V 255\nPsidium V 84\n  guajava V 84\n  littorale var. longipes V 85\nPsychotria V 179\n  rubra V 179\n  serpens V 179\nPlatycarya IV 4\n  strobilacea IV 4\nPterocarpus IV 250\n  santalinus IV 250\nPterocarya IV 5\n  rhoifolia IV 5\nPterostyrax V 152\n  corymbosa V 152\n  hispida V 152\nPueraria IV 253\n  thunbergiana IV 253\nPunica V 88\n  granatum V 88\nPyracantha IV 200\n  angustifolia IV 200\n  crenulata IV 200\nPyrus IV 214\n  communis var. sativa IV 214\n  pyrifolia IV 214\n  serotina var. culta IV 216\n  ussuriensis var. sinensis IV 214\n\nQ\n\nQuercus IV 32\n  acuta IV 43\n  acutissima IV 39\n  aliena IV 34\n  ――f. lutea IV 34\n  dentata IV 37\n  gilva IV 38\n  glauca IV 36\n  ilex IV 32\n  mongolica var. grosseserrata\n     IV 35\n  myrsinaefolia IV 38\n  phylliraeoides IV 36\n  robur IV 32\n  salicina IV 41\n  serrata IV 33\n  sessilifolia IV 38\n  suber IV 36\n  variabilis IV 34"
+    }
+}

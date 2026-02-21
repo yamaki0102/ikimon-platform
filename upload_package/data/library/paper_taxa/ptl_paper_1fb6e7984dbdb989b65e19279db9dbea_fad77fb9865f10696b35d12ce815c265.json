@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_1fb6e7984dbdb989b65e19279db9dbea_fad77fb9865f10696b35d12ce815c265",
+    "paper_id": "paper_1fb6e7984dbdb989b65e19279db9dbea",
+    "doi": "10.5122\/cbirds.2011.0013",
+    "query_id": "jp_bird_5229163_en",
+    "query_label": "Pelecanus philippensis Japan (ecology\/distribution)",
+    "scientific_name": "Pelecanus philippensis",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.5122\/cbirds.2011.0013",
+        "dwc:scientificName": "Pelecanus philippensis",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:5229163",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Pelecanus philippensis",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Pelecanidae"
+    },
+    "gbif_taxon_key": 5229163,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Pelecanidae"
+}

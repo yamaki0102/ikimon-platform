@@ -1,0 +1,48 @@
+{
+    "id": "cit_book_kumo_handbook_p9_435a28080198de393dba3451a4e5862b",
+    "book_id": "book_kumo_handbook",
+    "page": 9,
+    "taxon_name": "イエユウレイグモ",
+    "scientific_name": "Pholcus phalangioides",
+    "family": "ユウレイグモ科 Pholcidae",
+    "data_icons": {
+        "size": "female: 8〜10mm, male: 7〜8mm",
+        "season": "一年中",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "オス",
+        "メス腹部",
+        "生態写真(壁にいる)",
+        "体は半透明(メス)",
+        "メス背面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.9)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Pholcus phalangioides",
+        "dwc:vernacularName": "イエユウレイグモ",
+        "dwc:occurrenceRemarks": "体に対して脚が細くて長い。頭胸部や腹は半透明の灰色で、腹部の中央に大きな褐色の模様がある。屋内の天井の隅や、人家や神社、倉庫などの薄暗い場所に生息し、天井や家具のすき間などにシート状の不規則な網を張る。触れると体を揺らす。世界中に広く分布する。",
+        "dwc:taxonConceptID": "gbif:2149937",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Pholcus phalangioides",
+        "dwc:family": "Pholcidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2149937,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Pholcidae",
+    "gbif_match_type": "EXACT"
+}

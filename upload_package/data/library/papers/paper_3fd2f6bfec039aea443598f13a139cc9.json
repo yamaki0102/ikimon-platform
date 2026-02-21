@@ -1,0 +1,20 @@
+{
+    "id": "paper_3fd2f6bfec039aea443598f13a139cc9",
+    "doi": "10.11646\/zootaxa.5652.1.12",
+    "title": "Taxonomy of the myrmicine ant genus Syllophopsis Santschi, 1915 (Hymenoptera: Formicidae) from China, with descriptions of two new species",
+    "year": 2025,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.5652.1.12",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.5652.1.12",
+        "dc:title": "Taxonomy of the myrmicine ant genus Syllophopsis Santschi, 1915 (Hymenoptera: Formicidae) from China, with descriptions of two new species",
+        "dc:date": 2025,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

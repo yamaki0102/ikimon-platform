@@ -1,0 +1,20 @@
+{
+    "id": "paper_da6e9d8c51a89df81294bb3017e81bcf",
+    "doi": "10.2326\/osj.4.173",
+    "title": "Diet of the Japanese Night Heron Gorsachius goisagi in Japan",
+    "year": 2005,
+    "container_title": "Ornithological Science",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2326\/osj.4.173",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2326\/osj.4.173",
+        "dc:title": "Diet of the Japanese Night Heron Gorsachius goisagi in Japan",
+        "dc:date": 2005,
+        "dc:source": "Ornithological Science",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

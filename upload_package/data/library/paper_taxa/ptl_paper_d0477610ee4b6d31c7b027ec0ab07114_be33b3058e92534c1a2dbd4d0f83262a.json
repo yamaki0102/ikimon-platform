@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_d0477610ee4b6d31c7b027ec0ab07114_be33b3058e92534c1a2dbd4d0f83262a",
+    "paper_id": "paper_d0477610ee4b6d31c7b027ec0ab07114",
+    "doi": "10.2108\/zsj.16.319",
+    "query_id": "alien_bird_2493618_en",
+    "query_label": "Lonchura striata Japan (alien\/introduced)",
+    "scientific_name": "Lonchura striata",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2108\/zsj.16.319",
+        "dwc:scientificName": "Lonchura striata",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2493618",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Lonchura striata",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Estrildidae"
+    },
+    "gbif_taxon_key": 2493618,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Estrildidae"
+}

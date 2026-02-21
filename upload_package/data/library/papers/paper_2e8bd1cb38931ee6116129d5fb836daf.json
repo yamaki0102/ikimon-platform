@@ -1,0 +1,20 @@
+{
+    "id": "paper_2e8bd1cb38931ee6116129d5fb836daf",
+    "doi": "10.1023\/b:bioc.0000019401.52391.a9",
+    "title": "Functional group classification and target species selection for Yancheng Nature Reserve, China",
+    "year": 2004,
+    "container_title": "Biodiversity &amp; Conservation",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1023\/b:bioc.0000019401.52391.a9",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1023\/b:bioc.0000019401.52391.a9",
+        "dc:title": "Functional group classification and target species selection for Yancheng Nature Reserve, China",
+        "dc:date": 2004,
+        "dc:source": "Biodiversity &amp; Conservation",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

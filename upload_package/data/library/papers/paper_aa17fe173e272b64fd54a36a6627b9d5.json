@@ -1,0 +1,20 @@
+{
+    "id": "paper_aa17fe173e272b64fd54a36a6627b9d5",
+    "doi": "10.2326\/osj.23.3",
+    "title": "Expansion of the Range of the Light-Vented Bulbul Pycnonotus sinensis into Mainland Japan",
+    "year": 2024,
+    "container_title": "Ornithological Science",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2326\/osj.23.3",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2326\/osj.23.3",
+        "dc:title": "Expansion of the Range of the Light-Vented Bulbul Pycnonotus sinensis into Mainland Japan",
+        "dc:date": 2024,
+        "dc:source": "Ornithological Science",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}
