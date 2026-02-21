@@ -1,0 +1,20 @@
+{
+    "id": "paper_a8767bab0749338a1e15208be341ed50",
+    "doi": "10.2173\/bna.97",
+    "title": "Emperor Goose (Anser canagicus)",
+    "year": 2011,
+    "container_title": "The Birds of North America Online",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2173\/bna.97",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/bna.97",
+        "dc:title": "Emperor Goose (Anser canagicus)",
+        "dc:date": 2011,
+        "dc:source": "The Birds of North America Online",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

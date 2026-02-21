@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p102_0874f72838adedced42b65452e764837",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 102,
+    "taxon_name": "Unknown",
+    "scientific_name": "Caretta caretta gigas",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.102)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Caretta caretta",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Reddish-brown Sea Turtle (Loggerhead).",
+        "dwc:taxonConceptID": "gbif:6156747",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Caretta caretta gigas",
+        "dwc:family": "Cheloniidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 6156747,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Caretta caretta",
+    "gbif_accepted_key": 8894817,
+    "gbif_family": "Cheloniidae",
+    "gbif_match_type": "EXACT"
+}

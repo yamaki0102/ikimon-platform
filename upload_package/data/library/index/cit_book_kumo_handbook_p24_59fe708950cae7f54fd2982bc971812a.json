@@ -1,0 +1,47 @@
+{
+    "id": "cit_book_kumo_handbook_p24_59fe708950cae7f54fd2982bc971812a",
+    "book_id": "book_kumo_handbook",
+    "page": 24,
+    "taxon_name": "イシサワオニグモ",
+    "scientific_name": "Araneus ishisawai",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 12〜20mm, male: 7〜10mm",
+        "season": "夏〜秋",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網に潜むオス",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.24)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Araneus ishisawai",
+        "dwc:vernacularName": "イシサワオニグモ",
+        "dwc:occurrenceRemarks": "腹部には明るい褐色で白色の条や複雑な斑紋（葉状斑）がある。腹面にも1対の突起が見られる。雌雄ともに腹部は褐色のしま模様が入る。山地に生息し、林縁、草の根、といった日陰、薄暗い場所に網を張る。北海道では平地でも見られるが、個体数は多くない。昼間は網の端に潜み、夕方から活動する。",
+        "dwc:taxonConceptID": "gbif:2160036",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Araneus ishisawai",
+        "dwc:family": "Araneidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2160036,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Araneidae",
+    "gbif_match_type": "EXACT"
+}

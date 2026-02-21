@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_473e139259ef2dd1b386023848c93268_45dee53db6e3bf375ef4723eb16fc2ae",
+    "paper_id": "paper_473e139259ef2dd1b386023848c93268",
+    "doi": "10.2173\/tbna.51.p",
+    "query_id": "jp_bird_5227679_en",
+    "query_label": "Lagopus muta Japan (ecology\/distribution)",
+    "scientific_name": "Lagopus muta",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/tbna.51.p",
+        "dwc:scientificName": "Lagopus muta",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:5227679",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Lagopus muta",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Phasianidae"
+    },
+    "gbif_taxon_key": 5227679,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Phasianidae"
+}

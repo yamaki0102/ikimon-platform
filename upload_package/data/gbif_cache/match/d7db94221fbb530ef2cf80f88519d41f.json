@@ -1,0 +1,18 @@
+{
+    "taxon_key": 8976465,
+    "scientific_name": "Agkistrodon halys (Pallas, 1776)",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 83,
+    "accepted_key": 8544034,
+    "accepted_name": "Gloydius halys",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Viperidae",
+    "genus": "Gloydius",
+    "rank": "SPECIES",
+    "original_query": "Agkistrodon halys (Red Variant)",
+    "_cached_at": 1771646779
+}

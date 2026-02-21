@@ -1,0 +1,47 @@
+{
+    "id": "cit_book_kumo_handbook_p20_cee8c4606d4a4bfaddb78d3962bcd5ca",
+    "book_id": "book_kumo_handbook",
+    "page": 20,
+    "taxon_name": "アシナガサラグモ",
+    "scientific_name": "Neriene longipedella",
+    "family": "サラグモ科 Linyphiidae",
+    "data_icons": {
+        "size": "female: 5〜7mm, male: 5〜7mm",
+        "season": "夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "オス",
+        "メス腹部",
+        "ドーム上の網",
+        "メス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.20)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Neriene longipedella",
+        "dwc:vernacularName": "アシナガサラグモ",
+        "dwc:occurrenceRemarks": "メスの腹部背面には複雑な模様とのちに消える白斑があり、腹面には目立つ黄色い紋（白斑）がある。オスは脚が非常に長い。山地に多く、ドーム状の網を作る。腹底の黄色斑パターンで近縁種と区別できる。",
+        "dwc:taxonConceptID": "gbif:2137382",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Neriene longipedella",
+        "dwc:family": "Linyphiidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2137382,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Linyphiidae",
+    "gbif_match_type": "EXACT"
+}

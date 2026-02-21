@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p29_0e4f0e758996e19aca2dd608e54121af",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 29,
+    "taxon_name": "オオサンショウウオ属",
+    "scientific_name": "Genus Megalobatrachus TSCHUDI, 1837",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.29)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Genus Megalobatrachus TSCHUDI, 1837",
+        "dwc:vernacularName": "オオサンショウウオ属",
+        "dwc:occurrenceRemarks": "　体は非常に大形．成体には鰓がなく，鰓孔は完全に閉鎖している．上鰓骨は2個しかない．皮膚は粗雑でしわやいぼが多く，胴の側面に厚いひだがある．後肢は5趾で基部に小さいみずかきがあり，第4指および第5趾の外縁には皮膚の膜がある．幼生の外部鰓は短かく，平衡桿も爪もない．\n　現生種は日本とシナとに1種ずつ分布し，化石種はヨーロッパの中新世から知られている．",
+        "dwc:taxonConceptID": "gbif:10514845",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Genus Megalobatrachus TSCHUDI, 1837",
+        "dwc:family": "Formicidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10514845,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Formicidae",
+    "gbif_match_type": "HIGHERRANK"
+}

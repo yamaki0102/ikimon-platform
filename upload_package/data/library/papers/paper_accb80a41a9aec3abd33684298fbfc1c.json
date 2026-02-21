@@ -1,0 +1,20 @@
+{
+    "id": "paper_accb80a41a9aec3abd33684298fbfc1c",
+    "doi": "10.60024\/zenodo.4746220",
+    "title": "On the identity of two species of Tyriobapta (Odonata: Libellulidae) from Sundaland",
+    "year": 2022,
+    "container_title": "Notulae odonatologicae",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.60024\/zenodo.4746220",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.60024\/zenodo.4746220",
+        "dc:title": "On the identity of two species of Tyriobapta (Odonata: Libellulidae) from Sundaland",
+        "dc:date": 2022,
+        "dc:source": "Notulae odonatologicae",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

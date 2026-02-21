@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p11_8ebd7eb664bcad12c30b0b644c1953de",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 11,
+    "taxon_name": "サンショウウオ目 (Caudata)",
+    "scientific_name": "Caudata",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.11)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Caudata",
+        "dwc:vernacularName": "サンショウウオ目 (Caudata)",
+        "dwc:occurrenceRemarks": "2.　サンショウウオ目 Caudata.　サンショウウオやイモリなどを含み，成体にも立派な尾があること，後肢の構造が前肢とあまり異なっていないこと，変態が比較的不完全で，外鰓の有無などを別にすれば水生のものでも幼生が成体に似た形態をしていることなどの点が顕著である．亜目の分類にはいくつかの説があるが，次のカエル目の場合に比べればよほど安定している．有尾目 Urodela と呼ばれることもある．",
+        "dwc:taxonConceptID": "gbif:953",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Caudata",
+        "dwc:family": null,
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 953,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": null,
+    "gbif_match_type": "HIGHERRANK"
+}

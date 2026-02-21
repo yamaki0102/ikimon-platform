@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_43bc0a778d20dd944478dbcaa3beeca4_bc3c2994ef359ed17c711d5cbacb3c3e",
+    "paper_id": "paper_43bc0a778d20dd944478dbcaa3beeca4",
+    "doi": "10.30456\/avo.2022201",
+    "query_id": "leiothrix_lutea_jp",
+    "query_label": "Leiothrix lutea (Soshi-cho) Japan",
+    "scientific_name": "Leiothrix lutea",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.30456\/avo.2022201",
+        "dwc:scientificName": "Leiothrix lutea",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:5231398",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Leiothrix lutea",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Leiothrichidae"
+    },
+    "gbif_taxon_key": 5231398,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Leiothrichidae"
+}

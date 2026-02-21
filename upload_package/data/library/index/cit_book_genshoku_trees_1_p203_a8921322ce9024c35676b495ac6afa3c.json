@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_trees_1_p203_a8921322ce9024c35676b495ac6afa3c",
+    "book_id": "book_genshoku_trees_1",
+    "page": 203,
+    "taxon_name": "ヒロハコンロンカ",
+    "scientific_name": "Mussaenda shikokiana Makino",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "SPECIES_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.203)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Mussaenda shikokiana Makino",
+        "dwc:vernacularName": "ヒロハコンロンカ",
+        "dwc:occurrenceRemarks": "482. ヒロハコンロンカ (コンロンカ属) [あかね科]\nMussaenda shikokiana Makino\n広葉昆崙花。本州、四国、九州、中国地方に分布。暖地の山地にはえる落葉低木。高さ2mぐらい。葉は対生。長楕円形または広倒卵形、長さ10~18cm、幅6-12cm、全縁。托葉は合生し、卵形。早落性。7月頃、枝の先に数個の集散花序を出し、淡黄色の花をやや多数つける。がく筒は楕円形、がく片は5、卵状皮針形、花冠の裂片は内面に黄色。果実は球形。",
+        "dwc:taxonConceptID": "gbif:2892411",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Mussaenda shikokiana Makino",
+        "dwc:family": "Rubiaceae",
+        "dwc:nameAccordingTo": "book_genshoku_trees_1"
+    },
+    "gbif_taxon_key": 2892411,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Rubiaceae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2431165,
+    "scientific_name": "Hynobius nigrescens Stejneger, 1907",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Caudata",
+    "family": "Hynobiidae",
+    "genus": "Hynobius",
+    "rank": "SPECIES",
+    "original_query": "Hynobius (Hynobina) nigrescens STEJNEGER, 1907",
+    "_cached_at": 1770419898
+}

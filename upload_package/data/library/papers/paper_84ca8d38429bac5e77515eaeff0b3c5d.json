@@ -1,0 +1,20 @@
+{
+    "id": "paper_84ca8d38429bac5e77515eaeff0b3c5d",
+    "doi": "10.1093\/hesc\/9781605357140.003.0011",
+    "title": "Invasive Alien Species",
+    "year": 2019,
+    "container_title": "Conservation Biology",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1093\/hesc\/9781605357140.003.0011",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1093\/hesc\/9781605357140.003.0011",
+        "dc:title": "Invasive Alien Species",
+        "dc:date": 2019,
+        "dc:source": "Conservation Biology",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

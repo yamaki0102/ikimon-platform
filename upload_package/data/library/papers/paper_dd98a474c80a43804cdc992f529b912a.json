@@ -1,0 +1,20 @@
+{
+    "id": "paper_dd98a474c80a43804cdc992f529b912a",
+    "doi": "10.1099\/ijs.0.041871-0",
+    "title": "Orbus sasakiae sp. nov., a bacterium isolated from the gut of the butterfly Sasakia charonda, and emended description of the genus \n               \n                  Orbus",
+    "year": 2013,
+    "container_title": "International Journal of Systematic and Evolutionary Microbiology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1099\/ijs.0.041871-0",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1099\/ijs.0.041871-0",
+        "dc:title": "Orbus sasakiae sp. nov., a bacterium isolated from the gut of the butterfly Sasakia charonda, and emended description of the genus \n               \n                  Orbus",
+        "dc:date": 2013,
+        "dc:source": "International Journal of Systematic and Evolutionary Microbiology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

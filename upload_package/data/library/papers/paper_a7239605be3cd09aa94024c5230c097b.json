@@ -1,0 +1,20 @@
+{
+    "id": "paper_a7239605be3cd09aa94024c5230c097b",
+    "doi": "10.1016\/j.foreco.2012.06.007",
+    "title": "Structure and diversity of a natural temperate sessile oak (Quercus petraea L.) – European Beech (Fagus sylvatica L.) forest",
+    "year": 2012,
+    "container_title": "Forest Ecology and Management",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/j.foreco.2012.06.007",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/j.foreco.2012.06.007",
+        "dc:title": "Structure and diversity of a natural temperate sessile oak (Quercus petraea L.) – European Beech (Fagus sylvatica L.) forest",
+        "dc:date": 2012,
+        "dc:source": "Forest Ecology and Management",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

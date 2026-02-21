@@ -1,0 +1,20 @@
+{
+    "id": "paper_9c59943fd487519c6fdf0f3ab0a20552",
+    "doi": "10.1016\/b978-0-12-455403-0.50009-8",
+    "title": "THE PHYSIOLOGY OF AMPHIBIAN CELLS IN CULTURE",
+    "year": 1976,
+    "container_title": "Physiology of the Amphibia",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1016\/b978-0-12-455403-0.50009-8",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/b978-0-12-455403-0.50009-8",
+        "dc:title": "THE PHYSIOLOGY OF AMPHIBIAN CELLS IN CULTURE",
+        "dc:date": 1976,
+        "dc:source": "Physiology of the Amphibia",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

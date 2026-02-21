@@ -1,0 +1,20 @@
+{
+    "id": "paper_2553ea200b59988d193416ed17161935",
+    "doi": "10.13057\/biodiv\/d130106",
+    "title": "Age-specific life table of swallowtail butterfly Papilio demoleus (Lepidoptera: Papilionidae) in dry and wet seasons",
+    "year": 2011,
+    "container_title": "Biodiversitas Journal of Biological Diversity",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.13057\/biodiv\/d130106",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.13057\/biodiv\/d130106",
+        "dc:title": "Age-specific life table of swallowtail butterfly Papilio demoleus (Lepidoptera: Papilionidae) in dry and wet seasons",
+        "dc:date": 2011,
+        "dc:source": "Biodiversitas Journal of Biological Diversity",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

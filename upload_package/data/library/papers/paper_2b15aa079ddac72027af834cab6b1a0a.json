@@ -1,0 +1,20 @@
+{
+    "id": "paper_2b15aa079ddac72027af834cab6b1a0a",
+    "doi": "10.1016\/s0378-1127(83)80002-4",
+    "title": "Pinus contorta: Sweden's third conifer",
+    "year": 1983,
+    "container_title": "Forest Ecology and Management",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/s0378-1127(83)80002-4",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/s0378-1127(83)80002-4",
+        "dc:title": "Pinus contorta: Sweden's third conifer",
+        "dc:date": 1983,
+        "dc:source": "Forest Ecology and Management",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

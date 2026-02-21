@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p57_f97f65501edc6c4014a9cb70544c3752",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 57,
+    "taxon_name": "リュウキュウアカガエル",
+    "scientific_name": "Rana (Rana) okinavana BOETTGER, 1895",
+    "family": "アカガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.57)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Nidirana okinavana",
+        "dwc:vernacularName": "リュウキュウアカガエル",
+        "dwc:occurrenceRemarks": "　琉球列島におけるタゴガエルの置換種ではないかと考えられるが，上唇の上半部が顕著な白条になっていること，下顎部が黒っぽくないこと，背側線の隆条が鼓膜の後背側でごくわずかしか曲がっていないこと．後肢が比較的細長いことなどの点で，後者との区別はやさしい．背面は淡褐色または赤褐色で数個な黒点を散布し，左右の上眼瞼に黒褐色の横帯をそなえていることが多い．肩胛部にある逆V字形の黒褐色紋は一般に明瞭．頭部側面の黒条は前種の場合と同様であるが，上唇の上半が白く，吻端の両側から前肢基部の前側に至る著しい白条を形成している．ただし，上唇縁は，黒褐色に細く縁取られている．胴部では，背側隆条の外縁が不連続な細い黒褐色線で縁取られていることもある．四肢の外縁は，不規則に波曲した黒条で縁取られ，上搏部の内縁も基方が黒条で縁取られている．前搏部や後肢の背面には，前種の場合と同じような黒褐色の横帯がある．大腿部の後面は暗褐色系の小点でおおわれているが，点点に粗密があるので網目状に見えることが多い．肛門の周囲は黒色．腹面は淡黄白色で，下顎の周縁が黒褐色に細く縁取られ．胸部と後肢の下面とに暗褐色の小点を散在している．蹠部は暗褐色，体は比較的細く，頭部も前種ほど幅広くはない．吻は短かいがタゴガエルの場合よりは明らかに細く，側面の傾斜も急で，吻端がややとがっている．吻端から眼の前端までの距離は両眼の間隔よりも小さいが．前種の場合に比べればかなり大きい．外鼻孔の位置は眼の前端よりも吻端に近く，左右両孔間の距離は，上眼軸の間隔にほぼ等しいかあるいはそれよりもわずかに大きい程度である．眼鼻線は明瞭で，頰部は細長く凹んでいる．眼はよく突出しているが，上眼瞼の幅は左右の上眼瞼の間隔にほぼ等しい．鼓膜は円く，直径が眼径の半分ぐらいであるかあるいはそれよりも多少大きい．上唇縁から後走する隆条や鼓膜の後背側から前肢基部の前側に向かう隆条のようすは前種の場合とほぼ同様．鋤骨歯板は比較的長いが，構造的には前種のものに似ている．♂にも声嚢がない．背面の皮膚は鮫肌状で小さい粒起を散在し，腹面の皮膚は平滑であるが，腹部後方や大腿部の後下面ではにぶい顆粒におおわれている．背側線上の隆条は細いが明瞭で，後端まではほぼ完全．鼓膜の後背側で外方へわずかに曲がっている．四肢は比較的細長く，大腿部と脛部との長さの和が普通は体長よりもやや大きい．また，後肢を体軸と直角に伸ばして膝関節を折り曲げると，左右の脛跗関節が明らかに重なり合う．指趾も細長くて末端がふくれている．外蹠隆起がつねに明瞭であることは前2種の場合に等しい，みずかきの発達は比較的悪く，切れ込みも深い．体長：35〜45mm．\n　琉球列島の特産種で，奄美大島，徳之島，沖縄本島および石垣島から知られ，山地の森林の中にすんでいる．産卵習性などはよくわかっていないが，おそらくかなり早い時期に繁殖するのではないかと思われる．",
+        "dwc:taxonConceptID": "gbif:2426829",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Rana) okinavana BOETTGER, 1895",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2426829,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Nidirana okinavana",
+    "gbif_accepted_key": 10786072,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

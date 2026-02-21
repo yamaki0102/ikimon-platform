@@ -1,0 +1,20 @@
+{
+    "id": "paper_cfb8a49bb7f72a5c76383bb837c12576",
+    "doi": "10.2173\/tbna.389.p",
+    "title": "Black-billed Magpie (Pica pica)",
+    "year": 1999,
+    "container_title": "Birds of North America (print)",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/tbna.389.p",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/tbna.389.p",
+        "dc:title": "Black-billed Magpie (Pica pica)",
+        "dc:date": 1999,
+        "dc:source": "Birds of North America (print)",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

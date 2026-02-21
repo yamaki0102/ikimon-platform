@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p158_3d77cc63e16e7b8c610d947130c55e91",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 158,
+    "taxon_name": "ツシマスベトカゲ",
+    "scientific_name": "Lygosoma (Leiolopisma) reevesii vandenburghi (K. P. SCHMIDT, 1927)",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.158)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lygosoma (Leiolopisma) reevesii vandenburghi (K. P. SCHMIDT, 1927)",
+        "dwc:vernacularName": "ツシマスベトカゲ",
+        "dwc:occurrenceRemarks": "　サキシマスベトカゲに比べて体色が一般に暗く．体が細長くて尾も短い．体側の黒褐色の縦条はとくに下縁が不鮮明で．その上下両縁の白い縁取りもあまり明瞭ではない．頭部の鱗板の配列は前の亜種とほぼ同様で，左右の前額板が正中線上で接し合っている．体鱗は胴の中央部で 28〜30列．項板から後肢の基部までの間に 66〜70枚ぐらい（普通は 69〜70枚）ある．趾下板の数は，第4趾で 11〜13枚しかない．体長：80〜105mm（尾は普通体長の 1\/2 を超える）．\n　分布は対馬に限られ．林の中の倒木の下などから見つかる．",
+        "dwc:taxonConceptID": "gbif:2464889",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Lygosoma (Leiolopisma) reevesii vandenburghi (K. P. SCHMIDT, 1927)",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2464889,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

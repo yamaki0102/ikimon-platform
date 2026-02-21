@@ -1,0 +1,20 @@
+{
+    "id": "paper_462baa601b882707615e86077bfb7929",
+    "doi": "10.31857\/s0044513423110065",
+    "title": "STATE OF POPULATIONS AND BREEDING BIOLOGY OF THE HORNED PUFFIN (&lt;i&gt;FRATERCULA CORNICULATA&lt;\/i&gt; ALCIDAE, CHARADRIIFORMES) IN THE NORTHERN PART OF THE SEA OF OKHOTSK",
+    "year": 2023,
+    "container_title": "Зоологический журнал",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.31857\/s0044513423110065",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.31857\/s0044513423110065",
+        "dc:title": "STATE OF POPULATIONS AND BREEDING BIOLOGY OF THE HORNED PUFFIN (&lt;i&gt;FRATERCULA CORNICULATA&lt;\/i&gt; ALCIDAE, CHARADRIIFORMES) IN THE NORTHERN PART OF THE SEA OF OKHOTSK",
+        "dc:date": 2023,
+        "dc:source": "Зоологический журнал",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

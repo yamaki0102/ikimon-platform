@@ -1,0 +1,32 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p45_01985817af098107dee0f3b17c163e2e",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 45,
+    "taxon_name": "アジアヒキガエル",
+    "scientific_name": "PLATE 8 - 21",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [
+        {
+            "figure_id": "21",
+            "caption": "21. アジアヒキガエル"
+        }
+    ],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.45)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "PLATE 8 - 21",
+        "dwc:vernacularName": "アジアヒキガエル",
+        "dwc:occurrenceRemarks": "21. アジアヒキガエル"
+    }
+}

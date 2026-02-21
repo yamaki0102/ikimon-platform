@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2158851,
+    "scientific_name": "Neoscona adianta (Walckenaer, 1802)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Araneidae",
+    "genus": "Neoscona",
+    "rank": "SPECIES",
+    "original_query": "Neoscona adianta",
+    "_cached_at": 1771646862
+}

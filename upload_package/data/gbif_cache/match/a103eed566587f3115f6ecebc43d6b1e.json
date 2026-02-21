@@ -1,0 +1,18 @@
+{
+    "taxon_key": 9113095,
+    "scientific_name": "Eumeces marginatus (Hallowell, 1861)",
+    "status": "SYNONYM",
+    "match_type": "HIGHERRANK",
+    "confidence": 98,
+    "accepted_key": 5960549,
+    "accepted_name": "Plestiodon marginatus",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Scincidae",
+    "genus": "Plestiodon",
+    "rank": "SPECIES",
+    "original_query": "Eumeces marginatus marginatus (HALLOWELL, 1860)",
+    "_cached_at": 1770420196
+}

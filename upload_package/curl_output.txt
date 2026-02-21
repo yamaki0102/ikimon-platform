@@ -1,0 +1,1 @@
+{"success":false,"error":"ai_not_configured","message":"AI\u6a5f\u80fd\u306f\u73fe\u5728\u6e96\u5099\u4e2d\u3067\u3059\u3002"}

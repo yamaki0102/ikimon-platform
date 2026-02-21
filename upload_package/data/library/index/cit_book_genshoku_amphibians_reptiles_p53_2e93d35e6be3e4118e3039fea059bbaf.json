@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p53_2e93d35e6be3e4118e3039fea059bbaf",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 53,
+    "taxon_name": "アカガエル属",
+    "scientific_name": "Genus Rana LINNÉ, 1758",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.53)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Genus Rana LINNÉ, 1758",
+        "dwc:vernacularName": "アカガエル属",
+        "dwc:occurrenceRemarks": "　体形にはかなりの変異があって，皮膚のなめらかなものも粗雑なものも知られている．瞳孔は水平方向の楕円形であることが多いが，円に近い三角形のことや菱形こともある．鼓膜は原則として明瞭．舌の後部は完全に遊離し，端縁の中央部が深くえ",
+        "dwc:taxonConceptID": "gbif:10514845",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Genus Rana LINNÉ, 1758",
+        "dwc:family": "Formicidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10514845,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Formicidae",
+    "gbif_match_type": "HIGHERRANK"
+}

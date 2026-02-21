@@ -1,0 +1,20 @@
+{
+    "id": "paper_e06c131ed3ea758929540baa7aecc0f8",
+    "doi": "10.15560\/17.5.1291",
+    "title": "First record of the diving beetle Copelatus chevrolati Aub&amp;eacute;, 1838 in Cuba (Coleoptera, Dytiscidae, Copelatinae)",
+    "year": 2021,
+    "container_title": "Check List",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.15560\/17.5.1291",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.15560\/17.5.1291",
+        "dc:title": "First record of the diving beetle Copelatus chevrolati Aub&amp;eacute;, 1838 in Cuba (Coleoptera, Dytiscidae, Copelatinae)",
+        "dc:date": 2021,
+        "dc:source": "Check List",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

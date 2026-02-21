@@ -1,0 +1,20 @@
+{
+    "id": "paper_4b60abb994c005efdc33e3cf3c75c301",
+    "doi": "10.1023\/a:1021224429091",
+    "title": "Tree competition and species coexistence in a warm-temperate old-growth evergreen broad-leaved forest in Japan",
+    "year": 2003,
+    "container_title": "Plant Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1023\/a:1021224429091",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1023\/a:1021224429091",
+        "dc:title": "Tree competition and species coexistence in a warm-temperate old-growth evergreen broad-leaved forest in Japan",
+        "dc:date": 2003,
+        "dc:source": "Plant Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

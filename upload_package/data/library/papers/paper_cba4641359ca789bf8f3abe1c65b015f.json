@@ -1,0 +1,20 @@
+{
+    "id": "paper_cba4641359ca789bf8f3abe1c65b015f",
+    "doi": "10.70231\/amb.2010.016",
+    "title": "Cricket Pteronemobius heydenii (Orthoptera: Gryllidae) in the Czech Republic",
+    "year": 2010,
+    "container_title": "Acta Musei Beskidensis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.70231\/amb.2010.016",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.70231\/amb.2010.016",
+        "dc:title": "Cricket Pteronemobius heydenii (Orthoptera: Gryllidae) in the Czech Republic",
+        "dc:date": 2010,
+        "dc:source": "Acta Musei Beskidensis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

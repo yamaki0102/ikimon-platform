@@ -1,0 +1,20 @@
+{
+    "id": "paper_98df932a3f7b47ab3a87cfd27a80da99",
+    "doi": "10.4238\/2015.august.7.5",
+    "title": "Complete mitochondrial genome of the Chinese Hwamei Garrulax canorus (Aves: Passeriformes): the first representative of the Leiothrichidae family with a duplicated control region",
+    "year": 2015,
+    "container_title": "Genetics and Molecular Research",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.4238\/2015.august.7.5",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.4238\/2015.august.7.5",
+        "dc:title": "Complete mitochondrial genome of the Chinese Hwamei Garrulax canorus (Aves: Passeriformes): the first representative of the Leiothrichidae family with a duplicated control region",
+        "dc:date": 2015,
+        "dc:source": "Genetics and Molecular Research",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

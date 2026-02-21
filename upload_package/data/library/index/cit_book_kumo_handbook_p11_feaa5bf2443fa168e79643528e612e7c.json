@@ -1,0 +1,46 @@
+{
+    "id": "cit_book_kumo_handbook_p11_feaa5bf2443fa168e79643528e612e7c",
+    "book_id": "book_kumo_handbook",
+    "page": 11,
+    "taxon_name": "シモングモ",
+    "scientific_name": "Spermophora senoculata",
+    "family": "ユウレイグモ科 Pholcidae",
+    "data_icons": {
+        "size": "female: 2〜3mm, male: 2mm",
+        "season": "一年中",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "6個の眼（3個ずつ集まる）"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.11)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Spermophora senoculata",
+        "dwc:vernacularName": "シモングモ",
+        "dwc:occurrenceRemarks": "体は白っぽい淡黄色。腹部は丸く、背面後方に一対の黒点がある。歩脚は細長い。眼は6個で3個ずつ集まる。家屋内の暗い場所や神社の灯篭、石垣の隙間、海岸の洞窟、洞穴の入り口付近などに生息し、不規則な網を張る。世界中に広く分布する。",
+        "dwc:taxonConceptID": "gbif:2149847",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Spermophora senoculata",
+        "dwc:family": "Pholcidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2149847,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Pholcidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_fa2c38b7f3ac8097af92941eb00515b2",
+    "doi": "10.3854\/crm.5.025.tricarinata.v1.2009",
+    "title": "Melanochelys tricarinata (Blyth 1856) – Tricarinate Hill Turtle, Three-Keeled Land Turtle",
+    "year": 2009,
+    "container_title": "Conservation Biology of Freshwater Turtles and Tortoises",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.3854\/crm.5.025.tricarinata.v1.2009",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3854\/crm.5.025.tricarinata.v1.2009",
+        "dc:title": "Melanochelys tricarinata (Blyth 1856) – Tricarinate Hill Turtle, Three-Keeled Land Turtle",
+        "dc:date": 2009,
+        "dc:source": "Conservation Biology of Freshwater Turtles and Tortoises",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

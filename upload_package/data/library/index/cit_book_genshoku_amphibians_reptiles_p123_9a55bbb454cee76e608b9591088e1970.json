@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p123_9a55bbb454cee76e608b9591088e1970",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 123,
+    "taxon_name": "ナキヤモリ属 (続き)",
+    "scientific_name": "Hemidactylus OKEN, 1817",
+    "family": "ヤモリ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.123)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hemidactylus OKEN, 1817",
+        "dwc:vernacularName": "ナキヤモリ属 (続き)",
+        "dwc:occurrenceRemarks": "にいるものは自然分布でないのかも知れない．日本本土には侵入していないが，琉球列島では普通に見られる．しかし，これまでに記載された4種のうちの1種（シマヤモリ H. marmoratus HALLOWELL, 1860）は正体がよくわからず．ことによるとナキヤモリ属のものではなくて，ヤモリ Gekko japonicus の誤認ではないかとも考えられる．\n\n<種の検索表>\n1 (2) 尾の背面には，6個ぐらいずつの円錐形の鱗が横に並んで，多数の突起環を形成している：♂の前肛部から大腿部の下面に続く小孔列は連続的で，小孔の数は26〜35個----------ホオグロヤモリ．\n2 (1) 尾の背面の鱗はほぼいちようで，突起環をそなえていない．\n3 (4) 体背の鱗はいちようで，大形の顆粒が混在していない：♂の前肛部から大腿部の下面に続く小孔の列は，中央部が 2〜4鱗分の幅で中断されている：小孔の数は各側に12〜15個：第1指（趾）の末端節はよく発達している----------タシロヤモリ．\n4 (3) 体背の鱗はいちようでなく，大形の顆粒が多数混在している：♂の前肛部から大腿部の下面に続く小孔列は 30〜33個の小孔からなり．中央部で中断されていない：第1指（趾）の末端節は短小----------オキナワヤモリ．",
+        "dwc:taxonConceptID": "gbif:5221394",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hemidactylus OKEN, 1817",
+        "dwc:family": "Gekkonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5221394,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gekkonidae",
+    "gbif_match_type": "HIGHERRANK"
+}

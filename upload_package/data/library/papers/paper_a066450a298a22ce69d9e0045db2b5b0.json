@@ -1,0 +1,20 @@
+{
+    "id": "paper_a066450a298a22ce69d9e0045db2b5b0",
+    "doi": "10.1071\/9780643100701.ch06",
+    "title": "Dragonfly Habitats",
+    "year": 1991,
+    "container_title": "Australian Dragonflies",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1071\/9780643100701.ch06",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1071\/9780643100701.ch06",
+        "dc:title": "Dragonfly Habitats",
+        "dc:date": 1991,
+        "dc:source": "Australian Dragonflies",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

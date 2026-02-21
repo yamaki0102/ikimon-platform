@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2158754,
+    "scientific_name": "Eriophora Simon, 1864",
+    "status": "ACCEPTED",
+    "match_type": "HIGHERRANK",
+    "confidence": 94,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Araneidae",
+    "genus": "Eriophora",
+    "rank": "GENUS",
+    "original_query": "Eriophora sagana",
+    "_cached_at": 1771646864
+}

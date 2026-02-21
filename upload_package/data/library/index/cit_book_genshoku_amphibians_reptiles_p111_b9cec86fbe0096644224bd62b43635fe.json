@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p111_b9cec86fbe0096644224bd62b43635fe",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 111,
+    "taxon_name": "スッポン属 (続き)",
+    "scientific_name": "Trionyx GEOFFROY-SAINT-HILAIRE, 1809",
+    "family": "スッポン科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.111)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Trionyx GEOFFROY-SAINT-HILAIRE, 1809",
+        "dwc:vernacularName": "スッポン属 (続き)",
+        "dwc:occurrenceRemarks": "　日本，朝鮮，満州，シナ，台湾，東南アジア，インド，アフリカ東部，北アメリカなどに分布し，16種ほど知られている．化石種は．中生代の白亜紀以降にかなり見つかっていて．日本でも北海道から T. desmostyli H. MATSUMOTO, 1918 が報告された．\n　スッポン属の学名は，長い間非常に混乱していた．アジア東部の両生爬虫類をまとめて，邦産種の分類の基礎をつくった STEJNEGER (1907) は．スッポンの属名として Amyda を採用し，これが後の研究者に受け継がれたので，日本のスッポンは従来 Amyda japonica という学名で呼ばれてきた．しかし，この Amyda という属名には複雑な問題があって，少なくとも動物命名規約上は．FITZINGER (1835) が記載を与えた時まで有効とみなされず．従って，GEOFFROY-SAINT-HILAIRE (1809) の Trionyx に先取権があることになる．その上，邦産種は，Amyda の模式種である T. subplana よりも，Trionyx の模式種である T. triunguis に類縁が近いので，たとえ Amyda が何らかの形で狭義の Trionyx から区分され得るとしても．スッポンの位置はやはり Trionyx の中に残される．",
+        "dwc:taxonConceptID": "gbif:2442547",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Trionyx GEOFFROY-SAINT-HILAIRE, 1809",
+        "dwc:family": "Trionychidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2442547,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Trionychidae",
+    "gbif_match_type": "HIGHERRANK"
+}

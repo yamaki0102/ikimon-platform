@@ -1,0 +1,20 @@
+{
+    "id": "paper_5f03608af3b3f0cdccb9b1fd3e038b90",
+    "doi": "10.5253\/078.097.0106",
+    "title": "Migration and Wintering of Baltic DunlinsCalidris Alpina Schinziiwith Known Breeding Origin",
+    "year": 2009,
+    "container_title": "Ardea",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5253\/078.097.0106",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5253\/078.097.0106",
+        "dc:title": "Migration and Wintering of Baltic DunlinsCalidris Alpina Schinziiwith Known Breeding Origin",
+        "dc:date": 2009,
+        "dc:source": "Ardea",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

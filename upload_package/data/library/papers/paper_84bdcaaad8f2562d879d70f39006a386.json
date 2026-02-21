@@ -1,0 +1,20 @@
+{
+    "id": "paper_84bdcaaad8f2562d879d70f39006a386",
+    "doi": "10.1007\/s00300-004-0593-5",
+    "title": "Annual energy budget and food requirements of breeding wandering albatrosses ( Diomedea exulans )",
+    "year": 2004,
+    "container_title": "Polar Biology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/s00300-004-0593-5",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/s00300-004-0593-5",
+        "dc:title": "Annual energy budget and food requirements of breeding wandering albatrosses ( Diomedea exulans )",
+        "dc:date": 2004,
+        "dc:source": "Polar Biology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

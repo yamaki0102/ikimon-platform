@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p55_784ca8f3e9cb030fab781c4b377c2a16",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 55,
+    "taxon_name": "ツシマアカガエル (続き)",
+    "scientific_name": "Rana (Rana) amurensis tsushimensis STEJNEGER, 1907",
+    "family": "アカガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.55)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana tsushimensis",
+        "dwc:vernacularName": "ツシマアカガエル (続き)",
+        "dwc:occurrenceRemarks": "条の外側には，これを縁取る不連続な黒条をそなえていることがある．四肢の背面には黒褐色の横帯があり，とくに前搏部の2〜3本，大腿部と脛部との各4〜5本は明瞭．腹面は淡黄白色または汚白色で，下顎の周縁部には暗褐色の不規則な斑紋をそなえているのが普通．体はかなり細く，頭部も比較的幅が狭いが，吻は短かくて吻端がにぶい．吻端から眼の前端までの距離は，両眼の間隔の間隔よりも小さく，左右の外鼻孔の間隔は上眼瞼の間隔よりも大きい．外鼻孔は吻の背側にあり，吻端と眼の前端との中央よりもやや前寄りに位置している．眼鼻線にはにぶいが明瞭で．その下側の頰部は浅くて細長い窪みになっている．眼はよく突出し，上眼瞼の幅が左右の上眼瞼の間隔よりも明らかに大きいが，眼の長径は吻端から眼の前端までの距離よりも少し小さいのが普通．上眼瞼の上には細かい顆粒が散在する．鼓膜はほぼ円形または垂直方向の短かい楕円形で，その直（長）径は眼径の半分よりもやや大きい．上唇縁は後方で隆起し，口角よりも後方に延びて前肢基部の前方で円く終わる隆条を形成している．鋤骨歯板は卵形で斜向し，左右の内鼻孔の後端を結んだ線上にあるが後方にかたよっている．♂にも声嚢がない．背面や体側の皮膚は小さい顆粒を散布し，とくに胴の後部では粒状が密になる．背側線の隆条は細いが明瞭で，鼓膜の後背側で軽く外方へ曲がった後，後肢基部の背側までほぼ完全に続いている．また，この隆条の背曲部で分かれて後下方へ走り前肢基部の前側に達する隆条があって，鼓膜周縁の黒褐色部の後背縁を限っている．腹面はおおむね平滑であるが，胴の後方では横に走る不規則なしわやにぶい顆粒をそなえ，大腿部の後下面も広い顆粒で密におおわれている．四肢はよく発達しているがとくに長くはなく，大腿部と脛部との長さの和が外鼻孔から肛門までの距離ぐらいである．しかし，膝関節で折り曲げた後肢を体軸と直角に伸ばすと，左右の脛跗関節は明らかに重なり合う．第1指は第2指よりもやや長く，第3指が最長で第4指がこれに次ぐ．内蹠隆起は楕円形でかなり大きく，外蹠隆起は顆粒状で小さいがつねに明瞭．趾間のみずかきは薄くて発達が比較的悪く，切れ込みが第4趾で第2関節に達しないのを原則とする．体長：35〜50mm．\n　対馬の固有亜種で，小川の周辺の草むらなどにすんでいるが，産卵習性や卵塊のようすはよくわかっていない．なお，基亜種（アムールアカガエル R. amurensis amurensis BOULENGER, 1886）は沿海州や樺太に分布し，朝鮮の南部には別亜種のチョウセンアカガエル R. amurensis coreana Y. OKADA, 1927 がいる．",
+        "dwc:taxonConceptID": "gbif:10908227",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Rana) amurensis tsushimensis STEJNEGER, 1907",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10908227,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Rana tsushimensis",
+    "gbif_accepted_key": 2426783,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

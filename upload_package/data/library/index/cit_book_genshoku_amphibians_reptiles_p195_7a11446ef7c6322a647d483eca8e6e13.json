@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p195_7a11446ef7c6322a647d483eca8e6e13",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 195,
+    "taxon_name": "サキシマアオヘビ",
+    "scientific_name": "Opheodrys herminae",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.195)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Ptyas herminae",
+        "dwc:vernacularName": "サキシマアオヘビ",
+        "dwc:occurrenceRemarks": "Plate 32 illustration (103). Greenish-yellow snake.",
+        "dwc:taxonConceptID": "gbif:2455213",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Opheodrys herminae",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2455213,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Ptyas herminae",
+    "gbif_accepted_key": 11054644,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "EXACT"
+}

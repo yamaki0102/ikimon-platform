@@ -1,0 +1,20 @@
+{
+    "id": "paper_3d6cc961aca684bd14a76b0a04551216",
+    "doi": "10.2307\/1935193",
+    "title": "Thermoregulation by the Black Swallowtail Butterfly, Papilio Polyxenes (Lepidoptera: Papilionidae)",
+    "year": 1980,
+    "container_title": "Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/1935193",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/1935193",
+        "dc:title": "Thermoregulation by the Black Swallowtail Butterfly, Papilio Polyxenes (Lepidoptera: Papilionidae)",
+        "dc:date": 1980,
+        "dc:source": "Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

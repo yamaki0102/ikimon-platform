@@ -1,0 +1,46 @@
+{
+    "id": "cit_book_kumo_handbook_p13_c6f8c81e08b1b6d7cd65af3548ff030e",
+    "book_id": "book_kumo_handbook",
+    "page": 13,
+    "taxon_name": "カタハリウズグモ",
+    "scientific_name": "Octonoba sybotides",
+    "family": "ウズグモ科 Uloboridae",
+    "data_icons": {
+        "size": "female: 4〜6mm, male: 4mm",
+        "season": "夏",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス背面",
+        "網（水平円網に隠れ帯）"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.13)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Octonoba sybotides",
+        "dwc:vernacularName": "カタハリウズグモ",
+        "dwc:occurrenceRemarks": "全体が黒褐色または茶褐色で、腹部に突起がある。山地から平地まで広く生息し、林縁や神社の苔の生えた崖地、石垣のすき間などに、薄暗い場所に水平円網を張る。網の中心部には渦巻状や直線状の「隠れ帯」を付ける。近縁種のトウ（トウキョウウズグモ）とは外見では区別が難しい。",
+        "dwc:taxonConceptID": "gbif:2142395",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Octonoba sybotides",
+        "dwc:family": "Uloboridae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2142395,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Uloboridae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,49 @@
+{
+    "id": "cit_book_kumo_handbook_p32_a5d2c2a92522387ba31c164698679a94",
+    "book_id": "book_kumo_handbook",
+    "page": 32,
+    "taxon_name": "オオトリノフンダマシ",
+    "scientific_name": "Cyrtarachne inaequalis",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 10〜13mm, male: 2.0〜2.5mm",
+        "season": "夏〜秋",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "葉に裏に隠れるメス",
+        "卵のう",
+        "オス",
+        "オス触肢"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.32)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Cyrtarachne inaequalis",
+        "dwc:vernacularName": "オオトリノフンダマシ",
+        "dwc:occurrenceRemarks": "メスは腹部背面に目玉のような特徴的な模様をもつ。山地から平地にかけての草むらや林縁に生息。本種はこれまで海外に分布するC. finniganaeとされてきたが、別種であることが最近わかった。また本種は沖縄地方にも分布するとされてきたが、それも交接器の形状が異なる別種（マギトリノフンダマシ C. jucunda）であることがわかった。",
+        "dwc:taxonConceptID": "gbif:2160953",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Cyrtarachne inaequalis",
+        "dwc:family": "Araneidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2160953,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Araneidae",
+    "gbif_match_type": "EXACT"
+}

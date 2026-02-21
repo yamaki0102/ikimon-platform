@@ -1,0 +1,20 @@
+{
+    "id": "paper_b66f149ba2480e6f2c117d51b8632ddc",
+    "doi": "10.2307\/1312",
+    "title": "The Breeding Distribution, History and Population of The Fulmar (Fulmarus glacialis) in the British Isles",
+    "year": 1941,
+    "container_title": "The Journal of Animal Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/1312",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/1312",
+        "dc:title": "The Breeding Distribution, History and Population of The Fulmar (Fulmarus glacialis) in the British Isles",
+        "dc:date": 1941,
+        "dc:source": "The Journal of Animal Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

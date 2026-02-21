@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_9a530f036f849411c79c6f8b4d65512b_8472e1f983aa7a60658dc97503987fc6",
+    "paper_id": "paper_9a530f036f849411c79c6f8b4d65512b",
+    "doi": "10.2173\/bow.sposan.01",
+    "query_id": "jp_bird_2481798_en",
+    "query_label": "Actitis macularius Japan (ecology\/distribution)",
+    "scientific_name": "Actitis macularius",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/bow.sposan.01",
+        "dwc:scientificName": "Actitis macularius",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481798",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Actitis macularius",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Scolopacidae"
+    },
+    "gbif_taxon_key": 2481798,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scolopacidae"
+}

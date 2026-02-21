@@ -1,0 +1,20 @@
+{
+    "id": "paper_5fe1e35d4ebbcff170fcb451479d72b1",
+    "doi": "10.1201\/9781315136264-1",
+    "title": "Introduction",
+    "year": 2017,
+    "container_title": "A Bird Atlas of Kenya",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1201\/9781315136264-1",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1201\/9781315136264-1",
+        "dc:title": "Introduction",
+        "dc:date": 2017,
+        "dc:source": "A Bird Atlas of Kenya",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

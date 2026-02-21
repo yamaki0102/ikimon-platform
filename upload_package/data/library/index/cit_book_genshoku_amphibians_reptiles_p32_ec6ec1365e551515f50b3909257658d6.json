@@ -1,0 +1,40 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p32_ec6ec1365e551515f50b3909257658d6",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 32,
+    "taxon_name": "オオサンショウウオ",
+    "scientific_name": "Megalobatrachus japonicus",
+    "family": "オオサンショウウオ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [
+        "16. オオサンショウウオ"
+    ],
+    "page_type": "VISUAL_PLATE",
+    "rarity_stars": null,
+    "type": "plate",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.32)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Andrias japonicus",
+        "dwc:vernacularName": "オオサンショウウオ",
+        "dwc:occurrenceRemarks": "PLATE V - 16",
+        "dwc:taxonConceptID": "gbif:11014317",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Megalobatrachus japonicus",
+        "dwc:family": "Cryptobranchidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 11014317,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Andrias japonicus",
+    "gbif_accepted_key": 2432039,
+    "gbif_family": "Cryptobranchidae",
+    "gbif_match_type": "EXACT"
+}

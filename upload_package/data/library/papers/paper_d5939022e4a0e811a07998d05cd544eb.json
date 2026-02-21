@@ -1,0 +1,20 @@
+{
+    "id": "paper_d5939022e4a0e811a07998d05cd544eb",
+    "doi": "10.2307\/2389464",
+    "title": "Protandry in the Green-Veined White Butterfly, Pieris napi L. (Lepidoptera; Pieridae)",
+    "year": 1988,
+    "container_title": "Functional Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/2389464",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/2389464",
+        "dc:title": "Protandry in the Green-Veined White Butterfly, Pieris napi L. (Lepidoptera; Pieridae)",
+        "dc:date": 1988,
+        "dc:source": "Functional Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 5220367,
+    "scientific_name": "Chelonia mydas japonica (Thunberg, 1787)",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": 2442225,
+    "accepted_name": "Chelonia mydas",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Testudines",
+    "order": null,
+    "family": "Cheloniidae",
+    "genus": "Chelonia",
+    "rank": "SUBSPECIES",
+    "original_query": "Chelonia mydas japonica (THUNBERG, 1787)",
+    "_cached_at": 1770420078
+}

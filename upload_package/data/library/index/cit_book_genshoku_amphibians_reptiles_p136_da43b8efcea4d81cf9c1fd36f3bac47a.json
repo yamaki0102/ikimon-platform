@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p136_da43b8efcea4d81cf9c1fd36f3bac47a",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 136,
+    "taxon_name": "トカゲ属",
+    "scientific_name": "Eumeces WIEGMANN, 1834",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.136)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Eumeces WIEGMANN, 1834",
+        "dwc:vernacularName": "トカゲ属",
+        "dwc:occurrenceRemarks": "　左右の上鼻板はよく発達し．正中線上で互に接し合って，吻端板と前額鼻板とを前後に隔てている．左右の前額板は，正中線上で接し合っていることが多いが．両側に隔てられていることもある．前頭頭板．額頂板，頭頂間板などもよく分化し．前頭頭板は対になっている．鼻板は部分的に分かれていることが多く．時には前後2枚に完全に分かれていることもある．眼瞼はよく発達し．下眼瞼が鱗におおわれている．耳孔は明瞭で，鼓膜は耳孔の中に落ち込み表面に現われていない．左右の口蓋骨は中央で隔てられ．左右の翼状骨も中央で接し合っていない．上顎歯は円錐形であるか．あるいは円くふくれた歯冠をそなえている．翼骨歯があり．前顎歯は普通左側に3本．右側に4本ある．肛板は中央の1対が大形．四肢はよく発達し．5指（趾）性で，すべての指趾に爪をそなえている．指趾はほぼ円筒形であるかあるいは多少側扁し，形に",
+        "dwc:taxonConceptID": "gbif:9068937",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Eumeces WIEGMANN, 1834",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9068937,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

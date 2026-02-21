@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2480887,
+    "scientific_name": "Egretta eulophotes (Swinhoe, 1860)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Pelecaniformes",
+    "family": "Ardeidae",
+    "genus": "Egretta",
+    "rank": "SPECIES",
+    "original_query": "Egretta eulophotes",
+    "_cached_at": 1770426456
+}

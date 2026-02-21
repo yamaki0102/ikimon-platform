@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p105_98a37049fee677b603bb52947bf0c6b7",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 105,
+    "taxon_name": "ハコガメ属",
+    "scientific_name": "Cyclemys BELL, 1834",
+    "family": "カメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.105)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Cyclemys BELL, 1834",
+        "dwc:vernacularName": "ハコガメ属",
+        "dwc:occurrenceRemarks": "　頭骨には側頭部の橋があり（不完全な場合もある）．歯槽面は幅が狭い．椎骨板のうちの六角形のものは，前側縁の方が後側縁よりも明らかに長い．腹甲の胸骨板と腹骨板との間は多少ともちょうつがい状になり，少なくともその前方の部分が可動．肩胸縫合線は内骨板を横切っている．指趾間のみずかきのようすは種によって異なるが．邦産種ではあまり発達がよくない．尾はあまり長くない．\n　8種から成り，東南アジアを中心として，北へは琉球南部まで，東へはフィリッピンまで，西へはヒマラヤ東部まで，また東南へはジャバまで拡がっている．2亜属に分類され，基亜属では腹甲板の後半部が動かない．なお，この属の現生種は沖縄群島以北にいないが，化石が洪積層からよく見つかるので，過去のある時代には，この属の代表者が，少なくとも関東北部にまで拡がっていたことがわかっている．",
+        "dwc:taxonConceptID": "gbif:2443435",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Cyclemys BELL, 1834",
+        "dwc:family": "Geoemydidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2443435,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Geoemydidae",
+    "gbif_match_type": "HIGHERRANK"
+}

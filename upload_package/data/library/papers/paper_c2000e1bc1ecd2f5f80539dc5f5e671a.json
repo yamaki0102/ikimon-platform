@@ -1,0 +1,20 @@
+{
+    "id": "paper_c2000e1bc1ecd2f5f80539dc5f5e671a",
+    "doi": "10.1007\/s10336-014-1131-z",
+    "title": "Post-breeding migration of Night Herons Nycticorax nycticorax tracked by GPS\/GSM transmitters",
+    "year": 2015,
+    "container_title": "Journal of Ornithology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/s10336-014-1131-z",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/s10336-014-1131-z",
+        "dc:title": "Post-breeding migration of Night Herons Nycticorax nycticorax tracked by GPS\/GSM transmitters",
+        "dc:date": 2015,
+        "dc:source": "Journal of Ornithology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

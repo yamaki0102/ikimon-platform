@@ -1,0 +1,18 @@
+{
+    "taxon_key": 7524854,
+    "scientific_name": "Dorcus rubrofemoratus (Snellen van Vollenhoven, 1865)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Insecta",
+    "order": "Coleoptera",
+    "family": "Lucanidae",
+    "genus": "Dorcus",
+    "rank": "SPECIES",
+    "original_query": "Dorcus rubrofemoratus",
+    "_cached_at": 1771646883
+}

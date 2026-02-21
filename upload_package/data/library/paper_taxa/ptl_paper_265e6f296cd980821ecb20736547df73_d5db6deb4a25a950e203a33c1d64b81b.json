@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_265e6f296cd980821ecb20736547df73_d5db6deb4a25a950e203a33c1d64b81b",
+    "paper_id": "paper_265e6f296cd980821ecb20736547df73",
+    "doi": "10.3389\/fmicb.2022.1081468",
+    "query_id": "jp_bird_2498026_en",
+    "query_label": "Anser erythropus Japan (ecology\/distribution)",
+    "scientific_name": "Anser erythropus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.3389\/fmicb.2022.1081468",
+        "dwc:scientificName": "Anser erythropus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2498026",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Anser erythropus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 2498026,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

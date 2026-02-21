@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p133_8677967a6d6d54f4fa6d6be84498f211",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 133,
+    "taxon_name": "オビトカゲモドキ (続き)",
+    "scientific_name": "Eublepharis kuroiwae splendens K. NAKAMURA et S. UÉNO, 1959",
+    "family": "トカゲモドキ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.133)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Goniurosaurus kuroiwae",
+        "dwc:vernacularName": "オビトカゲモドキ (続き)",
+        "dwc:occurrenceRemarks": "　奄美群島の徳之島に固有の亜種で，海岸の近くにも山地の森林の中にもいる．すんでいる環境は基亜種の場合と同様で，模式標本は石灰洞の中で発見されたが，その後に採集された個体は，いずれも森林の周辺で見つかっている．\n　この亜種も．原著では新種として記載されたもので，邦産のトカゲモドキ類のうちではかなり孤立した特徴をもっている．とくに，腹面の鱗のようすは，他の2亜種の場合と著しく異なり．体背の斑紋も，ほかの亜種とは全く異なった傾向を示している．従って，原著のように，このトカゲモドキを独立種と見ることも可能であろう．私が原記載を発表した当時には．沖縄群島産の比較標本が全く得られず，先学の研究者によって記載されたものの模式標本もすべて失われたように考えられていた．ことに，Gymnodactylus 属の種として報告された動物の正体のわからなかったことが，研究上の非常な障害になった．しかし，この類の資料がその後非常に豊富になり．沖縄群島産の個体群の分類もよく整理できるようになったので，これらと徳之島産のものとの関係を再検討した結果．邦産のトカゲモドキ類全部を同一種と見るのが，自然分類にもっとも近いのではないかと考えられるようになった．この類に関する再検討のより詳細な結果は別の報告に譲るが，ここでは，取り敢えず．学名の新しい組合せだけを提示しておく．",
+        "dwc:taxonConceptID": "gbif:5221339",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eublepharis kuroiwae splendens K. NAKAMURA et S. UÉNO, 1959",
+        "dwc:family": "Eublepharidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5221339,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Goniurosaurus kuroiwae",
+    "gbif_accepted_key": 2446415,
+    "gbif_family": "Eublepharidae",
+    "gbif_match_type": "HIGHERRANK"
+}

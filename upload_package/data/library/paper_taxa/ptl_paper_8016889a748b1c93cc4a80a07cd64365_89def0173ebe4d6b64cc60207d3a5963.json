@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_8016889a748b1c93cc4a80a07cd64365_89def0173ebe4d6b64cc60207d3a5963",
+    "paper_id": "paper_8016889a748b1c93cc4a80a07cd64365",
+    "doi": "10.5253\/arde.2023.a15",
+    "query_id": "jp_bird_9752617_en",
+    "query_label": "Ardea alba Japan (ecology\/distribution)",
+    "scientific_name": "Ardea alba",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.5253\/arde.2023.a15",
+        "dwc:scientificName": "Ardea alba",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:9752617",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Ardea alba",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ardeidae"
+    },
+    "gbif_taxon_key": 9752617,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ardeidae"
+}

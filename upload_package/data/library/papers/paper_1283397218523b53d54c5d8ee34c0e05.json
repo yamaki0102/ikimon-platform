@@ -1,0 +1,20 @@
+{
+    "id": "paper_1283397218523b53d54c5d8ee34c0e05",
+    "doi": "10.3897\/zookeys.474.8474",
+    "title": "Araneae Sloveniae: a national spider species checklist",
+    "year": 2015,
+    "container_title": "ZooKeys",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3897\/zookeys.474.8474",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3897\/zookeys.474.8474",
+        "dc:title": "Araneae Sloveniae: a national spider species checklist",
+        "dc:date": 2015,
+        "dc:source": "ZooKeys",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

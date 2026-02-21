@@ -1,0 +1,20 @@
+{
+    "id": "paper_c8e5ff853164d3084d25aae2f43c19b9",
+    "doi": "10.5962\/p.342499",
+    "title": "Breeding Records of the Ring-necked Duck (Aythya collaris) in Rivière-du-Loup and Rimouski Counties, Quebec",
+    "year": 1966,
+    "container_title": "The Canadian field-naturalist",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.342499",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.342499",
+        "dc:title": "Breeding Records of the Ring-necked Duck (Aythya collaris) in Rivière-du-Loup and Rimouski Counties, Quebec",
+        "dc:date": 1966,
+        "dc:source": "The Canadian field-naturalist",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

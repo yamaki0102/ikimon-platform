@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p227_5c32fd148be7ee6d251b775360806188",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 227,
+    "taxon_name": "クロガシラウミヘビ",
+    "scientific_name": "Hydrophis melanocephalus GRAY, 1849",
+    "family": "ウミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.227)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hydrophis melanocephalus GRAY, 1849",
+        "dwc:vernacularName": "クロガシラウミヘビ",
+        "dwc:occurrenceRemarks": "消失している．\n3 (4) 体鱗は胴の後方でも瓦状に重なり合い，体は細長くて腹板数が 290〜390枚ぐらいある；吻の長さは長く．胴のもっとも太い部分の厚さが頸部の厚さの2倍ないし2倍半ある --- マダラウミヘビ．\n4 (3) 体鱗は胴の後方の部分を除き敷石状に並置されている；体は比較的短かくて 腹板数が 220〜240枚ぐらいしかない；体の后部は比較的太く，胴のもっとも太い部分の厚さが頸部の厚さの3倍を形成しない --- クロボシウミヘビ．\n\n122. クロガシラウミヘビ Hydrophis melanocephalus GRAY, 1849\n　体は灰色か淡黄褐色，背面と腹面とで 4〜5 鱗分の幅をもつ黒色の環帯が胴に 40〜50個．尾に 4〜9個ぐらいあり，体の前方の細い部分の腹面が黒く．また普通は尾の下側も黒い．黒色環帯は胴の側面では幅が狭くなって．環帯と環帯との間に 3〜5 鱗分の基色を残している．頭部は全体に黒いが，眼の後方上側に細い黄条があり．また多くは鼻孔の後に黄点がある．体は細長く．とくに前部は細くて，胴のもっとも太い部分の厚さが頸部の厚さの2倍ないし3倍ある．頭部は小さくて頸部よりも大きくはない．鼻孔．額板．頭頂板などはいずれも長く．吻端から頭頂板の後端までの長さは両眼間の距離の2倍を越える．眼は小形で．その直径は眼と鼻孔との間の距離よりも小さいが，口縁と眼との間隔には等しいかまたはこれより大きい．鼻板は長くて長さが幅の2倍近くあり，その後方外側に半円形の鼻孔が開いている．前額板は横位で鼻間板よりも明らかに小さく．左右の1対が正中線上で互に接し合っている．額板は細長い橋形で，その長さは幅の2倍に達し，また吻端から額板前端までの距離に等しい．頭頂板も細長くて額板より少し長く．正中線上に長い縫合線を作っている．眼上板は普通前額板よりも大きい．眼前板は1枚．眼後板も普通は1枚（稀には2枚）．側頭板は普通 1+2 で前列の1枚が大きいが．稀には前側頭板の2枚ある個体もある．上唇板は 7〜8枚（稀には6枚）．第2枚目は大きくて前額板に接し，第 3〜5（または第 3〜4）上唇板が眼に接し．最後の 2〜3枚は小さい．頤板はほぼ三角形であるが．前縁が深くえぐれている．下唇板の前方の4枚は大形で，第 1〜3 下唇板が前咽頭板に．第 3〜4 下唇板が後咽頭板に接し．また左右の第1下唇板は頤板の後で互に接合している．第2下唇板より後方には口縁に沿って小形の鱗がある．左右の前咽頭板．後咽頭板はともに正中線上で接し，後咽頭板と第1腹板との間には 7〜9枚の鱗がある．胴は前方では細くて円筒状．後方では多少とも側扁し，体鱗は頸部で 23〜31列．胴の中央で31〜41列あって，短かい隆条をそなえ，体のどの部分でも瓦状に重なり合っている．腹板は 290〜358枚ぐらいあって，その両側の体鱗の2倍ぐらいの幅をもち．断続した2列の隆条をそなえている．肛板は2対あり．尾下板は不対で 31〜49枚ぐらいある．上顎骨は溝牙の後方に 6〜8本の小歯をそなえている．体長：450〜1,250mm（尾は体長の 1\/11以下しかないことが多い）．\n　主として琉球列島と台湾との近海に分布しているが，海流に乗って北上し，四国．本州の沿岸から北海道でまで採れたことがある．\n\n123. マダラウミヘビ Hydrophis cyanocinctus DAUDIN, 1803\n　体は黄色ないし黄褐色．背面で 4〜7 鱗分の幅をもつ青黒色の横帯が胴に 50〜70個．",
+        "dwc:taxonConceptID": "gbif:5960356",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hydrophis melanocephalus GRAY, 1849",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5960356,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "EXACT"
+}

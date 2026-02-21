@@ -1,0 +1,20 @@
+{
+    "id": "paper_62f2f4e21f0b739070dda35f686bdaca",
+    "doi": "10.1007\/bf02515542",
+    "title": "Growth, egg production, and population density of the spider, Nephila clavata in relation to food conditions in the field",
+    "year": 1986,
+    "container_title": "Population Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/bf02515542",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/bf02515542",
+        "dc:title": "Growth, egg production, and population density of the spider, Nephila clavata in relation to food conditions in the field",
+        "dc:date": 1986,
+        "dc:source": "Population Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

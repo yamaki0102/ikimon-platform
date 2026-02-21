@@ -1,0 +1,20 @@
+{
+    "id": "paper_51b3cc0339aa3db2bad903c7b470ee1e",
+    "doi": "10.1007\/bf02241592",
+    "title": "Genealogie, Verbreitung und Häufigkeit derimmutabilis-Erbanlage des Höckerschwans (Cygnus olor)",
+    "year": 2000,
+    "container_title": "Zeitschrift für Jagdwissenschaft",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/bf02241592",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/bf02241592",
+        "dc:title": "Genealogie, Verbreitung und Häufigkeit derimmutabilis-Erbanlage des Höckerschwans (Cygnus olor)",
+        "dc:date": 2000,
+        "dc:source": "Zeitschrift für Jagdwissenschaft",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

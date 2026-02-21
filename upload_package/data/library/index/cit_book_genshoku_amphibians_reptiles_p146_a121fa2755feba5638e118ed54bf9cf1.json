@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p146_a121fa2755feba5638e118ed54bf9cf1",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 146,
+    "taxon_name": "オオシマトカゲ (続き)",
+    "scientific_name": "Eumeces marginatus oshimensis THOMPSON, 1912",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.146)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Plestiodon marginatus",
+        "dwc:vernacularName": "オオシマトカゲ (続き)",
+        "dwc:occurrenceRemarks": "は，鱗列数が非常に少なくて胴の中央部で普通 24〜26列しかなく，この点では確かに沖縄本島産のものに近いが，若い個体に見られる背面の淡色縦条は，一般に奄美大島産のものと同じ傾向を示している．先にも述べたように，私達は，オキナワトカゲとオオシマトカゲとの関係について，今すぐ最終的な結論を出そうとは思わない．しかし，将来琉球列島の島々が精査された暁には，おそらく両者の間に亜種を区別する価値さえ認められなくなるのではないかと想像している．",
+        "dwc:taxonConceptID": "gbif:9113095",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eumeces marginatus oshimensis THOMPSON, 1912",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9113095,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Plestiodon marginatus",
+    "gbif_accepted_key": 5960549,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

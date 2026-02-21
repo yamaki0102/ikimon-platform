@@ -1,0 +1,30 @@
+[
+    {
+        "id": "1001",
+        "name": "Harmonia axyridis",
+        "lat": 35.6895,
+        "lng": 139.6917,
+        "date": null
+    },
+    {
+        "id": "1002",
+        "name": "Sciurus lis",
+        "lat": 35.6586,
+        "lng": 139.7454,
+        "date": null
+    },
+    {
+        "id": "1003",
+        "name": "Passer montanus",
+        "lat": 35.7100,
+        "lng": 139.8107,
+        "date": null
+    },
+    {
+        "id": "1004",
+        "name": "Coleoptera",
+        "lat": 35.1815,
+        "lng": 136.9066,
+        "date": null
+    }
+]

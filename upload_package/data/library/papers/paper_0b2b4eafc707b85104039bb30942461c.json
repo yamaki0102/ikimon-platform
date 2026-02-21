@@ -1,0 +1,20 @@
+{
+    "id": "paper_0b2b4eafc707b85104039bb30942461c",
+    "doi": "10.1046\/j.1471-8286.2002.00244.x",
+    "title": "Polymorphic microsatellite DNA loci identified in the common frog (Rana temporaria, Amphibia, Ranidae)",
+    "year": 2002,
+    "container_title": "Molecular Ecology Notes",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1046\/j.1471-8286.2002.00244.x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1046\/j.1471-8286.2002.00244.x",
+        "dc:title": "Polymorphic microsatellite DNA loci identified in the common frog (Rana temporaria, Amphibia, Ranidae)",
+        "dc:date": 2002,
+        "dc:source": "Molecular Ecology Notes",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

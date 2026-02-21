@@ -1,0 +1,20 @@
+{
+    "id": "paper_e50bfcbfd4853fc11c01dcc829714a21",
+    "doi": "10.34080\/os.v20.22636",
+    "title": "Effect of urbanization and feeding intensity on the distribution of wintering Mallards Anas platyrhynchos in NE Poland",
+    "year": 2010,
+    "container_title": "Ornis Svecica",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.34080\/os.v20.22636",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.34080\/os.v20.22636",
+        "dc:title": "Effect of urbanization and feeding intensity on the distribution of wintering Mallards Anas platyrhynchos in NE Poland",
+        "dc:date": 2010,
+        "dc:source": "Ornis Svecica",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

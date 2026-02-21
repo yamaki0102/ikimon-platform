@@ -1,0 +1,20 @@
+{
+    "id": "paper_3c291fe04172aee5559fef53d42bd44e",
+    "doi": "10.33910\/2686-9519-2021-13-1-146-149",
+    "title": "Brachytron pratense (Müller, 1764) (Odonata: Aeshnidae): A new species in the fauna of Chuvashia",
+    "year": 2021,
+    "container_title": "Amurian Zoological Journal",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.33910\/2686-9519-2021-13-1-146-149",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.33910\/2686-9519-2021-13-1-146-149",
+        "dc:title": "Brachytron pratense (Müller, 1764) (Odonata: Aeshnidae): A new species in the fauna of Chuvashia",
+        "dc:date": 2021,
+        "dc:source": "Amurian Zoological Journal",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

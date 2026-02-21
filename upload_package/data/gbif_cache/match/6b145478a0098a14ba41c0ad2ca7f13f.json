@@ -1,0 +1,18 @@
+{
+    "taxon_key": 7456133,
+    "scientific_name": "Ardenna tenuirostris (Temminck, 1836)",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": 5229359,
+    "accepted_name": "Puffinus tenuirostris",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Procellariiformes",
+    "family": "Procellariidae",
+    "genus": "Puffinus",
+    "rank": "SPECIES",
+    "original_query": "Ardenna tenuirostris",
+    "_cached_at": 1770429066
+}

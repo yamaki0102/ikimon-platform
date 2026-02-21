@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p68_494b8931e061ae94b2a45391f6e06e65",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 68,
+    "taxon_name": "Unknown",
+    "scientific_name": "Rana (Rana) nigromaculata",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.68)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana (Rana) nigromaculata",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Greenish\/brown body with distinct spots.",
+        "dwc:taxonConceptID": "gbif:2426629",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Rana (Rana) nigromaculata",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2426629,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "HIGHERRANK"
+}

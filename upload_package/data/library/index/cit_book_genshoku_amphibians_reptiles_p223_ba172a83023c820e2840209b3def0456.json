@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p223_ba172a83023c820e2840209b3def0456",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 223,
+    "taxon_name": "ヒロオウミヘビ",
+    "scientific_name": "Laticauda laticaudata",
+    "family": "ウミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.223)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Laticauda laticaudata",
+        "dwc:vernacularName": "ヒロオウミヘビ",
+        "dwc:occurrenceRemarks": "Plate 37 illustration (118). Blue\/Black banding.",
+        "dwc:taxonConceptID": "gbif:5222167",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Laticauda laticaudata",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5222167,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "EXACT"
+}

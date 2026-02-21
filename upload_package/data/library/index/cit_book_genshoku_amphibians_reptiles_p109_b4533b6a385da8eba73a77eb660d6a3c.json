@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p109_b4533b6a385da8eba73a77eb660d6a3c",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 109,
+    "taxon_name": "イシガメ",
+    "scientific_name": "Clemmys japonica (TEMMINCK et SCHLEGEL, 1835)",
+    "family": "カメ科",
+    "data_icons": {
+        "size": "130〜150mm",
+        "season": null,
+        "distribution": "本州西部, トカラ (悪石), 石垣, 西表, 台湾, シナ"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.109)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Mauremys japonica",
+        "dwc:vernacularName": "イシガメ",
+        "dwc:occurrenceRemarks": "　背甲は褐色か暗褐色で，きわめて不明瞭な暗色の雲状紋がある．各種甲板の后縁中央部には黒い斑紋があり．多くは一つ前の椎甲板の後縁部に拡がっている．肋甲板と縁甲板との結合部は色が淡い．腹甲と縁甲板の腹面とは一ように黒色．頭部は灰褐色で．眼の後角と鼓膜の上縁とを結ぶ細い黒条があり，その下側はやや色が淡い．四肢は暗灰褐色または黒褐色．前膊部と脛部との後縁に淡色の縦条がある．尾は黒褐色で，背両面側に淡褐色の縦条が1本ずつあり．先端部ではこれらが合一する．吻は短かく，吻端はにぶいがやや突出している．側方から見ると，外鼻孔の直下から上顎の前端までがほぼ垂直．吻端から眼の前端までの距離は，眼の長径よりも少し短かい．上顎の前端はかぎ状に曲がっていないが，中央部の多少凹んでいることがある．背甲は卵形で，表面があまり隆起せず，前縁は多少ともなめらかでなく，後縁はにぶい鋸",
+        "dwc:taxonConceptID": "gbif:5220642",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Clemmys japonica (TEMMINCK et SCHLEGEL, 1835)",
+        "dwc:family": "Geoemydidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5220642,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Mauremys japonica",
+    "gbif_accepted_key": 2443368,
+    "gbif_family": "Geoemydidae",
+    "gbif_match_type": "EXACT"
+}

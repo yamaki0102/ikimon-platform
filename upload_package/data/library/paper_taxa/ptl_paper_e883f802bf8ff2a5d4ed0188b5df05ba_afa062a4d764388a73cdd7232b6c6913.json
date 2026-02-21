@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_e883f802bf8ff2a5d4ed0188b5df05ba_afa062a4d764388a73cdd7232b6c6913",
+    "paper_id": "paper_e883f802bf8ff2a5d4ed0188b5df05ba",
+    "doi": "10.1007\/bf02001121",
+    "query_id": "alien_bird_2479798_en",
+    "query_label": "Melopsittacus undulatus Japan (alien\/introduced)",
+    "scientific_name": "Melopsittacus undulatus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1007\/bf02001121",
+        "dwc:scientificName": "Melopsittacus undulatus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2479798",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Melopsittacus undulatus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Psittacidae"
+    },
+    "gbif_taxon_key": 2479798,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Psittacidae"
+}

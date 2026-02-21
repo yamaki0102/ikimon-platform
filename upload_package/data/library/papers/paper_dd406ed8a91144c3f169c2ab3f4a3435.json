@@ -1,0 +1,20 @@
+{
+    "id": "paper_dd406ed8a91144c3f169c2ab3f4a3435",
+    "doi": "10.1007\/s12045-022-1362-x",
+    "title": "Rose-ringed parakeet (Psittacula krameri)",
+    "year": 2022,
+    "container_title": "Resonance",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/s12045-022-1362-x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/s12045-022-1362-x",
+        "dc:title": "Rose-ringed parakeet (Psittacula krameri)",
+        "dc:date": 2022,
+        "dc:source": "Resonance",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

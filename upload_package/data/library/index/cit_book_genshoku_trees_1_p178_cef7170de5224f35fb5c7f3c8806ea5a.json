@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p178_cef7170de5224f35fb5c7f3c8806ea5a",
+    "book_id": "book_genshoku_trees_1",
+    "page": 178,
+    "taxon_name": "か行",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.178)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "か行",
+        "dwc:occurrenceRemarks": "カイコウズ IV 250\nカイドウ(ハナカイドウ) IV 194\nカイノキ IV 276\nカエデ V 243\n――(イロハモミジ) V 240\n――(エゾイタヤ) V 242\n――(トウカエデ) V 244\n――(ハナノキ) V 259\nカキノキ V 144\nカキラン IV 142\nガクアジサイ IV 146\nカクレミノ IV 150\nカゴノキ IV 115\nカササギ(トリ) IV 75\nカシ IV 35\nカシワ IV 39\nカシワバアジサイ IV 146\nカジイチゴ IV 158\nカジノキ IV 50\nカツラ IV 94\nカナメモチ IV 209\nカニコウモリ V 228\nカヌカ(カヌカノキ) V 196\nカネコゲンゲ(ゲンゲ) IV 247\nカノコユリ V 224\nガマズミ V 207\nカマツカ IV 200\nカミヤツデ IV 150\nカヤ V 288\nカライトソウ IV 207\nカラコギカエデ V 244\nカラスザンショウ IV 284"
+    }
+}

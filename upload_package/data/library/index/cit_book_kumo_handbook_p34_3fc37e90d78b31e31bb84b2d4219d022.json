@@ -1,0 +1,48 @@
+{
+    "id": "cit_book_kumo_handbook_p34_3fc37e90d78b31e31bb84b2d4219d022",
+    "book_id": "book_kumo_handbook",
+    "page": 34,
+    "taxon_name": "コガネグモダマシ",
+    "scientific_name": "Larinia argiopiformis",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 7〜11mm, male: 6〜7mm",
+        "season": "春〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "垂直に張る円網",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.34)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lariniaria argiopiformis",
+        "dwc:vernacularName": "コガネグモダマシ",
+        "dwc:occurrenceRemarks": "体は淡い褐色で、腹部中央の明るい縦条（中条）の両側に褐色の縦条（側条）がある。色彩変異が多く、中央に黒条をもつ個体や、全体に黒味がある個体はいない。平地から山地にかけての草地や河川敷に生息し、夜、草の間に垂直円網を張る。南西諸島には外見がよく似たネットタイコガネグモダマシ（L. phthisica）が生息する。",
+        "dwc:taxonConceptID": "gbif:8755920",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Larinia argiopiformis",
+        "dwc:family": "Araneidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 8755920,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Lariniaria argiopiformis",
+    "gbif_accepted_key": 2161132,
+    "gbif_family": "Araneidae",
+    "gbif_match_type": "EXACT"
+}

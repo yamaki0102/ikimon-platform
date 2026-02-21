@@ -1,0 +1,49 @@
+{
+    "id": "cit_book_kumo_handbook_p44_0609046ba93210a83115b765b2e1b648",
+    "book_id": "book_kumo_handbook",
+    "page": 44,
+    "taxon_name": "クサグモ",
+    "scientific_name": "Agelena silvatica",
+    "family": "タナグモ科 Agelenidae",
+    "data_icons": {
+        "size": "female: 14〜17mm, male: 12〜14mm",
+        "season": "夏〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "トンネル状の住居に潜む（卵のうを守る）",
+        "網（棚網）",
+        "オス",
+        "オス触肢"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.44)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Agelena silvatica",
+        "dwc:vernacularName": "クサグモ",
+        "dwc:occurrenceRemarks": "体は緑褐色で腹部の赤色が濃く、脚部が光沢のある黒褐色だが、殻と共に全体が茶色になる。都市部から農村、山で広く分布し、森林や林縁、庭木などにシート状の網（棚網）を張り、住居を作る。ふだんはシート網の上にあるトンネル状の住居に潜み、食事もその中で行う。網のうしろは筒状の独特な形をしている。",
+        "dwc:taxonConceptID": "gbif:2139515",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Agelena silvatica",
+        "dwc:family": "Agelenidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2139515,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Agelenidae",
+    "gbif_match_type": "EXACT"
+}

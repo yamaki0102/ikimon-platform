@@ -1,0 +1,20 @@
+{
+    "id": "paper_eaf3691f7ef35594f20c1eba2f5742cc",
+    "doi": "10.1007\/978-3-031-33712-3_3",
+    "title": "Keys to Suborders and Families of Odonata of Thailand",
+    "year": 2024,
+    "container_title": "The Dragonfly Nymphs of Thailand (Odonata: Anisoptera)",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1007\/978-3-031-33712-3_3",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/978-3-031-33712-3_3",
+        "dc:title": "Keys to Suborders and Families of Odonata of Thailand",
+        "dc:date": 2024,
+        "dc:source": "The Dragonfly Nymphs of Thailand (Odonata: Anisoptera)",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

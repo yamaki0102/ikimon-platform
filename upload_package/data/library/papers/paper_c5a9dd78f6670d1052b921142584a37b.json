@@ -1,0 +1,20 @@
+{
+    "id": "paper_c5a9dd78f6670d1052b921142584a37b",
+    "doi": "10.1890\/03-0107",
+    "title": "MATERNAL NEST-SITE CHOICE AND OFFSPRING FITNESS IN A TROPICAL SNAKE (TROPIDONOPHIS MAIRII, COLUBRIDAE)",
+    "year": 2004,
+    "container_title": "Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1890\/03-0107",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1890\/03-0107",
+        "dc:title": "MATERNAL NEST-SITE CHOICE AND OFFSPRING FITNESS IN A TROPICAL SNAKE (TROPIDONOPHIS MAIRII, COLUBRIDAE)",
+        "dc:date": 2004,
+        "dc:source": "Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

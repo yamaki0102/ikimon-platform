@@ -1,0 +1,14 @@
+{
+    "id": "ptl_paper_b36b2f00dce139fde98f22830ef2d5f3_2371ff448dcd40d573c1aa42ae20f2fb",
+    "paper_id": "paper_b36b2f00dce139fde98f22830ef2d5f3",
+    "doi": "10.1201\/9781315136264",
+    "query_id": "jp_birds_distribution_general",
+    "query_label": "Japan bird distribution",
+    "scientific_name": "Japan bird",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1201\/9781315136264",
+        "dwc:scientificName": "Japan bird",
+        "dwc:vernacularName": null
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_8134d5aff2c09abdd5b61b08b09b1748_3c6fbf16432de2f2ca93ce6c421a0829",
+    "paper_id": "paper_8134d5aff2c09abdd5b61b08b09b1748",
+    "doi": "10.2173\/bow.smew.01",
+    "query_id": "jp_bird_2498285_en",
+    "query_label": "Mergellus albellus Japan (ecology\/distribution)",
+    "scientific_name": "Mergellus albellus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/bow.smew.01",
+        "dwc:scientificName": "Mergellus albellus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2498285",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Mergellus albellus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 2498285,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

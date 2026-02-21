@@ -1,0 +1,20 @@
+{
+    "id": "paper_705bb2c8a1f7884e2329f62717c35488",
+    "doi": "10.11646\/palaeoentomology.7.6.5",
+    "title": "New stag beetle (Coleoptera: Lucanidae) from the Lower Cretaceous of Transbaikalia",
+    "year": 2024,
+    "container_title": "Palaeoentomology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/palaeoentomology.7.6.5",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/palaeoentomology.7.6.5",
+        "dc:title": "New stag beetle (Coleoptera: Lucanidae) from the Lower Cretaceous of Transbaikalia",
+        "dc:date": 2024,
+        "dc:source": "Palaeoentomology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

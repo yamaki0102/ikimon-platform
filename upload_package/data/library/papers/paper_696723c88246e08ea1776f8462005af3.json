@@ -1,0 +1,20 @@
+{
+    "id": "paper_696723c88246e08ea1776f8462005af3",
+    "doi": "10.56658\/04747313_2022_46_114",
+    "title": "MANDARIN DUCK (AIX GALERICULATA) IN MOSCOW",
+    "year": 2022,
+    "container_title": "Орнитология",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.56658\/04747313_2022_46_114",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.56658\/04747313_2022_46_114",
+        "dc:title": "MANDARIN DUCK (AIX GALERICULATA) IN MOSCOW",
+        "dc:date": 2022,
+        "dc:source": "Орнитология",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_d75ef3fcdeb8f5b96d2ab5d3a3ed03b3",
+    "doi": "10.12782\/specdiv.11.245",
+    "title": "Redescription of Two Nematode Species Parasitic in the Japanese Clawed Salamander, Onychodactylus japonicus (Amphibia: Caudata: Hynobiidae), with Proposal of a New Genus Shunyanema (Nematoda: Oxyuroidea: Pharyngodonidae)",
+    "year": 2006,
+    "container_title": "Species Diversity",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.12782\/specdiv.11.245",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.12782\/specdiv.11.245",
+        "dc:title": "Redescription of Two Nematode Species Parasitic in the Japanese Clawed Salamander, Onychodactylus japonicus (Amphibia: Caudata: Hynobiidae), with Proposal of a New Genus Shunyanema (Nematoda: Oxyuroidea: Pharyngodonidae)",
+        "dc:date": 2006,
+        "dc:source": "Species Diversity",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

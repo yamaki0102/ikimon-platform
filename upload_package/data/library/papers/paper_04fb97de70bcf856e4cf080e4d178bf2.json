@@ -1,0 +1,20 @@
+{
+    "id": "paper_04fb97de70bcf856e4cf080e4d178bf2",
+    "doi": "10.5962\/bhl.title.16288",
+    "title": "A Phylogenetic analysis and taxonomy of iguanian lizards (Reptilia, Squamata)",
+    "year": 1989,
+    "container_title": "",
+    "type": "monograph",
+    "url": "https:\/\/doi.org\/10.5962\/bhl.title.16288",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/bhl.title.16288",
+        "dc:title": "A Phylogenetic analysis and taxonomy of iguanian lizards (Reptilia, Squamata)",
+        "dc:date": 1989,
+        "dc:source": "",
+        "dc:type": "monograph",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_a55daa1e57d6510a5f8111ab7344146a",
+    "doi": "10.22543\/0090-0222.1969",
+    "title": "Distribution of &lt;i&gt;Hetaerina Titia&lt;\/i&gt; (Odonata: Calopterygidae) in the Eastern Great Lakes Region",
+    "year": 2018,
+    "container_title": "The Great Lakes Entomologist",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.22543\/0090-0222.1969",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.22543\/0090-0222.1969",
+        "dc:title": "Distribution of &lt;i&gt;Hetaerina Titia&lt;\/i&gt; (Odonata: Calopterygidae) in the Eastern Great Lakes Region",
+        "dc:date": 2018,
+        "dc:source": "The Great Lakes Entomologist",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

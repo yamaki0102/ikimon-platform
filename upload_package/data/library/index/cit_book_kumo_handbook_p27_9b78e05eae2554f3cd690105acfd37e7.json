@@ -1,0 +1,47 @@
+{
+    "id": "cit_book_kumo_handbook_p27_9b78e05eae2554f3cd690105acfd37e7",
+    "book_id": "book_kumo_handbook",
+    "page": 27,
+    "taxon_name": "ナガコガネグモ",
+    "scientific_name": "Argiope bruennichi",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 20〜25mm, male: 6〜12mm",
+        "season": "夏〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網（隠れ帯）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.27)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Argiope bruennichi",
+        "dwc:vernacularName": "ナガコガネグモ",
+        "dwc:occurrenceRemarks": "メスは大型で腹部に黄色と黒色のしま模様をもつ。スは体が小さく、模様も不明瞭。日本全土に分布があり、平地から山地まで広く生息し、日当たりの良い草地、水田や河原などに開けた場所で多く見られる。低い位置に網を張り、バッタなどを主に捕らえる。隠れ帯は成長に伴って変化し、直線型に変化する。",
+        "dwc:taxonConceptID": "gbif:5170994",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Argiope bruennichi",
+        "dwc:family": "Araneidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 5170994,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Araneidae",
+    "gbif_match_type": "EXACT"
+}

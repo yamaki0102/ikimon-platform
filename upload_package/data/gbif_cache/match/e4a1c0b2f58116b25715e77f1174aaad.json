@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2498250,
+    "scientific_name": "Melanitta americana (Swainson, 1832)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Anseriformes",
+    "family": "Anatidae",
+    "genus": "Melanitta",
+    "rank": "SPECIES",
+    "original_query": "Melanitta americana",
+    "_cached_at": 1770429238
+}

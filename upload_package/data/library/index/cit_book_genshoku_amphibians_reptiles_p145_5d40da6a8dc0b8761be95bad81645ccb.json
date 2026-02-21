@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p145_5d40da6a8dc0b8761be95bad81645ccb",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 145,
+    "taxon_name": "オオシマトカゲ",
+    "scientific_name": "Eumeces marginatus oshimensis THOMPSON, 1912",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.145)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Plestiodon marginatus",
+        "dwc:vernacularName": "オオシマトカゲ",
+        "dwc:occurrenceRemarks": "　背面中央部の2体鱗列がほとんど拡がっていないこと．若い個体に見られる背面の黄白縦条が尾の基方 1\/3 ぐらいまでしかないこと．背面両側の縦条が第 3〜4 の2鱗列に拡がっていること．および体鱗が胴の中央部で普通28列あることなどの点で基亜種と区別できる．\n　琉球列島中北部の宝島．喜界島，奄美大島．徳之島などに分布し，基亜種と同じように，海岸の近くの草むらなどに多い．\n　この亜種の取扱いについてはまだ問題が多く．今のところ研究者の一致した見解が得られていない．本書のように，オキナワトカゲの亜種とする取扱いにも，多分に便宜的な嫌いがあるが．現在私達の手許にある材料だけでは，より決定的な意見を提唱することができなかった．次に．これまでの主な研究者の意見を，順を追って紹介しておこう．\n　まず，原著者の THOMPSON (1912) は，奄美大島と喜界島とのトカゲが，オキナワトカゲの1地方型として区別できるものであると述べながら，新名としては独立した種名を与えた．ほとんど時を同じくして，VAN DENBURGH (1912) は，これら両島のトカゲをオキナワトカゲの亜種と認め，それぞれの島のものに異なった亜種名を採用した．その後，トカゲ属の綜説を発表した TAYLOR (1935) は，THOMPSON と VAN DENBURGH との意見を整理してオオシマトカゲ一つにまとめたが，これをオキナワトカゲに近縁の別種とみなし，その分布範囲を奄美群島（実際には奄美大島と喜界島）に限った．TAYLOR の意見は，岡田 (1939) によってほぼ踏襲され．木場 (1955, 1956, 1958, 1962 など) もまたこの意見に従ってオオシマトカゲを独立種と認めている．木場は，1955年にはオオシマトカゲとオキナワトカゲとをともに奄美大島から記録したが，後にはこの両者の分布範囲が重なり合わないものと考えているようである．ここで問題になるのは，トカラ群島の宝島産の個体群で，永井 (1928) がオキナワトカゲに同定して以来．岡田 (1939) や柴田 (1960) なども宝島産のトカゲを沖縄本島のものと同種と認めている．\n　このように，現在一般に採用されている分類は，オオシマトカゲを独立種と認める傾向にあるといえよう．しかし，成体における鱗の数や状態にはかなりの個体変異があって，必ずしも明確な区別点とはなり得ない．また，鱗列数と若い個体に現われる色模様との間にも，常に一定の関連性があるとは思えない．例えば，宝島産のトカゲ",
+        "dwc:taxonConceptID": "gbif:9113095",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eumeces marginatus oshimensis THOMPSON, 1912",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9113095,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Plestiodon marginatus",
+    "gbif_accepted_key": 5960549,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

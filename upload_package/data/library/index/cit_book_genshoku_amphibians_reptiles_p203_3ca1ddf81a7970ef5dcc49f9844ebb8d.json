@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p203_3ca1ddf81a7970ef5dcc49f9844ebb8d",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 203,
+    "taxon_name": "アカマタ",
+    "scientific_name": "Dinodon semicarinatus (Cope)",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.203)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lycodon semicarinatus",
+        "dwc:vernacularName": "アカマタ",
+        "dwc:occurrenceRemarks": "Top figure. Reddish-brown snake with black repeating patterns (Akamata).",
+        "dwc:taxonConceptID": "gbif:2455583",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Dinodon semicarinatus (Cope)",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2455583,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Lycodon semicarinatus",
+    "gbif_accepted_key": 9356654,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "FUZZY"
+}

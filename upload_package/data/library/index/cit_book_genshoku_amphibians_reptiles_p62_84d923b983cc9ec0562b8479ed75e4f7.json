@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p62_84d923b983cc9ec0562b8479ed75e4f7",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 62,
+    "taxon_name": "エゾアカガエル",
+    "scientific_name": "Rana (Rana) chensinensis dybowskii GÜNTHER, 1876",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.62)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana dybowskii",
+        "dwc:vernacularName": "エゾアカガエル",
+        "dwc:occurrenceRemarks": "　ヤマアカガエルに似ているが，左右の上眼瞼の間隔が比較的広く，普通は外鼻孔の距離にも上眼瞼の幅にもほぼ等しい．また，腹面の暗色斑紋の拡がりが大きく，不規",
+        "dwc:taxonConceptID": "gbif:10940927",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Rana) chensinensis dybowskii GÜNTHER, 1876",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10940927,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Rana dybowskii",
+    "gbif_accepted_key": 2426803,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

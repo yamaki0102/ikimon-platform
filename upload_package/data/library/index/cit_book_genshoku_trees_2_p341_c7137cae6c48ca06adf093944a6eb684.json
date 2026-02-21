@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p341_c7137cae6c48ca06adf093944a6eb684",
+    "book_id": "book_genshoku_trees_2",
+    "page": 341,
+    "taxon_name": "和名索引 (341頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.341)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "和名索引 (341頁)",
+        "dwc:occurrenceRemarks": "ハリギリ V97\nハリグワ V64\nハリグワ属 V64\nハリツルマサキ V45\nハリツルマサキ属 V45\nバリバリノキ IV90\nハリブキ V96\nハリブキ属 V96\nハリモミ V248\nハルコガネバナ(サンシュユ)\n     V91\nバルサムファー V256\nバルサムモミ(バルサムファー)\n     V256\nハルニレ IV46\nパルバリドスザクラ IV4\nハルミ(ラヤン(ウウギヤシ) V230\nハワイアン ハイビスカス(パルカ\n     ン) V64\n――'スレース スー' V65\n――'ダブル ブラウン' V65\n――'パウダー パフ' V65\n――'ミュー ピンク' V65\nハンショウヅル(トウチク) V222\nハンショウヅル IV99\nバンジロウ V84\nバンジロウ属 V84\nパンダヌス(タコノキ) V235\nハンテンボク(ユリノキ) IV77\nバントウ IV196\nハンノキ IV20\nハンノキ属 IV20\nバンノキ IV60\nバンノキ属 IV60\nバンマツリ V190\nバンマツリ属 V190\nばんや科 V67\nバンヤジュ(ベンガルボダイジュ)\n     IV60\nバンレイシ IV80\nばんれいし科 IV80\nバンレイシ属 IV80\n\nひ\n\nヒイラギ V158\n\nヒイラギガシ(リンボク) IV179\nヒイラギナンテン IV107\nヒイラギナンテン属 IV107\nヒイラギモクセイ V158\nヒイラギモチ V38\nヒカゲツツジ V129\nヒカンザクラ IV169\nヒガンザクラ IV166\nヒギリ V185\nピケア グラウカ(カナダトウヒ)\n     V248\nヒコサンヒメシャラ IV140\nヒサカキ IV140\nヒサカキ属 IV140\nヒシバデイコ(サンゴシトウ)\n     IV249\nピスタシア属 V9\nピスタシオノキ V9\nヒゼンマユミ V40\nピタンガ(タチバナアデク) V87\nヒッコリー IV4\nヒッチョウカ IV110\nヒトエニワザクラ IV197\nヒトエノコクチナシ V175\nヒトシベサンザシ(クラタエグス\n     モノギナ) IV198\nヒトツバカエデ V23\nヒトツバタゴ V163\nヒトツバタゴ属 V163\nヒトツバハギ IV271\nヒトツバハギ属 IV271\nヒナウチワカエデ V15\nヒノキ V271\nひのき科 V266\nヒノキ属 V266\nヒノキバヤドリギ IV69\nヒノキバヤドリギ属 IV69\nヒバ(アスナロ) V277\nヒマラヤシーダ(ヒマラヤスギ)\n     V247\nヒマラヤスギ V247\nヒマラヤスギ属 V244\nヒマラヤトキワサンザシ(カザンデ\n     マリ) IV200\nヒムロ(ヒムロスギ) V274\nヒムロスギ V274"
+    }
+}

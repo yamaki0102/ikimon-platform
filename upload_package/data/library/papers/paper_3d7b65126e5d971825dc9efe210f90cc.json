@@ -1,0 +1,20 @@
+{
+    "id": "paper_3d7b65126e5d971825dc9efe210f90cc",
+    "doi": "10.1127\/entom.gen\/21\/1997\/177",
+    "title": "Frühmorgendliche Eiablage von Libellen-Weibchen bei niedrigen Temperaturen zur Männchen-Vermeidung (Odonata: Aeshnidae, Libellulidae)",
+    "year": 1997,
+    "container_title": "Entomologia Generalis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1127\/entom.gen\/21\/1997\/177",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1127\/entom.gen\/21\/1997\/177",
+        "dc:title": "Frühmorgendliche Eiablage von Libellen-Weibchen bei niedrigen Temperaturen zur Männchen-Vermeidung (Odonata: Aeshnidae, Libellulidae)",
+        "dc:date": 1997,
+        "dc:source": "Entomologia Generalis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

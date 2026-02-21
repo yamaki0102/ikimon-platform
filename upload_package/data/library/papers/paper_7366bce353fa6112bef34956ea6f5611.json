@@ -1,0 +1,20 @@
+{
+    "id": "paper_7366bce353fa6112bef34956ea6f5611",
+    "doi": "10.1007\/978-3-030-53183-6_5",
+    "title": "GMOs – Impact on Non-target Arthropods",
+    "year": 2020,
+    "container_title": "Topics in Biodiversity and Conservation",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1007\/978-3-030-53183-6_5",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/978-3-030-53183-6_5",
+        "dc:title": "GMOs – Impact on Non-target Arthropods",
+        "dc:date": 2020,
+        "dc:source": "Topics in Biodiversity and Conservation",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

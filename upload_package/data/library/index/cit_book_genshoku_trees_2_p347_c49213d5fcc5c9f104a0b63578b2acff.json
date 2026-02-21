@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p347_c49213d5fcc5c9f104a0b63578b2acff",
+    "book_id": "book_genshoku_trees_2",
+    "page": 347,
+    "taxon_name": "和名索引 (347頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.347)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "和名索引 (347頁)",
+        "dwc:occurrenceRemarks": "ミヤマハギ(マルバハギ) IV252\nミヤマハンショウヅル IV100\nミヤマハンノキ IV26\nミヤマビャクシン V278\nミヤマフジキ(ユクノキ) IV258\nミヤマフユイチゴ IV222\nミヤマホソウ V30\nミヤマホツツジ V145\nミヤママタタビ IV119\nミヤマメギ(オオバメギ) IV106\nミヤマヤナギ IV11\nミヤマレンゲ(オオヤマレンゲ)\n     IV76\n\nむ\n\nムクエノキ(ムクノキ) IV57\nムクゲ V61\n――'コバダ' V61\nムクノキ IV57\nムクノキ属 IV57\nムクロジ V25\nむくろじ科 V25\nムクロジ属 V25\nムシカリ V211\nムツアジサイ(エゾアジサイ) IV152\nムニンヒャクダン IV68\nムベ IV105\nムベ属 IV105\nむらさき科 V182\nムラサキシキブ V185\nムラサキシキブ属 V185\nムラサキツリバナ V42\nムラサキナツフジ IV247\nムラサキハシドイ V160\n――'トウゲン' V160\nムラサキマユミ V39\nムラサキヤシオツツジ V103\nムラダチ(アブラチャン) IV93\nムレスズメ IV254\nムレスズメ属 IV254\n\nめ\n\nメイワキンカン(ニンポウキンカン)\n     IV284\nメオトバナ(リンネソウ) V207\nメギ IV105\nめぎ科 IV105\nメギ属 IV105\nメグスリノキ V22\nメゴザサ(オカメザサ) V222\nメジロザクラ(チョウジザクラ)\n     IV167\nメダケ V226\nメダケ属 V226\nメタセコイア V265\nメタセコイア属 V265\nメダラ V100\nメックバネウツギ(オオツクバネウ\n     ツギ) V205\nメディニラ属 V89\nメディニラ マグニフィカ V89\nメドラー IV219\nメヒルギ V88\nメヒルギ属 V88\nメマツ(アカマツ) V236\nメンツツジ(フジツツジ) V109\n\nも\n\nモウソウチク V219\nモクゲンジ V26\nモクゲンジ属 V26\nモクセイ V157\nもくせい科 V157\nモクセイ属 V157\nモクベンケイ(ハマジンチョウ)\n     V196\nもくまおう科 IV1\nモクマオウ属 IV1\nモクレイシ V45\nモクレイシ属 V45\nモクレダマ(レダマ) IV256\nモクレン IV74\nもくれん科 IV71\nモクレン属 IV71\nモダマ IV260\nモダマ属 IV260\nモダマヅル(モダマ) IV260\nモチツツジ V109"
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p231_b68e6e72e2b5f487f72ef329e381d903",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 231,
+    "taxon_name": "トゲウミヘビ",
+    "scientific_name": "Lapemis hardwickii",
+    "family": "ウミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.231)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hydrophis hardwickii",
+        "dwc:vernacularName": "トゲウミヘビ",
+        "dwc:occurrenceRemarks": "Plate 39 illustration (125). Yellowish body with jagged bands.",
+        "dwc:taxonConceptID": "gbif:2449459",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Lapemis hardwickii",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2449459,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Hydrophis hardwickii",
+    "gbif_accepted_key": 9716608,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "EXACT"
+}

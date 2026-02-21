@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p7_2c3fc67e4b0a234b40b40a72c1156b58",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 7,
+    "taxon_name": "目次 (1\/3)",
+    "scientific_name": "CONTENTS",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.7)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "CONTENTS",
+        "dwc:vernacularName": "目次 (1\/3)",
+        "dwc:occurrenceRemarks": "目　次\n\n両生綱 AMPHIBIA　1\n　サンショウウオ目 Caudata　3\n　　サンショウウオ科 Hynobiidae　3\n　　　カスミサンショウウオ属 Hynobius (4)\n　　　キタサンショウウオ属 Salamandrella (13)\n　　　ハコネサンショウウオ属 Onychodactylus (14)\n　　オオサンショウウオ科 Cryptobranchidae　16\n　　　オオサンショウウオ属 Megalobatrachus (16)\n　　イモリ科 Salamandridae　17\n　　　イモリ属 Triturus (18)\n　　　イボイモリ属 Tylototriton (20)\n　カエル目 Salientia　21\n　　ヒキガエル亜目 Arcifera　26\n　　　ヒキガエル科 Bufonidae　26\n　　　　ヒキガエル属 Bufo (27)\n　　　スズガエル科 Discoglossidae　30\n　　　　スズガエル属 Bombina (31)\n　　　アマガエル科 Hylidae　32\n　　　　アマガエル属 Hyla (32)\n　　アカガエル亜目 Firmisternia　35\n　　　アカガエル科 Ranidae　36\n　　　　アカガエル属 Rana (36)\n　　　アオガエル科 Rhacophoridae　55\n　　　　アオガエル属 Rhacophorus (55)\n　　　ジムグリガエル科 Brevicipitidae　65\n　　　　ジムグリガエル亜科 Microhylinae　65\n　　　　　ヒメアマガエル属 Microhyla (65)\n\n爬虫綱 REPTILIA　67\n　カメ目 Testudinata　68\n　　ウミガメ科 Cheloniidae　69\n　　　アオウミガメ属 Chelonia (70)\n　　　タイマイ属 Eretmochelys (71)\n　　　オオアカウミガメ属 Caretta (72)\n　　　アカウミガメ属 Lepidochelys (74)\n　　オサガメ科 Dermochelyidae　75\n　　　オサガメ属 Dermochelys (76)\n　　カメ科 Testudinidae　77"
+    }
+}

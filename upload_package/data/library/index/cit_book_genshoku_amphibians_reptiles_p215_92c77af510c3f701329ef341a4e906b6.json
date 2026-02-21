@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p215_92c77af510c3f701329ef341a4e906b6",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 215,
+    "taxon_name": "ガラスヒバァ",
+    "scientific_name": "Natrix pryeri pryeri",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.215)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Natrix pryeri pryeri",
+        "dwc:vernacularName": "ガラスヒバァ",
+        "dwc:occurrenceRemarks": "Plate 35 illustration (113)."
+    }
+}

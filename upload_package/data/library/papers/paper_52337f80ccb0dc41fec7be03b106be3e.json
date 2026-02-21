@@ -1,0 +1,20 @@
+{
+    "id": "paper_52337f80ccb0dc41fec7be03b106be3e",
+    "doi": "10.2307\/4087486",
+    "title": "Effects of Spacing and Synchrony on Breeding Success in the Great Frigatebird (Fregata minor)",
+    "year": 1988,
+    "container_title": "The Auk",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/4087486",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/4087486",
+        "dc:title": "Effects of Spacing and Synchrony on Breeding Success in the Great Frigatebird (Fregata minor)",
+        "dc:date": 1988,
+        "dc:source": "The Auk",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

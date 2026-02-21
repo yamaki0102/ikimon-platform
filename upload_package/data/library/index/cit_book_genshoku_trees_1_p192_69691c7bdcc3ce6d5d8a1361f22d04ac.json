@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p192_69691c7bdcc3ce6d5d8a1361f22d04ac",
+    "book_id": "book_genshoku_trees_1",
+    "page": 192,
+    "taxon_name": "M",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.192)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "M",
+        "dwc:occurrenceRemarks": "Maackia IV 256\n  amurensis var. buergeri IV 258\nMachilus IV 115\n  japonica IV 116\n  thunbergii IV 115\nMaclura IV 50\n  pomifera IV 50\nMagnolia IV 77\n  denudata IV 80\n  grandiflora IV 79\n  kobus IV 77\n  liliflora IV 82\n  --var. gracilis IV 82\n  obovata IV 78\n  salicifolia IV 78\n  sieboldii IV 84\n  stellata IV 82\n  virginiana IV 80\nMahonia IV 100\n  bealei IV 100\n  fortunei IV 101\n  japonica IV 100\nMallotus IV 265\n  japonica IV 265\nMalus IV 191\n  baccata var. mandshurica IV 192\n  halliana IV 194\n  micromalus IV 194\n  pumila var. dulcissima IV 191\n  sieboldii IV 193\n  tschonoskii IV 192\nMangifera V 10\n  indica V 10\nManihot IV 266\n  utilissima IV 266\nMarsdenia V 45\n  tomentosa V 45\nMaytenus V 45\n  diversifolia V 45\nMedinilla V 69\n  magnifica V 69\nMelaleuca V 84\n  leucadendron V 84\nMelastoma V 69\n  candidum V 69\nMelia V 5\n  azedarach var. japonica V 5\nMeliosma V 30\n  myriantha V 31\n  rigida V 30\n  tenuis V 32\nMelodinus IV 109\nMenispermum IV 109\n  dauricum IV 109\nMenziesia V 143\n  ciliicalyx V 143\n  multiflora V 143\n  pentandra V 144\nMeratia IV 117\n  praecox IV 118\n  --var. concolor IV 118\n  --var. grandiflora IV 118\nMespilus IV 200\n  germanica V 202\nMetasequoia V 265\n  glyptostroboides V 265\nMetrosideros V 232\n  gummifera V 232\nMichelia IV 76\n  compressa IV 76\n  figo IV 76\nMicrotropis V 41\n  japonica V 41\nMilletia IV 246\n  japonica IV 246\n  reticulata IV 247\nMimosa IV 256\n  pudica IV 256\nMoringa V 67\n  oleifera V 67\nMorus IV 49\n  alba IV 49\n  bombycis IV 49\n  kagayamae IV 49\n  nigra IV 62\n  tiliaefolia IV 50\nMurraya V 28\n  paniculata V 28\nMusa V 219\n  basjoo V 219\n  paradisiaca V 219\n  textilis V 219\nMussaenda V 176\n  parviflora V 176\nMyoporum V 196\n  bontioides V 196\nMyrica IV 2\n  rubra IV 2\n  --var. tomentosa IV 2\nMyristica IV 81\n  fragrans IV 81\nMyrsine V 148\n  seguinii V 148"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 8024758,
+    "scientific_name": "Dorcus montivagus (Lewis, 1883)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Insecta",
+    "order": "Coleoptera",
+    "family": "Lucanidae",
+    "genus": "Dorcus",
+    "rank": "SPECIES",
+    "original_query": "Dorcus montivagus",
+    "_cached_at": 1771646881
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_4f6b4f0067521bcfe7c048a945da16cb",
+    "doi": "10.11646\/zootaxa.2149.1.3",
+    "title": "A new species of hynobiid salamander (Urodela: Hynobiidae: Pseudohynobius) from Southwestern China",
+    "year": 2009,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.2149.1.3",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.2149.1.3",
+        "dc:title": "A new species of hynobiid salamander (Urodela: Hynobiidae: Pseudohynobius) from Southwestern China",
+        "dc:date": 2009,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

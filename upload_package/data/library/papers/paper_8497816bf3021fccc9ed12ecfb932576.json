@@ -1,0 +1,20 @@
+{
+    "id": "paper_8497816bf3021fccc9ed12ecfb932576",
+    "doi": "10.1111\/j.1471-8286.2007.02026.x",
+    "title": "Polymorphic microsatellite markers for the lizard Psammodromus algirus (Squamata: Lacertidae)",
+    "year": 2008,
+    "container_title": "Molecular Ecology Resources",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1111\/j.1471-8286.2007.02026.x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1111\/j.1471-8286.2007.02026.x",
+        "dc:title": "Polymorphic microsatellite markers for the lizard Psammodromus algirus (Squamata: Lacertidae)",
+        "dc:date": 2008,
+        "dc:source": "Molecular Ecology Resources",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

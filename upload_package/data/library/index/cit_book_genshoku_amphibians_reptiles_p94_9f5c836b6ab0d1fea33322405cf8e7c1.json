@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p94_9f5c836b6ab0d1fea33322405cf8e7c1",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 94,
+    "taxon_name": "ウミガメ科",
+    "scientific_name": "Cheloniidae",
+    "family": "ウミガメ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": "全世界の熱帯・亜熱帯の海"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.94)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Cheloniidae",
+        "dwc:vernacularName": "ウミガメ科",
+        "dwc:occurrenceRemarks": "　頭部は大きい鱗板でおおわれている（鱗板の配列にはかなりの個体変異がある）．上下両顎は角質．頸部は垂直方向のS字形に曲がるが，完全に甲の中へ引き込むことはできない．頭骨側頭部の後方にはほとんどえぐれがなくて表面は骨板におおわれ，鱗状骨と鱗状骨とは縫合線で接合している．鼻骨がなく，左右の前額骨は背面で互に接し合い．腹面には1〜2本の隆条のあることも隆条のないこともある．鋤骨がある．上顎の前端両側には三角形の突起がない．耳室の後方は不完全で，鐙骨が露出している．頸椎のうちの1個（普通は第4頸椎）が両凸形で，第8頸椎の前部は凹んでいる．甲は常に鱗板でおおわれ，背面があまり強くは隆起していない．背甲と腹甲とは靱帯組織で結ばれ，どちらにも話曲性がない．項甲板は常に1枚，肋甲板は4〜9対．縁甲板は11〜13対．臀甲板1対．項骨板は側方に隆条になった突起をそなえず．椎骨板は六角形で前側縁の方が後側縁よりも短い．椎骨板の数には変異がある．肋骨板は側方が多少とも不完全で，若い個体では縁骨板との間に間隙があり，種類によっては老熟した後にもこの間隙が残る．腹甲には6対の鱗板があり，そのほかに普通は1枚の喉甲間板がある．腹甲骨板は9個で常に内骨板があり．中央部には間隙がある．縁甲板は完全な列になり，そのほかに二次的な下縁甲板がある．鼠腺がある．四肢はかい状になり，1〜2個の爪をそなえている．指趾骨は関節部がふくらんでいない．尾は♀よりも♂の方が長い．\n　全世界の熱帯と亜熱帯の海に分布し，温帯地方にもくる．完全な海生で，陸上へは",
+        "dwc:taxonConceptID": "gbif:9413",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Cheloniidae",
+        "dwc:family": "Cheloniidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9413,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Cheloniidae",
+    "gbif_match_type": "HIGHERRANK"
+}

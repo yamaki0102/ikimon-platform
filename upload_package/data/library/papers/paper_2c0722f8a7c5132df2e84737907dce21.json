@@ -1,0 +1,20 @@
+{
+    "id": "paper_2c0722f8a7c5132df2e84737907dce21",
+    "doi": "10.5962\/p.420273",
+    "title": "Life history notes on the Macleay’s Swallowtail, Graphium macleayanum (Leach, 1814) (Lepidoptera: Papilionidae)",
+    "year": 2021,
+    "container_title": "Metamorphosis Australia : magazine of the Butterfly &amp; Other Invertebrates Club",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.420273",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.420273",
+        "dc:title": "Life history notes on the Macleay’s Swallowtail, Graphium macleayanum (Leach, 1814) (Lepidoptera: Papilionidae)",
+        "dc:date": 2021,
+        "dc:source": "Metamorphosis Australia : magazine of the Butterfly &amp; Other Invertebrates Club",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

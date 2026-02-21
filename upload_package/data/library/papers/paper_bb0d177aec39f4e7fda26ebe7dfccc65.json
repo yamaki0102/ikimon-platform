@@ -1,0 +1,20 @@
+{
+    "id": "paper_bb0d177aec39f4e7fda26ebe7dfccc65",
+    "doi": "10.31797\/vetbio.810867",
+    "title": "Macro-anatomical investigations of the Dalmatian pelicans (Pelecanus crispus) liver",
+    "year": 2020,
+    "container_title": "Journal of Advances in VetBio Science and Techniques",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.31797\/vetbio.810867",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.31797\/vetbio.810867",
+        "dc:title": "Macro-anatomical investigations of the Dalmatian pelicans (Pelecanus crispus) liver",
+        "dc:date": 2020,
+        "dc:source": "Journal of Advances in VetBio Science and Techniques",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

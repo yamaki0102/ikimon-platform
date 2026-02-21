@@ -1,0 +1,20 @@
+{
+    "id": "paper_818966f2385244691669b48f3eb082c1",
+    "doi": "10.1127\/entom.gen\/6\/1980\/335",
+    "title": "Larval Versus Imaginal Taxonomy and the Systemarie Status of the Ground Beetle Taxa Harpalus and Ophonus (Coleoptera: Carabidae: Harpalini)",
+    "year": 1980,
+    "container_title": "Entomologia Generalis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1127\/entom.gen\/6\/1980\/335",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1127\/entom.gen\/6\/1980\/335",
+        "dc:title": "Larval Versus Imaginal Taxonomy and the Systemarie Status of the Ground Beetle Taxa Harpalus and Ophonus (Coleoptera: Carabidae: Harpalini)",
+        "dc:date": 1980,
+        "dc:source": "Entomologia Generalis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

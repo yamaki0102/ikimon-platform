@@ -1,0 +1,20 @@
+{
+    "id": "paper_0b39e8789b416291a5366bb01b1e001f",
+    "doi": "10.3838\/jjo1915.14.67_28",
+    "title": "New record of Egretta eulophotes from Japan",
+    "year": 1956,
+    "container_title": "Japanese Journal of Ornithology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3838\/jjo1915.14.67_28",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3838\/jjo1915.14.67_28",
+        "dc:title": "New record of Egretta eulophotes from Japan",
+        "dc:date": 1956,
+        "dc:source": "Japanese Journal of Ornithology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

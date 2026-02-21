@@ -1,0 +1,20 @@
+{
+    "id": "paper_fdb11e34c806e4a2a8f619faaf6277e3",
+    "doi": "10.3897\/zookeys.1134.96103",
+    "title": "﻿Phototank setup and focus stack imaging method for reptile and amphibian specimens (Amphibia, Reptilia)",
+    "year": 2022,
+    "container_title": "ZooKeys",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3897\/zookeys.1134.96103",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3897\/zookeys.1134.96103",
+        "dc:title": "﻿Phototank setup and focus stack imaging method for reptile and amphibian specimens (Amphibia, Reptilia)",
+        "dc:date": 2022,
+        "dc:source": "ZooKeys",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

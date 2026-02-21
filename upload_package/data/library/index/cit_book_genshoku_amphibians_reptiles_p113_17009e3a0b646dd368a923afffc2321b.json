@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p113_17009e3a0b646dd368a923afffc2321b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 113,
+    "taxon_name": "Unknown",
+    "scientific_name": "Gekko japonicus",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.113)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Gekko japonicus",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Japanese Gecko.",
+        "dwc:taxonConceptID": "gbif:2447295",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Gekko japonicus",
+        "dwc:family": "Gekkonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2447295,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gekkonidae",
+    "gbif_match_type": "EXACT"
+}

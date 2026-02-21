@@ -1,0 +1,20 @@
+{
+    "id": "paper_6f8084954cef714215b8c6608f569f6e",
+    "doi": "10.5040\/9781472926982.0182",
+    "title": "Mergus merganser Linnaeus. Common Merganser; Goosander. Harle bièvre.",
+    "year": 0,
+    "container_title": "The Birds of Africa",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472926982.0182",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472926982.0182",
+        "dc:title": "Mergus merganser Linnaeus. Common Merganser; Goosander. Harle bièvre.",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

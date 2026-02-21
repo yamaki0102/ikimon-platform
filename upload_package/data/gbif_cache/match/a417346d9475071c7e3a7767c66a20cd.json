@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2480910,
+    "scientific_name": "Botaurus stellaris (Linnaeus, 1758)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Pelecaniformes",
+    "family": "Ardeidae",
+    "genus": "Botaurus",
+    "rank": "SPECIES",
+    "original_query": "Botaurus stellaris",
+    "_cached_at": 1770429118
+}

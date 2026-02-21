@@ -1,0 +1,20 @@
+{
+    "id": "paper_74ad4ae122d1c9759ad3ada20d32c18f",
+    "doi": "10.5358\/hsj.40.169",
+    "title": "Normal Development of an Aquatic Spawning Tree Frog, Buergeria japonica (Amphibia: Rhacophoridae)",
+    "year": 2021,
+    "container_title": "Current Herpetology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5358\/hsj.40.169",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5358\/hsj.40.169",
+        "dc:title": "Normal Development of an Aquatic Spawning Tree Frog, Buergeria japonica (Amphibia: Rhacophoridae)",
+        "dc:date": 2021,
+        "dc:source": "Current Herpetology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p187_3d5a7d2855dc49a1f1cc3318584a6500",
+    "book_id": "book_genshoku_trees_1",
+    "page": 187,
+    "taxon_name": "C (Continued)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.187)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "C (Continued)",
+        "dwc:occurrenceRemarks": "  granthamiana IV 130\n  hongkongensis IV 131\n  japonica IV 120\n  --'Barbara Clark' IV 131\n  --'Brian' IV 131\n  --'Donation' IV 124\n  --'E.G. Waterhouse' IV 131\n  --'Fragrant Pink' IV 131\n  --'Flower Girl' IV 131\n  --'Hagoromo' IV 124\n  --var. decumbens IV 123\n  --f. macrocarpa IV 123\n  lutchuensis IV 130\n  maliflora IV 124\n  oleifera IV 129\n  reticulata IV 130\n  rosiflora IV 129\n  rusticana 'Yuki-bata' IV 128\n  salicifolia IV 132\n  sasanqua IV 124\n  --'Fujinonmine' IV 127\n  --'Kanjirou' IV 127\n  --'Shishigashira' IV 124\n  sinensis IV 132\n  --var. assamica IV 133\n  --f. rosea IV 132\n  taliensis IV 131\n  uraku IV 127\n  wabisuke IV 126\n  --'Hatsukari' IV 126\n  --'Sukiya' IV 126\n  --'Tarokaja' IV 127\nCampsis IV 294\n  grandiflora IV 294\nCamptotheca IV 204\n  acuminata IV 204\nCanarium IV 2\n  album IV 2\nCarpinus IV 26\n  cordata IV 28\n  japonica IV 28\n  laxiflora IV 28\n  tschonoskii IV 29\nCarya IV 4\n  illinoensis IV 4\nCassia V 254\n  corymbosa V 254\nCastanea IV 40\n  crenata IV 40\n  mollissima IV 42\nCasuarina IV 2\n  equisetifolia IV 2\n  cunninghamiana IV 2\nCatalpa IV 294\n  bignonioides V 194\n  ovata V 194\nCedrela V 4\n  sinensis V 4\nCedrus V 264\n  deodara V 264\nCelastrus V 32\n  flagellaris V 44\n  orbiculatus V 32\n  stephanotifolius V 44\nCeltis IV 46\n  jessoensis IV 46\n  sinensis var. japonica IV 46\nCephalotaxus V 289\n  harringtonia V 289\n  --f. fastigiata V 289\n  --var. nana V 289\nCercidiphyllum V 95\n  japonicum V 96\n  magnificum V 97\nCercis IV 258\n  chinensis IV 259\nChaenomeles IV 196\n  japonica IV 198\n  sinensis IV 199\n  speciosa IV 196\n  --'Chojubai' IV 218\nChamaecyparis V 272\n  lawsoniana V 276\n  nootkatensis V 276\n  obtusa V 272\n  --var. breviramea V 276\n  --var. formosana V 276\n  pisifera V 273\n  --var. filifera V 276\n  --var. plumosa V 276\n  --var. squarrosa V 276\nChimonanthus IV 117\n  praecox IV 118\nChionanthus V 163\n  retusus V 163\nChosenia IV 19\n  arbutifolia IV 19\nChrysanthemum V 228\n  nipponicum V 228\nCinnamomum IV 112\n  camphora IV 112\n  daphnoides IV 122\n  insularimontanum IV 122\n  japonicum IV 115\n  sieboldii IV 115\nCitrus IV 274\n  aurantium IV 281\n  --f. kabusu IV 276\n  deliciosa IV 279\n  grandis IV 279\n  hassaku IV 280\n  iyo IV 280\n  junos IV 227\n  kinokuni IV 277\n  leiocarpa V 28\n  limon V 28\n  madurensis IV 280\n  medica var. sarcodactylus IV 280\n  natsudaidai IV 281\n  nobilis IV 278\n  paradisi IV 279"
+    }
+}

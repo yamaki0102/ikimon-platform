@@ -1,0 +1,20 @@
+{
+    "id": "paper_a7646d631a21fe7aebe243d63fc01923",
+    "doi": "10.1016\/0041-0101(71)90053-5",
+    "title": "Aristolochic acid-I in the swallowtail butterfly Pachlioptera aristolochiae (Babr.) (Papilionidae)",
+    "year": 1971,
+    "container_title": "Toxicon",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/0041-0101(71)90053-5",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/0041-0101(71)90053-5",
+        "dc:title": "Aristolochic acid-I in the swallowtail butterfly Pachlioptera aristolochiae (Babr.) (Papilionidae)",
+        "dc:date": 1971,
+        "dc:source": "Toxicon",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_4eedeb198164ceeb021110bc164279ba",
+    "doi": "10.5358\/hsj.43.1",
+    "title": "Feeding Habits of the Forest Green Tree Frog, Zhangixalus arboreus (Anura: Rhacophoridae), in the Izu-Oshima Island",
+    "year": 2024,
+    "container_title": "Current Herpetology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5358\/hsj.43.1",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5358\/hsj.43.1",
+        "dc:title": "Feeding Habits of the Forest Green Tree Frog, Zhangixalus arboreus (Anura: Rhacophoridae), in the Izu-Oshima Island",
+        "dc:date": 2024,
+        "dc:source": "Current Herpetology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

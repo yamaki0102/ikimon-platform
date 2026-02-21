@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_589824ba2fa5b9b7f045b4a87501f5ea_0bb5f38fb5418463db561577d0d3920a",
+    "paper_id": "paper_589824ba2fa5b9b7f045b4a87501f5ea",
+    "doi": "10.37547\/supsci-ojbc-02-02-01",
+    "query_id": "alien_bird_2489005_en",
+    "query_label": "Acridotheres tristis Japan (alien\/introduced)",
+    "scientific_name": "Acridotheres tristis",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.37547\/supsci-ojbc-02-02-01",
+        "dwc:scientificName": "Acridotheres tristis",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2489005",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Acridotheres tristis",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Sturnidae"
+    },
+    "gbif_taxon_key": 2489005,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Sturnidae"
+}

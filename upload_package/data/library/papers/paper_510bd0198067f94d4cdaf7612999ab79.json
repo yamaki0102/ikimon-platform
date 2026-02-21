@@ -1,0 +1,20 @@
+{
+    "id": "paper_510bd0198067f94d4cdaf7612999ab79",
+    "doi": "10.3825\/ece.4.147",
+    "title": "Factors affecting mandarin ducks (Aix galericulata) wintering at dam lakes in the Chugoku district, western Japan.",
+    "year": 2001,
+    "container_title": "Ecology and Civil Engineering",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3825\/ece.4.147",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3825\/ece.4.147",
+        "dc:title": "Factors affecting mandarin ducks (Aix galericulata) wintering at dam lakes in the Chugoku district, western Japan.",
+        "dc:date": 2001,
+        "dc:source": "Ecology and Civil Engineering",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_696ae95affdcae6eb1553a69bdabc37e",
+    "doi": "10.5962\/p.313276",
+    "title": "Melopsittacus undulatus, Warbling Grass-Parrakeet, [Pl. 44]",
+    "year": 1848,
+    "container_title": "The birds of Australia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.313276",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.313276",
+        "dc:title": "Melopsittacus undulatus, Warbling Grass-Parrakeet, [Pl. 44]",
+        "dc:date": 1848,
+        "dc:source": "The birds of Australia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

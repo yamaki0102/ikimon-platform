@@ -1,0 +1,14 @@
+{
+    "id": "ptl_paper_84ca8d38429bac5e77515eaeff0b3c5d_6acaf80c6e03ecc1d009368ca94758ad",
+    "paper_id": "paper_84ca8d38429bac5e77515eaeff0b3c5d",
+    "doi": "10.1093\/hesc\/9781605357140.003.0011",
+    "query_id": "jp_alien_birds_general",
+    "query_label": "Japan alien birds (general)",
+    "scientific_name": "Japan alien",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1093\/hesc\/9781605357140.003.0011",
+        "dwc:scientificName": "Japan alien",
+        "dwc:vernacularName": null
+    }
+}

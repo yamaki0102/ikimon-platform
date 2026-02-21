@@ -1,0 +1,20 @@
+{
+    "id": "paper_0b317aed061dc770a30b6cfd921113d9",
+    "doi": "10.22437\/biospecies.v3i2.247",
+    "title": "Larval Food Preference of the Swallowtail Butterfly Papilio polytes L. (Lepidoptera: Papilionidae) on Four Species of Rutaceae",
+    "year": 2012,
+    "container_title": "Biospecies",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.22437\/biospecies.v3i2.247",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.22437\/biospecies.v3i2.247",
+        "dc:title": "Larval Food Preference of the Swallowtail Butterfly Papilio polytes L. (Lepidoptera: Papilionidae) on Four Species of Rutaceae",
+        "dc:date": 2012,
+        "dc:source": "Biospecies",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

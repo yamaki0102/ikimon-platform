@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p113_9b9f7e9dbe5b4ae6fec4ce4ce6e6308b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 113,
+    "taxon_name": "Unknown",
+    "scientific_name": "Gehyra mutilata",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.113)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Gehyra mutilata",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Pale yellowish gecko.",
+        "dwc:taxonConceptID": "gbif:2446249",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Gehyra mutilata",
+        "dwc:family": "Gekkonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2446249,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gekkonidae",
+    "gbif_match_type": "EXACT"
+}

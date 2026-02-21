@@ -1,0 +1,20 @@
+{
+    "id": "paper_33a0c3b4eb6a73c956cd0cc08614e08f",
+    "doi": "10.2307\/j.ctt7s12c.25",
+    "title": "LAYSAN ALBATROSS (Phoebastria immutabilis)",
+    "year": 2010,
+    "container_title": "Birder's Conservation Handbook",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.2307\/j.ctt7s12c.25",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/j.ctt7s12c.25",
+        "dc:title": "LAYSAN ALBATROSS (Phoebastria immutabilis)",
+        "dc:date": 2010,
+        "dc:source": "Birder's Conservation Handbook",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

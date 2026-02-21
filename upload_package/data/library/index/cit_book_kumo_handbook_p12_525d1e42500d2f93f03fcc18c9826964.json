@@ -1,0 +1,48 @@
+{
+    "id": "cit_book_kumo_handbook_p12_525d1e42500d2f93f03fcc18c9826964",
+    "book_id": "book_kumo_handbook",
+    "page": 12,
+    "taxon_name": "オウギグモ",
+    "scientific_name": "Hyptiotes affinis",
+    "family": "ウズグモ科 Uloboridae",
+    "data_icons": {
+        "size": "female: 4〜5mm, male: 4〜5mm",
+        "season": "秋",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス正面",
+        "網（扇形）",
+        "待機するメス",
+        "メス背面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.12)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hyptiotes affinis",
+        "dwc:vernacularName": "オウギグモ",
+        "dwc:occurrenceRemarks": "脚が短く、腹部が三角形で、全体的にずんぐりしている。他のクモよりも少ない4本の糸（しおり糸）で、扇形（三角形）の網を張る。林内など薄暗い環境に生息し、低木の枝の間に扇状の網を作る。クモは粘る糸（かせ糸）の起点で糸を引っ張り、獲物が網にかかるのを待ち構える。網にかかると糸を緩めて獲物に絡みつかせる。",
+        "dwc:taxonConceptID": "gbif:2142531",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hyptiotes affinis",
+        "dwc:family": "Uloboridae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2142531,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Uloboridae",
+    "gbif_match_type": "EXACT"
+}

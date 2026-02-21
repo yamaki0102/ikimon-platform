@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2481959,
+    "scientific_name": "Gavia arctica (Linnaeus, 1758)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Gaviiformes",
+    "family": "Gaviidae",
+    "genus": "Gavia",
+    "rank": "SPECIES",
+    "original_query": "Gavia arctica",
+    "_cached_at": 1770429055
+}

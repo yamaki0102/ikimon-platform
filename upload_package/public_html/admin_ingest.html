@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ADMIN: MASS INGEST</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "firebase/app": "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js",
+            "firebase/firestore": "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js"
+        }
+    }
+    </script>
+</head>
+
+<body class="bg-gray-900 text-green-400 font-mono p-8">
+    <h1 class="text-2xl mb-4">GBIF -> FIRESTORE INGESTION TANK</h1>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+        <button onclick="ingest('Coleoptera', 'insect')" class="border border-green-500 p-4 hover:bg-green-900">
+            LOAD: 甲虫目 (Insects) - Japan
+            <br><span class="text-xs text-gray-500">Target: 1,000 Records</span>
+        </button>
+        <button onclick="ingest('Mammalia', 'mammal')" class="border border-green-500 p-4 hover:bg-green-900">
+            LOAD: 哺乳類 (Mammals) - Japan
+            <br><span class="text-xs text-gray-500">Target: 500 Records</span>
+        </button>
+        <button onclick="exportJSON()" class="border border-blue-500 text-blue-400 p-4 hover:bg-blue-900">
+            EXPORT SNAPSHOT (JSON)
+            <br><span class="text-xs text-gray-500">Generate Static File</span>
+        </button>
+        <button onclick="deploySnapshot()" class="border border-purple-500 text-purple-400 p-4 hover:bg-purple-900">
+            DEPLOY TO SERVER
+            <br><span class="text-xs text-gray-500">Firestore -> JSON File</span>
+        </button>
+        <button onclick="nuke()" class="border border-red-500 text-red-500 p-4 hover:bg-red-900">
+            NUKE ALL DATA
+            <br><span class="text-xs text-gray-500">Clear Collection</span>
+        </button>
+    </div>
+
+    <div id="log" class="bg-black p-4 h-96 overflow-y-auto whitespace-pre-wrap border border-gray-700">Ready.</div>
+
+    <script type="module">
+        import { initializeApp } from "firebase/app";
+        import { getFirestore, collection, addDoc, getDocs, writeBatch, doc, query, limit } from "firebase/firestore";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD_oMnn7upP4PUxme_Ey-DmlDZqYAtBuX4",
+            authDomain: "ikimon-life-platform-01.firebaseapp.com",
+            projectId: "ikimon-life-platform-01",
+            storageBucket: "ikimon-life-platform-01.firebasestorage.app",
+            messagingSenderId: "542674944321",
+            appId: "1:542674944321:web:d8df538799799480c29188"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const logEl = document.getElementById('log');
+
+        function log(msg) {
+            logEl.innerText += `> ${msg}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        window.deploySnapshot = async () => {
+            log("🚀 Starting Deployment Sequence...");
+            log("1. Fetching Data from Firestore...");
+
+            // Fetch up to 5000 for the snapshot
+            const q = query(collection(db, "reference_occurrences"), limit(5000));
+            const snapshot = await getDocs(q);
+
+            const data = [];
+            snapshot.forEach(doc => data.push(doc.data()));
+            log(`✅ Fetched ${data.length} records.`);
+
+            log("2. Uploading to Server (Static Gen)...");
+            try {
+                const res = await fetch('api/save_snapshot.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+
+                if (result.status === 'success') {
+                    log(`🎉 SUCCESS: ${result.message}`);
+                    log(`TYPE: Static JSON File`);
+                    log(`URL: /data/reference_data.json`);
+                } else {
+                    log(`❌ ERROR: ${result.error}`);
+                }
+            } catch (e) {
+                log(`❌ NETWORK ERROR: ${e.message}`);
+            }
+        }
+
+        window.exportJSON = async () => {
+            log("Fetching ALL data for Export...");
+            // Fetch up to 5000 for the snapshot
+            const q = query(collection(db, "reference_occurrences"), limit(5000));
+            const snapshot = await getDocs(q);
+
+            const data = [];
+            snapshot.forEach(doc => data.push(doc.data()));
+            log(`Fetched ${data.length} records.`);
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'reference_data.json';
+            a.click();
+            log("Download started: reference_data.json");
+        }
+
+        window.nuke = async () => {
+            if (!confirm("DELETE ALL?")) return;
+            log("Nuking...");
+            const q = query(collection(db, "reference_occurrences"), limit(500));
+            const snapshot = await getDocs(q);
+            const batch = writeBatch(db);
+            snapshot.docs.forEach((d) => batch.delete(d.ref));
+            await batch.commit();
+            log(`Deleted ${snapshot.size} docs.`);
+        }
+
+        window.ingest = async (taxon, typeTag) => {
+            log(`Fetching GBIF Data for ${taxon}...`);
+
+            // GBIF API: Japan, Has Coords, Limit 1000
+            const url = `https://api.gbif.org/v1/occurrence/search?scientificName=${taxon}&country=JP&hasCoordinate=true&limit=1000`;
+
+            try {
+                const res = await fetch(url);
+                const json = await res.json();
+                const records = json.results;
+                log(`GBIF returned ${records.length} records.`);
+
+                let count = 0;
+                let batch = writeBatch(db);
+                let batchCount = 0;
+
+                for (const r of records) {
+                    if (!r.decimalLatitude || !r.decimalLongitude) continue;
+
+                    const ref = doc(collection(db, "reference_occurrences"));
+                    batch.set(ref, {
+                        id: r.key.toString(),
+                        name: r.scientificName,
+                        lat: r.decimalLatitude,
+                        lng: r.decimalLongitude,
+                        date: r.eventDate ? new Date(r.eventDate) : null,
+                        type: typeTag
+                    });
+
+                    count++;
+                    batchCount++;
+
+                    // Firestore Batch Limit is 500
+                    if (batchCount >= 400) {
+                        await batch.commit();
+                        log(`Committed batch of ${batchCount}...`);
+                        batch = writeBatch(db);
+                        batchCount = 0;
+                    }
+                }
+
+                if (batchCount > 0) {
+                    await batch.commit();
+                }
+
+                log(`DONE. Ingested ${count} total records for ${taxon}.`);
+
+            } catch (e) {
+                log(`ERROR: ${e.message}`);
+            }
+        };
+    </script>
+</body>
+
+</html>

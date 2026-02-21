@@ -1,0 +1,20 @@
+{
+    "id": "paper_4535d4ccbdf53b79daef699e1968f181",
+    "doi": "10.1023\/a:1026512404110",
+    "title": "Population structure and spatial patterns for trees in a temperate old-growth evergreen broad-leaved forest in Japan",
+    "year": 2000,
+    "container_title": "Plant Ecology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1023\/a:1026512404110",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1023\/a:1026512404110",
+        "dc:title": "Population structure and spatial patterns for trees in a temperate old-growth evergreen broad-leaved forest in Japan",
+        "dc:date": 2000,
+        "dc:source": "Plant Ecology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

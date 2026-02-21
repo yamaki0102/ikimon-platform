@@ -1,0 +1,18 @@
+{
+    "taxon_key": 10930428,
+    "scientific_name": "Hynobius nebulosus nebulosus (Temminck & Schlegel, 1838)",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": 2431144,
+    "accepted_name": "Hynobius nebulosus",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Caudata",
+    "family": "Hynobiidae",
+    "genus": "Hynobius",
+    "rank": "SUBSPECIES",
+    "original_query": "Hynobius (Hynobius) nebulosus nebulosus (SCHLEGEL, 1838)",
+    "_cached_at": 1770419886
+}

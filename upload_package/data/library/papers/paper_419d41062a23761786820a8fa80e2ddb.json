@@ -1,0 +1,20 @@
+{
+    "id": "paper_419d41062a23761786820a8fa80e2ddb",
+    "doi": "10.15845\/on.v40i0.1379",
+    "title": "Interspecific aggression by wintering Great Northern Divers &lt;i&gt;Gavia immer&lt;\/i&gt;",
+    "year": 2017,
+    "container_title": "Ornis Norvegica",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.15845\/on.v40i0.1379",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.15845\/on.v40i0.1379",
+        "dc:title": "Interspecific aggression by wintering Great Northern Divers &lt;i&gt;Gavia immer&lt;\/i&gt;",
+        "dc:date": 2017,
+        "dc:source": "Ornis Norvegica",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

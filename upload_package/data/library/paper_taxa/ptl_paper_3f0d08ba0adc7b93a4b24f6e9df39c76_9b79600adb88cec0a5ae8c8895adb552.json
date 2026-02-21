@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_3f0d08ba0adc7b93a4b24f6e9df39c76_9b79600adb88cec0a5ae8c8895adb552",
+    "paper_id": "paper_3f0d08ba0adc7b93a4b24f6e9df39c76",
+    "doi": "10.2108\/zsj.27.555",
+    "query_id": "jp_herp_cynops_pyrrhogaster",
+    "query_label": "Cynops pyrrhogaster Japan (Akahara-imori)",
+    "scientific_name": "Cynops pyrrhogaster",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2108\/zsj.27.555",
+        "dwc:scientificName": "Cynops pyrrhogaster",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2431862",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Cynops pyrrhogaster",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Salamandridae"
+    },
+    "gbif_taxon_key": 2431862,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Salamandridae"
+}

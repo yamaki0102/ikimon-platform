@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p37_9cf15b28d725abd451b54fa7ea498145",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 37,
+    "taxon_name": "カエル目 (概説・続き)",
+    "scientific_name": "Order SALIENTIA (continued)",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.37)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Order SALIENTIA (continued)",
+        "dwc:vernacularName": "カエル目 (概説・続き)",
+        "dwc:occurrenceRemarks": "活型も多種多様で，ほかの2亜目のものよりはるかに広い分布域を占めている．しかし，外部形態に系統的な関係を示すような特徴が少なく，進化の平行現象や適応による収斂現象がどの群にも見られるので，自然な分類体系を組み立てるのはきわめて難しい．とくに，亜目をどのように分けるかという問題については研究者の意見が大きく分かれ，2亜目だけを認めようとする考え方から，NOBLE (1931) によって提唱された5亜目に分類する方式まである．本書では．カエル目を4亜目（ムカシガエル亜目 Amphicoela，コモリガエル亜目 Aglossa，ヒキガエル亜目 Arcifera，アカガエル亜目 Firmisternia）に区分する方式を採ったが，スズガエル科をヒキガエル亜目から分離してコモリガエル亜目に移すか，あるいはスズガエル亜目として独立させた方がよいかも知れない．いずれにしても，これらの亜目はほとんど骨筋の特徴だけで区分されるので，日本列島のように限られた地域のカエル類を外部形態だけで同定する場合には，亜目や科にこだわらない方がかえって便利である．\n　現生のカエルは 2,000種以上知られ，普通は13科ぐらいに分類されている．日本には6科の代表者が分布しているが，種や亜種の問題には，現在でも未解決のままに残されている点がいっくらかある．とくに，アカガエル亜目のもののうちにはいわゆる同胞種（sibling species）があり，形態的に区別することが難しくても，実験的な交配の結果や生態的な理由から見て，種が異なると考えざるを得ないような例が知られている．従って，ここで採用した分類が最終案であるとはもちろんいえないし，今後の研究の進展にともなって種や亜種の数が増減することも当然考えられる．しかし，生態的な面だけについていえば，邦産種の研究はすでに一通り終っていると考えてもよいように思われる．本書では，これまでに得られた資料を総合して，日本のカエルを6科6属27種に整理しておいた．なお，先にも述べたように，カエル類の亜目や科の分類は主として骨格の特徴に基づいているので，種と亜種の検索表には属以上の区分を組み込まなかった．また．同胞種などで，形態的な特徴よりも分布域の違いを取り上げた方が便利な場合にはそのように検索した．"
+    }
+}

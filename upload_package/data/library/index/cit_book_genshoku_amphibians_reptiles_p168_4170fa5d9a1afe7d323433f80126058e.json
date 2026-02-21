@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p168_4170fa5d9a1afe7d323433f80126058e",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 168,
+    "taxon_name": "カナヘビ (続き)",
+    "scientific_name": "Takydromus tachydromoides (SCHLEGEL, 1838)",
+    "family": "カナヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.168)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Takydromus tachydromoides (SCHLEGEL, 1838)",
+        "dwc:vernacularName": "カナヘビ (続き)",
+        "dwc:occurrenceRemarks": "眼上板に接していないこともある．頰板は2枚あって後頰板は大きく，眼前下板は際として1枚で細長い．側頭板は前列 3〜4枚，後列3枚あることが多く，後列の上端は長大で，その後方には 1〜2 枚の鱗が並んで頭頂板の外側を縁取っている．耳孔は垂直方向の楕円形で大きい．上唇板と下唇板との数や配列はアオカナヘビの場合とほぼ同様．咽頭板は4対あって．第4咽頭板が他の3枚の和よりも大きく，最初の2対は正中線上で接し合っているが．第3対目は完全に接し合っていることから全縁にわたって左右に隔てられていることまでまちまちである．左右の第3咽頭板の間（またはその後縁）から頸板までには 21〜26枚ぐらいの鱗があって．そのようすはアオカナヘビの場合とほぼ同様．背面の鱗は，頸部より後方では非常に大きくて稜端がとがり．普通は6列に並んで背中線上に 1〜2 列の小さい鱗を不規則に挟んでいるが．大きい鱗列の双方の1対が側方の2対より小さいことも少なくない．これらの鱗板には著しい隆条があり．前後につながり合って普通6本の連続した隆条を形成している．体側の鱗は細かい粒状で，胴の中央部で 5〜7 列に並び，その下側には各側3列に並んだ中形の鱗があってそれぞれの鱗に隆条をそなえているが．前肢の後と後肢の前とでは次第に粒状に変わる．腹板は，大きい背板とはぼ同大で8列に並び，それぞれの鱗に弱い隆条があって後端がとがっている．最外側の左右各1列の腹板は．内方のものより小形で隆条が弱い．腹板の数は．頸板から肛板までの間に 24〜28枚ぐらい．肛板は単一で，大きくて平滑．その両側に各側2枚ずつの比較的小さい鱗がある．鼠蹊孔の開口は，原則として2対の明瞭な有孔鱗になっているが，稀には片側または両側に3個あることもある．四肢は比較的短かいが，構造はサキシマカナヘビなどの場合とほぼ同様．第4趾は 23〜26枚ぐらいの趾下板をそなえ．部分的に趾下板が2分していることもある．尾は非常に長く．サキシマカナヘビなど野場合と同じような長方形の鱗におおわれている．体長：160〜220mm（尾は体長の 2\/3 ぐらいを占めている）．\n　日本列島の固有種で，北海道．本州．四国．九州，大隅群島などに分布し，平地や低山地に多い．低い草むらなどを好み，半地上性の生活をする．産卵期は 5〜8 月頃．卵は楕円体で白い．",
+        "dwc:taxonConceptID": "gbif:2468588",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Takydromus tachydromoides (SCHLEGEL, 1838)",
+        "dwc:family": "Lacertidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2468588,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Lacertidae",
+    "gbif_match_type": "EXACT"
+}

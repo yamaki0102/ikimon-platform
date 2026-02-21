@@ -1,0 +1,20 @@
+{
+    "id": "paper_0378f38cbf52d3e81c5ecd8c9d49a1c4",
+    "doi": "10.1111\/j.1474-919x.1967.tb00418.x",
+    "title": "THE BREEDING BEHAVIOUR OF THE WHITE BOOBY SULA DACTYLATRA*",
+    "year": 1967,
+    "container_title": "Ibis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1111\/j.1474-919x.1967.tb00418.x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1111\/j.1474-919x.1967.tb00418.x",
+        "dc:title": "THE BREEDING BEHAVIOUR OF THE WHITE BOOBY SULA DACTYLATRA*",
+        "dc:date": 1967,
+        "dc:source": "Ibis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

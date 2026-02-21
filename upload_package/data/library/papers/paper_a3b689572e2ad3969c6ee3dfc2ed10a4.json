@@ -1,0 +1,20 @@
+{
+    "id": "paper_a3b689572e2ad3969c6ee3dfc2ed10a4",
+    "doi": "10.11646\/zootaxa.5027.1.6",
+    "title": "A new Gonamytta katydid from central Mozambique (Orthoptera: Tettigoniidae: Meconematinae)",
+    "year": 2021,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.5027.1.6",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.5027.1.6",
+        "dc:title": "A new Gonamytta katydid from central Mozambique (Orthoptera: Tettigoniidae: Meconematinae)",
+        "dc:date": 2021,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

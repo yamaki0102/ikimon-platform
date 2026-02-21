@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p16_bc1ef285ed0c545dc5b7ecdc1787af54",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 16,
+    "taxon_name": "ツシマサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) tsuensis ABE, 1922",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.16)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hynobius (Hynobius) tsuensis ABE, 1922",
+        "dwc:vernacularName": "ツシマサンショウウオ",
+        "dwc:occurrenceRemarks": "　背面は暗黄褐色または暗赤褐色で，黒褐色または紫黒色の不規則な斑点を密布して...",
+        "dwc:taxonConceptID": "gbif:2431137",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hynobius (Hynobius) tsuensis ABE, 1922",
+        "dwc:family": "Hynobiidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2431137,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hynobiidae",
+    "gbif_match_type": "EXACT"
+}

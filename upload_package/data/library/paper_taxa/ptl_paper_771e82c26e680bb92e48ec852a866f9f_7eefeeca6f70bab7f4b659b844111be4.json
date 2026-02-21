@@ -1,0 +1,14 @@
+{
+    "id": "ptl_paper_771e82c26e680bb92e48ec852a866f9f_7eefeeca6f70bab7f4b659b844111be4",
+    "paper_id": "paper_771e82c26e680bb92e48ec852a866f9f",
+    "doi": "10.5962\/bhl.title.150178",
+    "query_id": "jp_birds_checklist_general",
+    "query_label": "Japan bird checklist taxonomy",
+    "scientific_name": "Japan bird",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.5962\/bhl.title.150178",
+        "dwc:scientificName": "Japan bird",
+        "dwc:vernacularName": null
+    }
+}

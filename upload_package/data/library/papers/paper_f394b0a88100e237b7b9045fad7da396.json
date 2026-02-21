@@ -1,0 +1,20 @@
+{
+    "id": "paper_f394b0a88100e237b7b9045fad7da396",
+    "doi": "10.4314\/ejnh.v3i1.30001",
+    "title": "Taxonomy of ant species (Hymenoptera: Formicidae) collected by pitfall traps from Sinai and the Delta region, Egypt",
+    "year": 2004,
+    "container_title": "Egyptian Journal of Natural History",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.4314\/ejnh.v3i1.30001",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.4314\/ejnh.v3i1.30001",
+        "dc:title": "Taxonomy of ant species (Hymenoptera: Formicidae) collected by pitfall traps from Sinai and the Delta region, Egypt",
+        "dc:date": 2004,
+        "dc:source": "Egyptian Journal of Natural History",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

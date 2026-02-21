@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p99_a36277c6616f6e9a79bc6a70709ffcac",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 99,
+    "taxon_name": "ヒメウミガメ属",
+    "scientific_name": "Lepidochelys FITZINGER, 1843",
+    "family": "ウミガメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.99)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lepidochelys FITZINGER, 1843",
+        "dwc:vernacularName": "ヒメウミガメ属",
+        "dwc:occurrenceRemarks": "　頭部はかなり大きくて背面の鱗板の配列がオオアカウミガメ属に似ているが，前額板の1対しかないことが多い．眼後板は3〜4対．上顎の前端は多少かぎ状に曲がっている．頭骨の吻部は側扁せず．上顎骨の側縁はゆるい弧を描き，眼窩の前でほとんどえぐれていない．吻端はとがっている．前顎骨と鋤骨とは正中線上で接し，上顎骨を両側に隔てている．上顎骨の内面には垂直方向の溝がないが，歯槽面には左右各1本ずつの隆条をそなえ，とくに大西洋の亜種では隆起が著しい．内鼻孔は口蓋骨におおわれていない．前額骨の側縁は眼窩に達している．翼状骨の後部は深く凹み，前方外縁には顕著な突起がある．下顎の同側には原則として1枚ずつの大きい鱗があり，その後に2枚ずつの小さい鱗がある．下顎骨は強壮で側縁がゆるい弧を描き．前端は比較のとがっている．背甲は中央部でもっとも広い場合が多いが，例外も少なくない．甲板は敷石状に並び，項甲板は横に細長くて接触縁が第1肋甲板に接している．椎甲板は5〜9枚．肋甲板は普通 6〜7対．時には5対，8対または9対．第1肋甲板が最小，縁甲板は普通12対，時には11対または13対．臀甲板1対．椎骨板は12〜15個で，大部分は六角形であるが四角形のものもある．また．後方では．肋骨板と癒合したり，肋骨板によって中断されていることもある．縁骨板は12〜13対．普通は第10対目が肋骨に接していない．成熟した個体では，肋骨板と縁骨板との間に間隙がなくなる．喉甲間板や肛甲間板のようすはアカウミガメ属の場合と同様（亜縁甲板は原則として4対あり（時には片側または両側の亜縁甲板が3枚しかないこともある）．また，原則として，各板の後縁の近くに1個ずつの小孔をそなえている．爪は前後肢とも2個ずつあるのを基本とするが，若い個体では3個あることもあり．また老熟した個体のうちには爪が1個しかないものもある．尾は短かい．",
+        "dwc:taxonConceptID": "gbif:2442152",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Lepidochelys FITZINGER, 1843",
+        "dwc:family": "Cheloniidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2442152,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Cheloniidae",
+    "gbif_match_type": "HIGHERRANK"
+}

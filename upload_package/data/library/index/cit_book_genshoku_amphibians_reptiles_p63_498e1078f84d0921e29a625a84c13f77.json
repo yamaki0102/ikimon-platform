@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p63_498e1078f84d0921e29a625a84c13f77",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 63,
+    "taxon_name": "エゾアカガエル (続き)",
+    "scientific_name": "Rana (Rana) chensinensis dybowskii GÜNTHER, 1876",
+    "family": "アカガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.63)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana dybowskii",
+        "dwc:vernacularName": "エゾアカガエル (続き)",
+        "dwc:occurrenceRemarks": "則な雲状斑紋になっていることが多い．眼鼻線の下側には，吻端から眼の前端に至る黒条があり，肩胛部の逆V字形紋は原則として明瞭．背中線上には後部でも白条がない．眼鼻線はかなり顕著で，鼓膜も比較的大きい（長径が眼径の2\/3に達する）．鋤骨歯板は比較的小さく，歯も各歯板に3〜4個しかない．後肢は比較的短かくて，大腿部と脛部との長さの和が体長よりも小さい．体長：45〜65mm．\n　北海道，樺太，沿海州，朝鮮などに分布し，北海道では平地にも山地にもいて，海岸の湿原などから高山帯の渓流の付近まで至る所に見られる．繁殖期は平地で4〜5月頃．高山では初夏になってからで，卵や卵塊のようすは前亜種のものに似ている．\n　エゾアカガエルの学名はまだ確定していない．北海道に見られる個体群は，その大部分がこれまでの研究者によって R. temporaria temporaria LINNÉ, 1758 に同定され，同時にヤマアカガエルも混在していることになっていた．しかし，このような同定の正しくないことが，戦後になってから次第にわかってきた．野外調査がまだ不充分であるが，これまでに知られている限りでは，北海道にはエゾアカガエルだけしかいない．これに対して，BALCELLS (1956) は R. temporaria chensinensis DAVID, 1875 を当て，川村 (1962) はそれを独立種に取り扱ったが，ここでは，シナ西部の個体群と日本海北部の周縁地域のものとは亜種が異なるという SHANNON (1956) の説に従い，後者に上掲の学名を当てておくことにした．",
+        "dwc:taxonConceptID": "gbif:10940927",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Rana) chensinensis dybowskii GÜNTHER, 1876",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10940927,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Rana dybowskii",
+    "gbif_accepted_key": 2426803,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

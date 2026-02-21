@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_fc73175c96260c193b4400c4588c58c6_f7a417cf64b5177d96712db0150e658d",
+    "paper_id": "paper_fc73175c96260c193b4400c4588c58c6",
+    "doi": "10.2173\/bow.livbul1.01",
+    "query_id": "alien_bird_2486150_en",
+    "query_label": "Pycnonotus sinensis Japan (alien\/introduced)",
+    "scientific_name": "Pycnonotus sinensis",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/bow.livbul1.01",
+        "dwc:scientificName": "Pycnonotus sinensis",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2486150",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Pycnonotus sinensis",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Pycnonotidae"
+    },
+    "gbif_taxon_key": 2486150,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Pycnonotidae"
+}

@@ -1,0 +1,14 @@
+{
+    "id": "ptl_paper_ac1833c6d58045c343d745035fbf047d_ad46a28d2436ebc770e98cbcfcf869f2",
+    "paper_id": "paper_ac1833c6d58045c343d745035fbf047d",
+    "doi": "10.1080\/00368555.2020.12293533",
+    "query_id": "jp_biodiversity_citizen_science",
+    "query_label": "Japan citizen science biodiversity",
+    "scientific_name": "Japan citizen",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1080\/00368555.2020.12293533",
+        "dwc:scientificName": "Japan citizen",
+        "dwc:vernacularName": null
+    }
+}

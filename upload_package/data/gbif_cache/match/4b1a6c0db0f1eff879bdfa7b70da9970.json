@@ -1,0 +1,18 @@
+{
+    "taxon_key": 11034293,
+    "scientific_name": "Rana brevipoda Ito, 1941",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": 2426636,
+    "accepted_name": "Pelophylax porosus",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Anura",
+    "family": "Ranidae",
+    "genus": "Pelophylax",
+    "rank": "SPECIES",
+    "original_query": "Rana (Rana) brevipoda R. ITO, 1941",
+    "_cached_at": 1770420021
+}

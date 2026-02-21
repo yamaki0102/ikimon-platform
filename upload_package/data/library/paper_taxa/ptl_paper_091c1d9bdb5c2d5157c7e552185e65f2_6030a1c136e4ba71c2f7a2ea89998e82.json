@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_091c1d9bdb5c2d5157c7e552185e65f2_6030a1c136e4ba71c2f7a2ea89998e82",
+    "paper_id": "paper_091c1d9bdb5c2d5157c7e552185e65f2",
+    "doi": "10.17760\/d20234075",
+    "query_id": "alien_bird_2498343_en",
+    "query_label": "Cygnus olor Japan (alien\/introduced)",
+    "scientific_name": "Cygnus olor",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.17760\/d20234075",
+        "dwc:scientificName": "Cygnus olor",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2498343",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Cygnus olor",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 2498343,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

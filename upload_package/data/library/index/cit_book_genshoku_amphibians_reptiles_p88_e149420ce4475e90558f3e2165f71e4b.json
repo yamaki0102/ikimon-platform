@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p88_e149420ce4475e90558f3e2165f71e4b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 88,
+    "taxon_name": "ジムグリガエル科 (概説)",
+    "scientific_name": "Brevicipitidae",
+    "family": "ジムグリガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.88)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Brevicipitidae",
+        "dwc:vernacularName": "ジムグリガエル科 (概説)",
+        "dwc:occurrenceRemarks": "　大部分の基本的な特徴はアカガエル科のものと同様であるが，口蓋部に原則として横ひだ状の隆条のあり，鋤骨が大きいこと，薦椎の後横突起が先端に向かって著しく拡がっていることなどの点で区別される．アカガエル科のカエルと同じようにきわめて変異に富み，瞳孔が水平方向または垂直方向の楕円形のものもあれば完全に円形のものもあり，歯も上顎だけにあるもの，下顎だけにあるもの，どちらにもないものなどの変化がある．舌のようすについても同様で，形は卵形のもの，楕円形のもの，心臓形のもの，三角形のものなどがあり，後端の円いものもあれば中央部がえぐれているものもある．また，舌の後部を自由に引き起こせるものも．完全に固着しているものもある．肩胛帯は多少とも退化し．胸骨の化骨していることはなく，上胸骨，鎖骨，前烏口骨などはなくなっていることが少なくない．指趾骨の末端骨のようすには，アカガエル科のものと同じような変異がある．指趾の末端骨と亜末端骨との間には関節骨がない．\n　7亜科に分類され．200あまりの種類が全世界の熱帯地方に広く分布している．一般に体が小さく，地中に穴を掘ってすんでいるものが多いが，地上性や樹上性の種類もある．化石種は知られていない．日本には1亜科1属1種だけがいる．",
+        "dwc:taxonConceptID": "gbif:3079",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Brevicipitidae",
+        "dwc:family": "Brevicipitidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 3079,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Brevicipitidae",
+    "gbif_match_type": "HIGHERRANK"
+}

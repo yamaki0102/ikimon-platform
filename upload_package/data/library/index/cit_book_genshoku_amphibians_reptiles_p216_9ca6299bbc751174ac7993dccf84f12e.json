@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p216_9ca6299bbc751174ac7993dccf84f12e",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 216,
+    "taxon_name": "ヒャン (ハイ型)",
+    "scientific_name": "Calliophis japonicus japonicus (Hai-form)",
+    "family": "コブラ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.216)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Sinomicrurus japonicus",
+        "dwc:vernacularName": "ヒャン (ハイ型)",
+        "dwc:occurrenceRemarks": "Plate 36 illustration (116a). Banded form (formerly Hemibungarus boettgeri).",
+        "dwc:taxonConceptID": "gbif:5226795",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Calliophis japonicus japonicus (Hai-form)",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5226795,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Sinomicrurus japonicus",
+    "gbif_accepted_key": 2469812,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "HIGHERRANK"
+}

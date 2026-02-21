@@ -1,0 +1,20 @@
+{
+    "id": "paper_0477726bed8f871c1ae8dc0a9f05d120",
+    "doi": "10.63172\/104288gvevnh",
+    "title": "Streaked shearwaters (Calonectris leucomelas) in the Coral Sea",
+    "year": 1975,
+    "container_title": "Notornis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.63172\/104288gvevnh",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.63172\/104288gvevnh",
+        "dc:title": "Streaked shearwaters (Calonectris leucomelas) in the Coral Sea",
+        "dc:date": 1975,
+        "dc:source": "Notornis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

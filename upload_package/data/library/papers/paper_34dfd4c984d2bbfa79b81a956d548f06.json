@@ -1,0 +1,20 @@
+{
+    "id": "paper_34dfd4c984d2bbfa79b81a956d548f06",
+    "doi": "10.14491\/jbba.00025",
+    "title": "Sexual Difference of Morphometric Measurements in the Japanese Cormorant &lt;i&gt;Phalacrocorax capillatus&lt;\/i&gt;",
+    "year": 2011,
+    "container_title": "The Bulletin of the Japanese Bird Banding Association",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.14491\/jbba.00025",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.14491\/jbba.00025",
+        "dc:title": "Sexual Difference of Morphometric Measurements in the Japanese Cormorant &lt;i&gt;Phalacrocorax capillatus&lt;\/i&gt;",
+        "dc:date": 2011,
+        "dc:source": "The Bulletin of the Japanese Bird Banding Association",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

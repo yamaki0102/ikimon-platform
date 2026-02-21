@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_a458ae8cefd3df427730cab2bac63d4b_00321ed571aa37849d5691f8d4e8e9c9",
+    "paper_id": "paper_a458ae8cefd3df427730cab2bac63d4b",
+    "doi": "10.2307\/3543732",
+    "query_id": "jp_bird_2498224_en",
+    "query_label": "Histrionicus histrionicus Japan (ecology\/distribution)",
+    "scientific_name": "Histrionicus histrionicus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2307\/3543732",
+        "dwc:scientificName": "Histrionicus histrionicus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2498224",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Histrionicus histrionicus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 2498224,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

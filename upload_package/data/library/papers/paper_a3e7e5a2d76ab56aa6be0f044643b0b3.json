@@ -1,0 +1,20 @@
+{
+    "id": "paper_a3e7e5a2d76ab56aa6be0f044643b0b3",
+    "doi": "10.5109\/2441",
+    "title": "THE ANT GENUS CERAPACHYS F. SMITH OF JAPAN, WITH DESCRIPTION OF A NEW SPECIES (HYMENOPTERA, FORMICIDAE)",
+    "year": 1983,
+    "container_title": "ESAKIA",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5109\/2441",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5109\/2441",
+        "dc:title": "THE ANT GENUS CERAPACHYS F. SMITH OF JAPAN, WITH DESCRIPTION OF A NEW SPECIES (HYMENOPTERA, FORMICIDAE)",
+        "dc:date": 1983,
+        "dc:source": "ESAKIA",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p22_67a11f1acccf728822e1761a4bad1461",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 22,
+    "taxon_name": "アベサンショウウオ (続き)",
+    "scientific_name": "Hynobius (Hynobius) abei I. SATO, 1934",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "80〜120mm",
+        "season": "11月下旬〜12月中旬",
+        "distribution": "京都府中郡大宮町 (模式産地のみ)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.22)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hynobius (Hynobius) abei I. SATO, 1934",
+        "dwc:vernacularName": "アベサンショウウオ (続き)",
+        "dwc:occurrenceRemarks": "はあまり大きくないがよく突出し，眼から後方に延びて耳腺の上縁を区切る溝線も深い．耳腺はかなり大きいがどちらかといえば扁平．鼻孔の位置は吻端に接近している．鋤口蓋歯列は原則としてU字形で幅が広い．胴は太く，背面に11〜12本，腹面に9〜10本の肋条をそなえている．四肢は短かくて太く，とくに♂の植肢は肥大している．前後肢を体側に沿って伸長すると，指趾間に2肋条分ぐらいの開きができる．後肢は5趾性．尾は胴と長さが等しいかあるいは胴より多少長く，基部が太い円筒状で側面に3〜4条の明瞭なしわをそなえ，後方に向かって急激に側扁し，上下両縁が刃のようになっている．とくに♂では，上下両縁がよく伸長するために，尾がひれ状を呈する．尾端は，♀ではとがったものが多く，♂ではにぶく終っているものが多い．体長：80〜120mm（尾は体長の1\/2に達しない）．\n　本種は，日本産のサンショウウオ類のうちでももっとも特異なものの一つであり，またもっとも珍しいものの一つでもある．系統的には，おそらくカスミサンショウウオやトウホクサンショウウオに近いものであろうと考えられるが，これら両種とは形態的にも生態的にもかなり異なっている．既知の確実な産地は，模式産地である京都府中郡大宮町内の小さい丘陵地ただ1カ所だけで，それもごく限られた竹やぶの中だけから見つかっているに過ぎない．この模式産地でも，現在では個体数が非常に少なくなっているので，早急に保護策を考えないとこの種は絶滅してしまう恐れがある．\n　アベサンショウウオが，他のサンショウウオ類と著しく異なるという形態以外の理由は，その産卵が，降雪の直前，すなわち11月下旬から12月中旬にかけて行なわれるという点である．幼生は1カ月足らずで孵化するが，その後の成長は遅く，雪の下で冬を過し翌年の夏にようやく変態を終える．卵嚢は細長いひも状で透明，表面には縦に走る明瞭な条線とあまりはっきりしない横線とがある．竹やぶの中の，浅い溝の底に堆積した腐植質の軟泥の中に，ほとんど埋まったような状態で1対ずつ産みつけられる．1卵嚢中には20〜40個の卵を含み，卵は小さくて褐色を呈する．",
+        "dwc:taxonConceptID": "gbif:2431150",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hynobius (Hynobius) abei I. SATO, 1934",
+        "dwc:family": "Hynobiidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2431150,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hynobiidae",
+    "gbif_match_type": "EXACT"
+}

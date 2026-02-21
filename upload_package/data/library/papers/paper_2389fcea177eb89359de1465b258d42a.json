@@ -1,0 +1,20 @@
+{
+    "id": "paper_2389fcea177eb89359de1465b258d42a",
+    "doi": "10.5962\/p.323038",
+    "title": "Black-chinned Garrulax, Garrulax galbanus, Godwin-Austin. [Pl. 52]",
+    "year": 1875,
+    "container_title": "The Birds of Asia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.323038",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.323038",
+        "dc:title": "Black-chinned Garrulax, Garrulax galbanus, Godwin-Austin. [Pl. 52]",
+        "dc:date": 1875,
+        "dc:source": "The Birds of Asia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

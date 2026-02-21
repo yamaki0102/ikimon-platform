@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_16904900f2b5075426f9303f001022e1_d366a83527be90f76bdfc4d1cd2eda72",
+    "paper_id": "paper_16904900f2b5075426f9303f001022e1",
+    "doi": "10.1111\/j.1095-8312.2012.02026.x",
+    "query_id": "jp_bird_2491557_en",
+    "query_label": "Emberiza schoeniclus Japan (ecology\/distribution)",
+    "scientific_name": "Emberiza schoeniclus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1111\/j.1095-8312.2012.02026.x",
+        "dwc:scientificName": "Emberiza schoeniclus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2491557",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Emberiza schoeniclus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Emberizidae"
+    },
+    "gbif_taxon_key": 2491557,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Emberizidae"
+}

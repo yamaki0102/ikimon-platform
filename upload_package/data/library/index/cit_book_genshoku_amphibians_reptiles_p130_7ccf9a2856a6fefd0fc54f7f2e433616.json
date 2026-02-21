@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p130_7ccf9a2856a6fefd0fc54f7f2e433616",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 130,
+    "taxon_name": "クロイワトカゲモドキ (続き)",
+    "scientific_name": "Eublepharis kuroiwae kuroiwae (NAMIYE, 1912)",
+    "family": "トカゲモドキ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.130)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Goniurosaurus kuroiwae",
+        "dwc:vernacularName": "クロイワトカゲモドキ (続き)",
+        "dwc:occurrenceRemarks": "多少とも側扁している．第4趾の趾下板の数は 17〜20枚ぐらい．後肛部の両側には，著しい棘状突起が左右2本ずつある．尾のようすには著しい変異があり，細長くてトカゲ類の尾に似ている場合には（第22図版第70図参照），少なくとも基方の半分ぐらいに10列以上の環状に並んだ円錐形の棘状突起をそなえているが，尾が肥大しているときには（第22図版第71図および第72図参照），急に太くなる部分から先の方に棘状の突起がなくなる．このような著しい変異にともなって，尾の長さもかなり変化する．頭胴長：70〜90mm（尾の長さは形態の変化にともなって著しく変わり，頭胴長にほぼ等しいものから頭胴長の3\/5ぐらいしかないものまである）．\n　沖縄本島に固有の亜種であって，日光の直射しないような場所を好み，密林の中や岩陰，洞窟の入口付近などにすんでいる．行動は比較的緩慢でヤモリ亜科のものとかなり異なり，歩くときに四肢を突っ張って体を高くもち上げる．また，興奮すると，尾端を高く上げて左右にゆり動かす．個体数が少なく，これまでに得られた標本があまり多くはない．\n　この亜種は．原著では Gymnodactylus albofasciatus kuroiwae という亜種名で記載され，岡田 (1936) などもこの学名を踏襲した．しかし，この動物が， Gymnodactylus 属または Cyrtodactylus 属のものでないことは，浪江の模式標本だけを見ても明らかである．この標本は，体長 105mm（頭胴長 55mm）の若い個体であるが，両眼を完全に閉じている上に尾もかなり太い，また，岡田(1936)によって図示された2標本の一方は，完全な成体で非常に細長い尾をもっているが，両眼を完全に閉じているという点では模式標本と同様である．真の Cyrtodactylus albofasciatus (BOULENGER, 1885) は，インドのゴアの付近に産するもので，ヤモリ亜科に属し，眼瞼は不動，胴の背面の鱗が四角くて腹面のものよりはるかに大きい．斑紋のようすにはクロイワトカゲモドキの若い個体に似た点もあるが，横帯の色が黄色い．その上，両者の分布域は．遠く離れた2つの地域に限限されているので，生物地理学的な見地から考えても．クロイワトカゲモドキの正しい帰属がこれまで疑われなかったのは，むしろ不思議なくらいである．\n　このような混乱を招いた最大の原因は，おそらく，これまでの研究者が，本種の尾の状態によって判断を左右されたことにあるのではないかと思われる．尾の肥大していることがこの類の特徴の一つであろうと考えられていたのは事実で，SMITH (1935) などもそのような見解を採っている．しかし，邦産のトカゲモドキ類の尾は，栄養状態によって著しく変化し，よく肥大した尾のある個体を飢餓状態におくと，尾がやせ細って全く別種のようになる．また，若い個体では，原則として尾が細長い（このことは SMITH (1935) も指摘している）．岡田 (1935, 1936) によってトウヨウヤモリ Eublepharis orientalis の名で報告されたものは，尾の形態を除けば，同じ論文 (1936) の中に掲載されているクロイワヤモリ Gymnodactylus albofasciatus kuroiwae と全く異ならないので，当然後者（すなわちクロイワトカゲモドキ）の同物異名とみなされるべきである．ただし，この報告に用いられた“トウヨウヤモリ”の標本は，今のところ行方不明になっている．",
+        "dwc:taxonConceptID": "gbif:5221339",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eublepharis kuroiwae kuroiwae (NAMIYE, 1912)",
+        "dwc:family": "Eublepharidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5221339,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Goniurosaurus kuroiwae",
+    "gbif_accepted_key": 2446415,
+    "gbif_family": "Eublepharidae",
+    "gbif_match_type": "HIGHERRANK"
+}

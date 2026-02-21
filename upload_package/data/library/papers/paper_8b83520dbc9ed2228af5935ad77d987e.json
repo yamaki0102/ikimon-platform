@@ -1,0 +1,20 @@
+{
+    "id": "paper_8b83520dbc9ed2228af5935ad77d987e",
+    "doi": "10.2307\/3495897",
+    "title": "Movement in a Zaprochiline Katydid (Orthoptera: Tettigoniidae): Sex-Specific Response to Food Plant Distribution",
+    "year": 1995,
+    "container_title": "The Florida Entomologist",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/3495897",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/3495897",
+        "dc:title": "Movement in a Zaprochiline Katydid (Orthoptera: Tettigoniidae): Sex-Specific Response to Food Plant Distribution",
+        "dc:date": 1995,
+        "dc:source": "The Florida Entomologist",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

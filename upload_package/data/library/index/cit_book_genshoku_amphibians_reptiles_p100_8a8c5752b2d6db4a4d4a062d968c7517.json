@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p100_8a8c5752b2d6db4a4d4a062d968c7517",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 100,
+    "taxon_name": "オサガメ科",
+    "scientific_name": "Dermochelyidae",
+    "family": "オサガメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.100)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Dermochelyidae",
+        "dwc:vernacularName": "オサガメ科",
+        "dwc:occurrenceRemarks": "　若い個体では体表が細かい多角形の鱗粒でおおわれているが．成熟すると鱗がなくなって体表がなめらかな皮膚でおおわれるようになる．頸部と四肢とを甲の中へ引き込むことができない．頭骨の側頭部には後方にえぐれがなくて表面が骨板でおおわれ．鱗状骨と鱗状骨とは縫合線で接合している．鼻骨がなく，左右の前額骨は背面で接合し，歯槽面は狭くて隆条をそなえていない．上顎の前端はえぐれ．その両側で上顎骨の前端部が三角形に突出し．その唇側が再びえぐれている．左右の口蓋骨は鋤骨によって隔てられ，耳室の後緣は不完全で鐙骨が露出している．鱗状骨には翼状骨に向かう突起がない．後耳骨と鱗状骨とは方骨によって隔てられている．頸椎のうちのただ1個（第4頸椎）が両凸形で，第8頸椎の前面は凹んでいる．背甲骨板と腹甲骨板とはともに著しく縮小し，両者の間に直接の連絡がない．10個の脊椎骨と肋骨とはともに遊離し，1枚の背甲に癒合していない．背甲は項骨板と小骨片の集合体とから成り，縁骨板も臀骨板もなく．腹甲骨板は退化して8個の骨のつながってできた幅の狭い輸になり，内骨板を欠除している．四肢はかい状になり，指趾骨は関節部がふくらんでいない．成体には爪がない．\n　全世界の主として熱帯および亜熱帯地方に分布し，海流に乗ってかなり北の方へも来る．完全な海生で，繁殖期以外は陸上へ上らない．現生の1属と2〜3の化石属と",
+        "dwc:taxonConceptID": "gbif:5464",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Dermochelyidae",
+        "dwc:family": "Dermochelyidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5464,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Dermochelyidae",
+    "gbif_match_type": "HIGHERRANK"
+}

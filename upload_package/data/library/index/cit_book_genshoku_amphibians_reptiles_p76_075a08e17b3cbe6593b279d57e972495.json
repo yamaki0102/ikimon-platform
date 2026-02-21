@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p76_075a08e17b3cbe6593b279d57e972495",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 76,
+    "taxon_name": "Unknown",
+    "scientific_name": "Rana (Babina) holsti",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.76)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Babina holsti",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Greenish-brown body with distinct banding on legs.",
+        "dwc:taxonConceptID": "gbif:2426837",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Babina) holsti",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2426837,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Babina holsti",
+    "gbif_accepted_key": 5217819,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_3250c7be3d86646eea382aa700823478_4aad1ff5f51a2583310888358ce16c98",
+    "paper_id": "paper_3250c7be3d86646eea382aa700823478",
+    "doi": "10.5040\/9781472927040.0085",
+    "query_id": "jp_bird_2480849_en",
+    "query_label": "Ixobrychus cinnamomeus Japan (ecology\/distribution)",
+    "scientific_name": "Ixobrychus cinnamomeus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.5040\/9781472927040.0085",
+        "dwc:scientificName": "Ixobrychus cinnamomeus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2480849",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Ixobrychus cinnamomeus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ardeidae"
+    },
+    "gbif_taxon_key": 2480849,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ardeidae"
+}

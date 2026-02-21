@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2139515,
+    "scientific_name": "Agelena silvatica Oliger, 1983",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Agelenidae",
+    "genus": "Agelena",
+    "rank": "SPECIES",
+    "original_query": "Agelena silvatica",
+    "_cached_at": 1771646877
+}

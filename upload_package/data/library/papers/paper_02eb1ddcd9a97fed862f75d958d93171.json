@@ -1,0 +1,20 @@
+{
+    "id": "paper_02eb1ddcd9a97fed862f75d958d93171",
+    "doi": "10.1163\/156853896x00081",
+    "title": "Geographic variation, taxonomy, and distribution of Eumeces skiltonianus and E. lagunensis (Squamata: Scincidae) in Baja California, México",
+    "year": 1996,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/156853896x00081",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/156853896x00081",
+        "dc:title": "Geographic variation, taxonomy, and distribution of Eumeces skiltonianus and E. lagunensis (Squamata: Scincidae) in Baja California, México",
+        "dc:date": 1996,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

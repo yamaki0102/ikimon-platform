@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p74_31b4773fdab84d8f83f3de6ee1ba4bbb",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 74,
+    "taxon_name": "イシカワガエル (続き)",
+    "scientific_name": "Rana (Rana ?) ishikawae (STEJNEGER, 1901)",
+    "family": "アカガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.74)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana (Rana ?) ishikawae (STEJNEGER, 1901)",
+        "dwc:vernacularName": "イシカワガエル (続き)",
+        "dwc:occurrenceRemarks": "根洞の中などで行なわれるという．\n　なお，BOULENGER (1920) は，本種やハナサキガエルなどを Hylorana TYTLER, 1838 という亜属に含め，NOBLE (1931) は，これを属に昇格させて Cornuferinae という亜科に移している．事実，アカガエル亜属に包括されている動物群が，きわめて異質なものの寄せ集めに過ぎないということは明らかで，邦産種のうちでも，上記の2種やナミエガエルなどは，何らかの形でアカガエルやトノサマガエルの仲間から分離されなければならないように思われる．しかし，BOULENGER や NOBLE が Hylorana を認める根拠にした指趾端の吸盤は，多分に適応的な器官であり，その発達の程度にもさまざまの段階がある．この特徴のもつ系統的な意義がもう少し精密に検討されるまでは．便宜的な措置として，イシカワガエルなどをアカガエル亜属に残しておきたい．",
+        "dwc:taxonConceptID": "gbif:2422253",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Rana (Rana ?) ishikawae (STEJNEGER, 1901)",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2422253,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "HIGHERRANK"
+}

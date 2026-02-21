@@ -1,0 +1,20 @@
+{
+    "id": "paper_c31fc4d639302f6096efbd84b1e95d2a",
+    "doi": "10.1007\/springerreference_89794",
+    "title": "Monarch Butterfly, Danaus plexippus L. (Lepidoptera: Danaidae)",
+    "year": 0,
+    "container_title": "SpringerReference",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.1007\/springerreference_89794",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/springerreference_89794",
+        "dc:title": "Monarch Butterfly, Danaus plexippus L. (Lepidoptera: Danaidae)",
+        "dc:date": 0,
+        "dc:source": "SpringerReference",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

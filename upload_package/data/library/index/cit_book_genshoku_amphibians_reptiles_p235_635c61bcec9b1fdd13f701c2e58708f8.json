@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p235_635c61bcec9b1fdd13f701c2e58708f8",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 235,
+    "taxon_name": "マムシ (続き)",
+    "scientific_name": "Agkistrodon halys (PALLAS, 1776)",
+    "family": "クサリヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.235)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Gloydius halys",
+        "dwc:vernacularName": "マムシ (続き)",
+        "dwc:occurrenceRemarks": "首の楕円形で．両鼻板の間に開いている．鼻間板は幅が広くて前鼻板よりも明らかに小形．前者後鼻板の幅は長さよりもわずかに大きく．左右の1対が正中線上で接し．各板の後縁が隆起．上眼前板および眼上板に接している．額板は幅の広い盾形で，その長さは吻端から額板前端までの距離に等しく．幅よりも少し大きい．眼上板は大形で幅よりも少し長く．側縁が眼の上側を区切る稜線になっている．頭頂板は眼上板よりも更に大きいが，左右両板の間の縫合線の長さは額板の長さよりも短かい．鼻板は上下2枚あり．下板は彎曲して頰窩の入口になっている．また．下頰板の下縁は第 1〜2両上唇板に接している．眼前板も上下2枚あって共にその前縁が上頰板に接し．窩下板は短かくて眼の下側から後側へ曲がり．第4上唇板とを隔てている．側頭板は．上唇板に接している3枚だけが非常に大きくて眼下板から後方へ1列に並んでいるが，それより背方のものは小さく．隆条も背方へいくほど明瞭となって．次第に背部の鱗に移行している．上唇板は 7〜8枚（稀には9枚）あって第2枚目は小形．第 3〜5 上唇板は大きく．第3上唇板は眼に接している．頤板はほぼ三角形で後角がとがり．下唇板は 11〜13枚ぐらいで．左右の第1下唇板が頤板の後で互に接し．第 4〜6 下唇板は普通他のものよりも大形．咽頭板は1対あって互に接し合い．各板が比較的短かくて第 1〜4下唇板または第 1〜5下唇板に接している．咽頭溝は明瞭で．咽頭板から第1腹板までの間の部分が 3〜4 対の鱗に挟まれている．体鱗はその全長に或が明瞭な隆条と1対の鱗孔とをそなえ．頸部で 21〜27列．胴の中央部で 19〜25 列（日本産の個体では普通21列），胴の後部では 17列ある．腹板はなめらかに曲がり．135〜175枚ぐらいある（日本には腹板数 140前後の個体が多い）．尾下板は原則として対をなし，その数は 31〜55 ぐらい．体長：450〜600mm（尾は体長の 1\/9〜1\/5 ぐらいを占め．一般に ♂ の方が ♀ より体長も大きく尾も長い）．\n　琉球列島を除く日本の全土．朝鮮．シベリア．シナなどから．中央アジアを経て．西へはヨーロッパの東部まで拡がっている．\n　いうまでもなく，マムシは日本内地に見られる唯一の毒蛇であって．平地にも高山帯にもすんでいる．棲息場所の幅も広くて．比較的乾燥した耕地や河原のような所にも．湿度の高い竹やぶや森林の中などにも見られる．筆者の一人は．本種を高山帯の雪渓のそばで見たことさえある．しかし，性質が比較的おとなしい上に動作ものろいので．とくに探さない限り．野外で出合う機会がそれほど多くはない．卵胎生で．夏から秋に 7〜12匹ぐらいの幼蛇を産むが，繁殖期は地方によってかなり異なっている．\n\n[第41図版]\n\nハブ属 Trimeresurus LACÉPÈDE, 1804\n　頭部は三角形で大きく，細い頸部と明瞭に区分され．背面が細かい鱗でおおわれている．鼻孔は1枚の鼻板の中央かあるいは2枚の鼻板の間にあり．頰窩は頰板と眼前",
+        "dwc:taxonConceptID": "gbif:8976465",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Agkistrodon halys (PALLAS, 1776)",
+        "dwc:family": "Viperidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 8976465,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Gloydius halys",
+    "gbif_accepted_key": 8544034,
+    "gbif_family": "Viperidae",
+    "gbif_match_type": "EXACT"
+}

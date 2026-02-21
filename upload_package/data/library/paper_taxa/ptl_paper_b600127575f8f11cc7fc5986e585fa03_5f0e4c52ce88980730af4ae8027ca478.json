@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_b600127575f8f11cc7fc5986e585fa03_5f0e4c52ce88980730af4ae8027ca478",
+    "paper_id": "paper_b600127575f8f11cc7fc5986e585fa03",
+    "doi": "10.33910\/2686-9519-2021-13-1-54-88",
+    "query_id": "jp_bird_2481916_en",
+    "query_label": "Ciconia boyciana Japan (ecology\/distribution)",
+    "scientific_name": "Ciconia boyciana",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.33910\/2686-9519-2021-13-1-54-88",
+        "dwc:scientificName": "Ciconia boyciana",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481916",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Ciconia boyciana",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ciconiidae"
+    },
+    "gbif_taxon_key": 2481916,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ciconiidae"
+}

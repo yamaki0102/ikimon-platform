@@ -1,0 +1,20 @@
+{
+    "id": "paper_2d2bfbc6fd062513e08fab291ec845b9",
+    "doi": "10.2307\/1446557",
+    "title": "Genetic Uniformity in the Japanese Giant Salamander, Andrias japonicus",
+    "year": 1992,
+    "container_title": "Copeia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/1446557",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/1446557",
+        "dc:title": "Genetic Uniformity in the Japanese Giant Salamander, Andrias japonicus",
+        "dc:date": 1992,
+        "dc:source": "Copeia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

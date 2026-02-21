@@ -1,0 +1,20 @@
+{
+    "id": "paper_2f5fef12ce59735c1ce850dd08915627",
+    "doi": "10.2173\/bow.rorpar.01",
+    "title": "Rose-ringed Parakeet (Psittacula krameri)",
+    "year": 2020,
+    "container_title": "Birds of the World",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/bow.rorpar.01",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/bow.rorpar.01",
+        "dc:title": "Rose-ringed Parakeet (Psittacula krameri)",
+        "dc:date": 2020,
+        "dc:source": "Birds of the World",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

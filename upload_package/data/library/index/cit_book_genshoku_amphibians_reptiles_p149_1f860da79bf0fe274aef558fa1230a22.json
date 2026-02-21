@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p149_1f860da79bf0fe274aef558fa1230a22",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 149,
+    "taxon_name": "ミヤコトカゲ",
+    "scientific_name": "Emoia atrocostata atrocostata (LESSON, 1830)",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.149)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Emoia atrocostata atrocostata (LESSON, 1830)",
+        "dwc:vernacularName": "ミヤコトカゲ",
+        "dwc:occurrenceRemarks": "　体の背面は緑色を帯びた灰褐色で，胴部と四肢の背面とでは，個々の体鱗の後縁が暗褐色を呈するために一種の模様となっている．また．胴から尾にかけて，青灰色の鱗片と暗褐色の斑点とを散布している．体側には．眼の後に始まって耳孔を通り後肢に達する黒褐色の縦条があるが，その中に青灰色の鱗片が混在し，上下両縁もあまり明瞭ではない．頭と尾とはやや色が淡く．頭部側面は青味が強い．腹面はやや青味を帯びた黄白色．頭部は細長くて吻も細く，吻端はにぶい．吻端から頭頂紋の後縁まで\n\n第12図．ミヤコトカゲの頭部；左から右へ背面，腹面および左側面．\n\nの長さは，両眼の間隔の 1.5倍よりも明らかに大きい．鼻孔は鼻板の中央にあって．その上縁が鼻板の上縁に接近している．後鼻板がない．前額鼻板は前縁が吻端板に，また側縁が上鼻板と前頰板とに接している．左右の前額板は，正中線上で接していることも，前額鼻板と額板とが接しているために両側に離れていることもあるが，どちらかといえば前者の個体が多い．額板は前頭頂板よりも小さく．後方に向かって著しく狭まり，側縁が第 1〜2 眼上板に接している．前頭頂板は1枚で対をなさず．幅よりも少し長い．頭頂間板は細くて後端がとがり，頭頂板は額板よりも大きくて頭頂間板の後で左右接している．頸板は普通1対（時には2対）ある．眼上板は4枚あって中央の2枚は幅が広く，眼前板，眼後板はともに2枚で小形，眼前下板も2枚あって下縁が第 4〜5 上唇板に接している．頰板は2枚で，前頰板は高さが高く，後頰板は前",
+        "dwc:taxonConceptID": "gbif:7190220",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Emoia atrocostata atrocostata (LESSON, 1830)",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 7190220,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "EXACT"
+}

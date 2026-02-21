@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p195_e1e1d3d40573127e9ee0480caf1283d6",
+    "book_id": "book_genshoku_trees_1",
+    "page": 195,
+    "taxon_name": "R",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.195)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "R",
+        "dwc:occurrenceRemarks": "Randia V 177\n  cochinchinensis V 177\nRhamnella V 52\n  frangulioides V 52\nRhamnus V 50\n  costata V 52\n  crenata V 52\n  davurica var. nipponica V 51\n  japonica V 51\n  utilis V 51\nRhaphiolepis IV 202\n  umbellata IV 202\n  --var. mertensii IV 202\nRhapis V 229\n  excelsa V 229\n  flabelliformis V 229\n  humilis V 229\nRhododendron V 88\n  albrechtii V 103\n  amagianum V 101\n  aureum V 110\n  brachycarpum V 106\n  dauricum V 120\n  degronianum V 92\n  dilatatum V 102\n  fauriei 'Nemoto' V 129\n  indicum V 121\n  --'Balsaminaeflorum' V 124\n  --'Chojuho' V 124\n  --'Gihrei' V 124\n  --'Hakatashiro' V 124\n  --'Kinsai' V 123\n  --'Matsunami' V 124\n  --'Okina' V 124\n  --'Seigai' V 123\n  --'Tancho' V 113\n  --'Hakutashiki' V 114\n  --'Seikaihai' IV 113\n  --'Sekidera' V 124\n  --'Juko' V 118\n  --'Kabai' V 113\n  --'Kinnozai' V 113\n  --'Komachi' V 112\n  --'Matsushima' V 113\n  --'Nikko' V 113\n  --'Osakazuki' V 112\n  --'Otome' V 114\n  --'Sarabarasome' V 114\n  --'Satsuki-bare' V 118\n  --'Shisui' V 113\n  --'Shinyo-no-tsuki' V 116\n  --'Yamatohishiki' V 114\n  japonicum V 102\n  --f. flavum V 103\n  kaempferi V 99\n  keiskei V 129\n  kiusianum V 106\n  komiyamae V 100\n  lateritium V 121\n  macrosepalum V 105\n  makinoi V 92\n  metternichii V 126\n  --var. hondoensis V 127\n  --var. pentamerum V 91\n  --var. yakushimanum V 127\n  mucronatum var. ripense V 105\n  nakaharai V 109\n  obtusum V 104\n  --var. amoenum V 104\n  --var. kaempferi V 99\n  pentaphyllum V 126\n  pulchrum V 105\n  quinquefolium V 125\n  reticulatum V 106\n  ripense V 104\n  sanctum V 107\n  scabrum V 103\n  schlippenbachii V 119\n  serpyllifolium V 105\n  simsii V 110\n  tashiroi V 108\n  transiens V 119\n  tschonoskii V 129\n  wadanum V 107\n  weyrichii V 107\n  yedoense V 99\n  --var. poukhanense V 116\nRhus IV 258\n  ambigua IV 260\n  javanica IV 260\n  succedanea IV 264\n  sylvestris IV 264\n  trichocarpa IV 262\n  verniciflua IV 263\nRibes IV 160\n  ambiguum IV 162\n  fasciculatum IV 161\n  grossularioides IV 163\n  japonicum IV 164\n  latifolium IV 161\n  maximowiczianum IV 162\n  sachalinense IV 193\n  sinanense IV 161\nRobinia IV 252\n  hispida IV 256\n  pseudo-acacia IV 255\nRosa IV 234\n  banksiae IV 238\n  chinensis IV 239\n  hirtula IV 238\n  hybrida 'American Pillar' IV 243\n  --'Black Tea' IV 243\n  --'Blue Moon' IV 243\n  --'Cinderella' IV 243\n  --'Elegance' IV 244\n  --'Maria Callas' IV 241\n  --'Papa Meilland' IV 242\n  --'Princess Michiko' V 244\n  --'Seika' IV 240\n  --'Shin-setsu' IV 245\n  --'Shogetsu' IV 231\n  --'Super Star' IV 241\n  laevigata IV 238\n  luciae IV 236\n  --subsp. hakonensis IV 240\n  --subsp. onoei IV 240\n  microphylla IV 238\n  multiflora IV 237\n  --var. platyphylla IV 237\n  nipponensis IV 235\n  rugosa IV 236\n  sambucina V 148\n  officinalis V 148\n  wichuraiana IV 237\nRosmarinus V 189\n  officinalis V 189\nRubus IV 221\n  buergeri IV 221\n  corchorifolius IV 223\n  crataegifolius IV 226\n  fruiticosus IV 224\n  hakonensis IV 219\n  hirsutus IV 229\n  --var. argyi-.... IV 229"
+    }
+}

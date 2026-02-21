@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p125_525350a9571a128257a3baa16124b881",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 125,
+    "taxon_name": "タシロヤモリ (続き)",
+    "scientific_name": "Hemidactylus bowringii (GRAY, 1845)",
+    "family": "ヤモリ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.125)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hemidactylus bowringii (GRAY, 1845)",
+        "dwc:vernacularName": "タシロヤモリ (続き)",
+        "dwc:occurrenceRemarks": "い．指趾も長いが，その基部にはみずかき状の膜がなく，吸盤はよく分化しているが，幅が比較的狭い．第1指（趾）はよく発達し，第1趾の長さが第2趾の長さの半分を植え，その末端節も細長くて吸盤の長さの半分に達する．趾下板は第4趾で 9〜11対あって，かなり斜向している．尾は比較的扁平，背面に環状溝がほとんど認められず．環状に並んだ鱗の突起もない．尾の背面の鱗は胴背のものより多少とも大きく．下面のものはそれよりも更に大きくて瓦状に並んでいる．下面の正中線上には，1列に並んだ幅の広い尾下板がある．頭胴長：45〜50mm（尾長には前種の場合と同じような変異が見られる）．\n　琉球列島の沖縄本島．宮古島，石垣島などから知られ，国外では，台湾，南シナ，ビルマ，インドなどに分布している．人家などにすみ．ホオグロヤモリに混じって見つかるが，一般に後者よりも個体数が少ない．",
+        "dwc:taxonConceptID": "gbif:5959892",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hemidactylus bowringii (GRAY, 1845)",
+        "dwc:family": "Gekkonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5959892,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gekkonidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p167_cbb6729e70f44613a0d5ed4502673fe9",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 167,
+    "taxon_name": "カナヘビ",
+    "scientific_name": "Takydromus tachydromoides (SCHLEGEL, 1838)",
+    "family": "カナヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.167)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Takydromus tachydromoides (SCHLEGEL, 1838)",
+        "dwc:vernacularName": "カナヘビ",
+        "dwc:occurrenceRemarks": "　背面は褐色または暗灰褐色で，個体によって多少青味を帯びていることがあり．また．背板列の中に後端部の黒いものを混在している．尾は先端に向かって多少とも色が淡くなる．体側には，外鼻孔の上側に始まって眼を通り，後方へいくほど幅が広くなって（上下に分かれていることもある）尾の基部に達する黒褐色の縦条のあることが多い．この縦条の下縁は，一般に白色または黄色の条線で区切られているが，胴部では条線が多少とも不規則になり．また．個体によっては，前肢の基部より前方だけにしか条線のないこともある．淡色の条線と腹板との間は，普通黒褐色の縦条になっているが，上唇は白っぽい．腹面は黄白色ないし淡黄褐色．指趾は黄褐色．頭部は比較的短かくて幅が広く，吻も側扁しているが短かい．吻端は比較的によく，吻端板はかなり大形．鼻孔は上鼻板，鼻板および第1上唇板によって囲まれ．吻端板の後縁背端には接していない．後鼻板がない．鼻板は小形で，時には前額板と癒合していることもある．左右の上鼻板は普通正中線上で接し合っていないが，時には互に接合して前額鼻板を吻端板から隔てていることもある．前額鼻板は比較的幅が広く，前額板より短い．左右の前額板は，原則として正中線上で接し合っているが，稀には1枚の小さい鱗板によって両側に隔てられていることもある．額板は長大，頸板とほぼ等長であるかあるいは頭頂板よりも長い．前頭頂板は前額板よりも大きく．左右の1対が幅広く接し合っている．頭頂間板は小形．後頭板は頭頂間板より更に小さく，また普通は後者に接していない．頭頂板は幅が広く，普通は左右の1対が頭頂間板と後頭板との間で接し合っている．眼上板は3対あり，第 1〜2 両眼上板は大きくて額板に接している．上睫板は4枚あって最初の2枚が非常に細長く，普通は第1上睫板だけが第1眼上板に接し，残りは1列に並んだ粒状の鱗によって眼上板から隔てられているが，個体によっては粒状の鱗が 2〜3 個しかないこともあり，また逆に全上睫板が",
+        "dwc:taxonConceptID": "gbif:2468588",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Takydromus tachydromoides (SCHLEGEL, 1838)",
+        "dwc:family": "Lacertidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2468588,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Lacertidae",
+    "gbif_match_type": "EXACT"
+}

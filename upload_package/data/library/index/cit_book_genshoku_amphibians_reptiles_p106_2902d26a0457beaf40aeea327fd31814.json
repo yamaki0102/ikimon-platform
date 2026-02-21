@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p106_2902d26a0457beaf40aeea327fd31814",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 106,
+    "taxon_name": "リュウキュウヤマガメ",
+    "scientific_name": "Geoemyda spengleri japonica FAN, 1931",
+    "family": "カメ科",
+    "data_icons": {
+        "size": "130〜160mm (Semaru)",
+        "season": null,
+        "distribution": "石垣, 西表, 台湾 (Semaru); 琉球 (Yamagame)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.106)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Geoemyda japonica",
+        "dwc:vernacularName": "リュウキュウヤマガメ",
+        "dwc:occurrenceRemarks": "　背甲は褐色ないし赤褐色で，とくに周縁部には，あまり明瞭でない暗色の部分がある．隆条は部分的に暗褐色．腹甲は黒色または黒褐色で周縁が黄色い，縁甲板の腹面周縁部も黄色．頭部と四肢とは灰褐色ないし暗灰褐色．眼の下側から後走して頸部に",
+        "dwc:taxonConceptID": "gbif:6157133",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Geoemyda spengleri japonica FAN, 1931",
+        "dwc:family": "Geoemydidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 6157133,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Geoemyda japonica",
+    "gbif_accepted_key": 2443419,
+    "gbif_family": "Geoemydidae",
+    "gbif_match_type": "EXACT"
+}

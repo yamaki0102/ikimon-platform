@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p155_19db03f054c29923f0b66c1ec93f69ab",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 155,
+    "taxon_name": "Unknown",
+    "scientific_name": "Ablepharus boutonii",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.155)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Cryptoblepharus boutonii",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Greenish with distinct dark lateral stripe.",
+        "dwc:taxonConceptID": "gbif:4821137",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Ablepharus boutonii",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 4821137,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Cryptoblepharus boutonii",
+    "gbif_accepted_key": 9534165,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "EXACT"
+}

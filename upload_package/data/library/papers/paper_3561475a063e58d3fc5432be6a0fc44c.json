@@ -1,0 +1,20 @@
+{
+    "id": "paper_3561475a063e58d3fc5432be6a0fc44c",
+    "doi": "10.1127\/entom.gen\/27\/2004\/73",
+    "title": "The Movement Apparatus of the Antennae of the Dragonfly species Orthetrum cancellatum (Odonata: Libellulidae)",
+    "year": 2004,
+    "container_title": "Entomologia Generalis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1127\/entom.gen\/27\/2004\/73",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1127\/entom.gen\/27\/2004\/73",
+        "dc:title": "The Movement Apparatus of the Antennae of the Dragonfly species Orthetrum cancellatum (Odonata: Libellulidae)",
+        "dc:date": 2004,
+        "dc:source": "Entomologia Generalis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

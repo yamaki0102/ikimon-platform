@@ -1,0 +1,20 @@
+{
+    "id": "paper_44ebe1eea481fca95a4a17866f4733ee",
+    "doi": "10.5122\/cbirds.2010.0004",
+    "title": "Effect of colonial breeding of Chinese Egret (Egretta eulophotes) on the heavy metal accumulation in heronry soil",
+    "year": 2010,
+    "container_title": "Chinese Birds",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5122\/cbirds.2010.0004",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5122\/cbirds.2010.0004",
+        "dc:title": "Effect of colonial breeding of Chinese Egret (Egretta eulophotes) on the heavy metal accumulation in heronry soil",
+        "dc:date": 2010,
+        "dc:source": "Chinese Birds",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

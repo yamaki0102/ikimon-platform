@@ -1,0 +1,20 @@
+{
+    "id": "paper_e49646a7dd41f693fe64a832bea549f1",
+    "doi": "10.1007\/bf01651031",
+    "title": "Gefiederfärbungen bei der Straßentaube (Columba livia)",
+    "year": 1999,
+    "container_title": "Journal für Ornithologie",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/bf01651031",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/bf01651031",
+        "dc:title": "Gefiederfärbungen bei der Straßentaube (Columba livia)",
+        "dc:date": 1999,
+        "dc:source": "Journal für Ornithologie",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

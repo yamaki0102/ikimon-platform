@@ -1,0 +1,20 @@
+{
+    "id": "paper_5bfb8b461de733d614cd3fa2617a9042",
+    "doi": "10.34080\/os.v24.22560",
+    "title": "Staging and wintering Taiga Bean Geese Anser fabalis fabalis in north-east Scania, south Sweden",
+    "year": 2014,
+    "container_title": "Ornis Svecica",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.34080\/os.v24.22560",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.34080\/os.v24.22560",
+        "dc:title": "Staging and wintering Taiga Bean Geese Anser fabalis fabalis in north-east Scania, south Sweden",
+        "dc:date": 2014,
+        "dc:source": "Ornis Svecica",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

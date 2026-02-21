@@ -1,0 +1,20 @@
+{
+    "id": "paper_481bce3cb6364a8bc4c8cc8365af3da6",
+    "doi": "10.2173\/tbna.329.p",
+    "title": "Ring-necked Duck (Aythya collaris)",
+    "year": 1998,
+    "container_title": "Birds of North America (print)",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/tbna.329.p",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/tbna.329.p",
+        "dc:title": "Ring-necked Duck (Aythya collaris)",
+        "dc:date": 1998,
+        "dc:source": "Birds of North America (print)",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

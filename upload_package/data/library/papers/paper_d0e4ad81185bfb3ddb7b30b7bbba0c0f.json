@@ -1,0 +1,20 @@
+{
+    "id": "paper_d0e4ad81185bfb3ddb7b30b7bbba0c0f",
+    "doi": "10.5852\/ejt.2019.510",
+    "title": "Revision of Angursa (Arthrotardigrada: Styraconyxidae) with the description of a new species from Japan",
+    "year": 2019,
+    "container_title": "European Journal of Taxonomy",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5852\/ejt.2019.510",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5852\/ejt.2019.510",
+        "dc:title": "Revision of Angursa (Arthrotardigrada: Styraconyxidae) with the description of a new species from Japan",
+        "dc:date": 2019,
+        "dc:source": "European Journal of Taxonomy",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

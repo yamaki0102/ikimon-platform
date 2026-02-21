@@ -1,0 +1,20 @@
+{
+    "id": "paper_e25df956a397af454210f71094baffa8",
+    "doi": "10.2307\/4509276",
+    "title": "Bird Distribution and Bird-Banding",
+    "year": 1931,
+    "container_title": "Bird-Banding",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/4509276",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/4509276",
+        "dc:title": "Bird Distribution and Bird-Banding",
+        "dc:date": 1931,
+        "dc:source": "Bird-Banding",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

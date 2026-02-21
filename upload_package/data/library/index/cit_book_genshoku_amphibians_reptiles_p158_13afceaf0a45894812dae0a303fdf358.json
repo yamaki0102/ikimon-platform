@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p158_13afceaf0a45894812dae0a303fdf358",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 158,
+    "taxon_name": "サキシマスベトカゲ (続き)",
+    "scientific_name": "Lygosoma (Leiolopisma) reevesii boettgeri (VAN DENBURGH, 1912)",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.158)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lygosoma (Leiolopisma) reevesii boettgeri (VAN DENBURGH, 1912)",
+        "dwc:vernacularName": "サキシマスベトカゲ (続き)",
+        "dwc:occurrenceRemarks": "すみ，どちらかといえば湿潤な場所を好むようである．なお，台湾に産するタイワンスベトカゲ L. (L.) reevesii formosensis (VAN DENBURGH, 1912) は，体色が一般に暗いことと，前額鼻板と額板とが普通前後に接し合っていることとによってサキシマスベトカゲと区別できる．",
+        "dwc:taxonConceptID": "gbif:2464889",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Lygosoma (Leiolopisma) reevesii boettgeri (VAN DENBURGH, 1912)",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2464889,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_615be26566f98d002661b016092701a5_7fe74bd2824c9bdfd35e21fa126293eb",
+    "paper_id": "paper_615be26566f98d002661b016092701a5",
+    "doi": "10.1016\/j.foreco.2007.12.007",
+    "query_id": "jp_tree_chamaecyparis_obtusa",
+    "query_label": "Chamaecyparis obtusa Japan (Hinoki)",
+    "scientific_name": "Chamaecyparis obtusa",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1016\/j.foreco.2007.12.007",
+        "dwc:scientificName": "Chamaecyparis obtusa",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2683849",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Chamaecyparis obtusa",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Cupressaceae"
+    },
+    "gbif_taxon_key": 2683849,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Cupressaceae"
+}

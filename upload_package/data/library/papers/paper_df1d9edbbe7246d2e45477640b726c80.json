@@ -1,0 +1,20 @@
+{
+    "id": "paper_df1d9edbbe7246d2e45477640b726c80",
+    "doi": "10.1007\/bf01640431",
+    "title": "Die Überwinterungsknospen des Krausen Laichkrauts (Potamogeton crispus) als Nahrung für den Höckerschwan (Cygnus olor) auf dem Federsee",
+    "year": 1993,
+    "container_title": "Journal für Ornithologie",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/bf01640431",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/bf01640431",
+        "dc:title": "Die Überwinterungsknospen des Krausen Laichkrauts (Potamogeton crispus) als Nahrung für den Höckerschwan (Cygnus olor) auf dem Federsee",
+        "dc:date": 1993,
+        "dc:source": "Journal für Ornithologie",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

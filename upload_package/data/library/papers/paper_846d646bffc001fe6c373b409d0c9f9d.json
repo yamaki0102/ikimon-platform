@@ -1,0 +1,20 @@
+{
+    "id": "paper_846d646bffc001fe6c373b409d0c9f9d",
+    "doi": "10.2173\/bow.whttro.01",
+    "title": "White-tailed Tropicbird (Phaethon lepturus)",
+    "year": 2020,
+    "container_title": "Birds of the World",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/bow.whttro.01",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/bow.whttro.01",
+        "dc:title": "White-tailed Tropicbird (Phaethon lepturus)",
+        "dc:date": 2020,
+        "dc:source": "Birds of the World",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

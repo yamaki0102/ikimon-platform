@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p34_e46256ebddd55c5bea8eba4f37094aed",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 34,
+    "taxon_name": "シリケンイモリ",
+    "scientific_name": "Triturus (Cynops) pyrrhogaster ensicauda (HALLOWELL, 1860)",
+    "family": "イモリ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.34)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Cynops ensicauda",
+        "dwc:vernacularName": "シリケンイモリ",
+        "dwc:occurrenceRemarks": "　体形や体色に変異が多く，基亜種との区別が困難なものも見られるが，指趾が比較的太短かくてその下面が黄色または淡赤褐色を呈することだけは，この亜種にほぼ固定した特徴と考えてよいように思われる．腹面は黄色，橙黄色または赤褐色で不規則な黒斑を散布し，尾の下面正中線上には腹面の基色と同じ色の縦条がある．背面の色彩には著しい変異があり，基亜種と同様なものから，青白色または淡黄色の地衣状斑紋をそなえているもの，背側部や背中線上の隆条が腹面の基色にほぼ等しいもの，更にこれらの組み合わさったもの（第6図版第18図a）などが見られる．また，指趾の上面も多少とも灰色であることが多い．頭部は比較的大きく，普通は不規則な黒斑が認められる．耳腺も基亜種の場合よりよく発達していることが多い．背中線上と背側線上との隆条は，一般に基亜種の場合より顕著で，とくに♂では著しく隆起し，背側線のものがやや鋸歯状を呈する．また，原則として尾が長く，普通は尾長が頭胴長よ",
+        "dwc:taxonConceptID": "gbif:10987151",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Triturus (Cynops) pyrrhogaster ensicauda (HALLOWELL, 1860)",
+        "dwc:family": "Salamandridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10987151,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Cynops ensicauda",
+    "gbif_accepted_key": 2431863,
+    "gbif_family": "Salamandridae",
+    "gbif_match_type": "FUZZY"
+}

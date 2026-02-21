@@ -1,0 +1,20 @@
+{
+    "id": "paper_311166db46d95152ee85e4fc7b386211",
+    "doi": "10.3390\/insects11050315",
+    "title": "Ecology of the Western Queen Butterfly Danaus gilippus thersippus (Lepidoptera: Nymphalidae) in the Mojave and Sonoran Deserts",
+    "year": 2020,
+    "container_title": "Insects",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3390\/insects11050315",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3390\/insects11050315",
+        "dc:title": "Ecology of the Western Queen Butterfly Danaus gilippus thersippus (Lepidoptera: Nymphalidae) in the Mojave and Sonoran Deserts",
+        "dc:date": 2020,
+        "dc:source": "Insects",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

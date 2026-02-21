@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p46_4b8f9911cbc3d5e94071b48dd71291af",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 46,
+    "taxon_name": "ヘリグロヒキガエル",
+    "scientific_name": "Bufo melanostictus SCHNEIDER, 1799",
+    "family": "ヒキガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.46)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Duttaphrynus melanostictus",
+        "dwc:vernacularName": "ヘリグロヒキガエル",
+        "dwc:occurrenceRemarks": "　体と四肢との背面は黄褐色，褐色または暗褐色で，皮膚の隆起の頂端部が黒っぽく，個体によって黒褐色の不規則な斑紋をそなえていることもある．頭部背面の骨質隆起と上下両顎の周縁部とは一般に黒く，指趾の末端部や掌部と蹠部との隆起も黒い．腹面は黄白色または灰白色で暗褐色の小斑を散布し，とくに胸部と腹部の側方とでは斑紋が明瞭．頭部は比較的幅が狭いが短かく，側縁はほぼ直線状に前方へ狭まり，吻端が円く終っている．背面には吻端から左右に分かれて後走する骨質の著しい隆条があり，その外側に外鼻孔が開いている．外鼻孔の位置は，眼の前端よりも吻端に近いことが多いが，これらのほぼ中央にあることも眼の方に近いこともある．骨質の隆条は，眼鼻線上を走って上眼瞼の前端に達し，ここで後下方へ向かう枝を分岐する．それよ",
+        "dwc:taxonConceptID": "gbif:5216781",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Bufo melanostictus SCHNEIDER, 1799",
+        "dwc:family": "Bufonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5216781,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Duttaphrynus melanostictus",
+    "gbif_accepted_key": 2422538,
+    "gbif_family": "Bufonidae",
+    "gbif_match_type": "EXACT"
+}

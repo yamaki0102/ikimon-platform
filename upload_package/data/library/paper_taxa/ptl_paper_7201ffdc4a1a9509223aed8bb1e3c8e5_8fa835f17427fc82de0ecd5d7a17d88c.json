@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_7201ffdc4a1a9509223aed8bb1e3c8e5_8fa835f17427fc82de0ecd5d7a17d88c",
+    "paper_id": "paper_7201ffdc4a1a9509223aed8bb1e3c8e5",
+    "doi": "10.1111\/j.1474-919x.1987.tb03156.x",
+    "query_id": "jp_bird_2481364_en",
+    "query_label": "Phaethon lepturus Japan (ecology\/distribution)",
+    "scientific_name": "Phaethon lepturus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1111\/j.1474-919x.1987.tb03156.x",
+        "dwc:scientificName": "Phaethon lepturus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481364",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Phaethon lepturus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Phaethontidae"
+    },
+    "gbif_taxon_key": 2481364,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Phaethontidae"
+}

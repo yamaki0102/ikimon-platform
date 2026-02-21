@@ -1,0 +1,18 @@
+{
+    "taxon_key": 6157133,
+    "scientific_name": "Geoemyda spengleri japonica Fan, 1931",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": 2443419,
+    "accepted_name": "Geoemyda japonica",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Testudines",
+    "order": null,
+    "family": "Geoemydidae",
+    "genus": "Geoemyda",
+    "rank": "SUBSPECIES",
+    "original_query": "Geoemyda spengleri japonica FAN, 1931",
+    "_cached_at": 1770420109
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_73ba9fdc52d8ede5f7efdbcfdfbb6125",
+    "doi": "10.1111\/j.1096-3642.1987.tb01345.x",
+    "title": "Synchronous nocturnal activity and gregarious roosting in the neotropical skipper butterfly Celaenorrhinus fritzgaertneri (Lepidoptera: Hesperiidae)",
+    "year": 1987,
+    "container_title": "Zoological Journal of the Linnean Society",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1111\/j.1096-3642.1987.tb01345.x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1111\/j.1096-3642.1987.tb01345.x",
+        "dc:title": "Synchronous nocturnal activity and gregarious roosting in the neotropical skipper butterfly Celaenorrhinus fritzgaertneri (Lepidoptera: Hesperiidae)",
+        "dc:date": 1987,
+        "dc:source": "Zoological Journal of the Linnean Society",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_8e0dd03ac65b47e4ca8b1f1d58c2cfc5",
+    "doi": "10.1007\/bf01092552",
+    "title": "Acoustic communication in the trilling field cricket,Gryllus rubens (Orthoptera: Gryllidae)",
+    "year": 1991,
+    "container_title": "Journal of Insect Behavior",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/bf01092552",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/bf01092552",
+        "dc:title": "Acoustic communication in the trilling field cricket,Gryllus rubens (Orthoptera: Gryllidae)",
+        "dc:date": 1991,
+        "dc:source": "Journal of Insect Behavior",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_cdbdf77b0cb267264528a61e5d53085e",
+    "doi": "10.1079\/pwkb.species.44269",
+    "title": "Prunus cerasus (sour cherry)",
+    "year": 2022,
+    "container_title": "PlantwisePlus Knowledge Bank",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1079\/pwkb.species.44269",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1079\/pwkb.species.44269",
+        "dc:title": "Prunus cerasus (sour cherry)",
+        "dc:date": 2022,
+        "dc:source": "PlantwisePlus Knowledge Bank",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p26_565af336c5c61472796940486189cc33",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 26,
+    "taxon_name": "オオダイガハラサンショウウオ",
+    "scientific_name": "Hynobius (Pachypalaminus) boulengeri (THOMPSON, 1912)",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "130〜180mm",
+        "season": "5月頃",
+        "distribution": "本州 (紀伊山地), 四国, 九州 (大分県) の山地"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.26)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hynobius (Pachypalaminus) boulengeri (THOMPSON, 1912)",
+        "dwc:vernacularName": "オオダイガハラサンショウウオ",
+        "dwc:occurrenceRemarks": "　体は大形で，背面はいちように暗黒褐色，腹面はいくらか色が淡く，どちらの側にも斑紋や点がない．指趾の末端部は黄褐色．頭部は大きくて長卵形，吻端が円く，鼻孔は吻端の近くに位置している．眼は大きくてよく突出し，耳腺は顕著で，その上縁を区切る溝線も明瞭．鋤口蓋歯列はUに近いV字形．胴は長く，背中線の溝は明瞭で，背面に13本，腹面に9〜12本の肋条をそなえている．四肢は比較的短かく，体側に沿って伸長しても普通は指趾端が接しない．後肢は5趾性で，第5趾の発達がよい．尾は胴よりも長いことが多く，基方では太くて円筒状，後半部で著しく側扁し，にぶい末端に終っている．体長：130〜180mm（尾は体長の3\/7程度を占める）．\n　本州（紀伊山地），四国および九州（大分県）の山地に分布し，主として広葉樹林帯の上部にすんでいるが，もっと低い場所でも見つかる．5月頃渓流の石の下などに産卵する．卵嚢は長いひも状で透明，渦巻型に巻いている．卵は淡黄色で大きく，1卵嚢中に15〜20個ぐらい含まれている．",
+        "dwc:taxonConceptID": "gbif:2431152",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hynobius (Pachypalaminus) boulengeri (THOMPSON, 1912)",
+        "dwc:family": "Hynobiidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2431152,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hynobiidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_4f6118b8709d69f679a1595dde8fe26d",
+    "doi": "10.15560\/17.2.643",
+    "title": "New records of the diving beetle Rhantus simulans R&amp;eacute;gimbart, 1908 in south-western Australia (Coleoptera, Dytiscidae, Colymbetinae)",
+    "year": 2021,
+    "container_title": "Check List",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.15560\/17.2.643",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.15560\/17.2.643",
+        "dc:title": "New records of the diving beetle Rhantus simulans R&amp;eacute;gimbart, 1908 in south-western Australia (Coleoptera, Dytiscidae, Colymbetinae)",
+        "dc:date": 2021,
+        "dc:source": "Check List",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

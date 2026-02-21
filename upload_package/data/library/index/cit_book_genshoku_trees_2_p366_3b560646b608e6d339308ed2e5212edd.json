@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p366_3b560646b608e6d339308ed2e5212edd",
+    "book_id": "book_genshoku_trees_2",
+    "page": 366,
+    "taxon_name": "学名索引 (366頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.366)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "学名索引 (366頁)",
+        "dwc:occurrenceRemarks": "neriifolia V 148\nMyrtus V 84\n  communis V 84\n\nN\n\nNandina IV 108\n  domestica IV 108\nNeolitsea IV 91\n  sericea IV 91\n  aciculata IV 93\nNephelium V 28\n  lappaceum V 28\nNerium V 170\n  indicum V 170\n  ――f. plenum V 171\n  ――'Madonna Grandiflora'\n     V 171\n  ――'Mrs. Swanson' V 171\nNypa V 232\n  fruticans V 232\nNyssa V 102\n  sylvatica V 102\n\nO\n\nOlea V 159\n  europaea V 159\nOplopanax V 96\n  japonicus V 96\nOrixa V 3\n  japonica V 3\nOsmanthus V 157\n  asiaticus V 157\n  x fortunei V 158\n  fragrans V 157\n  ――var. aurantiacus V 157\n  ilicifolius V 158\n  ――f. variegatus V 158\nOstrya IV 31\n  japonica IV 31\n\nP\n\nPachira V 67\n  aquatica V 67\nPachysandra V 47\n  terminalis V 47\nPachystachys V 193\n  lutea V 193\nPaederia V 181\n  scandens V 181\nPaeonia V 112\n  suffruticosa IV 112\n  ――'Bifukumon' IV 114\n  ――'Fusotsukasa' IV 118\n  ――'Godaisyu' IV 117\n  ――'Hakuojishi' IV 116\n  ――'Hakudaijin' IV 116\n  ――'Hanakisoi' IV 113\n  ――'Harunoakebono' IV 114\n  ――'Hatsugarasu' IV 118\n  ――'Higurashi' IV 115\n  ――'Hodai' IV 117\n  ――'Jitsugetsunishiki' IV 115\n  ――'Kamatafuji' IV 117\n  ――'Nissho' IV 113\n  ――'Rinpo' IV 113\n  ――'Suigan' IV 113\n  ――'Taiyo' IV 116\n  ――'Tamafuyo' IV 112\n  ――'Yachiyotsubaki' IV 115\n  temoinei 'L. Esperance'\n     IV 112\nPaliurus V 52\n  ramosissimus V 52\nPandanus V 235\n  boninensis V 235\nParabenzoin IV 93\n  praecox IV 93\n  triloba IV 94\nParthenocissus V 54\n  quinquefolia V 55\n  tricuspidata V 54\nPasania IV 40\n  edulis IV 47\n  glabra IV 40\nPaulownia V 195\n  tomentosa V 195\nPersea IV 88\n  americana IV 88\nPertya V 212"
+    }
+}

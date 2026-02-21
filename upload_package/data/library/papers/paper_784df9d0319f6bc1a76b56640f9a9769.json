@@ -1,0 +1,20 @@
+{
+    "id": "paper_784df9d0319f6bc1a76b56640f9a9769",
+    "doi": "10.5962\/p.358282",
+    "title": "A simple technique to capture breeding adults and broods of Surf Scoters, Melanitta perspicillata",
+    "year": 1997,
+    "container_title": "The Canadian field-naturalist",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.358282",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.358282",
+        "dc:title": "A simple technique to capture breeding adults and broods of Surf Scoters, Melanitta perspicillata",
+        "dc:date": 1997,
+        "dc:source": "The Canadian field-naturalist",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

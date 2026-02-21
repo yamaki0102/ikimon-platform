@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p51_3da07d5acb6278f30baabc17794bb64f",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 51,
+    "taxon_name": "ハロウエルアマガエル",
+    "scientific_name": "Hyla hallowellii THOMPSON, 1912",
+    "family": "アマガエル科",
+    "data_icons": {
+        "size": "25〜35mm",
+        "season": "3月〜8月",
+        "distribution": "喜界島, 奄美大島, 徳之島, 与論島 (沖永良部島?)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.51)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hyla hallowellii THOMPSON, 1912",
+        "dwc:vernacularName": "ハロウエルアマガエル",
+        "dwc:occurrenceRemarks": "　背面はいちように緑色または暗緑色．個体によっては黄色みを帯びていることもあるが，体色が灰褐色に変わっているときにも暗色の斑紋が現われてこない．頭部の側面は暗褐色または黒褐色で，上唇縁が黄白色に細く縁取られている．体側，大腿部の前後両面，脛部の内面などには暗褐色または黒褐色の斑点をそなえているが，その粗密にはかなりの個体変異があり，時には網目状につながり合っていることもある．腹面はいちように黄白色であるか，あるいは下顎部だけに暗褐色の不明瞭な斑点をそなえている．頭部は短かくて幅が広く，側縁はゆるい弧をえがいているが，吻端は多少とも裁断状．吻は厚くて吻端の上縁が下縁よりも突出し，その前端両側に外鼻孔が開く．眼鼻線にぶいが明瞭で，頰部は浅く凹んでいる．眼は大きくて著しく突出し，その直径が吻端から眼の前端までの距離にほぼ等しいが，上眼瞼の幅は左右の上眼瞼の間隔よりも明らかに小さい．鼓膜は円形で，明瞭ではあるが小さく，その直径が眼径の1\/3ぐらいしかない．眼と鼓膜との間隔は鼓膜の直径よりも小さく，眼の後端から後下方に走って，前肢基部の背側または後側に達する，軽く弯曲した皮膚のひだは明瞭．鋤骨歯板はほぼ円形で左右の内鼻孔の後縁を結んだ線上にあり，それぞれ2〜3個の歯をそなえている．♂の声嚢は咽頭部にあって不対．背面の皮膚はやや散肌状であるが顆粒はなく，胸部，腹部および大腿部下面の皮膚は粗雑な顆粒でいちようにおおわれている．四肢はよく発達し，前肢の全長が体長のほぼ2\/3に達する．また，肛門から内蹠隆起までの長さが体長よりもはるかに大きい．指の長さの順序や吸盤のようすなどはアマガエルの場合とほぼ同様であるが，指間のみずかきは後者の場合よりもよく発達し，その切れ込みが指長の約1\/4に達している．後肢は長く，大腿部と脛部との長さの和が，眼の中央から肛門までの距離に等しいかあるいはそれよりも大きい．また，踵関節で折り曲げた後肢を体軸と直角に伸ばすと，左右の脛跗関節が明らかに行き違う．内蹠隆起は長楕円形でつねに明瞭，外蹠隆起は認められない．吸盤はよく発達しているが前肢のものよりはやや小形，みずかきもよく発達し切れ込みが浅いが，各趾の吸盤には届いていない．体長：25〜35mm．\n　琉球列島中央部の特産種で，喜界島，奄美大島，徳之島および与論島から知られているが，おそらく沖永良部島にも分布しているものと思われる.*) 人家や耕作地の周辺に多く，バナナなどの葉の上に止まっているのをよく見かける．産卵期は長くて3",
+        "dwc:taxonConceptID": "gbif:2427606",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hyla hallowellii THOMPSON, 1912",
+        "dwc:family": "Hylidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2427606,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hylidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_08bcecad74d0d005ee3fc5ff653024ea",
+    "doi": "10.1016\/j.foreco.2008.06.037",
+    "title": "Effect of local stand density on reproductive processes of the sub-boreal conifer Picea jezoensis Carr. (Pinaceae)",
+    "year": 2008,
+    "container_title": "Forest Ecology and Management",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/j.foreco.2008.06.037",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/j.foreco.2008.06.037",
+        "dc:title": "Effect of local stand density on reproductive processes of the sub-boreal conifer Picea jezoensis Carr. (Pinaceae)",
+        "dc:date": 2008,
+        "dc:source": "Forest Ecology and Management",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

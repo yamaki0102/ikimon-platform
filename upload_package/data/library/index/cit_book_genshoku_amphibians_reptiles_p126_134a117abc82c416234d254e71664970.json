@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p126_134a117abc82c416234d254e71664970",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 126,
+    "taxon_name": "Unknown",
+    "scientific_name": "Hemidactylus frenatus",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.126)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hemidactylus frenatus",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Darker brown color variation.",
+        "dwc:taxonConceptID": "gbif:9537238",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hemidactylus frenatus",
+        "dwc:family": "Gekkonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9537238,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gekkonidae",
+    "gbif_match_type": "EXACT"
+}

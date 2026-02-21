@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p24_9cf9204bcae1285ec97fd32a58154f3a",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 24,
+    "taxon_name": "ベッコウサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) stejnegeri DUNN, 1923",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": "宮崎・熊本県境の五箇瀬川上流（確実な産地として）"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.24)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hynobius (Hynobius) stejnegeri DUNN, 1923",
+        "dwc:vernacularName": "ベッコウサンショウウオ",
+        "dwc:occurrenceRemarks": "　ブチサンショウウオの，とくに四国の剣山などに産するものと非常によく似ているので，この種の独立性はかなり疑わしい．主要な区別点は，鋤口蓋歯列が狭くて深いV字形であること，体の背面の斑紋が黄色いこと，および腹面に斑紋のないことであるが，このどれを取り上げても，種内変異の対照となりうることが容易に推察できる．しかし，私達は，九州中央部の材料をわずかに1点しか見られなかったので，ここでは，ベッコウサンショウウオの帰属を，一応未解決のまま保留しておいた．\n　本種の確かな産地としてこれまでに報告されている所は，宮崎，熊本両県の境の五箇瀬川上流だけで，しかも，これに隣接する地域からは，ブチサンショウウオの群のものが全く知られていない．従って，この問題を解決するためには，まず綿密な野外調査を行なわねばならないだろう．",
+        "dwc:taxonConceptID": "gbif:2431136",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hynobius (Hynobius) stejnegeri DUNN, 1923",
+        "dwc:family": "Hynobiidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2431136,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hynobiidae",
+    "gbif_match_type": "EXACT"
+}

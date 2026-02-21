@@ -1,0 +1,20 @@
+{
+    "id": "paper_904798497ba149dc5a0513d109c95e7f",
+    "doi": "10.1515\/znc-1982-11-1230",
+    "title": "Monoterpenes from the True Bug Harpocera thoracica (Hemiptera)",
+    "year": 1982,
+    "container_title": "Zeitschrift für Naturforschung C",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1515\/znc-1982-11-1230",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1515\/znc-1982-11-1230",
+        "dc:title": "Monoterpenes from the True Bug Harpocera thoracica (Hemiptera)",
+        "dc:date": 1982,
+        "dc:source": "Zeitschrift für Naturforschung C",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

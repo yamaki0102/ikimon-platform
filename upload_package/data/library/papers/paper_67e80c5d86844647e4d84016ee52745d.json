@@ -1,0 +1,20 @@
+{
+    "id": "paper_67e80c5d86844647e4d84016ee52745d",
+    "doi": "10.63172\/300892dindkv",
+    "title": "Breeding and survival of Snares Cape pigeons Daption capense australe at The Snares, New Zealand",
+    "year": 1996,
+    "container_title": "Notornis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.63172\/300892dindkv",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.63172\/300892dindkv",
+        "dc:title": "Breeding and survival of Snares Cape pigeons Daption capense australe at The Snares, New Zealand",
+        "dc:date": 1996,
+        "dc:source": "Notornis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

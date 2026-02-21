@@ -1,0 +1,20 @@
+{
+    "id": "paper_106936006f2539085cf1dba019cd2ef4",
+    "doi": "10.1016\/0020-7322(82)90036-8",
+    "title": "Stridulatory structures and acoustic spectra of seven species of New Zealand wetas (Orthoptera: Stenopelmatidae)",
+    "year": 1982,
+    "container_title": "International Journal of Insect Morphology and Embryology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/0020-7322(82)90036-8",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/0020-7322(82)90036-8",
+        "dc:title": "Stridulatory structures and acoustic spectra of seven species of New Zealand wetas (Orthoptera: Stenopelmatidae)",
+        "dc:date": 1982,
+        "dc:source": "International Journal of Insect Morphology and Embryology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

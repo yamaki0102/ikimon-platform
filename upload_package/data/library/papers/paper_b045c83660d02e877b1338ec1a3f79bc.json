@@ -1,0 +1,20 @@
+{
+    "id": "paper_b045c83660d02e877b1338ec1a3f79bc",
+    "doi": "10.2173\/tbna.443.p",
+    "title": "Red-breasted Merganser (Mergus serrator)",
+    "year": 1999,
+    "container_title": "Birds of North America (print)",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/tbna.443.p",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/tbna.443.p",
+        "dc:title": "Red-breasted Merganser (Mergus serrator)",
+        "dc:date": 1999,
+        "dc:source": "Birds of North America (print)",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

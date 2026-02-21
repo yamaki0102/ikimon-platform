@@ -1,0 +1,20 @@
+{
+    "id": "paper_a572fbbd455f3341e831099891fa2383",
+    "doi": "10.1080\/00063659709461034",
+    "title": "Abundance, distribution and habitat use of breeding GoosandersMergus merganserand Red-breasted MergansersMergus serratoron British rivers",
+    "year": 1997,
+    "container_title": "Bird Study",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1080\/00063659709461034",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1080\/00063659709461034",
+        "dc:title": "Abundance, distribution and habitat use of breeding GoosandersMergus merganserand Red-breasted MergansersMergus serratoron British rivers",
+        "dc:date": 1997,
+        "dc:source": "Bird Study",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

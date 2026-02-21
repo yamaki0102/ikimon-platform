@@ -1,0 +1,20 @@
+{
+    "id": "paper_666f06d62fda55badec5ebe99924f215",
+    "doi": "10.5962\/p.309662",
+    "title": "List of Bird Recorders and Checklist Compilers",
+    "year": 2002,
+    "container_title": "Bulletin of the African Bird Club",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.309662",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.309662",
+        "dc:title": "List of Bird Recorders and Checklist Compilers",
+        "dc:date": 2002,
+        "dc:source": "Bulletin of the African Bird Club",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

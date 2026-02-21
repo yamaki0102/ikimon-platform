@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p43_e35e028648c483b5e4771e3dd304a515",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 43,
+    "taxon_name": "ヒキガエル (続き)",
+    "scientific_name": "Bufo bufo japonicus SCHLEGEL, 1838",
+    "family": "ヒキガエル科",
+    "data_icons": {
+        "size": "65〜140mm",
+        "season": "2月〜5月頃",
+        "distribution": "本州, 四国, 九州, 大隅群島 (北海道南西部は移入の疑い)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "NARRATIVE_TEXT",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.43)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Bufo japonicus",
+        "dwc:vernacularName": "ヒキガエル (続き)",
+        "dwc:occurrenceRemarks": "が眼と鼓膜との間隔の2倍以上あるもの（東北地方などの個体群）から，それらがほぼ等しいもの（四国や九州などの個体群）までのさまざまな段階が見られる．耳腺は腎臓形で細長いが，隆起の程度や長さにはかなりの変異がある．体表の皮膚は粗雑で，背面は大小の隆起やしわでおおわれている．皮膚の隆起には円いものも長いものもあるが，一般に鼓膜より小さく，体側や後肢の背側ではとくに密になる．腹面の皮膚は，多数のしわによって細かく分割されているか，あるいは顆粒におおわれている．指趾の長さにはかなりの変異があり，体軸と直角に伸ばして踵関節を折り曲げた場合に，左右の踵関節が接し合うことも離れることもある．一般に，西南日本の個体群では後肢が長く，東北地方などのものでは後肢が短かい．普通は第2指がもっとも短かくて第3指がもっとも長いが，第1指と第2指との長さのほぼ等しいことも少なくはない．内蹠隆起と外蹠隆起とはつねに明瞭で，前者の方が大きい．みずかきの発達は悪くて，第3趾の内側と第4趾とで第1関節に達するに過ぎず，その切れ込みが第3趾の第1関節または第4趾基部の半分を越えない．体長：65〜140mm（本州東北部のものは一般に小さく，四国や九州のものは平均して大形）．\n　本州，四国，九州，大隅群島などに分布し，平地にも山地にもすんでいる．北海道の南西部にもいるが，自然分布かどうかは疑わしい，主として陸上で生活し，繁殖以外にはあまり水に入らない．繁殖期は場所によって変わるが，平地で普通2〜4月頃，山地では5月頃に及ぶ．産卵は池，水溜り，水田などの止水に行なわれ，長さが10mにも及ぶひも状の卵隗を産む．卵隗は寒天質で 2,000〜8,000個ぐらいの卵を含み，個々の卵は上半部が黒くて比較的小形，大きさに変異があるが，直径2〜3mmぐらいの範囲内にあることが多い．\n　これまでの分類では，日本本土のヒキガエルが3〜6亜種に細分されていた.*) 遠く離れた2つの地域の個体群だけを比較すると，その間に明瞭な差異が見られるのは事実で，とくに東北地方産の個体と四国や九州などのものとは著しく異なっている．しかし，このような両極端の間には変異のあらゆる段階があり，ある地方型から他の地方型に移行する地帯の幅も一般に広くて，いわゆる“亜種”の分布域が著しく重なり合っている．それで，本書では，本土のヒキガエルを亜種に細分しないことにしたが，たとえ亜種を認めるとしても，本州北東部の B. bufo formosus と西日本の B. b. japonicus とを区分するだけで十分であろう．なお，わが国では，ヒキガエルの種小名に \"vulgaris\" が広く用いられてきたが，ヒキガエル属の模式種が Bufo vulgaris LAURENTI, 1768 = Rana bufo LINNÉ, 1758 と定められたので，現在では LAURENTI の学名を使用できないことになっている．\n\n*) B. vulgaris hokkaidoensis Y. OKADA, 1928 (北海道南西部)，B. v. montanus Y. OKADA, 1937 (東北地方の高山)，B. v. formosus BOULENGER, 1883 (東北地方の平地，関東地方，中部地方など)，B. v. japonicus SCHLEGEL, 1838 (関東地方以西の本州，四国および九州)，B. smithi STEJNEGER, 1907 (四国の太平洋岸) および B. v. yakushimensis Y. OKADA, 1928 (屋久島).",
+        "dwc:taxonConceptID": "gbif:10964194",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Bufo bufo japonicus SCHLEGEL, 1838",
+        "dwc:family": "Bufonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10964194,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Bufo japonicus",
+    "gbif_accepted_key": 5217143,
+    "gbif_family": "Bufonidae",
+    "gbif_match_type": "EXACT"
+}

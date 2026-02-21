@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p75_354425077fa0f7ac2679f62bdfa8bd40",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 75,
+    "taxon_name": "オットンガエル (続き)",
+    "scientific_name": "Rana (Babina) subaspera BARBOUR, 1908",
+    "family": "アカガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.75)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Babina subaspera",
+        "dwc:vernacularName": "オットンガエル (続き)",
+        "dwc:occurrenceRemarks": "発達してほとんど各趾の末端部に達している．体長：95〜120mm．\n　奄美大島と徳之島に固有の種で，生活場所の選択範囲がかなり広いが，多くは森林地帯にすんでいる．水溜の穴の中などに潛み，主として夜間に活動する．繁殖期は5月から8月頃までの間で，水溜りなどの止水にかなり大きい卵塊を産む．卵は直径が2mmぐらいで上部は褐色．なお，この亜属のカエルの棘状の第1指は，外敵の攻撃を防ぐ武器に使われ，これで引っかけられると小刀で切ったような傷を受けることがあるので，取扱いに注意を要する．",
+        "dwc:taxonConceptID": "gbif:2426835",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Babina) subaspera BARBOUR, 1908",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2426835,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Babina subaspera",
+    "gbif_accepted_key": 5217818,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

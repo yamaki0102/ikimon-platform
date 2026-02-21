@@ -1,0 +1,20 @@
+{
+    "id": "paper_433a9e9b526e97bce54ac4bad42d66ea",
+    "doi": "10.1353\/psc.2003.0009",
+    "title": "Helminths of the Ezo Brown Frog, Rana pirica (Ranidae), from Hokkaido Island, Japan",
+    "year": 2003,
+    "container_title": "Pacific Science",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1353\/psc.2003.0009",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1353\/psc.2003.0009",
+        "dc:title": "Helminths of the Ezo Brown Frog, Rana pirica (Ranidae), from Hokkaido Island, Japan",
+        "dc:date": 2003,
+        "dc:source": "Pacific Science",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

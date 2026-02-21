@@ -1,0 +1,20 @@
+{
+    "id": "paper_1fb6e7984dbdb989b65e19279db9dbea",
+    "doi": "10.5122\/cbirds.2011.0013",
+    "title": "Breeding biology of the Spot-billed Pelican (Pelecanus philippensis) in Karaivetti Bird Sanctuary, Tamil Nadu, India",
+    "year": 2011,
+    "container_title": "Chinese Birds",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5122\/cbirds.2011.0013",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5122\/cbirds.2011.0013",
+        "dc:title": "Breeding biology of the Spot-billed Pelican (Pelecanus philippensis) in Karaivetti Bird Sanctuary, Tamil Nadu, India",
+        "dc:date": 2011,
+        "dc:source": "Chinese Birds",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

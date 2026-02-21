@@ -1,0 +1,20 @@
+{
+    "id": "paper_078979729f9590d14ede15b16c6f6c88",
+    "doi": "10.1093\/wentk\/9780199922017.003.0005",
+    "title": "Evolution of Introduced and Native Species",
+    "year": 2013,
+    "container_title": "Invasive Species",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1093\/wentk\/9780199922017.003.0005",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1093\/wentk\/9780199922017.003.0005",
+        "dc:title": "Evolution of Introduced and Native Species",
+        "dc:date": 2013,
+        "dc:source": "Invasive Species",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

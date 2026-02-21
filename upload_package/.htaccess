@@ -1,0 +1,64 @@
+# ===== Rewrite: Route requests to public_html/ =====
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Don't rewrite requests for backend directories
+    RewriteCond %{REQUEST_URI} !^/config/
+    RewriteCond %{REQUEST_URI} !^/libs/
+    RewriteCond %{REQUEST_URI} !^/data/
+    RewriteCond %{REQUEST_URI} !^/scripts/
+    RewriteCond %{REQUEST_URI} !^/lang/
+    RewriteCond %{REQUEST_URI} !^/public_html/
+
+    # Clean URL rewrites (must be before catch-all)
+    # /species/{slug}
+    RewriteRule ^species/([^/]+)$ public_html/species.php?name=$1 [L,QSA]
+    # /obs/{id}
+    RewriteRule ^obs/([^/]+)$ public_html/observation_detail.php?id=$1 [L,QSA]
+    # /site/{id}
+    RewriteRule ^site/([^/]+)$ public_html/site_dashboard.php?id=$1 [L,QSA]
+    # /user/{id}
+    RewriteRule ^user/([^/]+)$ public_html/profile.php?id=$1 [L,QSA]
+
+    # Rewrite everything else to public_html/
+    RewriteRule ^(.*)$ public_html/$1 [L]
+</IfModule>
+
+# ===== Gzip Compression =====
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css application/json application/javascript text/xml application/xml
+</IfModule>
+
+# ===== Browser Caching =====
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
+
+# ===== Security Headers =====
+<IfModule mod_headers.c>
+    # Prevent MIME type sniffing
+    Header set X-Content-Type-Options "nosniff"
+
+    # XSS Protection (legacy browsers)
+    Header set X-XSS-Protection "1; mode=block"
+
+    # Prevent clickjacking
+    Header set X-Frame-Options "SAMEORIGIN"
+
+    # Referrer Policy — send origin only for cross-origin, full URL for same-origin
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Permissions Policy — restrict access to sensitive device APIs
+    Header set Permissions-Policy "camera=(self), microphone=(), geolocation=(self), payment=()"
+
+    # HSTS — force HTTPS for 6 months (include after confirming HTTPS works)
+    Header set Strict-Transport-Security "max-age=15768000; includeSubDomains"
+
+    # CSP & Reporting-Endpoints are now generated dynamically via PHP (libs/CspNonce.php)
+    # This enables nonce-based CSP for future unsafe-inline removal
+</IfModule>

@@ -1,0 +1,47 @@
+{
+    "id": "cit_book_kumo_handbook_p15_08a803bcc0fbef77245e9aaa715d3460",
+    "book_id": "book_kumo_handbook",
+    "page": 15,
+    "taxon_name": "アシブトヒメグモ",
+    "scientific_name": "Anelosimus crassipes",
+    "family": "ヒメグモ科 Theridiidae",
+    "data_icons": {
+        "size": "female: 3〜4mm, male: 2.5〜3.5mm",
+        "season": "春〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "花の近くにいるメス",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.15)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Anelosimus crassipes",
+        "dwc:vernacularName": "アシブトヒメグモ",
+        "dwc:occurrenceRemarks": "頭胸部は赤褐色で、腹部に様々な模様がある。脚は黄色。オスの第1脚は太い（種名の由来）。草木の枝葉の間に不規則な網を張り、枯れ葉などを吊るす。その中に隠れ、広い範囲に不規則な網を張る。また、社会性で集団で網を共にし、共同でえさを捕る様子が観察される。",
+        "dwc:taxonConceptID": "gbif:2157798",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Anelosimus crassipes",
+        "dwc:family": "Theridiidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2157798,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Theridiidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p159_c9a84cc8a70f1a7e562f5a971fed465d",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 159,
+    "taxon_name": "ヘリグロヒメトカゲ (続き)",
+    "scientific_name": "Lygosoma (Ateuchosaurus) pellopleuron (HALLOWELL, 1860)",
+    "family": "トカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.159)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lygosoma (Ateuchosaurus) pellopleuron (HALLOWELL, 1860)",
+        "dwc:vernacularName": "ヘリグロヒメトカゲ (続き)",
+        "dwc:occurrenceRemarks": "が円い．前額鼻板は後縁が角張らずに．また側縁が頰板に広く接し，前額板は長楕円形（鼻板とほぼ同大であるかあるいは鼻板よりも小さい）で，左右に広く離れている．また，稀には，前額鼻板が縦の融合線で分かれて対になっていることもある．額板は，非常に長大で第1眼上板の後部の水準にくびれがあるか，あるいはその位置で前後2枚の鱗板に分かれている．従って，前部（板）の側縁は第1眼上板に，また後部（板）の側縁は第 1〜2 両眼上板に接している．額板の全長は吻端から額板の前端までの 2倍ぐらい．前頭頂板は小形で対をなし，原則として左右が接していない．頭頂間板は前頭頂板とほぼ同大であるかあるいは前頭頂板より少し大きい．前縁（または前端）が普通は額板に接している．頭頂板の大きさには変異があるがいずれにしても小形で．個体によっては後方の鱗と区別できないこともある．また．左右の頭頂板の後端は，原則として頭頂間板の後側で接し合っているが，時には頭頂間板の後端に\n\n第16図．ヘリグロヒメトカゲの頭部；左から右へ背面，腹面および左側面．\n\nよって隔てられていることもある．眼上板は4枚あって後端のものが最小．眼前板と眼前下板とは普通1枚ずつあり．頰板は2枚あって下縁が第2上唇板に接している．後鼻板がない．上唇板は原則として6枚，下唇板は 5〜7 枚ある．耳孔は大きくて明瞭，ほぼ円形であるかあるいは多少前後に長い．後頤板は1枚で対をなさず．咽頭板は最初の1対だけが明瞭であるが，左右咽頭板が正中線上で接し合っていることも1枚の鱗で同側に隔てられていることもある．体鱗は胴の中央部で 24〜28列（多くは 26列），項板の後から後肢の基部までの間に 49〜58枚ぐらいあり，背面中央のものが体側のものよりとくに大きくはない．背面の鱗には3本の明瞭な隆条がある．肛板は小さくて，周辺の鱗と区別できない．四肢は細くて短かく，体側に沿って伸長しても指趾端の間が広く離れる．大腿部後面の鱗はほぼ等大で，一部がとくに大きくなってはいない．指趾は短かく，とくに指と第1，第2および第5趾とは短い．第4趾の下面には 11〜13枚の趾下板がある．指趾端の背面には，大きくて長い爪状の鱗があって，盛",
+        "dwc:taxonConceptID": "gbif:2464889",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Lygosoma (Ateuchosaurus) pellopleuron (HALLOWELL, 1860)",
+        "dwc:family": "Scincidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2464889,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scincidae",
+    "gbif_match_type": "HIGHERRANK"
+}

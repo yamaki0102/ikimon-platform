@@ -1,0 +1,20 @@
+{
+    "id": "paper_cf34a793d0cf5d6b978c3d1975bc9feb",
+    "doi": "10.5040\/9781472927040.0060",
+    "title": "Sula dactylatra Masked Booby Fou masqué",
+    "year": 0,
+    "container_title": "The Birds of Africa : The Malagasy Region",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472927040.0060",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472927040.0060",
+        "dc:title": "Sula dactylatra Masked Booby Fou masqué",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa : The Malagasy Region",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

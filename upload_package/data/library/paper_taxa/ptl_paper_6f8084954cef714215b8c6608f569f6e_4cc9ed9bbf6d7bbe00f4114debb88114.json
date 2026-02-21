@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_6f8084954cef714215b8c6608f569f6e_4cc9ed9bbf6d7bbe00f4114debb88114",
+    "paper_id": "paper_6f8084954cef714215b8c6608f569f6e",
+    "doi": "10.5040\/9781472926982.0182",
+    "query_id": "jp_bird_9537647_en",
+    "query_label": "Mergus merganser Japan (ecology\/distribution)",
+    "scientific_name": "Mergus merganser",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.5040\/9781472926982.0182",
+        "dwc:scientificName": "Mergus merganser",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:9537647",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Mergus merganser",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 9537647,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

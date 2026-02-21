@@ -1,0 +1,20 @@
+{
+    "id": "paper_2e3ead4d465961a75f66c0174acf99cb",
+    "doi": "10.11646\/zootaxa.5383.4.9",
+    "title": "Contribution to the knowledge of Chinese Gryllacrididae (Orthoptera: Ensifera: Stenopelmatoidea) XXIV: Update on the Raspy Cricket species’ checklist with some comments",
+    "year": 2023,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.5383.4.9",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.5383.4.9",
+        "dc:title": "Contribution to the knowledge of Chinese Gryllacrididae (Orthoptera: Ensifera: Stenopelmatoidea) XXIV: Update on the Raspy Cricket species’ checklist with some comments",
+        "dc:date": 2023,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

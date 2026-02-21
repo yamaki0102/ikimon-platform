@@ -1,0 +1,20 @@
+{
+    "id": "paper_24c0d735c1bf5641042c1974f286ce1f",
+    "doi": "10.3109\/19401736.2014.926486",
+    "title": "The mitochondrial genome of\n            Ixobrychus flavicollis\n            (Ardeidae:\n            Ixobrychus\n            )",
+    "year": 2014,
+    "container_title": "Mitochondrial DNA Part A",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3109\/19401736.2014.926486",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3109\/19401736.2014.926486",
+        "dc:title": "The mitochondrial genome of\n            Ixobrychus flavicollis\n            (Ardeidae:\n            Ixobrychus\n            )",
+        "dc:date": 2014,
+        "dc:source": "Mitochondrial DNA Part A",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2158857,
+    "scientific_name": "Neoscona scylla (Karsch, 1879)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Araneidae",
+    "genus": "Neoscona",
+    "rank": "SPECIES",
+    "original_query": "Neoscona scylla",
+    "_cached_at": 1771646861
+}

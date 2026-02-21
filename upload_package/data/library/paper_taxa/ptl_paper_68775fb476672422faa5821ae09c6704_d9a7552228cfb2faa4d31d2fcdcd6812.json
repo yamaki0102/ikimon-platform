@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_68775fb476672422faa5821ae09c6704_d9a7552228cfb2faa4d31d2fcdcd6812",
+    "paper_id": "paper_68775fb476672422faa5821ae09c6704",
+    "doi": "10.5040\/9781472926982.0097",
+    "query_id": "jp_bird_2480863_en",
+    "query_label": "Nycticorax nycticorax Japan (ecology\/distribution)",
+    "scientific_name": "Nycticorax nycticorax",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.5040\/9781472926982.0097",
+        "dwc:scientificName": "Nycticorax nycticorax",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2480863",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Nycticorax nycticorax",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ardeidae"
+    },
+    "gbif_taxon_key": 2480863,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ardeidae"
+}

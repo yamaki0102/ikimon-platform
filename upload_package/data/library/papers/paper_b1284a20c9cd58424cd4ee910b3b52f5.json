@@ -1,0 +1,20 @@
+{
+    "id": "paper_b1284a20c9cd58424cd4ee910b3b52f5",
+    "doi": "10.5962\/p.354836",
+    "title": "Social courtship and pairbonding of Common Goldeneyes, Bucephala clangula, wintering in Minnesota",
+    "year": 1982,
+    "container_title": "The Canadian field-naturalist",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.354836",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.354836",
+        "dc:title": "Social courtship and pairbonding of Common Goldeneyes, Bucephala clangula, wintering in Minnesota",
+        "dc:date": 1982,
+        "dc:source": "The Canadian field-naturalist",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

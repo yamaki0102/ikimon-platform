@@ -1,0 +1,20 @@
+{
+    "id": "paper_c58c27afff2baa83eb2cb475f328b34b",
+    "doi": "10.5253\/078.098.0313",
+    "title": "Large Birds can Migrate Fast: The Post-Breeding Flight of the Purple HeronArdea purpureato the Sahel",
+    "year": 2010,
+    "container_title": "Ardea",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5253\/078.098.0313",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5253\/078.098.0313",
+        "dc:title": "Large Birds can Migrate Fast: The Post-Breeding Flight of the Purple HeronArdea purpureato the Sahel",
+        "dc:date": 2010,
+        "dc:source": "Ardea",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

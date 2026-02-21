@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_790879106b0368534246ec3df68e4979_71740619326c991f58f606f8d7b64eea",
+    "paper_id": "paper_790879106b0368534246ec3df68e4979",
+    "doi": "10.1038\/144941a0",
+    "query_id": "jp_bird_2481433_en",
+    "query_label": "Fulmarus glacialis Japan (ecology\/distribution)",
+    "scientific_name": "Fulmarus glacialis",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1038\/144941a0",
+        "dwc:scientificName": "Fulmarus glacialis",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481433",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Fulmarus glacialis",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Procellariidae"
+    },
+    "gbif_taxon_key": 2481433,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Procellariidae"
+}

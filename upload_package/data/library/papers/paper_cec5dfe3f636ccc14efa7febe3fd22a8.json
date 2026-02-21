@@ -1,0 +1,20 @@
+{
+    "id": "paper_cec5dfe3f636ccc14efa7febe3fd22a8",
+    "doi": "10.1007\/bf02241571",
+    "title": "An epidemiologic study ofChlamydia sp. in feral pigeons(Columba livia var.domestica)",
+    "year": 2000,
+    "container_title": "Zeitschrift für Jagdwissenschaft",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/bf02241571",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/bf02241571",
+        "dc:title": "An epidemiologic study ofChlamydia sp. in feral pigeons(Columba livia var.domestica)",
+        "dc:date": 2000,
+        "dc:source": "Zeitschrift für Jagdwissenschaft",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

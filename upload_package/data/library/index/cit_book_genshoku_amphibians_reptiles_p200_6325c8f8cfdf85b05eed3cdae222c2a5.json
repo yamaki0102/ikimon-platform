@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p200_6325c8f8cfdf85b05eed3cdae222c2a5",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 200,
+    "taxon_name": "アカマダラ (続き)",
+    "scientific_name": "Dinodon rufozonatus rufozonatum (CANTOR, 1840)",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.200)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lycodon rufozonatus",
+        "dwc:vernacularName": "アカマダラ (続き)",
+        "dwc:occurrenceRemarks": "600〜1,200mm（尾の占める割合は前種と同様）．\n　日本の領域では対馬だけから知られ．国外では，朝鮮．満洲の南部．シナ．台湾などに分布している．生息する場所はアカマタと同様にかなり広く，耕地や人家の近くにも山地の森林の中にもすみ，とくに水のある所を好む傾向がある．そうして，カエル．ネズミ．小鳥などから，他のヘビや魚類まで食う．\n\n107. サキシママダラ Dinodon rufozonatus walli STEJNEGER, 1907 \n　形態的には基亜種と非常によく似ていて，わずかに腹板数の比較的少ないことが主要な区別点となるに過ぎない．しかし，体色は顕著に異なり．この亜種では，基色は黄褐色で，背面の黒または黒褐色の横帯の数が少ない（胴に 25〜35個，尾に 15〜20個ぐらい）．これらの横帯は，胴の前方では10鱗長以上を占め幅もほとんど腹板と同じているが，中央部より後方では 4〜6 鱗長ぐらいとなる．また．後方の横帯は，側方で基色と入り混じって，胴の側面に不規則な模様を作っていることが多い．横帯と横帯との間隔は．背面で普通1鱗分ぐらい．体長：500〜1,000mm．\n　先島諸島の特産で，宮古島．石垣島．西表島などから知られている．\n\n108. サキシマバイカダ Dinodon septentrionalis multifasciatus M. MAKI, 1931\n　体の背面は淡い灰褐色で，胴に60個，尾に22個の黒褐色の横帯をそなえている．これらの横帯は，頸部では6鱗長以上を占め側方へもほとんど腹板に達しているが，後方にいくほど短かくなって，尾の基部のあたりでは1鱗半ぐらいの長さしかない．逆に，横帯の間隔は後方ほど広くなる．胴の側面には，前方 1\/4 ぐらいの所から黒褐色紋が現われ，後方へいくほど顕著になって背面の横帯と交互の位置に並ぶ．頭部は黒褐色で，後頭部は広く灰褐色．上唇と腹面とは黄白色．頭部はどちらかといえば小さいが頸部よりは明らかに大きく．吻端は扁平でにぶくてやや截断状．吻端から頭頂板の後端までの長さは．両眼の間の距離の2倍ぐらいある．眼は大きく，その直径は眼と鼻孔との間隔に等しい．鼻孔は円くて大きく．後鼻板は前鼻板より高い．鼻間板と前額板とはともに幅が比較的狭く，長さが幅よりも少し小さい程度．額板は短小．前額板は1枚で比較的背方にあり．側頭板は 2+3+3 で，前列の2枚は細く，後列の上板は大きい．上唇板は8枚あって，そのうちの第3枚目から第8枚目までの4枚が眼に接し，第 6〜7 両上唇板は大形．下唇板は10枚ある．前咽頭板と後咽頭板とは長さがほぼ等しく，後咽頭板の後には第1腹板との間に2対の鱗がある．頸部の他の鱗板のようすは前種とほぼ同様．体鱗は胴の大部分で17列（頸部で一部19列）．後方では15列．外側の数列のものを除き弱い隆条がある．腹板は229枚あって側稜をそなえ．肛板は不対．尾下板は106対ある．体長：700mm（尾は体長の 1\/4ぐらいを占めている）．\n　琉球列島の石垣島に産し，今までにまだ1個体（♀）だけしか知られていない．なお，基亜種はヒマラヤの東部からインドシナの北部にかけて分布し，台湾には別の1亜種（バイカダ D. septentrionalis ruhstrati (FISCHER, 1886)）を産する．サキシマバイカダは，これらの2亜種に比べて体の背面の横帯の数が多く．また，眼に接している上唇板の数が4枚ある（他の亜種では3枚）ことによって容易に区別できる．",
+        "dwc:taxonConceptID": "gbif:2455595",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Dinodon rufozonatus rufozonatum (CANTOR, 1840)",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2455595,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Lycodon rufozonatus",
+    "gbif_accepted_key": 5223677,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "HIGHERRANK"
+}

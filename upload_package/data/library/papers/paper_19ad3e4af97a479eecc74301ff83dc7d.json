@@ -1,0 +1,20 @@
+{
+    "id": "paper_19ad3e4af97a479eecc74301ff83dc7d",
+    "doi": "10.5852\/ejt.2019.589",
+    "title": "Two new ant species (Formicidae: Dorylinae, Ponerinae) from New Caledonia",
+    "year": 2019,
+    "container_title": "European Journal of Taxonomy",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5852\/ejt.2019.589",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5852\/ejt.2019.589",
+        "dc:title": "Two new ant species (Formicidae: Dorylinae, Ponerinae) from New Caledonia",
+        "dc:date": 2019,
+        "dc:source": "European Journal of Taxonomy",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

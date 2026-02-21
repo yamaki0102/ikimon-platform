@@ -1,0 +1,20 @@
+{
+    "id": "paper_18f7636a285073271e1474c627e75349",
+    "doi": "10.3126\/zooj.v5i0.34935",
+    "title": "Cinnamon Bittern, Ixobrychus cinnamomeus (Gmelin) from Annapurna Conservation Area, Nepal",
+    "year": 2019,
+    "container_title": "ZOO-Journal",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3126\/zooj.v5i0.34935",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3126\/zooj.v5i0.34935",
+        "dc:title": "Cinnamon Bittern, Ixobrychus cinnamomeus (Gmelin) from Annapurna Conservation Area, Nepal",
+        "dc:date": 2019,
+        "dc:source": "ZOO-Journal",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

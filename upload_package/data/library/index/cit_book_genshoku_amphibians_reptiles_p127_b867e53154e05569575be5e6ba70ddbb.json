@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p127_b867e53154e05569575be5e6ba70ddbb",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 127,
+    "taxon_name": "Unknown",
+    "scientific_name": "Eublepharis kuroiwae kuroiwae",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.127)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Goniurosaurus kuroiwae",
+        "dwc:vernacularName": "Unknown",
+        "dwc:occurrenceRemarks": "Dark purple-brown body with light dorsal stripes.",
+        "dwc:taxonConceptID": "gbif:5221339",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Eublepharis kuroiwae kuroiwae",
+        "dwc:family": "Eublepharidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5221339,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Goniurosaurus kuroiwae",
+    "gbif_accepted_key": 2446415,
+    "gbif_family": "Eublepharidae",
+    "gbif_match_type": "HIGHERRANK"
+}

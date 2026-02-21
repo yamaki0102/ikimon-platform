@@ -1,0 +1,20 @@
+{
+    "id": "paper_149829d1c14da7922704ffee60635c11",
+    "doi": "10.1111\/j.1365-3113.1971.tb00108.x",
+    "title": "A new intertidal beetle (Coleoptera: Limnichidae) from the Great Barrier Reef",
+    "year": 1971,
+    "container_title": "Journal of Entomology Series B, Taxonomy",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1111\/j.1365-3113.1971.tb00108.x",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1111\/j.1365-3113.1971.tb00108.x",
+        "dc:title": "A new intertidal beetle (Coleoptera: Limnichidae) from the Great Barrier Reef",
+        "dc:date": 1971,
+        "dc:source": "Journal of Entomology Series B, Taxonomy",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,14 @@
+{
+    "id": "ptl_paper_359079433fe04ac0dbbc12570878d379_7eefeeca6f70bab7f4b659b844111be4",
+    "paper_id": "paper_359079433fe04ac0dbbc12570878d379",
+    "doi": "10.1525\/california\/9780520293403.003.0009",
+    "query_id": "jp_birds_checklist_general",
+    "query_label": "Japan bird checklist taxonomy",
+    "scientific_name": "Japan bird",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1525\/california\/9780520293403.003.0009",
+        "dwc:scientificName": "Japan bird",
+        "dwc:vernacularName": null
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_9ac9fc086390d853ad84726abd2eee57_202a427e759c83714ab1349b538f6111",
+    "paper_id": "paper_9ac9fc086390d853ad84726abd2eee57",
+    "doi": "10.2326\/osj.5.157",
+    "query_id": "jp_bird_2498035_en",
+    "query_label": "Anser indicus Japan (ecology\/distribution)",
+    "scientific_name": "Anser indicus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2326\/osj.5.157",
+        "dwc:scientificName": "Anser indicus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2498035",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Anser indicus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Anatidae"
+    },
+    "gbif_taxon_key": 2498035,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Anatidae"
+}

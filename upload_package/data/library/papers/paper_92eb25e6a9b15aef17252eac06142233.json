@@ -1,0 +1,20 @@
+{
+    "id": "paper_92eb25e6a9b15aef17252eac06142233",
+    "doi": "10.1163\/156853889x00430",
+    "title": "Ecological segregation in a subterranean reptile assemblage in arid Australia",
+    "year": 1989,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/156853889x00430",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/156853889x00430",
+        "dc:title": "Ecological segregation in a subterranean reptile assemblage in arid Australia",
+        "dc:date": 1989,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

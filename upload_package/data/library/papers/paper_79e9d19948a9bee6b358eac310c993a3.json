@@ -1,0 +1,20 @@
+{
+    "id": "paper_79e9d19948a9bee6b358eac310c993a3",
+    "doi": "10.5962\/bhl.title.119472",
+    "title": "Grasshopper and Mormon cricket control",
+    "year": 1954,
+    "container_title": "",
+    "type": "monograph",
+    "url": "https:\/\/doi.org\/10.5962\/bhl.title.119472",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/bhl.title.119472",
+        "dc:title": "Grasshopper and Mormon cricket control",
+        "dc:date": 1954,
+        "dc:source": "",
+        "dc:type": "monograph",
+        "dc:format": "application\/json"
+    }
+}

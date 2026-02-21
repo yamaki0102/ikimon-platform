@@ -1,0 +1,20 @@
+{
+    "id": "paper_55e30d4682b2b037299df5e59039691f",
+    "doi": "10.3390\/ani12030355",
+    "title": "Response of Long-Tailed Duck (Clangula hyemalis) to the Change in the Main Prey Availability in Its Baltic Wintering Ground",
+    "year": 2022,
+    "container_title": "Animals",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3390\/ani12030355",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3390\/ani12030355",
+        "dc:title": "Response of Long-Tailed Duck (Clangula hyemalis) to the Change in the Main Prey Availability in Its Baltic Wintering Ground",
+        "dc:date": 2022,
+        "dc:source": "Animals",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

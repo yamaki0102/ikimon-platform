@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p161_40997054760abd18457e05290996cb37",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 161,
+    "taxon_name": "メクラヘビ (続き)",
+    "scientific_name": "Typhlops braminus (DAUDIN, 1803)",
+    "family": "メクラヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.161)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Indotyphlops braminus",
+        "dwc:vernacularName": "メクラヘビ (続き)",
+        "dwc:occurrenceRemarks": "アの各地，マダガスカル．アフリカ，メキシコなど，世界の熱帯，亜熱帯地方に広く分布している．これは，本種が，植木の運搬などに伴って人為的に分布を広げた結果であろうと思われる．山地や平地の森林，原野，畑などの土中，あるいは石や倒木の下などにすみ，シロアリの卵や幼虫，蛹などを好んで食べる．\n　本種は♂が極端に少なくて，まだその報告がない．したがって，単為生殖を行なうのではないかと考えられている．卵生で，1回に 2〜7 個の卵を産み，卵の大きさは 12×4 mm ぐらい．\n\n第17図．メクラヘビの頭部；左から右へ背面，腹面および左側面．",
+        "dwc:taxonConceptID": "gbif:4821304",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Typhlops braminus (DAUDIN, 1803)",
+        "dwc:family": "Typhlopidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 4821304,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Indotyphlops braminus",
+    "gbif_accepted_key": 9357542,
+    "gbif_family": "Typhlopidae",
+    "gbif_match_type": "EXACT"
+}

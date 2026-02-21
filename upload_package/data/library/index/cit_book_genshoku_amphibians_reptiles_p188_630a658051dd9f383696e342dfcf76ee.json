@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p188_630a658051dd9f383696e342dfcf76ee",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 188,
+    "taxon_name": "サキシマスジオ",
+    "scientific_name": "Elaphe taeniura schmackeri (BOETTGER, 1895)",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.188)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Elaphe taeniura schmackeri (BOETTGER, 1895)",
+        "dwc:vernacularName": "サキシマスジオ",
+        "dwc:occurrenceRemarks": "　体の背部は緑色を帯びた黄褐色または褐色で，原則として4列に並んだ黒または角褐色の斑紋をそなえているが，後方では緑色の色調がなくなって黄褐色になり．黒斑も次第に大きく不明瞭となって尾部の縦条に移行する．背面の黒斑には変異が多いが，普通体の前方では小さくてはっきりせず，後方では左右交互の位置に並んで，斜列した黒線で連結されている．側面の黒斑は，胴の後部ではほぼ四角形を呈し，1鱗長あるいはの間隔をおいて縦に1列に並ぶ．尾部は，背面両側に1本ずつ，腹面両側に1本ずつの，計4本の黒い縦条をそなえている．頭部は帯緑褐色で，吻端部は黄褐色．眼の後角から後走して口角の上側に達する明瞭な黒条がある．上唇と頸部の腹面とは黄色のい．胴の腹面は淡黄色ないし黄白色で，腹板の外角は黒く，また各腹板に1対の小さい黒点なそなえている．顔面は長大で頭部よりも大きく．吻はかなり長いが先端はにぶい．吻端から頭頂板の後端までの長さは，両眼の間隔の2倍を明らかに越える．鼻孔は大きくて吻の側面にあり，前鼻板の後縁に開口している．眼も大きく，その長径が眼と鼻孔との間隔の半分を越える．吻端板は幅の広い三角形で下縁が深くえぐれ．頂端部が1対の鼻間板に接している．鼻間板は小さく前方で強く狭まり．前額板は縫合線よりもやや長くてその後外角が眼上板に接している（個体によっては，前額板と額板とが接し合って，前額板を眼上板から隔てていることもある）．額板は六角形で後方へ狭まり，その長さは幅よりも明らかに大きく，左右両頭頂板の間の縫合線の長さにはほ等しい．頭頂板は大形で，その長さは鼻間板と前額板との長さの和に匹敵する．頰板は細長く．眼前板は1枚でかなり大形．眼前下板と眼後板とはいずれも小形で．前者は1枚，後者は2枚ある．側頭板は前列2枚，後列3枚あるのを原則とするが．同列の下板はしばしば癒合して1枚の細長い鱗板となり． 2+2, 3+2, 3+3 などの変異を示すことが少なくない．上唇板は 8〜10枚．第 4〜5 枚目または第 5〜6\n\n第25図．サキシママダラの頭部；左から右へ背面，腹面および左側面．",
+        "dwc:taxonConceptID": "gbif:9506489",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Elaphe taeniura schmackeri (BOETTGER, 1895)",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9506489,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "EXACT"
+}

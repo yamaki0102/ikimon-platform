@@ -1,0 +1,20 @@
+{
+    "id": "paper_081e894c784173fd0bef01ba84952001",
+    "doi": "10.1007\/978-3-031-17277-9_21",
+    "title": "Invasive Alien Species of Invertebrates and Fishes Introduced Into Mexican Freshwater Habitats",
+    "year": 2023,
+    "container_title": "Mexican Fauna in the Anthropocene",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1007\/978-3-031-17277-9_21",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/978-3-031-17277-9_21",
+        "dc:title": "Invasive Alien Species of Invertebrates and Fishes Introduced Into Mexican Freshwater Habitats",
+        "dc:date": 2023,
+        "dc:source": "Mexican Fauna in the Anthropocene",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

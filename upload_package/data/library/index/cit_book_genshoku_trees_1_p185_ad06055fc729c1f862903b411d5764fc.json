@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p185_ad06055fc729c1f862903b411d5764fc",
+    "book_id": "book_genshoku_trees_1",
+    "page": 185,
+    "taxon_name": "学名索引",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.185)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "学名索引",
+        "dwc:occurrenceRemarks": "A\n\nAbies V 257\n  firma V 259\n  grandis V 259\n  homolepis V 258\n  koreana V 257\n  mariesii V 254\n  sachalinensis V 258\n  ――var. mayriana V 258\n  veitchii V 256\n  umbellata V 259\nAbudefduf vaigiensis V 66\nAcacia IV 261, 262\n  megalopotanicum V 66\n  confusa IV 262\n  dealbata IV 262\n  decurrens var. dealbata IV 262\nAcalypha IV 264\n  wilkesiana IV 264\nAcanthopanax V 93\n  sciadophylloides V 95\n  sieboldianus V 94\n  spinosus V 94\nAcer V 12\n  amoenum V 24\n  ――'Karanishiki' V 24\n  ――'Sanguineum' V 24\n  ――'Shigitatsu' V 25\n  ――var. matsumurae V 25\n  buergerianum V 244\n  capillipes V 18\n  carpinifolium V 21\n  cissifolium V 23\n  crataegifolium V 16\n  diabolicum V 22\n  distylum V 17\n  ginnala V 244\n  japonicum V 243\n  miyabei V 19\n  mono V 19\n  ――f. dissectum V 19\n  nikoense V 18\n  palmatum V 12\n  ――var. amoenum V 12\n  ――var. dissectum V 12\n  ――var. matsumurae V 12\n  pycnanthum V 259\n  rufinerve V 20\n  shirasawanum V 14\n  sieboldianum V 22\n  tshonoskii V 17\n  tschonoskii V 17\nAchatina VI 109\nActinus IV 119\n  ergotis IV 119\nAdonis IV 148\n  amurensis IV 148"
+    }
+}

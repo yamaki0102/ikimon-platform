@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p12_a5da09e55a9a4e229dca7ecbfdc1d193",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 12,
+    "taxon_name": "サンショウウオ目 (科の検索表)",
+    "scientific_name": "Key to Families",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.12)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Key to Families",
+        "dwc:vernacularName": "サンショウウオ目 (科の検索表)",
+        "dwc:occurrenceRemarks": "＜科の検索表＞\n\n1 (4)　眼瞼は多少とも発達している：鋤口蓋歯列は鋤口蓋骨の前端に位置することがなく，また上顎歯列に平行でもない：体は小形．\n2 (3)　左右の鋤口蓋歯列は，後端で接し合い（または著しく接近し）前方では広く離れているか，あるいは横に並んでいる：体表の皮膚はおおむね平滑……サンショウウオ科．\n3 (2)　鋤口蓋歯列は逆V字形で長く後方に延び，左右の歯列が前端で接し合って後方では広く離れている：体表の皮膚は一般に粗雑……イモリ科．\n4 (1)　眼瞼がない：鋤口蓋歯列は鋤口蓋骨の前端に位置し，上顎歯列に平行した弧状を呈している：体は著しく大形……オオサンショウウオ科．"
+    }
+}

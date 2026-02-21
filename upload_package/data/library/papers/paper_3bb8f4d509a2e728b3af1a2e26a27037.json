@@ -1,0 +1,20 @@
+{
+    "id": "paper_3bb8f4d509a2e728b3af1a2e26a27037",
+    "doi": "10.2173\/tbna.442.p",
+    "title": "Common Merganser (Mergus merganser)",
+    "year": 1999,
+    "container_title": "Birds of North America (print)",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/tbna.442.p",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/tbna.442.p",
+        "dc:title": "Common Merganser (Mergus merganser)",
+        "dc:date": 1999,
+        "dc:source": "Birds of North America (print)",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

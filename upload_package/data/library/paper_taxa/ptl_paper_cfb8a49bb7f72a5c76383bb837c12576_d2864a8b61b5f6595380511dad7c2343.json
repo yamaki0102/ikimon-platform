@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_cfb8a49bb7f72a5c76383bb837c12576_d2864a8b61b5f6595380511dad7c2343",
+    "paper_id": "paper_cfb8a49bb7f72a5c76383bb837c12576",
+    "doi": "10.2173\/tbna.389.p",
+    "query_id": "alien_bird_5229490_en",
+    "query_label": "Pica pica Japan (alien\/introduced)",
+    "scientific_name": "Pica pica",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/tbna.389.p",
+        "dwc:scientificName": "Pica pica",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:5229490",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Pica pica",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Corvidae"
+    },
+    "gbif_taxon_key": 5229490,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Corvidae"
+}

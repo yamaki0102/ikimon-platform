@@ -1,0 +1,20 @@
+{
+    "id": "paper_915008b26d149ad2978b90c1ba31da07",
+    "doi": "10.2173\/tbna.520.p",
+    "title": "Red-vented Bulbul (Pycnonotus cafer) and Red-whiskered Bulbul (Pycnonotus jocosus)",
+    "year": 2000,
+    "container_title": "Birds of North America (print)",
+    "type": "reference-entry",
+    "url": "https:\/\/doi.org\/10.2173\/tbna.520.p",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/tbna.520.p",
+        "dc:title": "Red-vented Bulbul (Pycnonotus cafer) and Red-whiskered Bulbul (Pycnonotus jocosus)",
+        "dc:date": 2000,
+        "dc:source": "Birds of North America (print)",
+        "dc:type": "reference-entry",
+        "dc:format": "application\/json"
+    }
+}

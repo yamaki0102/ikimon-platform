@@ -1,0 +1,20 @@
+{
+    "id": "paper_4f6feebd015ebfef4c81b427070e70b0",
+    "doi": "10.1675\/063.037.sp107",
+    "title": "Common Loons (Gavia immer) Wintering off the Louisiana Coast Tracked to Saskatchewan during the Breeding Season",
+    "year": 2014,
+    "container_title": "Waterbirds",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1675\/063.037.sp107",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1675\/063.037.sp107",
+        "dc:title": "Common Loons (Gavia immer) Wintering off the Louisiana Coast Tracked to Saskatchewan during the Breeding Season",
+        "dc:date": 2014,
+        "dc:source": "Waterbirds",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

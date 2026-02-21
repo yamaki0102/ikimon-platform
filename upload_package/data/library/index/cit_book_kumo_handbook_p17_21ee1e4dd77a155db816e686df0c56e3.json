@@ -1,0 +1,48 @@
+{
+    "id": "cit_book_kumo_handbook_p17_21ee1e4dd77a155db816e686df0c56e3",
+    "book_id": "book_kumo_handbook",
+    "page": 17,
+    "taxon_name": "ニホンヒメグモ",
+    "scientific_name": "Parasteatoda japonica",
+    "family": "ヒメグモ科 Theridiidae",
+    "data_icons": {
+        "size": "female: 3.5〜5mm, male: 2.5〜3.5mm",
+        "season": "一年中（成体は春〜夏）",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網にいる様子",
+        "オス",
+        "メス背面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.17)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Nihonhimea japonica",
+        "dwc:vernacularName": "ニホンヒメグモ",
+        "dwc:occurrenceRemarks": "メスは丸い腹部で、葉のような複雑な模様をもつ。オスは腹部が小さく、赤みが強い。路傍の草地、林縁の下草、庭木の枝葉などに不規則網を張る。網の中央付近に枯れ葉を吊るし、その中に隠れる。",
+        "dwc:taxonConceptID": "gbif:6135317",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Parasteatoda japonica",
+        "dwc:family": "Theridiidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 6135317,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Nihonhimea japonica",
+    "gbif_accepted_key": 9396165,
+    "gbif_family": "Theridiidae",
+    "gbif_match_type": "EXACT"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_bfb507e80d14f9bc1f04dad46611002b",
+    "doi": "10.1016\/j.foreco.2014.07.027",
+    "title": "Predation and dispersal of acorns by European Jay ( Garrulus glandarius ) differs between a native (Pedunculate Oak Quercus robur ) and an introduced oak species (Northern Red Oak Quercus rubra ) in Europe",
+    "year": 2014,
+    "container_title": "Forest Ecology and Management",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/j.foreco.2014.07.027",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/j.foreco.2014.07.027",
+        "dc:title": "Predation and dispersal of acorns by European Jay ( Garrulus glandarius ) differs between a native (Pedunculate Oak Quercus robur ) and an introduced oak species (Northern Red Oak Quercus rubra ) in Europe",
+        "dc:date": 2014,
+        "dc:source": "Forest Ecology and Management",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

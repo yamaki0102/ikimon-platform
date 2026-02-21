@@ -1,0 +1,18 @@
+{
+    "taxon_key": 5222086,
+    "scientific_name": "Pelamis platura (Linnaeus, 1766)",
+    "status": "SYNONYM",
+    "match_type": "FUZZY",
+    "confidence": 94,
+    "accepted_key": 7674056,
+    "accepted_name": "Hydrophis platurus",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Elapidae",
+    "genus": "Hydrophis",
+    "rank": "SPECIES",
+    "original_query": "Pelamis platurus",
+    "_cached_at": 1771646776
+}

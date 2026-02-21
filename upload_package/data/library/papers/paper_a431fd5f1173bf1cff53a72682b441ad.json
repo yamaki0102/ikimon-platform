@@ -1,0 +1,20 @@
+{
+    "id": "paper_a431fd5f1173bf1cff53a72682b441ad",
+    "doi": "10.1163\/156853898x00520",
+    "title": "Predation of Oligotricha striata (Trichoptera, Phryganeidae) larvae on amphibian eggs",
+    "year": 1998,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/156853898x00520",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/156853898x00520",
+        "dc:title": "Predation of Oligotricha striata (Trichoptera, Phryganeidae) larvae on amphibian eggs",
+        "dc:date": 1998,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

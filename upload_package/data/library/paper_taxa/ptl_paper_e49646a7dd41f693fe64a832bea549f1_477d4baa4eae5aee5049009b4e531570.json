@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_e49646a7dd41f693fe64a832bea549f1_477d4baa4eae5aee5049009b4e531570",
+    "paper_id": "paper_e49646a7dd41f693fe64a832bea549f1",
+    "doi": "10.1007\/bf01651031",
+    "query_id": "alien_bird_2495414_en",
+    "query_label": "Columba livia Japan (alien\/introduced)",
+    "scientific_name": "Columba livia",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1007\/bf01651031",
+        "dwc:scientificName": "Columba livia",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2495414",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Columba livia",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Columbidae"
+    },
+    "gbif_taxon_key": 2495414,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Columbidae"
+}

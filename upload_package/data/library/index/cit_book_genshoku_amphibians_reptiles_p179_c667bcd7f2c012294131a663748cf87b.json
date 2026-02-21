@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p179_c667bcd7f2c012294131a663748cf87b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 179,
+    "taxon_name": "タカチホヘビ属",
+    "scientific_name": "Achalinus PETERS, 1869",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.179)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Achalinus PETERS, 1869",
+        "dwc:vernacularName": "タカチホヘビ属",
+        "dwc:occurrenceRemarks": "　頭部は小形で細長く，頸部よりわずかに大きい．眼は小さくて，瞳孔はほぼ円形か垂直方向に多少楕円形．鼻孔は大きく，大形で中凹の鼻板の前部か前鼻板の後縁に開口している．鼻板は，垂直方向の切れ込みによって部分的に分かれていることも．前鼻板と後鼻板とが完全に分離していることもある．眼前板がなく，基亜属では頰板が眼に達しているが，他の1亜属では頰板もない．側頭板は前側頭板と区別し難い．上顎歯，下顎歯はともに小さくてほぼ等大．前者は 15〜30本ある．体鱗は 21〜27列に並び，それぞれの鱗には多少とも隆条がある．腹板には側稜がなく．肛板．尾下板ともに2分していない．\n　日本，台湾，シナ，トンキンなどに分布し，2亜属6種ほど知られている．日本産の2種は，いずれもタカチホヘビ亜属 (Achalinus s. str.) に含まれる．他の1亜属（タカチホモドキ亜属 Achalinopsis STEINDACHNER, 1913）は，台湾に固有の1種（タカチホモドキ A. (Achalinopsis) sauteri (STEINDACHNER, 1913)) のみを含み，頰板がなくて前額板と上唇板とが接し合っていることにより基亜属と分けられる．\n\n93. タカチホヘビ Achalinus (Achalinus) spinalis PETERS, 1869\n　日本本土産のヘビ類のうちでは，体の背面が褐色で正中線上に1本の黒条があることと，尾下板が対になっていないこととの2つの点ですぐに識別できる．\n　体の背面は褐色または暗黄褐色で，背中線上の1鱗列は黒い．上唇と腹面とは黄褐\n\n第22図．タカチホヘビの頭部；左から右へ背面，腹面および左側面．",
+        "dwc:taxonConceptID": "gbif:2458201",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Achalinus PETERS, 1869",
+        "dwc:family": "Xenodermidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2458201,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Xenodermidae",
+    "gbif_match_type": "HIGHERRANK"
+}

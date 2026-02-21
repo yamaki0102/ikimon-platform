@@ -1,0 +1,91 @@
+=== CSRF Consistency Check ===
+
+搭 Phase 1: CSRF蠢・医お繝ｳ繝峨・繧､繝ｳ繝・(12 莉ｶ)
+   笨・api/create_field.php
+   笨・api/freetext_review.php
+   笨・api/post_dispute.php
+   笨・api/post_identification.php
+   笨・api/post_observation.php
+   笨・api/report_content.php
+   笨・api/save_track.php
+   笨・api/submit_nps.php
+   笨・api/survey.php
+   笨・api/toggle_follow.php
+   笨・api/update_profile.php
+   笨・api/upload_avatar.php
+
+搭 Phase 2: 繝輔Ο繝ｳ繝医お繝ｳ繝峨せ繧ｭ繝｣繝ｳ (82 繝輔ぃ繧､繝ｫ)
+   笶・public_html/event_detail.php 竊・api/survey.php (CSRF騾∽ｿ｡縺ｪ縺・)
+   笨・public_html/id_form.php 竊・api/post_identification.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笶・public_html/index.php 竊・api/survey.php (CSRF騾∽ｿ｡縺ｪ縺・)
+   笶・public_html/my_field_dashboard.php 竊・api/create_field.php (CSRF騾∽ｿ｡縺ｪ縺・)
+   笨・public_html/observation_detail.php 竊・api/post_identification.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笨・public_html/post.php 竊・api/survey.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笶・public_html/profile.php 竊・api/survey.php (CSRF騾∽ｿ｡縺ｪ縺・)
+   笶・public_html/profile_edit.php 竊・api/update_profile.php (CSRF騾∽ｿ｡縺ｪ縺・)
+   笶・public_html/profile_edit.php 竊・api/upload_avatar.php (CSRF騾∽ｿ｡縺ｪ縺・)
+   笨・public_html/review_queue.php 竊・api/freetext_review.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笨・public_html/survey.php 竊・api/survey.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笶・public_html/js/FieldRecorder.js 竊・api/save_track.php (CSRF騾∽ｿ｡縺ｪ縺・)
+   笨・public_html/js/OfflineManager.js 竊・api/post_observation.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笨・public_html/js/csrf.js 竊・api/post_identification.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笨・public_html/js/post-uploader.js 竊・api/post_observation.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笨・public_html/js/post-uploader.js 竊・api/survey.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笨・public_html/components/nav.php 竊・api/survey.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笶・public_html/components/nps_survey.php 竊・api/submit_nps.php (CSRF騾∽ｿ｡縺ｪ縺・)
+   笶・public_html/components/nps_survey.php 竊・api/survey.php (CSRF騾∽ｿ｡縺ｪ縺・)
+   笨・public_html/components/quick_identify.php 竊・api/post_identification.php (CSRF騾∽ｿ｡縺ゅｊ)
+   笶・public_html/components/survey_panel.php 竊・api/survey.php (CSRF騾∽ｿ｡縺ｪ縺・)
+
+笞・・ Phase 3: 繝輔Ο繝ｳ繝医お繝ｳ繝峨°繧牙他縺ｳ蜃ｺ縺励′隕九▽縺九ｉ縺ｪ縺ГSRF蠢・・PI:
+   笶・api/post_dispute.php (螟夜Κ/繝｢繝舌う繝ｫ蟆ら畑 or 蜻ｼ縺ｳ蜃ｺ縺玲ｼ上ｌ)
+   笶・api/report_content.php (螟夜Κ/繝｢繝舌う繝ｫ蟆ら畑 or 蜻ｼ縺ｳ蜃ｺ縺玲ｼ上ｌ)
+   笶・api/toggle_follow.php (螟夜Κ/繝｢繝舌う繝ｫ蟆ら畑 or 蜻ｼ縺ｳ蜃ｺ縺玲ｼ上ｌ)
+
+搭 Phase 4: CSRF meta 繧ｿ繧ｰ遒ｺ隱・
+   笨・components/meta.php 縺ｫ csrf-token meta 繧ｿ繧ｰ縺ゅｊ
+
+笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤笏≫煤
+笶・10 莉ｶ縺ｮ荳肴紛蜷医ｒ讀懷・:
+
+  [0] public_html/event_detail.php
+      竊・api/survey.php
+      統 fetch() 縺ｧ api/survey.php 繧貞他繧薙〒縺・ｋ縺後，SRF繝医・繧ｯ繝ｳ (X-CSRF-Token) 縺碁∽ｿ｡縺輔ｌ縺ｦ縺・↑縺・
+
+  [1] public_html/index.php
+      竊・api/survey.php
+      統 fetch() 縺ｧ api/survey.php 繧貞他繧薙〒縺・ｋ縺後，SRF繝医・繧ｯ繝ｳ (X-CSRF-Token) 縺碁∽ｿ｡縺輔ｌ縺ｦ縺・↑縺・
+
+  [2] public_html/my_field_dashboard.php
+      竊・api/create_field.php
+      統 fetch() 縺ｧ api/create_field.php 繧貞他繧薙〒縺・ｋ縺後，SRF繝医・繧ｯ繝ｳ (X-CSRF-Token) 縺碁∽ｿ｡縺輔ｌ縺ｦ縺・↑縺・
+
+  [3] public_html/profile.php
+      竊・api/survey.php
+      統 fetch() 縺ｧ api/survey.php 繧貞他繧薙〒縺・ｋ縺後，SRF繝医・繧ｯ繝ｳ (X-CSRF-Token) 縺碁∽ｿ｡縺輔ｌ縺ｦ縺・↑縺・
+
+  [4] public_html/profile_edit.php
+      竊・api/update_profile.php
+      統 fetch() 縺ｧ api/update_profile.php 繧貞他繧薙〒縺・ｋ縺後，SRF繝医・繧ｯ繝ｳ (X-CSRF-Token) 縺碁∽ｿ｡縺輔ｌ縺ｦ縺・↑縺・
+
+  [5] public_html/profile_edit.php
+      竊・api/upload_avatar.php
+      統 fetch() 縺ｧ api/upload_avatar.php 繧貞他繧薙〒縺・ｋ縺後，SRF繝医・繧ｯ繝ｳ (X-CSRF-Token) 縺碁∽ｿ｡縺輔ｌ縺ｦ縺・↑縺・
+
+  [6] public_html/js/FieldRecorder.js
+      竊・api/save_track.php
+      統 fetch() 縺ｧ api/save_track.php 繧貞他繧薙〒縺・ｋ縺後，SRF繝医・繧ｯ繝ｳ (X-CSRF-Token) 縺碁∽ｿ｡縺輔ｌ縺ｦ縺・↑縺・
+
+  [7] public_html/components/nps_survey.php
+      竊・api/submit_nps.php
+      統 fetch() 縺ｧ api/submit_nps.php 繧貞他繧薙〒縺・ｋ縺後，SRF繝医・繧ｯ繝ｳ (X-CSRF-Token) 縺碁∽ｿ｡縺輔ｌ縺ｦ縺・↑縺・
+
+  [8] public_html/components/nps_survey.php
+      竊・api/survey.php
+      統 fetch() 縺ｧ api/survey.php 繧貞他繧薙〒縺・ｋ縺後，SRF繝医・繧ｯ繝ｳ (X-CSRF-Token) 縺碁∽ｿ｡縺輔ｌ縺ｦ縺・↑縺・
+
+  [9] public_html/components/survey_panel.php
+      竊・api/survey.php
+      統 fetch() 縺ｧ api/survey.php 繧貞他繧薙〒縺・ｋ縺後，SRF繝医・繧ｯ繝ｳ (X-CSRF-Token) 縺碁∽ｿ｡縺輔ｌ縺ｦ縺・↑縺・
+
+菫ｮ豁｣譁ｹ豕・ fetch() 縺ｮ headers 縺ｫ 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content 繧定ｿｽ蜉

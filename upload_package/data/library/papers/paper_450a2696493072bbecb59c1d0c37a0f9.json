@@ -1,0 +1,20 @@
+{
+    "id": "paper_450a2696493072bbecb59c1d0c37a0f9",
+    "doi": "10.1007\/s002679900058",
+    "title": "PROFILE: Integrated Management to Create New Breeding Habitat for Dalmatian Pelicans ( Pelecanus crispus ) in Greece",
+    "year": 1997,
+    "container_title": "Environmental Management",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/s002679900058",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/s002679900058",
+        "dc:title": "PROFILE: Integrated Management to Create New Breeding Habitat for Dalmatian Pelicans ( Pelecanus crispus ) in Greece",
+        "dc:date": 1997,
+        "dc:source": "Environmental Management",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_306064d91fac3ba346d12ab5f09e3580",
+    "doi": "10.1080\/14888386.2023.2174595",
+    "title": "Students as citizen scientists: project-based learning through the iNaturalist platform could provide useful biodiversity data",
+    "year": 2023,
+    "container_title": "Biodiversity",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1080\/14888386.2023.2174595",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1080\/14888386.2023.2174595",
+        "dc:title": "Students as citizen scientists: project-based learning through the iNaturalist platform could provide useful biodiversity data",
+        "dc:date": 2023,
+        "dc:source": "Biodiversity",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2892619,
+    "scientific_name": "Mussaenda parviflora Miq.",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Plantae",
+    "phylum": "Tracheophyta",
+    "class": "Magnoliopsida",
+    "order": "Gentianales",
+    "family": "Rubiaceae",
+    "genus": "Mussaenda",
+    "rank": "SPECIES",
+    "original_query": "Mussaenda parviflora Miq.",
+    "_cached_at": 1771646891
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p124_2e8c34a9dac7e624ea6e82dd0fb692f5",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 124,
+    "taxon_name": "タシロヤモリ",
+    "scientific_name": "Hemidactylus bowringii (GRAY, 1845)",
+    "family": "ヤモリ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.124)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hemidactylus bowringii (GRAY, 1845)",
+        "dwc:vernacularName": "タシロヤモリ",
+        "dwc:occurrenceRemarks": "　背面は淡褐色または黄色味を帯びた淡灰褐色．普通は暗褐色または黒褐色の不規則な小斑を散布し，個体によっては，これらの斑紋が不連続な縦条になっていることもある．また．白い小点を散布していることも少なくない．頭部の側面には，鼻孔に始まって眼を通り耳孔の上側に延びる白っぽい縦条があり，その下縁が普通は明瞭な黒褐縦条になっている．尾には黒褐色の横帯をそなえていることが多いが，色彩のほぼいちようなものもある．腹面は黄白色または汚白色．頭部は前種の場合とほぼ同様であるが，耳孔は比較的短かい楕円形を呈する．上唇板は 9〜12枚，下唇板は 7〜9枚．頭胴部の背面はいちように細かい粒状の鱗でおおわれ，大形の顆粒が混在していない．吻と頬部との鱗は胴背のものより多少とも大形．咽頭部の鱗は胴背のものと同様であるが，胸部より後方では鱗が扁平になり，大形で瓦状に重なり合っている．♂では，前肛部から大腿部の下面に続く明瞭な小孔列があるが，その中央部は 2〜4鱗分の幅で中断されている．小孔の数は各側に 12〜15個，四肢はよく発達し，前種に比べて長",
+        "dwc:taxonConceptID": "gbif:5959892",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hemidactylus bowringii (GRAY, 1845)",
+        "dwc:family": "Gekkonidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5959892,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gekkonidae",
+    "gbif_match_type": "EXACT"
+}

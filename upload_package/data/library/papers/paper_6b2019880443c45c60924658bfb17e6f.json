@@ -1,0 +1,20 @@
+{
+    "id": "paper_6b2019880443c45c60924658bfb17e6f",
+    "doi": "10.2307\/2408053",
+    "title": "Breeding Synchrony in the Lesser Snow Goose (Anser caerulescens caerulescens). I. Genetic and Environmental Components of Hatch Date Variability and their Effects on Hatch Synchrony",
+    "year": 1982,
+    "container_title": "Evolution",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/2408053",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/2408053",
+        "dc:title": "Breeding Synchrony in the Lesser Snow Goose (Anser caerulescens caerulescens). I. Genetic and Environmental Components of Hatch Date Variability and their Effects on Hatch Synchrony",
+        "dc:date": 1982,
+        "dc:source": "Evolution",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

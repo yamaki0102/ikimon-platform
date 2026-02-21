@@ -1,0 +1,49 @@
+{
+    "id": "cit_book_kumo_handbook_p44_20bf0a1d597b85d9fb88755a2439fbfa",
+    "book_id": "book_kumo_handbook",
+    "page": 44,
+    "taxon_name": "コクサグモ",
+    "scientific_name": "Allagelena opulenta",
+    "family": "タナグモ科 Agelenidae",
+    "data_icons": {
+        "size": "female: 8〜12mm, male: 6〜12mm",
+        "season": "夏〜秋",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "コクサグモの住居（袋状）",
+        "触肢と外雌器",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.44)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Allagelena opulenta",
+        "dwc:vernacularName": "コクサグモ",
+        "dwc:occurrenceRemarks": "体色は赤味が強くあり。頭胸部は褐色。クサグモ（p.80）とは同所的に見られ、林縁や植え込みの低い枝先、山地の草むらで植物を折り曲げて住居や産室を作る。カバキコマチグモ（p.84）に似るが、本種のほうが小さく、体色も濃い。またカバキコマチグモは、腹部背面の黒条が強く、その横に白斑があるなどの違いがある。",
+        "dwc:taxonConceptID": "gbif:2139654",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Allagelena opulenta",
+        "dwc:family": "Agelenidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2139654,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Agelenidae",
+    "gbif_match_type": "EXACT"
+}

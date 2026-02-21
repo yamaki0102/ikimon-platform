@@ -1,0 +1,40 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p33_a179b38df3d90b02615857821522984c",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 33,
+    "taxon_name": "イモリ",
+    "scientific_name": "Triturus (Cynops) pyrrhogaster pyrrhogaster",
+    "family": "イモリ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [
+        "17. イモリ"
+    ],
+    "page_type": "VISUAL_PLATE",
+    "rarity_stars": null,
+    "type": "plate",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.33)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Cynops pyrrhogaster",
+        "dwc:vernacularName": "イモリ",
+        "dwc:occurrenceRemarks": "PLATE VI - 17",
+        "dwc:taxonConceptID": "gbif:9071902",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Triturus (Cynops) pyrrhogaster pyrrhogaster",
+        "dwc:family": "Salamandridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9071902,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Cynops pyrrhogaster",
+    "gbif_accepted_key": 2431862,
+    "gbif_family": "Salamandridae",
+    "gbif_match_type": "HIGHERRANK"
+}

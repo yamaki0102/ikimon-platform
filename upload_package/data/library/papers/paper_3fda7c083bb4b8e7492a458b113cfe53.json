@@ -1,0 +1,20 @@
+{
+    "id": "paper_3fda7c083bb4b8e7492a458b113cfe53",
+    "doi": "10.3838\/jjo.63.33",
+    "title": "A habitat model for the Japanese Night Heron Gorsachius goisagi in the West Mikawa area of Aichi Prefecture, Japan",
+    "year": 2014,
+    "container_title": "Japanese Journal of Ornithology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3838\/jjo.63.33",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3838\/jjo.63.33",
+        "dc:title": "A habitat model for the Japanese Night Heron Gorsachius goisagi in the West Mikawa area of Aichi Prefecture, Japan",
+        "dc:date": 2014,
+        "dc:source": "Japanese Journal of Ornithology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p215_b823905372fc0c0067437d64588b564d",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 215,
+    "taxon_name": "ヤエヤマヒバァ",
+    "scientific_name": "Natrix pryeri ishigakiensis",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.215)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hebius ishigakiensis",
+        "dwc:vernacularName": "ヤエヤマヒバァ",
+        "dwc:occurrenceRemarks": "Plate 35 illustration (114).",
+        "dwc:taxonConceptID": "gbif:10201460",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Natrix pryeri ishigakiensis",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10201460,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Hebius ishigakiensis",
+    "gbif_accepted_key": 11144158,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "EXACT"
+}

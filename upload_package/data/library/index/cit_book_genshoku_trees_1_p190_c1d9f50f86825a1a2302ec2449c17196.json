@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p190_c1d9f50f86825a1a2302ec2449c17196",
+    "book_id": "book_genshoku_trees_1",
+    "page": 190,
+    "taxon_name": "H",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.190)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "H",
+        "dwc:occurrenceRemarks": "Hamamelis IV 144\n  japonica IV 144\n  --var. obtusata IV 145\n  mollis IV 146\n  vernalis IV 146\nHedera IV 150\n  rhombea IV 150\nHedychium V 228\n  coronarium V 229\nHelwingia V 98\n  japonica V 98\nHelix V 99\n  peliomphala V 99\n  blakeana V 99\nHibiscus V 60\n  brasiliensis IV 266\n  glaber V 64\n  hamabo V 61\n  mutabilis V 63\n  rosa-sinensis V 65\n  --'Double Brown' V 65\n  --'New Pink' V 66\n  --'Powder Puff' V 65\n  --'Sincar-Sing' V 65\n  --'Vulcan' V 65\n  schizopetalus V 65\n  syriacus V 62\n  --f. albus V 64\n  tiliaceus V 64\nHippophae IV 226\n  rhamnoides IV 226\nHovenia V 48\n  dulcis V 49\nHydrangea IV 146\n  hirta IV 150\n  involucrata IV 146\n  macrophylla IV 147\n  --f. otaksa IV 147\n  --f. sterilis IV 147\n  --'Mme. Plume Coq' IV 151\n  --subsp. serrata var. angustata IV 153\n  --subsp. serrata var. japonica IV 152\n  paniculata IV 146\n  petiolaris IV 151\n  serrata IV 151\n  --var. acuminata f. pubescens IV 153\n  --var. megacarpa IV 151\n  --var. oamacha IV 152\n  --var. thunbergii IV 152\n  --var. yesoensis IV 153\n  sikokiana IV 150\nHypericum IV 141\n  chinensen V 79\n  erectum IV 77\n  laxum V 77\n  patulum V 77\n  polyphyllum V 77\n  sepulchrale V 38\nHyssopus V 17\n  officinalis V 17"
+    }
+}

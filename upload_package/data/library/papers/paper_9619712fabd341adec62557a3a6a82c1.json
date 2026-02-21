@@ -1,0 +1,20 @@
+{
+    "id": "paper_9619712fabd341adec62557a3a6a82c1",
+    "doi": "10.5253\/arde.2023.a2",
+    "title": "Sandwich Tern Feeds Juvenile on Wintering Grounds in Southern Namibia",
+    "year": 2023,
+    "container_title": "Ardea",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5253\/arde.2023.a2",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5253\/arde.2023.a2",
+        "dc:title": "Sandwich Tern Feeds Juvenile on Wintering Grounds in Southern Namibia",
+        "dc:date": 2023,
+        "dc:source": "Ardea",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

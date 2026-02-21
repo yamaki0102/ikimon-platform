@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p106_853e09f4646e007d19df869350494dd2",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 106,
+    "taxon_name": "ヤマガメ属",
+    "scientific_name": "Geoemyda GRAY, 1834",
+    "family": "カメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.106)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Geoemyda GRAY, 1834",
+        "dwc:vernacularName": "ヤマガメ属",
+        "dwc:occurrenceRemarks": "　頭骨側頭部の橋はあることもないこともあり．歯槽面は幅が狭くて隆条をそなえていない．内鼻孔は眼窩の前部の水準に開く．椎骨板のうちの六角形のものは，前側縁の長さが後側縁の長さよりも明らかに大きい．腹甲は縫合線で背甲に固着し，内骨板は原則として肩胸縫合線に横切られている．普通は腋下甲板も鼠径甲板もある．指趾間には多少ともみずかきがある．尾はあまり長くない．\n　琉球，シナ，東南アジア，スンダ列島，ビルマ，インド，中央アメリカ，南アメリカなどに分布し，全部で10種ほど知られているが，日本にはリュウキュウヤマガメだけしかいない．現生種の分布域はこのようにはなはだ不連続であるが，化石種がヨーロッパや北アメリカからも知られているので，おそらく第三紀にはかなり繁栄していたのであろうと考えられる．",
+        "dwc:taxonConceptID": "gbif:2441451",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Geoemyda GRAY, 1834",
+        "dwc:family": "Geoemydidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2441451,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Geoemydidae",
+    "gbif_match_type": "HIGHERRANK"
+}

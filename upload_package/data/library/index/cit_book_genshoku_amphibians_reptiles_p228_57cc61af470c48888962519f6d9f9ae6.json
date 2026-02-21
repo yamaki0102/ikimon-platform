@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p228_57cc61af470c48888962519f6d9f9ae6",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 228,
+    "taxon_name": "マダラウミヘビ (続き)",
+    "scientific_name": "Hydrophis cyanocinctus DAUDIN, 1803",
+    "family": "ウミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.228)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Hydrophis cyanocinctus DAUDIN, 1803",
+        "dwc:vernacularName": "マダラウミヘビ (続き)",
+        "dwc:occurrenceRemarks": "尾に 2〜8個ぐらいあることが多いが，この模様ははなはだ不安定で，完全な環帯となっているもの，腹面で切れているもの，背面のみに残っているもの，斑紋がほとんど認められないものなどの変異がある．頭部は暗緑色ないし暗褐色で，普通は吻瑞部から側頭にかけて黄褐色の部分があり．老熱した個体では全体が黄褐色を呈するようになる．また．体の前方の細い部分の腹面に，青黒色の縦条のある個体もある．体は細長く．とくに前方の部分は細いが，クロガシラウミヘビにおけるほど細くはない．胴は後方で側扁し．もっとも太い部分の厚さは，頸部の厚さの2倍から2倍半ぐらいある．頭部は小形で細長く，頸部よりもわずかに大きい．眼は指頭よりも小形．鱗板の配列は前種とよく似ているが，鼻板の幅が広くて幅の1倍半ぐらいの長さしかなく，頰板も前種よりは短かい．従って，頭頂板が頬板より明らかに長い．前側頭板は2枚あり．側頭板は．普通 2+2 であるが，前列が1枚しかない個体も稀ではない．左右の後咽頭板は普通正中線上で接しているが．1枚の鱗によって両側に隔てられている個体もある．体鱗は前種と同様に体のどの部分でも瓦状に重なり合い．また顕著な明瞭な隆条をそなえている．体鱗列数は頸部で 27〜35．胴の中央で 37〜47．腹板．肛板および尾下板の構造も前種と同様であるが腹板の平滑な個体もあり．その数は腹板が 290〜390枚，尾下板が 37〜57枚ぐらいである．上顎歯は前種と同様．体長：1,200〜1,850mm．\n　琉球列島以南の海域に広く分布し．西はペルシャ湾から東南へはインドネシアまで拡がっている．また．海流に乗って北上してくる個体が本州の沿岸でも採れる．\n\n[第39図版]\n\n124. クロボシウミヘビ Hydrophis ornatus ornatus (GRAY, 1842)\n　体の背面は灰青色または淡黄褐色で腹面は黄白色．背面で 5〜7 鱗分の幅をもつ暗褐色ないし黒褐色の横帯が胴に 30〜50個．尾に 8〜9個ぐらいあって．横帯と横帯との間に 2〜4 鱗分の基色を残している．この横帯が腹面に続いて環帯となっている場合には，腹面で2鱗分ぐらいの幅しかなく，色も淡くなっている．頭部の背面は青味を帯びた暗褐色で，吻端部から上唇にかけては黄色く，眼の上側にも黄点がある．頭部の腹面はいちように黄色い．体は比較的短かくて胴の前方の部分があまり細くはなく，後方ではかなり側扁している．胴のもっとも太い部分の厚さは頸部の厚さの1倍半前後．頭部はかなり大きいが比較的短かく，吻端から頭頂板の後端までの長さが両眼間の距離の2倍に達しない．眼はかなり大きくて，その直径は眼と鼻孔との間の距離に等しく．また多くは口縁と眼との間隔よりも大きい．鱗板の配列は前種と似ている点が多いが，鼻板．額板．頭頂板などはいずれも幅が広くて，鼻板の長さは幅の1倍半に達せず，額板の長さもようやく幅の1倍半に達する程度．頭頂板は大形で額板よりもはるかに長い．吻端板の下縁の両側にある窪みは非常に深く，鼻板には鼻孔前縁から外側へ走る溝がある．眼上板は比較的小形，眼後板は 2〜3枚あり，側頭板は原則として 2+2 または 2+3 であるが，前側頭板が1枚しかない個体もある．上唇板は 7〜8枚で，最後の数枚がとくに小さくはない．左右の後咽頭板は正中線上で接し",
+        "dwc:taxonConceptID": "gbif:5960375",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Hydrophis cyanocinctus DAUDIN, 1803",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5960375,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "EXACT"
+}

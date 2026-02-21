@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p219_faa2b3cb776a632756088e33cd8c8b7b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 219,
+    "taxon_name": "ヒャン (続き)",
+    "scientific_name": "Calliophis japonicus japonicus GUNTHER, 1868",
+    "family": "コブラ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.219)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Sinomicrurus japonicus",
+        "dwc:vernacularName": "ヒャン (続き)",
+        "dwc:occurrenceRemarks": "奄美大島．徳之島．沖縄本島とその属島および久米島などに分布し．他の1亜種タイワンハイ Calliophis japonicus sauteri (STEINDACHNER, 1913) は台湾の特産である．\n　元来夜行性の動物らしいが昼間にも活動し．草むらや森林の周縁部で見かけることが多い．行動は緩慢で，捕らえられると尾瑞を敵に押しつけて威嚇するような動作をする．このために．現地ではヒャンを非常に恐れているが，少なくとも尾部には毒腺がなく，毒蛇としても決して危険なものではない．なお．和名のヒャンは奄美大島の方言の一つであって，島内でも場所によりさまざまな呼び方がある．\n\n117. イワサキワモンベニヘビ Calliophis macclellandii iwasakii M. MAKI, 1935\n　日本産のヘビ類のうちでももっとも美しいものの一つで．識別は非常にやさしい．形態的には多くの点で前種によく似ているが，上顎に溝牙以外の小歯がなく，また体に黒い縦条がないことなどの点で容易に区別できる．\n　体の背面は淡紅色ないし橙褐色．腹面は黄白色で．胴に 27〜37個，尾に 4〜6個の黒い環帯があり，また．頭部前半と後頭部から頸部とをおおう2個の黒斑がある．黒色環帯の間には，背面に鱗 1〜2 枚大の．また腹面に 1〜3 鱗をおおう黒斑がある．これらの黒色の環帯や斑紋の大きさには個体による変異が著しい．なお．頭部の黒斑は腹面に達していない．体は円筒状で．頸部は小さいが頭部よりは少し大きい．吻端は円く，吻端から頭頂板の後端までの長さは両眼間の距離のほぼ2倍に等しい．眼は小さく．その直径は眼と鼻孔との間の距離よりもはるかに小さい．鼻孔は吻の側面に開き．2枚の鼻板の間にあるが前鼻板の方に開している．鼻間板の幅は長さより大きく．その後縁は一直線になっている．額板は楯状で，その長さは最大幅の2倍に近く．両頭頂板間の縫合線よりも長い．頭頂板は大形で額板より小さい．側頭板は通常前列1枚，後列2枚であるが，稀には後列にも1枚しかない個体がある．上唇板は7枚あって，そのうちの第3枚目と第4枚目とが眼に接し．第6枚目がもっとも大きい．下唇板は6枚で，そのうち前方の4枚が前咽頭板に接し，前咽頭板と後咽頭板とは通常長さがほぼ等しいが．個体によって前咽頭板の方が長いものもある．なお．後咽頭板は互に接し合っている．体鱗は平滑で，胴のどの部分においても13列．腹板は 212〜230枚，肛板は2枚に分かれ．尾下板は 32〜40対ある．上顎には1対の溝牙だけしかない．体長：260〜370mm（尾は体長の 1\/10前後）．\n　八重山群島の特産で，石垣．西表両島から報告されている．石垣島では．このヘビのことをフエンダマハブと呼んでいるが，もちろんハブの類と直接に関係のあるものではない．元来独立種として記載されたが，牧 (1935) によって種の特徴と考えられた後側頭板の数が絶対的ではないという理由で，LOVERIDGE (1946) は上記のような取扱いを提唱し．これとは別個に高良 (1967) も同一の見解を発表した．私達もまた．八重山群島の個体群が種の段階にまで分化しているとは思わない．なお．基亜種はインドから東南アジアにかけて広く分布し，台湾には別の1亜種タイワンワモンベニヘビ Calliophis macclellandii swinhoei VAN DENBURGH, 1912 を産する．",
+        "dwc:taxonConceptID": "gbif:5226795",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Calliophis japonicus japonicus GUNTHER, 1868",
+        "dwc:family": "Elapidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5226795,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Sinomicrurus japonicus",
+    "gbif_accepted_key": 2469812,
+    "gbif_family": "Elapidae",
+    "gbif_match_type": "HIGHERRANK"
+}

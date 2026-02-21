@@ -1,0 +1,20 @@
+{
+    "id": "paper_250c8837fd4c871c09407c1cc13705b9",
+    "doi": "10.63172\/735813ganjui",
+    "title": "The type localities of Cook’s petrel (Pterodroma cookii), reef heron (Egretta sacra sacra) and wandering tattler (Tringa incana)",
+    "year": 2004,
+    "container_title": "Notornis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.63172\/735813ganjui",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.63172\/735813ganjui",
+        "dc:title": "The type localities of Cook’s petrel (Pterodroma cookii), reef heron (Egretta sacra sacra) and wandering tattler (Tringa incana)",
+        "dc:date": 2004,
+        "dc:source": "Notornis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

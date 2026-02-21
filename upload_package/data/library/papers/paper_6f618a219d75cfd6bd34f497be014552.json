@@ -1,0 +1,20 @@
+{
+    "id": "paper_6f618a219d75cfd6bd34f497be014552",
+    "doi": "10.1127\/0003-9136\/2004\/0160-0281",
+    "title": "Diet of great cormorants Phalacrocorax carbo sinensis wintering in Malause (South-West France)",
+    "year": 2004,
+    "container_title": "Archiv für Hydrobiologie",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1127\/0003-9136\/2004\/0160-0281",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1127\/0003-9136\/2004\/0160-0281",
+        "dc:title": "Diet of great cormorants Phalacrocorax carbo sinensis wintering in Malause (South-West France)",
+        "dc:date": 2004,
+        "dc:source": "Archiv für Hydrobiologie",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

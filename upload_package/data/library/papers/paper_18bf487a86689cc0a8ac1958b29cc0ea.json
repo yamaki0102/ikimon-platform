@@ -1,0 +1,20 @@
+{
+    "id": "paper_18bf487a86689cc0a8ac1958b29cc0ea",
+    "doi": "10.1676\/0043-5643(2008)120[426:aobdin]2.0.co;2",
+    "title": "Atlas Of Bird Distribution In New Zealand 1999–2004",
+    "year": 2008,
+    "container_title": "The Wilson Journal of Ornithology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1676\/0043-5643(2008)120[426:aobdin]2.0.co;2",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1676\/0043-5643(2008)120[426:aobdin]2.0.co;2",
+        "dc:title": "Atlas Of Bird Distribution In New Zealand 1999–2004",
+        "dc:date": 2008,
+        "dc:source": "The Wilson Journal of Ornithology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

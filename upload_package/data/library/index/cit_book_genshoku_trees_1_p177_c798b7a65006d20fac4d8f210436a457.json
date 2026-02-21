@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p177_c798b7a65006d20fac4d8f210436a457",
+    "book_id": "book_genshoku_trees_1",
+    "page": 177,
+    "taxon_name": "う行",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.177)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "う行",
+        "dwc:occurrenceRemarks": "ウケザキクンシラン(クリビア) V 222\nウコギ IV 152\nウサギゴケ(ムシトリスミレ) V 189\nウシコロシ(カマツカ) IV 200\nウスギヨウラク V 110\nウズラバハクサンチドリ(ウズラバ) V 224\nウソ(トリ) V 279\nウチワノキ V 162\nウツギ IV 148\nウツボグサ V 180\nウトウ(トリ) V 48\nウバメガシ IV 38\nウメ IV 170\nウメマツ V 284\n――(ウメマツドゥ) V 285\nウメメモドキ IV 279\nウラジロエノキ V 66\nウラジロガシ IV 38\nウラジロナナカマド IV 192\nウラジロノキ IV 192\nウラジロモミ V 260\nウリカエデ V 243\nウリハダカエデ V 243\nウルシ IV 274\nウワミズザクラ IV 178\nウンゼンツツジ V 104"
+    }
+}

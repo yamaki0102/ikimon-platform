@@ -1,0 +1,20 @@
+{
+    "id": "paper_0d6ef85e62d0ea1d1a523297df59fc72",
+    "doi": "10.5040\/9781472926982.0106",
+    "title": "Egretta garzetta (Linnaeus). Little Egret. Aigrette garzette.",
+    "year": 0,
+    "container_title": "The Birds of Africa",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472926982.0106",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472926982.0106",
+        "dc:title": "Egretta garzetta (Linnaeus). Little Egret. Aigrette garzette.",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

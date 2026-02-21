@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p232_8179c9a6d21b3fcc91d551e383471347",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 232,
+    "taxon_name": "マムシ (色彩変異 赤)",
+    "scientific_name": "Agkistrodon halys (Red Variant)",
+    "family": "クサリヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "PLATE_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.232)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Gloydius halys",
+        "dwc:vernacularName": "マムシ (色彩変異 赤)",
+        "dwc:occurrenceRemarks": "Plate 40 illustration (127a). Reddish variant (Aka-Mamushi).",
+        "dwc:taxonConceptID": "gbif:8976465",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Agkistrodon halys (Red Variant)",
+        "dwc:family": "Viperidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 8976465,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Gloydius halys",
+    "gbif_accepted_key": 8544034,
+    "gbif_family": "Viperidae",
+    "gbif_match_type": "EXACT"
+}

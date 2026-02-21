@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2137365,
+    "scientific_name": "Neriene japonica (Oi, 1960)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Linyphiidae",
+    "genus": "Neriene",
+    "rank": "SPECIES",
+    "original_query": "Neriene japonica",
+    "_cached_at": 1771646824
+}

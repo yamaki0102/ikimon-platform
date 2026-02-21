@@ -1,0 +1,20 @@
+{
+    "id": "paper_862fe563a005f3a97619e3028cc71710",
+    "doi": "10.1163\/156853809787392739",
+    "title": "Measuring species diversity to determine land-use effects on reptile and amphibian assemblages",
+    "year": 2009,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/156853809787392739",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/156853809787392739",
+        "dc:title": "Measuring species diversity to determine land-use effects on reptile and amphibian assemblages",
+        "dc:date": 2009,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

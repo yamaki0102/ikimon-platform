@@ -1,0 +1,20 @@
+{
+    "id": "paper_dc42a2d488dd81ef99a0140c316f7524",
+    "doi": "10.1007\/s10841-024-00628-6",
+    "title": "Population ecology of the red-winged grasshopper, Celes skalozubovi akitanus (Orthoptera, Acrididae), in Japan",
+    "year": 2024,
+    "container_title": "Journal of Insect Conservation",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1007\/s10841-024-00628-6",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/s10841-024-00628-6",
+        "dc:title": "Population ecology of the red-winged grasshopper, Celes skalozubovi akitanus (Orthoptera, Acrididae), in Japan",
+        "dc:date": 2024,
+        "dc:source": "Journal of Insect Conservation",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

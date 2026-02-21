@@ -1,0 +1,20 @@
+{
+    "id": "paper_2e21835269fa1a7a8b6bd5e395d0f36a",
+    "doi": "10.1016\/j.envpol.2006.10.044",
+    "title": "Butyltins, trace metals and morphological variables in surf scoter (Melanitta perspicillata) wintering on the south coast of British Columbia, Canada",
+    "year": 2007,
+    "container_title": "Environmental Pollution",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1016\/j.envpol.2006.10.044",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1016\/j.envpol.2006.10.044",
+        "dc:title": "Butyltins, trace metals and morphological variables in surf scoter (Melanitta perspicillata) wintering on the south coast of British Columbia, Canada",
+        "dc:date": 2007,
+        "dc:source": "Environmental Pollution",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

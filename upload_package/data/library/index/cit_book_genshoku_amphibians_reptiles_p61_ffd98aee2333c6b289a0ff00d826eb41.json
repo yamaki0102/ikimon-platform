@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p61_ffd98aee2333c6b289a0ff00d826eb41",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 61,
+    "taxon_name": "ヤマアカガエル",
+    "scientific_name": "Rana (Rana) ornativentris WERNER, 1904",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.61)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Rana (Rana) ornativentris WERNER, 1904",
+        "dwc:vernacularName": "ヤマアカガエル",
+        "dwc:occurrenceRemarks": "　背面は褐色，赤褐色または暗褐色，暗褐色または黒褐色の不規則な斑紋を散在し，とくに体側では斑紋が鮮明になる．左右の上眼瞼には暗色の横帯があり，個体によっては，これらがつながり合って浅いV字形またはY字形になっていることもある．肩胛基部の水準にある逆V字形の黒褐色紋は，一般にあまり明瞭でなく，頂端部の離れ",
+        "dwc:taxonConceptID": "gbif:2426813",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Rana (Rana) ornativentris WERNER, 1904",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2426813,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

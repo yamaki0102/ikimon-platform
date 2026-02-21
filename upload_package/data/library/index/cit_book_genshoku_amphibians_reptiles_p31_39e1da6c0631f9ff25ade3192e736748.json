@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p31_39e1da6c0631f9ff25ade3192e736748",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 31,
+    "taxon_name": "イモリ亜属",
+    "scientific_name": "Subgenus Cynops TSCHUDI, 1838",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.31)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Subgenus Cynops TSCHUDI, 1838",
+        "dwc:vernacularName": "イモリ亜属",
+        "dwc:occurrenceRemarks": "　耳腺は多少とも明瞭で，よく隆起していることが多い．麟骨後側部の突起と鱗状骨とはつねに接合し，完全な橋を形成している．尾の長さは頭胴長に等しいかあるいはそれよりも長いのを原則とし，背縁は♂でも鋸歯状にならない．卵は比較的大きくて，1個ずつ離れているかあるいは数個がつながっているが，卵塊を形成することはない．\n　日本本土，琉球列島，シナ東部などに分布し，3種で構成されている．邦産種は2亜種に分けられる．",
+        "dwc:taxonConceptID": "gbif:10069280",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Subgenus Cynops TSCHUDI, 1838",
+        "dwc:family": null,
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10069280,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": null,
+    "gbif_match_type": "HIGHERRANK"
+}

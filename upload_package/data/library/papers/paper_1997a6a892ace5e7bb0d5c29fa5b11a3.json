@@ -1,0 +1,20 @@
+{
+    "id": "paper_1997a6a892ace5e7bb0d5c29fa5b11a3",
+    "doi": "10.56178\/na.vi67.18",
+    "title": "Primera evidencia de reproducción del Estornino Crestado (&lt;i&gt;Acridotheres cristatellus&lt;\/i&gt;) en Córdoba, Argentina",
+    "year": 2022,
+    "container_title": "Nuestras Aves",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.56178\/na.vi67.18",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.56178\/na.vi67.18",
+        "dc:title": "Primera evidencia de reproducción del Estornino Crestado (&lt;i&gt;Acridotheres cristatellus&lt;\/i&gt;) en Córdoba, Argentina",
+        "dc:date": 2022,
+        "dc:source": "Nuestras Aves",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

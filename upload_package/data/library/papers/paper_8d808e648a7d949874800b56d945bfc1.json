@@ -1,0 +1,20 @@
+{
+    "id": "paper_8d808e648a7d949874800b56d945bfc1",
+    "doi": "10.63172\/984465asupun",
+    "title": "Breeding of the Cape pigeon (Daption capense) at the Snares Islands",
+    "year": 1979,
+    "container_title": "Notornis",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.63172\/984465asupun",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.63172\/984465asupun",
+        "dc:title": "Breeding of the Cape pigeon (Daption capense) at the Snares Islands",
+        "dc:date": 1979,
+        "dc:source": "Notornis",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_359cec3ee73c8d297b1b5960ae7cbc10",
+    "doi": "10.4081\/fe.2009.86",
+    "title": "A NEW LONGHORN BEETLE FROM SOCOTRA ISLAND (YEMEN) (COLEOPTERA, CERAMBYCIDAE)",
+    "year": 2009,
+    "container_title": "Fragmenta Entomologica",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.4081\/fe.2009.86",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.4081\/fe.2009.86",
+        "dc:title": "A NEW LONGHORN BEETLE FROM SOCOTRA ISLAND (YEMEN) (COLEOPTERA, CERAMBYCIDAE)",
+        "dc:date": 2009,
+        "dc:source": "Fragmenta Entomologica",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_19a461aad63ce7a7bd7989f62f0e4aec",
+    "doi": "10.2307\/3503466",
+    "title": "Spatiotemporal Characteristics of Rangeland Grasshopper (Orthoptera: Acrididae) Regional Outbreaks in Montana",
+    "year": 1995,
+    "container_title": "Journal of Orthoptera Research",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/3503466",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/3503466",
+        "dc:title": "Spatiotemporal Characteristics of Rangeland Grasshopper (Orthoptera: Acrididae) Regional Outbreaks in Montana",
+        "dc:date": 1995,
+        "dc:source": "Journal of Orthoptera Research",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_67cebd57873bcbfa5f39b364964270a2",
+    "doi": "10.2173\/bna.66",
+    "title": "Laysan Albatross (Phoebastria immutabilis)",
+    "year": 2009,
+    "container_title": "The Birds of North America Online",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2173\/bna.66",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2173\/bna.66",
+        "dc:title": "Laysan Albatross (Phoebastria immutabilis)",
+        "dc:date": 2009,
+        "dc:source": "The Birds of North America Online",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

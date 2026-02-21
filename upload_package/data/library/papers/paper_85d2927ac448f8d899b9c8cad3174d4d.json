@@ -1,0 +1,20 @@
+{
+    "id": "paper_85d2927ac448f8d899b9c8cad3174d4d",
+    "doi": "10.11646\/zootaxa.4524.4.6",
+    "title": "A new species of black fly with a yellow thorax in the genus Prosimulium (Diptera: Simuliidae) in Japan",
+    "year": 2018,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.4524.4.6",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.4524.4.6",
+        "dc:title": "A new species of black fly with a yellow thorax in the genus Prosimulium (Diptera: Simuliidae) in Japan",
+        "dc:date": 2018,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

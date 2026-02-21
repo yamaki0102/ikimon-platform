@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p12_76326af3b71021bdd5d4929985c3ba1a",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 12,
+    "taxon_name": "サンショウウオ科 (概説)",
+    "scientific_name": "Family Hynobiidae",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.12)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Family Hynobiidae",
+        "dwc:vernacularName": "サンショウウオ科 (概説)",
+        "dwc:occurrenceRemarks": "サンショウウオ科　Hynobiidae\n\n　成体には外鰓がなく，眼瞼がよく発達している．前顎骨の突起は短かくて，左右の鼻骨が正中線上で接し合っている．鋤口蓋歯列は鋤口蓋骨の前端に位置することがなく，左右の歯列の後端が接し合って（または著しく接近して）前方では広く離れているか，あるいはゆるい狐状の歯列が横に並んでいる．変態後にも第2上鰓骨が残る．"
+    }
+}

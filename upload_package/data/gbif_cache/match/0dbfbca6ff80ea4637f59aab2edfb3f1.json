@@ -1,0 +1,18 @@
+{
+    "taxon_key": 8176507,
+    "scientific_name": "Neoscona mellotteei (Simon, 1895)",
+    "status": "ACCEPTED",
+    "match_type": "FUZZY",
+    "confidence": 96,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Arthropoda",
+    "class": "Arachnida",
+    "order": "Araneae",
+    "family": "Araneidae",
+    "genus": "Neoscona",
+    "rank": "SPECIES",
+    "original_query": "Neoscona melloteei",
+    "_cached_at": 1771646859
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_913174ceafdbb1f8777c3a46154401d3_dc4db780b043e59521fe244beddab621",
+    "paper_id": "paper_913174ceafdbb1f8777c3a46154401d3",
+    "doi": "10.21203\/rs.3.rs-616657\/v1",
+    "query_id": "jp_insect_sasakia_charonda",
+    "query_label": "Sasakia charonda Japan (Ohmurasaki)",
+    "scientific_name": "Sasakia charonda",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.21203\/rs.3.rs-616657\/v1",
+        "dwc:scientificName": "Sasakia charonda",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:5128519",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Sasakia charonda",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Nymphalidae"
+    },
+    "gbif_taxon_key": 5128519,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Nymphalidae"
+}

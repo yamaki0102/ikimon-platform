@@ -1,0 +1,20 @@
+{
+    "id": "paper_a11acddaf1775d4c9e2d4457506745a0",
+    "doi": "10.1007\/978-3-319-91944-7_2",
+    "title": "Cherry Breeding: Sweet Cherry (Prunus avium L.) and Sour Cherry (Prunus cerasus L.)",
+    "year": 2018,
+    "container_title": "Advances in Plant Breeding Strategies: Fruits",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1007\/978-3-319-91944-7_2",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/978-3-319-91944-7_2",
+        "dc:title": "Cherry Breeding: Sweet Cherry (Prunus avium L.) and Sour Cherry (Prunus cerasus L.)",
+        "dc:date": 2018,
+        "dc:source": "Advances in Plant Breeding Strategies: Fruits",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

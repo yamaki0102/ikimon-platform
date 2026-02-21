@@ -1,0 +1,20 @@
+{
+    "id": "paper_1bf3f9df0f31dfd83f9de28d9cb59bbd",
+    "doi": "10.7717\/peerj.13891",
+    "title": "A new species of lotic breeding salamander (Amphibia, Caudata, Hynobiidae) from Shikoku, Japan",
+    "year": 2022,
+    "container_title": "PeerJ",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.7717\/peerj.13891",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.7717\/peerj.13891",
+        "dc:title": "A new species of lotic breeding salamander (Amphibia, Caudata, Hynobiidae) from Shikoku, Japan",
+        "dc:date": 2022,
+        "dc:source": "PeerJ",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

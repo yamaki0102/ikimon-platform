@@ -1,0 +1,20 @@
+{
+    "id": "paper_0908bd84b3c5ef0e37164b2106e76b16",
+    "doi": "10.5253\/arde.v109i2.a25",
+    "title": "When Gate Crashers Show Up: Does Expansion of Great Cormorant Phalacrocorax carbo in North-Western Italy Affect Breeding Site Selection in Grey Heron Ardea cinerea?",
+    "year": 2022,
+    "container_title": "Ardea",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5253\/arde.v109i2.a25",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5253\/arde.v109i2.a25",
+        "dc:title": "When Gate Crashers Show Up: Does Expansion of Great Cormorant Phalacrocorax carbo in North-Western Italy Affect Breeding Site Selection in Grey Heron Ardea cinerea?",
+        "dc:date": 2022,
+        "dc:source": "Ardea",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

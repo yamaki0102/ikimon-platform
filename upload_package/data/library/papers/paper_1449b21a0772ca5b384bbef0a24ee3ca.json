@@ -1,0 +1,20 @@
+{
+    "id": "paper_1449b21a0772ca5b384bbef0a24ee3ca",
+    "doi": "10.1525\/auk.2008.4708.3",
+    "title": ":Atlas of Bird Distribution in New Zealand 1999--2004",
+    "year": 2008,
+    "container_title": "The Auk",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1525\/auk.2008.4708.3",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1525\/auk.2008.4708.3",
+        "dc:title": ":Atlas of Bird Distribution in New Zealand 1999--2004",
+        "dc:date": 2008,
+        "dc:source": "The Auk",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

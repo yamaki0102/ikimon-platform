@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_34dfd4c984d2bbfa79b81a956d548f06_d6a8e1ee57da4962db3adc796414b6c7",
+    "paper_id": "paper_34dfd4c984d2bbfa79b81a956d548f06",
+    "doi": "10.14491\/jbba.00025",
+    "query_id": "jp_bird_2481886_en",
+    "query_label": "Phalacrocorax capillatus Japan (ecology\/distribution)",
+    "scientific_name": "Phalacrocorax capillatus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.14491\/jbba.00025",
+        "dwc:scientificName": "Phalacrocorax capillatus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481886",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Phalacrocorax capillatus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Phalacrocoracidae"
+    },
+    "gbif_taxon_key": 2481886,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Phalacrocoracidae"
+}

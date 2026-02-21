@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p197_4c614360da93c0a041b22e537de151eb",
+    "book_id": "book_genshoku_trees_1",
+    "page": 197,
+    "taxon_name": "U",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.197)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "U",
+        "dwc:occurrenceRemarks": "Ulmus IV 40\n  davidiana var. japonica IV 40\n  glabra IV 39\n  laciniata IV 45\n  parvifolia IV 40\nUncaria V 176\n  rhynchophylla V 176\nUrena V 60\n  lobata var. tomentosa V 60"
+    }
+}

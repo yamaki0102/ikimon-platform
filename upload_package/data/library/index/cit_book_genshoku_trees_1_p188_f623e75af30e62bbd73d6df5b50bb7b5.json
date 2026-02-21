@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p188_f623e75af30e62bbd73d6df5b50bb7b5",
+    "book_id": "book_genshoku_trees_1",
+    "page": 188,
+    "taxon_name": "D",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.188)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "D",
+        "dwc:occurrenceRemarks": "Dalbergia IV 250\n  sissoo IV 250\nDamnacanthus V 175\n  indicus V 176\n  --var. major V 176\n  macrophyllus var. giganteus V 176\n  major V 176\nDaphne IV 229\n  genkwa IV 229\n  kamtschatica var. jezoensis V 72\n  kiusiana V 71\n  miyabeana V 72\n  odora V 70\n  --f. alba V 70\n  pseudo-mezereum V 72\nDaphniphyllum V 272\n  macropodum V 272\n  --var. humile V 272\n  teijsmanni V 272\nDavidia V 101\n  involucrata V 101\nDebregeasia IV 58\n  edulis IV 58\nDecaisnea IV 106\n  fargesii IV 106\nDendrobium V 187\n  moniliforme V 187\nDendropanax IV 150\n  trifidus IV 150\nDesmodium IV 252\n  caudatum V 157\nDeutzia IV 148\n  crenata IV 148\n  gracilis IV 151\n  scabra IV 148\nDianthus V 240\n  superbus V 230\n  --var. longicalycinus V 240\nDicentra IV 103\n  peregrina IV 103\n  spectabilis IV 103\nDichroa IV 147\n  febrifuga V 162\nDiervilla V 208\n  decora V 210\n  hortensis V 208\n  --var. albiflora V 162\n  japonica V 209\n  praecox V 208\nDigitalis V 227\n  purpurea V 227\nDiospyros V 144\n  kaki V 144\n  lotus V 145\n  morrisiana V 150\nDipelta V 211\n  ventricosa V 211\nDisanthus IV 144\n  cercidifolius IV 145\nDistylium IV 145\n  racemosum IV 145\nDocynia V 27\n  delavayi V 28\n  rufifolia V 27\nDodonaea V 169\n  viscosa V 169\nDracaena V 217\n  godseffiana V 218\nDryas IV 231\n  octopetala var. asiatica IV 231"
+    }
+}

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<archive xmlns="http://rs.tdwg.org/dwc/text/"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns:xs="http://www.w3.org/2001/XMLSchema"
+         xsi:schemaLocation="http://rs.tdwg.org/dwc/text/ http://rs.tdwg.org/dwc/text/tdwg_dwc_text.xsd"
+         metadata="eml.xml">
+  <core encoding="UTF-8" fieldsTerminatedBy="," linesTerminatedBy="\n" fieldsEnclosedBy="&quot;" ignoreHeaderLines="1" rowType="http://rs.tdwg.org/dwc/terms/Occurrence">
+    <files>
+      <location>occurrence.csv</location>
+    </files>
+    <id index="0"/>
+    <field index="0" term="http://rs.tdwg.org/dwc/terms/occurrenceID"/>
+    <field index="1" term="http://rs.tdwg.org/dwc/terms/basisOfRecord"/>
+    <field index="2" term="http://purl.org/dc/terms/license"/>
+    <field index="3" term="http://purl.org/dc/terms/rightsHolder"/>
+    <field index="4" term="http://rs.tdwg.org/dwc/terms/eventDate"/>
+    <field index="5" term="http://rs.tdwg.org/dwc/terms/scientificName"/>
+    <field index="6" term="http://rs.tdwg.org/dwc/terms/taxonRank"/>
+    <field index="7" term="http://rs.tdwg.org/dwc/terms/recordedBy"/>
+    <field index="8" term="http://rs.tdwg.org/dwc/terms/decimalLatitude"/>
+    <field index="9" term="http://rs.tdwg.org/dwc/terms/decimalLongitude"/>
+    <field index="10" term="http://rs.tdwg.org/dwc/terms/coordinateUncertaintyInMeters"/>
+    <field index="11" term="http://rs.tdwg.org/dwc/terms/country"/>
+    <field index="12" term="http://rs.tdwg.org/dwc/terms/stateProvince"/>
+    <field index="13" term="http://rs.tdwg.org/dwc/terms/municipality"/>
+    <field index="14" term="http://rs.tdwg.org/dwc/terms/establishmentMeans"/>
+    <field index="15" term="http://rs.tdwg.org/dwc/terms/associatedMedia"/>
+    <field index="16" term="http://rs.tdwg.org/dwc/terms/occurrenceRemarks"/>
+    <field index="17" term="http://rs.tdwg.org/dwc/terms/identificationVerificationStatus"/>
+    <field index="18" term="http://rs.tdwg.org/dwc/terms/taxonConceptID"/>
+    <field index="19" term="http://rs.tdwg.org/dwc/terms/informationWithheld"/>
+    <field index="20" term="http://rs.tdwg.org/dwc/terms/habitat"/>
+    <field index="21" term="http://rs.tdwg.org/dwc/terms/lifeStage"/>
+    <field index="22" term="http://purl.org/dc/terms/references"/>
+  </core>
+</archive>

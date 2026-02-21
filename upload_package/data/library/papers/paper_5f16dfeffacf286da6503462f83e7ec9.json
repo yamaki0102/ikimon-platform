@@ -1,0 +1,20 @@
+{
+    "id": "paper_5f16dfeffacf286da6503462f83e7ec9",
+    "doi": "10.5962\/p.323270",
+    "title": "Mandarin Duck, Aix galericulata [Pl. 69]",
+    "year": 1852,
+    "container_title": "The Birds of Asia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.323270",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.323270",
+        "dc:title": "Mandarin Duck, Aix galericulata [Pl. 69]",
+        "dc:date": 1852,
+        "dc:source": "The Birds of Asia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_07d96b994decc9b8e093fdb947422d13",
+    "doi": "10.1007\/978-3-642-85791-1_16",
+    "title": "Skin Carcinogenesis, Mammals Versus Amphibia",
+    "year": 1969,
+    "container_title": "Recent Results in Cancer Research",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1007\/978-3-642-85791-1_16",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1007\/978-3-642-85791-1_16",
+        "dc:title": "Skin Carcinogenesis, Mammals Versus Amphibia",
+        "dc:date": 1969,
+        "dc:source": "Recent Results in Cancer Research",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

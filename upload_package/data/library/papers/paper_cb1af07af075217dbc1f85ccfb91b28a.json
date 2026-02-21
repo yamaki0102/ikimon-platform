@@ -1,0 +1,20 @@
+{
+    "id": "paper_cb1af07af075217dbc1f85ccfb91b28a",
+    "doi": "10.5040\/9781472926982.0181",
+    "title": "Mergus serrator Linnaeus. Red-breasted Merganser. Harle huppé.",
+    "year": 0,
+    "container_title": "The Birds of Africa",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472926982.0181",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472926982.0181",
+        "dc:title": "Mergus serrator Linnaeus. Red-breasted Merganser. Harle huppé.",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p27_6de6320a070c38466b6d46b78d997c0d",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 27,
+    "taxon_name": "キタサンショウウオ",
+    "scientific_name": "Salamandrella keyserlingii DYBOWSKI, 1870",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "90〜120mm",
+        "season": "5月頃",
+        "distribution": "北海道 (釧路付近など東部の湿地), 国外 (北千島, シベリア等)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.27)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Salamandrella keyserlingii DYBOWSKI, 1870",
+        "dwc:vernacularName": "キタサンショウウオ",
+        "dwc:occurrenceRemarks": "　体は青味を帯びた褐色で，背面中央部のほとんど全長にわたって黄褐色の縦条があり，その両側の部分は黒い縦線によって縁どられている．この黄褐条は，頭部では色が暗くなり，黒褐色の斑点をそなえている．背中線上には，縦に連なった黒色の斑点がある．腹面は背面より色が淡く，暗青色の斑点を散布している．頭部は長卵形で吻端がややとがり，鼻孔は眼と吻端とのほぼ中央に位置している．眼は大きくてよく突出し，耳腺は比較的大きくてその上縁を明瞭な溝線で区切られている．胴は円筒状で，肋条の数は背面に13本，腹面に11〜12本．四肢は短かくて比較的細く，指趾も短かくて扁平．尾は胴よりも長く，後方に向かって著しく側扁してひれ状になっている．体長：90〜120mm（尾は体長の1\/2ぐらい）．\n　国内で知られている確実な産地は北海道の釧路付近だけであるが，おそらく北海道東部の湿地に広く分布するものと思われる．5月頃池沼や溝などの止水に1対ずつ卵嚢を産みつける．卵嚢は巻いたひも状で透明，黄褐色の小形の卵を1卵嚢中に50〜100個ぐらい含んでいる．なお，この種が北上山地にも分布しているように考えられたことがあるが，事実はハコネサンショウウオの極端な変りものの誤認である．",
+        "dwc:taxonConceptID": "gbif:5218334",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Salamandrella keyserlingii DYBOWSKI, 1870",
+        "dwc:family": "Hynobiidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 5218334,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Hynobiidae",
+    "gbif_match_type": "EXACT"
+}

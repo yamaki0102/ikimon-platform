@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p190_28bdf878b9e08fcef4c206e355a06836",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 190,
+    "taxon_name": "シュウダ (続き)",
+    "scientific_name": "Elaphe carinata carinata (GUNTHER, 1864)",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.190)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Elaphe carinata carinata (GUNTHER, 1864)",
+        "dwc:vernacularName": "シュウダ (続き)",
+        "dwc:occurrenceRemarks": "きく．額板は盾形で後端がとがり，その長さは鼻間板と前額板との長さの和に等しいかまたはこれより大きい．頭頂板は額板よりも大きいが．幅が広くて比較的短かい．眼上板は大形で，前端が前額板に接している．頰板は高さよりも長くて下縁が後方に伸び，眼前板は1枚で大きく上端部が背面から見える．眼前下板は1枚で小形．眼後板は小さくて 2〜3 枚ある．側頭板の前列のものは長く後列のものは短かく．その数は (1〜3)+(2〜3)．上唇板は8枚（時には7枚），普通は 4〜5 両上唇板が眼に接し．第7上唇板がもっとも大きい．下唇板は 9〜11枚あって最初の 4〜5 枚が前咽頭板に接し．第5下唇板か第6下唇板がもっとも大きい．第1下唇板は組長くて頤板の後側で左右連結し，その間の縫合線の長さは第1下唇板と頤板との縫合線の長さよりも明らかに小さい．前咽頭板は後咽頭板よりも長く，後者は小鱗によって左右に隔てられている．後咽頭板と第1腹板との間には普通2対の鱗がある．体鱗は．頸部で 21〜25列．胴の中央部で普通23列（稀には21列）．後部では 17〜19列．外側の 1〜2 鱗列以外では鱗の全長にわたる顕著な隆条がある．腹板には側稜があって．その数は 210〜225枚ぐらい．肛板2分し，尾下板は 80〜100対ぐらいある．上顎歯は17本あって後方のものほど小さい．体長：1,300〜2,300mm（尾の占める割合は体長の 1\/6〜1\/5）．\n　シナの中部および南部．インドシナ北部．台湾などに拡がり．日本の領域では尖閣列島の魚釣島．南小島および北小島だけから知られている．行動が敏捷で興奮すると音を出すが，性質はごくおとなしい．しかし，捕らえると肛腺から強い悪臭を出すのでシュウダ（臭蛇）の名がある．好んで他のヘビを捕食し，シナでは猛毒のあるヒャッポダまで食べていたことが報告されている．また．ネズミや小鳥なども襲う．\n\n100. ヨナグニシュウダ Elaphe carinata yonaguniensis TAKARA, 1963\n　背面は褐色ないし黒褐色で，個体によって，背面正中線上の1鱗列が，胴の前方で 5〜6 鱗おきに1鱗ずつ黒緑色のものと，色彩のいちようなものとがある．後方では，\n\n第26図．シュウダの頭部；左から右へ背面，腹面および左側面．",
+        "dwc:taxonConceptID": "gbif:7061617",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Elaphe carinata carinata (GUNTHER, 1864)",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 7061617,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "EXACT"
+}

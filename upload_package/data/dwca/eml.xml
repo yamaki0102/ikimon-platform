@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns:dc="http://purl.org/dc/terms/"
+         xsi:schemaLocation="eml://ecoinformatics.org/eml-2.1.1 http://rs.gbif.org/schema/eml-gbif-profile/1.2/eml.xsd"
+         packageId="ikimon-life-dwca-v1" system="https://ikimon.life" scope="system"
+         xml:lang="ja">
+
+  <dataset>
+    <alternateIdentifier>https://ikimon.life/api/export_dwca.php</alternateIdentifier>
+
+    <title xml:lang="ja">ikimon.life — 市民参加型生物多様性観察データ</title>
+    <title xml:lang="en">ikimon.life — Citizen Science Biodiversity Occurrence Data</title>
+
+    <creator>
+      <organizationName>ikimon.life</organizationName>
+      <address>
+        <country>JP</country>
+      </address>
+      <electronicMailAddress>contact@ikimon.life</electronicMailAddress>
+      <onlineUrl>https://ikimon.life</onlineUrl>
+    </creator>
+
+    <metadataProvider>
+      <organizationName>ikimon.life</organizationName>
+      <electronicMailAddress>contact@ikimon.life</electronicMailAddress>
+      <onlineUrl>https://ikimon.life</onlineUrl>
+    </metadataProvider>
+
+    <pubDate>2026-02-20</pubDate>
+
+    <language>ja</language>
+
+    <abstract>
+      <para xml:lang="ja">
+        ikimon.life は日本を拠点とする市民参加型の生物多様性観察プラットフォームです。
+        ユーザーがスマートフォンで撮影・投稿した野生生物の観察記録を、コミュニティによる
+        合意ベースの同定プロセスを通じて「研究グレード」に昇格させ、科学的に信頼性の
+        高いデータとして提供します。
+
+        このデータセットには、複数のユーザーによる合意が得られた研究グレード品質の
+        観察記録のみが含まれます。絶滅危惧種（環境省レッドリスト・都道府県版レッド
+        リスト掲載種）の位置情報は、密猟防止のため自動的にランダム化（半径10km圏内）
+        されています。
+      </para>
+      <para xml:lang="en">
+        ikimon.life is a Japan-based citizen science platform for biodiversity observation.
+        Users photograph and record wildlife via smartphones. Observations are elevated to
+        "Research Grade" through a community-driven, weighted consensus identification process.
+
+        This dataset contains only Research Grade quality observations with community-verified
+        identifications. Location data for threatened species (listed on Japan's Ministry of
+        Environment Red List or Prefectural Red Lists) is automatically randomized within a
+        10km radius to prevent poaching.
+      </para>
+    </abstract>
+
+    <keywordSet>
+      <keyword>Occurrence</keyword>
+      <keyword>Observation</keyword>
+      <keyword>Citizen Science</keyword>
+      <keyword>Biodiversity</keyword>
+      <keyword>Japan</keyword>
+      <keyword>市民科学</keyword>
+      <keyword>生物多様性</keyword>
+      <keyword>30by30</keyword>
+      <keywordThesaurus>GBIF Dataset Type Vocabulary: http://rs.gbif.org/vocabulary/gbif/dataset_type.xml</keywordThesaurus>
+    </keywordSet>
+
+    <intellectualRights>
+      <para>
+        このデータセットに含まれる個々のレコードには、投稿者が選択したクリエイティブ・コモンズ
+        ライセンス（CC0, CC BY, CC BY-NC）が適用されます。GBIF経由で公開されるデータには
+        CC0 および CC BY ライセンスのレコードのみが含まれます。
+        各レコードの具体的なライセンスは occurrence.csv の license フィールドを参照してください。
+      </para>
+    </intellectualRights>
+
+    <coverage>
+      <geographicCoverage>
+        <geographicDescription>日本全国（主に静岡県・関東地方を中心とする記録）</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>122.93</westBoundingCoordinate>
+          <eastBoundingCoordinate>153.99</eastBoundingCoordinate>
+          <northBoundingCoordinate>45.55</northBoundingCoordinate>
+          <southBoundingCoordinate>24.04</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <taxonomicCoverage>
+        <generalTaxonomicCoverage>
+          あらゆる生物群（動物、植物、菌類、原生生物等）を対象とします。
+          分類学的な偏りは市民科学の特性上存在します（鳥類・昆虫類・顕花植物に偏る傾向）。
+        </generalTaxonomicCoverage>
+      </taxonomicCoverage>
+    </coverage>
+
+    <maintenance>
+      <description>
+        <para>データは投稿・同定のたびにリアルタイムで更新されます。DwC-Aエクスポートはリクエスト時に最新データから生成されます。</para>
+      </description>
+      <maintenanceUpdateFrequency>asNeeded</maintenanceUpdateFrequency>
+    </maintenance>
+
+    <contact>
+      <organizationName>ikimon.life</organizationName>
+      <electronicMailAddress>contact@ikimon.life</electronicMailAddress>
+      <onlineUrl>https://ikimon.life</onlineUrl>
+    </contact>
+
+  </dataset>
+</eml:eml>

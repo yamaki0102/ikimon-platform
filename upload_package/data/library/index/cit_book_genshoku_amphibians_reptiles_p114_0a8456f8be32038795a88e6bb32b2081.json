@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p114_0a8456f8be32038795a88e6bb32b2081",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 114,
+    "taxon_name": "トカゲ目",
+    "scientific_name": "SQUAMATA",
+    "family": "トカゲ目",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.114)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "SQUAMATA",
+        "dwc:vernacularName": "トカゲ目",
+        "dwc:occurrenceRemarks": "　頭骨には側頭窩が1個しかなく，下方の橋もなくなって，側頭部が下方で大きく開いている．進んだ形態のものでは，側頭部の橋の背方のものもなくなり．側頭窩も骨板でおおわれるようになる．後眼頂骨，板状骨，方形頰骨などがなく，涙骨もなくなっていることが多い．左右の前額骨や頭頂骨は癒合していることが多く，翼状骨が鋤骨に接していない．普通は上側頭骨がある．方骨はよく発達し，頭蓋と可動的に関節している．歯は一般に側生であるが，頂生のものや槽生に近いものもある．脊椎骨は一般に前凹形であるが，ヤモリ類などのように両凹形のものもある．頸椎には肋骨突起のあるのが普通で，肋骨は単頭．肩胛帯，腰帯，四肢などは，よく発達しているものから退化したものまである．肛門裂は体軸に直角で，陰茎は対になっている．\n　この目の動物は，爬虫類のうちでももっとも進んだ形態をもち，中生代の後半に側頭窩の2個ある祖先型（たとえばムカシトカゲ目のような形態のもの）から分かれて，新生代になってから急激な分化を遂げたものである．生活型も多種多様で，地上性または樹上性の種類が多いが，地中性，淡水性あるいは海生などのものもあり，また．空中を滑走できるものさえある．普通はトカゲ亜目とヘビ亜目とに分類され．邦産種に関する限り四肢の有無だけで亜目を区別できる．しかし，国外には，トカゲ亜目に属するものでも四肢のない種類があり，一般に高度の進化を遂げたものほどヘビ型に近づく傾向がある．また，後にも述べるように，これらの亜目をそれぞれ独立の目にする意見もある．",
+        "dwc:taxonConceptID": "gbif:11592253",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "SQUAMATA",
+        "dwc:family": null,
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 11592253,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": null,
+    "gbif_match_type": "HIGHERRANK"
+}

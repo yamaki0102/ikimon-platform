@@ -1,0 +1,20 @@
+{
+    "id": "paper_ead861670ff01fd16068af3f426e0c7a",
+    "doi": "10.5040\/9781472927040.0115",
+    "title": "Aythya fuligula Tufted Duck Fuligule morillon",
+    "year": 0,
+    "container_title": "The Birds of Africa : The Malagasy Region",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472927040.0115",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472927040.0115",
+        "dc:title": "Aythya fuligula Tufted Duck Fuligule morillon",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa : The Malagasy Region",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

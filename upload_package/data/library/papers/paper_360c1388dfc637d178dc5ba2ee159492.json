@@ -1,0 +1,20 @@
+{
+    "id": "paper_360c1388dfc637d178dc5ba2ee159492",
+    "doi": "10.1163\/156853803322440790",
+    "title": "Digestive ecology of two omnivorous Canarian lizard species (Gallotia, Lacertidae)",
+    "year": 2003,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/156853803322440790",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/156853803322440790",
+        "dc:title": "Digestive ecology of two omnivorous Canarian lizard species (Gallotia, Lacertidae)",
+        "dc:date": 2003,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2480839,
+    "scientific_name": "Gorsachius goisagi (Temminck, 1836)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Pelecaniformes",
+    "family": "Ardeidae",
+    "genus": "Gorsachius",
+    "rank": "SPECIES",
+    "original_query": "Gorsachius goisagi",
+    "_cached_at": 1770426432
+}

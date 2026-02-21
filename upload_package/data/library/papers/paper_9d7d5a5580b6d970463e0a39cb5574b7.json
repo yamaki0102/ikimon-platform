@@ -1,0 +1,20 @@
+{
+    "id": "paper_9d7d5a5580b6d970463e0a39cb5574b7",
+    "doi": "10.5962\/p.310762",
+    "title": "The Reed Bunting, Emberiza schoeniclus (Pl. 219)",
+    "year": 1795,
+    "container_title": "The Naturalist's Miscellany",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5962\/p.310762",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5962\/p.310762",
+        "dc:title": "The Reed Bunting, Emberiza schoeniclus (Pl. 219)",
+        "dc:date": 1795,
+        "dc:source": "The Naturalist's Miscellany",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

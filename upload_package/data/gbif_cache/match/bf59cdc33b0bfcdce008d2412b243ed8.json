@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2480350,
+    "scientific_name": "Pelecanus onocrotalus Linnaeus, 1758",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Pelecaniformes",
+    "family": "Pelecanidae",
+    "genus": "Pelecanus",
+    "rank": "SPECIES",
+    "original_query": "Pelecanus onocrotalus",
+    "_cached_at": 1770426467
+}

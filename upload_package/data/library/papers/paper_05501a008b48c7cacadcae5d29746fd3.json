@@ -1,0 +1,20 @@
+{
+    "id": "paper_05501a008b48c7cacadcae5d29746fd3",
+    "doi": "10.2307\/2989660",
+    "title": "Ecology of the Coconut Rhinoceros Beetle, Oryctes rhinoceros (L.) (Coleoptera: Dynastidae)",
+    "year": 1973,
+    "container_title": "Biotropica",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.2307\/2989660",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.2307\/2989660",
+        "dc:title": "Ecology of the Coconut Rhinoceros Beetle, Oryctes rhinoceros (L.) (Coleoptera: Dynastidae)",
+        "dc:date": 1973,
+        "dc:source": "Biotropica",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

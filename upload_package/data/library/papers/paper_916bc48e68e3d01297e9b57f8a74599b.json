@@ -1,0 +1,20 @@
+{
+    "id": "paper_916bc48e68e3d01297e9b57f8a74599b",
+    "doi": "10.1023\/b:bioc.0000014462.83594.58",
+    "title": "Butterfly community composition and conservation in and around a primary woodland of Mount Fuji, central Japan",
+    "year": 2004,
+    "container_title": "Biodiversity &amp; Conservation",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1023\/b:bioc.0000014462.83594.58",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1023\/b:bioc.0000014462.83594.58",
+        "dc:title": "Butterfly community composition and conservation in and around a primary woodland of Mount Fuji, central Japan",
+        "dc:date": 2004,
+        "dc:source": "Biodiversity &amp; Conservation",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

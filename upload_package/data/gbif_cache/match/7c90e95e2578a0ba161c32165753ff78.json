@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2458390,
+    "scientific_name": "Elaphe climacophora (Boie, 1826)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Colubridae",
+    "genus": "Elaphe",
+    "rank": "SPECIES",
+    "original_query": "Elaphe climacophora",
+    "_cached_at": 1770420268
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_8aa1faaedbf608f204da89954f79f415",
+    "doi": "10.11646\/zootaxa.4651.3.1",
+    "title": "A revision of Hynobius stejnegeri, a lotic breeding salamander from western Japan, with a description of three new species (Amphibia, Caudata, Hynobiidae)",
+    "year": 2019,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.4651.3.1",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.4651.3.1",
+        "dc:title": "A revision of Hynobius stejnegeri, a lotic breeding salamander from western Japan, with a description of three new species (Amphibia, Caudata, Hynobiidae)",
+        "dc:date": 2019,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

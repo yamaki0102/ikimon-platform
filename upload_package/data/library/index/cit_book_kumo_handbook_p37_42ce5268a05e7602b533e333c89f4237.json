@@ -1,0 +1,48 @@
+{
+    "id": "cit_book_kumo_handbook_p37_42ce5268a05e7602b533e333c89f4237",
+    "book_id": "book_kumo_handbook",
+    "page": 37,
+    "taxon_name": "コゲチャオニグモ",
+    "scientific_name": "Neoscona punctigera",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 7〜16mm, male: 7〜9mm",
+        "season": "春〜夏",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "夕方",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.37)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Neoscona punctigera",
+        "dwc:vernacularName": "コゲチャオニグモ",
+        "dwc:occurrenceRemarks": "体は茶色で無地のものから、模様が入ったものまで変異に富む。夜行性で里山に多く、夕方に林縁などの植物の間に円網を張る。幼体のころは褐色で腹部全体が毛深い。同じ環境にヤマシロオニグモ（p.66）やサツマノミダマシ（p.64）など同属他種がいるが、色や模様の違いで区別できる。",
+        "dwc:taxonConceptID": "gbif:2158866",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Neoscona punctigera",
+        "dwc:family": "Araneidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2158866,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Araneidae",
+    "gbif_match_type": "EXACT"
+}

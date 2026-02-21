@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p48_6b28789ffa449a66d13ea0e75327f793",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 48,
+    "taxon_name": "スズガエル属",
+    "scientific_name": "Genus Bombina OKEN, 1816",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.48)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Genus Bombina OKEN, 1816",
+        "dwc:vernacularName": "スズガエル属",
+        "dwc:occurrenceRemarks": "　体表の皮膚は粗雑で，多数の隆起におおわれている．瞳孔は円形，三角形または心臓形，鼓膜は表面に現われていない．舌は卵形で端縁が円く，全面で固着していて後部を引き起こすことができない．鋤口蓋歯板は小さくて横に長く，内鼻孔の後方に1対存在する．上胸骨がない．みずかきは指間にはないが，趾間にはかなり発達している．指趾骨の末端はとがっている．幼生では，噴水孔も肛門も腹面の正中線上に開き，尾の背鰭が胴の背面に伸長している．歯式は2\/3で，下唇の第3歯列は2分していることがある．\n　4種を含み，2種がヨーロッパなどに，また他の2種が極東地方に分布している．",
+        "dwc:taxonConceptID": "gbif:10514845",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Genus Bombina OKEN, 1816",
+        "dwc:family": "Formicidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10514845,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Formicidae",
+    "gbif_match_type": "HIGHERRANK"
+}

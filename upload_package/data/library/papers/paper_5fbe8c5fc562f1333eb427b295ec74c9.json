@@ -1,0 +1,20 @@
+{
+    "id": "paper_5fbe8c5fc562f1333eb427b295ec74c9",
+    "doi": "10.1163\/017353710x541887",
+    "title": "Stability and annual return rates in amphibian populations",
+    "year": 2011,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/017353710x541887",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/017353710x541887",
+        "dc:title": "Stability and annual return rates in amphibian populations",
+        "dc:date": 2011,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

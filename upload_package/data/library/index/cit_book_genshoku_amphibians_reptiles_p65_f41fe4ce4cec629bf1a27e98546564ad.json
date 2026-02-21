@@ -1,0 +1,42 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p65_f41fe4ce4cec629bf1a27e98546564ad",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 65,
+    "taxon_name": "ダルマガエル",
+    "scientific_name": "Rana (Rana) brevipoda R. ITO, 1941",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": "東海〜瀬戸内, 関東, 仙台平野, 越後平野"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.65)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Pelophylax porosus",
+        "dwc:vernacularName": "ダルマガエル",
+        "dwc:occurrenceRemarks": "　地域的な変異が著しく，東海地方から瀬戸内海の沿岸地域にかけて分布している個体群では前種との間に明確な差異があるが，東日本には，トノサマガエルとの形態的な区別点が明瞭でないものも出てくる．しかし，この種では，一般に後肢が短かく，体背の暗色斑紋は比較的数が少なくて多少とも孤立し，婚姻色が明瞭でない．\n　模式的な個体では，*) 背面の基色が雌雄ともに淡褐色，褐色または紫褐色で，背側線の隆条は赤褐色または銅色，黒褐色の斑紋は比較的数が少なく，原則として孤立し，トノサマガエルの場合のように概ねつながり合ってはいない．また，雌雄による斑紋の差異もほとんど認められない．瀬戸内海沿岸地方の個体群では，これらの黒褐色斑紋の数がとくに少なくなり，形も円くなる．背中線上には，淡緑色または淡黄褐色の完全な縦条があるものと，そのような縦条の認められないものとがあるが，瀬戸内海沿岸地方に分布する個体にはつねに淡色縦条がない．後肢背面の黒褐色斑紋は，一般に規則的な横帯を形成し，とくに脛部の上半部，下顎部や胸部には，暗褐色の雲状斑紋があるのを原則とする．東日本（関東地方，仙台平野，越後平野など）の個体群では，背面の基色に緑色や黄色の色調の強いものもあり，また，大部分の個体に背中線上の淡色縦条がある．黒褐色の斑紋は比較的数が多く，多少とも接し合ったりつながり合ったりしていることが少なくない（とくに体側の斑紋のつながり合っているものが多い）．後肢背面の黒斑は，模式的な個体の場合ほど明瞭な横帯にならず，下顎部や胸部にも暗色の雲状斑紋がないのを原則とする．体は比較的太短かく，とくに腹部の幅が広くて円みの強いのを基本とするが，東日本のものでは，トノサマガエルとの体形の差異があまり明瞭ではない．頭部は比較的短かくて外形が三角形に近いが，頭長は頭幅よりも大きい．背面の皮膚は，全体になめらかなものも微細な顆粒で密におおわれているものもあるが，大腿部の後下面は粗雑で，体側の皮膚も粗雑な個体が見られる．背側線の隆条は比較的幅が広く，時には著しい腺状を呈することもある．左右の背側隆条の間にある短かい隆条は，トノサマガエルの場合に比べて一般に数が\n\n*) 伊藤 (1941) の原記載は，分類学的にきわめて不完全なもので，種名（原著では亜種名）自体が不適当な造語である上に，模式標本も模式産地も指定されていない．しかし，その命名に用いられた材料が名古屋付近の個体であることには疑問の余地がないので，原著に挙げられた唯一の具体的な地名である“愛知県西春日井郡師勝村”を，ここでダルマガエルの模式産地に指定しておく．従って，“模式的なダルマガエル”は，守屋 (1954など) の“名古屋ダルマ種族 (Nagoya brevipoda race)”に相当する．",
+        "dwc:taxonConceptID": "gbif:11034293",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Rana (Rana) brevipoda R. ITO, 1941",
+        "dwc:family": "Ranidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 11034293,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Pelophylax porosus",
+    "gbif_accepted_key": 2426636,
+    "gbif_family": "Ranidae",
+    "gbif_match_type": "EXACT"
+}

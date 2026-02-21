@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_25cff5c207d94a096f6974a3e1093bc1_028475b5b94a7106d02a005a59cb2917",
+    "paper_id": "paper_25cff5c207d94a096f6974a3e1093bc1",
+    "doi": "10.2173\/tbna.121.p",
+    "query_id": "jp_bird_2481957_en",
+    "query_label": "Gavia adamsii Japan (ecology\/distribution)",
+    "scientific_name": "Gavia adamsii",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2173\/tbna.121.p",
+        "dwc:scientificName": "Gavia adamsii",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481957",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Gavia adamsii",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Gaviidae"
+    },
+    "gbif_taxon_key": 2481957,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Gaviidae"
+}

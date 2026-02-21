@@ -1,0 +1,47 @@
+{
+    "id": "cit_book_kumo_handbook_p20_cc3be1add0ec968be81a3169e120c038",
+    "book_id": "book_kumo_handbook",
+    "page": 20,
+    "taxon_name": "ヘリジロサラグモ",
+    "scientific_name": "Neriene oydes",
+    "family": "サラグモ科 Linyphiidae",
+    "data_icons": {
+        "size": "female: 4〜5mm, male: 3〜4.5mm",
+        "season": "春〜夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網の様子（シート状）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.20)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Neriene oydes",
+        "dwc:vernacularName": "ヘリジロサラグモ",
+        "dwc:occurrenceRemarks": "メスは腹部両側に白い帯があり、後端のカーブが急で、横から見ると平らになっている。オスはメスに比べて全体的に黒く、模様がはっきりしない。平地の草原や林縁に生息し、草の根元や低い位置にシート状の網を張る。",
+        "dwc:taxonConceptID": "gbif:2137341",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Neriene oydes",
+        "dwc:family": "Linyphiidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2137341,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Linyphiidae",
+    "gbif_match_type": "HIGHERRANK"
+}

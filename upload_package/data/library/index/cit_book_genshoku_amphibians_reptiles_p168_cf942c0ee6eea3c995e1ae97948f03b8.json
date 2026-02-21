@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p168_cf942c0ee6eea3c995e1ae97948f03b8",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 168,
+    "taxon_name": "ヘビ亜目",
+    "scientific_name": "Suborder OPHIDIA",
+    "family": "ヘビ亜目",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.168)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Suborder OPHIDIA",
+        "dwc:vernacularName": "ヘビ亜目",
+        "dwc:occurrenceRemarks": "　体は非常に長くなって全体に鱗でおおわれ．四肢がないかあるいは後肢の痕跡が認められるに過ぎない．眼には眼瞼がなく．耳孔もない．舌は多少とも長くなって先端が深く切れ込み，基部に鞘があってその中へ舌を引き込むことができる．頭蓋の前部は皮骨によって完全またはほぼ完全に閉ざされ．側頭部の橋がなくなって．ゆるく頭蓋に関節した上側頭骨が方骨を支えている．また．時には，上側頭骨もなくなっていることがある．前額骨と上顎骨とは原則として接触せず，後者は多少とも可動的に頭蓋と関節している．涙骨，後額骨，鱗状骨，頰骨，方形頰骨などがなく．左右の頭頂骨は一般に癒合して頭頂孔もなくなっている．下顎の前端は靱帯組織で結合し．左右の下顎骨を別々に動かすことができる（メクラヘビの類では，下顎の前端に左右の歯"
+    }
+}

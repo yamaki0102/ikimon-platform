@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_2_p340_cb61989881d652131175fb191da6c303",
+    "book_id": "book_genshoku_trees_2",
+    "page": 340,
+    "taxon_name": "和名索引 (340頁)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "TEXT_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_2 (p.340)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "和名索引 (340頁)",
+        "dwc:occurrenceRemarks": "IV13\nハッサク IV282\nハートカズラ V174\nハドノキ属 IV66\nハナアカシア(ギンヨウアカシア)\n     IV261\nハナアカシア(フサアカシア)\n     IV262\nハナイカダ V92\nハナイカダ属 V92\nハナエンジュ IV256\nハナカイドウ IV213\nハナガサシャクナゲ(アメリカシャ\n     クナゲ) V144\nハナガサノキ V175\nハナキリン IV264\nハナスグリ IV163\nハナズオウ IV259\nハナズオウ属 IV259\nハナゾノツクバネウツギ V206\nハナチョウジ V193\nハナチョウジ(コショウノキ)\n     V71\nハナノキ V20\nハナノキ(シキミ) IV83\nハナヒリノキ V139\nハナミズキ V92\nハナユ IV279\nハナユズ(ハナユ) IV279\nハニガキ(ヘツカニガキ) V178\nハハカ(ウワミズザクラ) IV177\nパパイヤ V79\nぱぱいや科 V79\nパパイヤ属 V79\nハマアジサイ(ガクアジサイ)\n     IV151\nハマイバラ(テリハノイバラ)\n     IV237\nハマギク V212\nハマクサギ V185\nハマクサギ属 V185\nハマゴウ V183\nハマゴウ属 V183\nハマジンチョウ V196\nはまじんちょう科 V196\nハマジンチョウ属 V196\n\nハマセンダン V2\nハマナシ IV237\nハマナス(ハマナシ) IV237\nハマナツメ V52\nハマナツメ属 V52\nハマニンドウ V197\nハマヒサカキ IV141\nはまびし科 IV263\nハマビワ IV88\nハマビワ属 IV88\nハマベブドウ IV70\nハマボウ V60\nばら科 IV164\nバラ属 IV236\nバラ'シュウゲツ' IV241\n――'アマツオトメ' IV241\n――'ホウジュン' IV241\n――'スーパー スター' IV242\n――'カンパイ' IV242\n――'パパ メイアン' IV242\n――'セイカ' IV243\n――'ブルー ムーン' IV243\n――'ブラック ティー' IV243\n――'プリンセス ミチコ'\n     IV244\n――'ヨーロピアーナ' IV244\n――'スミガサ' IV244\n――'シンセア' IV245\n――'シンデレラ' IV245\n――'オレンジ メイアンディナ'\n     IV245\nバアラアカシア(ハナエンジュ)\n     IV256\nバライチゴ IV228\nバラゴム(パラゴムノキ) IV266\nパラゴムノキ IV266\nパラゴムノキ属 IV266\nパラダイスナット V87\nバライロサツ(ブラジルマツ) V244\nハライソ IV62\nバラモミ(ハリモミ) V248\nハリエンジV IV255\nハリエンジV属 IV255\nハリガネソウ(スナヅル) IV94\nハリギリ(コノテガシワ) V270\nハリギリ V97"
+    }
+}

@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_222980f990381ca0d1e7bf76bafcc7e6_fb076ce0dc75835562b3aaacdd448db5",
+    "paper_id": "paper_222980f990381ca0d1e7bf76bafcc7e6",
+    "doi": "10.5040\/9781472927040.0083",
+    "query_id": "jp_bird_2480848_en",
+    "query_label": "Ixobrychus sinensis Japan (ecology\/distribution)",
+    "scientific_name": "Ixobrychus sinensis",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.5040\/9781472927040.0083",
+        "dwc:scientificName": "Ixobrychus sinensis",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2480848",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Ixobrychus sinensis",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Ardeidae"
+    },
+    "gbif_taxon_key": 2480848,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Ardeidae"
+}

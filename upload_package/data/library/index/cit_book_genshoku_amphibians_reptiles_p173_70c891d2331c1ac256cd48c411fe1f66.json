@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p173_70c891d2331c1ac256cd48c411fe1f66",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 173,
+    "taxon_name": "サキシママダラ",
+    "scientific_name": "Dinodon rufozonatum walli STEJNEGER, 1907",
+    "family": "ナミヘビ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.173)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Lycodon rufozonatus",
+        "dwc:vernacularName": "サキシママダラ",
+        "dwc:occurrenceRemarks": "　体鱗列数が17列であることや，その他の鱗板の形状・配列などは，すべて基亜種のアカマダラと同様である．しかし，本亜種では腹板の数が少なくて，普通は 185枚以下（176〜191枚）である．また，体色の点でも基亜種とは異なっていて，本亜種では背面の黒褐色の横帯紋の中央部が淡色になっている．すなわち，背面の各横帯紋は，それぞれ中央が左右に裂けて（あるいは中央部の色が淡くなって），はしご状を呈している．なお，老成した個体では暗色化がいちじるしく，はしご状の模様が不明瞭になっている場合が多い．\n　八重山群島の石垣島，西表島および宮古島に分布している．平地や山地に普通で，カエルやトカゲなどを好んで食べる．\n\n第21図．サキシママダラの頭部；左から右へ背面，腹面および左側面．",
+        "dwc:taxonConceptID": "gbif:6161308",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Dinodon rufozonatum walli STEJNEGER, 1907",
+        "dwc:family": "Colubridae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 6161308,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Lycodon rufozonatus",
+    "gbif_accepted_key": 5223677,
+    "gbif_family": "Colubridae",
+    "gbif_match_type": "EXACT"
+}

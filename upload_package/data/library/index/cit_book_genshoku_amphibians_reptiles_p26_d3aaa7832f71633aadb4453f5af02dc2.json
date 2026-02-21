@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p26_d3aaa7832f71633aadb4453f5af02dc2",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 26,
+    "taxon_name": "オオダイガハラサンショウウオ亜属",
+    "scientific_name": "Subgenus Pachypalaminus THOMPSON, 1912",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.26)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Subgenus Pachypalaminus THOMPSON, 1912",
+        "dwc:vernacularName": "オオダイガハラサンショウウオ亜属",
+        "dwc:occurrenceRemarks": "体は大形で，後肢は5趾．涙骨は顕著で他の骨におおわれていない．幼生には平衡桿もなく，爪もない．この亜属には次の1種のみが含まれる．",
+        "dwc:taxonConceptID": "gbif:10069280",
+        "dwc:taxonomicStatus": "DOUBTFUL",
+        "dwc:originalNameUsage": "Subgenus Pachypalaminus THOMPSON, 1912",
+        "dwc:family": null,
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 10069280,
+    "gbif_status": "DOUBTFUL",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": null,
+    "gbif_match_type": "HIGHERRANK"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_e386a4cd404e51f2ecf52b2aff083487",
+    "doi": "10.14714\/cp92.1533",
+    "title": "Review of Oklahoma Winter Bird Atlas",
+    "year": 2019,
+    "container_title": "Cartographic Perspectives",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.14714\/cp92.1533",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.14714\/cp92.1533",
+        "dc:title": "Review of Oklahoma Winter Bird Atlas",
+        "dc:date": 2019,
+        "dc:source": "Cartographic Perspectives",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

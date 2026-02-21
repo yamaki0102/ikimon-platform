@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_0f5b3379cf3414b498632521255574c5_ac48a30aa7a200096d2ae77e6f47f3f6",
+    "paper_id": "paper_0f5b3379cf3414b498632521255574c5",
+    "doi": "10.3838\/jjo1915.21.342",
+    "query_id": "jp_bird_2481671_en",
+    "query_label": "Limnodromus semipalmatus Japan (ecology\/distribution)",
+    "scientific_name": "Limnodromus semipalmatus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.3838\/jjo1915.21.342",
+        "dwc:scientificName": "Limnodromus semipalmatus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2481671",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Limnodromus semipalmatus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Scolopacidae"
+    },
+    "gbif_taxon_key": 2481671,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Scolopacidae"
+}

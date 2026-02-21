@@ -1,0 +1,20 @@
+{
+    "id": "paper_cc14ab0dd211edd2480060fa4e4513c0",
+    "doi": "10.11646\/zootaxa.5642.1.8",
+    "title": "A new species Orthetrum aberrans sp. nov. (Odonata: Libellulidae) from China",
+    "year": 2025,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.5642.1.8",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.5642.1.8",
+        "dc:title": "A new species Orthetrum aberrans sp. nov. (Odonata: Libellulidae) from China",
+        "dc:date": 2025,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

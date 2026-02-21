@@ -1,0 +1,20 @@
+{
+    "id": "paper_51dd31a0573728665a72c6fe588affc0",
+    "doi": "10.1080\/04345546909415075",
+    "title": "The Coconut Rhinoceros Beetle Oryctes rhinoceros (L)[Coleoptera: Scarabaeidae: Dynastinae]",
+    "year": 1969,
+    "container_title": "PANS Pest Articles &amp; News Summaries",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1080\/04345546909415075",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1080\/04345546909415075",
+        "dc:title": "The Coconut Rhinoceros Beetle Oryctes rhinoceros (L)[Coleoptera: Scarabaeidae: Dynastinae]",
+        "dc:date": 1969,
+        "dc:source": "PANS Pest Articles &amp; News Summaries",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p106_e786611e1eccca4da26e06ad2ed3601a",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 106,
+    "taxon_name": "セマルハコガメ",
+    "scientific_name": "Cyclemys (Cuora) flavomarginata flavomarginata (GRAY, 1863)",
+    "family": "カメ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.106)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Cuora flavomarginata",
+        "dwc:vernacularName": "セマルハコガメ",
+        "dwc:occurrenceRemarks": "　背甲は黒褐色または紫色を帯びた暗褐色．それぞれの鱗板の中央部に褐色の斑紋があり．背中線の隆条は淡黄褐色を呈する．腹甲は黒褐色．腹甲の周縁部と正中線直下部分は黄色い．頭部の背面は黄色味を帯びた灰褐色で，側頭部から後方にかけては黄色．眼の後角から後走し，後方へいくほど拡がって後頭部で内側へ曲がる明瞭な黄金条がある．四肢は灰褐色で，後肢の下面は黄色．頭部はかなり大きく，吻が比較的側扁し，吻端は前断状で側方から見るとほとんど垂直．吻端から眼の前端までの距離は．眼の長径にほぼ等しい．上顎の前端はやや力ぎ状．側頭部と後頭部とかる後方の皮膚は．かなり大形の鱗に分かれている．頭骨側頭部の橋は後方が不完全で，方形頰骨の一部または全部がなくなっている．内鼻孔は眼窩の前端の水準に開く．歯槽面には隆条がない．背甲はよく隆起し，3本の隆条をそなえているが，両側の2本はあまり明瞭でなく．背中上の1本も老熟した個体でははっきりしなくなる．甲の周縁はなめらかに曲がり，後方でも鋸歯状にならない．項甲板は比較的大形，腹甲の後縁には切れ込みがなくて円く終っている．普通は腋下甲板も鼠径甲板もない．前膊部は，瓦状に重なり合った大形の鱗片でおおわれている．同様の鱗片は踵部の下面にもある．みずかきの発達は悪い．尾は太くて短かい．甲長：130〜160mm．\n　石垣島，西表島および台湾に分布し，シナの洞庭湖の小島から別亜種（シナセマルハコガメ C. flavomarginata sinensis HSÜ, 1930）が報告されている．ほとんど完全な陸生で，森林の黒縁部などに多く，もっぱら植物を食っている．なお，この種を飼育するとき，水に入れると溺死することがあるので注意を要する．",
+        "dwc:taxonConceptID": "gbif:2443533",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Cyclemys (Cuora) flavomarginata flavomarginata (GRAY, 1863)",
+        "dwc:family": "Geoemydidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 2443533,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Cuora flavomarginata",
+    "gbif_accepted_key": 9116969,
+    "gbif_family": "Geoemydidae",
+    "gbif_match_type": "HIGHERRANK"
+}

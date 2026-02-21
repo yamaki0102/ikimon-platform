@@ -1,0 +1,20 @@
+{
+    "id": "paper_1ce865eaf8ffc46a1b86cfb1556a6308",
+    "doi": "10.1515\/9783112522226-010",
+    "title": "Limnodromus semipalmatus (Blyth)",
+    "year": 1987,
+    "container_title": "Atlas der Verbreitung Palaearktischer Vögel Lieferung 14",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.1515\/9783112522226-010",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1515\/9783112522226-010",
+        "dc:title": "Limnodromus semipalmatus (Blyth)",
+        "dc:date": 1987,
+        "dc:source": "Atlas der Verbreitung Palaearktischer Vögel Lieferung 14",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

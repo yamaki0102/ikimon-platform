@@ -1,0 +1,47 @@
+{
+    "id": "cit_book_kumo_handbook_p24_995e057baa58100c3b5844ef378827cf",
+    "book_id": "book_kumo_handbook",
+    "page": 24,
+    "taxon_name": "アオオニグモ",
+    "scientific_name": "Araneus pentagrammicus",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 9〜11mm, male: 5〜6mm",
+        "season": "春〜夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "住居（葉を丸めたもの）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_kumo_handbook (p.24)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Aoaraneus pentagrammicus",
+        "dwc:vernacularName": "アオオニグモ",
+        "dwc:occurrenceRemarks": "手足は緑色、腹部は美しい緑色で、両肩に茶色い斑紋（ハの字型）が入り、腹部後方に4つの黒点が見られる。里山から山地にかけて普通に見られ、林縁や草の間に、円網の中央から少し離れた位置で網を張り、その中心に止まる。円網の中心から信号糸（捕虫糸）が伸びており、その振動を感じて獲物を捕える。オスの出現時期は春先のみと短い。",
+        "dwc:taxonConceptID": "gbif:2160302",
+        "dwc:taxonomicStatus": "SYNONYM",
+        "dwc:originalNameUsage": "Araneus pentagrammicus",
+        "dwc:family": "Araneidae",
+        "dwc:nameAccordingTo": "book_kumo_handbook"
+    },
+    "gbif_taxon_key": 2160302,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Aoaraneus pentagrammicus",
+    "gbif_accepted_key": 11656552,
+    "gbif_family": "Araneidae",
+    "gbif_match_type": "EXACT"
+}

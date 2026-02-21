@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_3c835cee392aa9507030d886181bf07b_02cc62ba2d1e661af4fa4b25b9078ad0",
+    "paper_id": "paper_3c835cee392aa9507030d886181bf07b",
+    "doi": "10.2307\/1521395",
+    "query_id": "jp_bird_2480810_en",
+    "query_label": "Nipponia nippon Japan (ecology\/distribution)",
+    "scientific_name": "Nipponia nippon",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.2307\/1521395",
+        "dwc:scientificName": "Nipponia nippon",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2480810",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Nipponia nippon",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Threskiornithidae"
+    },
+    "gbif_taxon_key": 2480810,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Threskiornithidae"
+}

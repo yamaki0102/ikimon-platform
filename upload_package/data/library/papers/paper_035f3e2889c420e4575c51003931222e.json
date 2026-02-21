@@ -1,0 +1,20 @@
+{
+    "id": "paper_035f3e2889c420e4575c51003931222e",
+    "doi": "10.3897\/zookeys.154.1953",
+    "title": "Cytogenetics of the true bug infraorder Cimicomorpha (Hemiptera, Heteroptera): a review",
+    "year": 2011,
+    "container_title": "ZooKeys",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3897\/zookeys.154.1953",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3897\/zookeys.154.1953",
+        "dc:title": "Cytogenetics of the true bug infraorder Cimicomorpha (Hemiptera, Heteroptera): a review",
+        "dc:date": 2011,
+        "dc:source": "ZooKeys",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_bbbbc69eda03458a24eeea19c97d81e1",
+    "doi": "10.1080\/00063658409476844",
+    "title": "The establishment of a population of GoldeneyesBucephala clangulabreeding in Scotland",
+    "year": 1984,
+    "container_title": "Bird Study",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1080\/00063658409476844",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1080\/00063658409476844",
+        "dc:title": "The establishment of a population of GoldeneyesBucephala clangulabreeding in Scotland",
+        "dc:date": 1984,
+        "dc:source": "Bird Study",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

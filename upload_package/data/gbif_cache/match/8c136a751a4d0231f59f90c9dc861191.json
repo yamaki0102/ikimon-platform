@@ -1,0 +1,18 @@
+{
+    "taxon_key": 5960530,
+    "scientific_name": "Eumeces barbouri Van Denburgh, 1912",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": 5960529,
+    "accepted_name": "Plestiodon barbouri",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Scincidae",
+    "genus": "Plestiodon",
+    "rank": "SPECIES",
+    "original_query": "Eumeces barbouri",
+    "_cached_at": 1770420189
+}

@@ -117,6 +117,51 @@ if (!$scientificName) {
     }
 }
 
+// --- Taxonomy Timeline Extraction ---
+$timelineData = [];
+
+// Process citations
+foreach ($citations as $cit) {
+    if (!empty($cit['book_year']) && preg_match('/^[0-9]{4}/', $cit['book_year'], $matches)) {
+        $nameUsage = $cit['darwin_core']['dwc:originalNameUsage'] ?? $cit['scientific_name'] ?? '';
+        if ($nameUsage) {
+            $timelineData[] = ['year' => (int)$matches[0], 'name' => $nameUsage];
+        }
+    }
+}
+
+// Process papers
+foreach ($papers as $p) {
+    if (!empty($p['year']) && preg_match('/^[0-9]{4}/', $p['year'], $matches)) {
+        $nameUsage = $p['darwin_core']['dwc:originalNameUsage'] ?? $p['darwin_core']['dwc:scientificName'] ?? $p['link_scientific_name'] ?? '';
+        if ($nameUsage) {
+            $timelineData[] = ['year' => (int)$matches[0], 'name' => $nameUsage];
+        }
+    }
+}
+
+// Sort by year
+usort($timelineData, fn($a, $b) => $a['year'] <=> $b['year']);
+
+// Identify distinct shifts
+$distinctTimeline = [];
+$lastName = null;
+foreach ($timelineData as $entry) {
+    $y = $entry['year'];
+    $n = $entry['name'];
+    // For visual clarity, remove author years temporarily if we just want base name change, but author year might be part of originalNameUsage.
+    // It's safer to keep exact string usage differences.
+    if ($n !== $lastName) {
+        $distinctTimeline[] = [
+            'year' => $y,
+            'name' => $n,
+        ];
+        $lastName = $n;
+    }
+}
+$hasHistoricalShift = count($distinctTimeline) > 1;
+// --- End Taxonomy Timeline Extraction ---
+
 // Total data count
 $dataCount = count($citations) + count($keys) + count($papers);
 ?>
@@ -386,6 +431,28 @@ $dataCount = count($citations) + count($keys) + count($papers);
                         });
                     });
                 </script>
+            </section>
+        <?php endif; ?>
+
+        <!-- Nomenclature Timeline -->
+        <?php if ($hasHistoricalShift): ?>
+            <section>
+                <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="history" class="w-4 h-4 text-primary"></i>
+                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-primary">NOMENCLATURE TIMELINE</h2>
+                </div>
+                <div class="p-5 rounded-xl border border-border bg-surface mb-6 relative overflow-hidden">
+                    <div class="absolute right-0 top-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                    <div class="relative pl-5 space-y-6 border-l-2 border-primary/20">
+                        <?php foreach ($distinctTimeline as $idx => $tItem): ?>
+                            <div class="relative">
+                                <div class="absolute -left-[26px] top-1.5 w-[10px] h-[10px] rounded-full <?php echo ($idx === count($distinctTimeline) - 1) ? 'bg-primary shadow-[0_0_8px_rgba(0,0,0,0.2)] dark:shadow-[0_0_10px_rgba(255,255,255,0.4)]' : 'bg-surface border-2 border-primary/40'; ?>"></div>
+                                <div class="text-[11px] font-bold font-mono text-muted-dark mb-0.5 leading-none"><?php echo $tItem['year']; ?></div>
+                                <div class="text-sm font-semibold <?php echo ($tItem['name'] === $scientificName) ? 'text-primary' : 'text-text'; ?>"><?php echo htmlspecialchars($tItem['name']); ?></div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </section>
         <?php endif; ?>
 

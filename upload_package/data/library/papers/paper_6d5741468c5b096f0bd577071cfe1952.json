@@ -1,0 +1,20 @@
+{
+    "id": "paper_6d5741468c5b096f0bd577071cfe1952",
+    "doi": "10.1163\/15685381-00002894",
+    "title": "The oldest herpetological collection in the world: the surviving amphibian and reptile specimens of the Museum of Ulisse Aldrovandi",
+    "year": 2013,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/15685381-00002894",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/15685381-00002894",
+        "dc:title": "The oldest herpetological collection in the world: the surviving amphibian and reptile specimens of the Museum of Ulisse Aldrovandi",
+        "dc:date": 2013,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

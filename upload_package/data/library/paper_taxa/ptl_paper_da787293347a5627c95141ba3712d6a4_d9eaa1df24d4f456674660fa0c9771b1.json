@@ -1,0 +1,24 @@
+{
+    "id": "ptl_paper_da787293347a5627c95141ba3712d6a4_d9eaa1df24d4f456674660fa0c9771b1",
+    "paper_id": "paper_da787293347a5627c95141ba3712d6a4",
+    "doi": "10.1016\/j.tig.2022.06.010",
+    "query_id": "myiopsitta_monachus_jp",
+    "query_label": "Myiopsitta monachus (Monk parakeet) Japan",
+    "scientific_name": "Myiopsitta monachus",
+    "jp_name": null,
+    "darwin_core": {
+        "dwc:associatedReferences": "doi:10.1016\/j.tig.2022.06.010",
+        "dwc:scientificName": "Myiopsitta monachus",
+        "dwc:vernacularName": null,
+        "dwc:taxonConceptID": "gbif:2479407",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Myiopsitta monachus",
+        "dwc:nameAccordingTo": "Crossref_Query",
+        "dwc:family": "Psittacidae"
+    },
+    "gbif_taxon_key": 2479407,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Psittacidae"
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_5d62875f625862169e19cd10a023decb",
+    "doi": "10.3105\/1881-1019(2007)26[65:ansofa]2.0.co;2",
+    "title": "A New Species of Frog Allied to Fejervarya limnocharis from the Southern Ryukyus, Japan (Amphibia: Ranidae)",
+    "year": 2007,
+    "container_title": "Current Herpetology",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.3105\/1881-1019(2007)26[65:ansofa]2.0.co;2",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.3105\/1881-1019(2007)26[65:ansofa]2.0.co;2",
+        "dc:title": "A New Species of Frog Allied to Fejervarya limnocharis from the Southern Ryukyus, Japan (Amphibia: Ranidae)",
+        "dc:date": 2007,
+        "dc:source": "Current Herpetology",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

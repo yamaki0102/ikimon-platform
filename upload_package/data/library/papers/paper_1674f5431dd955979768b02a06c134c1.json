@@ -1,0 +1,20 @@
+{
+    "id": "paper_1674f5431dd955979768b02a06c134c1",
+    "doi": "10.5040\/9781472927040.0024",
+    "title": "Daption capense Cape Petrel Damier du Cap",
+    "year": 0,
+    "container_title": "The Birds of Africa : The Malagasy Region",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472927040.0024",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472927040.0024",
+        "dc:title": "Daption capense Cape Petrel Damier du Cap",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa : The Malagasy Region",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "id": "paper_52b17da7e1c58829a4923f9edd485a24",
+    "doi": "10.5040\/9781472927002.0022",
+    "title": "Psittacula krameri (Scopoli). Rose-ringed Parakeet; Ring-necked Parakeet. Perruche à collier.",
+    "year": 0,
+    "container_title": "The Birds of Africa",
+    "type": "book-chapter",
+    "url": "https:\/\/doi.org\/10.5040\/9781472927002.0022",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5040\/9781472927002.0022",
+        "dc:title": "Psittacula krameri (Scopoli). Rose-ringed Parakeet; Ring-necked Parakeet. Perruche à collier.",
+        "dc:date": 0,
+        "dc:source": "The Birds of Africa",
+        "dc:type": "book-chapter",
+        "dc:format": "application\/json"
+    }
+}

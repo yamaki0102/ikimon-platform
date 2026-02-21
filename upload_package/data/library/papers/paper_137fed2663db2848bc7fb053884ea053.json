@@ -1,0 +1,20 @@
+{
+    "id": "paper_137fed2663db2848bc7fb053884ea053",
+    "doi": "10.5852\/ejt.2017.277",
+    "title": "The first fossil wedge-shaped beetle (Coleoptera, Ripiphoridae) from the middle Jurassic of China",
+    "year": 2017,
+    "container_title": "European Journal of Taxonomy",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.5852\/ejt.2017.277",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.5852\/ejt.2017.277",
+        "dc:title": "The first fossil wedge-shaped beetle (Coleoptera, Ripiphoridae) from the middle Jurassic of China",
+        "dc:date": 2017,
+        "dc:source": "European Journal of Taxonomy",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

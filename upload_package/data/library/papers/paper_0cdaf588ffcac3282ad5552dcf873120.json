@@ -1,0 +1,20 @@
+{
+    "id": "paper_0cdaf588ffcac3282ad5552dcf873120",
+    "doi": "10.1163\/15685381-bja10130",
+    "title": "Buccal swabs for amphibian genomics",
+    "year": 2023,
+    "container_title": "Amphibia-Reptilia",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.1163\/15685381-bja10130",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.1163\/15685381-bja10130",
+        "dc:title": "Buccal swabs for amphibian genomics",
+        "dc:date": 2023,
+        "dc:source": "Amphibia-Reptilia",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

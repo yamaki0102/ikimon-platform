@@ -1,0 +1,20 @@
+{
+    "id": "paper_5c9271c98ddd1696520dbf2eeb99684b",
+    "doi": "10.11646\/zootaxa.4895.1.5",
+    "title": "Description of a new Caliphaea species from Yunnan, China (Odonata: Calopterygidae) ",
+    "year": 2020,
+    "container_title": "Zootaxa",
+    "type": "journal-article",
+    "url": "https:\/\/doi.org\/10.11646\/zootaxa.4895.1.5",
+    "source": "crossref",
+    "registry_run": "20260207_104759",
+    "tier": 1,
+    "dublin_core": {
+        "dc:identifier": "doi:10.11646\/zootaxa.4895.1.5",
+        "dc:title": "Description of a new Caliphaea species from Yunnan, China (Odonata: Calopterygidae) ",
+        "dc:date": 2020,
+        "dc:source": "Zootaxa",
+        "dc:type": "journal-article",
+        "dc:format": "application\/json"
+    }
+}

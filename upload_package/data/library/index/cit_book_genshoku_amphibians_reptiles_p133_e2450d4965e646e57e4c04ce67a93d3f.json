@@ -1,0 +1,38 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p133_e2450d4965e646e57e4c04ce67a93d3f",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 133,
+    "taxon_name": "キノボリトカゲ科",
+    "scientific_name": "Agamidae",
+    "family": "キノボリトカゲ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_amphibians_reptiles (p.133)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": "Agamidae",
+        "dwc:vernacularName": "キノボリトカゲ科",
+        "dwc:occurrenceRemarks": "　頭部には左右相称の分化した鱗板がない．眼瞼は完全で，瞳孔は円形．舌は比較的短かくて幅が広く，平滑であるかあるいは軟かい乳頭状の突起でおおわれ．先端は色端が切れ込んでいない．鎖骨は細かくて幅が広く，また一般に骨が厚い．美骨は原則として欠除しているが，顳骨はよく発達して鱗状骨とともに側頭部の橋を形成し．また．時には．頭頂の後に骨の橋のあることがある．頭頂骨は単一で，大部分のものが頭頂窩があるが，その位置は鞍骨と頭頭骨との間にかたよっていることが多い．歯は頂生で．4〜5個（稀には 1〜2個）の門歯と，1対の犬歯と，各側に1列に並んだ多数の臼歯とに分かれている．臼歯は多少とも側扁し，またしばしば三尖形になっている．口蓋歯はない．体表は，多少とも瓦状に並んだ鱗でおおわれているが，皮骨板はない．脊椎骨の椎体は短かくて後方で細くなり．後端がかなりふくれている．肋骨は単純で，かなり退化している．種類によっては副胸骨のあるものもある．普通は．前肛部にも大腿部にも小孔の列がない．四肢はつねによく発達している．尾は一般に長く．切れやすくはないが，切れたときに再生する能力をもっている．\n　旧大陸の熱帯および亜熱帯地方に多く，300種近くを含み，35ほどの属に分類されている．とくに東南アジアでよく分化しているが，北へはモンゴリアまで，西へはアフリカやヨーロッパの東南部まで，また東南へはニューギニアやオーストラリアなどからタスマニアまで拡がっている．化石の資料は多くないが，第三紀の始新世には．すでに現生の属（またはごく近縁のもの）に含められるべきもののいたことが知られている．なお，キノボリトカゲ科は．タテガミトカゲ科 Iguanidae やカメレオン科 Chamaeleontidae とともに．タテガミトカゲ主科 Iguania を形成している．日本に",
+        "dwc:taxonConceptID": "gbif:9199",
+        "dwc:taxonomicStatus": "ACCEPTED",
+        "dwc:originalNameUsage": "Agamidae",
+        "dwc:family": "Agamidae",
+        "dwc:nameAccordingTo": "book_genshoku_amphibians_reptiles"
+    },
+    "gbif_taxon_key": 9199,
+    "gbif_status": "ACCEPTED",
+    "gbif_accepted_name": null,
+    "gbif_accepted_key": null,
+    "gbif_family": "Agamidae",
+    "gbif_match_type": "HIGHERRANK"
+}

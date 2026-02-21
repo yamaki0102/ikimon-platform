@@ -1,0 +1,27 @@
+{
+    "id": "cit_book_genshoku_trees_1_p197_efbca1721213da04e4ca05f7cbde1ff3",
+    "book_id": "book_genshoku_trees_1",
+    "page": 197,
+    "taxon_name": "S (Continued)",
+    "scientific_name": null,
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [],
+    "page_type": "INDEX_PAGE",
+    "rarity_stars": null,
+    "type": "description",
+    "microhabitats": null,
+    "substrate_tags": null,
+    "distribution_text": null,
+    "phenology_text": null,
+    "dublin_core": {
+        "dc:source": "book_genshoku_trees_1 (p.197)",
+        "dc:type": "Text"
+    },
+    "darwin_core": {
+        "dwc:scientificName": null,
+        "dwc:vernacularName": "S (Continued)",
+        "dwc:occurrenceRemarks": "  theophrustaefolia V 154\nSyringa V 160\n  reticulata V 161\n  --var. mandshurica V 160\n  vulgaris V 160\nSyzygium V 86\n  buxifolium V 86\n  jambos V 87"
+    }
+}
