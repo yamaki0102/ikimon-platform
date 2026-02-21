@@ -4,13 +4,13 @@ require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Auth.php';
 
 Auth::init();
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
 $id = $_GET['id'] ?? '';
 $obs = DataStore::findById('observations', $id);
 
 if (!$obs) {
-    echo json_encode(['success' => false, 'message' => 'Observation not found']);
+    echo json_encode(['success' => false, 'message' => 'Observation not found'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -57,5 +57,5 @@ echo json_encode([
         'mood' => $mood
     ],
     'comment' => $comment,
-    'created_at' => date('Y-m-d H:i:s')
-]);
+    'created_at' => date('Y-m-d H:i:s', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

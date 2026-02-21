@@ -1,22 +1,40 @@
-const CACHE_NAME = 'ikimon-v2-shell';
+const CACHE_NAME = 'ikimon-v10-shell';
+const PHOTO_CACHE = 'ikimon-v10-photos';
 const ASSETS_TO_CACHE = [
     './',
     'index.php',
     'post.php',
     'explore.php',
+    'map.php',
+    'login.php',
     'ranking.php',
     'profile.php',
-    'js/OfflineManager.js',
-    'js/ToastManager.js'
+    'zukan.php',
+    'species.php',
+    'id_wizard.php',
+    'site_dashboard.php',
+    'offline.html',
+    'js/OfflineManager.js?v=2.1',
+    'js/ToastManager.js',
+    'js/HapticEngine.js',
+    'js/SoundManager.js',
+    'js/MotionEngine.js',
+    'assets/css/tokens.css?v=2.1',
+    'assets/css/style.css?v=2.1',
+    'assets/css/skeleton.css?v=2.1',
+    'assets/css/input.css?v=2.1',
+    'assets/img/icon-192.png',
+    'manifest.json'
 ];
 
-// Install Event: Cache Core Assets
+// Install Event: Cache Shell + Specific Assets
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            console.log('[SW] Caching app shell');
-            return cache.addAll(ASSETS_TO_CACHE);
-        })
+        caches.open(CACHE_NAME)
+            .then((cache) => {
+                console.log('[Service Worker] Caching all: app shell and content');
+                return cache.addAll(ASSETS_TO_CACHE);
+            })
     );
     self.skipWaiting();
 });
@@ -26,34 +44,100 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keyList) => {
             return Promise.all(keyList.map((key) => {
-                if (key !== CACHE_NAME) {
-                    console.log('[SW] Removing old cache', key);
+                if (key !== CACHE_NAME && key !== PHOTO_CACHE) {
+                    console.log('[Service Worker] Removing old cache', key);
                     return caches.delete(key);
                 }
             }));
         })
     );
-    self.clients.claim();
+    return self.clients.claim();
 });
 
-// Fetch Event: Network First, then Cache (for dynamic content), Cache First for static
+// Fetch Event: Smart Strategy per resource type
 self.addEventListener('fetch', (event) => {
-    // Navigation requests (HTML) -> Network First, Fallback to Cache
+    const url = new URL(event.request.url);
+
+    // Skip non-GET requests (POST for form submission etc.)
+    if (event.request.method !== 'GET') return;
+
+    // Skip API calls — always fetch fresh (except taxon_suggest)
+    if (url.pathname.includes('/api/')) {
+        // taxon_suggest: NetworkFirst with short cache for offline autocomplete
+        if (url.pathname.includes('taxon_suggest')) {
+            event.respondWith(
+                fetch(event.request)
+                    .then(response => {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                        return response;
+                    })
+                    .catch(() => caches.match(event.request).then(res => res || new Response('{"results":[]}', { headers: { 'Content-Type': 'application/json' } })))
+            );
+            return;
+        }
+        return;
+    }
+
+    // User-uploaded photos → Cache First (immutable content)
+    if (url.pathname.includes('/uploads/photos/')) {
+        event.respondWith(
+            caches.match(event.request).then(cached => {
+                if (cached) return cached;
+                return fetch(event.request).then(response => {
+                    if (response.ok) {
+                        const clone = response.clone();
+                        caches.open(PHOTO_CACHE).then(cache => cache.put(event.request, clone));
+                    }
+                    return response;
+                }).catch(() => new Response('', { status: 404 }));
+            })
+        );
+        return;
+    }
+
+    // Navigation requests (HTML) → Network First, Fallback to Cache/Offline
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request)
+                .then(response => {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                    return response;
+                })
                 .catch(() => {
                     return caches.match(event.request)
-                        .then(res => res || caches.match('index.php')); // Fallback to index if specific page missing
+                        .then(res => res || caches.match('offline.html'));
                 })
         );
         return;
     }
 
-    // Static Assets -> Cache First
+    // CSS files → Network First (prevents stale style flash)
+    if (url.pathname.endsWith('.css')) {
+        event.respondWith(
+            fetch(event.request)
+                .then(response => {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                    return response;
+                })
+                .catch(() => caches.match(event.request, { ignoreSearch: true }))
+        );
+        return;
+    }
+
+    // Other Static Assets → Stale While Revalidate
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
+        caches.match(event.request).then((cached) => {
+            const fetched = fetch(event.request).then(response => {
+                const clone = response.clone();
+                caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                return response;
+            }).catch(() => cached);
+
+            return cached || fetched;
         })
     );
 });
+

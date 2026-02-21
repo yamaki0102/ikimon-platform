@@ -2,230 +2,219 @@
 require_once __DIR__ . '/../../libs/Auth.php';
 Auth::init();
 Auth::requireRole('Admin'); // Only Admins can manage users
+$currentUser = Auth::user();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Management | ikimon Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #f1f5f9; }
-        .font-brand { font-family: 'Montserrat', sans-serif; }
-    </style>
+    <?php $adminTitle = 'ユーザー管理';
+    include __DIR__ . '/components/head.php'; ?>
 </head>
-<body class="flex h-screen overflow-hidden" x-data="userManagement()">
-    
-    <!-- Sidebar -->
-    <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
-        <div class="p-6 flex items-center gap-3">
-            <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center font-brand font-black text-slate-900">i</div>
-            <span class="font-brand font-black text-xl tracking-tight">ikimon <span class="text-xs text-slate-500 font-normal">Admin</span></span>
-        </div>
 
-        <nav class="flex-1 px-4 space-y-2">
-            <a href="index.php" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl font-bold transition">
-                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
-                Dashboard
-            </a>
-            <a href="verification.php" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl font-bold transition">
-                <i data-lucide="check-circle-2" class="w-5 h-5"></i>
-                Verification
-            </a>
-            <a href="users.php" class="flex items-center gap-3 px-4 py-3 bg-slate-800 text-white rounded-xl font-bold transition">
-                <i data-lucide="users" class="w-5 h-5"></i>
-                Users & Roles
-            </a>
-            <a href="corporate.php" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl font-bold transition">
-                <i data-lucide="building-2" class="w-5 h-5"></i>
-                Corporate
-            </a>
-        </nav>
-    </aside>
+<body class="flex h-screen overflow-hidden" x-data="usersApp()">
 
-    <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto p-8">
-        <header class="flex justify-between items-center mb-8">
-            <h1 class="text-2xl font-bold">User Management</h1>
-            <div class="relative">
-                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
-                <input type="text" x-model="search" placeholder="Search users..." class="bg-slate-800 border border-slate-700 rounded-full pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-emerald-500 w-64">
+    <?php $adminPage = 'users';
+    include __DIR__ . '/components/sidebar.php'; ?>
+
+    <!-- Main -->
+    <main class="flex-1 overflow-y-auto p-6 md:p-8">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <h1 class="text-2xl font-bold">ユーザー管理</h1>
+                <p class="text-sm text-slate-400 mt-1">ロール変更・BAN管理</p>
             </div>
         </header>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <p class="text-xs text-slate-400 font-bold uppercase">総ユーザー</p>
+                <p class="text-2xl font-black text-blue-400" x-text="stats.total">—</p>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <p class="text-xs text-slate-400 font-bold uppercase">専門家</p>
+                <p class="text-2xl font-black text-violet-400" x-text="stats.specialists">—</p>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <p class="text-xs text-slate-400 font-bold uppercase">管理者</p>
+                <p class="text-2xl font-black text-amber-400" x-text="stats.admins">—</p>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <p class="text-xs text-slate-400 font-bold uppercase">BAN中</p>
+                <p class="text-2xl font-black text-red-400" x-text="stats.banned">—</p>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="mb-6">
+            <input type="text" x-model="searchQuery" @input.debounce.300="filterUsers"
+                placeholder="名前・ID・メールで検索..."
+                class="w-full max-w-md bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-emerald-500">
+        </div>
 
         <!-- User Table -->
         <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
             <table class="w-full text-sm text-left">
                 <thead class="text-xs text-slate-400 uppercase bg-slate-900/50">
                     <tr>
-                        <th class="px-6 py-4">User</th>
-                        <th class="px-6 py-4">Role</th>
-                        <th class="px-6 py-4">Activity</th>
-                        <th class="px-6 py-4">Status</th>
-                        <th class="px-6 py-4 text-right">Actions</th>
+                        <th class="px-4 py-3">ユーザー</th>
+                        <th class="px-4 py-3">ロール</th>
+                        <th class="px-4 py-3">参加日</th>
+                        <th class="px-4 py-3">投稿数</th>
+                        <th class="px-4 py-3">操作</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-700">
+                    <template x-if="loading">
+                        <tr>
+                            <td class="px-4 py-8 text-center text-slate-500" colspan="5">読み込み中...</td>
+                        </tr>
+                    </template>
+                    <template x-if="!loading && filteredUsers.length === 0">
+                        <tr>
+                            <td class="px-4 py-8 text-center text-slate-500" colspan="5">ユーザーが見つかりません</td>
+                        </tr>
+                    </template>
                     <template x-for="user in filteredUsers" :key="user.id">
                         <tr class="hover:bg-slate-700/50 transition">
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-slate-700 overflow-hidden">
-                                        <img :src="user.avatar" class="w-full h-full object-cover">
-                                    </div>
-                                    <div>
-                                        <p class="font-bold text-white" x-text="user.name"></p>
-                                        <p class="text-xs text-slate-500" x-text="user.email || 'No email'"></p>
-                                    </div>
+                            <td class="px-4 py-3 flex items-center gap-3">
+                                <img :src="user.avatar || ''" class="w-8 h-8 rounded-full bg-slate-700" onerror="this.style.display='none'">
+                                <div>
+                                    <p class="font-bold" x-text="user.name"></p>
+                                    <p class="text-xs text-slate-500" x-text="user.id"></p>
                                 </div>
                             </td>
-                            <td class="px-6 py-4">
-                                <span class="px-2 py-1 rounded text-xs font-bold border" 
-                                      :class="{
-                                          'bg-blue-500/10 text-blue-400 border-blue-500/20': user.role === 'Observer',
-                                          'bg-purple-500/10 text-purple-400 border-purple-500/20': user.role === 'Specialist',
-                                          'bg-emerald-500/10 text-emerald-400 border-emerald-500/20': user.role === 'Analyst',
-                                          'bg-red-500/10 text-red-400 border-red-500/20': user.role === 'Admin'
-                                      }"
-                                      x-text="user.role">
-                                </span>
+                            <td class="px-4 py-3">
+                                <select @change="changeRole(user.id, $event.target.value)"
+                                    :class="{
+                                        'text-emerald-400': user.role === 'Admin',
+                                        'text-violet-400': user.role === 'Specialist' || user.role === 'Analyst',
+                                        'text-slate-400': user.role === 'Observer'
+                                    }"
+                                    class="bg-transparent border-0 text-sm font-bold focus:outline-none cursor-pointer">
+                                    <template x-for="role in ['Observer', 'Specialist', 'Analyst', 'Admin']">
+                                        <option :value="role" :selected="user.role === role" x-text="role"
+                                            class="bg-slate-800 text-white"></option>
+                                    </template>
+                                </select>
                             </td>
-                            <td class="px-6 py-4">
-                                <div class="flex flex-col text-xs">
-                                    <span class="text-slate-300">Joined <span class="font-bold" x-text="user.created_at || 'N/A'"></span></span>
-                                    <span class="text-slate-500">Last <span x-text="user.last_login_at || '未ログイン'"></span></span>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <template x-if="user.banned">
-                                    <span class="flex items-center gap-1 text-red-500 font-bold text-xs"><i data-lucide="ban" class="w-3 h-3"></i> Banned</span>
-                                </template>
-                                <template x-if="!user.banned">
-                                    <span class="text-emerald-500 font-bold text-xs">Active</span>
-                                </template>
-                            </td>
-                            <td class="px-6 py-4 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <button @click="openRoleModal(user)" class="p-2 hover:bg-slate-600 rounded-lg text-slate-400 hover:text-white transition" title="Edit Role">
-                                        <i data-lucide="shield" class="w-4 h-4"></i>
-                                    </button>
-                                    <button @click="toggleBan(user)" class="p-2 hover:bg-red-900/50 rounded-lg transition" :class="user.banned ? 'text-red-500' : 'text-slate-400 hover:text-red-400'" title="Ban User">
-                                        <i data-lucide="gavel" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
+                            <td class="px-4 py-3 text-slate-400 text-xs" x-text="user.created_at ? new Date(user.created_at).toLocaleDateString('ja-JP') : '—'"></td>
+                            <td class="px-4 py-3 text-slate-400" x-text="user.observation_count ?? '—'"></td>
+                            <td class="px-4 py-3">
+                                <button @click="toggleBan(user)" :class="user.banned ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-red-400 hover:bg-red-500/10'"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                                    <span x-text="user.banned ? 'BAN解除' : 'ShadowBAN'"></span>
+                                </button>
                             </td>
                         </tr>
                     </template>
                 </tbody>
             </table>
         </div>
-
-        <!-- Role Edit Modal -->
-        <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" x-cloak>
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md p-6" @click.outside="showModal = false">
-                <h3 class="text-xl font-bold mb-4">Edit User Role</h3>
-                <div class="mb-6" x-if="editingUser">
-                     <p class="text-sm text-slate-400 mb-2">Assigning role for <strong class="text-white" x-text="editingUser.name"></strong></p>
-                     
-                     <div class="space-y-2">
-                         <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-700 hover:bg-slate-700 cursor-pointer transition">
-                             <input type="radio" name="role" value="Observer" x-model="selectedRole" class="accent-emerald-500">
-                             <div>
-                                 <p class="font-bold text-sm">Observer</p>
-                                 <p class="text-xs text-slate-500">Standard user. Can add posts.</p>
-                             </div>
-                         </label>
-                         <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-700 hover:bg-slate-700 cursor-pointer transition">
-                             <input type="radio" name="role" value="Specialist" x-model="selectedRole" class="accent-purple-500">
-                             <div>
-                                 <p class="font-bold text-sm">Specialist</p>
-                                 <p class="text-xs text-slate-500">Trusted user. Can help verify common species.</p>
-                             </div>
-                         </label>
-                         <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-700 hover:bg-slate-700 cursor-pointer transition">
-                             <input type="radio" name="role" value="Analyst" x-model="selectedRole" class="accent-blue-500">
-                             <div>
-                                 <p class="font-bold text-sm">Analyst</p>
-                                 <p class="text-xs text-slate-500">Expert/Staff. Can verify Research Grade.</p>
-                             </div>
-                         </label>
-                     </div>
-                </div>
-                <div class="flex gap-3">
-                    <button @click="showModal = false" class="flex-1 py-2 rounded-lg font-bold text-slate-400 hover:bg-slate-700">Cancel</button>
-                    <button @click="saveRole()" class="flex-1 py-2 rounded-lg bg-emerald-500 text-black font-bold hover:bg-emerald-400">Save Changes</button>
-                </div>
-            </div>
-        </div>
-
     </main>
 
-    <script>
-        function userManagement() {
+    <script nonce="<?= CspNonce::attr() ?>">
+        function usersApp() {
             return {
+                loading: true,
+                searchQuery: '',
                 users: [],
-                search: '',
-                showModal: false,
-                editingUser: null,
-                selectedRole: '',
-
-                async init() {
-                    await this.loadUsers();
+                filteredUsers: [],
+                stats: {
+                    total: 0,
+                    specialists: 0,
+                    admins: 0,
+                    banned: 0
                 },
 
-                async loadUsers() {
-                    const res = await fetch('../api/admin/get_users.php');
-                    const data = await res.json();
-                    if (data.success) {
-                        this.users = data.data;
+                async init() {
+                    await this.fetchUsers();
+                },
+
+                async fetchUsers() {
+                    this.loading = true;
+                    try {
+                        const res = await fetch('../api/admin/list_users.php');
+                        const data = await res.json();
+                        if (data.success) {
+                            this.users = data.data;
+                            this.filteredUsers = this.users;
+                            this.computeStats();
+                        }
+                    } catch (e) {
+                        console.error('Error fetching users:', e);
+                    } finally {
+                        this.loading = false;
                     }
                 },
 
-                get filteredUsers() {
-                    if (!this.search) return this.users;
-                    return this.users.filter(u => u.name.toLowerCase().includes(this.search.toLowerCase()));
+                computeStats() {
+                    this.stats.total = this.users.length;
+                    this.stats.specialists = this.users.filter(u => ['Specialist', 'Analyst'].includes(u.role)).length;
+                    this.stats.admins = this.users.filter(u => u.role === 'Admin').length;
+                    this.stats.banned = this.users.filter(u => u.banned).length;
                 },
 
-                openRoleModal(user) {
-                    this.editingUser = user;
-                    this.selectedRole = user.role;
-                    this.showModal = true;
+                filterUsers() {
+                    const q = this.searchQuery.toLowerCase();
+                    if (!q) {
+                        this.filteredUsers = this.users;
+                        return;
+                    }
+                    this.filteredUsers = this.users.filter(u =>
+                        (u.name || '').toLowerCase().includes(q) ||
+                        (u.id || '').toLowerCase().includes(q) ||
+                        (u.email || '').toLowerCase().includes(q)
+                    );
                 },
 
-                async saveRole() {
-                    if (!this.editingUser) return;
-                    const res = await fetch('../api/admin/update_role.php', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: this.editingUser.id, role: this.selectedRole })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        this.editingUser.rank = data.data.rank;
-                        this.editingUser.role = data.data.role;
-                        this.showModal = false;
+                async changeRole(userId, newRole) {
+                    if (!confirm(`ロールを ${newRole} に変更しますか？`)) {
+                        await this.fetchUsers();
+                        return;
+                    }
+                    try {
+                        await fetch('../api/admin/change_role.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                user_id: userId,
+                                role: newRole
+                            })
+                        });
+                        await this.fetchUsers();
+                    } catch (e) {
+                        alert('Error changing role');
                     }
                 },
 
                 async toggleBan(user) {
-                    if (!confirm('Are you sure you want to ' + (user.banned ? 'unban' : 'ban') + ' this user?')) return;
-                    const res = await fetch('../api/admin/toggle_ban.php', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: user.id, banned: !user.banned })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        user.banned = data.data.banned;
+                    const action = user.banned ? 'unban' : 'ban';
+                    const msg = user.banned ? 'BAN解除しますか？' : 'ShadowBANしますか？';
+                    if (!confirm(msg)) return;
+
+                    try {
+                        await fetch('../api/admin/toggle_ban.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                user_id: user.id,
+                                action
+                            })
+                        });
+                        await this.fetchUsers();
+                    } catch (e) {
+                        alert('Error toggling ban');
                     }
                 }
             }
         }
-        lucide.createIcons();
     </script>
 </body>
+
 </html>

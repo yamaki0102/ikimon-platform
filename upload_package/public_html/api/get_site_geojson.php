@@ -3,13 +3,13 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/CorporateSites.php';
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
 $siteId = $_GET['id'] ?? 'ikimon_forest';
 $site = CorporateSites::SITES[$siteId] ?? null;
 
 if (!$site) {
-    echo json_encode(['type' => 'FeatureCollection', 'features' => []]);
+    echo json_encode(['type' => 'FeatureCollection', 'features' => []], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -60,4 +60,4 @@ array_unshift($features, $polygonFeature);
 echo json_encode([
     'type' => 'FeatureCollection',
     'features' => $features
-]);
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

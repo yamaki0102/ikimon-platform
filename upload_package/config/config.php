@@ -1,4 +1,5 @@
 <?php
+
 /**
  * ikimon Global Configuration
  */
@@ -14,14 +15,22 @@ define('DATA_DIR', ROOT_DIR . '/data');
 define('LIBS_DIR', ROOT_DIR . '/libs');
 define('PUBLIC_DIR', ROOT_DIR . '/public_html');
 
+// CSP Nonce (available globally for inline script nonce attributes)
+require_once LIBS_DIR . '/CspNonce.php';
+CspNonce::sendHeader();
+
 // URLs
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') $protocol = 'https';
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 define('BASE_URL', $protocol . '://' . $host);
 
 // Red List Obscuring Settings
 define('OBSCURE_GRID_CR_EN', 10000); // 10km
 define('OBSCURE_GRID_VU', 1000);    // 1km
+
+// AI Settings
+define('GEMINI_API_KEY', getenv('GEMINI_API_KEY') ?: ''); // Set via environment variable on server
 
 // Image Settings
 define('IMAGE_MAX_WIDTH', 1280);
