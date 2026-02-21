@@ -1,0 +1,443 @@
+[
+    {
+        "id": "10.3897\/zookeys.779.26967",
+        "doi": "10.3897\/zookeys.779.26967",
+        "title": "Monitoring data of marine turtles on the Togolese coast during 2012–2013",
+        "abstract": "This dataset contains information on the presence and distribution of sea turtles in Togo. Observations were carried out through a network of ten ecoguards (local guides), facilitated by five fishermen, and coordinated by a field technician, all under the supervision of a scientific coordinator. Data on the occurrence or direct observation of sea turtles on the Togolese coast from September 2012 to August 2013 is presented based on 740 occurrences.",
+        "authors": [
+            {
+                "firstName": "Délagnon",
+                "lastName": "Assou"
+            },
+            {
+                "firstName": "Gabriel H.",
+                "lastName": "Segniagbeto"
+            },
+            {
+                "firstName": "Raoufou",
+                "lastName": "Radji"
+            },
+            {
+                "firstName": "Jacques",
+                "lastName": "Akiti"
+            },
+            {
+                "firstName": "Francisco",
+                "lastName": "Pando"
+            }
+        ],
+        "year": 2018
+    },
+    {
+        "id": "10.31396\/biodiv.jour.2023.14.4.851.865",
+        "doi": "10.31396\/biodiv.jour.2023.14.4.851.865",
+        "title": "Update of the Leatherback sea turtle Dermochelys coriacea (Vandelli, 1761) and Green turtle Chelonia mydas (Linnaeus, 1758) observations in Italy (Reptilia Testudines)",
+        "abstract": "In this work, we collected records since 2002 of Leatherback sea turtle Dermochelys cori-acea (Vandelli, 1761) and since 2009 of Green turtle Chelonia mydas (Linnaeus, 1758). These observations have been made using scientific literature, citizen science programs, and social networks as data sources (Reptilia Testudines: Dermochelyidae and Cheloniidae). The aim of this work is to create a complete and up-to-date dataset. About one fifth of these new records comes from Facebook groups dedicated to biodiversity, thus underlining the usefulness of unconventional sources to gather data on species with poorly known distributions.",
+        "authors": [
+            {
+                "firstName": "Salvatore",
+                "lastName": "Surdo"
+            },
+            {
+                "firstName": "Domenico",
+                "lastName": "Verducci"
+            }
+        ],
+        "year": 2024
+    },
+    {
+        "id": "10.1080\/23802359.2023.2301025",
+        "doi": "10.1080\/23802359.2023.2301025",
+        "title": "Complete mitochondrial genome of the southern painted turtle (Chrysemys dorsalis , Testudines: Emydidae) in Korea",
+        "abstract": "The complete mitochondrial genome of Chrysemys dorsalis in Korea was sequenced and characterized. The mitochondrial genome is 17,258 bp in length and the GC content is 39%. It is constituted of 37 genes, 13 protein-coding genes, 22 transfer RNA genes, 2 ribosomal RNA genes, and a noncoding region. Phylogenetic analysis reveals that C. dorsalis forms a monophyletic group with C. picta turtles but is distinctly separated from them, aligning with previous findings. In Korea, C. dorsalis forms a discrete clade, separate from both native and invasive turtle species. No evidence of genetic disturbance or intermingling is observed. This is the first case of a complete mitochondrial genome from C. dorsalis and provides crucial data for understanding C. dorsalis and managing invasive species effectively, emphasizing the need for continued mitochondrial genome data accumulation.",
+        "authors": [
+            {
+                "firstName": "Ye-Eun",
+                "lastName": "Ji"
+            },
+            {
+                "firstName": "Kyoung-Hee",
+                "lastName": "Park"
+            },
+            {
+                "firstName": "Jae-Hyeok",
+                "lastName": "Choi"
+            },
+            {
+                "firstName": "Jaehong",
+                "lastName": "Park"
+            },
+            {
+                "firstName": "Ha-Cheol",
+                "lastName": "Sung"
+            },
+            {
+                "firstName": "Dong-Hyun",
+                "lastName": "Lee"
+            }
+        ],
+        "year": 2024
+    },
+    {
+        "id": "6ee404cd-442b-3e4b-a27b-c135994fb5ed",
+        "doi": "6ee404cd-442b-3e4b-a27b-c135994fb5ed",
+        "title": "Translating natural history into geographic space: a macroecological perspective on the North American Slider, Trachemys scripta (Reptilia, Cryptodira, Emydidae)",
+        "abstract": "Species with temperature-dependent sex determination, such as the Slider, Trachemys scripta, from North America, may be particularly dependent on certain climatic conditions. We hypothesize that climatic conditions that allow successful egg incubation and balanced sex ratios in T. scripta are the major driver for the species' geographic distribution. We tested whether the observed variation in monthly mean temperatures from 377 records throughout the native distribution of T. scripta can be used as a predictor for its geographic range. Our study showed that climatic requirements during egg incubation are apparently the major driver for the species' geographic distribution. Freezing events during winter may limit the species' distribution regionally only. Adaptive strategies such as nest site choice by females, plasticity in nesting phenology or regional variation in embryonic temperature sensitivity exist. However, they may account for only partial compensation of negative effects caused by regional differences in temperature-related parameters or a changing climate.",
+        "authors": [
+            {
+                "firstName": "Dennis",
+                "lastName": "Rödder"
+            },
+            {
+                "firstName": "Axel",
+                "lastName": "Kwet"
+            },
+            {
+                "firstName": "Stefan",
+                "lastName": "Lötters"
+            }
+        ],
+        "year": 2009
+    },
+    {
+        "id": "10.3897\/bdj.8.e58033",
+        "doi": "10.3897\/bdj.8.e58033",
+        "title": "Reptile occurrences data in the Volga River basin (Russia)",
+        "abstract": "The Volga basin is one of the most industrially-developed regions of Russia with a high degree of anthropogenic impact on natural ecosystems. Human influence negatively affects the species diversity and number of animals, including reptiles. There are no endemic species in the reptile fauna of the Volga basin. The herpetofauna of the region makes up 25% of the reptile fauna of Russia (Dunaev and Orlova 2017). We began to study the fauna of reptiles and their distribution in the Volga basin in 1988. Although we registered 20 reptile species in the Volga basin to date, apparently this is not a complete list of species in the region (Bakiev et al. 2004, Bakiev et al. 2009a, Bakiev et al. 2015, Kirillov et al. 2020). The distribution of reptiles in this region is not fully understood. Our dataset contains information on reptile occurrences in the Volga River basin. The dataset is based on original research by the staff of the Laboratory of Herpetology and Toxinology and Laboratory of Population Ecology of the Institute of Ecology of the Volga River basin of the Russian Academy of Sciences and Joint Directorate of the Mordovia State Nature Reserve and National Park “Smolny”. A total of 5,086 occurrences of 20 species are published for the first time with georeferencing. Many of these reptiles are listed in regional Red Data Lists. The European Pond Turtle Emys orbicularis (Linnaeus, 1758) is included in the IUCN Red List with the category “Near Threatened”.",
+        "authors": [
+            {
+                "firstName": "Andrey",
+                "lastName": "Bakiev"
+            },
+            {
+                "firstName": "Alexander",
+                "lastName": "Kirillov"
+            },
+            {
+                "firstName": "Nadezhda",
+                "lastName": "Kirillova"
+            },
+            {
+                "firstName": "Alexander",
+                "lastName": "Ruchin"
+            },
+            {
+                "firstName": "Anastasia",
+                "lastName": "Klenina"
+            },
+            {
+                "firstName": "Roman",
+                "lastName": "Gorelov"
+            },
+            {
+                "firstName": "Natalya",
+                "lastName": "Kostina"
+            }
+        ],
+        "year": 2020
+    },
+    {
+        "id": "10.3897\/herpetozoa.36.e103510",
+        "doi": "10.3897\/herpetozoa.36.e103510",
+        "title": "﻿The current distribution and status of the Hermann’s tortoise, Testudo hermanni boettgeri (Reptilia, Testudines, Testudinidae) in Croatia",
+        "abstract": "﻿AbstractHermann’s tortoise (Testudohermanni) is listed as “Near threatened” in the IUCN Red list of endangered species. The importance of protecting the Hermann’s tortoise populations and its habitats have led to the inclusion of the species within CITES Convention (Annex II), Annex A of EU Wildlife Trade Regulation, Annex II of the Bern Convention and Annexes II and IV of the EU Habitats Directive. To assess the distribution and status of the eastern Hermann’s tortoise (Testudohermanniboettgeri) in Croatia, historical and recent records were gathered and analyzed. The species was recorded in all three biogeographical regions in the country, but it’s native to the Mediterranean and a small part of the Alpine region. With the increase of recent surveys and the use of citizen science platforms, the known range of the species in Croatia was increased by 35.8% and is now encompassing 123 10 × 10 km EEA reference grid cells. Most records (66%) originate from lower elevations (up to 199 m), and the highest was recorded at 570 m. Sparse forests are the most preferred habitats, followed by semi-open habitats, such as grasslands and shrubs. The most serious threat to the species is natural succession due to the increased abandonment of traditional farming and grazing. Other threats include touristic infrastructure and urban development, transportation, illegal collecting, and invasive species. The Area of Occupancy calculated using 2 × 2 km grids resulted in an AOO of 1,372.00 km2, while Extent of Occurrence (EOO) is calculated to be 18,145.07 km2. The current network of National protected areas includes 14% of the species’ AOO while the designated Natura 2000 areas include 29.30% of its AOO. We propose to designate an additional 10 Natura 2000 areas to help with the long-term protection of the species.",
+        "authors": [
+            {
+                "firstName": "Katarina",
+                "lastName": "Koller Šarić"
+            },
+            {
+                "firstName": "Boris",
+                "lastName": "Lauš"
+            },
+            {
+                "firstName": "Ivona",
+                "lastName": "Burić"
+            },
+            {
+                "firstName": "Ana",
+                "lastName": "Štih Koren"
+            },
+            {
+                "firstName": "Toni",
+                "lastName": "Koren"
+            }
+        ],
+        "year": 2023
+    },
+    {
+        "id": "10.1111\/mec.17052",
+        "doi": "10.1111\/mec.17052",
+        "title": "The importance of cryptic diversity in the conservation of wide‐ranging species: The red‐footed tortoise Chelonoidis carbonarius in Colombia",
+        "abstract": "Wide‐ranging species are seldom considered conservation priorities, yet they have the potential to harbour genetically deeply differentiated units across environments or ecological barriers, including some that warrant taxonomic recognition. Documenting such cryptic genetic diversity is especially important for wide‐ranging species that are in decline, as they may comprise a set of even more endangered lineages or species with small distributions. However, studies of wide‐ranging species, particularly when they cross political borders, are extremely challenging. One approach to overcoming these challenges is to conduct detailed local analyses in combination with less detailed, range‐wide studies. We used this approach with the red‐footed tortoise (Chelonoidis carbonarius), a threatened species likely to contain cryptic diversity given its vast range and the distinctive ecoregions that it inhabits. Previous single‐gene molecular studies indicated the presence of at least five lineages, two of which occur in different ecoregions separated by the Andes within Colombia. We used a comprehensive genomic analysis to test the hypothesis of cryptic diversity within the single jurisdiction of Colombia. We used a combination of restriction‐site‐associated DNA sequencing and environmental niche modelling to provide three independent lines of evidence that support the presence of important cryptic diversity that may deserve taxonomic recognition: allopatric reproductive isolation, local adaptation and ecological divergence. We also provide a fine‐scale genetic map with the distribution of conservation units in Colombia. As we complete ongoing range‐wide analyses and make taxonomic adjustments, we recommend that the two lineages in Colombia be treated as separate units for conservation purposes.",
+        "authors": [
+            {
+                "firstName": "Natalia",
+                "lastName": "Gallego‐García"
+            },
+            {
+                "firstName": "Mario",
+                "lastName": "Vargas‐Ramírez"
+            },
+            {
+                "firstName": "H. Bradley",
+                "lastName": "Shaffer"
+            }
+        ],
+        "year": 2023
+    },
+    {
+        "id": "10.1111\/1365-2435.14148",
+        "doi": "10.1111\/1365-2435.14148",
+        "title": "Micro and macroclimatic constraints on the activity of a vulnerable tortoise: a mechanistic approach under a thermal niche view",
+        "abstract": "1. Thermal constraints imposed by the environment limit the activity time of ectotherms and have been a central issue in ecophysiology. Assessing these restrictions is key to determining the vulnerability of species to changing thermal niches and developing conservation strategies.",
+        "authors": [
+            {
+                "firstName": "Rafael A",
+                "lastName": "Lara-Reséndiz"
+            },
+            {
+                "firstName": "Donald B",
+                "lastName": "Miles"
+            },
+            {
+                "firstName": "Philip C",
+                "lastName": "Rosen"
+            },
+            {
+                "firstName": "Barry",
+                "lastName": "Sinervo"
+            }
+        ],
+        "year": 2022
+    },
+    {
+        "id": "10.3897\/zookeys.1134.96103",
+        "doi": "10.3897\/zookeys.1134.96103",
+        "title": "﻿Phototank setup and focus stack imaging method for reptile and amphibian specimens (Amphibia, Reptilia)",
+        "abstract": "﻿AbstractFluid-preserved reptile and amphibian specimens are challenging to photograph with traditional methods due to their complex three-dimensional forms and reflective surfaces when removed from solution. An effective approach to counteract these issues involves combining focus stack photography with the use of a photo immersion tank. Imaging specimens beneath a layer of preservative fluid eliminates glare and risk of specimen desiccation, while focus stacking produces sharp detail through merging multiple photographs taken at successive focal steps to create a composite image with an extended depth of field. This paper describes the wet imaging components and focus stack photography workflow developed while conducting a large-scale digitization project for targeted reptile and amphibian specimens housed in the University of Colorado Museum of Natural History Herpetology Collection. This methodology can be implemented in other collections settings and adapted for use with fluid-preserved specimen types across the Tree of Life to generate high-quality, taxonomically informative images for use in documenting biodiversity, remote examination of fine traits, inclusion in publications, and educational applications.",
+        "authors": [
+            {
+                "firstName": "Emily M.",
+                "lastName": "Braker"
+            }
+        ],
+        "year": 2022
+    },
+    {
+        "id": "47f6d442-3ee6-3cbc-b4be-0b235791cebd",
+        "doi": "47f6d442-3ee6-3cbc-b4be-0b235791cebd",
+        "title": "Recorded mortality in the vulnerable Alpine salamander, Salamandra atra prenjensis (Amphibia: Caudata), is not associated with the presence of known amphibian …",
+        "abstract": "Batrachochytrium dendrobatidis (Bd), is a chytrid fungus triggering the panzootic disease chytridiomycosis, capable of infecting most of the world’s amphibian species, i.e., more than 500 species across all three orders (Olson et al. 2013). This disease causes devastating population declines and species extinctions (Fisher et al. 2009). A second chytrid pathogen known to infect only salamanders and newts has been discovered, Batrachochytrium salamandrivorans (Bsal); similarly to Bd, it causes lethal skin infections and is responsible for massive population declines in northwestern Europe (Martel et al. 2013). Ranavirus (Rv) causes amphibian die-offs by provoking haemorrhages (Wheelwright 2014); clinical signs include: lethargy, weakness, fluid accumulation under the skin, and occasionally skin ulcerations (Daszak et al. 1999). These three agents are suggested to represent the major pathogens driving worldwide amphibian population declines (Whittaker et al. 2013).",
+        "authors": [
+            {
+                "firstName": "Emina",
+                "lastName": "Šunje"
+            },
+            {
+                "firstName": "Frank",
+                "lastName": "Pasmans"
+            },
+            {
+                "firstName": "Zinka",
+                "lastName": "Maksimović"
+            },
+            {
+                "firstName": "An",
+                "lastName": "Martel"
+            },
+            {
+                "firstName": "Maid",
+                "lastName": "Rifatbefović"
+            }
+        ],
+        "year": 2018
+    },
+    {
+        "id": "10.2305\/qwvh2717",
+        "doi": "10.2305\/qwvh2717",
+        "title": "Amphibian conservation action plan: A status review and roadmap for global amphibian conservation",
+        "abstract": "As the most threatened vertebrate class on earth, amphibians are at the forefront of the biodiversity crisis, with the recognition of global amphibian declines and extinctions dating back several decades now. The current Amphibian Conservation Action Plan is adopting two strategies to address the goal of the amelioration of the amphibian crisis: the development of two complementary documents that work to 1) synthesise developments in major themes of amphibian conservation over the last 15 years, as in this document, and 2) summarise the key findings and recommendations to a broader audience in a user-friendly way (a practitioner document that will follow this synthesis document). The purpose is thus to provide the most up-to-date  evidence on threats and approaches to amphibian conservation, and from there identify gaps and priorities that can then be disseminated and adopted by stakeholders across the globe.",
+        "authors": [],
+        "year": 2024
+    },
+    {
+        "id": "10.1371\/journal.pone.0229689",
+        "doi": "10.1371\/journal.pone.0229689",
+        "title": "Population dynamics and biological feasibility of sustainable harvesting as a conservation strategy for tropical and temperate freshwater turtles",
+        "abstract": "Background: Conservation strategies are urgently needed for tropical turtles that are increasingly threatened by unsustainable exploitation. Studies conducted exclusively in temperate zones have revealed that typical turtle life history traits (including delayed sexual maturity and high adult survivorship) make sustainable harvest programs an unviable strategy for turtle conservation. However, most turtles are tropical in distribution and the tropics have higher, more constant and more extended ambient temperature regimes that, in general, are more favorable for population growth. Methods: To estimate the capacity of temperate and tropical turtles to sustain harvest, we synthesized life-history traits from 165 predominantly freshwater turtle species in 12 families (Carettochelydae, Chelidae, Chelydridae, Dermatemydidae, Emydidae, Geoemydidae, Kinosternidae, Pelomedusidae, Platysternidae, Podocnemididae, Staurotypidae and Trionychidae). The influence of climate variables and latitude on turtle life-history traits (clutch size, clutch frequency, age at sexual maturity, and annual adult survival) were examined using Generalized Additive Models. The biological feasibility of sustainable harvest in temperate and tropical species was evaluated using a sensitivity analysis of population growth rates obtained from stage-structured matrix population models. Results: Turtles at low latitudes (tropical zones) exhibit smaller clutch sizes, higher clutch frequency, and earlier age at sexual maturity than those at high latitudes (temperate zones). Adult survival increased weakly with latitude and declined significantly with increasing bioclimatic temperature (mean temperature of warmest quarter). A modeling synthesis of these data indicates that the interplay of life-history traits does not create higher harvest opportunity in adults of tropical species. Yet, we found potential for sustainable exploitation of eggs in tropical species. Conclusions: Sustainable harvest as a conservation strategy for tropical turtles appears to be as biologically problematic as in temperature zones and likely only possible if the focus is on limited harvest of eggs. Further studies are urgently needed to understand how the predicted population surplus in early life stages can be most effectively incorporated into conservation programs for tropical turtles.",
+        "authors": [
+            {
+                "firstName": "Angga",
+                "lastName": "Rachmansah"
+            },
+            {
+                "firstName": "Darren",
+                "lastName": "Norris"
+            },
+            {
+                "firstName": "James P.",
+                "lastName": "Gibbs"
+            }
+        ],
+        "year": 2020
+    },
+    {
+        "id": "286ec2b0-846e-3189-a830-eaa4e52a64ff",
+        "doi": "286ec2b0-846e-3189-a830-eaa4e52a64ff",
+        "title": "Rinorea pectino-squamata",
+        "abstract": "Rinorea pectino-squamata has most recently been assessed for The IUCN Red List of Threatened Species in 2024. Rinorea pectino-squamata has been listed as Least Concern.",
+        "authors": [
+            {
+                "firstName": "Bruce",
+                "lastName": "Hoffman"
+            },
+            {
+                "firstName": "Rinette",
+                "lastName": "Soeropawiro"
+            }
+        ],
+        "year": 2024
+    },
+    {
+        "id": "6263594a-af06-3b01-b985-cc077ca381ae",
+        "doi": "6263594a-af06-3b01-b985-cc077ca381ae",
+        "title": "Inezia caudata",
+        "abstract": "Inezia caudata has most recently been assessed for The IUCN Red List of Threatened Species in 2024. Inezia caudata has been listed as Least Concern.",
+        "authors": [
+            {
+                "firstName": "BirdLife",
+                "lastName": "International"
+            }
+        ],
+        "year": 2024
+    },
+    {
+        "id": "10.2305\/iucn.uk.2023-1.rlts.t63799658a63799661.en",
+        "doi": "10.2305\/iucn.uk.2023-1.rlts.t63799658a63799661.en",
+        "title": "Manihot caudata",
+        "abstract": "Manihot caudata has most recently been assessed for The IUCN Red List of Threatened Species in 2023. Manihot caudata has been listed as Least Concern.",
+        "authors": [
+            {
+                "firstName": "Marie-Stéphanie",
+                "lastName": "Samain"
+            },
+            {
+                "firstName": "Esteban  Martínez",
+                "lastName": "Salas"
+            },
+            {
+                "firstName": "Karina Machuca",
+                "lastName": "Machuca"
+            },
+            {
+                "firstName": "Karina Sandibel Vera",
+                "lastName": "Sanchez"
+            }
+        ],
+        "year": 2023
+    },
+    {
+        "id": "10.15560\/20.4.895",
+        "doi": "10.15560\/20.4.895",
+        "title": "Geographic distribution and conservation of Bothriechis aurifer (Salvin, 1860) (Squamata, Viperidae)",
+        "abstract": "The known distribution of Bothriechis aurifer (Salvin, 1860) is outdated, which impedes an accurate evaluation of its conservation status. Here, we clarify the locality-level distribution of B. aurifer and announce a 101-km range extension. Based on this and other data, we recommend its recategorization as Endangered under the International Union for Conservation of Nature’s Red List of Threatened Species, and its addition to Appendix I of the Convention on International Trade in Endangered Species of Wild Fauna and Flora. We also discuss problematic previous records and offer conservation recommendations. A complete Spanish translation of this paper is available in the Supplemental Data. Una traducción completa al español de este artículo est&aacute; disponible en los Datos Suplementarios.",
+        "authors": [
+            {
+                "firstName": "Jorge Arturo",
+                "lastName": "Hidalgo-García"
+            },
+            {
+                "firstName": "Roberto",
+                "lastName": "Luna-Reyes"
+            },
+            {
+                "firstName": "Adam G.",
+                "lastName": "Clause"
+            },
+            {
+                "firstName": "J. Rogelio",
+                "lastName": "Cedeño-Vázquez"
+            },
+            {
+                "firstName": "José",
+                "lastName": "García González"
+            },
+            {
+                "firstName": "Sergio",
+                "lastName": "López"
+            }
+        ],
+        "year": 2024
+    },
+    {
+        "id": "10.1038\/s41597-022-01323-4",
+        "doi": "10.1038\/s41597-022-01323-4",
+        "title": "VenomMaps: Updated species distribution maps and models for New World pitvipers (Viperidae: Crotalinae)",
+        "abstract": "Beyond providing critical information to biologists, species distributions are useful for naturalists, curious citizens, and applied disciplines including conservation planning and medical intervention. Venomous snakes are one group that highlight the importance of having accurate information given their cosmopolitan distribution and medical significance. Envenomation by snakebite is considered a neglected tropical disease by the World Health Organization and venomous snake distributions are used to assess vulnerability to snakebite based on species occurrence and antivenom\/healthcare accessibility. However, recent studies highlighted the need for updated fine-scale distributions of venomous snakes. Pitvipers (Viperidae: Crotalinae) are responsible for >98% of snakebites in the New World. Therefore, to begin to address the need for updated fine-scale distributions, we created VenomMaps, a database and web application containing updated distribution maps and species distribution models for all species of New World pitvipers. With these distributions, biologists can better understand the biogeography and conservation status of this group, researchers can better assess vulnerability to snakebite, and medical professionals can easily discern species found in their area. Measurement(s) Species Distributions Technology Type(s) Geographic Information System • Species Distribution Model (MaxEnt\/kuenm) Factor Type(s) Occurrence Records • Environmental Data Sample Characteristic - Organism Crotalinae Sample Characteristic - Location North America • South America",
+        "authors": [
+            {
+                "firstName": "Rhett M.",
+                "lastName": "Rautsaw"
+            },
+            {
+                "firstName": "Gustavo",
+                "lastName": "Jiménez-Velázquez"
+            },
+            {
+                "firstName": "Erich P.",
+                "lastName": "Hofmann"
+            },
+            {
+                "firstName": "Laura R. V.",
+                "lastName": "Alencar"
+            },
+            {
+                "firstName": "Christoph I.",
+                "lastName": "Grünwald"
+            },
+            {
+                "firstName": "Marcio",
+                "lastName": "Martins"
+            },
+            {
+                "firstName": "Paola",
+                "lastName": "Carrasco"
+            },
+            {
+                "firstName": "Tiffany M.",
+                "lastName": "Doan"
+            },
+            {
+                "firstName": "Christopher L.",
+                "lastName": "Parkinson"
+            }
+        ],
+        "year": 2022
+    },
+    {
+        "id": "10.4081\/jlimnol.2023.2138",
+        "doi": "10.4081\/jlimnol.2023.2138",
+        "title": "Preface: Georeferenced Freshwater Biodiversity Data",
+        "abstract": "The special issue on “Georeferenced freshwater biodiversity data”, sponsored by the Global Biodiversity Information Facility (GBIF), has the aim of mobilising georeferenced data on freshwater organisms to become openly accessible.",
+        "authors": [
+            {
+                "firstName": "Lyudmila",
+                "lastName": "Kamburska"
+            },
+            {
+                "firstName": "Diego",
+                "lastName": "Fontaneto"
+            },
+            {
+                "firstName": "Michela",
+                "lastName": "Rogora"
+            },
+            {
+                "firstName": "Dmitry",
+                "lastName": "Schigel"
+            }
+        ],
+        "year": 2023
+    }
+]
