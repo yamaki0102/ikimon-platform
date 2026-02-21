@@ -71,14 +71,17 @@ $keys = LibraryService::searchKeys($taxon);
 // 2. Fetch Academic Papers (Tier 1)
 $papers = LibraryService::getPapersForTaxon($taxon);
 
-// 3. Red List Lookup
+// 3. Fetch Distilled Knowledge (Phase 2)
+$distilledKnowledge = LibraryService::getDistilledKnowledgeForTaxon($scientificName);
+
+// 4. Red List Lookup
 $rlManager = new RedListManager();
 $rlResult = $rlManager->lookup($taxon);
 
-// 4. Observation locations + first photo for this taxon
+// 5. Gather all observation data for plotting
+$allObs = DataStore::fetchAll('observations');
 $obsLocations = [];
 $firstPhoto = null;
-$allObs = DataStore::fetchAll('observations');
 if ($allObs) {
     foreach ($allObs as $obs) {
         $obsName = $obs['taxon']['name'] ?? ($obs['species_name'] ?? '');
@@ -357,6 +360,81 @@ $dataCount = count($citations) + count($keys) + count($papers);
                 </template>
             </div>
         </section>
+
+        <!-- [NEW] Distilled Knowledge (Phase 2) -->
+        <?php if (!empty($distilledKnowledge['ecological_constraints']) && (
+            !empty($distilledKnowledge['ecological_constraints']['habitat']) ||
+            !empty($distilledKnowledge['ecological_constraints']['altitude_range']) ||
+            !empty($distilledKnowledge['ecological_constraints']['active_season']) ||
+            !empty($distilledKnowledge['ecological_constraints']['notes'])
+        )): ?>
+            <section class="space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="brain-circuit" class="w-4 h-4 text-primary"></i>
+                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-primary">DISTILLED KNOWLEDGE</h2>
+                    <span class="ml-auto text-token-xs font-mono text-muted bg-primary/10 px-2 py-0.5 rounded-full text-primary border border-primary/20">AI EXTRACTED</span>
+                </div>
+                <div class="p-5 rounded-xl border border-border bg-gradient-to-b from-surface to-[var(--color-bg-base)]">
+                    <?php $ec = $distilledKnowledge['ecological_constraints']; ?>
+
+                    <?php if (!empty($ec['habitat'])): ?>
+                        <div class="mb-4 last:mb-0">
+                            <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-2">Habitat Constraints</h3>
+                            <div class="flex flex-wrap gap-1.5">
+                                <?php foreach ($ec['habitat'] as $hab): ?>
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border text-sm font-semibold text-text shadow-sm">
+                                        <i data-lucide="trees" class="w-3.5 h-3.5 text-secondary"></i>
+                                        <?php echo htmlspecialchars($hab); ?>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($ec['altitude_range'])): ?>
+                        <div class="mb-4 last:mb-0">
+                            <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-2">Altitude Range</h3>
+                            <div class="flex flex-wrap gap-1.5">
+                                <?php foreach ($ec['altitude_range'] as $alt): ?>
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border text-sm font-semibold text-text shadow-sm">
+                                        <i data-lucide="mountain" class="w-3.5 h-3.5 text-accent"></i>
+                                        <?php echo htmlspecialchars($alt); ?>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($ec['active_season'])): ?>
+                        <div class="mb-4 last:mb-0">
+                            <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-2">Active Season</h3>
+                            <div class="flex flex-wrap gap-1.5">
+                                <?php foreach ($ec['active_season'] as $season): ?>
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border text-sm font-semibold text-text shadow-sm">
+                                        <i data-lucide="cloud-sun" class="w-3.5 h-3.5 text-warning"></i>
+                                        <?php echo htmlspecialchars($season); ?>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($ec['notes'])): ?>
+                        <div class="mt-4 pt-3 border-t border-border/50">
+                            <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-2">Ecological Notes</h3>
+                            <ul class="space-y-2">
+                                <?php foreach ($ec['notes'] as $note): ?>
+                                    <li class="text-sm text-text-secondary leading-relaxed flex gap-2">
+                                        <i data-lucide="info" class="w-4 h-4 text-muted shrink-0 mt-0.5"></i>
+                                        <span><?php echo htmlspecialchars($note); ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </section>
+        <?php endif; ?>
 
         <!-- 2. Red List Detail (if listed) -->
         <?php if ($rlResult): ?>
