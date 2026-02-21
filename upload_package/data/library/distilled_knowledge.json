@@ -40,5 +40,216 @@
             "identification_keys": []
         },
         "review_status": "pending"
+    },
+    "10.3897\/zookeys.779.26967": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:54:37",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [
+                    "Marine",
+                    "Coastal"
+                ],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": "Study period: September 2012 to August 2013. Data based on 740 occurrences of sea turtles on the Togolese coast."
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "10.31396\/biodiv.jour.2023.14.4.851.865": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:54:42",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": null
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "10.1080\/23802359.2023.2301025": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:54:49",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": null
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "6ee404cd-442b-3e4b-a27b-c135994fb5ed": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:54:57",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": "Climatic conditions, particularly monthly mean temperatures during egg incubation, are the major driver for the species' geographic distribution. Freezing events during winter may limit the species' distribution regionally. The species exhibits temperature-dependent sex determination, requiring specific climatic conditions for successful egg incubation and balanced sex ratios."
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "10.3897\/bdj.8.e58033": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:55:07",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": "The Volga basin is one of the most industrially-developed regions of Russia with a high degree of anthropogenic impact on natural ecosystems. Human influence negatively affects the species diversity and number of animals, including reptiles. The distribution of reptiles in this region is not fully understood. Many of these reptiles are listed in regional Red Data Lists. The European Pond Turtle Emys orbicularis (Linnaeus, 1758) is included in the IUCN Red List with the category “Near Threatened”."
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "10.3897\/herpetozoa.36.e103510": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:55:17",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [
+                    "Sparse forests",
+                    "Grasslands",
+                    "Shrubs"
+                ],
+                "altitude_range": "0m - 570m",
+                "active_season": [],
+                "notes": "Native to the Mediterranean and a small part of the Alpine region in Croatia. Threats include natural succession due to abandonment of traditional farming and grazing, touristic infrastructure, urban development, transportation, illegal collecting, and invasive species."
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "10.1111\/mec.17052": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:55:25",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [
+                    "distinctive ecoregions",
+                    "different ecoregions separated by the Andes"
+                ],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": "Species harbors genetically deeply differentiated units across environments or ecological barriers, showing allopatric reproductive isolation, local adaptation, and ecological divergence."
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "10.1111\/1365-2435.14148": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:55:32",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": "Activity is limited by thermal constraints imposed by the environment."
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "10.3897\/zookeys.1134.96103": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:55:39",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": null
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "47f6d442-3ee6-3cbc-b4be-0b235791cebd": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:55:47",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [
+                    "Alpine"
+                ],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": "The text discusses pathogens (Batrachochytrium dendrobatidis, Batrachochytrium salamandrivorans, Ranavirus) that cause diseases (chytridiomycosis, lethal skin infections, haemorrhages) in amphibians, including salamanders and newts. These pathogens are associated with population declines and extinctions."
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "10.2305\/qwvh2717": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:55:52",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": null
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "10.1371\/journal.pone.0229689": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 20:56:12",
+        "data": {
+            "ecological_constraints": {
+                "habitat": [
+                    "freshwater",
+                    "tropical zones",
+                    "temperate zones"
+                ],
+                "altitude_range": null,
+                "active_season": [],
+                "notes": "Tropical turtles are increasingly threatened by unsustainable exploitation. Tropical zones have higher, more constant, and more extended ambient temperature regimes favorable for population growth. Turtles at low latitudes (tropical zones) exhibit smaller clutch sizes, higher clutch frequency, and earlier age at sexual maturity than those at high latitudes (temperate zones). Adult survival increased weakly with latitude and declined significantly with increasing bioclimatic temperature (mean temperature of warmest quarter). Sustainable harvest as a conservation strategy for tropical turtles appears to be as biologically problematic as in temperate zones and likely only possible if the focus is on limited harvest of eggs."
+            },
+            "identification_keys": []
+        },
+        "review_status": "approved"
+    },
+    "286ec2b0-846e-3189-a830-eaa4e52a64ff": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 21:25:16",
+        "data": {
+            "ecological_constraints": null,
+            "identification_keys": null
+        },
+        "review_status": "approved"
+    },
+    "6263594a-af06-3b01-b985-cc077ca381ae": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 21:26:00",
+        "data": {
+            "ecological_constraints": null,
+            "identification_keys": null
+        },
+        "review_status": "approved"
+    },
+    "10.2305\/iucn.uk.2023-1.rlts.t63799658a63799661.en": {
+        "status": "distilled",
+        "distilled_at": "2026-02-21 21:26:04",
+        "data": {
+            "ecological_constraints": null,
+            "identification_keys": null
+        },
+        "review_status": "approved"
     }
 }

@@ -436,6 +436,72 @@ $dataCount = count($citations) + count($keys) + count($papers);
             </section>
         <?php endif; ?>
 
+        <!-- [NEW] Identification Keys (Phase 5) -->
+        <?php if (!empty($distilledKnowledge['identification_keys']) && (
+            !empty($distilledKnowledge['identification_keys']['morphological_traits']) ||
+            !empty($distilledKnowledge['identification_keys']['similar_species']) ||
+            !empty($distilledKnowledge['identification_keys']['key_differences'])
+        )): ?>
+            <section class="space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="text-search" class="w-4 h-4 text-accent"></i>
+                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-accent">IDENTIFICATION KEYS</h2>
+                    <span class="ml-auto text-token-xs font-mono text-muted bg-accent/10 px-2 py-0.5 rounded-full text-accent border border-accent/20">AI EXTRACTED</span>
+                </div>
+                <div class="p-5 rounded-xl border border-border bg-gradient-to-b from-surface to-[var(--color-bg-base)]">
+                    <?php $ik = $distilledKnowledge['identification_keys']; ?>
+
+                    <?php if (!empty($ik['morphological_traits'])): ?>
+                        <div class="mb-5 last:mb-0">
+                            <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                <i data-lucide="microscope" class="w-3.5 h-3.5"></i> Morphological Traits
+                            </h3>
+                            <ul class="space-y-2">
+                                <?php foreach ($ik['morphological_traits'] as $trait): ?>
+                                    <li class="pl-4 relative text-sm text-text-secondary leading-relaxed">
+                                        <span class="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-accent/40"></span>
+                                        <?php echo htmlspecialchars($trait); ?>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($ik['similar_species'])): ?>
+                        <div class="mb-5 last:mb-0">
+                            <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Similar Species
+                            </h3>
+                            <div class="flex flex-wrap gap-2">
+                                <?php foreach ($ik['similar_species'] as $similar): ?>
+                                    <a href="species.php?name=<?php echo urlencode($similar); ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-accent/20 text-sm font-semibold text-accent shadow-sm hover:bg-accent hover:text-white transition">
+                                        <i data-lucide="link-2" class="w-3.5 h-3.5"></i>
+                                        <?php echo htmlspecialchars($similar); ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($ik['key_differences'])): ?>
+                        <div class="mt-4 pt-4 border-t border-border/50">
+                            <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                <i data-lucide="split" class="w-3.5 h-3.5"></i> Key Differences
+                            </h3>
+                            <ul class="space-y-2">
+                                <?php foreach ($ik['key_differences'] as $diff): ?>
+                                    <li class="pl-4 relative text-sm text-text-secondary leading-relaxed">
+                                        <span class="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-warning/40"></span>
+                                        <?php echo htmlspecialchars($diff); ?>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+
         <!-- 2. Red List Detail (if listed) -->
         <?php if ($rlResult): ?>
             <section class="space-y-2">

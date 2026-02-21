@@ -156,54 +156,59 @@ class LibraryService
     }
     /**
      * Get distilled ecological constraints and identification keys for a taxon
-     * Currently fetches approved distillations based on DOIs linked to the scientific name
+     * Currently fetches approved distillations from the Omoikane SQLite database.
      */
     public static function getDistilledKnowledgeForTaxon($scientificName)
     {
-        require_once __DIR__ . '/../TaxonPaperIndex.php';
+        require_once __DIR__ . '/../OmoikaneDB.php';
 
-        $dois = TaxonPaperIndex::getPapersForTaxon($scientificName);
-        if (empty($dois)) return [];
-
-        $distilledStore = DataStore::get('library/distilled_knowledge', 0) ?: [];
-        $results = [];
-
-        foreach ($dois as $doi) {
-            if (isset($distilledStore[$doi])) {
-                $item = $distilledStore[$doi];
-                // Only return approved knowledge
-                if (($item['review_status'] ?? '') === 'approved' || ($item['status'] ?? '') === 'distilled') {
-                    // For PoC, allow pending as well if strict approval isn't mandated yet.
-                    // Ideal: if ($item['review_status'] === 'approved')
-                    $results[] = $item['data'];
-                }
-            }
-        }
-
-        // Merge results if multiple papers exist (simple array merge for PoC)
         $merged = [
             'ecological_constraints' => ['habitat' => [], 'altitude_range' => [], 'active_season' => [], 'notes' => []],
             'identification_keys' => []
         ];
 
-        foreach ($results as $res) {
-            if (!empty($res['ecological_constraints'])) {
-                $ec = $res['ecological_constraints'];
-                if (!empty($ec['habitat'])) $merged['ecological_constraints']['habitat'] = array_merge($merged['ecological_constraints']['habitat'], (array)$ec['habitat']);
-                if (!empty($ec['altitude_range'])) $merged['ecological_constraints']['altitude_range'][] = $ec['altitude_range'];
-                if (!empty($ec['active_season'])) $merged['ecological_constraints']['active_season'] = array_merge($merged['ecological_constraints']['active_season'], (array)$ec['active_season']);
-                if (!empty($ec['notes'])) $merged['ecological_constraints']['notes'][] = $ec['notes'];
-            }
-            if (!empty($res['identification_keys'])) {
-                $merged['identification_keys'] = array_merge($merged['identification_keys'], $res['identification_keys']);
-            }
-        }
+        try {
+            $db = new OmoikaneDB();
+            $pdo = $db->getPDO();
 
-        // Clean up arrays
-        $merged['ecological_constraints']['habitat'] = array_unique(array_filter($merged['ecological_constraints']['habitat']));
-        $merged['ecological_constraints']['altitude_range'] = array_unique(array_filter($merged['ecological_constraints']['altitude_range']));
-        $merged['ecological_constraints']['active_season'] = array_unique(array_filter($merged['ecological_constraints']['active_season']));
-        $merged['ecological_constraints']['notes'] = array_unique(array_filter($merged['ecological_constraints']['notes']));
+            $stmt = $pdo->prepare("
+                SELECT e.habitat, e.altitude, e.season, e.notes,
+                       i.morphological_traits, i.similar_species, i.key_differences
+                FROM species s
+                LEFT JOIN ecological_constraints e ON s.id = e.species_id
+                LEFT JOIN identification_keys i ON s.id = i.species_id
+                WHERE s.scientific_name = ? AND s.distillation_status = 'distilled'
+            ");
+            $stmt->execute([trim($scientificName)]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($row) {
+                if (!empty($row['habitat'])) {
+                    $merged['ecological_constraints']['habitat'] = array_map('trim', explode(',', $row['habitat']));
+                }
+                if (!empty($row['altitude'])) {
+                    $merged['ecological_constraints']['altitude_range'][] = $row['altitude'];
+                }
+                if (!empty($row['season'])) {
+                    $merged['ecological_constraints']['active_season'] = array_map('trim', explode(',', $row['season']));
+                }
+                if (!empty($row['notes'])) {
+                    $merged['ecological_constraints']['notes'][] = $row['notes'];
+                }
+
+                if (!empty($row['morphological_traits'])) {
+                    $merged['identification_keys']['morphological_traits'] = array_map('trim', explode("\n", $row['morphological_traits']));
+                }
+                if (!empty($row['similar_species'])) {
+                    $merged['identification_keys']['similar_species'] = array_map('trim', explode(',', $row['similar_species']));
+                }
+                if (!empty($row['key_differences'])) {
+                    $merged['identification_keys']['key_differences'] = array_map('trim', explode("\n", $row['key_differences']));
+                }
+            }
+        } catch (Exception $e) {
+            error_log("Failed to fetch from OmoikaneDB: " . $e->getMessage());
+        }
 
         return $merged;
     }
