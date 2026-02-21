@@ -415,6 +415,7 @@ $observation = [
         'has_id'       => false, // Updated below if initial ID provided
         'is_wild'      => ($cultivation !== 'cultivated'),
         'is_recent'    => (strtotime($observed_at ?: 'now') > strtotime('-1 year')),
+        'ecological_verified' => !empty($_POST['ecological_verified']), // Phase 4 Validation
     ],
 ];
 

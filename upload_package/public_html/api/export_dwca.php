@@ -188,7 +188,7 @@ function buildDwcRow(array $obs, string $domain, array $licenseMap): array
         $establishmentMeans,
         $mediaStr,
         $obs['note'] ?? '',
-        'Research Grade',
+        !empty($obs['quality_flags']['ecological_verified']) ? 'Research Grade (Ecologically Verified)' : 'Research Grade',
         $taxonId,
         $informationWithheld,
         $habitat,

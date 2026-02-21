@@ -41,6 +41,11 @@ function uploader() {
         // Date discrepancy warning
         dateWarning: '',
         dateWarningVisible: false,
+        // Soft Validation Alarms (Ecological Constraints)
+        validationWarnings: [], // AI validation warnings
+        validating: false, // AI validating state
+        validationTimer: null,
+        hasConstraints: false, // Whether the taxon has ecological constraints
         // Multi-Photo Intelligence state
         _exifData: [],           // EXIF data from all photos [{lat, lng, date, orientation, imgDirection}]
         _burstDetected: false,   // True if consecutive photos <30s apart
@@ -150,6 +155,13 @@ function uploader() {
             // Auto-Save Draft
             this.$watch('note', val => this.saveDraft());
             this.$watch('cultivation', val => this.saveDraft());
+
+            // Soft Validation Triggers
+            this.$watch('taxon_slug', () => this.triggerValidation());
+            this.$watch('taxon_name', () => this.triggerValidation());
+            this.$watch('observed_at', () => this.triggerValidation());
+            this.$watch('lat', () => this.triggerValidation());
+            this.$watch('lng', () => this.triggerValidation());
 
             // Camera shortcut: post.php?camera=1 → auto-open camera
             if (urlParams.get('camera') === '1') {
@@ -426,6 +438,9 @@ function uploader() {
 
             // Network Logic with Offline Fallback
             try {
+                if (this.validationWarnings.length === 0 && this.hasConstraints && !this.validating && this.taxon_slug) {
+                    formData.append('ecological_verified', '1');
+                }
                 const res = await fetch('api/post_observation.php', {
                     method: 'POST',
                     body: formData
@@ -553,6 +568,47 @@ function uploader() {
                 this.evidence_tags.push(tagId);
             }
             if (navigator.vibrate) navigator.vibrate(15);
+        },
+
+        triggerValidation() {
+            if (!this.taxon_name && !this.taxon_slug) {
+                this.validationWarnings = [];
+                return;
+            }
+            clearTimeout(this.validationTimer);
+            this.validationTimer = setTimeout(() => {
+                this.validateObservation();
+            }, 1500); // 1.5s debounce
+        },
+
+        async validateObservation() {
+            if (!this.taxon_name && !this.taxon_slug) return;
+            if (!this.lat || !this.lng || !this.observed_at) return;
+
+            this.validating = true;
+            const formData = new FormData();
+            formData.append('taxon_name', this.taxon_name);
+            formData.append('taxon_slug', this.taxon_slug);
+            formData.append('sci_name', this.taxon_name); // Simplified fallback
+            formData.append('lat', this.lat);
+            formData.append('lng', this.lng);
+            formData.append('observed_at', this.observed_at);
+
+            try {
+                const res = await fetch('api/validate_observation.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                this.validationWarnings = data.warnings || [];
+                this.hasConstraints = data.has_constraints || false;
+            } catch (e) {
+                console.warn('Validation API failed', e);
+                this.validationWarnings = [];
+            } finally {
+                this.validating = false;
+                this.$nextTick(() => lucide.createIcons());
+            }
         },
 
         /**
