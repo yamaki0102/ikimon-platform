@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Antigravity Scraper for Red Lists
  * Reads `targets.json`, fetches URL (mocked for now), extracts data, and saves to CSV.
@@ -8,7 +9,8 @@ require_once __DIR__ . '/../config/config.php';
 
 // Mock function to simulate fetching HTML since we can't easily scrape real complex sites reliably in this env without DomDocument/Guzzle setup on specific real targets.
 // In a real scenario, this would use file_get_contents() or curl.
-function fetchUrl($url) {
+function fetchUrl($url)
+{
     // Return a mock HTML for the example target
     if (strpos($url, 'example.com/redlist/shizuoka') !== false) {
         return <<<HTML
@@ -88,28 +90,29 @@ HTML;
 
 // Simple DOM Parser helper using Regex for "Low Gravity" environment :)
 // In production, use DOMDocument.
-function parseHtml($html, $selectors) {
+function parseHtml($html, $selectors)
+{
     $rows = [];
-    
+
     // Very naive regex parser for demonstration of "Antigravity" concept
     // Matches content inside the specific class tags
-    
+
     // 1. Find rows? Regex on full HTML is hard. 
     // Let's assume standard DOMDocument availability for PHP 8.2 usually but let's stick to simple regex for this MVP to avoid lib deps.
     // Actually, let's try DOMDocument, standard in PHP.
-    
+
     $dom = new DOMDocument();
     @$dom->loadHTML($html);
     $xpath = new DOMXPath($dom);
 
     // Convert CSS selector to XPath (Simplistic)
     // "table.redlist tr.species-row" -> "//table[contains(@class,'redlist')]//tr[contains(@class,'species-row')]"
-    
+
     $rowNodes = $xpath->query("//tr[contains(@class, 'species-row')]");
-    
+
     foreach ($rowNodes as $node) {
         $item = [];
-        
+
         // Name
         $nameNode = $xpath->query(".//td[contains(@class, 'japanese-name')]", $node)->item(0);
         $item['name'] = $nameNode ? trim($nameNode->textContent) : '';
@@ -126,7 +129,7 @@ function parseHtml($html, $selectors) {
             $rows[] = $item;
         }
     }
-    
+
     return $rows;
 }
 
@@ -149,47 +152,48 @@ foreach ($configFiles as $configFile) {
     }
 
     foreach ($targets as $target) {
-    echo "Target: {$target['name']} ({$target['url']})...\n";
-    
-    $html = fetchUrl($target['url']);
-    if (!$html) {
-        echo "  Failed to fetch content.\n";
-        continue;
-    }
-    
-    // Load Heuristic Parser
-    require_once __DIR__ . '/../libs/HeuristicParser.php';
+        echo "Target: {$target['name']} ({$target['url']})...\n";
 
-    $data = [];
-    if (isset($target['selectors']) && !empty($target['selectors'])) {
-        // Manual Mode
-        $data = parseHtml($html, $target['selectors']);
-    } else {
-        // Autonomous Mode
-        echo "  [AI Mode] Analyzing patterns...\n";
-        $data = HeuristicParser::parse($html);
-    }
-    
-    echo "  Extracted " . count($data) . " items.\n";
-    
-    if (count($data) > 0) {
-        $csvFile = $outputDir . '/scraped_' . $target['id'] . '.csv';
-        $fp = fopen($csvFile, 'w');
-        
-        // Universal CSV Header
-        fputcsv($fp, ['scope', 'authority', 'scientific_name', 'japanese_name', 'code']);
-        
-        foreach ($data as $row) {
-            fputcsv($fp, [
-                $target['scope'],
-                $target['authority'],
-                $row['scientific_name'],
-                $row['name'],
-                $row['category']
-            ]);
+        $html = fetchUrl($target['url']);
+        if (!$html) {
+            echo "  Failed to fetch content.\n";
+            continue;
         }
-        fclose($fp);
-        echo "  Saved to " . basename($csvFile) . "\n";
+
+        // Load Heuristic Parser
+        require_once __DIR__ . '/../libs/HeuristicParser.php';
+
+        $data = [];
+        if (isset($target['selectors']) && !empty($target['selectors'])) {
+            // Manual Mode
+            $data = parseHtml($html, $target['selectors']);
+        } else {
+            // Autonomous Mode
+            echo "  [AI Mode] Analyzing patterns...\n";
+            $data = HeuristicParser::parse($html);
+        }
+
+        echo "  Extracted " . count($data) . " items.\n";
+
+        if (count($data) > 0) {
+            $csvFile = $outputDir . '/scraped_' . $target['id'] . '.csv';
+            $fp = fopen($csvFile, 'w');
+
+            // Universal CSV Header
+            fputcsv($fp, ['scope', 'authority', 'scientific_name', 'japanese_name', 'code']);
+
+            foreach ($data as $row) {
+                fputcsv($fp, [
+                    $target['scope'],
+                    $target['authority'],
+                    $row['scientific_name'],
+                    $row['name'],
+                    $row['category']
+                ]);
+            }
+            fclose($fp);
+            echo "  Saved to " . basename($csvFile) . "\n";
+        }
     }
 }
 

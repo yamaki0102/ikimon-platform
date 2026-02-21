@@ -10,7 +10,7 @@
     <div class="max-w-7xl mx-auto px-4 md:px-6 flex items-center justify-between h-[var(--nav-height)]">
         <!-- Logo -->
         <a href="index.php" class="flex items-center gap-2 group">
-            <img src="assets/img/icon-192-v3.png" alt="ikimon" class="w-10 h-10 rounded-md shadow-md group-hover:scale-105 transition duration-500">
+            <img src="assets/img/icon-192.png" alt="ikimon" class="w-10 h-10 rounded-md shadow-md group-hover:scale-105 transition duration-500">
             <span class="text-lg font-black tracking-tight font-heading text-text">ikimon</span>
         </a>
 
@@ -70,6 +70,7 @@
                     共創する <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
                 </button>
                 <div class="absolute left-0 top-full -mt-2 w-52 z-50 origin-top-left bg-elevated rounded-xl border border-border-strong shadow-lg py-2 opacity-0 invisible scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:scale-100 group-hover:translate-y-2">
+                    <a href="needs_id.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-accent transition"><i data-lucide="sparkles" class="w-4 h-4 text-faint"></i> The Missing Matrix</a>
                     <a href="id_workbench.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="microscope" class="w-4 h-4 text-faint"></i> IDセンター (同定)</a>
                     <a href="site_dashboard.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="shield-check" class="w-4 h-4 text-faint"></i> 共生サイト</a>
                     <a href="events.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="calendar" class="w-4 h-4 text-faint"></i> イベント</a>
@@ -187,7 +188,7 @@
                                 <i data-lucide="calendar" class="w-4 h-4"></i> <?php echo __('nav.events'); ?>
                             </a>
                             <a href="ikimon_walk.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="footprints" class="w-4 h-4"></i> <?php echo __('nav.ikimon_walk'); ?>
+                                <i data-lucide="footprints" class="w-4 h-4"></i> <?php echo __('nav.my_field'); ?>
                             </a>
                             <a href="survey.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                                 <i data-lucide="microscope" class="w-4 h-4"></i> 🔬 調査
@@ -216,6 +217,18 @@
                             </a>
                             <a href="about.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                                 <i data-lucide="info" class="w-4 h-4"></i> <?php echo __('nav.about'); ?>
+                            </a>
+                            <a href="pricing.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                                <i data-lucide="credit-card" class="w-4 h-4"></i> 料金プラン
+                            </a>
+                            <a href="for-business/" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                                <i data-lucide="building-2" class="w-4 h-4"></i> 企業・研究者の方へ
+                            </a>
+                            <a href="dashboard_municipality.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-primary hover:bg-primary-surface">
+                                <i data-lucide="globe-2" class="w-4 h-4"></i> 自治体ダッシュボード
+                            </a>
+                            <a href="dashboard_portfolio.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-primary hover:bg-primary-surface">
+                                <i data-lucide="briefcase" class="w-4 h-4"></i> 企業ポートフォリオ (Global)
                             </a>
                             <a href="logout.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-danger hover:bg-danger-surface">
                                 <i data-lucide="log-out" class="w-4 h-4"></i> <?php echo __('nav.logout'); ?>
@@ -493,16 +506,22 @@
 
     <!-- Raised Center Button -->
     <div class="bottom-nav__center">
-        <a href="ikimon_walk.php" class="bottom-nav__center-btn" aria-label="ikimonWalk">
-            <i data-lucide="footprints" class="w-7 h-7"></i>
-        </a>
+        <?php if ($currentUser): ?>
+            <a href="post.php" class="bottom-nav__center-btn" aria-label="<?php echo __('nav.post'); ?>">
+                <i data-lucide="camera" class="w-7 h-7"></i>
+            </a>
+        <?php else: ?>
+            <a href="login.php" class="bottom-nav__center-btn" aria-label="<?php echo __('nav.post'); ?>">
+                <i data-lucide="camera" class="w-7 h-7"></i>
+            </a>
+        <?php endif; ?>
     </div>
 
-    <a href="map.php"
-        <?php if (basename($_SERVER['PHP_SELF']) == 'map.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
-        class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'map.php' ? 'bottom-nav__item--active' : ''; ?>">
-        <i data-lucide="map" class="w-6 h-6"></i>
-        <span><?php echo __('nav.field_map'); ?></span>
+    <a href="ikimon_walk.php"
+        <?php if (basename($_SERVER['PHP_SELF']) == 'ikimon_walk.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
+        class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'ikimon_walk.php' ? 'bottom-nav__item--active' : ''; ?>">
+        <i data-lucide="footprints" class="w-6 h-6"></i>
+        <span>さんぽ</span>
     </a>
     <button @click="$dispatch('open-mobile-menu')" class="bottom-nav__item">
         <i data-lucide="menu" class="w-6 h-6"></i>
@@ -668,6 +687,9 @@
             <a href="compass.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="globe" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ランキング</span>
             </a>
+            <a href="needs_id.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                <i data-lucide="sparkles" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">The Missing Matrix</span>
+            </a>
             <a href="id_workbench.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="microscope" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">IDセンター (同定)</span>
             </a>
@@ -676,6 +698,9 @@
             </a>
             <a href="events.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="calendar" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">イベント</span>
+            </a>
+            <a href="ikimon_walk.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                <i data-lucide="footprints" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.my_field'); ?></span>
             </a>
             <a href="survey.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="clipboard-list" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">調査に参加</span>
@@ -687,6 +712,18 @@
             <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">その他</p>
             <a href="about.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="info" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ikimonについて</span>
+            </a>
+            <a href="pricing.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                <i data-lucide="credit-card" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">料金プラン</span>
+            </a>
+            <a href="for-business/" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                <i data-lucide="building-2" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">企業・研究者の方へ</span>
+            </a>
+            <a href="dashboard_municipality.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-primary)]">
+                <i data-lucide="globe-2" class="w-5 h-5 text-[var(--color-primary)]"></i> <span class="text-sm font-bold text-[var(--color-primary)]">自治体ダッシュボード</span>
+            </a>
+            <a href="dashboard_portfolio.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-primary)]">
+                <i data-lucide="briefcase" class="w-5 h-5 text-[var(--color-primary)]"></i> <span class="text-sm font-bold text-[var(--color-primary)]">企業ポートフォリオ (Global)</span>
             </a>
             <?php if ($currentUser && Auth::hasRole('Analyst')): ?>
                 <a href="admin/index.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-primary)]">

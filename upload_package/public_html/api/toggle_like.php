@@ -2,12 +2,13 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Auth.php';
+require_once __DIR__ . '/../../libs/Notification.php';
 
 Auth::init();
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
 if (!Auth::isLoggedIn()) {
-    echo json_encode(['success' => false, 'message' => 'Login required']);
+    echo json_encode(['success' => false, 'message' => 'Login required'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -16,13 +17,9 @@ $obsId = $input['id'] ?? '';
 $user = Auth::user();
 
 if (!$obsId) {
-    echo json_encode(['success' => false, 'message' => 'Missing ID']);
+    echo json_encode(['success' => false, 'message' => 'Missing ID'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
-
-// In V3, we might use a separate 'likes' table/store to avoid locking the observation file.
-// For V2.5/MVP, we'll append to the observation record or use a separate index.
-// Let's use a separate Index for speed and concurrency safety (Indexer.php-like approach).
 
 $likeFile = DATA_DIR . '/likes/' . $obsId . '.json';
 if (!file_exists(dirname($likeFile))) {
@@ -40,8 +37,20 @@ if (in_array($userId, $likes)) {
 } else {
     // Like
     $likes[] = $userId;
+
+    // Send notification to observation owner (not self)
+    $obs = DataStore::findById('observations', $obsId);
+    if ($obs && isset($obs['user_id']) && $obs['user_id'] !== $userId) {
+        Notification::sendAmbient(
+            $obs['user_id'],
+            Notification::TYPE_FOOTPRINT,
+            '足あとが残された 👣',
+            $user['name'] . ' さんがあなたの記録に足あとを残しました。',
+            'observation_detail.php?id=' . $obsId
+        );
+    }
 }
 
-file_put_contents($likeFile, json_encode($likes));
+file_put_contents($likeFile, json_encode($likes, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG));
 
-echo json_encode(['success' => true, 'action' => $action, 'count' => count($likes)]);
+echo json_encode(['success' => true, 'action' => $action, 'count' => count($likes, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

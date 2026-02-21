@@ -13,7 +13,7 @@ Auth::init();
 <body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
-    <script>document.body.classList.remove('js-loading');</script>
+    <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
 
     <!-- Hero Section -->
     <section class="pt-32 pb-16 px-6">
@@ -137,7 +137,7 @@ Auth::init();
     <!-- Footer -->
     <?php include __DIR__ . '/components/footer.php'; ?>
 
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>
 </body>

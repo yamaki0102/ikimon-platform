@@ -1,3 +1,7 @@
+# Custom Error Pages
+ErrorDocument 403 /403.php
+ErrorDocument 404 /404.php
+
 # Enable Gzip Compression
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
@@ -22,11 +26,20 @@
     Header set X-Frame-Options "SAMEORIGIN"
 </IfModule>
 
-# URL Rewriting (if needed for router, but currently using direct PHP files)
-# Fallback to index.php if file not found (Optional)
-# <IfModule mod_rewrite.c>
-#     RewriteEngine On
-#     RewriteCond %{REQUEST_FILENAME} !-f
-#     RewriteCond %{REQUEST_FILENAME} !-d
-#     RewriteRule ^ index.php [L]
-# </IfModule>
+# Clean URL Rewrite Rules
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # /species/{slug} → species.php?name={slug}
+    RewriteRule ^species/([a-z0-9\-]+)/?$ species.php?name=$1 [L,QSA]
+
+    # /obs/{id} → observation_detail.php?id={id}
+    RewriteRule ^obs/([a-zA-Z0-9_\-]+)/?$ observation_detail.php?id=$1 [L,QSA]
+
+    # /site/{id} → site_dashboard.php?id={id}
+    RewriteRule ^site/([a-zA-Z0-9_\-]+)/?$ site_dashboard.php?id=$1 [L,QSA]
+
+    # /user/{id} → profile.php?id={id}
+    RewriteRule ^user/([a-zA-Z0-9_\-]+)/?$ profile.php?id=$1 [L,QSA]
+</IfModule>

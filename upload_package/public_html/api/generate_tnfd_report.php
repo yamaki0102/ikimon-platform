@@ -15,8 +15,8 @@ $siteId = $_GET['site_id'] ?? 'ikimon_forest';
 $siteDef = CorporateSites::SITES[$siteId] ?? null;
 
 if (!$siteDef) {
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Site not found']);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => false, 'message' => 'Site not found'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 

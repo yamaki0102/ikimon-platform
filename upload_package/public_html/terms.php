@@ -1,112 +1,152 @@
 <?php
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
 Auth::init();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>利用規約 - ikimon</title>
-    <?php include __DIR__ . '/components/meta.php'; ?>
+    <?php
+    $meta_title = "利用規約 — ikimon.life";
+    $meta_description = "ikimon.life の利用規約。サービスの利用条件、データの取り扱い、クリエイティブ・コモンズライセンスについて。";
+    include __DIR__ . '/components/meta.php';
+    ?>
 </head>
-<body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
 
-    <?php include __DIR__ . '/components/nav.php'; ?>
-    <script>document.body.classList.remove('js-loading');</script>
+<body class="bg-base text-text font-body">
+    <?php include __DIR__ . '/components/header.php'; ?>
 
-    <section class="pt-32 pb-16 px-6">
-        <div class="max-w-3xl mx-auto">
-            <h1 class="text-3xl font-black mb-8">利用規約</h1>
-            <p class="text-sm text-gray-400 mb-8">最終更新日: 2025年1月1日</p>
-            
-            <article class="prose prose-invert prose-sm max-w-none space-y-8 text-gray-300">
-                
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-4">第1条（適用）</h2>
-                    <p>
-                        本規約は、ikimon Project（以下「当プロジェクト」）が提供するサービス「ikimon」（以下「本サービス」）の利用条件を定めるものです。ユーザーの皆様は、本規約に同意の上、本サービスをご利用ください。
-                    </p>
-                </section>
+    <main class="max-w-3xl mx-auto px-4 pt-24 pb-20 md:pt-28">
 
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-4">第2条（定義）</h2>
-                    <ul class="list-disc list-inside space-y-2">
-                        <li>「ユーザー」とは、本サービスを利用するすべての方を指します。</li>
-                        <li>「投稿データ」とは、ユーザーが本サービスに投稿した写真、位置情報、テキスト等のコンテンツを指します。</li>
-                        <li>「観察データ」とは、投稿データから生成される生物観察レコードを指します。</li>
+        <h1 class="text-2xl md:text-3xl font-black tracking-tight text-text mb-2">📜 利用規約</h1>
+        <p class="text-xs text-muted mb-8">最終更新日: 2026年2月20日</p>
+
+        <div class="space-y-8 text-sm text-text leading-relaxed">
+
+            <section>
+                <h2 class="text-lg font-black text-text mb-3">第1条（適用）</h2>
+                <p>本利用規約（以下「本規約」）は、ikimon.life（以下「本サービス」）の利用に関する条件を定めるものです。ユーザーは本サービスを利用することにより、本規約に同意したものとみなします。</p>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-black text-text mb-3">第2条（サービスの内容）</h2>
+                <p>本サービスは、市民参加型の生物多様性観察プラットフォームです。ユーザーは野生生物の観察記録を投稿し、コミュニティによる同定プロセスに参加できます。</p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-muted">
+                    <li>生物の観察記録の投稿・閲覧</li>
+                    <li>コミュニティによる種の同定</li>
+                    <li>フィールドマップ・図鑑・ランキングの利用</li>
+                    <li>API・レポート生成（有料プラン）</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-black text-text mb-3">第3条（アカウント）</h2>
+                <p>ユーザーはGoogle認証またはゲストモードでサービスを利用できます。アカウント情報の管理はユーザー自身の責任とします。</p>
+            </section>
+
+            <section>
+                <h2 class="text-lg font-black text-text mb-3">第4条（投稿データとライセンス）</h2>
+                <div class="bg-primary/5 border border-primary/20 rounded-2xl p-5 mb-3">
+                    <p class="font-bold text-text mb-2">📋 重要: クリエイティブ・コモンズライセンス</p>
+                    <p class="text-muted">ユーザーが投稿する観察データには、投稿時に選択したクリエイティブ・コモンズライセンスが適用されます。</p>
+                    <ul class="mt-3 space-y-2">
+                        <li class="flex items-start gap-2"><span class="text-primary font-bold">CC0</span> パブリックドメイン — 著作権を放棄。誰でも自由に利用可能</li>
+                        <li class="flex items-start gap-2"><span class="text-primary font-bold">CC BY</span> 表示 — クレジット表示のもと、誰でも利用可能（推奨）</li>
+                        <li class="flex items-start gap-2"><span class="font-bold text-secondary">CC BY-NC</span> 表示-非営利 — 非営利目的でのみ利用可能</li>
                     </ul>
-                </section>
+                </div>
+                <p>選択されたライセンスは投稿後に変更できません。CC0 および CC BY で投稿されたデータは、GBIF（地球規模生物多様性情報機構）を通じて国際的に共有される場合があります。CC BY-NC のデータは GBIF への共有対象外です。</p>
+            </section>
 
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-4">第3条（利用登録）</h2>
-                    <p>
-                        本サービスの一部機能は登録なしでご利用いただけます。ただし、投稿機能、同定機能等の利用には、利用登録が必要です。
-                    </p>
-                </section>
+            <section>
+                <h2 class="text-lg font-black text-text mb-3">第5条（禁止事項）</h2>
+                <ul class="list-disc list-inside space-y-1 text-muted">
+                    <li>虚偽の観察データの投稿</li>
+                    <li>他者の著作物（写真等）を無断で投稿する行為</li>
+                    <li>絶滅危惧種の生息地を特定する情報の意図的な公開</li>
+                    <li>本サービスの運営を妨害する行為</li>
+                    <li>API の不正利用（レートリミットの回避等）</li>
+                    <li>密猟・違法採集を助長する行為</li>
+                </ul>
+            </section>
 
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-4">第4条（投稿データの取り扱い）</h2>
-                    <ul class="list-disc list-inside space-y-2">
-                        <li>投稿データの著作権は、原則としてユーザーに帰属します。</li>
-                        <li>ユーザーは、当プロジェクトに対し、投稿データを本サービスの提供・改善・研究目的で使用する非独占的ライセンスを付与します。</li>
-                        <li><strong>オープンデータ化</strong>: 投稿データのうち、専門家による検証を経た「Research Grade」データは、CC BY-NC（表示-非営利）ライセンスでGBIF等のオープンデータプラットフォームに公開される場合があります。</li>
-                        <li>絶滅危惧種の位置情報は、保護のため自動的に精度を下げて公開されます。</li>
-                    </ul>
-                </section>
+            <section>
+                <h2 class="text-lg font-black text-text mb-3">第6条（有料プラン）</h2>
+                <p>本サービスの一部機能（API アクセス、DwC-A エクスポート、TNFD レポート生成等）は有料プランでのみ提供されます。料金は<a href="pricing.php" class="text-primary underline">料金プランページ</a>に記載のとおりです。</p>
+                <p class="mt-2">有料プランの解約は、メールにて承ります。解約月の末日までサービスをご利用いただけます。</p>
+            </section>
 
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-4">第5条（禁止事項）</h2>
-                    <p>ユーザーは、以下の行為を行ってはなりません：</p>
-                    <ul class="list-disc list-inside space-y-2 mt-2">
-                        <li>虚偽の情報を投稿する行為</li>
-                        <li>他者の著作権、プライバシー権を侵害する行為</li>
-                        <li>法令または公序良俗に反する行為</li>
-                        <li>本サービスの運営を妨害する行為</li>
-                        <li>商業目的での無断利用</li>
-                        <li>不正アクセス、スクレイピング等の行為</li>
-                    </ul>
-                </section>
+            <section>
+                <h2 class="text-lg font-black text-text mb-3">第7条（絶滅危惧種の保護）</h2>
+                <p>環境省レッドリストおよび都道府県レッドリストに掲載されている種の位置情報は、密猟防止のため自動的にランダム化（半径10km圏内）されます。この処理はシステムにより自動的に行われ、ユーザーが解除することはできません。</p>
+            </section>
 
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-4">第6条（サービスの変更・停止）</h2>
-                    <p>
-                        当プロジェクトは、事前の通知なく本サービスの内容を変更、または提供を停止することがあります。これによりユーザーに生じた損害について、当プロジェクトは責任を負いません。
-                    </p>
-                </section>
+            <section>
+                <h2 class="text-lg font-black text-text mb-3">第8条（免責事項）</h2>
+                <p>本サービスは「現状有姿」で提供されます。コミュニティによる同定結果の正確性について、運営者は保証しません。学術研究等での利用にあたっては、専門家による検証を推奨します。</p>
+            </section>
 
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-4">第7条（免責事項）</h2>
-                    <ul class="list-disc list-inside space-y-2">
-                        <li>本サービスで提供される生物情報は参考情報であり、正確性を保証するものではありません。</li>
-                        <li>毒性、危険性のある生物については、専門家の判断を得た上で対応してください。</li>
-                        <li>本サービスの利用により生じた損害について、当プロジェクトは一切の責任を負いません。</li>
-                    </ul>
-                </section>
+            <section>
+                <h2 class="text-lg font-black text-text mb-3">第9条（規約の変更）</h2>
+                <p>運営者は、必要と判断した場合には、ユーザーに通知することなく本規約を変更できるものとします。変更後の利用規約は、本ページに掲載した時点より効力を生じるものとします。</p>
+            </section>
 
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-4">第8条（準拠法・管轄）</h2>
-                    <p>
-                        本規約の解釈には日本法が適用されます。本サービスに関する紛争については、静岡地方裁判所を第一審の専属的合意管轄裁判所とします。
-                    </p>
-                </section>
+            <section>
+                <h2 class="text-lg font-black text-text mb-3">第10条（準拠法・管轄）</h2>
+                <p>本規約の解釈は日本法に準拠し、本サービスに関する紛争については静岡地方裁判所を第一審の専属的合意管轄裁判所とします。</p>
+            </section>
 
-                <section class="pt-8 border-t border-white/10">
-                    <h2 class="text-xl font-bold text-white mb-4">お問い合わせ</h2>
-                    <p>
-                        本規約に関するお問い合わせは、下記までご連絡ください。<br>
-                        Email: <a href="mailto:contact@ikimon.life" class="text-[var(--color-primary)] hover:underline">contact@ikimon.life</a>
-                    </p>
-                </section>
+            <section class="border-t border-border pt-8">
+                <h2 class="text-lg font-black text-text mb-3">特定商取引法に基づく表示</h2>
+                <div class="bg-surface border border-border rounded-2xl overflow-hidden">
+                    <table class="w-full text-sm">
+                        <tbody>
+                            <tr class="border-b border-border">
+                                <td class="px-4 py-3 font-bold text-muted bg-surface w-1/3">販売業者</td>
+                                <td class="px-4 py-3">ikimon.life 運営事務局</td>
+                            </tr>
+                            <tr class="border-b border-border">
+                                <td class="px-4 py-3 font-bold text-muted bg-surface">所在地</td>
+                                <td class="px-4 py-3">お問い合わせにより開示</td>
+                            </tr>
+                            <tr class="border-b border-border">
+                                <td class="px-4 py-3 font-bold text-muted bg-surface">連絡先</td>
+                                <td class="px-4 py-3">contact@ikimon.life</td>
+                            </tr>
+                            <tr class="border-b border-border">
+                                <td class="px-4 py-3 font-bold text-muted bg-surface">販売価格</td>
+                                <td class="px-4 py-3"><a href="pricing.php" class="text-primary underline">料金プランページ</a>に記載</td>
+                            </tr>
+                            <tr class="border-b border-border">
+                                <td class="px-4 py-3 font-bold text-muted bg-surface">支払方法</td>
+                                <td class="px-4 py-3">銀行振込（請求書払い）</td>
+                            </tr>
+                            <tr class="border-b border-border">
+                                <td class="px-4 py-3 font-bold text-muted bg-surface">引渡し時期</td>
+                                <td class="px-4 py-3">お支払い確認後、即日〜3営業日以内にアカウント有効化</td>
+                            </tr>
+                            <tr class="border-b border-border">
+                                <td class="px-4 py-3 font-bold text-muted bg-surface">返品・解約</td>
+                                <td class="px-4 py-3">月末解約可。解約月は引き続きご利用いただけます。返金は原則不可</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 font-bold text-muted bg-surface">動作環境</td>
+                                <td class="px-4 py-3">最新のChrome, Safari, Firefox, Edge。インターネット接続必須</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
-            </article>
         </div>
-    </section>
 
-    <?php include __DIR__ . '/components/footer.php'; ?>
+    </main>
 
+    <?php include __DIR__ . '/components/footer_nav.php'; ?>
     <script>
         lucide.createIcons();
     </script>
 </body>
+
 </html>

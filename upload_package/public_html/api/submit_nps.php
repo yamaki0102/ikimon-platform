@@ -1,21 +1,24 @@
 <?php
+
 /**
  * FB-38: NPS Survey API Endpoint
  * Records NPS scores and feedback
  */
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/RateLimiter.php';
+require_once __DIR__ . '/../../libs/CSRF.php';
 
 Auth::init();
+CSRF::validateRequest();
 RateLimiter::check();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+    echo json_encode(['success' => false, 'error' => 'Method not allowed'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -26,7 +29,7 @@ $feedback = trim($input['feedback'] ?? '');
 
 if ($score === null || $score < 0 || $score > 10) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Invalid score']);
+    echo json_encode(['success' => false, 'error' => 'Invalid score'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -44,7 +47,7 @@ $npsEntry = [
 // Store NPS data
 $npsData = DataStore::fetchAll('nps') ?: [];
 $npsData[] = $npsEntry;
-DataStore::saveAll('nps', $npsData);
+DataStore::save('nps.json', $npsData);
 
 // Calculate NPS score for logging
 $scores = array_column($npsData, 'score');
@@ -58,4 +61,4 @@ echo json_encode([
     'message' => 'Thank you for your feedback!',
     'current_nps' => $npsScore,
     'total_responses' => $total
-]);
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

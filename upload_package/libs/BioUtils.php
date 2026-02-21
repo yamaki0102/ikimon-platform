@@ -1,15 +1,18 @@
 <?php
+
 /**
  * BioUtils - helper for biodiversity logic
  */
 
-class BioUtils {
+class BioUtils
+{
     /**
      * Get relative time string (Japanese)
      * @param string|int $timestamp
      * @return string
      */
-    public static function timeAgo($timestamp) {
+    public static function timeAgo($timestamp)
+    {
         if (!is_numeric($timestamp)) {
             $timestamp = strtotime($timestamp);
         }
@@ -35,7 +38,8 @@ class BioUtils {
      * @param string|null $category CR, EN, VU, etc.
      * @return array [lat, lng, radius_meters]
      */
-    public static function getObscuredLocation($lat, $lng, $category) {
+    public static function getObscuredLocation($lat, $lng, $category)
+    {
         $grid_size = 0;
         if (in_array($category, ['CR', 'EN'])) {
             $grid_size = OBSCURE_GRID_CR_EN; // 10km
@@ -62,135 +66,319 @@ class BioUtils {
     /**
      * Get CSS class for status
      */
-    public static function getStatusColor($status) {
+    public static function getStatusColor($status)
+    {
         switch ($status) {
-            case 'はかせ認定': return 'text-green-400 bg-green-400/10 border-green-400/20';
-            case 'ていあん': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-            case '調査中': return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20';
-            case 'はかせチェック': return 'text-purple-400 bg-purple-400/10 border-purple-400/20';
-            default: return 'text-gray-400 bg-gray-400/10 border-gray-400/20';
+            case '研究用':
+                return 'text-primary bg-primary-surface border-primary-glow';
+            case '要同定':
+                return 'text-primary-light bg-primary-surface border-primary-glow';
+            case '未同定':
+                return 'text-warning bg-warning-surface border-warning/20';
+            case 'はかせチェック':
+                return 'text-accent bg-accent-surface border-accent/20';
+            default:
+                return 'text-faint bg-surface border-border';
         }
     }
 
     /**
-     * Calculate consensus and observation status
-     * @param array &$obs Observation data
+     * Check if an observation meets Verifiable conditions.
+     * Must have: date, location (lat+lng), photo/audio, and be wild.
+     *
+     * @param array $obs Observation data
+     * @return bool
+     */
+    public static function isVerifiable(array $obs): bool
+    {
+        // Must have observation date
+        if (empty($obs['observed_at']) && empty($obs['date'])) {
+            return false;
+        }
+        // Must have location (support both field name conventions)
+        $lat = $obs['lat'] ?? $obs['location_lat'] ?? null;
+        $lng = $obs['lng'] ?? $obs['location_lng'] ?? null;
+        if (empty($lat) || empty($lng)) {
+            return false;
+        }
+        // Must have photo or audio evidence
+        if (empty($obs['photo_url']) && empty($obs['photos']) && empty($obs['audio_url'])) {
+            return false;
+        }
+        // Must be wild (not cultivated/captive)
+        if (($obs['cultivation'] ?? 'wild') === 'cultivated') {
+            return false;
+        }
+        if (!empty($obs['is_captive'])) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Deduplicate identifications: keep only the latest per user.
+     *
+     * @param array $identifications
+     * @return array Deduplicated identifications (latest per user)
+     */
+    public static function deduplicateIdentifications(array $identifications): array
+    {
+        $byUser = [];
+        foreach ($identifications as $id) {
+            $userId = $id['user_id'] ?? '';
+            if (!$userId) continue;
+            // Later entries overwrite earlier ones (latest wins)
+            $byUser[$userId] = $id;
+        }
+        return array_values($byUser);
+    }
+
+    /**
+     * Calculate consensus and observation status using iNaturalist-style 2/3 majority rule.
+     *
+     * Algorithm:
+     * 1. Check Verifiable conditions → Casual if not met
+     * 2. Deduplicate identifications (1 per user, latest wins)
+     * 3. Find Community Taxon (most precise level with ≧2/3 agreement)
+     * 4. Determine status: 未同定 → 要同定 → 研究用
+     *
+     * @param array &$obs Observation data (modified in place)
      * @return string New status
      */
-    public static function updateConsensus(&$obs) {
+
+    public static function updateConsensus(array &$obs): string
+    {
+        require_once __DIR__ . '/TrustLevel.php';
+
+        // --- Phase 0: No identifications ---
         if (!isset($obs['identifications']) || empty($obs['identifications'])) {
-            $obs['status'] = '調査中';
-            return '調査中';
+            $obs['status'] = '未同定';
+            return '未同定';
         }
 
-        require_once __DIR__ . '/Gamification.php';
-        require_once __DIR__ . '/DataStore.php';
+        // --- Phase 1: Verifiable check ---
+        if (!self::isVerifiable($obs)) {
+            // Set taxon from first identification but mark as Casual
+            $firstId = $obs['identifications'][0];
+            $obs['taxon'] = self::buildTaxonFromId($firstId);
+            $obs['status'] = 'Casual';
+            return 'Casual';
+        }
 
-        $scores = [];
-        $taxon_data = [];
-        
-        foreach ($obs['identifications'] as $id) {
-            $key = $id['taxon_key'];
-            
-            // Calculate User Weight
-            $userId = $id['user_id'];
-            $user = DataStore::findById('users', $userId);
-            $weight = 1.0; // Base weight
+        // --- Phase 2: Deduplicate (1 vote per user, latest wins) ---
+        $activeIds = self::deduplicateIdentifications($obs['identifications']);
 
-            if ($user && isset($user['badges'])) {
-                if (in_array('expert', $user['badges'])) {
-                    $weight = 3.0; // Expert Override power
-                } elseif (in_array('identifier', $user['badges'])) {
-                    $weight = 1.5; // Experienced identifier
-                }
+        // --- Phase 3: Calculate Weighted Votes (WE-Consensus) ---
+        $votesPerTaxon = []; // Weighted score per taxon
+        $rawVotesPerTaxon = []; // Raw count
+        $taxonData = [];
+        $totalWeight = 0.0;
+
+        foreach ($activeIds as $id) {
+            $key = $id['taxon_key'] ?? $id['taxon_name'] ?? '';
+            if (!$key) continue;
+
+            $userId = $id['user_id'] ?? '';
+            $weight = TrustLevel::getWeight($userId);
+
+            $votesPerTaxon[$key] = ($votesPerTaxon[$key] ?? 0.0) + $weight;
+            $rawVotesPerTaxon[$key] = ($rawVotesPerTaxon[$key] ?? 0) + 1;
+            $taxonData[$key] = self::buildTaxonFromId($id);
+
+            $totalWeight += $weight;
+        }
+
+        // Sort by weighted score descending
+        arsort($votesPerTaxon);
+        $topTaxonKey = array_key_first($votesPerTaxon);
+        $topScore = $votesPerTaxon[$topTaxonKey];
+        $topRawVotes = $rawVotesPerTaxon[$topTaxonKey];
+
+        // Set primary taxon to the one with highest weighted score
+        $obs['taxon'] = $taxonData[$topTaxonKey];
+
+        // Agreement Rate (Weighted)
+        $agreementRate = $totalWeight > 0 ? ($topScore / $totalWeight) : 0;
+
+        // Store consensus metadata for transparency
+        $obs['consensus'] = [
+            'total_votes'    => count($activeIds), // Raw count
+            'total_score'    => $totalWeight,      // Weighted total
+            'top_score'      => $topScore,         // Weighted top score
+            'agreement_rate' => round($agreementRate, 3),
+            'algorithm'      => 'we_consensus_v1', // Weighted Evidence Consensus
+            'updated_at'     => date('c'),
+        ];
+
+        // --- Phase 4: Determine status ---
+
+        // Check for unresolved disputes
+        $hasOpenDisputes = false;
+        foreach ($obs['disputes'] ?? [] as $dispute) {
+            if (in_array(($dispute['status'] ?? ''), ['open', 'pending'])) {
+                $hasOpenDisputes = true;
+                break;
             }
-
-            $scores[$key] = ($scores[$key] ?? 0) + $weight;
-            
-            $taxon_data[$key] = [
-                'name' => $id['taxon_name'],
-                'scientific_name' => $id['scientific_name'],
-                'key' => $id['taxon_key'],
-                'rank' => $id['taxon_rank'] ?? 'species',
-                'lineage' => $id['lineage'] ?? []
-            ];
         }
 
-        // Sort by score descending
-        arsort($scores);
-        $top_taxon_key = array_key_first($scores);
-        $top_score = $scores[$top_taxon_key];
+        // Check if observation owner is the ONLY identifier
+        $ownerId = $obs['user_id'] ?? '';
+        $hasOtherIdentifier = false;
+        foreach ($activeIds as $id) {
+            if (($id['user_id'] ?? '') !== $ownerId) {
+                $hasOtherIdentifier = true;
+                break;
+            }
+        }
 
-        // Set primary taxon to the one with most weighted votes
-        $obs['taxon'] = $taxon_data[$top_taxon_key];
+        // Determine taxon rank
+        $taxonRank = $obs['taxon']['rank'] ?? 'species';
+        $speciesOrBelow = in_array($taxonRank, ['species', 'subspecies', 'variety', 'form']);
 
-        // Research Grade if weighted score >= 2.0
-        // (e.g. 2 beginners OR 1 expert)
-        if ($top_score >= 2.0) {
-            $obs['status'] = 'はかせ認定';
+        // Strict Research Grade Criteria:
+        // 1. Weighted Agreement Rate > 2/3 (66.6%)
+        // 2. Top Weighted Score >= 2.0 (Equivalent to 2 Regulars or 1 Expert)
+        // 3. Must be Species level or lower
+        // 4. Must have external identifier
+        // 5. No open disputes
+
+        if (
+            $agreementRate > (2 / 3)
+            && $topScore >= 2.0
+            && $hasOtherIdentifier
+            && $speciesOrBelow
+            && !$hasOpenDisputes
+        ) {
+            // Research Grade (研究用)
+            $obs['status'] = '研究用';
+            $obs['quality_grade'] = 'Research Grade'; // Explicit set
+        } elseif (count($activeIds) >= 1) {
+            // Has at least one identification but not yet consensus
+            $obs['status'] = '要同定';
+            $obs['quality_grade'] = 'Needs ID';
         } else {
-            $obs['status'] = 'ていあん';
-        }
-
-        // Casual if cultivated
-        if (($obs['cultivation'] ?? 'wild') === 'cultivated') {
-            $obs['status'] = 'ペット・栽培';
+            $obs['status'] = '未同定';
+            $obs['quality_grade'] = 'Casual';
         }
 
         return $obs['status'];
     }
+
+    /**
+     * Build a taxon array from an identification record.
+     *
+     * @param array $id Identification entry
+     * @return array Taxon data
+     */
+    private static function buildTaxonFromId(array $id): array
+    {
+        return [
+            'name'            => $id['taxon_name'] ?? '',
+            'scientific_name' => $id['scientific_name'] ?? '',
+            'key'             => $id['taxon_key'] ?? '',
+            'rank'            => $id['taxon_rank'] ?? 'species',
+            'lineage'         => $id['lineage'] ?? [],
+        ];
+    }
     /**
      * Get consistent dummy user name based on ID
      */
-    public static function getUserName($user_id) {
+    /**
+     * Get user name (cached per request)
+     */
+    private static $user_cache = [];
+
+    public static function getUserName($user_id)
+    {
+        if (empty($user_id)) return 'Unknown';
+
+        // Check runtime cache
+        if (isset(self::$user_cache[$user_id])) {
+            return self::$user_cache[$user_id];
+        }
+
+        // Try to fetch real user
+        if (!class_exists('UserStore')) {
+            require_once __DIR__ . '/UserStore.php';
+        }
+
+        $user = UserStore::findById($user_id);
+        if ($user && !empty($user['name'])) {
+            self::$user_cache[$user_id] = $user['name'];
+            return $user['name'];
+        }
+
+        // Fallback to consistent dummy name if user not found
         $names = [
-            'Sakura', 'Kaito', 'Ren', 'Hina', 'Yuto', 'Mei', 'Haruto', 'Yui', 'Sota', 'Mio', 
-            'Daiki', 'Koharu', 'Riku', 'Ema', 'Yamato', 'Tsumugi', 'Nature_Explorer', 'BioHunter', 'YamaGirl', 'SeaBreeze'
+            'Sakura',
+            'Kaito',
+            'Ren',
+            'Hina',
+            'Yuto',
+            'Mei',
+            'Haruto',
+            'Yui',
+            'Sota',
+            'Mio',
+            'Daiki',
+            'Koharu',
+            'Riku',
+            'Ema',
+            'Yamato',
+            'Tsumugi',
+            'Nature_Explorer',
+            'BioHunter',
+            'YamaGirl',
+            'SeaBreeze'
         ];
-        // Consistent mapping
         $index = hexdec(substr(md5((string)$user_id), 0, 8)) % count($names);
-        return $names[$index];
+        $dummyName = $names[$index];
+
+        self::$user_cache[$user_id] = $dummyName;
+        return $dummyName;
     }
 
     /**
      * Render simplified Markdown (Bold, Italic, Link, List)
      */
-    public static function renderMarkdown($text) {
+    public static function renderMarkdown($text)
+    {
         $text = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
-        
+
         // Bold **text**
         $text = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $text);
-        
+
         // Italic *text*
         $text = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $text);
-        
+
         // Headers ###
         $text = preg_replace('/^###\s+(.+)$/m', '<h3 class="text-lg font-bold mt-4 mb-2">$1</h3>', $text);
-        
+
         // Lists - 
         $text = preg_replace('/^-\s+(.+)$/m', '<li class="ml-4 list-disc">$1</li>', $text);
-        
+
         // Wrap lists (Naive)
         $text = preg_replace('/(<li.*<\/li>)/s', '<ul class="my-2">$1</ul>', $text);
-        
+
         // Newlines
         $text = nl2br($text);
-        
+
         return $text;
     }
 
     /**
      * Render lineage breadcrumb
      */
-    public static function renderLineage($lineage) {
+    public static function renderLineage($lineage)
+    {
         if (empty($lineage)) return '';
         $parts = [];
         $ranks = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus'];
         foreach ($ranks as $rank) {
             if (isset($lineage[$rank])) {
-                $parts[] = "<span class='inline-block bg-white/5 px-2 py-0.5 rounded text-[10px] text-gray-400'>{$lineage[$rank]}</span>";
+                $parts[] = "<span class='inline-block bg-white/5 px-2 py-0.5 rounded text-[10px] text-muted'>{$lineage[$rank]}</span>";
             }
         }
-        return implode(" <span class='text-gray-600'>&rsaquo;</span> ", $parts);
+        return implode(" <span class='text-faint'>&rsaquo;</span> ", $parts);
     }
 }
