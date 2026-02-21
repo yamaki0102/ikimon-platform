@@ -58,11 +58,12 @@ class LibraryService
     public static function getCitations($taxonName)
     {
         $dir = DataStore::getBasePath() . '/library/index';
-        $citations = [];
 
         if (!is_dir($dir)) return [];
 
         $files = glob($dir . '/*.json');
+        $grouped = [];
+
         foreach ($files as $file) {
             $json = json_decode(file_get_contents($file), true);
             if (!$json) continue;
@@ -73,10 +74,36 @@ class LibraryService
                 $book = DataStore::get("library/references/{$json['book_id']}");
                 $json['book_title'] = $book['title'] ?? $json['book_id'];
                 $json['book_year'] = $book['year'] ?? '';
-                $citations[] = $json;
+
+                $groupKey = ($json['book_id'] ?? '') . '|' . ($json['page'] ?? '') . '|' . ($json['taxon_name'] ?? '');
+
+                if (!isset($grouped[$groupKey])) {
+                    $grouped[$groupKey] = $json;
+                } else {
+                    $existing = $grouped[$groupKey];
+                    // Compare richness of metadata
+                    $existingScore = count($existing['data_icons'] ?? []) + (!empty($existing['gbif_status']) ? 1 : 0) + count($existing['darwin_core'] ?? []) + count($existing['dublin_core'] ?? []);
+                    $newScore = count($json['data_icons'] ?? []) + (!empty($json['gbif_status']) ? 1 : 0) + count($json['darwin_core'] ?? []) + count($json['dublin_core'] ?? []);
+
+                    if ($newScore > $existingScore) {
+                        $grouped[$groupKey] = $json;
+                    } else if ($newScore === $existingScore) {
+                        // Merge photos if equally rich
+                        $mergedPhotos = array_unique(array_merge($existing['photos'] ?? [], $json['photos'] ?? []));
+                        if (!empty($mergedPhotos)) {
+                            $grouped[$groupKey]['photos'] = array_values($mergedPhotos);
+                        }
+                    } else {
+                        // Keep existing, but merge photos
+                        $mergedPhotos = array_unique(array_merge($existing['photos'] ?? [], $json['photos'] ?? []));
+                        if (!empty($mergedPhotos)) {
+                            $grouped[$groupKey]['photos'] = array_values($mergedPhotos);
+                        }
+                    }
+                }
             }
         }
-        return $citations;
+        return array_values($grouped);
     }
 
     /**
