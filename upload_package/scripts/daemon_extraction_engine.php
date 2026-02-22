@@ -16,7 +16,12 @@ echo " Model: Local Qwen 3 Swallow (8B) via Ollama\n";
 echo " Target: 100,000 Species Repository\n";
 echo "============================================\n";
 
-$normalWorkers = 3;
+// Execute self-healing mechanism on startup
+echo " Running pre-flight self-healing sequence...\n";
+exec("php " . __DIR__ . "/reset_stuck_queue.php");
+echo " Pre-flight complete.\n";
+
+$normalWorkers = 6;
 $extremeWorkers = 16; // Extreme mode for 1 AM to 7 AM to maximize hardware limit
 $batchSize = 10; // Process 10 species per worker loop
 $maxIterations = 1000; // Restart daemon after 1000 loops to prevent PHP memory leaks
