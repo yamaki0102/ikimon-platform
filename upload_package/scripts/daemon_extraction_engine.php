@@ -21,7 +21,7 @@ echo " Running pre-flight self-healing sequence...\n";
 exec("php " . __DIR__ . "/reset_stuck_queue.php");
 echo " Pre-flight complete.\n";
 
-$normalWorkers = 6;
+$normalWorkers = 16;
 $extremeWorkers = 16; // Extreme mode for 1 AM to 7 AM to maximize hardware limit
 $batchSize = 10; // Process 10 species per worker loop
 $maxIterations = 1000; // Restart daemon after 1000 loops to prevent PHP memory leaks
