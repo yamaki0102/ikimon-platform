@@ -79,6 +79,21 @@ foreach ($recentSpecies as &$rs) {
 }
 unset($rs);
 
+// Read active worker heartbeats
+$heartbeatFile = DATA_DIR . '/library/worker_heartbeats.json';
+$activeWorkers = [];
+if (file_exists($heartbeatFile)) {
+    $beats = json_decode(file_get_contents($heartbeatFile), true) ?: [];
+    $now = time();
+    foreach ($beats as $pid => $beat) {
+        // Only show workers that updated within the last 3 minutes
+        $updatedAt = strtotime($beat['updated_at'] ?? '2000-01-01');
+        if (($now - $updatedAt) < 180) {
+            $activeWorkers[] = $beat;
+        }
+    }
+}
+
 echo json_encode([
     'success' => true,
     'timestamp' => time(),
@@ -91,6 +106,7 @@ echo json_encode([
         ],
         'eta_hours' => $etaHours,
         'recent_failed' => $counts['failed'],
-        'recent_species' => $cleanRecentSpecies
+        'recent_species' => $cleanRecentSpecies,
+        'active_workers' => $activeWorkers
     ]
 ], JSON_PRETTY_PRINT);

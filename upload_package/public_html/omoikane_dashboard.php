@@ -252,6 +252,35 @@ require_once __DIR__ . '/../libs/Auth.php';
 
         </div>
 
+        <!-- Active Workers Panel -->
+        <div class="glass-panel p-6" x-show="activeWorkers.length > 0" x-transition>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+                    </span>
+                    アクティブワーカー
+                </h2>
+                <span class="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded" x-text="activeWorkers.length + ' 稼働中'"></span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <template x-for="(w, i) in activeWorkers" :key="w.pid">
+                    <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/50 hover:border-slate-600/50 transition-colors">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-mono text-slate-500 bg-slate-900/50 px-1.5 py-0.5 rounded" x-text="'PID:' + w.pid"></span>
+                            <span class="text-[10px] font-mono text-slate-500" x-text="formatTime(w.updated_at)"></span>
+                        </div>
+                        <div class="text-sm font-semibold text-slate-200 truncate mb-1.5" x-text="w.species" :title="w.species"></div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full" :class="phaseColor(w.phase)"></span>
+                            <span class="text-xs font-mono" :class="phaseTextColor(w.phase)" x-text="w.phase"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
     </div>
 
     <!-- Scrollbar Styling -->
@@ -295,6 +324,7 @@ require_once __DIR__ . '/../libs/Auth.php';
                     recent_failed: 0,
                 },
                 recentSpecies: [],
+                activeWorkers: [],
                 lastUpdate: null,
                 refreshInterval: 5000,
 
@@ -311,8 +341,8 @@ require_once __DIR__ . '/../libs/Auth.php';
                         .then(data => {
                             if (data.success) {
                                 this.metrics = data.metrics;
-                                // Only update objects to trigger Alpine transitions properly if needed
                                 this.recentSpecies = data.metrics.recent_species || [];
+                                this.activeWorkers = data.metrics.active_workers || [];
                                 this.lastUpdate = new Date();
                             }
                         })
@@ -332,6 +362,24 @@ require_once __DIR__ . '/../libs/Auth.php';
                     return d.toLocaleTimeString('ja-JP', {
                         hour12: false
                     });
+                },
+
+                phaseColor(phase) {
+                    if (!phase) return 'bg-slate-400';
+                    if (phase.includes('完了')) return 'bg-green-400';
+                    if (phase.includes('検証')) return 'bg-purple-400';
+                    if (phase.includes('AI')) return 'bg-amber-400 animate-pulse';
+                    if (phase.includes('GBIF')) return 'bg-cyan-400';
+                    return 'bg-slate-400';
+                },
+
+                phaseTextColor(phase) {
+                    if (!phase) return 'text-slate-400';
+                    if (phase.includes('完了')) return 'text-green-400';
+                    if (phase.includes('検証')) return 'text-purple-400';
+                    if (phase.includes('AI')) return 'text-amber-400';
+                    if (phase.includes('GBIF')) return 'text-cyan-400';
+                    return 'text-slate-400';
                 }
             }))
         })
