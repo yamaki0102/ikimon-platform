@@ -57,7 +57,7 @@ $failuresLog = DATA_DIR . '/library/extraction_failures.log';
 $processedCount = 0;
 $myUpdates = [];
 
-function callOllama($promptText, $model = "hf.co/mmnga-o/Qwen3-Swallow-8B-RL-v0.2-gguf:Q4_K_M", $responseFormat = "json")
+function callOllama($promptText, $model = "qwen3-optimized", $responseFormat = "json")
 {
   $payload = [
     "model" => $model,
@@ -113,6 +113,24 @@ foreach ($myBatch as $name => &$item) {
 
   $searchTerm = !empty($item['slug']) ? $item['slug'] : $item['species_name'];
   $searchTerm = str_replace('-', ' ', $searchTerm);
+
+  // Hard-skip non-taxa artifacts from literature parsing
+  $isInvalid = false;
+  $invalidKeywords = ['Key to ', 'Unknown', '不明', '概説続き', '系統分類', '出典', '参考文献'];
+  foreach ($invalidKeywords as $kw) {
+    if (stripos($searchTerm, $kw) !== false) {
+      $isInvalid = true;
+      break;
+    }
+  }
+
+  if ($isInvalid) {
+    echo "Skipping non-taxonomic header: $searchTerm\n";
+    $item['status'] = 'invalid_name';
+    $processedCount++;
+    continue;
+  }
+
   echo "Fetching GBIF Literature for: $searchTerm...\n";
   $apiUrl = "https://api.gbif.org/v1/literature/search?q=" . urlencode($searchTerm) . "&limit=3";
   $ch = curl_init($apiUrl);
@@ -254,7 +272,13 @@ PROMPT;
     echo "   [LOCAL] Extraction finished & SQLite written for {$scientificName} (via {$doi}).\n";
   }
 
-  $myUpdates[$name] = $successForSpecies ? 'completed' : ($item['retries'] >= 3 ? 'failed' : 'pending');
+  // Determine final status
+  if ($item['status'] === 'no_literature') {
+    $myUpdates[$name] = 'no_literature'; // Preserve explicitly set status
+  } else {
+    $myUpdates[$name] = $successForSpecies ? 'completed' : ($item['retries'] >= 3 ? 'failed' : 'pending');
+  }
+
   $processedCount++;
 }
 

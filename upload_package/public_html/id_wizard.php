@@ -132,6 +132,21 @@ if ($fromObsId) {
                         </div>
                     </div>
 
+                    <!-- Mode O: Omoikane Search (New) -->
+                    <a href="?step=omoikane_search<?php echo $fromObsId ? '&from_observation=' . htmlspecialchars($fromObsId) : ''; ?>" class="group relative block p-6 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl hover:border-indigo-400 hover:shadow-md transition overflow-hidden">
+                        <div class="absolute inset-0 bg-indigo-500/0 group-hover:bg-indigo-500/5 transition"></div>
+                        <div class="relative z-10 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs text-indigo-600 font-bold tracking-widest mb-1">MODE O (OMOIKANE)</div>
+                                <div class="text-lg font-black text-gray-900">オモイカネ逆引き検索</div>
+                                <div class="text-[10px] text-gray-500 mt-2 max-w-[200px]">
+                                    「夏」「高山帯」「赤い羽根」などの断片的な特徴から、文献データに基づく10万種の知識グラフを瞬時に推論します。
+                                </div>
+                            </div>
+                            <span class="material-symbols-outlined text-4xl text-indigo-200 group-hover:text-indigo-500 transition">psychiatry</span>
+                        </div>
+                    </a>
+
                     <!-- Mode C: 分からない → 投稿だけ -->
                     <a href="post.php" class="group relative block p-6 bg-gray-50 border border-gray-200 rounded-xl hover:border-gray-400 hover:shadow-md transition overflow-hidden">
                         <div class="absolute inset-0 bg-gray-500/0 group-hover:bg-gray-500/5 transition"></div>
@@ -246,8 +261,97 @@ if ($fromObsId) {
             </div>
         <?php endif; ?>
 
+        <!-- OMOIKANE REVERSE SEARCH VIEW -->
+        <?php if ($step === 'omoikane_search'): ?>
+            <div class="pt-6 px-4" x-data="{
+                query: { habitat: '', season: '', altitude: '', keyword: '' },
+                results: [], isLoading: false, hasSearched: false,
+                search() {
+                    this.isLoading = true; this.hasSearched = true;
+                    fetch(`api_omoikane_search.php?habitat=${this.query.habitat}&season=${this.query.season}&altitude=${this.query.altitude}&keyword=${this.query.keyword}`)
+                        .then(res => res.json())
+                        .then(data => { this.results = data.results || []; this.isLoading = false; })
+                        .catch(err => { console.error(err); this.isLoading = false; });
+                }
+            }">
+                <!-- Header -->
+                <div class="flex items-center gap-3 mb-6">
+                    <a href="?step=mode_select" class="size-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition">
+                        <span class="material-symbols-outlined text-sm">arrow_back</span>
+                    </a>
+                    <div>
+                        <div class="text-[10px] text-indigo-600 font-bold tracking-widest">OMOIKANE ENGINE</div>
+                        <h1 class="text-lg font-black text-gray-900">オモイカネ逆引き検索</h1>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-6 shadow-sm">
+                    <div class="text-xs font-bold text-indigo-800 mb-4">断片的な特徴を入力してください</div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] text-indigo-600 font-bold mb-1">生息環境 (例: 森林, 水辺)</label>
+                            <input type="text" x-model="query.habitat" class="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] text-indigo-600 font-bold mb-1">季節 (例: 夏, 8月)</label>
+                                <input type="text" x-model="query.season" class="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-indigo-600 font-bold mb-1">標高 (例: 高山帯, 1500m)</label>
+                                <input type="text" x-model="query.altitude" class="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-indigo-600 font-bold mb-1">特徴・キーワード (例: 赤い羽, 特徴的な鳴き声)</label>
+                            <input type="text" x-model="query.keyword" @keydown.enter="search()" class="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <button @click="search()" :disabled="isLoading" class="mt-5 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined" x-show="!isLoading">search</span>
+                        <span class="material-symbols-outlined animate-spin" x-show="isLoading">autorenew</span>
+                        <span x-text="isLoading ? '推論中...' : '推論を実行'"></span>
+                    </button>
+                </div>
+
+                <div x-show="hasSearched">
+                    <div class="text-xs font-bold text-gray-500 mb-3" x-show="!isLoading">
+                        <span x-text="results.length"></span> 件の候補が見つかりました
+                    </div>
+                    <div class="space-y-4">
+                        <template x-for="res in results" :key="res.scientific_name">
+                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-indigo-300 transition relative overflow-hidden">
+                                <div class="text-[10px] font-bold text-gray-400 mb-1">学名</div>
+                                <div class="text-lg font-black text-indigo-900 mb-3" x-text="res.scientific_name"></div>
+                                <div class="text-xs text-gray-600 space-y-1 mb-4">
+                                    <div class="flex gap-2" x-show="res.habitat"><span class="font-bold w-12 shrink-0">環境:</span> <span class="truncate" x-text="res.habitat"></span></div>
+                                    <div class="flex gap-2" x-show="res.season"><span class="font-bold w-12 shrink-0">季節:</span> <span class="truncate" x-text="res.season"></span></div>
+                                    <div class="flex gap-2" x-show="res.morphological_traits"><span class="font-bold w-12 shrink-0">特徴:</span> <span class="line-clamp-2" x-text="res.morphological_traits"></span></div>
+                                </div>
+                                <?php
+                                $fromObsIdStr = $fromObsId ? "'&id=" . htmlspecialchars($fromObsId) . "'" : "''";
+                                $targetPage = $fromObsId ? "'id_form.php'" : "'post.php'";
+                                ?>
+                                <a :href="`${<?php echo $targetPage; ?>}?taxon_name=${encodeURIComponent(res.scientific_name)}&note=Omoikane AI Search Match${<?php echo $fromObsIdStr; ?>}`"
+                                    class="block w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-center text-xs rounded-lg transition border border-indigo-200">
+                                    この結果で投稿する
+                                </a>
+                            </div>
+                        </template>
+                        <div x-show="results.length === 0 && !isLoading" class="text-center py-8">
+                            <span class="material-symbols-outlined text-4xl text-gray-300 mb-2">sentiment_dissatisfied</span>
+                            <div class="text-sm font-bold text-gray-500">一致する生物が見つかりませんでした</div>
+                            <div class="text-xs text-gray-400 mt-1">検索条件を変えてみてください</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
         <!-- LEGACY VISUAL WIZARD (Environment -> Group -> Details) -->
-        <?php if (!in_array($step, ['mode_select', 'book_key'])): ?>
+        <?php if (!in_array($step, ['mode_select', 'book_key', 'omoikane_search'])): ?>
 
             <!-- Step 1: Shape -->
             <section x-show="step === 1" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-x-10" x-transition:enter-end="opacity-100 translate-x-0">
@@ -542,8 +646,8 @@ if ($fromObsId) {
                 };
 
                 // Generate pseudo Detroit Chart stats based on selection to simulate "presence of others"
-                let seed = (this.selectedShape ? this.selectedShape.length : 0) + 
-                           (this.selectedColor ? this.selectedColor.length : 0);
+                let seed = (this.selectedShape ? this.selectedShape.length : 0) +
+                    (this.selectedColor ? this.selectedColor.length : 0);
                 this.stats = {
                     same_choice_pct: Math.floor(18 + Math.random() * 45), // 18% ~ 62%
                     total_similar: Math.floor(10 + Math.random() * 150) // 10 ~ 159 people

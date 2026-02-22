@@ -11,6 +11,19 @@ require_once __DIR__ . '/../libs/DataStore.php';
 
 echo "Initializing Master Extraction Queue (Target: 100k Species)...\n";
 
+// Helper to check for invalid names
+function isInvalidTaxonName($name)
+{
+    if (empty($name)) return true;
+    $invalidKeywords = ['Key to ', 'Unknown', '不明', '概説続き', '系統分類', '出典', '参考文献'];
+    foreach ($invalidKeywords as $kw) {
+        if (stripos($name, $kw) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
 $queueFile = DATA_DIR . '/library/extraction_queue.json';
 $queue = file_exists($queueFile) ? json_decode(file_get_contents($queueFile), true) : [];
 
@@ -24,6 +37,8 @@ foreach ($observations as $obs) {
         $name = $obs['taxon']['name'] ?? ($obs['species_name'] ?? null);
         if ($name && $name !== 'Unknown' && $name !== '不明') {
             $name = trim($name);
+            if (isInvalidTaxonName($name)) continue;
+
             if (!isset($queue[$name])) {
                 $queue[$name] = [
                     'species_name' => $name,
@@ -52,6 +67,12 @@ if (!empty($taxonData['taxa'])) {
     foreach ($taxonData['taxa'] as $slug => $taxon) {
         $name = $taxon['accepted_name'] ?? null;
         $jaName = $taxon['ja_name'] ?? null;
+        if (!empty($jaName)) {
+            $jaName = trim(preg_replace('/\\s*\\(続き\\)\\s*/u', '', $jaName));
+            if (isInvalidTaxonName($jaName)) {
+                $jaName = null;
+            }
+        }
 
         $displayName = $name;
         if (empty($displayName)) {
@@ -60,6 +81,8 @@ if (!empty($taxonData['taxa'])) {
 
         if ($displayName) {
             $displayName = trim($displayName);
+            if (isInvalidTaxonName($displayName)) continue;
+
             if (!isset($queue[$displayName])) {
                 $queue[$displayName] = [
                     'species_name' => $displayName,
