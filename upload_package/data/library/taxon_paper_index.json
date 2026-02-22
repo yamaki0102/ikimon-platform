@@ -151,7 +151,8 @@
     ],
     "anser anser": [
         "10.25226\/bboc.v143i4.2023.a2",
-        "10.1038\/s41598-017-18594-2"
+        "10.1038\/s41598-017-18594-2",
+        "10.1038\/s41598-021-01595-7"
     ],
     "pelodiscus sinensis": [
         "10.3391\/mbi.2024.15.1.09",
@@ -283,7 +284,8 @@
         "10.3897\/zookeys.569.6975"
     ],
     "fulmarus glacialis": [
-        "10.1155\/2016\/1982534"
+        "10.1155\/2016\/1982534",
+        "10.1007\/s10669-015-9583-0"
     ],
     "geoemyda spengleri": [
         "36b5e090-f231-3e49-a22f-c429078d592d"
@@ -297,5 +299,19 @@
     ],
     "gavia immer": [
         "9c17c96a-c695-389d-bac9-0ee0156261e9"
+    ],
+    "lepidodactylus lugubris": [
+        "4101c875-35d3-3bd9-978a-4a1ff4be85c1",
+        "10.15560\/20.2.505"
+    ],
+    "anas acuta": [
+        "10.1111\/jfb.15147",
+        "266e39d9-4e4e-340b-872c-2a253a1ab5de"
+    ],
+    "lepidochelys olivacea olivacea (eschscholtz, 1829)": [
+        "10.1111\/acv.70009"
+    ],
+    "lepidochelys olivacea olivacea": [
+        "10.1111\/acv.70009"
     ]
 }

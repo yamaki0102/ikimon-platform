@@ -1,0 +1,127 @@
+Total papers: 126
+ID: 0 | Title: Monitoring data of marine turtles on the Togolese coast during 2012–2013
+ID: 1 | Title: Update of the Leatherback sea turtle Dermochelys coriacea (Vandelli, 1761) and Green turtle Chelonia mydas (Linnaeus, 1758) observations in Italy (Reptilia Testudines)
+ID: 2 | Title: Complete mitochondrial genome of the southern painted turtle (Chrysemys dorsalis , Testudines: Emydidae) in Korea
+ID: 3 | Title: Translating natural history into geographic space: a macroecological perspective on the North American Slider, Trachemys scripta (Reptilia, Cryptodira, Emydidae)
+ID: 4 | Title: Reptile occurrences data in the Volga River basin (Russia)
+ID: 5 | Title: ﻿The current distribution and status of the Hermann’s tortoise, Testudo hermanni boettgeri (Reptilia, Testudines, Testudinidae) in Croatia
+ID: 6 | Title: The importance of cryptic diversity in the conservation of wide‐ranging species: The red‐footed tortoise Chelonoidis carbonarius in Colombia
+ID: 7 | Title: Micro and macroclimatic constraints on the activity of a vulnerable tortoise: a mechanistic approach under a thermal niche view
+ID: 8 | Title: ﻿Phototank setup and focus stack imaging method for reptile and amphibian specimens (Amphibia, Reptilia)
+ID: 9 | Title: Recorded mortality in the vulnerable Alpine salamander, Salamandra atra prenjensis (Amphibia: Caudata), is not associated with the presence of known amphibian …
+ID: 10 | Title: Amphibian conservation action plan: A status review and roadmap for global amphibian conservation
+ID: 11 | Title: Population dynamics and biological feasibility of sustainable harvesting as a conservation strategy for tropical and temperate freshwater turtles
+ID: 12 | Title: Rinorea pectino-squamata
+ID: 13 | Title: Inezia caudata
+ID: 14 | Title: Manihot caudata
+ID: 15 | Title: Geographic distribution and conservation of Bothriechis aurifer (Salvin, 1860) (Squamata, Viperidae)
+ID: 16 | Title: VenomMaps: Updated species distribution maps and models for New World pitvipers (Viperidae: Crotalinae)
+ID: 17 | Title: Preface: Georeferenced Freshwater Biodiversity Data
+ID: 18 | Title: A frog adaptive radiation: Ecomorphological evolution in Old-World shrub frogs (Rhacophoridae: Pseudophilautus)
+ID: 19 | Title: Towards Developing Ecological Niche Models for Pelagic Seabirds: Phase 1
+ID: 20 | Title: Study on invasive alien species: development of risk assessments to tackle priority species and enhance prevention : final report (and annexes).
+ID: 21 | Title: At home in Jiangsu: Environmental niche modeling and new records for five species of amphibian and reptile in Jiangsu, China
+ID: 22 | Title: Biologically informed ecological niche models for an example pelagic, highly mobile species
+ID: 23 | Title: Study on invasive alien species: development of risk assessments to tackle priority species and enhance prevention : final report.
+ID: 24 | Title: Alien birds in Argentina: pathways, characteristics and ecological roles
+ID: 25 | Title: Coupling Modern Portfolio Theory and Marxan enhances the efficiency of Lesser White-fronted Goose’s (Anser erythropus) habitat conservation
+ID: 26 | Title: Coupling the Occurrence of Correlative Plant Species to Predict the Habitat Suitability for Lesser White-Fronted Goose (Anser erythropus) under Climate Change: A Case Study in the Middle and Lower Reaches of the Yangtze River
+ID: 27 | Title: Pseudoscorpiones (Arachnida) of the Brazilian oceanic islands
+ID: 28 | Title: Colony Site Selection of Gray Heron (Ardea cinerea) During the Breeding Period at Multiple Spatial Scales
+ID: 29 | Title: First data on the trematode fauna of wetland birds in the Samara region (European Russia)
+ID: 30 | Title: Epidemiology and ecology of Usutu virus infection and its global risk distribution
+ID: 31 | Title: Status of the common myna Acridotheres tristis Linnaeus, 1766 in Turkey
+ID: 32 | Title: Anthropogenic not climatic correlates are the main drivers of expansion of non-native common myna Acridotheres tristis in Jordan
+ID: 33 | Title: Study on invasive alien species: development of risk assessments to tackle priority species and enhance prevention
+ID: 34 | Title: Variation in dietary preference related the per- and polyfluoroalkyl substance exposure in two sympatric seabird species from the Yellow Sea, China
+ID: 35 | Title: Sinking Down or Floating Up? Current State of Taxonomic Studies on Marine Invertebrates in Japan Inferred from the Number of New Species Published between the Years 2003 and 2020
+ID: 36 | Title: A Misidentification Crisis Plagues Specimen-Based Research: A Case for Guidelines with a Recent Example (Ali et al., 2020)
+ID: 37 | Title: Current Knowledge of Helminths of Wild Birds in Ecuador
+ID: 38 | Title: Impact assessment of seven alien invasive bird species already introduced to South Africa
+ID: 39 | Title: The Red‐billed Leiothrix ( Leiothrix lutea ): a new invasive species for Britain?
+ID: 40 | Title: First record of a population of Rose-ringed parakeet (Psittacula krameri) in Argentina
+ID: 41 | Title: Endangered and Threatened Wildlife and Plants; Endangered Status for 49 Species From the Hawaiian Islands
+ID: 42 | Title: Mites associated with budgerigars Melopsittacus undulatus (Psittaciformes: Psittacidae) and the first report of Ornithonyssus bursa (Mesostigmata: Macronyssidae) in Mexico
+ID: 43 | Title: Introduced population of ring-necked parakeets Psittacula krameri in Madeira Island, Portugal–Call for early action
+ID: 44 | Title: Value of a broken umbrella: abandoned nest sites of the black stork (Ciconia nigra) host rich biodiversity
+ID: 45 | Title: Modelling risks posed by wind turbines and power lines to soaring birds: the black stork (Ciconia nigra) in Italy as a case study
+ID: 46 | Title: Assessing Habitat Suitability and Connectivity of Black Storks in China: Integrating Species Distribution Models and Landscape Connectivity Analysis
+ID: 47 | Title: Towards a more rational and stable nomenclature for Mallard Anas platyrhynchos, Greylag Goose Anser anser and their domesticates, including various priority issues, designation of lectotypes, and a First Reviser act
+ID: 48 | Title: Ecology, phenology and wintering behavior of Anatidae in the wetlands of Souk–Ahras (north–eastern Algeria)
+ID: 49 | Title: Medicinal waterbirds in the traditional healthcare system: an assessment of biodiversity–cultural linkages in Eastern Khyber Pakhtunkhwa, Pakistan
+ID: 50 | Title: Встречи редких видов птиц в Челябинской области: наблюдения пользователей электронных баз данных,Records of rare bird species in the Chelyabinsk region: observations from digital database users
+ID: 51 | Title: Eco-Genomic analysis of the poleward range expansion of the wasp spider Argiope bruennichi shows rapid adaptation and genomic admixture.
+ID: 52 | Title: A phylogeographical survey of a highly dispersive spider reveals eastern Asia as a major glacial refugium for Palaearctic fauna
+ID: 53 | Title: Distribution Data of Birds Nest Fungi in Japan: Nidula niveotomentosa and Crucibulum laeve
+ID: 54 | Title: A complete dietary review of Japanese birds with special focus on molluscs
+ID: 55 | Title: Bird predation on Roseau cane scale as revealed by a web image search and querying a citizen monitoring database
+ID: 56 | Title: Exploratory Spatial Analysis of Pavo Cristatus (Peacock) Distribution in Coimbatore District of Tamil Nadu using Local Indicators
+ID: 57 | Title: Paradise lost already? A naturalist interpretation of the pelagic avian and marine mammal detection database of the IceAGE cruise off Iceland and Faroe Islands in fall 2011
+ID: 58 | Title: Spatio-temporal analysis of habitat suitability for the endangered oriental white stork (Ciconia boyciana) in the wetland ecosystem of northeast China
+ID: 59 | Title: Status of the red-breasted merganser in India based on two historical occurrences and recent sightings
+ID: 60 | Title: Development of the Rybinsk Reservoir by the Great Cormorant Phalacrocorax carbo in Russia, 1941–2024
+ID: 61 | Title: Caryota obtusa
+ID: 62 | Title: White-bellied Heron Ardea insignis in Hkakabo Razi Landscape, northern Myanmar
+ID: 63 | Title: Modeling Eastern Russian High Arctic Geese (Anser fabalis, A. albifrons) during moult and brood rearing in the ‘New Digital Arctic’
+ID: 64 | Title: Alien turtles in Spain: Modeling a growing problem
+ID: 65 | Title: New records of Procellariiformes in the Fernando de Noronha archipelago: who is looking out for them?
+ID: 66 | Title: Caryota sympetala
+ID: 67 | Title: Risk of invasion by frequently traded freshwater turtles
+ID: 68 | Title: Modeling Eastern Russian High Arctic Geese (Anser fabalis, A. albifrons) during moult and brood rearing with Machine Learning, Open Access GIS and 24 years-long Big Data: Good Evidence for the New Digital Arctic of 2021
+ID: 69 | Title: The Asian House Gecko (Hemidactylus frenatus) established in natural vegetation of Oaxaca, Mexico
+ID: 70 | Title: Confirmation of the Presence of the Invasive Stump-toed Gecko, Gehyra mutilata (Wiegmann, 1834)(Squamata: Gekkonidae), in the State of Veracruz, Mexico
+ID: 71 | Title: The effect of climate change on habitat suitability and a distribution model of the Iranian fat-tailed gecko, Eublepharis angramainyu Anderson and Leviton, 1966 (Sauria: Eublepharidae) since the Last Interglacial to 2050
+ID: 72 | Title: Contributions of the Schistosomiasis Consortium for Operational Research and Evaluation (SCORE) to Schistosomiasis Control and Elimination: Key Findings and Messages for Future Goals, Thresholds, and Operational Research
+ID: 73 | Title: An update on the conservation status and ecology of Korean terrestrial squamates
+ID: 74 | Title: First report of the invasive Indotyphlops braminus (Daudin, 1803), Flowerpot Blindsnake (Serpentes, Typhlopidae), in Ecuador
+ID: 75 | Title: A revision of the distribution of sea kraits (Reptilia, Laticauda) with an updated occurrence dataset for ecological and conservation research
+ID: 76 | Title: Oceanic circulation models help to predict global biogeography of pelagic yellow-bellied sea snake
+ID: 77 | Title: Pica mauritanica
+ID: 78 | Title: Notable updates on the status of selected waders and African Skimmer Rynchops flavirostris in Mozambique
+ID: 79 | Title: Protected areas mitigate the reduction in habitat suitability for swans under climate change: A case study in the Yellow River Basin
+ID: 80 | Title: Genetic consequence of widespread plantations of Cryptomeria japonica var. sinensis in Southern China: implications for afforestation strategies under climate change
+ID: 81 | Title: A Maghreb Magpie Pica pica mauritanica winters in two oases, at the mouth of the Sahara at Aurès Mountains (Biskra and Batna, Algeria): Maghreb Magpie Pica pica …
+ID: 82 | Title: Legacy over a thousand years: Canopy soil of old-growth forest fosters rich and unique invertebrate diversity that is slow to recover from human disturbance
+ID: 83 | Title: Incredible Host Diversity and Regional Potential Distribution of an Oriental Parasitic Plant (Taxillus yadoriki)
+ID: 84 | Title: Checklist of Fish Hosts of Species of Contracaecum Railliet & Henry, 1912 (Nematoda: Ascaridida: Anisakidae) in Iraq
+ID: 85 | Title: Mapping the potential distributions of etiological agent, vectors, and reservoirs of Japanese Encephalitis in Asia and Australia
+ID: 86 | Title: Mapping the landscape pool of ardeid species to landscape structure associated with Japanese encephalitis virus in Australia
+ID: 87 | Title: Predicted shifts in suitable habitat of interacting benthic species in a warmer and invaded Canadian Arctic
+ID: 88 | Title: Color Polymorphism of Unfeathered Parts of the Great White Egret Ardea alba alba in Europe: An Analysis of the Internet Images
+ID: 89 | Title: Geographical Distribution of Mauremys sinensis, Mauremys reevesii, and Their Hybrids in South Korea
+ID: 90 | Title: 基于MaxEnt模型预测中华秋沙鸭在中国东北地区的潜在分布区
+ID: 91 | Title: Collecting information on the pelagic phase of marine turtles from at-sea observations: The case of purse seine fisheries in the Indian Ocean
+ID: 92 | Title: Patterns, biases and prospects in the distribution and diversity of Neotropical snakes
+ID: 93 | Title: Species distribution modeling and molecular markers suggest longitudinal range shifts and cryptic northern refugia of the typical calcareous grassland species Hippocrepis comosa (horseshoe vetch)
+ID: 94 | Title: Development of novel high-resolution melting markers for the assessment of hybridization between Mauremys sinensis and Mauremys reevesii in South Korea
+ID: 95 | Title: Diversity of waterbirds around Ekasoghi mangrove area, Sumenep, with the first record of Australian tern (Gelochelidon macrotarsa) from Madura Island, Indonesia
+ID: 96 | Title: Evaluation of the invasion potential of monk parakeet, Myiopsitta monachus, in Natural Protected Areas in Mexico
+ID: 97 | Title: Where Are We Going Now? The Current and Future Distributions of the Monk Parakeet (Myiopsitta monachus) and Eurasian Collared Dove (Streptopelia decaocto) in a Megalopolis
+ID: 98 | Title: Aves de los palmares de Butiá (Butia odorata) en Uruguay: datos de cinco años de muestreos
+ID: 99 | Title: Distribution of sika deer (Cervus nippon) and the bioclimatic impact on their habitats in South Korea
+ID: 100 | Title: Deeply digging the interaction effect in multiple linear regressions using a fractional-power interaction term
+ID: 101 | Title: The Genomic Footprints of the Fall and Recovery of the Crested Ibis
+ID: 102 | Title: Prediction of present and future distribution of the Schlegel’s Japanese gecko (Gekko japonicus) using MaxEnt modeling
+ID: 103 | Title: Allopatric Speciation and Interspecific Gene Flow Driven by Niche Conservatism of Diploderma Tree Lizards in Taiwan
+ID: 104 | Title: A Checklist of the Lycidae (Coleoptera) of Colombia with a key to the genera
+ID: 105 | Title: State of knowledge of the Anthribidae (Insecta: Coleoptera: Curculionoidea) in Colombia with a key to genera
+ID: 106 | Title: New South American records of the Lestremiinae (Diptera: Cecidomyiidae), with an identification key to the Neotropical genera
+ID: 107 | Title: Disentangling the Impacts of Speciation, Sympatry and the Island Effect on the Morphology of Seven Hynobius sp. Salamanders
+ID: 108 | Title: A new, rare, small-ranged, and endangered mountain snake of the genus Elaphe from the Southern Levant
+ID: 109 | Title: Herpetological Update from Arno Atoll, Republic of the Marshall Islands
+ID: 110 | Title: The regulation of alien species in South Africa
+ID: 111 | Title: Research applications of primary biodiversity databases in the digital age
+ID: 112 | Title: DO Toxic Invasive Prey Become a Toxin Source for Native Consumers?
+ID: 113 | Title: Low Density of Top Predators (Seabirds and Marine Mammals) in the High Arctic Pack Ice
+ID: 114 | Title: Geographical and elevational distributions of the Black-breasted Leaf Turtle, Geoemyda spengleri (Gmelin, 1789)(Testudines: Geoemydidae)
+ID: 115 | Title: Pest categorisation of Mimela testaceipes
+ID: 116 | Title: A new species of Pimelodella Eigenmann & Eigenmann, 1888 (Siluriformes: Heptapteridae) from the Orinoco River basin
+ID: 117 | Title: Taxonomic Status and the Phylogenetic Placement of Amphisbaena leucocephala Peters, 1878 (Squamata, Amphisbaenidae)
+ID: 118 | Title: Unusual records of deepwater teleosteans trawled off the western coast of Mexico
+ID: 119 | Title: Trophic ecology and niche overlap of two sympatric species of Rhamdia (Siluriformes, Heptapteridae) from northeast Oaxaca, Mexico
+ID: 120 | Title: Noteworthy records of aquatic birds in the state of Queretaro, Mexico
+ID: 121 | Title: Integrated phylogenetic analyses reveal the evolutionary, biogeographic, and diversification history of Asian warty treefrog genus Theloderma (Anura, Rhacophoridae)
+ID: 122 | Title: Records for the Mourning Gecko (Lepidodactylus lugubris) and its expansion in Costa Rica
+ID: 123 | Title: First record of the alien gecko Lepidodactylus lugubris (Duméril &; Bibron, 1836) (Gekkonidae) in the Cabo Blanco Absolute Natural Reserve, Costa Rica
+ID: 124 | Title: Acanthopagrus oconnorae , a new species of seabream (Sparidae) from the Red Sea
+ID: 125 | Title: Occurrence of Helminth Parasites in some Aquatic Birds in Bahr Al-Najaf Depression, Mid Iraq

@@ -15,12 +15,88 @@ require_once __DIR__ . '/../libs/OmoikaneDB.php';
 
 echo "Starting Autonomous Extraction Engine...\n";
 
-$batchSize = isset($argv[2]) ? (int)$argv[2] : 2; // Process 2 species per cron run by default
+// === WORKER HEARTBEAT SYSTEM ===
+$workerStatusFile = DATA_DIR . '/library/worker_heartbeats.json';
+$workerPid = getmypid();
+
+function updateHeartbeat($file, $pid, $species, $phase)
+{
+  $fp = @fopen($file, 'c+');
+  if (!$fp || !flock($fp, LOCK_EX)) return;
+  clearstatcache(true, $file);
+  $sz = filesize($file);
+  $beats = json_decode($sz > 0 ? fread($fp, $sz) : '', true) ?: [];
+  $beats[(string)$pid] = [
+    'pid' => $pid,
+    'species' => $species,
+    'phase' => $phase,
+    'updated_at' => date('Y-m-d H:i:s')
+  ];
+  ftruncate($fp, 0);
+  fseek($fp, 0);
+  fwrite($fp, json_encode($beats, JSON_UNESCAPED_UNICODE));
+  fflush($fp);
+  flock($fp, LOCK_UN);
+  fclose($fp);
+}
+
+function removeHeartbeat($file, $pid)
+{
+  $fp = @fopen($file, 'c+');
+  if (!$fp || !flock($fp, LOCK_EX)) return;
+  clearstatcache(true, $file);
+  $sz = filesize($file);
+  $beats = json_decode($sz > 0 ? fread($fp, $sz) : '', true) ?: [];
+  unset($beats[(string)$pid]);
+  ftruncate($fp, 0);
+  fseek($fp, 0);
+  fwrite($fp, json_encode($beats, JSON_UNESCAPED_UNICODE));
+  fflush($fp);
+  flock($fp, LOCK_UN);
+  fclose($fp);
+}
+
+$batchSize = isset($argv[2]) ? (int)$argv[2] : 2;
 
 $queueFile = DATA_DIR . '/library/extraction_queue.json';
+
+// === CRASH RESILIENCE LAYER 1: Shutdown handler ===
+// If this worker dies for ANY reason (OOM, fatal, timeout),
+// reset all its claimed items back to 'pending'.
+$claimedNames = [];
+register_shutdown_function(function () use (&$claimedNames, $queueFile, $workerStatusFile, $workerPid) {
+  // Clean up heartbeat
+  removeHeartbeat($workerStatusFile, $workerPid);
+  if (empty($claimedNames)) return;
+  $fp = fopen($queueFile, 'c+');
+  if (!$fp || !flock($fp, LOCK_EX)) return;
+  clearstatcache(true, $queueFile);
+  $sz = filesize($queueFile);
+  $q = json_decode($sz > 0 ? fread($fp, $sz) : '', true) ?: [];
+  $resetCount = 0;
+  foreach ($claimedNames as $n) {
+    if (isset($q[$n]) && $q[$n]['status'] === 'processing') {
+      $q[$n]['status'] = 'pending';
+      $resetCount++;
+    }
+  }
+  if ($resetCount > 0) {
+    ftruncate($fp, 0);
+    fseek($fp, 0);
+    fwrite($fp, json_encode($q, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    fflush($fp);
+  }
+  flock($fp, LOCK_UN);
+  fclose($fp);
+  if ($resetCount > 0) {
+    file_put_contents('php://stderr', "[SHUTDOWN HANDLER] Reset {$resetCount} items back to pending.\n");
+  }
+});
+
 // Atomically claim a batch
 $fpQ = fopen($queueFile, 'c+');
 if (!$fpQ || !flock($fpQ, LOCK_EX)) die("Cannot lock queue file.\n");
+clearstatcache(true, $queueFile);
 $size = filesize($queueFile);
 $queueJson = $size > 0 ? fread($fpQ, $size) : '';
 $queue = json_decode($queueJson, true) ?: [];
@@ -34,6 +110,7 @@ foreach ($queue as $name => &$item) {
   $item['worker'] = getmypid();
   $item['retries']++;
   $myBatch[$name] = $item;
+  $claimedNames[] = $name; // Track for shutdown handler
 }
 
 if (!empty($myBatch)) {
@@ -46,6 +123,7 @@ flock($fpQ, LOCK_UN);
 fclose($fpQ);
 
 if (empty($myBatch)) {
+  $claimedNames = []; // Nothing to reset
   die("Master queue is empty or no pending items. Run initialize_extraction_queue.php first.\n");
 }
 
@@ -56,6 +134,30 @@ $failuresLog = DATA_DIR . '/library/extraction_failures.log';
 
 $processedCount = 0;
 $myUpdates = [];
+
+// === Helper: Atomically write back status for a SINGLE species ===
+// This eliminates the dangerous window where items stay 'processing' forever.
+function writeBackStatus($queueFile, $speciesName, $newStatus)
+{
+  global $claimedNames;
+  $fp = fopen($queueFile, 'c+');
+  if (!$fp || !flock($fp, LOCK_EX)) return;
+  clearstatcache(true, $queueFile);
+  $sz = filesize($queueFile);
+  $q = json_decode($sz > 0 ? fread($fp, $sz) : '', true) ?: [];
+  if (isset($q[$speciesName])) {
+    $q[$speciesName]['status'] = $newStatus;
+    $q[$speciesName]['last_processed_at'] = date('Y-m-d H:i:s');
+  }
+  ftruncate($fp, 0);
+  fseek($fp, 0);
+  fwrite($fp, json_encode($q, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+  fflush($fp);
+  flock($fp, LOCK_UN);
+  fclose($fp);
+  // Remove from shutdown handler watchlist
+  $claimedNames = array_values(array_diff($claimedNames, [$speciesName]));
+}
 
 function callOllama($promptText, $model = "qwen3-optimized", $responseFormat = "json")
 {
@@ -74,6 +176,9 @@ function callOllama($promptText, $model = "qwen3-optimized", $responseFormat = "
   curl_setopt($ch, CURLOPT_POST, true);
   curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
   curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+  // === CRASH RESILIENCE LAYER 2: Hard timeout ===
+  curl_setopt($ch, CURLOPT_TIMEOUT, 120); // 2 min max per Ollama call
+  curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // 10s to connect
 
   $responseJson = curl_exec($ch);
   $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -132,6 +237,7 @@ foreach ($myBatch as $name => &$item) {
   }
 
   echo "Fetching GBIF Literature for: $searchTerm...\n";
+  updateHeartbeat($workerStatusFile, $workerPid, $name, 'GBIF検索中');
   $apiUrl = "https://api.gbif.org/v1/literature/search?q=" . urlencode($searchTerm) . "&limit=3";
   $ch = curl_init($apiUrl);
   curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -154,6 +260,7 @@ foreach ($myBatch as $name => &$item) {
     if (strlen(trim($abstract)) < 50) continue; // Too short
 
     echo " - Distilling DOI: $doi...\n";
+    updateHeartbeat($workerStatusFile, $workerPid, $name, 'AI抽出中');
     $contentToDistill = "Title: " . ($paper['title'] ?? '') . "\n\nAbstract:\n$abstract\n";
 
     $systemPrompt = <<<PROMPT
@@ -189,6 +296,7 @@ PROMPT;
 
     // --- Reflexion Gate (Zero-Hallucination Matrix) ---
     echo "   -> Running Zero-Hallucination Reflexion Gate...\n";
+    updateHeartbeat($workerStatusFile, $workerPid, $name, '検証ゲート');
     $reflexionPrompt = <<<PROMPT
 You are an auditor verifying AI extractions for accuracy.
 ORIGINAL TEXT:
@@ -270,34 +378,27 @@ PROMPT;
     $successForSpecies = true;
 
     echo "   [LOCAL] Extraction finished & SQLite written for {$scientificName} (via {$doi}).\n";
+    updateHeartbeat($workerStatusFile, $workerPid, $name, '✅ 完了');
   }
 
-  // Determine final status
+  // === CRASH RESILIENCE LAYER 3: Write back IMMEDIATELY per species ===
+  $finalStatus = 'pending'; // Default: retry
   if ($item['status'] === 'no_literature') {
-    $myUpdates[$name] = 'no_literature'; // Preserve explicitly set status
-  } else {
-    $myUpdates[$name] = $successForSpecies ? 'completed' : ($item['retries'] >= 3 ? 'failed' : 'pending');
+    $finalStatus = 'no_literature';
+  } elseif ($item['status'] === 'invalid_name') {
+    $finalStatus = 'invalid_name';
+  } elseif ($successForSpecies) {
+    $finalStatus = 'completed';
+  } elseif ($item['retries'] >= 3) {
+    $finalStatus = 'failed';
   }
+  writeBackStatus($queueFile, $name, $finalStatus);
+  echo "   [STATUS] {$name} -> {$finalStatus}\n";
 
   $processedCount++;
 }
 
-// Atomically save state back to queue
-$fpQ = fopen($queueFile, 'c+');
-if ($fpQ && flock($fpQ, LOCK_EX)) {
-  $size = filesize($queueFile);
-  $queueJson = $size > 0 ? fread($fpQ, $size) : '';
-  $finalQueue = json_decode($queueJson, true) ?: [];
-  foreach ($myUpdates as $n => $status) {
-    if (isset($finalQueue[$n])) $finalQueue[$n]['status'] = $status;
-  }
-  ftruncate($fpQ, 0);
-  fseek($fpQ, 0);
-  fwrite($fpQ, json_encode($finalQueue, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-  fflush($fpQ);
-  flock($fpQ, LOCK_UN);
-  fclose($fpQ);
-}
+// No batch writeback needed - each species was written back immediately above
 
 
 

@@ -95,6 +95,14 @@ while ($iteration < $maxIterations) {
     }
 
     echo "[Daemon] All {$concurrentWorkers} parallel workers finished.\n";
+
+    // === CRASH RESILIENCE: Periodic stuck-item sweep ===
+    // Every 5 loops, reset any 'processing' items left by crashed workers
+    if ($iteration % 5 === 0) {
+        echo "[Daemon] Running periodic stuck-item sweep...\n";
+        exec("php " . __DIR__ . "/reset_stuck_queue.php");
+    }
+
     sleep(1); // 1-second pause to prevent runaway CPU loops
 }
 
