@@ -3529,5 +3529,42 @@
             }
         ],
         "year": 2010
+    },
+    {
+        "id": "10.1002\/ece3.10829",
+        "doi": "10.1002\/ece3.10829",
+        "title": "Integrated phylogenetic analyses reveal the evolutionary, biogeographic, and diversification history of Asian warty treefrog genus Theloderma (Anura, Rhacophoridae)",
+        "abstract": "Asian warty treefrogs, genus Theloderma, are morphologically variable arboreal frogs endemic to Southeast Asia and Southern China. However, integrated systematic studies are lacking, and knowledge of the genus in terms of diversity, origin, and historical diversification remains limited. To address these knowledge gaps, we used three mitochondrial and five nuclear gene fragments to reconstruct the Theloderma phylogeny, estimate divergence times, and examine the biogeography of the genus. Phylogenetic and species delimitation analyses suggest that the genus Theloderma comprises three major clades corresponding to two subgenera and seven species groups, and mPTP identified at least 12 putative cryptic species, suggesting that species diversity has been underestimated. Biogeographic analyses indicated that most recent common ancestor of Theloderma originated in the Indochina Peninsula during the Middle Oligocene (ca. 27.77 Ma) and the splitting of Clade A to C occurred in the Late Oligocene (ca. 23.55–25.57 Ma). Current biogeographic patterns result from two distinct processes: in situ diversification in the Indochina Peninsula and dispersal in multiple areas, namely southward dispersal to the Malay Peninsula and Borneo, northeastward dispersal to Southern China, northward dispersal to the Himalayas, and dispersal from Southern China to the Indochina Peninsula. Ancestral character reconstruction suggests that the ancestor of Theloderma may have possessed a small body size, rough dorsal skin, and absence of vomerine teeth and hand webbing, and that these four characters have undergone multiple evolutions. Principal component analysis based on eight bioclimatic variables did not clearly distinguish the three major clades of Theloderma, suggesting that species in these clades may occupy similar climatic ecological niches. Our research highlights the importance of orogeny and paleoclimatic changes, in shaping amphibian biodiversity in mountain ecosystems.",
+        "authors": [
+            {
+                "firstName": "Tao",
+                "lastName": "Luo"
+            },
+            {
+                "firstName": "Xin‐Rui",
+                "lastName": "Zhao"
+            },
+            {
+                "firstName": "Chang‐Ting",
+                "lastName": "Lan"
+            },
+            {
+                "firstName": "Wei",
+                "lastName": "Li"
+            },
+            {
+                "firstName": "Huai‐Qing",
+                "lastName": "Deng"
+            },
+            {
+                "firstName": "Ning",
+                "lastName": "Xiao"
+            },
+            {
+                "firstName": "Jiang",
+                "lastName": "Zhou"
+            }
+        ],
+        "year": 2023
     }
 ]
