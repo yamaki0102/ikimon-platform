@@ -32,6 +32,6 @@
         "country": "JP",
         "municipality": "浜松市",
         "data_quality": "A",
-        "import_source": "user_post"
+        "import_source": "dummy"
     }
 ]

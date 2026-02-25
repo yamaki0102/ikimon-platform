@@ -31,6 +31,6 @@
         "prefecture": "JP-22",
         "country": "JP",
         "municipality": "浜松市",
-        "import_source": "user_post"
+        "import_source": "dummy"
     }
 ]

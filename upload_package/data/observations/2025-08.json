@@ -30,7 +30,7 @@
         "country": "JP",
         "municipality": "浜松市",
         "data_quality": "A",
-        "import_source": "user_post"
+        "import_source": "dummy"
     },
     {
         "id": "obs_69548f9a5604d",
@@ -60,6 +60,6 @@
             "group": "植物"
         },
         "data_quality": "A",
-        "import_source": "user_post"
+        "import_source": "dummy"
     }
 ]

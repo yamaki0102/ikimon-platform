@@ -142,7 +142,7 @@
         },
         "quality_grade": "Needs ID",
         "data_quality": "B",
-        "import_source": "user_post"
+        "import_source": "dummy"
     },
     {
         "id": "c9ee1369d37d09a0",
@@ -287,7 +287,7 @@
         },
         "quality_grade": "Needs ID",
         "data_quality": "B",
-        "import_source": "user_post"
+        "import_source": "dummy"
     },
     {
         "id": "e45fca937f2df814",
@@ -432,7 +432,7 @@
         },
         "quality_grade": "Needs ID",
         "data_quality": "B",
-        "import_source": "user_post"
+        "import_source": "dummy"
     },
     {
         "id": "36f10578baaed608",
@@ -577,6 +577,6 @@
         },
         "quality_grade": "Needs ID",
         "data_quality": "B",
-        "import_source": "user_post"
+        "import_source": "dummy"
     }
 ]
