@@ -417,6 +417,8 @@ $observation = [
         'is_recent'    => (strtotime($observed_at ?: 'now') > strtotime('-1 year')),
         'ecological_verified' => !empty($_POST['ecological_verified']), // Phase 4 Validation
     ],
+    // NP: GPS coordinate accuracy in meters (for DwC coordinateUncertaintyInMeters)
+    'coordinate_accuracy' => !empty($_POST['coordinate_accuracy']) ? (int)$_POST['coordinate_accuracy'] : null,
 ];
 
 // FB-15: Store EXIF GPS as metadata if available (for data quality)

@@ -56,11 +56,11 @@ class CspNonce
 
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://www.gstatic.com",
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://unpkg.com https://cdn.tailwindcss.com",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://unpkg.com https://www.gstatic.com https://cdnjs.cloudflare.com",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://unpkg.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com",
             "font-src 'self' https://fonts.gstatic.com data:",
-            "img-src 'self' data: blob: https://i.pravatar.cc https://*.tile.openstreetmap.jp https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://basemaps.cartocdn.com https://tile.openstreetmap.jp",
-            "connect-src 'self' https://api.gbif.org https://tile.openstreetmap.jp https://*.tile.openstreetmap.jp https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com",
+            "img-src 'self' data: blob: https://i.pravatar.cc https://*.tile.openstreetmap.jp https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://basemaps.cartocdn.com https://tile.openstreetmap.jp https://lh3.googleusercontent.com",
+            "connect-src 'self' https://api.gbif.org https://tile.openstreetmap.jp https://*.tile.openstreetmap.jp https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://nominatim.openstreetmap.org https://unpkg.com",
             "worker-src 'self' blob:",
             "child-src 'self' blob:",
             "frame-ancestors 'self'",

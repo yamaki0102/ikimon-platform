@@ -125,7 +125,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
         }
     }
 </script>
-<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/lucide@0.469.0"></script>
 <script nonce="<?= CspNonce::attr() ?>">
     // Lucide Icons: 一元初期化（全ページ共通）
     document.addEventListener('DOMContentLoaded', function() {

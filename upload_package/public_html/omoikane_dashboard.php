@@ -132,20 +132,38 @@ require_once __DIR__ . '/../libs/Auth.php';
                         <p class="text-xs text-slate-500 mt-4">SQLiteデータベースへの格納数</p>
                     </div>
 
+                    <div class="glass-panel p-6 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <h2 class="text-sm text-slate-400 font-bold tracking-widest mb-2 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-purple-400"></span> 参考文献 (収集済)
+                        </h2>
+                        <div class="text-5xl font-light text-purple-400 mt-4 font-mono">
+                            <span x-text="(metrics.total_papers || 0).toLocaleString()">0</span> <span class="text-xl text-slate-500 font-sans">件</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-4">学術論文・文献データ</p>
+                    </div>
                     <div class="glass-panel p-6">
                         <h2 class="text-sm text-slate-400 font-bold tracking-widest mb-2 flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-yellow-400"></span> 実行キュー (処理中)
                         </h2>
                         <div class="flex items-baseline space-x-2 mt-4">
                             <div class="text-5xl font-light text-yellow-400 font-mono" x-text="metrics.queue.processing">0</div>
-                            <div class="text-sm text-slate-500">ワーカー稼働中</div>
+                            <div class="text-sm text-slate-500">AI推論中</div>
+                            <div class="text-3xl font-light text-blue-400 font-mono ml-4" x-text="metrics.queue.fetching_lit">0</div>
+                            <div class="text-sm text-slate-500">文献取得中</div>
                         </div>
-                        <div class="w-full bg-slate-800 rounded-full h-1.5 mt-4">
-                            <!-- Progress approximation based on total -->
-                            <div class="bg-yellow-400 h-1.5 rounded-full" :style="'width: ' + ((metrics.queue.processing / (metrics.queue.total || 1)) * 100) + '%'"></div>
+                        <div class="w-full bg-slate-800 rounded-full h-1.5 mt-4 flex overflow-hidden">
+                            <div class="bg-blue-400 h-1.5" :style="'width: ' + ((metrics.queue.fetching_lit / (metrics.queue.total || 1)) * 100) + '%'"></div>
+                            <div class="bg-indigo-400 h-1.5" :style="'width: ' + ((metrics.queue.literature_ready / (metrics.queue.total || 1)) * 100) + '%'"></div>
+                            <div class="bg-yellow-400 h-1.5" :style="'width: ' + ((metrics.queue.processing / (metrics.queue.total || 1)) * 100) + '%'"></div>
                         </div>
                         <p class="text-xs text-slate-500 mt-2 flex justify-between">
                             <span>待機: <span x-text="metrics.queue.pending" class="text-slate-300"></span></span>
+                            <span>抽出待: <span x-text="metrics.queue.literature_ready" class="text-indigo-400"></span></span>
                             <span>全件: <span x-text="metrics.queue.total" class="text-slate-300"></span></span>
                         </p>
                     </div>
@@ -180,12 +198,12 @@ require_once __DIR__ . '/../libs/Auth.php';
                             <div class="text-2xl font-light text-red-400 mt-2 font-mono" x-text="metrics.recent_failed">0</div>
                         </div>
                         <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 hover:bg-slate-700/40 transition-colors">
-                            <div class="text-xs text-slate-500 uppercase font-bold tracking-wider">キュー完了</div>
-                            <div class="text-2xl font-light text-slate-300 mt-2 font-mono" x-text="metrics.queue.completed">0</div>
+                            <div class="text-xs text-slate-500 uppercase font-bold tracking-wider">文献なし</div>
+                            <div class="text-2xl font-light text-orange-400 mt-2 font-mono" x-text="metrics.queue.no_literature || 0">0</div>
                         </div>
                         <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 hover:bg-slate-700/40 transition-colors">
-                            <div class="text-xs text-slate-500 uppercase font-bold tracking-wider">キュー待機</div>
-                            <div class="text-2xl font-light text-slate-300 mt-2 font-mono" x-text="metrics.queue.pending">0</div>
+                            <div class="text-xs text-slate-500 uppercase font-bold tracking-wider">抽出待ち</div>
+                            <div class="text-2xl font-light text-indigo-400 mt-2 font-mono" x-text="metrics.queue.literature_ready || 0">0</div>
                         </div>
                         <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 hover:bg-slate-700/40 transition-colors">
                             <div class="text-xs text-slate-500 uppercase font-bold tracking-wider">最終更新</div>
@@ -262,23 +280,99 @@ require_once __DIR__ . '/../libs/Auth.php';
                     </span>
                     アクティブワーカー
                 </h2>
-                <span class="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded" x-text="activeWorkers.length + ' 稼働中'"></span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded border border-purple-500/30"
+                        x-text="activeWorkers.filter(w => w.type === 'writer').length + ' DB書込'"></span>
+                    <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded border border-amber-500/30"
+                        x-text="activeWorkers.filter(w => w.phase && (w.phase.includes('AI') || w.phase.includes('検証'))).length + ' 推論'"></span>
+                    <span class="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded border border-blue-500/30"
+                        x-text="activeWorkers.filter(w => w.phase && w.phase.includes('Prefetch')).length + ' 取得'"></span>
+                    <span class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30"
+                        x-text="activeWorkers.filter(w => w.phase && w.phase.includes('完了')).length + ' 完了'"></span>
+                </div>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <template x-for="(w, i) in activeWorkers" :key="w.pid">
-                    <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/50 hover:border-slate-600/50 transition-colors">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-[10px] font-mono text-slate-500 bg-slate-900/50 px-1.5 py-0.5 rounded" x-text="'PID:' + w.pid"></span>
-                            <span class="text-[10px] font-mono text-slate-500" x-text="formatTime(w.updated_at)"></span>
-                        </div>
-                        <div class="text-sm font-semibold text-slate-200 truncate mb-1.5" x-text="w.species" :title="w.species"></div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full" :class="phaseColor(w.phase)"></span>
-                            <span class="text-xs font-mono" :class="phaseTextColor(w.phase)" x-text="w.phase"></span>
-                        </div>
+
+            <!-- DB Spool Writer -->
+            <template x-if="activeWorkers.filter(w => w.type === 'writer').length > 0">
+                <div class="mb-4">
+                    <div class="text-xs text-purple-400 font-bold tracking-widest mb-2 uppercase flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+                        JSONスプールライター (専任DB書込)
                     </div>
-                </template>
-            </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <template x-for="(w, i) in activeWorkers.filter(w => w.type === 'writer')" :key="w.pid">
+                            <div class="bg-slate-800/80 p-3 rounded-lg border border-purple-500/30 hover:border-purple-500/50 transition-colors">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono text-slate-400 bg-slate-900/50 px-1.5 py-0.5 rounded" x-text="'PID:' + w.pid"></span>
+                                    <span class="text-[10px] font-mono text-slate-400" x-text="formatTime(w.updated_at)"></span>
+                                </div>
+                                <div class="text-sm font-semibold text-purple-300 truncate mb-1.5" x-text="w.status || w.name" :title="w.status || w.name"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- AI Extraction Workers -->
+            <template x-if="activeWorkers.filter(w => w.phase && (w.phase.includes('AI') || w.phase.includes('検証'))).length > 0">
+                <div class="mb-4">
+                    <div class="text-xs text-amber-400 font-bold tracking-widest mb-2 uppercase flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                        AI推論 / 検証ゲート
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <template x-for="(w, i) in activeWorkers.filter(w => w.phase && (w.phase.includes('AI') || w.phase.includes('検証')))" :key="w.pid">
+                            <div class="bg-slate-800/60 p-3 rounded-lg border border-amber-500/20 hover:border-amber-500/40 transition-colors">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] font-mono text-slate-500 bg-slate-900/50 px-1.5 py-0.5 rounded" x-text="'PID:' + w.pid"></span>
+                                    <span class="text-[10px] font-mono text-slate-500" x-text="formatTime(w.updated_at)"></span>
+                                </div>
+                                <div class="text-sm font-semibold text-slate-200 truncate mb-1.5" x-text="w.species" :title="w.species"></div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full" :class="phaseColor(w.phase)"></span>
+                                    <span class="text-xs font-mono" :class="phaseTextColor(w.phase)" x-text="w.phase"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Prefetcher Workers -->
+            <template x-if="activeWorkers.filter(w => w.phase && w.phase.includes('Prefetch')).length > 0">
+                <div class="mb-4">
+                    <div class="text-xs text-blue-400 font-bold tracking-widest mb-2 uppercase flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                        文献プリフェッチ
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                        <template x-for="(w, i) in activeWorkers.filter(w => w.phase && w.phase.includes('Prefetch'))" :key="w.pid">
+                            <div class="bg-slate-800/40 p-2 rounded-lg border border-blue-500/10 hover:border-blue-500/30 transition-colors">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-[10px] font-mono text-slate-600" x-text="'PID:' + w.pid"></span>
+                                    <span class="text-[10px] font-mono text-slate-600" x-text="formatTime(w.updated_at)"></span>
+                                </div>
+                                <div class="text-xs text-blue-300 truncate" x-text="w.species" :title="w.species"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Completed Workers (compact) -->
+            <template x-if="activeWorkers.filter(w => w.phase && w.phase.includes('完了')).length > 0">
+                <div>
+                    <div class="text-xs text-green-400 font-bold tracking-widest mb-2 uppercase flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                        直近完了
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="(w, i) in activeWorkers.filter(w => w.phase && w.phase.includes('完了'))" :key="w.pid">
+                            <span class="text-xs bg-green-500/10 text-green-400 px-2 py-1 rounded border border-green-500/20 font-mono truncate max-w-[200px]" x-text="w.species" :title="w.species + ' (PID:' + w.pid + ')'"></span>
+                        </template>
+                    </div>
+                </div>
+            </template>
         </div>
 
     </div>
@@ -313,9 +407,13 @@ require_once __DIR__ . '/../libs/Auth.php';
                         processing: 0,
                         pending: 0,
                         failed: 0,
+                        fetching_lit: 0,
+                        literature_ready: 0,
+                        no_literature: 0,
                         total: 0
                     },
                     sqlite_distilled: 0,
+                    total_papers: 0,
                     speed: {
                         per_minute: 0,
                         per_hour: 0

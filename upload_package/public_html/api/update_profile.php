@@ -80,4 +80,40 @@ $sessionUser = $newItem;
 unset($sessionUser['password_hash']);
 Auth::login($sessionUser); // Re-login updates session data
 
+// Sync denormalized observer data in observations
+if (isset($updateData['name'])) {
+    syncObserverData($user['id'], ['user_name' => $updateData['name']]);
+}
+
 echo json_encode(['success' => true, 'message' => 'プロフィールを更新しました。', 'user' => $sessionUser], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+
+/**
+ * Update denormalized user data in all observation JSON files
+ */
+function syncObserverData(string $userId, array $updates): void
+{
+    $obsDir = __DIR__ . '/../../data/observations';
+    if (!is_dir($obsDir)) return;
+
+    foreach (glob($obsDir . '/*.json') as $file) {
+        $data = json_decode(file_get_contents($file), true);
+        if (!is_array($data)) continue;
+
+        $changed = false;
+        foreach ($data as &$obs) {
+            if (($obs['user_id'] ?? '') === $userId) {
+                foreach ($updates as $key => $value) {
+                    if (($obs[$key] ?? '') !== $value) {
+                        $obs[$key] = $value;
+                        $changed = true;
+                    }
+                }
+            }
+        }
+        unset($obs);
+
+        if ($changed) {
+            file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX);
+        }
+    }
+}

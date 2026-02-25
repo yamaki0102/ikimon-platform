@@ -286,7 +286,7 @@ class SiteManager
         $scorerResult = BiodiversityScorer::calculate($observations, $siteInfo);
 
         // Map Scorer results to SiteStats Structure
-        $shannonH = $scorerResult['breakdown']['shannon']['raw'];
+        $shannonH = $scorerResult['breakdown']['richness']['raw'] ?? $shannonH;
         // Chao1 is not in Scorer yet, keep existing calculation if needed, or deprecate? 
         // For now, let's keep calcChao1 as it's specific to SiteManager for now
         $chao1 = self::calcChao1($speciesSet);
@@ -306,7 +306,7 @@ class SiteManager
             'shannon_wiener'      => round($shannonH, 3),
             'chao1_estimate'      => round($chao1, 1),
             'completeness_pct'    => $completeness,
-            'redlist_count'       => $scorerResult['breakdown']['red_list']['raw'],
+            'redlist_count'       => $scorerResult['breakdown']['conservation_value']['raw'] ?? $redlistCount,
             'regional_share_pct'  => $regionalSharePct,
             'regional_total_species' => $regionalStats['total_species'],
             'regional_total_redlist' => $regionalStats['total_redlist'],

@@ -83,10 +83,11 @@ function buildDwcRow(array $obs, string $domain, array $licenseMap): array
 
     $lat = (float)($obs['lat'] ?? 0);
     $lng = (float)($obs['lng'] ?? 0);
-    $coordinateUncertainty = '';
+    // NP: Use GPS accuracy from device, fallback to empty
+    $coordinateUncertainty = $obs['coordinate_accuracy'] ?? '';
     $informationWithheld = '';
 
-    // Privacy / Obscuring for Red List species
+    // Privacy / Obscuring for Red List species (overrides GPS accuracy)
     if (!empty($taxon['name'])) {
         $rl = RedList::check($taxon['name']);
         if ($rl) {
@@ -168,7 +169,11 @@ function buildDwcRow(array $obs, string $domain, array $licenseMap): array
         $originalNameUsage = $taxon['originalNameUsage'] ?? '';
     }
     $locality = $obs['locality'] ?? '';
-    $nameAccordingTo = $obs['nameAccordingTo'] ?? '';
+    // NP: Default to GBIF Backbone Taxonomy for taxon authority
+    $nameAccordingTo = $obs['nameAccordingTo'] ?? ($taxonId ? 'GBIF Backbone Taxonomy' : '');
+
+    // NP: Format taxonConceptID as GBIF species URI for interoperability
+    $taxonConceptId = $taxonId ? 'https://www.gbif.org/species/' . $taxonId : '';
 
     return [
         $id,
@@ -189,7 +194,7 @@ function buildDwcRow(array $obs, string $domain, array $licenseMap): array
         $mediaStr,
         $obs['note'] ?? '',
         !empty($obs['quality_flags']['ecological_verified']) ? 'Research Grade (Ecologically Verified)' : 'Research Grade',
-        $taxonId,
+        $taxonConceptId,
         $informationWithheld,
         $habitat,
         $lifeStage,

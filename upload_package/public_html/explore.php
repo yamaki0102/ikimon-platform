@@ -144,8 +144,8 @@ Auth::init();
             <!-- Load More -->
             <div x-show="hasMore" class="py-4 text-center">
                 <button @click="load()" class="px-6 py-2 rounded-full border border-border text-xs font-bold text-text-secondary hover:bg-surface transition" :disabled="loading">
-                    <span x-show="!loading">Load More</span>
-                    <span x-show="loading">Loading...</span>
+                    <span x-show="!loading">もっと見る</span>
+                    <span x-show="loading">読み込み中...</span>
                 </button>
             </div>
         </div>

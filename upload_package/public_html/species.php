@@ -67,38 +67,73 @@ if (!$taxon && !$scientificName) {
 // 1. Fetch Bibliographic Data
 $citations = LibraryService::getCitations($taxon);
 $keys = LibraryService::searchKeys($taxon);
+// Fallback: search by scientific name if Japanese name returned nothing
+if (empty($citations) && !empty($scientificName)) {
+    $citations = array_merge($citations, LibraryService::getCitations($scientificName));
+}
 
 // 2. Fetch Academic Papers (Tier 1)
 $papers = LibraryService::getPapersForTaxon($taxon);
+if (empty($papers) && !empty($scientificName)) {
+    $papers = LibraryService::getPapersForTaxon($scientificName);
+}
 
 // 3. Fetch Distilled Knowledge (Phase 2)
 $distilledKnowledge = LibraryService::getDistilledKnowledgeForTaxon($scientificName);
+
+// 3.5. Fetch Specimen Records
+$specimenRecords = LibraryService::getSpecimenRecords($scientificName);
 
 // 4. Red List Lookup
 $rlManager = new RedListManager();
 $rlResult = $rlManager->lookup($taxon);
 
-// 5. Gather all observation data for plotting
+// 5. Gather all observation data for plotting + phenology
 $allObs = DataStore::fetchAll('observations');
 $obsLocations = [];
 $firstPhoto = null;
+$monthCounts = array_fill(1, 12, 0); // 1-12 for Jan-Dec
 if ($allObs) {
     foreach ($allObs as $obs) {
         $obsName = $obs['taxon']['name'] ?? ($obs['species_name'] ?? '');
-        if ($obsName === $taxon && !empty($obs['location']['lat']) && !empty($obs['location']['lng'])) {
-            $obsLocations[] = [
-                'lat' => (float) $obs['location']['lat'],
-                'lng' => (float) $obs['location']['lng'],
-                'date' => $obs['observed_at'] ?? '',
-                'observer' => $obs['user']['name'] ?? ''
-            ];
-            // Grab first available photo for OGP
-            if (!$firstPhoto && !empty($obs['photos'][0])) {
-                $firstPhoto = $obs['photos'][0];
+        if ($obsName === $taxon) {
+            // Phenology: count by month
+            $obsDate = $obs['observed_at'] ?? '';
+            if ($obsDate && preg_match('/^\d{4}-(\d{2})/', $obsDate, $m)) {
+                $mo = (int)$m[1];
+                if ($mo >= 1 && $mo <= 12) $monthCounts[$mo]++;
+            }
+            // Map locations
+            if (!empty($obs['location']['lat']) && !empty($obs['location']['lng'])) {
+                $obsLocations[] = [
+                    'lat' => (float) $obs['location']['lat'],
+                    'lng' => (float) $obs['location']['lng'],
+                    'date' => $obsDate,
+                    'observer' => $obs['user']['name'] ?? ''
+                ];
+                if (!$firstPhoto && !empty($obs['photos'][0])) {
+                    $firstPhoto = $obs['photos'][0];
+                }
             }
         }
     }
 }
+
+// Add specimen collection months to phenology
+if (!empty($specimenRecords)) {
+    foreach ($specimenRecords as $spec) {
+        $sd = $spec['event_date'] ?? '';
+        if ($sd && preg_match('/(?:^|-)?(\d{2})(?:-|$)/', $sd, $sm)) {
+            // Try YYYY-MM-DD or YYYY-MM format
+            if (preg_match('/^\d{4}-(\d{2})/', $sd, $sm2)) {
+                $smo = (int)$sm2[1];
+                if ($smo >= 1 && $smo <= 12) $monthCounts[$smo]++;
+            }
+        }
+    }
+}
+$phenologyMax = max($monthCounts);
+$hasPhenologyData = $phenologyMax > 0;
 
 // 5. Scientific name fallback (only if not already set by resolver)
 if (!$scientificName) {
@@ -407,14 +442,12 @@ $dataCount = count($citations) + count($keys) + count($papers);
 
                     <?php if (!empty($ec['active_season'])): ?>
                         <div class="mb-4 last:mb-0">
-                            <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-2">Active Season</h3>
-                            <div class="flex flex-wrap gap-1.5">
-                                <?php foreach ($ec['active_season'] as $season): ?>
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border text-sm font-semibold text-text shadow-sm">
-                                        <i data-lucide="cloud-sun" class="w-3.5 h-3.5 text-warning"></i>
-                                        <?php echo htmlspecialchars($season); ?>
-                                    </span>
-                                <?php endforeach; ?>
+                            <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-2">Active Period</h3>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border text-sm font-semibold text-text shadow-sm">
+                                    <i data-lucide="calendar-range" class="w-3.5 h-3.5 text-warning"></i>
+                                    <?php echo htmlspecialchars($ec['active_season']); ?>
+                                </span>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -474,10 +507,17 @@ $dataCount = count($citations) + count($keys) + count($papers);
                             </h3>
                             <div class="flex flex-wrap gap-2">
                                 <?php foreach ($ik['similar_species'] as $similar): ?>
-                                    <a href="species.php?name=<?php echo urlencode($similar); ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-accent/20 text-sm font-semibold text-accent shadow-sm hover:bg-accent hover:text-white transition">
-                                        <i data-lucide="link-2" class="w-3.5 h-3.5"></i>
-                                        <?php echo htmlspecialchars($similar); ?>
-                                    </a>
+                                    <div class="inline-flex items-center gap-0 rounded-lg border border-accent/20 overflow-hidden shadow-sm">
+                                        <a href="species.php?name=<?php echo urlencode($similar); ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface text-sm font-semibold text-accent hover:bg-accent hover:text-white transition">
+                                            <i data-lucide="link-2" class="w-3.5 h-3.5"></i>
+                                            <?php echo htmlspecialchars($similar); ?>
+                                        </a>
+                                        <a href="compare.php?a=<?php echo urlencode($taxon); ?>&b=<?php echo urlencode($similar); ?>"
+                                            class="inline-flex items-center gap-1 px-2 py-1.5 bg-accent/10 text-xs font-bold text-accent hover:bg-accent hover:text-white transition border-l border-accent/20"
+                                            title="Compare with <?php echo htmlspecialchars($similar); ?>">
+                                            <i data-lucide="git-compare" class="w-3 h-3"></i>
+                                        </a>
+                                    </div>
                                 <?php endforeach; ?>
                             </div>
                         </div>
@@ -496,6 +536,63 @@ $dataCount = count($citations) + count($keys) + count($papers);
                                     </li>
                                 <?php endforeach; ?>
                             </ul>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+
+        <!-- Phenology Bar (Month Activity) -->
+        <?php if ($hasPhenologyData): ?>
+            <section>
+                <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="calendar-range" class="w-4 h-4 text-warning"></i>
+                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-warning">PHENOLOGY</h2>
+                    <span class="ml-auto text-token-xs font-mono text-muted"><?php echo array_sum($monthCounts); ?> records</span>
+                </div>
+                <div class="p-4 rounded-xl border border-border bg-surface">
+                    <div class="flex items-end gap-1 h-16">
+                        <?php
+                        $monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        $currentMonth = (int)date('n');
+                        for ($i = 1; $i <= 12; $i++):
+                            $count = $monthCounts[$i];
+                            $pct = $phenologyMax > 0 ? ($count / $phenologyMax) * 100 : 0;
+                            $minH = $count > 0 ? 12 : 4; // minimum bar height
+                            $barH = max($minH, $pct * 0.56); // scale to fit 56px max
+                            $opacity = $count > 0 ? max(0.3, $pct / 100) : 0.08;
+                            $isCurrent = ($i === $currentMonth);
+                        ?>
+                            <div class="flex-1 flex flex-col items-center gap-1 group" title="<?php echo $monthLabels[$i - 1] . ': ' . $count . ' record' . ($count !== 1 ? 's' : ''); ?>">
+                                <div class="w-full rounded-sm transition-all duration-300 group-hover:opacity-100 <?php echo $isCurrent ? 'ring-1 ring-warning/50' : ''; ?>"
+                                    style="height: <?php echo $barH; ?>px; background: <?php echo $count > 0 ? 'var(--color-warning)' : 'var(--color-border)'; ?>; opacity: <?php echo $opacity; ?>;"></div>
+                                <span class="text-[9px] font-mono <?php echo $isCurrent ? 'font-bold text-warning' : 'text-muted'; ?>"><?php echo $monthLabels[$i - 1]; ?></span>
+                            </div>
+                        <?php endfor; ?>
+                    </div>
+                    <?php if ($currentMonth): ?>
+                        <div class="mt-2 text-center text-token-xs text-muted">
+                            <?php
+                            $curCount = $monthCounts[$currentMonth];
+                            if ($curCount > 0) {
+                                echo '<span class="text-warning font-bold">' . $monthLabels[$currentMonth - 1] . '</span> — ' . $curCount . ' record' . ($curCount !== 1 ? 's' : '') . ' this month';
+                            } else {
+                                // Find nearest active month
+                                $nearest = null;
+                                for ($d = 1; $d <= 6; $d++) {
+                                    $ahead = (($currentMonth - 1 + $d) % 12) + 1;
+                                    if ($monthCounts[$ahead] > 0) {
+                                        $nearest = $ahead;
+                                        break;
+                                    }
+                                }
+                                if ($nearest) {
+                                    echo 'Next active: <span class="text-warning font-bold">' . $monthLabels[$nearest - 1] . '</span>';
+                                } else {
+                                    echo 'No seasonal pattern detected yet';
+                                }
+                            }
+                            ?>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -527,38 +624,133 @@ $dataCount = count($citations) + count($keys) + count($papers);
             </section>
         <?php endif; ?>
 
-        <!-- 3. Observation Minimap -->
-        <?php if (!empty($obsLocations)): ?>
+        <!-- Museum Specimen Records -->
+        <?php if (!empty($specimenRecords)): ?>
+            <section class="space-y-2">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="archive" class="w-4 h-4 text-secondary"></i>
+                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-secondary">MUSEUM SPECIMENS</h2>
+                    <span class="ml-auto text-token-xs font-mono text-muted"><?php echo count($specimenRecords); ?> records</span>
+                </div>
+                <div class="space-y-2">
+                    <?php foreach ($specimenRecords as $spec): ?>
+                        <a href="https://www.gbif.org/occurrence/<?php echo urlencode($spec['gbif_occurrence_key']); ?>" target="_blank" rel="noopener"
+                            class="block p-4 rounded-xl border border-secondary/20 bg-surface hover:border-secondary/40 transition group">
+                            <div class="flex items-start gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <i data-lucide="landmark" class="w-4 h-4 text-secondary"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-bold text-text leading-snug">
+                                        <?php echo htmlspecialchars($spec['institution_code'] ?: 'Unknown Institution'); ?>
+                                        <?php if (!empty($spec['catalog_number'])): ?>
+                                            <span class="font-mono text-xs text-muted ml-1">#<?php echo htmlspecialchars($spec['catalog_number']); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                                        <?php if (!empty($spec['country'])): ?>
+                                            <span class="inline-flex items-center gap-1 text-token-xs text-muted">
+                                                <i data-lucide="map-pin" class="w-3 h-3"></i>
+                                                <?php echo htmlspecialchars($spec['country']); ?>
+                                                <?php if (!empty($spec['locality'])): ?>
+                                                    · <?php echo htmlspecialchars(mb_strimwidth($spec['locality'], 0, 40, '…')); ?>
+                                                <?php endif; ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($spec['event_date'])): ?>
+                                            <span class="inline-flex items-center gap-1 text-token-xs text-muted font-mono">
+                                                <i data-lucide="calendar" class="w-3 h-3"></i>
+                                                <?php echo htmlspecialchars($spec['event_date']); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($spec['recorded_by'])): ?>
+                                            <span class="inline-flex items-center gap-1 text-token-xs text-muted">
+                                                <i data-lucide="user" class="w-3 h-3"></i>
+                                                <?php echo htmlspecialchars(mb_strimwidth($spec['recorded_by'], 0, 30, '…')); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <i data-lucide="external-link" class="w-3.5 h-3.5 text-faint group-hover:text-secondary transition flex-shrink-0 mt-1"></i>
+                            </div>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+
+        <!-- 3. Observation + Specimen Map -->
+        <?php
+        // Build specimen location array for map overlay
+        $specimenLocations = [];
+        if (!empty($specimenRecords)) {
+            foreach ($specimenRecords as $spec) {
+                if (!empty($spec['decimal_latitude']) && !empty($spec['decimal_longitude'])) {
+                    $specimenLocations[] = [
+                        'lat' => (float)$spec['decimal_latitude'],
+                        'lng' => (float)$spec['decimal_longitude'],
+                        'institution' => $spec['institution_code'] ?: 'Unknown',
+                        'catalog' => $spec['catalog_number'] ?? '',
+                        'date' => $spec['event_date'] ?? '',
+                        'country' => $spec['country'] ?? '',
+                        'gbif_key' => $spec['gbif_occurrence_key'] ?? '',
+                    ];
+                }
+            }
+        }
+        ?>
+        <?php if (!empty($obsLocations) || !empty($specimenLocations)): ?>
             <section>
                 <div class="flex items-center gap-2 mb-2">
                     <i data-lucide="map" class="w-4 h-4 text-secondary"></i>
                     <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-secondary">SIGHTINGS</h2>
-                    <span class="ml-auto text-token-xs font-mono text-muted"><?php echo count($obsLocations); ?> records</span>
+                    <span class="ml-auto text-token-xs font-mono text-muted"><?php echo count($obsLocations) + count($specimenLocations); ?> records</span>
+                </div>
+                <!-- Legend -->
+                <div class="flex items-center gap-4 mb-2 text-token-xs text-muted">
+                    <?php if (!empty($obsLocations)): ?>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#10b981] border border-white shadow-sm"></span>
+                            観察 (<?php echo count($obsLocations); ?>)
+                        </span>
+                    <?php endif; ?>
+                    <?php if (!empty($specimenLocations)): ?>
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#f59e0b] border border-white shadow-sm"></span>
+                            標本 (<?php echo count($specimenLocations); ?>)
+                        </span>
+                    <?php endif; ?>
                 </div>
                 <div id="species-map" class="w-full rounded-2xl overflow-hidden shadow-sm border border-border"></div>
                 <script nonce="<?= CspNonce::attr() ?>">
                     document.addEventListener('DOMContentLoaded', () => {
-                        const locs = <?php echo json_encode($obsLocations); ?>;
-                        if (!locs.length) return;
+                        const obsLocs = <?php echo json_encode($obsLocations); ?>;
+                        const specLocs = <?php echo json_encode($specimenLocations); ?>;
+                        const allPts = [...obsLocs, ...specLocs];
+                        if (!allPts.length) return;
+
                         const map = new maplibregl.Map({
                             container: 'species-map',
                             style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-                            center: [locs[0].lng, locs[0].lat],
+                            center: [allPts[0].lng, allPts[0].lat],
                             zoom: 13,
                             interactive: true,
                             attributionControl: false
                         });
                         map.addControl(new maplibregl.NavigationControl(), 'top-right');
-                        if (locs.length > 1) {
+
+                        if (allPts.length > 1) {
                             const b = new maplibregl.LngLatBounds();
-                            locs.forEach(l => b.extend([l.lng, l.lat]));
+                            allPts.forEach(l => b.extend([l.lng, l.lat]));
                             map.fitBounds(b, {
                                 padding: 40,
                                 maxZoom: 15
                             });
                         }
+
                         map.on('load', () => {
-                            locs.forEach(loc => {
+                            // Green pins: observations
+                            obsLocs.forEach(loc => {
                                 const el = document.createElement('div');
                                 el.style.cssText = 'width:14px;height:14px;background:#10b981;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px rgba(16,185,129,.4);';
                                 new maplibregl.Marker({
@@ -569,6 +761,26 @@ $dataCount = count($citations) + count($keys) + count($papers);
                                         offset: 12
                                     }).setHTML(
                                         `<div class="text-token-xs" style="color:#333;"><strong>${loc.observer}</strong><br>${loc.date}</div>`
+                                    ))
+                                    .addTo(map);
+                            });
+
+                            // Orange pins: specimens
+                            specLocs.forEach(spec => {
+                                const el = document.createElement('div');
+                                el.style.cssText = 'width:12px;height:12px;background:#f59e0b;border-radius:50%;border:2px solid #fff;box-shadow:0 0 8px rgba(245,158,11,.4);';
+                                const catalogLabel = spec.catalog ? ` #${spec.catalog}` : '';
+                                const dateLabel = spec.date || '日付不明';
+                                const countryLabel = spec.country ? `<br>${spec.country}` : '';
+                                const gbifLink = spec.gbif_key ? `<br><a href="https://www.gbif.org/occurrence/${spec.gbif_key}" target="_blank" style="color:#f59e0b;text-decoration:underline;font-size:10px;">GBIF →</a>` : '';
+                                new maplibregl.Marker({
+                                        element: el
+                                    })
+                                    .setLngLat([spec.lng, spec.lat])
+                                    .setPopup(new maplibregl.Popup({
+                                        offset: 12
+                                    }).setHTML(
+                                        `<div class="text-token-xs" style="color:#333;"><strong>🏛️ ${spec.institution}${catalogLabel}</strong><br>${dateLabel}${countryLabel}${gbifLink}</div>`
                                     ))
                                     .addTo(map);
                             });
@@ -601,10 +813,14 @@ $dataCount = count($citations) + count($keys) + count($papers);
         <?php endif; ?>
 
         <!-- 4. Bibliographic DNA -->
-        <section>
+        <section x-data="{ showAllBib: false }">
             <div class="flex items-center gap-2 mb-3">
                 <i data-lucide="book-open" class="w-4 h-4 text-accent"></i>
                 <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-accent">BIBLIOGRAPHIC DNA</h2>
+                <?php $totalBib = count($citations) + count($keys);
+                if ($totalBib > 0): ?>
+                    <span class="ml-auto text-token-xs font-mono text-muted"><?php echo $totalBib; ?> refs</span>
+                <?php endif; ?>
             </div>
 
             <div class="space-y-3">
@@ -614,91 +830,110 @@ $dataCount = count($citations) + count($keys) + count($papers);
                     </div>
                 <?php endif; ?>
 
-                <?php foreach ($citations as $cit): ?>
-                    <div class="p-4 rounded-xl border border-warning/20 bg-warning-surface/50 space-y-2">
-                        <div class="flex items-start gap-3">
-                            <div class="mt-0.5 min-w-[32px] h-8 rounded bg-warning/10 flex items-center justify-center text-warning text-token-xs font-bold font-mono">
-                                P.<?php echo $cit['page']; ?>
+                <?php foreach ($citations as $cidx => $cit): ?>
+                    <?php if ($cidx === 3 && count($citations) > 3): ?>
+                        <button @click="showAllBib = !showAllBib"
+                            class="w-full py-2.5 rounded-xl border border-dashed border-warning/30 text-sm font-semibold text-warning hover:bg-warning/5 transition flex items-center justify-center gap-2"
+                            x-show="!showAllBib">
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                            +<?php echo count($citations) - 3; ?> more citations
+                        </button>
+                    <?php endif; ?>
+                    <?php if ($cidx >= 3): ?><div x-show="showAllBib" x-cloak><?php endif; ?>
+                        <div class="p-4 rounded-xl border border-warning/20 bg-warning-surface/50 space-y-2">
+                            <div class="flex items-start gap-3">
+                                <div class="mt-0.5 min-w-[32px] h-8 rounded bg-warning/10 flex items-center justify-center text-warning text-token-xs font-bold font-mono">
+                                    P.<?php echo $cit['page']; ?>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-token-xs text-warning mb-0.5 font-bold uppercase truncate"><?php echo htmlspecialchars($cit['book_title']); ?></div>
+                                    <div class="text-sm text-text-secondary">
+                                        <span class="font-mono text-accent-dark"><?php echo htmlspecialchars($cit['taxon_name']); ?></span>
+
+                                        <?php if (!empty($cit['scientific_name'])): ?>
+                                            <span class="italic text-xs ml-1 text-muted"><?php echo htmlspecialchars($cit['scientific_name']); ?></span>
+                                        <?php endif; ?>
+
+                                        <?php if (!empty($cit['darwin_core']['dwc:originalNameUsage']) && $cit['darwin_core']['dwc:originalNameUsage'] !== $cit['scientific_name'] && $cit['darwin_core']['dwc:originalNameUsage'] !== $cit['taxon_name']): ?>
+                                            <br>
+                                            <span class="text-[10px] text-muted-dark" title="Name exactly as it appeared in the historical text">
+                                                (Text verbatim: <span class="italic"><?php echo htmlspecialchars($cit['darwin_core']['dwc:originalNameUsage']); ?></span>)
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="flex-1">
-                                <div class="text-token-xs text-warning mb-0.5 font-bold uppercase truncate"><?php echo htmlspecialchars($cit['book_title']); ?></div>
-                                <div class="text-sm text-text-secondary">
-                                    <span class="font-mono text-accent-dark"><?php echo htmlspecialchars($cit['taxon_name']); ?></span>
 
-                                    <?php if (!empty($cit['scientific_name'])): ?>
-                                        <span class="italic text-xs ml-1 text-muted"><?php echo htmlspecialchars($cit['scientific_name']); ?></span>
+                            <?php if (!empty($cit['data_icons'])): ?>
+                                <div class="flex flex-wrap gap-1.5 pl-11">
+                                    <?php if (!empty($cit['data_icons']['size'])): ?>
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs" style="background: var(--color-bg-surface); color: var(--color-text-secondary);">
+                                            <i data-lucide="ruler" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($cit['data_icons']['size']); ?>
+                                        </span>
                                     <?php endif; ?>
-
-                                    <?php if (!empty($cit['darwin_core']['dwc:originalNameUsage']) && $cit['darwin_core']['dwc:originalNameUsage'] !== $cit['scientific_name'] && $cit['darwin_core']['dwc:originalNameUsage'] !== $cit['taxon_name']): ?>
-                                        <br>
-                                        <span class="text-[10px] text-muted-dark" title="Name exactly as it appeared in the historical text">
-                                            (Text verbatim: <span class="italic"><?php echo htmlspecialchars($cit['darwin_core']['dwc:originalNameUsage']); ?></span>)
+                                    <?php if (!empty($cit['data_icons']['season'])): ?>
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs" style="background: var(--color-bg-surface); color: var(--color-text-secondary);">
+                                            <i data-lucide="calendar" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($cit['data_icons']['season']); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($cit['data_icons']['distribution'])): ?>
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs bg-surface text-text-secondary border border-border">
+                                            <i data-lucide="globe" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($cit['data_icons']['distribution']); ?>
                                         </span>
                                     <?php endif; ?>
                                 </div>
-                            </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($cit['photos'])): ?>
+                                <div class="flex flex-wrap gap-1.5 pl-11">
+                                    <?php foreach ($cit['photos'] as $photo): ?>
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent-surface border border-accent/20 text-token-xs text-accent-dark">
+                                            <i data-lucide="camera" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($photo); ?>
+                                        </span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($cit['gbif_status']) && $cit['gbif_status'] === 'SYNONYM'): ?>
+                                <div class="pl-11 mt-2">
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/10 border border-secondary/20 text-token-xs text-secondary">
+                                        <i data-lucide="git-merge" class="w-2.5 h-2.5"></i> 現在は <?php echo htmlspecialchars($cit['gbif_accepted_name'] ?? ''); ?> に統合する見解もあります
+                                    </span>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- Darwin Core / Metadata Display -->
+                            <?php if (!empty($cit['darwin_core']) || !empty($cit['dublin_core'])): ?>
+                                <div class="mt-3 ml-11 flex flex-wrap gap-1.5 pt-2 border-t border-warning/20">
+                                    <?php if (!empty($cit['dublin_core']['dc:type'])): ?>
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Dublin Core Document Type">
+                                            DC: <?php echo htmlspecialchars($cit['dublin_core']['dc:type']); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($cit['darwin_core']['dwc:taxonConceptID'])): ?>
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-accent/10 border border-accent/20 text-accent font-mono" title="Darwin Core Taxon Concept ID">
+                                            DwC: <?php echo htmlspecialchars(str_replace('gbif:', 'GBIF ', $cit['darwin_core']['dwc:taxonConceptID'])); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($cit['darwin_core']['dwc:scientificName'])): ?>
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Darwin Core Scientific Name">
+                                            DwC: <?php echo htmlspecialchars($cit['darwin_core']['dwc:scientificName']); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
-
-                        <?php if (!empty($cit['data_icons'])): ?>
-                            <div class="flex flex-wrap gap-1.5 pl-11">
-                                <?php if (!empty($cit['data_icons']['size'])): ?>
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs" style="background: var(--color-bg-surface); color: var(--color-text-secondary);">
-                                        <i data-lucide="ruler" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($cit['data_icons']['size']); ?>
-                                    </span>
-                                <?php endif; ?>
-                                <?php if (!empty($cit['data_icons']['season'])): ?>
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs" style="background: var(--color-bg-surface); color: var(--color-text-secondary);">
-                                        <i data-lucide="calendar" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($cit['data_icons']['season']); ?>
-                                    </span>
-                                <?php endif; ?>
-                                <?php if (!empty($cit['data_icons']['distribution'])): ?>
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs bg-surface text-text-secondary border border-border">
-                                        <i data-lucide="globe" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($cit['data_icons']['distribution']); ?>
-                                    </span>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
-
-                        <?php if (!empty($cit['photos'])): ?>
-                            <div class="flex flex-wrap gap-1.5 pl-11">
-                                <?php foreach ($cit['photos'] as $photo): ?>
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent-surface border border-accent/20 text-token-xs text-accent-dark">
-                                        <i data-lucide="camera" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($photo); ?>
-                                    </span>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-
-                        <?php if (!empty($cit['gbif_status']) && $cit['gbif_status'] === 'SYNONYM'): ?>
-                            <div class="pl-11 mt-2">
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/10 border border-secondary/20 text-token-xs text-secondary">
-                                    <i data-lucide="git-merge" class="w-2.5 h-2.5"></i> 現在は <?php echo htmlspecialchars($cit['gbif_accepted_name'] ?? ''); ?> に統合する見解もあります
-                                </span>
-                            </div>
-                        <?php endif; ?>
-
-                        <!-- Darwin Core / Metadata Display -->
-                        <?php if (!empty($cit['darwin_core']) || !empty($cit['dublin_core'])): ?>
-                            <div class="mt-3 ml-11 flex flex-wrap gap-1.5 pt-2 border-t border-warning/20">
-                                <?php if (!empty($cit['dublin_core']['dc:type'])): ?>
-                                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Dublin Core Document Type">
-                                        DC: <?php echo htmlspecialchars($cit['dublin_core']['dc:type']); ?>
-                                    </span>
-                                <?php endif; ?>
-                                <?php if (!empty($cit['darwin_core']['dwc:taxonConceptID'])): ?>
-                                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-accent/10 border border-accent/20 text-accent font-mono" title="Darwin Core Taxon Concept ID">
-                                        DwC: <?php echo htmlspecialchars(str_replace('gbif:', 'GBIF ', $cit['darwin_core']['dwc:taxonConceptID'])); ?>
-                                    </span>
-                                <?php endif; ?>
-                                <?php if (!empty($cit['darwin_core']['dwc:scientificName'])): ?>
-                                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Darwin Core Scientific Name">
-                                        DwC: <?php echo htmlspecialchars($cit['darwin_core']['dwc:scientificName']); ?>
-                                    </span>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
+                        <?php if ($cidx >= 3): ?>
+                        </div><?php endif; ?>
                 <?php endforeach; ?>
+                <?php if (count($citations) > 3): ?>
+                    <button @click="showAllBib = false"
+                        class="w-full py-2.5 rounded-xl border border-dashed border-warning/30 text-sm font-semibold text-warning hover:bg-warning/5 transition flex items-center justify-center gap-2"
+                        x-show="showAllBib" x-cloak>
+                        <i data-lucide="chevron-up" class="w-4 h-4"></i>
+                        Show less
+                    </button>
+                <?php endif; ?>
 
                 <?php foreach ($keys as $key): ?>
                     <div class="p-4 rounded-xl border border-primary/20 bg-primary-surface/50 relative overflow-hidden group hover:border-primary/40 transition">
@@ -723,69 +958,85 @@ $dataCount = count($citations) + count($keys) + count($papers);
 
         <!-- 5. Academic References -->
         <?php if (!empty($papers)): ?>
-            <section>
+            <section x-data="{ showAll: false }">
                 <div class="flex items-center gap-2 mb-3">
                     <i data-lucide="flask-conical" class="w-4 h-4 text-secondary"></i>
                     <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-secondary">ACADEMIC REFERENCES</h2>
                     <span class="ml-auto text-token-xs font-mono text-muted"><?php echo count($papers); ?> papers</span>
                 </div>
                 <div class="space-y-2">
-                    <?php foreach ($papers as $paper): ?>
-                        <a href="<?php echo htmlspecialchars($paper['url'] ?? '#'); ?>" target="_blank" rel="noopener"
-                            class="block p-4 rounded-xl border border-accent/20 bg-accent-surface/30 hover:border-accent/40 transition group">
-                            <div class="flex items-start gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    <i data-lucide="file-text" class="w-4 h-4 text-accent"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-sm font-semibold leading-snug transition line-clamp-2 text-text">
-                                        <?php echo htmlspecialchars($paper['title']); ?>
+                    <?php foreach ($papers as $pidx => $paper): ?>
+                        <?php if ($pidx === 2 && count($papers) > 2): ?>
+                            <button @click="showAll = !showAll"
+                                class="w-full py-2.5 rounded-xl border border-dashed border-secondary/30 text-sm font-semibold text-secondary hover:bg-secondary/5 transition flex items-center justify-center gap-2"
+                                x-show="!showAll">
+                                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                                +<?php echo count($papers) - 2; ?> more papers
+                            </button>
+                        <?php endif; ?>
+                        <template x-if="<?php echo $pidx < 2 ? 'true' : 'showAll'; ?>">
+                            <a href="<?php echo htmlspecialchars($paper['url'] ?? '#'); ?>" target="_blank" rel="noopener"
+                                class="block p-4 rounded-xl border border-accent/20 bg-accent-surface/30 hover:border-accent/40 transition group">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <i data-lucide="file-text" class="w-4 h-4 text-accent"></i>
                                     </div>
-                                    <div class="flex flex-wrap items-center gap-2 mt-1.5">
-                                        <?php if (!empty($paper['year'])): ?>
-                                            <span class="text-token-xs text-accent font-mono font-bold"><?php echo $paper['year']; ?></span>
-                                        <?php endif; ?>
-                                        <?php if (!empty($paper['container_title'])): ?>
-                                            <span class="text-token-xs italic truncate text-muted"><?php echo htmlspecialchars($paper['container_title']); ?></span>
-                                        <?php endif; ?>
-                                        <?php if (!empty($paper['darwin_core']['dwc:originalNameUsage']) && $paper['darwin_core']['dwc:originalNameUsage'] !== $paper['darwin_core']['dwc:scientificName']): ?>
-                                            <span class="text-token-xs text-muted-dark" title="Historical name used in this paper">
-                                                (Referred to as: <span class="italic"><?php echo htmlspecialchars($paper['darwin_core']['dwc:originalNameUsage']); ?></span>)
-                                            </span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php if (!empty($paper['doi'])): ?>
-                                        <div class="flex items-center gap-1.5 mt-1">
-                                            <span class="text-token-xs font-mono text-muted">DOI: <?php echo htmlspecialchars($paper['doi']); ?></span>
-                                            <i data-lucide="external-link" class="w-3 h-3 transition text-faint"></i>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-sm font-semibold leading-snug transition line-clamp-2 text-text">
+                                            <?php echo htmlspecialchars($paper['title']); ?>
                                         </div>
-                                    <?php endif; ?>
-
-                                    <!-- Darwin Core / Metadata Display -->
-                                    <?php if (!empty($paper['darwin_core']) || !empty($paper['dublin_core'])): ?>
-                                        <div class="mt-3 flex flex-wrap gap-1.5 pt-2 border-t border-border/30">
-                                            <?php if (!empty($paper['dublin_core']['dc:type'])): ?>
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Dublin Core Document Type">
-                                                    DC: <?php echo htmlspecialchars($paper['dublin_core']['dc:type']); ?>
-                                                </span>
+                                        <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                                            <?php if (!empty($paper['year'])): ?>
+                                                <span class="text-token-xs text-accent font-mono font-bold"><?php echo $paper['year']; ?></span>
                                             <?php endif; ?>
-                                            <?php if (!empty($paper['darwin_core']['dwc:taxonConceptID'])): ?>
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-accent/10 border border-accent/20 text-accent font-mono" title="Darwin Core Taxon Concept ID">
-                                                    DwC: <?php echo htmlspecialchars(str_replace('gbif:', 'GBIF ', $paper['darwin_core']['dwc:taxonConceptID'])); ?>
-                                                </span>
+                                            <?php if (!empty($paper['container_title'])): ?>
+                                                <span class="text-token-xs italic truncate text-muted"><?php echo htmlspecialchars($paper['container_title']); ?></span>
                                             <?php endif; ?>
-                                            <?php if (!empty($paper['darwin_core']['dwc:scientificName'])): ?>
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Darwin Core Scientific Name">
-                                                    DwC: <?php echo htmlspecialchars($paper['darwin_core']['dwc:scientificName']); ?>
+                                            <?php if (!empty($paper['darwin_core']['dwc:originalNameUsage']) && $paper['darwin_core']['dwc:originalNameUsage'] !== $paper['darwin_core']['dwc:scientificName']): ?>
+                                                <span class="text-token-xs text-muted-dark" title="Historical name used in this paper">
+                                                    (Referred to as: <span class="italic"><?php echo htmlspecialchars($paper['darwin_core']['dwc:originalNameUsage']); ?></span>)
                                                 </span>
                                             <?php endif; ?>
                                         </div>
-                                    <?php endif; ?>
+                                        <?php if (!empty($paper['doi'])): ?>
+                                            <div class="flex items-center gap-1.5 mt-1">
+                                                <span class="text-token-xs font-mono text-muted">DOI: <?php echo htmlspecialchars($paper['doi']); ?></span>
+                                                <i data-lucide="external-link" class="w-3 h-3 transition text-faint"></i>
+                                            </div>
+                                        <?php endif; ?>
 
+                                        <!-- Darwin Core / Metadata Display -->
+                                        <?php if (!empty($paper['darwin_core']) || !empty($paper['dublin_core'])): ?>
+                                            <div class="mt-3 flex flex-wrap gap-1.5 pt-2 border-t border-border/30">
+                                                <?php if (!empty($paper['dublin_core']['dc:type'])): ?>
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Dublin Core Document Type">
+                                                        DC: <?php echo htmlspecialchars($paper['dublin_core']['dc:type']); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <?php if (!empty($paper['darwin_core']['dwc:taxonConceptID'])): ?>
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-accent/10 border border-accent/20 text-accent font-mono" title="Darwin Core Taxon Concept ID">
+                                                        DwC: <?php echo htmlspecialchars(str_replace('gbif:', 'GBIF ', $paper['darwin_core']['dwc:taxonConceptID'])); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <?php if (!empty($paper['darwin_core']['dwc:scientificName'])): ?>
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Darwin Core Scientific Name">
+                                                        DwC: <?php echo htmlspecialchars($paper['darwin_core']['dwc:scientificName']); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
+
+                                    </div>
                                 </div>
-                            </div>
-                        </a>
+                            </a>
+                        </template>
                     <?php endforeach; ?>
+                    <button @click="showAll = false"
+                        class="w-full py-2.5 rounded-xl border border-dashed border-secondary/30 text-sm font-semibold text-secondary hover:bg-secondary/5 transition flex items-center justify-center gap-2"
+                        x-show="showAll" x-cloak>
+                        <i data-lucide="chevron-up" class="w-4 h-4"></i>
+                        Show less
+                    </button>
                 </div>
             </section>
         <?php endif; ?>

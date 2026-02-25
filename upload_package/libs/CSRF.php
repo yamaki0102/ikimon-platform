@@ -84,22 +84,45 @@ class CSRF
             return;
         }
 
-        $cookieToken = $_COOKIE[self::COOKIE_NAME] ?? '';
+        // CRITICAL: Read cookie from raw HTTP_COOKIE header, NOT $_COOKIE.
+        // Auth::init() → CSRF::generate() may overwrite $_COOKIE with a NEW value
+        // before validateRequest() runs, causing a mismatch with the browser's cookie.
+        $cookieToken = '';
+        $rawCookies = $_SERVER['HTTP_COOKIE'] ?? '';
+        if (preg_match('/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/', $rawCookies, $m)) {
+            $cookieToken = $m[1];
+        }
         if (empty($cookieToken)) {
             http_response_code(403);
             echo json_encode(['success' => false, 'message' => 'CSRF token missing']);
             exit;
         }
 
-        // 1. Check X-Csrf-Token header (preferred for JSON APIs)
-        $headerToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        // Collect token from ALL possible sources (DO NOT read php://input — it would consume the request body)
+        $candidates = [];
 
-        // 2. Fallback: check POST body or JSON body
-        if (empty($headerToken)) {
-            $headerToken = $_POST['csrf_token'] ?? '';
+        // 1. X-CSRF-Token header (preferred for APIs)
+        $h = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        if (!empty($h)) $candidates[] = $h;
+
+        // 2. POST field (multipart/form-data)
+        $p = $_POST['csrf_token'] ?? '';
+        if (!empty($p)) $candidates[] = $p;
+
+        // 3. URL query parameter (most reliable fallback — works on any CGI/hosting)
+        $g = $_GET['csrf_token'] ?? '';
+        if (!empty($g)) $candidates[] = $g;
+
+        // Check if ANY candidate matches the cookie
+        $matched = false;
+        foreach ($candidates as $token) {
+            if (hash_equals($cookieToken, $token)) {
+                $matched = true;
+                break;
+            }
         }
 
-        if (empty($headerToken) || !hash_equals($cookieToken, $headerToken)) {
+        if (!$matched) {
             http_response_code(403);
             echo json_encode(['success' => false, 'message' => 'Invalid CSRF token']);
             exit;

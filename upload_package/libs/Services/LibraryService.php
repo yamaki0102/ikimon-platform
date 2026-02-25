@@ -10,6 +10,8 @@ class LibraryService
      */
     public static function searchKeys($query)
     {
+        if (empty($query)) return [];
+
         $dir = DataStore::getBasePath() . '/library/keys';
         $matches = [];
 
@@ -57,6 +59,8 @@ class LibraryService
      */
     public static function getCitations($taxonName)
     {
+        if (empty($taxonName)) return [];
+
         $dir = DataStore::getBasePath() . '/library/index';
 
         if (!is_dir($dir)) return [];
@@ -111,6 +115,8 @@ class LibraryService
      */
     public static function getPapersForTaxon($taxonName)
     {
+        if (empty($taxonName)) return [];
+
         $dir = DataStore::getBasePath() . '/library/paper_taxa';
         $papers = [];
         $seenDoi = [];
@@ -211,5 +217,33 @@ class LibraryService
         }
 
         return $merged;
+    }
+
+    /**
+     * Get museum specimen records for a taxon from GBIF occurrence data.
+     */
+    public static function getSpecimenRecords($scientificName)
+    {
+        if (empty($scientificName)) return [];
+
+        require_once __DIR__ . '/../OmoikaneDB.php';
+
+        try {
+            $db = new OmoikaneDB();
+            $pdo = $db->getPDO();
+
+            $stmt = $pdo->prepare("
+                SELECT sr.* FROM specimen_records sr
+                JOIN species s ON sr.species_id = s.id
+                WHERE s.scientific_name = ?
+                ORDER BY sr.event_date DESC
+                LIMIT 10
+            ");
+            $stmt->execute([trim($scientificName)]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("Failed to fetch specimens: " . $e->getMessage());
+            return [];
+        }
     }
 }

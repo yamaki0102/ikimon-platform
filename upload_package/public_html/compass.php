@@ -19,9 +19,12 @@ $currentUser = Auth::user();
 $regionalStats = new RegionalStats();
 
 // Detect user's prefecture from their most recent observation, or default to Shizuoka
-$userPref = 'JP-22'; // Default
+$userPref = 'JP-22'; // Default: Shizuoka
 if ($currentUser) {
-    // TODO: Store user's home prefecture in profile
+    $latestPref = $regionalStats->getUserLatestPrefecture($currentUser['id'] ?? null);
+    if ($latestPref) {
+        $userPref = $latestPref;
+    }
 }
 
 // Server-side initial data for SSR (fast first paint)

@@ -22,10 +22,10 @@ $portfolioSites = [];
 
 foreach ($allSitesInfo as $siteId => $siteInfo) {
     $siteStats = SiteManager::getSiteStats($siteId);
-    $obsCount = $siteStats['total_observations'] ?? $siteInfo['stats']['obs'];
-    $memberCount = $siteStats['total_observers'] ?? $siteInfo['stats']['users'];
-    $speciesCount = $siteStats['total_species'] ?? $siteInfo['stats']['species'];
-    $score = $siteStats['credit_score'] ?? $siteInfo['stats']['score'];
+    $obsCount = $siteStats['total_observations'] ?? ($siteInfo['stats']['obs'] ?? 0);
+    $memberCount = $siteStats['total_observers'] ?? ($siteInfo['stats']['users'] ?? 0);
+    $speciesCount = $siteStats['total_species'] ?? ($siteInfo['stats']['species'] ?? 0);
+    $score = $siteStats['credit_score'] ?? ($siteInfo['stats']['score'] ?? 0);
 
     $totalObs += $obsCount;
     $totalMembers += $memberCount;
@@ -91,7 +91,7 @@ $pageTitle = 'Portfolio Dashboard | Enterprise HQ';
             height: 480px;
             border-radius: var(--radius-lg);
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
         }
 
         @media (max-width: 768px) {
@@ -106,7 +106,7 @@ $pageTitle = 'Portfolio Dashboard | Enterprise HQ';
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 mt-14">
-        
+
         <!-- Header Section -->
         <header class="mb-10 text-center md:text-left">
             <div class="inline-flex items-center justify-center gap-2 px-3 py-1 mb-4 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold uppercase tracking-widest border border-indigo-200">
@@ -167,7 +167,7 @@ $pageTitle = 'Portfolio Dashboard | Enterprise HQ';
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <?php foreach ($portfolioSites as $site): ?>
-                    <a href="site_dashboard.php?id=<?= urlencode($site['id']) ?>" class="glass-card p-6 block group">
+                    <a href="site_dashboard.php?site=<?= urlencode($site['id']) ?>" class="glass-card p-6 block group">
                         <h3 class="font-bold text-lg text-slate-900 mb-1 group-hover:text-indigo-600 transition flex items-center justify-between">
                             <?= htmlspecialchars($site['name']) ?>
                             <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-transform group-hover:translate-x-1"></i>
@@ -217,30 +217,35 @@ $pageTitle = 'Portfolio Dashboard | Enterprise HQ';
         map.on('load', () => {
             // Add markers
             const bounds = new maplibregl.LngLatBounds();
-            
+
             sitesData.forEach(site => {
                 const el = document.createElement('div');
                 el.className = 'w-6 h-6 bg-indigo-500 rounded-full border-2 border-white shadow-[0_0_15px_rgba(99,102,241,0.6)] animate-pulse cursor-pointer';
-                
+
                 new maplibregl.Marker(el)
                     .setLngLat(site.location)
-                    .setPopup(new maplibregl.Popup({ offset: 25 })
+                    .setPopup(new maplibregl.Popup({
+                            offset: 25
+                        })
                         .setHTML(`
                             <div class="p-2 min-w-[150px]">
                                 <h4 class="font-bold text-sm mb-1">${site.name}</h4>
                                 <div class="text-xs text-slate-500 mb-2">スコア: <span class="text-indigo-600 font-bold">${site.score}</span></div>
-                                <a href="site_dashboard.php?id=${site.id}" class="text-xs text-white bg-indigo-500 px-3 py-1.5 rounded-lg font-bold block text-center">詳細を見る</a>
+                                <a href="site_dashboard.php?site=${site.id}" class="text-xs text-white bg-indigo-500 px-3 py-1.5 rounded-lg font-bold block text-center">詳細を見る</a>
                             </div>
                         `)
                     )
                     .addTo(map);
-                    
+
                 bounds.extend(site.location);
             });
 
             // Fit map to bounds
             if (!bounds.isEmpty()) {
-                map.fitBounds(bounds, { padding: 50, maxZoom: 13 });
+                map.fitBounds(bounds, {
+                    padding: 50,
+                    maxZoom: 13
+                });
             }
         });
     </script>

@@ -78,6 +78,26 @@ UserStore::update($user['id'], ['avatar' => $avatarUrl]);
 $user['avatar'] = $avatarUrl;
 Auth::login($user);
 
+// Sync denormalized avatar in all observation files
+$obsDir = __DIR__ . '/../../data/observations';
+if (is_dir($obsDir)) {
+    foreach (glob($obsDir . '/*.json') as $file) {
+        $data = json_decode(file_get_contents($file), true);
+        if (!is_array($data)) continue;
+        $changed = false;
+        foreach ($data as &$obs) {
+            if (($obs['user_id'] ?? '') === $user['id'] && ($obs['user_avatar'] ?? '') !== $avatarUrl) {
+                $obs['user_avatar'] = $avatarUrl;
+                $changed = true;
+            }
+        }
+        unset($obs);
+        if ($changed) {
+            file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX);
+        }
+    }
+}
+
 echo json_encode([
     'success' => true,
     'message' => 'アバターを更新しました。',

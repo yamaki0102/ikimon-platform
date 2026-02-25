@@ -377,6 +377,10 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                             </a>
                         </div>
 
+                        <a href="api/generate_report.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
+                            class="text-xs px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold transition shadow-lg shadow-teal-200 flex items-center gap-1.5 no-print" title="生物多様性レポート (HTML/印刷可)">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 生物多様性レポート
+                        </a>
                         <a href="api/generate_site_report.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
                             class="text-xs px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-lg shadow-emerald-200 flex items-center gap-1.5 no-print">
                             <i data-lucide="download" class="w-3.5 h-3.5"></i> 認定用エビデンス

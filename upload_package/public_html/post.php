@@ -131,7 +131,7 @@ if ($isGuest) {
                         </div>
                     </div>
                     <!-- Hidden file inputs -->
-                    <input type="file" accept="image/*" capture="environment" class="hidden" x-ref="cameraInput" @change="handleFiles">
+                    <input type="file" accept="image/*" class="hidden" x-ref="cameraInput" @change="handleFiles">
                     <input type="file" multiple accept="image/*" class="hidden" x-ref="galleryInput" @change="handleFiles">
 
                     <div class="border-2 border-dashed border-border rounded-3xl p-6 text-center transition bg-surface hover:bg-white/5">
