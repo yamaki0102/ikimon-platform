@@ -20,7 +20,8 @@
             "name": "ノネコ",
             "scientific_name": "Felis catus",
             "rank": "species",
-            "source": "legacy"
+            "source": "legacy",
+            "group": "植物"
         },
         "is_seed": true,
         "seed_version": "2026-01-full",

@@ -23,7 +23,8 @@
             "source": "inat",
             "thumbnail_url": "https:\/\/inaturalist-open-data.s3.amazonaws.com\/photos\/28420401\/square.jpg",
             "inat_taxon_id": 55626,
-            "slug": "pieris-rapae"
+            "slug": "pieris-rapae",
+            "group": "植物"
         },
         "is_seed": true,
         "seed_version": "2026-01-full",
