@@ -75,9 +75,18 @@ class SiteManager
 
         $raw = file_get_contents($geojsonPath);
         $geojson = json_decode($raw, true);
-        if (!$geojson || empty($geojson['features'])) return null;
+        if (!$geojson) return null;
 
-        $feature = $geojson['features'][0];
+        // Support both FeatureCollection and single Feature GeoJSON
+        if (($geojson['type'] ?? '') === 'FeatureCollection') {
+            if (empty($geojson['features'])) return null;
+            $feature = $geojson['features'][0];
+        } elseif (($geojson['type'] ?? '') === 'Feature') {
+            $feature = $geojson;
+        } else {
+            return null;
+        }
+
         $props = $feature['properties'] ?? [];
 
         // Load meta.json if exists (Phase 18)
