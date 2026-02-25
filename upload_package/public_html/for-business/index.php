@@ -663,7 +663,7 @@ require_once __DIR__ . '/../../config/config.php';
             </p>
             <div class="hero-cta">
                 <a href="demo.php" class="btn btn-lg" style="background: white; color: var(--primary-dark);">🎯 無料デモを体験する</a>
-                <a href="sample_report.php" class="btn btn-lg btn-outline" style="color: white; border-color: rgba(255,255,255,0.5);">📄 サンプルレポートを見る</a>
+                <a href="../api/generate_report.php?site_id=ikan_hq&from=2000-01-01" target="_blank" class="btn btn-lg btn-outline" style="color: white; border-color: rgba(255,255,255,0.5);">📄 実際のレポートを見る</a>
             </div>
             <div class="hero-stats">
                 <?php
@@ -773,8 +773,8 @@ require_once __DIR__ . '/../../config/config.php';
             </div>
 
             <div style="text-align: center; margin-top: 32px;">
-                <a href="sample_report.php" class="btn btn-lg btn-primary-lp">📋 サンプルレポートを見る →</a>
-                <p style="font-size: 12px; color: var(--muted); margin-top: 8px;">架空サイトのデモレポート（無料でいつでも閲覧可能）</p>
+                <a href="../api/generate_report.php?site_id=ikan_hq&from=2000-01-01" target="_blank" class="btn btn-lg btn-primary-lp">📋 実際のレポートを見る →</a>
+                <p style="font-size: 12px; color: var(--muted); margin-top: 8px;">愛管株式会社様の実データから自動生成されたレポート</p>
             </div>
         </div>
     </section>
