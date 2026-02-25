@@ -29,7 +29,8 @@
         "prefecture": "JP-22",
         "country": "JP",
         "municipality": "浜松市",
-        "data_quality": "B"
+        "data_quality": "B",
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f73",
@@ -55,7 +56,8 @@
             "source": "legacy",
             "group": "植物"
         },
-        "data_quality": "B"
+        "data_quality": "B",
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56036",
@@ -81,7 +83,8 @@
             "source": "legacy",
             "group": "植物"
         },
-        "data_quality": "B"
+        "data_quality": "B",
+        "import_source": "user_post"
     },
     {
         "id": "8cdfc85cc6690981",
@@ -99,7 +102,8 @@
         "updated_at": "2025-12-31 11:51:07",
         "identifications": [],
         "taxon": null,
-        "data_quality": "B"
+        "data_quality": "B",
+        "import_source": "user_post"
     },
     {
         "id": "a85a5b3bee0e62c0",
@@ -119,6 +123,7 @@
         "updated_at": "2025-12-31 11:53:31",
         "identifications": [],
         "taxon": null,
-        "data_quality": "B"
+        "data_quality": "B",
+        "import_source": "user_post"
     }
 ]

@@ -30,6 +30,7 @@
         "seed_version": "2026-01-full",
         "prefecture": "JP-22",
         "country": "JP",
-        "municipality": "浜松市"
+        "municipality": "浜松市",
+        "import_source": "user_post"
     }
 ]

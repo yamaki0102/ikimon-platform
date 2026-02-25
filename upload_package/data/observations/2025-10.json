@@ -21,7 +21,8 @@
             "scientific_name": "Parus minor",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f6f",
@@ -45,7 +46,8 @@
             "scientific_name": "Pieris rapae",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5609f",
@@ -69,7 +71,8 @@
             "scientific_name": "Cyprinus carpio",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55ff3",
@@ -93,7 +96,8 @@
             "scientific_name": "Paguma larvata",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56080",
@@ -117,7 +121,8 @@
             "scientific_name": "Plantago asiatica",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56064",
@@ -141,7 +146,8 @@
             "scientific_name": "Streptopelia orientalis",
             "rank": "species",
             "group": "鳥類"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56097",
@@ -165,7 +171,8 @@
             "scientific_name": "Paguma larvata",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56050",
@@ -189,7 +196,8 @@
             "scientific_name": "Hydrangea macrophylla",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f69",
@@ -213,7 +221,8 @@
             "scientific_name": "Hypsipetes amaurotis",
             "rank": "species",
             "group": "鳥類"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560c9",
@@ -237,7 +246,8 @@
             "scientific_name": "Anotogaster sieboldii",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5603a",
@@ -261,7 +271,8 @@
             "scientific_name": "Silurus asotus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560a8",
@@ -285,7 +296,8 @@
             "scientific_name": "Ipomoea nil",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5607a",
@@ -309,7 +321,8 @@
             "scientific_name": "Corvus macrorhynchos",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5602f",
@@ -333,7 +346,8 @@
             "scientific_name": "Silurus asotus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560c6",
@@ -357,7 +371,8 @@
             "scientific_name": "Opsariichthys platypus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560c3",
@@ -381,7 +396,8 @@
             "scientific_name": "Helianthus annuus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56053",
@@ -405,7 +421,8 @@
             "scientific_name": "Ipomoea nil",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55fed",
@@ -429,7 +446,8 @@
             "scientific_name": "Commelina communis",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560b4",
@@ -453,7 +471,8 @@
             "scientific_name": "Ipomoea nil",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f87",
@@ -477,7 +496,8 @@
             "scientific_name": "Hirundo rustica",
             "rank": "species",
             "group": "鳥類"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f45",
@@ -501,7 +521,8 @@
             "scientific_name": "Cyprinus carpio",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f6d",
@@ -525,7 +546,8 @@
             "scientific_name": "Graptopsaltria nigrofuscata",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560b6",
@@ -549,7 +571,8 @@
             "scientific_name": "Hyalessa maculaticollis",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f6b",
@@ -573,7 +596,8 @@
             "scientific_name": "Trifolium repens",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5606d",
@@ -597,7 +621,8 @@
             "scientific_name": "Anotogaster sieboldii",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560bc",
@@ -621,7 +646,8 @@
             "scientific_name": "Parus minor",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56011",
@@ -645,7 +671,8 @@
             "scientific_name": "Hydrangea macrophylla",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560ae",
@@ -669,7 +696,8 @@
             "scientific_name": "Trifolium repens",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f40",
@@ -693,7 +721,8 @@
             "scientific_name": "Helianthus annuus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f8a",
@@ -717,7 +746,8 @@
             "scientific_name": "Hydrangea macrophylla",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55fa5",
@@ -741,7 +771,8 @@
             "scientific_name": "Plantago asiatica",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5608c",
@@ -765,7 +796,8 @@
             "scientific_name": "Opsariichthys platypus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56002",
@@ -789,7 +821,8 @@
             "scientific_name": "Procyon lotor",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f94",
@@ -813,7 +846,8 @@
             "scientific_name": "Parus minor",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f6f",
@@ -837,7 +871,8 @@
             "scientific_name": "Pieris rapae",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5609f",
@@ -861,7 +896,8 @@
             "scientific_name": "Cyprinus carpio",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55ff3",
@@ -885,7 +921,8 @@
             "scientific_name": "Paguma larvata",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56080",
@@ -909,7 +946,8 @@
             "scientific_name": "Plantago asiatica",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56064",
@@ -933,7 +971,8 @@
             "scientific_name": "Streptopelia orientalis",
             "rank": "species",
             "group": "鳥類"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56097",
@@ -957,7 +996,8 @@
             "scientific_name": "Paguma larvata",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56050",
@@ -981,7 +1021,8 @@
             "scientific_name": "Hydrangea macrophylla",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f69",
@@ -1005,7 +1046,8 @@
             "scientific_name": "Hypsipetes amaurotis",
             "rank": "species",
             "group": "鳥類"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560c9",
@@ -1029,7 +1071,8 @@
             "scientific_name": "Anotogaster sieboldii",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5603a",
@@ -1053,7 +1096,8 @@
             "scientific_name": "Silurus asotus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560a8",
@@ -1077,7 +1121,8 @@
             "scientific_name": "Ipomoea nil",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5607a",
@@ -1101,7 +1146,8 @@
             "scientific_name": "Corvus macrorhynchos",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5602f",
@@ -1125,7 +1171,8 @@
             "scientific_name": "Silurus asotus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560c6",
@@ -1149,7 +1196,8 @@
             "scientific_name": "Opsariichthys platypus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560c3",
@@ -1173,7 +1221,8 @@
             "scientific_name": "Helianthus annuus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56053",
@@ -1197,7 +1246,8 @@
             "scientific_name": "Ipomoea nil",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55fed",
@@ -1221,7 +1271,8 @@
             "scientific_name": "Commelina communis",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560b4",
@@ -1245,7 +1296,8 @@
             "scientific_name": "Ipomoea nil",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f87",
@@ -1269,7 +1321,8 @@
             "scientific_name": "Hirundo rustica",
             "rank": "species",
             "group": "鳥類"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f45",
@@ -1293,7 +1346,8 @@
             "scientific_name": "Cyprinus carpio",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f6d",
@@ -1317,7 +1371,8 @@
             "scientific_name": "Graptopsaltria nigrofuscata",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560b6",
@@ -1341,7 +1396,8 @@
             "scientific_name": "Hyalessa maculaticollis",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f6b",
@@ -1365,7 +1421,8 @@
             "scientific_name": "Trifolium repens",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5606d",
@@ -1389,7 +1446,8 @@
             "scientific_name": "Anotogaster sieboldii",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560bc",
@@ -1413,7 +1471,8 @@
             "scientific_name": "Parus minor",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56011",
@@ -1437,7 +1496,8 @@
             "scientific_name": "Hydrangea macrophylla",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a560ae",
@@ -1461,7 +1521,8 @@
             "scientific_name": "Trifolium repens",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f40",
@@ -1485,7 +1546,8 @@
             "scientific_name": "Helianthus annuus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55f8a",
@@ -1509,7 +1571,8 @@
             "scientific_name": "Hydrangea macrophylla",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a55fa5",
@@ -1533,7 +1596,8 @@
             "scientific_name": "Plantago asiatica",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a5608c",
@@ -1557,7 +1621,8 @@
             "scientific_name": "Opsariichthys platypus",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     },
     {
         "id": "obs_69548f9a56002",
@@ -1581,6 +1646,7 @@
             "scientific_name": "Procyon lotor",
             "rank": "species",
             "group": "植物"
-        }
+        },
+        "import_source": "user_post"
     }
 ]
