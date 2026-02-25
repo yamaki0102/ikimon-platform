@@ -6,7 +6,7 @@
  * 架空の「遠州灘海岸サイト」のTNFD LEAPレポートを静的描画。
  * for-business LP からリンクされる営業武器。
  */
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 
 // --- Demo Data (hardcoded for sales pitch) ---
 $siteName = '遠州灘海岸 生物多様性モニタリングサイト';
