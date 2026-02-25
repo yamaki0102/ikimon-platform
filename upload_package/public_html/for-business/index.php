@@ -668,12 +668,12 @@ require_once __DIR__ . '/../../config/config.php';
             <div class="hero-stats">
                 <?php
                 // Dynamic stats from real platform data
-                $omoikaneSpecies = 0;
+                $omoikaneCount = 0;
                 $omoikanePath = __DIR__ . '/../../data/library/omoikane.sqlite3';
                 if (file_exists($omoikanePath)) {
                     try {
                         $odb = new SQLite3($omoikanePath);
-                        $omoikaneSpecies = (int)$odb->querySingle("SELECT COUNT(*) FROM species");
+                        $omoikaneCount = (int)$odb->querySingle("SELECT COUNT(*) FROM species WHERE distillation_status = 'distilled'");
                         $odb->close();
                     } catch (Exception $e) {
                     }
@@ -681,8 +681,8 @@ require_once __DIR__ . '/../../config/config.php';
                 $reportCount = count(glob(__DIR__ . '/../api/generate_*.php'));
                 ?>
                 <div class="hero-stat">
-                    <span class="num"><?php echo number_format($omoikaneSpecies); ?></span>
-                    <span class="label">AI知識DB 収録種数</span>
+                    <span class="num"><?php echo number_format($omoikaneCount); ?></span>
+                    <span class="label">分析済み科学文献</span>
                 </div>
                 <div class="hero-stat">
                     <span class="num"><?php echo $reportCount; ?></span>
