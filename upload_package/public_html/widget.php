@@ -6,7 +6,7 @@
  * Iframe-able widget for corporate sponsors to embed on their CSR pages.
  * Displays real-time biodiversity metrics for a specific site.
  * 
- * Usage: <iframe src="https://ikimon.life/widget.php?site_id=aikan_hq&theme=light" width="100%" height="300" frameborder="0"></iframe>
+ * Usage: <iframe src="https://ikimon.life/widget.php?site_id=ikan_hq&theme=light" width="100%" height="300" frameborder="0"></iframe>
  */
 
 require_once __DIR__ . '/../config/config.php';

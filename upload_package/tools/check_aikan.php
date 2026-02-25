@@ -8,9 +8,9 @@ require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/SiteManager.php';
 
 // 愛管サイトの境界を取得
-$site = SiteManager::load('aikan_hq');
+$site = SiteManager::load('ikan_hq');
 if (!$site) {
-    echo "ERROR: aikan_hq site not found\n";
+    echo "ERROR: ikan_hq site not found\n";
     exit(1);
 }
 $geometry = $site['features'][0]['geometry'] ?? null;
@@ -44,7 +44,7 @@ foreach ($obs as $o) {
         }
     }
 }
-echo "Observations in aikan_hq area: {$inArea}\n";
+echo "Observations in ikan_hq area: {$inArea}\n";
 if ($inAreaObs) {
     echo "Samples in area:\n";
     echo json_encode($inAreaObs, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n";

@@ -3,7 +3,7 @@
 /**
  * API: Get Site Statistics
  * 
- * GET /api/get_site_stats.php?site_id=aikan_hq
+ * GET /api/get_site_stats.php?site_id=ikan_hq
  * 
  * Returns: JSON with site info, boundary GeoJSON, and observation statistics
  */

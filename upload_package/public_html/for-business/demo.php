@@ -7,15 +7,13 @@
  * 実際のダッシュボード画面を読み取り専用で体験可能。
  */
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/SiteManager.php';
 
-// デモ用サイトID — data/sites/{site_id}/meta.json 構造から検出
+// デモ用サイトID — activeなサイトの最初を使用
 $demoSiteId = null;
-$sitesDir = DATA_DIR . '/sites';
-if (is_dir($sitesDir)) {
-    $dirs = glob($sitesDir . '/*/meta.json');
-    if (!empty($dirs)) {
-        $demoSiteId = basename(dirname($dirs[0]));
-    }
+$sites = SiteManager::listAll(true); // activeOnly = true
+if (!empty($sites)) {
+    $demoSiteId = $sites[0]['id'];
 }
 
 if ($demoSiteId) {

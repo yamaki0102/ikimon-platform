@@ -11,7 +11,7 @@ require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/SiteManager.php';
 
 // ── Configuration ──
-$siteId = 'aikan_hq';
+$siteId = 'ikan_hq';
 $site = SiteManager::load($siteId);
 if (!$site) {
     echo "ERROR: Site '{$siteId}' not found\n";
@@ -74,7 +74,7 @@ $species = [
 echo "Total species templates: " . count($species) . "\n";
 
 // ── Coordinate generation within boundary ──
-// aikan_hq center: [137.732881, 34.813473], radius ~200m
+// ikan_hq center: [137.732881, 34.813473], radius ~200m
 $centerLng = $site['center'][0]; // 137.732881
 $centerLat = $site['center'][1]; // 34.813473
 $radiusLat = 0.001;  // ~110m (boundary内に収まるよう縮小)
@@ -156,7 +156,7 @@ foreach ($species as $sp) {
 $observations = array_merge($observations, $newObs);
 DataStore::save('observations', $observations);
 
-echo "\n✅ Generated {$obsCounter} seed observations for aikan_hq\n";
+echo "\n✅ Generated {$obsCounter} seed observations for ikan_hq\n";
 echo "Total observations now: " . count($observations) . "\n\n";
 
 // Summary

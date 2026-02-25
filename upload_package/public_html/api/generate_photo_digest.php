@@ -6,7 +6,7 @@
  * 観察写真をグリッドで並べた視覚的レポート。
  * 環境教育、社内報告、イベント振り返り向け。
  *
- * Usage: api/generate_photo_digest.php?site_id=aikan_hq&limit=24
+ * Usage: api/generate_photo_digest.php?site_id=ikan_hq&limit=24
  */
 
 require_once __DIR__ . '/../../libs/ReportEngine.php';

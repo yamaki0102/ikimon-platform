@@ -270,7 +270,7 @@ $pageTitle = 'Corporate Dashboard | I-kan';
                     <p class="text-xs md:text-sm text-[#1a2e1f]/60 leading-relaxed line-clamp-3 md:line-clamp-none">
                         MapLibre 3Dエンジンとネイチャーデータを融合させた、次世代の生物多様性可視化を体験。
                     </p>
-                    <a href="showcase.php?site=aikan_hq" class="w-full md:w-auto text-center px-5 py-3 rounded-xl bg-[#1a2e1f] text-white font-bold text-sm hover:bg-[#1a2e1f]/90 transition shadow-xl shadow-emerald-900/10 flex items-center justify-center gap-2">
+                    <a href="showcase.php?site=ikan_hq" class="w-full md:w-auto text-center px-5 py-3 rounded-xl bg-[#1a2e1f] text-white font-bold text-sm hover:bg-[#1a2e1f]/90 transition shadow-xl shadow-emerald-900/10 flex items-center justify-center gap-2">
                         <i data-lucide="layout-template" class="w-4 h-4"></i>
                         デモを起動
                     </a>

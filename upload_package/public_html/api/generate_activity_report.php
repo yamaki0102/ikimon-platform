@@ -6,7 +6,7 @@
  * 観察活動の実績を時系列でまとめた報告書。
  * 企業の環境保全活動の「やったこと・成果」を示す営業ツール。
  *
- * Usage: api/generate_activity_report.php?site_id=aikan_hq&start_date=2025-01-01&end_date=2025-12-31
+ * Usage: api/generate_activity_report.php?site_id=ikan_hq&start_date=2025-01-01&end_date=2025-12-31
  */
 
 require_once __DIR__ . '/../../libs/ReportEngine.php';
