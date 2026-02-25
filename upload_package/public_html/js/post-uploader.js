@@ -418,6 +418,9 @@ function uploader() {
             if (this.substrate_tags.length > 0) formData.append('substrate_tags', JSON.stringify(this.substrate_tags));
             if (this.evidence_tags.length > 0) formData.append('evidence_tags', JSON.stringify(this.evidence_tags));
 
+            // NP: Send GPS coordinate accuracy for DwC coordinateUncertaintyInMeters
+            if (this.gpsAccuracy !== null) formData.append('coordinate_accuracy', Math.round(this.gpsAccuracy));
+
             // AI Assist: 提案データを記録に添付（精度評価ループ用）
             if (window.AiAssist && AiAssist.asked && AiAssist.suggestions.length > 0) {
                 formData.append('ai_hint', JSON.stringify({

@@ -35,3 +35,27 @@ _archive/
 .env
 .env.local
 *.pem
+
+# === Runtime Data (never commit) ===
+upload_package/data/cache/
+upload_package/data/spool/
+upload_package/data/library/
+upload_package/data/gbif_cache/
+upload_package/data/indexes/
+upload_package/data/masters/
+upload_package/data/observations/
+upload_package/data/notifications/
+upload_package/data/follows/
+upload_package/data/likes/
+upload_package/data/counts/
+upload_package/data/moderation_flags/
+upload_package/data/my_fields/
+upload_package/data/sites/
+upload_package/data/analytics/
+upload_package/data/rate_limits/
+upload_package/data/*.json
+upload_package/data/*.db
+upload_package/data/*.sqlite3
+upload_package/daemon_*.pid
+upload_package/check_*.py
+upload_package/patch_*.py

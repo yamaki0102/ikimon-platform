@@ -308,6 +308,35 @@ class RegionalStats
         return $list;
     }
 
+    /**
+     * Get the prefecture code from a user's most recent observation.
+     * Returns null if user has no observations with prefecture data.
+     */
+    public function getUserLatestPrefecture(?string $userId): ?string
+    {
+        if (!$userId) return null;
+        $this->load();
+
+        $latestDate = '';
+        $latestPref = null;
+
+        foreach ($this->observations as $obs) {
+            $obsUserId = (string)($obs['user_id'] ?? '');
+            if ($obsUserId !== $userId) continue;
+
+            $pref = $obs['prefecture'] ?? null;
+            if (!$pref) continue;
+
+            $date = $obs['observed_at'] ?? $obs['created_at'] ?? '';
+            if ($date > $latestDate) {
+                $latestDate = $date;
+                $latestPref = $pref;
+            }
+        }
+
+        return $latestPref;
+    }
+
     // ──── Private helpers ────
 
     private function redlistCoverage(string $prefCode, array $observedSpecies): array

@@ -29,8 +29,15 @@ define('BASE_URL', $protocol . '://' . $host);
 define('OBSCURE_GRID_CR_EN', 10000); // 10km
 define('OBSCURE_GRID_VU', 1000);    // 1km
 
-// AI Settings
-define('GEMINI_API_KEY', getenv('GEMINI_API_KEY') ?: ''); // Set via environment variable on server
+// Load local secrets if exists (for Xserver or local dev where getenv is not working)
+if (file_exists(__DIR__ . '/secret.php')) {
+    require_once __DIR__ . '/secret.php';
+}
+
+// AI Settings (fallback to $_SERVER and $_ENV, or constant if defined in secret.php)
+$geminiApiKey = defined('GEMINI_API_KEY_SECRET') ? GEMINI_API_KEY_SECRET : (getenv('GEMINI_API_KEY') ?: '');
+if (!$geminiApiKey) $geminiApiKey = $_SERVER['GEMINI_API_KEY'] ?? ($_ENV['GEMINI_API_KEY'] ?? '');
+define('GEMINI_API_KEY', $geminiApiKey);
 
 // Image Settings
 define('IMAGE_MAX_WIDTH', 1280);

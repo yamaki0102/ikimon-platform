@@ -97,8 +97,6 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 <html lang="ja">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php include __DIR__ . '/components/meta.php'; ?>
 
     <!-- JSON-LD Structured Data -->
@@ -145,14 +143,6 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <!-- MapLibre -->
     <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-
-    <link rel="stylesheet" href="assets/css/tokens.css?v=2026_naturalism">
-    <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
-    <style>
-        [x-cloak] {
-            display: none !important;
-        }
-    </style>
 </head>
 
 <body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body min-h-screen antialiased" x-data="{ idModalOpen: false, photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, locationName: '読み込み中...' }" x-init="
@@ -278,7 +268,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <img src="<?php echo $obs['user_avatar'] ?? 'https://i.pravatar.cc/150?u=' . $obs['user_id']; ?>"
                         class="w-12 h-12 rounded-full border-2 border-border shadow-lg">
                     <div class="flex-1">
-                        <div class="text-sm font-bold text-text mb-1"><?php echo BioUtils::getUserName($obs['user_id']); ?></div>
+                        <?php $observerName = $obs['user_display_name'] ?? $obs['user_name'] ?? $obs['user']['display_name'] ?? $obs['user']['name'] ?? BioUtils::getUserName($obs['user_id']); ?>
+                        <div class="text-sm font-bold text-text mb-1"><?php echo htmlspecialchars($observerName); ?></div>
                         <div class="relative bg-surface border border-border rounded-2xl rounded-tl-sm p-4 shadow-sm">
                             <p class="text-sm text-text leading-relaxed">
                                 <?php echo !empty($obs['note']) ? BioUtils::renderMarkdown($obs['note']) : '<span class="text-muted italic">メモなし</span>'; ?>
@@ -293,7 +284,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         <i data-lucide="creative-commons" class="w-4 h-4 text-faint"></i>
                         <div>
                             <span class="font-bold text-faint">CC BY-NC 4.0</span>
-                            <span class="ml-2">撮影者: <?php echo BioUtils::getUserName($obs['user_id']); ?></span>
+                            <span class="ml-2">撮影者: <?php echo htmlspecialchars($observerName); ?></span>
                         </div>
                     </div>
 

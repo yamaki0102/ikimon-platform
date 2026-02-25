@@ -30,6 +30,9 @@ class OmoikaneDB
             // Optimize for speed and concurrency during the daemon extraction
             $this->pdo->exec('PRAGMA journal_mode = WAL;');
             $this->pdo->exec('PRAGMA synchronous = NORMAL;');
+            // CRITICAL: Wait up to 30s for locks instead of failing immediately
+            // Without this, concurrent workers get instant "database is locked" errors
+            $this->pdo->exec('PRAGMA busy_timeout = 30000;');
         } catch (PDOException $e) {
             die("OMOIKANE Database Connection Failed: " . $e->getMessage() . "\n");
         }
@@ -44,9 +47,17 @@ class OmoikaneDB
                 scientific_name TEXT UNIQUE NOT NULL,
                 distillation_status TEXT DEFAULT 'pending',
                 last_distilled_at DATETIME,
+                source_citations TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ");
+
+        // Auto-upgrade for existing databases to support CC-BY-SA compliance citations
+        try {
+            $this->pdo->exec("ALTER TABLE species ADD COLUMN source_citations TEXT;");
+        } catch (PDOException $e) {
+            // Column likely already exists, ignore safely
+        }
 
         // Table: ecological_constraints (The Searchable Dimensions)
         $this->pdo->exec("
@@ -74,6 +85,30 @@ class OmoikaneDB
                 UNIQUE(species_id)
             )
         ");
+
+
+        // Table: specimen_records (Museum Specimen Data from GBIF)
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS specimen_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                species_id INTEGER NOT NULL,
+                gbif_occurrence_key TEXT,
+                institution_code TEXT,
+                collection_code TEXT,
+                catalog_number TEXT,
+                recorded_by TEXT,
+                event_date TEXT,
+                country TEXT,
+                locality TEXT,
+                decimal_latitude REAL,
+                decimal_longitude REAL,
+                basis_of_record TEXT DEFAULT 'PRESERVED_SPECIMEN',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (species_id) REFERENCES species(id) ON DELETE CASCADE,
+                UNIQUE(gbif_occurrence_key)
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_specimen_species ON specimen_records(species_id);");
 
         // --- Reverse-Lookup Indexes ---
         // These indexes allow extremely fast querying (e.g. "Find all species in 'Forest' above '1000m' during 'Summer'")

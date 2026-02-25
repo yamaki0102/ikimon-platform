@@ -73,6 +73,7 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
         }
 
         .crop-canvas-wrap {
+            position: relative;
             width: 100%;
             max-height: 60vh;
             overflow: hidden;
@@ -83,6 +84,11 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
         .crop-canvas-wrap img {
             display: block;
             max-width: 100%;
+        }
+
+        .crop-container>.flex:last-child {
+            position: relative;
+            z-index: 10;
         }
     </style>
 </head>
@@ -417,16 +423,20 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                     this.loading = true;
                     this.message = '';
 
+                    // Read CSRF token from cookie (most reliable) or meta tag fallback
+                    const csrfToken = (() => {
+                        const m = document.cookie.match(/ikimon_csrf=([a-f0-9]+)/);
+                        return m ? m[1] : (document.querySelector('meta[name="csrf-token"]')?.content || '');
+                    })();
+
                     try {
                         // 1. Upload avatar if changed
                         if (this.avatarFile) {
                             const fd = new FormData();
                             fd.append('avatar', this.avatarFile, 'avatar.webp');
-                            const avatarRes = await fetch('api/upload_avatar.php', {
+                            fd.append('csrf_token', csrfToken);
+                            const avatarRes = await fetch('api/upload_avatar.php?csrf_token=' + csrfToken, {
                                 method: 'POST',
-                                headers: {
-                                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                                },
                                 body: fd
                             });
                             const avatarData = await avatarRes.json();
@@ -436,11 +446,10 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                         }
 
                         // 2. Update profile data
-                        const res = await fetch('api/update_profile.php', {
+                        const res = await fetch('api/update_profile.php?csrf_token=' + csrfToken, {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                                'Content-Type': 'application/json'
                             },
                             body: JSON.stringify(this.form)
                         });

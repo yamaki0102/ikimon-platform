@@ -93,6 +93,13 @@ php tools/lint.php
 composer test
 ```
 
+### ⚡ 実行許可の省略 (Auto-Run)
+開発・検証における以下の安全なコマンドは、**ユーザーの許可（Run command?）を待たずに即座に実行 (SafeToAutoRun=true) すること**：
+- `php` によるスクリプト実行（`php script.php` など）
+- `curl` によるAPIやローカルサーバーの動作確認
+- その他、システム状態を破壊しない Read-only な検査コマンド（`ls`, `cat`, `grep` などは基本MCPツールを使うが、CLIが必要な場合）
+
+
 ## リポジトリ情報
 
 | 項目 | 値 |

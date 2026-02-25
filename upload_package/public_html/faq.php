@@ -13,6 +13,7 @@ $faq_categories = [
     'cat_ai_assist'       => ['icon' => 'bot',       'items' => ['f1', 'f2', 'f3', 'f4', 'f5']],
     'cat_business'        => ['icon' => 'building-2', 'items' => ['d1', 'd2', 'd3', 'd4', 'd5']],
     'cat_data_privacy'    => ['icon' => 'shield',    'items' => ['e1', 'e2', 'e3', 'e4', 'e5']],
+    'cat_science'          => ['icon' => 'microscope', 'items' => ['g1', 'g2', 'g3']],
 ];
 
 // Build structured data for Schema.org FAQPage

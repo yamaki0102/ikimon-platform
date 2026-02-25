@@ -8,6 +8,7 @@
  */
 
 require_once __DIR__ . '/../config/config.php';
+ini_set('memory_limit', '512M');
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/PaperStore.php';
 require_once __DIR__ . '/../libs/TaxonPaperIndex.php';
@@ -58,105 +59,71 @@ function removeHeartbeat($file, $pid)
 
 $batchSize = isset($argv[2]) ? (int)$argv[2] : 2;
 
-$queueFile = DATA_DIR . '/library/extraction_queue.json';
+require_once __DIR__ . '/../libs/ExtractionQueue.php';
+$eq = ExtractionQueue::getInstance();
 
-// === CRASH RESILIENCE LAYER 1: Shutdown handler ===
-// If this worker dies for ANY reason (OOM, fatal, timeout),
-// reset all its claimed items back to 'pending'.
+// === CRASH RESILIENCE: Shutdown handler ===
 $claimedNames = [];
-register_shutdown_function(function () use (&$claimedNames, $queueFile, $workerStatusFile, $workerPid) {
-  // Clean up heartbeat
+register_shutdown_function(function () use (&$claimedNames, $workerStatusFile, $workerPid) {
   removeHeartbeat($workerStatusFile, $workerPid);
   if (empty($claimedNames)) return;
-  $fp = fopen($queueFile, 'c+');
-  if (!$fp || !flock($fp, LOCK_EX)) return;
-  clearstatcache(true, $queueFile);
-  $sz = filesize($queueFile);
-  $q = json_decode($sz > 0 ? fread($fp, $sz) : '', true) ?: [];
-  $resetCount = 0;
-  foreach ($claimedNames as $n) {
-    if (isset($q[$n]) && $q[$n]['status'] === 'processing') {
-      $q[$n]['status'] = 'pending';
-      $resetCount++;
-    }
-  }
+  // Reset my processing items back to literature_ready
+  $eq2 = ExtractionQueue::getInstance();
+  $resetCount = $eq2->resetProcessing($workerPid);
   if ($resetCount > 0) {
-    ftruncate($fp, 0);
-    fseek($fp, 0);
-    fwrite($fp, json_encode($q, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-    fflush($fp);
-  }
-  flock($fp, LOCK_UN);
-  fclose($fp);
-  if ($resetCount > 0) {
-    file_put_contents('php://stderr', "[SHUTDOWN HANDLER] Reset {$resetCount} items back to pending.\n");
+    file_put_contents('php://stderr', "[SHUTDOWN HANDLER] Reset {$resetCount} items back to literature_ready.\n");
   }
 });
 
-// Atomically claim a batch
-$fpQ = fopen($queueFile, 'c+');
-if (!$fpQ || !flock($fpQ, LOCK_EX)) die("Cannot lock queue file.\n");
-clearstatcache(true, $queueFile);
-$size = filesize($queueFile);
-$queueJson = $size > 0 ? fread($fpQ, $size) : '';
-$queue = json_decode($queueJson, true) ?: [];
-
-$myBatch = [];
-foreach ($queue as $name => &$item) {
-  if (count($myBatch) >= $batchSize) break;
-  if ($item['status'] !== 'pending') continue;
-
-  $item['status'] = 'processing';
-  $item['worker'] = getmypid();
-  $item['retries']++;
-  $myBatch[$name] = $item;
-  $claimedNames[] = $name; // Track for shutdown handler
+// Load already-distilled species from DB
+$distilledSet = [];
+try {
+  $checkPdo = new PDO('sqlite:' . DATA_DIR . '/library/omoikane.sqlite3', null, null, [PDO::ATTR_TIMEOUT => 5]);
+  $checkPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+  $checkPdo->exec('PRAGMA journal_mode=WAL');
+  $checkPdo->exec('PRAGMA query_only=ON');
+  $stmt = $checkPdo->query("SELECT scientific_name FROM species WHERE distillation_status='distilled'");
+  $distilledSet = array_flip($stmt->fetchAll(PDO::FETCH_COLUMN));
+  $checkPdo = null;
+  echo "[DB] Loaded " . count($distilledSet) . " distilled species for dedup.\n";
+} catch (Exception $e) {
+  echo "[WARN] Cannot check distilled set: " . $e->getMessage() . "\n";
 }
 
-if (!empty($myBatch)) {
-  ftruncate($fpQ, 0);
-  fseek($fpQ, 0);
-  fwrite($fpQ, json_encode($queue, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-  fflush($fpQ);
-}
-flock($fpQ, LOCK_UN);
-fclose($fpQ);
+// Claim a batch atomically via SQLite
+$myBatch = $eq->claimBatch($batchSize, $workerPid, $distilledSet);
+$claimedNames = array_keys($myBatch);
 
 if (empty($myBatch)) {
   $claimedNames = []; // Nothing to reset
-  die("Master queue is empty or no pending items. Run initialize_extraction_queue.php first.\n");
+  echo "Master queue is empty or no pending items.\n";
+  exit(2);
 }
 
-$dbHelper = new OmoikaneDB();
-$pdo = $dbHelper->getPDO();
+// DB writes are fully delegated to daemon_db_writer.php via JSON spool
+// Workers no longer access SQLite directly
 
 $failuresLog = DATA_DIR . '/library/extraction_failures.log';
 
 $processedCount = 0;
 $myUpdates = [];
 
-// === Helper: Atomically write back status for a SINGLE species ===
-// This eliminates the dangerous window where items stay 'processing' forever.
-function writeBackStatus($queueFile, $speciesName, $newStatus)
+// === Helper: Update queue status for a SINGLE species ===
+function writeBackStatus($speciesName, $newStatus)
 {
-  global $claimedNames;
-  $fp = fopen($queueFile, 'c+');
-  if (!$fp || !flock($fp, LOCK_EX)) return;
-  clearstatcache(true, $queueFile);
-  $sz = filesize($queueFile);
-  $q = json_decode($sz > 0 ? fread($fp, $sz) : '', true) ?: [];
-  if (isset($q[$speciesName])) {
-    $q[$speciesName]['status'] = $newStatus;
-    $q[$speciesName]['last_processed_at'] = date('Y-m-d H:i:s');
-  }
-  ftruncate($fp, 0);
-  fseek($fp, 0);
-  fwrite($fp, json_encode($q, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-  fflush($fp);
-  flock($fp, LOCK_UN);
-  fclose($fp);
-  // Remove from shutdown handler watchlist
+  global $claimedNames, $eq;
+  $eq->updateStatus($speciesName, $newStatus);
   $claimedNames = array_values(array_diff($claimedNames, [$speciesName]));
+}
+
+// Mark discovered species as completed
+function markDiscoveredSpeciesCompleted($discoveredNames)
+{
+  if (empty($discoveredNames)) return;
+  global $eq;
+  foreach ($discoveredNames as $name) {
+    $eq->updateStatus($name, 'completed', 'Extracted serendipitously via another species.');
+  }
 }
 
 function callOllama($promptText, $model = "qwen3-optimized", $responseFormat = "json")
@@ -236,51 +203,63 @@ foreach ($myBatch as $name => &$item) {
     continue;
   }
 
-  echo "Fetching GBIF Literature for: $searchTerm...\n";
-  updateHeartbeat($workerStatusFile, $workerPid, $name, 'GBIF検索中');
-  $apiUrl = "https://api.gbif.org/v1/literature/search?q=" . urlencode($searchTerm) . "&limit=3";
-  $ch = curl_init($apiUrl);
-  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-  $gbifJson = curl_exec($ch);
-  curl_close($ch);
-  $gbifData = json_decode($gbifJson, true);
+  updateHeartbeat($workerStatusFile, $workerPid, $name, 'AI抽出中');
 
-  if (empty($gbifData['results'])) {
-    echo "No literature found.\n";
-    $item['status'] = 'no_literature';
+  // Verify prefetched literature exists
+  if (!isset($item['prefetched_literature']) || empty($item['prefetched_literature'])) {
+    echo "No prefetched literature found for: $searchTerm.\n";
+    $item['status'] = 'no_literature'; // Shouldn't happen if status was literature_ready, but safety first
     $processedCount++;
     continue;
   }
 
   $successForSpecies = false;
-  foreach ($gbifData['results'] as $paper) {
-    $doi = $paper['identifiers']['doi'] ?? ($paper['id'] ?? uniqid());
-
+  foreach ($item['prefetched_literature'] as $paper) {
+    $doi = $paper['doi'] ?? uniqid();
     $abstract = $paper['abstract'] ?? '';
-    if (strlen(trim($abstract)) < 50) continue; // Too short
 
     echo " - Distilling DOI: $doi...\n";
-    updateHeartbeat($workerStatusFile, $workerPid, $name, 'AI抽出中');
     $contentToDistill = "Title: " . ($paper['title'] ?? '') . "\n\nAbstract:\n$abstract\n";
 
     $systemPrompt = <<<PROMPT
-You are an expert taxonomist. Extract ecological information into strict JSON:
+You are an expert taxonomist and ecological data extractor. 
+IMPORTANT STRICT RULES:
+1. DO NOT extract or deduce any taxonomic classifications (Kingdom, Phylum, Class, Order, Family, Genus) from the literature. Our system relies on GBIF Backbone Taxonomy exclusively.
+2. The current TARGET species is: {$item['species_name']}. You MUST extract its ecological data.
+3. If the text mentions ANY OTHER species in detail, extract their ecological data as well into "discovered_species". Only include species where concrete ecological or morphological data is present.
+4. Extract the information into the following strict JSON format:
 {
-  "ecological_constraints": {
-    "habitat": ["List of habitats"],
-    "altitude_range": "e.g., 500m - 1500m",
-    "active_season": ["Spring", "Summer"],
-    "notes": "Any other ecological constraints"
+  "target_species": {
+    "ecological_constraints": {
+      "habitat": ["List of habitats"],
+      "altitude_range": "e.g., 500m - 1500m",
+      "active_season": ["Spring", "Summer"],
+      "notes": "Any other ecological constraints"
+    },
+    "identification_keys": [
+      {
+        "feature": "Which part of the body",
+        "description": "How to identify this species from others",
+        "comparison_species": ["Species A", "Species B"]
+      }
+    ]
   },
-  "identification_keys": [
+  "discovered_species": [
     {
-      "feature": "Which part of the body",
-      "description": "How to identify this species from others",
-      "comparison_species": ["Species A", "Species B"]
+      "scientific_name": "Exact scientific name of the discovered species",
+      "ecological_constraints": {
+        "habitat": ["..."]
+      },
+      "identification_keys": [
+        {
+          "feature": "...",
+          "description": "..."
+        }
+      ]
     }
   ]
 }
-Return ONLY valid JSON. If information is missing, return empty arrays or nulls.
+Return ONLY valid JSON. If `discovered_species` are not present or lack detailed ecological data, return an empty array for it `[]`. If information is missing, return empty arrays or nulls.
 PROMPT;
 
     $extractedJsonText = callOllama($systemPrompt . "\n\nTEXT:\n" . $contentToDistill, "hf.co/mmnga-o/Qwen3-Swallow-8B-RL-v0.2-gguf:Q4_K_M", "json");
@@ -331,54 +310,72 @@ PROMPT;
     PaperStore::upsert(['id' => $doi, 'doi' => $doi, 'title' => $paper['title'] ?? '', 'abstract' => $abstract, 'authors' => $paper['authors'] ?? [], 'year' => $paper['year'] ?? null]);
     TaxonPaperIndex::add($item['species_name'], $doi);
 
-    $scientificName = $item['species_name'];
-
-    // Insert into OMOIKANE SQLite Data Warehouse
-    $stmtSpecies = $pdo->prepare("INSERT OR REPLACE INTO species (scientific_name, distillation_status, last_distilled_at) VALUES (?, 'distilled', ?)");
-    $stmtSpecies->execute([$scientificName, date('Y-m-d H:i:s')]);
-
-    $stmtGetId = $pdo->prepare("SELECT id FROM species WHERE scientific_name = ?");
-    $stmtGetId->execute([$scientificName]);
-    $speciesId = $stmtGetId->fetchColumn();
-
-    if ($speciesId) {
-      $stmtEco = $pdo->prepare("INSERT OR REPLACE INTO ecological_constraints (species_id, habitat, altitude, season, notes) VALUES (?, ?, ?, ?, ?)");
-      $eco = $extracted['ecological_constraints'] ?? [];
-      $stmtEco->execute([
-        $speciesId,
-        is_array($eco['habitat'] ?? '') ? implode(', ', $eco['habitat']) : ($eco['habitat'] ?? null),
-        $eco['altitude_range'] ?? ($eco['altitude'] ?? null),
-        is_array($eco['active_season'] ?? '') ? implode(', ', $eco['active_season']) : ($eco['active_season'] ?? ($eco['season'] ?? null)),
-        $eco['notes'] ?? null
-      ]);
-
-      $stmtKeys = $pdo->prepare("INSERT OR REPLACE INTO identification_keys (species_id, morphological_traits, similar_species, key_differences) VALUES (?, ?, ?, ?)");
-      $keys = $extracted['identification_keys'] ?? [];
-      // Extract array to string if identification_keys format varies
-      $morphTraits = "";
-      $simSpecies = "";
-      $keyDiffs = "";
-      if (isset($keys[0]) && is_array($keys[0])) { // Array of objects
-        $morphTraits = implode("\n", array_column($keys, 'feature'));
-        $keyDiffs = implode("\n", array_column($keys, 'description'));
-        $simList = [];
-        foreach ($keys as $k) {
-          if (isset($k['comparison_species']) && is_array($k['comparison_species'])) $simList = array_merge($simList, $k['comparison_species']);
+    // Prepare species to be inserted
+    $speciesToProcess = [];
+    if (isset($extracted['target_species'])) {
+      $speciesToProcess[] = [
+        'name' => $item['species_name'],
+        'data' => $extracted['target_species'],
+        'is_target' => true
+      ];
+    }
+    if (isset($extracted['discovered_species']) && is_array($extracted['discovered_species'])) {
+      foreach ($extracted['discovered_species'] as $disc) {
+        if (!empty($disc['scientific_name'])) {
+          $speciesToProcess[] = [
+            'name' => $disc['scientific_name'],
+            'data' => $disc,
+            'is_target' => false
+          ];
         }
-        $simSpecies = implode(', ', array_unique($simList));
-      } else {
-        $morphTraits = is_array($keys['morphological_traits'] ?? '') ? implode("\n", $keys['morphological_traits']) : ($keys['morphological_traits'] ?? null);
-        $simSpecies = is_array($keys['similar_species'] ?? '') ? implode(', ', $keys['similar_species']) : ($keys['similar_species'] ?? null);
-        $keyDiffs = is_array($keys['key_differences'] ?? '') ? implode("\n", $keys['key_differences']) : ($keys['key_differences'] ?? null);
       }
-
-      $stmtKeys->execute([$speciesId, $morphTraits, $simSpecies, $keyDiffs]);
     }
 
-    $successForSpecies = true;
+    $discoveredNames = [];
+    foreach ($speciesToProcess as $sp) {
+      $scientificName = $sp['name'];
+      $spData = $sp['data'];
 
-    echo "   [LOCAL] Extraction finished & SQLite written for {$scientificName} (via {$doi}).\n";
-    updateHeartbeat($workerStatusFile, $workerPid, $name, '✅ 完了');
+      // === JSON SPOOL (all DB writes delegated to daemon_db_writer.php) ===
+      $spoolDir = __DIR__ . '/../data/spool';
+      if (!is_dir($spoolDir)) @mkdir($spoolDir, 0777, true);
+
+      $spoolData = [
+        'scientific_name' => $scientificName,
+        'is_target' => $sp['is_target'],
+        'extracted_data' => $spData,
+        'source_citations' => $item['source_citations'] ?? null,
+        'specimen_records' => $item['specimen_records'] ?? [],
+        'timestamp' => date('Y-m-d H:i:s'),
+        'queue_update' => [
+          'species_name' => $scientificName,
+          'status' => $sp['is_target'] ? 'completed' : null
+        ]
+      ];
+
+      $safeName = preg_replace('/[^a-zA-Z0-9]+/', '_', strtolower($scientificName));
+      $spoolFile = $spoolDir . '/' . time() . '_' . substr(microtime(), 2, 6) . '_' . $safeName . '.json';
+      file_put_contents($spoolFile, json_encode($spoolData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+      // Remove from shutdown handler watchlist (spool written = safe to let DB Writer handle)
+      $claimedNames = array_values(array_diff($claimedNames, [$name]));
+
+      if ($sp['is_target']) {
+        $successForSpecies = true;
+        // Immediately mark queue as completed (don't wait for DB Writer)
+        writeBackStatus($name, 'completed');
+        echo "   [LOCAL] Extraction finished for Target {$scientificName} (via {$doi}).\n";
+        updateHeartbeat($workerStatusFile, $workerPid, $name, '✅ 完了');
+      } else {
+        $discoveredNames[] = $scientificName;
+        echo "   [LOCAL] Found Serendipity Species: {$scientificName}.\n";
+      }
+    }
+
+    // Mark discovered species as completed in the queue
+    if (!empty($discoveredNames)) {
+      markDiscoveredSpeciesCompleted($discoveredNames);
+    }
   }
 
   // === CRASH RESILIENCE LAYER 3: Write back IMMEDIATELY per species ===
@@ -392,7 +389,7 @@ PROMPT;
   } elseif ($item['retries'] >= 3) {
     $finalStatus = 'failed';
   }
-  writeBackStatus($queueFile, $name, $finalStatus);
+  writeBackStatus($name, $finalStatus);
   echo "   [STATUS] {$name} -> {$finalStatus}\n";
 
   $processedCount++;
