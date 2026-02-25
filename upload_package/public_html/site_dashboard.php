@@ -339,7 +339,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                         </div>
                         <p class="text-sm text-[#1a2e1f]/50 ml-8"><?php echo htmlspecialchars($site['address']); ?></p>
                     </div>
-                    <div class="flex items-center gap-3 ml-8 md:ml-0">
+                    <div class="flex items-center gap-2 ml-8 md:ml-0 overflow-x-auto pb-2" style="white-space: nowrap; -webkit-overflow-scrolling: touch;">
                         <?php if (Auth::isLoggedIn()): ?>
                             <a href="site_editor.php?site=<?php echo urlencode($siteId); ?>"
                                 class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-gray-600 hover:text-emerald-600 font-bold border border-gray-200 shadow-sm transition flex items-center gap-1.5 no-print">
