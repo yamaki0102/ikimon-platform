@@ -349,7 +349,7 @@ class SiteManager
             'shannon_wiener'      => round($shannonH, 3),
             'chao1_estimate'      => round($chao1, 1),
             'completeness_pct'    => $completeness,
-            'redlist_count'       => $scorerResult['breakdown']['conservation_value']['raw'] ?? $redlistCount,
+            'redlist_count'       => $redlistCount,
             'regional_share_pct'  => $regionalSharePct,
             'regional_total_species' => $regionalStats['total_species'],
             'regional_total_redlist' => $regionalStats['total_redlist'],
