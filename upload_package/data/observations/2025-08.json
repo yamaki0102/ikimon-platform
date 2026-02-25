@@ -21,7 +21,8 @@
             "scientific_name": "Trypoxylus dichotomus",
             "rank": "species",
             "slug": "trypoxylus-dichotomus",
-            "source": "local"
+            "source": "local",
+            "group": "昆虫類"
         },
         "is_seed": true,
         "seed_version": "2026-01-full",
@@ -54,7 +55,8 @@
             "source": "inat",
             "thumbnail_url": "https:\/\/inaturalist-open-data.s3.amazonaws.com\/photos\/25629960\/square.jpg",
             "inat_taxon_id": 41625,
-            "slug": "paguma-larvata"
+            "slug": "paguma-larvata",
+            "group": "植物"
         },
         "data_quality": "A"
     }

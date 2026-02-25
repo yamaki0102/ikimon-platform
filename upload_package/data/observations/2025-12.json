@@ -21,7 +21,8 @@
             "scientific_name": "Oryzias latipes",
             "rank": "species",
             "slug": "oryzias-latipes",
-            "source": "local"
+            "source": "local",
+            "group": "植物"
         },
         "is_seed": true,
         "seed_version": "2026-01-full",
@@ -51,7 +52,8 @@
             "name": "ナナホシテントウ",
             "scientific_name": "Coccinella septempunctata",
             "rank": "species",
-            "source": "legacy"
+            "source": "legacy",
+            "group": "植物"
         },
         "data_quality": "B"
     },
@@ -76,7 +78,8 @@
             "name": "アジサイ",
             "scientific_name": "Hydrangea macrophylla",
             "rank": "species",
-            "source": "legacy"
+            "source": "legacy",
+            "group": "植物"
         },
         "data_quality": "B"
     },

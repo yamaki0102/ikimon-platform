@@ -19,7 +19,8 @@
             "key": "4deec9dc0aef27cc6858ec806362f463",
             "name": "シジュウカラ",
             "scientific_name": "Parus minor",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -42,7 +43,8 @@
             "key": "22247a3c217fe22c007b22e12483b065",
             "name": "モンシロチョウ",
             "scientific_name": "Pieris rapae",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -65,7 +67,8 @@
             "key": "812b1f2690fb5f898ff7521d9475a5ea",
             "name": "コイ",
             "scientific_name": "Cyprinus carpio",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -88,7 +91,8 @@
             "key": "91fdc6d57960ec1a1a0e0d9df1e2ab00",
             "name": "ハクビシン",
             "scientific_name": "Paguma larvata",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -111,7 +115,8 @@
             "key": "dee7a9982ef45730219e658acb82e7a8",
             "name": "オオバコ",
             "scientific_name": "Plantago asiatica",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -134,7 +139,8 @@
             "key": "9901dfce328c753f80b8aa72c8ceab3b",
             "name": "キジバト",
             "scientific_name": "Streptopelia orientalis",
-            "rank": "species"
+            "rank": "species",
+            "group": "鳥類"
         }
     },
     {
@@ -157,7 +163,8 @@
             "key": "91fdc6d57960ec1a1a0e0d9df1e2ab00",
             "name": "ハクビシン",
             "scientific_name": "Paguma larvata",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -180,7 +187,8 @@
             "key": "830eeb2309a16036bb6f66b7e1254835",
             "name": "アジサイ",
             "scientific_name": "Hydrangea macrophylla",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -203,7 +211,8 @@
             "key": "38eb747c8f7f7b480fc5056b221974f8",
             "name": "ヒヨドリ",
             "scientific_name": "Hypsipetes amaurotis",
-            "rank": "species"
+            "rank": "species",
+            "group": "鳥類"
         }
     },
     {
@@ -226,7 +235,8 @@
             "key": "5e8ba5334afd1f8c569b10cb8e694bd2",
             "name": "オニヤンマ",
             "scientific_name": "Anotogaster sieboldii",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -249,7 +259,8 @@
             "key": "d1812e6b0ef82d3fdd2006bb248ad739",
             "name": "ナマズ",
             "scientific_name": "Silurus asotus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -272,7 +283,8 @@
             "key": "eb7614da23e9dfccb27b99f4157c9fdd",
             "name": "アサガオ",
             "scientific_name": "Ipomoea nil",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -295,7 +307,8 @@
             "key": "afa55f620da05840ae2c312e086ada2d",
             "name": "ハシブトガラス",
             "scientific_name": "Corvus macrorhynchos",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -318,7 +331,8 @@
             "key": "d1812e6b0ef82d3fdd2006bb248ad739",
             "name": "ナマズ",
             "scientific_name": "Silurus asotus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -341,7 +355,8 @@
             "key": "9332a61fa68760db1984f08b2ffbe46f",
             "name": "オイカワ",
             "scientific_name": "Opsariichthys platypus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -364,7 +379,8 @@
             "key": "aa3561d12b4a04f0a164ea0bd5d3ab90",
             "name": "ヒマワリ",
             "scientific_name": "Helianthus annuus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -387,7 +403,8 @@
             "key": "eb7614da23e9dfccb27b99f4157c9fdd",
             "name": "アサガオ",
             "scientific_name": "Ipomoea nil",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -410,7 +427,8 @@
             "key": "f759f21eb07c53f9f9ba03eca7423a1f",
             "name": "ツユクサ",
             "scientific_name": "Commelina communis",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -433,7 +451,8 @@
             "key": "eb7614da23e9dfccb27b99f4157c9fdd",
             "name": "アサガオ",
             "scientific_name": "Ipomoea nil",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -456,7 +475,8 @@
             "key": "cda9814effb1a8067eafc61faf875894",
             "name": "ツバメ",
             "scientific_name": "Hirundo rustica",
-            "rank": "species"
+            "rank": "species",
+            "group": "鳥類"
         }
     },
     {
@@ -479,7 +499,8 @@
             "key": "812b1f2690fb5f898ff7521d9475a5ea",
             "name": "コイ",
             "scientific_name": "Cyprinus carpio",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -502,7 +523,8 @@
             "key": "77516dc5137d242cc33af2b9d4c95084",
             "name": "アブラゼミ",
             "scientific_name": "Graptopsaltria nigrofuscata",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -525,7 +547,8 @@
             "key": "9bc2b436a6d1b0295a25ba1029e9b50a",
             "name": "ミンミンゼミ",
             "scientific_name": "Hyalessa maculaticollis",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -548,7 +571,8 @@
             "key": "6feb1b534d0a5922785935ca4227b592",
             "name": "シロツメクサ",
             "scientific_name": "Trifolium repens",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -571,7 +595,8 @@
             "key": "5e8ba5334afd1f8c569b10cb8e694bd2",
             "name": "オニヤンマ",
             "scientific_name": "Anotogaster sieboldii",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -594,7 +619,8 @@
             "key": "4deec9dc0aef27cc6858ec806362f463",
             "name": "シジュウカラ",
             "scientific_name": "Parus minor",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -617,7 +643,8 @@
             "key": "830eeb2309a16036bb6f66b7e1254835",
             "name": "アジサイ",
             "scientific_name": "Hydrangea macrophylla",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -640,7 +667,8 @@
             "key": "6feb1b534d0a5922785935ca4227b592",
             "name": "シロツメクサ",
             "scientific_name": "Trifolium repens",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -663,7 +691,8 @@
             "key": "aa3561d12b4a04f0a164ea0bd5d3ab90",
             "name": "ヒマワリ",
             "scientific_name": "Helianthus annuus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -686,7 +715,8 @@
             "key": "830eeb2309a16036bb6f66b7e1254835",
             "name": "アジサイ",
             "scientific_name": "Hydrangea macrophylla",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -709,7 +739,8 @@
             "key": "dee7a9982ef45730219e658acb82e7a8",
             "name": "オオバコ",
             "scientific_name": "Plantago asiatica",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -732,7 +763,8 @@
             "key": "9332a61fa68760db1984f08b2ffbe46f",
             "name": "オイカワ",
             "scientific_name": "Opsariichthys platypus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -755,7 +787,8 @@
             "key": "0107d09aca873dfef5fbf7f5daa28f40",
             "name": "アライグマ",
             "scientific_name": "Procyon lotor",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -778,7 +811,8 @@
             "key": "4deec9dc0aef27cc6858ec806362f463",
             "name": "シジュウカラ",
             "scientific_name": "Parus minor",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -801,7 +835,8 @@
             "key": "22247a3c217fe22c007b22e12483b065",
             "name": "モンシロチョウ",
             "scientific_name": "Pieris rapae",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -824,7 +859,8 @@
             "key": "812b1f2690fb5f898ff7521d9475a5ea",
             "name": "コイ",
             "scientific_name": "Cyprinus carpio",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -847,7 +883,8 @@
             "key": "91fdc6d57960ec1a1a0e0d9df1e2ab00",
             "name": "ハクビシン",
             "scientific_name": "Paguma larvata",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -870,7 +907,8 @@
             "key": "dee7a9982ef45730219e658acb82e7a8",
             "name": "オオバコ",
             "scientific_name": "Plantago asiatica",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -893,7 +931,8 @@
             "key": "9901dfce328c753f80b8aa72c8ceab3b",
             "name": "キジバト",
             "scientific_name": "Streptopelia orientalis",
-            "rank": "species"
+            "rank": "species",
+            "group": "鳥類"
         }
     },
     {
@@ -916,7 +955,8 @@
             "key": "91fdc6d57960ec1a1a0e0d9df1e2ab00",
             "name": "ハクビシン",
             "scientific_name": "Paguma larvata",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -939,7 +979,8 @@
             "key": "830eeb2309a16036bb6f66b7e1254835",
             "name": "アジサイ",
             "scientific_name": "Hydrangea macrophylla",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -962,7 +1003,8 @@
             "key": "38eb747c8f7f7b480fc5056b221974f8",
             "name": "ヒヨドリ",
             "scientific_name": "Hypsipetes amaurotis",
-            "rank": "species"
+            "rank": "species",
+            "group": "鳥類"
         }
     },
     {
@@ -985,7 +1027,8 @@
             "key": "5e8ba5334afd1f8c569b10cb8e694bd2",
             "name": "オニヤンマ",
             "scientific_name": "Anotogaster sieboldii",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1008,7 +1051,8 @@
             "key": "d1812e6b0ef82d3fdd2006bb248ad739",
             "name": "ナマズ",
             "scientific_name": "Silurus asotus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1031,7 +1075,8 @@
             "key": "eb7614da23e9dfccb27b99f4157c9fdd",
             "name": "アサガオ",
             "scientific_name": "Ipomoea nil",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1054,7 +1099,8 @@
             "key": "afa55f620da05840ae2c312e086ada2d",
             "name": "ハシブトガラス",
             "scientific_name": "Corvus macrorhynchos",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1077,7 +1123,8 @@
             "key": "d1812e6b0ef82d3fdd2006bb248ad739",
             "name": "ナマズ",
             "scientific_name": "Silurus asotus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1100,7 +1147,8 @@
             "key": "9332a61fa68760db1984f08b2ffbe46f",
             "name": "オイカワ",
             "scientific_name": "Opsariichthys platypus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1123,7 +1171,8 @@
             "key": "aa3561d12b4a04f0a164ea0bd5d3ab90",
             "name": "ヒマワリ",
             "scientific_name": "Helianthus annuus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1146,7 +1195,8 @@
             "key": "eb7614da23e9dfccb27b99f4157c9fdd",
             "name": "アサガオ",
             "scientific_name": "Ipomoea nil",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1169,7 +1219,8 @@
             "key": "f759f21eb07c53f9f9ba03eca7423a1f",
             "name": "ツユクサ",
             "scientific_name": "Commelina communis",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1192,7 +1243,8 @@
             "key": "eb7614da23e9dfccb27b99f4157c9fdd",
             "name": "アサガオ",
             "scientific_name": "Ipomoea nil",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1215,7 +1267,8 @@
             "key": "cda9814effb1a8067eafc61faf875894",
             "name": "ツバメ",
             "scientific_name": "Hirundo rustica",
-            "rank": "species"
+            "rank": "species",
+            "group": "鳥類"
         }
     },
     {
@@ -1238,7 +1291,8 @@
             "key": "812b1f2690fb5f898ff7521d9475a5ea",
             "name": "コイ",
             "scientific_name": "Cyprinus carpio",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1261,7 +1315,8 @@
             "key": "77516dc5137d242cc33af2b9d4c95084",
             "name": "アブラゼミ",
             "scientific_name": "Graptopsaltria nigrofuscata",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1284,7 +1339,8 @@
             "key": "9bc2b436a6d1b0295a25ba1029e9b50a",
             "name": "ミンミンゼミ",
             "scientific_name": "Hyalessa maculaticollis",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1307,7 +1363,8 @@
             "key": "6feb1b534d0a5922785935ca4227b592",
             "name": "シロツメクサ",
             "scientific_name": "Trifolium repens",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1330,7 +1387,8 @@
             "key": "5e8ba5334afd1f8c569b10cb8e694bd2",
             "name": "オニヤンマ",
             "scientific_name": "Anotogaster sieboldii",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1353,7 +1411,8 @@
             "key": "4deec9dc0aef27cc6858ec806362f463",
             "name": "シジュウカラ",
             "scientific_name": "Parus minor",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1376,7 +1435,8 @@
             "key": "830eeb2309a16036bb6f66b7e1254835",
             "name": "アジサイ",
             "scientific_name": "Hydrangea macrophylla",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1399,7 +1459,8 @@
             "key": "6feb1b534d0a5922785935ca4227b592",
             "name": "シロツメクサ",
             "scientific_name": "Trifolium repens",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1422,7 +1483,8 @@
             "key": "aa3561d12b4a04f0a164ea0bd5d3ab90",
             "name": "ヒマワリ",
             "scientific_name": "Helianthus annuus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1445,7 +1507,8 @@
             "key": "830eeb2309a16036bb6f66b7e1254835",
             "name": "アジサイ",
             "scientific_name": "Hydrangea macrophylla",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1468,7 +1531,8 @@
             "key": "dee7a9982ef45730219e658acb82e7a8",
             "name": "オオバコ",
             "scientific_name": "Plantago asiatica",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1491,7 +1555,8 @@
             "key": "9332a61fa68760db1984f08b2ffbe46f",
             "name": "オイカワ",
             "scientific_name": "Opsariichthys platypus",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     },
     {
@@ -1514,7 +1579,8 @@
             "key": "0107d09aca873dfef5fbf7f5daa28f40",
             "name": "アライグマ",
             "scientific_name": "Procyon lotor",
-            "rank": "species"
+            "rank": "species",
+            "group": "植物"
         }
     }
 ]

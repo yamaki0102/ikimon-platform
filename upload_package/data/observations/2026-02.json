@@ -128,7 +128,8 @@
                 "order": "Hemiptera",
                 "family": "Cicadidae",
                 "genus": "Graptopsaltria"
-            }
+            },
+            "group": "植物"
         },
         "biome": "unknown",
         "consensus": {
@@ -271,7 +272,8 @@
                 "order": "Hemiptera",
                 "family": "Cicadidae",
                 "genus": "Graptopsaltria"
-            }
+            },
+            "group": "植物"
         },
         "biome": "unknown",
         "consensus": {
@@ -414,7 +416,8 @@
                 "order": "Hemiptera",
                 "family": "Cicadidae",
                 "genus": "Graptopsaltria"
-            }
+            },
+            "group": "植物"
         },
         "biome": "unknown",
         "consensus": {
@@ -557,7 +560,8 @@
                 "order": "Hemiptera",
                 "family": "Cicadidae",
                 "genus": "Graptopsaltria"
-            }
+            },
+            "group": "植物"
         },
         "biome": "unknown",
         "consensus": {
