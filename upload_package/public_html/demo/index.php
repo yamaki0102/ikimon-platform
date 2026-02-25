@@ -17,7 +17,7 @@ require_once __DIR__ . '/../../libs/DataStore.php';
 Auth::init();
 
 // Load demo site data
-$demoSiteId = 'aikan_hq';
+$demoSiteId = 'ikan_hq';
 $site = SiteManager::load($demoSiteId);
 $siteName = $site ? ($site['name'] ?? '愛管株式会社 本社') : '愛管株式会社 本社';
 

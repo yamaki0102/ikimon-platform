@@ -14,7 +14,7 @@ require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/BioUtils.php';
 
 $dryRun = in_array('--dry-run', $argv ?? []);
-$siteId = 'aikan_hq';
+$siteId = 'ikan_hq';
 $siteName = '愛管株式会社 本社ビオトープ';
 $userId = 'system_import';
 $userName = '愛管 生物調査チーム';
@@ -269,5 +269,5 @@ echo "スキップ: {$skipped} 件\n";
 
 if (!$dryRun) {
     echo "\n✅ データはikimon.lifeに保存されました。\n";
-    echo "レポート確認: /api/generate_report.php?site_id=aikan_hq\n";
+    echo "レポート確認: /api/generate_report.php?site_id=ikan_hq\n";
 }

@@ -10,7 +10,7 @@
  * - Seasonal Phenology Matrix
  * - TNFD/30by30 context
  * 
- * Usage: site_dashboard.php?site=aikan_hq
+ * Usage: site_dashboard.php?site=ikan_hq
  */
 
 require_once __DIR__ . '/../config/config.php';

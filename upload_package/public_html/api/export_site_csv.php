@@ -6,7 +6,7 @@
  * Generates a clean, analytical CSV file of all observations within a given site.
  * Essential for corporate ESG reporting, TNFD disclosures, and government subsidy evidence.
  * 
- * Usage: api/export_site_csv.php?site_id=aikan_hq
+ * Usage: api/export_site_csv.php?site_id=ikan_hq
  * Output: CSV file download
  */
 

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Phase 15 — Seed aikan_hq observations
+ * Phase 15 — Seed ikan_hq observations
  * 
  * - Adds diverse species with proper taxon structure
  * - Includes Red List species from shizuoka.json
@@ -15,8 +15,8 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 
 // ───── Configuration ─────
-$siteId = 'aikan_hq';
-// Center of aikan_hq: 137.732881, 34.813473 (±0.001 for point spread)
+$siteId = 'ikan_hq';
+// Center of ikan_hq: 137.732881, 34.813473 (±0.001 for point spread)
 $center = ['lat' => 34.813473, 'lng' => 137.732881];
 $spread = 0.0012; // ~100m spread
 

@@ -3,7 +3,7 @@
 /**
  * B2B Demo Report — Anonymized wrapper
  * 
- * Renders the site report for aikan_hq in demo mode:
+ * Renders the site report for ikan_hq in demo mode:
  * - Adds a persistent demo banner at top
  * - Forces public_mode=1 to anonymize user data
  * - Hides individual GPS coordinates
@@ -17,7 +17,7 @@ require_once __DIR__ . '/../../libs/Auth.php';
 Auth::init();
 
 // Force demo parameters
-$_GET['site_id'] = 'aikan_hq';
+$_GET['site_id'] = 'ikan_hq';
 $_GET['public_mode'] = '1';
 
 // Capture the report output

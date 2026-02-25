@@ -401,7 +401,7 @@ require_once __DIR__ . '/../../config/config.php';
                         <li><span class="cross">—</span> データエクスポート</li>
                     </ul>
                     <div class="plan-cta">
-                        <a href="../register.php" class="btn btn-outline">無料で始める</a>
+                        <a href="apply.php" class="btn btn-outline">無料で始める</a>
                     </div>
                 </div>
 

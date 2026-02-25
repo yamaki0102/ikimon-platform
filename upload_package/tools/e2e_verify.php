@@ -1,5 +1,5 @@
 <?php
-$html = @file_get_contents('https://ikimon.life/api/generate_site_report.php?site_id=aikan_hq');
+$html = @file_get_contents('https://ikimon.life/api/generate_site_report.php?site_id=ikan_hq');
 if (!$html) {
     echo "FAIL\n";
     exit(1);

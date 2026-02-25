@@ -1,5 +1,5 @@
 <?php
-$url = "https://ikimon.life/site_dashboard.php?site=aikan_hq";
+$url = "https://ikimon.life/site_dashboard.php?site=ikan_hq";
 // User-Agentを設定しないと403になることがあるので設定
 $context = stream_context_create([
     'http' => [

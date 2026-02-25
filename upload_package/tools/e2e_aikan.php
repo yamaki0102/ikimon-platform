@@ -5,12 +5,12 @@
  * (cURL未使用版 — file_get_contents使用)
  */
 
-echo "=== E2E 検証: aikan_hq ===\n\n";
+echo "=== E2E 検証: ikan_hq ===\n\n";
 
 // ── Dashboard ──
-echo "1. Dashboard (site_dashboard.php?site=aikan_hq)\n";
+echo "1. Dashboard (site_dashboard.php?site=ikan_hq)\n";
 $context = stream_context_create(['http' => ['timeout' => 10]]);
-$html = @file_get_contents('http://localhost:8899/site_dashboard.php?site=aikan_hq', false, $context);
+$html = @file_get_contents('http://localhost:8899/site_dashboard.php?site=ikan_hq', false, $context);
 
 if ($html === false) {
     echo "   ❌ Could not fetch dashboard (server not running?)\n";
@@ -28,8 +28,8 @@ if ($html === false) {
 }
 
 // ── Report ──
-echo "\n2. Report (api/generate_site_report.php?site_id=aikan_hq)\n";
-$reportHtml = @file_get_contents('http://localhost:8899/api/generate_site_report.php?site_id=aikan_hq', false, $context);
+echo "\n2. Report (api/generate_site_report.php?site_id=ikan_hq)\n";
+$reportHtml = @file_get_contents('http://localhost:8899/api/generate_site_report.php?site_id=ikan_hq', false, $context);
 
 if ($reportHtml === false) {
     echo "   ❌ Could not fetch report\n";
@@ -53,7 +53,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/SiteManager.php';
 
-$site = SiteManager::load('aikan_hq');
+$site = SiteManager::load('ikan_hq');
 $geometry = $site['geometry'] ?? null;
 $obs = DataStore::get('observations');
 $seedCount = 0;

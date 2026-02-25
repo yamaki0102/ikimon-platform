@@ -252,7 +252,7 @@ $meta_title = $editSite ? $editSite['name'] . ' を編集' : '新しいサイト
                         <div>
                             <label class="text-xs text-gray-400 mb-1 block">サイトID <span class="text-red-400">*</span></label>
                             <input type="text" x-model="siteId" class="form-input"
-                                placeholder="例: aikan_hq (英数字・アンダースコア)"
+                                placeholder="例: ikan_hq (英数字・アンダースコア)"
                                 :disabled="editMode" :class="{ 'opacity-50': editMode }">
                         </div>
                         <div>

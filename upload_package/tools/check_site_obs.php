@@ -1,13 +1,13 @@
 <?php
 
 /**
- * Quick diagnostic: check how many observations fall within aikan_hq boundary
+ * Quick diagnostic: check how many observations fall within ikan_hq boundary
  */
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/SiteManager.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 
-$siteId = 'aikan_hq';
+$siteId = 'ikan_hq';
 $site = SiteManager::load($siteId);
 if (!$site) {
     echo "Site not found\n";

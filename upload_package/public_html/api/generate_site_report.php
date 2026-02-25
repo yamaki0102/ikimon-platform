@@ -11,7 +11,7 @@
  *   - TNFD disclosure alignment
  *   - Species inventory table
  * 
- * Usage: api/generate_site_report.php?site_id=aikan_hq
+ * Usage: api/generate_site_report.php?site_id=ikan_hq
  * 
  * Output: Printable HTML (use browser "Print → Save as PDF")
  * 

@@ -6,7 +6,7 @@
  * 1ページに収まるKPI要約。経営層向け。
  * A4 1枚で「この活動の成果」を伝える。
  *
- * Usage: api/generate_executive_summary.php?site_id=aikan_hq
+ * Usage: api/generate_executive_summary.php?site_id=ikan_hq
  */
 
 require_once __DIR__ . '/../../libs/ReportEngine.php';
