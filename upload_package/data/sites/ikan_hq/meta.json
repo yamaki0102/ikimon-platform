@@ -1,6 +1,6 @@
 {
     "id": "ikan_hq",
-    "name": "I-KAN 本社",
+    "name": "愛管株式会社 都田の杜",
     "owner": "愛管株式会社",
     "owner_org_id": "ikan_corp",
     "description": "約1.3haのエリアで、管工事業をはじめレストランや農園など多様な事業を展開。中心となる農園では有機農業を行い、生態系に配慮した環境に優しい取り組みを実践しています。地域のコミュニティ形成の場としても機能し、都田地域を含めた生物多様性への取り組み機運醸成を目指しています。",
@@ -13,7 +13,7 @@
     "status": "active",
     "sponsor": {
         "name": "愛管株式会社",
-        "url": "https://aikan.co.jp/",
+        "url": "https:\/\/aikan.co.jp\/",
         "type": "official"
     }
 }

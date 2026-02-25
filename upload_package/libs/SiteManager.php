@@ -281,13 +281,31 @@ class SiteManager
         // Sampling completeness (observed / Chao1)
         $completeness = $chao1 > 0 ? round($totalSpecies / $chao1 * 100, 1) : 0;
 
-        // Red list count (via observations data — count species with redlist tag)
+        // Red list count (via observations data — only truly threatened: CR/EN/VU/NT)
         $redlistCount = 0;
         try {
             require_once __DIR__ . '/RedListManager.php';
             $rlm = new RedListManager();
             $rlResults = $rlm->lookupMultiple(array_keys($speciesSet), 'shizuoka');
-            $redlistCount = count($rlResults);
+            $threatenedCategories = [
+                'CR',
+                'EN',
+                'VU',
+                'NT',
+                '絶滅危惧IA類',
+                '絶滅危惧IB類',
+                '絶滅危惧II類',
+                '準絶滅危惧'
+            ];
+            foreach ($rlResults as $name => $entries) {
+                foreach ($entries as $entry) {
+                    $cat = $entry['category'] ?? '';
+                    if (in_array($cat, $threatenedCategories)) {
+                        $redlistCount++;
+                        break; // Count each species once
+                    }
+                }
+            }
         } catch (\Throwable $e) {
             // Skip if RedListManager unavailable
         }
