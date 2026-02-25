@@ -686,53 +686,52 @@ unset($allObs);
             </div>
         </section>
 
-        <!-- B2B/G Section (Rich) -->
         <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-lg)">
-            <div class="bg-gradient-to-br from-slate-50 to-blue-50 border border-slate-200 rounded-3xl" style="padding:var(--phi-lg)">
-                <h2 class="font-black text-text text-center" style="font-size:var(--text-lg);margin-bottom:var(--phi-sm)">🏢 導入をご検討の方へ</h2>
-                <p class="text-token-sm text-muted text-center" style="margin-bottom:var(--phi-lg)">ikimonは企業CSR・自治体の生物多様性政策にも活用されています</p>
-                <div class="grid grid-cols-1 md:grid-cols-2" style="gap:var(--phi-sm)">
-                    <a href="for-business.php" class="bg-white rounded-2xl border border-slate-100 hover:shadow-lg hover:border-blue-200 transition group" style="padding:var(--phi-md)">
-                        <div class="flex items-center mb-3" style="gap:var(--phi-sm)">
-                            <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                                <i data-lucide="building-2" class="w-5 h-5 text-blue-600"></i>
-                            </div>
-                            <div>
-                                <p class="font-black text-text" style="font-size:var(--text-base)">企業の方</p>
-                                <p class="text-token-xs text-muted">CSR / ESG / TNFD 対応</p>
-                            </div>
-                        </div>
-                        <ul class="space-y-1.5 text-xs text-muted">
-                            <li class="flex items-start gap-1.5"><span class="text-blue-500 mt-0.5">✓</span> 自社エリアの生物多様性レポート生成</li>
-                            <li class="flex items-start gap-1.5"><span class="text-blue-500 mt-0.5">✓</span> 社員参加型の観察会でCSR×チームビルディング</li>
-                            <li class="flex items-start gap-1.5"><span class="text-blue-500 mt-0.5">✓</span> 健康経営としての散歩プログラム</li>
-                        </ul>
-                        <div class="mt-3 text-xs font-bold text-blue-600 group-hover:text-blue-700 flex items-center gap-1 transition">
-                            詳しく見る <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-                        </div>
-                    </a>
-                    <!-- 自治体向け -->
-                    <a href="for-business.php#government" class="bg-white rounded-2xl border border-slate-100 hover:shadow-lg hover:border-emerald-200 transition group" style="padding:var(--phi-md)">
-                        <div class="flex items-center mb-3" style="gap:var(--phi-sm)">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                                <i data-lucide="landmark" class="w-5 h-5 text-emerald-600"></i>
-                            </div>
-                            <div>
-                                <p class="font-black text-text" style="font-size:var(--text-base)">自治体・教育機関の方</p>
-                                <p class="text-token-xs text-muted">30by30 / 関係人口 / 環境教育</p>
-                            </div>
-                        </div>
-                        <ul class="space-y-1.5 text-xs text-muted">
-                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 市民参加で広域モニタリング → コスト削減</li>
-                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 「自然が豊かな地域」のエビデンス → 移住促進</li>
-                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 環境教育プログラムとして学校連携</li>
-                        </ul>
-                        <div class="mt-3 text-xs font-bold text-emerald-600 group-hover:text-emerald-700 flex items-center gap-1 transition">
-                            詳しく見る <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-                        </div>
-                    </a>
+            <a href="for-business.php" class="block bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl overflow-hidden group hover:shadow-2xl transition-shadow" style="padding:var(--phi-lg)">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between" style="gap:var(--phi-md)">
+                    <div>
+                        <p class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">FOR BUSINESS & GOVERNMENT</p>
+                        <h2 class="font-black text-white" style="font-size:var(--text-xl);margin-bottom:var(--phi-xs)">ikimonを法人・自治体で活用しませんか？</h2>
+                        <p class="text-sm text-slate-400">CSR/ESG報告・30by30対応・環境教育まで、生物多様性のDXを一元化</p>
+                    </div>
+                    <div class="shrink-0 hidden md:flex items-center gap-2 text-white font-bold bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl transition group-hover:scale-105">
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                        詳細を見る
+                    </div>
                 </div>
-            </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 mt-6" style="gap:var(--phi-sm)">
+                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
+                        <span class="text-blue-400 mt-0.5"><i data-lucide="file-bar-chart" class="w-4 h-4"></i></span>
+                        <p class="text-xs text-slate-300">生物多様性レポート<br><span class="text-slate-500">TNFD / ESG対応</span></p>
+                    </div>
+                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
+                        <span class="text-emerald-400 mt-0.5"><i data-lucide="users" class="w-4 h-4"></i></span>
+                        <p class="text-xs text-slate-300">社員参加型の観察会<br><span class="text-slate-500">CSR×チームビルディング</span></p>
+                    </div>
+                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
+                        <span class="text-amber-400 mt-0.5"><i data-lucide="heart-pulse" class="w-4 h-4"></i></span>
+                        <p class="text-xs text-slate-300">健康経営プログラム<br><span class="text-slate-500">散歩×生きもの発見</span></p>
+                    </div>
+                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
+                        <span class="text-teal-400 mt-0.5"><i data-lucide="map-pin" class="w-4 h-4"></i></span>
+                        <p class="text-xs text-slate-300">広域モニタリング<br><span class="text-slate-500">30by30・市民参加</span></p>
+                    </div>
+                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
+                        <span class="text-purple-400 mt-0.5"><i data-lucide="graduation-cap" class="w-4 h-4"></i></span>
+                        <p class="text-xs text-slate-300">環境教育連携<br><span class="text-slate-500">学校・地域プログラム</span></p>
+                    </div>
+                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
+                        <span class="text-rose-400 mt-0.5"><i data-lucide="badge-check" class="w-4 h-4"></i></span>
+                        <p class="text-xs text-slate-300">自然共生サイト認定<br><span class="text-slate-500">エビデンス自動生成</span></p>
+                    </div>
+                </div>
+                <div class="md:hidden mt-5 text-center">
+                    <span class="inline-flex items-center gap-2 text-white font-bold bg-blue-600 px-6 py-3 rounded-xl text-sm">
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        詳細を見る
+                    </span>
+                </div>
+            </a>
         </section>
 
         <!-- Footer -->
