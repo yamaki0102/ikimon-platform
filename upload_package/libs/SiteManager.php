@@ -167,7 +167,7 @@ class SiteManager
     }
 
     /**
-     * Count observations within a site boundary
+     * Get observations belonging to a site (by site_id OR geometry containment)
      */
     public static function getObservationsInSite(string $siteId, int $limit = 0): array
     {
@@ -176,14 +176,29 @@ class SiteManager
 
         $allObs = DataStore::fetchAll('observations');
         $filtered = [];
+        $seen = [];
 
         foreach ($allObs as $obs) {
+            $obsId = $obs['id'] ?? spl_object_id((object)$obs);
+
+            // Match 1: explicit site_id field
+            if (($obs['site_id'] ?? '') === $siteId) {
+                if (!isset($seen[$obsId])) {
+                    $filtered[] = $obs;
+                    $seen[$obsId] = true;
+                }
+                if ($limit > 0 && count($filtered) >= $limit) break;
+                continue;
+            }
+
+            // Match 2: geometry containment (for obs without site_id)
             $lat = floatval($obs['lat'] ?? 0);
             $lng = floatval($obs['lng'] ?? 0);
             if ($lat == 0 && $lng == 0) continue;
 
-            if (self::isPointInGeometry($lat, $lng, $site['geometry'])) {
+            if (!isset($seen[$obsId]) && self::isPointInGeometry($lat, $lng, $site['geometry'])) {
                 $filtered[] = $obs;
+                $seen[$obsId] = true;
             }
 
             if ($limit > 0 && count($filtered) >= $limit) break;
