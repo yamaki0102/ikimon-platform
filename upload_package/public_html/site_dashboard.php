@@ -331,7 +331,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                             <a href="site_dashboard.php" class="text-[#1a2e1f]/60 hover:text-emerald-600 transition">
                                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
                             </a>
-                            <h1 class="text-2xl md:text-3xl font-black text-[#1a2e1f]"><?php echo htmlspecialchars($site['name']); ?></h1>
+                            <h1 class="text-2xl md:text-3xl font-black text-[#1a2e1f] whitespace-nowrap"><?php echo htmlspecialchars($site['name']); ?></h1>
                             <span class="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 font-bold border border-emerald-100">
                                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                 モニタリング中
