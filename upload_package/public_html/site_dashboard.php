@@ -511,7 +511,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                                 <text x="80" y="100" text-anchor="middle" fill="#1a2e1f" opacity="0.4"
                                     font-size="11" font-weight="600"
                                     style="transform: rotate(90deg); transform-origin: 80px 80px;">
-                                    SCORE
+                                    スコア
                                 </text>
                             </svg>
                         </div>
@@ -527,7 +527,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                                     <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500/60"></i>
                                     データ品質グレード分布
                                 </h3>
-                                <p class="text-gray-600 mt-0.5" style="font-size: var(--text-xs);">DQA (Data Quality Assessment)</p>
+                                <p class="text-gray-600 mt-0.5" style="font-size: var(--text-xs);">観察データの品質グレード（A: 最高〜D: 要改善）</p>
                             </div>
                             <span class="text-xs text-gray-500"><?php echo $dqaTotal; ?> 件</span>
                         </div>
