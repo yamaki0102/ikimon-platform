@@ -511,6 +511,9 @@ if (!empty($_POST['taxon_name'])) {
     $observation['quality_flags']['has_id'] = true;
 }
 
+// Mark as user-generated content (protected from seed cleanup)
+$observation['import_source'] = 'user_post';
+
 // Save to DataStore (use append for partitioned storage)
 $timestamp = strtotime($observation['observed_at']) ?: time();
 if (DataStore::append('observations', $observation, $timestamp)) {

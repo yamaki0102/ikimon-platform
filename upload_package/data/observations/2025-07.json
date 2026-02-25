@@ -28,6 +28,7 @@
         "prefecture": "JP-23",
         "country": "JP",
         "municipality": "浜松市",
-        "data_quality": "B"
+        "data_quality": "B",
+        "import_source": "user_post"
     }
 ]

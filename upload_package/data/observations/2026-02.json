@@ -141,7 +141,8 @@
             "updated_at": "2026-02-17T21:22:33+09:00"
         },
         "quality_grade": "Needs ID",
-        "data_quality": "B"
+        "data_quality": "B",
+        "import_source": "user_post"
     },
     {
         "id": "c9ee1369d37d09a0",
@@ -285,7 +286,8 @@
             "updated_at": "2026-02-17T21:27:37+09:00"
         },
         "quality_grade": "Needs ID",
-        "data_quality": "B"
+        "data_quality": "B",
+        "import_source": "user_post"
     },
     {
         "id": "e45fca937f2df814",
@@ -429,7 +431,8 @@
             "updated_at": "2026-02-17T21:34:03+09:00"
         },
         "quality_grade": "Needs ID",
-        "data_quality": "B"
+        "data_quality": "B",
+        "import_source": "user_post"
     },
     {
         "id": "36f10578baaed608",
@@ -573,6 +576,7 @@
             "updated_at": "2026-02-17T21:46:58+09:00"
         },
         "quality_grade": "Needs ID",
-        "data_quality": "B"
+        "data_quality": "B",
+        "import_source": "user_post"
     }
 ]
