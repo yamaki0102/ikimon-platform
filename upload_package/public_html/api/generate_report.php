@@ -95,7 +95,11 @@ foreach ($siteObs as $obs) {
             $rl = RedList::check($taxonKey);
             if ($rl) {
                 $speciesMap[$key]['redlist'] = $rl['category'];
-                $redListSpecies[] = ['name' => $taxon['name'], 'sci' => $sciName, 'category' => $rl['category']];
+                // Only count truly threatened species as "Red List" (not LC/DD/NE)
+                $threatenedCategories = ['CR', 'EN', 'VU', 'NT'];
+                if (in_array($rl['category'], $threatenedCategories)) {
+                    $redListSpecies[] = ['name' => $taxon['name'], 'sci' => $sciName, 'category' => $rl['category']];
+                }
             }
         }
 
