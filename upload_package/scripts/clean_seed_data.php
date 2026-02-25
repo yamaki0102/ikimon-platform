@@ -27,10 +27,10 @@ foreach ($files as $file) {
     foreach ($data as $obs) {
         $source = $obs['import_source'] ?? null;
 
-        if ($source === 'seed') {
-            $stats['seed_removed']++;
+        if ($source === 'dummy' || $source === 'seed') {
+            $stats['removable']++;
             $name = $obs['taxon']['name'] ?? ($obs['species_name'] ?? '?');
-            $seedList[] = "[DEL] {$obs['id']} — {$name}";
+            $seedList[] = "[DEL] {$obs['id']} — {$name} ({$source})";
         } else {
             $keep[] = $obs;
             if ($source === 'user_post') {
@@ -58,7 +58,7 @@ foreach ($files as $file) {
 }
 
 echo "\n=== Summary ===\n";
-echo "Seed records " . ($confirm ? "removed" : "to remove") . ": {$stats['seed_removed']}\n";
+echo "Records " . ($confirm ? "removed" : "to remove") . ": {$stats['removable']}\n";
 echo "User records kept:    {$stats['user_kept']}\n";
 echo "Unknown records kept: {$stats['unknown_kept']}\n";
 
