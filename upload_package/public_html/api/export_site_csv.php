@@ -48,12 +48,10 @@ foreach ($allObs as $obs) {
 
     if (($obs['site_id'] ?? null) === $siteId) {
         $siteObs[] = $obs;
-    } elseif (isset($obs['location']['lat'], $obs['location']['lon'])) {
-        if (isset($site['geometry']) && SiteManager::isPointInGeometry(
-            floatval($obs['location']['lat']),
-            floatval($obs['location']['lon']),
-            $site['geometry']
-        )) {
+    } else {
+        $lat = floatval($obs['lat'] ?? $obs['location']['lat'] ?? 0);
+        $lng = floatval($obs['lng'] ?? $obs['location']['lon'] ?? 0);
+        if ($lat && $lng && isset($site['geometry']) && SiteManager::isPointInGeometry($lat, $lng, $site['geometry'])) {
             $siteObs[] = $obs;
         }
     }
@@ -102,26 +100,33 @@ fputcsv($output, $headers);
 foreach ($siteObs as $obs) {
     $name = $obs['taxon']['name'] ?? ($obs['species_name'] ?? '不明');
     $sciName = $obs['taxon']['scientific_name'] ?? ($obs['scientific_name'] ?? '');
-    $taxonGroup = $obs['taxon']['class'] ?? ($obs['taxon']['kingdom'] ?? '未分類');
+    $taxonGroup = $obs['taxon']['group'] ?? '未分類';
 
     // Red List Checks
-    $nationalStatus = $redListManager->getNationalStatus($sciName) ?: '';
+    $nationalStatus = '';
     $prefStatus = '';
-    if ($sitePrefecture) {
-        $prefStatus = $redListManager->getPrefecturalStatus($sitePrefecture, $sciName) ?: '';
+    try {
+        $rlResult = $redListManager->lookup($name, $sitePrefecture);
+        if ($rlResult) {
+            $nationalStatus = $rlResult['category'] ?? '';
+            $prefStatus = $rlResult['list_id'] === $sitePrefecture ? ($rlResult['category'] ?? '') : '';
+        }
+    } catch (\Throwable $e) {
     }
 
     // Photo URL (take the first one)
     $photoUrl = '';
-    if (!empty($obs['images']) && is_array($obs['images'])) {
+    if (!empty($obs['photos']) && is_array($obs['photos'])) {
+        $photoUrl = $obs['photos'][0] ?? '';
+    } elseif (!empty($obs['images']) && is_array($obs['images'])) {
         $photoUrl = $obs['images'][0] ?? '';
     } elseif (!empty($obs['image_url'])) {
         $photoUrl = $obs['image_url'];
     }
 
     // Data Quality
-    $quality = 'Needs ID'; // Default logic placeholder
-    if (($obs['identifications_count'] ?? 0) > 1) {
+    $quality = $obs['status'] ?? 'Needs ID';
+    if ($quality === 'Needs ID' && ($obs['identifications_count'] ?? 0) > 1) {
         $quality = 'Research Grade';
     }
 
@@ -131,8 +136,8 @@ foreach ($siteObs as $obs) {
         $name,
         $sciName,
         $taxonGroup,
-        floatval($obs['location']['lat'] ?? 0),
-        floatval($obs['location']['lon'] ?? 0),
+        floatval($obs['lat'] ?? $obs['location']['lat'] ?? 0),
+        floatval($obs['lng'] ?? $obs['location']['lon'] ?? 0),
         $nationalStatus,
         $prefStatus,
         $obs['user_name'] ?? ($obs['user_id'] ?? '匿名ユーザー'),
