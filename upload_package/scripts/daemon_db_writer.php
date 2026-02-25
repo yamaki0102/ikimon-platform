@@ -175,7 +175,10 @@ while (true) {
             updateWriterHeartbeat($workerFile, "DB書込済: {$scientificName}");
             $lastHeartbeat = time();
         } catch (PDOException $e) {
-            @$pdo->exec('ROLLBACK');
+            try {
+                $pdo->exec('ROLLBACK');
+            } catch (PDOException $_) {
+            }
             echo "[" . date('H:i:s') . "] WRITE FAILED: $scientificName - " . $e->getMessage() . "\n";
             // Leave file in spool to retry on next loop
             usleep(500000); // Wait on DB issue

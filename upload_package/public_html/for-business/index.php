@@ -666,13 +666,27 @@ require_once __DIR__ . '/../../config/config.php';
                 <a href="sample_report.php" class="btn btn-lg btn-outline" style="color: white; border-color: rgba(255,255,255,0.5);">📄 サンプルレポートを見る</a>
             </div>
             <div class="hero-stats">
+                <?php
+                // Dynamic stats from real platform data
+                $omoikaneSpecies = 0;
+                $omoikanePath = __DIR__ . '/../../data/library/omoikane.sqlite3';
+                if (file_exists($omoikanePath)) {
+                    try {
+                        $odb = new SQLite3($omoikanePath);
+                        $omoikaneSpecies = (int)$odb->querySingle("SELECT COUNT(*) FROM species");
+                        $odb->close();
+                    } catch (Exception $e) {
+                    }
+                }
+                $reportCount = count(glob(__DIR__ . '/../api/generate_*.php'));
+                ?>
                 <div class="hero-stat">
-                    <span class="num">6</span>
-                    <span class="label">レポートテンプレート</span>
+                    <span class="num"><?php echo number_format($omoikaneSpecies); ?></span>
+                    <span class="label">AI知識DB 収録種数</span>
                 </div>
                 <div class="hero-stat">
-                    <span class="num">100%</span>
-                    <span class="label">セルフサービス</span>
+                    <span class="num"><?php echo $reportCount; ?></span>
+                    <span class="label">レポートテンプレート</span>
                 </div>
                 <div class="hero-stat">
                     <span class="num">TNFD</span>

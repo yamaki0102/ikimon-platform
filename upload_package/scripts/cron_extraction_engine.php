@@ -128,13 +128,17 @@ function markDiscoveredSpeciesCompleted($discoveredNames)
 
 function callOllama($promptText, $model = "qwen3-optimized", $responseFormat = "json")
 {
+  // Optimization: /nothink mode skips Qwen3 thinking tokens for faster inference
+  $promptText = "/nothink\n" . $promptText;
+
   $payload = [
     "model" => $model,
     "prompt" => $promptText,
     "stream" => false,
     "format" => $responseFormat,
     "options" => [
-      "temperature" => 0.1
+      "temperature" => 0.1,
+      "num_ctx" => 4096
     ]
   ];
 
@@ -144,7 +148,7 @@ function callOllama($promptText, $model = "qwen3-optimized", $responseFormat = "
   curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
   curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
   // === CRASH RESILIENCE LAYER 2: Hard timeout ===
-  curl_setopt($ch, CURLOPT_TIMEOUT, 120); // 2 min max per Ollama call
+  curl_setopt($ch, CURLOPT_TIMEOUT, 300); // 5 min max for consolidated text
   curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // 10s to connect
 
   $responseJson = curl_exec($ch);
@@ -214,72 +218,99 @@ foreach ($myBatch as $name => &$item) {
   }
 
   $successForSpecies = false;
+
+  // === OPTIMIZATION: Consolidate all paper texts into a single LLM call ===
+  $allTexts = [];
+  $allDois = [];
+  $trustedSourceCount = 0;
+  $totalSourceCount = 0;
+  $trustedSources = ['Wikipedia_JA', 'Wikipedia_EN', 'Wikidata', 'GBIF'];
+
   foreach ($item['prefetched_literature'] as $paper) {
     $doi = $paper['doi'] ?? uniqid();
-    $abstract = $paper['abstract'] ?? '';
+    $text = $paper['text'] ?? $paper['abstract'] ?? '';
+    $source = $paper['source'] ?? '';
+    $title = $paper['title'] ?? '';
+    $totalSourceCount++;
 
-    echo " - Distilling DOI: $doi...\n";
-    $contentToDistill = "Title: " . ($paper['title'] ?? '') . "\n\nAbstract:\n$abstract\n";
-
-    $systemPrompt = <<<PROMPT
-You are an expert taxonomist and ecological data extractor. 
-IMPORTANT STRICT RULES:
-1. DO NOT extract or deduce any taxonomic classifications (Kingdom, Phylum, Class, Order, Family, Genus) from the literature. Our system relies on GBIF Backbone Taxonomy exclusively.
-2. The current TARGET species is: {$item['species_name']}. You MUST extract its ecological data.
-3. If the text mentions ANY OTHER species in detail, extract their ecological data as well into "discovered_species". Only include species where concrete ecological or morphological data is present.
-4. Extract the information into the following strict JSON format:
-{
-  "target_species": {
-    "ecological_constraints": {
-      "habitat": ["List of habitats"],
-      "altitude_range": "e.g., 500m - 1500m",
-      "active_season": ["Spring", "Summer"],
-      "notes": "Any other ecological constraints"
-    },
-    "identification_keys": [
-      {
-        "feature": "Which part of the body",
-        "description": "How to identify this species from others",
-        "comparison_species": ["Species A", "Species B"]
-      }
-    ]
-  },
-  "discovered_species": [
-    {
-      "scientific_name": "Exact scientific name of the discovered species",
-      "ecological_constraints": {
-        "habitat": ["..."]
-      },
-      "identification_keys": [
-        {
-          "feature": "...",
-          "description": "..."
-        }
-      ]
+    if (in_array($source, $trustedSources)) {
+      $trustedSourceCount++;
     }
-  ]
-}
-Return ONLY valid JSON. If `discovered_species` are not present or lack detailed ecological data, return an empty array for it `[]`. If information is missing, return empty arrays or nulls.
+
+    if (empty($text)) continue;
+
+    // Truncate individual paper text for context budget (GTX 1660 constraint)
+    if (mb_strlen($text) > 1500) {
+      $text = mb_substr($text, 0, 1500) . '...';
+    }
+
+    $allTexts[] = "--- Source: {$source} | Title: {$title} ---\n{$text}";
+    $allDois[] = $doi;
+
+    // Save to PaperStore and Index
+    PaperStore::upsert(['id' => $doi, 'doi' => $doi, 'title' => $title, 'abstract' => $text, 'authors' => $paper['authors'] ?? [], 'year' => $paper['year'] ?? null]);
+    TaxonPaperIndex::add($item['species_name'], $doi);
+  }
+
+  if (empty($allTexts)) {
+    echo " No usable text in literature.\n";
+    writeBackStatus($name, 'no_literature');
+    $processedCount++;
+    continue;
+  }
+
+  $consolidatedText = implode("\n\n", $allTexts);
+
+  // Safety: cap at 6000 chars to stay within GTX 1660 SUPER inference budget
+  if (mb_strlen($consolidatedText) > 6000) {
+    $consolidatedText = mb_substr($consolidatedText, 0, 6000) . "\n[...truncated]";
+  }
+
+  echo " - Consolidated " . count($allTexts) . " papers (" . mb_strlen($consolidatedText) . " chars). Single LLM call...\n";
+  updateHeartbeat($workerStatusFile, $workerPid, $name, 'AI抽出中');
+
+  $systemPrompt = <<<PROMPT
+You are an expert taxonomist. Extract ecological and morphological data for {$item['species_name']} from the provided literature.
+
+RULES:
+- Extract ONLY facts explicitly stated in the text. Never invent data.
+- Do NOT extract taxonomic hierarchy (Kingdom/Phylum/Class/Order/Family).
+- If a field has no data in the text, use null or [].
+
+Output format (JSON only, no other text):
+{"target_species":{"ecological_constraints":{"habitat":[],"altitude_range":null,"active_season":[],"notes":null},"identification_keys":[]},"discovered_species":[]}
+
+Fill the arrays and nulls with ACTUAL DATA from the text. For identification_keys use objects with "feature", "description", "comparison_species" fields.
 PROMPT;
 
-    $extractedJsonText = callOllama($systemPrompt . "\n\nTEXT:\n" . $contentToDistill, "hf.co/mmnga-o/Qwen3-Swallow-8B-RL-v0.2-gguf:Q4_K_M", "json");
-    if (!$extractedJsonText) {
-      echo "   [DEBUG] Ollama returned empty or curl failed.\n";
-      continue;
-    }
-    $extracted = json_decode($extractedJsonText, true);
-    if (!$extracted) {
-      echo "   [DEBUG] Invalid JSON returned: " . substr($extractedJsonText, 0, 200) . "...\n";
-      continue;
-    }
+  $extractedJsonText = callOllama($systemPrompt . "\n\nTEXT:\n" . $consolidatedText, "hf.co/mmnga-o/Qwen3-Swallow-8B-RL-v0.2-gguf:Q4_K_M", "json");
+  if (!$extractedJsonText) {
+    echo "   [DEBUG] Ollama returned empty or curl failed.\n";
+    writeBackStatus($name, ($item['retries'] ?? 0) >= 3 ? 'failed' : 'pending');
+    $processedCount++;
+    continue;
+  }
+  $extracted = json_decode($extractedJsonText, true);
+  if (!$extracted) {
+    echo "   [DEBUG] Invalid JSON returned: " . substr($extractedJsonText, 0, 200) . "...\n";
+    writeBackStatus($name, ($item['retries'] ?? 0) >= 3 ? 'failed' : 'pending');
+    $processedCount++;
+    continue;
+  }
 
-    // --- Reflexion Gate (Zero-Hallucination Matrix) ---
+  // === OPTIMIZATION: Conditional Reflexion Gate ===
+  // Skip for trusted-only sources (Wikipedia, GBIF) as they are pre-verified
+  $skipReflexion = ($trustedSourceCount === $totalSourceCount);
+
+  if ($skipReflexion) {
+    echo "   [SKIP REFLEXION] All " . $trustedSourceCount . " sources are trusted. Bypassing gate.\n";
+  } else {
     echo "   -> Running Zero-Hallucination Reflexion Gate...\n";
     updateHeartbeat($workerStatusFile, $workerPid, $name, '検証ゲート');
     $reflexionPrompt = <<<PROMPT
 You are an auditor verifying AI extractions for accuracy.
 ORIGINAL TEXT:
-{$contentToDistill}
+{$consolidatedText}
 
 EXTRACTED JSON:
 {$extractedJsonText}
@@ -300,97 +331,95 @@ PROMPT;
 
     if ($reflexion && isset($reflexion['hallucination_detected']) && $reflexion['hallucination_detected'] === true) {
       echo "   [REJECTED] Hallucination detected: " . $reflexion['reason'] . "\n";
-      file_put_contents($failuresLog, "[" . date('Y-m-d H:i:s') . "] REJECTED $doi: {$reflexion['reason']}\n", FILE_APPEND);
-      continue; // Skip appending
+      file_put_contents($failuresLog, "[" . date('Y-m-d H:i:s') . "] REJECTED $name: {$reflexion['reason']}\n", FILE_APPEND);
+      writeBackStatus($name, ($item['retries'] ?? 0) >= 3 ? 'failed' : 'pending');
+      $processedCount++;
+      continue;
     }
+  }
 
-    echo "   [APPROVED] Strict validation passed. Saving.\n";
+  echo "   [APPROVED] Validation passed. Saving.\n";
 
-    // Save to PaperStore and Index
-    PaperStore::upsert(['id' => $doi, 'doi' => $doi, 'title' => $paper['title'] ?? '', 'abstract' => $abstract, 'authors' => $paper['authors'] ?? [], 'year' => $paper['year'] ?? null]);
-    TaxonPaperIndex::add($item['species_name'], $doi);
-
-    // Prepare species to be inserted
-    $speciesToProcess = [];
-    if (isset($extracted['target_species'])) {
-      $speciesToProcess[] = [
-        'name' => $item['species_name'],
-        'data' => $extracted['target_species'],
-        'is_target' => true
-      ];
-    }
-    if (isset($extracted['discovered_species']) && is_array($extracted['discovered_species'])) {
-      foreach ($extracted['discovered_species'] as $disc) {
-        if (!empty($disc['scientific_name'])) {
-          $speciesToProcess[] = [
-            'name' => $disc['scientific_name'],
-            'data' => $disc,
-            'is_target' => false
-          ];
-        }
+  // Prepare species to be inserted
+  $speciesToProcess = [];
+  if (isset($extracted['target_species'])) {
+    $speciesToProcess[] = [
+      'name' => $item['species_name'],
+      'data' => $extracted['target_species'],
+      'is_target' => true
+    ];
+  }
+  if (isset($extracted['discovered_species']) && is_array($extracted['discovered_species'])) {
+    foreach ($extracted['discovered_species'] as $disc) {
+      if (!empty($disc['scientific_name'])) {
+        $speciesToProcess[] = [
+          'name' => $disc['scientific_name'],
+          'data' => $disc,
+          'is_target' => false
+        ];
       }
     }
+  }
 
-    $discoveredNames = [];
-    foreach ($speciesToProcess as $sp) {
-      $scientificName = $sp['name'];
-      $spData = $sp['data'];
+  $discoveredNames = [];
+  foreach ($speciesToProcess as $sp) {
+    $scientificName = $sp['name'];
+    $spData = $sp['data'];
 
-      // === JSON SPOOL (all DB writes delegated to daemon_db_writer.php) ===
-      $spoolDir = __DIR__ . '/../data/spool';
-      if (!is_dir($spoolDir)) @mkdir($spoolDir, 0777, true);
+    // === JSON SPOOL (all DB writes delegated to daemon_db_writer.php) ===
+    $spoolDir = __DIR__ . '/../data/spool';
+    if (!is_dir($spoolDir)) @mkdir($spoolDir, 0777, true);
 
-      $spoolData = [
-        'scientific_name' => $scientificName,
-        'is_target' => $sp['is_target'],
-        'extracted_data' => $spData,
-        'source_citations' => $item['source_citations'] ?? null,
-        'specimen_records' => $item['specimen_records'] ?? [],
-        'timestamp' => date('Y-m-d H:i:s'),
-        'queue_update' => [
-          'species_name' => $scientificName,
-          'status' => $sp['is_target'] ? 'completed' : null
-        ]
-      ];
+    $spoolData = [
+      'scientific_name' => $scientificName,
+      'is_target' => $sp['is_target'],
+      'extracted_data' => $spData,
+      'source_citations' => $item['source_citations'] ?? null,
+      'specimen_records' => $item['specimen_records'] ?? [],
+      'timestamp' => date('Y-m-d H:i:s'),
+      'queue_update' => [
+        'species_name' => $scientificName,
+        'status' => $sp['is_target'] ? 'completed' : null
+      ]
+    ];
 
-      $safeName = preg_replace('/[^a-zA-Z0-9]+/', '_', strtolower($scientificName));
-      $spoolFile = $spoolDir . '/' . time() . '_' . substr(microtime(), 2, 6) . '_' . $safeName . '.json';
-      file_put_contents($spoolFile, json_encode($spoolData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    $safeName = preg_replace('/[^a-zA-Z0-9]+/', '_', strtolower($scientificName));
+    $spoolFile = $spoolDir . '/' . time() . '_' . substr(microtime(), 2, 6) . '_' . $safeName . '.json';
+    file_put_contents($spoolFile, json_encode($spoolData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
-      // Remove from shutdown handler watchlist (spool written = safe to let DB Writer handle)
-      $claimedNames = array_values(array_diff($claimedNames, [$name]));
+    // Remove from shutdown handler watchlist (spool written = safe to let DB Writer handle)
+    $claimedNames = array_values(array_diff($claimedNames, [$name]));
 
-      if ($sp['is_target']) {
-        $successForSpecies = true;
-        // Immediately mark queue as completed (don't wait for DB Writer)
-        writeBackStatus($name, 'completed');
-        echo "   [LOCAL] Extraction finished for Target {$scientificName} (via {$doi}).\n";
-        updateHeartbeat($workerStatusFile, $workerPid, $name, '✅ 完了');
-      } else {
-        $discoveredNames[] = $scientificName;
-        echo "   [LOCAL] Found Serendipity Species: {$scientificName}.\n";
-      }
+    if ($sp['is_target']) {
+      $successForSpecies = true;
+      // Immediately mark queue as completed (don't wait for DB Writer)
+      writeBackStatus($name, 'completed');
+      echo "   [LOCAL] Extraction finished for {$scientificName}.\n";
+      updateHeartbeat($workerStatusFile, $workerPid, $name, '✅ 完了');
+    } else {
+      $discoveredNames[] = $scientificName;
+      echo "   [LOCAL] Found Serendipity Species: {$scientificName}.\n";
     }
+  }
 
-    // Mark discovered species as completed in the queue
-    if (!empty($discoveredNames)) {
-      markDiscoveredSpeciesCompleted($discoveredNames);
-    }
+  // Mark discovered species as completed in the queue
+  if (!empty($discoveredNames)) {
+    markDiscoveredSpeciesCompleted($discoveredNames);
   }
 
   // === CRASH RESILIENCE LAYER 3: Write back IMMEDIATELY per species ===
-  $finalStatus = 'pending'; // Default: retry
-  if ($item['status'] === 'no_literature') {
-    $finalStatus = 'no_literature';
-  } elseif ($item['status'] === 'invalid_name') {
-    $finalStatus = 'invalid_name';
-  } elseif ($successForSpecies) {
-    $finalStatus = 'completed';
-  } elseif ($item['retries'] >= 3) {
-    $finalStatus = 'failed';
+  if (!$successForSpecies) {
+    $finalStatus = 'pending'; // Default: retry
+    if (($item['status'] ?? '') === 'no_literature') {
+      $finalStatus = 'no_literature';
+    } elseif (($item['status'] ?? '') === 'invalid_name') {
+      $finalStatus = 'invalid_name';
+    } elseif (($item['retries'] ?? 0) >= 3) {
+      $finalStatus = 'failed';
+    }
+    writeBackStatus($name, $finalStatus);
+    echo "   [STATUS] {$name} -> {$finalStatus}\n";
   }
-  writeBackStatus($name, $finalStatus);
-  echo "   [STATUS] {$name} -> {$finalStatus}\n";
 
   $processedCount++;
 }

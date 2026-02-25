@@ -26,7 +26,7 @@ class SiteManager
      * List all registered sites
      * @return array Site summaries
      */
-    public static function listAll(): array
+    public static function listAll(bool $activeOnly = true): array
     {
         $dir = self::getSitesDir();
         if (!is_dir($dir)) return [];
@@ -39,6 +39,7 @@ class SiteManager
 
             $site = self::load($entry);
             if ($site) {
+                if ($activeOnly && ($site['status'] ?? 'active') !== 'active') continue;
                 $sites[] = $site;
             }
         }

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Multi-Source Literature Prefetcher v3.0 — 3-Gate Pipeline
+ * Multi-Source Literature Prefetcher v3.1 — SQLite Queue
  * 
  * GATE 1: GBIF Species Match (種名検証)
  *   - 有効な種/亜種のみ通過、科名・属名・ゴミはスキップ
@@ -16,16 +16,14 @@
  *   - GBIF Literature
  *   - Semantic Scholar
  *   - Crossref (fallback)
+ * 
+ * v3.1: Migrated from JSON file queue to SQLite ExtractionQueue
  */
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../libs/ExtractionQueue.php';
 
-$queueFile = DATA_DIR . '/library/extraction_queue.json';
-
-if (!file_exists($queueFile)) {
-    echo "Queue file not found. Checked: $queueFile\n";
-    exit(1);
-}
+$eq = ExtractionQueue::getInstance();
 
 // === Heartbeat ===
 function updateHeartbeat($statusFile, $pid, $name, $status)
@@ -52,7 +50,7 @@ function updateHeartbeat($statusFile, $pid, $name, $status)
 $workerStatusFile = DATA_DIR . '/library/worker_heartbeats.json';
 $myPid = getmypid();
 
-echo "Starting Multi-Source Literature Prefetcher v3.0 (3-Gate Pipeline)...\n";
+echo "Starting Multi-Source Literature Prefetcher v3.1 (SQLite Queue)...\n";
 
 // === Helper: safe HTTP GET ===
 $httpGet = function (string $url): ?string {
@@ -65,89 +63,24 @@ $httpGet = function (string $url): ?string {
 };
 
 // ==========================================
-// ATOMIC QUEUE HELPERS
-// ==========================================
-function atomicClaimPendingItem($queueFile, $myPid)
-{
-    $fp = fopen($queueFile, 'c+');
-    if (!$fp || !flock($fp, LOCK_EX)) return null;
-    clearstatcache(true, $queueFile);
-    $sz = filesize($queueFile);
-    $q = json_decode($sz > 0 ? fread($fp, $sz) : '', true) ?: [];
-
-    $claimedId = null;
-    $claimedItem = null;
-    foreach ($q as $id => &$item) {
-        if (isset($item['status']) && $item['status'] === 'pending') {
-            $item['status'] = 'fetching_lit';
-            $item['worker_pid'] = $myPid;
-            $item['claimed_at'] = date('Y-m-d H:i:s');
-            $claimedId = $id;
-            $claimedItem = $item;
-            break;
-        }
-    }
-
-    if ($claimedId !== null) {
-        ftruncate($fp, 0);
-        fseek($fp, 0);
-        fwrite($fp, json_encode($q, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        fflush($fp);
-    }
-
-    flock($fp, LOCK_UN);
-    fclose($fp);
-
-    return $claimedId !== null ? ['id' => $claimedId, 'item' => $claimedItem] : null;
-}
-
-function atomicUpdateItem($queueFile, $id, $updates)
-{
-    $fp = fopen($queueFile, 'c+');
-    if (!$fp || !flock($fp, LOCK_EX)) return false;
-    clearstatcache(true, $queueFile);
-    $sz = filesize($queueFile);
-    $q = json_decode($sz > 0 ? fread($fp, $sz) : '', true) ?: [];
-
-    if (isset($q[$id])) {
-        foreach ($updates as $k => $v) {
-            $q[$id][$k] = $v;
-        }
-        ftruncate($fp, 0);
-        fseek($fp, 0);
-        fwrite($fp, json_encode($q, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        fflush($fp);
-    }
-
-    flock($fp, LOCK_UN);
-    fclose($fp);
-    return true;
-}
-
-// ==========================================
 // MAIN LOOP
 // ==========================================
 while (true) {
-    if (!file_exists($queueFile)) break;
-
-    $claim = atomicClaimPendingItem($queueFile, $myPid);
+    $claim = $eq->claimForPrefetch($myPid);
     if (!$claim) {
         echo "No pending items. Sleeping 10s...\n";
         sleep(10);
         continue;
     }
 
-    $id = $claim['id'];
-    $item = $claim['item'];
-
-    $searchTerm = $item['species_name'] ?? $id;
-    $scientificName = $item['scientific_name'] ?? '';
+    $speciesName = $claim['species_name'];
+    $searchTerm = $speciesName;
 
     echo "Processing: $searchTerm\n";
     updateHeartbeat($workerStatusFile, $myPid, "Prefetcher", mb_strimwidth($searchTerm, 0, 15, "..."));
 
     // =============================================
-    // GATE 1: GBIF Species Match (種名検証) — fetching_lit の前にチェック
+    // GATE 1: GBIF Species Match (種名検証)
     // =============================================
     $gbifMatchUrl = "https://api.gbif.org/v1/species/match?name=" . urlencode($searchTerm) . "&strict=true";
     $gbifMatchJson = $httpGet($gbifMatchUrl);
@@ -160,26 +93,19 @@ while (true) {
 
     if ($matchType === 'NONE' || !in_array($rank, ['SPECIES', 'SUBSPECIES', 'VARIETY', 'FORM'])) {
         echo "  ✗ GATE 1 REJECT: [{$rank}] {$searchTerm} (matchType={$matchType})\n";
-        atomicUpdateItem($queueFile, $id, [
+        $eq->updatePrefetchResult($speciesName, [
             'status' => 'invalid_name',
-            'gate1_reason' => "rank={$rank}, matchType={$matchType}"
+            'note' => "GATE1 reject: rank={$rank}, matchType={$matchType}"
         ]);
         usleep(100000); // 100ms
         continue;
     }
 
-    // GATE 1 通過 — canonical名とGBIF keyを付与
+    // GATE 1 通過
     echo "  ✓ GATE 1 PASS: [{$rank}] {$canonicalName} (key={$usageKey})\n";
-    atomicUpdateItem($queueFile, $id, [
-        'gbif_canonical' => $canonicalName,
-        'gbif_key' => $usageKey
-    ]);
 
-    // 検索にはcanonical nameを優先使用
     $effectiveSearchTerm = $canonicalName ?: $searchTerm;
-    if (empty($scientificName) && $canonicalName) {
-        $scientificName = $canonicalName;
-    }
+    $scientificName = $canonicalName ?: $speciesName;
 
     // =============================================
     // GATE 2: Multi-Source Literature Collection
@@ -202,7 +128,7 @@ while (true) {
 
     $searchTermsToTry = [$effectiveSearchTerm];
     if (!empty($gbifMatch['species']) && $gbifMatch['species'] !== $effectiveSearchTerm) {
-        $searchTermsToTry[] = $gbifMatch['species']; // Fallback for subspecies/varieties
+        $searchTermsToTry[] = $gbifMatch['species'];
     }
 
     foreach ($searchTermsToTry as $currentSearchTerm) {
@@ -211,7 +137,7 @@ while (true) {
         }
 
         // --- STEP 0: Wikidata (和名解決 + 多言語sitelink) ---
-        $wikiSitelinks = []; // lang => title
+        $wikiSitelinks = [];
 
         $wdUrl = "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=" . urlencode($currentSearchTerm) . "&language=en&type=item&limit=1&format=json";
         $wdJson = $httpGet($wdUrl);
@@ -297,7 +223,7 @@ while (true) {
             $langCount++;
         }
 
-        // --- STEP 4: GBIF Species Descriptions (usageKeyを活用) ---
+        // --- STEP 4: GBIF Species Descriptions ---
         if ($usageKey) {
             $dUrl = "https://api.gbif.org/v1/species/{$usageKey}/descriptions?limit=10";
             $dJson = $httpGet($dUrl);
@@ -378,7 +304,7 @@ while (true) {
             }
         }
 
-        // --- STEP 8: GBIF Specimen Records (博物館標本データ) ---
+        // --- STEP 8: GBIF Specimen Records ---
         if ($usageKey) {
             $spUrl = "https://api.gbif.org/v1/occurrence/search?taxonKey={$usageKey}&basisOfRecord=PRESERVED_SPECIMEN&limit=10";
             $spJson = $httpGet($spUrl);
@@ -404,14 +330,14 @@ while (true) {
             }
         }
 
-        // もし十分なテキストが集まっていればループを抜ける（フォールバックに行かない）
+        // もし十分なテキストが集まっていればループを抜ける
         if (count($collectedTexts) > 0) {
             break;
         }
     }
 
     // =============================================
-    // RESULT: Update queue entry
+    // RESULT: Update SQLite queue entry
     // =============================================
     $updates = [];
 
@@ -427,12 +353,10 @@ while (true) {
         }
     }
 
-    if (!empty($japaneseName)) $updates['resolved_ja_name'] = $japaneseName;
-    if (!empty($scientificName)) $updates['scientific_name'] = $scientificName;
-    if ($canonicalName) $updates['gbif_canonical'] = $canonicalName;
     if ($usageKey) $updates['gbif_key'] = $usageKey;
     if (!empty($specimenRecords)) $updates['specimen_records'] = $specimenRecords;
+    if (!empty($japaneseName)) $updates['note'] = "ja_name: {$japaneseName}";
 
-    atomicUpdateItem($queueFile, $id, $updates);
+    $eq->updatePrefetchResult($speciesName, $updates);
     usleep(1500000);
 }
