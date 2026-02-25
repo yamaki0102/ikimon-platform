@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2461876,
+    "scientific_name": "Leiolopisma A.M.C.Duméril & Bibron, 1839",
+    "status": "ACCEPTED",
+    "match_type": "HIGHERRANK",
+    "confidence": 98,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Scincidae",
+    "genus": "Leiolopisma",
+    "rank": "GENUS",
+    "original_query": "Leiolopisma DUMERIL et BIBRON, 1839",
+    "_cached_at": 1770420216
+}

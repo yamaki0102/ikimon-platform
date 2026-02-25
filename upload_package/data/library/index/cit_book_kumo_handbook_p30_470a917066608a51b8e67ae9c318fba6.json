@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p30_470a917066608a51b8e67ae9c318fba6",
+    "book_id": "book_kumo_handbook",
+    "page": 30,
+    "taxon_name": "ヨツデゴミグモ",
+    "scientific_name": "Cyclosa sedeculata",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 4〜5mm, male: 3〜4mm",
+        "season": "夏",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網にいる様子",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

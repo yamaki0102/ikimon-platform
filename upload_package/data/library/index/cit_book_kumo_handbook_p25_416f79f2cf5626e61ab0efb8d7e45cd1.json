@@ -1,0 +1,22 @@
+{
+    "id": "cit_book_kumo_handbook_p25_416f79f2cf5626e61ab0efb8d7e45cd1",
+    "book_id": "book_kumo_handbook",
+    "page": 25,
+    "taxon_name": "ムツボシオニグモ",
+    "scientific_name": "Araniella yaginumai",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 5〜8mm, male: 4〜5mm",
+        "season": "春〜夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

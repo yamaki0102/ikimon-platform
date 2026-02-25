@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p21_6a621c22fc8cfa8b85503058cb90cb3f",
+    "book_id": "book_kumo_handbook",
+    "page": 21,
+    "taxon_name": "ウロコアシナガグモ",
+    "scientific_name": "Tetragnatha squamata",
+    "family": "アシナガグモ科 Tetragnathidae",
+    "data_icons": {
+        "size": "female: 5〜8mm, male: 4〜6mm",
+        "season": "春〜夏",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス上顎裏面",
+        "オス上顎裏面",
+        "赤い個体",
+        "エゾアシナガグモ(メス) (よく似ている)"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

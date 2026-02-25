@@ -1,0 +1,20 @@
+{
+    "id": "cit_book_gakken_live_insects_p20_a2b026033c5c53c1b1f1ec9f5565091b",
+    "book_id": "book_gakken_live_insects",
+    "page": 20,
+    "taxon_name": "ヤマサナエ",
+    "scientific_name": null,
+    "family": "サナエトンボ科",
+    "data_icons": {
+        "size": "75mm",
+        "season": null,
+        "distribution": null
+    },
+    "photos": [
+        "成虫標本（上面）"
+    ],
+    "figures": [],
+    "page_type": "VISUAL_PLATE",
+    "rarity_stars": null,
+    "type": "plate"
+}

@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p9_435a28080198de393dba3451a4e5862b",
+    "book_id": "book_kumo_handbook",
+    "page": 9,
+    "taxon_name": "イエユウレイグモ",
+    "scientific_name": "Pholcus phalangioides",
+    "family": "ユウレイグモ科 Pholcidae",
+    "data_icons": {
+        "size": "female: 8〜10mm, male: 7〜8mm",
+        "season": "一年中",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "オス",
+        "メス腹部",
+        "生態写真(壁にいる)",
+        "体は半透明(メス)",
+        "メス背面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p44_0609046ba93210a83115b765b2e1b648",
+    "book_id": "book_kumo_handbook",
+    "page": 44,
+    "taxon_name": "クサグモ",
+    "scientific_name": "Agelena silvatica",
+    "family": "タナグモ科 Agelenidae",
+    "data_icons": {
+        "size": "female: 14〜17mm, male: 12〜14mm",
+        "season": "夏〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "トンネル状の住居に潜む（卵のうを守る）",
+        "網（棚網）",
+        "オス",
+        "オス触肢"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

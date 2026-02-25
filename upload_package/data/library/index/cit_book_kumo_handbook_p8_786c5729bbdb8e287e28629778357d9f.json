@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p8_786c5729bbdb8e287e28629778357d9f",
+    "book_id": "book_kumo_handbook",
+    "page": 8,
+    "taxon_name": "ジグモ",
+    "scientific_name": "Atypus karschi",
+    "family": "ジグモ科 Atypidae",
+    "data_icons": {
+        "size": "female: 12〜20mm, male: 10〜15mm",
+        "season": "メス・年中、オス・夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "オス",
+        "メスのお尻",
+        "塀の上の土管",
+        "正面から見たオス",
+        "メス背面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

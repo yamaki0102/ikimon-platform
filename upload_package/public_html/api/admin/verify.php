@@ -5,14 +5,14 @@ require_once __DIR__ . '/../../../libs/DataStore.php';
 Auth::init();
 if (!Auth::hasRole('Analyst')) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Forbidden']);
+    echo json_encode(['success' => false, 'error' => 'Forbidden'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input || !isset($input['id'])) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Invalid ID']);
+    echo json_encode(['success' => false, 'error' => 'Invalid ID'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -21,7 +21,7 @@ $obs = DataStore::findById('observations', $id);
 
 if (!$obs) {
     http_response_code(404);
-    echo json_encode(['success' => false, 'error' => 'Not Found']);
+    echo json_encode(['success' => false, 'error' => 'Not Found'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -43,5 +43,5 @@ DataStore::upsert('observations', $obs);
 
 // TODO: Add comment if provided (would need a separate Comments store or embedded Comments array)
 
-header('Content-Type: application/json');
-echo json_encode(['success' => true]);
+header('Content-Type: application/json; charset=utf-8');
+echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

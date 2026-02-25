@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p36_82c943bd2edf73ad0ca8193e9989f249",
+    "book_id": "book_kumo_handbook",
+    "page": 36,
+    "taxon_name": "ワキグロサツマノミダマシ",
+    "scientific_name": "Neoscona melloteei",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 7〜10mm, male: 5〜9mm",
+        "season": "夏〜秋",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "腹部の側面の黒色が特徴",
+        "昼間に潜む（隠れ帯）",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

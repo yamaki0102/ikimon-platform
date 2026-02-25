@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2427606,
+    "scientific_name": "Hyla hallowellii Thompson, 1912",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Anura",
+    "family": "Hylidae",
+    "genus": "Hyla",
+    "rank": "SPECIES",
+    "original_query": "Hyla hallowellii",
+    "_cached_at": 1770420003
+}

@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p73_26961213c0a8d939175f5aaf9cb14cd2",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 73,
+    "taxon_name": "イシカワガエル",
+    "scientific_name": "Rana (Rana ?) ishikawae (STEJNEGER, 1901)",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": "90〜115mm",
+        "season": null,
+        "distribution": "奄美大島, 徳之島, 沖縄本島"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

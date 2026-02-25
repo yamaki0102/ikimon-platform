@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kuwagata_handbook_p36_837da2662c68dc7d529a7468bbfc9600",
+    "book_id": "book_kuwagata_handbook",
+    "page": 36,
+    "taxon_name": "ヒメオオクワガタ",
+    "scientific_name": "Dorcus montivagus",
+    "family": null,
+    "data_icons": {
+        "size": "male: 22-58mm, female: 26-42mm",
+        "season": "",
+        "distribution": "北海道〜九州"
+    },
+    "photos": [
+        "大型個体 (Male Large)",
+        "小型個体 (Male Small)",
+        "♀ (Female)"
+    ],
+    "figures": [
+        "1: 内側にえぐれる",
+        "2: 内歯は中央より前方"
+    ],
+    "page_type": "SPECIES_DATA",
+    "rarity_stars": null,
+    "type": "description"
+}

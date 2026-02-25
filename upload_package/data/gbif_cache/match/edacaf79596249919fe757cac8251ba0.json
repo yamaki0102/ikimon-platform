@@ -1,0 +1,18 @@
+{
+    "taxon_key": 5666,
+    "scientific_name": "Gekkonidae",
+    "status": "ACCEPTED",
+    "match_type": "HIGHERRANK",
+    "confidence": 94,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Gekkonidae",
+    "genus": null,
+    "rank": "FAMILY",
+    "original_query": "Gekkonidae",
+    "_cached_at": 1770420138
+}

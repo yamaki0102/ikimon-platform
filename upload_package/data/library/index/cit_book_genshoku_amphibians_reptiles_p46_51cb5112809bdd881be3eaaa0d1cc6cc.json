@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p46_51cb5112809bdd881be3eaaa0d1cc6cc",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 46,
+    "taxon_name": "アジアヒキガエル",
+    "scientific_name": "Bufo bufo gargarizans CANTOR, 1842",
+    "family": "ヒキガエル科",
+    "data_icons": {
+        "size": "60〜100mm",
+        "season": null,
+        "distribution": "宮古島 (および大陸部)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

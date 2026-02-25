@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p42_07fcd31ba5d98922bec0db3321bc6ca0",
+    "book_id": "book_kumo_handbook",
+    "page": 42,
+    "taxon_name": "スジアカハシリグモ",
+    "scientific_name": "Dolomedes saganus",
+    "family": "キシダグモ科 Pisauridae",
+    "data_icons": {
+        "size": "female: 11〜18mm, male: 15〜18mm",
+        "season": "夏〜秋",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス（スジボソ型）",
+        "オス",
+        "オス触肢"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

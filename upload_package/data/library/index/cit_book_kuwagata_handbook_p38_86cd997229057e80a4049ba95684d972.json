@@ -1,0 +1,26 @@
+{
+    "id": "cit_book_kuwagata_handbook_p38_86cd997229057e80a4049ba95684d972",
+    "book_id": "book_kuwagata_handbook",
+    "page": 38,
+    "taxon_name": "アカアシクワガタ",
+    "scientific_name": "Dorcus rubrofemoratus",
+    "family": null,
+    "data_icons": {
+        "size": "male: 23-59mm, female: 24-40mm",
+        "season": "",
+        "distribution": "北海道〜九州, 対馬"
+    },
+    "photos": [
+        "大型個体 (Male Large)",
+        "小型個体 (Male Small)",
+        "♀ (Female)"
+    ],
+    "figures": [
+        "1: 黒色で光沢",
+        "2: 第一内歯は中央より前方",
+        "3: 外側に反る (tibiae?)"
+    ],
+    "page_type": "SPECIES_DATA",
+    "rarity_stars": null,
+    "type": "description"
+}

@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p82_f727dd151a92925416631bab61a6da58",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 82,
+    "taxon_name": "モリアオガエル (続き)",
+    "scientific_name": "Rhacophorus arboreus (Y. OKADA et KAWANO, 1924)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": "♂50〜70, ♀60〜90mm",
+        "season": "4〜6月",
+        "distribution": "本州, 四国, 九州 (山地)"
+    },
+    "photos": [],
+    "figures": [
+        {
+            "caption": "第2図. モリアオガエル（暗色斑紋の現われた状態を示す.",
+            "note": "Drawing of Rhacophorus arboreus highlighting dark spots."
+        }
+    ],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

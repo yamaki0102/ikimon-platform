@@ -1,0 +1,10 @@
+[Wed Feb 18 07:10:47.631163 2026] [:warn] [pid 34168] infraweb: Failed to set sitedata to the cache.
+[Wed Feb 18 07:10:47.631189 2026] [:warn] [pid 34168] infraweb: Failed to set sitedata to the cache.
+[Wed Feb 18 07:10:47.631206 2026] [:warn] [pid 34168] infraweb: Failed to set sitedata to the cache.
+[Wed Feb 18 07:22:00.971181 2026] [:warn] [pid 47088] infraweb: Failed to set sitedata to the cache.
+[Wed Feb 18 07:22:00.971264 2026] [:warn] [pid 47088] infraweb: Failed to set sitedata to the cache.
+[Wed Feb 18 07:22:00.971284 2026] [:warn] [pid 47088] infraweb: Failed to set sitedata to the cache.
+[Wed Feb 18 07:22:00.972027 2026] [:warn] [pid 47088] infraweb: Failed to set sitedata to the cache.
+[Wed Feb 18 07:22:00.972052 2026] [:warn] [pid 47088] infraweb: Failed to set sitedata to the cache.
+[Wed Feb 18 07:22:00.972068 2026] [:warn] [pid 47088] infraweb: Failed to set sitedata to the cache.
+[Wed Feb 18 07:42:45.159600 2026] [core:crit] [pid 34641] (13)Permission denied: [client 180.199.214.126:0] AH00529: /home/r1522484/public_html/ikimon.life/public_html/api/.htaccess pcfg_openfile: unable to check htaccess file, ensure it is readable and that '/home/r1522484/public_html/ikimon.life/public_html/api/' is executable, referer: https://ikimon.life/observation_detail.php?id=ff36e7930bd62c2b

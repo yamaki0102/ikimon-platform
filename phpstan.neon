@@ -1,0 +1,37 @@
+includes:
+    - phpstan-baseline.neon
+
+parameters:
+    # Google Drive path workaround: disable parallel processing
+    parallel:
+        maximumNumberOfProcesses: 1
+
+    # Level 5: Method calls, return types, dead code
+    # Levels: 0 (loose) → 10 (strict). 5 is the sweet spot for catching Auth::check() type bugs.
+    level: 5
+
+    paths:
+        - upload_package/libs
+        - upload_package/public_html
+
+    scanFiles:
+        - upload_package/config/oauth_config.php
+    excludePaths:
+        - upload_package/public_html/assets
+        - upload_package/public_html/components/badge_notification.php
+
+    # Bootstrap file to define constants (ROOT_DIR, DATA_DIR, etc.)
+    bootstrapFiles:
+        - upload_package/config/config.php
+
+    # Treat PHP warnings as errors
+    reportUnmatchedIgnoredErrors: false
+
+    # Ignore dynamic patterns that are intentional
+    ignoreErrors:
+        # DataStore uses dynamic method resolution
+        - '#Call to static method \w+ on class DataStore#'
+        # Session superglobal access
+        - '#Variable \$_SESSION might not be defined#'
+        # Dynamic includes in components
+        - '#Parameter .* of function include expects#'

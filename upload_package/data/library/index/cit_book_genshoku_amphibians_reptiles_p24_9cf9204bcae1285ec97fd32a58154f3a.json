@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p24_9cf9204bcae1285ec97fd32a58154f3a",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 24,
+    "taxon_name": "ベッコウサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) stejnegeri DUNN, 1923",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": "宮崎・熊本県境の五箇瀬川上流（確実な産地として）"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

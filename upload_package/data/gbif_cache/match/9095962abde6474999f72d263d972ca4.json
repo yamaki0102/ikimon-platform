@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2458206,
+    "scientific_name": "Achalinus werneri Van Denburgh, 1912",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Xenodermidae",
+    "genus": "Achalinus",
+    "rank": "SPECIES",
+    "original_query": "Achalinus (Achalinus) werneri VAN DENBURGH, 1912",
+    "_cached_at": 1770420250
+}

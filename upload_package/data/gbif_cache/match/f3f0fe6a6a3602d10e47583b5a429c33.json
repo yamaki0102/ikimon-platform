@@ -1,0 +1,18 @@
+{
+    "taxon_key": 9164170,
+    "scientific_name": "Lepidodactylus lugubris (Duméril & Bibron, 1836)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Gekkonidae",
+    "genus": "Lepidodactylus",
+    "rank": "SPECIES",
+    "original_query": "Lepidodactylus lugubris",
+    "_cached_at": 1770420130
+}

@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p89_b8efc684337d6ee63005aba467964700",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 89,
+    "taxon_name": "ヒメアマガエル",
+    "scientific_name": "Microhyla ornata (DUMÉRIL et BIBRON, 1841)",
+    "family": "ジムグリガエル科",
+    "data_icons": {
+        "size": "25〜30mm",
+        "season": "3〜7月",
+        "distribution": "琉球列島(喜界島以南), 台湾, 東南アジア"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

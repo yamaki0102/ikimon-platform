@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p27_6df6c55014c6d4d6b1c2e6a7b4df5f3c",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 27,
+    "taxon_name": "ハコネサンショウウオ",
+    "scientific_name": "Onychodactylus japonicus (HOUTTUYN, 1782)",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

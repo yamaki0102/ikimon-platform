@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p51_3da07d5acb6278f30baabc17794bb64f",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 51,
+    "taxon_name": "ハロウエルアマガエル",
+    "scientific_name": "Hyla hallowellii THOMPSON, 1912",
+    "family": "アマガエル科",
+    "data_icons": {
+        "size": "25〜35mm",
+        "season": "3月〜8月",
+        "distribution": "喜界島, 奄美大島, 徳之島, 与論島 (沖永良部島?)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

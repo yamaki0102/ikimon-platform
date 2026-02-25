@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p24_1a56889fb3f1491584ae9b36e1473366",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 24,
+    "taxon_name": "オキサンショウウオ",
+    "scientific_name": "Hynobius (Hynobina) naevius okiensis I. SATO, 1940",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "120〜130mm",
+        "season": null,
+        "distribution": "隠岐島 (島後)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

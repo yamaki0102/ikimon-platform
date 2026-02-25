@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p63_95dc8c3026ee3a60512f3c48921583e5",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 63,
+    "taxon_name": "トノサマガエル",
+    "scientific_name": "Rana (Rana) nigromaculata HALLOWELL, 1860",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

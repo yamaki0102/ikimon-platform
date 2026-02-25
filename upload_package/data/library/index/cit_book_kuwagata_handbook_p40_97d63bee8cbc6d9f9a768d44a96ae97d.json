@@ -1,0 +1,31 @@
+{
+    "id": "cit_book_kuwagata_handbook_p40_97d63bee8cbc6d9f9a768d44a96ae97d",
+    "book_id": "book_kuwagata_handbook",
+    "page": 40,
+    "taxon_name": "スジクワガタ",
+    "scientific_name": "Dorcus striatipennis",
+    "family": null,
+    "data_icons": {
+        "size": "male: 13-40mm, female: 14-24mm",
+        "season": "",
+        "distribution": "北海道〜九州, 伊豆諸島, 対馬, 南西諸島（大隅諸島のみ）"
+    },
+    "photos": [
+        "大型個体 (Male Large)",
+        "小型個体 (Male Small)",
+        "♀ (Female)"
+    ],
+    "figures": [
+        "1: 内歯２つがつながる",
+        "2: すじはない",
+        "3: 大あごの長さ ≒ 頭部の長さ",
+        "4: 中央よりやや前方に痕跡的な内歯",
+        "5: 明確なすじ（点刻列）",
+        "6: 明確なすじ（点刻列）",
+        "7: 光沢",
+        "8: ギザギザ"
+    ],
+    "page_type": "SPECIES_DATA",
+    "rarity_stars": null,
+    "type": "description"
+}

@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p16_d7b99fdb8f76095248ecef5b57bbe64a",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 16,
+    "taxon_name": "トウキョウサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) nebulosus tokyoensis TAGO, 1931",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "70〜100mm",
+        "season": null,
+        "distribution": "東海地方以東の太平洋沿岸地域, 関東地方, 福島県東部"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p15_08a803bcc0fbef77245e9aaa715d3460",
+    "book_id": "book_kumo_handbook",
+    "page": 15,
+    "taxon_name": "アシブトヒメグモ",
+    "scientific_name": "Anelosimus crassipes",
+    "family": "ヒメグモ科 Theridiidae",
+    "data_icons": {
+        "size": "female: 3〜4mm, male: 2.5〜3.5mm",
+        "season": "春〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "花の近くにいるメス",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

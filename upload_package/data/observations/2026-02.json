@@ -1,0 +1,574 @@
+[
+    {
+        "id": "cffb8b4440c42a26",
+        "user_id": "user_69945d7f36a9d",
+        "user_name": "E2E_A_122223",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69945d7f36a9d",
+        "user_rank": "Observer",
+        "observed_at": "2026-02-17 12:22:26",
+        "lat": 34.71,
+        "lng": 137.726,
+        "country": "JP",
+        "prefecture": "",
+        "municipality": "浜松市",
+        "cultivation": "wild",
+        "life_stage": "unknown",
+        "note": "",
+        "photos": [
+            "uploads\/photos\/cffb8b4440c42a26\/photo_0.png"
+        ],
+        "status": "要同定",
+        "event_id": null,
+        "survey_id": null,
+        "site_id": "ikimon_forest",
+        "site_name": "ikimonの森 (本社工場)",
+        "created_at": "2026-02-17 21:22:27",
+        "updated_at": "2026-02-17 21:22:33",
+        "identifications": [
+            {
+                "id": "657a3ddb",
+                "user_id": "user_69945d80c5e24",
+                "user_name": "E2E_C_122223",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69945d80c5e24",
+                "taxon_key": "e2e_test_abura_1234",
+                "taxon_name": "アブラゼミ",
+                "taxon_slug": "",
+                "scientific_name": "Graptopsaltria nigrofuscata",
+                "confidence": "sure",
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": "Animalia",
+                    "phylum": "Arthropoda",
+                    "class": "Insecta",
+                    "order": "Hemiptera",
+                    "family": "Cicadidae",
+                    "genus": "Graptopsaltria"
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": "E2Eテスト v5 同定 by C"
+                },
+                "note": "E2Eテスト v5 同定 by C",
+                "created_at": "2026-02-17 21:22:28",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            },
+            {
+                "id": "3c10f476",
+                "user_id": "user_69945d800e68a",
+                "user_name": "E2E_B_122223",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69945d800e68a",
+                "taxon_key": "e2e_test_minmin_5678",
+                "taxon_name": "ミンミンゼミ",
+                "taxon_slug": "",
+                "scientific_name": "Hyalessa maculaticollis",
+                "confidence": "likely",
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": null,
+                    "phylum": null,
+                    "class": null,
+                    "order": null,
+                    "family": null,
+                    "genus": null
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": "E2Eテスト v5 同定変更 by B"
+                },
+                "note": "E2Eテスト v5 同定変更 by B",
+                "created_at": "2026-02-17 21:22:29",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            },
+            {
+                "id": "866d2391",
+                "user_id": "user_69945d7f36a9d",
+                "user_name": "E2E_A_122223",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69945d7f36a9d",
+                "taxon_key": "1",
+                "taxon_name": "<script>alert(\"xss\")<\/script>",
+                "taxon_slug": "",
+                "scientific_name": "",
+                "confidence": null,
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": null,
+                    "phylum": null,
+                    "class": null,
+                    "order": null,
+                    "family": null,
+                    "genus": null
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": ""
+                },
+                "note": "",
+                "created_at": "2026-02-17 21:22:33",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            }
+        ],
+        "taxon": {
+            "name": "アブラゼミ",
+            "scientific_name": "Graptopsaltria nigrofuscata",
+            "key": "e2e_test_abura_1234",
+            "rank": "species",
+            "lineage": {
+                "kingdom": "Animalia",
+                "phylum": "Arthropoda",
+                "class": "Insecta",
+                "order": "Hemiptera",
+                "family": "Cicadidae",
+                "genus": "Graptopsaltria"
+            }
+        },
+        "biome": "unknown",
+        "consensus": {
+            "total_votes": 3,
+            "total_score": 1.5,
+            "top_score": 0.5,
+            "agreement_rate": 0.333,
+            "algorithm": "we_consensus_v1",
+            "updated_at": "2026-02-17T21:22:33+09:00"
+        },
+        "quality_grade": "Needs ID",
+        "data_quality": "B"
+    },
+    {
+        "id": "c9ee1369d37d09a0",
+        "user_id": "user_69945eafa90a7",
+        "user_name": "E2E_A_122727",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69945eafa90a7",
+        "user_rank": "Observer",
+        "observed_at": "2026-02-17 12:27:31",
+        "lat": 34.71,
+        "lng": 137.726,
+        "country": "JP",
+        "prefecture": "",
+        "municipality": "浜松市",
+        "cultivation": "wild",
+        "life_stage": "unknown",
+        "note": "",
+        "photos": [
+            "uploads\/photos\/c9ee1369d37d09a0\/photo_0.png"
+        ],
+        "status": "要同定",
+        "event_id": null,
+        "survey_id": null,
+        "site_id": "ikimon_forest",
+        "site_name": "ikimonの森 (本社工場)",
+        "created_at": "2026-02-17 21:27:31",
+        "updated_at": "2026-02-17 21:27:37",
+        "identifications": [
+            {
+                "id": "4da02b02",
+                "user_id": "user_69945eb1ace09",
+                "user_name": "E2E_C_122727",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69945eb1ace09",
+                "taxon_key": "e2e_test_abura_1234",
+                "taxon_name": "アブラゼミ",
+                "taxon_slug": "",
+                "scientific_name": "Graptopsaltria nigrofuscata",
+                "confidence": "sure",
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": "Animalia",
+                    "phylum": "Arthropoda",
+                    "class": "Insecta",
+                    "order": "Hemiptera",
+                    "family": "Cicadidae",
+                    "genus": "Graptopsaltria"
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": "E2Eテスト v5 同定 by C"
+                },
+                "note": "E2Eテスト v5 同定 by C",
+                "created_at": "2026-02-17 21:27:32",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            },
+            {
+                "id": "df953725",
+                "user_id": "user_69945eb0c0899",
+                "user_name": "E2E_B_122727",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69945eb0c0899",
+                "taxon_key": "e2e_test_minmin_5678",
+                "taxon_name": "ミンミンゼミ",
+                "taxon_slug": "",
+                "scientific_name": "Hyalessa maculaticollis",
+                "confidence": "likely",
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": null,
+                    "phylum": null,
+                    "class": null,
+                    "order": null,
+                    "family": null,
+                    "genus": null
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": "E2Eテスト v5 同定変更 by B"
+                },
+                "note": "E2Eテスト v5 同定変更 by B",
+                "created_at": "2026-02-17 21:27:32",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            },
+            {
+                "id": "0645460e",
+                "user_id": "user_69945eafa90a7",
+                "user_name": "E2E_A_122727",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69945eafa90a7",
+                "taxon_key": "1",
+                "taxon_name": "<script>alert(\"xss\")<\/script>",
+                "taxon_slug": "",
+                "scientific_name": "",
+                "confidence": null,
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": null,
+                    "phylum": null,
+                    "class": null,
+                    "order": null,
+                    "family": null,
+                    "genus": null
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": ""
+                },
+                "note": "",
+                "created_at": "2026-02-17 21:27:37",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            }
+        ],
+        "taxon": {
+            "name": "アブラゼミ",
+            "scientific_name": "Graptopsaltria nigrofuscata",
+            "key": "e2e_test_abura_1234",
+            "rank": "species",
+            "lineage": {
+                "kingdom": "Animalia",
+                "phylum": "Arthropoda",
+                "class": "Insecta",
+                "order": "Hemiptera",
+                "family": "Cicadidae",
+                "genus": "Graptopsaltria"
+            }
+        },
+        "biome": "unknown",
+        "consensus": {
+            "total_votes": 3,
+            "total_score": 1.5,
+            "top_score": 0.5,
+            "agreement_rate": 0.333,
+            "algorithm": "we_consensus_v1",
+            "updated_at": "2026-02-17T21:27:37+09:00"
+        },
+        "quality_grade": "Needs ID",
+        "data_quality": "B"
+    },
+    {
+        "id": "e45fca937f2df814",
+        "user_id": "user_6994603153846",
+        "user_name": "E2E_A_123353",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_6994603153846",
+        "user_rank": "Observer",
+        "observed_at": "2026-02-17 12:33:57",
+        "lat": 34.71,
+        "lng": 137.726,
+        "country": "JP",
+        "prefecture": "",
+        "municipality": "浜松市",
+        "cultivation": "wild",
+        "life_stage": "unknown",
+        "note": "",
+        "photos": [
+            "uploads\/photos\/e45fca937f2df814\/photo_0.png"
+        ],
+        "status": "要同定",
+        "event_id": null,
+        "survey_id": null,
+        "site_id": "ikimon_forest",
+        "site_name": "ikimonの森 (本社工場)",
+        "created_at": "2026-02-17 21:33:57",
+        "updated_at": "2026-02-17 21:34:03",
+        "identifications": [
+            {
+                "id": "1ac89be5",
+                "user_id": "user_699460332a726",
+                "user_name": "E2E_C_123353",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_699460332a726",
+                "taxon_key": "e2e_test_abura_1234",
+                "taxon_name": "アブラゼミ",
+                "taxon_slug": "",
+                "scientific_name": "Graptopsaltria nigrofuscata",
+                "confidence": "sure",
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": "Animalia",
+                    "phylum": "Arthropoda",
+                    "class": "Insecta",
+                    "order": "Hemiptera",
+                    "family": "Cicadidae",
+                    "genus": "Graptopsaltria"
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": "E2Eテスト v5 同定 by C"
+                },
+                "note": "E2Eテスト v5 同定 by C",
+                "created_at": "2026-02-17 21:33:58",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            },
+            {
+                "id": "d5dd82b2",
+                "user_id": "user_6994603266ed1",
+                "user_name": "E2E_B_123353",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_6994603266ed1",
+                "taxon_key": "e2e_test_minmin_5678",
+                "taxon_name": "ミンミンゼミ",
+                "taxon_slug": "",
+                "scientific_name": "Hyalessa maculaticollis",
+                "confidence": "likely",
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": null,
+                    "phylum": null,
+                    "class": null,
+                    "order": null,
+                    "family": null,
+                    "genus": null
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": "E2Eテスト v5 同定変更 by B"
+                },
+                "note": "E2Eテスト v5 同定変更 by B",
+                "created_at": "2026-02-17 21:33:58",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            },
+            {
+                "id": "3954f03f",
+                "user_id": "user_6994603153846",
+                "user_name": "E2E_A_123353",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_6994603153846",
+                "taxon_key": "1",
+                "taxon_name": "<script>alert(\"xss\")<\/script>",
+                "taxon_slug": "",
+                "scientific_name": "",
+                "confidence": null,
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": null,
+                    "phylum": null,
+                    "class": null,
+                    "order": null,
+                    "family": null,
+                    "genus": null
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": ""
+                },
+                "note": "",
+                "created_at": "2026-02-17 21:34:03",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            }
+        ],
+        "taxon": {
+            "name": "アブラゼミ",
+            "scientific_name": "Graptopsaltria nigrofuscata",
+            "key": "e2e_test_abura_1234",
+            "rank": "species",
+            "lineage": {
+                "kingdom": "Animalia",
+                "phylum": "Arthropoda",
+                "class": "Insecta",
+                "order": "Hemiptera",
+                "family": "Cicadidae",
+                "genus": "Graptopsaltria"
+            }
+        },
+        "biome": "unknown",
+        "consensus": {
+            "total_votes": 3,
+            "total_score": 1.5,
+            "top_score": 0.5,
+            "agreement_rate": 0.333,
+            "algorithm": "we_consensus_v1",
+            "updated_at": "2026-02-17T21:34:03+09:00"
+        },
+        "quality_grade": "Needs ID",
+        "data_quality": "B"
+    },
+    {
+        "id": "36f10578baaed608",
+        "user_id": "user_69946336d93ce",
+        "user_name": "E2E_A_124646",
+        "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69946336d93ce",
+        "user_rank": "Observer",
+        "observed_at": "2026-02-17 12:46:51",
+        "lat": 34.71,
+        "lng": 137.726,
+        "country": "JP",
+        "prefecture": "",
+        "municipality": "浜松市",
+        "cultivation": "wild",
+        "life_stage": "unknown",
+        "note": "",
+        "photos": [
+            "uploads\/photos\/36f10578baaed608\/photo_0.png"
+        ],
+        "status": "要同定",
+        "event_id": null,
+        "survey_id": null,
+        "site_id": "ikimon_forest",
+        "site_name": "ikimonの森 (本社工場)",
+        "created_at": "2026-02-17 21:46:51",
+        "updated_at": "2026-02-17 21:46:58",
+        "identifications": [
+            {
+                "id": "44c50bea",
+                "user_id": "user_69946338c1b5b",
+                "user_name": "E2E_C_124646",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69946338c1b5b",
+                "taxon_key": "e2e_test_abura_1234",
+                "taxon_name": "アブラゼミ",
+                "taxon_slug": "",
+                "scientific_name": "Graptopsaltria nigrofuscata",
+                "confidence": "sure",
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": "Animalia",
+                    "phylum": "Arthropoda",
+                    "class": "Insecta",
+                    "order": "Hemiptera",
+                    "family": "Cicadidae",
+                    "genus": "Graptopsaltria"
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": "E2Eテスト v5 同定 by C"
+                },
+                "note": "E2Eテスト v5 同定 by C",
+                "created_at": "2026-02-17 21:46:52",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            },
+            {
+                "id": "4f2b24d1",
+                "user_id": "user_69946337e8372",
+                "user_name": "E2E_B_124646",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69946337e8372",
+                "taxon_key": "e2e_test_minmin_5678",
+                "taxon_name": "ミンミンゼミ",
+                "taxon_slug": "",
+                "scientific_name": "Hyalessa maculaticollis",
+                "confidence": "likely",
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": null,
+                    "phylum": null,
+                    "class": null,
+                    "order": null,
+                    "family": null,
+                    "genus": null
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": "E2Eテスト v5 同定変更 by B"
+                },
+                "note": "E2Eテスト v5 同定変更 by B",
+                "created_at": "2026-02-17 21:46:53",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            },
+            {
+                "id": "96ce9944",
+                "user_id": "user_69946336d93ce",
+                "user_name": "E2E_A_124646",
+                "user_avatar": "https:\/\/i.pravatar.cc\/150?u=user_69946336d93ce",
+                "taxon_key": "1",
+                "taxon_name": "<script>alert(\"xss\")<\/script>",
+                "taxon_slug": "",
+                "scientific_name": "",
+                "confidence": null,
+                "life_stage": "unknown",
+                "taxon_rank": "species",
+                "lineage": {
+                    "kingdom": null,
+                    "phylum": null,
+                    "class": null,
+                    "order": null,
+                    "family": null,
+                    "genus": null
+                },
+                "evidence": {
+                    "type": "visual",
+                    "details": [],
+                    "notes": ""
+                },
+                "note": "",
+                "created_at": "2026-02-17 21:46:58",
+                "weight": 0.5,
+                "trust_weight": 0.5
+            }
+        ],
+        "taxon": {
+            "name": "アブラゼミ",
+            "scientific_name": "Graptopsaltria nigrofuscata",
+            "key": "e2e_test_abura_1234",
+            "rank": "species",
+            "lineage": {
+                "kingdom": "Animalia",
+                "phylum": "Arthropoda",
+                "class": "Insecta",
+                "order": "Hemiptera",
+                "family": "Cicadidae",
+                "genus": "Graptopsaltria"
+            }
+        },
+        "biome": "unknown",
+        "consensus": {
+            "total_votes": 3,
+            "total_score": 1.5,
+            "top_score": 0.5,
+            "agreement_rate": 0.333,
+            "algorithm": "we_consensus_v1",
+            "updated_at": "2026-02-17T21:46:58+09:00"
+        },
+        "quality_grade": "Needs ID",
+        "data_quality": "B"
+    }
+]

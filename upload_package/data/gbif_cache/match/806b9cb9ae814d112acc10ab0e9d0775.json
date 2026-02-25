@@ -1,0 +1,18 @@
+{
+    "taxon_key": 6156747,
+    "scientific_name": "Caretta caretta gigas (Deraniyagala, 1939)",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": 8894817,
+    "accepted_name": "Caretta caretta",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Testudines",
+    "order": null,
+    "family": "Cheloniidae",
+    "genus": "Caretta",
+    "rank": "SUBSPECIES",
+    "original_query": "Caretta caretta gigas DERANIYAGALA, 1933",
+    "_cached_at": 1770420083
+}

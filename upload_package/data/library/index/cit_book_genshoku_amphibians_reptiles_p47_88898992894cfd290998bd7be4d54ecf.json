@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p47_88898992894cfd290998bd7be4d54ecf",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 47,
+    "taxon_name": "ヘリグロヒキガエル (続き)",
+    "scientific_name": "Bufo melanostictus SCHNEIDER, 1799",
+    "family": "ヒキガエル科",
+    "data_icons": {
+        "size": "60〜120mm",
+        "season": null,
+        "distribution": "南大東島 (移入), 台湾, アジア南部"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

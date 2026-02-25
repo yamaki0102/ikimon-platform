@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p80_b9da3420c45a972618bba99f03432203",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 80,
+    "taxon_name": "シュレーゲルアオガエル",
+    "scientific_name": "Rhacophorus schlegelii (GÜNTHER, 1858)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

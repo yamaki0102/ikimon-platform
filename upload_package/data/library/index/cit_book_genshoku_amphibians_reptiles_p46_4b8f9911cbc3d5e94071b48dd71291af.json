@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p46_4b8f9911cbc3d5e94071b48dd71291af",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 46,
+    "taxon_name": "ヘリグロヒキガエル",
+    "scientific_name": "Bufo melanostictus SCHNEIDER, 1799",
+    "family": "ヒキガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

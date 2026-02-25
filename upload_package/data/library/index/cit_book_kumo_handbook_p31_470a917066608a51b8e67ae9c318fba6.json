@@ -1,0 +1,19 @@
+{
+    "id": "cit_book_kumo_handbook_p31_470a917066608a51b8e67ae9c318fba6",
+    "book_id": "book_kumo_handbook",
+    "page": 31,
+    "taxon_name": "ヨツデゴミグモ",
+    "scientific_name": "Cyclosa sedeculata",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": null,
+    "photos": [
+        "メス外雌器",
+        "オス触肢",
+        "オス",
+        "網にいるオス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

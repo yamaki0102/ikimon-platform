@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p27_6de6320a070c38466b6d46b78d997c0d",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 27,
+    "taxon_name": "キタサンショウウオ",
+    "scientific_name": "Salamandrella keyserlingii DYBOWSKI, 1870",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "90〜120mm",
+        "season": "5月頃",
+        "distribution": "北海道 (釧路付近など東部の湿地), 国外 (北千島, シベリア等)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

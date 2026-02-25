@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p39_6618784ba058672633020bb41aa770b1",
+    "book_id": "book_kumo_handbook",
+    "page": 39,
+    "taxon_name": "カラフトオニグモ",
+    "scientific_name": "Aculepeira ceropegia",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 5〜9mm, male: 4〜5mm",
+        "season": "夏〜秋",
+        "distribution": "北海道・本州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "白線変異（シロスジ型）",
+        "白線変異",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

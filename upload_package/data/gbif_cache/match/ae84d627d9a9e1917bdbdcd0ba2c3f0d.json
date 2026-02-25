@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2480904,
+    "scientific_name": "Ardeola speciosa (Horsfield, 1821)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Pelecaniformes",
+    "family": "Ardeidae",
+    "genus": "Ardeola",
+    "rank": "SPECIES",
+    "original_query": "Ardeola speciosa",
+    "_cached_at": 1770429041
+}

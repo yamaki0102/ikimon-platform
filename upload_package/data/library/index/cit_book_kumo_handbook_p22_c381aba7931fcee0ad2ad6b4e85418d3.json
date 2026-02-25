@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p22_c381aba7931fcee0ad2ad6b4e85418d3",
+    "book_id": "book_kumo_handbook",
+    "page": 22,
+    "taxon_name": "アシナガグモ",
+    "scientific_name": "Tetragnatha praedonia",
+    "family": "アシナガグモ科 Tetragnathidae",
+    "data_icons": {
+        "size": "female: 8〜14mm, male: 5〜12mm",
+        "season": "春〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス上顎裏面",
+        "顎（牙）先端の突起",
+        "オス（腹部が蛇行する）",
+        "オス上顎裏面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

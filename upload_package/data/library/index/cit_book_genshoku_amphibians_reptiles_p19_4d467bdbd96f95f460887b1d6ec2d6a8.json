@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p19_4d467bdbd96f95f460887b1d6ec2d6a8",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 19,
+    "taxon_name": "トウホクサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) lichenatus BOULENGER, 1883",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "90〜140mm",
+        "season": "3月下旬から6月頃",
+        "distribution": "本州東北部 (太平洋岸は福島以北, 日本海側は新潟以北)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

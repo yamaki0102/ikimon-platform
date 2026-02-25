@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p42_6734b2426227eb1674b84d7557573da1",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 42,
+    "taxon_name": "ヒキガエル",
+    "scientific_name": "Bufo bufo japonicus SCHLEGEL, 1838",
+    "family": "ヒキガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p60_9b69f49b1861aa94671bf145cbd2a83b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 60,
+    "taxon_name": "ニホンアカガエル",
+    "scientific_name": "Rana (Rana) japonica japonica GÜNTHER, 1858",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

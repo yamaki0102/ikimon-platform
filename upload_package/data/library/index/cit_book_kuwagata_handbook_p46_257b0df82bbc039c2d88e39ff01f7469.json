@@ -1,0 +1,29 @@
+{
+    "id": "cit_book_kuwagata_handbook_p46_257b0df82bbc039c2d88e39ff01f7469",
+    "book_id": "book_kuwagata_handbook",
+    "page": 46,
+    "taxon_name": "ノコギリクワガタ",
+    "scientific_name": "Prosopocoilus inclinatus",
+    "family": null,
+    "data_icons": {
+        "size": "male: 24-77mm, female: 19-42mm",
+        "season": "",
+        "distribution": "北海道〜九州, 伊豆諸島 (※), 対馬, 南西諸島（大隅諸島）"
+    },
+    "photos": [
+        "大型個体 (Male Large)",
+        "小型個体 (Male Small)",
+        "♀ (Female)"
+    ],
+    "figures": [
+        "1: 鞘翅の中央より前方で最大",
+        "2: 突起がある",
+        "3: ふくらむ",
+        "4: 中央付近で強く湾曲",
+        "5: 点刻のためざらつく",
+        "6: 前脛節先端が広い"
+    ],
+    "page_type": "SPECIES_DATA",
+    "rarity_stars": null,
+    "type": "description"
+}

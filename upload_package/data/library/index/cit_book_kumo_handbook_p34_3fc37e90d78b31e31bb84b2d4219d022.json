@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p34_3fc37e90d78b31e31bb84b2d4219d022",
+    "book_id": "book_kumo_handbook",
+    "page": 34,
+    "taxon_name": "コガネグモダマシ",
+    "scientific_name": "Larinia argiopiformis",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 7〜11mm, male: 6〜7mm",
+        "season": "春〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "垂直に張る円網",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

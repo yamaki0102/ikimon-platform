@@ -1,85 +1,54 @@
 <?php
+require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/UserStore.php';
+require_once __DIR__ . '/../../libs/Moderation.php';
 Auth::init();
 
-// Protect this area
-Auth::requireRole('Analyst'); // Analysts and above can verify
+Auth::requireRole('Analyst');
 
 $currentUser = Auth::user();
 $observations = DataStore::fetchAll('observations');
-usort($observations, function($a, $b) {
+usort($observations, function ($a, $b) {
     return strtotime($b['observed_at'] ?? 0) <=> strtotime($a['observed_at'] ?? 0);
 });
 $totalObservations = count($observations);
-$pendingCount = count(array_filter($observations, function($o) {
+$pendingCount = count(array_filter($observations, function ($o) {
     return ($o['status'] ?? '') === 'Needs ID';
+}));
+$rgCount = count(array_filter($observations, function ($o) {
+    return in_array($o['status'] ?? '', ['Research Grade', '研究用'], true);
+}));
+$thisMonthCount = count(array_filter($observations, function ($o) {
+    return date('Y-m', strtotime($o['observed_at'] ?? '2000-01-01')) === date('Y-m');
 }));
 $recentObservations = array_slice($observations, 0, 10);
 
 $users = UserStore::getAll(false);
-$specialistCount = count(array_filter($users, function($u) {
+$totalUsers = count($users);
+$specialistCount = count(array_filter($users, function ($u) {
     $role = Auth::getRole($u);
     return in_array($role, ['Specialist', 'Analyst', 'Admin'], true);
 }));
-$tnfdReports = 0;
+
+// Moderation stats
+$modStats = Moderation::getStats();
+$pendingFlags = $modStats['active_flags'] ?? 0;
+$bannedCount = $modStats['active_bans'] ?? 0;
 ?>
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ikimon Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #f1f5f9; }
-        .font-brand { font-family: 'Montserrat', sans-serif; }
-    </style>
+    <?php $adminTitle = 'System Overview';
+    include __DIR__ . '/components/head.php'; ?>
 </head>
+
 <body class="flex h-screen overflow-hidden">
-    
-    <!-- Sidebar -->
-    <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
-        <div class="p-6 flex items-center gap-3">
-            <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center font-brand font-black text-slate-900">i</div>
-            <span class="font-brand font-black text-xl tracking-tight">ikimon <span class="text-xs text-slate-500 font-normal">Admin</span></span>
-        </div>
 
-        <nav class="flex-1 px-4 space-y-2">
-            <a href="index.php" class="flex items-center gap-3 px-4 py-3 bg-slate-800 text-white rounded-xl font-bold transition">
-                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
-                Dashboard
-            </a>
-            <a href="verification.php" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl font-bold transition">
-                <i data-lucide="check-circle-2" class="w-5 h-5"></i>
-                Verification
-                <span class="ml-auto bg-emerald-500 text-black text-[10px] px-2 py-0.5 rounded-full">12</span>
-            </a>
-            <a href="users.php" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl font-bold transition">
-                <i data-lucide="users" class="w-5 h-5"></i>
-                Users & Roles
-            </a>
-            <a href="corporate.php" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl font-bold transition">
-                <i data-lucide="building-2" class="w-5 h-5"></i>
-                Corporate (TNFD)
-            </a>
-        </nav>
-
-        <div class="p-4 border-t border-slate-800">
-            <div class="flex items-center gap-3 px-4 py-2">
-                <img src="<?php echo $currentUser['avatar']; ?>" class="w-8 h-8 rounded-full bg-slate-700">
-                <div class="overflow-hidden">
-                    <p class="text-sm font-bold truncate"><?php echo $currentUser['name']; ?></p>
-                    <p class="text-xs text-slate-500 truncate"><?php echo htmlspecialchars(Auth::getRankLabel($currentUser)); ?></p>
-                </div>
-            </div>
-            <a href="../logout.php" class="block mt-2 text-xs text-red-400 hover:text-red-300 px-4">Log Out</a>
-        </div>
-    </aside>
+    <?php $adminPage = 'index';
+    include __DIR__ . '/components/sidebar.php'; ?>
 
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto p-8">
@@ -90,23 +59,46 @@ $tnfdReports = 0;
             </div>
         </header>
 
-        <!-- KPI Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Pending Verifications</p>
-                <p class="text-3xl font-black text-white"><?php echo $pendingCount; ?></p>
-            </div>
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Total Observations</p>
+        <!-- KPI Cards Row 1 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">総観察数</p>
                 <p class="text-3xl font-black text-emerald-400"><?php echo number_format($totalObservations); ?></p>
             </div>
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Active Specialists</p>
-                <p class="text-3xl font-black text-blue-400"><?php echo $specialistCount; ?></p>
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">今月の投稿</p>
+                <p class="text-3xl font-black text-cyan-400"><?php echo number_format($thisMonthCount); ?></p>
             </div>
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-2">TNFD Reports</p>
-                <p class="text-3xl font-black text-purple-400"><?php echo $tnfdReports; ?></p>
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Research Grade</p>
+                <p class="text-3xl font-black text-green-400"><?php echo number_format($rgCount); ?></p>
+                <p class="text-xs text-slate-500 mt-1"><?php echo $totalObservations > 0 ? round($rgCount / $totalObservations * 100) : 0; ?>%</p>
+            </div>
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">同定待ち</p>
+                <p class="text-3xl font-black <?php echo $pendingCount > 10 ? 'text-yellow-400' : 'text-white'; ?>"><?php echo $pendingCount; ?></p>
+            </div>
+        </div>
+        <!-- KPI Cards Row 2 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">総ユーザー数</p>
+                <p class="text-3xl font-black text-blue-400"><?php echo number_format($totalUsers); ?></p>
+            </div>
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">専門家</p>
+                <p class="text-3xl font-black text-violet-400"><?php echo $specialistCount; ?></p>
+            </div>
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">未処理通報</p>
+                <p class="text-3xl font-black <?php echo $pendingFlags > 0 ? 'text-red-400' : 'text-slate-500'; ?>"><?php echo $pendingFlags; ?></p>
+                <?php if ($pendingFlags > 0): ?>
+                    <a href="moderation.php" class="text-xs text-red-400 hover:underline mt-1 inline-block">確認 →</a>
+                <?php endif; ?>
+            </div>
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">ShadowBan</p>
+                <p class="text-3xl font-black text-slate-500"><?php echo $bannedCount; ?></p>
             </div>
         </div>
 
@@ -126,24 +118,24 @@ $tnfdReports = 0;
                 </thead>
                 <tbody class="divide-y divide-slate-700">
                     <?php if (count($recentObservations) === 0): ?>
-                    <tr>
-                        <td class="px-6 py-6 text-slate-500" colspan="4">Recent activity will appear here once observations are posted.</td>
-                    </tr>
+                        <tr>
+                            <td class="px-6 py-6 text-slate-500" colspan="4">Recent activity will appear here once observations are posted.</td>
+                        </tr>
                     <?php else: ?>
-                    <?php foreach (array_slice($recentObservations, 0, 6) as $obs): ?>
-                    <tr>
-                        <td class="px-6 py-4 text-slate-400"><?php echo htmlspecialchars($obs['observed_at'] ?? '-'); ?></td>
-                        <td class="px-6 py-4 font-bold"><?php echo htmlspecialchars($obs['user_name'] ?? 'Unknown'); ?></td>
-                        <td class="px-6 py-4">Uploaded <span class="text-slate-300"><?php echo htmlspecialchars($obs['taxon']['name'] ?? 'Unknown'); ?></span></td>
-                        <td class="px-6 py-4">
-                            <?php if (($obs['status'] ?? '') === 'Research Grade'): ?>
-                                <span class="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold">Research</span>
-                            <?php else: ?>
-                                <span class="px-2 py-1 rounded bg-yellow-500/10 text-yellow-400 text-xs font-bold"><?php echo htmlspecialchars($obs['status'] ?? 'Pending'); ?></span>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
+                        <?php foreach (array_slice($recentObservations, 0, 6) as $obs): ?>
+                            <tr>
+                                <td class="px-6 py-4 text-slate-400"><?php echo htmlspecialchars($obs['observed_at'] ?? '-'); ?></td>
+                                <td class="px-6 py-4 font-bold"><?php echo htmlspecialchars($obs['user_name'] ?? 'Unknown'); ?></td>
+                                <td class="px-6 py-4">Uploaded <span class="text-slate-300"><?php echo htmlspecialchars($obs['taxon']['name'] ?? 'Unknown'); ?></span></td>
+                                <td class="px-6 py-4">
+                                    <?php if (($obs['status'] ?? '') === 'Research Grade'): ?>
+                                        <span class="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold">Research</span>
+                                    <?php else: ?>
+                                        <span class="px-2 py-1 rounded bg-yellow-500/10 text-yellow-400 text-xs font-bold"><?php echo htmlspecialchars($obs['status'] ?? 'Pending'); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -151,8 +143,9 @@ $tnfdReports = 0;
 
     </main>
 
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>
 </body>
+
 </html>

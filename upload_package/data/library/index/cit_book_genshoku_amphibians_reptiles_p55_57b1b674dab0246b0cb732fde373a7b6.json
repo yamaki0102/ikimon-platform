@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p55_57b1b674dab0246b0cb732fde373a7b6",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 55,
+    "taxon_name": "タゴガエル",
+    "scientific_name": "Rana (Rana) tagoi Y. OKADA, 1928",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": "本州 (東北地方など)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

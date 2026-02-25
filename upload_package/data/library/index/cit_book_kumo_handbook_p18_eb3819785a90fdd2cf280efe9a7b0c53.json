@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p18_eb3819785a90fdd2cf280efe9a7b0c53",
+    "book_id": "book_kumo_handbook",
+    "page": 18,
+    "taxon_name": "カグヤヒメグモ",
+    "scientific_name": "Parasteatoda occulata",
+    "family": "ヒメグモ科 Theridiidae",
+    "data_icons": {
+        "size": "female: 4〜5mm, male: 2〜3mm",
+        "season": "夏〜秋",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "卵のうを守るメス",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

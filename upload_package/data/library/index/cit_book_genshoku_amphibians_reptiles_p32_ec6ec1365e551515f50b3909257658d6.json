@@ -1,0 +1,16 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p32_ec6ec1365e551515f50b3909257658d6",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 32,
+    "taxon_name": "オオサンショウウオ",
+    "scientific_name": "Megalobatrachus japonicus",
+    "family": "オオサンショウウオ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [
+        "16. オオサンショウウオ"
+    ],
+    "page_type": "VISUAL_PLATE",
+    "rarity_stars": null,
+    "type": "plate"
+}

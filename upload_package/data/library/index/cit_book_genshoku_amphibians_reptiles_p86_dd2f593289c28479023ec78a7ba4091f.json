@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p86_dd2f593289c28479023ec78a7ba4091f",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 86,
+    "taxon_name": "ニホンカジカガエル",
+    "scientific_name": "Rhacophorus japonicus (HALLOWELL, 1860)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

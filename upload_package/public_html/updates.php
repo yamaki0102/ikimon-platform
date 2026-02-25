@@ -4,34 +4,38 @@ Auth::init();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>アップデート履歴 - ikimon</title>
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
+
 <body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
-    <script>document.body.classList.remove('js-loading');</script>
+    <script nonce="<?= CspNonce::attr() ?>">
+        document.body.classList.remove('js-loading');
+    </script>
 
     <section class="pt-32 pb-16 px-6">
         <div class="max-w-3xl mx-auto">
             <h1 class="text-3xl font-black mb-4">アップデート履歴</h1>
-            <p class="text-gray-400 mb-12">ikimonの最新の改善と機能追加をお知らせします</p>
-            
+            <p class="text-gray-500 mb-12">ikimonの最新の改善と機能追加をお知らせします</p>
+
             <!-- Updates Timeline -->
             <div class="space-y-8">
-                
+
                 <!-- v0.2.0 -->
                 <article class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
                     <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400">v0.2.0</span>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.2.0</span>
                         <time class="text-sm text-gray-500">2025年1月1日</time>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-white">新年アップデート 🎉</h2>
-                    <ul class="space-y-2 text-gray-300 text-sm">
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">新年アップデート 🎉</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
                         <li class="flex items-start gap-2">
                             <span class="text-green-400 shrink-0">✓</span>
                             <span><strong>PWA対応</strong>: ホーム画面に追加できるようになりました</span>
@@ -54,16 +58,16 @@ Auth::init();
                         </li>
                     </ul>
                 </article>
-                
+
                 <!-- v0.1.5 -->
-                <article class="relative pl-8 border-l-2 border-white/10">
+                <article class="relative pl-8 border-l-2 border-gray-200">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
                     <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-gray-400">v0.1.5</span>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.1.5</span>
                         <time class="text-sm text-gray-500">2024年12月15日</time>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-white">企業向け機能リリース</h2>
-                    <ul class="space-y-2 text-gray-300 text-sm">
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">企業向け機能リリース</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
                         <li class="flex items-start gap-2">
                             <span class="text-blue-400 shrink-0">✓</span>
                             <span><strong>企業ダッシュボード</strong>: サイト別の生物多様性可視化</span>
@@ -78,16 +82,16 @@ Auth::init();
                         </li>
                     </ul>
                 </article>
-                
+
                 <!-- v0.1.0 -->
-                <article class="relative pl-8 border-l-2 border-white/10">
+                <article class="relative pl-8 border-l-2 border-gray-200">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
                     <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-gray-400">v0.1.0</span>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.1.0</span>
                         <time class="text-sm text-gray-500">2024年11月1日</time>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-white">ベータ版リリース 🚀</h2>
-                    <ul class="space-y-2 text-gray-300 text-sm">
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">ベータ版リリース 🚀</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
                         <li class="flex items-start gap-2">
                             <span class="text-purple-400 shrink-0">✓</span>
                             <span><strong>観察投稿機能</strong>: 写真から生き物を記録</span>
@@ -106,27 +110,28 @@ Auth::init();
                         </li>
                     </ul>
                 </article>
-                
+
             </div>
-            
+
             <!-- Newsletter signup -->
-            <div class="mt-16 p-8 rounded-2xl glass-card border border-white/10 text-center">
+            <div class="mt-16 p-8 rounded-2xl bg-white border border-gray-200 shadow-sm text-center">
                 <h3 class="text-lg font-bold mb-2">最新情報をお届けします</h3>
-                <p class="text-sm text-gray-400 mb-4">新機能リリース時にメールでお知らせします</p>
+                <p class="text-sm text-gray-500 mb-4">新機能リリース時にメールでお知らせします</p>
                 <div class="flex gap-2 max-w-md mx-auto">
-                    <input type="email" placeholder="メールアドレス" 
-                           class="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-[var(--color-primary)]">
+                    <input type="email" placeholder="メールアドレス"
+                        class="flex-1 px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]">
                     <button class="btn-primary whitespace-nowrap">登録</button>
                 </div>
             </div>
-            
+
         </div>
     </section>
 
     <?php include __DIR__ . '/components/footer.php'; ?>
 
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>
 </body>
+
 </html>

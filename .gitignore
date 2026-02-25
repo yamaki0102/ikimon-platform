@@ -1,2 +1,37 @@
-﻿upload_package/data/redlists/scraped_production_master.csv
+﻿# === Dependencies ===
+vendor/
+node_modules/
+
+# === IDE / Editor ===
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+*.swp
+*.swo
+*~
+
+# === OS Generated ===
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# === Debug & Temp Files ===
+_*
+!_archive/
+*.log
+*.tmp
+
+# === Data (user-generated, server-specific) ===
+upload_package/data/redlists/scraped_production_master.csv
+upload_package/data/uploads/
+
+# === Archive (retired debug/migration files) ===
+_archive/
+
+# === Build artifacts ===
 要件/自然共生プラットフォーム開発戦略策定.docx
+
+# === Environment ===
+.env
+.env.local
+*.pem

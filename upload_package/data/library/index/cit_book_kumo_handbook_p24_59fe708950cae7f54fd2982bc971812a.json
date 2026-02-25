@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p24_59fe708950cae7f54fd2982bc971812a",
+    "book_id": "book_kumo_handbook",
+    "page": 24,
+    "taxon_name": "イシサワオニグモ",
+    "scientific_name": "Araneus ishisawai",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 12〜20mm, male: 7〜10mm",
+        "season": "夏〜秋",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網に潜むオス",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

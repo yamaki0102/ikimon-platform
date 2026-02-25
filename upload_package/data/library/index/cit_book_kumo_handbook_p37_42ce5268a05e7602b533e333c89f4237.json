@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p37_42ce5268a05e7602b533e333c89f4237",
+    "book_id": "book_kumo_handbook",
+    "page": 37,
+    "taxon_name": "コゲチャオニグモ",
+    "scientific_name": "Neoscona punctigera",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 7〜16mm, male: 7〜9mm",
+        "season": "春〜夏",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "夕方",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

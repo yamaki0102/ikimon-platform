@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p61_0542cb22ecbc2848f046713030efcf64",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 61,
+    "taxon_name": "ツシマヤマアカガエル",
+    "scientific_name": "Rana (Rana) ornativentris subsp.",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": "50〜60mm",
+        "season": null,
+        "distribution": "対馬 (固有亜種)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

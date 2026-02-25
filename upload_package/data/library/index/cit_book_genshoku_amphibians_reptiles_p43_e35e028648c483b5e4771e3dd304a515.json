@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p43_e35e028648c483b5e4771e3dd304a515",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 43,
+    "taxon_name": "ヒキガエル (続き)",
+    "scientific_name": "Bufo bufo japonicus SCHLEGEL, 1838",
+    "family": "ヒキガエル科",
+    "data_icons": {
+        "size": "65〜140mm",
+        "season": "2月〜5月頃",
+        "distribution": "本州, 四国, 九州, 大隅群島 (北海道南西部は移入の疑い)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "NARRATIVE_TEXT",
+    "rarity_stars": null,
+    "type": "description"
+}

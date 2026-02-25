@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p15_136e79448c3c349d280fe9722547666f",
+    "book_id": "book_kumo_handbook",
+    "page": 15,
+    "taxon_name": "シロカネイソウロウグモ",
+    "scientific_name": "Argyrodes bonadea",
+    "family": "ヒメグモ科 Theridiidae",
+    "data_icons": {
+        "size": "female: 2〜3mm, male: 2〜3mm",
+        "season": "春〜秋（南西諸島は一年中）",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "宿主の網にいる様子",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

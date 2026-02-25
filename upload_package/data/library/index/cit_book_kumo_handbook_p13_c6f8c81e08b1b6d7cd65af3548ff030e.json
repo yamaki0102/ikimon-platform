@@ -1,0 +1,22 @@
+{
+    "id": "cit_book_kumo_handbook_p13_c6f8c81e08b1b6d7cd65af3548ff030e",
+    "book_id": "book_kumo_handbook",
+    "page": 13,
+    "taxon_name": "カタハリウズグモ",
+    "scientific_name": "Octonoba sybotides",
+    "family": "ウズグモ科 Uloboridae",
+    "data_icons": {
+        "size": "female: 4〜6mm, male: 4mm",
+        "season": "夏",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス背面",
+        "網（水平円網に隠れ帯）"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

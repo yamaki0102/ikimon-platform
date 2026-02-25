@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p38_1fa05f50c515d362b35cf5371bb361a8",
+    "book_id": "book_kumo_handbook",
+    "page": 38,
+    "taxon_name": "ドヨウオニグモ",
+    "scientific_name": "Neoscona adianta",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 6〜10mm, male: 5〜6mm",
+        "season": "夏〜秋",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "イネを折りたたんで作った住居",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

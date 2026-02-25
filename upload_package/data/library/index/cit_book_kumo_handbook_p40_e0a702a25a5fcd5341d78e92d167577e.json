@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p40_e0a702a25a5fcd5341d78e92d167577e",
+    "book_id": "book_kumo_handbook",
+    "page": 40,
+    "taxon_name": "イナダハリゲコモリグモ",
+    "scientific_name": "Pardosa laura",
+    "family": "コモリグモ科 Lycosidae",
+    "data_icons": {
+        "size": "female: 6〜8mm, male: 3〜5mm",
+        "season": "春〜夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "ハリゲコモリグモ（オス）(脚は白くて黒斑)",
+        "腹部背面",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

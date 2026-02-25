@@ -1,12 +1,14 @@
 <?php
-class Lang {
+require_once __DIR__ . '/Auth.php';
+
+class Lang
+{
     private static $translations = [];
     private static $current = 'ja';
 
-    public static function init($lang = null) {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+    public static function init($lang = null)
+    {
+        Auth::init();
 
         // Priority: Argument > GET > Session > Default
         if ($lang) {
@@ -30,16 +32,17 @@ class Lang {
             self::$translations = require $path;
         } else {
             // Fallback
-             $path = __DIR__ . "/../lang/ja.php";
-             if (file_exists($path)) self::$translations = require $path;
+            $path = __DIR__ . "/../lang/ja.php";
+            if (file_exists($path)) self::$translations = require $path;
         }
     }
 
-    public static function get($key, $default = null) {
+    public static function get($key, $default = null)
+    {
         // Support dot notation 'category.key'
         $keys = explode('.', $key);
         $value = self::$translations;
-        
+
         foreach ($keys as $k) {
             if (isset($value[$k])) {
                 $value = $value[$k];
@@ -47,15 +50,15 @@ class Lang {
                 return $default ?? $key; // Return key if not found
             }
         }
-        
+
         return $value;
     }
 }
 
 // Global helper
 if (!function_exists('__')) {
-    function __($key, $default = null) {
+    function __($key, $default = null)
+    {
         return Lang::get($key, $default);
     }
 }
-?>

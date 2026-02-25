@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p26_7f9abe9c85d14746e68cfcc4235d6a33",
+    "book_id": "book_kumo_handbook",
+    "page": 26,
+    "taxon_name": "チュウガタコガネグモ",
+    "scientific_name": "Argiope boesenbergi",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 15〜18mm, male: 5〜6mm",
+        "season": "夏",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "X字状の隠れ帯",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

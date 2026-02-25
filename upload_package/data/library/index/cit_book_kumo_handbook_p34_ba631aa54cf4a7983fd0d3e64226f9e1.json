@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p34_ba631aa54cf4a7983fd0d3e64226f9e1",
+    "book_id": "book_kumo_handbook",
+    "page": 34,
+    "taxon_name": "シロスジショウジョウグモ",
+    "scientific_name": "Hypsosinga sanguinea",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 3〜5mm, male: 3mm",
+        "season": "春〜夏",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "オス触肢",
+        "オス",
+        "黒色型",
+        "腹部の斑紋がない個体"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

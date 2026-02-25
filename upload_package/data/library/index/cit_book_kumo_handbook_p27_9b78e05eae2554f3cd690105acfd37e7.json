@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p27_9b78e05eae2554f3cd690105acfd37e7",
+    "book_id": "book_kumo_handbook",
+    "page": 27,
+    "taxon_name": "ナガコガネグモ",
+    "scientific_name": "Argiope bruennichi",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 20〜25mm, male: 6〜12mm",
+        "season": "夏〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網（隠れ帯）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

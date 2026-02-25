@@ -1,0 +1,155 @@
+╔══════════════════════════════════════════════════╗
+║  ikimon.life E2E Full Test v2                    ║
+╠══════════════════════════════════════════════════╣
+║  Base URL: http://localhost:8899                ║
+║  Time:     2026-02-17 11:32:33                  ║
+╚══════════════════════════════════════════════════╝
+
+── Phase 1: パブリックページ ──────────────────
+  ✅ GET / [200]
+  ✅   ↳ Contains '生き物'
+  ✅ GET /index.php [200]
+  ✅ GET /login.php [200]
+  ✅   ↳ Contains 'ログイン'
+  ✅ GET /explore.php [200]
+  ✅ GET /zukan.php [200]
+  ✅   ↳ Contains '図鑑'
+  ✅ GET /about.php [200]
+  ✅   ↳ Contains 'ikimon'
+  ✅ GET /for-business.php [200]
+  ✅   ↳ Contains '企業'
+  ✅ GET /for-researcher.php [200]
+  ✅ GET /for-citizen.php [200]
+  ✅ GET /faq.php [200]
+  ✅ GET /terms.php [200]
+  ✅ GET /privacy.php [200]
+  ✅ GET /guidelines.php [200]
+  ✅ GET /post.php [200]
+  ✅ GET /field_research.php [200]
+  ✅ GET /events.php [200]
+  ✅ GET /ranking.php [200]
+  ✅ GET /heatmap.php [200]
+  ✅ GET /compass.php [200]
+  ✅ GET /reference_layer.php [200]
+  ✅ GET /id_center.php [200]
+  ✅ GET /id_wizard.php [200]
+  ✅ GET /showcase.php [200]
+  ✅ GET /sitemap.php [200]
+  ✅ GET /offline.php [200]
+  ✅ GET /map.php [200]
+  ✅ GET /species.php [200]
+  ✅ GET /team.php [200]
+  ✅ GET /survey.php [200]
+  ✅ GET /csr_showcase.php [200]
+  ✅ GET /corporate_dashboard.php [200]
+  ✅ GET /site_dashboard.php [200]
+  ✅ GET /my_organisms.php [200]
+  ✅ GET /403.php [403]
+  ✅ GET /404.php [404]
+
+── Phase 2: API GETエンドポイント ──────────────
+  ✅ API GET /api/health.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_observations.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_events.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/taxon_index.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_exploration_stats.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/region_list.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/list_sites.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/search.php?q=test [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/search_taxon.php?q=test [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/heatmap_data.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_regional_stats.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_showcase_data.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_completeness.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/verify_config.php [200]
+  ✅ API GET /api/taxon_suggest.php?q=a [200]
+  ✅   ↳ Valid JSON
+  ❌ API GET /api/get_analytics_summary.php [403] — Expected 200, got 403
+  ✅ API GET /api/get_impact_stats.php [200]
+  ✅   ↳ Valid JSON
+
+── Phase 3: ユーザー登録 & ログイン ────────────
+  ✅ Login page loads
+  ✅ Session cookie obtained
+  ✅ CSRF token extracted
+  ✅ User registration
+  ❌ Explicit login — Status: 200
+  → Logged in: NO
+
+── Phase 4: 認証必須ページ ────────────────────
+  ✅ AUTH GET /profile.php [200]
+  ✅ AUTH GET /profile_edit.php [200]
+  ✅ AUTH GET /wellness.php [200]
+  ✅ AUTH GET /my_field_dashboard.php [200]
+  ✅ AUTH GET /review_queue.php [200]
+  ✅ AUTH GET /id_workbench.php [200]
+  ✅ AUTH GET /id_form.php [200]
+
+── Phase 5: 認証必須 API (GET) ────────────────
+  ✅ AUTH API GET /api/get_notifications.php [200]
+  ✅ AUTH API GET /api/get_personal_report.php [200]
+  ✅ AUTH API GET /api/get_wellness_summary.php [401]
+  ❌ AUTH API GET /api/get_tracks.php [401] — Expected 200, got 401
+  ❌ AUTH API GET /api/get_field_sessions.php [401] — Expected 200, got 401
+
+── Phase 6: POST API (投稿テスト) ──────────────
+  ⚠️  未ログインのためPOSTテストをスキップ
+
+── Phase 7: エラーハンドリング ─────────────────
+  ❌ Missing page returns non-200 — Status: 200
+  ✅ API graceful with bad params [200]
+  ✅ POST without CSRF rejected [200]
+  ✅   ↳ success=false in response
+
+── Phase 8: 静的アセット ──────────────────────
+  ✅ ASSET /assets/css/tokens.css [200]
+  ✅ ASSET /assets/css/style.css [200]
+  ✅ ASSET /assets/css/zukan.css [200]
+  ✅ ASSET /assets/css/tactical.css [200]
+  ❌ ASSET /assets/js/app.js [404] — Status: 404
+  ✅ ASSET /manifest.json [200]
+  ✅ ASSET /sw.js [200]
+  ✅ ASSET /robots.txt [200]
+
+── Phase 9: クリーンURL ────────────────────────
+  ✅ CLEAN URL /species.php?name=test-species [200]
+  ❌ CLEAN URL /observation_detail.php?id=test123 [404] — Status: 404
+  ✅ CLEAN URL /site_dashboard.php?id=test456 [200]
+  ✅ CLEAN URL /profile.php?id=user_ya_001 [200]
+
+── Cleanup: テストデータ削除 ──────────────────
+  ✅ Test user cleaned (0 removed)
+  ✅ Cleaned 0 test data items
+
+╔══════════════════════════════════════════════════╗
+║  📊 E2E Test Report                              ║
+╠══════════════════════════════════════════════════╣
+║  ✅ Pass: 100                                    ║
+║  ❌ Fail: 7                                      ║
+║  ⏭️  Skip: 6                                     ║
+║  Total: 113                                     ║
+╚══════════════════════════════════════════════════╝
+
+🚨 Failed tests:
+  • API GET /api/get_analytics_summary.php [403]: Expected 200, got 403
+  • Explicit login: Status: 200
+  • AUTH API GET /api/get_tracks.php [401]: Expected 200, got 401
+  • AUTH API GET /api/get_field_sessions.php [401]: Expected 200, got 401
+  • Missing page returns non-200: Status: 200
+  • ASSET /assets/js/app.js [404]: Status: 404
+  • CLEAN URL /observation_detail.php?id=test123 [404]: Status: 404
+
+⚠️  7 TEST(S) FAILED

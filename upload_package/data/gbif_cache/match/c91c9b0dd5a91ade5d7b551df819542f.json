@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2431136,
+    "scientific_name": "Hynobius stejnegeri Dunn, 1923",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Amphibia",
+    "order": "Caudata",
+    "family": "Hynobiidae",
+    "genus": "Hynobius",
+    "rank": "SPECIES",
+    "original_query": "Hynobius (Hynobius) stejnegeri",
+    "_cached_at": 1770419913
+}

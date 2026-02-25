@@ -1,0 +1,21 @@
+=== 愛管HQ シードデータ投入 ===
+Site: 愛管株式会社 本社エリア
+Center: [137.732881,34.813473]
+
+Total species templates: 28
+Existing observations: 453
+Removed 28 old aikan seed observations
+
+✅ Generated 28 seed observations for aikan_hq
+Total observations now: 453
+
+Species by category:
+  plant: 10
+  bird: 7
+  insect: 6
+  amphibian: 2
+  reptile: 1
+  mammal: 2
+Red-listed species: 3
+
+Done! 🌿

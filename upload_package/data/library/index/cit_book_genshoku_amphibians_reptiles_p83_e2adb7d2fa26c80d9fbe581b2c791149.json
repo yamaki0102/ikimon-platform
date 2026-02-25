@@ -1,0 +1,19 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p83_e2adb7d2fa26c80d9fbe581b2c791149",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 83,
+    "taxon_name": "アマミアオガエル",
+    "scientific_name": "Rhacophorus viridis amamiensis INGER, 1947",
+    "family": "アオガエル科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [
+        {
+            "caption": "第3図. 琉球列島産アオガエル類の右大腿部後面",
+            "note": "Top: Amami (amamiensis), Mid: Okinawa (viridis), Bot: Yaeyama (owstoni). Showing differences in thigh patterns."
+        }
+    ],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

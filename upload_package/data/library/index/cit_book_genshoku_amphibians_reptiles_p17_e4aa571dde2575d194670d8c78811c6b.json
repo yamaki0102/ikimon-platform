@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p17_e4aa571dde2575d194670d8c78811c6b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 17,
+    "taxon_name": "オオイタサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) dunni TAGO, 1931",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "100〜140mm",
+        "season": "3〜4月頃 (場所によっては12月)",
+        "distribution": "大分県, 宮崎県の海岸地帯"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

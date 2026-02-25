@@ -1,0 +1,18 @@
+{
+    "taxon_key": 10069280,
+    "scientific_name": "Subgenus",
+    "status": "DOUBTFUL",
+    "match_type": "HIGHERRANK",
+    "confidence": 91,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": null,
+    "class": null,
+    "order": null,
+    "family": null,
+    "genus": "Subgenus",
+    "rank": "GENUS",
+    "original_query": "Subgenus Cynops TSCHUDI, 1838",
+    "_cached_at": 1770419938
+}

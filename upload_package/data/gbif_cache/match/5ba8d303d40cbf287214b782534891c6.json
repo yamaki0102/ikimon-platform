@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2498034,
+    "scientific_name": "Anser cygnoides (Linnaeus, 1758)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Anseriformes",
+    "family": "Anatidae",
+    "genus": "Anser",
+    "rank": "SPECIES",
+    "original_query": "Anser cygnoides",
+    "_cached_at": 1770429138
+}

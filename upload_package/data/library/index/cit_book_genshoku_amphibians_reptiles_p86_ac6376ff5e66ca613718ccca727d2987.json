@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p86_ac6376ff5e66ca613718ccca727d2987",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 86,
+    "taxon_name": "カジカガエル (続き)",
+    "scientific_name": "Rhacophorus buergeri (SCHLEGEL, 1838)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": "♂30〜40mm, ♀50〜70mm",
+        "season": "6〜8月",
+        "distribution": "本州, 四国, 九州 (山地渓流)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

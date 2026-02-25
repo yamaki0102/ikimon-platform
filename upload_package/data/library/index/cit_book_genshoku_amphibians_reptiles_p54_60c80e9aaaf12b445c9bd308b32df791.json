@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p54_60c80e9aaaf12b445c9bd308b32df791",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 54,
+    "taxon_name": "ツシマアカガエル",
+    "scientific_name": "Rana (Rana) amurensis tsushimensis STEJNEGER, 1907",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

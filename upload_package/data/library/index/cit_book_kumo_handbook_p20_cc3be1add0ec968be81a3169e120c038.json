@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p20_cc3be1add0ec968be81a3169e120c038",
+    "book_id": "book_kumo_handbook",
+    "page": 20,
+    "taxon_name": "ヘリジロサラグモ",
+    "scientific_name": "Neriene oydes",
+    "family": "サラグモ科 Linyphiidae",
+    "data_icons": {
+        "size": "female: 4〜5mm, male: 3〜4.5mm",
+        "season": "春〜夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網の様子（シート状）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

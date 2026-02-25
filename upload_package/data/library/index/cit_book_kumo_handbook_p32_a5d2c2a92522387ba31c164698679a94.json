@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p32_a5d2c2a92522387ba31c164698679a94",
+    "book_id": "book_kumo_handbook",
+    "page": 32,
+    "taxon_name": "オオトリノフンダマシ",
+    "scientific_name": "Cyrtarachne inaequalis",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 10〜13mm, male: 2.0〜2.5mm",
+        "season": "夏〜秋",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "葉に裏に隠れるメス",
+        "卵のう",
+        "オス",
+        "オス触肢"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

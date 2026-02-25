@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p116_5467df7cf5dfc16083d9e8a5841b3c08",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 116,
+    "taxon_name": "ヤモリ亜科",
+    "scientific_name": "Gekkoninae",
+    "family": "ヤモリ科",
+    "data_icons": null,
+    "photos": [],
+    "figures": [
+        {
+            "title": "第4図．ヤモリの頭部背面"
+        }
+    ],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p107_9366db2834fb2eed8ff85a07682fd433",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 107,
+    "taxon_name": "クサガメ",
+    "scientific_name": "Geoclemys (Chinemys) reevesii (GRAY, 1831)",
+    "family": "カメ科",
+    "data_icons": {
+        "size": "110〜130mm (Yamagame)",
+        "season": null,
+        "distribution": "沖縄 (Yamagame)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

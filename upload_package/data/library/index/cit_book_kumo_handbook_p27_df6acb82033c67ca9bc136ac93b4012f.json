@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p27_df6acb82033c67ca9bc136ac93b4012f",
+    "book_id": "book_kumo_handbook",
+    "page": 27,
+    "taxon_name": "ゴミグモ",
+    "scientific_name": "Cyclosa octotuberculata",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 10〜15mm, male: 3.8〜10mm",
+        "season": "春〜夏",
+        "distribution": "四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "ゴミをつけた網",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

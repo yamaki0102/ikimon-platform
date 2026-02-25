@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p20_1d201466bee2129c738af03073eac289",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 20,
+    "taxon_name": "エゾサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) retardatus DUNN, 1923",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "110〜180mm",
+        "season": "4月〜6月頃",
+        "distribution": "北海道全島 (平地から高山帯)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

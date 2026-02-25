@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p24_35505dc93d3ac64fa1342425b8ccbde6",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 24,
+    "taxon_name": "ブチサンショウウオ (続き)",
+    "scientific_name": "Hynobius (Hynobius) naevius naevius (SCHLEGEL, 1838)",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "80〜140mm",
+        "season": "3月〜4月",
+        "distribution": "本州 (西南部, 紀伊半島, 中国地方), 四国, 九州の山地"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

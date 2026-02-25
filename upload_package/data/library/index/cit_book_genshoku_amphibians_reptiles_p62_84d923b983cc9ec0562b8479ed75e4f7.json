@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p62_84d923b983cc9ec0562b8479ed75e4f7",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 62,
+    "taxon_name": "エゾアカガエル",
+    "scientific_name": "Rana (Rana) chensinensis dybowskii GÜNTHER, 1876",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

@@ -1,0 +1,6 @@
+Starting stress test with 100 concurrent requests to http://localhost:8899/api/test_concurrency.php
+
+Completed 100 requests.
+Final Counter Value: 100 (Expected: 100)
+Final Appended Items: 100 (Expected: 100)
+✅ STRESS TEST PASSED: No data loss during concurrent writes.

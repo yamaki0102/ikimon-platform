@@ -1,6 +1,9 @@
 ---
 description: Autonomous Sleep Mode Ingestion for Orthoptera Batch
 ---
+
+// turbo-all
+
 # Sleep Mode Ingestion Workflow
 
 This workflow is designed to be run repeatedly to process the "Autonomous Ingestion Queue" without user intervention.

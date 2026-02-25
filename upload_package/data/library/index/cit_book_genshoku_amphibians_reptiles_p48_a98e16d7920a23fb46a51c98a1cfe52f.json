@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p48_a98e16d7920a23fb46a51c98a1cfe52f",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 48,
+    "taxon_name": "スズガエル",
+    "scientific_name": "Bombina orientalis (BOULENGER, 1890)",
+    "family": "スズガエル科",
+    "data_icons": {
+        "size": "40〜50mm",
+        "season": null,
+        "distribution": "朝鮮, 済州島, 沿海州, 満州, シナ東北部 (対馬の記録は疑問視・要再調査)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

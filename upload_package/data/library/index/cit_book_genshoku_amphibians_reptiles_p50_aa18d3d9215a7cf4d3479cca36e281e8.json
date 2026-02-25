@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p50_aa18d3d9215a7cf4d3479cca36e281e8",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 50,
+    "taxon_name": "アマガエル (続き)",
+    "scientific_name": "Hyla arborea japonica GÜNTHER, 1858",
+    "family": "アマガエル科",
+    "data_icons": {
+        "size": "25〜40mm",
+        "season": "5月〜6月頃",
+        "distribution": "北海道, 本州, 四国, 九州, 大隅群島, 佐渡, 壹岐, 対馬, 済州島, 朝鮮, 沿海州, シナ北部・中部"
+    },
+    "photos": [],
+    "figures": [
+        {
+            "figure_id": "Fig 1",
+            "caption": "第1図 アマガエル; 暗色斑紋の現われた状態を示す."
+        }
+    ],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

@@ -1,0 +1,22 @@
+{
+    "id": "cit_book_kumo_handbook_p19_72d73c374acb51688b3d55dc8ab23947",
+    "book_id": "book_kumo_handbook",
+    "page": 19,
+    "taxon_name": "ヤリグモ",
+    "scientific_name": "Rhomphaea sagana",
+    "family": "ヒメグモ科 Theridiidae",
+    "data_icons": {
+        "size": "female: 6〜11mm, male: 5〜9mm",
+        "season": "夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "ヒメグモの網に侵入（左）"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

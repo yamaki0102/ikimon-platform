@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p35_0cdb4512dc4a6ed8205735000a60329b",
+    "book_id": "book_kumo_handbook",
+    "page": 35,
+    "taxon_name": "イエオニグモ",
+    "scientific_name": "Neoscona nautica",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 8〜12mm, male: 5〜7mm",
+        "season": "夏〜秋",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

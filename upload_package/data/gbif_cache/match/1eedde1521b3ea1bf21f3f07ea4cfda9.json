@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2491529,
+    "scientific_name": "Emberiza sulphurata Temminck & Schlegel, 1848",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Passeriformes",
+    "family": "Emberizidae",
+    "genus": "Emberiza",
+    "rank": "SPECIES",
+    "original_query": "Emberiza sulphurata",
+    "_cached_at": 1770429164
+}

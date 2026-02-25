@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p39_f49ec4854a1c7b15ab781e63e6becf1d",
+    "book_id": "book_kumo_handbook",
+    "page": 39,
+    "taxon_name": "サガオニグモ",
+    "scientific_name": "Eriophora sagana",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 8〜10mm, male: 4〜5mm",
+        "season": "春〜夏",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "腹部変異",
+        "腹部変異",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

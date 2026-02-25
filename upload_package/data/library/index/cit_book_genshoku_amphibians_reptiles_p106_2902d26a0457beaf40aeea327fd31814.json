@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p106_2902d26a0457beaf40aeea327fd31814",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 106,
+    "taxon_name": "リュウキュウヤマガメ",
+    "scientific_name": "Geoemyda spengleri japonica FAN, 1931",
+    "family": "カメ科",
+    "data_icons": {
+        "size": "130〜160mm (Semaru)",
+        "season": null,
+        "distribution": "石垣, 西表, 台湾 (Semaru); 琉球 (Yamagame)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p95_952a8edcec9d4f3e827eadce16dd855f",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 95,
+    "taxon_name": "アオウミガメ",
+    "scientific_name": "Chelonia mydas japonica (THUNBERG, 1787)",
+    "family": "ウミガメ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

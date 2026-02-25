@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p38_8d444aaab04d3f9ba77b1251b2d2464d",
+    "book_id": "book_kumo_handbook",
+    "page": 38,
+    "taxon_name": "ズグロオニグモ",
+    "scientific_name": "Neoscona theisi",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 7〜13mm, male: 7〜10mm",
+        "season": "夏〜秋",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

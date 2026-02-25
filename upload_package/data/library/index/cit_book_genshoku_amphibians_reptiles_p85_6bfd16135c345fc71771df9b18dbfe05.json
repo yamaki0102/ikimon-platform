@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p85_6bfd16135c345fc71771df9b18dbfe05",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 85,
+    "taxon_name": "カジカガエル",
+    "scientific_name": "Rhacophorus buergeri (SCHLEGEL, 1838)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

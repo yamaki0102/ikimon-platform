@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p67_66aa8d3433c35ceae509dd2166dc9b4d",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 67,
+    "taxon_name": "ウシガエル (続き)",
+    "scientific_name": "Rana (Rana) catesbeiana SHAW, 1802",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": "100〜180mm",
+        "season": "5〜8月",
+        "distribution": "北米原産. 本州, 四国, 九州, 小笠原, 沖縄 (移入種)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

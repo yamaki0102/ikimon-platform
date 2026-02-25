@@ -1,0 +1,697 @@
+{
+    "metadata": {
+        "source": "静岡県レッドデータブック 2020",
+        "url": "https:\/\/www.pref.shizuoka.jp\/kankyou\/ka-070\/wild\/rdb\/",
+        "last_updated": "2026-02-08",
+        "total_species": 85,
+        "note": "愛管エリア（浜松市北区周辺）で確認される可能性の高い種を中心に収録。段階的に拡充予定。"
+    },
+    "species": [
+        {
+            "ja_name": "ニホンイシガメ",
+            "sci_name": "Mauremys japonica",
+            "category": "NT",
+            "taxon_group": "爬虫類",
+            "note": "河川・水田周辺",
+            "taxon_id": "local:mauremys-japonica"
+        },
+        {
+            "ja_name": "ヤマトサンショウウオ",
+            "sci_name": "Hynobius vandenburghi",
+            "category": "VU",
+            "taxon_group": "両生類",
+            "note": "湧水のある林",
+            "taxon_id": "local:hynobius-vandenburghi"
+        },
+        {
+            "ja_name": "アカウミガメ",
+            "sci_name": "Caretta caretta",
+            "category": "VU",
+            "taxon_group": "爬虫類",
+            "note": "遠州灘の砂浜",
+            "taxon_id": "local:caretta-caretta"
+        },
+        {
+            "ja_name": "サシバ",
+            "sci_name": "Butastur indicus",
+            "category": "VU",
+            "taxon_group": "鳥類",
+            "note": "里山の猛禽",
+            "taxon_id": "local:butastur-indicus"
+        },
+        {
+            "ja_name": "ハヤブサ",
+            "sci_name": "Falco peregrinus",
+            "category": "VU",
+            "taxon_group": "鳥類",
+            "note": "崖地に営巣",
+            "taxon_id": "local:falco-peregrinus"
+        },
+        {
+            "ja_name": "オオタカ",
+            "sci_name": "Accipiter gentilis",
+            "category": "NT",
+            "taxon_group": "鳥類",
+            "note": "平地～丘陵の森林",
+            "taxon_id": "local:accipiter-gentilis"
+        },
+        {
+            "ja_name": "フクロウ",
+            "sci_name": "Strix uralensis",
+            "category": "NT",
+            "taxon_group": "鳥類",
+            "note": "大径木のある森",
+            "taxon_id": "local:strix-uralensis"
+        },
+        {
+            "ja_name": "カワセミ",
+            "sci_name": "Alcedo atthis",
+            "category": "NT",
+            "taxon_group": "鳥類",
+            "note": "河川・池沼の土壁",
+            "taxon_id": "local:alcedo-atthis"
+        },
+        {
+            "ja_name": "セグロセキレイ",
+            "sci_name": "Motacilla grandis",
+            "category": "NT",
+            "taxon_group": "鳥類",
+            "note": "日本固有種。水辺",
+            "taxon_id": "local:motacilla-grandis"
+        },
+        {
+            "ja_name": "キセキレイ",
+            "sci_name": "Motacilla cinerea",
+            "category": "NT",
+            "taxon_group": "鳥類",
+            "note": "渓流",
+            "taxon_id": "local:motacilla-cinerea"
+        },
+        {
+            "ja_name": "ニホンリス",
+            "sci_name": "Sciurus lis",
+            "category": "NT",
+            "taxon_group": "哺乳類",
+            "note": "松林・広葉樹林",
+            "taxon_id": "local:sciurus-lis"
+        },
+        {
+            "ja_name": "ムササビ",
+            "sci_name": "Petaurista leucogenys",
+            "category": "NT",
+            "taxon_group": "哺乳類",
+            "note": "社寺林に多い",
+            "taxon_id": "local:petaurista-leucogenys"
+        },
+        {
+            "ja_name": "ニホンカモシカ",
+            "sci_name": "Capricornis crispus",
+            "category": "NT",
+            "taxon_group": "哺乳類",
+            "note": "天然記念物",
+            "taxon_id": "local:capricornis-crispus"
+        },
+        {
+            "ja_name": "ゲンジボタル",
+            "sci_name": "Luciola cruciata",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "清流の指標",
+            "taxon_id": "local:luciola-cruciata"
+        },
+        {
+            "ja_name": "ヘイケボタル",
+            "sci_name": "Luciola lateralis",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "水田・湿地",
+            "taxon_id": "local:luciola-lateralis"
+        },
+        {
+            "ja_name": "オオムラサキ",
+            "sci_name": "Sasakia charonda",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "国蝶。エノキに依存",
+            "taxon_id": 5128519
+        },
+        {
+            "ja_name": "ギフチョウ",
+            "sci_name": "Luehdorfia japonica",
+            "category": "VU",
+            "taxon_group": "昆虫類",
+            "note": "春の女神。カンアオイ",
+            "taxon_id": "local:luehdorfia-japonica"
+        },
+        {
+            "ja_name": "ウスバシロチョウ",
+            "sci_name": "Parnassius citrinarius",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "ムラサキケマン",
+            "taxon_id": "local:parnassius-citrinarius"
+        },
+        {
+            "ja_name": "クロツバメシジミ",
+            "sci_name": "Tongeia fischeri",
+            "category": "EN",
+            "taxon_group": "昆虫類",
+            "note": "ツメレンゲに依存",
+            "taxon_id": "local:tongeia-fischeri"
+        },
+        {
+            "ja_name": "ミヤマシジミ",
+            "sci_name": "Lycaeides subsolanus",
+            "category": "EN",
+            "taxon_group": "昆虫類",
+            "note": "河川敷のコマツナギ",
+            "taxon_id": "local:lycaeides-subsolanus"
+        },
+        {
+            "ja_name": "タガメ",
+            "sci_name": "Kirkaldyia deyrolli",
+            "category": "VU",
+            "taxon_group": "昆虫類",
+            "note": "特定第二種。水田",
+            "taxon_id": "local:kirkaldyia-deyrolli"
+        },
+        {
+            "ja_name": "ゲンゴロウ",
+            "sci_name": "Cybister chinensis",
+            "category": "CR",
+            "taxon_group": "昆虫類",
+            "note": "止水域。激減",
+            "taxon_id": "local:cybister-chinensis"
+        },
+        {
+            "ja_name": "ミズスマシ",
+            "sci_name": "Gyrinus japonicus",
+            "category": "VU",
+            "taxon_group": "昆虫類",
+            "note": "水面を旋回",
+            "taxon_id": "local:gyrinus-japonicus"
+        },
+        {
+            "ja_name": "メダカ",
+            "sci_name": "Oryzias latipes",
+            "category": "VU",
+            "taxon_group": "魚類",
+            "note": "用水路・ため池",
+            "taxon_id": "local:oryzias-latipes"
+        },
+        {
+            "ja_name": "ホトケドジョウ",
+            "sci_name": "Lefua echigonia",
+            "category": "EN",
+            "taxon_group": "魚類",
+            "note": "湧水のある細流",
+            "taxon_id": "local:lefua-echigonia"
+        },
+        {
+            "ja_name": "アカザ",
+            "sci_name": "Liobagrus reini",
+            "category": "VU",
+            "taxon_group": "魚類",
+            "note": "山間の渓流",
+            "taxon_id": "local:liobagrus-reini"
+        },
+        {
+            "ja_name": "カジカ（大卵型）",
+            "sci_name": "Cottus pollux",
+            "category": "NT",
+            "taxon_group": "魚類",
+            "note": "清流",
+            "taxon_id": "local:cottus-pollux"
+        },
+        {
+            "ja_name": "アユモドキ",
+            "sci_name": "Parabotia curtus",
+            "category": "CR",
+            "taxon_group": "魚類",
+            "note": "国の天然記念物",
+            "taxon_id": "local:parabotia-curtus"
+        },
+        {
+            "ja_name": "サワガニ",
+            "sci_name": "Geothelphusa dehaani",
+            "category": "NT",
+            "taxon_group": "甲殻類",
+            "note": "清水の指標",
+            "taxon_id": "local:geothelphusa-dehaani"
+        },
+        {
+            "ja_name": "キンラン",
+            "sci_name": "Cephalanthera falcata",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "落葉広葉樹林の林床",
+            "taxon_id": "local:cephalanthera-falcata"
+        },
+        {
+            "ja_name": "ギンラン",
+            "sci_name": "Cephalanthera erecta",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "キンランと類似環境",
+            "taxon_id": "local:cephalanthera-erecta"
+        },
+        {
+            "ja_name": "エビネ",
+            "sci_name": "Calanthe discolor",
+            "category": "NT",
+            "taxon_group": "植物",
+            "note": "落葉樹林下のラン",
+            "taxon_id": "local:calanthe-discolor"
+        },
+        {
+            "ja_name": "カタクリ",
+            "sci_name": "Erythronium japonicum",
+            "category": "NT",
+            "taxon_group": "植物",
+            "note": "春の短命植物",
+            "taxon_id": "local:erythronium-japonicum"
+        },
+        {
+            "ja_name": "レンゲショウマ",
+            "sci_name": "Anemonopsis macrophylla",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "日本固有1属1種",
+            "taxon_id": "local:anemonopsis-macrophylla"
+        },
+        {
+            "ja_name": "マツバラン",
+            "sci_name": "Psilotum nudum",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "古代シダ",
+            "taxon_id": "local:psilotum-nudum"
+        },
+        {
+            "ja_name": "ヒトツバタゴ",
+            "sci_name": "Chionanthus retusus",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "なんじゃもんじゃの木",
+            "taxon_id": "local:chionanthus-retusus"
+        },
+        {
+            "ja_name": "ミカワバイケイソウ",
+            "sci_name": "Veratrum mikawanum",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "東海丘陵要素",
+            "taxon_id": "local:veratrum-mikawanum"
+        },
+        {
+            "ja_name": "シデコブシ",
+            "sci_name": "Magnolia tomentosa",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "東海丘陵要素の代表",
+            "taxon_id": "local:magnolia-tomentosa"
+        },
+        {
+            "ja_name": "サクラバハンノキ",
+            "sci_name": "Alnus trabeculosa",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "湿地林",
+            "taxon_id": "local:alnus-trabeculosa"
+        },
+        {
+            "ja_name": "ミズバショウ",
+            "sci_name": "Lysichiton camtschatcensis",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "高層湿原",
+            "taxon_id": "local:lysichiton-camtschatcensis"
+        },
+        {
+            "ja_name": "サギソウ",
+            "sci_name": "Pecteilis radiata",
+            "category": "NT",
+            "taxon_group": "植物",
+            "note": "湿原のラン",
+            "taxon_id": "local:pecteilis-radiata"
+        },
+        {
+            "ja_name": "イワタカンアオイ",
+            "sci_name": "Asarum kumageanum",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "磐田・浜松特産",
+            "taxon_id": "local:asarum-kumageanum"
+        },
+        {
+            "ja_name": "カワラハハコ",
+            "sci_name": "Anaphalis margaritacea",
+            "category": "NT",
+            "taxon_group": "植物",
+            "note": "河原の砂礫地",
+            "taxon_id": "local:anaphalis-margaritacea"
+        },
+        {
+            "ja_name": "フジタイゲキ",
+            "sci_name": "Euphorbia watanabei",
+            "category": "CR",
+            "taxon_group": "植物",
+            "note": "静岡県固有種",
+            "taxon_id": "local:euphorbia-watanabei"
+        },
+        {
+            "ja_name": "ハマボウ",
+            "sci_name": "Hibiscus hamabo",
+            "category": "NT",
+            "taxon_group": "植物",
+            "note": "汽水域のマングローブ的樹木",
+            "taxon_id": "local:hibiscus-hamabo"
+        },
+        {
+            "ja_name": "モウセンゴケ",
+            "sci_name": "Drosera rotundifolia",
+            "category": "VU",
+            "taxon_group": "植物",
+            "note": "食虫植物。湿地",
+            "taxon_id": "local:drosera-rotundifolia"
+        },
+        {
+            "ja_name": "ムサシアブミ",
+            "sci_name": "Arisaema ringens",
+            "category": "NT",
+            "taxon_group": "植物",
+            "note": "暖温帯林床",
+            "taxon_id": "local:arisaema-ringens"
+        },
+        {
+            "ja_name": "サンショウウオ（ハコネ）",
+            "sci_name": "Onychodactylus japonicus",
+            "category": "NT",
+            "taxon_group": "両生類",
+            "note": "渓流"
+        },
+        {
+            "ja_name": "モリアオガエル",
+            "sci_name": "Rhacophorus arboreus",
+            "category": "NT",
+            "taxon_group": "両生類",
+            "note": "樹上に泡巣",
+            "taxon_id": "local:rhacophorus-arboreus-y-okada-et-kawano-1924"
+        },
+        {
+            "ja_name": "カスミサンショウウオ",
+            "sci_name": "Hynobius nebulosus",
+            "category": "VU",
+            "taxon_group": "両生類",
+            "note": "平地の水田・湿地",
+            "taxon_id": "local:hynobius-nebulosus"
+        },
+        {
+            "ja_name": "トノサマガエル",
+            "sci_name": "Pelophylax nigromaculatus",
+            "category": "NT",
+            "taxon_group": "両生類",
+            "note": "水田",
+            "taxon_id": "local:pelophylax-nigromaculatus"
+        },
+        {
+            "ja_name": "ナガレタゴガエル",
+            "sci_name": "Rana sakuraii",
+            "category": "NT",
+            "taxon_group": "両生類",
+            "note": "渓流",
+            "taxon_id": "local:rana-sakuraii"
+        },
+        {
+            "ja_name": "シマヘビ",
+            "sci_name": "Elaphe quadrivirgata",
+            "category": "NT",
+            "taxon_group": "爬虫類",
+            "note": "里山",
+            "taxon_id": 2458480
+        },
+        {
+            "ja_name": "ジムグリ",
+            "sci_name": "Euprepiophis conspicillatus",
+            "category": "NT",
+            "taxon_group": "爬虫類",
+            "note": "森林の地中性",
+            "taxon_id": "local:euprepiophis-conspicillatus"
+        },
+        {
+            "ja_name": "トウキョウサンショウウオ",
+            "sci_name": "Hynobius tokyoensis",
+            "category": "VU",
+            "taxon_group": "両生類",
+            "note": "関東〜東海の丘陵",
+            "taxon_id": "local:hynobius-tokyoensis"
+        },
+        {
+            "ja_name": "アカハライモリ",
+            "sci_name": "Cynops pyrrhogaster",
+            "category": "NT",
+            "taxon_group": "両生類",
+            "note": "止水域",
+            "taxon_id": 2431862
+        },
+        {
+            "ja_name": "タナゴ",
+            "sci_name": "Acheilognathus melanogaster",
+            "category": "CR",
+            "taxon_group": "魚類",
+            "note": "二枚貝に産卵",
+            "taxon_id": "local:acheilognathus-melanogaster"
+        },
+        {
+            "ja_name": "ミナミメダカ",
+            "sci_name": "Oryzias latipes",
+            "category": "VU",
+            "taxon_group": "魚類",
+            "note": "メダカの正式名"
+        },
+        {
+            "ja_name": "ヌマガエル",
+            "sci_name": "Fejervarya kawamurai",
+            "category": "NT",
+            "taxon_group": "両生類",
+            "note": "水田",
+            "taxon_id": "local:fejervarya-kawamurai"
+        },
+        {
+            "ja_name": "ニホンカナヘビ",
+            "sci_name": "Takydromus tachydromoides",
+            "category": "NT",
+            "taxon_group": "爬虫類",
+            "note": "草地",
+            "taxon_id": "local:takydromus-tachydromoides"
+        },
+        {
+            "ja_name": "オニヤンマ",
+            "sci_name": "Anotogaster sieboldii",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "清流",
+            "taxon_id": "local:anotogaster-sieboldii"
+        },
+        {
+            "ja_name": "ハッチョウトンボ",
+            "sci_name": "Nannophya pygmaea",
+            "category": "VU",
+            "taxon_group": "昆虫類",
+            "note": "湿地。日本最小のトンボ",
+            "taxon_id": "local:nannophya-pygmaea"
+        },
+        {
+            "ja_name": "ベッコウトンボ",
+            "sci_name": "Libellula angelina",
+            "category": "CR",
+            "taxon_group": "昆虫類",
+            "note": "磐田市桶ケ谷沼。国指定天然記念物",
+            "taxon_id": "local:libellula-angelina"
+        },
+        {
+            "ja_name": "ヒメタイコウチ",
+            "sci_name": "Nepa hoffmanni",
+            "category": "VU",
+            "taxon_group": "昆虫類",
+            "note": "湧水のある湿地",
+            "taxon_id": "local:nepa-hoffmanni"
+        },
+        {
+            "ja_name": "マルコガタノゲンゴロウ",
+            "sci_name": "Cybister lewisianus",
+            "category": "CR",
+            "taxon_group": "昆虫類",
+            "note": "ため池。国内希少野生動植物種",
+            "taxon_id": "local:cybister-lewisianus"
+        },
+        {
+            "ja_name": "コオイムシ",
+            "sci_name": "Appasus japonicus",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "水田の水生昆虫",
+            "taxon_id": "local:appasus-japonicus"
+        },
+        {
+            "ja_name": "オオクワガタ",
+            "sci_name": "Dorcus hopei binodulosus",
+            "category": "VU",
+            "taxon_group": "昆虫類",
+            "note": "ブナ帯の大型クワガタ",
+            "taxon_id": "local:dorcus-hopei-binodulosus"
+        },
+        {
+            "ja_name": "ヒラタクワガタ",
+            "sci_name": "Dorcus titanus pilifer",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "暖地の広葉樹林",
+            "taxon_id": "local:dorcus-titanus-pilifer"
+        },
+        {
+            "ja_name": "カブトムシ",
+            "sci_name": "Trypoxylus dichotomus",
+            "category": "LC",
+            "taxon_group": "昆虫類",
+            "note": "レッドリスト非掲載（参考用）",
+            "taxon_id": "local:trypoxylus-dichotomus"
+        },
+        {
+            "ja_name": "ミヤマクワガタ",
+            "sci_name": "Lucanus maculifemoratus",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "ブナ帯",
+            "taxon_id": "local:lucanus-maculifemoratus"
+        },
+        {
+            "ja_name": "ルリボシカミキリ",
+            "sci_name": "Rosalia batesi",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "ブナ帯の美麗種",
+            "taxon_id": "local:rosalia-batesi"
+        },
+        {
+            "ja_name": "ヤマトタマムシ",
+            "sci_name": "Chrysochroa fulgidissima",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "エノキ。法隆寺の玉虫厨子",
+            "taxon_id": "local:chrysochroa-fulgidissima"
+        },
+        {
+            "ja_name": "ミドリシジミ",
+            "sci_name": "Neozephyrus japonicus",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "ハンノキ林",
+            "taxon_id": "local:neozephyrus-japonicus"
+        },
+        {
+            "ja_name": "ウラナミジャノメ",
+            "sci_name": "Ypthima motschulskyi",
+            "category": "VU",
+            "taxon_group": "昆虫類",
+            "note": "草原の蝶。激減",
+            "taxon_id": "local:ypthima-motschulskyi"
+        },
+        {
+            "ja_name": "アサギマダラ",
+            "sci_name": "Parantica sita",
+            "category": "NT",
+            "taxon_group": "昆虫類",
+            "note": "渡りをする蝶",
+            "taxon_id": "local:parantica-sita"
+        },
+        {
+            "ja_name": "ナミゲンゴロウ",
+            "sci_name": "Cybister japonicus",
+            "category": "VU",
+            "taxon_group": "昆虫類",
+            "note": "大型ゲンゴロウ",
+            "taxon_id": "local:cybister-japonicus"
+        },
+        {
+            "ja_name": "カワバタモロコ",
+            "sci_name": "Hemigrammocypris rasborella",
+            "category": "EN",
+            "taxon_group": "魚類",
+            "note": "用水路",
+            "taxon_id": "local:hemigrammocypris-rasborella"
+        },
+        {
+            "ja_name": "スナヤツメ",
+            "sci_name": "Lethenteron reissneri",
+            "category": "VU",
+            "taxon_group": "魚類",
+            "note": "砂底の細流",
+            "taxon_id": "local:lethenteron-reissneri"
+        },
+        {
+            "ja_name": "ニッポンバラタナゴ",
+            "sci_name": "Rhodeus ocellatus kurumeus",
+            "category": "CR",
+            "taxon_group": "魚類",
+            "note": "日本固有亜種",
+            "taxon_id": "local:rhodeus-ocellatus-kurumeus"
+        },
+        {
+            "ja_name": "スズキ",
+            "sci_name": "Lateolabrax japonicus",
+            "category": "LC",
+            "taxon_group": "魚類",
+            "note": "レッドリスト非掲載（参考用）",
+            "taxon_id": "local:lateolabrax-japonicus"
+        },
+        {
+            "ja_name": "ニホンウナギ",
+            "sci_name": "Anguilla japonica",
+            "category": "EN",
+            "taxon_group": "魚類",
+            "note": "降河性。激減",
+            "taxon_id": "local:anguilla-japonica"
+        },
+        {
+            "ja_name": "ヤイロチョウ",
+            "sci_name": "Pitta nympha",
+            "category": "EN",
+            "taxon_group": "鳥類",
+            "note": "夏鳥。極めて稀",
+            "taxon_id": "local:pitta-nympha"
+        },
+        {
+            "ja_name": "コノハズク",
+            "sci_name": "Otus scops",
+            "category": "VU",
+            "taxon_group": "鳥類",
+            "note": "声の仏法僧",
+            "taxon_id": "local:otus-scops"
+        },
+        {
+            "ja_name": "ブッポウソウ",
+            "sci_name": "Eurystomus orientalis",
+            "category": "EN",
+            "taxon_group": "鳥類",
+            "note": "大径木の樹洞",
+            "taxon_id": "local:eurystomus-orientalis"
+        },
+        {
+            "ja_name": "アオバズク",
+            "sci_name": "Ninox scutulata",
+            "category": "NT",
+            "taxon_group": "鳥類",
+            "note": "社寺林",
+            "taxon_id": "local:ninox-scutulata"
+        },
+        {
+            "ja_name": "ヤマセミ",
+            "sci_name": "Megaceryle lugubris",
+            "category": "NT",
+            "taxon_group": "鳥類",
+            "note": "渓流の大型カワセミ",
+            "taxon_id": "local:megaceryle-lugubris"
+        }
+    ]
+}

@@ -1,0 +1,29 @@
+{
+    "id": "cit_book_kuwagata_handbook_p48_c4516d6fd184964a8c73bb0ff0607d07",
+    "book_id": "book_kuwagata_handbook",
+    "page": 48,
+    "taxon_name": "ミヤマクワガタ",
+    "scientific_name": "Lucanus maculifemoratus",
+    "family": null,
+    "data_icons": {
+        "size": "male: 29-79mm, female: 25-47mm",
+        "season": "",
+        "distribution": "北海道〜九州, 伊豆諸島（三宅以北）, 対馬, 南西諸島（大隅諸島の黒島）"
+    },
+    "photos": [
+        "大型個体 (Male Large)",
+        "小型個体 (Male Small)",
+        "♀ (Female)"
+    ],
+    "figures": [
+        "1: 脛節に複数のトゲ",
+        "2: 鞘翅の中央より前方で最大",
+        "3: 湾曲する",
+        "4: 耳状突起",
+        "5: 太く厚みがある",
+        "6: 湾曲する"
+    ],
+    "page_type": "SPECIES_DATA",
+    "rarity_stars": null,
+    "type": "description"
+}

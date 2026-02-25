@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<meta name="color-scheme" content="light only">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+
+<!-- Primary Meta Tags -->
+<title>ikimon - みんなでつくる 生き物図鑑</title>
+<meta name="title" content="ikimon - みんなでつくる 生き物図鑑">
+<meta name="description" content="ikimonは、みんなでつくる 生き物図鑑です。">
+
+<!-- PWA Meta Tags (Design System v2) -->
+<meta name="theme-color" content="#10b981">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ikimon">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon-v3.png">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32-v3.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192-v3.png">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="http://localhost:8899/my_field_dashboard.php">
+<meta property="og:title" content="ikimon - みんなでつくる 生き物図鑑">
+<meta property="og:description" content="ikimonは、みんなでつくる 生き物図鑑です。">
+<meta property="og:image" content="http://localhost:8899/img/ogp_default.png">
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image">
+<meta property="twitter:url" content="http://localhost:8899/my_field_dashboard.php">
+<meta property="twitter:title" content="ikimon - みんなでつくる 生き物図鑑">
+<meta property="twitter:description" content="ikimonは、みんなでつくる 生き物図鑑です。">
+<meta property="twitter:image" content="http://localhost:8899/img/ogp_default.png">
+
+<!-- Canonical -->
+<link rel="canonical" href="http://localhost:8899/my_field_dashboard.php">
+
+<!-- Preconnect Hints -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+<link rel="dns-prefetch" href="https://unpkg.com">
+<link rel="dns-prefetch" href="https://tile.openstreetmap.jp">
+
+<!-- Fonts (Design System v2: Inter + Montserrat + Noto Sans JP) -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;900&family=Noto+Sans+JP:wght@400;500;700;900&family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<!-- Material Symbols (used in dashboard, profile, id_wizard, bento_grid) -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+
+<!-- External Libraries -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script nonce="bf40d438762085dc22d55b8108f5a603">
+    tailwind.config = {
+        darkMode: 'class',
+        theme: {
+            extend: {
+                colors: {
+                    primary: 'var(--color-primary)',
+                    'primary-dark': 'var(--color-primary-dark)',
+                    'primary-light': 'var(--color-primary-light)',
+                    secondary: 'var(--color-secondary)',
+                    accent: 'var(--color-accent)',
+                    warning: 'var(--color-warning)',
+                    danger: 'var(--color-danger)',
+                    surface: 'var(--color-bg-surface)',
+                    elevated: 'var(--color-bg-elevated)',
+                    base: 'var(--color-bg-base)',
+                    text: 'var(--color-text)',
+                    muted: 'var(--color-text-muted)',
+                    faint: 'var(--color-text-faint)',
+                    'text-secondary': 'var(--color-text-secondary)',
+                    'primary-surface': 'var(--color-primary-surface)',
+                    'secondary-surface': 'var(--color-secondary-surface)',
+                    'accent-surface': 'var(--color-accent-surface)',
+                    'primary-glow': 'var(--color-primary-glow)',
+                    'warning-surface': 'var(--color-warning-surface)',
+                    'danger-surface': 'var(--color-danger-surface)',
+                    border: 'var(--color-border)',
+                    'border-strong': 'var(--color-border-strong)',
+                },
+                fontFamily: {
+                    heading: ['"Montserrat"', '"Zen Kaku Gothic New"', 'sans-serif'],
+                    body: ['"Inter"', '"Noto Sans JP"', 'sans-serif'],
+                },
+                borderRadius: {
+                    DEFAULT: '1rem',
+                    md: 'var(--radius-md)',
+                    lg: 'var(--radius-lg)',
+                    xl: 'var(--radius-xl)',
+                    full: '9999px',
+                }
+            }
+        }
+    }
+</script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+<!-- Tezawari Engines -->
+<script defer src="js/SoundManager.js"></script>
+<script defer src="js/HapticEngine.js"></script>
+<script defer src="js/MotionEngine.js"></script>
+<script defer src="js/OfflineManager.js?v=2.1"></script>
+<script defer src="js/analytics.js"></script>
+
+<!-- Critical FOUC Prevention (CSS遅延の保険) -->
+<style>
+    [x-cloak] {
+        display: none !important
+    }
+</style>
+
+<!-- Design System v2 CSS Stack -->
+<link rel="stylesheet" href="assets/css/tokens.css?v=2.1">
+<link rel="stylesheet" href="assets/css/style.css?v=2.1">
+<link rel="stylesheet" href="assets/css/skeleton.css?v=2.1">
+<link rel="stylesheet" href="assets/css/input.css?v=2.1">
+
+<!-- Service Worker + PWA Install -->
+<script nonce="bf40d438762085dc22d55b8108f5a603">
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('SW registered:', reg.scope))
+                .catch(err => console.log('SW registration failed:', err));
+        });
+    }
+
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        setTimeout(() => {
+            const banner = document.getElementById('pwa-install-banner');
+            if (banner) banner.style.display = 'flex';
+        }, 30000);
+    });
+
+    function pwaInstall() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(choice => {
+            console.log('PWA install:', choice.outcome);
+            deferredPrompt = null;
+            const banner = document.getElementById('pwa-install-banner');
+            if (banner) banner.style.display = 'none';
+        });
+    }
+
+    function pwaDismiss() {
+        const banner = document.getElementById('pwa-install-banner');
+        if (banner) banner.style.display = 'none';
+    }
+</script>    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css">
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <style>
+        /* ── Map Styles ── */
+        .field-minimap {
+            width: 100%;
+            height: 180px;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+
+        .field-minimap .maplibregl-canvas {
+            border-radius: var(--radius-md);
+        }
+
+        #create-map {
+            width: 100%;
+            height: 300px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-border);
+        }
+
+        /* ── Score Arc Gauge ── */
+        .score-arc {
+            position: relative;
+            width: 100px;
+            height: 55px;
+            overflow: hidden;
+        }
+
+        .score-arc svg {
+            width: 100px;
+            height: 55px;
+        }
+
+        .score-arc-track {
+            fill: none;
+            stroke: var(--color-border-strong);
+            stroke-width: 8;
+        }
+
+        .score-arc-value {
+            fill: none;
+            stroke: var(--color-primary);
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s ease-out;
+        }
+
+        .score-arc-label {
+            position: absolute;
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--color-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── 5-Axis Mini Bars ── */
+        .axis-bar-track {
+            height: 6px;
+            background: var(--color-bg-surface);
+            border-radius: 3px;
+            flex: 1;
+        }
+
+        .axis-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 1s ease-out;
+        }
+
+        /* ── KPI Card Hover ── */
+        .kpi-card {
+            transition: transform var(--duration-fast) var(--ease-default),
+                box-shadow var(--duration-fast) var(--ease-default);
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ── Field Card ── */
+        .field-card {
+            transition: border-color var(--duration-normal) var(--ease-default),
+                box-shadow var(--duration-normal) var(--ease-default);
+        }
+
+        .field-card:hover {
+            border-color: var(--color-primary-light);
+            box-shadow: var(--shadow-primary);
+        }
+
+        /* ── Wellness Mini Card ── */
+        .wellness-mini-card {
+            background: linear-gradient(135deg, var(--color-primary-surface), rgba(14, 165, 233, 0.05));
+        }
+    </style>
+</head>
+
+<body class="bg-base text-text" style="padding-bottom: var(--bottom-nav-height);">
+    <nav x-data="{ show: true, lastScroll: 0 }"
+    @scroll.window="const current = window.pageYOffset; show = current < lastScroll || current < 50; lastScroll = current"
+    x-init="$watch('show', value => $dispatch('header-visibility', value))"
+    :class="show ? 'translate-y-0' : '-translate-y-full'"
+    class="fixed top-0 left-0 w-full z-50 glass-nav transition-transform duration-300 pt-[var(--safe-top)]">
+
+    <div class="max-w-7xl mx-auto px-4 md:px-6 flex items-center justify-between h-[var(--nav-height)]">
+        <!-- Logo -->
+        <a href="index.php" class="flex items-center gap-2 group">
+            <img src="assets/img/icon-192-v3.png" alt="ikimon" class="w-10 h-10 rounded-md shadow-md group-hover:scale-105 transition duration-500">
+            <span class="text-lg font-black tracking-tight font-heading text-text">ikimon</span>
+        </a>
+
+        <!-- Center Search (Desktop only) -->
+        <div class="hidden md:block flex-1 max-w-lg mx-8" x-data="globalSearch()" @click.outside="showResults = false">
+            <div class="relative group">
+                <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-faint"></i>
+                <input type="text"
+                    x-model="q"
+                    @input.debounce.300ms="search()"
+                    @focus="if(results.length) showResults = true"
+                    @keydown.enter="goFirst()"
+                    @keydown.escape="showResults = false"
+                    placeholder="生き物、場所を検索..."
+                    class="w-full rounded-full pl-12 pr-4 py-2.5 text-sm transition bg-surface border border-border-strong text-text">
+
+                <!-- Search Results Dropdown -->
+                <div x-show="showResults && results.length > 0"
+                    x-transition
+                    x-cloak
+                    class="absolute top-full left-0 right-0 mt-2 bg-elevated rounded-xl border border-border-strong shadow-xl overflow-hidden max-h-80 overflow-y-auto z-50">
+                    <template x-for="r in results" :key="r.name + r.type">
+                        <button @click="goTo(r)" class="w-full text-left px-4 py-3 hover:bg-surface border-b border-border last:border-0 transition flex items-start gap-3">
+                            <span class="text-base mt-0.5 flex-shrink-0" x-text="r.icon || '🔍'"></span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold text-text truncate" x-text="r.name || r.common_name"></p>
+                                <p class="text-xs text-muted truncate" x-text="searchLabel(r)"></p>
+                            </div>
+                            <span class="text-token-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface text-faint flex-shrink-0"
+                                x-text="r.type === 'taxon' ? '種名' : (r.type === 'site' ? 'サイト' : '場所')"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Links & CTA -->
+        <div class="flex items-center gap-4 md:gap-6">
+            <a href="explore.php" class="hidden md:flex items-center gap-2 text-sm font-bold transition text-muted hover:text-primary">
+                <i data-lucide="compass" class="w-4 h-4"></i>
+                みつける            </a>
+            <a href="map.php" class="hidden md:flex items-center gap-2 text-sm font-bold transition text-muted hover:text-primary">
+                <i data-lucide="map" class="w-4 h-4"></i>
+                フィールドマップ            </a>
+            <a href="zukan.php" class="hidden md:flex items-center gap-2 text-sm font-bold transition text-muted hover:text-accent">
+                <i data-lucide="book-open" class="w-4 h-4"></i>
+                図鑑            </a>
+            <a href="compass.php" class="hidden md:flex items-center gap-2 text-sm font-bold transition text-muted hover:text-accent">
+                <i data-lucide="globe" class="w-4 h-4"></i>
+                地域コンパス            </a>
+
+            <div class="h-6 w-px hidden md:block bg-border-strong"></div>
+
+            
+                            <a href="login.php" class="btn-secondary flex items-center gap-1.5 text-sm font-bold">
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    ログイン                </a>
+                <a href="login.php" class="btn-primary flex items-center gap-1.5 text-sm font-bold">
+                    <i data-lucide="camera" class="w-4 h-4"></i>
+                    <span class="hidden md:inline">記録</span>
+                </a>
+            
+            <!-- Language Toggle (Desktop) -->
+            <a href="?lang=en" class="hidden md:block text-xs font-bold transition text-muted hover:text-text">
+                English            </a>
+        </div>
+    </div>
+</nav>
+
+<script nonce="bf40d438762085dc22d55b8108f5a603">
+    function notifications() {
+        return {
+            open: false,
+            unreadCount: 0,
+            list: [],
+            async init() {
+                await this.fetchNotifications();
+                setInterval(() => this.fetchNotifications(), 30000);
+            },
+            async fetchNotifications() {
+                try {
+                    const res = await fetch('api/get_notifications.php');
+                    const result = await res.json();
+                    if (result.success) {
+                        this.list = result.notifications || [];
+                        this.unreadCount = result.unread_count;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+            async toggle() {
+                this.open = !this.open;
+                if (this.open && this.unreadCount > 0) {
+                    await this.markAsRead();
+                }
+            },
+            async markAsRead() {
+                try {
+                    const res = await fetch('api/mark_notifications_read.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({})
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        this.unreadCount = result.unread_count || 0;
+                        this.list.forEach(n => n.is_read = true);
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+            markItemRead(item) {
+                if (item.is_read) return;
+                item.is_read = true;
+                this.unreadCount = Math.max(0, this.unreadCount - 1);
+                fetch('api/mark_notifications_read.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: item.id
+                    })
+                }).catch(e => console.error(e));
+            },
+            formatTime(ts) {
+                const date = new Date(ts);
+                return date.toLocaleString('ja-JP', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            },
+            getTypeIcon(type) {
+                const icons = {
+                    'identification': '🏷️',
+                    'like': '❤️',
+                    'footprint': '👣',
+                    'ghost': '👻',
+                    'badge': '🏅',
+                    'rg_upgrade': '🏆',
+                    'comment': '💬',
+                    'welcome': '🌟'
+                };
+                return icons[type] || '🔔';
+            }
+        }
+    }
+
+    function globalSearch() {
+        return {
+            q: '',
+            results: [],
+            showResults: false,
+            _controller: null,
+
+            async search() {
+                if (this.q.length < 2) {
+                    this.results = [];
+                    this.showResults = false;
+                    return;
+                }
+
+                if (this._controller) this._controller.abort();
+                this._controller = new AbortController();
+
+                try {
+                    const res = await fetch(`api/search.php?q=${encodeURIComponent(this.q)}&limit=8`, {
+                        signal: this._controller.signal
+                    });
+                    const data = await res.json();
+                    this.results = data.results || [];
+                    this.showResults = this.results.length > 0;
+                } catch (e) {
+                    if (e.name !== 'AbortError') console.error(e);
+                }
+            },
+
+            goFirst() {
+                if (this.results.length > 0) {
+                    this.goTo(this.results[0]);
+                } else if (this.q.length > 0) {
+                    // Fallback: search on map
+                    window.location.href = `map.php?q=${encodeURIComponent(this.q)}`;
+                }
+            },
+
+            goTo(r) {
+                this.showResults = false;
+                if (r.type === 'taxon') {
+                    window.location.href = `zukan.php?q=${encodeURIComponent(r.scientific_name || r.name)}`;
+                } else if (r.type === 'site') {
+                    window.location.href = `site_dashboard.php?id=${r.id}`;
+                } else if (r.type === 'place') {
+                    window.location.href = `map.php?lat=${r.lat}&lng=${r.lng}&zoom=14`;
+                }
+            },
+
+            searchLabel(r) {
+                if (r.type === 'taxon') return r.scientific_name || r.group || '';
+                if (r.type === 'site') return '登録サイト';
+                if (r.type === 'place') return '観察場所';
+                return '';
+            }
+        }
+    }
+
+    function mobileSearch() {
+        return {
+            open: false,
+            q: '',
+            results: [],
+            loading: false,
+            _controller: null,
+
+            openSearch() {
+                this.open = true;
+                document.body.style.overflow = 'hidden';
+                this.$nextTick(() => {
+                    this.$refs.mobileSearchInput?.focus();
+                    lucide.createIcons();
+                });
+            },
+
+            closeSearch() {
+                this.open = false;
+                document.body.style.overflow = '';
+            },
+
+            async search() {
+                if (this.q.length < 2) {
+                    this.results = [];
+                    return;
+                }
+
+                if (this._controller) this._controller.abort();
+                this._controller = new AbortController();
+                this.loading = true;
+
+                try {
+                    const res = await fetch(`api/search.php?q=${encodeURIComponent(this.q)}&limit=10`, {
+                        signal: this._controller.signal
+                    });
+                    const data = await res.json();
+                    this.results = data.results || [];
+                } catch (e) {
+                    if (e.name !== 'AbortError') console.error(e);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            goFirst() {
+                if (this.results.length > 0) {
+                    this.goTo(this.results[0]);
+                }
+            },
+
+            goTo(r) {
+                if (r.type === 'taxon') {
+                    window.location.href = `zukan.php?q=${encodeURIComponent(r.scientific_name || r.name)}`;
+                } else if (r.type === 'site') {
+                    window.location.href = `site_dashboard.php?id=${r.id}`;
+                } else if (r.type === 'place') {
+                    window.location.href = `map.php?lat=${r.lat}&lng=${r.lng}&zoom=14`;
+                }
+            },
+
+            searchLabel(r) {
+                if (r.type === 'taxon') return r.scientific_name || r.group || '';
+                if (r.type === 'site') return '登録サイト';
+                if (r.type === 'place') return '観察場所';
+                return '';
+            }
+        }
+    }
+</script>
+
+<!-- Mobile Bottom Nav (App Shell) -->
+<nav class="md:hidden bottom-nav" aria-label="モバイル ナビゲーション">
+    <a href="index.php"
+                class="bottom-nav__item ">
+        <i data-lucide="home" class="w-6 h-6"></i>
+        <span>ホーム</span>
+    </a>
+    <button @click="$dispatch('open-mobile-search')" class="bottom-nav__item">
+        <i data-lucide="search" class="w-6 h-6"></i>
+        <span>検索</span>
+    </button>
+
+    <!-- Raised Center Button -->
+    <div class="bottom-nav__center">
+        <a href="post.php" class="bottom-nav__center-btn" aria-label="記録する">
+            <i data-lucide="plus" class="w-7 h-7"></i>
+        </a>
+    </div>
+
+    <a href="map.php"
+                class="bottom-nav__item ">
+        <i data-lucide="map" class="w-6 h-6"></i>
+        <span>フィールドマップ</span>
+    </a>
+    <a href="profile.php"
+                class="bottom-nav__item ">
+        <i data-lucide="user" class="w-6 h-6"></i>
+        <span>マイページ</span>
+    </a>
+</nav>
+
+<!-- Mobile Fullscreen Search Modal -->
+<div x-data="mobileSearch()"
+    @open-mobile-search.window="openSearch()"
+    x-show="open"
+    x-cloak
+    class="fixed inset-0 z-[100] bg-[var(--color-bg-base)] flex flex-col md:hidden"
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0 translate-y-4"
+    x-transition:enter-end="opacity-100 translate-y-0"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100 translate-y-0"
+    x-transition:leave-end="opacity-0 translate-y-4">
+
+    <!-- Search Header -->
+    <div class="flex items-center gap-3 px-4 pt-[calc(var(--safe-top,0px)+12px)] pb-3 border-b border-[var(--color-border)]">
+        <button @click="closeSearch()" class="p-2 rounded-full text-[var(--color-muted)] hover:bg-[var(--color-bg-faint)] transition flex-shrink-0">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </button>
+        <div class="relative flex-1">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-faint)]"></i>
+            <input type="text"
+                x-ref="mobileSearchInput"
+                x-model="q"
+                @input.debounce.300ms="search()"
+                @keydown.enter="goFirst()"
+                @keydown.escape="closeSearch()"
+                placeholder="種名・場所で検索..."
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-[var(--color-surface)] border border-[var(--color-border-strong)] text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
+            <button x-show="q.length > 0" @click="q = ''; results = []" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--color-faint)] hover:text-[var(--color-text)]">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Links (empty state) -->
+    <div x-show="results.length === 0 && q.length < 2" class="flex-1 overflow-y-auto px-4 py-4">
+        <p class="text-xs font-bold uppercase tracking-wider text-[var(--color-faint)] mb-3">よく使うページ</p>
+        <a href="explore.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+            <span class="text-lg">🧭</span>
+            <span class="text-sm font-bold">みつける</span>
+        </a>
+        <a href="map.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+            <span class="text-lg">🗺️</span>
+            <span class="text-sm font-bold">フィールドマップ</span>
+        </a>
+        <a href="zukan.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+            <span class="text-lg">📖</span>
+            <span class="text-sm font-bold">図鑑</span>
+        </a>
+        <a href="compass.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+            <span class="text-lg">🌍</span>
+            <span class="text-sm font-bold">地域コンパス</span>
+        </a>
+        <a href="survey.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+            <span class="text-lg">🔬</span>
+            <span class="text-sm font-bold">フィールド調査</span>
+        </a>
+    </div>
+
+    <!-- Search Results -->
+    <div x-show="results.length > 0" class="flex-1 overflow-y-auto">
+        <template x-for="r in results" :key="r.name + r.type">
+            <button @click="goTo(r)" class="w-full text-left px-4 py-3.5 border-b border-[var(--color-border)] flex items-start gap-3 active:bg-[var(--color-bg-faint)] transition">
+                <span class="text-lg mt-0.5 flex-shrink-0" x-text="r.icon || '🔍'"></span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-[var(--color-text)] truncate" x-text="r.name || r.common_name"></p>
+                    <p class="text-xs text-[var(--color-muted)] truncate" x-text="searchLabel(r)"></p>
+                </div>
+                <span class="text-token-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--color-surface)] text-[var(--color-faint)] flex-shrink-0 mt-1"
+                    x-text="r.type === 'taxon' ? '種名' : (r.type === 'site' ? 'サイト' : '場所')"></span>
+            </button>
+        </template>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="flex-1 flex items-center justify-center">
+        <div class="animate-spin w-6 h-6 border-2 border-[var(--color-primary)] border-t-transparent rounded-full"></div>
+    </div>
+
+    <!-- No results -->
+    <div x-show="q.length >= 2 && results.length === 0 && !loading" class="flex-1 flex flex-col items-center justify-center px-8 text-center">
+        <span class="text-4xl mb-3">🔍</span>
+        <p class="text-sm font-bold text-[var(--color-muted)]">「<span x-text="q"></span>」の結果が見つかりません</p>
+        <p class="text-xs text-[var(--color-faint)] mt-1">別のキーワードを試してみてね</p>
+    </div>
+</div>
+
+<!-- PWA Install Banner -->
+<div id="pwa-install-banner"
+    class="fixed z-[60] flex items-center gap-3 animate-[slideUp_0.5s_ease-out] bg-elevated rounded-lg shadow-lg border border-border-strong p-4 hidden bottom-[calc(var(--bottom-nav-height,64px)+16px)] left-4 right-4 max-w-[480px] mx-auto">
+    <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-primary-surface">
+        <span class="text-2xl">🌿</span>
+    </div>
+    <div class="flex-1 min-w-0">
+        <p class="text-sm font-bold text-text">ikimon をインストール</p>
+        <p class="text-xs text-muted">ホーム画面からすぐ起動。フィールドで便利！</p>
+    </div>
+    <div class="flex gap-2 shrink-0">
+        <button onclick="pwaDismiss()" class="text-xs p-1 text-faint hover:text-text">✕</button>
+        <button onclick="pwaInstall()" class="btn-primary text-xs px-4 py-2">追加</button>
+    </div>
+</div>
+<style>
+    @keyframes slideUp {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+<!-- CSRF Token Auto-Injection for all fetch() calls -->
+<script nonce="bf40d438762085dc22d55b8108f5a603">
+    (function() {
+        const originalFetch = window.fetch;
+        const UNSAFE_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
+
+        function getCsrfToken() {
+            const m = document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/);
+            return m ? m[1] : '';
+        }
+
+        window.fetch = function(input, init) {
+            init = init || {};
+            const method = (init.method || 'GET').toUpperCase();
+
+            if (UNSAFE_METHODS.includes(method)) {
+                const token = getCsrfToken();
+                if (token) {
+                    if (init.headers instanceof Headers) {
+                        if (!init.headers.has('X-Csrf-Token')) {
+                            init.headers.set('X-Csrf-Token', token);
+                        }
+                    } else if (typeof init.headers === 'object' && init.headers !== null) {
+                        if (!init.headers['X-Csrf-Token']) {
+                            init.headers['X-Csrf-Token'] = token;
+                        }
+                    } else {
+                        init.headers = {
+                            'X-Csrf-Token': token
+                        };
+                    }
+                }
+            }
+
+            return originalFetch.call(this, input, init);
+        };
+    })();
+</script>
+    <main class="max-w-5xl mx-auto px-4 md:px-6 pt-24 pb-16">
+        <!-- ── Header ── -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4" style="gap: var(--phi-md);">
+            <div>
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-primary mb-2">
+                    <i data-lucide="trees" class="w-4 h-4"></i>
+                    MY FIELD
+                </span>
+                <h1 class="text-2xl md:text-3xl font-black tracking-tight text-text">マイフィールド</h1>
+                <p class="text-sm text-muted mt-1 leading-relaxed max-w-lg">
+                    あなたの観察フィールドを管理して、生物多様性を記録しよう
+                </p>
+            </div>
+                    </div>
+
+                    <!-- ── Login Gate ── -->
+            <div class="bg-surface border border-border rounded-2xl text-center p-12" style="padding: var(--phi-xl) var(--phi-lg);">
+                <div class="text-5xl mb-4">🔒</div>
+                <h2 class="text-xl font-bold mb-2 text-text">ログインが必要です</h2>
+                <p class="text-sm text-muted mb-6">マイフィールドはログインユーザー専用の機能です。</p>
+                <a href="login.php"
+                    class="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition hover:shadow-lg"
+                    style="background: var(--color-primary);">
+                    ログインする
+                </a>
+            </div>
+            </main>
+
+    <!-- Footer Component -->
+<footer class="border-t border-border bg-base py-12 px-6 pb-32 md:pb-12">
+    <div class="max-w-7xl mx-auto">
+
+        <!-- 3-Column Footer Links -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-8 mb-10 text-sm font-bold text-muted px-4">
+            <!-- Column 1: ikimon -->
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-faint mb-3">ikimon</p>
+                <div class="flex flex-col gap-2">
+                    <a href="about.php" class="hover:text-text transition">運営について</a>
+                    <a href="faq.php" class="hover:text-text transition">よくある質問</a>
+                    <a href="team.php" class="hover:text-text transition">チーム</a>
+                    <a href="updates.php" class="hover:text-text transition">アップデート</a>
+                    <a href="mailto:contact@ikimon.life" class="hover:text-text transition">お問い合わせ</a>
+                </div>
+            </div>
+
+            <!-- Column 2: Service -->
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-faint mb-3">Service</p>
+                <div class="flex flex-col gap-2">
+                    <a href="for-business.php" class="hover:text-primary transition">企業・自治体の方へ</a>
+                    <a href="showcase.php" class="hover:text-text transition">ショーケース</a>
+                    <button onclick="localStorage.removeItem('ikimon_onboarded'); location.reload();" class="hover:text-text transition text-left">はじめての方へ</button>
+                </div>
+            </div>
+
+            <!-- Column 3: Legal -->
+            <div class="col-span-2 md:col-span-1">
+                <p class="text-[10px] font-black uppercase tracking-widest text-faint mb-3">Legal</p>
+                <div class="flex flex-col gap-2">
+                    <a href="terms.php" class="hover:text-text transition">利用規約</a>
+                    <a href="privacy.php" class="hover:text-text transition">プライバシーポリシー</a>
+                    <a href="guidelines.php" class="hover:text-text transition">参加ガイドライン</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logo & Copyright -->
+        <div class="flex flex-col items-center border-t border-border pt-8">
+            <div class="flex items-center justify-center gap-2 mb-4 opacity-30">
+                <div class="w-6 h-6 bg-surface rounded-lg"></div>
+                <span class="font-bold font-heading">ikimon</span>
+            </div>
+            <p class="text-[var(--color-text-muted)] text-xs text-center">
+                &copy; 2024-2026 ikimon Project.<br class="md:hidden"> Based in Hamamatsu, Japan.            </p>
+        </div>
+    </div>
+</footer>
+
+
+<!-- Cookie Consent Banner -->
+<div x-data="cookieConsent" x-show="showBanner" x-cloak
+    x-transition:enter="transition ease-out duration-300 transform"
+    x-transition:enter-start="opacity-0 translate-y-4"
+    x-transition:enter-end="opacity-100 translate-y-0"
+    x-transition:leave="transition ease-in duration-200 transform"
+    x-transition:leave-start="opacity-100 translate-y-0"
+    x-transition:leave-end="opacity-0 translate-y-4"
+    class="fixed bottom-0 left-0 right-0 z-[9990] p-4 md:p-6">
+
+    <div class="max-w-4xl mx-auto glass-card rounded-2xl border border-gray-200 p-6 shadow-2xl">
+        <div class="flex flex-col md:flex-row items-start md:items-center gap-4">
+
+            <div class="flex-1">
+                <h3 class="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                    <i data-lucide="cookie" class="w-5 h-5 text-yellow-400"></i>
+                    Cookieの使用について
+                </h3>
+                <p class="text-sm text-gray-400">
+                    当サイトでは、サービス向上のためにCookieを使用しています。
+                    <a href="privacy.php#cookie" class="text-[var(--color-primary)] hover:underline">詳細はこちら</a>
+                </p>
+            </div>
+
+            <div class="flex gap-2 shrink-0 w-full md:w-auto">
+                <button @click="acceptAll()"
+                    class="flex-1 md:flex-none px-6 py-2.5 rounded-xl bg-[var(--color-primary)] text-black font-bold text-sm hover:bg-[var(--color-primary)]/80 transition">
+                    すべて許可
+                </button>
+                <button @click="acceptEssential()"
+                    class="flex-1 md:flex-none px-6 py-2.5 rounded-xl bg-gray-100 text-gray-900 font-bold text-sm hover:bg-gray-200 transition">
+                    必須のみ
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script nonce="bf40d438762085dc22d55b8108f5a603">
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('cookieConsent', () => ({
+            showBanner: false,
+
+            init() {
+                // Check if consent already given
+                const consent = localStorage.getItem('ikimon_cookie_consent');
+                if (!consent) {
+                    // Small delay before showing
+                    setTimeout(() => {
+                        this.showBanner = true;
+                        lucide.createIcons();
+                    }, 1000);
+                }
+            },
+
+            acceptAll() {
+                this.saveConsent({
+                    essential: true,
+                    analytics: true,
+                    functional: true,
+                    timestamp: new Date().toISOString()
+                });
+            },
+
+            acceptEssential() {
+                this.saveConsent({
+                    essential: true,
+                    analytics: false,
+                    functional: false,
+                    timestamp: new Date().toISOString()
+                });
+            },
+
+            saveConsent(consent) {
+                localStorage.setItem('ikimon_cookie_consent', JSON.stringify(consent));
+                this.showBanner = false;
+
+                // If analytics not accepted, disable GA (if exists)
+                if (!consent.analytics && window.ga) {
+                    window['ga-disable-UA-XXXXX-Y'] = true;
+                }
+            }
+        }));
+    });
+</script>
+    <script nonce="bf40d438762085dc22d55b8108f5a603">
+        // ── Mini Maps for each field card ──
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            document.querySelectorAll('.field-minimap').forEach(el => {
+                const lat = parseFloat(el.dataset.lat);
+                const lng = parseFloat(el.dataset.lng);
+                const radius = parseFloat(el.dataset.radius) || 500;
+
+                if (isNaN(lat) || isNaN(lng)) return;
+
+                const map = new maplibregl.Map({
+                    container: el,
+                    style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+                    center: [lng, lat],
+                    zoom: 14,
+                    interactive: false,
+                    attributionControl: false,
+                });
+
+                map.on('load', () => {
+                    // Field boundary circle
+                    const points = 64;
+                    const coords = [];
+                    for (let i = 0; i <= points; i++) {
+                        const angle = (i / points) * Math.PI * 2;
+                        const dx = (radius / 111320) * Math.cos(angle);
+                        const dy = (radius / (111320 * Math.cos(lat * Math.PI / 180))) * Math.sin(angle);
+                        coords.push([lng + dy, lat + dx]);
+                    }
+
+                    map.addSource('field-boundary', {
+                        type: 'geojson',
+                        data: {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Polygon',
+                                coordinates: [coords]
+                            }
+                        }
+                    });
+                    map.addLayer({
+                        id: 'field-fill',
+                        type: 'fill',
+                        source: 'field-boundary',
+                        paint: {
+                            'fill-color': '#10b981',
+                            'fill-opacity': 0.15
+                        }
+                    });
+                    map.addLayer({
+                        id: 'field-border',
+                        type: 'line',
+                        source: 'field-boundary',
+                        paint: {
+                            'line-color': '#10b981',
+                            'line-width': 2,
+                            'line-opacity': 0.7
+                        }
+                    });
+
+                    // Center marker
+                    const dot = document.createElement('div');
+                    dot.style.cssText = 'width:10px;height:10px;background:#10b981;border-radius:50%;box-shadow:0 0 8px rgba(16,185,129,0.5);';
+                    new maplibregl.Marker({
+                        element: dot
+                    }).setLngLat([lng, lat]).addTo(map);
+                });
+            });
+        });
+
+        // ── Wellness Summary (Alpine) ──
+        function wellnessSummary() {
+            return {
+                loaded: false,
+                sessionCount: 0,
+                distanceKm: '0.0',
+                natureMinutes: 0,
+
+                async loadData() {
+                    try {
+                        const res = await fetch('api/get_field_sessions.php?period=month');
+                        const data = await res.json();
+                        if (data.success) {
+                            this.sessionCount = data.session_count || 0;
+                            const dist = data.physical?.total_distance_m || 0;
+                            this.distanceKm = (dist / 1000).toFixed(1);
+                            const mins = data.physical?.total_duration_min || 0;
+                            this.natureMinutes = Math.round(mins);
+                        }
+                    } catch (e) {
+                        console.warn('Wellness data load error:', e);
+                    }
+                    this.loaded = true;
+                }
+            };
+        }
+
+        // ── Field Creator (Alpine) ──
+        function fieldCreator() {
+            let createMap = null;
+            let createMarker = null;
+
+            return {
+                name: '',
+                biome: '',
+                lat: '',
+                lng: '',
+                radius: 500,
+                searchQuery: '',
+                searching: false,
+                submitting: false,
+                error: '',
+                success: '',
+
+                init() {
+                    this.$nextTick(() => {
+                        const mapEl = document.getElementById('create-map');
+                        if (!mapEl) return;
+
+                        createMap = new maplibregl.Map({
+                            container: 'create-map',
+                            style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+                            center: [137.73, 34.71],
+                            zoom: 10,
+                            attributionControl: false,
+                        });
+                        createMap.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+                        createMap.on('click', (e) => {
+                            this.lat = e.lngLat.lat.toFixed(6);
+                            this.lng = e.lngLat.lng.toFixed(6);
+                            this.updateMarker(e.lngLat.lng, e.lngLat.lat);
+                        });
+                    });
+                },
+
+                updateMarker(lng, lat) {
+                    if (createMarker) createMarker.remove();
+                    const dot = document.createElement('div');
+                    dot.style.cssText = 'width:14px;height:14px;background:#10b981;border-radius:50%;border:2px solid #fff;box-shadow:0 0 12px rgba(16,185,129,0.6);';
+                    createMarker = new maplibregl.Marker({
+                            element: dot
+                        })
+                        .setLngLat([lng, lat])
+                        .addTo(createMap);
+                },
+
+                async searchLocation() {
+                    if (!this.searchQuery) return;
+                    this.searching = true;
+                    this.error = '';
+                    try {
+                        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(this.searchQuery)}`;
+                        const res = await fetch(url);
+                        const data = await res.json();
+
+                        if (data && data.length > 0) {
+                            const place = data[0];
+                            this.lat = parseFloat(place.lat).toFixed(6);
+                            this.lng = parseFloat(place.lon).toFixed(6);
+
+                            if (createMap) {
+                                createMap.flyTo({
+                                    center: [this.lng, this.lat],
+                                    zoom: 14
+                                });
+                                this.updateMarker(this.lng, this.lat);
+                            }
+                        } else {
+                            this.error = '場所が見つかりませんでした';
+                        }
+                    } catch (e) {
+                        this.error = '検索エラー: ' + e.message;
+                    } finally {
+                        this.searching = false;
+                    }
+                },
+
+                useGPS() {
+                    if (!navigator.geolocation) {
+                        this.error = 'GPSが利用できません';
+                        return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            this.lat = pos.coords.latitude.toFixed(6);
+                            this.lng = pos.coords.longitude.toFixed(6);
+                            if (createMap) {
+                                createMap.flyTo({
+                                    center: [pos.coords.longitude, pos.coords.latitude],
+                                    zoom: 14
+                                });
+                                this.updateMarker(pos.coords.longitude, pos.coords.latitude);
+                            }
+                        },
+                        () => {
+                            this.error = '位置情報を取得できませんでした';
+                        }
+                    );
+                },
+
+                async submit() {
+                    this.error = '';
+                    this.success = '';
+                    if (!this.name || !this.biome || !this.lat || !this.lng) {
+                        this.error = '必須項目を入力してください';
+                        return;
+                    }
+                    this.submitting = true;
+                    try {
+                        const res = await fetch('api/create_field.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                name: this.name,
+                                biome: this.biome,
+                                lat: parseFloat(this.lat),
+                                lng: parseFloat(this.lng),
+                                radius: parseInt(this.radius) || 500,
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            this.success = 'フィールドを作成しました！ページを更新します...';
+                            setTimeout(() => location.reload(), 1200);
+                        } else {
+                            this.error = data.error || '作成に失敗しました';
+                        }
+                    } catch (e) {
+                        this.error = 'ネットワークエラー: ' + e.message;
+                    } finally {
+                        this.submitting = false;
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+
+</html>

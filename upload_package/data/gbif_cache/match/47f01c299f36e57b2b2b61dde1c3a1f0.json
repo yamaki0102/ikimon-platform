@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2465937,
+    "scientific_name": "Japalura Gray, 1853",
+    "status": "ACCEPTED",
+    "match_type": "HIGHERRANK",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Agamidae",
+    "genus": "Japalura",
+    "rank": "GENUS",
+    "original_query": "Japalura GRAY, 1853",
+    "_cached_at": 1770420175
+}

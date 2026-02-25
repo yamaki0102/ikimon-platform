@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p29_5a134937d75f003a7ebab1d8641e8a72",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 29,
+    "taxon_name": "オオサンショウウオ",
+    "scientific_name": "Megalobatrachus japonicus (TEMMINCK, 1837)",
+    "family": "オオサンショウウオ科",
+    "data_icons": {
+        "size": "500〜1,200mm",
+        "season": "8月下旬〜9月下旬",
+        "distribution": "本州 (岐阜県以西), 九州 (北部)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

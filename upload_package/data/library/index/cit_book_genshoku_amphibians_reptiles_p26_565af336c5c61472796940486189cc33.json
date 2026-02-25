@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p26_565af336c5c61472796940486189cc33",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 26,
+    "taxon_name": "オオダイガハラサンショウウオ",
+    "scientific_name": "Hynobius (Pachypalaminus) boulengeri (THOMPSON, 1912)",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "130〜180mm",
+        "season": "5月頃",
+        "distribution": "本州 (紀伊山地), 四国, 九州 (大分県) の山地"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

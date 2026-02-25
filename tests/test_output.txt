@@ -1,0 +1,495 @@
+Created Test User: test_user_gamification_1771066099
+
+--- Test 1: My Field Creation ---
+DATA_DIR (Global): G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data
+MyFieldManager::DATA_DIR: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/my_fields
+Field Created: mf_699052f3d4bbd
+MyFields count: 1
+Array
+(
+    [0] => Array
+        (
+            [id] => mf_699052f3d4bbd
+            [user_id] => test_user_gamification_1771066099
+            [name] => Test Field
+            [center] => Array
+                (
+                    [lat] => 35.6895
+                    [lng] => 139.6917
+                )
+
+            [radius] => 500
+            [biome_type] => urban
+            [created_at] => 2026-02-14 19:48:19
+            [updated_at] => 2026-02-14 19:48:19
+        )
+
+)
+[DEBUG] BadgeManager::checkAndAward called for post_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File NOT FOUND: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] Checking badge: beginner_observer against post_count
+[DEBUG] Checking badge: observer against post_count
+[DEBUG] Checking badge: pro_observer against post_count
+[DEBUG] Checking badge: biologist_jr against post_count
+[DEBUG] Checking badge: night_walker against post_count
+[DEBUG] Checking badge: field_creator against post_count
+[DEBUG] Context my_field_count: 1
+[DEBUG] Checking badge: field_guardian against post_count
+[DEBUG] Checking badge: field_master against post_count
+[DEBUG] Checking badge: field_researcher against post_count
+[DEBUG] Checking badge: beginner_identifier against post_count
+[DEBUG] Checking badge: identifier against post_count
+[DEBUG] Checking badge: expert against post_count
+[DEBUG] Checking badge: insect_expert against post_count
+[DEBUG] Checking badge: bird_expert against post_count
+[DEBUG] Checking badge: plant_expert against post_count
+[DEBUG] Checking badge: herp_expert against post_count
+[DEBUG] Checking badge: allrounder against post_count
+[DEBUG] Checking badge: trusted_expert against post_count
+[DEBUG] Saving badges to G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json. Count: 2
+[DEBUG] File save SUCCESS. Bytes: 1322
+[DEBUG] BadgeManager::checkAndAward called for id_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 1322
+[DEBUG] Checking badge: beginner_observer against id_count
+[DEBUG] Checking badge: observer against id_count
+[DEBUG] Checking badge: pro_observer against id_count
+[DEBUG] Checking badge: biologist_jr against id_count
+[DEBUG] Checking badge: night_walker against id_count
+[DEBUG] Checking badge: field_guardian against id_count
+[DEBUG] Checking badge: field_master against id_count
+[DEBUG] Checking badge: beginner_identifier against id_count
+[DEBUG] Checking badge: identifier against id_count
+[DEBUG] Checking badge: expert against id_count
+[DEBUG] Checking badge: insect_expert against id_count
+[DEBUG] Checking badge: bird_expert against id_count
+[DEBUG] Checking badge: plant_expert against id_count
+[DEBUG] Checking badge: herp_expert against id_count
+[DEBUG] Checking badge: allrounder against id_count
+[DEBUG] Checking badge: trusted_expert against id_count
+[DEBUG] BadgeManager::checkAndAward called for species_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 1322
+[DEBUG] Checking badge: beginner_observer against species_count
+[DEBUG] Checking badge: observer against species_count
+[DEBUG] Checking badge: pro_observer against species_count
+[DEBUG] Checking badge: biologist_jr against species_count
+[DEBUG] Checking badge: night_walker against species_count
+[DEBUG] Checking badge: field_guardian against species_count
+[DEBUG] Checking badge: field_master against species_count
+[DEBUG] Checking badge: beginner_identifier against species_count
+[DEBUG] Checking badge: identifier against species_count
+[DEBUG] Checking badge: expert against species_count
+[DEBUG] Checking badge: insect_expert against species_count
+[DEBUG] Checking badge: bird_expert against species_count
+[DEBUG] Checking badge: plant_expert against species_count
+[DEBUG] Checking badge: herp_expert against species_count
+[DEBUG] Checking badge: allrounder against species_count
+[DEBUG] Checking badge: trusted_expert against species_count
+[DEBUG] BadgeManager::checkAndAward called for taxon_id
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 1322
+[DEBUG] Checking badge: beginner_observer against taxon_id
+[DEBUG] Checking badge: observer against taxon_id
+[DEBUG] Checking badge: pro_observer against taxon_id
+[DEBUG] Checking badge: biologist_jr against taxon_id
+[DEBUG] Checking badge: night_walker against taxon_id
+[DEBUG] Checking badge: field_guardian against taxon_id
+[DEBUG] Checking badge: field_master against taxon_id
+[DEBUG] Checking badge: beginner_identifier against taxon_id
+[DEBUG] Checking badge: identifier against taxon_id
+[DEBUG] Checking badge: expert against taxon_id
+[DEBUG] Checking badge: insect_expert against taxon_id
+[DEBUG] Checking badge: bird_expert against taxon_id
+[DEBUG] Checking badge: plant_expert against taxon_id
+[DEBUG] Checking badge: herp_expert against taxon_id
+[DEBUG] Checking badge: allrounder against taxon_id
+[DEBUG] Checking badge: trusted_expert against taxon_id
+[DEBUG] BadgeManager::checkAndAward called for taxon_diversity
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 1322
+[DEBUG] Checking badge: beginner_observer against taxon_diversity
+[DEBUG] Checking badge: observer against taxon_diversity
+[DEBUG] Checking badge: pro_observer against taxon_diversity
+[DEBUG] Checking badge: biologist_jr against taxon_diversity
+[DEBUG] Checking badge: night_walker against taxon_diversity
+[DEBUG] Checking badge: field_guardian against taxon_diversity
+[DEBUG] Checking badge: field_master against taxon_diversity
+[DEBUG] Checking badge: beginner_identifier against taxon_diversity
+[DEBUG] Checking badge: identifier against taxon_diversity
+[DEBUG] Checking badge: expert against taxon_diversity
+[DEBUG] Checking badge: insect_expert against taxon_diversity
+[DEBUG] Checking badge: bird_expert against taxon_diversity
+[DEBUG] Checking badge: plant_expert against taxon_diversity
+[DEBUG] Checking badge: herp_expert against taxon_diversity
+[DEBUG] Checking badge: allrounder against taxon_diversity
+[DEBUG] Checking badge: trusted_expert against taxon_diversity
+[DEBUG] BadgeManager::checkAndAward called for trust_level
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 1322
+[DEBUG] Checking badge: beginner_observer against trust_level
+[DEBUG] Checking badge: observer against trust_level
+[DEBUG] Checking badge: pro_observer against trust_level
+[DEBUG] Checking badge: biologist_jr against trust_level
+[DEBUG] Checking badge: night_walker against trust_level
+[DEBUG] Checking badge: field_guardian against trust_level
+[DEBUG] Checking badge: field_master against trust_level
+[DEBUG] Checking badge: beginner_identifier against trust_level
+[DEBUG] Checking badge: identifier against trust_level
+[DEBUG] Checking badge: expert against trust_level
+[DEBUG] Checking badge: insect_expert against trust_level
+[DEBUG] Checking badge: bird_expert against trust_level
+[DEBUG] Checking badge: plant_expert against trust_level
+[DEBUG] Checking badge: herp_expert against trust_level
+[DEBUG] Checking badge: allrounder against trust_level
+[DEBUG] Checking badge: trusted_expert against trust_level
+[DEBUG] BadgeManager::checkAndAward called for my_field_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 1322
+[DEBUG] Checking badge: beginner_observer against my_field_count
+[DEBUG] Checking badge: observer against my_field_count
+[DEBUG] Checking badge: pro_observer against my_field_count
+[DEBUG] Checking badge: biologist_jr against my_field_count
+[DEBUG] Checking badge: night_walker against my_field_count
+[DEBUG] Checking badge: field_guardian against my_field_count
+[DEBUG] Checking badge: field_master against my_field_count
+[DEBUG] Checking badge: beginner_identifier against my_field_count
+[DEBUG] Checking badge: identifier against my_field_count
+[DEBUG] Checking badge: expert against my_field_count
+[DEBUG] Checking badge: insect_expert against my_field_count
+[DEBUG] Checking badge: bird_expert against my_field_count
+[DEBUG] Checking badge: plant_expert against my_field_count
+[DEBUG] Checking badge: herp_expert against my_field_count
+[DEBUG] Checking badge: allrounder against my_field_count
+[DEBUG] Checking badge: trusted_expert against my_field_count
+[DEBUG] BadgeManager::checkAndAward called for my_field_obs_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 1322
+[DEBUG] Checking badge: beginner_observer against my_field_obs_count
+[DEBUG] Checking badge: observer against my_field_obs_count
+[DEBUG] Checking badge: pro_observer against my_field_obs_count
+[DEBUG] Checking badge: biologist_jr against my_field_obs_count
+[DEBUG] Checking badge: night_walker against my_field_obs_count
+[DEBUG] Checking badge: field_guardian against my_field_obs_count
+[DEBUG] Checking badge: field_master against my_field_obs_count
+[DEBUG] Checking badge: beginner_identifier against my_field_obs_count
+[DEBUG] Checking badge: identifier against my_field_obs_count
+[DEBUG] Checking badge: expert against my_field_obs_count
+[DEBUG] Checking badge: insect_expert against my_field_obs_count
+[DEBUG] Checking badge: bird_expert against my_field_obs_count
+[DEBUG] Checking badge: plant_expert against my_field_obs_count
+[DEBUG] Checking badge: herp_expert against my_field_obs_count
+[DEBUG] Checking badge: allrounder against my_field_obs_count
+[DEBUG] Checking badge: trusted_expert against my_field_obs_count
+[DEBUG] BadgeManager::checkAndAward called for my_field_score
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 1322
+[DEBUG] Checking badge: beginner_observer against my_field_score
+[DEBUG] Checking badge: observer against my_field_score
+[DEBUG] Checking badge: pro_observer against my_field_score
+[DEBUG] Checking badge: biologist_jr against my_field_score
+[DEBUG] Checking badge: night_walker against my_field_score
+[DEBUG] Checking badge: field_guardian against my_field_score
+[DEBUG] Checking badge: field_master against my_field_score
+[DEBUG] Checking badge: beginner_identifier against my_field_score
+[DEBUG] Checking badge: identifier against my_field_score
+[DEBUG] Checking badge: expert against my_field_score
+[DEBUG] Checking badge: insect_expert against my_field_score
+[DEBUG] Checking badge: bird_expert against my_field_score
+[DEBUG] Checking badge: plant_expert against my_field_score
+[DEBUG] Checking badge: herp_expert against my_field_score
+[DEBUG] Checking badge: allrounder against my_field_score
+[DEBUG] Checking badge: trusted_expert against my_field_score
+[TEST DEBUG] Verifying field_creator for user test_user_gamification_1771066099...
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 1322
+[TEST DEBUG] Badges found: 2
+Array
+(
+    [0] => field_creator
+    [1] => field_researcher
+)
+SUCCESS: 'field_creator' awarded.
+
+--- Test 2: Field Guardian (10 Obs) ---
+[DEBUG] BadgeManager::checkAndAward called for post_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 1322
+[DEBUG] Checking badge: beginner_observer against post_count
+[DEBUG] Checking badge: observer against post_count
+[DEBUG] Checking badge: pro_observer against post_count
+[DEBUG] Checking badge: biologist_jr against post_count
+[DEBUG] Checking badge: night_walker against post_count
+[DEBUG] Checking badge: field_guardian against post_count
+[DEBUG] Checking badge: field_master against post_count
+[DEBUG] Checking badge: beginner_identifier against post_count
+[DEBUG] Checking badge: identifier against post_count
+[DEBUG] Checking badge: expert against post_count
+[DEBUG] Checking badge: insect_expert against post_count
+[DEBUG] Checking badge: bird_expert against post_count
+[DEBUG] Checking badge: plant_expert against post_count
+[DEBUG] Checking badge: herp_expert against post_count
+[DEBUG] Checking badge: allrounder against post_count
+[DEBUG] Checking badge: trusted_expert against post_count
+[DEBUG] Saving badges to G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json. Count: 5
+[DEBUG] File save SUCCESS. Bytes: 3096
+[DEBUG] BadgeManager::checkAndAward called for id_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 3096
+[DEBUG] Checking badge: pro_observer against id_count
+[DEBUG] Checking badge: biologist_jr against id_count
+[DEBUG] Checking badge: night_walker against id_count
+[DEBUG] Checking badge: field_master against id_count
+[DEBUG] Checking badge: beginner_identifier against id_count
+[DEBUG] Checking badge: identifier against id_count
+[DEBUG] Checking badge: expert against id_count
+[DEBUG] Checking badge: insect_expert against id_count
+[DEBUG] Checking badge: bird_expert against id_count
+[DEBUG] Checking badge: plant_expert against id_count
+[DEBUG] Checking badge: herp_expert against id_count
+[DEBUG] Checking badge: allrounder against id_count
+[DEBUG] Checking badge: trusted_expert against id_count
+[DEBUG] BadgeManager::checkAndAward called for species_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 3096
+[DEBUG] Checking badge: pro_observer against species_count
+[DEBUG] Checking badge: biologist_jr against species_count
+[DEBUG] Checking badge: night_walker against species_count
+[DEBUG] Checking badge: field_master against species_count
+[DEBUG] Checking badge: beginner_identifier against species_count
+[DEBUG] Checking badge: identifier against species_count
+[DEBUG] Checking badge: expert against species_count
+[DEBUG] Checking badge: insect_expert against species_count
+[DEBUG] Checking badge: bird_expert against species_count
+[DEBUG] Checking badge: plant_expert against species_count
+[DEBUG] Checking badge: herp_expert against species_count
+[DEBUG] Checking badge: allrounder against species_count
+[DEBUG] Checking badge: trusted_expert against species_count
+[DEBUG] BadgeManager::checkAndAward called for taxon_id
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 3096
+[DEBUG] Checking badge: pro_observer against taxon_id
+[DEBUG] Checking badge: biologist_jr against taxon_id
+[DEBUG] Checking badge: night_walker against taxon_id
+[DEBUG] Checking badge: field_master against taxon_id
+[DEBUG] Checking badge: beginner_identifier against taxon_id
+[DEBUG] Checking badge: identifier against taxon_id
+[DEBUG] Checking badge: expert against taxon_id
+[DEBUG] Checking badge: insect_expert against taxon_id
+[DEBUG] Checking badge: bird_expert against taxon_id
+[DEBUG] Checking badge: plant_expert against taxon_id
+[DEBUG] Checking badge: herp_expert against taxon_id
+[DEBUG] Checking badge: allrounder against taxon_id
+[DEBUG] Checking badge: trusted_expert against taxon_id
+[DEBUG] BadgeManager::checkAndAward called for taxon_diversity
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 3096
+[DEBUG] Checking badge: pro_observer against taxon_diversity
+[DEBUG] Checking badge: biologist_jr against taxon_diversity
+[DEBUG] Checking badge: night_walker against taxon_diversity
+[DEBUG] Checking badge: field_master against taxon_diversity
+[DEBUG] Checking badge: beginner_identifier against taxon_diversity
+[DEBUG] Checking badge: identifier against taxon_diversity
+[DEBUG] Checking badge: expert against taxon_diversity
+[DEBUG] Checking badge: insect_expert against taxon_diversity
+[DEBUG] Checking badge: bird_expert against taxon_diversity
+[DEBUG] Checking badge: plant_expert against taxon_diversity
+[DEBUG] Checking badge: herp_expert against taxon_diversity
+[DEBUG] Checking badge: allrounder against taxon_diversity
+[DEBUG] Checking badge: trusted_expert against taxon_diversity
+[DEBUG] BadgeManager::checkAndAward called for trust_level
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 3096
+[DEBUG] Checking badge: pro_observer against trust_level
+[DEBUG] Checking badge: biologist_jr against trust_level
+[DEBUG] Checking badge: night_walker against trust_level
+[DEBUG] Checking badge: field_master against trust_level
+[DEBUG] Checking badge: beginner_identifier against trust_level
+[DEBUG] Checking badge: identifier against trust_level
+[DEBUG] Checking badge: expert against trust_level
+[DEBUG] Checking badge: insect_expert against trust_level
+[DEBUG] Checking badge: bird_expert against trust_level
+[DEBUG] Checking badge: plant_expert against trust_level
+[DEBUG] Checking badge: herp_expert against trust_level
+[DEBUG] Checking badge: allrounder against trust_level
+[DEBUG] Checking badge: trusted_expert against trust_level
+[DEBUG] BadgeManager::checkAndAward called for my_field_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 3096
+[DEBUG] Checking badge: pro_observer against my_field_count
+[DEBUG] Checking badge: biologist_jr against my_field_count
+[DEBUG] Checking badge: night_walker against my_field_count
+[DEBUG] Checking badge: field_master against my_field_count
+[DEBUG] Checking badge: beginner_identifier against my_field_count
+[DEBUG] Checking badge: identifier against my_field_count
+[DEBUG] Checking badge: expert against my_field_count
+[DEBUG] Checking badge: insect_expert against my_field_count
+[DEBUG] Checking badge: bird_expert against my_field_count
+[DEBUG] Checking badge: plant_expert against my_field_count
+[DEBUG] Checking badge: herp_expert against my_field_count
+[DEBUG] Checking badge: allrounder against my_field_count
+[DEBUG] Checking badge: trusted_expert against my_field_count
+[DEBUG] BadgeManager::checkAndAward called for my_field_obs_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 3096
+[DEBUG] Checking badge: pro_observer against my_field_obs_count
+[DEBUG] Checking badge: biologist_jr against my_field_obs_count
+[DEBUG] Checking badge: night_walker against my_field_obs_count
+[DEBUG] Checking badge: field_master against my_field_obs_count
+[DEBUG] Checking badge: beginner_identifier against my_field_obs_count
+[DEBUG] Checking badge: identifier against my_field_obs_count
+[DEBUG] Checking badge: expert against my_field_obs_count
+[DEBUG] Checking badge: insect_expert against my_field_obs_count
+[DEBUG] Checking badge: bird_expert against my_field_obs_count
+[DEBUG] Checking badge: plant_expert against my_field_obs_count
+[DEBUG] Checking badge: herp_expert against my_field_obs_count
+[DEBUG] Checking badge: allrounder against my_field_obs_count
+[DEBUG] Checking badge: trusted_expert against my_field_obs_count
+[DEBUG] BadgeManager::checkAndAward called for my_field_score
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 3096
+[DEBUG] Checking badge: pro_observer against my_field_score
+[DEBUG] Checking badge: biologist_jr against my_field_score
+[DEBUG] Checking badge: night_walker against my_field_score
+[DEBUG] Checking badge: field_master against my_field_score
+[DEBUG] Checking badge: beginner_identifier against my_field_score
+[DEBUG] Checking badge: identifier against my_field_score
+[DEBUG] Checking badge: expert against my_field_score
+[DEBUG] Checking badge: insect_expert against my_field_score
+[DEBUG] Checking badge: bird_expert against my_field_score
+[DEBUG] Checking badge: plant_expert against my_field_score
+[DEBUG] Checking badge: herp_expert against my_field_score
+[DEBUG] Checking badge: allrounder against my_field_score
+[DEBUG] Checking badge: trusted_expert against my_field_score
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 3096
+SUCCESS: 'field_guardian' badge awarded.
+
+--- Test 3: Field Researcher (Shannon > 2.0) ---
+[DEBUG] BadgeManager::checkAndAward called for post_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 3096
+[DEBUG] Checking badge: pro_observer against post_count
+[DEBUG] Checking badge: biologist_jr against post_count
+[DEBUG] Checking badge: night_walker against post_count
+[DEBUG] Checking badge: field_master against post_count
+[DEBUG] Checking badge: beginner_identifier against post_count
+[DEBUG] Checking badge: identifier against post_count
+[DEBUG] Checking badge: expert against post_count
+[DEBUG] Checking badge: insect_expert against post_count
+[DEBUG] Checking badge: bird_expert against post_count
+[DEBUG] Checking badge: plant_expert against post_count
+[DEBUG] Checking badge: herp_expert against post_count
+[DEBUG] Checking badge: allrounder against post_count
+[DEBUG] Checking badge: trusted_expert against post_count
+[DEBUG] Saving badges to G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json. Count: 8
+[DEBUG] File save SUCCESS. Bytes: 4739
+[DEBUG] BadgeManager::checkAndAward called for id_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 4739
+[DEBUG] Checking badge: biologist_jr against id_count
+[DEBUG] Checking badge: night_walker against id_count
+[DEBUG] Checking badge: field_master against id_count
+[DEBUG] Checking badge: expert against id_count
+[DEBUG] Checking badge: insect_expert against id_count
+[DEBUG] Checking badge: bird_expert against id_count
+[DEBUG] Checking badge: plant_expert against id_count
+[DEBUG] Checking badge: herp_expert against id_count
+[DEBUG] Checking badge: allrounder against id_count
+[DEBUG] Checking badge: trusted_expert against id_count
+[DEBUG] BadgeManager::checkAndAward called for species_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 4739
+[DEBUG] Checking badge: biologist_jr against species_count
+[DEBUG] Checking badge: night_walker against species_count
+[DEBUG] Checking badge: field_master against species_count
+[DEBUG] Checking badge: expert against species_count
+[DEBUG] Checking badge: insect_expert against species_count
+[DEBUG] Checking badge: bird_expert against species_count
+[DEBUG] Checking badge: plant_expert against species_count
+[DEBUG] Checking badge: herp_expert against species_count
+[DEBUG] Checking badge: allrounder against species_count
+[DEBUG] Checking badge: trusted_expert against species_count
+[DEBUG] BadgeManager::checkAndAward called for taxon_id
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 4739
+[DEBUG] Checking badge: biologist_jr against taxon_id
+[DEBUG] Checking badge: night_walker against taxon_id
+[DEBUG] Checking badge: field_master against taxon_id
+[DEBUG] Checking badge: expert against taxon_id
+[DEBUG] Checking badge: insect_expert against taxon_id
+[DEBUG] Checking badge: bird_expert against taxon_id
+[DEBUG] Checking badge: plant_expert against taxon_id
+[DEBUG] Checking badge: herp_expert against taxon_id
+[DEBUG] Checking badge: allrounder against taxon_id
+[DEBUG] Checking badge: trusted_expert against taxon_id
+[DEBUG] BadgeManager::checkAndAward called for taxon_diversity
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 4739
+[DEBUG] Checking badge: biologist_jr against taxon_diversity
+[DEBUG] Checking badge: night_walker against taxon_diversity
+[DEBUG] Checking badge: field_master against taxon_diversity
+[DEBUG] Checking badge: expert against taxon_diversity
+[DEBUG] Checking badge: insect_expert against taxon_diversity
+[DEBUG] Checking badge: bird_expert against taxon_diversity
+[DEBUG] Checking badge: plant_expert against taxon_diversity
+[DEBUG] Checking badge: herp_expert against taxon_diversity
+[DEBUG] Checking badge: allrounder against taxon_diversity
+[DEBUG] Checking badge: trusted_expert against taxon_diversity
+[DEBUG] BadgeManager::checkAndAward called for trust_level
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 4739
+[DEBUG] Checking badge: biologist_jr against trust_level
+[DEBUG] Checking badge: night_walker against trust_level
+[DEBUG] Checking badge: field_master against trust_level
+[DEBUG] Checking badge: expert against trust_level
+[DEBUG] Checking badge: insect_expert against trust_level
+[DEBUG] Checking badge: bird_expert against trust_level
+[DEBUG] Checking badge: plant_expert against trust_level
+[DEBUG] Checking badge: herp_expert against trust_level
+[DEBUG] Checking badge: allrounder against trust_level
+[DEBUG] Checking badge: trusted_expert against trust_level
+[DEBUG] BadgeManager::checkAndAward called for my_field_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 4739
+[DEBUG] Checking badge: biologist_jr against my_field_count
+[DEBUG] Checking badge: night_walker against my_field_count
+[DEBUG] Checking badge: field_master against my_field_count
+[DEBUG] Checking badge: expert against my_field_count
+[DEBUG] Checking badge: insect_expert against my_field_count
+[DEBUG] Checking badge: bird_expert against my_field_count
+[DEBUG] Checking badge: plant_expert against my_field_count
+[DEBUG] Checking badge: herp_expert against my_field_count
+[DEBUG] Checking badge: allrounder against my_field_count
+[DEBUG] Checking badge: trusted_expert against my_field_count
+[DEBUG] BadgeManager::checkAndAward called for my_field_obs_count
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 4739
+[DEBUG] Checking badge: biologist_jr against my_field_obs_count
+[DEBUG] Checking badge: night_walker against my_field_obs_count
+[DEBUG] Checking badge: field_master against my_field_obs_count
+[DEBUG] Checking badge: expert against my_field_obs_count
+[DEBUG] Checking badge: insect_expert against my_field_obs_count
+[DEBUG] Checking badge: bird_expert against my_field_obs_count
+[DEBUG] Checking badge: plant_expert against my_field_obs_count
+[DEBUG] Checking badge: herp_expert against my_field_obs_count
+[DEBUG] Checking badge: allrounder against my_field_obs_count
+[DEBUG] Checking badge: trusted_expert against my_field_obs_count
+[DEBUG] BadgeManager::checkAndAward called for my_field_score
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 4739
+[DEBUG] Checking badge: biologist_jr against my_field_score
+[DEBUG] Checking badge: night_walker against my_field_score
+[DEBUG] Checking badge: field_master against my_field_score
+[DEBUG] Checking badge: expert against my_field_score
+[DEBUG] Checking badge: insect_expert against my_field_score
+[DEBUG] Checking badge: bird_expert against my_field_score
+[DEBUG] Checking badge: plant_expert against my_field_score
+[DEBUG] Checking badge: herp_expert against my_field_score
+[DEBUG] Checking badge: allrounder against my_field_score
+[DEBUG] Checking badge: trusted_expert against my_field_score
+[DEBUG] getUserBadges looking at: G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\upload_package/data/user_badges/test_user_gamification_1771066099.json
+[DEBUG] File content length: 4739
+Current Shannon Index: 2.3
+SUCCESS: 'field_researcher' badge awarded.

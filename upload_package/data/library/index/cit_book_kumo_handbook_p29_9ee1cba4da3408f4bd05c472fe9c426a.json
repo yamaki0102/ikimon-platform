@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p29_9ee1cba4da3408f4bd05c472fe9c426a",
+    "book_id": "book_kumo_handbook",
+    "page": 29,
+    "taxon_name": "ギンメッキゴミグモ",
+    "scientific_name": "Cyclosa argenteoalba",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 4〜7mm, male: 3〜4mm",
+        "season": "春〜夏（年2回発生）",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "ギンメッキゴミグモ（黒色型）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

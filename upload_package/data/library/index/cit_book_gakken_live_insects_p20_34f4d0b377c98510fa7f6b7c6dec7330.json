@@ -1,0 +1,20 @@
+{
+    "id": "cit_book_gakken_live_insects_p20_34f4d0b377c98510fa7f6b7c6dec7330",
+    "book_id": "book_gakken_live_insects",
+    "page": 20,
+    "taxon_name": "ホンサナエ",
+    "scientific_name": null,
+    "family": "サナエトンボ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [
+        "成虫標本（上面）"
+    ],
+    "figures": [],
+    "page_type": "VISUAL_PLATE",
+    "rarity_stars": null,
+    "type": "plate"
+}

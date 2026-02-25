@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p28_b842ade863c1cb651d9c578c9d1dc23b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 28,
+    "taxon_name": "ハコネサンショウウオ (続き)",
+    "scientific_name": "Onychodactylus japonicus (HOUTTUYN, 1782)",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "110〜180mm",
+        "season": "5月頃 (四国) 〜 7・8月 (東北・高山)",
+        "distribution": "本州 (中国山脈を除く全域), 四国"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

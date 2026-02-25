@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p72_228008ec689db045253593e51628d896",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 72,
+    "taxon_name": "ナミエガエル",
+    "scientific_name": "Rana (Rana ?) namiyei STEJNEGER, 1901",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": "60〜110mm",
+        "season": null,
+        "distribution": "奄美大島, 沖縄本島"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

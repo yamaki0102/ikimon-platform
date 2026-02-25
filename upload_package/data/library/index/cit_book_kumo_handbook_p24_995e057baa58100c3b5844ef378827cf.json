@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p24_995e057baa58100c3b5844ef378827cf",
+    "book_id": "book_kumo_handbook",
+    "page": 24,
+    "taxon_name": "アオオニグモ",
+    "scientific_name": "Araneus pentagrammicus",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 9〜11mm, male: 5〜6mm",
+        "season": "春〜夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "住居（葉を丸めたもの）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

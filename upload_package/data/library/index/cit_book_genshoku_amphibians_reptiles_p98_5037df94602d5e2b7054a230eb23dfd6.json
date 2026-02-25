@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p98_5037df94602d5e2b7054a230eb23dfd6",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 98,
+    "taxon_name": "アカウミガメ",
+    "scientific_name": "Caretta caretta gigas DERANIYAGALA, 1933",
+    "family": "ウミガメ科",
+    "data_icons": {
+        "size": "90cm (Max 300kg)",
+        "season": null,
+        "distribution": "太平洋, インド洋"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

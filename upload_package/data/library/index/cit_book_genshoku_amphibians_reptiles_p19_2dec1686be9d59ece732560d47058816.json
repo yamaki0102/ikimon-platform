@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p19_2dec1686be9d59ece732560d47058816",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 19,
+    "taxon_name": "クロサンショウウオ",
+    "scientific_name": "Hynobius (Hynobina) nigrescens STEJNEGER, 1907",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "100〜160mm",
+        "season": null,
+        "distribution": "本州東北部, 福井・岐阜県境, 長野県"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

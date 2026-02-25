@@ -1,0 +1,26 @@
+{
+    "id": "cit_book_kumo_handbook_p33_e35b9886bc9a45b61a6f15715dfab50e",
+    "book_id": "book_kumo_handbook",
+    "page": 33,
+    "taxon_name": "シロオビトリノフンダマシ",
+    "scientific_name": "Cyrtarachne nagasakiensis",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 5〜8mm, male: 1.0〜2.0mm",
+        "season": "夏〜秋",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "アカイロトリノフンダマシの黒色型（類似種）",
+        "卵のう",
+        "黒色型のメス",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

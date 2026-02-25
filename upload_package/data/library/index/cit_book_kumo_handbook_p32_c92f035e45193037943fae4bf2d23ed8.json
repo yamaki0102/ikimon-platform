@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p32_c92f035e45193037943fae4bf2d23ed8",
+    "book_id": "book_kumo_handbook",
+    "page": 32,
+    "taxon_name": "トリノフンダマシ",
+    "scientific_name": "Cyrtarachne bufo",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 8〜10mm, male: 1.5〜2.5mm",
+        "season": "夏〜秋",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "葉に潜むメス",
+        "卵のう",
+        "オス",
+        "オス触肢"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

@@ -1,0 +1,144 @@
+
+📄 compass.php
+  ❌ ERROR: L1276: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L1288: 閉じタグ超過（対応する開きタグなし）
+
+📄 corporate_dashboard.php
+  ❌ ERROR: L203: <div> が閉じられていない
+
+📄 create_event.php
+  ❌ ERROR: L507: 閉じタグ超過（対応する開きタグなし）
+
+📄 edit_event.php
+  ❌ ERROR: L297: 閉じタグ超過（対応する開きタグなし）
+
+📄 event_detail.php
+  ❌ ERROR: L175: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L232: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L420: 閉じタグ超過（対応する開きタグなし）
+
+📄 explore.php
+  ❌ ERROR: L92: 閉じタグ超過（対応する開きタグなし）
+
+📄 faq.php
+  ❌ ERROR: L128: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L131: 閉じタグ超過（対応する開きタグなし）
+
+📄 id_center.php
+  ❌ ERROR: L395: 閉じタグ超過（対応する開きタグなし）
+
+📄 id_form.php
+  ❌ ERROR: L107: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L132: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L202: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L234: 閉じタグ超過（対応する開きタグなし）
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: Tailwind CDN を直参照 — プロジェクトの tokens.css / input.css を使うべき
+  ⚠️  WARN: CspNonce を使用しているが meta.php を直接 include していない（nav.php 経由で可能だが明示性に欠ける）
+
+📄 id_wizard.php
+  ❌ ERROR: L263: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L277: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L357: 閉じタグ超過（対応する開きタグなし）
+
+📄 id_workbench.php
+  ❌ ERROR: L286: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L390: 閉じタグ超過（対応する開きタグなし）
+
+📄 index.php
+  ❌ ERROR: L117: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L381: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L397: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L424: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L584: 閉じタグ超過（対応する開きタグなし）
+
+📄 login.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: Tailwind CDN を直参照 — プロジェクトの tokens.css / input.css を使うべき
+
+📄 map.php
+  ❌ ERROR: L598: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L661: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L683: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L713: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L714: 閉じタグ超過（対応する開きタグなし）
+
+📄 my_field_dashboard.php
+  ❌ ERROR: L502: 閉じタグ超過（対応する開きタグなし）
+
+📄 observation_detail.php
+  ❌ ERROR: L684: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L686: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L811: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L823: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L827: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L828: 閉じタグ超過（対応する開きタグなし）
+
+📄 offline.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+
+📄 post.php
+  ❌ ERROR: L469: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L473: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L539: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L540: 閉じタグ超過（対応する開きタグなし）
+
+📄 profile.php
+  ❌ ERROR: L118: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L293: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L623: 閉じタグ超過（対応する開きタグなし）
+
+📄 profile_edit.php
+  ❌ ERROR: L255: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L269: 閉じタグ超過（対応する開きタグなし）
+
+📄 reference_layer.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: Tailwind CDN を直参照 — プロジェクトの tokens.css / input.css を使うべき
+
+📄 review_queue.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: CspNonce を使用しているが meta.php を直接 include していない（nav.php 経由で可能だが明示性に欠ける）
+
+📄 showcase.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: Tailwind CDN を直参照 — プロジェクトの tokens.css / input.css を使うべき
+  ⚠️  WARN: CspNonce を使用しているが meta.php を直接 include していない（nav.php 経由で可能だが明示性に欠ける）
+
+📄 showcase_embed.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+
+📄 site_dashboard.php
+  ❌ ERROR: L798: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L873: 閉じタグ超過（対応する開きタグなし）
+
+📄 site_editor.php
+  ❌ ERROR: L210: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L235: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L298: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L319: 閉じタグ超過（対応する開きタグなし）
+
+📄 species.php
+  ❌ ERROR: L329: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L336: 閉じタグ超過（対応する開きタグなし）
+
+📄 survey.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: Tailwind CDN を直参照 — プロジェクトの tokens.css / input.css を使うべき
+  ⚠️  WARN: CspNonce を使用しているが meta.php を直接 include していない（nav.php 経由で可能だが明示性に欠ける）
+
+📄 wellness.php
+  ❌ ERROR: L121: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L157: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L190: 閉じタグ超過（対応する開きタグなし）
+  ❌ ERROR: L221: 閉じタグ超過（対応する開きタグなし）
+
+📄 zukan.php
+  ❌ ERROR: L266: 閉じタグ超過（対応する開きタグなし）
+
+──────────────────────────────────────────────────
+📊 チェック完了: 53 ファイル
+   ❌ Errors:   60
+   ⚠️  Warnings: 17
+
+🚨 構造エラーが見つかりました！修正が必要です。

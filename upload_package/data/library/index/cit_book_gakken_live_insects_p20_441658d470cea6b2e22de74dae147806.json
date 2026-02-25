@@ -1,0 +1,20 @@
+{
+    "id": "cit_book_gakken_live_insects_p20_441658d470cea6b2e22de74dae147806",
+    "book_id": "book_gakken_live_insects",
+    "page": 20,
+    "taxon_name": "タベサナエ",
+    "scientific_name": null,
+    "family": "サナエトンボ科",
+    "data_icons": {
+        "size": "51mm",
+        "season": "4〜7月",
+        "distribution": null
+    },
+    "photos": [
+        "成虫標本（上面）"
+    ],
+    "figures": [],
+    "page_type": "VISUAL_PLATE",
+    "rarity_stars": null,
+    "type": "plate"
+}

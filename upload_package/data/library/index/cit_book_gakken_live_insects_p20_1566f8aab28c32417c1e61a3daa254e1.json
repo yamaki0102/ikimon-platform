@@ -1,0 +1,20 @@
+{
+    "id": "cit_book_gakken_live_insects_p20_1566f8aab28c32417c1e61a3daa254e1",
+    "book_id": "book_gakken_live_insects",
+    "page": 20,
+    "taxon_name": "オナガサナエ",
+    "scientific_name": null,
+    "family": "サナエトンボ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [
+        "成虫標本（上面）"
+    ],
+    "figures": [],
+    "page_type": "VISUAL_PLATE",
+    "rarity_stars": null,
+    "type": "plate"
+}

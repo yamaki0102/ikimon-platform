@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p35_83630957ee58e2ca2517078c2bde70db",
+    "book_id": "book_kumo_handbook",
+    "page": 35,
+    "taxon_name": "ナカムラオニグモ",
+    "scientific_name": "Larinioides cornutus",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 7〜12mm, male: 5〜9mm",
+        "season": "春〜秋",
+        "distribution": "北海道・本州・四国"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "草の葉を折りたたんだ住居",
+        "イネの葉に潜む（住居をつくる）メス",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

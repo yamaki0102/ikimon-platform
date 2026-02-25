@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p15_60f575ef8beced6bcd993ec2374f407c",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 15,
+    "taxon_name": "カスミサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) nebulosus nebulosus (SCHLEGEL, 1838)",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

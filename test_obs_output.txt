@@ -1,0 +1,38 @@
+=== data_quality field ===
+data_quality type: string
+data_quality value: "A"
+
+obs[5] data_quality: "B"
+
+data_quality distribution:
+Array
+(
+    [N/A] => 316
+    [A] => 187
+    [B] => 196
+    [C] => 354
+)
+
+=== taxon.rank distribution ===
+Array
+(
+    [species] => 912
+    [variety] => 40
+    [family] => 36
+    [order] => 35
+    [unknown] => 30
+)
+
+=== taxon.source distribution ===
+Array
+(
+    [inat] => 830
+    [legacy] => 86
+    [local] => 107
+    [unknown] => 30
+)
+
+=== Sample taxon objects ===
+obs[0] taxon: {"name":"\u30b9\u30ba\u30e1","group":"Insecta","id":123,"rank":"species","source":"inat","thumbnail_url":"https:\/\/inaturalist-open-data.s3.amazonaws.com\/photos\/473342977\/square.jpg","inat_taxon_id":13851,"slug":"passer-montanus","scientific_name":"Passer montanus"}
+obs[1] taxon: {"name":"\u30cf\u30b7\u30d6\u30c8\u30ac\u30e9\u30b9","group":"Insecta","id":123,"rank":"species","source":"inat","thumbnail_url":"https:\/\/inaturalist-open-data.s3.amazonaws.com\/photos\/102902467\/square.jpeg","inat_taxon_id":8026,"slug":"corvus-macrorhynchos","scientific_name":"Corvus macrorhynchos"}
+obs[2] taxon: {"name":"\u30a2\u30d6\u30e9\u30bc\u30df","group":"Insecta","id":123,"rank":"species","source":"legacy"}

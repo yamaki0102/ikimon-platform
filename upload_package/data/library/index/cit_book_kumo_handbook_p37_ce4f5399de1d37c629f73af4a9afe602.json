@@ -1,0 +1,26 @@
+{
+    "id": "cit_book_kumo_handbook_p37_ce4f5399de1d37c629f73af4a9afe602",
+    "book_id": "book_kumo_handbook",
+    "page": 37,
+    "taxon_name": "ヤマシロオニグモ",
+    "scientific_name": "Neoscona scylla",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 9〜16mm, male: 7〜12mm",
+        "season": "夏〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "腹部変異",
+        "腹部変異（有斑型）",
+        "腹部変異（暗色型）",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

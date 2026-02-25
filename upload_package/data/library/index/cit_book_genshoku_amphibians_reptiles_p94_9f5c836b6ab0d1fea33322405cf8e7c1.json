@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p94_9f5c836b6ab0d1fea33322405cf8e7c1",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 94,
+    "taxon_name": "ウミガメ科",
+    "scientific_name": "Cheloniidae",
+    "family": "ウミガメ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": "全世界の熱帯・亜熱帯の海"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

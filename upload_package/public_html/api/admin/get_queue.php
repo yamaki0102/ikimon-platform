@@ -5,7 +5,7 @@ require_once __DIR__ . '/../../../libs/DataStore.php';
 Auth::init();
 if (!Auth::hasRole('Analyst')) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Forbidden']);
+    echo json_encode(['success' => false, 'error' => 'Forbidden'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -37,5 +37,5 @@ foreach ($all as $obs) {
     }
 }
 
-header('Content-Type: application/json');
-echo json_encode(['success' => true, 'data' => $pending]);
+header('Content-Type: application/json; charset=utf-8');
+echo json_encode(['success' => true, 'data' => $pending], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

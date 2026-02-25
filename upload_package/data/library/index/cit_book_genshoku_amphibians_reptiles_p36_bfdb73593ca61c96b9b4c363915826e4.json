@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p36_bfdb73593ca61c96b9b4c363915826e4",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 36,
+    "taxon_name": "イボイモリ (続き)",
+    "scientific_name": "Tylototriton andersoni BOULENGER, 1892",
+    "family": "イモリ科",
+    "data_icons": {
+        "size": "130〜190mm",
+        "season": "3月〜7月頃",
+        "distribution": "琉球列島中央部 (奄美大島, 徳之島, 沖縄本島)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

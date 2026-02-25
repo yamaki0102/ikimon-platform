@@ -1,0 +1,14 @@
+{
+    "id": "ptl_paper_62f2f4e21f0b739070dda35f686bdaca_ae42487ec6e084acb4cd7e7d348bc323",
+    "paper_id": "paper_62f2f4e21f0b739070dda35f686bdaca",
+    "doi": "10.1007\/bf02515542",
+    "query_id": "jp_spider_nephila_clavata",
+    "query_label": "Nephila clavata Japan (Joro-gumo)",
+    "scientific_name": "Nephila clavata",
+    "jp_name": null,
+    "gbif_taxon_key": 2149495,
+    "gbif_status": "SYNONYM",
+    "gbif_accepted_name": "Trichonephila clavata",
+    "gbif_accepted_key": 10670284,
+    "gbif_family": "Araneidae"
+}

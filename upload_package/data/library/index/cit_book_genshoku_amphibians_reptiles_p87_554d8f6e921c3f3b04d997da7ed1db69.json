@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p87_554d8f6e921c3f3b04d997da7ed1db69",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 87,
+    "taxon_name": "ニホンカジカガエル (続き)",
+    "scientific_name": "Rhacophorus japonicus (HALLOWELL, 1860)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": "♂25〜30mm, ♀27〜35mm",
+        "season": "4〜8月",
+        "distribution": "琉球列島, 台湾, トカラ群島以南"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

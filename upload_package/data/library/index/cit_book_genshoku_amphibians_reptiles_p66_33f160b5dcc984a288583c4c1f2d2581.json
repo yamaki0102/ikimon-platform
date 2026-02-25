@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p66_33f160b5dcc984a288583c4c1f2d2581",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 66,
+    "taxon_name": "ウシガエル",
+    "scientific_name": "Rana (Rana) catesbeiana SHAW, 1802",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

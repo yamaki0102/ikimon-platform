@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p22_f4397f6818486e4ef648512a8bce4f84",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 22,
+    "taxon_name": "ブチサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) naevius naevius (SCHLEGEL, 1838)",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

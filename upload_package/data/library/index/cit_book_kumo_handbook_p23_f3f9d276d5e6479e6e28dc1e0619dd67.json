@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p23_f3f9d276d5e6479e6e28dc1e0619dd67",
+    "book_id": "book_kumo_handbook",
+    "page": 23,
+    "taxon_name": "ジョロウグモ",
+    "scientific_name": "Nephila clavata",
+    "family": "ジョロウグモ科 Nephilidae",
+    "data_icons": {
+        "size": "female: 20〜30mm, male: 6〜10mm",
+        "season": "秋",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "産卵された卵のう（樹皮上）",
+        "オス",
+        "網を張るメスと待機するオス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

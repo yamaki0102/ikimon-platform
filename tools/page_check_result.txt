@@ -1,0 +1,55 @@
+
+Deprecated: The predefined locally scoped $http_response_header variable is deprecated, call http_get_last_response_headers() instead in G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\tools\page_check.php on line 78
+PHP Deprecated:  The predefined locally scoped $http_response_header variable is deprecated, call http_get_last_response_headers() instead in G:\縺昴・莉悶・繝代た繧ｳ繝ｳ\繝槭う 繝弱・繝医ヱ繧ｽ繧ｳ繝ｳ\antigravity\ikimon\ikimon.life\tools\page_check.php on line 78
+笨・200  210,756B  index.php                            "ikimon - 縺ｿ繧薙↑縺ｧ縺､縺上ｋ 逕溘″迚ｩ蝗ｳ髑・
+笨・200  49,766B  explore.php                          "縺ｿ縺､縺代ｋ | ikimon"
+笨・200  108,011B  map.php                              "繝槭ャ繝・| ikimon"
+閥 500       0B  post.php                           
+竊ｪ・・302       0B  species.php                          竊・zukan.php
+笨・200  120,695B  compass.php                          "ikimon - 縺ｿ繧薙↑縺ｧ縺､縺上ｋ 逕溘″迚ｩ蝗ｳ髑・
+竊ｪ・・301     219B  ranking.php                          [PHP:WARN]  竊・compass.php
+竊ｪ・・302       0B  profile.php                          竊・login.php
+竊ｪ・・302       0B  profile_edit.php                     竊・login.php
+竊ｪ・・302       0B  my_organisms.php                     竊・login.php
+竊ｪ・・301       0B  heatmap.php                          竊・map.php?tab=heatmap
+笨・200  24,518B  reference_layer.php                  "IKIMON.LIFE | REFERENCE LAYER"
+笨・200  41,526B  updates.php                          "繧｢繝・・繝・・繝亥ｱ･豁ｴ - ikimon"
+笨・200   6,461B  login.php                            "繝ｭ繧ｰ繧､繝ｳ - ikimon"
+竊ｪ・・302       0B  logout.php                           竊・login.php
+竊ｪ・・302       0B  oauth_login.php                      竊・login.php?error=invalid_provider
+竊ｪ・・302       0B  oauth_callback.php                   竊・login.php?error=invalid_provider
+笨・200  35,146B  guidelines.php                       "繧ｳ繝溘Η繝九ユ繧｣繧ｬ繧､繝峨Λ繧､繝ｳ | ikimon"
+竊ｪ・・302       0B  id_center.php                        竊・login.php
+笨・200     206B  id_form.php                        
+笨・200  21,239B  id_wizard.php                        "蜷悟ｮ壹え繧｣繧ｶ繝ｼ繝・窶・ikimon.life | ikimon"
+竊ｪ・・302       0B  id_workbench.php                     竊・login.php
+竊ｪ・・302       0B  survey.php                           竊・/login.php?redirect=/survey.php
+笨・200  44,275B  my_field_dashboard.php               "繝槭う繝輔ぅ繝ｼ繝ｫ繝・窶・ikimon"
+笨・200  20,004B  field_research.php                   "Field Research Mode | ikimon"
+竊ｪ・・302       0B  review_queue.php                     竊・/
+笨・200  35,860B  events.php                           "隕ｳ蟇滉ｼ・| ikimon"
+竊ｪ・・302       0B  event_detail.php                     竊・events.php
+竊ｪ・・302       0B  create_event.php                     竊・login.php?redirect=create_event.php
+竊ｪ・・302       0B  edit_event.php                       竊・login.php
+閥 500       0B  corporate_dashboard.php            
+笨・200  39,246B  site_dashboard.php                   "繧ｵ繧､繝医ム繝・す繝･繝懊・繝・| ikimon"
+笨・200  31,575B  site_editor.php                      "譁ｰ縺励＞繧ｵ繧､繝医ｒ菴懈・ | ikimon"
+笨・200  35,676B  showcase.php                         "Overview - ikimon for Business"
+笨・200      23B  showcase_embed.php                 
+竊ｪ・・302       0B  csr_showcase.php                     竊・index.php
+笨・200  64,020B  for-business.php                     "莨∵･ｭ繝ｻ閾ｪ豐ｻ菴薙・譁ｹ縺ｸ - ikimon"
+笨・200  40,850B  for-citizen.php                      "蟶よｰ代・譁ｹ縺ｸ - ikimon"
+笨・200  43,852B  for-researcher.php                   "遐皮ｩｶ閠・・譁ｹ縺ｸ - ikimon"
+笨・200  31,431B  dashboard.php                        "ikimon - 縺ｿ繧薙↑縺ｧ縺､縺上ｋ 逕溘″迚ｩ蝗ｳ髑・
+竊ｪ・・302       0B  dev_admin_login.php                  竊・admin/index.php
+笨・200  46,689B  about.php                            "ikimon縺ｫ縺､縺・※ - 蜑ｵ讌ｭ繧ｹ繝医・繝ｪ繝ｼ"
+笨・200  40,457B  team.php                             "繝√・繝 | ikimon"
+笨・200  43,103B  terms.php                            "蛻ｩ逕ｨ隕冗ｴ・- ikimon"
+笨・200  43,466B  privacy.php                          "繝励Λ繧､繝舌す繝ｼ繝昴Μ繧ｷ繝ｼ - ikimon"
+閥 200     943B  offline.php                          [PHP:FATAL]
+笨・200  121,607B  sitemap.php                        
+笞・・403  35,944B  403.php                              "繧｢繧ｯ繧ｻ繧ｹ縺ｧ縺阪∪縺帙ｓ | ikimon"
+笞・・404  36,639B  404.php                              "繝壹・繧ｸ縺瑚ｦ九▽縺九ｊ縺ｾ縺帙ｓ | ikimon"
+笞・・404      21B  observation_detail.php             
+
+=== Done ===

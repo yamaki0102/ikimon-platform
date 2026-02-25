@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p12_525d1e42500d2f93f03fcc18c9826964",
+    "book_id": "book_kumo_handbook",
+    "page": 12,
+    "taxon_name": "オウギグモ",
+    "scientific_name": "Hyptiotes affinis",
+    "family": "ウズグモ科 Uloboridae",
+    "data_icons": {
+        "size": "female: 4〜5mm, male: 4〜5mm",
+        "season": "秋",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス正面",
+        "網（扇形）",
+        "待機するメス",
+        "メス背面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

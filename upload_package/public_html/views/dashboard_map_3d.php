@@ -166,7 +166,7 @@
 
 </div>
 
-<script>
+<script nonce="<?= CspNonce::attr() ?>">
 document.addEventListener('alpine:init', () => {
     Alpine.data('simulation3d', () => ({
         state: 'idle', // idle, processing, complete

@@ -1,66 +1,266 @@
 /**
- * Design Tokens
- * Based on designbasic.md
+ * ikimon.life — Design Tokens v2
+ * Extracted from Stitch designs (2026-02-10)
+ * Light Theme · Mobile-First (320px+)
  */
 
 :root {
-  /* Colors - Neo Naturalism (2026) */
+  color-scheme: light only;
+
+  /* ── Brand Colors ── */
   --color-primary: #10b981;
-  /* Vibrant Emerald */
   --color-primary-dark: #059669;
-  --color-secondary: #f59e0b;
-  /* Warm Amber */
-  --color-accent: #0ea5e9;
-  /* Sky Blue */
+  --color-primary-light: #34d399;
+  --color-primary-surface: rgba(16, 185, 129, 0.08);
+  --color-primary-glow: rgba(16, 185, 129, 0.3);
+  --color-primary-focus-ring: rgba(16, 185, 129, 0.12);
+  --shadow-primary-sm: 0 2px 8px rgba(16, 185, 129, 0.25);
 
-  --color-bg-base: #111815;
-  /* Deep Warm Charcoal (Organic Dark) */
-  --color-bg-surface: #1c2420;
-  /* Soft dark surface */
+  --color-secondary: #0ea5e9;
+  /* Sky Blue — info, links */
+  --color-secondary-surface: rgba(14, 165, 233, 0.08);
 
-  --color-text: #f8fafc;
-  /* Soft White */
-  --color-text-muted: #94a3b8;
-  /* Slate 400 */
-  --color-border: rgba(255, 255, 255, 0.1);
+  --color-accent: #f59e0b;
+  /* Amber — highlights, quests */
+  --color-accent-surface: rgba(245, 158, 11, 0.08);
 
-  /* Glass Effects */
-  --glass-surface: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.05);
-  --glass-highlight: rgba(255, 255, 255, 0.1);
+  --color-orange: #f97316;
+  /* Orange — unidentified, alerts */
 
-  /* Status Colors */
+  /* ── Status Colors ── */
   --color-success: #10b981;
-  --color-warning: #f59e0b;
+  --color-warning: #d97706;
+  /* Darkened from #f59e0b for better readable contrast */
+  --color-warning-surface: rgba(245, 158, 11, 0.08);
   --color-danger: #ef4444;
 
-  /* Spacing Scale (4px base) */
+  /* ── Surface & Background ── */
+  --color-bg-base: #ffffff;
+  --color-bg-surface: #f8faf9;
+  /* Soft Mint */
+  --color-bg-elevated: #ffffff;
+
+  /* ── Text ── */
+  --color-text: #1a2e1f;
+  /* Deep Forest */
+  --color-text-secondary: #374151;
+  /* Gray 700 */
+  --color-text-muted: #64748b;
+  /* Slate 500 */
+  --color-text-faint: #9ca3af;
+  /* Gray 400 */
+
+  /* ── Borders ── */
+  --color-border: rgba(0, 0, 0, 0.06);
+  --color-border-strong: rgba(0, 0, 0, 0.12);
+
+  /* ── Glass Effects ── */
+  --glass-surface: rgba(255, 255, 255, 0.85);
+  --glass-surface-heavy: rgba(255, 255, 255, 0.95);
+  --glass-blur: 12px;
+  --glass-border: rgba(0, 0, 0, 0.06);
+
+  /* ── Badge Pill Overlay (on photos) ── */
+  --overlay-dark: rgba(0, 0, 0, 0.6);
+  --overlay-border: rgba(255, 255, 255, 0.1);
+
+  /* ── Spacing (4px grid) ── */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
+  --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
 
-  /* Semantic Spacing */
-  --space-xs: var(--space-2);
-  --space-sm: var(--space-4);
-  --space-md: var(--space-6);
-  --space-lg: var(--space-12);
-  --space-xl: var(--space-16);
-
-  /* Radius */
-  --radius-sm: 0.5rem;
+  /* ── Spacing (Golden Ratio φ=1.618) ── */
+  --phi: 1.61803398875;
+  --space-base: 0.5rem;
   /* 8px */
-  --radius-md: 1.5rem;
-  /* 24px */
-  --radius-lg: 3rem;
-  /* 48px */
+
+  --phi-xs: var(--space-base);
+  /* 8px */
+  --phi-sm: calc(var(--phi-xs) * var(--phi));
+  /* ~12.94px */
+  --phi-md: calc(var(--phi-sm) * var(--phi));
+  /* ~20.94px */
+  --phi-lg: calc(var(--phi-md) * var(--phi));
+  /* ~33.89px */
+  --phi-xl: calc(var(--phi-lg) * var(--phi));
+  /* ~54.83px */
+  --phi-2xl: calc(var(--phi-xl) * var(--phi));
+  /* ~88.71px */
+  --phi-3xl: calc(var(--phi-2xl) * var(--phi));
+  /* ~143.5px */
+
+  /* ── Touch Target ── */
+  --touch-min: 44px;
+  --touch-comfortable: 48px;
+  --touch-fab: 56px;
+
+  /* ── Border Radius ── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
   --radius-full: 9999px;
 
-  /* Fonts */
-  --font-heading: 'Zen Kaku Gothic New', 'Montserrat', sans-serif;
-  --font-body: 'Noto Sans JP', sans-serif;
+  /* ── Typography (デジタル庁準拠 + Golden Ratio φ=1.618) ── */
+  --font-heading: 'Montserrat', 'Zen Kaku Gothic New', sans-serif;
+  --font-body: 'Inter', 'Noto Sans JP', sans-serif;
+
+  /* Modular Scale: base 16px × φⁿ  — clamp(mobile, fluid, desktop) */
+  --text-xs: clamp(0.6875rem, 0.65rem + 0.1vw, 0.75rem);
+  /* 11-12px — キャプション最小 */
+  --text-sm: clamp(0.8125rem, 0.78rem + 0.1vw, 0.875rem);
+  /* 13-14px — 補助・メタデータ */
+  --text-base: 1rem;
+  /* 16px固定 — 本文基準 (デジタル庁: 16px以上必須) */
+  --text-md: clamp(1.1875rem, 1rem + 0.5vw, 1.3125rem);
+  /* 19-21px — セクション見出し */
+  --text-lg: clamp(1.375rem, 1.1rem + 0.8vw, 1.625rem);
+  /* 22-26px — カード見出し H3 */
+  --text-xl: clamp(1.625rem, 1.3rem + 1vw, 2.125rem);
+  /* 26-34px — ページ見出し H2 */
+  --text-2xl: clamp(2rem, 1.5rem + 1.5vw, 2.625rem);
+  /* 32-42px — ヒーロー H1 */
+  --text-hero: clamp(2.625rem, 2rem + 2vw, 3.4375rem);
+  /* 42-55px — ディスプレイ */
+
+  /* Letter spacing: デジタル庁 Standard */
+  --tracking: 0.02em;
+  --tracking-wide: 0.05em;
+  /* ラベル・キャプション */
+
+  /* ── Layout ── */
+  --nav-height: 56px;
+  --bottom-nav-height: 72px;
+  --content-max-width: 1280px;
+  --feed-max-width: 640px;
+
+  /* ── Safe Area (App Shell) ── */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* ── Transitions ── */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.2, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+
+  /* ── Shadows ── */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-primary: 0 4px 16px rgba(16, 185, 129, 0.3);
+  --shadow-fab: 0 4px 20px rgba(16, 185, 129, 0.4);
+}
+
+/* Typography Utilities - UI Quality Gate v1.0 */
+.text-token-xs {
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+
+.text-token-sm {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.text-token-base {
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+.text-token-md {
+  font-size: var(--text-md);
+  line-height: 1.4;
+}
+
+.text-token-lg {
+  font-size: var(--text-lg);
+  line-height: 1.3;
+}
+
+.text-token-xl {
+  font-size: var(--text-xl);
+  line-height: 1.25;
+}
+
+.text-token-2xl {
+  font-size: var(--text-2xl);
+  line-height: 1.25;
+}
+
+.text-token-hero {
+  font-size: var(--text-hero);
+  line-height: 1.2;
+}
+
+/* Spacing Utilities (Golden Ratio) */
+.gap-phi-xs {
+  gap: var(--phi-xs);
+}
+
+.gap-phi-sm {
+  gap: var(--phi-sm);
+}
+
+.gap-phi-md {
+  gap: var(--phi-md);
+}
+
+.gap-phi-lg {
+  gap: var(--phi-lg);
+}
+
+.gap-phi-xl {
+  gap: var(--phi-xl);
+}
+
+.p-phi-xs {
+  padding: var(--phi-xs);
+}
+
+.p-phi-sm {
+  padding: var(--phi-sm);
+}
+
+.p-phi-md {
+  padding: var(--phi-md);
+}
+
+.p-phi-lg {
+  padding: var(--phi-lg);
+}
+
+.p-phi-xl {
+  padding: var(--phi-xl);
+}
+
+.m-phi-xs {
+  margin: var(--phi-xs);
+}
+
+.m-phi-sm {
+  margin: var(--phi-sm);
+}
+
+.m-phi-md {
+  margin: var(--phi-md);
+}
+
+.m-phi-lg {
+  margin: var(--phi-lg);
+}
+
+.m-phi-xl {
+  margin: var(--phi-xl);
 }

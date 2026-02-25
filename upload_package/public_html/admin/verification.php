@@ -2,32 +2,20 @@
 require_once __DIR__ . '/../../libs/Auth.php';
 Auth::init();
 Auth::requireRole('Analyst');
+$currentUser = Auth::user();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speed-ID Verification | ikimon Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #f1f5f9; }
-        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
-    </style>
+    <?php $adminTitle = 'Speed-ID Verification';
+    include __DIR__ . '/components/head.php'; ?>
 </head>
+
 <body class="flex h-screen overflow-hidden" x-data="verificationApp()">
-    
-    <!-- Sidebar (Simplified) -->
-    <aside class="w-20 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-6 gap-6">
-        <a href="index.php" class="p-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition">
-            <i data-lucide="arrow-left" class="w-6 h-6"></i>
-        </a>
-        <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center font-black text-slate-900">i</div>
-        <div class="flex-1"></div>
-    </aside>
+
+    <?php $adminPage = 'verification';
+    include __DIR__ . '/components/sidebar.php'; ?>
 
     <!-- Main Workspace -->
     <main class="flex-1 flex flex-col relative">
@@ -45,7 +33,7 @@ Auth::requireRole('Analyst');
 
         <!-- Deck Area -->
         <div class="flex-1 overflow-hidden relative flex items-center justify-center bg-[#05070a]">
-            
+
             <!-- Loading State -->
             <div x-show="loading" class="absolute inset-0 flex items-center justify-center z-50 bg-[#05070a]">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
@@ -63,15 +51,15 @@ Auth::requireRole('Analyst');
 
             <!-- Card Stack -->
             <template x-if="currentObs">
-                <div class="w-full max-w-5xl h-full p-6 flex gap-6">
-                    
-                    <!-- Image Panel (Left) -->
-                    <div class="flex-1 relative rounded-3xl overflow-hidden glass-panel group">
+                <div class="w-full max-w-5xl p-6 flex flex-col lg:flex-row gap-6 h-auto lg:h-full overflow-y-auto lg:overflow-hidden">
+
+                    <!-- Image Panel -->
+                    <div class="flex-none lg:flex-1 relative rounded-3xl overflow-hidden glass-panel group w-full lg:w-auto h-[40vh] lg:h-full">
                         <img :src="currentObs.image_url" class="w-full h-full object-contain bg-black">
-                        
+
                         <!-- Metadata Overlay -->
                         <div class="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/90 to-transparent">
-                            <p class="text-gray-400 text-xs font-mono mb-1" x-text="currentObs.observed_at"></p>
+                            <p class="text-slate-400 text-xs font-mono mb-1" x-text="currentObs.observed_at"></p>
                             <p class="text-white font-bold text-lg flex items-center gap-2">
                                 <i data-lucide="map-pin" class="w-4 h-4 text-emerald-500"></i>
                                 <span x-text="currentObs.location_name || 'Unknown Location'"></span>
@@ -79,9 +67,9 @@ Auth::requireRole('Analyst');
                         </div>
                     </div>
 
-                    <!-- Action Panel (Right) -->
-                    <div class="w-96 flex flex-col gap-4">
-                        
+                    <!-- Action Panel -->
+                    <div class="w-full lg:w-96 flex flex-col gap-4 mt-6 lg:mt-0">
+
                         <!-- User Claim -->
                         <div class="p-4 rounded-2xl bg-slate-800 border border-slate-700">
                             <p class="text-xs text-slate-500 uppercase font-bold mb-2">User Claimed</p>
@@ -139,14 +127,17 @@ Auth::requireRole('Analyst');
         </div>
     </main>
 
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         function verificationApp() {
             return {
                 loading: true,
                 queue: [],
                 currentIndex: 0,
-                idForm: { name: '', comment: '' },
-                suggestions: ['Tanuki', 'Red Fox', 'Cabbage White', 'Dandelion', 'Monarch'], // Mock suggestions
+                idForm: {
+                    name: '',
+                    comment: ''
+                },
+                suggestions: ['Tanuki', 'Red Fox', 'Cabbage White', 'Dandelion', 'Monarch'],
 
                 get currentObs() {
                     return this.queue[this.currentIndex];
@@ -170,7 +161,6 @@ Auth::requireRole('Analyst');
                         console.error('Error fetching queue:', error);
                     } finally {
                         this.loading = false;
-                        // Re-init icons after DOM update
                         setTimeout(() => lucide.createIcons(), 100);
                     }
                 },
@@ -190,7 +180,6 @@ Auth::requireRole('Analyst');
                     const obs = this.currentObs;
                     if (!obs) return;
 
-                    // Optimistic UI update
                     const payload = {
                         id: obs.id,
                         species_name: this.idForm.name,
@@ -199,12 +188,15 @@ Auth::requireRole('Analyst');
                     };
 
                     try {
+                        const _csrf = (document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/) || [])[1] || '';
                         await fetch('../api/admin/verify.php', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Csrf-Token': _csrf
+                            },
                             body: JSON.stringify(payload)
                         });
-                        // Success toast?
                     } catch (e) {
                         alert('Verification failed');
                     }
@@ -215,15 +207,14 @@ Auth::requireRole('Analyst');
                 next() {
                     this.currentIndex++;
                     if (this.currentIndex >= this.queue.length) {
-                        // Queue finished
                         this.queue = [];
                     } else {
                         this.resetForm();
-                        // Preload next image?
                     }
                 }
             }
         }
     </script>
 </body>
+
 </html>

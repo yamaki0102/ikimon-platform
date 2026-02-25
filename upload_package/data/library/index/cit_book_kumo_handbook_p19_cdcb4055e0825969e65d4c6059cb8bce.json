@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p19_cdcb4055e0825969e65d4c6059cb8bce",
+    "book_id": "book_kumo_handbook",
+    "page": 19,
+    "taxon_name": "クスミサラグモ",
+    "scientific_name": "Neriene japonica",
+    "family": "サラグモ科 Linyphiidae",
+    "data_icons": {
+        "size": "female: 3〜5mm, male: 2.5〜3.5mm",
+        "season": "春",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網（ドーム状）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

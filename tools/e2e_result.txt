@@ -1,0 +1,158 @@
+
+Deprecated: The predefined locally scoped $http_response_header variable is deprecated, call http_get_last_response_headers() instead in G:\その他のパソコン\マイ ノートパソコン\antigravity\ikimon\ikimon.life\tools\e2e_full.php on line 53
+PHP Deprecated:  The predefined locally scoped $http_response_header variable is deprecated, call http_get_last_response_headers() instead in G:\その他のパソコン\マイ ノートパソコン\antigravity\ikimon\ikimon.life\tools\e2e_full.php on line 53
+PHP Deprecated:  The predefined locally scoped $http_response_header variable is deprecated, call http_get_last_response_headers() instead in G:\その他のパソコン\マイ ノートパソコン\antigravity\ikimon\ikimon.life\tools\e2e_full.php on line 86
+PHP Deprecated:  The predefined locally scoped $http_response_header variable is deprecated, call http_get_last_response_headers() instead in G:\その他のパソコン\マイ ノートパソコン\antigravity\ikimon\ikimon.life\tools\e2e_full.php on line 121
+
+Deprecated: The predefined locally scoped $http_response_header variable is deprecated, call http_get_last_response_headers() instead in G:\その他のパソコン\マイ ノートパソコン\antigravity\ikimon\ikimon.life\tools\e2e_full.php on line 86
+
+Deprecated: The predefined locally scoped $http_response_header variable is deprecated, call http_get_last_response_headers() instead in G:\その他のパソコン\マイ ノートパソコン\antigravity\ikimon\ikimon.life\tools\e2e_full.php on line 121
+=== ikimon.life E2E Full Test ===
+Base URL: http://localhost:8899
+Time: 2026-02-17 11:26:54
+
+── Phase 1: パブリックページ ──
+  ✅ GET / [200]
+  ✅   ↳ Contains '生き物'
+  ✅   ↳ Title contains 'ikimon'
+  ✅ GET /index.php [200]
+  ✅ GET /login.php [200]
+  ✅   ↳ Contains 'ログイン'
+  ✅ GET /explore.php [200]
+  ✅   ↳ Contains 'マップ'
+  ✅ GET /zukan.php [200]
+  ✅   ↳ Contains '図鑑'
+  ✅ GET /about.php [200]
+  ✅   ↳ Contains 'ikimon'
+  ✅ GET /for-business.php [200]
+  ✅   ↳ Contains '企業'
+  ✅ GET /for-researcher.php [200]
+  ✅   ↳ Contains '研究者'
+  ✅ GET /for-citizen.php [200]
+  ✅ GET /faq.php [200]
+  ✅ GET /terms.php [200]
+  ✅ GET /privacy.php [200]
+  ✅ GET /guidelines.php [200]
+  ✅ GET /post.php [200]
+  ✅ GET /field_research.php [200]
+  ✅ GET /events.php [200]
+  ✅ GET /ranking.php [200]
+  ✅ GET /heatmap.php [200]
+  ✅ GET /compass.php [200]
+  ✅ GET /reference_layer.php [200]
+  ✅ GET /id_center.php [200]
+  ✅ GET /id_wizard.php [200]
+  ✅ GET /showcase.php [200]
+  ✅ GET /sitemap.php [200]
+  ❌ GET /403.php [403] — Expected 200, got 403
+  ❌ GET /404.php [404] — Expected 200, got 404
+  ✅ GET /offline.php [200]
+  ❌   ↳ No PHP Fatal errors — Fatal error detected in page output
+  ✅ GET /map.php [200]
+  ✅ GET /species.php [200]
+  ✅ GET /team.php [200]
+  ✅ GET /survey.php [200]
+  ✅ GET /csr_showcase.php [200]
+  ✅ GET /corporate_dashboard.php [200]
+  ✅ GET /site_dashboard.php [200]
+  ✅ GET /my_organisms.php [200]
+
+── Phase 2: API GETエンドポイント ──
+  ✅ API GET /api/health.php [200]
+  ✅   ↳ Valid JSON response
+  ❌ API GET /api/get_feed.php [404] — Expected 200, got 404
+  ✅ API GET /api/get_observations.php [200]
+  ✅   ↳ Valid JSON response
+  ❌ API GET /api/get_events.php [500] — Expected 200, got 500
+  ✅ API GET /api/taxon_index.php [200]
+  ✅   ↳ Valid JSON response
+  ✅ API GET /api/get_exploration_stats.php [200]
+  ✅   ↳ Valid JSON response
+  ❌ API GET /api/get_species_list.php [404] — Expected 200, got 404
+  ✅ API GET /api/region_list.php [200]
+  ✅   ↳ Valid JSON response
+  ✅ API GET /api/list_sites.php [200]
+  ✅   ↳ Valid JSON response
+  ✅ API GET /api/search.php?q=test [200]
+  ✅   ↳ Valid JSON response
+  ✅ API GET /api/search_taxon.php?q=test [200]
+  ✅   ↳ Valid JSON response
+  ✅ API GET /api/heatmap_data.php [200]
+  ✅   ↳ Valid JSON response
+  ✅ API GET /api/get_regional_stats.php [200]
+  ✅   ↳ Valid JSON response
+  ✅ API GET /api/get_showcase_data.php [200]
+  ✅   ↳ Valid JSON response
+  ✅ API GET /api/get_completeness.php [200]
+  ✅   ↳ Valid JSON response
+  ✅ API GET /api/verify_config.php [200]
+  ✅ API GET /api/taxon_suggest.php?q=a [200]
+  ✅   ↳ Valid JSON response
+
+── Phase 3: ユーザー登録 & ログイン ──
+  ✅ Login page loads
+  ✅ CSRF token extracted
+  ✅ User registration
+  ❌ Profile page accessible after registration — Status: 200
+  ↳ Attempting explicit login...
+  ❌ Explicit login — Status: 200
+
+── Phase 4: 認証必須ページ ──
+  ✅ AUTH GET /profile.php [200]
+  ✅ AUTH GET /profile_edit.php [200]
+  ✅ AUTH GET /wellness.php [200]
+  ✅ AUTH GET /my_field_dashboard.php [200]
+  ⚠️ PHP Warning detected in /my_field_dashboard.php
+  ✅ AUTH GET /review_queue.php [200]
+  ⚠️ PHP Warning detected in /review_queue.php
+  ✅ AUTH GET /id_workbench.php [200]
+  ✅ AUTH GET /id_form.php [200]
+
+── Phase 5: 観測投稿 (POST) ──
+  ✅ POST /api/post_observation.php [200]
+  ❌   ↳ Observation ID returned — Response: {"success":false,"message":"\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u30c8\u30fc\u30af\u30f3\u304c\u7121\u52b9\u3067\u3059\u3002\u30da\u30fc\u30b8\u3092\u30ea\u30ed\u30fc\u30c9\u3057\u3066\u304f\u3060\u30
+
+── Phase 6: 同定投稿 (POST) ──
+  ⚠️ 観測IDがないためスキップ
+
+── Phase 7: マイフィールド作成 ──
+  ❌ POST /api/create_field.php [403] — Status: 403, Body: {"success":false,"message":"Invalid CSRF token"}
+  ✅ GET /my_field_dashboard.php [200]
+
+── Phase 8: その他API ──
+  ✅ GET /api/get_notifications.php [200]
+  ✅ GET /api/get_personal_report.php [200]
+  ❌ GET /api/get_wellness_summary.php [401]
+
+── Phase 9: エラーハンドリング ──
+  ❌ 404 for missing page [200]
+  ✅ API graceful handling of bad params [200]
+
+── Cleanup: テストデータ削除 ──
+  ❌ Test user removed from users.json
+  ✅ Test observations removed (0)
+
+==================================================
+📊 E2E Test Report
+==================================================
+✅ Pass: 84
+❌ Fail: 13
+⏭️  Skip: 2
+Total: 99
+
+🚨 Failed tests:
+  • GET /403.php [403]: Expected 200, got 403
+  • GET /404.php [404]: Expected 200, got 404
+  •   ↳ No PHP Fatal errors: Fatal error detected in page output
+  • API GET /api/get_feed.php [404]: Expected 200, got 404
+  • API GET /api/get_events.php [500]: Expected 200, got 500
+  • API GET /api/get_species_list.php [404]: Expected 200, got 404
+  • Profile page accessible after registration: Status: 200
+  • Explicit login: Status: 200
+  •   ↳ Observation ID returned: Response: {"success":false,"message":"\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u30c8\u30fc\u30af\u30f3\u304c\u7121\u52b9\u3067\u3059\u3002\u30da\u30fc\u30b8\u3092\u30ea\u30ed\u30fc\u30c9\u3057\u3066\u304f\u3060\u30
+  • POST /api/create_field.php [403]: Status: 403, Body: {"success":false,"message":"Invalid CSRF token"}
+  • GET /api/get_wellness_summary.php [401]
+  • 404 for missing page [200]
+  • Test user removed from users.json
+
+⚠️  SOME TESTS FAILED

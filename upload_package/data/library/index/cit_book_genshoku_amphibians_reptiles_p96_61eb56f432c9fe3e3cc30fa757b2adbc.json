@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p96_61eb56f432c9fe3e3cc30fa757b2adbc",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 96,
+    "taxon_name": "タイマイ",
+    "scientific_name": "Eretmochelys imbricata squamata AGASSIZ, 1857",
+    "family": "ウミガメ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p71_41e9441284897ed8e0fe78d627573dda",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 71,
+    "taxon_name": "ハナサキガエル",
+    "scientific_name": "Rana (Rana ?) narina STEJNEGER, 1901",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

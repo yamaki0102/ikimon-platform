@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p18_5019bdd57550b5d147acf4fdc23746c3",
+    "book_id": "book_kumo_handbook",
+    "page": 18,
+    "taxon_name": "オオヒメグモ",
+    "scientific_name": "Parasteatoda tepidariorum",
+    "family": "ヒメグモ科 Theridiidae",
+    "data_icons": {
+        "size": "female: 6〜8mm, male: 3〜4mm",
+        "season": "一年中",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網に捕らえられたハエ",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

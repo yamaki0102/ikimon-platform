@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2469687,
+    "scientific_name": "Takydromus Daudin, 1802",
+    "status": "ACCEPTED",
+    "match_type": "HIGHERRANK",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Lacertidae",
+    "genus": "Takydromus",
+    "rank": "GENUS",
+    "original_query": "Takydromus DAUDIN, 1802",
+    "_cached_at": 1770420229
+}

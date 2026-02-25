@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2481519,
+    "scientific_name": "Calonectris leucomelas (Temminck, 1836)",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 99,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Aves",
+    "order": "Procellariiformes",
+    "family": "Procellariidae",
+    "genus": "Calonectris",
+    "rank": "SPECIES",
+    "original_query": "Calonectris leucomelas",
+    "_cached_at": 1770429154
+}

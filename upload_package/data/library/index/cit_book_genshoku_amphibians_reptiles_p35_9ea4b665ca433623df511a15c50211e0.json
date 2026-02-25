@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p35_9ea4b665ca433623df511a15c50211e0",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 35,
+    "taxon_name": "シリケンイモリ (続き)",
+    "scientific_name": "Triturus (Cynops) pyrrhogaster ensicauda (HALLOWELL, 1860)",
+    "family": "イモリ科",
+    "data_icons": {
+        "size": "100〜140mm",
+        "season": "3月〜8月",
+        "distribution": "琉球列島中央部 (奄美大島, 徳之島, 沖縄本島, 渡嘉敷島など)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

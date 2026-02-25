@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2455213,
+    "scientific_name": "Opheodrys herminae (Boettger, 1895)",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": 11054644,
+    "accepted_name": "Ptyas herminae",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Colubridae",
+    "genus": "Ptyas",
+    "rank": "SPECIES",
+    "original_query": "Opheodrys herminae",
+    "_cached_at": 1770420275
+}

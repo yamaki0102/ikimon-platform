@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p43_2a0e20905b0c58fb10489a7fc72c59da",
+    "book_id": "book_kumo_handbook",
+    "page": 43,
+    "taxon_name": "ササグモ",
+    "scientific_name": "Oxyopes sertatus",
+    "family": "ササグモ科 Oxyopidae",
+    "data_icons": {
+        "size": "female: 8〜11mm, male: 7〜9mm",
+        "season": "夏",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "獲物を捕らえた様子",
+        "シマササグモ（メス）",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

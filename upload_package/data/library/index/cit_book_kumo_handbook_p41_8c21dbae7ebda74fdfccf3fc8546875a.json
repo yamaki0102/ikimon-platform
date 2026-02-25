@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p41_8c21dbae7ebda74fdfccf3fc8546875a",
+    "book_id": "book_kumo_handbook",
+    "page": 41,
+    "taxon_name": "キクヅキコモリグモ",
+    "scientific_name": "Pardosa pseudoannulata",
+    "family": "コモリグモ科 Lycosidae",
+    "data_icons": {
+        "size": "female: 7〜12mm, male: 6〜8mm",
+        "season": "春〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "卵のうを運ぶメス",
+        "子グモを背負うメス",
+        "オス触肢（先端が尖る）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

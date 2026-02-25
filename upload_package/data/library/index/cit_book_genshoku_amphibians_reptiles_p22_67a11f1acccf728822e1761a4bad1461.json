@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p22_67a11f1acccf728822e1761a4bad1461",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 22,
+    "taxon_name": "アベサンショウウオ (続き)",
+    "scientific_name": "Hynobius (Hynobius) abei I. SATO, 1934",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "80〜120mm",
+        "season": "11月下旬〜12月中旬",
+        "distribution": "京都府中郡大宮町 (模式産地のみ)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

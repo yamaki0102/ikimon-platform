@@ -1,0 +1,25 @@
+{
+    "id": "cit_book_kumo_handbook_p44_20bf0a1d597b85d9fb88755a2439fbfa",
+    "book_id": "book_kumo_handbook",
+    "page": 44,
+    "taxon_name": "コクサグモ",
+    "scientific_name": "Allagelena opulenta",
+    "family": "タナグモ科 Agelenidae",
+    "data_icons": {
+        "size": "female: 8〜12mm, male: 6〜12mm",
+        "season": "夏〜秋",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス外雌器",
+        "コクサグモの住居（袋状）",
+        "触肢と外雌器",
+        "オス触肢",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

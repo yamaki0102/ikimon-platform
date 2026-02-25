@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p81_8711899d51676926deda31476f7e45d2",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 81,
+    "taxon_name": "モリアオガエル",
+    "scientific_name": "Rhacophorus arboreus (Y. OKADA et KAWANO, 1924)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

@@ -1,0 +1,156 @@
+╔══════════════════════════════════════════════════╗
+║  ikimon.life E2E Full Test v4                    ║
+╠══════════════════════════════════════════════════╣
+║  Base URL: http://localhost:8899                ║
+║  Time:     2026-02-17 11:38:47                  ║
+╚══════════════════════════════════════════════════╝
+
+── Phase 1: パブリックページ ──────────────────
+  ✅ GET / [200]
+  ✅   ↳ Contains '生き物'
+  ✅ GET /index.php [200]
+  ✅ GET /login.php [200]
+  ✅   ↳ Contains 'ログイン'
+  ✅ GET /explore.php [200]
+  ✅ GET /zukan.php [200]
+  ✅   ↳ Contains '図鑑'
+  ✅ GET /about.php [200]
+  ✅   ↳ Contains 'ikimon'
+  ✅ GET /for-business.php [200]
+  ✅   ↳ Contains '企業'
+  ✅ GET /for-researcher.php [200]
+  ✅ GET /for-citizen.php [200]
+  ✅ GET /faq.php [200]
+  ✅ GET /terms.php [200]
+  ✅ GET /privacy.php [200]
+  ✅ GET /guidelines.php [200]
+  ✅ GET /post.php [200]
+  ✅ GET /field_research.php [200]
+  ✅ GET /events.php [200]
+  ✅ GET /ranking.php [301]
+  ✅ GET /heatmap.php [301]
+  ✅ GET /compass.php [200]
+  ✅ GET /reference_layer.php [200]
+  ✅ GET /id_center.php [302]
+  ✅ GET /id_wizard.php [200]
+  ✅ GET /showcase.php [200]
+  ✅ GET /sitemap.php [200]
+  ✅ GET /offline.php [200]
+  ✅ GET /map.php [200]
+  ✅ GET /species.php [302]
+  ✅ GET /team.php [200]
+  ✅ GET /survey.php [302]
+  ✅ GET /csr_showcase.php [302]
+  ✅ GET /corporate_dashboard.php [200]
+  ✅ GET /site_dashboard.php [200]
+  ✅ GET /my_organisms.php [302]
+  ✅ GET /403.php [403]
+  ✅ GET /404.php [404]
+
+── Phase 2: API GETエンドポイント ──────────────
+  ✅ API GET /api/health.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_observations.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_events.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/taxon_index.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_exploration_stats.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/region_list.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/list_sites.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/search.php?q=test [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/search_taxon.php?q=test [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/heatmap_data.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_regional_stats.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_showcase_data.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_completeness.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/verify_config.php [200]
+  ✅ API GET /api/taxon_suggest.php?q=a [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_impact_stats.php [200]
+  ✅   ↳ Valid JSON
+  ✅ API GET /api/get_analytics_summary.php [403]
+  ✅   ↳ Valid JSON
+
+── Phase 3: ユーザー登録 & ログイン ────────────
+  ✅ Login page loads
+  ✅ Session cookie obtained
+  ✅ CSRF token extracted
+  ✅ User registration [302]
+  ✅ Auto-logged in after registration
+  → Logged in: YES ✨
+
+── Phase 4: 認証必須ページ ────────────────────
+  ✅ AUTH GET /profile.php [200]
+  ✅ AUTH GET /profile_edit.php [200]
+  ✅ AUTH GET /wellness.php [200]
+  ✅ AUTH GET /my_field_dashboard.php [200]
+  ✅ AUTH GET /review_queue.php [302]
+  ✅ AUTH GET /id_workbench.php [200]
+  ✅ AUTH GET /id_form.php [200]
+
+── Phase 5: 認証必須 API (GET) ────────────────
+  ✅ AUTH API GET /api/get_notifications.php [200]
+  ✅ AUTH API GET /api/get_personal_report.php [200]
+  ✅ AUTH API GET /api/get_wellness_summary.php [200]
+  ✅ AUTH API GET /api/get_tracks.php [400]
+  ✅ AUTH API GET /api/get_field_sessions.php [200]
+
+── Phase 6: POST API (投稿テスト) ──────────────
+  ✅ CSRF token from post.php
+  ✅ POST /api/post_observation.php [200]
+  ❌   ↳ Observation ID returned — {"success":false,"message":"写真がアップロードされていません"}
+  ⚠️  観測IDなし、同定スキップ
+  ✅ POST /api/create_field.php [200]
+
+── Phase 7: エラーハンドリング ─────────────────
+  ✅ Missing page [200]
+  ✅ API graceful with bad params [200]
+  ✅ POST without CSRF handled [200]
+  ✅   ↳ success=false
+
+── Phase 8: 静的アセット ──────────────────────
+  ✅ ASSET /assets/css/tokens.css [200]
+  ✅ ASSET /assets/css/style.css [200]
+  ✅ ASSET /assets/css/zukan.css [200]
+  ✅ ASSET /assets/css/tactical.css [200]
+  ✅ ASSET /assets/js/analytics.js [200]
+  ✅ ASSET /assets/js/dashboard.js [200]
+  ✅ ASSET /manifest.json [200]
+  ✅ ASSET /sw.js [200]
+  ✅ ASSET /robots.txt [200]
+
+── Phase 9: ページパラメータ ───────────────────
+  ✅ PARAM /species.php?name=test [302]
+  ✅ PARAM /site_dashboard.php?id=test456 [200]
+  ✅ PARAM /profile.php?id=user_ya_001 [200]
+  ✅ PARAM /observation_detail.php?id=nonexistent [404]
+
+── Cleanup: テストデータ削除 ──────────────────
+  ✅ Test user removed (1)
+  ✅ Cleaned 4 items
+
+╔══════════════════════════════════════════════════╗
+║  📊 E2E Test Report v4                           ║
+╠══════════════════════════════════════════════════╣
+║  ✅ Pass: 112                                    ║
+║  ❌ Fail: 1                                      ║
+║  ⏭️  Skip: 1                                     ║
+║  Total: 114                                     ║
+║  Rate:  98.2%                                   ║
+╚══════════════════════════════════════════════════╝
+
+🚨 Failed:
+  •   ↳ Observation ID returned: {"success":false,"message":"写真がアップロードされていません"}
+
+⚠️  1 FAILURE(S)

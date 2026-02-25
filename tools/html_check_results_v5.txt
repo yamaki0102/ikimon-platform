@@ -1,0 +1,59 @@
+
+📄 corporate_dashboard.php
+  ❌ ERROR: L203: <div> が閉じられていない
+
+📄 create_event.php
+  ❌ ERROR: L507: 閉じタグ </div> 超過（対応する開きタグなし）
+
+📄 event_detail.php
+  ❌ ERROR: L420: 閉じタグ </div> 超過（対応する開きタグなし）
+
+📄 id_form.php
+  ❌ ERROR: L202: 閉じタグ </div> 超過（対応する開きタグなし）
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: Tailwind CDN を直参照 — プロジェクトの tokens.css / input.css を使うべき
+  ⚠️  WARN: CspNonce を使用しているが meta.php を直接 include していない（nav.php 経由で可能だが明示性に欠ける）
+
+📄 id_wizard.php
+  ❌ ERROR: L357: 閉じタグ </div> 超過（対応する開きタグなし）
+
+📄 login.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: Tailwind CDN を直参照 — プロジェクトの tokens.css / input.css を使うべき
+
+📄 observation_detail.php
+  ❌ ERROR: L828: 閉じタグ </div> 超過（対応する開きタグなし）
+
+📄 offline.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+
+📄 profile.php
+  ❌ ERROR: L305: <div> が閉じられていない
+
+📄 reference_layer.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: Tailwind CDN を直参照 — プロジェクトの tokens.css / input.css を使うべき
+
+📄 review_queue.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: CspNonce を使用しているが meta.php を直接 include していない（nav.php 経由で可能だが明示性に欠ける）
+
+📄 showcase.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: Tailwind CDN を直参照 — プロジェクトの tokens.css / input.css を使うべき
+  ⚠️  WARN: CspNonce を使用しているが meta.php を直接 include していない（nav.php 経由で可能だが明示性に欠ける）
+
+📄 showcase_embed.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+
+📄 survey.php
+  ⚠️  WARN: meta.php が含まれていない — デザインシステムとの不整合リスク
+  ⚠️  WARN: Tailwind CDN を直参照 — プロジェクトの tokens.css / input.css を使うべき
+  ⚠️  WARN: CspNonce を使用しているが meta.php を直接 include していない（nav.php 経由で可能だが明示性に欠ける）
+
+──────────────────────────────────────────────────
+📊 チェック完了: 53 ファイル
+   ❌ Errors:   7
+   ⚠️  Warnings: 17
+
+🚨 構造エラーが見つかりました！修正が必要です。

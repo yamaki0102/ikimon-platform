@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p22_2bea4001b0d519d161cde07fab1c4154",
+    "book_id": "book_kumo_handbook",
+    "page": 22,
+    "taxon_name": "ヤサガタアシナガグモ",
+    "scientific_name": "Tetragnatha maxillosa",
+    "family": "アシナガグモ科 Tetragnathidae",
+    "data_icons": {
+        "size": "female: 7〜13mm, male: 4〜10mm",
+        "season": "春〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "オス",
+        "メス上顎裏面",
+        "メス腹部側面",
+        "オス上顎裏面",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

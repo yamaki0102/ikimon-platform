@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p108_b0177fc110c3d53454bc50a2c0e36a07",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 108,
+    "taxon_name": "ミナミイシガメ",
+    "scientific_name": "Clemmys mutica (CANTOR, 1842)",
+    "family": "カメ科",
+    "data_icons": {
+        "size": "120〜250mm (Max 300mm)",
+        "season": "6〜8月",
+        "distribution": "本州, 四国, 九州, 朝鮮, 台湾, シナ"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

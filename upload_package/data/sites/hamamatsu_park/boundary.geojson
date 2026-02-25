@@ -1,0 +1,39 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "site_id": "hamamatsu_park",
+                "name": "\u6d5c\u677e\u57ce\u516c\u5712 \u5171\u751f\u30a8\u30ea\u30a2"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            137.732,
+                            34.71
+                        ],
+                        [
+                            137.734,
+                            34.71
+                        ],
+                        [
+                            137.734,
+                            34.711999999999996
+                        ],
+                        [
+                            137.732,
+                            34.711999999999996
+                        ],
+                        [
+                            137.732,
+                            34.71
+                        ]
+                    ]
+                ]
+            }
+        }
+    ]
+}

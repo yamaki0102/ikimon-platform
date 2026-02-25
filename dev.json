@@ -1,0 +1,16 @@
+{
+    "server": {
+        "type": "php",
+        "port": 8899,
+        "document_root": "upload_package/public_html",
+        "router": null
+    },
+    "health_check": {
+        "url": "/",
+        "expect_status": 200,
+        "expect_content": "<html"
+    },
+    "env": {
+        "APP_ENV": "development"
+    }
+}

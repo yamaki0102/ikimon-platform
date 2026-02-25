@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p10_e306880095b0b15fa5253ca9e7159550",
+    "book_id": "book_kumo_handbook",
+    "page": 10,
+    "taxon_name": "ヒラタグモ",
+    "scientific_name": "Uroctea compactilis",
+    "family": "ヒラタグモ科 Urocteidae",
+    "data_icons": {
+        "size": "female: 8〜12mm, male: 6〜10mm",
+        "season": "一年中",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "住居の中に産み付けられた卵のう",
+        "受信糸（住居から放射状）",
+        "メス背面",
+        "オス腹部"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

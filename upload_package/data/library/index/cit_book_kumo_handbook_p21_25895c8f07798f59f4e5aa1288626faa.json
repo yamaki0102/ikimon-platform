@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p21_25895c8f07798f59f4e5aa1288626faa",
+    "book_id": "book_kumo_handbook",
+    "page": 21,
+    "taxon_name": "トガリアシナガグモ",
+    "scientific_name": "Tetragnatha caudicula",
+    "family": "アシナガグモ科 Tetragnathidae",
+    "data_icons": {
+        "size": "female: 8〜15mm, male: 6〜11mm",
+        "season": "夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス上顎裏面",
+        "交尾の様子（オスがメスの牙を押さえつけて行う）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

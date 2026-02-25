@@ -23,7 +23,8 @@
         "test": "phpunit",
         "test:unit": "phpunit --testsuite Unit",
         "test:feature": "phpunit --testsuite Feature",
-        "lint": "find upload_package -name '*.php' -exec php -l {} \\;",
+        "lint": "php tools/lint.php",
+        "analyse": "php tools/phpstan.phar analyse --memory-limit=512M",
         "setup:db": "php upload_package/scripts/setup_sqlite.php"
     },
     "config": {

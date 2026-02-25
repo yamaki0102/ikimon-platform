@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p16_bc1ef285ed0c545dc5b7ecdc1787af54",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 16,
+    "taxon_name": "ツシマサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) tsuensis ABE, 1922",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

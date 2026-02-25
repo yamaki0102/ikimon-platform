@@ -1,0 +1,18 @@
+{
+    "taxon_key": 6161308,
+    "scientific_name": "Dinodon rufozonatum walli Stejneger, 1907",
+    "status": "SYNONYM",
+    "match_type": "FUZZY",
+    "confidence": 95,
+    "accepted_key": 5223677,
+    "accepted_name": "Lycodon rufozonatus",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Colubridae",
+    "genus": "Lycodon",
+    "rank": "SUBSPECIES",
+    "original_query": "Dinodon rufozonatus walli",
+    "_cached_at": 1770420286
+}

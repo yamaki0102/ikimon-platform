@@ -1,0 +1,18 @@
+{
+    "taxon_key": 2447382,
+    "scientific_name": "Gekko tawaensis Okada, 1956",
+    "status": "ACCEPTED",
+    "match_type": "EXACT",
+    "confidence": 100,
+    "accepted_key": null,
+    "accepted_name": null,
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Squamata",
+    "order": null,
+    "family": "Gekkonidae",
+    "genus": "Gekko",
+    "rank": "SPECIES",
+    "original_query": "Gekko tawaensis Y. OKADA, 1956",
+    "_cached_at": 1770420149
+}

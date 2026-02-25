@@ -1,0 +1,22 @@
+{
+    "id": "cit_book_kumo_handbook_p11_c7a92a6096e412bbd7d4d155764958b1",
+    "book_id": "book_kumo_handbook",
+    "page": 11,
+    "taxon_name": "アケボノユウレイグモ",
+    "scientific_name": "Smeringopus pallidus",
+    "family": "ユウレイグモ科 Pholcidae",
+    "data_icons": {
+        "size": "female: 6〜8mm, male: 6〜7mm",
+        "season": "一年中",
+        "distribution": "本州 (関東以南)・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "メス背面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

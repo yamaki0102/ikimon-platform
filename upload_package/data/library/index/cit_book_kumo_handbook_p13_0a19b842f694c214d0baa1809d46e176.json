@@ -1,0 +1,22 @@
+{
+    "id": "cit_book_kumo_handbook_p13_0a19b842f694c214d0baa1809d46e176",
+    "book_id": "book_kumo_handbook",
+    "page": 13,
+    "taxon_name": "ヤマウズグモ",
+    "scientific_name": "Octonoba varians",
+    "family": "ウズグモ科 Uloboridae",
+    "data_icons": {
+        "size": "female: 4〜6mm, male: 3〜5mm",
+        "season": "夏",
+        "distribution": "本州・四国・九州"
+    },
+    "photos": [
+        "メス",
+        "メス腹部",
+        "網（隠れ帯）"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

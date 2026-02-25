@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p84_37f44afe0e3c987a8abce02a2bde5698",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 84,
+    "taxon_name": "アイフィンガーガエル",
+    "scientific_name": "Rhacophorus eiffingeri (BOETTGER, 1895)",
+    "family": "アオガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

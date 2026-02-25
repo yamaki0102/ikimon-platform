@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p24_74737e461c908879aca72f62cfb3e11b",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 24,
+    "taxon_name": "ヒダサンショウウオ",
+    "scientific_name": "Hynobius (Hynobius) naevius kimurae DUNN, 1923",
+    "family": "サンショウウオ科",
+    "data_icons": {
+        "size": "80〜130mm",
+        "season": null,
+        "distribution": "本州中央部の山地"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

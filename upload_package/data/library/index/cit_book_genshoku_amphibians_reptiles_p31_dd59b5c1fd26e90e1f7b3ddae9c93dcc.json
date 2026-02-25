@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p31_dd59b5c1fd26e90e1f7b3ddae9c93dcc",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 31,
+    "taxon_name": "イモリ",
+    "scientific_name": "Triturus (Cynops) pyrrhogaster pyrrhogaster (BOIE, 1826)",
+    "family": "イモリ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": "日本本土 (太平洋沿岸地域など)"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

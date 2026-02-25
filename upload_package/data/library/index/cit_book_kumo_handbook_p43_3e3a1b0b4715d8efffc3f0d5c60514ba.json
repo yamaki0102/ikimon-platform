@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p43_3e3a1b0b4715d8efffc3f0d5c60514ba",
+    "book_id": "book_kumo_handbook",
+    "page": 43,
+    "taxon_name": "アズマキシダグモ",
+    "scientific_name": "Pisaura lama",
+    "family": "キシダグモ科 Pisauridae",
+    "data_icons": {
+        "size": "female: 8〜12mm, male: 8〜12mm",
+        "season": "春〜夏",
+        "distribution": "北海道・本州・四国・九州"
+    },
+    "photos": [
+        "色彩変異（ヤマジ型）",
+        "タテスジ型",
+        "キスジ型",
+        "オス（婚姻贈呈の獲物を持つ）",
+        "オス触肢"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 2,
+    "type": "description"
+}

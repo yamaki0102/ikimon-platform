@@ -11,23 +11,17 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
 ?>
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TNFD Reporting Dashboard | ikimon Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <?php $adminTitle = 'TNFD Reporting Dashboard';
+    include __DIR__ . '/components/head.php'; ?>
     <!-- MapLibre for Polygon Visualization -->
-    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-    <style>
-        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #f1f5f9; }
-        .font-brand { font-family: 'Montserrat', sans-serif; }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
 </head>
+
 <body class="flex h-screen overflow-hidden">
-    
+
     <!-- Sidebar -->
     <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
         <div class="p-6 flex items-center gap-3">
@@ -49,11 +43,11 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
                 Site Settings
             </a>
         </nav>
-        
+
         <div class="p-4">
-             <a href="index.php" class="text-xs text-slate-500 hover:text-white flex items-center gap-2">
+            <a href="index.php" class="text-xs text-slate-500 hover:text-white flex items-center gap-2">
                 <i data-lucide="arrow-left" class="w-3 h-3"></i> Back to Admin
-             </a>
+            </a>
         </div>
     </aside>
 
@@ -92,7 +86,7 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
             <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
                 <p class="text-slate-400 text-xs font-bold uppercase mb-2">Species Richness</p>
                 <p class="text-4xl font-black text-white">128 <span class="text-sm font-normal text-slate-500">spp.</span></p>
-                
+
                 <div class="mt-4 flex gap-2">
                     <span class="px-2 py-1 bg-red-500/10 text-red-400 text-xs font-bold rounded">Red List: 3</span>
                     <span class="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold rounded">Invasive: 12</span>
@@ -127,14 +121,14 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
             <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 flex flex-col">
                 <h3 class="font-bold text-sm mb-4">Target Species Monitoring</h3>
                 <div class="space-y-4 overflow-y-auto">
-                    <?php foreach($targetSpecies as $sp): ?>
-                    <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-700/50">
-                        <div class="w-10 h-10 bg-slate-600 rounded-lg shrink-0"></div> <!-- Placeholder Img -->
-                        <div>
-                            <p class="font-bold text-sm"><?php echo $sp; ?></p>
-                            <p class="text-xs text-emerald-400 font-bold">Detected 12 times</p>
+                    <?php foreach ($targetSpecies as $sp): ?>
+                        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-700/50">
+                            <div class="w-10 h-10 bg-slate-600 rounded-lg shrink-0"></div> <!-- Placeholder Img -->
+                            <div>
+                                <p class="font-bold text-sm"><?php echo $sp; ?></p>
+                                <p class="text-xs text-emerald-400 font-bold">Detected 12 times</p>
+                            </div>
                         </div>
-                    </div>
                     <?php endforeach; ?>
                     <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-700/50 opacity-50">
                         <div class="w-10 h-10 bg-slate-600 rounded-lg shrink-0"></div>
@@ -149,7 +143,7 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
 
     </main>
 
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
 
         // Initialize Map
@@ -169,13 +163,15 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
                     'type': 'Feature',
                     'geometry': {
                         'type': 'Polygon',
-                        'coordinates': [[
-                            [137.720, 34.715],
-                            [137.730, 34.715],
-                            [137.730, 34.705],
-                            [137.720, 34.705],
-                            [137.720, 34.715]
-                        ]]
+                        'coordinates': [
+                            [
+                                [137.720, 34.715],
+                                [137.730, 34.715],
+                                [137.730, 34.705],
+                                [137.720, 34.705],
+                                [137.720, 34.715]
+                            ]
+                        ]
                     }
                 }
             });
@@ -205,4 +201,5 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
         });
     </script>
 </body>
+
 </html>

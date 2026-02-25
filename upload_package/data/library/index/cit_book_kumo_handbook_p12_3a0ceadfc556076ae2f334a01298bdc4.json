@@ -1,0 +1,24 @@
+{
+    "id": "cit_book_kumo_handbook_p12_3a0ceadfc556076ae2f334a01298bdc4",
+    "book_id": "book_kumo_handbook",
+    "page": 12,
+    "taxon_name": "マネキグモ",
+    "scientific_name": "Miagrammopes orientalis",
+    "family": "ウズグモ科 Uloboridae",
+    "data_icons": {
+        "size": "female: 7〜15mm, male: 6mm",
+        "season": "夏〜秋",
+        "distribution": "本州・四国・九州・南西諸島"
+    },
+    "photos": [
+        "メス",
+        "メス頭部",
+        "前脚の毛",
+        "待機するメス",
+        "メス側面"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 3,
+    "type": "description"
+}

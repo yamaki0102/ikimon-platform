@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p35_20c8f2c3758a78cf84cb3c2d6fd9e4a3",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 35,
+    "taxon_name": "イボイモリ",
+    "scientific_name": "Tylototriton andersoni BOULENGER, 1892",
+    "family": "イモリ科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

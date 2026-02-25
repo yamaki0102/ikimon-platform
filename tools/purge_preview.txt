@@ -1,0 +1,92 @@
+=== DRY RUN MODE (変更なし) ===
+
+--- 1. Users ---
+  Before: 105 → After: 2 (deleted 103)
+--- 2. User profiles ---
+  DELETE: test_user_gamification_1771065742
+  DELETE: test_user_gamification_1771065775
+  DELETE: test_user_gamification_1771065859
+  DELETE: test_user_gamification_1771065899
+  DELETE: test_user_gamification_1771065966
+  DELETE: test_user_gamification_1771066099
+  DELETE: test_user_gamification_1771066151
+  DELETE: test_user_gamification_1771066318
+--- 3. Observations ---
+  observations.json: 1053 → 10 (deleted 1043)
+  2025-02.json: 21 → 0 (deleted 21)
+  2025-03.json: 49 → 0 (deleted 49)
+  2025-04.json: 49 → 0 (deleted 49)
+  2025-05.json: 60 → 0 (deleted 60)
+  2025-06.json: 38 → 0 (deleted 38)
+  2025-07.json: 112 → 1 (deleted 111)
+  2025-08.json: 137 → 2 (deleted 135)
+  2025-09.json: 119 → 0 (deleted 119)
+  2025-10.json: 128 → 0 (deleted 128)
+  2025-11.json: 109 → 1 (deleted 108)
+  2025-12.json: 132 → 5 (deleted 127)
+  2026-01.json: 69 → 1 (deleted 68)
+  2026-02.json: 228 → 0 (deleted 228)
+  2026-03.json: 2 → 0 (deleted 2)
+--- 4. Identifications ---
+--- 5. Events ---
+  Before: 3 → After: 0 (deleted 3)
+--- 6. User badges ---
+  DELETE: test_user_badge
+  DELETE: test_user_gamification_1771065584
+  DELETE: test_user_gamification_1771065655
+  DELETE: test_user_gamification_1771065686
+  DELETE: test_user_gamification_1771065742
+  DELETE: test_user_gamification_1771065775
+  DELETE: test_user_gamification_1771065859
+  DELETE: test_user_gamification_1771065899
+  DELETE: test_user_gamification_1771065966
+  DELETE: test_user_gamification_1771066099
+  DELETE: test_user_gamification_1771066151
+  DELETE: test_user_gamification_1771066318
+  DELETE: user_69548f9a55eb8
+--- 7. My fields ---
+  DELETE: mf_699050f0b8489.json (user: test_user_gamification_1771065584)
+  DELETE: mf_69905137864df.json (user: test_user_gamification_1771065655)
+  DELETE: mf_699051567c677.json (user: test_user_gamification_1771065686)
+  DELETE: mf_6990518f05c48.json (user: test_user_gamification_1771065742)
+  DELETE: mf_699051af23414.json (user: test_user_gamification_1771065775)
+  DELETE: mf_699052031ef55.json (user: test_user_gamification_1771065859)
+  DELETE: mf_6990522bd7b90.json (user: test_user_gamification_1771065899)
+  DELETE: mf_6990526e11494.json (user: test_user_gamification_1771065966)
+  DELETE: mf_699052f3d4bbd.json (user: test_user_gamification_1771066099)
+  DELETE: mf_69905327dc4a7.json (user: test_user_gamification_1771066151)
+  DELETE: mf_699053ce9c2d8.json (user: test_user_gamification_1771066318)
+--- 8. Notifications ---
+  DELETE: test_user_gamification_1771065584
+  DELETE: test_user_gamification_1771065655
+  DELETE: test_user_gamification_1771065686
+  DELETE: test_user_gamification_1771065742
+  DELETE: test_user_gamification_1771065775
+  DELETE: test_user_gamification_1771065859
+  DELETE: test_user_gamification_1771065899
+  DELETE: test_user_gamification_1771065966
+  DELETE: test_user_gamification_1771066099
+  DELETE: test_user_gamification_1771066151
+  DELETE: test_user_gamification_1771066318
+  DELETE: user_69548f9a55eb8
+--- 9. Tracks ---
+--- 10. Cache cleanup ---
+  Cache files: 9 (clearing all)
+  Count files: 1 (clearing all)
+--- 11. Analytics ---
+  Clearing: 2026-02-12.json
+  Clearing: 2026-02-13.json
+
+=== SUMMARY ===
+  users_deleted: 103
+  observations_deleted: 2286
+  identifications_deleted: 0
+  events_deleted: 3
+  badges_deleted: 13
+  fields_deleted: 11
+  notifications_deleted: 12
+  tracks_deleted: 0
+  total_errors: 0
+
+⚠️  DRY RUN — 実際の変更は行われていません。
+   実行するには: php tools/purge_demo_data.php

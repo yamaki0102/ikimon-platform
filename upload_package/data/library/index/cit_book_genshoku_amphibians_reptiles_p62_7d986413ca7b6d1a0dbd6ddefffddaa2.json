@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p62_7d986413ca7b6d1a0dbd6ddefffddaa2",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 62,
+    "taxon_name": "ヤマアカガエル (続き)",
+    "scientific_name": "Rana (Rana) ornativentris WERNER, 1904",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": "45〜75mm",
+        "season": "2〜3月 (低地) \/ 4〜5月 (高地・東北)",
+        "distribution": "本州, 四国, 九州, 佐渡, 大隅群島"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

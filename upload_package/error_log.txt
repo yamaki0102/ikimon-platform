@@ -1,0 +1,1 @@
+[Fri Feb 20 06:22:05.921637 2026] [core:alert] [pid 32859] [client 180.199.214.126:0] /home/r1522484/public_html/ikimon.life/.htaccess: SetEnv takes 1-2 arguments, an environment variable name and optional value to pass to CGI.

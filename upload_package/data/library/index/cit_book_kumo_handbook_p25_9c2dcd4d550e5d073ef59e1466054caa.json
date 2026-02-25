@@ -1,0 +1,23 @@
+{
+    "id": "cit_book_kumo_handbook_p25_9c2dcd4d550e5d073ef59e1466054caa",
+    "book_id": "book_kumo_handbook",
+    "page": 25,
+    "taxon_name": "オニグモ",
+    "scientific_name": "Araneus ventricosus",
+    "family": "コガネグモ科 Araneidae",
+    "data_icons": {
+        "size": "female: 20〜30mm, male: 15〜20mm",
+        "season": "夏〜秋",
+        "distribution": "日本全土"
+    },
+    "photos": [
+        "メス（黒色型）",
+        "メス腹部",
+        "日中に潜んでいる様子（隠れ帯）",
+        "オス"
+    ],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": 1,
+    "type": "description"
+}

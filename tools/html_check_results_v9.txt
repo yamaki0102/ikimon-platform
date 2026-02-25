@@ -1,0 +1,90 @@
+📂 corporate_dashboard.php:
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <div> (extracted from <div class="dashboard-container mx-auto" style="padding: var(--phi-lg) var(--phi-md); padding-bottom: 96px; margin-top: 64px;">) on line 203 closed by </body> (extracted from </body>) on line 502
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <body> (extracted from <body class="bg-[#f8faf9] text-[#1a2e1f] font-body">) on line 200 closed by </html> (extracted from </html>) on line 504
+  ❌ ERROR: UNCLOSED_TAG: Tag <html> on line 36 was never closed.
+📂 create_event.php:
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <body> (extracted from <body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-sans min-h-screen pb-24 safe-area-inset-bottom"
+    x-data="createevent()">) on line 290 closed by </div> (extracted from </div>) on line 507
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <html> (extracted from <html lang="ja">) on line 16 closed by </body> (extracted from </body>) on line 726
+  ❌ ERROR: EXTRA_CLOSE_TAG: Tag </html> on line 728 has no matching start tag.
+📂 event_detail.php:
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <body> (extracted from <body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-sans min-h-screen pb-24 safe-area-inset-bottom"
+    x-data="eventdashboard()">) on line 53 closed by </div> (extracted from </div>) on line 420
+  ❌ ERROR: EXTRA_CLOSE_TAG: Tag </body> on line 421 has no matching start tag.
+  ❌ ERROR: EXTRA_CLOSE_TAG: Tag </html> on line 423 has no matching start tag.
+📂 id_form.php:
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <main> (extracted from <main class="max-w-xl mx-auto px-6 py-24" x-data="identifier()">) on line 57 closed by </div> (extracted from </div>) on line 202
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <body> (extracted from <body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">) on line 51 closed by </main> (extracted from </main>) on line 249
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <html> (extracted from <html lang="ja">) on line 34 closed by </body> (extracted from </body>) on line 339
+  ❌ ERROR: EXTRA_CLOSE_TAG: Tag </html> on line 341 has no matching start tag.
+  ⚠️  WARN: MISSING_META_COMPONENT: Page has DOCTYPE but doesn't include components/meta.php
+  ⚠️  WARN: TAILWIND_CDN_USED: Should use assets/css/ instead of debug CDN.
+📂 id_wizard.php:
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <body> (extracted from <body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-display min-h-screen flex flex-col">) on line 47 closed by </div> (extracted from </div>) on line 357
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <html> (extracted from <html lang="ja">) on line 19 closed by </body> (extracted from </body>) on line 543
+  ❌ ERROR: EXTRA_CLOSE_TAG: Tag </html> on line 545 has no matching start tag.
+📂 login.php:
+  ⚠️  WARN: MISSING_META_COMPONENT: Page has DOCTYPE but doesn't include components/meta.php
+  ⚠️  WARN: TAILWIND_CDN_USED: Should use assets/css/ instead of debug CDN.
+  ⚠️  WARN: MISSING_CSP_NONCE: Script tag found but CspNonce::attr() is missing.
+📂 observation_detail.php:
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <body> (extracted from <body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body min-h-screen antialiased" x-data="{ idmodalopen: false, photoactive: 0, lightbox: false, touchstart: 0, touchend: 0, locationname: '読み込み中...' }" x-init="
+    fetch('https://nominatim.openstreetmap.org/reverse?lat=                                    &lon=                                    &format=json&accept-language=ja&zoom=10')
+        .then(r =  r.json())
+        .then(d =  { locationname = d.address ? (d.address.city || d.address.town || d.address.village || d.address.county || '') + ', ' + (d.address.state || '') : '不明'; })
+        .catch(() =  { locationname = '位置情報あり'; });
+    },
+    async submitagree(target) {
+        if(!confirm('「' + target.name + '」に同意しますか？\n(あなたの同意はデータの信頼性に影響します)')) return;
+        
+        try {
+            const res = await fetch('api/post_identification.php', {
+                method: 'post',
+                headers: { 'content-type': 'application/json' },
+                body: json.stringify({
+                    observation_id: '                                    ',
+                    taxon_key: target.key,
+                    taxon_name: target.name,
+                    taxon_slug: target.slug,
+                    scientific_name: target.sci,
+                    confidence: 'sure',
+                    note: '', 
+                    evidence_type: 'visual'
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('エラーが発生しました: ' + (data.message || 'unknown error'));
+            }
+        } catch(e) { alert('通信エラー'); }
+    }
+">) on line 151 closed by </div> (extracted from </div>) on line 828
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <html> (extracted from <html lang="ja">) on line 90 closed by </body> (extracted from </body>) on line 854
+  ❌ ERROR: EXTRA_CLOSE_TAG: Tag </html> on line 856 has no matching start tag.
+📂 offline.php:
+  ⚠️  WARN: MISSING_META_COMPONENT: Page has DOCTYPE but doesn't include components/meta.php
+📂 profile.php:
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <div> (extracted from <div x-data="{ tab: 'observations' }">) on line 305 closed by </main> (extracted from </main>) on line 782
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <main> (extracted from <main class="max-w-7xl mx-auto px-4 md:px-6 py-12 md:py-32 pb-32">) on line 58 closed by </body> (extracted from </body>) on line 827
+  ❌ ERROR: CLOSE_TAG_MISMATCH: Tag <body> (extracted from <body class="js-loading bg-base text-text font-body">) on line 52 closed by </html> (extracted from </html>) on line 829
+  ❌ ERROR: UNCLOSED_TAG: Tag <html> on line 39 was never closed.
+📂 reference_layer.php:
+  ⚠️  WARN: MISSING_META_COMPONENT: Page has DOCTYPE but doesn't include components/meta.php
+  ⚠️  WARN: TAILWIND_CDN_USED: Should use assets/css/ instead of debug CDN.
+  ⚠️  WARN: MISSING_CSP_NONCE: Script tag found but CspNonce::attr() is missing.
+📂 review_queue.php:
+  ⚠️  WARN: MISSING_META_COMPONENT: Page has DOCTYPE but doesn't include components/meta.php
+📂 showcase.php:
+  ⚠️  WARN: MISSING_META_COMPONENT: Page has DOCTYPE but doesn't include components/meta.php
+  ⚠️  WARN: TAILWIND_CDN_USED: Should use assets/css/ instead of debug CDN.
+📂 showcase_embed.php:
+  ⚠️  WARN: MISSING_META_COMPONENT: Page has DOCTYPE but doesn't include components/meta.php
+📂 survey.php:
+  ⚠️  WARN: MISSING_META_COMPONENT: Page has DOCTYPE but doesn't include components/meta.php
+  ⚠️  WARN: TAILWIND_CDN_USED: Should use assets/css/ instead of debug CDN.
+
+📊 Checks complete: 53 files
+   ❌ Errors:   23
+   ⚠️  Warnings: 15

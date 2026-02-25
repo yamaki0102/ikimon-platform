@@ -1,0 +1,19 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p45_a0a5e7a590ec7114cd1aa1e9e9fe30fb",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 45,
+    "taxon_name": "ヘリグロヒキガエル",
+    "scientific_name": "PLATE 8 - 22",
+    "family": null,
+    "data_icons": null,
+    "photos": [],
+    "figures": [
+        {
+            "figure_id": "22",
+            "caption": "22. ヘリグロヒキガエル"
+        }
+    ],
+    "page_type": "ILLUSTRATION_PLATE",
+    "rarity_stars": null,
+    "type": "description"
+}

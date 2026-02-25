@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p70_f261bc7aa72b871f9cad943dce286867",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 70,
+    "taxon_name": "ヌマガエル",
+    "scientific_name": "Rana (Rana) limnocharis limnocharis WIEGMANN, 1835",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": null
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

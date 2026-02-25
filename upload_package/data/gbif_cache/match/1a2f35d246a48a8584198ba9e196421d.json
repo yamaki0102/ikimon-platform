@@ -1,0 +1,18 @@
+{
+    "taxon_key": 5220657,
+    "scientific_name": "Clemmys mutica Siebenrock, 1910",
+    "status": "SYNONYM",
+    "match_type": "EXACT",
+    "confidence": 98,
+    "accepted_key": 2443393,
+    "accepted_name": "Mauremys mutica",
+    "kingdom": "Animalia",
+    "phylum": "Chordata",
+    "class": "Testudines",
+    "order": null,
+    "family": "Geoemydidae",
+    "genus": "Mauremys",
+    "rank": "SPECIES",
+    "original_query": "Clemmys mutica (CANTOR, 1842)",
+    "_cached_at": 1770420116
+}

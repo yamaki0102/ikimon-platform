@@ -7,67 +7,80 @@ Auth::init();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-    <?php 
-    $meta_title = "探索";
-    include __DIR__ . '/components/meta.php'; 
+    <?php
+    $meta_title = "みつける";
+    include __DIR__ . '/components/meta.php';
     ?>
     <!-- MapLibre GL JS -->
-    <script src="https://unpkg.com/maplibre-gl@3.x.x/dist/maplibre-gl.js"></script>
-    <link href="https://unpkg.com/maplibre-gl@3.x.x/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <style>
-        [x-cloak] { display: none !important; }
+        [x-cloak] {
+            display: none !important;
+        }
+
         .responsive-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* Mobile: Fixed 2 cols */
+            grid-template-columns: repeat(2, 1fr);
+            /* Mobile: Fixed 2 cols */
             gap: 1rem;
         }
+
         @media (min-width: 768px) {
             .responsive-grid {
                 /* PC: Variable (Kahen) layout - fits as many as possible */
-                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
                 gap: 1.5rem;
             }
         }
     </style>
 </head>
-<body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
-    <?php include('components/nav.php'); ?>
-    <script>document.body.classList.remove('js-loading');</script>
 
-    <main class="w-full min-h-screen bg-[var(--color-bg-base)] pb-24 md:pb-0" x-data="explorer()">
-        
+<body class="js-loading bg-base text-text font-body">
+    <?php include('components/nav.php'); ?>
+    <script nonce="<?= CspNonce::attr() ?>">
+        document.body.classList.remove('js-loading');
+    </script>
+
+    <main class="w-full min-h-screen bg-base pb-24 md:pb-0" x-data="explorer()">
+
         <!-- Header Spacer -->
         <div class="h-14"></div>
 
         <!-- Header / Search Area -->
         <div x-data="{ headerVisible: true }"
-             @header-visibility.window="headerVisible = $event.detail"
-             :class="headerVisible ? 'top-14' : 'top-0'"
-             class="sticky z-30 bg-[var(--color-bg-base)]/95 backdrop-blur-md border-b border-white/5 pt-4 pb-4 px-4 shadow-sm transition-[top] duration-300 ease-out">
+            @header-visibility.window="headerVisible = $event.detail"
+            :class="headerVisible ? 'top-14' : 'top-0'"
+            class="sticky z-30 bg-base/95 backdrop-blur-md border-b border-border pt-4 pb-4 px-4 shadow-sm transition-[top] duration-300 ease-out">
             <div class="w-full max-w-7xl mx-auto flex flex-col md:flex-row md:items-center gap-4">
-                
+
                 <!-- Title & Mobile Map Button -->
                 <div class="flex items-center justify-between md:justify-start gap-4 shrink-0">
-                    <h2 class="text-2xl font-black font-heading">Explore</h2>
+                    <h2 class="text-2xl font-black font-heading">みつける</h2>
                     <a href="map.php" class="md:hidden btn-secondary !py-2 !px-4 !rounded-full flex items-center gap-2 text-xs font-bold">
-                        <i data-lucide="map" class="w-4 h-4"></i> Map
+                        <i data-lucide="map" class="w-4 h-4"></i> フィールドマップ
                     </a>
                 </div>
 
                 <!-- Search Bar -->
                 <div class="relative w-full md:flex-1 md:max-w-xl">
-                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"></i>
-                    <input type="text" x-model="query" @input.debounce.500ms="load(true)" 
-                           placeholder="Search species..." 
-                           class="w-full bg-white/5 border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm focus:bg-white/10 focus:ring-1 focus:ring-primary transition text-white placeholder-gray-500">
+                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"></i>
+                    <input type="text" x-model="query" @input.debounce.500ms="load(true)"
+                        placeholder="種名で検索..."
+                        class="w-full bg-surface border border-border rounded-full py-2.5 pl-10 pr-4 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition text-text placeholder-faint">
                 </div>
 
                 <!-- Filter Chips -->
                 <div class="flex gap-2 overflow-x-auto scrollbar-hide shrink-0">
-                    <button @click="filter='all'; load(true)" :class="filter === 'all' ? 'bg-white text-black' : 'bg-white/5 text-gray-400 hover:bg-white/10'" class="px-4 py-1.5 rounded-full border border-white/10 text-xs font-bold whitespace-nowrap transition">All</button>
-                    <button @click="filter='birds'; load(true)" :class="filter === 'birds' ? 'bg-white text-black' : 'bg-white/5 text-gray-400 hover:bg-white/10'" class="px-4 py-1.5 rounded-full border border-white/10 text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="bird" class="w-3 h-3"></i> Birds</button>
-                    <button @click="filter='plants'; load(true)" :class="filter === 'plants' ? 'bg-white text-black' : 'bg-white/5 text-gray-400 hover:bg-white/10'" class="px-4 py-1.5 rounded-full border border-white/10 text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="flower" class="w-3 h-3"></i> Plants</button>
+                    <button @click="filter='all'; load(true)" :class="filter === 'all' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition">すべて</button>
+                    <button @click="filter='birds'; load(true)" :class="filter === 'birds' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="bird" class="w-3 h-3"></i> 鳥類</button>
+                    <button @click="filter='insects'; load(true)" :class="filter === 'insects' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="bug" class="w-3 h-3"></i> 昆虫</button>
+                    <button @click="filter='plants'; load(true)" :class="filter === 'plants' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="flower" class="w-3 h-3"></i> 植物</button>
+                    <button @click="filter='fungi'; load(true)" :class="filter === 'fungi' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🍄 菌類</button>
+                    <button @click="filter='mammals'; load(true)" :class="filter === 'mammals' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🐾 哺乳類</button>
+                    <button @click="filter='herps'; load(true)" :class="filter === 'herps' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🐸 両生爬虫類</button>
                 </div>
 
                 <!-- Desktop Map Button -->
@@ -78,15 +91,22 @@ Auth::init();
             </div>
         </div>
 
+
+
         <div class="w-full max-w-7xl mx-auto px-4 py-4">
+            <!-- Regional Completion Meter (Full) -->
+            <div class="mb-6" x-data="regionalCompletion('full')">
+                <?php include __DIR__ . '/components/regional_completion.php'; ?>
+            </div>
+
             <!-- Loading State (Skeleton) -->
-             <div x-show="loading && items.length === 0" class="responsive-grid pb-12">
+            <div x-show="loading && items.length === 0" class="responsive-grid pb-12">
                 <template x-for="i in 6">
-                    <div class="aspect-[4/5] rounded-2xl bg-white/5 border border-white/10 overflow-hidden relative animate-pulse">
-                        <div class="w-full h-full bg-white/5"></div>
+                    <div class="aspect-[4/5] rounded-2xl bg-surface border border-border overflow-hidden relative animate-pulse">
+                        <div class="w-full h-full bg-surface"></div>
                         <div class="absolute bottom-3 left-3 right-3">
-                            <div class="h-4 bg-white/10 rounded w-2/3 mb-2"></div>
-                            <div class="h-3 bg-white/10 rounded w-1/2"></div>
+                            <div class="h-4 bg-border rounded w-2/3 mb-2"></div>
+                            <div class="h-3 bg-border rounded w-1/2"></div>
                         </div>
                     </div>
                 </template>
@@ -95,7 +115,7 @@ Auth::init();
             <!-- Grid -->
             <div class="responsive-grid pb-12" x-show="items.length > 0">
                 <template x-for="obs in items" :key="obs.id">
-                    <a :href="'observation_detail.php?id=' + obs.id" class="block aspect-[4/5] rounded-2xl bg-white/5 border border-white/10 overflow-hidden relative group">
+                    <a :href="'observation_detail.php?id=' + obs.id" class="block aspect-[4/5] rounded-2xl bg-surface border border-border overflow-hidden relative group">
                         <img :src="obs.photos[0]" class="w-full h-full object-cover group-hover:scale-110 transition duration-500 loading-skeleton" loading="lazy">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60"></div>
                         <div class="absolute bottom-3 left-3 right-3 text-white">
@@ -110,24 +130,28 @@ Auth::init();
                     </a>
                 </template>
             </div>
-             
-             <!-- Empty State -->
-             <div x-show="items.length === 0 && !loading" class="text-center py-12 text-gray-500">
-                 <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-4 opacity-50"></i>
-                 <p>No observations found.</p>
-             </div>
-             
-             <!-- Load More -->
-             <div x-show="hasMore" class="py-4 text-center">
-                <button @click="load()" class="px-6 py-2 rounded-full border border-white/10 text-xs font-bold hover:bg-white/10 transition" :disabled="loading">
+
+            <!-- Empty State -->
+            <div x-show="items.length === 0 && !loading" class="text-center py-16 text-muted">
+                <div class="text-5xl mb-4">🌱</div>
+                <p class="text-lg font-bold text-faint mb-2">まだ観察がないよ</p>
+                <p class="text-sm text-muted mb-4">この地域で最初の発見者になろう！</p>
+                <a href="post.php" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-primary to-secondary text-white font-bold text-sm shadow-lg shadow-primary-glow/20 active:scale-95 transition">
+                    <i data-lucide="camera" class="w-4 h-4"></i> 最初の観察を投稿する
+                </a>
+            </div>
+
+            <!-- Load More -->
+            <div x-show="hasMore" class="py-4 text-center">
+                <button @click="load()" class="px-6 py-2 rounded-full border border-border text-xs font-bold text-text-secondary hover:bg-surface transition" :disabled="loading">
                     <span x-show="!loading">Load More</span>
                     <span x-show="loading">Loading...</span>
                 </button>
-             </div>
+            </div>
         </div>
     </main>
 
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         function explorer() {
             return {
                 query: '',
@@ -137,6 +161,7 @@ Auth::init();
                 offset: 0,
                 limit: 20,
                 hasMore: true,
+                regionStats: null,
 
                 init() {
                     this.load();
@@ -155,7 +180,7 @@ Auth::init();
                     try {
                         const res = await fetch(`api/get_observations.php?limit=${this.limit}&offset=${this.offset}&q=${encodeURIComponent(this.query)}`);
                         const result = await res.json();
-                        
+
                         this.items = [...this.items, ...result.data];
                         this.hasMore = result.has_more;
                         this.offset += this.limit;
@@ -169,15 +194,14 @@ Auth::init();
                 },
 
                 getStatusColorClass(status) {
-                    if (status === 'Research Grade') return 'bg-green-500';
-                    if (status === 'Suggested') return 'bg-yellow-500';
-                    return 'bg-gray-500';
+                    if (status === 'Research Grade') return 'bg-primary';
+                    if (status === 'Suggested') return 'bg-warning';
+                    return 'bg-muted';
                 }
             }
         }
         lucide.createIcons();
     </script>
 </body>
-</html>
-</body>
+
 </html>

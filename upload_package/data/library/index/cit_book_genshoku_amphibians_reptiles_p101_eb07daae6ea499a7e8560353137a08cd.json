@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p101_eb07daae6ea499a7e8560353137a08cd",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 101,
+    "taxon_name": "オサガメ",
+    "scientific_name": "Dermochelys coriacea schlegelii (GARMAN, 1884)",
+    "family": "オサガメ科",
+    "data_icons": {
+        "size": "Max 250cm, 650kg (Average >150cm rare)",
+        "season": null,
+        "distribution": "太平洋, インド洋"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}

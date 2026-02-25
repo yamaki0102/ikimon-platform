@@ -4,10 +4,10 @@ require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Auth.php';
 
 Auth::init();
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
 if (!Auth::isLoggedIn()) {
-    echo json_encode(['success' => false, 'message' => 'Login required']);
+    echo json_encode(['success' => false, 'message' => 'Login required'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -59,6 +59,7 @@ foreach ($partitions as $file) {
     $data = json_decode(file_get_contents($file), true) ?: [];
     $data = array_reverse($data); // Newest in file first
     foreach ($data as $obs) {
+        /** @phpstan-ignore-line */
         if (isset($obs['user_id']) && $obs['user_id'] === $userId) {
             $lastObs = $obs;
             break 2;
@@ -89,7 +90,7 @@ if ($lastObs) {
             'cultivation' => $lastObs['cultivation'] ?? 'wild'
             // 'note' is usually specific, don't copy
         ]
-    ]);
+    ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 } else {
-    echo json_encode(['success' => false, 'message' => 'No history found']);
+    echo json_encode(['success' => false, 'message' => 'No history found'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 }

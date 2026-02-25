@@ -1,0 +1,18 @@
+{
+    "id": "cit_book_genshoku_amphibians_reptiles_p65_f41fe4ce4cec629bf1a27e98546564ad",
+    "book_id": "book_genshoku_amphibians_reptiles",
+    "page": 65,
+    "taxon_name": "ダルマガエル",
+    "scientific_name": "Rana (Rana) brevipoda R. ITO, 1941",
+    "family": "アカガエル科",
+    "data_icons": {
+        "size": null,
+        "season": null,
+        "distribution": "東海〜瀬戸内, 関東, 仙台平野, 越後平野"
+    },
+    "photos": [],
+    "figures": [],
+    "page_type": "MIXED_RECORD",
+    "rarity_stars": null,
+    "type": "description"
+}
