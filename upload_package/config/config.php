@@ -15,14 +15,31 @@ define('DATA_DIR', ROOT_DIR . '/data');
 define('LIBS_DIR', ROOT_DIR . '/libs');
 define('PUBLIC_DIR', ROOT_DIR . '/public_html');
 
+// Session Security (must be set before session_start)
+ini_set('session.cookie_secure', 1);
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_samesite', 'Lax');
+ini_set('session.use_strict_mode', 1);
+
 // CSP Nonce (available globally for inline script nonce attributes)
 require_once LIBS_DIR . '/CspNonce.php';
 CspNonce::sendHeader();
 
-// URLs
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') $protocol = 'https';
+// HSTS Header (1 year, includeSubDomains)
+if (!headers_sent()) {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
+
+// URLs — Force HTTPS in production (prevents Mixed Content)
+$is_https = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on')
+         || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+         || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+$protocol = $is_https ? 'https' : 'http';
+// Force HTTPS on production domain
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+if (strpos($host, 'ikimon.life') !== false) {
+    $protocol = 'https';
+}
 define('BASE_URL', $protocol . '://' . $host);
 
 // Red List Obscuring Settings

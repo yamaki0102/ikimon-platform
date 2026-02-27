@@ -24,6 +24,9 @@ ErrorDocument 404 /404.php
     Header set X-Content-Type-Options "nosniff"
     Header set X-XSS-Protection "1; mode=block"
     Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "camera=(self), microphone=(), geolocation=(self), payment=()"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 </IfModule>
 
 # Clean URL Rewrite Rules
@@ -31,15 +34,15 @@ ErrorDocument 404 /404.php
     RewriteEngine On
     RewriteBase /
 
-    # /species/{slug} 竊・species.php?name={slug}
+    # /species/{slug} → species.php?name={slug}
     RewriteRule ^species/([a-z0-9\-]+)/?$ species.php?name=$1 [L,QSA]
 
-    # /obs/{id} 竊・observation_detail.php?id={id}
+    # /obs/{id} → observation_detail.php?id={id}
     RewriteRule ^obs/([a-zA-Z0-9_\-]+)/?$ observation_detail.php?id=$1 [L,QSA]
 
-    # /site/{id} 竊・site_dashboard.php?id={id}
+    # /site/{id} → site_dashboard.php?id={id}
     RewriteRule ^site/([a-zA-Z0-9_\-]+)/?$ site_dashboard.php?id=$1 [L,QSA]
 
-    # /user/{id} 竊・profile.php?id={id}
+    # /user/{id} → profile.php?id={id}
     RewriteRule ^user/([a-zA-Z0-9_\-]+)/?$ profile.php?id=$1 [L,QSA]
 </IfModule>
