@@ -25,11 +25,6 @@ ini_set('session.use_strict_mode', 1);
 require_once LIBS_DIR . '/CspNonce.php';
 CspNonce::sendHeader();
 
-// HSTS Header (1 year, includeSubDomains)
-if (!headers_sent()) {
-    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
-}
-
 // URLs — Force HTTPS in production (prevents Mixed Content)
 $is_https = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on')
          || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
