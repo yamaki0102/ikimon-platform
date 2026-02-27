@@ -1,27 +1,15 @@
 <?php
 
 /**
- * AI Suggest API — Phase B: AI同定ブリッジ
+ * AI Suggest API — Phase C: AI同定ブリッジ（複数画像対応）
  * 
- * 写真を受け取り、Gemini Flash APIで生物の分類候補を返す。
+ * 複数写真を受け取り、Gemini Flash APIで生物の分類候補を返す。
  * 
  * POST /api/ai_suggest.php
- * - photo: file (image/jpeg, image/png, image/webp)
+ * - photos[]: files (image/jpeg, image/png, image/webp) — 最大3枚
+ * - photo: file (後方互換: 1枚のみの場合)
  * 
- * Returns JSON:
- * {
- *   "success": true,
- *   "suggestions": [
- *     { "label": "チョウ目 シジミチョウ科", "confidence": "high", "emoji": "🦋", "reason": "翅の模様からシジミチョウ科と推定" }
- *   ],
- *   "meta": { "model": "gemini-2.5-flash", "processing_ms": 1234 }
- * }
- * 
- * 設計原則:
- * - 512px以下にリサイズしてからAPI送信（元画像は送信しない）
- * - EXIF情報（GPS含む）は完全除去
- * - レスポンスは科(Family)レベルまで。種レベル同定はしない
- * - ユーザー情報は一切送信しない
+ * @version 2.0.0 — Multi-Photo Support
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -32,13 +20,12 @@ require_once __DIR__ . '/../../libs/CSRF.php';
 session_start();
 $now = time();
 $rateKey = '_ai_suggest_timestamps';
-$rateLimitWindow = 60; // seconds
-$rateLimitMax = 10;    // max requests per window
+$rateLimitWindow = 60;
+$rateLimitMax = 10;
 
 if (!isset($_SESSION[$rateKey])) {
     $_SESSION[$rateKey] = [];
 }
-// Clean old timestamps
 $_SESSION[$rateKey] = array_filter($_SESSION[$rateKey], fn($t) => $t > ($now - $rateLimitWindow));
 
 if (count($_SESSION[$rateKey]) >= $rateLimitMax) {
@@ -55,10 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// CSRF (optional for API, but adds protection)
-// Skip CSRF for now — this is called from JavaScript with FormData
-// We rely on same-origin policy + rate limiting
-
 // Check API Key
 if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === '') {
     http_response_code(503);
@@ -66,42 +49,65 @@ if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === '') {
     exit;
 }
 
-// ── Validate Photo ──
-if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+// ── Collect Photos (multi or single) ──
+$allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+$finfo = new finfo(FILEINFO_MIME_TYPE);
+$maxPhotos = 3;
+$maxFileSize = 10 * 1024 * 1024; // 10MB per file
+
+$uploadedFiles = [];
+
+// Support photos[] (multi) or photo (single, backward compat)
+if (isset($_FILES['photos']) && is_array($_FILES['photos']['name'])) {
+    $count = min(count($_FILES['photos']['name']), $maxPhotos);
+    for ($i = 0; $i < $count; $i++) {
+        if ($_FILES['photos']['error'][$i] !== UPLOAD_ERR_OK) continue;
+        $uploadedFiles[] = [
+            'tmp_name' => $_FILES['photos']['tmp_name'][$i],
+            'size' => $_FILES['photos']['size'][$i],
+        ];
+    }
+} elseif (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+    // Backward compatibility: single photo
+    $uploadedFiles[] = [
+        'tmp_name' => $_FILES['photo']['tmp_name'],
+        'size' => $_FILES['photo']['size'],
+    ];
+}
+
+if (empty($uploadedFiles)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'no_photo', 'message' => '写真が必要です。']);
     exit;
 }
 
-$allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-$finfo = new finfo(FILEINFO_MIME_TYPE);
-$mimeType = $finfo->file($_FILES['photo']['tmp_name']);
-
-if (!in_array($mimeType, $allowedTypes, true)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'invalid_type', 'message' => 'JPEG, PNG, WebPのみ対応しています。']);
-    exit;
-}
-
-// Max file size: 10MB
-if ($_FILES['photo']['size'] > 10 * 1024 * 1024) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'file_too_large', 'message' => 'ファイルサイズは10MB以下にしてください。']);
-    exit;
-}
-
-// ── Resize to 512px (privacy + performance) ──
+// ── Validate & Resize All Photos ──
 $startTime = hrtime(true);
+$images = []; // [{data: base64, mime: string}]
 
-$resized = resizeAndStripExif($_FILES['photo']['tmp_name'], $mimeType, 512);
-if ($resized === false) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'resize_failed', 'message' => '画像の処理に失敗しました。']);
+foreach ($uploadedFiles as $file) {
+    // Type check
+    $mimeType = $finfo->file($file['tmp_name']);
+    if (!in_array($mimeType, $allowedTypes, true)) continue;
+    
+    // Size check
+    if ($file['size'] > $maxFileSize) continue;
+    
+    // Resize
+    $resized = resizeAndStripExif($file['tmp_name'], $mimeType, 512);
+    if ($resized !== false) {
+        $images[] = $resized;
+    }
+}
+
+if (empty($images)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'invalid_photos', 'message' => '有効な写真がありません。JPEG, PNG, WebPのみ対応しています。']);
     exit;
 }
 
 // ── Call Gemini Flash API ──
-$result = callGeminiFlash($resized['data'], $resized['mime']);
+$result = callGeminiFlash($images);
 
 $endTime = hrtime(true);
 $processingMs = (int)(($endTime - $startTime) / 1e6);
@@ -118,6 +124,7 @@ echo json_encode([
     'meta' => [
         'model' => 'gemini-2.5-flash',
         'processing_ms' => $processingMs,
+        'photos_analyzed' => count($images),
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 
@@ -127,7 +134,6 @@ echo json_encode([
 
 /**
  * Resize image to max dimension and strip all EXIF data.
- * Returns ['data' => base64, 'mime' => 'image/jpeg'] or false.
  */
 function resizeAndStripExif(string $path, string $mimeType, int $maxDim): array|false
 {
@@ -143,26 +149,21 @@ function resizeAndStripExif(string $path, string $mimeType, int $maxDim): array|
     $w = imagesx($img);
     $h = imagesy($img);
 
-    // Calculate new dimensions
     if ($w > $maxDim || $h > $maxDim) {
         $ratio = min($maxDim / $w, $maxDim / $h);
         $newW = (int)($w * $ratio);
         $newH = (int)($h * $ratio);
 
         $resized = imagecreatetruecolor($newW, $newH);
-
-        // Preserve transparency for PNG
         if ($mimeType === 'image/png') {
             imagealphablending($resized, false);
             imagesavealpha($resized, true);
         }
-
         imagecopyresampled($resized, $img, 0, 0, 0, 0, $newW, $newH, $w, $h);
         imagedestroy($img);
         $img = $resized;
     }
 
-    // Output to JPEG (strips all EXIF, reduces size)
     ob_start();
     imagejpeg($img, null, 80);
     $data = ob_get_clean();
@@ -175,16 +176,21 @@ function resizeAndStripExif(string $path, string $mimeType, int $maxDim): array|
 }
 
 /**
- * Call Gemini 2.5 Flash API with image for species identification.
- * Returns parsed suggestions or false.
+ * Call Gemini 2.5 Flash API with one or more images for species identification.
+ * @param array $images Array of ['data' => base64, 'mime' => mimeType]
  */
-function callGeminiFlash(string $base64Image, string $mimeType): array|false
+function callGeminiFlash(array $images): array|false
 {
     $apiKey = GEMINI_API_KEY;
-    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
+    $photoCount = count($images);
+    $multiPhotoNote = $photoCount > 1
+        ? "\n\n注意: {$photoCount}枚の写真が提供されています。これらは同一の生き物を異なる角度から撮影したものです。すべての写真を総合的に判断して分類してください。"
+        : '';
 
     $prompt = <<<PROMPT
-あなたは生物多様性の専門家で、一般の人にもわかりやすく説明するのが得意です。この写真に写っている生き物を分類してください。
+あなたは生物多様性の専門家で、一般の人にもわかりやすく説明するのが得意です。この写真に写っている生き物を分類してください。{$multiPhotoNote}
 
 ## ルール
 1. **科（Family）レベルまでの同定**にとどめてください。種レベルの断定は禁止です。
@@ -204,19 +210,20 @@ function callGeminiFlash(string $base64Image, string $mimeType): array|false
 JSONのみ出力し、説明文やマークダウンは含めないでください。
 PROMPT;
 
+    // Build parts array: prompt text + all images
+    $parts = [['text' => $prompt]];
+    foreach ($images as $img) {
+        $parts[] = [
+            'inline_data' => [
+                'mime_type' => $img['mime'],
+                'data' => $img['data'],
+            ],
+        ];
+    }
+
     $payload = [
         'contents' => [
-            [
-                'parts' => [
-                    ['text' => $prompt],
-                    [
-                        'inline_data' => [
-                            'mime_type' => $mimeType,
-                            'data' => $base64Image,
-                        ],
-                    ],
-                ],
-            ],
+            ['parts' => $parts],
         ],
         'generationConfig' => [
             'temperature' => 0.2,
@@ -228,10 +235,10 @@ PROMPT;
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_HTTPHEADER => ["Content-Type: application/json", "x-goog-api-key: " . $apiKey],
         CURLOPT_POSTFIELDS => json_encode($payload),
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 15,
+        CURLOPT_TIMEOUT => 25,       // Increased for multi-photo
         CURLOPT_CONNECTTIMEOUT => 5,
     ]);
 
@@ -248,28 +255,31 @@ PROMPT;
     $decoded = json_decode($response, true);
     if (!$decoded) {
         error_log("[ai_suggest] Invalid JSON from Gemini API");
-        return false;
+        return ['suggestions' => []];
     }
 
-    // Extract text content from Gemini response
-    $text = $decoded['candidates'][0]['content']['parts'][0]['text'] ?? '';
+    // Gemini 2.5 Flash (thinking model) may return multiple parts; use last text part
+    $parts = $decoded['candidates'][0]['content']['parts'] ?? [];
+    $text = '';
+    foreach ($parts as $part) {
+        if (isset($part['text'])) $text = $part['text'];
+    }
     if (empty($text)) {
         error_log("[ai_suggest] Empty response from Gemini API");
-        return false;
+        return ['suggestions' => []];
     }
 
     // Parse JSON from Gemini response (may have markdown wrapper)
     $text = trim($text);
-    // Remove possible ```json ... ``` wrapper
     if (str_starts_with($text, '```')) {
-        $text = preg_replace('/^```(?:json)?\s*/', '', $text);
-        $text = preg_replace('/\s*```$/', '', $text);
+        $text = preg_replace('/^```(?:json)?\\s*/', '', $text);
+        $text = preg_replace('/\\s*```$/', '', $text);
     }
 
     $parsed = json_decode($text, true);
     if (!$parsed || !isset($parsed['suggestions'])) {
         error_log("[ai_suggest] Could not parse suggestions from: {$text}");
-        return false;
+        return ['suggestions' => []];
     }
 
     // Validate and sanitize suggestions
@@ -285,7 +295,7 @@ PROMPT;
             'examples' => mb_substr(strip_tags($s['examples'] ?? ''), 0, 60),
         ];
 
-        if (count($suggestions) >= 3) break; // Max 3 suggestions
+        if (count($suggestions) >= 3) break;
     }
 
     return ['suggestions' => $suggestions];
