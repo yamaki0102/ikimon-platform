@@ -14,8 +14,8 @@ echo "============================================\n";
 echo " Starting Parallel Prefetcher Daemon...\n";
 echo "============================================\n";
 
-$targetWorkers = 5;
-$maxWorkersSpawned = 2000;
+$targetWorkers = 2;
+$maxWorkersSpawned = 100;
 
 $script = __DIR__ . '/multi_source_prefetcher.php';
 $processes = [];

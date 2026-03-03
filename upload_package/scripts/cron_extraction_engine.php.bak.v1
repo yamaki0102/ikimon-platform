@@ -4,7 +4,7 @@
  * cron_extraction_engine.php
  * Autonomous Extraction Engine Pipeline (Target: 100,000 species)
  * Reads from Master Queue, fetches literature from GBIF, 
- * extracts data using Gemini 2.5 Flash-Lite API (v2.0 — Free tier).
+ * extracts data using Gemini Flash 2.5, and applies Zero-Hallucination validation.
  */
 
 require_once __DIR__ . '/../config/config.php';
@@ -79,8 +79,6 @@ register_shutdown_function(function () use (&$claimedNames, $workerStatusFile, $
 $distilledSet = [];
 try {
   $checkPdo = new PDO('sqlite:' . DATA_DIR . '/library/omoikane.sqlite3', null, null, [PDO::ATTR_TIMEOUT => 5]);
-  $checkPdo->exec('PRAGMA query_only = ON;');
-  $checkPdo->exec('PRAGMA busy_timeout = 5000;');
   $checkPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   $checkPdo->exec('PRAGMA journal_mode=WAL');
   $checkPdo->exec('PRAGMA query_only=ON');
@@ -128,62 +126,60 @@ function markDiscoveredSpeciesCompleted($discoveredNames)
   }
 }
 
-function callGemini($promptText)
+function callOllama($promptText, $model = "qwen3-optimized", $responseFormat = "json")
 {
-  $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' . GEMINI_API_KEY;
+  // Optimization: /nothink mode skips Qwen3 thinking tokens for faster inference
+  $promptText = "/nothink\n" . $promptText;
 
   $payload = [
-    'contents' => [['parts' => [['text' => $promptText]]]],
-    'generationConfig' => [
-      'responseMimeType' => 'application/json',
-      'temperature' => 0.1,
-      'maxOutputTokens' => 16384
+    "model" => $model,
+    "prompt" => $promptText,
+    "stream" => false,
+    "format" => $responseFormat,
+    "options" => [
+      "temperature" => 0.1,
+      "num_ctx" => 4096
     ]
   ];
 
-  $ch = curl_init($url);
+  $ch = curl_init("http://127.0.0.1:11434/api/generate");
   curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
   curl_setopt($ch, CURLOPT_POST, true);
   curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
   curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-  curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-  curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+  // === CRASH RESILIENCE LAYER 2: Hard timeout ===
+  curl_setopt($ch, CURLOPT_TIMEOUT, 300); // 5 min max for consolidated text
+  curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); // 10s to connect
 
   $responseJson = curl_exec($ch);
   $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
   $curlErr = curl_error($ch);
   curl_close($ch);
 
-  if ($httpCode === 429 || $httpCode === 503) {
-    echo "   [RATE LIMIT] Sleeping 10s...\n";
-    sleep(10);
-    return callGemini($promptText); // Retry once
-  }
-
   if ($httpCode !== 200 || !$responseJson) {
-    echo "   [GEMINI ERROR] HTTP: $httpCode | Curl: $curlErr | Response: " . substr((string)$responseJson, 0, 300) . "\n";
+    echo "   [OLLAMA ERROR] HTTP: $httpCode | Curl: $curlErr | Response: " . substr((string)$responseJson, 0, 200) . "\n";
     return null;
   }
 
   $res = json_decode($responseJson, true);
-  $text = trim($res['candidates'][0]['content']['parts'][0]['text'] ?? '');
+  $text = trim($res['response'] ?? '');
 
-  // Check if output was truncated
-  $finishReason = $res['candidates'][0]['finishReason'] ?? '';
-  if ($finishReason === 'MAX_TOKENS') {
-    // Try to fix truncated JSON by closing brackets
-    $text = rtrim($text, ', \n\t');
-    $openBraces = substr_count($text, '{') - substr_count($text, '}');
-    $openBrackets = substr_count($text, '[') - substr_count($text, ']');
-    for ($i = 0; $i < $openBrackets; $i++) $text .= ']';
-    for ($i = 0; $i < $openBraces; $i++) $text .= '}';
+  if (empty($text) && !empty($res['thinking'])) {
+    $text = trim($res['thinking']);
   }
 
-  if (empty($text)) {
-    echo "   [GEMINI] Empty response\n";
-    return null;
-  }
+  // Clean up markdown and <think> wrapping
+  $text = preg_replace('/<think>.*?<\/think>/is', '', $text);
+  $text = preg_replace('/^```(?:json)?\s*/i', '', $text);
+  $text = preg_replace('/\s*```$/i', '', $text);
+  $text = trim($text);
 
+  // Robust fallback: if asking for JSON, force regex hunt
+  if ($responseFormat === 'json') {
+    if (preg_match('/\{[\s\S]*\}/', $text, $matches)) {
+      $text = $matches[0];
+    }
+  }
   return $text;
 }
 
@@ -244,8 +240,8 @@ foreach ($myBatch as $name => &$item) {
     if (empty($text)) continue;
 
     // Truncate individual paper text for context budget (GTX 1660 constraint)
-    if (mb_strlen($text) > 6000) {
-      $text = mb_substr($text, 0, 6000) . '...';
+    if (mb_strlen($text) > 1500) {
+      $text = mb_substr($text, 0, 1500) . '...';
     }
 
     $allTexts[] = "--- Source: {$source} | Title: {$title} ---\n{$text}";
@@ -265,50 +261,37 @@ foreach ($myBatch as $name => &$item) {
 
   $consolidatedText = implode("\n\n", $allTexts);
 
-  // Context budget: 30000 chars (Gemini Flash-Lite handles 1M tokens easily)
-  if (mb_strlen($consolidatedText) > 30000) {
-    $consolidatedText = mb_substr($consolidatedText, 0, 30000) . "\n[...truncated]";
+  // Safety: cap at 6000 chars to stay within GTX 1660 SUPER inference budget
+  if (mb_strlen($consolidatedText) > 6000) {
+    $consolidatedText = mb_substr($consolidatedText, 0, 6000) . "\n[...truncated]";
   }
 
   echo " - Consolidated " . count($allTexts) . " papers (" . mb_strlen($consolidatedText) . " chars). Single LLM call...\n";
   updateHeartbeat($workerStatusFile, $workerPid, $name, 'AI抽出中');
 
   $systemPrompt = <<<PROMPT
-You are an expert taxonomist and ecologist. Extract ALL available biological data for {$item['species_name']} from the literature below.
+You are an expert taxonomist. Extract ALL ecological and morphological data for {$item['species_name']} from the provided literature.
 
-EXTRACTION RULES:
-1. Extract EVERY biological fact: ecology, morphology, behavior, distribution, conservation.
-2. Never return empty arrays/null when the text contains relevant information.
-3. Do NOT extract taxonomic hierarchy (Kingdom/Phylum/Class/Order/Family).
+RULES:
+- Extract EVERY fact mentioned in the text: habitat descriptions, geographic locations, altitude/elevation, seasonal activity, behavioral notes, physical descriptions, distinguishing features.
+- Do NOT return empty arrays [] or null if the text contains ANY relevant information. Read the text carefully.
+- Do NOT extract taxonomic hierarchy (Kingdom/Phylum/Class/Order/Family).
+- Only use null/[] when the text truly contains ZERO information for that field.
 
-HABITAT QUALITY RULES (CRITICAL):
-- Describe the ECOLOGICAL ENVIRONMENT, not just geographic regions.
-- BAD: ["North America"], ["marine"], ["Japan"]
-- GOOD: ["temperate deciduous forests", "riparian zones along mountain streams", "subtropical coral reefs at 5-30m depth"]
-- Include: biome type, vegetation, substrate, water conditions, microhabitat preferences.
-- Geographic range can be added to notes, NOT to habitat.
+For habitat: include forest types, water bodies, soil types, vegetation, urban/rural, any environment mentioned.
+For active_season: include months, seasons, breeding periods, migration timing, any temporal information.
+For notes: include diet, behavior, conservation status, population trends, threats, any other ecological facts.
+For identification_keys: describe body size, coloration, wing patterns, antennae shape, leg features, any morphological trait that distinguishes this species.
 
-CRITICAL COMPLETENESS RULES:
-- NEVER leave altitude_range or active_season empty. Use your expert knowledge to infer if the literature doesn't state explicitly.
-- For altitude_range: infer from habitat type (e.g. alpine meadow → "2000-3000m", coastal mangrove → "0-10m", temperate forest → "200-1500m").
-- For active_season: infer from climate zone, life cycle (e.g. temperate beetle → ["May-September"], tropical → ["year-round"], migratory bird → ["April-October (breeding)"]).
-- Mark inferred data with "(inferred)" suffix if not explicitly stated in text.
+Output ONLY valid JSON:
+{"target_species":{"ecological_constraints":{"habitat":["list of habitat descriptions"],"altitude_range":"e.g. 500-2000m","active_season":["e.g. May-September"],"notes":"behavioral and ecological details"},"identification_keys":[{"feature":"morphological trait name","description":"detailed description","comparison_species":["similar species names"]}]},"discovered_species":[]}
 
-FIELD INSTRUCTIONS:
-- habitat: ecological environments (biome, vegetation, substrate, microhabitat). Be specific and detailed.
-- altitude_range: elevation range. REQUIRED — infer from habitat/distribution if not explicit. Examples: "500-2000m", "lowland to 800m", "0-50m (coastal, inferred)".
-- active_season: months/seasons/phenology. REQUIRED — infer from taxonomy and biogeography if not explicit. Examples: ["May-August"], ["year-round (tropical, inferred)"].
-- notes: diet, host plants, behavior, conservation status, life history, geographic range, any other facts.
-- identification_keys: body measurements, coloration patterns, structural features, diagnostic characters.
-  Each key MUST include comparison_species. For every feature, name at least 1-2 species in the same genus or family that differ. If the literature does not mention comparisons explicitly, infer from your taxonomic knowledge which closely related species look similar and how they differ.
-
-JSON OUTPUT FORMAT:
-{"target_species":{"ecological_constraints":{"habitat":["specific ecological descriptions"],"altitude_range":"elevation if mentioned","active_season":["temporal activity"],"notes":"all other biological facts combined"},"identification_keys":[{"feature":"trait name","description":"detailed morphological description","comparison_species":["species for comparison"]}]},"discovered_species":[]}
+IMPORTANT: You MUST extract real data from the text. Empty results are unacceptable when the text contains biological information.
 PROMPT;
 
-  $extractedJsonText = callGemini($systemPrompt . "\n\nTEXT:\n" . $consolidatedText);
+  $extractedJsonText = callOllama($systemPrompt . "\n\nTEXT:\n" . $consolidatedText, "hf.co/mmnga-o/Qwen3-Swallow-8B-RL-v0.2-gguf:Q4_K_M", "json");
   if (!$extractedJsonText) {
-    echo "   [DEBUG] Gemini returned empty or curl failed.\n";
+    echo "   [DEBUG] Ollama returned empty or curl failed.\n";
     writeBackStatus($name, ($item['retries'] ?? 0) >= 3 ? 'failed' : 'pending');
     $processedCount++;
     continue;
@@ -321,8 +304,47 @@ PROMPT;
     continue;
   }
 
+  // === OPTIMIZATION: Conditional Reflexion Gate ===
+  // Skip for trusted-only sources (Wikipedia, GBIF) as they are pre-verified
+  $skipReflexion = ($trustedSourceCount === $totalSourceCount);
 
+  if ($skipReflexion) {
+    echo "   [SKIP REFLEXION] All " . $trustedSourceCount . " sources are trusted. Bypassing gate.\n";
+  } else {
+    echo "   -> Running Zero-Hallucination Reflexion Gate...\n";
+    updateHeartbeat($workerStatusFile, $workerPid, $name, '検証ゲート');
+    $reflexionPrompt = <<<PROMPT
+You are an auditor verifying AI extractions for accuracy.
+ORIGINAL TEXT:
+{$consolidatedText}
 
+EXTRACTED JSON:
+{$extractedJsonText}
+
+Is the extracted JSON reasonably derived from the original text? 
+Do not reject for slight rephrasing, logical generalizations, or summaries.
+Only reject if it completely invents specific concrete facts, numbers, or species that contradict or are absent from the text.
+Respond with exactly one valid JSON object:
+{
+  "hallucination_detected": boolean,
+  "reason": "Explain briefly"
+}
+Return ONLY valid JSON.
+PROMPT;
+
+    $reflexionJsonText = callOllama($reflexionPrompt, "hf.co/mmnga-o/Qwen3-Swallow-8B-RL-v0.2-gguf:Q4_K_M", "json");
+    $reflexion = json_decode($reflexionJsonText, true);
+
+    if ($reflexion && isset($reflexion['hallucination_detected']) && $reflexion['hallucination_detected'] === true) {
+      echo "   [REJECTED] Hallucination detected: " . $reflexion['reason'] . "\n";
+      file_put_contents($failuresLog, "[" . date('Y-m-d H:i:s') . "] REJECTED $name: {$reflexion['reason']}\n", FILE_APPEND);
+      writeBackStatus($name, ($item['retries'] ?? 0) >= 3 ? 'failed' : 'pending');
+      $processedCount++;
+      continue;
+    }
+  }
+
+  echo "   [APPROVED] Validation passed. Saving.\n";
 
   // === QUALITY GATE: Reject completely empty extractions ===
   $targetData = $extracted['target_species'] ?? [];

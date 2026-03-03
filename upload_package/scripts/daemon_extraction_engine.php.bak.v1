@@ -33,9 +33,9 @@ if (is_resource($writerProcess)) {
     // When this daemon dies, the writer might die or become orphaned, which is fine since the full_restart script kills all.
 }
 
-$normalWorkers = 3;
-$extremeWorkers = 3;
-$batchSize = 2;
+$normalWorkers = 4;
+$extremeWorkers = 4;
+$batchSize = 3;
 $maxWorkersSpawned = 5000; // Restart daemon after 5000 spawns to prevent memory leaks
 
 $cronScript = __DIR__ . '/cron_extraction_engine.php';
@@ -49,8 +49,10 @@ while (true) {
         break; // Reached limit and all workers finished
     }
 
-    // Unified concurrency (no day/night distinction)
-    $targetWorkers = $normalWorkers;
+    // Time-based dynamic concurrency (22 PM to 7 AM = Extreme Mode)
+    $currentHour = (int)date('G'); // 24-hour format without leading zeros
+    $isExtremeTime = ($currentHour >= 22 || $currentHour < 7);
+    $targetWorkers = $isExtremeTime ? $extremeWorkers : $normalWorkers;
 
     // 1. Replenish workers up to target limit
     while (count($processes) < $targetWorkers && !$emptyQueueDetected && $totalSpawned < $maxWorkersSpawned) {

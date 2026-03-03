@@ -288,9 +288,53 @@ while (true) {
         }
         usleep(1100000); // Semantic Scholar rate limit
 
-        // --- STEP 7: Crossref (fallback) ---
-        if (count($collectedTexts) < 5) {
-            $crUrl = "https://api.crossref.org/works?query=" . urlencode($currentSearchTerm) . "&select=title,abstract,DOI&rows=3";
+        // --- STEP 6b: BHL (Biodiversity Heritage Library) ---
+        $bhlSearchUrl = "https://www.biodiversitylibrary.org/api3?op=PublicationSearch&searchterm=" . urlencode($currentSearchTerm) . "&searchtype=C&page=1&apikey=&format=json";
+        $bhlJson = $httpGet($bhlSearchUrl);
+        if ($bhlJson) {
+            $bhlData = json_decode($bhlJson, true);
+            $bhlResults = array_slice($bhlData['Result'] ?? [], 0, 3);
+            foreach ($bhlResults as $pub) {
+                $bhlTitle = $pub['Title'] ?? '';
+                $bhlUrl = $pub['BHLUrl'] ?? '';
+                // BHL doesn't have abstracts but titles often contain species descriptions
+                if (!empty($bhlTitle)) {
+                    $addText('BHL', $bhlTitle, $pub['Snippet'] ?? $bhlTitle, $bhlUrl);
+                }
+            }
+        }
+        usleep(200000);
+
+        // --- STEP 6c: EOL (Encyclopedia of Life) ---
+        $eolSearchUrl = "https://eol.org/api/search/1.0.json?q=" . urlencode($currentSearchTerm) . "&page=1&exact=true";
+        $eolJson = $httpGet($eolSearchUrl);
+        if ($eolJson) {
+            $eolData = json_decode($eolJson, true);
+            $eolResults = $eolData['results'] ?? [];
+            if (!empty($eolResults)) {
+                $eolId = $eolResults[0]['id'] ?? null;
+                if ($eolId) {
+                    $eolPageUrl = "https://eol.org/api/pages/1.0/{$eolId}.json?details=true&texts_per_page=3";
+                    $eolPageJson = $httpGet($eolPageUrl);
+                    if ($eolPageJson) {
+                        $eolPage = json_decode($eolPageJson, true);
+                        foreach (($eolPage['dataObjects'] ?? []) as $obj) {
+                            if (($obj['mimeType'] ?? '') === 'text/html' || ($obj['mimeType'] ?? '') === 'text/plain') {
+                                $eolText = strip_tags($obj['description'] ?? '');
+                                if (mb_strlen($eolText) > 50) {
+                                    $addText('EOL', $obj['title'] ?? 'EOL Description', $eolText, "https://eol.org/pages/{$eolId}");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        usleep(200000);
+
+        // --- STEP 7: Crossref (always) ---
+        if (true) {
+            $crUrl = "https://api.crossref.org/works?query=" . urlencode($currentSearchTerm) . "&select=title,abstract,DOI&rows=5";
             $crJson = $httpGet($crUrl);
             if ($crJson) {
                 $crData = json_decode($crJson, true);
