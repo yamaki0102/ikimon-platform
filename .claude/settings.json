@@ -1,25 +1,24 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git status*)",
-      "Bash(git diff*)",
-      "Bash(git log*)",
-      "Bash(git branch*)",
-      "Bash(git show*)",
-      "Bash(git add*)",
-      "Bash(git commit*)",
-      "Bash(php -l*)",
-      "Bash(php -S localhost*)",
-      "Bash(php tools/lint*)",
-      "Bash(composer test*)",
-      "Bash(ls *)",
-      "Bash(find *)",
-      "Bash(curl *)"
+      "Bash(*)",
+      "mcp__pencil",
+      "mcp__Claude_in_Chrome__*",
+      "mcp__Claude_Preview__*"
     ],
     "deny": [
-      "Bash(rm -rf*)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf C:/*)",
+      "Bash(rm -rf ~*)",
       "Bash(git push --force*)",
-      "Bash(git reset --hard*)"
+      "Bash(git push * --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -fd*)",
+      "Bash(git checkout -- .)",
+      "Bash(git restore .)",
+      "Bash(drop database*)",
+      "Bash(DROP DATABASE*)"
     ]
   }
 }
