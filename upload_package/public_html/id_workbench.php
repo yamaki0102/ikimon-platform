@@ -149,8 +149,8 @@ if (!$currentUser) {
                 <i data-lucide="filter" class="w-3 h-3"></i>
                 <span x-text="taxonFilter !== 'all' || statusFilter !== 'all' || filterText ? '絞込中' : 'フィルタ'"></span>
             </button>
-            <!-- Grid Size -->
-            <div class="flex items-center gap-1 bg-white/5 rounded-md p-0.5">
+            <!-- Grid Size (desktop only) -->
+            <div class="hidden md:flex items-center gap-1 bg-white/5 rounded-md p-0.5">
                 <button @click="gridCols = Math.max(1, gridCols - 1)" class="p-1 text-gray-500 hover:text-white transition"><i data-lucide="minus" class="w-3 h-3"></i></button>
                 <span class="text-token-xs font-mono text-gray-400 w-4 text-center" x-text="gridCols"></span>
                 <button @click="gridCols = Math.min(5, gridCols + 1)" class="p-1 text-gray-500 hover:text-white transition"><i data-lucide="plus" class="w-3 h-3"></i></button>
@@ -159,7 +159,7 @@ if (!$currentUser) {
     </header>
 
     <!-- Main 3-Panel Layout (Desktop & Mobile) -->
-    <div class="flex flex-col md:flex-row h-auto md:h-[calc(100vh-44px)] relative overflow-visible md:overflow-hidden">
+    <div class="flex flex-col md:flex-row h-[calc(100dvh-44px)] md:h-[calc(100vh-44px)] relative overflow-hidden">
 
         <!-- LEFT PANEL: Taxonomy Tree Filter -->
         <aside :class="showMobileFilter ? 'mobile-filter-drawer flex flex-col' : 'hidden md:flex md:flex-col'"
@@ -265,7 +265,7 @@ if (!$currentUser) {
         </aside>
 
         <!-- CENTER PANEL: Grid -->
-        <main class="flex-1 bg-[#050505] flex flex-col relative min-w-0 h-[60vh] md:h-full order-first md:order-none">
+        <main class="flex-1 bg-[#050505] flex flex-col relative min-w-0 min-h-0 order-first md:order-none">
             <!-- Mobile Quick Filter Chips (mobile only) -->
             <div class="md:hidden flex items-center gap-1.5 px-3 py-2 bg-[#0a0d14] border-b border-white/5 overflow-x-auto scrollbar-hide shrink-0">
                 <button @click="statusFilter = 'all'; taxonFilter = 'all'"
@@ -308,7 +308,7 @@ if (!$currentUser) {
             </div>
 
             <!-- Grid -->
-            <div class="flex-1 overflow-y-auto p-3 scrollbar-thin" @click.self="clearSelection()">
+            <div class="flex-1 overflow-y-auto p-3 pb-20 md:pb-3 scrollbar-thin" @click.self="clearSelection()">
                 <!-- Loading -->
                 <div x-show="loading" class="flex items-center justify-center h-full">
                     <div class="w-8 h-8 border-2 border-white/10 border-t-[var(--color-primary)] rounded-full animate-spin"></div>
@@ -326,7 +326,7 @@ if (!$currentUser) {
                             <img :src="item.photos && item.photos[0] ? item.photos[0] : 'assets/img/no-photo.svg'"
                                 @click.stop="isMobile ? openQuickID(item, index) : activateItem(item, index)"
                                 @dblclick.stop="openQuickID(item, index)"
-                                class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition duration-200">
+                                class="w-full h-full object-cover md:opacity-60 md:group-hover:opacity-100 transition duration-200">
 
                             <!-- Status badge -->
                             <div class="absolute top-1 left-1 flex gap-0.5 pointer-events-none">
@@ -342,8 +342,8 @@ if (!$currentUser) {
                                 </div>
                             </div>
 
-                            <!-- Brief info overlay -->
-                            <div class="absolute bottom-0 inset-x-0 p-1.5 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                            <!-- Brief info overlay (always visible on mobile) -->
+                            <div class="absolute bottom-0 inset-x-0 p-1.5 bg-gradient-to-t from-black/80 to-transparent md:opacity-0 md:group-hover:opacity-100 transition pointer-events-none">
                                 <p class="text-token-xs font-bold text-white truncate" x-text="item.taxon ? item.taxon.name : 'Unknown'"></p>
                             </div>
 
@@ -666,11 +666,11 @@ if (!$currentUser) {
 
                 get gridClasses() {
                     const m = {
-                        '1': 'grid-cols-2',
-                        '2': 'grid-cols-3 lg:grid-cols-4',
-                        '3': 'grid-cols-4 lg:grid-cols-5',
-                        '4': 'grid-cols-5 lg:grid-cols-7',
-                        '5': 'grid-cols-7 lg:grid-cols-10'
+                        '1': 'grid-cols-2 md:grid-cols-2',
+                        '2': 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
+                        '3': 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5',
+                        '4': 'grid-cols-3 md:grid-cols-5 lg:grid-cols-7',
+                        '5': 'grid-cols-3 md:grid-cols-7 lg:grid-cols-10'
                     };
                     return m[this.gridCols] || m['3'];
                 },
