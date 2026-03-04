@@ -38,7 +38,7 @@ Auth::init();
     </style>
 </head>
 
-<body class="js-loading bg-base text-text font-body">
+<body class="js-loading pt-14 bg-base text-text font-body pb-20 md:pb-0">
     <?php include('components/nav.php'); ?>
     <script nonce="<?= CspNonce::attr() ?>">
         document.body.classList.remove('js-loading');

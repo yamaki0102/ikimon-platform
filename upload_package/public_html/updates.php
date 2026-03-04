@@ -12,7 +12,7 @@ Auth::init();
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
 
-<body class="js-loading pt-14 bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
+<body class="js-loading pt-14 bg-base text-text font-body">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">
