@@ -130,7 +130,7 @@ if (!$currentUser) {
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <!-- Keyboard shortcuts legend -->
+            <!-- Keyboard shortcuts legend (XL+) -->
             <div class="hidden xl:flex items-center gap-2 text-token-xs text-gray-600 mr-2">
                 <span class="shortcut-badge">N</span>次
                 <span class="shortcut-badge">P</span>前
@@ -139,6 +139,41 @@ if (!$currentUser) {
                 <span class="shortcut-badge">X</span>パス
                 <span class="shortcut-badge">B</span>ブクマ
                 <span class="shortcut-badge">Esc</span>閉
+            </div>
+            <!-- Help button -->
+            <div class="relative">
+                <button @click="showHelp = !showHelp" title="使い方・ショートカット"
+                    class="p-1.5 rounded-md transition text-token-xs font-bold"
+                    :class="showHelp ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-500 hover:text-white hover:bg-white/10'">
+                    <i data-lucide="circle-help" class="w-3.5 h-3.5"></i>
+                </button>
+                <!-- Help Popup -->
+                <div x-show="showHelp" x-cloak @click.outside="showHelp = false"
+                    class="absolute right-0 top-8 w-64 bg-[#141820] border border-white/10 rounded-xl shadow-2xl p-4 z-50 text-token-xs text-gray-400 space-y-3">
+                    <p class="text-white font-bold text-xs flex items-center gap-1.5">
+                        <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-[var(--color-primary)]"></i>
+                        ID Workbench とは？
+                    </p>
+                    <p class="text-gray-400 leading-relaxed">未同定・要確認の観察をまとめて同定できる作業台です。左のフィルタで絞り込み、写真をクリックして名前を提案しましょう。</p>
+                    <hr class="border-white/10">
+                    <p class="text-gray-300 font-bold">キーボードショートカット</p>
+                    <div class="grid grid-cols-2 gap-x-3 gap-y-1 font-mono">
+                        <p><span class="shortcut-badge">N</span> 次へ</p>
+                        <p><span class="shortcut-badge">P</span> 前へ</p>
+                        <p><span class="shortcut-badge">/</span> 検索</p>
+                        <p><span class="shortcut-badge">Enter</span> 同定</p>
+                        <p><span class="shortcut-badge">X</span> パス</p>
+                        <p><span class="shortcut-badge">B</span> あとで</p>
+                        <p><span class="shortcut-badge">Esc</span> 解除</p>
+                        <p><span class="shortcut-badge">Ctrl+A</span> 全選択</p>
+                    </div>
+                    <hr class="border-white/10">
+                    <div class="grid grid-cols-2 gap-x-3 gap-y-1 font-mono">
+                        <p><span class="shortcut-badge">Click</span> 選択</p>
+                        <p><span class="shortcut-badge">Dbl</span> 同定</p>
+                        <p><span class="shortcut-badge">Shift</span> 範囲選択</p>
+                    </div>
+                </div>
             </div>
             <!-- Mobile Filter Toggle -->
             <button @click="showMobileFilter = !showMobileFilter"
@@ -157,6 +192,32 @@ if (!$currentUser) {
             </div>
         </div>
     </header>
+
+    <!-- Welcome Banner (first-visit only) -->
+    <div x-show="showWelcome" x-cloak
+        class="relative bg-gradient-to-r from-[var(--color-primary)]/20 to-blue-900/20 border-b border-[var(--color-primary)]/20 px-4 py-2.5 flex items-center gap-4 shrink-0">
+        <div class="flex items-center gap-3 flex-1 min-w-0">
+            <span class="text-lg shrink-0">🔬</span>
+            <div class="min-w-0">
+                <p class="text-xs font-black text-white">ID Workbench — 同定作業台</p>
+                <p class="text-token-xs text-gray-400 leading-relaxed hidden sm:block">未同定・要確認の観察を効率よく同定できるページです。
+                    <span class="text-gray-300">① 左でフィルタ</span> →
+                    <span class="text-gray-300">② 写真をクリックで選択</span> →
+                    <span class="text-gray-300">③「同定する」で名前を提案</span>
+                </p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+            <button @click="showHelp = true; showWelcome = false; localStorage.setItem('ikimon_wb_welcomed','1')"
+                class="text-token-xs text-[var(--color-primary)] font-bold hover:underline whitespace-nowrap">
+                詳しく見る
+            </button>
+            <button @click="showWelcome = false; localStorage.setItem('ikimon_wb_welcomed','1')"
+                class="p-1 rounded-full text-gray-500 hover:text-white hover:bg-white/10 transition" title="閉じる">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+        </div>
+    </div>
 
     <!-- Main 3-Panel Layout (Desktop & Mobile) -->
     <div class="flex flex-col md:flex-row h-[calc(100dvh-44px)] md:h-[calc(100vh-44px)] relative overflow-hidden">
@@ -455,14 +516,43 @@ if (!$currentUser) {
 
             <!-- Empty state -->
             <template x-if="!activeItem">
-                <div class="flex-1 flex flex-col items-center justify-center text-gray-600 p-6">
-                    <i data-lucide="mouse-pointer-click" class="w-8 h-8 opacity-20 mb-3"></i>
-                    <p class="text-xs text-center mb-3">写真をクリックして詳細を表示</p>
-                    <div class="text-token-xs bg-white/5 rounded-lg p-3 w-full space-y-1 font-mono text-gray-500">
-                        <p><span class="shortcut-badge">Click</span> 選択</p>
-                        <p><span class="shortcut-badge">Dbl-Click</span> 同定</p>
-                        <p><span class="shortcut-badge">Shift+Click</span> 範囲選択</p>
-                        <p><span class="shortcut-badge">N</span> / <span class="shortcut-badge">P</span> 次/前</p>
+                <div class="flex-1 flex flex-col items-center justify-center text-gray-600 p-6 gap-5">
+                    <!-- Step guide -->
+                    <div class="w-full space-y-2">
+                        <p class="text-token-xs text-gray-500 font-bold uppercase tracking-widest mb-3 text-center">使い方</p>
+                        <div class="flex items-start gap-3 bg-white/5 rounded-xl p-3">
+                            <span class="w-5 h-5 rounded-full bg-[var(--color-primary)]/20 text-[var(--color-primary)] text-token-xs font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
+                            <div>
+                                <p class="text-xs font-bold text-gray-300">フィルタで絞り込む</p>
+                                <p class="text-token-xs text-gray-500 mt-0.5">左パネルで分類群・ステータスを選ぶ</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 bg-white/5 rounded-xl p-3">
+                            <span class="w-5 h-5 rounded-full bg-[var(--color-primary)]/20 text-[var(--color-primary)] text-token-xs font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
+                            <div>
+                                <p class="text-xs font-bold text-gray-300">写真をクリックして選択</p>
+                                <p class="text-token-xs text-gray-500 mt-0.5">ここに詳細と既存の同定が表示される</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 bg-white/5 rounded-xl p-3">
+                            <span class="w-5 h-5 rounded-full bg-[var(--color-primary)]/20 text-[var(--color-primary)] text-token-xs font-black flex items-center justify-center shrink-0 mt-0.5">3</span>
+                            <div>
+                                <p class="text-xs font-bold text-gray-300">「同定する」で名前を提案</p>
+                                <p class="text-token-xs text-gray-500 mt-0.5"><span class="shortcut-badge">Enter</span> でも開ける</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Shortcuts -->
+                    <div class="w-full">
+                        <p class="text-token-xs text-gray-500 font-bold uppercase tracking-widest mb-2 text-center">ショートカット</p>
+                        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-token-xs font-mono text-gray-500 bg-white/5 rounded-xl p-3">
+                            <p><span class="shortcut-badge">N</span> 次へ</p>
+                            <p><span class="shortcut-badge">P</span> 前へ</p>
+                            <p><span class="shortcut-badge">Enter</span> 同定</p>
+                            <p><span class="shortcut-badge">X</span> パス</p>
+                            <p><span class="shortcut-badge">B</span> あとで</p>
+                            <p><span class="shortcut-badge">/</span> 検索</p>
+                        </div>
                     </div>
                 </div>
             </template>
@@ -500,6 +590,10 @@ if (!$currentUser) {
                 // Mobile
                 showMobileFilter: false,
                 isMobile: false,
+
+                // Onboarding
+                showWelcome: !localStorage.getItem('ikimon_wb_welcomed'),
+                showHelp: false,
 
                 taxonGroups: [{
                         id: 'insecta',
