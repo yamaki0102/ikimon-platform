@@ -363,21 +363,21 @@ unset($allObs);
                 <div class="mb-5">
                     <div class="flex items-end gap-2 mb-2">
                         <span class="text-4xl font-black text-text tabular-nums" x-text="stats?.observed_species || 0"></span>
-                        <span class="text-base font-bold text-primary mb-1">種を記録中</span>
+                        <span class="text-base font-bold text-primary-dark mb-1">種を記録中</span>
                     </div>
                     <div class="w-full bg-surface rounded-full h-2.5 overflow-hidden">
                         <div class="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-1000 ease-out"
                             :style="'width:' + Math.min(100, (stats?.observed_species / Math.max(1, stats?.estimated_species)) * 100) + '%'"></div>
                     </div>
                     <div class="flex items-center justify-between mt-1.5">
-                        <span class="text-token-xs text-faint">推定 <span x-text="stats?.estimated_species || '—'"></span> 種の生息地</span>
-                        <span class="text-token-xs text-faint" x-text="stats?.total_observations?.toLocaleString() + ' 件の観察'"></span>
+                        <span class="text-token-xs text-muted">推定 <span x-text="stats?.estimated_species || '—'"></span> 種の生息地</span>
+                        <span class="text-token-xs text-muted" x-text="stats?.total_observations?.toLocaleString() + ' 件の観察'"></span>
                     </div>
                 </div>
 
                 <!-- This Month + Trend Badge -->
                 <div class="flex flex-wrap items-center gap-2 text-xs mb-5">
-                    <span class="bg-primary-surface text-primary-dark px-3 py-1.5 rounded-full font-bold inline-flex items-center gap-1">
+                    <span class="px-3 py-1.5 rounded-full font-bold inline-flex items-center gap-1" style="background:rgba(6,95,70,0.08);color:#065f46">
                         🆕 今月 +<span x-text="stats?.new_species_this_month || 0"></span> 件
                     </span>
                     <span x-show="stats?.mom_change_percent" class="px-3 py-1.5 rounded-full font-bold inline-flex items-center gap-1"
@@ -474,10 +474,10 @@ unset($allObs);
             <div class="flex flex-col gap-3 mb-6">
                 <div class="flex items-baseline justify-between">
                     <h2 class="text-2xl font-black tracking-tight text-text"><?php echo __('home.timeline'); ?></h2>
-                    <p class="text-sm text-faint"><?php echo count($latest_obs); ?> <?php echo __('home.updates_suffix'); ?></p>
+                    <p class="text-sm text-muted"><?php echo count($latest_obs); ?> <?php echo __('home.updates_suffix'); ?></p>
                 </div>
                 <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
-                    <a href="?filter=all" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap <?php echo $filter === 'all' ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted hover:text-text hover:bg-surface'; ?>">
+                    <a href="?filter=all" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap <?php echo $filter === 'all' ? 'bg-primary/10 border border-primary/20' : 'text-muted hover:text-text hover:bg-surface'; ?>" <?php if ($filter === 'all') echo 'style="color:#065f46"'; ?>>
                         すべて
                     </a>
                     <a href="id_workbench.php" class="px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center gap-1.5 whitespace-nowrap text-muted hover:text-warning hover:bg-warning-surface">
@@ -485,11 +485,11 @@ unset($allObs);
                         <?php echo __('nav.id_center'); ?>
                     </a>
                     <?php if ($currentUser): ?>
-                        <a href="?filter=following" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap flex items-center gap-1.5 <?php echo $filter === 'following' ? 'bg-accent/10 text-accent border border-accent/20' : 'text-muted hover:text-accent hover:bg-accent/5'; ?>">
+                        <a href="?filter=following" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap flex items-center gap-1.5 <?php echo $filter === 'following' ? 'bg-accent/10 border border-accent/20' : 'text-muted hover:text-accent hover:bg-accent/5'; ?>" <?php if ($filter === 'following') echo 'style="color:#92400e"'; ?>>
                             <i data-lucide="users" class="w-4 h-4"></i>
                             フォロー中
                         </a>
-                        <a href="?filter=mine" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap <?php echo $filter === 'mine' ? 'bg-secondary/10 text-secondary border border-secondary/20' : 'text-muted hover:text-secondary hover:bg-secondary/5'; ?>">
+                        <a href="?filter=mine" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap <?php echo $filter === 'mine' ? 'bg-secondary/10 border border-secondary/20' : 'text-muted hover:text-secondary hover:bg-secondary/5'; ?>" <?php if ($filter === 'mine') echo 'style="color:#0369a1"'; ?>>
                             <?php echo __('nav.profile'); ?>
                         </a>
                     <?php endif; ?>
@@ -548,7 +548,7 @@ unset($allObs);
                                 </div>
                                 <div>
                                     <p class="text-sm font-bold leading-none text-text"><?php echo htmlspecialchars($obs['user_name'] ?? substr($obs['user_id'], 0, 4)); ?></p>
-                                    <p class="text-token-xs text-faint"><?php echo BioUtils::timeAgo($obs['observed_at']); ?> ・ <?php echo htmlspecialchars($obs['location']['name'] ?? '場所不明'); ?></p>
+                                    <p class="text-token-xs text-muted"><?php echo BioUtils::timeAgo($obs['observed_at']); ?> ・ <?php echo htmlspecialchars($obs['location']['name'] ?? '場所不明'); ?></p>
                                 </div>
                             </div>
                             <button class="p-2 transition rounded-full text-faint hover:bg-surface">
@@ -613,8 +613,8 @@ unset($allObs);
                                 <?php echo htmlspecialchars($obs['note'] ?? '記録しました'); ?>
                             </p>
                             <div class="flex items-center justify-between mt-2">
-                                <span class="text-token-xs text-faint"><?php echo date('Y.m.d H:i', strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now')); ?></span>
-                                <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="text-token-xs font-bold transition text-faint hover:text-primary">詳しく見る →</a>
+                                <span class="text-token-xs text-muted"><?php echo date('Y.m.d H:i', strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now')); ?></span>
+                                <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="text-token-xs font-bold transition text-muted hover:text-primary-dark">詳しく見る →</a>
                             </div>
                         </div>
                     </article>
