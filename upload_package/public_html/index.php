@@ -509,34 +509,40 @@ unset($allObs);
                     $obsLikes = $obsCounts['likes'] ?? 0;
                     $obsComments = $obsCounts['comments'] ?? 0;
                 ?>
-                    <article x-data="{ 
-                        stepped: false, 
-                        count: <?php echo (int)$obsLikes; ?>, 
-                        scale: 1, 
+                    <article x-data="{
+                        stepped: false,
+                        count: <?php echo (int)$obsLikes; ?>,
+                        scale: 1,
                         lastTap: 0,
-                        
-                        step(e) { 
-                            this.stepped = !this.stepped; 
-                            this.count += this.stepped ? 1 : -1; 
+                        _tapTimer: null,
+
+                        step(e) {
+                            this.stepped = !this.stepped;
+                            this.count += this.stepped ? 1 : -1;
                             if (this.stepped) {
                                 if (window.SoundManager) SoundManager.play('light-click');
                                 if (window.HapticEngine) HapticEngine.tick();
                             }
-                            this.scale = 1.2; 
-                            setTimeout(() => this.scale = 1, 200); 
+                            this.scale = 1.2;
+                            setTimeout(() => this.scale = 1, 200);
                         },
-                        
+
                         doubleTap(e) {
                             const now = Date.now();
                             if (now - this.lastTap < 300) {
-                                if (!this.stepped) {
-                                    this.step(e); 
-                                }
+                                // ダブルタップ: いいね
+                                clearTimeout(this._tapTimer);
+                                this._tapTimer = null;
+                                if (!this.stepped) { this.step(e); }
+                            } else {
+                                // シングルタップ: 300ms 後に詳細ページへ
+                                this._tapTimer = setTimeout(() => {
+                                    window.location.href = 'observation_detail.php?id=<?php echo urlencode($obs['id']); ?>';
+                                }, 300);
                             }
                             this.lastTap = now;
                         }
                      }"
-                        }"
                         class="feed-card feed-card--animated rounded-2xl overflow-hidden transition bg-elevated border border-border shadow-sm">
                         <!-- Feed Header -->
                         <div class="px-4 py-3 flex items-center justify-between">
