@@ -83,7 +83,7 @@ Auth::init();
                         <button @click="filter='mammals'; load(true)" :class="filter === 'mammals' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🐾 哺乳類</button>
                         <button @click="filter='herps'; load(true)" :class="filter === 'herps' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🐸 両生爬虫類</button>
                     </div>
-                    <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-r from-transparent to-base/95 md:hidden"></div>
+                    <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-10 md:hidden" style="background:linear-gradient(to right,transparent,#fff)"></div>
                 </div>
 
                 <!-- Desktop Map Button -->
