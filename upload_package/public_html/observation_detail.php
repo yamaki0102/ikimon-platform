@@ -8,6 +8,7 @@ require_once __DIR__ . '/../libs/RedList.php';
 require_once __DIR__ . '/../libs/Invasive.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/DataQuality.php';
+require_once __DIR__ . '/../libs/TrustLevel.php';
 require_once __DIR__ . '/../libs/OmoikaneSearchEngine.php';
 Auth::init();
 $currentUser = Auth::user();
