@@ -43,6 +43,11 @@ $prevWeekDistance = 0;
 $prevWeekTimeMin = 0;
 $prevWeekObs = 0;
 
+// Step count accumulators
+$weekSteps = 0;
+$monthSteps = 0;
+$totalSteps = 0;
+
 // Dates
 $today = date('Y-m-d');
 $weekStart = date('Y-m-d', strtotime('monday this week'));
@@ -96,6 +101,7 @@ if ($user) {
         $dist = $s['total_distance'] ?? 0;
         $dur = ($s['duration_sec'] ?? 0) / 60;
         $obs = $s['observation_count'] ?? 0;
+        $steps = $s['step_count'] ?? $s['estimated_steps'] ?? round(($dist / 1000) * 1300);
         $startedAt = $s['started_at'] ?? null;
         $dateKey = $startedAt ? date('Y-m-d', strtotime($startedAt)) : null;
 
@@ -103,6 +109,7 @@ if ($user) {
         $totalDistance += $dist;
         $totalTimeMin += $dur;
         $totalObs += $obs;
+        $totalSteps += $steps;
 
         if ($dateKey) {
             // Week
@@ -110,6 +117,7 @@ if ($user) {
                 $weekDistance += $dist;
                 $weekTimeMin += $dur;
                 $weekObs += $obs;
+                $weekSteps += $steps;
                 $weekSessions++;
             }
             // Previous week (for comparison)
@@ -123,6 +131,7 @@ if ($user) {
                 $monthDistance += $dist;
                 $monthTimeMin += $dur;
                 $monthObs += $obs;
+                $monthSteps += $steps;
                 $monthSessions++;
             }
 
@@ -189,6 +198,7 @@ $statsJson = json_encode([
         'obs' => $weekObs,
         'sessions' => $weekSessions,
         'kcal' => round(($weekDistance / 1000) * 50),
+        'steps' => $weekSteps,
     ],
     'month' => [
         'distance' => round($monthDistance / 1000, 1),
@@ -196,6 +206,7 @@ $statsJson = json_encode([
         'obs' => $monthObs,
         'sessions' => $monthSessions,
         'kcal' => round(($monthDistance / 1000) * 50),
+        'steps' => $monthSteps,
     ],
     'all' => [
         'distance' => round($totalDistance / 1000, 1),
@@ -203,6 +214,7 @@ $statsJson = json_encode([
         'obs' => $totalObs,
         'sessions' => count($sessions),
         'kcal' => round(($totalDistance / 1000) * 50),
+        'steps' => $totalSteps,
     ],
 ], JSON_UNESCAPED_UNICODE);
 
@@ -278,7 +290,7 @@ $biomeOptions = [
             width: 100%;
             max-width: 40px;
             border-radius: 6px 6px 2px 2px;
-            background: linear-gradient(180deg, #10b981 0%, #34d399 100%);
+            background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-light, #34d399) 100%);
             min-height: 4px;
             position: relative;
             animation: barGrow 0.6s ease-out both;
@@ -297,12 +309,12 @@ $biomeOptions = [
         }
 
         .chart-bar.empty {
-            background: #e2e8f0;
+            background: var(--color-border, #e2e8f0);
             animation: none;
         }
 
         .chart-bar.today {
-            background: linear-gradient(180deg, #059669 0%, #10b981 100%);
+            background: linear-gradient(180deg, var(--color-primary-dark, #059669) 0%, var(--color-primary) 100%);
             box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
         }
 
@@ -315,7 +327,7 @@ $biomeOptions = [
             width: 6px;
             height: 6px;
             border-radius: 50%;
-            background: #f59e0b;
+            background: var(--color-warning, #f59e0b);
         }
 
         .chart-bar-label {
@@ -365,12 +377,12 @@ $biomeOptions = [
 
         .wow-up {
             background: rgba(16, 185, 129, 0.15);
-            color: #059669;
+            color: var(--color-success, #059669);
         }
 
         .wow-down {
             background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
+            color: var(--color-danger, #ef4444);
         }
 
         /* ── Day Group ── */
@@ -431,7 +443,7 @@ $biomeOptions = [
     </style>
 </head>
 
-<body x-data="{ searchOpen: false, menuOpen: false }" class="bg-base text-text" style="padding-bottom: var(--bottom-nav-height);">
+<body x-data="{ searchOpen: false, menuOpen: false }" class="bg-base text-text font-body" style="padding-bottom: var(--bottom-nav-height);">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <!-- Mobile FAB -->
@@ -589,20 +601,58 @@ $biomeOptions = [
                 </div>
             </div>
 
-            <!-- ── Health Card ── -->
-            <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-8 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                        <i data-lucide="heart-pulse" class="w-5 h-5 text-emerald-600"></i>
+            <!-- ── Health Cards ── -->
+            <div class="grid grid-cols-2 gap-3 mb-8">
+                <!-- Steps Card -->
+                <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <i data-lucide="footprints" class="w-4 h-4 text-blue-600"></i>
+                        </div>
+                        <div class="text-[10px] font-bold text-blue-600">推定歩数</div>
                     </div>
-                    <div>
-                        <div class="text-xs font-bold text-emerald-700">推定消費カロリー</div>
-                        <div class="text-[10px] text-emerald-500">歩行距離 × 50 kcal/km</div>
+                    <div class="text-2xl font-black text-blue-700">
+                        <span x-text="stats[period].steps.toLocaleString()">0</span>
                     </div>
+                    <div class="text-[10px] text-blue-400 mt-1">距離 × 1,300歩/km</div>
                 </div>
-                <div class="text-2xl font-black text-emerald-700 stat-card">
-                    <span x-text="stats[period].kcal">0</span>
-                    <span class="text-sm font-bold">kcal</span>
+                <!-- Calories Card -->
+                <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <i data-lucide="flame" class="w-4 h-4 text-emerald-600"></i>
+                        </div>
+                        <div class="text-[10px] font-bold text-emerald-600">推定カロリー</div>
+                    </div>
+                    <div class="text-2xl font-black text-emerald-700">
+                        <span x-text="stats[period].kcal">0</span>
+                        <span class="text-sm font-bold">kcal</span>
+                    </div>
+                    <div class="text-[10px] text-emerald-400 mt-1">距離 × 50 kcal/km</div>
+                </div>
+            </div>
+
+            <!-- ── Science Link Banner ── -->
+            <div class="bg-violet-50 border border-violet-100 rounded-2xl p-4 mb-8">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="brain" class="w-5 h-5 text-violet-600"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-violet-700 mb-1">なぜ歩くと脳に良いの？</p>
+                        <p class="text-[11px] text-violet-500 mb-2">1日9,800歩で認知症リスク51%減（JAMA Neurology）。生きもの観察を加えるとさらに脳が活性化。</p>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="guide/walking-brain-science.php" class="text-[11px] font-bold text-violet-700 hover:underline flex items-center gap-1">
+                                <i data-lucide="arrow-right" class="w-3 h-3"></i> 脳科学を読む
+                            </a>
+                            <a href="guide/steps-dementia-prevention.php" class="text-[11px] font-bold text-violet-700 hover:underline flex items-center gap-1">
+                                <i data-lucide="arrow-right" class="w-3 h-3"></i> 歩数と認知症
+                            </a>
+                            <a href="guide/species-id-brain-training.php" class="text-[11px] font-bold text-violet-700 hover:underline flex items-center gap-1">
+                                <i data-lucide="arrow-right" class="w-3 h-3"></i> 種同定=脳トレ
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
 

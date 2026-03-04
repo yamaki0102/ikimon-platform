@@ -642,6 +642,7 @@ require_once __DIR__ . '/../../config/config.php';
         <div class="inner">
             <a href="index.php" class="logo">ikimon<sup>Business</sup></a>
             <div class="lp-nav-links">
+                <a href="../index.php" class="hide-mobile" style="font-size:12px; opacity:0.6;">← ikimon 一般サイトへ</a>
                 <a href="#how" class="hide-mobile">仕組み</a>
                 <a href="#reports" class="hide-mobile">レポート</a>
                 <a href="pricing.php" class="hide-mobile">料金</a>

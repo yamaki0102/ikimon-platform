@@ -60,7 +60,7 @@ Auth::init();
                 <div class="flex items-center justify-between md:justify-start gap-4 shrink-0">
                     <h2 class="text-2xl font-black font-heading">みつける</h2>
                     <a href="map.php?tab=heatmap" class="md:hidden btn-secondary !py-2 !px-4 !rounded-full flex items-center gap-2 text-xs font-bold">
-                        <i data-lucide="flame" class="w-4 h-4"></i> ストランドマップ
+                        <i data-lucide="flame" class="w-4 h-4"></i> 活動経路マップ
                     </a>
                 </div>
 
@@ -86,7 +86,7 @@ Auth::init();
                 <!-- Desktop Map Button -->
                 <a href="map.php?tab=heatmap" class="hidden md:flex btn-secondary !py-2 !px-4 !rounded-full items-center gap-2 text-xs font-bold shrink-0 md:ml-auto">
                     <i data-lucide="flame" class="w-4 h-4"></i>
-                    ストランドマップ
+                    活動経路マップ
                 </a>
             </div>
         </div>
@@ -202,6 +202,7 @@ Auth::init();
         }
         lucide.createIcons();
     </script>
+    <?php include __DIR__ . '/components/footer.php'; ?>
 </body>
 
 </html>
