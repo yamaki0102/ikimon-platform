@@ -146,11 +146,13 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
 </head>
 
-<body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body min-h-screen antialiased" x-data="{ idModalOpen: false, photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, locationName: '読み込み中...' }" x-init="
+<body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body min-h-screen antialiased" x-data="{ idModalOpen: false, photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, locationName: '<?php echo htmlspecialchars($obs['municipality'] ?? ($obs['prefecture'] ?? ''), ENT_QUOTES); ?>' }" x-init="
+    <?php if (!empty($obs['lat']) && !empty($obs['lng'])): ?>
     fetch('https://nominatim.openstreetmap.org/reverse?lat=<?php echo floatval($obs['lat']); ?>&lon=<?php echo floatval($obs['lng']); ?>&format=json&accept-language=ja&zoom=10')
         .then(r => r.json())
-        .then(d => { locationName = d.address ? (d.address.city || d.address.town || d.address.village || d.address.county || '') + ', ' + (d.address.state || '') : '不明'; })
-        .catch(() => { locationName = '位置情報あり'; });
+        .then(d => { if (d.address) { const city = d.address.city || d.address.town || d.address.village || d.address.county || ''; const state = d.address.state || ''; locationName = city ? city + (state ? ', ' + state : '') : (state || locationName); } })
+        .catch(() => {});
+    <?php endif; ?>
     },
     async submitAgree(target) {
         if(!confirm('「' + target.name + '」に同意しますか？\n(あなたの同意はデータの信頼性に影響します)')) return;
