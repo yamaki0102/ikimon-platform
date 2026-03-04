@@ -554,7 +554,7 @@ unset($allObs);
                                 </div>
                                 <div>
                                     <p class="text-sm font-bold leading-none text-text"><?php echo htmlspecialchars($obs['user_name'] ?? substr($obs['user_id'], 0, 4)); ?></p>
-                                    <p class="text-token-xs text-muted"><?php echo BioUtils::timeAgo($obs['observed_at']); ?> ・ <?php echo htmlspecialchars($obs['location']['name'] ?? '場所不明'); ?></p>
+                                    <p class="text-token-xs text-muted"><?php echo BioUtils::timeAgo($obs['observed_at']); ?> ・ <?php echo htmlspecialchars($obs['municipality'] ?? $obs['location']['name'] ?? ''); ?></p>
                                 </div>
                             </div>
                             <button class="p-2 transition rounded-full text-faint hover:bg-surface">

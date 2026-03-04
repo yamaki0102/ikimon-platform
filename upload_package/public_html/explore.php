@@ -125,7 +125,7 @@ Auth::init();
                             <p class="text-xs font-bold leading-tight truncate" x-text="obs.taxon ? obs.taxon.name : 'Unknown'"></p>
                             <div class="flex items-center gap-1 mt-1 opacity-70">
                                 <i data-lucide="map-pin" class="w-3 h-3"></i>
-                                <span class="text-[10px] truncate" x-text="obs.location ? obs.location.name : ''"></span>
+                                <span class="text-[10px] truncate" x-text="obs.municipality || (obs.location ? obs.location.name : '')"></span>
                             </div>
                         </div>
                         <!-- Status Dot -->
