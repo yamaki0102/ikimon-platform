@@ -622,7 +622,7 @@ unset($allObs);
             </div>
 
             <!-- End of Feed -->
-            <div class="py-12 text-center text-faint text-xs">
+            <div class="py-12 text-center text-muted text-xs">
                 <?php if (empty($latest_obs)): ?>
                     <div class="py-8">
                         <i data-lucide="leaf" class="w-12 h-12 mx-auto mb-4 text-primary-surface"></i>
@@ -691,7 +691,7 @@ unset($allObs);
                             <span class="text-2xl block mb-1"><?= $c['icon'] ?></span>
                             <p class="text-sm font-black transition text-text"><?= $c['name'] ?></p>
                             <p class="text-token-xs italic text-muted"><?= $c['latin'] ?></p>
-                            <p class="text-token-xs mt-0.5 text-faint"><?= $c['hint'] ?></p>
+                            <p class="text-token-xs mt-0.5 text-muted"><?= $c['hint'] ?></p>
                         </a>
                     <?php endforeach; ?>
                 </div>
@@ -717,19 +717,19 @@ unset($allObs);
                 <h2 class="font-black text-text text-center" style="font-size:var(--text-lg);margin-bottom:var(--phi-md)">数字で見る ikimon</h2>
                 <div class="grid grid-cols-2 md:grid-cols-4" style="gap:var(--phi-md)">
                     <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
-                        <p class="font-black text-primary" style="font-size:var(--text-xl)"><?= number_format($totalObservations) ?></p>
+                        <p class="font-black text-primary-dark" style="font-size:var(--text-xl)"><?= number_format($totalObservations) ?></p>
                         <p class="text-token-xs text-muted mt-1">観察記録</p>
                     </div>
                     <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
-                        <p class="font-black text-secondary" style="font-size:var(--text-xl)"><?= number_format($totalSpecies) ?></p>
+                        <p class="font-black" style="font-size:var(--text-xl);color:#0369a1"><?= number_format($totalSpecies) ?></p>
                         <p class="text-token-xs text-muted mt-1">確認された種</p>
                     </div>
                     <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
-                        <p class="font-black text-accent" style="font-size:var(--text-xl)"><?= $rgRate ?>%</p>
+                        <p class="font-black" style="font-size:var(--text-xl);color:#92400e"><?= $rgRate ?>%</p>
                         <p class="text-token-xs text-muted mt-1">Research Grade</p>
                     </div>
                     <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
-                        <p class="font-black" style="font-size:var(--text-xl);color:var(--color-secondary)"><?= number_format($totalUsers) ?></p>
+                        <p class="font-black" style="font-size:var(--text-xl);color:#0369a1"><?= number_format($totalUsers) ?></p>
                         <p class="text-token-xs text-muted mt-1">参加者</p>
                     </div>
                 </div>
