@@ -10,7 +10,7 @@ Auth::init();
     <title>研究者の方へ | ikimon</title>
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
-<body class="js-loading pt-14 bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
+<body class="js-loading pt-14 bg-base text-text font-body">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
@@ -31,7 +31,7 @@ Auth::init();
                 浜松地域の生物多様性データにアクセスできます。
             </p>
             <div class="flex flex-col md:flex-row gap-4 justify-center">
-                <a href="explore.php" class="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4 bg-purple-500 hover:bg-purple-600">
+                <a href="explore.php" class="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4">
                     <i data-lucide="database"></i>
                     データを閲覧
                 </a>
@@ -168,7 +168,7 @@ Auth::init();
                 地域生態系モニタリングの共同研究を募集しています。
             </p>
             <div class="flex flex-col gap-4">
-                <a href="mailto:research@ikimon.life" class="btn-primary flex items-center justify-center gap-2 bg-purple-500 hover:bg-purple-600">
+                <a href="mailto:research@ikimon.life" class="btn-primary flex items-center justify-center gap-2">
                     <i data-lucide="mail"></i>
                     研究連携のお問い合わせ
                 </a>
