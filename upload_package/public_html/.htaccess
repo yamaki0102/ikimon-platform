@@ -27,7 +27,7 @@ ErrorDocument 404 /404.php
 </IfModule>
 
 # Restrict dev/debug files to local access only
-<FilesMatch "^(dev_admin_login|diag_profile)\.php$">
+<FilesMatch "^(dev_admin_login|diag_profile|csrf_debug|test_concurrency)\.php$">
     Require local
 </FilesMatch>
 

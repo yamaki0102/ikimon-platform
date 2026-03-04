@@ -1,6 +1,6 @@
 # ikimon.life — 画面遷移図
 
-> 最終更新: 2026-03-04
+> 最終更新: 2026-03-04（Phase 10対応・admin フロー追加）
 
 ## 1. メインフロー（市民ユーザー）
 
@@ -134,16 +134,56 @@ graph TD
 
 ## 7. モバイルナビゲーション遷移
 
+> Phase 10 でボトムナビを刷新。旧5タブ→新4タブ＋メニューボタン構成に変更。
+
 ```mermaid
 graph LR
-    BN_HOME[🏠 ホーム] --- BN_EXPLORE[🔍 探す]
+    BN_HOME[🏠 ホーム] --- BN_EXPLORE[🔍 探索]
     BN_EXPLORE --- BN_POST[➕ 投稿]
-    BN_POST --- BN_MAP[🗺 地図]
-    BN_MAP --- BN_PROFILE[👤 プロフィール]
+    BN_POST --- BN_ZUKAN[📖 図鑑]
+    BN_ZUKAN --- BN_MENU[☰ メニュー]
 
     BN_HOME --> HOME[/]
     BN_EXPLORE --> EXPLORE[/explore.php]
-    BN_POST --> POST[/post.php]
-    BN_MAP --> MAP[/map.php]
-    BN_PROFILE --> PROFILE[/profile.php]
+    BN_POST -->|ログイン済| POST[/post.php]
+    BN_POST -->|未ログイン| LOGIN[/login.php]
+    BN_ZUKAN --> ZUKAN[/zukan.php]
+    BN_MENU -->|スライドアップ| MOBILE_MENU[モバイルメニュー]
+```
+
+```mermaid
+graph TD
+    MOBILE_MENU[モバイルメニュー] --> DASHBOARD[ダッシュボード /dashboard.php]
+    MOBILE_MENU --> PROFILE[プロフィール /profile.php]
+    MOBILE_MENU --> WELLNESS[ウェルネス /wellness.php]
+    MOBILE_MENU --> WALK[さんぽ記録 /ikimon_walk.php]
+    MOBILE_MENU --> EVENTS[イベント /events.php]
+    MOBILE_MENU --> COMPASS[コンパス /compass.php]
+    MOBILE_MENU --> LOGOUT[ログアウト]
+```
+
+## 8. Admin フロー
+
+> `/admin/` 配下は `Auth::requireRole('Analyst')` による RBAC 制御。未認証・権限不足は `/login.php` へリダイレクト。
+
+```mermaid
+graph TD
+    LOGIN[ログイン /login.php] -->|Analyst/Admin ロール| ADMIN[管理ダッシュボード /admin/index.php]
+
+    ADMIN --> OBS_MGMT[観察管理 /admin/observations.php]
+    ADMIN --> USER_MGMT[ユーザー管理 /admin/users.php]
+    ADMIN --> MODERATION[モデレーション /admin/moderation.php]
+    ADMIN --> CORPORATE[法人管理 /admin/corporate.php]
+
+    OBS_MGMT --> VERIFY[同定検証 /admin/verification.php]
+    OBS_MGMT --> DISTILL[蒸留レビュー /admin/distill_review.php]
+
+    VERIFY -->|承認/棄却| OBS_MGMT
+    DISTILL -->|承認/棄却| OBS_MGMT
+
+    CORPORATE --> DISTILL
+
+    %% 一般ページへの遷移
+    OBS_MGMT -->|観察詳細参照| OBS_DETAIL[観察詳細 /obs/:id]
+    USER_MGMT -->|プロフィール参照| PROFILE[プロフィール /profile.php]
 ```

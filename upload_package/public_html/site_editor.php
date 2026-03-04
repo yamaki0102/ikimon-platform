@@ -22,6 +22,12 @@ require_once __DIR__ . '/../libs/SiteManager.php';
 Auth::init();
 $currentUser = Auth::user();
 
+// Redirect if not logged in
+if (!$currentUser) {
+    header('Location: login.php');
+    exit;
+}
+
 // Load existing site for editing
 $editSiteId = $_GET['site'] ?? '';
 $editSite = null;
