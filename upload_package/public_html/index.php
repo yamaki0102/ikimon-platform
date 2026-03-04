@@ -639,65 +639,6 @@ unset($allObs);
             </div>
         </section>
 
-        <!-- ==================== 季節の生き物 ==================== -->
-        <?php
-        $month = (int)date('n');
-        if ($month >= 3 && $month <= 5) {
-            $season = '春';
-            $emoji = '🌸';
-            $creatures = [
-                ['name' => 'ウグイス', 'latin' => 'Horornis diphone', 'hint' => '声を頼りに探そう', 'icon' => '🐦'],
-                ['name' => 'モンシロチョウ', 'latin' => 'Pieris rapae', 'hint' => '菜の花畑に', 'icon' => '🦋'],
-                ['name' => 'アオダイショウ', 'latin' => 'Elaphe climacophora', 'hint' => '日向ぼっこ中かも', 'icon' => '🐍'],
-                ['name' => 'フキノトウ', 'latin' => 'Petasites japonicus', 'hint' => '早春の味覚', 'icon' => '🌿'],
-            ];
-        } elseif ($month >= 6 && $month <= 8) {
-            $season = '夏';
-            $emoji = '☀️';
-            $creatures = [
-                ['name' => 'カブトムシ', 'latin' => 'Trypoxylus dichotomus', 'hint' => '夜の樹液に集合', 'icon' => '🪲'],
-                ['name' => 'オニヤンマ', 'latin' => 'Anotogaster sieboldii', 'hint' => '最大最速のトンボ', 'icon' => '🔵'],
-                ['name' => 'アブラゼミ', 'latin' => 'Graptopsaltria nigrofuscata', 'hint' => 'ミーンミンミン', 'icon' => '🦗'],
-                ['name' => 'ヒマワリ', 'latin' => 'Helianthus annuus', 'hint' => '太陽を追う花', 'icon' => '🌻'],
-            ];
-        } elseif ($month >= 9 && $month <= 11) {
-            $season = '秋';
-            $emoji = '🍂';
-            $creatures = [
-                ['name' => 'アキアカネ', 'latin' => 'Sympetrum frequens', 'hint' => '赤トンボの季節', 'icon' => '🔴'],
-                ['name' => 'モズ', 'latin' => 'Lanius bucephalus', 'hint' => 'はやにえを探して', 'icon' => '🐦'],
-                ['name' => 'ジョロウグモ', 'latin' => 'Trichonephila clavata', 'hint' => '大きな巣に注目', 'icon' => '🕷️'],
-                ['name' => 'キンモクセイ', 'latin' => 'Osmanthus fragrans', 'hint' => '香りで気づく', 'icon' => '🌳'],
-            ];
-        } else {
-            $season = '冬';
-            $emoji = '❄️';
-            $creatures = [
-                ['name' => 'ジョウビタキ', 'latin' => 'Phoenicurus auroreus', 'hint' => '冬の使者', 'icon' => '🐦'],
-                ['name' => 'ツグミ', 'latin' => 'Turdus eunomus', 'hint' => '地面を歩く鳥', 'icon' => '🐤'],
-                ['name' => 'カワセミ', 'latin' => 'Alcedo atthis', 'hint' => '水辺の宝石', 'icon' => '💎'],
-                ['name' => 'スイセン', 'latin' => 'Narcissus', 'hint' => '冬の花壇に', 'icon' => '🌼'],
-            ];
-        }
-        ?>
-        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)">
-            <div class="rounded-2xl bg-gradient-to-br from-accent-surface to-orange-50 border border-amber-500/25" style="padding:var(--phi-lg)">
-                <h2 class="text-sm font-black flex items-center gap-2 text-accent-dark" style="margin-bottom:var(--phi-md)">
-                    <?= $emoji ?> 今の季節（<?= $season ?>）に会える生き物
-                </h2>
-                <div class="grid grid-cols-2 md:grid-cols-4" style="gap:var(--phi-sm)">
-                    <?php foreach ($creatures as $c): ?>
-                        <a href="explore.php?q=<?= urlencode($c['name']) ?>" class="rounded-xl text-center transition group bg-white/80 hover:bg-white hover:shadow-md" style="padding:var(--phi-sm)">
-                            <span class="text-2xl block mb-1"><?= $c['icon'] ?></span>
-                            <p class="text-sm font-black transition text-text"><?= $c['name'] ?></p>
-                            <p class="text-token-xs italic text-muted"><?= $c['latin'] ?></p>
-                            <p class="text-token-xs mt-0.5 text-muted"><?= $c['hint'] ?></p>
-                        </a>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </section>
-
         <!-- ==================== 数字で見る ikimon ==================== -->
         <?php
         $allObs = DataStore::fetchAll('observations');
