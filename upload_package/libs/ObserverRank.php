@@ -96,7 +96,7 @@ class ObserverRank
         }
 
         // === Fieldwork Axis ===
-        $er = $rules['fieldwork'];
+        $er = $rules['fieldwork'] ?? [];
         $fieldworkScore = 0;
         $fieldworkScore += ($ctx['my_field_count'] ?? 0) * $er['field_created'];
         $fieldworkScore += ($ctx['track_session_count'] ?? 0) * $er['track_session'];

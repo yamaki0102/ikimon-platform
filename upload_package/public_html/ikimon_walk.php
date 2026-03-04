@@ -21,6 +21,7 @@ require_once ROOT_DIR . '/libs/BadgeManager.php';
 
 $user = Auth::user();
 $pageTitle = 'さんぽ記録 — ikimon';
+$meta_title = 'さんぽ記録';
 
 // ─────── Data Preparation ───────
 $sessions = [];
@@ -447,7 +448,7 @@ $biomeOptions = [
             <div>
                 <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-primary mb-2">
                     <i data-lucide="footprints" class="w-4 h-4"></i>
-                    FIELD NOTE
+                    さんぽ記録
                 </span>
                 <h1 class="text-3xl font-black tracking-tight text-text">さんぽ記録</h1>
                 <p class="text-sm text-muted mt-1">歩くことは、見つけること。</p>

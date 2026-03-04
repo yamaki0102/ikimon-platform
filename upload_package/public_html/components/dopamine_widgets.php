@@ -29,7 +29,7 @@ $active_explorer_count = rand(2, 5);
             </div>
 
             <div>
-                <div class="text-[10px] text-emerald-700 font-sans font-bold tracking-wider mb-0.5">FIELD LOG</div>
+                <div class="text-[10px] text-emerald-700 font-sans font-bold tracking-wider mb-0.5">フィールドログ</div>
                 <div class="font-mono text-gray-900 text-lg font-bold leading-none tracking-tight flex items-baseline">
                     <?php echo $territory_coverage; ?><span class="text-xs ml-0.5 text-emerald-600 font-sans font-normal">km²</span>
                 </div>
@@ -45,9 +45,9 @@ $active_explorer_count = rand(2, 5);
 <div class="fixed top-36 right-4 z-20 pointer-events-auto animate-slide-up" style="animation-delay: 0.4s">
     <div class="flex items-center gap-2 justify-end bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full border border-cyan-200 shadow-sm hover:bg-white/90 transition duration-500 group">
         <div class="text-right">
-            <div class="text-[9px] text-cyan-700 font-bold tracking-wide group-hover:text-cyan-600 transition">EXPLORERS</div>
+            <div class="text-[9px] text-cyan-700 font-bold tracking-wide group-hover:text-cyan-600 transition">近くの観察者</div>
             <div class="text-[10px] text-gray-500">
-                <span class="text-gray-900 font-bold text-xs mr-0.5"><?php echo $active_explorer_count; ?></span>NEARBY
+                <span class="text-gray-900 font-bold text-xs mr-0.5"><?php echo $active_explorer_count; ?></span>人
             </div>
         </div>
         <!-- Pulse Icon -->
@@ -68,7 +68,7 @@ $active_explorer_count = rand(2, 5);
 
         <div class="flex flex-col min-w-[120px]">
             <div class="flex justify-between items-baseline mb-1">
-                <span class="text-[10px] text-gray-500 font-bold tracking-wider"><?php echo $_ors_rank_name ?: 'NEXT GRADE'; ?> (<?php echo is_numeric($next_rank_target) ? number_format($next_rank_target) : $next_rank_target; ?> ORS)</span>
+                <span class="text-[10px] text-gray-500 font-bold tracking-wider"><?php echo $_ors_rank_name ?: '次のランク'; ?> (<?php echo is_numeric($next_rank_target) ? number_format($next_rank_target) : $next_rank_target; ?> pt)</span>
                 <span class="text-[10px] font-mono font-bold" style="color: <?php echo $_ors_rank_color; ?>;"><?php echo round($next_rank_progress); ?>%</span>
             </div>
             <!-- Progress Bar -->

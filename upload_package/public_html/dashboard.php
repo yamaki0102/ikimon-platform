@@ -9,6 +9,7 @@ require_once __DIR__ . '/../libs/Services/LibraryService.php';
 
 Auth::init();
 $currentUser = Auth::user();
+$meta_title = 'ダッシュボード';
 
 // Fetch Data (Stream Mode)
 $latest_obs = DataStore::getLatest('observations', 5); // Just top 5 for the stream
@@ -59,7 +60,7 @@ if ($currentUser) {
         <nav class="fixed bottom-6 left-6 right-6 h-16 bg-white/90 backdrop-blur-md rounded-full shadow-xl border border-gray-200 flex items-center justify-around z-50">
             <a href="index.php" class="flex flex-col items-center justify-center w-16 h-full text-gray-400 hover:text-emerald-600 transition" aria-label="Scope">
                 <span class="material-symbols-outlined text-2xl">radar</span>
-                <span class="text-[9px] font-bold tracking-widest mt-0.5">SCOPE</span>
+                <span class="text-[9px] font-bold tracking-widest mt-0.5">さがす</span>
             </a>
 
             <!-- Central Action: ID Camera (Prominent) -->
@@ -69,7 +70,7 @@ if ($currentUser) {
 
             <a href="zukan.php" class="flex flex-col items-center justify-center w-16 h-full text-gray-400 hover:text-cyan-600 transition" aria-label="Collection">
                 <span class="material-symbols-outlined text-2xl">auto_stories</span>
-                <span class="text-[9px] font-bold tracking-widest mt-0.5">ZUKAN</span>
+                <span class="text-[9px] font-bold tracking-widest mt-0.5">図鑑</span>
             </a>
         </nav>
 
@@ -84,7 +85,7 @@ if ($currentUser) {
                     <div class="absolute inset-0 bg-gradient-to-t from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition"></div>
                 </button>
                 <div class="text-center mt-2">
-                    <span class="text-[10px] text-cyan-400 tracking-[0.2em] group-hover:text-cyan-600 transition">CAPTURE</span>
+                    <span class="text-[10px] text-cyan-400 tracking-[0.2em] group-hover:text-cyan-600 transition">記録する</span>
                 </div>
             </div>
         </div>

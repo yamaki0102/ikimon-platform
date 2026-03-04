@@ -7,7 +7,7 @@ $missions = [
     [
         'id' => 'insect',
         'label' => '昆虫',
-        'sub' => 'INSECTA',
+        'sub' => '昆虫',
         'icon' => 'pest_control',
         'color' => 'emerald',
         'count_done' => 12,
@@ -17,7 +17,7 @@ $missions = [
     [
         'id' => 'bird',
         'label' => '鳥類',
-        'sub' => 'AVES',
+        'sub' => '鳥類',
         'icon' => 'flight',
         'color' => 'cyan',
         'count_done' => 45,
@@ -27,7 +27,7 @@ $missions = [
     [
         'id' => 'plant',
         'label' => '植物',
-        'sub' => 'FLORA',
+        'sub' => '植物',
         'icon' => 'local_florist',
         'color' => 'emerald',
         'count_done' => 102,
@@ -37,7 +37,7 @@ $missions = [
     [
         'id' => 'herps',
         'label' => '両爬',
-        'sub' => 'HERPS',
+        'sub' => '両爬',
         'icon' => 'pets',
         'color' => 'cyan',
         'count_done' => 3,
@@ -57,8 +57,8 @@ $missions = [
                 <div class="text-xl font-display font-bold text-gray-900 tracking-wider">TOKYO AREA 1</div>
             </div>
             <div class="text-right">
-                <div class="text-[10px] text-emerald-600 font-mono">SEASON: SUMMER</div>
-                <div class="text-xs text-gray-500">TARGETS: 1,815</div>
+                <div class="text-[10px] text-emerald-600 font-mono">季節: 夏</div>
+                <div class="text-xs text-gray-500">目標種数: 1,815</div>
             </div>
         </div>
 
@@ -95,7 +95,7 @@ $missions = [
                             </div>
                             <div class="text-[9px] text-gray-400 font-mono text-right">
                                 <span class="block text-xs text-gray-700"><?php echo $m['count_done']; ?> 発見</span>
-                                GAP <?php echo number_format(100 - $progress, 1); ?>%
+                                記録率 <?php echo number_format(100 - $progress, 1); ?>%
                             </div>
                         </div>
 

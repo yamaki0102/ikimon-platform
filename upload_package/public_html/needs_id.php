@@ -12,7 +12,7 @@ $currentUser = Auth::user();
 
 <head>
     <?php
-    $meta_title = "The Missing Matrix — 知識の空白を埋める";
+    $meta_title = "未同定リスト";
     $meta_description = "未同定や意見が分かれている観察記録。あなたの知識で、生物多様性データセットの空白を埋めよう。";
     include __DIR__ . '/components/meta.php';
     ?>
@@ -30,10 +30,10 @@ $currentUser = Auth::user();
         <header class="mb-8 md:mb-12">
             <div class="inline-flex items-center gap-2 mb-3 bg-red-500/10 text-red-400 px-3 py-1 rounded-full text-token-xs font-black uppercase tracking-widest">
                 <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                Priority Action
+                要対応
             </div>
             <h1 class="text-3xl md:text-5xl font-black mb-4 tracking-tight leading-tight">
-                The <span class="text-primary italic">Missing</span> Matrix
+                未同定リスト
             </h1>
             <p class="text-secondary max-w-2xl leading-relaxed font-bold">
                 ここは「知識の空白」。未同定の生き物や、意見が分かれている記録が集まる場所です。<br>
@@ -60,11 +60,11 @@ $currentUser = Auth::user();
             <!-- Jump to Workbench for advanced users -->
             <div class="col-span-2 md:col-span-2 bg-gradient-to-br from-surface to-elevated border border-primary/20 rounded-2xl p-4 flex items-center justify-between">
                 <div>
-                    <h3 class="font-black text-text mb-0.5">ID Workbench</h3>
+                    <h3 class="font-black text-text mb-0.5">同定する</h3>
                     <p class="text-xs text-muted">プロ向け！大量の記録を一気に同定するツール</p>
                 </div>
                 <a href="id_workbench.php" class="btn-primary py-2 px-4 text-xs">
-                    <i data-lucide="zap" class="w-4 h-4"></i> コックピット起動
+                    <i data-lucide="zap" class="w-4 h-4"></i> 同定ツールを開く
                 </a>
             </div>
         </div>
