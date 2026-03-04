@@ -146,14 +146,14 @@ unset($allObs);
                 <!-- Eyebrow -->
                 <div class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-surface/80 border border-primary-surface shadow-sm" style="margin-bottom:var(--phi-md)">
                     <span class="w-2 h-2 rounded-full animate-pulse bg-primary"></span>
-                    <span class="text-token-xs font-bold text-primary-dark"><?php echo number_format($totalObs); ?> 件の記録 · <?php echo number_format($uniqueSpecies); ?> 種</span>
+                    <span class="text-token-xs font-bold" style="color:#065f46"><?php echo number_format($totalObs); ?> 件の記録 · <?php echo number_format($uniqueSpecies); ?> 種</span>
                 </div>
 
                 <!-- Main Copy -->
                 <h1 class="font-black tracking-tight leading-tight text-text" style="margin-bottom:var(--phi-xs)">
-                    歩いて、見つけて、<br class="md:hidden"><span class="text-primary">守る</span>。
+                    歩いて、見つけて、<br class="md:hidden"><span class="text-primary-dark">守る</span>。
                 </h1>
-                <p class="hero-sub max-w-xl mx-auto text-secondary leading-relaxed" style="margin-bottom:var(--phi-lg)">
+                <p class="hero-sub max-w-xl mx-auto leading-relaxed" style="color:#1e3a5f;margin-bottom:var(--phi-lg)">
                     <span class="inline-block">散歩×生きもの観察で、</span><span class="inline-block">自然を守りながら健康に。</span><br class="md:hidden">
                     <span class="inline-block">あなたの一歩が</span><span class="inline-block">科学データになる。</span>
                 </p>
@@ -194,7 +194,7 @@ unset($allObs);
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-1">
                             <span class="text-[10px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded uppercase tracking-wider">DAILY QUEST</span>
-                            <span class="text-xs font-bold text-amber-600">+<?php echo $dailyQuest['reward']; ?> XP</span>
+                            <span class="text-xs font-bold text-amber-800">+<?php echo $dailyQuest['reward']; ?> XP</span>
                         </div>
                         <h3 class="text-sm font-black text-text leading-snug"><?php echo htmlspecialchars($dailyQuest['title']); ?></h3>
                         <p class="text-xs text-muted leading-relaxed mt-0.5"><?php echo htmlspecialchars($dailyQuest['description']); ?></p>
@@ -303,22 +303,22 @@ unset($allObs);
                     <div class="grid grid-cols-2 md:grid-cols-4" style="margin-top:var(--phi-xl);gap:var(--phi-sm)">
                         <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                             <span style="font-size:var(--text-xl)">👟</span>
-                            <p class="font-black text-primary" style="font-size:var(--text-lg)">-51%</p>
-                            <p class="text-token-xs text-muted">認知症リスク減<br><span class="text-faint">(9,800歩/日)</span></p>
+                            <p class="font-black text-primary-dark" style="font-size:var(--text-lg)">-51%</p>
+                            <p class="text-token-xs text-muted">認知症リスク減<br><span class="text-muted">(9,800歩/日)</span></p>
                         </div>
                         <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                             <span style="font-size:var(--text-xl)">🧠</span>
-                            <p class="font-black text-secondary" style="font-size:var(--text-lg)">脳トレ</p>
+                            <p class="font-black" style="font-size:var(--text-lg);color:#0369a1">脳トレ</p>
                             <p class="text-token-xs text-muted">種同定で<br>認知的予備力UP</p>
                         </div>
                         <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                             <span style="font-size:var(--text-xl)">🌿</span>
-                            <p class="font-black text-accent" style="font-size:var(--text-lg)">↓低下</p>
-                            <p class="text-token-xs text-muted">ストレスホルモン<br><span class="text-faint">(森林浴効果)</span></p>
+                            <p class="font-black" style="font-size:var(--text-lg);color:#92400e">↓低下</p>
+                            <p class="text-token-xs text-muted">ストレスホルモン<br><span class="text-muted">(森林浴効果)</span></p>
                         </div>
                         <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                             <span style="font-size:var(--text-xl)">🌍</span>
-                            <p class="font-black" style="font-size:var(--text-lg);color:var(--color-secondary)">科学データ</p>
+                            <p class="font-black" style="font-size:var(--text-lg);color:#0369a1">科学データ</p>
                             <p class="text-token-xs text-muted">あなたの記録が<br>保全に貢献</p>
                         </div>
                     </div>
@@ -753,9 +753,9 @@ unset($allObs);
                             </div>
                         </div>
                         <ul class="space-y-1.5 text-xs text-muted">
-                            <li class="flex items-start gap-1.5"><span class="text-blue-500 mt-0.5">✓</span> 自社エリアの生物多様性レポート生成</li>
-                            <li class="flex items-start gap-1.5"><span class="text-blue-500 mt-0.5">✓</span> 社員参加型の観察会でCSR×チームビルディング</li>
-                            <li class="flex items-start gap-1.5"><span class="text-blue-500 mt-0.5">✓</span> 健康経営としての散歩プログラム</li>
+                            <li class="flex items-start gap-1.5"><span class="text-blue-700 mt-0.5">✓</span> 自社エリアの生物多様性レポート生成</li>
+                            <li class="flex items-start gap-1.5"><span class="text-blue-700 mt-0.5">✓</span> 社員参加型の観察会でCSR×チームビルディング</li>
+                            <li class="flex items-start gap-1.5"><span class="text-blue-700 mt-0.5">✓</span> 健康経営としての散歩プログラム</li>
                         </ul>
                         <div class="mt-3 text-xs font-bold text-blue-600 group-hover:text-blue-700 flex items-center gap-1 transition">
                             詳しく見る <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
