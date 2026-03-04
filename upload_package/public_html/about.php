@@ -58,7 +58,7 @@ Auth::init();
                     </div>
                 </div>
 
-                <article class="prose prose-lg max-w-none space-y-6 text-secondary leading-relaxed">
+                <article class="prose prose-lg max-w-none space-y-6 text-muted leading-relaxed">
 
                     <h3 class="text-2xl font-bold text-text">きっかけ：浜松の自然との出会い</h3>
                     <p>
@@ -161,7 +161,7 @@ Auth::init();
                     </div>
                 </div>
 
-                <div class="space-y-8 text-secondary leading-relaxed">
+                <div class="space-y-8 text-muted leading-relaxed">
                     <div>
                         <h3 class="text-lg font-bold text-text mb-3 flex items-center gap-2">
                             <i data-lucide="shield-alert" class="w-5 h-5 text-[var(--color-secondary)]"></i>
@@ -186,7 +186,7 @@ Auth::init();
                             <strong>AI同定機能の開発</strong>を計画しています。
                             つまり、みなさんの同定の一つひとつが、将来のAI同定の精度を支える「教師データ」になります。
                         </p>
-                        <ul class="mt-2 space-y-1 text-secondary text-sm">
+                        <ul class="mt-2 space-y-1 text-muted text-sm">
                             <li>• データはikimonのサービス内でのみ使用され、外部に流出することはありません</li>
                             <li>• AI同定が実現しても、最終的な種名確定は引き続きコミュニティ合意で行います</li>
                             <li>• AIはあくまで「提案」を行い、人間が「確定」する——この原則は変わりません</li>
@@ -222,7 +222,7 @@ Auth::init();
 
                     <div class="p-4 bg-surface rounded-xl border border-border text-sm">
                         <p class="font-bold text-text mb-1">📋 技術的保護措置</p>
-                        <ul class="space-y-1 text-secondary">
+                        <ul class="space-y-1 text-muted">
                             <li>• <code class="text-xs bg-border px-1 rounded">robots.txt</code> によるAIクローラーブロック（GPTBot, CCBot等）</li>
                             <li>• 写真メタデータ（EXIF位置情報）の自動除去</li>
                             <li>• APIレートリミット（大量取得防止）</li>
@@ -260,7 +260,7 @@ Auth::init();
                     </div>
 
                     <!-- Message -->
-                    <div class="flex-1 space-y-4 text-secondary leading-relaxed">
+                    <div class="flex-1 space-y-4 text-muted leading-relaxed">
                         <p>
                             ikimonは今、<strong class="text-text">私ひとりで作っています。</strong><br>
                             デザインも、コードも、データ設計も。浜松の自室から。
