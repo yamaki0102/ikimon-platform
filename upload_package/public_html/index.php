@@ -142,7 +142,7 @@ unset($allObs);
 
         <!-- ==================== HERO SECTION (Compact) ==================== -->
         <section class="hero-section relative overflow-hidden">
-            <div class="max-w-5xl mx-auto px-6 text-center relative z-10" style="padding-top:120px;padding-bottom:var(--phi-xl)">
+            <div class="max-w-5xl mx-auto px-6 text-center relative z-10" style="padding-top:var(--phi-xl);padding-bottom:var(--phi-lg)">
                 <!-- Eyebrow -->
                 <div class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-surface/80 border border-primary-surface shadow-sm" style="margin-bottom:var(--phi-md)">
                     <span class="w-2 h-2 rounded-full animate-pulse bg-primary"></span>
@@ -180,7 +180,7 @@ unset($allObs);
         }
         ?>
         <?php if ($dailyQuest): ?>
-            <section class="max-w-5xl mx-auto px-4 md:px-6 relative z-30 -mt-6 mb-8">
+            <section class="max-w-5xl mx-auto px-4 md:px-6 relative z-30" style="margin-top:calc(var(--phi-sm) * -1);margin-bottom:var(--phi-lg)">
                 <div class="bg-white/90 backdrop-blur-md border border-amber-200 rounded-2xl p-4 shadow-lg shadow-amber-500/10 flex items-center gap-4 relative overflow-hidden">
                     <!-- Background decoration -->
                     <div class="absolute top-0 right-0 w-24 h-24 bg-amber-400/10 rounded-full blur-2xl -mr-8 -mt-8"></div>
@@ -222,7 +222,7 @@ unset($allObs);
         <?php endif; ?>
 
         <!-- ==================== QUICK NAV (Horizontal Scroll) ==================== -->
-        <section class="max-w-5xl mx-auto relative z-20" style="margin-top:calc(var(--phi-sm) * -1); margin-bottom:var(--phi-lg)">
+        <section class="max-w-5xl mx-auto relative z-20" style="margin-bottom:var(--phi-xl)">
             <div class="flex gap-3 overflow-x-auto px-4 md:px-6 pb-2 scrollbar-hide snap-x snap-mandatory" style="-webkit-overflow-scrolling: touch">
 
                 <a href="zukan.php" class="flex flex-col items-center gap-2 min-w-[72px] py-3 px-2 rounded-2xl transition hover:shadow-md active:scale-95 bg-elevated border border-border snap-start">
@@ -264,8 +264,8 @@ unset($allObs);
 
         <!-- ==================== HOW-TO SECTION (Non-logged-in) ==================== -->
         <?php if (!$currentUser): ?>
-            <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)">
-                <div class="bg-gradient-to-br from-primary-surface to-secondary-surface rounded-3xl border border-primary/10" style="padding:var(--phi-lg)">
+            <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-2xl)">
+                <div class="bg-gradient-to-br from-primary-surface to-secondary-surface rounded-3xl border border-primary/10" style="padding:var(--phi-xl) var(--phi-lg)">
                     <h2 class="font-black text-text text-center" style="font-size:var(--text-xl);margin-bottom:var(--phi-sm)">🌿 はじめての生きもの観察</h2>
                     <p class="text-token-sm text-muted text-center" style="margin-bottom:var(--phi-lg)">散歩が「調査」に変わる。3ステップで始められます</p>
 
@@ -300,30 +300,30 @@ unset($allObs);
                     </div>
 
                     <!-- なぜ？ベネフィット（科学的エビデンス付き） -->
-                    <div class="grid grid-cols-2 md:grid-cols-4" style="margin-top:var(--phi-lg);gap:var(--phi-sm)">
-                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                    <div class="grid grid-cols-2 md:grid-cols-4" style="margin-top:var(--phi-xl);gap:var(--phi-sm)">
+                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                             <span style="font-size:var(--text-xl)">👟</span>
                             <p class="font-black text-primary" style="font-size:var(--text-lg)">-51%</p>
                             <p class="text-token-xs text-muted">認知症リスク減<br><span class="text-faint">(9,800歩/日)</span></p>
                         </div>
-                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                             <span style="font-size:var(--text-xl)">🧠</span>
                             <p class="font-black text-secondary" style="font-size:var(--text-lg)">脳トレ</p>
                             <p class="text-token-xs text-muted">種同定で<br>認知的予備力UP</p>
                         </div>
-                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                             <span style="font-size:var(--text-xl)">🌿</span>
                             <p class="font-black text-accent" style="font-size:var(--text-lg)">↓低下</p>
                             <p class="text-token-xs text-muted">ストレスホルモン<br><span class="text-faint">(森林浴効果)</span></p>
                         </div>
-                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                             <span style="font-size:var(--text-xl)">🌍</span>
                             <p class="font-black" style="font-size:var(--text-lg);color:var(--color-secondary)">科学データ</p>
                             <p class="text-token-xs text-muted">あなたの記録が<br>保全に貢献</p>
                         </div>
                     </div>
 
-                    <div class="text-center" style="margin-top:var(--phi-lg)">
+                    <div class="text-center" style="margin-top:var(--phi-xl)">
                         <a href="post.php" class="btn-primary text-base px-8 py-3.5 inline-flex items-center gap-2 shadow-lg shadow-primary-glow/20">
                             <i data-lucide="camera" class="w-5 h-5"></i>
                             さっそく始めてみる
@@ -334,7 +334,7 @@ unset($allObs);
         <?php endif; ?>
 
         <!-- ==================== 探索マップ (Exploration Map) ==================== -->
-        <section class="max-w-5xl mx-auto px-4 md:px-6 mb-8" x-data="explorationMap()" x-cloak>
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)" x-data="explorationMap()" x-cloak>
             <div x-show="stats" x-transition class="bg-gradient-to-br from-primary-surface via-secondary-surface to-accent-surface border border-primary/10 rounded-3xl p-5 md:p-6 shadow-sm">
                 <!-- Header with Region Selector -->
                 <div class="flex items-center justify-between mb-4 gap-3">
@@ -469,7 +469,7 @@ unset($allObs);
         </section>
 
         <!-- ==================== FEED SECTION ==================== -->
-        <section class="max-w-5xl mx-auto px-4 md:px-6 mb-12">
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-2xl)">
             <!-- Feed Header & Filter Tabs -->
             <div class="flex flex-col gap-3 mb-6">
                 <div class="flex items-baseline justify-between">
@@ -503,7 +503,7 @@ unset($allObs);
             </div>
 
             <!-- Feed Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style="gap:var(--phi-lg)">
                 <?php foreach ($latest_obs as $obs):
                     $obsCounts = DataStore::getCounts('observations', $obs['id']);
                     $obsLikes = $obsCounts['likes'] ?? 0;
@@ -680,14 +680,14 @@ unset($allObs);
             ];
         }
         ?>
-        <section class="max-w-5xl mx-auto px-4 md:px-6 mb-6 mt-2">
-            <div class="rounded-2xl p-5 bg-gradient-to-br from-accent-surface to-orange-50 border border-amber-500/25">
-                <h2 class="text-sm font-black mb-3 flex items-center gap-2 text-accent-dark">
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)">
+            <div class="rounded-2xl bg-gradient-to-br from-accent-surface to-orange-50 border border-amber-500/25" style="padding:var(--phi-lg)">
+                <h2 class="text-sm font-black flex items-center gap-2 text-accent-dark" style="margin-bottom:var(--phi-md)">
                     <?= $emoji ?> 今の季節（<?= $season ?>）に会える生き物
                 </h2>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="grid grid-cols-2 md:grid-cols-4" style="gap:var(--phi-sm)">
                     <?php foreach ($creatures as $c): ?>
-                        <a href="explore.php?q=<?= urlencode($c['name']) ?>" class="rounded-xl p-3 text-center transition group bg-white/80 hover:bg-white hover:shadow-md">
+                        <a href="explore.php?q=<?= urlencode($c['name']) ?>" class="rounded-xl text-center transition group bg-white/80 hover:bg-white hover:shadow-md" style="padding:var(--phi-sm)">
                             <span class="text-2xl block mb-1"><?= $c['icon'] ?></span>
                             <p class="text-sm font-black transition text-text"><?= $c['name'] ?></p>
                             <p class="text-token-xs italic text-muted"><?= $c['latin'] ?></p>
@@ -712,33 +712,33 @@ unset($allObs);
         $rgRate = $totalObservations > 0 ? round($rgCount / $totalObservations * 100) : 0;
         $totalUsers = count(DataStore::fetchAll('users'));
         ?>
-        <section class="max-w-5xl mx-auto px-4 md:px-6 mb-8">
-            <div class="bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-3xl" style="padding:var(--phi-lg)">
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)">
+            <div class="bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-3xl" style="padding:var(--phi-xl) var(--phi-lg)">
                 <h2 class="font-black text-text text-center" style="font-size:var(--text-lg);margin-bottom:var(--phi-md)">数字で見る ikimon</h2>
-                <div class="grid grid-cols-2 md:grid-cols-4" style="gap:var(--phi-sm)">
-                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                <div class="grid grid-cols-2 md:grid-cols-4" style="gap:var(--phi-md)">
+                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                         <p class="font-black text-primary" style="font-size:var(--text-xl)"><?= number_format($totalObservations) ?></p>
-                        <p class="text-token-xs text-muted">観察記録</p>
+                        <p class="text-token-xs text-muted mt-1">観察記録</p>
                     </div>
-                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                         <p class="font-black text-secondary" style="font-size:var(--text-xl)"><?= number_format($totalSpecies) ?></p>
-                        <p class="text-token-xs text-muted">確認された種</p>
+                        <p class="text-token-xs text-muted mt-1">確認された種</p>
                     </div>
-                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                         <p class="font-black text-accent" style="font-size:var(--text-xl)"><?= $rgRate ?>%</p>
-                        <p class="text-token-xs text-muted">Research Grade</p>
+                        <p class="text-token-xs text-muted mt-1">Research Grade</p>
                     </div>
-                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                         <p class="font-black" style="font-size:var(--text-xl);color:var(--color-secondary)"><?= number_format($totalUsers) ?></p>
-                        <p class="text-token-xs text-muted">参加者</p>
+                        <p class="text-token-xs text-muted mt-1">参加者</p>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- B2B/G Section (Rich) -->
-        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-lg)">
-            <div class="bg-gradient-to-br from-slate-50 to-blue-50 border border-slate-200 rounded-3xl" style="padding:var(--phi-lg)">
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-2xl)">
+            <div class="bg-gradient-to-br from-slate-50 to-blue-50 border border-slate-200 rounded-3xl" style="padding:var(--phi-xl) var(--phi-lg)">
                 <h2 class="font-black text-text text-center" style="font-size:var(--text-lg);margin-bottom:var(--phi-sm)">🏢 導入をご検討の方へ</h2>
                 <p class="text-token-sm text-muted text-center" style="margin-bottom:var(--phi-lg)">ikimonは企業CSR・自治体の生物多様性政策にも活用されています</p>
                 <div class="grid grid-cols-1 md:grid-cols-2" style="gap:var(--phi-sm)">
