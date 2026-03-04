@@ -69,7 +69,7 @@ Auth::init();
                     <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"></i>
                     <input type="text" x-model="query" @input.debounce.500ms="load(true)"
                         placeholder="種名で検索..."
-                        class="w-full bg-surface border border-border rounded-full py-2.5 pl-10 pr-4 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition text-text placeholder-faint">
+                        class="w-full bg-surface border border-border rounded-full py-2.5 pl-10 pr-4 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition text-text placeholder-muted">
                 </div>
 
                 <!-- Filter Chips -->
@@ -137,7 +137,7 @@ Auth::init();
             <!-- Empty State -->
             <div x-show="items.length === 0 && !loading" class="text-center py-16 text-muted">
                 <div class="text-5xl mb-4">🌱</div>
-                <p class="text-lg font-bold text-faint mb-2">まだ観察がないよ</p>
+                <p class="text-lg font-bold text-muted mb-2">まだ観察がないよ</p>
                 <p class="text-sm text-muted mb-4">この地域で最初の発見者になろう！</p>
                 <a href="post.php" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-primary to-secondary text-white font-bold text-sm shadow-lg shadow-primary-glow/20 active:scale-95 transition">
                     <i data-lucide="camera" class="w-4 h-4"></i> 最初の観察を投稿する
