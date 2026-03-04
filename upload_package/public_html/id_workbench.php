@@ -398,7 +398,7 @@ if (!$currentUser) {
                         </div>
                         <div class="text-token-xs text-gray-400 space-y-1">
                             <p class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3 h-3"></i> <span x-text="formatDate(activeItem.observed_at)"></span></p>
-                            <p class="flex items-center gap-1.5" x-show="activeItem.location"><i data-lucide="map-pin" class="w-3 h-3"></i> <span x-text="activeItem.location ? activeItem.location.name : ''"></span></p>
+                            <p class="flex items-center gap-1.5" x-show="activeItem.municipality || activeItem.location"><i data-lucide="map-pin" class="w-3 h-3"></i> <span x-text="activeItem.municipality || (activeItem.location ? activeItem.location.name : '')"></span></p>
                             <p class="flex items-center gap-1.5"><i data-lucide="user" class="w-3 h-3"></i> <span x-text="activeItem.user_name || '匿名'"></span></p>
                         </div>
 
@@ -632,7 +632,7 @@ if (!$currentUser) {
                         items = items.filter(i => {
                             const name = i.taxon ? (i.taxon.name || '').toLowerCase() : '';
                             const sci = i.taxon ? (i.taxon.scientific_name || '').toLowerCase() : '';
-                            const loc = i.location ? (i.location.name || '').toLowerCase() : '';
+                            const loc = (i.municipality || (i.location ? i.location.name : '') || '').toLowerCase();
                             return name.includes(q) || sci.includes(q) || loc.includes(q);
                         });
                     }
