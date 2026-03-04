@@ -212,7 +212,7 @@ unset($allObs);
                                 <i data-lucide="check" class="w-6 h-6"></i>
                             </div>
                         <?php else: ?>
-                            <a href="post.php" class="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-primary text-white shadow-lg hover:scale-105 active:scale-95 transition">
+                            <a href="post.php" class="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg shadow-amber-500/30 hover:bg-amber-600 hover:scale-105 active:scale-95 transition">
                                 <i data-lucide="camera" class="w-5 h-5"></i>
                             </a>
                         <?php endif; ?>
@@ -318,7 +318,7 @@ unset($allObs);
                         </div>
                         <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
                             <span style="font-size:var(--text-xl)">🌍</span>
-                            <p class="font-black" style="font-size:var(--text-lg);color:#2563eb">科学データ</p>
+                            <p class="font-black" style="font-size:var(--text-lg);color:var(--color-secondary)">科学データ</p>
                             <p class="text-token-xs text-muted">あなたの記録が<br>保全に貢献</p>
                         </div>
                     </div>
@@ -729,7 +729,7 @@ unset($allObs);
                         <p class="text-token-xs text-muted">Research Grade</p>
                     </div>
                     <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
-                        <p class="font-black" style="font-size:var(--text-xl);color:#2563eb"><?= number_format($totalUsers) ?></p>
+                        <p class="font-black" style="font-size:var(--text-xl);color:var(--color-secondary)"><?= number_format($totalUsers) ?></p>
                         <p class="text-token-xs text-muted">参加者</p>
                     </div>
                 </div>

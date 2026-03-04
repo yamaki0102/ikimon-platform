@@ -25,6 +25,7 @@ return [
         'events' => '観察会',
         'field_research' => 'フィールド調査',
         'my_field' => 'Walk',
+        'participate' => '参加する',
         'site_dashboard' => 'サイトダッシュボード',
         'ranking_board' => 'ランキング',
         // Footer Keys
