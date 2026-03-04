@@ -296,6 +296,30 @@ if (!$currentUser) {
                         :class="statusFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200'">
                         <span>⬜ 全ステータス</span>
                     </button>
+                    <button @click="statusFilter = 'later'" x-show="laterItems.length > 0"
+                        class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
+                        :class="statusFilter === 'later' ? 'bg-blue-500/10 text-blue-400' : 'text-gray-400 hover:text-gray-200'">
+                        <span>🔖 あとで</span>
+                        <span class="text-token-xs font-mono text-gray-600" x-text="laterItems.length"></span>
+                    </button>
+                    <button @click="statusFilter = 'passed'" x-show="passItems.length > 0"
+                        class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
+                        :class="statusFilter === 'passed' ? 'bg-white/10 text-gray-300' : 'text-gray-600 hover:text-gray-400'">
+                        <span>⏭ パス済み</span>
+                        <span class="text-token-xs font-mono text-gray-600" x-text="passItems.length"></span>
+                    </button>
+                </div>
+
+                <!-- Pass/Later Management -->
+                <div x-show="passItems.length > 0 || laterItems.length > 0" class="border-t border-white/5 mt-3 pt-3 px-2 space-y-1">
+                    <div x-show="passItems.length > 0" class="flex items-center justify-between">
+                        <span class="text-token-xs text-gray-600">パス済み <span x-text="passItems.length" class="font-bold text-gray-500"></span>件</span>
+                        <button @click="clearAllPass()" class="text-token-xs text-gray-600 hover:text-red-400 transition font-bold">全解除</button>
+                    </div>
+                    <div x-show="laterItems.length > 0" class="flex items-center justify-between">
+                        <span class="text-token-xs text-gray-600">あとで <span x-text="laterItems.length" class="font-bold text-gray-500"></span>件</span>
+                        <button @click="clearAllLater()" class="text-token-xs text-gray-600 hover:text-gray-400 transition font-bold">クリア</button>
+                    </div>
                 </div>
 
                 <!-- Saved Presets -->
@@ -316,12 +340,31 @@ if (!$currentUser) {
                 </div>
             </div>
 
-            <!-- Save Preset Button -->
+            <!-- Save Preset Button / Inline Form -->
             <div class="p-2 border-t border-white/5">
-                <button @click="saveCurrentPreset()"
-                    class="w-full py-1.5 rounded-md text-token-xs font-bold bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition flex items-center justify-center gap-1.5">
-                    <i data-lucide="plus" class="w-3 h-3"></i> プリセット保存
-                </button>
+                <template x-if="!showPresetForm">
+                    <button @click="showPresetForm = true; $nextTick(() => $refs.presetInput && $refs.presetInput.focus())"
+                        class="w-full py-1.5 rounded-md text-token-xs font-bold bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="plus" class="w-3 h-3"></i> プリセット保存
+                    </button>
+                </template>
+                <template x-if="showPresetForm">
+                    <form @submit.prevent="saveCurrentPreset()" class="flex gap-1">
+                        <input x-ref="presetInput" x-model="presetNameInput"
+                            @keydown.escape.prevent="showPresetForm = false; presetNameInput = ''"
+                            placeholder="プリセット名..."
+                            maxlength="20"
+                            class="flex-1 min-w-0 bg-white/10 border border-white/20 rounded-md px-2 py-1 text-token-xs text-white placeholder-gray-600 focus:outline-none focus:border-[var(--color-primary)] transition">
+                        <button type="submit" title="保存"
+                            class="p-1.5 rounded-md bg-[var(--color-primary)]/20 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/30 transition shrink-0">
+                            <i data-lucide="check" class="w-3 h-3"></i>
+                        </button>
+                        <button type="button" @click="showPresetForm = false; presetNameInput = ''" title="キャンセル"
+                            class="p-1.5 rounded-md bg-white/5 text-gray-500 hover:text-white transition shrink-0">
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
+                    </form>
+                </template>
             </div>
         </aside>
 
@@ -385,7 +428,7 @@ if (!$currentUser) {
                              }">
                             <!-- Image -->
                             <img :src="item.photos && item.photos[0] ? item.photos[0] : 'assets/img/no-photo.svg'"
-                                @click.stop="isMobile ? openQuickID(item, index) : activateItem(item, index)"
+                                @click.stop="activateItem(item, index)"
                                 @dblclick.stop="openQuickID(item, index)"
                                 class="w-full h-full object-cover md:opacity-60 md:group-hover:opacity-100 transition duration-200">
 
@@ -559,7 +602,54 @@ if (!$currentUser) {
         </aside>
     </div>
 
-    <!-- (Mobile Link removed - now supporting native mobile view) -->
+    <!-- Undo Pass Toast -->
+    <div x-show="lastPassedId" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-end="opacity-0 translate-y-2"
+        class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-gray-800 border border-white/10 text-white rounded-full px-4 py-2 shadow-2xl text-xs font-bold whitespace-nowrap">
+        <span class="text-gray-400">パスしました</span>
+        <button @click="undoPass()" class="text-[var(--color-primary)] hover:underline flex items-center gap-1">
+            <i data-lucide="undo-2" class="w-3 h-3"></i> 元に戻す
+        </button>
+    </div>
+
+    <!-- Mobile Bottom Inspector -->
+    <div x-show="activeItem && isMobile" x-cloak
+        class="fixed bottom-16 inset-x-0 bg-[#141820]/95 backdrop-blur-sm border-t border-white/10 z-30 md:hidden"
+        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
+        <div class="flex items-center gap-3 px-3 py-2.5">
+            <img :src="activeItem?.photos?.[0] || 'assets/img/no-photo.svg'"
+                class="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-white/10">
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-white truncate" x-text="activeItem?.taxon?.name || '未同定'"></p>
+                <p class="text-token-xs text-gray-500 truncate" x-text="(activeItem?.municipality || '') + (activeItem?.observed_at ? ' · ' + formatDate(activeItem.observed_at) : '')"></p>
+                <p class="text-token-xs text-gray-600 truncate" x-text="activeItem?.identifications?.length ? activeItem.identifications.length + '件の同定あり' : ''"></p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button @click="if(activeItem) markLater(activeItem.id)"
+                    class="p-2 rounded-xl transition"
+                    :class="laterItems.includes(activeItem?.id) ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-gray-500'"
+                    title="あとで">
+                    <i data-lucide="bookmark" class="w-4 h-4"></i>
+                </button>
+                <button @click="if(activeItem) { markPass(activeItem.id); activeItemId = null; }"
+                    class="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-red-400 transition" title="パス">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+                <button @click="if(activeItem) openQuickID(activeItem, activeItemIndex)"
+                    class="px-3 py-2 rounded-xl bg-[var(--color-primary)] text-black font-bold text-xs flex items-center gap-1.5">
+                    <i data-lucide="zap" class="w-3.5 h-3.5"></i> 同定
+                </button>
+            </div>
+        </div>
+        <!-- Existing IDs preview (if any) -->
+        <template x-if="activeItem?.identifications?.length > 0">
+            <div class="px-3 pb-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                <template x-for="ident in (activeItem.identifications || []).slice(0, 4)" :key="ident.id">
+                    <span class="shrink-0 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-token-xs text-gray-400 font-bold"
+                        x-text="ident.taxon_name || '?'"></span>
+                </template>
+            </div>
+        </template>
+    </div>
 
     <?php include('components/quick_identify.php'); ?>
     <?php include('components/nav.php'); ?>
@@ -594,6 +684,15 @@ if (!$currentUser) {
                 // Onboarding
                 showWelcome: !localStorage.getItem('ikimon_wb_welcomed'),
                 showHelp: false,
+
+                // Preset inline form
+                showPresetForm: false,
+                presetNameInput: '',
+
+                // Undo pass
+                lastPassedId: null,
+                lastPassedIndex: -1,
+                _undoTimer: null,
 
                 taxonGroups: [{
                         id: 'insecta',
@@ -734,14 +833,18 @@ if (!$currentUser) {
                     // Status filter
                     if (this.statusFilter === 'unidentified') items = items.filter(i => !i.taxon);
                     if (this.statusFilter === 'suggested') items = items.filter(i => !!i.taxon);
+                    if (this.statusFilter === 'later') items = items.filter(i => this.laterItems.includes(i.id));
+                    if (this.statusFilter === 'passed') items = items.filter(i => this.passItems.includes(i.id));
 
                     // Taxon group filter
                     if (this.taxonFilter !== 'all') {
                         items = items.filter(i => this.getTaxonGroup(i) === this.taxonFilter);
                     }
 
-                    // Exclude passed (unless explicitly viewing)
-                    items = items.filter(i => !this.passItems.includes(i.id));
+                    // Exclude passed items (except when explicitly viewing them)
+                    if (this.statusFilter !== 'passed') {
+                        items = items.filter(i => !this.passItems.includes(i.id));
+                    }
 
                     // Sort
                     if (this.sortBy === 'newest') {
@@ -819,7 +922,34 @@ if (!$currentUser) {
                         this.passItems.push(id);
                         localStorage.setItem('ikimon_skipped_ids', JSON.stringify(this.passItems));
                     }
+                    this.lastPassedId = id;
+                    this.lastPassedIndex = this.activeItemIndex;
+                    clearTimeout(this._undoTimer);
+                    this._undoTimer = setTimeout(() => { this.lastPassedId = null; }, 5000);
                     this.navigateNext();
+                },
+
+                undoPass() {
+                    if (!this.lastPassedId) return;
+                    const id = this.lastPassedId;
+                    this.passItems = this.passItems.filter(i => i !== id);
+                    localStorage.setItem('ikimon_skipped_ids', JSON.stringify(this.passItems));
+                    const item = this.allItems.find(i => i.id === id);
+                    if (item) this.activateItem(item, this.lastPassedIndex);
+                    this.lastPassedId = null;
+                    clearTimeout(this._undoTimer);
+                },
+
+                clearAllPass() {
+                    this.passItems = [];
+                    localStorage.removeItem('ikimon_skipped_ids');
+                    if (this.statusFilter === 'passed') this.statusFilter = 'all';
+                },
+
+                clearAllLater() {
+                    this.laterItems = [];
+                    localStorage.removeItem('ikimon_later_ids');
+                    if (this.statusFilter === 'later') this.statusFilter = 'all';
                 },
 
                 markLater(id) {
@@ -856,7 +986,7 @@ if (!$currentUser) {
 
                 // Presets
                 saveCurrentPreset() {
-                    const name = prompt('プリセット名を入力:');
+                    const name = this.presetNameInput.trim();
                     if (!name) return;
                     this.presets.push({
                         name,
@@ -865,6 +995,8 @@ if (!$currentUser) {
                         filterText: this.filterText
                     });
                     localStorage.setItem('ikimon_wb_presets', JSON.stringify(this.presets));
+                    this.presetNameInput = '';
+                    this.showPresetForm = false;
                     this.$nextTick(() => lucide.createIcons());
                 },
 
