@@ -93,6 +93,19 @@ if (!$currentUser) {
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 3px;
         }
+
+        /* Mobile filter drawer */
+        @media (max-width: 767px) {
+            .mobile-filter-drawer {
+                position: fixed;
+                inset: 0;
+                z-index: 45;
+                padding-top: 44px;
+                background: #0a0d14;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
     </style>
 </head>
 
@@ -127,6 +140,15 @@ if (!$currentUser) {
                 <span class="shortcut-badge">B</span>ブクマ
                 <span class="shortcut-badge">Esc</span>閉
             </div>
+            <!-- Mobile Filter Toggle -->
+            <button @click="showMobileFilter = !showMobileFilter"
+                class="md:hidden flex items-center gap-1 px-2 py-1 rounded-md text-token-xs font-bold transition"
+                :class="showMobileFilter || taxonFilter !== 'all' || statusFilter !== 'all' || filterText
+                    ? 'bg-[var(--color-primary)]/20 text-[var(--color-primary)]'
+                    : 'bg-white/5 text-gray-400 hover:text-white'">
+                <i data-lucide="filter" class="w-3 h-3"></i>
+                <span x-text="taxonFilter !== 'all' || statusFilter !== 'all' || filterText ? '絞込中' : 'フィルタ'"></span>
+            </button>
             <!-- Grid Size -->
             <div class="flex items-center gap-1 bg-white/5 rounded-md p-0.5">
                 <button @click="gridCols = Math.max(1, gridCols - 1)" class="p-1 text-gray-500 hover:text-white transition"><i data-lucide="minus" class="w-3 h-3"></i></button>
@@ -140,7 +162,15 @@ if (!$currentUser) {
     <div class="flex flex-col md:flex-row h-auto md:h-[calc(100vh-44px)] relative overflow-visible md:overflow-hidden">
 
         <!-- LEFT PANEL: Taxonomy Tree Filter -->
-        <aside class="w-full md:w-56 lg:w-64 bg-[#0a0d14] border-b md:border-b-0 md:border-r border-white/5 flex flex-col shrink-0 panel-mobile md:h-full">
+        <aside :class="showMobileFilter ? 'mobile-filter-drawer flex flex-col' : 'hidden md:flex md:flex-col'"
+            class="w-full md:w-56 lg:w-64 bg-[#0a0d14] md:border-r border-white/5 shrink-0 md:h-full">
+            <!-- Mobile drawer header -->
+            <div class="md:hidden flex items-center justify-between px-3 py-2 border-b border-white/5 shrink-0">
+                <span class="text-xs font-black text-gray-300">フィルタ</span>
+                <button @click="showMobileFilter = false" class="p-1.5 hover:bg-white/10 rounded-full transition">
+                    <i data-lucide="x" class="w-4 h-4 text-gray-400"></i>
+                </button>
+            </div>
             <!-- Search -->
             <div class="p-3 border-b border-white/5">
                 <div class="flex items-center gap-2">
@@ -236,6 +266,32 @@ if (!$currentUser) {
 
         <!-- CENTER PANEL: Grid -->
         <main class="flex-1 bg-[#050505] flex flex-col relative min-w-0 h-[60vh] md:h-full order-first md:order-none">
+            <!-- Mobile Quick Filter Chips (mobile only) -->
+            <div class="md:hidden flex items-center gap-1.5 px-3 py-2 bg-[#0a0d14] border-b border-white/5 overflow-x-auto scrollbar-hide shrink-0">
+                <button @click="statusFilter = 'all'; taxonFilter = 'all'"
+                    class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
+                    :class="statusFilter === 'all' && taxonFilter === 'all' ? 'bg-white/15 border-white/20 text-white' : 'bg-white/5 border-white/10 text-gray-500'">
+                    🌍 全て
+                </button>
+                <button @click="statusFilter = 'unidentified'; taxonFilter = 'all'"
+                    class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
+                    :class="statusFilter === 'unidentified' ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'bg-white/5 border-white/10 text-gray-500'">
+                    🔴 未同定 <span x-text="statusCounts.unidentified" class="font-mono ml-0.5 opacity-70"></span>
+                </button>
+                <button @click="statusFilter = 'suggested'; taxonFilter = 'all'"
+                    class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
+                    :class="statusFilter === 'suggested' ? 'bg-purple-500/20 border-purple-500/40 text-purple-300' : 'bg-white/5 border-white/10 text-gray-500'">
+                    🟣 要確認 <span x-text="statusCounts.suggested" class="font-mono ml-0.5 opacity-70"></span>
+                </button>
+                <div class="w-px h-4 bg-white/10 shrink-0"></div>
+                <template x-for="group in taxonGroups.slice(0, 5)" :key="group.id">
+                    <button @click="taxonFilter = group.id; statusFilter = 'all'"
+                        class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
+                        :class="taxonFilter === group.id ? 'bg-[var(--color-primary)]/20 border-[var(--color-primary)]/40 text-[var(--color-primary)]' : 'bg-white/5 border-white/10 text-gray-500'">
+                        <span x-text="group.icon"></span><span x-text="group.label"></span>
+                    </button>
+                </template>
+            </div>
             <!-- Grid Toolbar -->
             <div class="h-8 bg-[#0a0d14] border-b border-white/5 flex items-center px-3 justify-between shrink-0">
                 <div class="flex items-center gap-2">
@@ -268,7 +324,7 @@ if (!$currentUser) {
                              }">
                             <!-- Image -->
                             <img :src="item.photos && item.photos[0] ? item.photos[0] : 'assets/img/no-photo.svg'"
-                                @click.stop="activateItem(item, index)"
+                                @click.stop="isMobile ? openQuickID(item, index) : activateItem(item, index)"
                                 @dblclick.stop="openQuickID(item, index)"
                                 class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition duration-200">
 
@@ -291,8 +347,8 @@ if (!$currentUser) {
                                 <p class="text-token-xs font-bold text-white truncate" x-text="item.taxon ? item.taxon.name : 'Unknown'"></p>
                             </div>
 
-                            <!-- Quick actions on hover -->
-                            <div class="absolute bottom-0 right-0 p-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition" @click.stop>
+                            <!-- Quick actions (always on mobile, hover on desktop) -->
+                            <div class="absolute bottom-0 right-0 p-1 flex gap-0.5 md:opacity-0 md:group-hover:opacity-100 transition" @click.stop>
                                 <button @click="openQuickID(item, index)" class="p-1 rounded bg-[var(--color-primary)] text-black hover:brightness-110 transition" title="同定 (Enter)">
                                     <i data-lucide="zap" class="w-3 h-3"></i>
                                 </button>
@@ -310,8 +366,8 @@ if (!$currentUser) {
             </div>
         </main>
 
-        <!-- RIGHT PANEL: Inspector -->
-        <aside class="w-full md:w-72 lg:w-80 bg-[#0a0d14] border-t md:border-t-0 md:border-l border-white/5 flex flex-col shrink-0 panel-mobile md:h-full">
+        <!-- RIGHT PANEL: Inspector (desktop only) -->
+        <aside class="hidden md:flex md:flex-col w-full md:w-72 lg:w-80 bg-[#0a0d14] md:border-l border-white/5 shrink-0 md:h-full">
             <!-- Active item preview -->
             <template x-if="activeItem">
                 <div class="flex-1 flex flex-col overflow-y-auto scrollbar-thin">
@@ -441,6 +497,10 @@ if (!$currentUser) {
                 passItems: [],
                 laterItems: [],
 
+                // Mobile
+                showMobileFilter: false,
+                isMobile: false,
+
                 taxonGroups: [{
                         id: 'insecta',
                         label: '昆虫',
@@ -497,6 +557,11 @@ if (!$currentUser) {
                 ],
 
                 init() {
+                    this.isMobile = window.innerWidth < 768;
+                    window.addEventListener('resize', () => { this.isMobile = window.innerWidth < 768; });
+                    // フィルター変更時にモバイルドロワーを閉じる
+                    this.$watch('taxonFilter', () => { if (this.isMobile) this.showMobileFilter = false; });
+                    this.$watch('statusFilter', () => { if (this.isMobile) this.showMobileFilter = false; });
                     this.loadLocal();
                     this.fetchItems();
                     this.$watch('gridCols', v => localStorage.setItem('ikimon_wb_grid_cols', v));
