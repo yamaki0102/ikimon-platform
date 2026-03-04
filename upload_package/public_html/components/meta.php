@@ -33,6 +33,15 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
     <meta name="robots" content="noindex, nofollow, noarchive">
 <?php endif; ?>
 
+<!-- Google Analytics 4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NCL0M1VJZ2"></script>
+<script nonce="<?= CspNonce::attr() ?>">
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NCL0M1VJZ2');
+</script>
+
 <!-- Primary Meta Tags -->
 <title><?php echo htmlspecialchars($title); ?></title>
 <meta name="title" content="<?php echo htmlspecialchars($title); ?>">
