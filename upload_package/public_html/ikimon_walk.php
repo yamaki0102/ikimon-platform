@@ -443,7 +443,7 @@ $biomeOptions = [
     </style>
 </head>
 
-<body x-data="{ searchOpen: false, menuOpen: false }" class="bg-base text-text font-body" style="padding-bottom: var(--bottom-nav-height);">
+<body x-data="{ searchOpen: false, menuOpen: false }" class="bg-base text-text font-body" style="padding-top: var(--nav-height); padding-bottom: var(--bottom-nav-height);">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <!-- Mobile FAB -->

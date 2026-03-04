@@ -17,7 +17,7 @@ Auth::init();
     </style>
 </head>
 
-<body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
+<body class="js-loading pt-14 bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">

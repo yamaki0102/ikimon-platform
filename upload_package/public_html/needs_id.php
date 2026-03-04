@@ -20,7 +20,7 @@ $currentUser = Auth::user();
     <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
 </head>
 
-<body class="bg-base text-text min-h-screen pb-20 md:pb-0" x-data="missingMatrix()">
+<body class="pt-14 bg-base text-text min-h-screen pb-20 md:pb-0" x-data="missingMatrix()">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
 
