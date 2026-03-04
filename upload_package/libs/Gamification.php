@@ -272,4 +272,87 @@ class Gamification
         }
         return null;
     }
+
+    /**
+     * Return all badge definitions.
+     */
+    public static function getBadges(): array
+    {
+        return BadgeManager::getDefinitions();
+    }
+
+    /**
+     * Return badges the user is eligible for based on their stats.
+     * Pure eligibility check — no disk writes or session side effects.
+     *
+     * @param array $user Must contain: post_count, id_count (and optionally species_count, etc.)
+     */
+    public static function getEarnedBadges(array $user): array
+    {
+        $definitions = BadgeManager::getDefinitions();
+        $earned = [];
+
+        $context = [
+            'post_count'         => $user['post_count'] ?? 0,
+            'id_count'           => $user['id_count'] ?? 0,
+            'species_count'      => $user['species_count'] ?? 0,
+            'trust_level'        => $user['trust_level'] ?? 0,
+            'my_field_count'     => $user['my_field_count'] ?? 0,
+            'my_field_total_obs' => $user['my_field_total_obs'] ?? 0,
+            'my_field_max_score' => $user['my_field_max_score'] ?? 0,
+            'taxon_id_counts'    => $user['taxon_id_counts'] ?? [],
+            'survey_count'       => $user['survey_count'] ?? 0,
+        ];
+
+        foreach ($definitions as $badge) {
+            $condition = $badge['condition'] ?? [];
+            $type      = $condition['type'] ?? '';
+            $threshold = $condition['threshold'] ?? PHP_INT_MAX;
+            $awarded   = false;
+
+            switch ($type) {
+                case 'post_count':
+                    $awarded = $context['post_count'] >= $threshold;
+                    break;
+                case 'species_count':
+                    $awarded = $context['species_count'] >= $threshold;
+                    break;
+                case 'id_count':
+                    $awarded = $context['id_count'] >= $threshold;
+                    break;
+                case 'taxon_id':
+                    $count = 0;
+                    foreach ($condition['groups'] ?? [] as $group) {
+                        $count += $context['taxon_id_counts'][$group] ?? 0;
+                    }
+                    $awarded = $count >= $threshold;
+                    break;
+                case 'taxon_diversity':
+                    $diverseCount = count(array_filter($context['taxon_id_counts'], fn($c) => $c >= 1));
+                    $awarded = $diverseCount >= $threshold;
+                    break;
+                case 'trust_level':
+                    $awarded = $context['trust_level'] >= $threshold;
+                    break;
+                case 'my_field_count':
+                    $awarded = $context['my_field_count'] >= $threshold;
+                    break;
+                case 'my_field_obs_count':
+                    $awarded = $context['my_field_total_obs'] >= $threshold;
+                    break;
+                case 'my_field_score':
+                    $awarded = $context['my_field_max_score'] >= $threshold;
+                    break;
+                case 'survey_count':
+                    $awarded = $context['survey_count'] >= $threshold;
+                    break;
+            }
+
+            if ($awarded) {
+                $earned[] = $badge;
+            }
+        }
+
+        return $earned;
+    }
 }
