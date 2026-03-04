@@ -234,22 +234,66 @@ Auth::init();
         </div>
     </section>
 
-    <!-- Team Section (Future) -->
+    <!-- Founder Section -->
     <section class="py-12 px-6">
-        <div class="max-w-4xl mx-auto text-center">
-            <h2 class="text-2xl font-bold mb-3 text-text">チーム</h2>
-            <p class="text-muted mb-8">ikimonは、自然を愛する仲間と一緒に作っています</p>
+        <div class="max-w-3xl mx-auto">
+            <div class="glass-card rounded-[2rem] p-8 md:p-12 border border-border">
 
-            <div class="flex justify-center">
-                <div class="glass-card p-6 rounded-2xl border border-border text-center max-w-xs">
-                    <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-primary-surface flex items-center justify-center">
-                        <i data-lucide="user" class="w-8 h-8 text-muted"></i>
+                <!-- Label -->
+                <div class="mb-8">
+                    <span class="text-xs font-bold tracking-wider uppercase text-muted">FOUNDER</span>
+                </div>
+
+                <!-- Profile row -->
+                <div class="flex flex-col md:flex-row md:items-start gap-8">
+
+                    <!-- Avatar -->
+                    <div class="shrink-0 flex flex-col items-center md:items-start gap-3">
+                        <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center text-4xl font-black text-white shadow-lg">
+                            Y
+                        </div>
+                        <div class="text-center md:text-left">
+                            <p class="text-lg font-black text-text">八巻 毅</p>
+                            <p class="text-sm text-muted">代表 / CEO</p>
+                            <p class="text-xs text-faint mt-0.5">IKIMON株式会社</p>
+                        </div>
                     </div>
-                    <p class="text-sm font-bold text-text">山﨑 大輝</p>
-                    <p class="text-xs text-muted">創業者 / CEO</p>
+
+                    <!-- Message -->
+                    <div class="flex-1 space-y-4 text-secondary leading-relaxed">
+                        <p>
+                            ikimonは今、<strong class="text-text">私ひとりで作っています。</strong><br>
+                            デザインも、コードも、データ設計も。浜松の自室から。
+                        </p>
+                        <p>
+                            大量絶滅の時代と言われる今、約100万種の動植物が数十年のうちに絶滅すると言われています。
+                            その危機感と向き合い続け、「市民の観察が科学になる」仕組みを作ることを選びました。
+                        </p>
+                        <p>
+                            小さく始めることを恥じていません。<br>
+                            <strong class="text-text">すべての人が生き物観察を楽しめる社会</strong>を作るために、今日も一歩ずつ動いています。
+                        </p>
+
+                        <!-- Contact & info -->
+                        <div class="pt-4 border-t border-border space-y-2 text-sm">
+                            <div class="flex items-center gap-2 text-muted">
+                                <i data-lucide="map-pin" class="w-4 h-4 shrink-0 text-faint"></i>
+                                <span>静岡県浜松市</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-muted">
+                                <i data-lucide="mail" class="w-4 h-4 shrink-0 text-faint"></i>
+                                <a href="mailto:contact@ikimon.life" class="text-primary hover:underline">contact@ikimon.life</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Join CTA -->
+                <div class="mt-8 pt-6 border-t border-border">
+                    <p class="text-sm font-bold text-text mb-1">一緒に作りませんか？</p>
+                    <p class="text-sm text-muted">エンジニア・デザイナー・自然が好きな人、どなたでも歓迎します。まずはメールで。</p>
                 </div>
             </div>
-            <p class="text-sm text-muted mt-6">仲間を募集しています。<a href="mailto:contact@ikimon.life" class="text-primary hover:underline">contact@ikimon.life</a></p>
         </div>
     </section>
 
