@@ -170,7 +170,7 @@ $meta_title = 'ログイン';
 
     <div class="w-full max-w-md mx-4 p-8 rounded-3xl relative z-10 transition-all duration-500" style="background: var(--glass-surface-heavy); backdrop-filter: blur(16px); border: 1px solid var(--color-border-strong); box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
         <div class="text-center mb-10">
-            <h1 class="text-3xl font-black mb-2 tracking-tight" style="font-family: 'Zen Kaku Gothic New', sans-serif; color: var(--color-text);">Welcome to <span class="bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-emerald-400" style="font-family: 'Montserrat', sans-serif;">ikimon</span></h1>
+            <h1 class="text-3xl font-black mb-2 tracking-tight" style="font-family: 'Zen Kaku Gothic New', sans-serif; color: var(--color-text);">ikimon へ<span class="bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-emerald-400" style="font-family: 'Montserrat', sans-serif;">ようこそ</span></h1>
             <p class="text-sm" style="color: var(--color-text-muted);">自然とつながる、世界とつながる</p>
         </div>
 

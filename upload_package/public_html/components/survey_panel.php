@@ -4,7 +4,7 @@
 // Usage: include __DIR__ . '/components/survey_panel.php';
 ?>
 
-<?php if ($activeSurvey): ?>
+<?php if (!empty($activeSurvey)): ?>
     <?php
     $start = strtotime($activeSurvey['started_at']);
     $now = time();
