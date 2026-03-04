@@ -1,0 +1,4 @@
+# Restrict dev/debug files to local access only
+<FilesMatch "^(csrf_debug|test_concurrency|verify_config|dev_.*)\.php$">
+    Require local
+</FilesMatch>

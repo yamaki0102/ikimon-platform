@@ -51,6 +51,7 @@ $pageTitle = 'Portfolio Dashboard | Enterprise HQ';
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
+    <meta name="robots" content="noindex, nofollow">
     <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <title><?= $pageTitle ?></title>

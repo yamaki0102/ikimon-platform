@@ -72,6 +72,15 @@ if (!empty($taxonGroup)) {
     }
 }
 
+// Exclude test/E2E users and sample images from public feed
+$observations = array_filter($observations, function ($obs) {
+    $userName = $obs['user_name'] ?? '';
+    if (strpos($userName, 'E2E_') === 0) return false;
+    $photo = $obs['photos'][0] ?? '';
+    if (strpos($photo, 'sample_') !== false) return false;
+    return true;
+});
+
 // Reverse sort by date
 usort($observations, function ($a, $b) {
     return strtotime($b['updated_at'] ?? $b['observed_at']) - strtotime($a['updated_at'] ?? $a['observed_at']);

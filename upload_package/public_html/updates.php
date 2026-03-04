@@ -28,14 +28,62 @@ Auth::init();
             <!-- Updates Timeline -->
             <div class="space-y-8">
 
-                <!-- v0.2.0 -->
+                <!-- v0.3.0 -->
                 <article class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
                     <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.2.0</span>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.3.0</span>
+                        <time class="text-sm text-gray-500">2026年3月4日</time>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">大規模品質改善アップデート</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 shrink-0">✓</span>
+                            <span><strong>ダッシュボード刷新</strong>: HUD UIから標準デザインへ全面リニューアル。ランクカード、デイリークエスト、カテゴリ探索を搭載</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 shrink-0">✓</span>
+                            <span><strong>CDNバージョン固定</strong>: Lucide・Alpine.js・セキュリティ向上のため外部ライブラリを特定バージョンに固定</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 shrink-0">✓</span>
+                            <span><strong>ナビゲーション改善</strong>: Quick Navのアイコン差別化、モバイルボトムナビの操作性向上（56px化）</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 shrink-0">✓</span>
+                            <span><strong>ヘッダーオーバーラップ修正</strong>: 全ページでコンテンツがヘッダーに隠れる問題を解消</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 shrink-0">✓</span>
+                            <span><strong>アクセシビリティ強化</strong>: mainタグ追加、sr-only見出し、ボタンスタイル統一</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 shrink-0">✓</span>
+                            <span><strong>メタタイトル統一</strong>: 全情報ページのSEOタイトルを統一フォーマットに</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 shrink-0">✓</span>
+                            <span><strong>セキュリティ</strong>: 管理画面の認証強化、開発用ファイルのアクセス制限追加</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 shrink-0">✓</span>
+                            <span><strong>探索フィルター修正</strong>: カテゴリフィルター（鳥類・昆虫・植物等）が正しく動作するよう修正</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-400 shrink-0">✓</span>
+                            <span><strong>仕様書更新</strong>: sitemap.md / spec.md を90ページ・99 APIの実態に合わせて全面更新</span>
+                        </li>
+                    </ul>
+                </article>
+
+                <!-- v0.2.0 -->
+                <article class="relative pl-8 border-l-2 border-gray-200">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.2.0</span>
                         <time class="text-sm text-gray-500">2025年1月1日</time>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">新年アップデート 🎉</h2>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">新年アップデート</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
                         <li class="flex items-start gap-2">
                             <span class="text-green-400 shrink-0">✓</span>

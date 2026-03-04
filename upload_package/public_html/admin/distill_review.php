@@ -7,10 +7,10 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
+require_once __DIR__ . '/../../libs/Auth.php';
 
 session_start();
-// Replace with actual admin logic
-// if (!isset($_SESSION['is_admin'])) die("Unauthorized");
+Auth::requireRole('Admin');
 
 $distilledStore = 'library/distilled_knowledge';
 $distilledData = DataStore::get($distilledStore, 0) ?: [];

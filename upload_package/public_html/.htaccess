@@ -26,6 +26,11 @@ ErrorDocument 404 /404.php
     Header set X-Frame-Options "SAMEORIGIN"
 </IfModule>
 
+# Restrict dev/debug files to local access only
+<FilesMatch "^(dev_admin_login|diag_profile)\.php$">
+    Require local
+</FilesMatch>
+
 # Clean URL Rewrite Rules
 <IfModule mod_rewrite.c>
     RewriteEngine On

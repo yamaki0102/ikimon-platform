@@ -47,6 +47,7 @@ $pageTitle = '自治体ダッシュボード | ikimon.life';
 <html lang="ja">
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
+    <meta name="robots" content="noindex, nofollow">
     <title><?= $pageTitle ?></title>
     <style>
         .glass-card {

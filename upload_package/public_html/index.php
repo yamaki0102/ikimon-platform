@@ -13,6 +13,12 @@ $currentUser = Auth::user();
 $filter = $_GET['filter'] ?? 'all';
 $followedUserIds = ($currentUser && $filter === 'following') ? FollowManager::getFollowedUserIds($currentUser['id']) : [];
 $latest_obs = DataStore::getLatest('observations', 20, function ($item) use ($filter, $currentUser, $followedUserIds) {
+    // Exclude test/E2E users and sample images
+    $userName = $item['user_name'] ?? '';
+    if (strpos($userName, 'E2E_') === 0) return false;
+    $photo = $item['photos'][0] ?? '';
+    if (strpos($photo, 'sample_') !== false) return false;
+
     if ($filter === 'unidentified') {
         return empty($item['taxon']['id']);
     }
@@ -692,45 +698,40 @@ unset($allObs);
             </div>
         </section>
 
-        <!-- ==================== ウェルビーイング訴求（お散歩×脳科学） ==================== -->
+        <!-- ==================== 数字で見る ikimon ==================== -->
+        <?php
+        $allObs = DataStore::fetchAll('observations');
+        $totalObservations = count($allObs);
+        $speciesSet = [];
+        $rgCount = 0;
+        foreach ($allObs as $o) {
+            if (!empty($o['taxon']['name'])) $speciesSet[$o['taxon']['name']] = true;
+            if (($o['status'] ?? '') === 'Research Grade') $rgCount++;
+        }
+        $totalSpecies = count($speciesSet);
+        $rgRate = $totalObservations > 0 ? round($rgCount / $totalObservations * 100) : 0;
+        $totalUsers = count(DataStore::fetchAll('users'));
+        ?>
         <section class="max-w-5xl mx-auto px-4 md:px-6 mb-8">
-            <div class="bg-gradient-to-br from-violet-50 to-emerald-50 border border-violet-200/50 rounded-3xl" style="padding:var(--phi-lg)">
-                <h2 class="font-black text-text text-center" style="font-size:var(--text-lg);margin-bottom:var(--phi-xs)">🧠 お散歩×生きもの観察で脳と身体が変わる</h2>
-                <p class="text-token-sm text-muted text-center" style="margin-bottom:var(--phi-md)">科学が証明する5つのメカニズム</p>
-
-                <div class="grid grid-cols-1 md:grid-cols-5" style="gap:var(--phi-sm);margin-bottom:var(--phi-md)">
-                    <div class="flex flex-col items-center text-center bg-white/70 rounded-xl border border-emerald-200/50" style="padding:var(--phi-sm)">
-                        <span class="text-2xl mb-1">👟</span>
-                        <p class="text-xs font-black text-emerald-700">歩行</p>
-                        <p class="text-[10px] text-muted">海馬の血流↑<br>認知症-51%</p>
+            <div class="bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-3xl" style="padding:var(--phi-lg)">
+                <h2 class="font-black text-text text-center" style="font-size:var(--text-lg);margin-bottom:var(--phi-md)">数字で見る ikimon</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4" style="gap:var(--phi-sm)">
+                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                        <p class="font-black text-primary" style="font-size:var(--text-xl)"><?= number_format($totalObservations) ?></p>
+                        <p class="text-token-xs text-muted">観察記録</p>
                     </div>
-                    <div class="flex flex-col items-center text-center bg-white/70 rounded-xl border border-violet-200/50" style="padding:var(--phi-sm)">
-                        <span class="text-2xl mb-1">🔍</span>
-                        <p class="text-xs font-black text-violet-700">種同定</p>
-                        <p class="text-[10px] text-muted">パターン認識<br>脳が高密度に</p>
+                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                        <p class="font-black text-secondary" style="font-size:var(--text-xl)"><?= number_format($totalSpecies) ?></p>
+                        <p class="text-token-xs text-muted">確認された種</p>
                     </div>
-                    <div class="flex flex-col items-center text-center bg-white/70 rounded-xl border border-sky-200/50" style="padding:var(--phi-sm)">
-                        <span class="text-2xl mb-1">🌳</span>
-                        <p class="text-xs font-black text-sky-700">自然環境</p>
-                        <p class="text-[10px] text-muted">コルチゾール↓<br>前頭前野鎮静化</p>
+                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                        <p class="font-black text-accent" style="font-size:var(--text-xl)"><?= $rgRate ?>%</p>
+                        <p class="text-token-xs text-muted">Research Grade</p>
                     </div>
-                    <div class="flex flex-col items-center text-center bg-white/70 rounded-xl border border-amber-200/50" style="padding:var(--phi-sm)">
-                        <span class="text-2xl mb-1">✨</span>
-                        <p class="text-xs font-black text-amber-700">Awe体験</p>
-                        <p class="text-[10px] text-muted">炎症マーカー↓<br>創造性50%↑</p>
+                    <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                        <p class="font-black" style="font-size:var(--text-xl);color:#2563eb"><?= number_format($totalUsers) ?></p>
+                        <p class="text-token-xs text-muted">参加者</p>
                     </div>
-                    <div class="flex flex-col items-center text-center bg-white/70 rounded-xl border border-rose-200/50" style="padding:var(--phi-sm)">
-                        <span class="text-2xl mb-1">👥</span>
-                        <p class="text-xs font-black text-rose-700">つながり</p>
-                        <p class="text-[10px] text-muted">孤独感↓<br>目的意識↑</p>
-                    </div>
-                </div>
-
-                <div class="text-center">
-                    <a href="guide/walking-brain-science.php" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-500 to-emerald-500 text-white font-bold text-sm shadow-lg hover:opacity-90 transition">
-                        <i data-lucide="brain" class="w-4 h-4"></i>
-                        科学的エビデンスを詳しく見る
-                    </a>
                 </div>
             </div>
         </section>

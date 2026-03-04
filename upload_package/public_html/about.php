@@ -240,37 +240,16 @@ Auth::init();
             <h2 class="text-2xl font-bold mb-4">チーム</h2>
             <p class="text-gray-400 mb-8">ikimonは、自然を愛する仲間と一緒に作っています</p>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <!-- Placeholder for team members -->
-                <div class="glass-card p-6 rounded-2xl border border-gray-200 text-center">
+            <div class="flex justify-center">
+                <div class="glass-card p-6 rounded-2xl border border-gray-200 text-center max-w-xs">
                     <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-gradient-to-br from-green-500/20 to-blue-500/20 flex items-center justify-center">
                         <i data-lucide="user" class="w-8 h-8 text-gray-500"></i>
                     </div>
-                    <p class="text-sm font-bold">創業者</p>
-                    <p class="text-xs text-gray-500">CEO</p>
-                </div>
-                <div class="glass-card p-6 rounded-2xl border border-gray-200 border-dashed text-center opacity-50">
-                    <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-                        <i data-lucide="user-plus" class="w-8 h-8 text-gray-600"></i>
-                    </div>
-                    <p class="text-sm font-bold text-gray-500">募集中</p>
-                    <p class="text-xs text-gray-600">エンジニア</p>
-                </div>
-                <div class="glass-card p-6 rounded-2xl border border-gray-200 border-dashed text-center opacity-50">
-                    <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-                        <i data-lucide="user-plus" class="w-8 h-8 text-gray-600"></i>
-                    </div>
-                    <p class="text-sm font-bold text-gray-500">募集中</p>
-                    <p class="text-xs text-gray-600">デザイナー</p>
-                </div>
-                <div class="glass-card p-6 rounded-2xl border border-white/10 border-dashed text-center opacity-50">
-                    <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-white/5 flex items-center justify-center">
-                        <i data-lucide="user-plus" class="w-8 h-8 text-gray-600"></i>
-                    </div>
-                    <p class="text-sm font-bold text-gray-500">募集中</p>
-                    <p class="text-xs text-gray-600">アドバイザー</p>
+                    <p class="text-sm font-bold">山﨑 大輝</p>
+                    <p class="text-xs text-gray-500">創業者 / CEO</p>
                 </div>
             </div>
+            <p class="text-sm text-gray-400 mt-6">仲間を募集しています。<a href="mailto:contact@ikimon.life" class="text-primary hover:underline">contact@ikimon.life</a></p>
         </div>
     </section>
 
