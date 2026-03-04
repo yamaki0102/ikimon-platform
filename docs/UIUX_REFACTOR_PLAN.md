@@ -324,35 +324,35 @@ $fieldwork = $stats['fieldwork'] ?? [];
 
 ## 実行順序チェックリスト
 
-### Phase 1（2〜3時間）✅ 最優先
-- [ ] 1-1. survey_panel.php の PHP Warning 修正
-- [ ] 1-2. ObserverRank.php の PHP Warning 修正
-- [ ] 1-3. profile.php の英語テキスト日本語化
-- [ ] 1-4. needs_id.php の「The Missing Matrix」→「未同定リスト」
-- [ ] 1-5. needs_id.php の「コックピット起動」→「同定ツールを開く」
-- [ ] 1-6. login.php の「Welcome to ikimon」→「ikimon へようこそ」
-- [ ] 1-7. ikimon_walk.php の「FIELD NOTE」ラベル日本語化
-- [ ] 1-8. nav.php の「The Missing Matrix」「IDセンター (同定)」を日本語化
-- [ ] 1-9. dashboard.php の英語ラベル日本語化（Phase 3-4の「選択肢B」）
-- [ ] 1-10. メタタイトルのフォーマット統一（5ファイル）
+### Phase 1（2〜3時間）✅ 完了（コミット: a100843）
+- [x] 1-1. survey_panel.php の PHP Warning 修正
+- [x] 1-2. ObserverRank.php の PHP Warning 修正
+- [x] 1-3. profile.php の英語テキスト日本語化
+- [x] 1-4. needs_id.php の「The Missing Matrix」→「未同定リスト」
+- [x] 1-5. needs_id.php の「コックピット起動」→「同定ツールを開く」
+- [x] 1-6. login.php の「Welcome to ikimon」→「ikimon へようこそ」
+- [x] 1-7. ikimon_walk.php の「FIELD NOTE」ラベル日本語化
+- [x] 1-8. nav.php の「The Missing Matrix」「IDセンター (同定)」を日本語化
+- [x] 1-9. dashboard.php の英語ラベル日本語化（Phase 3-4の「選択肢B」）
+- [x] 1-10. メタタイトルのフォーマット統一（5ファイル）
 
-### Phase 2（3〜4時間）
-- [ ] 2-1. nav.php の「ランキング」→「コンパス」
-- [ ] 2-2. post.php のXボタンを `history.back()` に変更 + ホームリンク追加
-- [ ] 2-3. for-business に「← ikimon一般サイトへ」リンク追加
-- [ ] 2-4. explore.php / events.php / profile.php にフッター追加
-- [ ] 2-5. events.php に空ステートメッセージ追加
-- [ ] 2-6. explore.php の「ストランドマップ」→「活動経路マップ」
+### Phase 2（3〜4時間）✅ 完了（コミット: 2c5597a）
+- [x] 2-1. nav.php の「ランキング」→「コンパス」
+- [x] 2-2. post.php のXボタンを `history.back()` に変更 + ホームリンク追加
+- [x] 2-3. for-business に「← ikimon一般サイトへ」リンク追加
+- [x] 2-4. explore.php / events.php / profile.php にフッター追加
+- [x] 2-5. events.php に空ステートメッセージ追加
+- [x] 2-6. explore.php の「ストランドマップ」→「活動経路マップ」
 
-### Phase 3（5〜8時間）
-- [ ] 3-1. bodyクラスの標準化（zukan, events, ikimon_walk）
-- [ ] 3-2. レイアウト幅の統一（events → max-w-5xl、wellness → max-w-5xl）
-- [ ] 3-3. Quick Nav アイコン配色の差別化
-- [ ] 3-4. post.php のダークモード強制を解除
-- [ ] 3-5. events.php のハードコードカラーをCSS変数化
-- [ ] 3-6. ikimon_walk.php のハードコードカラーをCSS変数化
-- [ ] 3-7. wellness.php のCDNバージョン固定
-- [ ] 3-8. dashboard.php のデザイン刷新（大規模・別途計画化推奨）
+### Phase 3（5〜8時間）✅ 主要完了（コミット: 2c5597a）
+- [x] 3-1. bodyクラスの標準化（zukan, events, ikimon_walk）
+- [x] 3-2. レイアウト幅の統一（events → max-w-5xl、wellness → max-w-5xl）
+- [ ] 3-3. Quick Nav アイコン配色の差別化 ← **次回対応**
+- [x] 3-4. post.php のダークモード強制を解除
+- [x] 3-5. events.php のハードコードカラーをCSS変数化
+- [x] 3-6. ikimon_walk.php のハードコードカラーをCSS変数化
+- [x] 3-7. wellness.php のCDNバージョン固定
+- [ ] 3-8. dashboard.php のデザイン刷新（大規模・別途計画化推奨）← **別セッションで実施**
 
 ---
 
@@ -361,20 +361,20 @@ $fieldwork = $stats['fieldwork'] ?? [];
 ```bash
 # 1. サーバーから最新コードを取得（Windowsのbashから）
 ssh production "cd ~/public_html/ikimon.life && zip -r /tmp/ikimon_full.zip libs/ lang/ config/ public_html/ -x 'public_html/uploads/photos/*'"
-scp production:/tmp/ikimon_full.zip /c/Users/user/Documents/ikimon_review/ikimon_full.zip
-cd /c/Users/user/Documents/ikimon_review && unzip -o ikimon_full.zip
+scp production:/tmp/ikimon_full.zip /c/Users/YAMAKI/Documents/ikimon_review/ikimon_full.zip
+cd /c/Users/YAMAKI/Documents/ikimon_review && unzip -o ikimon_full.zip
 
 # 2. データも取得（観察記録・ユーザーデータ）
 ssh production "zip -r /tmp/ikimon_data.zip ~/public_html/ikimon.life/data/ -x '*/cache/*' '*/rate_limit/*' '*/papers/*'"
-scp production:/tmp/ikimon_data.zip /c/Users/user/Documents/ikimon_review/ikimon_data.zip
-cd /c/Users/user/Documents/ikimon_review && unzip -o ikimon_data.zip
+scp production:/tmp/ikimon_data.zip /c/Users/YAMAKI/Documents/ikimon_review/ikimon_data.zip
+cd /c/Users/YAMAKI/Documents/ikimon_review && unzip -o ikimon_data.zip
 
 # 3. config.php をローカル用に変更（初回のみ）
 # session.cookie_secure = 0
 # display_errors = 1
 
 # 4. PHPサーバー起動
-php -S localhost:8899 -t /c/Users/user/Documents/ikimon_review/public_html
+php -S localhost:8899 -t /c/Users/YAMAKI/Documents/ikimon_review/public_html
 
 # 5. 管理者ログイン
 # http://localhost:8899/dev_admin_login.php にアクセス → 自動ログイン
@@ -400,3 +400,9 @@ php -S localhost:8899 -t /c/Users/user/Documents/ikimon_review/public_html
 - `public_html/dev_admin_login.php` — 本番環境に残っている（認証なしでadminログイン可能、要削除か保護）
 - `wellness.php` の「← 戻る」が `profile.php` 固定 → `history.back()` に変更推奨
 - `profile.php` のアバタークリックメニューがモバイルで気づきにくい（ホバー頼り）
+
+### モバイルUI課題（Phase 1〜3作業中に新規発見）
+
+- **ボトムナビのタップ領域が狭い** — アイコン+ラベルが小さくスマホでタップしにくい。各ナビアイテムの `min-height` を56px以上に設定
+- **fixed ヘッダーとコンテンツのオーバーラップ** — fixed ヘッダーがページ先頭コンテンツを隠す。`body` or 最初の `main` 要素に `pt-14`（ヘッダー高さ分）を付与
+- **日本語テキストの行間が詰まりすぎ** — 一部ページで読みにくい。`leading-relaxed`（1.625）を基本に統一

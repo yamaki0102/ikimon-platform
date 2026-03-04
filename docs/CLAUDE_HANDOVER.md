@@ -24,35 +24,56 @@
 2. **修正計画を作成してGitHubにプッシュ済み**
    - 詳細計画: `docs/UIUX_REFACTOR_PLAN.md`（このファイルと同じフォルダ）
 
+3. **Phase 1〜3 の UI/UX 修正を完了・本番デプロイ済み（2026-03-04）**
+   - **Phase 1（コミット: a100843）:** 英語テキスト日本語化 + PHP Warning 修正
+     - profile.php, needs_id.php, login.php, ikimon_walk.php, nav.php, dashboard.php の日本語化
+     - survey_panel.php / ObserverRank.php のPHP Warning修正
+     - メタタイトル統一（post.php, wellness.php, dashboard.php, compass.php, ikimon_walk.php）
+   - **Phase 2 + 3（コミット: 2c5597a）:** ナビ・構造・デザイン改善（20ファイル変更）
+     - nav.php 「ランキング」→「コンパス」
+     - post.php のXボタン → `history.back()` + ホームリンク
+     - for-business に一般サイト戻りリンク追加
+     - explore.php / events.php / profile.php にフッター追加
+     - events.php に空ステートメッセージ追加
+     - explore.php 「ストランドマップ」→「活動経路マップ」
+     - bodyクラス・レイアウト幅の標準化（zukan, events, ikimon_walk）
+     - ダークモード対応修正（post.php, events.php, ikimon_walk.php）
+     - wellness.php の CDN バージョン固定（@latest 解消）
+
 ## 今日やってほしいこと
 
-**`docs/UIUX_REFACTOR_PLAN.md` を読んで、Phase 1から順番に修正を実施してほしい。**
+**`docs/UIUX_REFACTOR_PLAN.md` で未完了の項目と、新たに発見されたモバイルUI課題を対応してほしい。**
 
-優先度が高い順に：
+### 優先度: 🔴 セキュリティ
+1. `public_html/dev_admin_login.php` — 本番環境に認証なしadminログインが残存
+   - 最低限: IP制限 or Basic認証でアクセス制御
+   - 理想: ファイル削除 or ステージング環境のみ有効化
+2. `@latest` CDN が残り3ファイルに存在（wellness.phpは対応済み）
+   - 対象: `explore.php`, `events.php`, `compass.php` など（ソースで `@latest` を検索）
+   - 全て特定バージョンに固定する（lucide@0.477.0, alpinejs@3.14.9）
 
-### Phase 1（まずここから）
-1. `public_html/components/survey_panel.php` line 7 の PHP Warning 修正
-2. `libs/ObserverRank.php` line 99-104 の PHP Warning 修正
-3. `public_html/profile.php` の英語テキスト日本語化（Observer Rank Score, ORS）
-4. `public_html/needs_id.php` の「The Missing Matrix」→「未同定リスト」、「コックピット起動」→「同定ツールを開く」
-5. `public_html/login.php` の「Welcome to ikimon」→「ikimon へようこそ」
-6. `public_html/ikimon_walk.php` の「FIELD NOTE」ラベル日本語化
-7. `public_html/components/nav.php` の「The Missing Matrix」「IDセンター (同定)」を日本語化
-8. `public_html/dashboard.php` の英語ラベルを日本語化（INSECTA→昆虫、AVES→鳥類、SCOPE→さがす、等）
-9. メタタイトルのフォーマットを `{ページ名} | ikimon` に統一
+### 優先度: 🟠 品質
+3. **Quick Navアイコン配色の差別化（3-3）** — `public_html/index.php`
+   - 詳細は `UIUX_REFACTOR_PLAN.md` の 3-3 セクション参照
+4. **メタタイトル残り統一** — `UIUX_REFACTOR_PLAN.md` で未対応のファイルを確認して修正
 
-### Phase 2（余裕があれば）
-- nav.phpの「ランキング」→「コンパス」
-- post.phpのXボタンを `history.back()` に変更
-- for-businessにメインサイトへの戻りリンク追加
-- events.phpに空ステートメッセージ追加
-- explore.phpの「ストランドマップ」→「活動経路マップ」
+### 優先度: 🟡 モバイルUI（新規発見）
+5. **ボトムナビのタップ領域** — アイコン+ラベルが小さくタップしにくい
+   - 各ナビアイテムの min-height を 56px 以上に設定
+6. **ヘッダーオーバーラップ** — fixed ヘッダーがコンテンツの先頭を隠す
+   - `body` または最初の main 要素に `pt-14`（ヘッダー高さ分）を付与
+7. **行間修正** — 一部ページで日本語テキストの行間が詰まりすぎ
+   - `leading-relaxed`（1.625）を基本に統一
+
+### 優先度: ⚪ 大規模（別途計画推奨）
+8. **dashboard.php 刷新（3-8）** — SFゲームHUD風デザインを ikimon 標準に全面刷新
+   - 工数が大きいため、別セッションで計画を立ててから実施推奨
+   - 方針は `UIUX_REFACTOR_PLAN.md` の 3-4「選択肢A」参照
 
 ## ローカル開発環境
 
-前回ダウンロードしたコードがすでにある：
 ```
-C:\Users\user\Documents\ikimon_review\
+C:\Users\YAMAKI\Documents\ikimon_review\
 ├── public_html/   ← Webルート
 ├── libs/
 ├── lang/
@@ -60,13 +81,13 @@ C:\Users\user\Documents\ikimon_review\
 └── data/
 ```
 
-PHPサーバー起動（ポート8899がすでに動いているかもしれない）：
+PHPサーバー起動（ポート8899）：
 ```bash
 # すでに起動中か確認
 curl -s -o /dev/null -w "%{http_code}" http://localhost:8899/
 
 # 起動していなければ
-php -S localhost:8899 -t /c/Users/user/Documents/ikimon_review/public_html
+php -S localhost:8899 -t /c/Users/YAMAKI/Documents/ikimon_review/public_html
 ```
 
 管理者ログイン：
@@ -82,7 +103,7 @@ http://localhost:8899/dev_admin_login.php
 2. ブラウザで http://localhost:8899/ を確認
    ↓
 3. 問題なければ、修正ファイルをGitHubのikimon-platformリポジトリにコピーしてpush
-   （temp cloneで）
+   （/tmp/ikimon-platform-push で作業）
    ↓
 4. /snapshot ワークフローで本番デプロイ
 ```
@@ -92,7 +113,7 @@ http://localhost:8899/dev_admin_login.php
 - **サーバーの真のWebルートは `~/public_html/ikimon.life/public_html/`**（二重構造）
 - **SiteManager は全メソッドstatic** → `new SiteManager()` は誤り
 - **DataStore::getAll() は存在しない** → `fetchAll($resource)` を使う
-- `public_html/dev_admin_login.php` は本番に存在する（認証なし管理者ログイン）→ 将来的に保護が必要
+- `public_html/dev_admin_login.php` は本番に存在する（認証なし管理者ログイン）→ **要対応**
 
 ## SSH接続情報
 
