@@ -24,6 +24,7 @@ Auth::init();
         document.body.classList.remove('js-loading');
     </script>
 
+    <main>
     <!-- Hero Section -->
     <section class="pt-32 pb-16 px-6">
         <div class="max-w-4xl mx-auto text-center">
@@ -275,6 +276,8 @@ Auth::init();
 
     <!-- Footer -->
     <?php include __DIR__ . '/components/footer.php'; ?>
+
+    </main>
 
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();

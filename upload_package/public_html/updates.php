@@ -19,6 +19,7 @@ Auth::init();
         document.body.classList.remove('js-loading');
     </script>
 
+    <main>
     <section class="pt-32 pb-16 px-6">
         <div class="max-w-3xl mx-auto">
             <h1 class="text-3xl font-black mb-4">アップデート履歴</h1>
@@ -126,6 +127,8 @@ Auth::init();
 
         </div>
     </section>
+
+    </main>
 
     <?php include __DIR__ . '/components/footer.php'; ?>
 
