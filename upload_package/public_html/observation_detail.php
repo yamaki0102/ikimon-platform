@@ -171,7 +171,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             });
             const data = await res.json();
             if (data.success) {
-                window.location.reload();
+                window.location.href = window.location.pathname + window.location.search + '&_t=' + Date.now();
             } else {
                 alert('エラーが発生しました: ' + (data.message || 'Unknown error'));
             }
@@ -186,17 +186,32 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <!-- Main Content -->
     <main class="pt-24 pb-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        <!-- Breadcrumb & Status Header -->
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <!-- Breadcrumb & Stats Header -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div class="flex items-center gap-2 text-sm text-muted">
-                <a href="index.php" class="hover:text-primary transition">ホーム</a>
-                <span>&rsaquo;</span>
-                <span>観察詳細</span>
+                <a href="index.php" class="hover:text-primary transition flex items-center gap-1">
+                    <i data-lucide="home" class="w-3.5 h-3.5"></i>
+                    ホーム
+                </a>
+                <span class="text-faint">/</span>
+                <span class="text-text font-medium">観察詳細</span>
             </div>
-            <!-- Status Badge -->
-            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border <?php echo $statusColor; ?>">
-                <span class="w-2 h-2 rounded-full bg-current animate-pulse"></span>
-                <?php echo htmlspecialchars($status); ?>
+            <div class="flex items-center gap-2 flex-wrap">
+                <!-- View count -->
+                <span class="flex items-center gap-1 text-xs text-muted">
+                    <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                    <?php echo (int)($obs['views'] ?? 0); ?>
+                </span>
+                <!-- ID count -->
+                <span class="flex items-center gap-1 text-xs text-muted">
+                    <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                    <?php echo count($obs['identifications'] ?? []); ?>
+                </span>
+                <!-- Status Badge -->
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border <?php echo $statusColor; ?>">
+                    <span class="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+                    <?php echo htmlspecialchars($status); ?>
+                </div>
             </div>
         </div>
 
@@ -264,18 +279,24 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <?php endif; ?>
 
                 <!-- Owner Narrative -->
-                <div class="flex items-start gap-4 mt-6 px-2">
-                    <img src="<?php echo $obs['user_avatar'] ?? 'https://i.pravatar.cc/150?u=' . $obs['user_id']; ?>"
-                        class="w-12 h-12 rounded-full border-2 border-border shadow-lg">
-                    <div class="flex-1">
-                        <?php $observerName = $obs['user_display_name'] ?? $obs['user_name'] ?? $obs['user']['display_name'] ?? $obs['user']['name'] ?? BioUtils::getUserName($obs['user_id']); ?>
-                        <div class="text-sm font-bold text-text mb-1"><?php echo htmlspecialchars($observerName); ?></div>
-                        <div class="relative bg-surface border border-border rounded-2xl rounded-tl-sm p-4 shadow-sm">
-                            <p class="text-sm text-text leading-relaxed">
-                                <?php echo !empty($obs['note']) ? BioUtils::renderMarkdown($obs['note']) : '<span class="text-muted italic">メモなし</span>'; ?>
-                            </p>
+                <?php $observerName = $obs['user_display_name'] ?? $obs['user_name'] ?? $obs['user']['display_name'] ?? $obs['user']['name'] ?? BioUtils::getUserName($obs['user_id']); ?>
+                <div class="mt-4 bg-surface rounded-2xl border border-border p-4 shadow-sm">
+                    <div class="flex items-center gap-3 mb-3">
+                        <img src="<?php echo htmlspecialchars($obs['user_avatar'] ?? 'https://i.pravatar.cc/150?u=' . $obs['user_id']); ?>"
+                            class="w-10 h-10 rounded-full border-2 border-border shadow-sm object-cover flex-shrink-0">
+                        <div>
+                            <div class="text-sm font-bold text-text leading-none"><?php echo htmlspecialchars($observerName); ?></div>
+                            <div class="text-token-xs text-muted mt-0.5">
+                                <?php echo date('Y年m月d日', strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now')); ?>
+                                <?php if (!empty($obs['location']['name'])): ?>
+                                    · <?php echo htmlspecialchars($obs['location']['name']); ?>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
+                    <p class="text-sm text-text leading-relaxed">
+                        <?php echo !empty($obs['note']) ? BioUtils::renderMarkdown($obs['note']) : '<span class="text-muted italic">観察メモなし</span>'; ?>
+                    </p>
                 </div>
 
                 <!-- License -->
@@ -431,95 +452,46 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         </div>
                     </div>
 
-                    <!-- Consensus Progress (WE-Consensus) -->
-                    <?php if (isset($obs['consensus'])): ?>
-                        <div class="mb-6 bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-border/50">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-2">
-                                    <i data-lucide="activity" class="w-4 h-4 text-primary"></i>
-                                    <span class="text-xs font-bold text-muted uppercase tracking-wider">信頼性スコア (WE-Consensus)</span>
+                    <!-- Consensus Display (Simplified) -->
+                    <?php $idCount = count($obs['identifications'] ?? []); ?>
+                    <?php if ($idCount > 0): ?>
+                        <?php $agreementRate = round(($obs['consensus']['agreement_rate'] ?? 0) * 100); ?>
+                        <div class="mb-6 flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
+                            <span class="text-2xl flex-shrink-0">
+                                <?php echo $obs['status'] === '研究用' ? '🏆' : '🔍'; ?>
+                            </span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-bold text-text">
+                                    <?php echo $idCount; ?>人が識別に参加
+                                    <?php if ($species_name && $agreementRate >= 60): ?>
+                                        · <?php echo $agreementRate; ?>% 一致
+                                    <?php endif; ?>
                                 </div>
-                                <span class="text-xs font-mono text-primary font-bold">
-                                    <span class="text-lg"><?php echo number_format($obs['consensus']['total_score'] ?? 0, 1); ?></span> / 2.0
-                                </span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700 overflow-hidden relative shadow-inner">
-                                <div class="bg-gradient-to-r from-primary/70 to-primary h-full rounded-full transition-all duration-1000 relative" style="width: <?php echo min(100, (($obs['consensus']['total_score'] ?? 0) / 2.0) * 100); ?>%">
-                                    <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
+                                <div class="text-xs text-muted mt-0.5">
+                                    <?php if ($obs['status'] === '研究用'): ?>
+                                        コミュニティの合意が得られた記録です
+                                    <?php else: ?>
+                                        みんなの意見を聞いて、種名を特定しよう
+                                    <?php endif; ?>
                                 </div>
-                                <!-- Threshold Marker -->
-                                <div class="absolute top-0 bottom-0 w-0.5 bg-red-500/50 left-[100%] z-10" style="left: calc(100% * (2.0 / 3.0))"></div>
                             </div>
-                            <div class="flex justify-between text-token-xs text-muted mt-1.5 font-mono">
-                                <span>Needs ID</span>
-                                <span>Research Grade (Guardian=2.0)</span>
-                            </div>
-
-                            <!-- DQA Chips -->
-                            <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/50">
-                                <span class="px-2 py-1 rounded bg-surface border border-border text-token-xs text-muted font-bold flex items-center gap-1.5">
-                                    <i data-lucide="thumbs-up" class="w-3 h-3 text-primary"></i>
-                                    同意率: <?php echo round(($obs['consensus']['agreement_rate'] ?? 0) * 100); ?>%
-                                </span>
-                                <?php if (BioUtils::isVerifiable($obs)): ?>
-                                    <span class="px-2 py-1 rounded bg-green-500/10 border border-green-500/20 text-token-xs text-green-600 font-bold flex items-center gap-1.5">
-                                        <i data-lucide="check-circle-2" class="w-3 h-3"></i>
-                                        検証可能 (Verifiable)
-                                    </span>
-                                <?php else: ?>
-                                    <span class="px-2 py-1 rounded bg-orange-500/10 border border-orange-500/20 text-token-xs text-orange-600 font-bold flex items-center gap-1.5">
-                                        <i data-lucide="alert-circle" class="w-3 h-3"></i>
-                                        検証不足 (Casual)
-                                    </span>
-                                <?php endif; ?>
-                                <?php
-                                $dqGrade = DataQuality::calculate($obs);
-                                $dqInfo = DataQuality::getGradeInfo($dqGrade);
-                                ?>
-                                <span class="px-2 py-1 rounded <?php echo $dqInfo['bg']; ?> border <?php echo $dqInfo['border']; ?> text-token-xs <?php echo $dqInfo['color']; ?> font-bold flex items-center gap-1.5">
-                                    <i data-lucide="<?php echo $dqInfo['icon']; ?>" class="w-3 h-3"></i>
-                                    Grade <?php echo $dqGrade; ?>: <?php echo $dqInfo['label']; ?>
-                                </span>
-                            </div>
-
-                            <!-- Improvement Hints -->
-                            <?php $hints = DataQuality::getImprovementHints($obs); ?>
-                            <?php if (!empty($hints)): ?>
-                                <div class="mt-3 pt-3 border-t border-border/50 space-y-1.5">
-                                    <?php foreach ($hints as $hint): ?>
-                                        <div class="flex items-center gap-2 text-token-xs text-muted">
-                                            <i data-lucide="<?php echo $hint['icon']; ?>" class="w-3 h-3 text-primary shrink-0"></i>
-                                            <span><?php echo $hint['text']; ?></span>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
+                            <span class="flex-shrink-0 <?php echo $obs['status'] === '研究用' ? 'text-green-600 bg-green-500/10 border-green-500/20' : 'text-orange-500 bg-orange-500/10 border-orange-500/20'; ?> text-token-xs font-bold px-2 py-1 rounded-full border">
+                                <?php echo htmlspecialchars($obs['status']); ?>
+                            </span>
                         </div>
                     <?php endif; ?>
 
-                    <!-- Data Quality Badge (Outside Consensus) -->
-                    <?php if (!isset($obs['consensus'])): ?>
-                        <?php
-                        $dqGrade = DataQuality::calculate($obs);
-                        $dqInfo = DataQuality::getGradeInfo($dqGrade);
-                        $hints = DataQuality::getImprovementHints($obs);
-                        ?>
-                        <div class="mb-6 <?php echo $dqInfo['bg']; ?> rounded-xl p-4 border <?php echo $dqInfo['border']; ?>">
-                            <div class="flex items-center gap-2">
-                                <i data-lucide="<?php echo $dqInfo['icon']; ?>" class="w-4 h-4 <?php echo $dqInfo['color']; ?>"></i>
-                                <span class="text-xs font-bold <?php echo $dqInfo['color']; ?>">データ品質: Grade <?php echo $dqGrade; ?> — <?php echo $dqInfo['label']; ?></span>
+                    <!-- Status badge when no consensus yet (unidentified) -->
+                    <?php if (!isset($obs['consensus']) || empty($obs['identifications'])): ?>
+                        <div class="mb-6 flex items-center gap-3 p-3 rounded-xl bg-orange-500/5 border border-orange-500/15">
+                            <span class="text-2xl flex-shrink-0">🔍</span>
+                            <div>
+                                <div class="text-sm font-bold text-text">種名を特定中</div>
+                                <div class="text-xs text-muted mt-0.5">あなたも名前の推測を投稿してみよう！</div>
                             </div>
-                            <p class="text-token-xs text-muted mt-1"><?php echo $dqInfo['description']; ?></p>
-                            <?php if (!empty($hints)): ?>
-                                <div class="mt-2 pt-2 border-t border-border/30 space-y-1">
-                                    <?php foreach ($hints as $hint): ?>
-                                        <div class="flex items-center gap-2 text-token-xs text-muted">
-                                            <i data-lucide="<?php echo $hint['icon']; ?>" class="w-3 h-3 text-primary shrink-0"></i>
-                                            <span><?php echo $hint['text']; ?></span>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
+                            <span class="ml-auto flex-shrink-0 text-orange-500 bg-orange-500/10 border-orange-500/20 text-token-xs font-bold px-2 py-1 rounded-full border">
+                                未同定
+                            </span>
                         </div>
                     <?php endif; ?>
 
@@ -576,52 +548,53 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         </div>
                     <?php endif; ?>
 
-                    <!-- Primary Action (Gentle Nudge) -->
-                    <div class="mt-6">
-                        <!-- Gentle Invitation -->
-                        <div class="bg-gradient-to-b from-primary/20 to-transparent p-4 rounded-xl border border-primary/30">
-                            <div class="flex items-center gap-3 mb-2">
-                                <div class="p-2 rounded-full bg-primary/20 text-primary-light">
-                                    <i data-lucide="users" class="w-5 h-5"></i>
-                                </div>
-                                <div class="font-bold text-primary-dark text-sm">この生き物、なんだろう？</div>
-                            </div>
-                            <p class="text-xs text-muted mb-4 pl-1">
-                                「色だけわかる」「鳥だと思う」といったヒントでも投稿者の助けになります。
-                            </p>
-                            <div class="flex gap-2">
-                                <button @click="idModalOpen = true" class="flex-1 py-3.5 rounded-xl bg-primary-dark hover:bg-primary text-white font-bold text-sm tracking-wide shadow-lg shadow-primary-glow/20 transition flex items-center justify-center gap-2 border border-primary/30 group">
-                                    <span class="text-lg">🤔</span>
-                                    <span class="group-hover:underline decoration-white/50 underline-offset-4">一緒に考える</span>
-                                </button>
-                                <?php if (!$species_name): ?>
-                                    <a href="id_wizard.php?from_observation=<?php echo urlencode($id); ?>" class="py-3.5 px-4 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary font-bold text-sm transition flex items-center justify-center gap-2 border border-secondary/20">
-                                        <i data-lucide="compass" class="w-4 h-4"></i>
-                                        <span>ウィザードで調べる</span>
-                                    </a>
-                                <?php endif; ?>
-                            </div>
-                        </div>
+                    <!-- Primary Action CTA -->
+                    <div class="mt-6 flex gap-2">
+                        <button @click="idModalOpen = true"
+                            class="flex-1 py-3 rounded-xl bg-primary-dark hover:bg-primary text-white font-bold text-sm shadow-lg shadow-primary-glow/20 transition flex items-center justify-center gap-2 active:scale-[0.98]">
+                            <span class="text-base">🤔</span>
+                            名前を提案する
+                        </button>
+                        <?php if (!$species_name): ?>
+                            <a href="id_wizard.php?from_observation=<?php echo urlencode($id); ?>"
+                                class="py-3 px-4 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary font-bold text-sm transition flex items-center justify-center gap-2 border border-secondary/20 active:scale-[0.98]">
+                                <i data-lucide="compass" class="w-4 h-4"></i>
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
 
                 <!-- 2. Activity / Identification List -->
                 <div class="space-y-4">
-                    <div class="flex items-center justify-between border-b border-border pb-4">
-                        <h3 class="font-bold text-lg text-text flex items-center gap-2">
-                            <i data-lucide="book-open" class="w-5 h-5 text-muted"></i>
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-black text-base text-text flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                                <i data-lucide="users" class="w-4 h-4 text-primary"></i>
+                            </span>
                             みんなの推測ノート
+                            <?php if (count($obs['identifications'] ?? []) > 0): ?>
+                                <span class="text-token-xs bg-primary/15 text-primary font-bold px-2 py-0.5 rounded-full"><?php echo count($obs['identifications']); ?></span>
+                            <?php endif; ?>
                         </h3>
-                        <span class="text-xs text-muted font-mono"><?php echo count($obs['identifications'] ?? []); ?> posts</span>
+                        <button @click="idModalOpen = true"
+                            class="flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition border border-primary/20 active:scale-95">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            投稿する
+                        </button>
                     </div>
 
-                    <!-- Timeline Loop -->
-                    <div id="id-list-container" class="space-y-6 pl-2">
+                    <!-- Cards -->
+                    <div id="id-list-container" class="space-y-3">
                         <?php if (empty($obs['identifications'])): ?>
-                            <div class="text-center py-8">
-                                <div class="text-3xl mb-3">🌱</div>
-                                <p class="text-sm font-bold text-muted mb-1">まだ推測コメントはありません</p>
-                                <p class="text-xs text-faint">知っていることを気軽に書いてみよう。<br>小さなヒントも投稿者の助けになるよ！</p>
+                            <div class="text-center py-12 bg-surface rounded-2xl border border-border border-dashed">
+                                <div class="text-5xl mb-4">🌱</div>
+                                <p class="text-sm font-bold text-text mb-1">まだ推測コメントはありません</p>
+                                <p class="text-xs text-muted mb-4">知っていることを気軽に書いてみよう。<br>小さなヒントも投稿者の助けになるよ！</p>
+                                <button @click="idModalOpen = true"
+                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition border border-primary/20">
+                                    <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                                    名前を提案してみる
+                                </button>
                             </div>
                         <?php else: ?>
                             <?php foreach (array_reverse($obs['identifications']) as $ident): ?>
@@ -633,134 +606,116 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 $trustLevel = TrustLevel::calculate($userId);
                                 $rankInfo = TrustLevel::getRankInfo($trustLevel);
                                 ?>
-                                <!-- Item -->
-                                <div class="relative pl-6 border-l border-border pb-2"
+                                <!-- Identification Card (Social Feed Style) -->
+                                <div class="bg-surface rounded-2xl border border-border p-4 shadow-sm hover:shadow-md transition-shadow"
                                     x-data="inlineTaxonSelector('<?php echo htmlspecialchars($id); ?>')">
-                                    <!-- Dot -->
-                                    <div class="absolute -left-1.5 top-0 w-3 h-3 rounded-full bg-surface border-2 border-border"></div>
 
-                                    <!-- Header -->
-                                    <div class="flex items-start justify-between mb-2">
-                                        <div class="flex items-center gap-2">
-                                            <img src="<?php echo $ident['user_avatar'] ?? 'https://i.pravatar.cc/100?u=' . $ident['user_id']; ?>" class="w-8 h-8 rounded-full border border-border">
-                                            <div>
-                                                <div class="text-sm font-bold text-text leading-none flex items-center gap-1.5">
-                                                    <?php echo htmlspecialchars($ident['user_name'] ?? 'Unknown'); ?>
-
-                                                    <!-- Rank Badge -->
-                                                    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-token-xs font-bold border <?php echo $rankInfo['bg'] . ' ' . $rankInfo['color'] . ' ' . $rankInfo['border']; ?>">
-                                                        <span><?php echo $rankInfo['icon']; ?></span>
-                                                        <span><?php echo $rankInfo['name']; ?></span>
-                                                    </span>
-
-                                                    <?php if ($isMyId): ?>
-                                                        <span class="text-token-xs bg-primary/20 text-primary px-1.5 rounded ml-1">YOU</span>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <div class="text-token-xs text-muted mt-0.5">
-                                                    <?php echo BioUtils::timeAgo($ident['created_at']); ?>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- ID Chip -->
-                                        <div class="text-right">
-                                            <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-primary/10 border border-primary-glow hover:bg-primary/20 transition cursor-pointer">
-                                                <i data-lucide="tag" class="w-3 h-3 text-primary"></i>
-                                                <span class="text-xs font-bold text-primary"><?php echo htmlspecialchars($ident['taxon_name']); ?></span>
-                                            </div>
-                                            <div class="flex items-center gap-1.5">
-                                                <div class="text-token-xs text-muted italic font-mono mt-0.5"><?php echo htmlspecialchars($ident['scientific_name']); ?></div>
-                                                <?php if (!empty($ident['life_stage']) && $ident['life_stage'] !== 'unknown'): ?>
-                                                    <span class="text-token-xs px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-muted font-bold">
-                                                        <?php
-                                                        $lsMap = ['adult' => '成体', 'juvenile' => '幼体', 'egg' => '卵等', 'trace' => '痕跡'];
-                                                        echo htmlspecialchars($lsMap[$ident['life_stage']] ?? $ident['life_stage']);
-                                                        ?>
-                                                    </span>
+                                    <!-- Card Header: Avatar + User Info + Species Badge -->
+                                    <div class="flex items-start gap-3">
+                                        <img src="<?php echo htmlspecialchars($ident['user_avatar'] ?? 'https://i.pravatar.cc/100?u=' . $ident['user_id']); ?>"
+                                            class="w-10 h-10 rounded-full border-2 border-border shadow-sm flex-shrink-0 object-cover"
+                                            loading="lazy">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                <span class="text-sm font-bold text-text"><?php echo htmlspecialchars($ident['user_name'] ?? 'Unknown'); ?></span>
+                                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-token-xs font-bold border <?php echo $rankInfo['bg'] . ' ' . $rankInfo['color'] . ' ' . $rankInfo['border']; ?>">
+                                                    <span><?php echo $rankInfo['icon']; ?></span>
+                                                    <span><?php echo $rankInfo['name']; ?></span>
+                                                </span>
+                                                <?php if ($isMyId): ?>
+                                                    <span class="text-token-xs bg-primary/20 text-primary-light px-2 py-0.5 rounded-full font-bold">あなた</span>
                                                 <?php endif; ?>
                                             </div>
+                                            <div class="text-token-xs text-muted mt-0.5"><?php echo BioUtils::timeAgo($ident['created_at']); ?></div>
                                         </div>
                                     </div>
 
-                                    <!-- Comment Body (Standardized & Collapsible) -->
+                                    <!-- Species Identification Badge (Hero) -->
+                                    <div class="mt-3 flex items-start gap-3 p-3 rounded-xl bg-primary/5 border border-primary/15">
+                                        <i data-lucide="tag" class="w-4 h-4 text-primary mt-0.5 flex-shrink-0"></i>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-base font-black text-primary-dark leading-tight"><?php echo htmlspecialchars($ident['taxon_name']); ?></div>
+                                            <?php if (!empty($ident['scientific_name'])): ?>
+                                                <div class="text-xs text-muted italic font-mono mt-0.5"><?php echo htmlspecialchars($ident['scientific_name']); ?></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($ident['life_stage']) && $ident['life_stage'] !== 'unknown'): ?>
+                                                <?php $lsMap = ['adult' => '成体', 'juvenile' => '幼体', 'egg' => '卵等', 'trace' => '痕跡']; ?>
+                                                <span class="inline-block mt-1 text-token-xs px-2 py-0.5 rounded-full bg-surface border border-border text-muted font-bold">
+                                                    <?php echo htmlspecialchars($lsMap[$ident['life_stage']] ?? $ident['life_stage']); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+
+                                    <!-- Note (Comment Body) -->
                                     <?php if (!empty($ident['note'])): ?>
-                                        <?php
-                                        // Use strlen (bytes) because mb_strlen might be missing
-                                        // 450 bytes ~= 150 Japanese chars (3 bytes each)
-                                        $isLong = strlen($ident['note']) > 450;
-                                        ?>
-                                        <div class="mt-3 text-sm text-text bg-surface border border-gray-100 rounded-lg p-3 leading-relaxed"
-                                            x-data="{ expanded: false }">
-                                            <div :class="expanded ? '' : '<?php echo $isLong ? 'line-clamp-4' : ''; ?>'">
+                                        <?php $isLong = strlen($ident['note']) > 450; ?>
+                                        <div class="mt-3" x-data="{ expanded: false }">
+                                            <div class="text-sm text-text leading-relaxed bg-elevated rounded-xl px-4 py-3 border border-border/50"
+                                                :class="expanded ? '' : '<?php echo $isLong ? 'line-clamp-4' : ''; ?>'">
                                                 <?php echo BioUtils::renderMarkdown($ident['note']); ?>
                                             </div>
                                             <?php if ($isLong): ?>
-                                                <button @click="expanded = true" x-show="!expanded" class="text-xs font-bold text-primary-light mt-2 hover:underline">
+                                                <button @click="expanded = true" x-show="!expanded"
+                                                    class="text-xs font-bold text-primary mt-1.5 ml-1 hover:underline">
                                                     もっと見る
                                                 </button>
                                             <?php endif; ?>
                                         </div>
                                     <?php endif; ?>
 
-                                    <!-- Footer Actions (Gentle) -->
-                                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 pl-1">
+                                    <!-- Footer Actions -->
+                                    <div class="flex items-center gap-1 mt-3 pt-3 border-t border-border/50">
                                         <?php if (!$isMyId): ?>
                                             <button @click="
-                                                agreeTarget = { 
-                                                    name: '<?php echo htmlspecialchars($ident['taxon_name']); ?>', 
-                                                    key: '<?php echo htmlspecialchars($ident['taxon_key'] ?? ''); ?>',
-                                                    slug: '<?php echo htmlspecialchars($ident['taxon_slug'] ?? ''); ?>',
-                                                    sci: '<?php echo htmlspecialchars($ident['scientific_name'] ?? ''); ?>'
-                                                }; 
+                                                agreeTarget = {
+                                                    name: '<?php echo htmlspecialchars($ident['taxon_name'], ENT_QUOTES); ?>',
+                                                    key: '<?php echo htmlspecialchars($ident['taxon_key'] ?? '', ENT_QUOTES); ?>',
+                                                    slug: '<?php echo htmlspecialchars($ident['taxon_slug'] ?? '', ENT_QUOTES); ?>',
+                                                    sci: '<?php echo htmlspecialchars($ident['scientific_name'] ?? '', ENT_QUOTES); ?>'
+                                                };
                                                 agreeModalOpen = true;"
-                                                class="flex items-center gap-1.5 text-xs font-bold text-muted hover:text-primary transition bg-surface px-3 py-1.5 rounded-full hover:bg-primary-surface border border-transparent hover:border-primary/20">
+                                                class="flex items-center gap-1.5 text-xs font-bold text-muted hover:text-primary transition px-3 py-1.5 rounded-full hover:bg-primary/10 border border-transparent hover:border-primary/20 active:scale-95">
                                                 <i data-lucide="sprout" class="w-3.5 h-3.5"></i>
-                                                <span>そうかも！ (Agree)</span>
+                                                <span>そうかも！</span>
                                             </button>
-
-                                            <!-- Structured One-Click Proposal Trigger -->
-                                            <button @click="inlineDispute = !inlineDispute; if(inlineDispute) $nextTick(() => $refs.disputeInput.focus())"
-                                                class="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-danger transition px-2 py-1.5 rounded-full hover:bg-danger/10 border border-transparent">
+                                            <button @click="inlineDispute = !inlineDispute; if(inlineDispute) $nextTick(() => $refs.disputeInput && $refs.disputeInput.focus())"
+                                                class="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-danger transition px-3 py-1.5 rounded-full hover:bg-danger/10 border border-transparent active:scale-95">
                                                 <i data-lucide="git-merge" class="w-3.5 h-3.5"></i>
-                                                <span>違うかも (Propose)</span>
+                                                <span>違うかも</span>
                                             </button>
                                         <?php endif; ?>
-                                        <button class="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-secondary transition px-2 py-1.5">
-                                            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
-                                            <span>返信</span>
-                                        </button>
                                     </div>
 
-                                    <!-- Inline Dispute UI (Structured Proposal) -->
+                                    <!-- Inline Dispute Form -->
                                     <div x-show="inlineDispute" x-collapse x-cloak>
-                                        <div class="mt-3 p-3 bg-danger/5 border border-danger/20 rounded-xl shadow-sm relative">
+                                        <div class="mt-3 p-3 bg-danger/5 border border-danger/20 rounded-xl relative">
+                                            <p class="text-token-xs text-danger font-bold mb-2 flex items-center gap-1">
+                                                <i data-lucide="git-merge" class="w-3 h-3"></i>
+                                                別の分類を提案する
+                                            </p>
                                             <div class="flex items-center gap-2">
-                                                <input type="text" x-ref="disputeInput" x-model="taxonQuery" @input.debounce.300ms="search()" @keydown.escape="inlineDispute = false"
-                                                    class="flex-1 bg-surface border border-border rounded-lg p-2.5 text-sm text-text focus:outline-none focus:border-danger placeholder-muted"
-                                                    placeholder="正しい分類群（タクソン）を検索..." autocomplete="off">
+                                                <input type="text" x-ref="disputeInput" x-model="taxonQuery"
+                                                    @input.debounce.300ms="search()"
+                                                    @keydown.escape="inlineDispute = false"
+                                                    class="flex-1 bg-surface border border-border rounded-lg p-2.5 text-sm text-text focus:outline-none focus:border-danger"
+                                                    placeholder="種名を検索..." autocomplete="off">
                                                 <button @click="submitDispute()" :disabled="!taxonSlug || submitting"
-                                                    class="px-4 py-2 bg-danger hover:bg-danger/90 text-white text-sm font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                                    class="px-4 py-2 bg-danger text-white text-sm font-bold rounded-lg transition disabled:opacity-40 hover:bg-danger/90 active:scale-95">
                                                     <span x-text="submitting ? '送信中...' : '提案'"></span>
                                                 </button>
                                             </div>
-                                            <!-- Suggestions -->
                                             <div x-show="showSugg && suggestions.length > 0" x-transition @click.away="showSugg = false"
-                                                class="absolute left-3 right-20 top-[4.5rem] mt-1 bg-surface border border-border rounded-xl overflow-hidden z-[60] shadow-xl max-h-48 overflow-y-auto">
+                                                class="absolute left-3 right-3 top-[6.5rem] bg-surface border border-border rounded-xl overflow-hidden z-[60] shadow-xl max-h-48 overflow-y-auto">
                                                 <template x-for="(s, i) in suggestions" :key="i">
-                                                    <button type="button" @click="pick(s)" class="w-full text-left px-4 py-2.5 hover:bg-danger/10 transition border-b border-border last:border-b-0">
+                                                    <button type="button" @click="pick(s)"
+                                                        class="w-full text-left px-4 py-2.5 hover:bg-danger/10 transition border-b border-border last:border-b-0">
                                                         <span class="text-sm font-bold text-text" x-text="s.jp_name"></span>
                                                         <span class="text-xs text-muted italic ml-2" x-text="s.sci_name"></span>
                                                     </button>
                                                 </template>
                                             </div>
-                                            <div class="flex items-center justify-between mt-2.5 px-1">
-                                                <div class="flex items-center gap-1.5 text-token-xs text-danger opacity-80">
-                                                    <i data-lucide="info" class="w-3 h-3"></i>
-                                                    <span>一覧から正しい分類を選択すると即座に提案が送信されます（Instant Gratification）</span>
-                                                </div>
-                                                <button @click="inlineDispute = false" class="text-xs font-medium text-muted hover:text-text">キャンセル</button>
-                                            </div>
+                                            <button @click="inlineDispute = false" class="mt-2 text-xs text-muted hover:text-text">キャンセル</button>
                                         </div>
                                     </div>
                                 </div>
@@ -828,7 +783,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     });
                     const data = await res.json();
                     if (data.success) {
-                        window.location.reload();
+                        // キャッシュを確実に回避してリロード
+                        window.location.href = window.location.pathname + window.location.search + '&_t=' + Date.now();
                     } else {
                         alert('ごめん、うまく送れなかった 🙇\n' + (data.message || '時間を空けてもう一度試してみてね'));
                     }
@@ -986,22 +942,28 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         });
                         const data = await res.json();
                         if (data.success) {
-                            // Instant DOM replacement for Frictionless UX without full page reload
-                            const htmlRes = await fetch(window.location.href);
+                            // キャッシュ回避で最新HTMLを取得してDOM部分更新
+                            const freshUrl = window.location.pathname + window.location.search + '&_t=' + Date.now();
+                            const htmlRes = await fetch(freshUrl, { credentials: 'include' });
                             const htmlText = await htmlRes.text();
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(htmlText, 'text/html');
-                            const newList = doc.querySelector('#id-list-container').innerHTML;
+                            const newListEl = doc.querySelector('#id-list-container');
                             const container = document.querySelector('#id-list-container');
-                            container.innerHTML = newList;
-
-                            if (window.lucide) window.lucide.createIcons();
-
-                            // Visual feedback
-                            const firstItem = container.querySelector('div.relative.pl-6');
-                            if (firstItem) {
-                                firstItem.classList.add('bg-danger/10', 'transition-colors', 'duration-1000');
-                                setTimeout(() => firstItem.classList.remove('bg-danger/10'), 1500);
+                            if (newListEl && container) {
+                                container.innerHTML = newListEl.innerHTML;
+                                if (window.lucide) window.lucide.createIcons();
+                                // Alpine.js コンポーネントを再初期化
+                                if (window.Alpine) Alpine.initTree(container);
+                                // Visual feedback: 最新アイテムをハイライト
+                                const firstItem = container.querySelector('div.relative.pl-6');
+                                if (firstItem) {
+                                    firstItem.classList.add('ring-1', 'ring-primary', 'bg-primary/5', 'transition-all', 'duration-1000');
+                                    setTimeout(() => firstItem.classList.remove('ring-1', 'ring-primary', 'bg-primary/5'), 2000);
+                                }
+                            } else {
+                                // フォールバック: フル再読み込み
+                                window.location.href = freshUrl;
                             }
                         } else {
                             alert('エラー: ' + (data.message || '送信できませんでした'));
