@@ -43,27 +43,16 @@ if ($isGuest) {
     $meta_description = "生き物を撮って投稿。GPS自動取得、写真からの日時・位置情報の自動抽出で、最短3タップで観察記録を残せます。";
     include __DIR__ . '/components/meta.php';
     ?>
-    <meta name="color-scheme" content="light">
     <!-- EXIF.js for client-side extraction -->
     <!-- EXIF.js: Removed in favor of local js/exif-mini.js -->
     <!-- Leaflet -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" rel="stylesheet" />
     <style>
-        /* Force light mode for post.php */
-        :root {
-            color-scheme: light only;
-        }
-
-        body {
-            background-color: var(--color-bg-base) !important;
-            color: var(--color-text) !important;
-        }
-    </style>
     <!-- Offline Manager -->
     <script src="js/ToastManager.js"></script>
     <script src="js/OfflineManager.js?v=2.1"></script>
-    <script src="js/ai-assist.js?v=1.0"></script>
+    <script src="js/ai-assist.js?v=2.0"></script>
     <script src="js/gamification-modal.js?v=1.0"></script>
 </head>
 
@@ -77,7 +66,7 @@ if ($isGuest) {
 
         <!-- Immersive Header -->
         <header class="fixed top-0 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] h-14 flex items-center justify-between px-4 bg-surface/90 backdrop-blur-xl z-50 border-b border-border">
-            <a href="index.php" class="p-2 -ml-2 text-muted hover:text-text transition">
+            <a href="javascript:history.length > 1 ? history.back() : location.href='index.php'" class="p-2 -ml-2 text-muted hover:text-text transition">
                 <i data-lucide="x" class="w-6 h-6"></i>
             </a>
             <h1 class="text-sm font-black tracking-widest uppercase text-text">記録する</h1>
@@ -131,7 +120,7 @@ if ($isGuest) {
                         </div>
                     </div>
                     <!-- Hidden file inputs -->
-                    <input type="file" accept="image/*" class="hidden" x-ref="cameraInput" @change="handleFiles">
+                    <input type="file" accept="image/*" capture="environment" class="hidden" x-ref="cameraInput" @change="handleFiles">
                     <input type="file" multiple accept="image/*" class="hidden" x-ref="galleryInput" @change="handleFiles">
 
                     <div class="border-2 border-dashed border-border rounded-3xl p-6 text-center transition bg-surface hover:bg-white/5">
@@ -172,6 +161,9 @@ if ($isGuest) {
                             <template x-for="(photo, index) in photos" :key="index">
                                 <div class="relative aspect-square rounded-2xl overflow-hidden bg-surface shadow-md">
                                     <img :src="photo.preview" class="w-full h-full object-cover">
+                                    <button @click.prevent="savePhoto(photo, index)" class="absolute top-2 left-2 p-1 bg-black/50 rounded-full hover:bg-primary transition z-30 sm:hidden" title="端末に保存">
+                                        <i data-lucide="download" class="w-3 h-3 text-white"></i>
+                                    </button>
                                     <button @click.prevent="removePhoto(index)" class="absolute top-2 right-2 p-1 bg-black/50 rounded-full hover:bg-danger transition z-30">
                                         <i data-lucide="x" class="w-3 h-3 text-white"></i>
                                     </button>
@@ -817,7 +809,7 @@ if ($isGuest) {
         };
     </script>
     <script src="js/exif-mini.js?v=1.0"></script>
-    <script src="js/ai-assist.js?v=1.0"></script>
+    <script src="js/ai-assist.js?v=2.0"></script>
     <script src="js/post-uploader.js?v=2.4"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();

@@ -49,31 +49,30 @@
 
         <!-- Links & CTA -->
         <div class="flex items-center gap-4 md:gap-6">
-            <!-- Discover Dropdown -->
+            <!-- さがす Dropdown -->
             <div class="hidden md:block relative group hover-show-dropdown">
                 <button class="flex items-center gap-1 text-sm font-bold transition text-muted hover:text-primary py-2">
                     <i data-lucide="compass" class="w-4 h-4"></i>
                     <?php echo __('nav.explore'); ?> <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
                 </button>
                 <div class="absolute left-0 top-full -mt-2 w-48 z-50 origin-top-left bg-elevated rounded-xl border border-border-strong shadow-lg py-2 opacity-0 invisible scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:scale-100 group-hover:translate-y-2">
-                    <a href="explore.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="search" class="w-4 h-4 text-faint"></i> すべて探す</a>
+                    <a href="explore.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="search" class="w-4 h-4 text-faint"></i> 観察マップ</a>
                     <a href="map.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="map" class="w-4 h-4 text-faint"></i> フィールドマップ</a>
                     <a href="zukan.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="book-open" class="w-4 h-4 text-faint"></i> いきもの図鑑</a>
-                    <a href="compass.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="globe" class="w-4 h-4 text-faint"></i> ランキング</a>
+                    <a href="compass.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="compass" class="w-4 h-4 text-faint"></i> コンパス</a>
                 </div>
             </div>
 
-            <!-- Community Dropdown -->
+            <!-- 参加する Dropdown -->
             <div class="hidden md:block relative group hover-show-dropdown">
                 <button class="flex items-center gap-1 text-sm font-bold transition text-muted hover:text-accent py-2">
                     <i data-lucide="users" class="w-4 h-4"></i>
-                    共創する <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
+                    <?php echo __('nav.participate'); ?> <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
                 </button>
-                <div class="absolute left-0 top-full -mt-2 w-52 z-50 origin-top-left bg-elevated rounded-xl border border-border-strong shadow-lg py-2 opacity-0 invisible scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:scale-100 group-hover:translate-y-2">
-                    <a href="needs_id.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-accent transition"><i data-lucide="sparkles" class="w-4 h-4 text-faint"></i> The Missing Matrix</a>
-                    <a href="id_workbench.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="microscope" class="w-4 h-4 text-faint"></i> IDセンター (同定)</a>
+                <div class="absolute left-0 top-full -mt-2 w-48 z-50 origin-top-left bg-elevated rounded-xl border border-border-strong shadow-lg py-2 opacity-0 invisible scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:scale-100 group-hover:translate-y-2">
+                    <a href="id_workbench.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-accent transition"><i data-lucide="microscope" class="w-4 h-4 text-faint"></i> 同定する</a>
+                    <a href="events.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="calendar" class="w-4 h-4 text-faint"></i> 観察会</a>
                     <a href="site_dashboard.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="shield-check" class="w-4 h-4 text-faint"></i> 共生サイト</a>
-                    <a href="events.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="calendar" class="w-4 h-4 text-faint"></i> イベント</a>
                     <a href="survey.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="clipboard-list" class="w-4 h-4 text-faint"></i> 調査に参加</a>
                 </div>
             </div>
@@ -177,12 +176,12 @@
 
                         <!-- 探索セクション (Mobile Only) -->
                         <div class="border-t border-border mt-1 pt-1 md:hidden">
-                            <p class="px-3 py-1.5 text-token-xs font-black uppercase tracking-widest text-faint">探す・共創する</p>
+                            <p class="px-3 py-1.5 text-token-xs font-black uppercase tracking-widest text-faint">さがす・参加する</p>
                             <a href="zukan.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                                 <i data-lucide="book-open" class="w-4 h-4"></i> <?php echo __('nav.zukan'); ?>
                             </a>
                             <a href="compass.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="globe" class="w-4 h-4"></i> <?php echo __('nav.ranking'); ?>
+                                <i data-lucide="compass" class="w-4 h-4"></i> <?php echo __('nav.compass'); ?>
                             </a>
                             <a href="events.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                                 <i data-lucide="calendar" class="w-4 h-4"></i> <?php echo __('nav.events'); ?>
@@ -568,7 +567,7 @@
         <p class="text-xs font-bold uppercase tracking-wider text-[var(--color-faint)] mb-3">よく使うページ</p>
         <a href="explore.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">🧭</span>
-            <span class="text-sm font-bold"><?php echo __('nav.explore'); ?></span>
+            <span class="text-sm font-bold">観察マップ</span>
         </a>
         <a href="map.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">🗺️</span>
@@ -579,12 +578,12 @@
             <span class="text-sm font-bold"><?php echo __('nav.zukan'); ?></span>
         </a>
         <a href="compass.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
-            <span class="text-lg">🌍</span>
-            <span class="text-sm font-bold"><?php echo __('nav.ranking'); ?></span>
+            <span class="text-lg">🧭</span>
+            <span class="text-sm font-bold"><?php echo __('nav.compass'); ?></span>
         </a>
         <a href="survey.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">🔬</span>
-            <span class="text-sm font-bold">フィールド調査</span>
+            <span class="text-sm font-bold">調査に参加</span>
         </a>
     </div>
 
@@ -659,10 +658,10 @@
                     <i data-lucide="settings" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ダッシュボード・設定</span>
                 </a>
                 <a href="my_organisms.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                    <i data-lucide="library" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">捕まえた生き物</span>
+                    <i data-lucide="library" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">わたしの発見</span>
                 </a>
                 <a href="wellness.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                    <i data-lucide="heart" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ウェルネス & インパクト</span>
+                    <i data-lucide="heart" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">健康 & インパクト</span>
                 </a>
             </div>
         <?php else: ?>
@@ -674,9 +673,9 @@
 
         <!-- Discover / Community Links -->
         <div>
-            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">探す・共創する</p>
+            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">さがす</p>
             <a href="explore.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="search" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">すべて探す</span>
+                <i data-lucide="search" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">観察マップ</span>
             </a>
             <a href="map.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="map" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">フィールドマップ</span>
@@ -685,22 +684,22 @@
                 <i data-lucide="book-open" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">いきもの図鑑</span>
             </a>
             <a href="compass.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="globe" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ランキング</span>
+                <i data-lucide="compass" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">コンパス</span>
             </a>
-            <a href="needs_id.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="sparkles" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">The Missing Matrix</span>
-            </a>
+        </div>
+        <div>
+            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">参加する</p>
             <a href="id_workbench.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="microscope" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">IDセンター (同定)</span>
+                <i data-lucide="microscope" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">同定する</span>
+            </a>
+            <a href="events.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                <i data-lucide="calendar" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">観察会</span>
             </a>
             <a href="site_dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="shield-check" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">共生サイト</span>
             </a>
-            <a href="events.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="calendar" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">イベント</span>
-            </a>
             <a href="ikimon_walk.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="footprints" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.my_field'); ?></span>
+                <i data-lucide="footprints" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">さんぽ記録</span>
             </a>
             <a href="survey.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="clipboard-list" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">調査に参加</span>
