@@ -8,7 +8,7 @@ Auth::init();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ikimonについて - 創業ストーリー</title>
+    <title>ikimonについて | ikimon</title>
     <?php include __DIR__ . '/components/meta.php'; ?>
     <style>
         .story-section {
@@ -107,6 +107,40 @@ Auth::init();
                         企業・自治体の方へ
                     </a>
                 </div>
+
+                <!-- 関連ガイド -->
+                <div class="mt-10 pt-8 border-t border-gray-100">
+                    <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-4 h-4"></i> もっと知る
+                    </h4>
+                    <div class="space-y-2">
+                        <a href="guide/walking-brain-science.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition group">
+                            <span class="text-2xl">🧠</span>
+                            <div class="flex-1">
+                                <p class="text-sm font-bold group-hover:text-[var(--color-primary)]">自然の中を歩くと脳に何が起きるのか？</p>
+                                <p class="text-xs text-gray-400">散歩×生きもの観察の科学的エビデンス</p>
+                            </div>
+                            <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 group-hover:text-[var(--color-primary)]"></i>
+                        </a>
+                        <a href="guide/steps-dementia-prevention.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition group">
+                            <span class="text-2xl">👟</span>
+                            <div class="flex-1">
+                                <p class="text-sm font-bold group-hover:text-[var(--color-primary)]">1日9,800歩で認知症リスク51%減</p>
+                                <p class="text-xs text-gray-400">JAMA Neurology大規模研究の全データ</p>
+                            </div>
+                            <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 group-hover:text-[var(--color-primary)]"></i>
+                        </a>
+                        <a href="guide/nature-positive.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition group">
+                            <span class="text-2xl">🌿</span>
+                            <div class="flex-1">
+                                <p class="text-sm font-bold group-hover:text-[var(--color-primary)]">ネイチャーポジティブ完全ガイド</p>
+                                <p class="text-xs text-gray-400">お散歩×観察×健康の全体像</p>
+                            </div>
+                            <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 group-hover:text-[var(--color-primary)]"></i>
+                        </a>
+                    </div>
+                </div>
+
             </div>
 
         </div>

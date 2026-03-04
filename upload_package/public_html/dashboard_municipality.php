@@ -224,7 +224,7 @@ $pageTitle = '自治体ダッシュボード | ikimon.life';
     </div>
 
     <!-- Script to init icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@0.477.0/dist/umd/lucide.min.js"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>

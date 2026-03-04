@@ -377,7 +377,7 @@ h6 {
     align-items: center;
     justify-content: center;
     min-width: var(--touch-min);
-    min-height: var(--touch-min);
+    min-height: 56px;
     padding: 4px 2px;
     color: var(--color-text-faint);
     font-size: var(--text-xs);
