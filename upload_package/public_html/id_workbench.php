@@ -635,9 +635,13 @@ if (!$currentUser) {
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
                 <button @click="if(activeItem) openQuickID(activeItem, activeItemIndex)"
-                    class="px-3 py-2 rounded-xl bg-[var(--color-primary)] text-black font-bold text-xs flex items-center gap-1.5">
-                    <i data-lucide="zap" class="w-3.5 h-3.5"></i> 同定
+                    class="p-2 rounded-xl bg-white/5 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition" title="同定する">
+                    <i data-lucide="zap" class="w-4 h-4"></i>
                 </button>
+                <a :href="activeItem ? 'observation_detail.php?id=' + activeItem.id : '#'"
+                    class="px-3 py-2 rounded-xl bg-white/10 text-white font-bold text-xs flex items-center gap-1.5 hover:bg-white/20 transition">
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i> 詳細
+                </a>
             </div>
         </div>
         <!-- Existing IDs preview (if any) -->
