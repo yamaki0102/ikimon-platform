@@ -421,10 +421,10 @@ if (!$currentUser) {
                 <div x-show="!loading" class="grid gap-1.5" :class="gridClasses">
                     <template x-for="(item, index) in filteredItems" :key="item.id">
                         <div class="relative group aspect-[4/3] bg-[#111] rounded-lg overflow-hidden select-none transition-all duration-75 cursor-pointer"
-                            :class="{ 
-                                 'item-selected': selectedIds.includes(item.id), 
-                                 'ring-1 ring-white/5': !selectedIds.includes(item.id),
-                                 'ring-1 ring-blue-500/40': activeItemId === item.id,
+                            :class="{
+                                 'item-selected': selectedIds.includes(item.id),
+                                 'ring-1 ring-white/5': !selectedIds.includes(item.id) && activeItemId !== item.id,
+                                 'ring-2 ring-[var(--color-primary)] brightness-110 scale-[1.02] z-10': activeItemId === item.id,
                              }">
                             <!-- Image -->
                             <img :src="item.photos && item.photos[0] ? item.photos[0] : 'assets/img/no-photo.svg'"
@@ -475,31 +475,27 @@ if (!$currentUser) {
             <!-- Active item preview -->
             <template x-if="activeItem">
                 <div class="flex-1 flex flex-col overflow-y-auto scrollbar-thin">
-                    <!-- Photo -->
-                    <div class="aspect-[4/3] bg-black relative group shrink-0">
-                        <img :src="activeItem.photos && activeItem.photos[activePhotoIdx] ? activeItem.photos[activePhotoIdx] : ''"
-                            class="w-full h-full object-cover">
-                        <!-- Photo nav -->
-                        <template x-if="activeItem.photos && activeItem.photos.length > 1">
-                            <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                                <template x-for="(p, pi) in activeItem.photos" :key="pi">
-                                    <button @click="activePhotoIdx = pi"
-                                        class="w-6 h-6 rounded overflow-hidden border-2 transition"
-                                        :class="activePhotoIdx === pi ? 'border-white scale-110' : 'border-white/20 opacity-50'">
-                                        <img :src="p" class="w-full h-full object-cover">
-                                    </button>
-                                </template>
-                            </div>
-                        </template>
+                    <!-- Compact header: thumbnail + taxon name -->
+                    <div class="flex items-center gap-3 p-3 border-b border-white/5 shrink-0">
+                        <!-- Thumbnail strip (clickable to cycle photos) -->
+                        <div class="relative shrink-0 cursor-pointer group/thumb" @click="activePhotoIdx = (activePhotoIdx + 1) % (activeItem.photos?.length || 1)">
+                            <img :src="activeItem.photos && activeItem.photos[activePhotoIdx] ? activeItem.photos[activePhotoIdx] : 'assets/img/no-photo.svg'"
+                                class="w-16 h-16 rounded-xl object-cover border border-white/10">
+                            <template x-if="activeItem.photos && activeItem.photos.length > 1">
+                                <div class="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 opacity-0 group-hover/thumb:opacity-100 transition">
+                                    <i data-lucide="images" class="w-4 h-4 text-white"></i>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-bold text-sm leading-tight" x-text="activeItem.taxon ? activeItem.taxon.name : '未同定'"></h3>
+                            <p class="text-token-xs text-gray-500 italic truncate" x-text="activeItem.taxon ? activeItem.taxon.scientific_name : ''"></p>
+                            <p class="text-token-xs text-gray-700 mt-0.5 font-mono truncate" x-text="activeItem.id"></p>
+                        </div>
                     </div>
 
                     <!-- Item Details -->
                     <div class="p-3 space-y-3">
-                        <div>
-                            <h3 class="font-bold text-sm" x-text="activeItem.taxon ? activeItem.taxon.name : '未同定'"></h3>
-                            <p class="text-token-xs text-gray-500 italic" x-text="activeItem.taxon ? activeItem.taxon.scientific_name : ''"></p>
-                            <p class="text-token-xs text-gray-600 mt-1 font-mono" x-text="activeItem.id"></p>
-                        </div>
                         <div class="text-token-xs text-gray-400 space-y-1">
                             <p class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3 h-3"></i> <span x-text="formatDate(activeItem.observed_at)"></span></p>
                             <p class="flex items-center gap-1.5" x-show="activeItem.municipality || activeItem.location"><i data-lucide="map-pin" class="w-3 h-3"></i> <span x-text="activeItem.municipality || (activeItem.location ? activeItem.location.name : '')"></span></p>
