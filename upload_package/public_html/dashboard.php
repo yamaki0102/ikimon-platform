@@ -68,6 +68,7 @@ $missions = [
     <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
 
     <main class="max-w-2xl mx-auto px-4 py-6 space-y-5">
+        <h1 class="sr-only">ダッシュボード</h1>
 
         <!-- 1. User Rank Card -->
         <?php if ($currentUser): ?>
