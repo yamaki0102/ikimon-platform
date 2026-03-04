@@ -238,15 +238,15 @@ unset($allObs);
                     <span class="text-token-xs font-bold text-text whitespace-nowrap">観察会</span>
                 </a>
                 <a href="compass.php" class="flex flex-col items-center gap-2 min-w-[72px] py-3 px-2 rounded-2xl transition hover:shadow-md active:scale-95 bg-elevated border border-border snap-start">
-                    <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-accent-surface">
-                        <i data-lucide="trophy" class="w-5 h-5 text-accent"></i>
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-purple-50 dark:bg-purple-900/30">
+                        <i data-lucide="trophy" class="w-5 h-5 text-purple-600 dark:text-purple-400"></i>
                     </div>
                     <span class="text-token-xs font-bold text-text whitespace-nowrap">コンパス</span>
                 </a>
 
                 <a href="ikimon_walk.php" class="flex flex-col items-center gap-2 min-w-[72px] py-3 px-2 rounded-2xl transition hover:shadow-md active:scale-95 bg-elevated border border-border snap-start">
-                    <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-accent-surface">
-                        <i data-lucide="footprints" class="w-5 h-5 text-accent"></i>
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/30">
+                        <i data-lucide="footprints" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
                     </div>
                     <span class="text-token-xs font-bold text-text whitespace-nowrap">さんぽ記録</span>
                 </a>
@@ -293,21 +293,27 @@ unset($allObs);
                         </div>
                     </div>
 
-                    <!-- なぜ？ベネフィット -->
-                    <div class="grid grid-cols-1 md:grid-cols-2" style="margin-top:var(--phi-lg);gap:var(--phi-sm)">
-                        <div class="flex items-center bg-white/60 rounded-xl border border-primary/10" style="gap:var(--phi-sm);padding:var(--phi-sm) var(--phi-md)">
-                            <span style="font-size:var(--text-xl)">🏃‍♂️</span>
-                            <div>
-                                <p class="font-bold text-text" style="font-size:var(--text-base)">歩くと健康に</p>
-                                <p class="text-token-xs text-muted">散歩に「発見」が加わると、歩く距離も頻度も自然にUP</p>
-                            </div>
+                    <!-- なぜ？ベネフィット（科学的エビデンス付き） -->
+                    <div class="grid grid-cols-2 md:grid-cols-4" style="margin-top:var(--phi-lg);gap:var(--phi-sm)">
+                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                            <span style="font-size:var(--text-xl)">👟</span>
+                            <p class="font-black text-primary" style="font-size:var(--text-lg)">-51%</p>
+                            <p class="text-token-xs text-muted">認知症リスク減<br><span class="text-faint">(9,800歩/日)</span></p>
                         </div>
-                        <div class="flex items-center bg-white/60 rounded-xl border border-primary/10" style="gap:var(--phi-sm);padding:var(--phi-sm) var(--phi-md)">
+                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                            <span style="font-size:var(--text-xl)">🧠</span>
+                            <p class="font-black text-secondary" style="font-size:var(--text-lg)">脳トレ</p>
+                            <p class="text-token-xs text-muted">種同定で<br>認知的予備力UP</p>
+                        </div>
+                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
+                            <span style="font-size:var(--text-xl)">🌿</span>
+                            <p class="font-black text-accent" style="font-size:var(--text-lg)">↓低下</p>
+                            <p class="text-token-xs text-muted">ストレスホルモン<br><span class="text-faint">(森林浴効果)</span></p>
+                        </div>
+                        <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-sm)">
                             <span style="font-size:var(--text-xl)">🌍</span>
-                            <div>
-                                <p class="font-bold text-text" style="font-size:var(--text-base)">歩くと自然を守れる</p>
-                                <p class="text-token-xs text-muted">あなたの記録が生物多様性の科学データに変わります</p>
-                            </div>
+                            <p class="font-black" style="font-size:var(--text-lg);color:#2563eb">科学データ</p>
+                            <p class="text-token-xs text-muted">あなたの記録が<br>保全に貢献</p>
                         </div>
                     </div>
 
@@ -686,52 +692,96 @@ unset($allObs);
             </div>
         </section>
 
+        <!-- ==================== ウェルビーイング訴求（お散歩×脳科学） ==================== -->
+        <section class="max-w-5xl mx-auto px-4 md:px-6 mb-8">
+            <div class="bg-gradient-to-br from-violet-50 to-emerald-50 border border-violet-200/50 rounded-3xl" style="padding:var(--phi-lg)">
+                <h2 class="font-black text-text text-center" style="font-size:var(--text-lg);margin-bottom:var(--phi-xs)">🧠 お散歩×生きもの観察で脳と身体が変わる</h2>
+                <p class="text-token-sm text-muted text-center" style="margin-bottom:var(--phi-md)">科学が証明する5つのメカニズム</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-5" style="gap:var(--phi-sm);margin-bottom:var(--phi-md)">
+                    <div class="flex flex-col items-center text-center bg-white/70 rounded-xl border border-emerald-200/50" style="padding:var(--phi-sm)">
+                        <span class="text-2xl mb-1">👟</span>
+                        <p class="text-xs font-black text-emerald-700">歩行</p>
+                        <p class="text-[10px] text-muted">海馬の血流↑<br>認知症-51%</p>
+                    </div>
+                    <div class="flex flex-col items-center text-center bg-white/70 rounded-xl border border-violet-200/50" style="padding:var(--phi-sm)">
+                        <span class="text-2xl mb-1">🔍</span>
+                        <p class="text-xs font-black text-violet-700">種同定</p>
+                        <p class="text-[10px] text-muted">パターン認識<br>脳が高密度に</p>
+                    </div>
+                    <div class="flex flex-col items-center text-center bg-white/70 rounded-xl border border-sky-200/50" style="padding:var(--phi-sm)">
+                        <span class="text-2xl mb-1">🌳</span>
+                        <p class="text-xs font-black text-sky-700">自然環境</p>
+                        <p class="text-[10px] text-muted">コルチゾール↓<br>前頭前野鎮静化</p>
+                    </div>
+                    <div class="flex flex-col items-center text-center bg-white/70 rounded-xl border border-amber-200/50" style="padding:var(--phi-sm)">
+                        <span class="text-2xl mb-1">✨</span>
+                        <p class="text-xs font-black text-amber-700">Awe体験</p>
+                        <p class="text-[10px] text-muted">炎症マーカー↓<br>創造性50%↑</p>
+                    </div>
+                    <div class="flex flex-col items-center text-center bg-white/70 rounded-xl border border-rose-200/50" style="padding:var(--phi-sm)">
+                        <span class="text-2xl mb-1">👥</span>
+                        <p class="text-xs font-black text-rose-700">つながり</p>
+                        <p class="text-[10px] text-muted">孤独感↓<br>目的意識↑</p>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <a href="guide/walking-brain-science.php" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-500 to-emerald-500 text-white font-bold text-sm shadow-lg hover:opacity-90 transition">
+                        <i data-lucide="brain" class="w-4 h-4"></i>
+                        科学的エビデンスを詳しく見る
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- B2B/G Section (Rich) -->
         <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-lg)">
-            <a href="for-business.php" class="block bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl overflow-hidden group hover:shadow-2xl transition-shadow" style="padding:var(--phi-lg)">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between" style="gap:var(--phi-md)">
-                    <div>
-                        <p class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">FOR BUSINESS & GOVERNMENT</p>
-                        <h2 class="font-black text-white" style="font-size:var(--text-xl);margin-bottom:var(--phi-xs)">ikimonを法人・自治体で活用しませんか？</h2>
-                        <p class="text-sm text-slate-400">CSR/ESG報告・30by30対応・環境教育まで、生物多様性のDXを一元化</p>
-                    </div>
-                    <div class="shrink-0 hidden md:flex items-center gap-2 text-white font-bold bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl transition group-hover:scale-105">
-                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
-                        詳細を見る
-                    </div>
+            <div class="bg-gradient-to-br from-slate-50 to-blue-50 border border-slate-200 rounded-3xl" style="padding:var(--phi-lg)">
+                <h2 class="font-black text-text text-center" style="font-size:var(--text-lg);margin-bottom:var(--phi-sm)">🏢 導入をご検討の方へ</h2>
+                <p class="text-token-sm text-muted text-center" style="margin-bottom:var(--phi-lg)">ikimonは企業CSR・自治体の生物多様性政策にも活用されています</p>
+                <div class="grid grid-cols-1 md:grid-cols-2" style="gap:var(--phi-sm)">
+                    <a href="for-business.php" class="bg-white rounded-2xl border border-slate-100 hover:shadow-lg hover:border-blue-200 transition group" style="padding:var(--phi-md)">
+                        <div class="flex items-center mb-3" style="gap:var(--phi-sm)">
+                            <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                                <i data-lucide="building-2" class="w-5 h-5 text-blue-600"></i>
+                            </div>
+                            <div>
+                                <p class="font-black text-text" style="font-size:var(--text-base)">企業の方</p>
+                                <p class="text-token-xs text-muted">CSR / ESG / TNFD 対応</p>
+                            </div>
+                        </div>
+                        <ul class="space-y-1.5 text-xs text-muted">
+                            <li class="flex items-start gap-1.5"><span class="text-blue-500 mt-0.5">✓</span> 自社エリアの生物多様性レポート生成</li>
+                            <li class="flex items-start gap-1.5"><span class="text-blue-500 mt-0.5">✓</span> 社員参加型の観察会でCSR×チームビルディング</li>
+                            <li class="flex items-start gap-1.5"><span class="text-blue-500 mt-0.5">✓</span> 健康経営としての散歩プログラム</li>
+                        </ul>
+                        <div class="mt-3 text-xs font-bold text-blue-600 group-hover:text-blue-700 flex items-center gap-1 transition">
+                            詳しく見る <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                        </div>
+                    </a>
+                    <!-- 自治体向け -->
+                    <a href="for-business.php#government" class="bg-white rounded-2xl border border-slate-100 hover:shadow-lg hover:border-emerald-200 transition group" style="padding:var(--phi-md)">
+                        <div class="flex items-center mb-3" style="gap:var(--phi-sm)">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                <i data-lucide="landmark" class="w-5 h-5 text-emerald-600"></i>
+                            </div>
+                            <div>
+                                <p class="font-black text-text" style="font-size:var(--text-base)">自治体・教育機関の方</p>
+                                <p class="text-token-xs text-muted">30by30 / 関係人口 / 環境教育</p>
+                            </div>
+                        </div>
+                        <ul class="space-y-1.5 text-xs text-muted">
+                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 市民参加で広域モニタリング → コスト削減</li>
+                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 「自然が豊かな地域」のエビデンス → 移住促進</li>
+                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 環境教育プログラムとして学校連携</li>
+                        </ul>
+                        <div class="mt-3 text-xs font-bold text-emerald-600 group-hover:text-emerald-700 flex items-center gap-1 transition">
+                            詳しく見る <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                        </div>
+                    </a>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-3 mt-6" style="gap:var(--phi-sm)">
-                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
-                        <span class="text-blue-400 mt-0.5"><i data-lucide="file-bar-chart" class="w-4 h-4"></i></span>
-                        <p class="text-xs text-slate-300">生物多様性レポート<br><span class="text-slate-500">TNFD / ESG対応</span></p>
-                    </div>
-                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
-                        <span class="text-emerald-400 mt-0.5"><i data-lucide="users" class="w-4 h-4"></i></span>
-                        <p class="text-xs text-slate-300">社員参加型の観察会<br><span class="text-slate-500">CSR×チームビルディング</span></p>
-                    </div>
-                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
-                        <span class="text-amber-400 mt-0.5"><i data-lucide="heart-pulse" class="w-4 h-4"></i></span>
-                        <p class="text-xs text-slate-300">健康経営プログラム<br><span class="text-slate-500">散歩×生きもの発見</span></p>
-                    </div>
-                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
-                        <span class="text-teal-400 mt-0.5"><i data-lucide="map-pin" class="w-4 h-4"></i></span>
-                        <p class="text-xs text-slate-300">広域モニタリング<br><span class="text-slate-500">30by30・市民参加</span></p>
-                    </div>
-                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
-                        <span class="text-purple-400 mt-0.5"><i data-lucide="graduation-cap" class="w-4 h-4"></i></span>
-                        <p class="text-xs text-slate-300">環境教育連携<br><span class="text-slate-500">学校・地域プログラム</span></p>
-                    </div>
-                    <div class="flex items-start gap-2 bg-white/5 rounded-xl p-3">
-                        <span class="text-rose-400 mt-0.5"><i data-lucide="badge-check" class="w-4 h-4"></i></span>
-                        <p class="text-xs text-slate-300">自然共生サイト認定<br><span class="text-slate-500">エビデンス自動生成</span></p>
-                    </div>
-                </div>
-                <div class="md:hidden mt-5 text-center">
-                    <span class="inline-flex items-center gap-2 text-white font-bold bg-blue-600 px-6 py-3 rounded-xl text-sm">
-                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                        詳細を見る
-                    </span>
-                </div>
-            </a>
+            </div>
         </section>
 
         <!-- Footer -->
