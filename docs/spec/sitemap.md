@@ -1,13 +1,14 @@
 # ikimon.life — サイトマップ（全ページ網羅）
 
 > 更新: 2026-03-04 | ソース: ファイルシステムスキャン（全ディレクトリ対象）
-> ページ数: 90 | APIエンドポイント: 99（うちDEV系: 11、テスト系: 2）
+> ページ数: 79（アクティブ） / 87（リダイレクト・アーカイブ含む） | 削除: 3 | リダイレクト: 5 | アーカイブ: 3
+> APIエンドポイント: 98（うちDEV系: 11、テスト系: 2）
 
 ## 凡例
 
 - **Auth**: `●` = 要ログイン / `○` = 不要（ゲスト可） / `◐` = 一部制限
 - **Mobile**: `📱` = モバイルナビに表示
-- **Status**: `✅` 実装済 / `🚧` 実装中 / `📋` 計画中
+- **Status**: `✅` 実装済 / `🚧` 実装中 / `📋` 計画中 / `🗑️` 削除済 / `↪️` リダイレクト / `📦` アーカイブ（noindex）
 
 ---
 
@@ -21,7 +22,7 @@
 | 4 | `/map.php` | `map.php` | フィールドマップ | MapLibre GL、ヒートマップレイヤー、種分布 | ○ | ✅ |
 | 5 | `/profile.php` | `profile.php` | プロフィール | ライフリスト、投資スコア、ランクバッジ、活動タイムライン | ● | ✅ |
 | 6 | `/profile_edit.php` | `profile_edit.php` | プロフィール編集 | アバター、名前、専門分野 | ● | ✅ |
-| 7 | `/ranking.php` | `ranking.php` | ランキング | 投稿数、同定数、有効性スコア | ○ | ✅ |
+| 7 | `/ranking.php` | `ranking.php` | ランキング | 投稿数、同定数、有効性スコア | ○ | 🗑️ 削除済 |
 | 8 | `/dashboard.php` | `dashboard.php` | ダッシュボード | 個人統計、観察履歴、最近の活動 | ● | ✅ |
 
 ## 2. 認証
@@ -37,31 +38,31 @@
 
 | # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
 |---|--------|---------|---------|---------|------|--------|
-| 13 | `/id_center.php` | `id_center.php` | IDセンター | 未同定観察キュー | ◐ | ✅ |
-| 14 | `/needs_id.php` | `needs_id.php` | 未同定リスト | 未同定・意見分かれ観察の一覧と同定依頼フロー | ◐ | ✅ |
+| 13 | `/id_center.php` | `id_center.php` | IDセンター | 未同定観察キュー | ◐ | ↪️ → id_workbench.php |
+| 14 | `/needs_id.php` | `needs_id.php` | 未同定リスト | 未同定・意見分かれ観察の一覧と同定依頼フロー | ◐ | ↪️ → id_workbench.php |
 | 15 | `/id_form.php` | `id_form.php` | ID入力フォーム | 種同定追加（信頼度レベル4段階） | ● | ✅ |
 | 16 | `/id_wizard.php` | `id_wizard.php` | IDウィザード | 34検索テーブル、分岐ロジック、ビジュアルキー | ○ | ✅ |
 | 17 | `/id_workbench.php` | `id_workbench.php` | IDワークベンチ | プロ向け高速同定ワークスペース | ● | ✅ |
 | 18 | `/species/{slug}` | `species.php` | 種ページ | 741引用、分布図、レッドリスト、写真 | ○ | ✅ |
 | 19 | `/compare.php` | `compare.php` | 種の比較ビュー | 2種をOmoikane＋観察データで並列比較 | ○ | ✅ |
 | 20 | `/zukan.php` | `zukan.php` | いきもの図鑑 | 13冊+フィールドガイド、分類ツリー、検索 | ○ | ✅ |
-| 21 | `/reference_layer.php` | `reference_layer.php` | 参考文献レイヤー | 1,248件学術論文、741統合引用 | ○ | ✅ |
+| 21 | `/reference_layer.php` | `reference_layer.php` | 参考文献レイヤー | 1,248件学術論文、741統合引用 | ○ | 📦 アーカイブ（noindex） |
 | 22 | `/obs/{id}` | `observation_detail.php` | 観察詳細 | 写真、ID経緯、信頼度バッジ、地理情報 | ○ | ✅ |
 
 ## 4. B2B（企業向け）— メインページ
 
 | # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
 |---|--------|---------|---------|---------|------|--------|
-| 23 | `/for-business.php` | `for-business.php` | 法人LP | サービス紹介、料金（¥298k/年）、ユースケース | ○ | ✅ |
-| 24 | `/for-citizen.php` | `for-citizen.php` | 市民LP | 初心者向けオンボーディング | ○ | ✅ |
+| 23 | `/for-business.php` | `for-business.php` | 法人LP | サービス紹介、料金（¥298k/年）、ユースケース | ○ | 🗑️ 削除済（リダイレクト先だった） |
+| 24 | `/for-citizen.php` | `for-citizen.php` | 市民LP | 初心者向けオンボーディング | ○ | ↪️ → index.php |
 | 25 | `/for-researcher.php` | `for-researcher.php` | 研究者LP | Citation-First、DwCエクスポート | ○ | ✅ |
 | 26 | `/showcase.php` | `showcase.php` | ショーケース | 生物多様性メトリクスダッシュボード | ○ | ✅ |
 | 27 | `/csr_showcase.php` | `csr_showcase.php` | CSRショーケース | 企業レポーティング用 | ○ | ✅ |
 | 28 | `/site/{id}` | `site_dashboard.php` | サイトダッシュボード | GeoJSON境界、レッドリスト、BIS、TNFD、DwC出力 | ● | ✅ |
 | 29 | `/site_editor.php` | `site_editor.php` | サイトエディタ | MapLibre描画ツール、GeoJSONポリゴン保存 | ● | ✅ |
-| 30 | `/corporate_dashboard.php` | `corporate_dashboard.php` | 法人ダッシュボード | 企業サイトの生物多様性スコア・観察集計 | ○ | 🚧 |
-| 31 | `/dashboard_municipality.php` | `dashboard_municipality.php` | 自治体ダッシュボード | 30by30進捗とBISスコアの自治体向け分析 | ○ | 🚧 |
-| 32 | `/dashboard_portfolio.php` | `dashboard_portfolio.php` | エンタープライズ本社ダッシュボード | 複数サイトの環境KPIをポートフォリオ集計 | ○ | 🚧 |
+| 30 | `/corporate_dashboard.php` | `corporate_dashboard.php` | 法人ダッシュボード | 企業サイトの生物多様性スコア・観察集計 | ○ | ↪️ → showcase.php |
+| 31 | `/dashboard_municipality.php` | `dashboard_municipality.php` | 自治体ダッシュボード | 30by30進捗とBISスコアの自治体向け分析 | ○ | 📦 アーカイブ（noindex） |
+| 32 | `/dashboard_portfolio.php` | `dashboard_portfolio.php` | エンタープライズ本社ダッシュボード | 複数サイトの環境KPIをポートフォリオ集計 | ○ | 📦 アーカイブ（noindex） |
 
 ## 5. B2B（企業向け）— for-business/ サブディレクトリ
 
@@ -93,7 +94,7 @@
 | 44 | `/field_research.php` | `field_research.php` | フィールドリサーチ | GPSトラッキング、セッション管理、歩数計 | ● | ✅ |
 | 45 | `/ikimon_walk.php` | `ikimon_walk.php` | マイフィールド | 活動履歴、ルートマップ、遭遇種 | ● | ✅ |
 | 46 | `/wellness.php` | `wellness.php` | ウェルネス | 歩数、距離、運動時間、気分トラッキング | ● | ✅ |
-| 47 | `/heatmap.php` | `heatmap.php` | ヒートマップ | 種密度の地域別可視化 | ○ | ✅ |
+| 47 | `/heatmap.php` | `heatmap.php` | ヒートマップ | 種密度の地域別可視化 | ○ | 🗑️ 削除済 |
 | 48 | `/compass.php` | `compass.php` | コンパス | フィールドワーク用方位ナビ | ○ | ✅ |
 | 49 | `/survey.php` | `survey.php` | 調査参加 | イベントベースの調査参加 | ◐ | ✅ |
 
@@ -175,11 +176,11 @@
 |---|--------|---------|---------|---------|------|--------|
 | 88 | `/review_queue.php` | `review_queue.php` | Freetextレビューキュー | 自由入力種名の確認・承認・却下UI（管理者専用） | ● | ✅ |
 | 89 | `/generate_grant_report.php` | `generate_grant_report.php` | グラント用レポート生成 | イベント主催者・管理者向け助成金申請用レポート | ● | ✅ |
-| 90 | `/admin_dashboard.php` | `admin_dashboard.php` | 管理ダッシュボード（旧版） | フラグ通報管理・ユーザー管理の旧版管理画面 | ● | 🚧 |
+| 90 | `/admin_dashboard.php` | `admin_dashboard.php` | 管理ダッシュボード（旧版） | フラグ通報管理・ユーザー管理の旧版管理画面 | ● | ↪️ → admin/index.php |
 
 ---
 
-## API エンドポイント一覧（99件）
+## API エンドポイント一覧（98件）
 
 > `[DEV]` タグ付きは開発・診断用途。本番公開時はアクセス制限推奨。
 
@@ -197,12 +198,12 @@
 | GET | `/api/dev_obs_check.php` | [DEV] 観察デバッグ |
 | GET | `/api/dev_obs_userId.php` | [DEV] ユーザー別観察 |
 
-### 種同定（10件）
+### 種同定（9件 ※1件削除済）
 
 | メソッド | エンドポイント | 機能 |
 |---------|--------------|------|
 | POST | `/api/post_identification.php` | 種同定追加/更新 |
-| POST | `/api/post_identification_v2.php` | 種同定v2 |
+| ~~POST~~ | ~~`/api/post_identification_v2.php`~~ | ~~種同定v2~~ 🗑️ 削除済 |
 | GET | `/api/search_taxon.php` | 種名検索（和名/学名） |
 | GET | `/api/taxon_suggest.php` | 種名オートコンプリート |
 | GET | `/api/taxon_index.php` | 全分類群インデックス |
@@ -370,6 +371,53 @@
 
 ---
 
+## 削除済みファイル一覧
+
+> プロダクト完成計画に基づき削除。リダイレクトまたはアーカイブで対応済み。
+
+### 削除されたページ（3件）
+| ファイル | 旧用途 | 備考 |
+|---------|--------|------|
+| `heatmap.php` | 種密度ヒートマップ | map.php のヒートマップレイヤーに統合 |
+| `ranking.php` | ランキング | 機能廃止 |
+| `for-business.php` | 法人LP（リダイレクト先） | for-business/index.php が正規LP |
+
+### リダイレクト化されたページ（5件）
+| ファイル | リダイレクト先 | 備考 |
+|---------|--------------|------|
+| `id_center.php` | `id_workbench.php` | IDワークベンチに統合 |
+| `needs_id.php` | `id_workbench.php` | IDワークベンチに統合 |
+| `for-citizen.php` | `index.php` | ホームフィードに統合 |
+| `admin_dashboard.php` | `admin/index.php` | 管理画面に統合 |
+| `corporate_dashboard.php` | `showcase.php` | ショーケースに統合 |
+
+### アーカイブ化されたページ（noindex、3件）
+| ファイル | 旧用途 | 備考 |
+|---------|--------|------|
+| `dashboard_municipality.php` | 自治体ダッシュボード | noindex設定、将来再実装予定 |
+| `dashboard_portfolio.php` | エンタープライズ本社ダッシュボード | noindex設定、将来再実装予定 |
+| `reference_layer.php` | 参考文献レイヤー | noindex設定、種ページ引用で代替 |
+
+### 削除されたAPIエンドポイント（1件）
+| ファイル | 旧用途 |
+|---------|--------|
+| `api/post_identification_v2.php` | 種同定v2（post_identification.php に統合） |
+
+### 削除されたコンポーネント・CSS（4件）
+| ファイル | 旧用途 |
+|---------|--------|
+| `components/bento_grid.php` | Bentoグリッドレイアウト（dashboard.php 刷新で廃止） |
+| `components/bg_radar.php` | レーダー背景（dashboard.php 刷新で廃止） |
+| `components/dopamine_widgets.php` | ドーパミンウィジェット（dashboard.php 刷新で廃止） |
+| `assets/css/tactical.css` | タクティカルUI CSS（dashboard.php 刷新で廃止） |
+
+### 新規追加ファイル（1件）
+| ファイル | 用途 |
+|---------|------|
+| `api/.htaccess` | APIディレクトリのアクセス制御・DEVエンドポイント制限 |
+
+---
+
 ## ナビゲーション構造
 
 ### デスクトップメニュー
@@ -377,11 +425,11 @@
 ```
 [Logo → /]  [検索バー]  [探す ▼]  [共創する ▼]  [🔔]  [👤 ▼]
                          │                │              │
-                         ├─ 探索           ├─ 未同定リスト  ├─ プロフィール
-                         ├─ フィールドマップ ├─ IDセンター   ├─ サイト管理
-                         ├─ いきもの図鑑    ├─ 共生サイト   ├─ ダッシュボード
-                         └─ ランキング     ├─ イベント     ├─ 設定
-                                          └─ 調査       └─ ログアウト
+                         ├─ 探索           ├─ IDワークベンチ├─ プロフィール
+                         ├─ フィールドマップ ├─ 共生サイト   ├─ サイト管理
+                         ├─ いきもの図鑑    ├─ イベント     ├─ ダッシュボード
+                         │                └─ 調査        ├─ 設定
+                         │                              └─ ログアウト
 ```
 
 ### モバイルボトムナビ

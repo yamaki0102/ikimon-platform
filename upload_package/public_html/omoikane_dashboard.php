@@ -5,7 +5,7 @@
  * Real-time monitoring of the autonomous extraction engine.
  */
 require_once __DIR__ . '/../libs/Auth.php';
-// Auth::requireRole('Admin'); // Temporarily disabled for local viewing
+Auth::requireRole('Admin');
 ?>
 <!DOCTYPE html>
 <html lang="ja">

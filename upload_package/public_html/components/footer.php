@@ -21,7 +21,6 @@
                 <p class="text-[10px] font-black uppercase tracking-widest text-faint mb-3">Service</p>
                 <div class="flex flex-col gap-2">
                     <a href="for-business/" class="hover:text-primary transition"><?php echo __('nav.business'); ?></a>
-                    <a href="for-citizen.php" class="hover:text-text transition">市民・教育関係者様</a>
                     <a href="for-researcher.php" class="hover:text-text transition">研究者・専門家様</a>
                     <a href="showcase.php" class="hover:text-text transition"><?php echo __('nav.showcase'); ?></a>
                     <button onclick="localStorage.removeItem('ikimon_onboarded'); location.reload();" class="hover:text-text transition text-left"><?php echo __('nav.beginners'); ?></button>

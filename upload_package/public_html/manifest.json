@@ -66,9 +66,9 @@
             ]
         },
         {
-            "name": "ランキング",
-            "short_name": "ランク",
-            "url": "ranking.php",
+            "name": "コンパス",
+            "short_name": "コンパス",
+            "url": "compass.php",
             "icons": [
                 {
                     "src": "assets/img/icon-192.png",

@@ -167,8 +167,17 @@
                         </div>
 
                         <!-- 個人セクション -->
+                        <a href="dashboard.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> ダッシュボード
+                        </a>
                         <a href="profile.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                             <i data-lucide="user" class="w-4 h-4"></i> <?php echo __('nav.profile'); ?>
+                        </a>
+                        <a href="my_organisms.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                            <i data-lucide="leaf" class="w-4 h-4"></i> わたしの発見
+                        </a>
+                        <a href="wellness.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                            <i data-lucide="heart" class="w-4 h-4"></i> ウェルネス
                         </a>
                         <a href="id_workbench.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text md:hidden">
                             <i data-lucide="microscope" class="w-4 h-4"></i> <?php echo __('nav.id_center'); ?>
@@ -222,12 +231,6 @@
                             </a>
                             <a href="for-business/" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                                 <i data-lucide="building-2" class="w-4 h-4"></i> 企業・研究者の方へ
-                            </a>
-                            <a href="dashboard_municipality.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-primary hover:bg-primary-surface">
-                                <i data-lucide="globe-2" class="w-4 h-4"></i> 自治体ダッシュボード
-                            </a>
-                            <a href="dashboard_portfolio.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-primary hover:bg-primary-surface">
-                                <i data-lucide="briefcase" class="w-4 h-4"></i> 企業ポートフォリオ (Global)
                             </a>
                             <a href="logout.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-danger hover:bg-danger-surface">
                                 <i data-lucide="log-out" class="w-4 h-4"></i> <?php echo __('nav.logout'); ?>
@@ -498,10 +501,12 @@
         <i data-lucide="home" class="w-6 h-6"></i>
         <span><?php echo __('nav.home'); ?></span>
     </a>
-    <button @click="$dispatch('open-mobile-search')" class="bottom-nav__item">
-        <i data-lucide="search" class="w-6 h-6"></i>
-        <span>検索</span>
-    </button>
+    <a href="explore.php"
+        <?php if (basename($_SERVER['PHP_SELF']) == 'explore.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
+        class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'explore.php' ? 'bottom-nav__item--active' : ''; ?>">
+        <i data-lucide="compass" class="w-6 h-6"></i>
+        <span>探索</span>
+    </a>
 
     <!-- Raised Center Button -->
     <div class="bottom-nav__center">
@@ -516,15 +521,15 @@
         <?php endif; ?>
     </div>
 
-    <a href="ikimon_walk.php"
-        <?php if (basename($_SERVER['PHP_SELF']) == 'ikimon_walk.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
-        class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'ikimon_walk.php' ? 'bottom-nav__item--active' : ''; ?>">
-        <i data-lucide="footprints" class="w-6 h-6"></i>
-        <span>さんぽ</span>
+    <a href="zukan.php"
+        <?php if (basename($_SERVER['PHP_SELF']) == 'zukan.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
+        class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'zukan.php' ? 'bottom-nav__item--active' : ''; ?>">
+        <i data-lucide="book-open" class="w-6 h-6"></i>
+        <span>図鑑</span>
     </a>
     <button @click="$dispatch('open-mobile-menu')" class="bottom-nav__item">
-        <i data-lucide="menu" class="w-6 h-6"></i>
-        <span>メニュー</span>
+        <i data-lucide="user" class="w-6 h-6"></i>
+        <span>マイページ</span>
     </button>
 </nav>
 
@@ -717,12 +722,6 @@
             </a>
             <a href="for-business/" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="building-2" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">企業・研究者の方へ</span>
-            </a>
-            <a href="dashboard_municipality.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-primary)]">
-                <i data-lucide="globe-2" class="w-5 h-5 text-[var(--color-primary)]"></i> <span class="text-sm font-bold text-[var(--color-primary)]">自治体ダッシュボード</span>
-            </a>
-            <a href="dashboard_portfolio.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-primary)]">
-                <i data-lucide="briefcase" class="w-5 h-5 text-[var(--color-primary)]"></i> <span class="text-sm font-bold text-[var(--color-primary)]">企業ポートフォリオ (Global)</span>
             </a>
             <?php if ($currentUser && Auth::hasRole('Analyst')): ?>
                 <a href="admin/index.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-primary)]">

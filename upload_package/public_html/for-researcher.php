@@ -1,6 +1,26 @@
 <?php
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/DataStore.php';
+require_once __DIR__ . '/../libs/RedList.php';
 Auth::init();
+
+// Dynamic stats for researcher page
+$allObs = DataStore::fetchAll('observations');
+$researcherTotalObs = count($allObs);
+$researcherSpecies = [];
+$researcherRgCount = 0;
+$researcherRedlistCount = 0;
+foreach ($allObs as $o) {
+    $name = $o['taxon']['name'] ?? '';
+    if (!empty($name)) {
+        $researcherSpecies[$name] = true;
+        if (RedList::check($name)) $researcherRedlistCount++;
+    }
+    if (($o['status'] ?? '') === 'Research Grade') $researcherRgCount++;
+}
+$researcherSpeciesCount = count($researcherSpecies);
+$researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $researcherTotalObs * 100) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -81,23 +101,23 @@ Auth::init();
                 </div>
 
                 <div class="glass-card rounded-2xl border border-purple-500/30 p-8">
-                    <h3 class="text-xl font-bold mb-6">データ統計（浜松地域）</h3>
+                    <h3 class="text-xl font-bold mb-6">データ統計</h3>
                     <div class="space-y-4">
                         <div class="flex justify-between items-center py-3 border-b border-white/10">
                             <span class="text-gray-400">総観察数</span>
-                            <span class="text-2xl font-black text-purple-400">1,234+</span>
+                            <span class="text-2xl font-black text-purple-400"><?= number_format($researcherTotalObs) ?></span>
                         </div>
                         <div class="flex justify-between items-center py-3 border-b border-white/10">
                             <span class="text-gray-400">Research Grade</span>
-                            <span class="text-2xl font-black text-green-400">78%</span>
+                            <span class="text-2xl font-black text-green-400"><?= $researcherRgRate ?>%</span>
                         </div>
                         <div class="flex justify-between items-center py-3 border-b border-white/10">
                             <span class="text-gray-400">確認種数</span>
-                            <span class="text-2xl font-black text-blue-400">456</span>
+                            <span class="text-2xl font-black text-blue-400"><?= number_format($researcherSpeciesCount) ?></span>
                         </div>
                         <div class="flex justify-between items-center py-3">
                             <span class="text-gray-400">レッドリスト種</span>
-                            <span class="text-2xl font-black text-red-400">23</span>
+                            <span class="text-2xl font-black text-red-400"><?= $researcherRedlistCount ?></span>
                         </div>
                     </div>
                 </div>

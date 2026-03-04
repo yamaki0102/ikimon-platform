@@ -178,7 +178,15 @@ Auth::init();
 
                     this.loading = true;
                     try {
-                        const res = await fetch(`api/get_observations.php?limit=${this.limit}&offset=${this.offset}&q=${encodeURIComponent(this.query)}`);
+                        const groupMap = {
+                            birds: 'bird', insects: 'insect', plants: 'plant',
+                            fungi: 'fungi', mammals: 'mammal', herps: 'amphibian_reptile'
+                        };
+                        let url = `api/get_observations.php?limit=${this.limit}&offset=${this.offset}&q=${encodeURIComponent(this.query)}`;
+                        if (this.filter !== 'all' && groupMap[this.filter]) {
+                            url += `&taxon_group=${groupMap[this.filter]}`;
+                        }
+                        const res = await fetch(url);
                         const result = await res.json();
 
                         this.items = [...this.items, ...result.data];
