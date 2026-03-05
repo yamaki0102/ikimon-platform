@@ -167,12 +167,12 @@ $textColor = $theme === 'light' ? 'text-gray-800' : 'text-[#1a2e1f]';
         <!-- Footer / Branding -->
         <div class="pt-3 border-t border-gray-100 flex items-center justify-between">
             <div class="flex flex-col">
-                <a href="https://ikimon.life/site_dashboard.php?site=<?php echo urlencode($siteId); ?>" target="_blank" class="text-[10px] text-gray-400 hover:text-emerald-500 transition font-bold flex items-center gap-1">
+                <a href="https://ikimon.life/site_dashboard.php?site=<?php echo urlencode($siteId); ?>" target="_blank" rel="noopener noreferrer" class="text-[10px] text-gray-400 hover:text-emerald-500 transition font-bold flex items-center gap-1">
                     詳細レポートを見る <i data-lucide="external-link" class="w-3 h-3"></i>
                 </a>
                 <span class="text-[8px] text-gray-400 mt-0.5 leading-tight">*市民観測に基づく参考データ</span>
             </div>
-            <a href="https://ikimon.life" target="_blank" class="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition pl-2">
+            <a href="https://ikimon.life" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 opacity-60 hover:opacity-100 transition pl-2">
                 <img src="https://ikimon.life/assets/images/logo_icon.svg" alt="ikimon.life" class="w-4 h-4" onerror="this.style.display='none'">
                 <span class="text-[10px] font-black text-gray-800 tracking-tight stat-number">ikimon.life</span>
             </a>

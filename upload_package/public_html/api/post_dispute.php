@@ -151,5 +151,5 @@ echo json_encode([
     'success'   => true,
     'type'      => $type,
     'escalated' => $triggeredEscalation,
-    'disputes'  => count($disputes, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+    'disputes'  => count($disputes),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

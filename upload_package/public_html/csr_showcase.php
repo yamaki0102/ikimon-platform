@@ -611,13 +611,13 @@ $meta_canonical = BASE_URL . '/csr_showcase.php?site_id=' . urlencode($siteId);
     <!-- Footer -->
     <footer class="sc-footer">
         <p>
-            Powered by <a href="<?php echo BASE_URL; ?>" target="_blank">ikimon.life</a> — 市民参加型生物多様性プラットフォーム<br>
+            Powered by <a href="<?php echo BASE_URL; ?>" target="_blank" rel="noopener noreferrer">ikimon.life</a> — 市民参加型生物多様性プラットフォーム<br>
             データ取得日: <?php echo date('Y年m月d日 H:i'); ?>
         </p>
         <p style="margin-top: 0.5rem;">
             <a href="site/<?php echo urlencode($siteId); ?>">📊 ダッシュボード</a>
             &nbsp;|&nbsp;
-            <a href="api/generate_site_report.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank">📄 レポート</a>
+            <a href="api/generate_site_report.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank" rel="noopener noreferrer">📄 レポート</a>
         </p>
     </footer>
 

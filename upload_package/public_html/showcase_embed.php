@@ -177,7 +177,7 @@ $meta_title = htmlspecialchars($siteName) . ' - ikimon';
             <div class="embed-stat-label">認定率</div>
         </div>
     </div>
-    <a href="<?php echo BASE_URL; ?>/csr_showcase.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank" class="embed-cta">
+    <a href="<?php echo BASE_URL; ?>/csr_showcase.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank" rel="noopener noreferrer" class="embed-cta">
         🔍 詳細を見る →
     </a>
     <div class="embed-compliance">30by30 / TNFD LEAP 対応 — Powered by ikimon.life</div>

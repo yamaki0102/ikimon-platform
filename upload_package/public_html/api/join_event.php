@@ -101,7 +101,7 @@ if (DataStore::upsert('events', $event)) {
     echo json_encode([
         'success' => true,
         'action' => $action,
-        'participant_count' => count($participants, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+        'participant_count' => count($participants),
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 } else {
     echo json_encode(['success' => false, 'message' => '保存に失敗しました'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

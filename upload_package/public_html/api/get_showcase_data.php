@@ -148,7 +148,7 @@ echo json_encode([
         'total_species' => $totalSpecies,
         'research_grade_count' => $researchGradeCount,
         'research_grade_percent' => $rgPercent,
-        'total_observers' => count($observerSet, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+        'total_observers' => count($observerSet),
         'bis_score' => $bis,
     ],
     'taxonomy_breakdown' => $taxonomyBreakdown,

@@ -63,6 +63,6 @@ $lightweight = array_map(function ($s) {
 echo json_encode([
     'success'       => true,
     'sessions'      => $lightweight,
-    'session_count'  => count($sessions, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+    'session_count'  => count($sessions),
     'physical'       => $summary['physical'] ?? [],
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_HEX_TAG);

@@ -320,7 +320,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         $shareText = ($species_name ?? '生き物') . ' の観察記録 — ikimon.life';
                         ?>
                         <a href="https://twitter.com/intent/tweet?url=<?php echo urlencode($shareUrl); ?>&text=<?php echo urlencode($shareText); ?>"
-                            target="_blank" rel="noopener"
+                            target="_blank" rel="noopener noreferrer"
                             class="w-8 h-8 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-black hover:text-white hover:border-black transition"
                             title="Xでシェア">
                             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -328,7 +328,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             </svg>
                         </a>
                         <a href="https://social-plugins.line.me/lineit/share?url=<?php echo urlencode($shareUrl); ?>"
-                            target="_blank" rel="noopener"
+                            target="_blank" rel="noopener noreferrer"
                             class="w-8 h-8 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-[#06C755] hover:text-white hover:border-[#06C755] transition"
                             title="LINEでシェア">
                             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">

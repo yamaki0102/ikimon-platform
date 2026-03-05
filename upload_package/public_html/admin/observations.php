@@ -119,7 +119,7 @@ foreach ($allObs as $o) {
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <a href="../observation_detail.php?id=<?php echo $obs['id']; ?>" target="_blank" class="font-bold hover:text-emerald-400 transition">
+                                    <a href="../observation_detail.php?id=<?php echo $obs['id']; ?>" target="_blank" rel="noopener noreferrer" class="font-bold hover:text-emerald-400 transition">
                                         <?php echo htmlspecialchars($obs['taxon']['name'] ?? '未同定'); ?>
                                     </a>
                                     <?php if (!empty($obs['taxon']['common_name_ja'])): ?>
@@ -152,7 +152,7 @@ foreach ($allObs as $o) {
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="flex items-center gap-2">
-                                        <a href="../observation_detail.php?id=<?php echo $obs['id']; ?>" target="_blank" class="p-1.5 rounded-lg hover:bg-slate-600 transition text-slate-400 hover:text-white" title="詳細">
+                                        <a href="../observation_detail.php?id=<?php echo $obs['id']; ?>" target="_blank" rel="noopener noreferrer" class="p-1.5 rounded-lg hover:bg-slate-600 transition text-slate-400 hover:text-white" title="詳細">
                                             <i data-lucide="external-link" class="w-4 h-4"></i>
                                         </a>
                                         <button @click="if(confirm('この観察を非表示にしますか？')) {

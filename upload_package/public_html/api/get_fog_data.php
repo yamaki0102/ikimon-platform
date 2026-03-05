@@ -104,7 +104,7 @@ echo json_encode([
         'grid_m'           => $gridM,
     ],
     'meta' => [
-        'cached' => date('c', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+        'cached' => date('c'),
         'bounds' => compact('swLat', 'swLng', 'neLat', 'neLng'),
     ]
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

@@ -164,7 +164,7 @@ $meta_robots = 'noindex, nofollow, noarchive';
 
             <!-- GBIF LINK (Authenticity) -->
             <div class="hud-panel p-2 rounded-full pointer-events-auto">
-                <a href="https://www.gbif.org/" target="_blank" class="w-10 h-10 flex items-center justify-center bg-blue-500/10 text-blue-400 rounded-full border border-blue-400/30 hover:bg-blue-500/20 transition">
+                <a href="https://www.gbif.org/" target="_blank" rel="noopener noreferrer" class="w-10 h-10 flex items-center justify-center bg-blue-500/10 text-blue-400 rounded-full border border-blue-400/30 hover:bg-blue-500/20 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"></circle>
                         <line x1="2" y1="12" x2="22" y2="12"></line>
