@@ -128,7 +128,7 @@ $obs['location']['name']
 - **Rate Limiting**: Applied on login API
 - **File Upload**: `finfo` MIME check + extension validation
 - **Rare Species**: Location masking via `PrivacyFilter.php`
-- **Dev endpoints**: `dev_*.php` files restricted to `Require local` in `.htaccess`
+- **Dev endpoints**: `dev_*.php` moved to `dev_tools/` (not deployed); removed from production
 
 ## Testing
 
@@ -144,7 +144,6 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 
 1. **CDN versions MUST be pinned** — `@latest` is forbidden
 2. **`loading-skeleton`** class on images should be removed after load (explore.php)
-3. **15+ `dev_*.php` endpoints** exist in production (IP-restricted, but review needed)
-4. **JSON file I/O** has no locking — concurrent writes can corrupt data
-5. **Session GC** on shared hosting — custom timeout via `session.gc_maxlifetime`
+3. **File locking**: `DataStore.php` and most libs use `LOCK_EX`; any new `file_put_contents` must include the `LOCK_EX` flag
+4. **Session GC** on shared hosting — custom timeout via `session.gc_maxlifetime`
 

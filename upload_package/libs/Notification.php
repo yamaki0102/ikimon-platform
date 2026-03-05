@@ -227,6 +227,6 @@ class Notification
     private static function saveUserNotifications($userId, $notifications)
     {
         $file = self::getUserFilePath($userId);
-        return file_put_contents($file, json_encode($notifications, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)) !== false;
+        return file_put_contents($file, json_encode($notifications, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX) !== false;
     }
 }

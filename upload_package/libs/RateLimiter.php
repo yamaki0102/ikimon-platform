@@ -143,7 +143,7 @@ class RateLimiter
         $data['requests'][] = $now;
 
         // Save data
-        file_put_contents($filePath, json_encode($data));
+        file_put_contents($filePath, json_encode($data), LOCK_EX);
 
         return true;
     }
@@ -188,7 +188,7 @@ class RateLimiter
         }
 
         $data['requests'][] = $now;
-        file_put_contents($filePath, json_encode($data));
+        file_put_contents($filePath, json_encode($data), LOCK_EX);
 
         return true;
     }

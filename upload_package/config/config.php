@@ -4,6 +4,9 @@
  * ikimon Global Configuration
  */
 
+// Guard against duplicate inclusion (PHP 9: redefining constants is a fatal error)
+if (defined('APP_NAME')) return;
+
 // Basic Settings
 define('APP_NAME', 'ikimon');
 define('APP_VERSION', '0.1.0');
