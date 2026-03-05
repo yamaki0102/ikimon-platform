@@ -29,7 +29,7 @@ class MyFieldManager
             'updated_at' => date('Y-m-d H:i:s')
         ];
 
-        file_put_contents(self::DATA_DIR . '/' . $id . '.json', json_encode($field, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        file_put_contents(self::DATA_DIR . '/' . $id . '.json', json_encode($field, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX);
 
         return $field;
     }

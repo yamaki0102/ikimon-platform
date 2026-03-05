@@ -181,6 +181,6 @@ class TrustLevel
             'set_at' => date('c'),
         ];
 
-        return file_put_contents($dir . '/' . $userId . '.json', json_encode($data, JSON_PRETTY_PRINT)) !== false;
+        return file_put_contents($dir . '/' . $userId . '.json', json_encode($data, JSON_PRETTY_PRINT), LOCK_EX) !== false;
     }
 }

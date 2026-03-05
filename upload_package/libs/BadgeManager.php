@@ -167,7 +167,7 @@ class BadgeManager
 
         if (!empty($newBadges)) {
             $savePath = self::USER_BADGES_DIR . '/' . $userId . '.json';
-            $res = file_put_contents($savePath, json_encode($userBadges, JSON_PRETTY_PRINT));
+            $res = file_put_contents($savePath, json_encode($userBadges, JSON_PRETTY_PRINT), LOCK_EX);
 
             // Flash to session for UI notification
             Auth::init();
