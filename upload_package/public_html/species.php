@@ -349,7 +349,7 @@ $dataCount = count($citations) + count($keys) + count($papers);
                     </span>
                 <?php endif; ?>
                 <?php if ($gbifKey): ?>
-                    <a href="https://www.gbif.org/species/<?php echo urlencode($gbifKey); ?>" target="_blank" rel="noopener"
+                    <a href="https://www.gbif.org/species/<?php echo urlencode($gbifKey); ?>" target="_blank" rel="noopener noreferrer" rel="noopener"
                         class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-token-xs font-mono transition bg-surface border border-border text-secondary hover:border-secondary/40">
                         <i data-lucide="external-link" class="w-3 h-3"></i>
                         GBIF
@@ -365,7 +365,7 @@ $dataCount = count($citations) + count($keys) + count($papers);
                 $shareText = ($taxon ?: $scientificName) . ' — ikimon.life 種の情報';
                 ?>
                 <a href="https://twitter.com/intent/tweet?url=<?php echo urlencode($shareUrl); ?>&text=<?php echo urlencode($shareText); ?>"
-                    target="_blank" rel="noopener"
+                    target="_blank" rel="noopener noreferrer" rel="noopener"
                     class="w-8 h-8 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-black hover:text-white hover:border-black transition"
                     title="Xでシェア">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -373,7 +373,7 @@ $dataCount = count($citations) + count($keys) + count($papers);
                     </svg>
                 </a>
                 <a href="https://social-plugins.line.me/lineit/share?url=<?php echo urlencode($shareUrl); ?>"
-                    target="_blank" rel="noopener"
+                    target="_blank" rel="noopener noreferrer" rel="noopener"
                     class="w-8 h-8 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-[#06C755] hover:text-white hover:border-[#06C755] transition"
                     title="LINEでシェア">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -634,7 +634,7 @@ $dataCount = count($citations) + count($keys) + count($papers);
                 </div>
                 <div class="space-y-2">
                     <?php foreach ($specimenRecords as $spec): ?>
-                        <a href="https://www.gbif.org/occurrence/<?php echo urlencode($spec['gbif_occurrence_key']); ?>" target="_blank" rel="noopener"
+                        <a href="https://www.gbif.org/occurrence/<?php echo urlencode($spec['gbif_occurrence_key']); ?>" target="_blank" rel="noopener noreferrer" rel="noopener"
                             class="block p-4 rounded-xl border border-secondary/20 bg-surface hover:border-secondary/40 transition group">
                             <div class="flex items-start gap-3">
                                 <div class="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -772,7 +772,7 @@ $dataCount = count($citations) + count($keys) + count($papers);
                                 const catalogLabel = spec.catalog ? ` #${spec.catalog}` : '';
                                 const dateLabel = spec.date || '日付不明';
                                 const countryLabel = spec.country ? `<br>${spec.country}` : '';
-                                const gbifLink = spec.gbif_key ? `<br><a href="https://www.gbif.org/occurrence/${spec.gbif_key}" target="_blank" style="color:#f59e0b;text-decoration:underline;font-size:10px;">GBIF →</a>` : '';
+                                const gbifLink = spec.gbif_key ? `<br><a href="https://www.gbif.org/occurrence/${spec.gbif_key}" target="_blank" rel="noopener noreferrer" style="color:#f59e0b;text-decoration:underline;font-size:10px;">GBIF →</a>` : '';
                                 new maplibregl.Marker({
                                         element: el
                                     })
@@ -975,7 +975,7 @@ $dataCount = count($citations) + count($keys) + count($papers);
                             </button>
                         <?php endif; ?>
                         <template x-if="<?php echo $pidx < 2 ? 'true' : 'showAll'; ?>">
-                            <a href="<?php echo htmlspecialchars($paper['url'] ?? '#'); ?>" target="_blank" rel="noopener"
+                            <a href="<?php echo htmlspecialchars($paper['url'] ?? '#'); ?>" target="_blank" rel="noopener noreferrer" rel="noopener"
                                 class="block p-4 rounded-xl border border-accent/20 bg-accent-surface/30 hover:border-accent/40 transition group">
                                 <div class="flex items-start gap-3">
                                     <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0 mt-0.5">

@@ -117,7 +117,7 @@ $meta_title = "チーム";
                         <i data-lucide="mail" class="w-4 h-4 mr-2"></i>
                         お問い合わせ
                     </a>
-                    <a href="https://www.wantedly.com/" target="_blank" class="btn-secondary">
+                    <a href="https://www.wantedly.com/" target="_blank" rel="noopener noreferrer" class="btn-secondary">
                         <i data-lucide="briefcase" class="w-4 h-4 mr-2"></i>
                         Wantedlyで見る
                     </a>

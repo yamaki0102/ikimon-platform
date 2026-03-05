@@ -57,5 +57,5 @@ echo json_encode([
         'mood' => $mood
     ],
     'comment' => $comment,
-    'created_at' => date('Y-m-d H:i:s', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)
+    'created_at' => date('Y-m-d H:i:s')
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

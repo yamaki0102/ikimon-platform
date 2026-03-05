@@ -24,5 +24,5 @@ if ($notifId) {
 
 echo json_encode([
     'success' => $result !== false,
-    'unread_count' => Notification::getUnreadCount($user['id'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)
+    'unread_count' => Notification::getUnreadCount($user['id'])
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

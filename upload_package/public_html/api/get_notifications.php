@@ -29,7 +29,7 @@ $unreadCount = Notification::getUnreadCount($user['id']);
 
 echo json_encode([
     'success' => true,
-    'notifications' => array_values($notifications, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+    'notifications' => array_values($notifications),
     'unread_count' => $unreadCount,
     'total' => count($notifications)
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

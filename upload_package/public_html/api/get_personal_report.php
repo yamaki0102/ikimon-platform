@@ -165,6 +165,6 @@ echo json_encode([
     'meta' => [
         'user_id' => $userId,
         'year'    => $year,
-        'generated_at' => date('c', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+        'generated_at' => date('c'),
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_HEX_TAG);

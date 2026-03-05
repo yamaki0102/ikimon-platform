@@ -111,7 +111,7 @@ echo json_encode([
     'ghosts' => $ghostList,
     'meta'   => [
         'radius'  => $radius,
-        'count'   => count($ghostList, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+        'count'   => count($ghostList),
         'cached'  => date('c'),
     ]
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_HEX_TAG);

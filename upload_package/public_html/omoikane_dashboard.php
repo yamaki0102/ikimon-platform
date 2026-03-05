@@ -249,7 +249,7 @@ Auth::requireRole('Admin');
                                         <span x-text="species.scientific_name" class="font-bold text-slate-100"></span>
                                     </template>
 
-                                    <a :href="'explore.php?q=' + encodeURIComponent(species.scientific_name)" target="_blank" class="hover:text-cyan-400 hover:underline inline-flex items-center gap-1 transition-colors text-xs text-slate-400 font-mono italic">
+                                    <a :href="'explore.php?q=' + encodeURIComponent(species.scientific_name)" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 hover:underline inline-flex items-center gap-1 transition-colors text-xs text-slate-400 font-mono italic">
                                         <span x-text="species.ja_name ? species.scientific_name : '検索'"></span>
                                         <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>

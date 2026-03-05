@@ -89,7 +89,7 @@ echo json_encode([
     'growth' => [
         'stage'          => $currentStage,
         'next_stage'     => $nextStage,
-        'observations_to_next' => max(0, $toNext, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+        'observations_to_next' => max(0, $toNext),
     ],
     'metrics' => [
         'total_observations' => $totalCount,

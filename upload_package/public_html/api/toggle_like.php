@@ -53,4 +53,4 @@ if (in_array($userId, $likes)) {
 
 file_put_contents($likeFile, json_encode($likes, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG));
 
-echo json_encode(['success' => true, 'action' => $action, 'count' => count($likes, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+echo json_encode(['success' => true, 'action' => $action, 'count' => count($likes)], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

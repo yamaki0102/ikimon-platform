@@ -98,7 +98,7 @@ $tab = $_GET['tab'] ?? 'flags';
                                         <p class="text-sm text-slate-400 mb-2"><?php echo htmlspecialchars($flag['details']); ?></p>
                                     <?php endif; ?>
                                     <p class="text-xs text-slate-500 mb-4">
-                                        対象ID: <a href="../observation_detail.php?id=<?php echo $flag['target_id'] ?? ''; ?>" target="_blank" class="underline hover:text-white"><?php echo htmlspecialchars($flag['target_id'] ?? ''); ?></a>
+                                        対象ID: <a href="../observation_detail.php?id=<?php echo $flag['target_id'] ?? ''; ?>" target="_blank" rel="noopener noreferrer" class="underline hover:text-white"><?php echo htmlspecialchars($flag['target_id'] ?? ''); ?></a>
                                         | 通報者: <?php echo htmlspecialchars($flag['reporter_id'] ?? 'anonymous'); ?>
                                     </p>
                                     <div class="flex gap-3">

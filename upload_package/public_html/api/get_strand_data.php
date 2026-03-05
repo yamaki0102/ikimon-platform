@@ -72,7 +72,7 @@ echo json_encode([
     'type' => 'FeatureCollection',
     'features' => $features,
     'meta' => [
-        'count'  => count($features, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+        'count'  => count($features),
         'days'   => $days,
         'cached' => date('c'),
     ]

@@ -34,7 +34,7 @@ if (file_put_contents($savePath, json_encode($data, JSON_PRETTY_PRINT | JSON_UNE
     echo json_encode([
         'status' => 'success',
         'message' => 'Snapshot deployed to ' . $savePath,
-        'count' => count($data, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)
+        'count' => count($data)
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 } else {
     http_response_code(500);

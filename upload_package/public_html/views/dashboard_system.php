@@ -154,7 +154,7 @@
                     </li>
                 </ul>
                 <div class="mt-8 pt-6 border-t border-gray-200">
-                    <a href="https://www.rinya.maff.go.jp/" target="_blank" class="flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition group">
+                    <a href="https://www.rinya.maff.go.jp/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition group">
                         <div class="flex items-center gap-3">
                             <i data-lucide="external-link" class="text-gray-400"></i>
                             <div>
