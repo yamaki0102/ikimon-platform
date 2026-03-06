@@ -270,5 +270,41 @@
             "type": "trust_level",
             "threshold": 4
         }
+    },
+    {
+        "id": "streak_7",
+        "name": "7-Day Streak",
+        "name_ja": "7日連続",
+        "description": "Post observations for 7 consecutive days.",
+        "description_ja": "7日連続で観察を投稿しました。",
+        "icon": "flame",
+        "condition": {
+            "type": "streak",
+            "threshold": 7
+        }
+    },
+    {
+        "id": "streak_30",
+        "name": "30-Day Streak",
+        "name_ja": "30日連続",
+        "description": "Post observations for 30 consecutive days.",
+        "description_ja": "30日連続で観察を投稿しました。",
+        "icon": "flame",
+        "condition": {
+            "type": "streak",
+            "threshold": 30
+        }
+    },
+    {
+        "id": "streak_100",
+        "name": "100-Day Streak",
+        "name_ja": "100日連続",
+        "description": "Post observations for 100 consecutive days.",
+        "description_ja": "100日連続で観察を投稿しました。",
+        "icon": "flame",
+        "condition": {
+            "type": "streak",
+            "threshold": 100
+        }
     }
 ]
