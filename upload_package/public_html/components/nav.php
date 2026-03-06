@@ -805,3 +805,5 @@
         };
     })();
 </script>
+
+<?php include __DIR__ . '/toast.php'; ?>

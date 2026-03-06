@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/QuestManager.php';
+require_once __DIR__ . '/../libs/StreakTracker.php';
 require_once __DIR__ . '/../libs/BioUtils.php';
 require_once __DIR__ . '/../libs/Services/UserStatsService.php';
 require_once __DIR__ . '/../libs/Services/LibraryService.php';
@@ -34,6 +35,7 @@ if ($currentUser) {
     $userStats['rank']          = $currentUser['observer_rank']['rank']['name_ja'] ?? UserStatsService::calculateRank($userStats['score']);
     $userStats['territory']     = UserStatsService::getTerritoryArea($currentUser['id']);
     $userStats['observer_rank'] = $currentUser['observer_rank'] ?? null;
+    $streakData                 = StreakTracker::getStreak($currentUser['id']);
 }
 
 // Observer Rank data
@@ -46,7 +48,7 @@ $orsRankName   = $_ors ? ($_ors['rank']['name_ja'] ?? '見習い')  : '見習い
 
 // Daily Quest
 $activeQuests = QuestManager::getActiveQuests();
-$dailyTarget  = !empty($activeQuests) ? $activeQuests[0] : null;
+$dailyTargets = $activeQuests;
 
 // Category tiles
 $missions = [
@@ -81,6 +83,9 @@ $missions = [
                     <div class="flex items-center gap-2 mb-1">
                         <span class="text-xl leading-none"><?= $orsRankIcon ?></span>
                         <span class="font-bold text-text truncate"><?= htmlspecialchars($currentUser['name']) ?></span>
+                        <?php if (($streakData['current_streak'] ?? 0) > 0): ?>
+                            <span class="text-sm text-orange-500 font-bold">🔥 <?= $streakData['current_streak'] ?>日連続</span>
+                        <?php endif; ?>
                     </div>
                     <div class="text-xs text-muted mb-2"><?= htmlspecialchars($orsRankName) ?> · <?= number_format($userStats['score']) ?> pt</div>
                     <div class="flex items-center gap-2">
@@ -134,21 +139,29 @@ $missions = [
         </section>
 
         <!-- 3. Daily Quest -->
-        <?php if ($dailyTarget): ?>
-        <section class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center border border-amber-300 shrink-0">
-                    <i data-lucide="target" class="w-5 h-5 text-amber-600"></i>
-                </div>
-                <div>
-                    <div class="text-token-xs text-amber-700 font-bold tracking-wide mb-0.5">今日のターゲット</div>
-                    <div class="text-sm font-black text-gray-900"><?= htmlspecialchars($dailyTarget['jp_name'] ?? $dailyTarget['name'] ?? '対象種') ?></div>
-                </div>
+        <?php if (!empty($dailyTargets)): ?>
+        <section>
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-black text-text">今日のクエスト</h2>
+                <a href="explore.php" class="text-xs font-bold text-amber-700 hover:text-amber-800 transition">探しに行く</a>
             </div>
-            <a href="explore.php"
-               class="text-xs font-bold text-amber-700 bg-amber-100 px-3 py-2 rounded-xl border border-amber-300 hover:bg-amber-200 transition whitespace-nowrap active:scale-95">
-                探しに行く
-            </a>
+            <div class="grid gap-3 md:grid-cols-3">
+                <?php foreach ($dailyTargets as $quest): ?>
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center border border-amber-300 shrink-0">
+                            <i data-lucide="<?= htmlspecialchars($quest['icon'] ?? 'target') ?>" class="w-5 h-5 text-amber-600"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-token-xs text-amber-700 font-bold tracking-wide">今日のクエスト</div>
+                            <div class="text-sm font-black text-gray-900 truncate"><?= htmlspecialchars($quest['title'] ?? 'クエスト') ?></div>
+                        </div>
+                    </div>
+                    <div class="text-xs text-amber-900/80 mb-2"><?= htmlspecialchars($quest['description'] ?? '') ?></div>
+                    <div class="text-token-xs text-amber-700 font-bold">+<?= (int)($quest['reward'] ?? 0) ?> pt</div>
+                </div>
+                <?php endforeach; ?>
+            </div>
         </section>
         <?php endif; ?>
 

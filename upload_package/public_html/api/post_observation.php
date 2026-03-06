@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/RateLimiter.php';
 require_once __DIR__ . '/../../libs/SurveyManager.php';
+require_once __DIR__ . '/../../libs/StreakTracker.php';
 
 // FB-12: Apply post-specific rate limiting (10 posts / 5 min)
 RateLimiter::check();
@@ -580,6 +581,8 @@ if (DataStore::append('observations', $observation, $timestamp)) {
     if (!empty($gamificationEvents)) {
         $responseData['gamification_events'] = $gamificationEvents;
     }
+
+    StreakTracker::recordActivity($userId);
 
     respond(true, 'Observation posted successfully', $responseData);
 } else {

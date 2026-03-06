@@ -7,6 +7,8 @@ require_once __DIR__ . '/BadgeManager.php';
 require_once __DIR__ . '/MyFieldManager.php';
 require_once __DIR__ . '/ObserverRank.php';
 require_once __DIR__ . '/QuestManager.php';
+require_once __DIR__ . '/EventLog.php';
+require_once __DIR__ . '/StreakTracker.php';
 
 class Gamification
 {
@@ -107,6 +109,7 @@ class Gamification
 
         // TrustLevel
         $trustLevel = TrustLevel::calculate($userId);
+        $streakData = StreakTracker::getStreak($userId);
 
         // --- NEW BADGE MANAGER Integration ---
         $context = [
@@ -115,6 +118,7 @@ class Gamification
             'species_count' => count($uniqueSpecies),
             'taxon_id_counts' => $taxonIdCounts,
             'trust_level' => $trustLevel,
+            'current_streak' => $streakData['current_streak'],
             'my_field_count' => $myFieldCount,
             'my_field_total_obs' => count($myFieldUserObsIds),
             'my_field_score' => $myFieldMaxScore,
@@ -130,6 +134,7 @@ class Gamification
             'taxon_id',
             'taxon_diversity',
             'trust_level',
+            'streak',
             'my_field_count',
             'my_field_obs_count',
             'my_field_score'
@@ -152,6 +157,10 @@ class Gamification
                 '新しいバッジ「' . $badge['name'] . '」を獲得しました。',
                 'profile.php'
             );
+            EventLog::log($userId, 'badge_earned', [
+                'badge_id' => $badge['id'],
+                'badge_name' => $badge['name_ja'] ?? $badge['name'],
+            ]);
         }
 
         // Save User Stats
@@ -178,7 +187,7 @@ class Gamification
                 'post_count'             => $postCount,
                 'species_count'          => count($uniqueSpecies),
                 'rg_count'               => $rgCount,
-                'streak_days'            => ObserverRank::calculateStreakFromObs($userId, $observations),
+                'streak_days'            => $streakData['current_streak'],
                 'id_count'               => $idCount,
                 'id_agreed_count'        => $idAgreedCount,
                 'trust_level'            => $trustLevel,
@@ -208,6 +217,10 @@ class Gamification
                     ($rankInfo['name_ja'] ?? $rankInfo['name_en']) . 'に昇格しました！',
                     'profile.php'
                 );
+                EventLog::log($userId, 'rank_up', [
+                    'level' => $newLevel,
+                    'rank_name' => $rankInfo['name_ja'] ?? $rankInfo['name_en'],
+                ]);
             }
             $user['observer_rank_level'] = $newLevel;
 
@@ -246,6 +259,11 @@ class Gamification
                         '「' . $quest['title'] . '」を達成しました！ +' . $reward . 'pt',
                         'index.php'
                     );
+                    EventLog::log($userId, 'quest_complete', [
+                        'quest_id' => $quest['id'],
+                        'quest_title' => $quest['title'],
+                        'reward' => $reward,
+                    ]);
                 }
             }
             $user['quest_log'] = $questLog;
@@ -302,6 +320,7 @@ class Gamification
             'my_field_max_score' => $user['my_field_max_score'] ?? 0,
             'taxon_id_counts'    => $user['taxon_id_counts'] ?? [],
             'survey_count'       => $user['survey_count'] ?? 0,
+            'current_streak'     => $user['current_streak'] ?? 0,
         ];
 
         foreach ($definitions as $badge) {
@@ -345,6 +364,9 @@ class Gamification
                     break;
                 case 'survey_count':
                     $awarded = $context['survey_count'] >= $threshold;
+                    break;
+                case 'streak':
+                    $awarded = $context['current_streak'] >= $threshold;
                     break;
             }
 
