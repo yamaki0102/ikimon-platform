@@ -75,7 +75,7 @@ $missions = [
         <section class="bg-elevated border border-border rounded-2xl p-4">
             <div class="flex items-center gap-4">
                 <img src="<?= htmlspecialchars($currentUser['avatar']) ?>"
-                     alt="アバター"
+                     alt="<?= htmlspecialchars($currentUser['name'] ?? 'ユーザー') ?>のアバター"
                      class="w-14 h-14 rounded-xl object-cover border-2 border-border shadow-sm shrink-0">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">

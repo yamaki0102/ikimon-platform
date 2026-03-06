@@ -258,7 +258,7 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
                         <div class="compare-card p-4">
                             <div class="flex items-center gap-3 mb-3">
                                 <?php if ($d['photo']): ?>
-                                    <img src="<?php echo htmlspecialchars($d['photo']); ?>" alt="" class="w-12 h-12 rounded-xl object-cover border border-border">
+                                    <img src="<?php echo htmlspecialchars($d['photo']); ?>" alt="<?php echo htmlspecialchars($d['name'] ?? '観察写真'); ?>" class="w-12 h-12 rounded-xl object-cover border border-border">
                                 <?php else: ?>
                                     <div class="w-12 h-12 rounded-xl bg-border/30 flex items-center justify-center text-muted">
                                         <i data-lucide="image-off" class="w-5 h-5"></i>

@@ -1,55 +1,8 @@
-## AI Crawlers — Welcome
-User-agent: GPTBot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: Google-Extended
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: anthropic-ai
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: Bytespider
-Allow: /
-
-User-agent: cohere-ai
-Allow: /
-
-## Search Engines — Not yet public
-User-agent: Googlebot
-Disallow: /
-
-User-agent: Bingbot
-Disallow: /
-
-User-agent: bingbot
-Disallow: /
-
-User-agent: Yandex
-Disallow: /
-
-User-agent: Baiduspider
-Disallow: /
-
-User-agent: DuckDuckBot
-Disallow: /
-
-## All others — Block by default
 User-agent: *
-Disallow: /
-
-# Internal pages (always blocked for everyone)
+Allow: /
 Disallow: /api/
 Disallow: /admin/
-Disallow: /login.php
-Disallow: /profile_edit.php
+Disallow: /demo/
+Disallow: /dev_tools/
 
-Sitemap: https://ikimon.life/sitemap.php
+Sitemap: https://ikimon.life/sitemap.xml

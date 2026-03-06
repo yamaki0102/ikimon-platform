@@ -147,7 +147,7 @@ $meta_canonical = BASE_URL . '/csr_showcase.php?site_id=' . urlencode($siteId);
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <!-- JSON-LD -->
-    <script type="application/ld+json">
+    <script type="application/ld+json" nonce="<?= CspNonce::attr() ?>">
         <?php echo json_encode([
             '@context' => 'https://schema.org',
             '@type' => 'WebPage',

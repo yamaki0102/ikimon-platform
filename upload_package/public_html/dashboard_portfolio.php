@@ -197,7 +197,7 @@ $pageTitle = 'Portfolio Dashboard | Enterprise HQ';
     </div>
 
     <!-- Scripts -->
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
 
         // Initialize MapLibre

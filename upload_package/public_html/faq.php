@@ -47,7 +47,7 @@ $schema = [
     $meta_description = __('faq.page_subtitle');
     include __DIR__ . '/components/meta.php';
     ?>
-    <script type="application/ld+json">
+    <script type="application/ld+json" nonce="<?= CspNonce::attr() ?>">
         <?php echo json_encode($schema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>
     </script>
 </head>

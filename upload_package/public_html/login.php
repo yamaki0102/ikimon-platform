@@ -198,11 +198,11 @@ $meta_title = 'ログイン';
                 <input type="hidden" name="redirect" value="<?php echo htmlspecialchars($redirect); ?>">
                 <div>
                     <label class="text-xs font-bold ml-2" style="color: var(--color-text-secondary);">名前</label>
-                    <input type="text" name="name" class="w-full rounded-2xl px-4 py-3 font-bold" style="background: var(--color-bg-base); border: 1.5px solid var(--color-border-strong); color: var(--color-text);" placeholder="例: 山田 太郎" required>
+                    <input type="text" name="name" class="w-full rounded-2xl px-4 py-3 font-bold" style="background: var(--color-bg-base); border: 1.5px solid var(--color-border-strong); color: var(--color-text);" placeholder="例: 山田 太郎" required autofocus>
                 </div>
                 <div>
                     <label class="text-xs font-bold ml-2" style="color: var(--color-text-secondary);">メールアドレス</label>
-                    <input type="email" name="email" class="w-full rounded-2xl px-4 py-3 font-bold" style="background: var(--color-bg-base); border: 1.5px solid var(--color-border-strong); color: var(--color-text);" placeholder="you@example.com" required>
+                    <input type="email" name="email" class="w-full rounded-2xl px-4 py-3 font-bold" style="background: var(--color-bg-base); border: 1.5px solid var(--color-border-strong); color: var(--color-text);" placeholder="you@example.com" required autofocus>
                 </div>
                 <div>
                     <label class="text-xs font-bold ml-2" style="color: var(--color-text-secondary);">パスワード</label>

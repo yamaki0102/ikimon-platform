@@ -170,17 +170,11 @@ class DataStore
                     }
                 }
                 if ($found) {
-                    // echo "[DEBUG] Updated in partition: $targetFile\n";
                     return self::save($targetFile, $data);
-                } else {
-                    // echo "[DEBUG] Found via Indexer but NOT in file: $targetFile. ID: $id\n";
                 }
-            } else {
-                // echo "[DEBUG] Indexer returned empty for ID: $id\n";
             }
         }
 
-        // echo "[DEBUG] Fallback to legacy upsert for file: $file\n";
         $data = self::get($file);
         $found = false;
         foreach ($data as $i => $existing) {

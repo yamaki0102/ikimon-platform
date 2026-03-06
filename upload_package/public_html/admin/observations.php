@@ -111,7 +111,7 @@ foreach ($allObs as $o) {
                             <tr class="hover:bg-slate-700/50 transition" x-data="{ deleting: false }">
                                 <td class="px-4 py-3">
                                     <?php if (!empty($obs['photos'][0])): ?>
-                                        <img src="<?php echo htmlspecialchars($obs['photos'][0]); ?>" class="w-10 h-10 rounded-lg object-cover" onerror="this.src='data:image/svg+xml,...'">
+                                        <img src="<?php echo htmlspecialchars($obs['photos'][0]); ?>" alt="<?php echo htmlspecialchars($obs['taxon']['name'] ?? '観察写真'); ?>" class="w-10 h-10 rounded-lg object-cover" onerror="this.src='data:image/svg+xml,...'">
                                     <?php else: ?>
                                         <div class="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-slate-500">
                                             <i data-lucide="camera-off" class="w-4 h-4"></i>

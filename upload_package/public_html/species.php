@@ -234,7 +234,7 @@ $dataCount = count($citations) + count($keys) + count($papers);
     ?>
 
     <!-- JSON-LD Structured Data -->
-    <script type="application/ld+json">
+    <script type="application/ld+json" nonce="<?= CspNonce::attr() ?>">
         <?php
         $jsonLd = [
             '@context' => 'https://schema.org',

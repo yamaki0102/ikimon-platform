@@ -190,7 +190,7 @@ Auth::init();
 
     <?php include __DIR__ . '/components/footer_nav.php'; ?>
 
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>
 </body>

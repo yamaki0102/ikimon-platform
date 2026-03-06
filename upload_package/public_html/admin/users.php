@@ -79,7 +79,7 @@ $currentUser = Auth::user();
                     <template x-for="user in filteredUsers" :key="user.id">
                         <tr class="hover:bg-slate-700/50 transition">
                             <td class="px-4 py-3 flex items-center gap-3">
-                                <img :src="user.avatar || ''" class="w-8 h-8 rounded-full bg-slate-700" onerror="this.style.display='none'">
+                                <img :src="user.avatar || ''" :alt="(user.name || 'ユーザー') + 'のアバター'" class="w-8 h-8 rounded-full bg-slate-700" onerror="this.style.display='none'">
                                 <div>
                                     <p class="font-bold" x-text="user.name"></p>
                                     <p class="text-xs text-slate-500" x-text="user.id"></p>

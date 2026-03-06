@@ -311,7 +311,7 @@ $meta_title = 'Freetext レビューキュー';
             <?php foreach ($queue as $item): ?>
                 <div class="review-card status-<?= $item['status'] ?>" data-obs-id="<?= htmlspecialchars($item['observation_id']) ?>">
                     <?php if ($item['photo']): ?>
-                        <img class="review-photo" src="<?= htmlspecialchars($item['photo']) ?>" alt="">
+                        <img class="review-photo" src="<?= htmlspecialchars($item['photo']) ?>" alt="<?= htmlspecialchars($item['freetext_name'] ?? '観察写真') ?>">
                     <?php else: ?>
                         <div class="review-photo" style="display:flex;align-items:center;justify-content:center;font-size:2rem;">📷</div>
                     <?php endif; ?>
@@ -411,7 +411,7 @@ $meta_title = 'Freetext レビューキュー';
 
                 list.innerHTML = data.candidates.map(c => `
                 <li class="candidate-item" onclick='approveWith(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
-                    ${c.thumbnail_url ? `<img class="candidate-thumb" src="${c.thumbnail_url}" alt="">` : '<div class="candidate-thumb" style="background:#f3f4f6;display:flex;align-items:center;justify-content:center;">🌿</div>'}
+                    ${c.thumbnail_url ? `<img class="candidate-thumb" src="${c.thumbnail_url}" alt="${c.common_name || c.name || '候補サムネイル'}">` : '<div class="candidate-thumb" style="background:#f3f4f6;display:flex;align-items:center;justify-content:center;">🌿</div>'}
                     <div>
                         <div class="candidate-name">${c.common_name || c.name || ''}</div>
                         <div class="candidate-sci">${c.scientific_name || ''} · ${c.source || ''}</div>

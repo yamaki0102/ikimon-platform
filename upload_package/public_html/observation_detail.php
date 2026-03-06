@@ -101,7 +101,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <?php include __DIR__ . '/components/meta.php'; ?>
 
     <!-- JSON-LD Structured Data -->
-    <script type="application/ld+json">
+    <script type="application/ld+json" nonce="<?= CspNonce::attr() ?>">
         <?php
         $jsonLd = [
             '@context' => 'https://schema.org',
@@ -238,10 +238,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                         <!-- Navigation Arrows -->
                         <?php if (count($obs['photos']) > 1): ?>
-                            <button @click.stop="photoActive = (photoActive - 1 + <?php echo count($obs['photos']); ?>) % <?php echo count($obs['photos']); ?>" class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20 opacity-0 group-hover:opacity-100">
+                            <button @click.stop="photoActive = (photoActive - 1 + <?php echo count($obs['photos']); ?>) % <?php echo count($obs['photos']); ?>" aria-label="前の写真" class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20 opacity-0 group-hover:opacity-100">
                                 <i data-lucide="chevron-left" class="w-5 h-5"></i>
                             </button>
-                            <button @click.stop="photoActive = (photoActive + 1) % <?php echo count($obs['photos']); ?>" class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20 opacity-0 group-hover:opacity-100">
+                            <button @click.stop="photoActive = (photoActive + 1) % <?php echo count($obs['photos']); ?>" aria-label="次の写真" class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20 opacity-0 group-hover:opacity-100">
                                 <i data-lucide="chevron-right" class="w-5 h-5"></i>
                             </button>
                             <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full z-20">
@@ -259,13 +259,17 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 </div>
 
                 <!-- Lightbox -->
-                <div x-show="lightbox" x-cloak x-transition.opacity class="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-2">
-                    <button @click.stop="lightbox = false" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101] hover:bg-white/20 transition">
+                <div x-show="lightbox" x-cloak x-transition.opacity class="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-2" role="dialog" aria-modal="true" aria-labelledby="obs-lightbox-title"
+                    @keydown.window.left.prevent="photoActive = (photoActive - 1 + <?php echo max(1, count($obs['photos'] ?? [])); ?>) % <?php echo max(1, count($obs['photos'] ?? [])); ?>"
+                    @keydown.window.right.prevent="photoActive = (photoActive + 1) % <?php echo max(1, count($obs['photos'] ?? [])); ?>"
+                    @keydown.window.escape.prevent="lightbox = false">
+                    <h2 id="obs-lightbox-title" class="sr-only">観察写真</h2>
+                    <button @click.stop="lightbox = false" aria-label="閉じる" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101] hover:bg-white/20 transition">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
                     <?php if (!empty($obs['photos'])): ?>
                         <?php foreach ($obs['photos'] as $idx => $photo): ?>
-                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" class="max-w-full max-h-full object-contain pointer-events-none select-none">
+                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" alt="観察写真 <?php echo $idx + 1; ?>" class="max-w-full max-h-full object-contain pointer-events-none select-none">
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
@@ -275,7 +279,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <div class="flex gap-2 overflow-x-auto scrollbar-hide mt-3">
                         <?php foreach ($obs['photos'] as $idx => $photo): ?>
                             <button @click.stop="photoActive = <?php echo $idx; ?>" type="button" class="w-16 h-16 flex-shrink-0 rounded-xl overflow-hidden border-2 transition" :class="photoActive === <?php echo $idx; ?> ? 'border-primary scale-105' : 'border-transparent opacity-50'">
-                                <img src="<?php echo $photo; ?>" class="w-full h-full object-cover" loading="lazy">
+                                <img src="<?php echo $photo; ?>" alt="観察写真 <?php echo $idx + 1; ?>" class="w-full h-full object-cover" loading="lazy">
                             </button>
                         <?php endforeach; ?>
                     </div>
@@ -286,6 +290,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <div class="mt-4 bg-surface rounded-2xl border border-border p-4 shadow-sm">
                     <div class="flex items-center gap-3 mb-3">
                         <img src="<?php echo htmlspecialchars($obs['user_avatar'] ?? 'https://i.pravatar.cc/150?u=' . $obs['user_id']); ?>"
+                            alt="<?php echo htmlspecialchars($observerName ?? 'ユーザー'); ?>のアバター"
                             class="w-10 h-10 rounded-full border-2 border-border shadow-sm object-cover flex-shrink-0">
                         <div>
                             <div class="text-sm font-bold text-text leading-none"><?php echo htmlspecialchars($observerName); ?></div>
@@ -616,6 +621,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                     <!-- Card Header: Avatar + User Info + Species Badge -->
                                     <div class="flex items-start gap-3">
                                         <img src="<?php echo htmlspecialchars($ident['user_avatar'] ?? 'https://i.pravatar.cc/100?u=' . $ident['user_id']); ?>"
+                                            alt="<?php echo htmlspecialchars($ident['user_name'] ?? 'ユーザー'); ?>のアバター"
                                             class="w-10 h-10 rounded-full border-2 border-border shadow-sm flex-shrink-0 object-cover"
                                             loading="lazy">
                                         <div class="flex-1 min-w-0">

@@ -51,7 +51,7 @@ unset($allObs);
     <meta name="description" content="スマホで写真を撮って、名前を調べて、地図に記録。小学生から大人まで、だれでも参加できる生きもの観察プラットフォームです。">
 
     <!-- JSON-LD Structured Data -->
-    <script type="application/ld+json">
+    <script type="application/ld+json" nonce="<?= CspNonce::attr() ?>">
         {
             "@context": "https://schema.org",
             "@type": "WebSite",
@@ -476,20 +476,20 @@ unset($allObs);
                     <h2 class="text-2xl font-black tracking-tight text-text"><?php echo __('home.timeline'); ?></h2>
                     <p class="text-sm text-muted"><?php echo count($latest_obs); ?> <?php echo __('home.updates_suffix'); ?></p>
                 </div>
-                <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
-                    <a href="?filter=all" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap <?php echo $filter === 'all' ? 'bg-primary/10 border border-primary/20' : 'text-muted hover:text-text hover:bg-surface'; ?>" <?php if ($filter === 'all') echo 'style="color:#065f46"'; ?>>
+                <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1" role="tablist" aria-label="タイムラインフィルタ">
+                    <a href="?filter=all" role="tab" aria-selected="<?php echo $filter === 'all' ? 'true' : 'false'; ?>" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap <?php echo $filter === 'all' ? 'bg-primary/10 border border-primary/20' : 'text-muted hover:text-text hover:bg-surface'; ?>" <?php if ($filter === 'all') echo 'style="color:#065f46"'; ?>>
                         すべて
                     </a>
-                    <a href="id_workbench.php" class="px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center gap-1.5 whitespace-nowrap text-muted hover:text-warning hover:bg-warning-surface">
+                    <a href="id_workbench.php" role="tab" aria-selected="false" class="px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center gap-1.5 whitespace-nowrap text-muted hover:text-warning hover:bg-warning-surface">
                         <i data-lucide="search-check" class="w-4 h-4"></i>
                         <?php echo __('nav.id_center'); ?>
                     </a>
                     <?php if ($currentUser): ?>
-                        <a href="?filter=following" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap flex items-center gap-1.5 <?php echo $filter === 'following' ? 'bg-accent/10 border border-accent/20' : 'text-muted hover:text-accent hover:bg-accent/5'; ?>" <?php if ($filter === 'following') echo 'style="color:#92400e"'; ?>>
+                        <a href="?filter=following" role="tab" aria-selected="<?php echo $filter === 'following' ? 'true' : 'false'; ?>" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap flex items-center gap-1.5 <?php echo $filter === 'following' ? 'bg-accent/10 border border-accent/20' : 'text-muted hover:text-accent hover:bg-accent/5'; ?>" <?php if ($filter === 'following') echo 'style="color:#92400e"'; ?>>
                             <i data-lucide="users" class="w-4 h-4"></i>
                             フォロー中
                         </a>
-                        <a href="?filter=mine" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap <?php echo $filter === 'mine' ? 'bg-secondary/10 border border-secondary/20' : 'text-muted hover:text-secondary hover:bg-secondary/5'; ?>" <?php if ($filter === 'mine') echo 'style="color:#0369a1"'; ?>>
+                        <a href="?filter=mine" role="tab" aria-selected="<?php echo $filter === 'mine' ? 'true' : 'false'; ?>" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap <?php echo $filter === 'mine' ? 'bg-secondary/10 border border-secondary/20' : 'text-muted hover:text-secondary hover:bg-secondary/5'; ?>" <?php if ($filter === 'mine') echo 'style="color:#0369a1"'; ?>>
                             <?php echo __('nav.profile'); ?>
                         </a>
                     <?php endif; ?>
@@ -549,7 +549,7 @@ unset($allObs);
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-full bg-surface overflow-hidden">
                                     <?php if (!empty($obs['user_avatar'])): ?>
-                                        <img src="<?php echo htmlspecialchars($obs['user_avatar']); ?>" class="w-full h-full object-cover" loading="lazy">
+                                        <img src="<?php echo htmlspecialchars($obs['user_avatar']); ?>" alt="<?php echo htmlspecialchars($obs['user_name'] ?? 'ユーザー'); ?>のアバター" class="w-full h-full object-cover" loading="lazy">
                                     <?php endif; ?>
                                 </div>
                                 <div>
@@ -565,7 +565,7 @@ unset($allObs);
                         <!-- Photo -->
                         <div class="aspect-square w-full bg-surface relative group select-none"
                             @click="doubleTap($event)">
-                            <img src="<?php echo $obs['photos'][0]; ?>" class="w-full h-full object-cover pointer-events-none" loading="lazy" decoding="async" onload="this.parentElement.classList.remove('lazy-img')">
+                            <img src="<?php echo $obs['photos'][0]; ?>" alt="<?php echo htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '観察写真'); ?>" class="w-full h-full object-cover pointer-events-none" loading="lazy" decoding="async" onload="this.parentElement.classList.remove('lazy-img')">
 
                             <div x-show="scale > 1"
                                 x-transition:enter="transition ease-out duration-200"
