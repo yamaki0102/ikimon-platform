@@ -13,6 +13,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/SiteManager.php';
 require_once __DIR__ . '/../libs/BiodiversityScorer.php';
+require_once __DIR__ . '/../libs/CspNonce.php';
 
 $siteId = $_GET['site_id'] ?? null;
 $theme = $_GET['theme'] ?? 'light'; // 'light' or 'transparent'
@@ -25,6 +26,8 @@ $site = SiteManager::load($siteId);
 if (!$site) {
     die("Site not found.");
 }
+
+CspNonce::sendHeader();
 
 // Ensure the site has a sponsor to display (though we display it either way for MVP)
 $sponsorName = $site['sponsor']['name'] ?? 'ikimon.life Community';
@@ -179,7 +182,7 @@ $textColor = $theme === 'light' ? 'text-gray-800' : 'text-[#1a2e1f]';
         </div>
     </div>
 
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>
 </body>

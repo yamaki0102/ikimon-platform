@@ -57,11 +57,16 @@ $meta_title = '名前を提案する';
             <!-- Lightbox -->
             <div x-show="lightbox" style="display: none;"
                 class="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-2"
-                x-transition.opacity>
-                <button @click.stop="lightbox = false" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101]">
+                x-transition.opacity role="dialog" aria-modal="true" aria-labelledby="id-form-lightbox-title"
+                @keydown.window.escape.prevent="lightbox = false"
+                @keydown.window.left.prevent="active = (active - 1 + <?php echo count($obs['photos']); ?>) % <?php echo count($obs['photos']); ?>"
+                @keydown.window.right.prevent="active = (active + 1) % <?php echo count($obs['photos']); ?>">
+                <h2 id="id-form-lightbox-title" class="sr-only">観察写真</h2>
+                <button @click.stop="lightbox = false" aria-label="閉じる" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101]">
                     <i data-lucide="x"></i>
                 </button>
                 <img :src="<?php echo htmlspecialchars(json_encode($obs['photos'])); ?>[active]"
+                    :alt="'観察写真 ' + (active + 1)"
                     class="max-w-full max-h-full object-contain pointer-events-none select-none">
             </div>
 
@@ -73,7 +78,7 @@ $meta_title = '名前を提案する';
 
                 <!-- Images -->
                 <template x-for="(photo, index) in <?php echo htmlspecialchars(json_encode($obs['photos'])); ?>" :key="index">
-                    <img :src="photo" class="absolute inset-0 w-full h-full object-contain transition-all duration-500"
+                    <img :src="photo" :alt="'観察写真 ' + (index + 1)" class="absolute inset-0 w-full h-full object-contain transition-all duration-500"
                         :class="active === index ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'">
                 </template>
 
@@ -84,10 +89,10 @@ $meta_title = '名前を提案する';
 
                 <!-- Controls -->
                 <?php if (count($obs['photos']) > 1): ?>
-                    <button @click.stop="active = (active - 1 + <?php echo count($obs['photos']); ?>) % <?php echo count($obs['photos']); ?>" class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20">
+                    <button @click.stop="active = (active - 1 + <?php echo count($obs['photos']); ?>) % <?php echo count($obs['photos']); ?>" aria-label="前の写真" class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20">
                         <i data-lucide="chevron-left" class="w-5 h-5"></i>
                     </button>
-                    <button @click.stop="active = (active + 1) % <?php echo count($obs['photos']); ?>" class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20">
+                    <button @click.stop="active = (active + 1) % <?php echo count($obs['photos']); ?>" aria-label="次の写真" class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20">
                         <i data-lucide="chevron-right" class="w-5 h-5"></i>
                     </button>
                     <div class="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-bold tracking-widest z-20">
@@ -101,7 +106,7 @@ $meta_title = '名前を提案する';
                 <div class="flex gap-2 overflow-x-auto scrollbar-hide">
                     <?php foreach ($obs['photos'] as $idx => $photo): ?>
                         <button @click.stop="active = <?php echo $idx; ?>" type="button" class="w-16 h-16 flex-shrink-0 rounded-xl overflow-hidden border-2 transition" :class="active === <?php echo $idx; ?> ? 'border-green-500 scale-105' : 'border-transparent opacity-50'">
-                            <img src="<?php echo $photo; ?>" class="w-full h-full object-cover">
+                            <img src="<?php echo $photo; ?>" alt="観察写真 <?php echo $idx + 1; ?>" class="w-full h-full object-cover">
                         </button>
                     <?php endforeach; ?>
                 </div>

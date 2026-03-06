@@ -8,7 +8,7 @@ Auth::init();
 $user = Auth::user();
 
 // simple admin check
-if (!$user || !in_array($user['rank'] ?? '', ['Analyst', 'Specialist'])) {
+if (!$user || !in_array($user['rank'] ?? '', ['Admin', 'Analyst', 'Specialist'])) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Unauthorized'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;

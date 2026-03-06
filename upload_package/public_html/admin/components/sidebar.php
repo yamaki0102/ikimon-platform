@@ -48,7 +48,7 @@ $currentUser = $currentUser ?? Auth::user();
     <div class="p-4 border-t border-slate-800">
         <?php if ($currentUser): ?>
             <div class="flex items-center gap-3 px-4 py-2">
-                <img src="<?php echo htmlspecialchars($currentUser['avatar'] ?? ''); ?>" class="w-8 h-8 rounded-full bg-slate-700">
+                <img src="<?php echo htmlspecialchars($currentUser['avatar'] ?? ''); ?>" alt="<?php echo htmlspecialchars($currentUser['name'] ?? 'ユーザー'); ?>のアバター" class="w-8 h-8 rounded-full bg-slate-700">
                 <div class="overflow-hidden">
                     <p class="text-sm font-bold truncate"><?php echo htmlspecialchars($currentUser['name'] ?? ''); ?></p>
                     <p class="text-xs text-slate-500 truncate"><?php echo htmlspecialchars(Auth::getRankLabel($currentUser)); ?></p>

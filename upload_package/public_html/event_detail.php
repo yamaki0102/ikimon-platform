@@ -287,7 +287,7 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                     <a :href="'observation.php?id=' + obs.id"
                         class="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition">
                         <template x-if="obs.photo">
-                            <img :src="obs.photo" class="size-12 rounded-lg object-cover bg-gray-100" loading="lazy">
+                            <img :src="obs.photo" :alt="obs.taxon_name || '観察写真'" class="size-12 rounded-lg object-cover bg-gray-100" loading="lazy">
                         </template>
                         <template x-if="!obs.photo">
                             <div class="size-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300 text-lg">🌿</div>
@@ -312,7 +312,7 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                 <div class="flex flex-wrap gap-2">
                     <template x-for="c in contributors" :key="c.name">
                         <div class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full shadow-sm border border-gray-100 text-sm">
-                            <img :src="c.avatar || 'https://i.pravatar.cc/40?u=' + c.name" class="size-5 rounded-full">
+                            <img :src="c.avatar || 'https://i.pravatar.cc/40?u=' + c.name" :alt="(c.name || 'ユーザー') + 'のアバター'" class="size-5 rounded-full">
                             <span x-text="c.name"></span>
                             <span class="text-xs text-emerald-600 font-bold" x-text="c.count + '件'"></span>
                         </div>

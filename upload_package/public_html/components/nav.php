@@ -512,11 +512,11 @@
     <!-- Raised Center Button -->
     <div class="bottom-nav__center">
         <?php if ($currentUser): ?>
-            <a href="post.php" class="bottom-nav__center-btn" aria-label="<?php echo __('nav.post'); ?>">
+            <a href="post.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
                 <i data-lucide="camera" class="w-7 h-7"></i>
             </a>
         <?php else: ?>
-            <a href="login.php" class="bottom-nav__center-btn" aria-label="<?php echo __('nav.post'); ?>">
+            <a href="login.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
                 <i data-lucide="camera" class="w-7 h-7"></i>
             </a>
         <?php endif; ?>
@@ -647,7 +647,7 @@
         <?php if ($currentUser): ?>
             <!-- User Info -->
             <div class="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-                <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" class="w-12 h-12 rounded-full object-cover border border-[var(--color-border-strong)]">
+                <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" alt="<?php echo htmlspecialchars($currentUser['name'] ?? 'ユーザー'); ?>のアバター" class="w-12 h-12 rounded-full object-cover border border-[var(--color-border-strong)]">
                 <div>
                     <p class="font-bold text-[var(--color-text)]"><?php echo htmlspecialchars($currentUser['name']); ?></p>
                     <p class="text-xs font-bold text-[var(--color-muted)]"><?php echo htmlspecialchars(Auth::getRankLabel($currentUser)); ?></p>

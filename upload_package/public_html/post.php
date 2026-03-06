@@ -66,7 +66,7 @@ if ($isGuest) {
 
         <!-- Immersive Header -->
         <header class="fixed top-0 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] h-14 flex items-center justify-between px-4 bg-surface/90 backdrop-blur-xl z-50 border-b border-border">
-            <a href="javascript:history.length > 1 ? history.back() : location.href='index.php'" class="p-2 -ml-2 text-muted hover:text-text transition">
+            <a href="javascript:history.length > 1 ? history.back() : location.href='index.php'" aria-label="戻る" class="p-2 -ml-2 text-muted hover:text-text transition">
                 <i data-lucide="x" class="w-6 h-6"></i>
             </a>
             <h1 class="text-sm font-black tracking-widest uppercase text-text">記録する</h1>
@@ -160,7 +160,7 @@ if ($isGuest) {
                         <div class="grid grid-cols-2 gap-3" x-show="photos.length > 0">
                             <template x-for="(photo, index) in photos" :key="index">
                                 <div class="relative aspect-square rounded-2xl overflow-hidden bg-surface shadow-md">
-                                    <img :src="photo.preview" class="w-full h-full object-cover">
+                                    <img :src="photo.preview" :alt="'観察写真 ' + (index + 1)" class="w-full h-full object-cover">
                                     <button @click.prevent="savePhoto(photo, index)" class="absolute top-2 left-2 p-1 bg-black/50 rounded-full hover:bg-primary transition z-30 sm:hidden" title="端末に保存">
                                         <i data-lucide="download" class="w-3 h-3 text-white"></i>
                                     </button>
@@ -413,7 +413,7 @@ if ($isGuest) {
                                     </div>
                                     <!-- Selected slug badge + thumbnail -->
                                     <div x-show="taxon_slug" class="absolute right-3 top-1.5 flex items-center gap-1.5">
-                                        <img x-show="taxon_thumbnail" :src="taxon_thumbnail" class="w-7 h-7 rounded-full object-cover border border-primary/30" alt="">
+                                    <img x-show="taxon_thumbnail" :src="taxon_thumbnail" :alt="taxon_name ? taxon_name + ' のサムネイル' : '種のサムネイル'" class="w-7 h-7 rounded-full object-cover border border-primary/30">
                                         <span class="text-[10px] font-bold bg-primary-surface text-primary px-2 py-1 rounded-full">✓ 確定</span>
                                     </div>
                                 </div>
@@ -424,7 +424,7 @@ if ($isGuest) {
                                             <!-- Thumbnail -->
                                             <div class="flex-shrink-0 w-9 h-9 rounded-lg overflow-hidden bg-surface-alt border border-border">
                                                 <template x-if="s.thumbnail_url">
-                                                    <img :src="s.thumbnail_url" class="w-full h-full object-cover" loading="lazy" alt="">
+                                                    <img :src="s.thumbnail_url" :alt="s.jp_name || s.sci_name || '種のサムネイル'" class="w-full h-full object-cover" loading="lazy">
                                                 </template>
                                                 <template x-if="!s.thumbnail_url">
                                                     <div class="w-full h-full flex items-center justify-center text-faint">
@@ -818,7 +818,8 @@ if ($isGuest) {
     <div x-data="gamificationModal"
         x-show="show"
         style="display: none;"
-        class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        role="dialog" aria-modal="true" aria-labelledby="gamification-title">
 
         <div class="bg-surface border border-primary/30 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl shadow-primary/20 relative overflow-hidden"
             x-show="show"
@@ -840,14 +841,14 @@ if ($isGuest) {
             </div>
 
             <!-- Title -->
-            <h2 class="text-3xl font-black italic tracking-tighter mb-2" :class="colorClass" x-text="title"></h2>
+            <h2 id="gamification-title" class="text-3xl font-black italic tracking-tighter mb-2" :class="colorClass" x-text="title"></h2>
 
             <!-- Message -->
             <div class="bg-surface-alt rounded-2xl p-4 mb-8 border border-white/5">
                 <p class="text-sm font-bold text-text" x-text="message"></p>
                 <!-- Badge Image if available -->
                 <template x-if="currentEvent && currentEvent.type === 'badge_earned' && currentEvent.badge.image_url">
-                    <img :src="currentEvent.badge.image_url" class="w-20 h-20 mx-auto mt-3 object-contain drop-shadow-md">
+                    <img :src="currentEvent.badge.image_url" :alt="currentEvent.badge.name ? currentEvent.badge.name + ' のバッジ' : 'バッジ'" class="w-20 h-20 mx-auto mt-3 object-contain drop-shadow-md">
                 </template>
                 <!-- Quest Reward -->
                 <template x-if="currentEvent && currentEvent.type === 'quest_complete'">

@@ -75,7 +75,7 @@ if ($fromObsId) {
                         <div class="flex items-center gap-4">
                             <?php if (!empty($fromObservation['photos'])): ?>
                                 <div class="w-16 h-16 rounded-xl overflow-hidden shadow-md shrink-0">
-                                    <img src="<?php echo htmlspecialchars($fromObservation['photos'][0]); ?>" class="w-full h-full object-cover" alt="">
+                                    <img src="<?php echo htmlspecialchars($fromObservation['photos'][0]); ?>" class="w-full h-full object-cover" alt="<?php echo htmlspecialchars($fromObservation['taxon']['name'] ?? $fromObservation['species_name'] ?? '観察写真'); ?>">
                                 </div>
                             <?php endif; ?>
                             <div>

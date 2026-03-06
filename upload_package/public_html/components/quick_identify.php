@@ -20,6 +20,7 @@
     @open-quick-id.window="openPanel($event.detail)"
     @keydown.escape.window="close()"
     class="fixed inset-0 z-[90]"
+    role="dialog" aria-modal="true" aria-labelledby="quick-identify-title"
     x-transition:enter="transition ease-out duration-300"
     x-transition:enter-start="opacity-0"
     x-transition:enter-end="opacity-100"
@@ -53,7 +54,7 @@
                     <i data-lucide="microscope" class="w-4 h-4"></i>
                 </div>
                 <div>
-                    <h2 class="text-sm font-black">名前を教える</h2>
+                    <h2 id="quick-identify-title" class="text-sm font-black">名前を教える</h2>
                     <p class="text-[10px] text-gray-500 font-mono" x-text="item ? item.id : ''"></p>
                 </div>
             </div>
@@ -70,6 +71,7 @@
                 <div class="w-20 h-20 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0 relative group cursor-pointer"
                     @click="lightbox = true">
                     <img :src="item && item.photos && item.photos[0] ? item.photos[0] : ''"
+                        :alt="item && item.taxon ? item.taxon.name : '観察写真'"
                         class="w-full h-full object-cover group-hover:scale-110 transition duration-300"
                         loading="lazy">
                     <div class="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
@@ -89,7 +91,7 @@
                             <template x-for="(photo, pi) in item.photos.slice(0, 4)" :key="pi">
                                 <div class="w-6 h-6 rounded overflow-hidden border border-white/10 cursor-pointer hover:border-[var(--color-primary)] transition"
                                     @click.stop="lightboxIdx = pi; lightbox = true">
-                                    <img :src="photo" class="w-full h-full object-cover">
+                                    <img :src="photo" :alt="'観察写真 ' + (pi + 1)" class="w-full h-full object-cover">
                                 </div>
                             </template>
                             <template x-if="item.photos.length > 4">
@@ -103,7 +105,7 @@
 
             <!-- Observer & Location Context -->
             <div x-show="item" class="flex items-center gap-3 bg-white/5 rounded-xl p-3 border border-white/5">
-                <img :src="item ? (item.user_avatar || 'assets/img/default-avatar.svg') : ''" class="w-8 h-8 rounded-full object-cover border border-white/10" loading="lazy">
+                <img :src="item ? (item.user_avatar || 'assets/img/default-avatar.svg') : ''" :alt="item ? (item.user_name || 'ユーザー') + 'のアバター' : 'ユーザーのアバター'" class="w-8 h-8 rounded-full object-cover border border-white/10" loading="lazy">
                 <div class="flex-1 min-w-0">
                     <p class="text-xs font-bold text-white/80 truncate" x-text="item ? (item.user_name || 'observer') : ''"></p>
                     <p x-show="item && item.location_name" class="text-[10px] text-gray-500 truncate flex items-center gap-1">
@@ -123,7 +125,7 @@
                 <div class="space-y-1.5 max-h-32 overflow-y-auto">
                     <template x-for="(eid, eidx) in (item ? item.identifications : [])" :key="eidx">
                         <div class="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2 border border-white/5">
-                            <img :src="eid.user_avatar || 'assets/img/default-avatar.svg'" class="w-5 h-5 rounded-full object-cover border border-white/10 shrink-0" loading="lazy">
+                            <img :src="eid.user_avatar || 'assets/img/default-avatar.svg'" :alt="(eid.user_name || 'ユーザー') + 'のアバター'" class="w-5 h-5 rounded-full object-cover border border-white/10 shrink-0" loading="lazy">
                             <div class="flex-1 min-w-0">
                                 <p class="text-xs font-bold text-white/80 truncate" x-text="eid.taxon_name || '名前なし'"></p>
                                 <div class="flex items-center gap-1.5">
@@ -265,20 +267,22 @@
     <div x-show="lightbox"
         x-transition.opacity
         class="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
+        role="dialog" aria-modal="true" aria-labelledby="quick-identify-lightbox-title"
         @click="lightbox = false">
+        <h2 id="quick-identify-lightbox-title" class="sr-only">観察写真</h2>
         <button @click.stop="lightbox = false" class="absolute top-4 right-4 p-2 bg-white/10 rounded-full z-[101] hover:bg-white/20 transition">
             <i data-lucide="x" class="w-5 h-5 text-white"></i>
         </button>
         <template x-if="item && item.photos">
             <div class="relative max-w-full max-h-full" @click.stop>
-                <img :src="item.photos[lightboxIdx] || ''" class="max-w-full max-h-[85vh] object-contain">
+                <img :src="item.photos[lightboxIdx] || ''" :alt="'観察写真 ' + (lightboxIdx + 1)" class="max-w-full max-h-[85vh] object-contain">
                 <template x-if="item.photos.length > 1">
                     <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                         <template x-for="(p, pi) in item.photos" :key="pi">
                             <button @click.stop="lightboxIdx = pi"
                                 class="w-8 h-8 rounded-lg overflow-hidden border-2 transition"
                                 :class="lightboxIdx === pi ? 'border-[var(--color-primary)] scale-110' : 'border-white/20 opacity-60'">
-                                <img :src="p" class="w-full h-full object-cover">
+                                <img :src="p" :alt="'観察写真 ' + (pi + 1)" class="w-full h-full object-cover">
                             </button>
                         </template>
                     </div>

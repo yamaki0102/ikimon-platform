@@ -92,7 +92,6 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <script src="https://cdn.tailwindcss.com"></script>
 <script nonce="<?= CspNonce::attr() ?>">
     tailwind.config = {
-        darkMode: 'class',
         theme: {
             extend: {
                 colors: {
@@ -134,7 +133,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
         }
     }
 </script>
-<script src="https://unpkg.com/lucide@0.469.0"></script>
+<script src="https://unpkg.com/lucide@0.477.0"></script>
 <script nonce="<?= CspNonce::attr() ?>">
     // Lucide Icons: 一元初期化（全ページ共通）
     document.addEventListener('DOMContentLoaded', function() {
@@ -154,7 +153,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
         });
     }
 </script>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 
 <!-- Tezawari Engines -->
 <script defer src="js/SoundManager.js"></script>

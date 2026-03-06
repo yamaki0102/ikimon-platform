@@ -60,6 +60,11 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         <priority>0.6</priority>
     </url>
     <url>
+        <loc><?php echo $baseUrl; ?>/pricing.php</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    <url>
         <loc><?php echo $baseUrl; ?>/guidelines.php</loc>
         <changefreq>monthly</changefreq>
         <priority>0.4</priority>

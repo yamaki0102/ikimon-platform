@@ -373,14 +373,14 @@ Auth::init();
         <div x-show="!showBottomSheet && !selectedObs" x-transition.opacity.duration.200ms class="absolute top-16 left-4 right-4 md:left-8 md:right-auto md:w-96 z-30 pointer-events-auto max-w-md md:max-w-none mx-auto md:mx-0 flex flex-col gap-2">
 
             <!-- Tab Navigation -->
-            <div class="map-tab-bar">
-                <button class="map-tab" :class="{'active': activeTab === 'markers'}" @click="switchTab('markers')">
+            <div class="map-tab-bar" role="tablist" aria-label="マップ表示タブ">
+                <button class="map-tab" role="tab" :aria-selected="activeTab === 'markers'" :class="{'active': activeTab === 'markers'}" @click="switchTab('markers')">
                     <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> マップ
                 </button>
-                <button class="map-tab" :class="{'active': activeTab === 'heatmap'}" @click="switchTab('heatmap')">
+                <button class="map-tab" role="tab" :aria-selected="activeTab === 'heatmap'" :class="{'active': activeTab === 'heatmap'}" @click="switchTab('heatmap')">
                     <i data-lucide="flame" class="w-3.5 h-3.5"></i> ストランドマップ
                 </button>
-                <button class="map-tab" :class="{'active': activeTab === 'sites'}" @click="switchTab('sites')">
+                <button class="map-tab" role="tab" :aria-selected="activeTab === 'sites'" :class="{'active': activeTab === 'sites'}" @click="switchTab('sites')">
                     <i data-lucide="map" class="w-3.5 h-3.5"></i> サイト一覧
                 </button>
             </div>
@@ -507,6 +507,7 @@ Auth::init();
                     <!-- Photo -->
                     <div class="relative">
                         <img :src="selectedObs.photos && selectedObs.photos[0] ? selectedObs.photos[0] : 'assets/img/placeholder.png'"
+                            :alt="selectedObs.taxon ? selectedObs.taxon.name : '観察写真'"
                             class="obs-detail-photo" loading="lazy">
                         <!-- Status badge overlay -->
                         <span class="absolute bottom-3 left-3 text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm"
@@ -586,6 +587,7 @@ Auth::init();
                 <template x-for="obs in clusterItems" :key="obs.id">
                     <div @click="selectedObs = obs; showBottomSheet = false; if(map && obs.lat && obs.lng) { map.flyTo({center: [obs.lng, obs.lat], zoom: 15, offset: [0, -100]}); }" class="panel-item cursor-pointer">
                         <img :src="obs.photos && obs.photos[0] ? obs.photos[0] : 'assets/img/placeholder.png'"
+                            :alt="obs.taxon ? obs.taxon.name : '観察写真'"
                             class="w-14 h-14 rounded-xl object-cover bg-bg-faint border border-border flex-shrink-0"
                             loading="lazy">
                         <div class="flex-1 min-w-0">

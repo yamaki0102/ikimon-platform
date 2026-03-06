@@ -127,7 +127,7 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                         <!-- Preview Circle -->
                         <div class="relative group shrink-0">
                             <div class="w-28 h-28 rounded-[var(--radius-lg)] overflow-hidden border-4 border-surface shadow-lg bg-surface">
-                                <img :src="avatarPreview" class="w-full h-full object-cover transition duration-500 group-hover:scale-105">
+                                <img :src="avatarPreview" :alt="form.name ? form.name + 'のアバター' : 'ユーザーのアバター'" class="w-full h-full object-cover transition duration-500 group-hover:scale-105">
                             </div>
                             <button type="button"
                                 @click="$refs.avatarInput.click()"
@@ -155,10 +155,10 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
 
                 <!-- Crop Modal -->
                 <template x-if="showCropModal">
-                    <div class="crop-modal" @click.self="closeCropper()" x-transition.opacity>
+                    <div class="crop-modal" @click.self="closeCropper()" x-transition.opacity role="dialog" aria-modal="true" aria-labelledby="crop-modal-title">
                         <div class="crop-container" @click.stop>
                             <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-base font-black flex items-center gap-2">
+                                <h3 id="crop-modal-title" class="text-base font-black flex items-center gap-2">
                                     <i data-lucide="crop" class="w-5 h-5 text-primary"></i>
                                     画像をトリミング
                                 </h3>

@@ -2,13 +2,14 @@
 <!-- Bio-Navigator Modal -->
 <div x-data="navigator()" x-show="open" style="display: none;" 
      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+     role="dialog" aria-modal="true" aria-labelledby="navigator-title"
      x-transition.opacity>
 
     <div class="bg-[var(--color-bg-surface)] rounded-3xl w-full max-w-lg shadow-2xl border border-white/10 overflow-hidden flex flex-col max-h-[85vh] relative text-[var(--color-text)]" @click.outside="open = false">
         
         <!-- Header -->
         <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-[#111]">
-            <h3 class="font-black text-base flex items-center gap-2">
+            <h3 id="navigator-title" class="font-black text-base flex items-center gap-2">
                 <i data-lucide="compass" class="text-[var(--color-primary)] w-5 h-5"></i> Bio-Navigator
             </h3>
             <button @click="open = false" class="p-1.5 hover:bg-white/10 rounded-full transition"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -73,7 +74,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="<?= CspNonce::attr() ?>">
     function navigator() {
         return {
             open: false,

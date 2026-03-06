@@ -7,6 +7,9 @@
  * LP → デモ → 料金 → 申込 の動線。
  */
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/CspNonce.php';
+ 
+CspNonce::sendHeader();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -945,7 +948,7 @@ require_once __DIR__ . '/../../config/config.php';
             <p>&copy; <?php echo date('Y'); ?> ikimon Project. Based in Hamamatsu, Japan.</p>
         </div>
     </footer>
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         // Intersection Observer for fade-up animations
         (function() {
             var els = document.querySelectorAll('.step-card, .report-card, .use-card, .section-title, .section-sub');

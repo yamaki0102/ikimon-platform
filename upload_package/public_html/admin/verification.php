@@ -55,7 +55,7 @@ $currentUser = Auth::user();
 
                     <!-- Image Panel -->
                     <div class="flex-none lg:flex-1 relative rounded-3xl overflow-hidden glass-panel group w-full lg:w-auto h-[40vh] lg:h-full">
-                        <img :src="currentObs.image_url" class="w-full h-full object-contain bg-black">
+                        <img :src="currentObs.image_url" :alt="(currentObs.taxon && currentObs.taxon.name) ? currentObs.taxon.name : '観察写真'" class="w-full h-full object-contain bg-black">
 
                         <!-- Metadata Overlay -->
                         <div class="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/90 to-transparent">

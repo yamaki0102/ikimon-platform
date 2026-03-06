@@ -5,7 +5,9 @@
  * Real-time monitoring of the autonomous extraction engine.
  */
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/CspNonce.php';
 Auth::requireRole('Admin');
+CspNonce::sendHeader();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -398,7 +400,7 @@ Auth::requireRole('Admin');
         }
     </style>
 
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
         document.addEventListener('alpine:init', () => {
             Alpine.data('omoikaneDashboard', () => ({
                 metrics: {

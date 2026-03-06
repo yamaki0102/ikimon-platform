@@ -428,6 +428,7 @@ if (!$currentUser) {
                              }">
                             <!-- Image -->
                             <img :src="item.photos && item.photos[0] ? item.photos[0] : 'assets/img/no-photo.svg'"
+                                :alt="item.taxon ? item.taxon.name : '観察写真'"
                                 @click.stop="activateItem(item, index)"
                                 @dblclick.stop="openQuickID(item, index)"
                                 class="w-full h-full object-cover md:opacity-60 md:group-hover:opacity-100 transition duration-200">
@@ -480,6 +481,7 @@ if (!$currentUser) {
                         <!-- Thumbnail strip (clickable to cycle photos) -->
                         <div class="relative shrink-0 cursor-pointer group/thumb" @click="activePhotoIdx = (activePhotoIdx + 1) % (activeItem.photos?.length || 1)">
                             <img :src="activeItem.photos && activeItem.photos[activePhotoIdx] ? activeItem.photos[activePhotoIdx] : 'assets/img/no-photo.svg'"
+                                :alt="activeItem.taxon ? activeItem.taxon.name : '観察写真'"
                                 class="w-16 h-16 rounded-xl object-cover border border-white/10">
                             <template x-if="activeItem.photos && activeItem.photos.length > 1">
                                 <div class="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 opacity-0 group-hover/thumb:opacity-100 transition">
@@ -613,6 +615,7 @@ if (!$currentUser) {
         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
         <div class="flex items-center gap-3 px-3 py-2.5">
             <img :src="activeItem?.photos?.[0] || 'assets/img/no-photo.svg'"
+                :alt="activeItem?.taxon?.name || '観察写真'"
                 class="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-white/10">
             <div class="flex-1 min-w-0">
                 <p class="text-xs font-bold text-white truncate" x-text="activeItem?.taxon?.name || '未同定'"></p>
