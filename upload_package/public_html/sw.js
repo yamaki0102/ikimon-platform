@@ -1,5 +1,5 @@
-const CACHE_NAME = 'ikimon-v10-shell';
-const PHOTO_CACHE = 'ikimon-v10-photos';
+const CACHE_NAME = 'ikimon-v11-shell';
+const PHOTO_CACHE = 'ikimon-v11-photos';
 const ASSETS_TO_CACHE = [
     './',
     'index.php',
@@ -9,6 +9,7 @@ const ASSETS_TO_CACHE = [
     'login.php',
     'ranking.php',
     'profile.php',
+    'analytics.php',
     'zukan.php',
     'species.php',
     'id_wizard.php',

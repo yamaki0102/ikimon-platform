@@ -4,6 +4,7 @@ require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/BioUtils.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/BadgeManager.php';
+require_once __DIR__ . '/../libs/StreakTracker.php';
 
 require_once __DIR__ . '/../libs/Services/EventLogService.php';
 require_once __DIR__ . '/../libs/Services/SurveyLogService.php';
@@ -18,6 +19,7 @@ if (!$user) {
 }
 
 $my_badges = BadgeManager::getUserBadges($user['id']);
+$profileStreak = StreakTracker::getStreak($user['id']);
 
 
 $all_obs = DataStore::fetchAll('observations');
@@ -151,6 +153,11 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                     <div class="text-center">
                         <p class="text-4xl md:text-5xl font-heading font-black text-secondary tracking-tight"><?php echo $user['score']; ?></p>
                         <p class="font-bold text-muted uppercase tracking-widest mt-1" style="font-size: var(--text-xs);">スコア</p>
+                        <?php if (($profileStreak['current_streak'] ?? 0) > 0): ?>
+                            <span class="inline-flex items-center gap-1 text-sm text-orange-500 font-bold mt-2">
+                                🔥 <?= $profileStreak['current_streak'] ?>日連続
+                            </span>
+                        <?php endif; ?>
                     </div>
 
                 </div>
