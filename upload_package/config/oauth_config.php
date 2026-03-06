@@ -10,13 +10,13 @@
  */
 
 // Google OAuth 2.0
-define('GOOGLE_CLIENT_ID', getenv('GOOGLE_CLIENT_ID') ?: '');
-define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET') ?: '');
+if (!defined('GOOGLE_CLIENT_ID'))     define('GOOGLE_CLIENT_ID', getenv('GOOGLE_CLIENT_ID') ?: '');
+if (!defined('GOOGLE_CLIENT_SECRET')) define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET') ?: '');
 define('GOOGLE_REDIRECT_URI', BASE_URL . '/oauth_callback.php?provider=google');
 
 // X (Twitter) OAuth 2.0
-define('TWITTER_CLIENT_ID', getenv('TWITTER_CLIENT_ID') ?: '');
-define('TWITTER_CLIENT_SECRET', getenv('TWITTER_CLIENT_SECRET') ?: '');
+if (!defined('TWITTER_CLIENT_ID'))     define('TWITTER_CLIENT_ID', getenv('TWITTER_CLIENT_ID') ?: '');
+if (!defined('TWITTER_CLIENT_SECRET')) define('TWITTER_CLIENT_SECRET', getenv('TWITTER_CLIENT_SECRET') ?: '');
 define('TWITTER_REDIRECT_URI', BASE_URL . '/oauth_callback.php?provider=twitter');
 
 // OAuth enabled check
