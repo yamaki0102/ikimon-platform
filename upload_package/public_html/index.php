@@ -282,7 +282,7 @@ unset($allObs);
         <!-- Exploration Map → moved to explore.php -->
 
         <!-- ==================== FEED SECTION ==================== -->
-        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-2xl)">
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-top:var(--phi-2xl);margin-bottom:var(--phi-2xl)">
             <!-- Feed Header & Filter Tabs -->
             <div class="flex flex-col gap-3 mb-6">
                 <div class="flex items-baseline justify-between">
