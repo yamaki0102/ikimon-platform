@@ -19,10 +19,12 @@ define('LIBS_DIR', ROOT_DIR . '/libs');
 define('PUBLIC_DIR', ROOT_DIR . '/public_html');
 
 // Session Security (must be set before session_start)
-ini_set('session.cookie_secure', 1);
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_samesite', 'Lax');
-ini_set('session.use_strict_mode', 1);
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_secure', 1);
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.cookie_samesite', 'Lax');
+    ini_set('session.use_strict_mode', 1);
+}
 
 // CSP Nonce (available globally for inline script nonce attributes)
 require_once LIBS_DIR . '/CspNonce.php';
