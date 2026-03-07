@@ -39,6 +39,7 @@ if (!$input) {
 $fieldId   = $input['field_id'] ?? null;
 $sessionId = $input['session_id'] ?? null;
 $points    = $input['points'] ?? [];
+$stepCount = isset($input['step_count']) ? (int)$input['step_count'] : null;
 
 // Validation
 if (empty($sessionId)) {
@@ -126,6 +127,11 @@ for ($i = 1; $i < count($pts); $i++) {
 }
 $existing['total_distance_m'] = round($totalDist, 1);
 
+// Save step count (latest cumulative value overwrites)
+if ($stepCount !== null) {
+    $existing['step_count'] = $stepCount;
+}
+
 file_put_contents($trackFile, json_encode($existing, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG));
 
 echo json_encode([
@@ -133,6 +139,7 @@ echo json_encode([
     'saved'          => count($sanitized),
     'total_points'   => $existing['point_count'],
     'total_distance' => $existing['total_distance_m'],
+    'step_count'     => $existing['step_count'] ?? null,
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 
 /**

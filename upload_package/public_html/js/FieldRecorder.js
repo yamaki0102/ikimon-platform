@@ -15,7 +15,6 @@ class FieldRecorder {
         this.currentPath = [];
         this.currentAccuracy = 0;
         this.totalDistance = 0;
-        this.showingGrid = false;
         this._saveCounter = 0;
 
         // Server sync
@@ -56,6 +55,7 @@ class FieldRecorder {
                 isRecording: this.isRecording,
                 currentPath: this.currentPath,
                 totalDistance: this.totalDistance,
+                steps: window._stepCounter ? window._stepCounter.getSteps() : 0,
                 savedAt: Date.now()
             };
             sessionStorage.setItem(FieldRecorder.STORAGE_KEY, JSON.stringify(state));
@@ -87,6 +87,11 @@ class FieldRecorder {
             this.sessionId = state.sessionId;
             this.currentPath = state.currentPath || [];
             this.totalDistance = state.totalDistance || 0;
+
+            // Restore step count
+            if (state.steps && window._stepCounter) {
+                window._stepCounter.setSteps(state.steps);
+            }
 
             console.log('[FieldRecorder] State restored — session:', this.sessionId,
                 'points:', this.currentPath.length, 'wasRecording:', state.isRecording);
@@ -137,6 +142,11 @@ class FieldRecorder {
         this.isRecording = true;
         this.syncBuffer = [];
 
+        // Resume step counter
+        if (window._stepCounter && StepCounter.isSupported()) {
+            window._stepCounter.start();
+        }
+
         this.watchId = navigator.geolocation.watchPosition(
             (pos) => this.processPosition(pos),
             (err) => console.error('[FieldRecorder] GPS error:', err),
@@ -186,16 +196,6 @@ class FieldRecorder {
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
                 paint: { 'line-color': '#ef4444', 'line-width': 4 }
             });
-            this.map.addSource('mece-grid', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: [] }
-            });
-            this.map.addLayer({
-                id: 'grid-lines',
-                type: 'line',
-                source: 'mece-grid',
-                paint: { 'line-color': '#10b981', 'line-width': 1, 'line-opacity': 0.5 }
-            });
         });
     }
 
@@ -213,6 +213,12 @@ class FieldRecorder {
         this.totalDistance = 0;
         this.syncBuffer = [];
         this.sessionId = this._generateId();
+
+        // Start step counter
+        if (window._stepCounter && StepCounter.isSupported()) {
+            window._stepCounter.reset();
+            window._stepCounter.start();
+        }
 
         if (!navigator.geolocation) {
             alert('Geolocation not supported');
@@ -243,6 +249,11 @@ class FieldRecorder {
         if (this.syncInterval) {
             clearInterval(this.syncInterval);
             this.syncInterval = null;
+        }
+
+        // Stop step counter
+        if (window._stepCounter) {
+            window._stepCounter.stop();
         }
 
         // Final flush
@@ -328,7 +339,8 @@ class FieldRecorder {
                 body: JSON.stringify({
                     field_id: this.fieldId,
                     session_id: this.sessionId,
-                    points: batch
+                    points: batch,
+                    step_count: window._stepCounter ? window._stepCounter.getSteps() : null
                 })
             });
 
@@ -441,50 +453,11 @@ class FieldRecorder {
         }
     }
 
-    toggleGrid() {
-        this.showingGrid = !this.showingGrid;
-        if (this.showingGrid) {
-            this.drawGrid();
-            this.map.setLayoutProperty('grid-lines', 'visibility', 'visible');
-        } else {
-            this.map.setLayoutProperty('grid-lines', 'visibility', 'none');
-        }
-    }
-
-    drawGrid() {
-        const center = this.map.getCenter();
-        const range = 0.05;
-        const step = 0.0045; // ~500m
-
-        const features = [];
-        const startLat = Math.floor((center.lat - range) / step) * step;
-        const endLat = Math.floor((center.lat + range) / step) * step;
-        const startLng = Math.floor((center.lng - range) / step) * step;
-        const endLng = Math.floor((center.lng + range) / step) * step;
-
-        for (let lat = startLat; lat <= endLat; lat += step) {
-            features.push({
-                type: 'Feature', geometry: { type: 'LineString', coordinates: [[startLng, lat], [endLng + step, lat]] }
-            });
-        }
-        for (let lng = startLng; lng <= endLng; lng += step) {
-            features.push({
-                type: 'Feature', geometry: { type: 'LineString', coordinates: [[lng, startLat], [lng, endLat + step]] }
-            });
-        }
-
-        if (this.map.getSource('mece-grid')) {
-            this.map.getSource('mece-grid').setData({
-                type: 'FeatureCollection',
-                features: features
-            });
-        }
-    }
-
     getStats() {
         return {
             distance: this.totalDistance,
-            points: this.currentPath.length
+            points: this.currentPath.length,
+            steps: window._stepCounter ? window._stepCounter.getSteps() : null
         };
     }
 

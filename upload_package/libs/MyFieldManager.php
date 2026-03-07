@@ -163,6 +163,7 @@ class MyFieldManager
                 'point_count'    => $data['point_count'] ?? 0,
                 'total_distance' => $data['total_distance_m'] ?? 0,
                 'observation_count' => $obsCount,
+                'step_count'     => $data['step_count'] ?? null,
                 'points'         => $data['points'] ?? [], // Include points for mini-map
             ];
         }

@@ -19,6 +19,7 @@ require_once ROOT_DIR . '/libs/Lang.php';
 require_once ROOT_DIR . '/libs/MyFieldManager.php';
 require_once ROOT_DIR . '/libs/BadgeManager.php';
 
+Auth::init();
 $user = Auth::user();
 $pageTitle = 'さんぽ記録 — ikimon';
 $meta_title = 'さんぽ記録';
@@ -47,6 +48,7 @@ $prevWeekObs = 0;
 $weekSteps = 0;
 $monthSteps = 0;
 $totalSteps = 0;
+$hasRealSteps = false; // track if any session has real step_count
 
 // Dates
 $today = date('Y-m-d');
@@ -102,6 +104,7 @@ if ($user) {
         $dur = ($s['duration_sec'] ?? 0) / 60;
         $obs = $s['observation_count'] ?? 0;
         $steps = $s['step_count'] ?? $s['estimated_steps'] ?? round(($dist / 1000) * 1300);
+        if (isset($s['step_count'])) $hasRealSteps = true;
         $startedAt = $s['started_at'] ?? null;
         $dateKey = $startedAt ? date('Y-m-d', strtotime($startedAt)) : null;
 
@@ -444,6 +447,7 @@ $biomeOptions = [
 </head>
 
 <body x-data="{ searchOpen: false, menuOpen: false }" class="js-loading pt-14 bg-base text-text font-body pb-20 md:pb-0">
+    <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <!-- Mobile FAB -->
@@ -609,12 +613,21 @@ $biomeOptions = [
                         <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                             <i data-lucide="footprints" class="w-4 h-4 text-blue-600"></i>
                         </div>
-                        <div class="text-[10px] font-bold text-blue-600">推定歩数</div>
+                        <div class="text-[10px] font-bold text-blue-600"><?= $hasRealSteps ? '歩数' : '推定歩数' ?></div>
                     </div>
                     <div class="text-2xl font-black text-blue-700">
                         <span x-text="stats[period].steps.toLocaleString()">0</span>
                     </div>
-                    <div class="text-[10px] text-blue-400 mt-1">距離 × 1,300歩/km</div>
+                    <div class="text-[10px] text-blue-400 mt-1"><?= $hasRealSteps ? 'センサー実測値含む' : '距離 × 1,300歩/km' ?></div>
+                    <!-- Live today's steps from passive tracker -->
+                    <div id="passive-steps-today" style="display:none;" class="mt-2 pt-2 border-t border-blue-200">
+                        <div class="flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                            <span class="text-[10px] font-bold text-blue-500">今日</span>
+                            <span id="passive-steps-value" class="text-sm font-black text-blue-600 ml-auto">0</span>
+                            <span class="text-[10px] text-blue-400">歩</span>
+                        </div>
+                    </div>
                 </div>
                 <!-- Calories Card -->
                 <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
@@ -814,7 +827,24 @@ $biomeOptions = [
                     this.$nextTick(() => {
                         lucide.createIcons();
                         this.renderMiniMaps();
+                        this.startPassiveStepDisplay();
                     });
+                },
+                startPassiveStepDisplay() {
+                    const el = document.getElementById('passive-steps-today');
+                    const valEl = document.getElementById('passive-steps-value');
+                    if (!el || !valEl) return;
+                    const update = () => {
+                        if (window._passiveStepTracker) {
+                            const steps = window._passiveStepTracker.getTodaySteps();
+                            if (steps > 0) {
+                                valEl.textContent = steps.toLocaleString();
+                                el.style.display = '';
+                            }
+                        }
+                    };
+                    update();
+                    setInterval(update, 3000);
                 },
                 renderMiniMaps() {
                     document.querySelectorAll('.track-minimap').forEach(el => {
