@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/DataStore.php';
-require_once __DIR__ . '/../libs/QuestManager.php';
+// QuestManager moved to dashboard
 require_once __DIR__ . '/../libs/BioUtils.php';
 require_once __DIR__ . '/../libs/PrivacyFilter.php';
 require_once __DIR__ . '/../libs/FollowManager.php';
@@ -12,7 +12,7 @@ $currentUser = Auth::user();
 // Fetch Data for Feed with Filters
 $filter = $_GET['filter'] ?? 'all';
 $followedUserIds = ($currentUser && $filter === 'following') ? FollowManager::getFollowedUserIds($currentUser['id']) : [];
-$latest_obs = DataStore::getLatest('observations', 20, function ($item) use ($filter, $currentUser, $followedUserIds) {
+$latest_obs = DataStore::getLatest('observations', 6, function ($item) use ($filter, $currentUser, $followedUserIds) {
     // Exclude test/E2E users, guest users, and broken images
     $userName = $item['user_name'] ?? '';
     if (strpos($userName, 'E2E_') === 0) return false;
@@ -33,9 +33,6 @@ $latest_obs = DataStore::getLatest('observations', 20, function ($item) use ($fi
     }
     return true;
 });
-
-$dailyQuests = QuestManager::getActiveQuests();
-$dailyQuest = $dailyQuests[0] ?? null;
 
 // Stats for hero
 $allObs = DataStore::fetchAll('observations');
@@ -106,13 +103,21 @@ unset($allObs);
         }
 
         .hero-section {
-            background: linear-gradient(135deg, var(--color-primary-surface) 0%, #f0fdf4 30%, #f0f9ff 70%, var(--color-primary-surface) 100%);
+            background: linear-gradient(135deg, #064e3b 0%, #065f46 25%, #047857 50%, #059669 75%, #0d9488 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
         }
 
         .hero-section h1 {
-            font-size: var(--text-2xl);
-            line-height: 1.2;
-            letter-spacing: var(--tracking);
+            font-size: clamp(1.75rem, 5vw, 2.5rem);
+            line-height: 1.15;
+            letter-spacing: -0.02em;
         }
 
         .hero-section .hero-sub {
@@ -145,127 +150,63 @@ unset($allObs);
         @touchend="end()"
         :style="`transform: translateY(${pullY}px)`">
 
-        <!-- ==================== HERO SECTION (Compact) ==================== -->
-        <section class="hero-section relative overflow-hidden">
-            <div class="max-w-5xl mx-auto px-6 text-center relative z-10" style="padding-top:var(--phi-xl);padding-bottom:var(--phi-lg)">
-                <!-- Eyebrow -->
-                <div class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-surface/80 border border-primary-surface shadow-sm" style="margin-bottom:var(--phi-md)">
-                    <span class="w-2 h-2 rounded-full animate-pulse bg-primary"></span>
-                    <span class="text-token-xs font-bold" style="color:#065f46"><?php echo number_format($totalObs); ?> 件の記録 · <?php echo number_format($uniqueSpecies); ?> 種</span>
+        <!-- ==================== HERO SECTION ==================== -->
+        <section class="hero-section relative">
+            <!-- Decorative elements -->
+            <div class="absolute top-10 left-10 w-48 h-48 rounded-full blur-3xl bg-white/10"></div>
+            <div class="absolute bottom-10 right-10 w-64 h-64 rounded-full blur-3xl bg-emerald-300/10"></div>
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full blur-3xl bg-teal-400/5"></div>
+
+            <div class="max-w-5xl mx-auto px-6 text-center relative z-10" style="padding-top:var(--phi-2xl);padding-bottom:var(--phi-xl)">
+                <!-- Eyebrow Badge -->
+                <div class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-white/15 backdrop-blur-sm border border-white/20" style="margin-bottom:var(--phi-md)">
+                    <span class="w-2 h-2 rounded-full animate-pulse bg-emerald-300"></span>
+                    <span class="text-token-xs font-bold text-white/90"><?php echo number_format($totalObs); ?> 件の観察記録 · <?php echo number_format($uniqueSpecies); ?> 種を確認</span>
                 </div>
 
                 <!-- Main Copy -->
-                <h1 class="font-black tracking-tight leading-tight text-text" style="margin-bottom:var(--phi-xs)">
-                    歩いて、見つけて、<br class="md:hidden"><span class="text-primary-dark">守る</span>。
+                <h1 class="font-black text-white" style="margin-bottom:var(--phi-sm)">
+                    歩いて、見つけて、<br class="md:hidden"><span class="text-emerald-300">守る</span>。
                 </h1>
-                <p class="hero-sub max-w-xl mx-auto leading-relaxed" style="color:#1e3a5f;margin-bottom:var(--phi-lg)">
+                <p class="hero-sub max-w-xl mx-auto text-white/80" style="margin-bottom:var(--phi-lg)">
                     <span class="inline-block">散歩×生きもの観察で、</span><span class="inline-block">自然を守りながら健康に。</span><br class="md:hidden">
                     <span class="inline-block">あなたの一歩が</span><span class="inline-block">科学データになる。</span>
                 </p>
-            </div>
 
-            <!-- Decorative blobs -->
-            <div class="absolute top-10 left-10 w-48 h-48 rounded-full blur-3xl bg-primary/10"></div>
-            <div class="absolute bottom-10 right-10 w-36 h-36 rounded-full blur-3xl bg-accent/10"></div>
-        </section>
-
-        <!-- ==================== DAILY QUEST WIDGET (New) ==================== -->
-        <?php
-        $questProgress = 0;
-        $questCompleted = false;
-        if ($currentUser && $dailyQuest) {
-            $today = date('Y-m-d');
-            $questLog = $currentUser['quest_log'] ?? [];
-            if (isset($questLog[$today][$dailyQuest['id']])) {
-                $questProgress = 100;
-                $questCompleted = true;
-            } else {
-                $questProgress = QuestManager::checkProgress($currentUser['id'], $dailyQuest['id']);
-            }
-        }
-        ?>
-        <?php if ($dailyQuest): ?>
-            <section class="max-w-5xl mx-auto px-4 md:px-6 relative z-30" style="margin-top:calc(var(--phi-sm) * -1);margin-bottom:var(--phi-lg)">
-                <div class="bg-white/90 backdrop-blur-md border border-amber-200 rounded-2xl p-4 shadow-lg shadow-amber-500/10 flex items-center gap-4 relative overflow-hidden">
-                    <!-- Background decoration -->
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-amber-400/10 rounded-full blur-2xl -mr-8 -mt-8"></div>
-
-                    <!-- Icon -->
-                    <div class="shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-amber-300 to-orange-400 flex items-center justify-center text-white shadow-md">
-                        <i data-lucide="<?php echo htmlspecialchars($dailyQuest['icon']); ?>" class="w-6 h-6"></i>
-                    </div>
-
-                    <!-- Content -->
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-[10px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded uppercase tracking-wider">DAILY QUEST</span>
-                            <span class="text-xs font-bold text-amber-800">+<?php echo $dailyQuest['reward']; ?> XP</span>
-                        </div>
-                        <h3 class="text-sm font-black text-text leading-snug"><?php echo htmlspecialchars($dailyQuest['title']); ?></h3>
-                        <p class="text-xs text-muted leading-relaxed mt-0.5"><?php echo htmlspecialchars($dailyQuest['description']); ?></p>
-
-                        <!-- Progress Bar -->
-                        <div class="mt-2 h-2 w-full bg-surface-dark rounded-full overflow-hidden relative">
-                            <div class="h-full bg-amber-500 rounded-full transition-all duration-1000 ease-out" style="width: <?php echo $questProgress; ?>%"></div>
-                        </div>
-                    </div>
-
-                    <!-- Action / Status -->
-                    <div class="shrink-0">
-                        <?php if ($questCompleted): ?>
-                            <div class="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-green-100/80 text-green-600 border border-green-200">
-                                <i data-lucide="check" class="w-6 h-6"></i>
-                            </div>
-                        <?php else: ?>
-                            <a href="post.php" class="flex flex-col items-center justify-center w-12 h-12 rounded-full bg-amber-500 text-white shadow-lg shadow-amber-500/30 hover:bg-amber-600 hover:scale-105 active:scale-95 transition">
-                                <i data-lucide="camera" class="w-5 h-5"></i>
-                            </a>
-                        <?php endif; ?>
-                    </div>
+                <!-- CTA Buttons -->
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-3" style="margin-bottom:var(--phi-lg)">
+                    <a href="post.php" class="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-white text-emerald-800 font-black text-sm shadow-lg shadow-black/20 hover:bg-emerald-50 hover:scale-105 active:scale-95 transition-all">
+                        <i data-lucide="camera" class="w-5 h-5"></i>
+                        生き物を記録する
+                    </a>
+                    <a href="about.php" class="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-white/15 backdrop-blur-sm text-white font-bold text-sm border border-white/25 hover:bg-white/25 hover:scale-105 active:scale-95 transition-all">
+                        <i data-lucide="info" class="w-4 h-4"></i>
+                        はじめて使う方へ
+                    </a>
                 </div>
-            </section>
-        <?php endif; ?>
 
-        <!-- ==================== QUICK NAV (Horizontal Scroll) ==================== -->
-        <section class="max-w-5xl mx-auto relative z-20" style="margin-bottom:var(--phi-xl)">
-            <div class="flex gap-3 overflow-x-auto px-4 md:px-6 pb-2 scrollbar-hide snap-x snap-mandatory" style="-webkit-overflow-scrolling: touch">
-
-                <a href="zukan.php" class="flex flex-col items-center gap-2 min-w-[72px] py-3 px-2 rounded-2xl transition hover:shadow-md active:scale-95 bg-elevated border border-border snap-start">
-                    <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-accent-surface">
-                        <i data-lucide="book-open" class="w-5 h-5 text-accent"></i>
-                    </div>
-                    <span class="text-token-xs font-bold text-text whitespace-nowrap">図鑑</span>
-                </a>
-                <a href="explore.php" class="flex flex-col items-center gap-2 min-w-[72px] py-3 px-2 rounded-2xl transition hover:shadow-md active:scale-95 bg-elevated border border-border snap-start">
-                    <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-secondary-surface">
-                        <i data-lucide="map" class="w-5 h-5 text-secondary"></i>
-                    </div>
-                    <span class="text-token-xs font-bold text-text whitespace-nowrap">探索マップ</span>
-                </a>
-                <a href="events.php" class="flex flex-col items-center gap-2 min-w-[72px] py-3 px-2 rounded-2xl transition hover:shadow-md active:scale-95 bg-elevated border border-border snap-start">
-                    <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-primary-surface">
-                        <i data-lucide="calendar" class="w-5 h-5 text-primary"></i>
-                    </div>
-                    <span class="text-token-xs font-bold text-text whitespace-nowrap">観察会</span>
-                </a>
-                <a href="compass.php" class="flex flex-col items-center gap-2 min-w-[72px] py-3 px-2 rounded-2xl transition hover:shadow-md active:scale-95 bg-elevated border border-border snap-start">
-                    <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-purple-50 dark:bg-purple-900/30">
-                        <i data-lucide="trophy" class="w-5 h-5 text-purple-600 dark:text-purple-400"></i>
-                    </div>
-                    <span class="text-token-xs font-bold text-text whitespace-nowrap">コンパス</span>
-                </a>
-
-                <a href="ikimon_walk.php" class="flex flex-col items-center gap-2 min-w-[72px] py-3 px-2 rounded-2xl transition hover:shadow-md active:scale-95 bg-elevated border border-border snap-start">
-                    <div class="w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/30">
-                        <i data-lucide="footprints" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
-                    </div>
-                    <span class="text-token-xs font-bold text-text whitespace-nowrap">さんぽ記録</span>
-                </a>
+                <!-- Quick Nav (Inline) -->
+                <div class="flex items-center justify-center gap-2 flex-wrap">
+                    <a href="zukan.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                        <i data-lucide="book-open" class="w-3.5 h-3.5"></i> 図鑑
+                    </a>
+                    <a href="explore.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                        <i data-lucide="map" class="w-3.5 h-3.5"></i> 探索マップ
+                    </a>
+                    <a href="compass.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                        <i data-lucide="trophy" class="w-3.5 h-3.5"></i> コンパス
+                    </a>
+                    <a href="events.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5"></i> 観察会
+                    </a>
+                    <a href="ikimon_walk.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                        <i data-lucide="footprints" class="w-3.5 h-3.5"></i> さんぽ
+                    </a>
+                </div>
             </div>
         </section>
 
-        <!-- ==================== Survey Panel ==================== -->
-        <?php include __DIR__ . '/components/survey_panel.php'; ?>
+        <!-- Daily Quest & Survey Panel → moved to dashboard.php -->
 
         <!-- ==================== HOW-TO SECTION (Non-logged-in) ==================== -->
         <?php if (!$currentUser): ?>
@@ -338,140 +279,7 @@ unset($allObs);
             </section>
         <?php endif; ?>
 
-        <!-- ==================== 探索マップ (Exploration Map) ==================== -->
-        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)" x-data="explorationMap()" x-cloak>
-            <div x-show="stats" x-transition class="bg-gradient-to-br from-primary-surface via-secondary-surface to-accent-surface border border-primary/10 rounded-3xl p-5 md:p-6 shadow-sm">
-                <!-- Header with Region Selector -->
-                <div class="flex items-center justify-between mb-4 gap-3">
-                    <h3 class="text-sm font-black text-primary-dark tracking-wider uppercase shrink-0 flex items-center gap-1.5">
-                        <i data-lucide="compass" class="w-4 h-4"></i> 探索マップ
-                    </h3>
-                    <div class="flex items-center gap-2">
-                        <select x-model="selectedCity" @change="onCityChange()"
-                            class="text-xs font-bold bg-white border border-primary/20 rounded-full px-3 py-1.5 text-primary focus:ring-1 focus:ring-primary/40 cursor-pointer">
-                            <template x-for="c in cities" :key="c.id">
-                                <option :value="c.id" x-text="c.name.ja"></option>
-                            </template>
-                        </select>
-                        <!-- 市区町村ドリルダウン -->
-                        <select x-show="municipalities.length" x-model="selectedMunicipality" @change="onMunicipalityChange()"
-                            x-transition
-                            class="text-xs font-bold bg-surface border border-accent/20 rounded-full px-3 py-1.5 text-accent-dark focus:ring-1 focus:ring-accent/40 cursor-pointer">
-                            <template x-for="m in municipalities" :key="m.id">
-                                <option :value="m.id" x-text="m.name.ja"></option>
-                            </template>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Main Species Counter (進行形表現) -->
-                <div class="mb-5">
-                    <div class="flex items-end gap-2 mb-2">
-                        <span class="text-4xl font-black text-text tabular-nums" x-text="stats?.observed_species || 0"></span>
-                        <span class="text-base font-bold text-primary-dark mb-1">種を記録中</span>
-                    </div>
-                    <div class="w-full bg-surface rounded-full h-2.5 overflow-hidden">
-                        <div class="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-1000 ease-out"
-                            :style="'width:' + Math.min(100, (stats?.observed_species / Math.max(1, stats?.estimated_species)) * 100) + '%'"></div>
-                    </div>
-                    <div class="flex items-center justify-between mt-1.5">
-                        <span class="text-token-xs text-muted">推定 <span x-text="stats?.estimated_species || '—'"></span> 種の生息地</span>
-                        <span class="text-token-xs text-muted" x-text="stats?.total_observations?.toLocaleString() + ' 件の観察'"></span>
-                    </div>
-                </div>
-
-                <!-- This Month + Trend Badge -->
-                <div class="flex flex-wrap items-center gap-2 text-xs mb-5">
-                    <span class="px-3 py-1.5 rounded-full font-bold inline-flex items-center gap-1" style="background:rgba(6,95,70,0.08);color:#065f46">
-                        🆕 今月 +<span x-text="stats?.new_species_this_month || 0"></span> 件
-                    </span>
-                    <span x-show="stats?.mom_change_percent" class="px-3 py-1.5 rounded-full font-bold inline-flex items-center gap-1"
-                        :class="stats?.mom_change_percent >= 0 ? 'bg-accent-surface text-accent-dark' : 'bg-warning-surface text-warning-dark'">
-                        <i :data-lucide="stats?.mom_change_percent >= 0 ? 'trending-up' : 'trending-down'" class="w-3.5 h-3.5"></i>
-                        先月比 <span x-text="(stats?.mom_change_percent >= 0 ? '+' : '') + stats?.mom_change_percent + '%'"></span>
-                    </span>
-                </div>
-
-                <!-- Recent Discoveries -->
-                <div class="mb-5" x-show="stats?.recent_discoveries?.length">
-                    <p class="text-token-xs text-muted font-bold uppercase tracking-widest mb-2">🔍 最近の発見</p>
-                    <div class="flex gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
-                        <template x-for="d in (stats?.recent_discoveries || []).slice(0,5)" :key="d.name">
-                            <div class="shrink-0 bg-white/80 border border-primary-surface rounded-xl px-3 py-2 min-w-[120px]">
-                                <p class="text-xs font-bold text-text" x-text="d.name"></p>
-                                <p class="text-[9px] text-faint italic" x-text="d.scientific_name"></p>
-                                <p class="text-[9px] text-primary mt-0.5" x-text="d.discovered_at"></p>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- City Comparison ("みんな探索中") -->
-                <div class="mb-4" x-show="Object.keys(stats?.cities || {}).length > 1">
-                    <p class="text-token-xs text-muted font-bold uppercase tracking-widest mb-2">🏘️ 近くのエリアも探索中</p>
-                    <div class="space-y-1.5">
-                        <template x-for="[slug, city] in Object.entries(stats?.cities || {}).slice(0,5)" :key="slug">
-                            <div class="flex items-center gap-3">
-                                <span class="text-token-xs text-text-secondary w-16 truncate font-medium" x-text="city.name"></span>
-                                <div class="flex-1 bg-muted/10 rounded-full h-2 overflow-hidden">
-                                    <div class="h-full bg-primary/70 rounded-full transition-all duration-700"
-                                        :style="'width:' + Math.min(100, (city.observed_species / Math.max(1, city.estimated_species)) * 100) + '%'"></div>
-                                </div>
-                                <span class="text-token-xs text-muted w-12 text-right tabular-nums" x-text="city.observed_species + ' 種'"></span>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Monthly Trend Mini Chart (12 months) -->
-                <div class="mb-4" x-show="stats?.monthly_trend?.length">
-                    <p class="text-token-xs text-muted font-bold uppercase tracking-widest mb-2">📊 月別観察数</p>
-                    <div class="flex items-end gap-0.5 h-14">
-                        <template x-for="t in (stats?.monthly_trend || [])" :key="t.month">
-                            <div class="flex-1 flex flex-col items-center gap-0.5" :title="t.month + ': ' + t.observations + '件'">
-                                <div class="w-full rounded-t-sm transition-all duration-500"
-                                    :class="t.month === currentMonth ? 'bg-primary' : 'bg-primary-light/40'"
-                                    :style="'height:' + Math.max(3, (t.observations / Math.max(...(stats?.monthly_trend||[]).map(x=>x.observations), 1)) * 40) + 'px'">
-                                </div>
-                                <span class="text-[7px] text-muted" x-text="t.month.split('-')[1] + '月'"></span>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Top Observers -->
-                <div x-show="stats?.top_observers?.length">
-                    <p class="text-token-xs text-muted font-bold uppercase tracking-widest mb-2">🏅 探検隊のヒーローたち</p>
-                    <div class="flex flex-wrap gap-2">
-                        <template x-for="o in (stats?.top_observers || [])" :key="o.rank">
-                            <div class="inline-flex items-center gap-1.5 bg-surface/70 border border-border rounded-full px-3 py-1">
-                                <span class="text-token-xs" x-text="o.rank <= 3 ? ['🥇','🥈','🥉'][o.rank-1] : '#' + o.rank"></span>
-                                <span class="text-xs font-bold text-text" x-text="o.name"></span>
-                                <span class="text-token-xs text-muted" x-text="o.observations + '件'"></span>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Collective Achievement -->
-                <div class="mt-4 bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded-2xl p-4 text-center">
-                    <p class="text-base font-black text-text">
-                        🌱 みんなで
-                        <span class="text-primary text-xl font-black" x-text="stats?.observed_species || 0"></span>
-                        種を探索中！
-                    </p>
-                    <p class="text-token-xs text-muted mt-1">
-                        まだ見ぬ生き物がこの地域にいるかも — 次の発見はキミの手で 🔎
-                    </p>
-                </div>
-            </div>
-
-            <!-- Loading State -->
-            <div x-show="!stats && loading" class="bg-primary/5 border border-primary/10 rounded-3xl p-8 text-center">
-                <i data-lucide="loader-2" class="w-8 h-8 text-primary animate-spin mx-auto mb-2"></i>
-                <p class="text-sm text-muted">探索データを読み込み中...</p>
-            </div>
-        </section>
+        <!-- Exploration Map → moved to explore.php -->
 
         <!-- ==================== FEED SECTION ==================== -->
         <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-2xl)">
@@ -596,9 +404,9 @@ unset($allObs);
                                     <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($obs['taxon']['name']); ?></span>
                                 </a>
                             <?php else: ?>
-                                <div class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md flex items-center gap-2 border border-orange-400/50">
-                                    <i data-lucide="help-circle" class="w-3 h-3 text-orange-400"></i>
-                                    <span class="text-xs font-bold text-orange-100"><?php echo __('home.identifying'); ?></span>
+                                <div class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-2 border border-white/10">
+                                    <i data-lucide="help-circle" class="w-3 h-3 text-white/50"></i>
+                                    <span class="text-xs text-white/60"><?php echo __('home.identifying'); ?></span>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -607,14 +415,15 @@ unset($allObs);
                         <div class="px-4 py-3 pb-0 flex items-center gap-4">
                             <button @click="step($event)" class="flex items-center gap-1.5 group active:scale-90 transition-transform">
                                 <span class="text-xl transition duration-300" :class="stepped ? 'opacity-100' : 'opacity-40 group-hover:opacity-70'">👣</span>
-                                <span class="text-xs font-bold text-secondary" x-text="count"></span>
+                                <span class="text-xs font-bold text-secondary" x-show="count > 0" x-text="count"></span>
                             </button>
                             <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="flex items-center gap-1.5 group active:scale-90 transition-transform">
                                 <i data-lucide="tag" class="w-5 h-5 transition text-faint group-hover:text-secondary"></i>
-                                <span class="text-xs font-bold text-secondary"><?php echo (int)$obsComments; ?></span>
+                                <?php if ($obsComments > 0): ?>
+                                    <span class="text-xs font-bold text-secondary"><?php echo (int)$obsComments; ?></span>
+                                <?php endif; ?>
                             </a>
                             <div class="flex-1"></div>
-                            <!-- 詳しく見るに統合 -->
                         </div>
 
                         <!-- Caption -->
@@ -632,22 +441,25 @@ unset($allObs);
                 <?php endforeach; ?>
             </div>
 
-            <!-- End of Feed -->
-            <div class="py-12 text-center text-muted text-xs">
-                <?php if (empty($latest_obs)): ?>
-                    <div class="py-8">
-                        <i data-lucide="leaf" class="w-12 h-12 mx-auto mb-4 text-primary-surface"></i>
-                        <p class="text-sm font-bold mb-1 text-muted">最初の記録者になりませんか？</p>
-                        <p class="text-xs text-faint">このエリアにはまだ記録がありません。あなたの記録が、最初の一歩です 🌱</p>
-                        <a href="post.php" class="btn-primary inline-flex items-center gap-2 mt-4 px-6 py-2.5 text-sm active:scale-95 transition">
-                            <i data-lucide="camera" class="w-4 h-4"></i> 記録する
-                        </a>
-                    </div>
-                <?php else: ?>
-                    <p>ここまで見てくれてありがとうございます 🙌</p>
-                    <i data-lucide="check" class="w-4 h-4 mx-auto mt-2 opacity-50"></i>
-                <?php endif; ?>
-            </div>
+            <!-- More / Empty -->
+            <?php if (empty($latest_obs)): ?>
+                <div class="py-12 text-center">
+                    <i data-lucide="leaf" class="w-12 h-12 mx-auto mb-4 text-primary-surface"></i>
+                    <p class="text-sm font-bold mb-1 text-muted">最初の記録者になりませんか？</p>
+                    <p class="text-xs text-faint">このエリアにはまだ記録がありません。あなたの記録が、最初の一歩です</p>
+                    <a href="post.php" class="btn-primary inline-flex items-center gap-2 mt-4 px-6 py-2.5 text-sm active:scale-95 transition">
+                        <i data-lucide="camera" class="w-4 h-4"></i> 記録する
+                    </a>
+                </div>
+            <?php else: ?>
+                <div class="pt-8 text-center">
+                    <a href="explore.php" class="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-primary/10 text-primary-dark font-bold text-sm border border-primary/20 hover:bg-primary/20 hover:scale-105 active:scale-95 transition-all">
+                        <i data-lucide="grid-3x3" class="w-4 h-4"></i>
+                        もっと見る
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            <?php endif; ?>
         </section>
 
         <!-- ==================== 数字で見る ikimon ==================== -->
@@ -789,169 +601,6 @@ unset($allObs);
                         this.refreshing = false;
                     }
                     this.startY = 0;
-                }
-            }
-        }
-
-        // 探索マップ (Exploration Map) — 新API駆動 + 位置情報自動選択 + 市区町村ドリルダウン
-        function explorationMap() {
-            const STORAGE_KEY = 'ikimon_region';
-            return {
-                stats: null,
-                loading: false,
-                regionIndex: [],
-                cities: [],
-                municipalities: [],
-                selectedRegion: '',
-                selectedCity: '',
-                selectedMunicipality: '',
-                currentMonth: new Date().toISOString().slice(0, 7),
-
-                async init() {
-                    this.loading = true;
-                    await this.loadRegionIndex();
-                    await this.resolveDefaultCity();
-                    this.checkSubRegion();
-                    await this.loadStats();
-                    this.loading = false;
-                },
-
-                async loadRegionIndex() {
-                    try {
-                        const res = await fetch('api/region_list.php');
-                        const result = await res.json();
-                        if (result.success && result.data.regions?.length) {
-                            this.regionIndex = result.data.regions;
-                        }
-                    } catch (e) {
-                        console.error('Region index error:', e);
-                    }
-                },
-
-                // 3段階フォールバック: ① localStorage → ② Geolocation → ③ 先頭
-                async resolveDefaultCity() {
-                    const jp = this.regionIndex.find(r => r.id === 'jp');
-                    if (!jp) {
-                        const first = this.regionIndex[0];
-                        if (!first) return;
-                        this.selectedRegion = first.id;
-                        this.cities = first.cities || [];
-                        this.selectedCity = this.cities[0]?.id || '';
-                        return;
-                    }
-
-                    this.selectedRegion = 'jp';
-                    this.cities = jp.cities || [];
-
-                    // ① localStorage
-                    try {
-                        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-                        if (saved?.city && this.cities.some(c => c.id === saved.city)) {
-                            this.selectedCity = saved.city;
-                            if (saved.municipality) this.selectedMunicipality = saved.municipality;
-                            return;
-                        }
-                    } catch (_) {}
-
-                    // ② Geolocation
-                    try {
-                        const pos = await this.getPosition(5000);
-                        const matched = this.findByCoords(pos.coords.latitude, pos.coords.longitude);
-                        if (matched) {
-                            this.selectedCity = matched;
-                            this.persist();
-                            return;
-                        }
-                    } catch (_) {}
-
-                    // ③ 先頭
-                    this.selectedCity = this.cities[0]?.id || '';
-                },
-
-                checkSubRegion() {
-                    const subId = 'jp_' + this.selectedCity;
-                    const sub = this.regionIndex.find(r => r.id === subId);
-                    if (sub && sub.cities?.length) {
-                        this.municipalities = sub.cities;
-                        if (!this.selectedMunicipality || !this.municipalities.some(m => m.id === this.selectedMunicipality)) {
-                            this.selectedMunicipality = this.municipalities[0]?.id || '';
-                        }
-                    } else {
-                        this.municipalities = [];
-                        this.selectedMunicipality = '';
-                    }
-                },
-
-                getPosition(timeout) {
-                    return new Promise((resolve, reject) => {
-                        if (!navigator.geolocation) return reject('no geolocation');
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            enableHighAccuracy: false,
-                            timeout: timeout,
-                            maximumAge: 600000
-                        });
-                    });
-                },
-
-                findByCoords(lat, lng) {
-                    for (const c of this.cities) {
-                        if (!c.bbox) continue;
-                        const [s, w, n, e] = c.bbox;
-                        if (lat >= s && lat <= n && lng >= w && lng <= e) return c.id;
-                    }
-                    return null;
-                },
-
-                persist() {
-                    try {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                            region: this.selectedRegion,
-                            city: this.selectedCity,
-                            municipality: this.selectedMunicipality || undefined
-                        }));
-                    } catch (_) {}
-                },
-
-                onCityChange() {
-                    this.selectedMunicipality = '';
-                    this.checkSubRegion();
-                    this.persist();
-                    this.loadStats();
-                },
-
-                onMunicipalityChange() {
-                    this.persist();
-                    this.loadStats();
-                },
-
-                // 新 Exploration Stats API を呼ぶ
-                async loadStats() {
-                    let region = 'jp_' + this.selectedCity;
-                    let cityParam = '';
-
-                    // 市区町村が選択されていればcityパラメータを付与
-                    if (this.municipalities.length && this.selectedMunicipality) {
-                        cityParam = this.selectedMunicipality;
-                    }
-
-                    if (!this.selectedCity) return;
-
-                    try {
-                        let url = `api/get_exploration_stats.php?region=${encodeURIComponent(region)}`;
-                        if (cityParam) url += `&city=${encodeURIComponent(cityParam)}`;
-
-                        const res = await fetch(url);
-                        const data = await res.json();
-                        if (!data.error) {
-                            this.stats = data;
-                            // lucide アイコン再レンダリング（動的要素用）
-                            this.$nextTick(() => {
-                                if (window.lucide) lucide.createIcons();
-                            });
-                        }
-                    } catch (e) {
-                        console.error('Exploration stats error:', e);
-                    }
                 }
             }
         }
