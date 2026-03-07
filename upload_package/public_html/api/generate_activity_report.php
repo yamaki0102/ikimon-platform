@@ -501,7 +501,7 @@ foreach ($events as $ev) {
             <ul>
                 <li>延べ <strong><?php echo $d['totalObs']; ?>件</strong> の生物観察データを収集</li>
                 <li><strong><?php echo $d['totalSpecies']; ?>種</strong> の生物を確認（うちレッドリスト掲載種 <strong><?php echo count($d['redListSpecies']); ?>種</strong>）</li>
-                <li>BISスコア: <strong><?php echo $d['bis']; ?></strong> / 100（生物多様性健全度指数）</li>
+            <li>参考インデックス: <strong><?php echo $d['monitoringReferenceIndex']; ?></strong> / 100（観測の厚みと保全シグナルの要約）</li>
                 <li>Research Grade率: <strong><?php echo $d['researchGradePercent']; ?>%</strong>（コミュニティ検証済み）</li>
                 <?php if (!empty($events)): ?>
                     <li>観察会・イベント <strong><?php echo count($events); ?>回</strong> 実施</li>
@@ -509,23 +509,23 @@ foreach ($events as $ev) {
             </ul>
         </div>
 
-        <!-- BIS Score -->
-        <h2><span class="icon">🎯</span> BIS（生物多様性健全度指数）</h2>
+        <!-- Reference index -->
+        <h2><span class="icon">🎯</span> モニタリング参考インデックス</h2>
         <div style="background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%); color: white; border-radius: 10px; padding: 20px 24px; display: flex; align-items: center; gap: 20px;">
-            <div style="font-size: 52px; font-weight: 900; min-width: 80px; text-align: center;"><?php echo $d['bis']; ?></div>
+                        <div style="font-size: 52px; font-weight: 900; min-width: 80px; text-align: center;"><?php echo $d['monitoringReferenceIndex']; ?></div>
             <div>
-                <div style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">Biodiversity Integrity Score</div>
-                <div style="font-size: 11px; opacity: 0.9;">種の多様性、データ信頼性、保全価値、分類群カバレッジ、モニタリング努力を総合評価。</div>
+                <div style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">Observation-based Monitoring Reference Index</div>
+                <div style="font-size: 11px; opacity: 0.9;">種の多様性、データ信頼性、保全シグナル、分類群カバー、モニタリング継続性を束ねた参考値です。認証可否や法令適合を単独で示すものではありません。</div>
                 <?php
-                $bisAxisLabelsJa = [
+                $referenceIndexAxisLabelsJa = [
                     'richness'           => '種の豊富さ',
                     'data_confidence'    => 'データ信頼性',
                     'conservation_value' => '保全価値',
                     'taxonomic_coverage' => '分類群カバー',
                     'monitoring_effort'  => 'モニタリング',
                 ];
-                foreach ($d['bisBreakdown'] as $key => $axis):
-                    $labelJa = $bisAxisLabelsJa[$key] ?? $axis['label'];
+                    foreach ($d['monitoringReferenceBreakdown'] as $key => $axis):
+                        $labelJa = $referenceIndexAxisLabelsJa[$key] ?? $axis['label'];
                     $maxPt = round($axis['weight'] * 100);
                 ?>
                     <div style="display: flex; gap: 4px; align-items: center; margin-top: 4px;">
@@ -544,7 +544,7 @@ foreach ($events as $ev) {
             <h3>本データの活用先</h3>
             <ul>
                 <li>🏢 CSR・サステナビリティ報告書の添付資料として</li>
-                <li>📊 TNFD（自然関連財務情報開示）のデータソースとして</li>
+                <li>📊 TNFD（自然関連財務情報開示）の入力資料として</li>
                 <li>📋 各種助成制度の活動報告・成果資料として</li>
                 <li>👥 社内報告・株主向け報告の定量エビデンスとして</li>
                 <li>🌱 環境教育プログラムの成果レポートとして</li>
@@ -556,6 +556,7 @@ foreach ($events as $ev) {
             <strong>免責事項:</strong>
             本レポートは市民科学（Citizen Science）データに基づく活動報告であり、専門家による網羅的調査とは異なります。
             データは継続的に更新・検証されており、レポート作成時点での状況を反映しています。
+            開示や重要判断では、専門家レビューや現地確認と併用してください。
         </div>
 
         <!-- Footer -->

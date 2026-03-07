@@ -17,10 +17,10 @@ CspNonce::sendHeader();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ikimon for Business | 生物多様性モニタリングで環境投資を"見える化"</title>
-    <meta name="description" content="ikimonは市民科学で生物多様性データを収集し、企業の環境活動を定量レポートに変換。TNFD・CSR報告を自動生成。">
+    <title>ikimon for Business | 生物多様性モニタリングで現状把握と改善判断を支援</title>
+    <meta name="description" content="ikimonは市民科学で生物多様性データを収集し、企業の環境活動を把握しやすい参考レポートに整理。TNFDやCSR報告の準備に使える入力資料を提供します。">
     <meta property="og:title" content="ikimon for Business">
-    <meta property="og:description" content="観察するだけで、環境投資が「見える」ようになるプラットフォーム">
+    <meta property="og:description" content="観察するだけで、環境活動の現状把握と改善判断に使える入力資料がまとまるプラットフォーム">
     <meta property="og:type" content="website">
     <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -658,12 +658,12 @@ CspNonce::sendHeader();
     <!-- Hero Section -->
     <section class="hero">
         <div class="container">
-            <span class="badge badge-green">🌿 TNFD / 30by30 対応</span>
+            <span class="badge badge-green">🌿 TNFD / 30x30 の参考入力を整理</span>
             <h1 style="margin-top: 12px;">観察するだけで、<br>環境投資が"見える"ようになる</h1>
             <p class="lead">
                 社員が身近な生き物を記録するだけで、<br>
                 生物多様性データが蓄積され、<br>
-                高品質なレポートが自動生成されます。
+                現状把握と次の打ち手が読める参考レポートを作れます。
             </p>
             <div class="hero-cta">
                 <a href="demo.php" class="btn btn-lg" style="background: white; color: var(--primary-dark);">🎯 無料デモを体験する</a>
@@ -694,7 +694,7 @@ CspNonce::sendHeader();
                 </div>
                 <div class="hero-stat">
                     <span class="num">TNFD</span>
-                    <span class="label">LEAP対応</span>
+                    <span class="label">LEAP整理の参考</span>
                 </div>
             </div>
         </div>
@@ -724,7 +724,7 @@ CspNonce::sendHeader();
                     <div class="step-num">3</div>
                     <div class="step-icon">📊</div>
                     <h3>レポート自動生成</h3>
-                    <p>BISスコア、TNFD対応レポートが<br>ワンクリックで出力されます。</p>
+                    <p>参考インデックスや自然関連開示の<br>入力資料をワンクリックで整理できます。</p>
                 </div>
             </div>
         </div>
@@ -741,13 +741,13 @@ CspNonce::sendHeader();
                 <div class="report-card">
                     <div class="report-icon">📊</div>
                     <h3>サイト生物多様性レポート</h3>
-                    <p>種一覧、BISスコア、レッドリスト照合を網羅した基本レポート</p>
+                    <p>種一覧、参考インデックス、レッドリスト照合をまとめた基本レポート</p>
                     <span class="tag">全プラン</span>
                 </div>
                 <div class="report-card">
                     <div class="report-icon">📋</div>
                     <h3>TNFD LEAPレポート</h3>
-                    <p>TNFD フレームワークの4フェーズに対応した開示資料</p>
+                    <p>TNFD LEAPで整理しやすい観測ベースの参考レポート</p>
                     <span class="tag">全プラン</span>
                 </div>
                 <div class="report-card">
@@ -803,7 +803,7 @@ CspNonce::sendHeader();
                     <span class="use-icon">📋</span>
                     <div>
                         <h3>TNFD開示対応</h3>
-                        <p>LEAP フレームワークに準拠したデータ収集から報告書出力まで一貫してサポート。</p>
+                        <p>LEAPの観点で見直しやすい入力資料を整理。開示判断そのものは社内レビューと併用します。</p>
                     </div>
                 </div>
                 <div class="use-card">
@@ -831,7 +831,7 @@ CspNonce::sendHeader();
                     <span class="use-icon">📈</span>
                     <div>
                         <h3>中長期モニタリング</h3>
-                        <p>BISスコアで生物多様性の経年変化を追跡。データの蓄積が資産になる。</p>
+                        <p>参考インデックスと月次推移で観測の厚みを追跡。データの蓄積が改善判断の土台になる。</p>
                     </div>
                 </div>
             </div>
@@ -841,8 +841,8 @@ CspNonce::sendHeader();
     <!-- Social Proof -->
     <div class="proof-bar">
         <div class="inner">
-            <div class="proof-item">🌿 <strong>TNFD LEAP</strong> 全4フェーズ対応</div>
-            <div class="proof-item">📊 <strong>BIS</strong> 独自生物多様性指数</div>
+            <div class="proof-item">🌿 <strong>TNFD LEAP</strong> の参考入力を整理</div>
+            <div class="proof-item">📊 <strong>参考インデックス</strong> で観測の厚みを要約</div>
             <div class="proof-item">🔬 <strong>Darwin Core</strong> 国際標準準拠</div>
             <div class="proof-item">🇯🇵 <strong>静岡県</strong> 浜松発</div>
         </div>
@@ -880,7 +880,7 @@ CspNonce::sendHeader();
                         <td class="check">✓</td>
                     </tr>
                     <tr>
-                        <td class="feature-name">BISスコア</td>
+                        <td class="feature-name">参考インデックス</td>
                         <td class="cross">—</td>
                         <td class="check">✓</td>
                     </tr>

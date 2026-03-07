@@ -99,7 +99,7 @@ Auth::init();
                     <li class="flex items-start gap-2"><span class="text-primary">✓</span> Researcherの全機能</li>
                     <li class="flex items-start gap-2"><span class="text-accent font-bold">★</span> 無制限 API アクセス</li>
                     <li class="flex items-start gap-2"><span class="text-accent font-bold">★</span> TNFD LEAP レポート自動生成</li>
-                    <li class="flex items-start gap-2"><span class="text-accent font-bold">★</span> BIS（生物多様性指数）スコア</li>
+                    <li class="flex items-start gap-2"><span class="text-accent font-bold">★</span> 参考インデックス</li>
                     <li class="flex items-start gap-2"><span class="text-accent font-bold">★</span> カスタムサイト監視ダッシュボード</li>
                     <li class="flex items-start gap-2"><span class="text-accent font-bold">★</span> ブランド付きレポート</li>
                     <li class="flex items-start gap-2"><span class="text-accent font-bold">★</span> SLA付き優先サポート</li>

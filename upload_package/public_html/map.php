@@ -891,23 +891,23 @@ Auth::init();
                                     'heatmap-intensity': [
                                         'interpolate', ['linear'],
                                         ['zoom'],
-                                        0, 1, 13, 3
+                                        0, 0.5, 10, 1, 14, 2
                                     ],
                                     'heatmap-color': [
                                         'interpolate', ['linear'],
                                         ['heatmap-density'],
                                         0, 'rgba(43,131,186,0)',
-                                        0.2, 'rgb(100,194,166)',
-                                        0.4, 'rgb(255,217,78)',
-                                        0.6, 'rgb(245,122,60)',
+                                        0.3, 'rgb(100,194,166)',
+                                        0.5, 'rgb(255,217,78)',
+                                        0.7, 'rgb(245,122,60)',
                                         1, 'rgb(215,25,28)'
                                     ],
                                     'heatmap-radius': [
                                         'interpolate', ['linear'],
                                         ['zoom'],
-                                        0, 8, 13, 30
+                                        0, 4, 10, 12, 14, 20
                                     ],
-                                    'heatmap-opacity': 0.7
+                                    'heatmap-opacity': 0.65
                                 },
                                 layout: {
                                     visibility: this.activeTab === 'heatmap' ? 'visible' : 'none'

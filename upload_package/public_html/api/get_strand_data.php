@@ -37,8 +37,8 @@ foreach ($allObs as $obs) {
     if ($obsDate < $cutoff) continue;
 
     // Skip if no coordinates
-    $lat = (float)($obs['latitude'] ?? $obs['location']['lat'] ?? 0);
-    $lng = (float)($obs['longitude'] ?? $obs['location']['lng'] ?? 0);
+    $lat = (float)($obs['lat'] ?? $obs['latitude'] ?? $obs['location']['lat'] ?? 0);
+    $lng = (float)($obs['lng'] ?? $obs['longitude'] ?? $obs['location']['lng'] ?? 0);
     if ($lat === 0.0 && $lng === 0.0) continue;
 
     // Normalize for PrivacyFilter

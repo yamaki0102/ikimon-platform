@@ -3,13 +3,14 @@
 /**
  * Phase C1: TNFD LEAP Report API (v2)
  *
- * Generate institutional-grade reports following the LEAP framework:
+ * Generate observation-based reference outputs using the LEAP framing:
  * 1. Locate (Discover interface with nature)
  * 2. Evaluate (Examine dependencies & impacts)
  * 3. Assess (Mitigate risks and opportunities)
  * 4. Prepare (Respond and report)
  *
  * This API currently focuses on Locate & Evaluate/Assess phases based on observation data.
+ * It is a preparatory input for disclosure work, not a compliance verdict.
  * Requires 'enterprise' tier API Key.
  *
  * Usage:
@@ -78,18 +79,18 @@ foreach ($allObs as $obs) {
 $areaHa = (pi() * pow($radius, 2)) / 10000;
 $areaKm2 = $areaHa / 100;
 
-// Gather BIS metrics (handles Shannon Index and Red List fetching internally)
-$bisData = BiodiversityScorer::calculate($spatialObs, ['area_ha' => $areaHa]);
+// Gather monitoring reference metrics (handles Shannon Index and Red List fetching internally)
+$referenceIndexData = MonitoringReferenceScorer::calculate($spatialObs, ['area_ha' => $areaHa]);
 
 // --- 3. Extract Specific TNFD Metrics (Evaluate & Assess) ---
-$redListSpecies = $bisData['breakdown']['conservation_value']['matches'] ?? [];
+$redListSpecies = $referenceIndexData['breakdown']['conservation_value']['matches'] ?? [];
 $redListDensity = ($areaKm2 > 0) ? count($redListSpecies) / $areaKm2 : 0;
 
-$totalSpecies = $bisData['species_count'];
+$totalSpecies = $referenceIndexData['species_count'];
 $shannonEvenness = 0;
 if ($totalSpecies > 1) {
     // J' = H' / ln(S)
-    $shannonEvenness = $bisData['shannon_index'] / log($totalSpecies);
+    $shannonEvenness = $referenceIndexData['shannon_index'] / log($totalSpecies);
 }
 
 // Extract time-series for Yo-Y trends
@@ -112,7 +113,11 @@ $response = [
         'generated_at' => date('c'),
         'api_tier' => $gateInfo['tier'],
         'organization' => $gateInfo['org'],
-        'framework' => 'TNFD LEAP v1.0',
+        'framework' => 'TNFD LEAP-informed reference output',
+        'limitations' => [
+            'Observation-based presence data only; absence and abundance are not estimated.',
+            'Use as an input to LEAP analysis, not as a standalone disclosure conclusion.',
+        ],
     ],
     'leap_report' => [
         // L: Locate the interface with nature
@@ -128,9 +133,10 @@ $response = [
         'evaluate' => [
             'total_observations' => count($spatialObs),
             'total_species_detected' => $totalSpecies,
-            'taxonomic_groups_detected' => $bisData['breakdown']['taxonomic_coverage']['groups'] ?? [],
-            'biodiversity_integrity_score' => $bisData['total_score'],
-            'shannon_diversity_index' => $bisData['shannon_index'],
+            'taxonomic_groups_detected' => $referenceIndexData['breakdown']['taxonomic_coverage']['groups'] ?? [],
+            'biodiversity_integrity_score' => $referenceIndexData['total_score'],
+            'monitoring_reference_index' => $referenceIndexData['total_score'],
+            'shannon_diversity_index' => $referenceIndexData['shannon_index'],
             'species_evenness_index' => round($shannonEvenness, 3), // J'
         ],
 
@@ -139,7 +145,7 @@ $response = [
             'threatened_species_count' => count($redListSpecies),
             'threatened_species_list' => $redListSpecies,
             'threatened_species_density_per_km2' => round($redListDensity, 3),
-            'data_confidence_score' => $bisData['breakdown']['data_confidence']['score'] ?? 0,
+            'data_confidence_score' => $referenceIndexData['breakdown']['data_confidence']['score'] ?? 0,
             'monitoring_trend' => [
                 'observations_this_year' => $obsThisYear,
                 'observations_last_year' => $obsLastYear,

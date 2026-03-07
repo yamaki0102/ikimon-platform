@@ -1,7 +1,7 @@
 <?php
 /**
  * CSR Report Generation API
- * 企業向けのストーリー型「CSR成果レポート」出力API
+ * 企業向けのストーリー型「CSR成果参考レポート」出力API
  * SDGs Goal15マッピング、写真と数値実績のストーリー型フォーマット
  */
 
@@ -79,16 +79,16 @@ $highlightSpecies = array_slice(array_keys($topSpeciesAll), 0, 3);
 // Generate Narrative Story (Multilingual)
 if ($lang === 'en') {
     $reportTitle = "{$reportTargetName} Nature-Positive CSR Report (FY{$year})";
-    $storyIntroduction = "In FY{$year}, nature-positive activities at \"{$reportTargetName}\" significantly contributed to local ecosystem conservation. Through the co-creation of employees and citizens, a total of $totalObs nature observations were conducted, identifying a diverse range of $totalSpecies species.";
+    $storyIntroduction = "In FY{$year}, observation activities at \"{$reportTargetName}\" generated a public-facing monitoring record. Through the co-creation of employees and citizens, a total of $totalObs nature observations were conducted, identifying $totalSpecies species as an observation-based snapshot.";
 
     $sdg15Text = "This activity directly contributes to SDGs Goal 15: 'Life on Land'. ";
     if ($redlistCount > 0) {
-        $sdg15Text .= "Notably, the maintenance of habitats for $redlistCount endangered species (Red List species) has been confirmed, functioning as a critical field to halt biodiversity loss.";
+        $sdg15Text .= "Notably, $redlistCount Red List species were recorded. These records should be treated as important conservation signals and reviewed alongside site management and expert input.";
     } else {
         $sdg15Text .= "Through regular monitoring, a system has been established to grasp ecological changes at an early stage.";
     }
 
-    $communityImpact = "A total of $totalMembers participants were involved in the field surveys, reaching an average engagement score (BIS) of $avgScore. This demonstrates a high effectiveness as an environmental education and community coexistence measure.";
+    $communityImpact = "A total of $totalMembers participants were involved in the field surveys, reaching an average monitoring reference index of $avgScore. This indicates accumulated participation and observation coverage, not a standalone biodiversity valuation.";
 
     $topSpeciesNotes = [];
     foreach ($highlightSpecies as $sp) {
@@ -99,17 +99,17 @@ if ($lang === 'en') {
         $topSpeciesNotes[] = "- **{$sp}** {$statusText}: Observed {$count} times as a representative species of this area.";
     }
 } else {
-    $reportTitle = "{$reportTargetName} ネイチャー・ポジティブ活動 CSR成果レポート ({$year}年度)";
-    $storyIntroduction = "{$year}年度の「{$reportTargetName}」におけるネイチャー・ポジティブ活動は、地域の生態系保全に大きく貢献しました。社員と市民の共創により、合計 $totalObs 件の自然観察が行われ、$totalSpecies 種の多様な生物が確認されています。";
+    $reportTitle = "{$reportTargetName} 自然関連活動 CSR参考レポート ({$year}年度)";
+    $storyIntroduction = "{$year}年度の「{$reportTargetName}」では、社員と市民の共創により合計 $totalObs 件の自然観察が行われ、$totalSpecies 種の生物が確認されました。本レポートは、その観測状況を社内外で共有しやすい形に整理した参考資料です。";
 
     $sdg15Text = "本活動は SDGs 目標15「陸の豊かさも守ろう」に直接的に寄与しています。";
     if ($redlistCount > 0) {
-        $sdg15Text .= "特に、$redlistCount 種の絶滅危惧種（レッドリスト掲載種）の生息環境が維持されていることが確認され、生物多様性の損失を食い止めるための重要なフィールドとして機能しています。";
+        $sdg15Text .= "特に、$redlistCount 種の絶滅危惧種（レッドリスト掲載種）が記録されています。これらは保全上の重要シグナルであり、現場管理や専門家レビューとあわせて読み解く対象です。";
     } else {
         $sdg15Text .= "定期的なモニタリングを通じ、生態系の変動を早期に把握できる体制が構築されています。";
     }
 
-    $communityImpact = "延べ $totalMembers 名の参加者がフィールド調査に関与し、エンゲージメントスコア（BIS）は平均 $avgScore に達しました。これは環境教育および地域との共生施策としての高い効果を示しています。";
+    $communityImpact = "延べ $totalMembers 名の参加者がフィールド調査に関与し、平均参考インデックスは $avgScore でした。これは参加の広がりと観測の蓄積を示す参考値であり、自然価値そのものを単独で定量化するものではありません。";
 
     $topSpeciesNotes = [];
     foreach ($highlightSpecies as $sp) {
@@ -136,7 +136,7 @@ $response = [
             'total_species' => $totalSpecies,
             'redlist_species' => $redlistCount,
             'participants' => $totalMembers,
-            'average_bis_score' => $avgScore,
+            'average_monitoring_reference_index' => $avgScore,
             'active_sites' => $siteCount
         ],
         'story' => [
@@ -145,7 +145,11 @@ $response = [
             'community_impact' => $communityImpact,
             'highlighted_species_text' => implode("\n", $topSpeciesNotes),
             'highlighted_species_list' => $highlightSpecies
-        ]
+        ],
+        'limitations' => [
+            'Presence-only observation data; absence and abundance are not estimated.',
+            'Use as a CSR or sustainability reporting input, not as a standalone disclosure conclusion.',
+        ],
     ]
 ];
 

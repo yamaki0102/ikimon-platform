@@ -8,9 +8,10 @@
  */
 
 require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/SiteManager.php';
 require_once __DIR__ . '/../libs/RedListManager.php';
+
+ob_start();
 
 $siteId = $_GET['site_id'] ?? '';
 if (!$siteId) {
@@ -26,14 +27,8 @@ if (!$site) {
 
 $siteName = $site['properties']['name'] ?? $site['name'] ?? $siteId;
 
-// Lightweight data collection
-$allObs = DataStore::fetchAll('observations');
-$siteObs = [];
-foreach ($allObs as $obs) {
-    if (($obs['site_id'] ?? null) === $siteId) {
-        $siteObs[] = $obs;
-    }
-}
+// Reuse the shared site filter so embeds follow the same site boundary logic as reports.
+$siteObs = SiteManager::getObservationsInSite($siteId);
 
 $speciesSet = [];
 $rgCount = 0;
@@ -48,9 +43,11 @@ $totalObs = count($siteObs);
 $totalSpecies = count($speciesSet);
 $rgPercent = $totalObs > 0 ? round(($rgCount / $totalObs) * 100, 1) : 0;
 
-// BIS (simplified)
-$bis = round(min(100, min(40, $totalSpecies * 1.5) + min(25, $rgPercent * 0.25)), 1);
+// Simplified internal reference index for compact embeds.
+$referenceIndex = round(min(100, min(40, $totalSpecies * 1.5) + min(25, $rgPercent * 0.25)), 1);
 $meta_title = htmlspecialchars($siteName) . ' - ikimon';
+$_SERVER['HTTP_HOST'] = $_SERVER['HTTP_HOST'] ?? parse_url(BASE_URL, PHP_URL_HOST) ?? 'ikimon.life';
+$_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] ?? '/showcase_embed.php?site_id=' . urlencode($siteId);
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -142,6 +139,13 @@ $meta_title = htmlspecialchars($siteName) . ' - ikimon';
             background: rgba(255, 255, 255, 0.25);
         }
 
+        .embed-context {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
         .embed-compliance {
             font-size: 9px;
             opacity: 0.4;
@@ -159,10 +163,11 @@ $meta_title = htmlspecialchars($siteName) . ' - ikimon';
 <body>
     <div class="embed-brand">🌿 ikimon.life</div>
     <div class="embed-name"><?php echo htmlspecialchars($siteName); ?></div>
+    <div class="embed-context">公開向けの観測サマリーです。参考値のため、開示や認証の代替にはなりません。</div>
     <div class="embed-stats">
         <div class="embed-stat">
-            <div class="embed-stat-val"><?php echo $bis; ?></div>
-            <div class="embed-stat-label">BIS</div>
+            <div class="embed-stat-val"><?php echo $referenceIndex; ?></div>
+            <div class="embed-stat-label">参考指標</div>
         </div>
         <div class="embed-stat">
             <div class="embed-stat-val"><?php echo $totalSpecies; ?></div>
@@ -174,13 +179,13 @@ $meta_title = htmlspecialchars($siteName) . ' - ikimon';
         </div>
         <div class="embed-stat">
             <div class="embed-stat-val"><?php echo $rgPercent; ?>%</div>
-            <div class="embed-stat-label">認定率</div>
+            <div class="embed-stat-label">研究利用候補率</div>
         </div>
     </div>
     <a href="<?php echo BASE_URL; ?>/csr_showcase.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank" rel="noopener noreferrer" class="embed-cta">
         🔍 詳細を見る →
     </a>
-    <div class="embed-compliance">30by30 / TNFD LEAP 対応 — Powered by ikimon.life</div>
+    <div class="embed-compliance">参考: 30x30 / TNFD LEAP 入力整理 — Powered by ikimon.life</div>
 </body>
 
 </html>

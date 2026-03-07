@@ -30,18 +30,7 @@ $siteName = $site['properties']['name'] ?? $site['name'] ?? $siteId;
 $siteNameEn = $site['properties']['name_en'] ?? '';
 
 // --- Data Collection ---
-$allObs = DataStore::fetchAll('observations');
-$siteObs = [];
-foreach ($allObs as $obs) {
-    if (($obs['site_id'] ?? null) === $siteId) {
-        $siteObs[] = $obs;
-    } elseif (!empty($obs['location']['lat']) && !empty($obs['location']['lng'])) {
-        $geometry = $site['geometry'] ?? null;
-        if ($geometry && SiteManager::isPointInGeometry($obs['location']['lat'], $obs['location']['lng'], $geometry)) {
-            $siteObs[] = $obs;
-        }
-    }
-}
+$siteObs = SiteManager::getObservationsInSite($siteId);
 
 // --- Compute Statistics ---
 $speciesMap = [];
@@ -124,12 +113,18 @@ foreach (array_keys($speciesMap) as $sp) {
     }
 }
 
-// --- BIS Score ---
-$bisDiversity = min(40, $totalSpecies * 1.5);
-$bisQuality = min(25, $rgPercent * 0.25);
-$bisRedList = min(20, count($redListSpecies) * 4);
-$bisTaxonomy = min(15, count($taxonomyBreakdown) * 3);
-$bis = round(min(100, $bisDiversity + $bisQuality + $bisRedList + $bisTaxonomy), 1);
+// --- Observation-based reference index ---
+$referenceIndexDiversity = min(40, $totalSpecies * 1.5);
+$referenceIndexQuality = min(25, $rgPercent * 0.25);
+$referenceIndexRedList = min(20, count($redListSpecies) * 4);
+$referenceIndexTaxonomy = min(15, count($taxonomyBreakdown) * 3);
+$monitoringReferenceIndex = round(min(100, $referenceIndexDiversity + $referenceIndexQuality + $referenceIndexRedList + $referenceIndexTaxonomy), 1);
+
+$showcaseNotes = [
+    'このページは存在記録ベースの観測状況をまとめた公開向けショーケースです。',
+    '不在、個体数、因果効果を直接示すものではありません。',
+    '重要な判断や開示には、専門家レビューや現地確認を併用してください。',
+];
 
 // Top species (max 12)
 $topSpecies = array_slice($speciesMap, 0, 12, true);
@@ -280,7 +275,7 @@ $meta_canonical = BASE_URL . '/csr_showcase.php?site_id=' . urlencode($siteId);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
         }
 
-        .sc-stat-card.bis {
+        .sc-stat-card.reference-index {
             background: var(--sc-primary);
             color: white;
             border-color: var(--sc-primary);
@@ -478,15 +473,15 @@ $meta_canonical = BASE_URL . '/csr_showcase.php?site_id=' . urlencode($siteId);
             <?php if ($siteNameEn): ?>
                 <div class="sc-site-name-en"><?php echo htmlspecialchars($siteNameEn); ?></div>
             <?php endif; ?>
-            <div class="sc-compliance">✅ 30by30 / TNFD LEAP 対応</div>
+            <div class="sc-compliance">参考: 30x30 / TNFD LEAP 入力整理</div>
         </div>
     </header>
 
     <!-- Stats Grid -->
     <div class="sc-stats-grid">
-        <div class="sc-stat-card bis">
-            <div class="sc-stat-val"><?php echo $bis; ?></div>
-            <div class="sc-stat-label">BIS Score</div>
+        <div class="sc-stat-card reference-index">
+            <div class="sc-stat-val"><?php echo $monitoringReferenceIndex; ?></div>
+            <div class="sc-stat-label">参考指標</div>
         </div>
         <div class="sc-stat-card">
             <div class="sc-stat-val"><?php echo $totalSpecies; ?></div>
@@ -498,7 +493,7 @@ $meta_canonical = BASE_URL . '/csr_showcase.php?site_id=' . urlencode($siteId);
         </div>
         <div class="sc-stat-card">
             <div class="sc-stat-val"><?php echo $rgPercent; ?>%</div>
-            <div class="sc-stat-label">研究用達成率</div>
+            <div class="sc-stat-label">研究利用候補率</div>
         </div>
         <div class="sc-stat-card">
             <div class="sc-stat-val"><?php echo count($observerSet); ?></div>
@@ -605,6 +600,17 @@ $meta_canonical = BASE_URL . '/csr_showcase.php?site_id=' . urlencode($siteId);
                     </a>
                 <?php endforeach; ?>
             </div>
+        </div>
+    </div>
+
+    <div class="sc-section">
+        <div class="sc-section-title">ℹ️ このページの読み方</div>
+        <div class="sc-card" style="font-size: 12px; color: #4b5563;">
+            <ul style="margin-left: 18px; line-height: 1.8;">
+                <?php foreach ($showcaseNotes as $note): ?>
+                    <li><?php echo htmlspecialchars($note); ?></li>
+                <?php endforeach; ?>
+            </ul>
         </div>
     </div>
 

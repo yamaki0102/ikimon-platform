@@ -7,8 +7,8 @@
  *   - Site overview (boundary, area, location)
  *   - Observation statistics (species count, taxonomy breakdown)
  *   - Red List assessment (via RedListManager)
- *   - BIS score (Biodiversity Integrity Score)
- *   - TNFD disclosure alignment
+ *   - Observation-based monitoring reference index
+ *   - TNFD LEAP-related input summary
  *   - Species inventory table
  * 
  * Usage: api/generate_site_report.php?site_id=ikan_hq
@@ -50,31 +50,24 @@ if (!$site) {
 // --- Data Collection ---
 
 // Observations within this site
-$allObs = DataStore::fetchAll('observations');
-$siteObs = [];
-
-foreach ($allObs as $obs) {
-    // Date Filtering
-    $obsDate = $obs['observed_at'] ?? ($obs['created_at'] ?? null);
-    if ($obsDate) {
-        $dateOnly = substr($obsDate, 0, 10);
-        if ($startDate && $dateOnly < $startDate) continue;
-        if ($endDate && $dateOnly > $endDate) continue;
-    }
-
-    // Match by site_id field or by geospatial containment
-    if (($obs['site_id'] ?? null) === $siteId) {
-        $siteObs[] = $obs;
-    } elseif (isset($obs['location']['lat'], $obs['location']['lon'])) {
-        if (isset($site['geometry']) && SiteManager::isPointInGeometry(
-            floatval($obs['location']['lat']),
-            floatval($obs['location']['lon']),
-            $site['geometry']
-        )) {
-            $siteObs[] = $obs;
+$siteObs = array_values(array_filter(
+    SiteManager::getObservationsInSite($siteId),
+    static function (array $obs) use ($startDate, $endDate): bool {
+        $obsDate = $obs['observed_at'] ?? ($obs['created_at'] ?? null);
+        if (!$obsDate) {
+            return true;
         }
+
+        $dateOnly = substr($obsDate, 0, 10);
+        if ($startDate && $dateOnly < $startDate) {
+            return false;
+        }
+        if ($endDate && $dateOnly > $endDate) {
+            return false;
+        }
+        return true;
     }
-}
+));
 
 // --- Compute Statistics ---
 
@@ -214,13 +207,13 @@ unset($ev);
 // Sort events by date desc
 usort($siteEvents, fn($a, $b) => strcmp($b['event_date'] ?? '', $a['event_date'] ?? ''));
 
-// --- BIS Score (Biodiversity Integrity Score) via BiodiversityScorer ---
-$bisResult = BiodiversityScorer::calculate($siteObs, ['area_ha' => $site['properties']['area_ha'] ?? 0]);
-$bis = $bisResult['total_score'];
-$bisBreakdown = $bisResult['breakdown'];
+// --- Observation-based monitoring reference index ---
+$referenceIndexResult = MonitoringReferenceScorer::calculate($siteObs, ['area_ha' => $site['properties']['area_ha'] ?? 0]);
+$monitoringReferenceIndex = $referenceIndexResult['total_score'];
+$monitoringReferenceBreakdown = $referenceIndexResult['breakdown'];
 
-// BIS color
-$bisColor = $bis >= 75 ? '#10b981' : ($bis >= 50 ? '#eab308' : ($bis >= 25 ? '#f97316' : '#ef4444'));
+// Reference index color
+$monitoringReferenceColor = $monitoringReferenceIndex >= 75 ? '#10b981' : ($monitoringReferenceIndex >= 50 ? '#eab308' : ($monitoringReferenceIndex >= 25 ? '#f97316' : '#ef4444'));
 
 // --- Report metadata ---
 $reportDate = date('Y年m月d日');
@@ -229,10 +222,30 @@ if ($startDate && $endDate) {
 } elseif ($firstObs) {
     $reportPeriod = (date('Y年n月', strtotime($firstObs)) . ' ～ ' . date('Y年n月', strtotime($lastObs)));
 } else {
-    $reportPeriod = '期間指定なし（データなし）';
+    $reportPeriod = '観測記録がまだないため、まずは基準となる初回観測の追加が必要';
 }
 $siteName = $site['properties']['name'] ?? $site['name'] ?? $siteId;
 $siteNameEn = $site['properties']['name_en'] ?? '';
+$monitoredMonths = count($monthlyTrend);
+$reportActions = [];
+
+if ($lastObs && intval((time() - strtotime($lastObs)) / 86400) > 30) {
+    $reportActions[] = '更新が30日以上空いているため、まずは最新の観測を追加して継続性を回復する。';
+}
+if ($researchGradePercent < 60) {
+    $reportActions[] = '写真、位置情報、観察日時、同定コメントの入力ルールを揃え、再利用しやすい記録を増やす。';
+}
+if ($monitoredMonths < 6) {
+    $reportActions[] = '未観測の季節や月を優先して追加観測し、季節バイアスを減らす。';
+}
+if (count($taxonomyBreakdown) < 4) {
+    $reportActions[] = '植物・鳥類に偏っている場合は、昆虫や菌類、水辺生物など補完対象を決めて観測対象を広げる。';
+}
+if (count($redListSpecies) > 0) {
+    $reportActions[] = '重要種の確認記録を現場計画と照合し、必要に応じて専門家レビューや保護措置の検討につなげる。';
+}
+
+$reportActions = array_slice($reportActions, 0, 3);
 
 // --- Output HTML ---
 ?>
@@ -406,8 +419,8 @@ $siteNameEn = $site['properties']['name_en'] ?? '';
             opacity: 0.8;
         }
 
-        /* BIS Section */
-        .bis-section {
+        /* Reference Index Section */
+        .reference-index-section {
             background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
             color: white;
             border-radius: 10px;
@@ -418,7 +431,7 @@ $siteNameEn = $site['properties']['name_en'] ?? '';
             gap: 20px;
         }
 
-        .bis-score {
+        .reference-index-score {
             font-size: 52px;
             font-weight: 900;
             line-height: 1;
@@ -426,24 +439,24 @@ $siteNameEn = $site['properties']['name_en'] ?? '';
             text-align: center;
         }
 
-        .bis-details h3 {
+        .reference-index-details h3 {
             font-size: 14px;
             margin-bottom: 6px;
         }
 
-        .bis-details p {
+        .reference-index-details p {
             font-size: 11px;
             opacity: 0.9;
         }
 
-        .bis-bar-container {
+        .reference-index-bar-container {
             margin-top: 8px;
             display: flex;
             gap: 4px;
             align-items: center;
         }
 
-        .bis-bar {
+        .reference-index-bar {
             flex: 1;
             height: 6px;
             background: rgba(255, 255, 255, 0.2);
@@ -451,14 +464,14 @@ $siteNameEn = $site['properties']['name_en'] ?? '';
             overflow: hidden;
         }
 
-        .bis-bar-fill {
+        .reference-index-bar-fill {
             height: 100%;
             border-radius: 3px;
             background: white;
             transition: width 0.3s;
         }
 
-        .bis-bar-label {
+        .reference-index-bar-label {
             font-size: 9px;
             opacity: 0.7;
             min-width: 60px;
@@ -734,8 +747,8 @@ $siteNameEn = $site['properties']['name_en'] ?? '';
                 <span class="en"><?php echo htmlspecialchars($siteNameEn); ?></span>
             <?php endif; ?>
             <div>
-                <span class="compliance">✓ TNFD LEAP対応</span>
-                <span class="compliance">✓ 30by30対応</span>
+                <span class="compliance">参考: TNFD LEAP入力</span>
+                <span class="compliance">参考: 30x30関連整理</span>
                 <span class="compliance">✓ Darwin Core準拠</span>
             </div>
         </div>
@@ -743,8 +756,8 @@ $siteNameEn = $site['properties']['name_en'] ?? '';
         <!-- Summary Cards -->
         <div class="summary-grid">
             <div class="summary-card highlight">
-                <span class="val"><?php echo $bis; ?></span>
-                <span class="lbl">BIS スコア</span>
+                <span class="val"><?php echo $monitoringReferenceIndex; ?></span>
+                <span class="lbl">参考インデックス</span>
             </div>
             <div class="summary-card">
                 <span class="val"><?php echo $totalSpecies; ?></span>
@@ -762,33 +775,44 @@ $siteNameEn = $site['properties']['name_en'] ?? '';
             </div>
         </div>
 
-        <!-- BIS Score -->
-        <div class="bis-section">
-            <div class="bis-score"><?php echo $bis; ?></div>
-            <div class="bis-details">
-                <h3>Biodiversity Integrity Score (BIS)</h3>
-                <p>種の多様性、データ信頼性、保全価値、分類群カバレッジ、モニタリング努力を総合評価。</p>
+        <!-- Reference Index -->
+        <div class="reference-index-section">
+            <div class="reference-index-score"><?php echo $monitoringReferenceIndex; ?></div>
+            <div class="reference-index-details">
+                <h3>モニタリング参考インデックス (β)</h3>
+                <p>種の多様性、データ信頼性、保全シグナル、分類群カバー、モニタリング継続性を束ねた社内向けの参考値です。認証可否や自然価値そのものを単独で示すものではありません。</p>
                 <?php
-                $bisAxisLabelsJa = [
+                $referenceIndexAxisLabelsJa = [
                     'richness'           => '種の豊富さ',
                     'data_confidence'    => 'データ信頼性',
                     'conservation_value' => '保全価値',
                     'taxonomic_coverage' => '分類群カバー',
                     'monitoring_effort'  => 'モニタリング',
                 ];
-                foreach ($bisBreakdown as $key => $axis):
+                foreach ($monitoringReferenceBreakdown as $key => $axis):
                     $maxPt = round($axis['weight'] * 100);
-                    $labelJa = $bisAxisLabelsJa[$key] ?? $axis['label'];
+                    $labelJa = $referenceIndexAxisLabelsJa[$key] ?? $axis['label'];
                 ?>
-                    <div class="bis-bar-container">
-                        <div class="bis-bar">
-                            <div class="bis-bar-fill" style="width: <?php echo $axis['score']; ?>%"></div>
+                    <div class="reference-index-bar-container">
+                        <div class="reference-index-bar">
+                            <div class="reference-index-bar-fill" style="width: <?php echo $axis['score']; ?>%"></div>
                         </div>
-                        <span class="bis-bar-label"><?php echo $labelJa; ?> <?php echo round($axis['weighted']); ?>/<?php echo $maxPt; ?></span>
+                        <span class="reference-index-bar-label"><?php echo $labelJa; ?> <?php echo round($axis['weighted']); ?>/<?php echo $maxPt; ?></span>
                     </div>
                 <?php endforeach; ?>
             </div>
         </div>
+
+        <?php if (!empty($reportActions)): ?>
+            <h2><span class="icon">🧭</span> 次にやるとよいこと</h2>
+            <div class="disclaimer" style="margin-top: 0; margin-bottom: 24px;">
+                <ol style="margin: 0; padding-left: 18px;">
+                    <?php foreach ($reportActions as $action): ?>
+                        <li style="margin-bottom: 6px;"><?php echo htmlspecialchars($action); ?></li>
+                    <?php endforeach; ?>
+                </ol>
+            </div>
+        <?php endif; ?>
 
         <!-- Red List Assessment -->
         <h2><span class="icon">🔴</span> レッドリスト該当種</h2>
@@ -799,7 +823,7 @@ $siteNameEn = $site['properties']['name_en'] ?? '';
                 <p>
                     当サイトで確認された種のうち、環境省レッドリストまたは静岡県レッドデータブック（2020）に
                     掲載されている種が<?php echo count($redListSpecies); ?>種含まれています。
-                    これらの種の保全は、自然共生サイト認定およびTNFD開示において重要な指標です。
+                    これらは現場計画や保全配慮の優先確認対象となる重要な観測シグナルです。
                 </p>
             </div>
 
@@ -971,35 +995,35 @@ $siteNameEn = $site['properties']['name_en'] ?? '';
         </table>
 
         <!-- TNFD Disclosure -->
-        <h2><span class="icon">📋</span> TNFD LEAP対応状況</h2>
+        <h2><span class="icon">📋</span> TNFD LEAPとの対応関係（参考）</h2>
         <table>
             <thead>
                 <tr>
                     <th>LEAP フレームワーク</th>
-                    <th>推奨開示項目</th>
-                    <th>対応状況</th>
+                    <th>整理している内容</th>
+                    <th>このレポートで見られるもの</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td><strong>L</strong>ocate</td>
                     <td>事業拠点と自然との接点の特定</td>
-                    <td><span class="tnfd-check">✓</span> GeoJSON境界定義済み</td>
+                    <td><span class="tnfd-check">✓</span> GeoJSON境界と対象期間</td>
                 </tr>
                 <tr>
                     <td><strong>E</strong>valuate</td>
                     <td>依存と影響の評価</td>
-                    <td><span class="tnfd-check">✓</span> BIS <?php echo $bis; ?>（<?php echo $totalSpecies; ?>種確認）</td>
+                    <td><span class="tnfd-check">✓</span> 参考インデックス <?php echo $monitoringReferenceIndex; ?> / <?php echo $totalSpecies; ?>種 / 分類群別内訳</td>
                 </tr>
                 <tr>
                     <td><strong>A</strong>ssess</td>
                     <td>リスクと機会の評価</td>
-                    <td><span class="tnfd-check">✓</span> RL掲載種<?php echo count($redListSpecies); ?>種を特定</td>
+                    <td><span class="tnfd-check">✓</span> RL掲載種<?php echo count($redListSpecies); ?>種と観測証跡</td>
                 </tr>
                 <tr>
                     <td><strong>P</strong>repare</td>
                     <td>対応策の策定・報告</td>
-                    <td><span class="tnfd-check">✓</span> モニタリング継続中</td>
+                    <td><span class="tnfd-check">✓</span> 推奨アクションと継続観測状況</td>
                 </tr>
             </tbody>
         </table>
@@ -1022,14 +1046,14 @@ $siteNameEn = $site['properties']['name_en'] ?? '';
         </div>
         <p style="font-size: 11px; color: var(--muted); margin: 8px 0;">
             データソース: ikimon市民科学プラットフォーム / 分類名: GBIF Backbone Taxonomy準拠<br>
-            引用データベース: 741冊の学術出版物・図鑑
+            国際フレームワーク参照: TNFD Recommendations (2023) / CBD GBF Target 15・Target 3 / SBTN Step 1: Assess
         </p>
 
         <!-- Disclaimer -->
         <div class="disclaimer">
             <strong>免責事項:</strong>
             本レポートは市民科学（Citizen Science）データに基づいており、専門家による網羅的調査の代替ではありません。
-            データは継続的に更新・検証されます。正式なTNFD開示資料として使用する際は、専門家によるレビューを推奨します。
+            データは継続的に更新・検証されます。TNFDや社内開示に使用する場合は、監視・評価の補完資料として扱い、専門家によるレビューを推奨します。
             希少種の正確な位置情報は保護のため非公開です。
         </div>
 

@@ -31,8 +31,10 @@ $allObs = DataStore::fetchAll('observations');
 $points = [];
 
 foreach ($allObs as $obs) {
-    // 1. Location Check
-    if (!isset($obs['location']['lat'], $obs['location']['lon'])) continue;
+    // 1. Location Check — support both flat (lat/lng) and nested (location.lat/lon)
+    $lat = $obs['lat'] ?? $obs['location']['lat'] ?? null;
+    $lng = $obs['lng'] ?? $obs['location']['lng'] ?? $obs['location']['lon'] ?? null;
+    if ($lat === null || $lng === null) continue;
 
     // 2. Year Filter
     if ($year !== 'all') {
@@ -48,18 +50,15 @@ foreach ($allObs as $obs) {
 
     // Weighting Algorithm
     // - Research Grade: x2.0
-    // - Red List (Mock logic): x3.0
     // - Normal: x1.0
     $weight = 1.0;
 
     $status = $obs['quality_grade'] ?? ($obs['status'] ?? '');
     if ($status === 'Research Grade') $weight = 2.0;
 
-    // (Optional) Red List Check would go here if we had efficient lookup
-
     // Round coordinates to reduce precision/size (approx 11m resolution)
-    $lat = round(floatval($obs['location']['lat']), 4);
-    $lng = round(floatval($obs['location']['lon']), 4);
+    $lat = round(floatval($lat), 4);
+    $lng = round(floatval($lng), 4);
 
     $points[] = [$lat, $lng, $weight];
 }

@@ -72,7 +72,7 @@ class MyFieldManager
 
     /**
      * Calculate ecological stats for a field.
-     * Uses BiodiversityScorer for advanced metrics.
+     * Uses MonitoringReferenceScorer for advanced metrics.
      */
     public static function calculateStats(array $field): array
     {
@@ -96,7 +96,7 @@ class MyFieldManager
         }
 
         // Calculate all scores via Scorer
-        $scoreResult = BiodiversityScorer::calculate($fieldObs, $field);
+        $scoreResult = MonitoringReferenceScorer::calculate($fieldObs, $field);
 
         return array_merge([
             'observation_count' => count($fieldObs), // Keep for backward compatibility

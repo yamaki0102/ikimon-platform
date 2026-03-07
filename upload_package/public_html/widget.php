@@ -32,8 +32,8 @@ CspNonce::sendHeader();
 // Ensure the site has a sponsor to display (though we display it either way for MVP)
 $sponsorName = $site['sponsor']['name'] ?? 'ikimon.life Community';
 
-// Fetch stats using BiodiversityScorer
-$stats = BiodiversityScorer::calculateSiteStats($siteId);
+// Fetch stats using the monitoring reference scorer.
+$stats = MonitoringReferenceScorer::calculateSiteStats($siteId);
 
 // Handle specific theme styles
 $bgClass = $theme === 'light' ? 'bg-white/80 border-gray-100 shadow-sm' : 'bg-[#1a2e1f]/[0.02] border-emerald-500/10 backdrop-blur-md';

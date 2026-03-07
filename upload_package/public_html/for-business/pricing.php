@@ -12,7 +12,7 @@ require_once __DIR__ . '/../../config/config.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>料金プラン | ikimon for Business</title>
-    <meta name="description" content="ikimon for Business の料金プランを比較。Communityプランは無料で観察記録と種数確認。Business プランはBISスコア・レポート出力を含む年額498,000円（税別）。">
+    <meta name="description" content="ikimon for Business の料金プランを比較。Communityプランは無料で観察記録と種数確認。Business プランは参考インデックスとレポート出力を含む年額498,000円（税別）。">
     <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -393,7 +393,7 @@ require_once __DIR__ . '/../../config/config.php';
                         <li><span class="check">✓</span> サイト登録: 1サイト</li>
                         <li><span class="check">✓</span> 観察記録の投稿・閲覧</li>
                         <li><span class="check">✓</span> 種数・投稿数の確認</li>
-                        <li><span class="cross">—</span> BISスコア算出</li>
+                        <li><span class="cross">—</span> 参考インデックス算出</li>
                         <li><span class="cross">—</span> 各種レポート出力（全6種）</li>
                         <li><span class="cross">—</span> 企業ダッシュボード</li>
                         <li><span class="cross">—</span> 観察会テンプレート</li>
@@ -409,10 +409,10 @@ require_once __DIR__ . '/../../config/config.php';
                 <div class="plan-card recommended">
                     <div class="plan-name">Business</div>
                     <div class="plan-price">¥498,000 <span class="unit">/ 年（税別）</span></div>
-                    <p class="plan-desc">環境投資を「見える化」したい企業向け。<br>全レポート + 専用ダッシュボード。</p>
+                    <p class="plan-desc">環境投資の現状把握と改善判断を進めたい企業向け。<br>全レポート + 専用ダッシュボード。</p>
                     <ul class="plan-features">
                         <li><span class="check">✓</span> サイト登録: 無制限</li>
-                        <li><span class="check">✓</span> BISスコア算出</li>
+                        <li><span class="check">✓</span> 参考インデックス算出</li>
                         <li><span class="check">✓</span> 全6種レポート出力</li>
                         <li><span class="check">✓</span> 企業ダッシュボード</li>
                         <li><span class="check">✓</span> 観察会テンプレート</li>

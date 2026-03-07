@@ -333,8 +333,8 @@ $pageTitle = 'デモ体験 — ikimon for Business';
         <div class="demo-features">
             <div class="demo-feature">
                 <div class="icon">📊</div>
-                <h3>BIS スコア</h3>
-                <p>生物多様性の「偏差値」。種の多様度、データ品質、希少種の存在を0〜100で数値化します。</p>
+                <h3>参考インデックス</h3>
+                <p>観測データの厚みや保全シグナルを0〜100で俯瞰する参考値です。絶対評価や認証判定ではありません。</p>
             </div>
             <div class="demo-feature">
                 <div class="icon">🔴</div>

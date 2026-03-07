@@ -53,8 +53,7 @@ class ReportEngine
         }
 
         // --- Collect Observations ---
-        $allObs = DataStore::fetchAll('observations');
-        $siteObs = $this->filterObservations($allObs, $site);
+        $siteObs = $this->filterObservations($site);
 
         // --- Compute Statistics ---
         $stats = $this->computeStatistics($siteObs);
@@ -66,12 +65,12 @@ class ReportEngine
         $stats['redListSpecies'] = $redListResult['species'];
         $stats['redListSummary'] = $redListResult['summary'];
 
-        // --- BIS Score ---
+        // --- Monitoring reference index ---
         $areaHa = $site['properties']['area_ha'] ?? 0;
-        $bisResult = BiodiversityScorer::calculate($siteObs, ['area_ha' => $areaHa]);
-        $stats['bis'] = $bisResult['total_score'];
-        $stats['bisBreakdown'] = $bisResult['breakdown'];
-        $stats['bisColor'] = $stats['bis'] >= 75 ? '#10b981' : ($stats['bis'] >= 50 ? '#eab308' : ($stats['bis'] >= 25 ? '#f97316' : '#ef4444'));
+        $referenceIndexResult = MonitoringReferenceScorer::calculate($siteObs, ['area_ha' => $areaHa]);
+        $stats['monitoringReferenceIndex'] = $referenceIndexResult['total_score'];
+        $stats['monitoringReferenceBreakdown'] = $referenceIndexResult['breakdown'];
+        $stats['monitoringReferenceColor'] = $stats['monitoringReferenceIndex'] >= 75 ? '#10b981' : ($stats['monitoringReferenceIndex'] >= 50 ? '#eab308' : ($stats['monitoringReferenceIndex'] >= 25 ? '#f97316' : '#ef4444'));
 
         // --- Events ---
         $stats['events'] = $this->collectEvents($site, $siteObs);
@@ -100,10 +99,10 @@ class ReportEngine
     /**
      * Filter observations by site and date range
      */
-    private function filterObservations(array $allObs, array $site): array
+    private function filterObservations(array $site): array
     {
         $siteObs = [];
-        foreach ($allObs as $obs) {
+        foreach (SiteManager::getObservationsInSite($this->siteId) as $obs) {
             // Date filtering
             $obsDate = $obs['observed_at'] ?? ($obs['created_at'] ?? null);
             if ($obsDate) {
@@ -111,19 +110,7 @@ class ReportEngine
                 if ($this->startDate && $dateOnly < $this->startDate) continue;
                 if ($this->endDate && $dateOnly > $this->endDate) continue;
             }
-
-            // Match by site_id or geospatial containment
-            if (($obs['site_id'] ?? null) === $this->siteId) {
-                $siteObs[] = $obs;
-            } elseif (isset($obs['location']['lat'], $obs['location']['lon'])) {
-                if (isset($site['geometry']) && SiteManager::isPointInGeometry(
-                    floatval($obs['location']['lat']),
-                    floatval($obs['location']['lon']),
-                    $site['geometry']
-                )) {
-                    $siteObs[] = $obs;
-                }
-            }
+            $siteObs[] = $obs;
         }
         return $siteObs;
     }
@@ -319,7 +306,7 @@ class ReportEngine
         if ($firstObs) {
             return date('Y年n月', strtotime($firstObs)) . ' ～ ' . date('Y年n月', strtotime($lastObs));
         }
-        return '期間指定なし（データなし）';
+        return '観測記録がまだないため、まずは基準となる初回観測の追加が必要';
     }
 
     // ─────────────────────────────────────────

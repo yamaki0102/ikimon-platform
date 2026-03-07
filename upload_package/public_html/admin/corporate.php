@@ -13,7 +13,7 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
 <html lang="ja">
 
 <head>
-    <?php $adminTitle = 'TNFD Reporting Dashboard';
+    <?php $adminTitle = 'Nature Reporting Workspace';
     include __DIR__ . '/components/head.php'; ?>
     <!-- MapLibre for Polygon Visualization -->
     <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
@@ -26,13 +26,13 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
     <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
         <div class="p-6 flex items-center gap-3">
             <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white">C</div>
-            <span class="font-bold text-sm tracking-tight">Corporate Portal<br><span class="text-xs text-slate-500 font-normal">TNFD Edition</span></span>
+            <span class="font-bold text-sm tracking-tight">Corporate Portal<br><span class="text-xs text-slate-500 font-normal">Reference Edition</span></span>
         </div>
 
         <nav class="flex-1 px-4 space-y-2">
             <a href="corporate.php" class="flex items-center gap-3 px-4 py-3 bg-blue-600/10 text-blue-400 border border-blue-600/20 rounded-xl font-bold transition">
                 <i data-lucide="pie-chart" class="w-5 h-5"></i>
-                Impact Report
+                Monitoring Overview
             </a>
             <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl font-bold transition">
                 <i data-lucide="file-text" class="w-5 h-5"></i>
@@ -61,25 +61,25 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
                 </p>
             </div>
             <button class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-full font-bold text-sm shadow-lg shadow-blue-900/50 flex items-center gap-2 transition">
-                <i data-lucide="download" class="w-4 h-4"></i> Download TNFD Report
+                <i data-lucide="download" class="w-4 h-4"></i> Download Reference Report
             </button>
         </header>
 
         <!-- Scorecards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <!-- Biodiversity Integirty Score -->
+            <!-- Monitoring reference index -->
             <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 relative overflow-hidden group">
                 <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition">
                     <i data-lucide="leaf" class="w-24 h-24 text-emerald-500"></i>
                 </div>
-                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Biodiversity Integrity Score (BIS)</p>
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Monitoring Reference Index</p>
                 <div class="flex items-baseline gap-2">
                     <p class="text-4xl font-black text-white">84.2</p>
                     <span class="text-emerald-400 text-sm font-bold flex items-center">
                         <i data-lucide="trending-up" class="w-3 h-3 mr-1"></i> +2.4%
                     </span>
                 </div>
-                <p class="text-xs text-slate-500 mt-2">Comparable to: Primary Forest (Ref)</p>
+                <p class="text-xs text-slate-500 mt-2">Internal reference only. Use with expert review for material decisions.</p>
             </div>
 
             <!-- Species Richness -->
@@ -95,7 +95,7 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
 
             <!-- Community Engagement -->
             <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Citizen Engagement</p>
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Monitoring Participation</p>
                 <p class="text-4xl font-black text-white">1,450 <span class="text-sm font-normal text-slate-500">obs.</span></p>
                 <p class="text-xs text-slate-500 mt-2">By 120 local employees & residents</p>
             </div>
@@ -119,7 +119,7 @@ $targetSpecies = ["Japanese Rhinoceros Beetle", "Swallowtail Butterfly"];
 
             <!-- Indicator Species List -->
             <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 flex flex-col">
-                <h3 class="font-bold text-sm mb-4">Target Species Monitoring</h3>
+                <h3 class="font-bold text-sm mb-4">Priority Species Monitoring</h3>
                 <div class="space-y-4 overflow-y-auto">
                     <?php foreach ($targetSpecies as $sp): ?>
                         <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-700/50">

@@ -9,7 +9,7 @@
  * GET params:
  *   - site_id (str): required
  *
- * Response: JSON with site stats, species list, trends, BIS score
+ * Response: JSON with site stats, species list, trends, observation-based reference index
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -33,19 +33,7 @@ if (!$site) {
 }
 
 // --- Data Collection ---
-$allObs = DataStore::fetchAll('observations');
-$siteObs = [];
-
-foreach ($allObs as $obs) {
-    if (($obs['site_id'] ?? null) === $siteId) {
-        $siteObs[] = $obs;
-    } elseif (!empty($obs['location']['lat']) && !empty($obs['location']['lng'])) {
-        $geometry = $site['geometry'] ?? null;
-        if ($geometry && SiteManager::isPointInGeometry($obs['location']['lat'], $obs['location']['lng'], $geometry)) {
-            $siteObs[] = $obs;
-        }
-    }
-}
+$siteObs = SiteManager::getObservationsInSite($siteId);
 
 // --- Compute Statistics ---
 $speciesMap = [];
@@ -126,18 +114,22 @@ foreach (array_keys($speciesMap) as $sp) {
     }
 }
 
-// --- BIS Score ---
-$bisDiversity = min(40, $totalSpecies * 1.5);
-$bisQuality = min(25, $rgPercent * 0.25);
-$bisRedList = min(20, count($redListSpecies) * 4);
-$bisTaxonomy = min(15, count($taxonomyBreakdown) * 3);
-$bis = round(min(100, $bisDiversity + $bisQuality + $bisRedList + $bisTaxonomy), 1);
+// --- Observation-based reference index ---
+$referenceIndexDiversity = min(40, $totalSpecies * 1.5);
+$referenceIndexQuality = min(25, $rgPercent * 0.25);
+$referenceIndexRedList = min(20, count($redListSpecies) * 4);
+$referenceIndexTaxonomy = min(15, count($taxonomyBreakdown) * 3);
+$monitoringReferenceIndex = round(min(100, $referenceIndexDiversity + $referenceIndexQuality + $referenceIndexRedList + $referenceIndexTaxonomy), 1);
 
 // --- Response ---
 $siteName = $site['properties']['name'] ?? $site['name'] ?? $siteId;
 
 echo json_encode([
     'success' => true,
+    'limitations' => [
+        'Presence-only observation data; absence and abundance are not estimated.',
+        'Use as a public-facing monitoring summary, not as a standalone disclosure conclusion.',
+    ],
     'site' => [
         'id' => $siteId,
         'name' => $siteName,
@@ -149,7 +141,7 @@ echo json_encode([
         'research_grade_count' => $researchGradeCount,
         'research_grade_percent' => $rgPercent,
         'total_observers' => count($observerSet),
-        'bis_score' => $bis,
+        'monitoring_reference_index' => $monitoringReferenceIndex,
     ],
     'taxonomy_breakdown' => $taxonomyBreakdown,
     'monthly_trend' => $monthlyTrend,

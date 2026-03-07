@@ -2,11 +2,15 @@
 
 require_once __DIR__ . '/RedListManager.php';
 
-class BiodiversityScorer
+class MonitoringReferenceScorer
 {
     /**
-     * Calculate Biodiversity Integrity Score (BIS) — 0-100
+     * Calculate a monitoring reference index (0-100) from observation data.
      * 
+     * This is an internal heuristic for comparing observation coverage and
+     * conservation signals within the product. It is not a certification score,
+     * a TNFD compliance score, or a biodiversity credit unit.
+     *
      * 5-axis model aligned with ikimon_b2b_strategy.md v3.0:
      *   1. Species Richness (30pt) — Shannon-Wiener Index H' normalized
      *   2. Data Confidence  (20pt) — Research Grade ratio × observation density
@@ -171,6 +175,17 @@ class BiodiversityScorer
             'total_score'    => round($totalScore),
             'species_count'  => $speciesCount,
             'shannon_index'  => $shannonIndex,
+            'methodology' => [
+                'name' => 'モニタリング参考インデックス',
+                'short_name' => 'MRI',
+                'version' => 'beta',
+                'summary' => '観測データの厚みと保全シグナルを俯瞰するための社内向け参考指標です。',
+                'limitations' => [
+                    '観測努力や参加者構成の影響を受けるため、環境価値そのものを単独で確定する指標ではありません。',
+                    '存在記録ベースのため、不在や個体数の厳密な推定には使えません。',
+                    '認証可否、法令適合、クレジット価格を直接示すものではありません。',
+                ],
+            ],
             'breakdown' => [
                 'richness' => [
                     'label'    => '種の多様性',
@@ -221,6 +236,32 @@ class BiodiversityScorer
     }
 
     /**
+     * Convenience helper for legacy widgets that request site-level summary stats.
+     */
+    public static function calculateSiteStats(string $siteId): array
+    {
+        require_once __DIR__ . '/SiteManager.php';
+
+        $site = SiteManager::load($siteId);
+        if (!$site) {
+            return self::emptyResult();
+        }
+
+        $observations = SiteManager::getObservationsInSite($siteId);
+        $areaHa = $site['properties']['area_ha'] ?? 0;
+
+        $result = self::calculate($observations, ['area_ha' => $areaHa]);
+        $redListMatches = $result['breakdown']['conservation_value']['matches'] ?? [];
+
+        return $result + [
+            'total_observations' => count($observations),
+            'total_species' => $result['species_count'] ?? 0,
+            'redlist_count' => count($redListMatches),
+            'monitoring_reference_index' => $result['total_score'] ?? 0,
+        ];
+    }
+
+    /**
      * Return empty result for sites with no observations
      */
     private static function emptyResult(): array
@@ -229,6 +270,17 @@ class BiodiversityScorer
             'total_score'    => 0,
             'species_count'  => 0,
             'shannon_index'  => 0.0,
+            'methodology' => [
+                'name' => 'モニタリング参考インデックス',
+                'short_name' => 'MRI',
+                'version' => 'beta',
+                'summary' => '観測データの厚みと保全シグナルを俯瞰するための社内向け参考指標です。',
+                'limitations' => [
+                    '観測努力や参加者構成の影響を受けるため、環境価値そのものを単独で確定する指標ではありません。',
+                    '存在記録ベースのため、不在や個体数の厳密な推定には使えません。',
+                    '認証可否、法令適合、クレジット価格を直接示すものではありません。',
+                ],
+            ],
             'breakdown' => [
                 'richness'           => ['label' => '種の多様性',        'raw' => 0, 'raw_label' => "多様度指数 H'=0（0種確認）", 'score' => 0, 'weighted' => 0, 'weight' => 0.30],
                 'data_confidence'    => ['label' => 'データ信頼性',     'raw' => 0, 'raw_label' => '高品質データ率 0%（0/0件）',  'score' => 0, 'weighted' => 0, 'weight' => 0.20],
@@ -263,10 +315,17 @@ class BiodiversityScorer
      */
     private static function evaluate(float $score): string
     {
-        if ($score >= 80) return "奇跡のサンクチュアリ";
-        if ($score >= 60) return "豊かな生態系";
-        if ($score >= 40) return "健全な環境";
-        if ($score >= 20) return "発展途上のフィールド";
-        return "これからに期待！";
+        if ($score >= 80) return "観測データが比較的厚い状態";
+        if ($score >= 60) return "複数の指標が揃いつつある状態";
+        if ($score >= 40) return "基礎的な観測傾向が見え始めた状態";
+        if ($score >= 20) return "継続観測と補足が必要な状態";
+        return "判断に十分なデータがまだ少ない状態";
     }
+}
+
+/**
+ * @deprecated Use MonitoringReferenceScorer instead.
+ */
+class BiodiversityScorer extends MonitoringReferenceScorer
+{
 }
