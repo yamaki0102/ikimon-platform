@@ -1,7 +1,7 @@
 <?php
 /**
  * FB-26: TNFD Report PDF Generator
- * Generates a simplified biodiversity report in HTML format (printable as PDF)
+ * Generates a simplified observation-based reference report in HTML format.
  * 
  * Usage: api/generate_tnfd_report.php?site_id=ikimon_forest
  */
@@ -74,14 +74,25 @@ $totalObs = count($siteObs);
 $totalSpecies = count($speciesSet);
 $researchGradePercent = $totalObs > 0 ? round(($researchGradeCount / $totalObs) * 100, 1) : 0;
 
-// Calculate BIS (Biodiversity Integrity Score) - simplified version
-// Based on: species diversity, research grade %, red list presence
-$bis = min(100, ($totalSpecies * 2) + ($researchGradePercent * 0.5) + ($redListCount > 0 ? 10 : 0));
-$bis = round($bis, 1);
+// Calculate a simplified observation-based reference index.
+// This is an internal heuristic for demo/reporting support, not a compliance score.
+$monitoringReferenceIndex = min(100, ($totalSpecies * 2) + ($researchGradePercent * 0.5) + ($redListCount > 0 ? 10 : 0));
+$monitoringReferenceIndex = round($monitoringReferenceIndex, 1);
 
 // Report date
 $reportDate = date('Y年m月d日');
 $reportPeriod = date('Y年1月') . ' - ' . date('Y年n月');
+$reportActions = [
+    '観測のない季節や分類群がないかを確認し、追加観測の優先順位を決める。',
+    '研究グレード比率を上げるため、写真・位置・日時・同定コメントの運用を揃える。',
+    '重要種が確認された場合は、現場計画との照合と専門家レビューを検討する。',
+];
+$referenceLinks = [
+    ['label' => 'TNFD Recommendations (2023)', 'url' => 'https://tnfd.global/publication/recommendations-of-the-taskforce-on-nature-related-financial-disclosures/'],
+    ['label' => 'CBD GBF Target 15', 'url' => 'https://www.cbd.int/gbf/targets/15'],
+    ['label' => 'CBD GBF Target 3 (30x30)', 'url' => 'https://www.cbd.int/gbf/targets/3'],
+    ['label' => 'SBTN Step 1: Assess', 'url' => 'https://sciencebasedtargetsnetwork.org/companies/take-action/assess/'],
+];
 
 // Output as printable HTML
 ?>
@@ -90,7 +101,7 @@ $reportPeriod = date('Y年1月') . ' - ' . date('Y年n月');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TNFD生物多様性レポート - <?php echo htmlspecialchars($siteDef['name']); ?></title>
+    <title>自然関連開示 参考レポート - <?php echo htmlspecialchars($siteDef['name']); ?></title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
         
@@ -188,7 +199,7 @@ $reportPeriod = date('Y年1月') . ' - ' . date('Y年n月');
             margin-top: 5px;
         }
         
-        .bis-section {
+        .reference-index-section {
             background: linear-gradient(135deg, #065f46 0%, #10b981 100%);
             color: white;
             border-radius: 12px;
@@ -199,18 +210,18 @@ $reportPeriod = date('Y年1月') . ' - ' . date('Y年n月');
             gap: 30px;
         }
         
-        .bis-score {
+        .reference-index-score {
             font-size: 64px;
             font-weight: 700;
             line-height: 1;
         }
         
-        .bis-details h3 {
+        .reference-index-details h3 {
             font-size: 16px;
             margin-bottom: 10px;
         }
         
-        .bis-details p {
+        .reference-index-details p {
             font-size: 13px;
             opacity: 0.9;
         }
@@ -279,7 +290,7 @@ $reportPeriod = date('Y年1月') . ' - ' . date('Y年n月');
                 <div style="font-size: 12px; color: #666;">Biodiversity Visualization Platform</div>
             </div>
             <div class="report-info">
-                <strong>TNFD対応 生物多様性レポート</strong><br>
+                <strong>自然関連開示 参考レポート</strong><br>
                 作成日: <?php echo $reportDate; ?><br>
                 対象期間: <?php echo $reportPeriod; ?>
             </div>
@@ -289,14 +300,14 @@ $reportPeriod = date('Y年1月') . ' - ' . date('Y年n月');
         <h1><?php echo htmlspecialchars($siteDef['name']); ?></h1>
         <p class="subtitle">
             このレポートは、市民科学データに基づく生物多様性の現状を報告するものです。<br>
-            TNFD（自然関連財務情報開示タスクフォース）の開示要件に対応しています。
+            TNFDや社内サステナビリティ報告の準備に使いやすいよう、観測情報を整理した参考資料です。
         </p>
         
         <!-- Summary Cards -->
         <div class="summary-grid">
             <div class="summary-card highlight">
-                <span class="summary-value"><?php echo $bis; ?></span>
-                <span class="summary-label">BIS スコア</span>
+                <span class="summary-value"><?php echo $monitoringReferenceIndex; ?></span>
+                <span class="summary-label">参考インデックス</span>
             </div>
             <div class="summary-card">
                 <span class="summary-value"><?php echo $totalSpecies; ?></span>
@@ -312,16 +323,26 @@ $reportPeriod = date('Y年1月') . ' - ' . date('Y年n月');
             </div>
         </div>
         
-        <!-- BIS Explanation -->
-        <div class="bis-section">
-            <div class="bis-score"><?php echo $bis; ?></div>
-            <div class="bis-details">
-                <h3>Biodiversity Integrity Score (BIS)</h3>
+        <!-- Reference index -->
+        <div class="reference-index-section">
+            <div class="reference-index-score"><?php echo $monitoringReferenceIndex; ?></div>
+            <div class="reference-index-details">
+                <h3>モニタリング参考インデックス (β)</h3>
                 <p>
-                    BISは、当該サイトの生物多様性の健全性を0-100のスコアで表す指標です。<br>
-                    種の多様性、データ品質（Research Grade率）、希少種の存在を総合的に評価しています。
+                    これは種の多様性、データ品質（Research Grade率）、希少種シグナルを束ねた社内向けの参考値です。<br>
+                    認証可否、法令適合、自然価値そのものを単独で示すものではありません。
                 </p>
             </div>
+        </div>
+
+        <h2>次にやるとよいこと</h2>
+        <div class="disclaimer" style="background:#eff6ff; border-color:#93c5fd;">
+            <strong style="color:#1d4ed8;">運用アクション例:</strong>
+            <ul style="margin: 8px 0 0 18px;">
+                <?php foreach ($reportActions as $action): ?>
+                    <li><?php echo htmlspecialchars($action); ?></li>
+                <?php endforeach; ?>
+            </ul>
         </div>
         
         <!-- Taxonomy Breakdown -->
@@ -381,22 +402,22 @@ $reportPeriod = date('Y年1月') . ' - ' . date('Y年n月');
             <strong>免責事項:</strong>
             本レポートは市民科学（Citizen Science）データに基づいており、専門家による網羅的調査とは異なります。
             データは継続的に更新・検証されており、レポート作成時点での状況を反映しています。
-            正式なTNFD開示資料として使用する際は、専門家によるレビューを推奨します。
+            TNFDや社内開示に使う場合は、監視・評価の補完資料として扱い、専門家によるレビューを推奨します。
         </div>
         
         <!-- TNFD Disclosure Reference -->
-        <h2>TNFD開示対応項目</h2>
+        <h2>TNFD LEAPとの対応関係（参考）</h2>
         <table class="taxonomy-table">
             <thead>
                 <tr>
-                    <th>推奨開示項目</th>
-                    <th>対応状況</th>
+                    <th>整理している内容</th>
+                    <th>このレポートで見られるもの</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>依存・影響の特定（LEAP-D）</td>
-                    <td>✓ サイト内生物種の特定完了</td>
+                    <td>✓ サイト内生物種の確認記録</td>
                 </tr>
                 <tr>
                     <td>場所の特定（LEAP-L）</td>
@@ -404,14 +425,28 @@ $reportPeriod = date('Y年1月') . ' - ' . date('Y年n月');
                 </tr>
                 <tr>
                     <td>評価（LEAP-E）</td>
-                    <td>✓ BISスコアによる定量評価</td>
+                    <td>✓ 参考インデックスと分類群内訳</td>
                 </tr>
                 <tr>
                     <td>優先順位付け（LEAP-P）</td>
-                    <td>✓ 希少種の優先度評価</td>
+                    <td>✓ 希少種シグナルと運用アクション例</td>
                 </tr>
             </tbody>
         </table>
+
+        <h2>参考フレームワーク</h2>
+        <div class="disclaimer" style="background:#f8fafc; border-color:#cbd5e1;">
+            <strong style="color:#0f172a;">一次情報:</strong>
+            <ul style="margin: 8px 0 0 18px;">
+                <?php foreach ($referenceLinks as $ref): ?>
+                    <li>
+                        <a href="<?php echo htmlspecialchars($ref['url']); ?>" target="_blank" rel="noopener noreferrer">
+                            <?php echo htmlspecialchars($ref['label']); ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
         
         <!-- Footer -->
         <div class="footer">

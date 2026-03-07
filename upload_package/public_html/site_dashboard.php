@@ -67,6 +67,95 @@ $rankColors = [
 $rank = $stats ? ($stats['credit_rank'] ?? 'C') : 'C';
 $rankColor = $rankColors[$rank][0] ?? 'var(--color-text-muted)';
 $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
+
+$scoreDetails = $stats['biodiversity_score'] ?? null;
+$scoreBreakdown = $scoreDetails['breakdown'] ?? [];
+$monitoringSummary = [];
+$recommendedActions = [];
+$referenceLinks = [
+    [
+        'label' => 'TNFD Recommendations (2023)',
+        'url' => 'https://tnfd.global/publication/recommendations-of-the-taskforce-on-nature-related-financial-disclosures/',
+    ],
+    [
+        'label' => 'CBD GBF Target 15',
+        'url' => 'https://www.cbd.int/gbf/targets/15',
+    ],
+    [
+        'label' => 'CBD GBF Target 3 (30x30)',
+        'url' => 'https://www.cbd.int/gbf/targets/3',
+    ],
+    [
+        'label' => 'SBTN Step 1: Assess',
+        'url' => 'https://sciencebasedtargetsnetwork.org/companies/take-action/assess/',
+    ],
+];
+
+if ($stats) {
+    $researchGradePct = $dqaTotal > 0 ? round(($dqaCounts['A'] / $dqaTotal) * 100) : null;
+    $monitoredMonths = count($stats['monthly_trend'] ?? []);
+    $taxonomicGroupCount = count($stats['taxonomic_groups'] ?? []);
+
+    $monitoringSummary[] = [
+        'title' => 'いま分かること',
+        'body' => sprintf(
+            '%d件の観察から%d種を確認。直近%d日以内の更新で、継続モニタリングの有無を把握できます。',
+            $stats['total_observations'],
+            $stats['total_species'],
+            $stats['days_since_last_obs']
+        ),
+    ];
+    $monitoringSummary[] = [
+        'title' => '注意して読む点',
+        'body' => sprintf(
+            'この画面は存在記録ベースです。個体数や不在は直接わからず、観測努力の偏りも受けます。月別カバーは%d/12か月です。',
+            $monitoredMonths
+        ),
+    ];
+    $monitoringSummary[] = [
+        'title' => '保全シグナル',
+        'body' => $stats['redlist_count'] > 0
+            ? sprintf('レッドリスト該当種が%d種あります。現場計画と照合し、扱いを慎重に確認する対象です。', $stats['redlist_count'])
+            : '現時点でレッドリスト該当種の確認はありません。未確認イコール不在ではないため、継続観測が必要です。',
+    ];
+
+    if ($stats['days_since_last_obs'] > 30 || $monitoredMonths < 6) {
+        $recommendedActions[] = [
+            'title' => '観測の空白月を埋める',
+            'body' => '季節によって見える種が変わるため、更新が空いた月や未観測月を優先して追加観測すると解像度が上がります。',
+        ];
+    }
+
+    if ($researchGradePct !== null && $researchGradePct < 60) {
+        $recommendedActions[] = [
+            'title' => '記録品質のルールを揃える',
+            'body' => sprintf('品質Aは現在%d%%です。写真の複数カット、位置情報、観察日時、同定コメントの運用を揃えると再利用しやすくなります。', $researchGradePct),
+        ];
+    }
+
+    if ($taxonomicGroupCount < 4) {
+        $recommendedActions[] = [
+            'title' => '観察対象の偏りを減らす',
+            'body' => sprintf('現在の分類群カバーは%d群です。植物だけ、鳥だけに偏っている場合は、昆虫・菌類・水辺生物など補完対象を決めると全体像が読みやすくなります。', $taxonomicGroupCount),
+        ];
+    }
+
+    if ($stats['completeness_pct'] < 70) {
+        $recommendedActions[] = [
+            'title' => '追加調査の優先度を決める',
+            'body' => sprintf('観測充足率は%d%%です。Chao1は未観測種の残りがあり得ることを示す参考値なので、季節別・生息環境別に不足箇所を埋めると改善します。', $stats['completeness_pct']),
+        ];
+    }
+
+    if ($stats['redlist_count'] > 0) {
+        $recommendedActions[] = [
+            'title' => '重要種の扱いを実務に接続する',
+            'body' => '工事、草刈り、照明、動線変更などの現場計画と重要種の確認記録を照合し、必要に応じて専門家レビューや保護措置の検討につなげます。',
+        ];
+    }
+
+    $recommendedActions = array_slice($recommendedActions, 0, 3);
+}
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -355,8 +444,8 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                             <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> PR原案作成
                         </button>
                         <a href="api/download_proof_package.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
-                            class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-sm transition flex items-center gap-1.5 no-print" title="ESG/TNFD報告用 信憑性証明パッケージ (JSON)">
-                            <i data-lucide="file-json" class="w-3.5 h-3.5"></i> 暗号証明PKG
+                            class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-sm transition flex items-center gap-1.5 no-print" title="観測証跡のJSONパッケージ">
+                            <i data-lucide="file-json" class="w-3.5 h-3.5"></i> 観測証跡JSON
                         </a>
 
                         <!-- B2B API Previews -->
@@ -369,21 +458,21 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                         <div class="hidden md:flex items-center gap-1 border-l border-gray-200 pl-3 ml-1">
                             <a href="api/v2/30by30_report.php?<?php echo htmlspecialchars($previewQs); ?>" target="_blank"
                                 class="text-xs px-3 py-2 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold border border-teal-200 shadow-sm transition flex items-center gap-1 no-print">
-                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i> 30by30
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i> 30x30参考
                             </a>
                             <a href="api/v2/tnfd_leap_report.php?<?php echo htmlspecialchars($previewQs); ?>" target="_blank"
                                 class="text-xs px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 shadow-sm transition flex items-center gap-1 no-print">
-                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i> TNFD
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i> TNFD参考
                             </a>
                         </div>
 
                         <a href="api/generate_report.php?site_id=<?php echo urlencode($siteId); ?>&from=2000-01-01" target="_blank"
-                            class="text-xs px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold transition shadow-lg shadow-teal-200 flex items-center gap-1.5 no-print" title="生物多様性レポート (HTML/印刷可)">
-                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 生物多様性レポート
+                            class="text-xs px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold transition shadow-lg shadow-teal-200 flex items-center gap-1.5 no-print" title="観測サマリーレポート (HTML/印刷可)">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 観測サマリー
                         </a>
                         <a href="api/generate_site_report.php?site_id=<?php echo urlencode($siteId); ?>&from=2000-01-01" target="_blank"
                             class="text-xs px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-lg shadow-emerald-200 flex items-center gap-1.5 no-print">
-                            <i data-lucide="download" class="w-3.5 h-3.5"></i> 認定用エビデンス
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i> 観測証跡レポート
                         </a>
                     </div>
                 </div>
@@ -436,27 +525,72 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                     </div>
                 </div>
 
-                <!-- ③ Credit Score Section -->
+                <!-- ③ Plain-language summary -->
+                <?php if (!empty($monitoringSummary) || !empty($recommendedActions)): ?>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4 mb-6">
+                        <div class="glass-card p-5 md:p-6">
+                            <h2 class="text-sm font-bold text-[#1a2e1f]/70 mb-4 flex items-center gap-2">
+                                <i data-lucide="scan-search" class="w-4 h-4 text-emerald-600"></i>
+                                まずここを見ればOK
+                            </h2>
+                            <div class="space-y-3">
+                                <?php foreach ($monitoringSummary as $item): ?>
+                                    <div class="rounded-xl bg-white/70 border border-white p-4">
+                                        <p class="text-xs font-bold text-[#1a2e1f]/55 mb-1"><?php echo htmlspecialchars($item['title']); ?></p>
+                                        <p class="text-sm text-[#1a2e1f]/75 leading-relaxed"><?php echo htmlspecialchars($item['body']); ?></p>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <div class="glass-card p-5 md:p-6">
+                            <h2 class="text-sm font-bold text-[#1a2e1f]/70 mb-4 flex items-center gap-2">
+                                <i data-lucide="list-checks" class="w-4 h-4 text-emerald-600"></i>
+                                次にやるとよいこと
+                            </h2>
+                            <?php if (!empty($recommendedActions)): ?>
+                                <div class="space-y-3">
+                                    <?php foreach ($recommendedActions as $index => $action): ?>
+                                        <div class="rounded-xl bg-white/70 border border-white p-4">
+                                            <div class="flex items-start gap-3">
+                                                <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-black flex items-center justify-center shrink-0" style="font-size: var(--text-xs);"><?php echo $index + 1; ?></span>
+                                                <div>
+                                                    <p class="text-sm font-bold text-[#1a2e1f]"><?php echo htmlspecialchars($action['title']); ?></p>
+                                                    <p class="text-sm text-[#1a2e1f]/70 mt-1 leading-relaxed"><?php echo htmlspecialchars($action['body']); ?></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <p class="text-sm text-[#1a2e1f]/70 leading-relaxed">大きな欠損は見えていません。月別の継続観測と、写真・位置・日時の記録品質を維持するのが基本方針です。</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- ④ Monitoring reference index -->
                 <div class="glass-card bg-emerald-50/30 border-emerald-100 p-6 md:p-8 mb-6 shadow-sm">
                     <div class="flex flex-col md:flex-row md:items-center gap-6">
                         <div class="flex-1">
                             <h2 class="text-sm font-bold text-[#1a2e1f]/60 mb-1 flex items-center gap-2">
-                                クレジット参考スコア (β)
-                                <span class="info-tip text-[#1a2e1f]/50" data-tip="種多様性・保全重要種・観察努力を複合評価した参考スコアです">
+                                モニタリング参考インデックス (β)
+                                <span class="info-tip text-[#1a2e1f]/50" data-tip="観測の厚みと保全シグナルを束ねた社内向けの参考指標です">
                                     <i data-lucide="info" class="w-3.5 h-3.5"></i>
                                 </span>
                             </h2>
                             <div class="flex items-baseline gap-3 mb-3">
                                 <span class="text-5xl md:text-6xl font-black stat-value count-up" data-target="<?php echo $stats['credit_score']; ?>">0</span>
-                                <span class="text-xs px-3 py-1.5 rounded-full font-bold <?php echo $rankBadge; ?> bg-white border border-[#1a2e1f]/10 shadow-sm">
-                                    <?php echo $rank; ?>ランク相当
+                                <span class="text-xs px-3 py-1.5 rounded-full font-bold bg-white border border-[#1a2e1f]/10 text-[#1a2e1f]/60 shadow-sm">
+                                    社内比較用の参考値
                                 </span>
                             </div>
+                            <p class="text-sm text-[#1a2e1f]/70 leading-relaxed">
+                                数値が高いほど、種構成・保全重要種シグナル・データ品質・継続観測が相対的に揃っている状態を示します。
+                                ただし、認証可否、法令適合、クレジット価格、自然価値そのものを単独で示すものではありません。
+                            </p>
 
                             <!-- Detailed Breakdown -->
-                            <?php if (isset($stats['biodiversity_score'])):
-                                $bd = $stats['biodiversity_score']['breakdown'];
-                            ?>
+                            <?php if (!empty($scoreBreakdown)): ?>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                                     <?php
                                     $axisColors = [
@@ -466,7 +600,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                                         'taxonomic_coverage' => ['bar' => 'bg-amber-500',   'text' => 'text-amber-400'],
                                         'monitoring_effort'  => ['bar' => 'bg-purple-500',  'text' => 'text-purple-400'],
                                     ];
-                                    foreach ($bd as $key => $axis):
+                                    foreach ($scoreBreakdown as $key => $axis):
                                         $colors = $axisColors[$key] ?? ['bar' => 'bg-gray-500', 'text' => 'text-gray-400'];
                                         $weightPct = round(($axis['weight'] ?? 0) * 100);
                                     ?>
@@ -484,8 +618,8 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                                 </div>
                             <?php else: ?>
                                 <p class="text-xs text-gray-500 leading-relaxed">
-                                    種多様性・保全重要種・観察努力を組み合わせた0〜100の参考スコアです。<br>
-                                    ※正式なクレジット単位ではなく、方向性を見るための参考値です。
+                                    種多様性・保全重要種シグナル・観察努力を組み合わせた0〜100の参考値です。<br>
+                                    ※外部認証やクレジット単位ではなく、方向性を見るための社内向け表示です。
                                 </p>
                             <?php endif; ?>
                         </div>
@@ -511,14 +645,14 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                                 <text x="80" y="100" text-anchor="middle" fill="#1a2e1f" opacity="0.4"
                                     font-size="11" font-weight="600"
                                     style="transform: rotate(90deg); transform-origin: 80px 80px;">
-                                    スコア
+                                    参考値
                                 </text>
                             </svg>
                         </div>
                     </div>
                 </div>
 
-                <!-- ③.5 Data Quality Grade Distribution -->
+                <!-- ④.5 Data Quality Grade Distribution -->
                 <?php if ($dqaTotal > 0): ?>
                     <div class="glass-card p-5 mb-6">
                         <div class="flex items-center justify-between mb-4">
@@ -560,7 +694,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                         <!-- Legend -->
                         <div class="flex flex-wrap gap-x-5 gap-y-1">
                             <?php
-                            $dqaLabels = ['A' => '研究用', 'B' => '要検証', 'C' => '要補足', 'D' => '不完全'];
+                            $dqaLabels = ['A' => '研究利用候補', 'B' => '要検証', 'C' => '要補足', 'D' => '不完全'];
                             $dqaDots = ['A' => 'bg-emerald-500', 'B' => 'bg-blue-500', 'C' => 'bg-amber-500', 'D' => 'bg-red-500'];
                             foreach ($dqaCounts as $g => $cnt):
                                 // @phpstan-ignore-next-line
@@ -638,21 +772,21 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                     </div>
                 </div>
 
-                <!-- ⑤ Regional Contribution Share (Regional Baseline Benchmark) -->
+                <!-- ⑥ Regional share -->
                 <?php if (!empty($stats['regional_total_redlist']) && $stats['regional_total_redlist'] > 0): ?>
                     <div class="glass-card p-5 md:p-6 mb-6 border-l-4 border-emerald-500">
                         <div class="flex flex-col md:flex-row gap-6 items-center">
                             <div class="flex-1">
                                 <h3 class="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2">
-                                    <i data-lucide="globe" class="w-4 h-4"></i> 地域貢献度（Regional Contribution Share）
+                                    <i data-lucide="globe" class="w-4 h-4"></i> 観測上の地域シェア
                                 </h3>
                                 <p class="text-xs text-[#1a2e1f]/70 leading-relaxed">
-                                    このサイトは、プラットフォーム全体で確認されている保全重要種（<span class="font-bold"><?php echo $stats['regional_total_redlist']; ?>種</span>）のうち、<strong class="text-emerald-700 text-sm"><?php echo $stats['redlist_count']; ?>種</strong>の生息を支えています。これは地域全体の生物多様性保全において、極めて重要な貢献（シェア）を示しています。
+                                    このサイトで確認された保全重要種は、プラットフォーム全体で確認されている保全重要種（<span class="font-bold"><?php echo $stats['regional_total_redlist']; ?>種</span>）のうち、<strong class="text-emerald-700 text-sm"><?php echo $stats['redlist_count']; ?>種</strong>に相当します。存在記録ベースの比較なので、地域全体への保全寄与を直接定量化するものではなく、観測上のシグナルとしてご覧ください。
                                 </p>
                             </div>
                             <div class="w-full md:w-64 flex-shrink-0 bg-white/50 rounded-xl p-4 border border-emerald-100">
                                 <div class="mb-2 flex justify-between items-end">
-                                    <span class="text-xs font-bold text-emerald-800/60">保全貢献シェア</span>
+                                    <span class="text-xs font-bold text-emerald-800/60">観測シェア</span>
                                     <div class="flex items-baseline gap-0.5">
                                         <span class="text-3xl font-black text-emerald-600"><?php echo round($stats['redlist_count'] / $stats['regional_total_redlist'] * 100, 1); ?></span>
                                         <span class="text-sm font-bold text-emerald-600/70">%</span>
@@ -668,7 +802,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                     </div>
                 <?php endif; ?>
 
-                <!-- ⑥ Trend Chart + ⑦ Map -->
+                <!-- ⑦ Trend Chart + ⑧ Map -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-6">
                     <!-- Monthly Trend Chart -->
                     <?php if (!empty($stats['monthly_trend'])): ?>
@@ -743,7 +877,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                     </div>
                 </div>
 
-                <!-- ⑦ Taxonomic Groups + ⑧ Top Species -->
+                <!-- ⑨ Taxonomic Groups + ⑩ Top Species -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-6">
                     <?php if (!empty($stats['taxonomic_groups'])): ?>
                         <div class="glass-card p-5">
@@ -792,7 +926,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                     <?php endif; ?>
                 </div>
 
-                <!-- ⑨ Phenology Matrix -->
+                <!-- ⑪ Phenology Matrix -->
                 <?php if (!empty($stats['phenology_matrix'])): ?>
                     <div class="glass-card p-5 md:p-6 mb-6">
                         <h2 class="text-xs font-bold tracking-[0.15em] text-gray-400 uppercase mb-4 flex items-center gap-2">
@@ -863,7 +997,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                     </div>
                 <?php endif; ?>
 
-                <!-- ⑩ Red List Species -->
+                <!-- ⑫ Red List Species -->
                 <?php if (!empty($redListSpecies)): ?>
                     <div class="glass-card p-5 mb-6">
                         <h2 class="text-xs font-bold tracking-[0.15em] text-gray-400 uppercase mb-3 flex items-center gap-2">
@@ -891,51 +1025,62 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                     </div>
                 <?php endif; ?>
 
-                <!-- ⑪ TNFD Context Section -->
+                <!-- ⑬ Context and references -->
                 <div class="tnfd-card rounded-2xl p-6 md:p-8 mb-6">
                     <h2 class="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <i data-lucide="book-open" class="w-4 h-4 text-emerald-600"></i>
-                        クレジット関連指標について
+                        この画面の位置づけ
                     </h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-600 leading-relaxed">
                         <div>
-                            <h3 class="text-slate-800 font-bold mb-2">これらの指標は何ですか？</h3>
-                            <p class="mb-3">市民の観察データのみから算出した、生物多様性クレジットや自然共生サイト評価の「参考指標」です。世界のクレジットスキームで重視される「種の豊富さ・絶滅危惧種・観察努力」を簡易的に数値化しています。</p>
+                            <h3 class="text-slate-800 font-bold mb-2">何のための画面か</h3>
+                            <p class="mb-3">企業や拠点の担当者が、観測データから「現状の把握」「抜けている情報」「次の打ち手」を読み取りやすくするための画面です。TNFDや社内報告の準備に使える入力情報を整理しますが、準拠判定や認証判定を自動で行うものではありません。</p>
 
-                            <h3 class="text-slate-800 font-bold mb-2">⚠️ 重要な注意事項</h3>
+                            <h3 class="text-slate-800 font-bold mb-2">⚠️ 読み方の前提</h3>
                             <ul class="space-y-1 text-slate-500">
-                                <li>• これらは正式なクレジット単位ではありません</li>
-                                <li>• 正式な算定には専門家による現地調査が必要です</li>
-                                <li>• 社内共有用の「たたき台」としてご利用ください</li>
+                                <li>• これは存在記録ベースの観測ダッシュボードです</li>
+                                <li>• 不在、個体数、因果効果を単独で証明するものではありません</li>
+                                <li>• 重要な意思決定では、専門家レビューや現地調査と併用してください</li>
                             </ul>
                         </div>
                         <div>
-                            <h3 class="text-slate-800 font-bold mb-2">世界標準との関係</h3>
-                            <p class="mb-3">TNFD・IUCNが推奨する生物多様性評価の基本要素を参考にしています:</p>
+                            <h3 class="text-slate-800 font-bold mb-2">国際フレームワークとの関係</h3>
+                            <p class="mb-3">TNFDやCBD GBFで求められる「自然との接点把握」「依存・影響・リスクの評価」「透明な開示」に向けた基礎データとして使いやすい形に整理しています。</p>
                             <div class="space-y-2">
                                 <div class="flex items-center gap-2">
                                     <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                                    <span class="text-slate-700">種の多様性 (Shannon-Wiener指数)</span>
+                                    <span class="text-slate-700">種多様性、保全重要種、季節カバーの把握</span>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <div class="w-1.5 h-1.5 rounded-full bg-red-400"></div>
-                                    <span class="text-slate-700">保全重要種の存在</span>
+                                    <span class="text-slate-700">レッドリスト該当種の確認記録と観測証跡</span>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <div class="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-                                    <span class="text-slate-700">地域社会のモニタリング参画</span>
+                                    <span class="text-slate-700">参加者数、品質グレード、継続観測の可視化</span>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <div class="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                                    <span class="text-slate-700">外来種の管理状況</span>
+                                    <span class="text-slate-700">30x30は面積・保全施策の目標であり、この画面のスコアとは別概念</span>
                                 </div>
                             </div>
-                            <p class="mt-3 text-gray-600" style="font-size: var(--text-xs);">将来的には専門家の知見を組み合わせ、クレジット算定の基礎データとして機能拡充予定。</p>
+                            <div class="mt-4 rounded-xl bg-white/60 border border-white px-4 py-3">
+                                <p class="text-slate-800 font-bold mb-2">参考フレームワーク</p>
+                                <ul class="space-y-1.5">
+                                    <?php foreach ($referenceLinks as $ref): ?>
+                                        <li>
+                                            <a href="<?php echo htmlspecialchars($ref['url']); ?>" target="_blank" rel="noopener noreferrer" class="text-emerald-700 hover:text-emerald-800 underline underline-offset-2">
+                                                <?php echo htmlspecialchars($ref['label']); ?>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- ⑫ Scientific Integrity Disclaimer (Anti-Greenwashing) -->
+                <!-- ⑭ Scientific Integrity Disclaimer (Anti-Greenwashing) -->
                 <div class="mt-8 p-5 md:p-6 bg-gray-50/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl no-print">
                     <div class="flex items-start gap-4">
                         <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-100">
@@ -947,7 +1092,7 @@ $rankBadge = $rankColors[$rank][1] ?? 'bg-muted/10 text-muted';
                                 本ダッシュボードに表示される指標およびデータは、ikimon.lifeの市民科学（Citizen Science）ならびに専門家による継続的な「確認データ（Presence-only data）」に基づいています。<strong>特定の種の絶対的な生息密度や増減を完全に保証するものではありません。</strong>
                             </p>
                             <p class="text-xs text-gray-500 leading-relaxed">
-                                当プラットフォームは、企業や地域コミュニティによる<span class="text-emerald-600 font-bold">「継続的な自然観察の努力」</span>と、それに伴う<span class="text-emerald-600 font-bold">「確かな生息のエビデンス（写真・GPS・日時）」</span>を客観的に可視化するものです。TNFD開示等の公式なESG報告に本データを使用される際は、定性的なインパクト証明・補完データとしてご活用いただき、必要に応じて専門家のレビューを含めることを推奨します。
+                                当プラットフォームは、企業や地域コミュニティによる<span class="text-emerald-600 font-bold">「継続的な自然観察の努力」</span>と、それに伴う<span class="text-emerald-600 font-bold">「写真・GPS・日時を伴う観測証跡」</span>を整理して可視化するものです。TNFDや社内サステナビリティ報告に使う場合は、監視・評価の補完資料として扱い、重要な判断には専門家レビューや現地確認を加えることを推奨します。
                             </p>
                         </div>
                     </div>

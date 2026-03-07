@@ -3,8 +3,8 @@
 /**
  * Sample Report — 営業用デモレポート
  * 
- * 架空の「遠州灘海岸サイト」のTNFD LEAPレポートを静的描画。
- * for-business LP からリンクされる営業武器。
+ * 架空の「遠州灘海岸サイト」の観測ベース参考レポートを静的描画。
+ * for-business LP からリンクされる営業用サンプル。
  */
 require_once __DIR__ . '/../../config/config.php';
 
@@ -13,13 +13,13 @@ $siteName = '遠州灘海岸 生物多様性モニタリングサイト';
 $siteNameEn = 'Enshu-nada Coast Biodiversity Monitoring Site';
 $reportDate = date('Y年m月d日');
 $reportPeriod = '2025年4月 ～ 2026年1月';
-$bis = 72;
+$monitoringReferenceIndex = 72;
 $totalSpecies = 47;
 $totalObs = 312;
 $redListCount = 5;
 $researchGradePercent = 68.3;
 
-$bisBreakdown = [
+$monitoringReferenceBreakdown = [
     'richness'           => ['label' => '種の豊富さ', 'score' => 78, 'weight' => 0.30, 'weighted' => 23.4],
     'data_confidence'    => ['label' => 'データ信頼性', 'score' => 68, 'weight' => 0.20, 'weighted' => 13.6],
     'conservation_value' => ['label' => '保全価値', 'score' => 85, 'weight' => 0.25, 'weighted' => 21.3],
@@ -54,9 +54,9 @@ $monthlyTrend = [
 $demoSpecies = [
     ['name' => 'アカウミガメ', 'sci' => 'Caretta caretta', 'group' => '爬虫類', 'count' => 3, 'rl' => 'EN', 'rl_class' => 'en', 'list' => '環境省'],
     ['name' => 'コアジサシ', 'sci' => 'Sternula albifrons', 'group' => '鳥類', 'count' => 12, 'rl' => 'VU', 'rl_class' => 'vu', 'list' => '環境省'],
-    ['name' => 'スナガニ', 'sci' => 'Ocypode stimpsoni', 'group' => '昆虫類', 'count' => 8, 'rl' => 'NT', 'rl_class' => 'nt', 'list' => '静岡県'],
+    ['name' => 'スナガニ', 'sci' => 'Ocypode stimpsoni', 'group' => '甲殻類', 'count' => 8, 'rl' => 'NT', 'rl_class' => 'nt', 'list' => '静岡県'],
     ['name' => 'ハマボウフウ', 'sci' => 'Glehnia littoralis', 'group' => '植物', 'count' => 15, 'rl' => 'VU', 'rl_class' => 'vu', 'list' => '静岡県'],
-    ['name' => 'ニホンカモシカ', 'sci' => 'Capricornis crispus', 'group' => '哺乳類', 'count' => 2, 'rl' => 'NT', 'rl_class' => 'nt', 'list' => '環境省'],
+    ['name' => 'タヌキ', 'sci' => 'Nyctereutes procyonoides', 'group' => '哺乳類', 'count' => 2, 'rl' => '', 'rl_class' => '', 'list' => ''],
     ['name' => 'トビ', 'sci' => 'Milvus migrans', 'group' => '鳥類', 'count' => 24, 'rl' => '', 'rl_class' => '', 'list' => ''],
     ['name' => 'シジュウカラ', 'sci' => 'Parus minor', 'group' => '鳥類', 'count' => 18, 'rl' => '', 'rl_class' => '', 'list' => ''],
     ['name' => 'ナナホシテントウ', 'sci' => 'Coccinella septempunctata', 'group' => '昆虫類', 'count' => 14, 'rl' => '', 'rl_class' => '', 'list' => ''],
@@ -66,6 +66,17 @@ $demoSpecies = [
 
 $maxMonthly = max($monthlyTrend);
 $maxTaxonomy = max($taxonomyBreakdown);
+$reportActions = [
+    '未観測月がある想定で、春と初夏の追加観測を優先する。',
+    '写真・位置・日時・同定コメントの運用ルールを揃え、研究グレード比率を上げる。',
+    '重要種の確認記録を、清掃・草刈り・照明・動線などの現場計画と照合する。',
+];
+$referenceLinks = [
+    ['label' => 'TNFD Recommendations (2023)', 'url' => 'https://tnfd.global/publication/recommendations-of-the-taskforce-on-nature-related-financial-disclosures/'],
+    ['label' => 'CBD GBF Target 15', 'url' => 'https://www.cbd.int/gbf/targets/15'],
+    ['label' => 'CBD GBF Target 3 (30x30)', 'url' => 'https://www.cbd.int/gbf/targets/3'],
+    ['label' => 'SBTN Step 1: Assess', 'url' => 'https://sciencebasedtargetsnetwork.org/companies/take-action/assess/'],
+];
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -257,8 +268,8 @@ $maxTaxonomy = max($taxonomyBreakdown);
             opacity: 0.8;
         }
 
-        /* BIS */
-        .bis-section {
+        /* Reference Index */
+        .reference-index-section {
             background: linear-gradient(135deg, var(--primary-dark), var(--primary));
             color: white;
             border-radius: 10px;
@@ -269,7 +280,7 @@ $maxTaxonomy = max($taxonomyBreakdown);
             gap: 20px;
         }
 
-        .bis-score {
+        .reference-index-score {
             font-size: 52px;
             font-weight: 900;
             line-height: 1;
@@ -277,24 +288,24 @@ $maxTaxonomy = max($taxonomyBreakdown);
             text-align: center;
         }
 
-        .bis-details h3 {
+        .reference-index-details h3 {
             font-size: 14px;
             margin-bottom: 6px;
         }
 
-        .bis-details p {
+        .reference-index-details p {
             font-size: 11px;
             opacity: 0.9;
         }
 
-        .bis-bar-container {
+        .reference-index-bar-container {
             margin-top: 4px;
             display: flex;
             gap: 4px;
             align-items: center;
         }
 
-        .bis-bar {
+        .reference-index-bar {
             flex: 1;
             height: 6px;
             background: rgba(255, 255, 255, 0.2);
@@ -302,13 +313,13 @@ $maxTaxonomy = max($taxonomyBreakdown);
             overflow: hidden;
         }
 
-        .bis-bar-fill {
+        .reference-index-bar-fill {
             height: 100%;
             border-radius: 3px;
             background: white;
         }
 
-        .bis-bar-label {
+        .reference-index-bar-label {
             font-size: 9px;
             opacity: 0.7;
             min-width: 70px;
@@ -526,7 +537,7 @@ $maxTaxonomy = max($taxonomyBreakdown);
                 grid-template-columns: repeat(2, 1fr);
             }
 
-            .bis-section {
+            .reference-index-section {
                 flex-direction: column;
                 text-align: center;
             }
@@ -564,8 +575,8 @@ $maxTaxonomy = max($taxonomyBreakdown);
             <h1><?php echo htmlspecialchars($siteName); ?></h1>
             <span class="en"><?php echo htmlspecialchars($siteNameEn); ?></span>
             <div>
-                <span class="compliance">✓ TNFD LEAP対応</span>
-                <span class="compliance">✓ 30by30対応</span>
+                <span class="compliance">参考: TNFD LEAP入力</span>
+                <span class="compliance">参考: 30x30関連整理</span>
                 <span class="compliance">✓ Darwin Core準拠</span>
             </div>
         </div>
@@ -573,8 +584,8 @@ $maxTaxonomy = max($taxonomyBreakdown);
         <!-- Summary -->
         <div class="summary-grid">
             <div class="summary-card highlight">
-                <span class="val"><?php echo $bis; ?></span>
-                <span class="lbl">BIS スコア</span>
+                <span class="val"><?php echo $monitoringReferenceIndex; ?></span>
+                <span class="lbl">参考インデックス</span>
             </div>
             <div class="summary-card">
                 <span class="val"><?php echo $totalSpecies; ?></span>
@@ -590,49 +601,59 @@ $maxTaxonomy = max($taxonomyBreakdown);
             </div>
         </div>
 
-        <!-- BIS -->
-        <div class="bis-section">
-            <div class="bis-score"><?php echo $bis; ?></div>
-            <div class="bis-details">
-                <h3>Biodiversity Integrity Score (BIS)</h3>
-                <p>種の多様性、データ信頼性、保全価値、分類群カバレッジ、モニタリング努力を総合評価。</p>
-                <?php foreach ($bisBreakdown as $axis): ?>
-                    <div class="bis-bar-container">
-                        <div class="bis-bar">
-                            <div class="bis-bar-fill" style="width: <?php echo $axis['score']; ?>%"></div>
+        <!-- Reference index -->
+        <div class="reference-index-section">
+            <div class="reference-index-score"><?php echo $monitoringReferenceIndex; ?></div>
+            <div class="reference-index-details">
+                <h3>モニタリング参考インデックス (β)</h3>
+                <p>種の多様性、データ信頼性、保全シグナル、分類群カバー、継続観測を束ねた社内向けの参考値です。認証可否や自然価値そのものを単独で示すものではありません。</p>
+                <?php foreach ($monitoringReferenceBreakdown as $axis): ?>
+                    <div class="reference-index-bar-container">
+                        <div class="reference-index-bar">
+                            <div class="reference-index-bar-fill" style="width: <?php echo $axis['score']; ?>%"></div>
                         </div>
-                        <span class="bis-bar-label"><?php echo $axis['label']; ?> <?php echo round($axis['weighted']); ?>/<?php echo round($axis['weight'] * 100); ?></span>
+                        <span class="reference-index-bar-label"><?php echo $axis['label']; ?> <?php echo round($axis['weighted']); ?>/<?php echo round($axis['weight'] * 100); ?></span>
                     </div>
                 <?php endforeach; ?>
             </div>
         </div>
 
+        <h2><span class="icon">🧭</span> 次にやるとよいこと</h2>
+        <div class="rl-alert" style="background:#eff6ff; border-color:#bfdbfe; color:#1e3a8a;">
+            <div class="rl-alert-header" style="color:#1d4ed8;">このサンプルで示したいこと</div>
+            <ul style="margin-left: 18px;">
+                <?php foreach ($reportActions as $action): ?>
+                    <li><?php echo htmlspecialchars($action); ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+
         <!-- TNFD LEAP -->
-        <h2><span class="icon">📋</span> TNFD LEAP フレームワーク対応</h2>
+        <h2><span class="icon">📋</span> TNFD LEAPとの対応関係（参考）</h2>
         <div class="tnfd-grid">
             <div class="tnfd-card">
                 <div class="phase">📍</div>
                 <h4>L — Locate</h4>
-                <p>GeoJSON境界により事業地の生態系インターフェースを特定</p>
-                <div style="margin-top:8px;"><span class="tnfd-check">✓ 対応済み</span></div>
+                <p>GeoJSON境界と対象期間で、自然との接点を整理する入力例を示しています。</p>
+                <div style="margin-top:8px;"><span class="tnfd-check">参考入力</span></div>
             </div>
             <div class="tnfd-card">
                 <div class="phase">🔍</div>
                 <h4>E — Evaluate</h4>
-                <p>BISスコア・レッドリスト照合により依存度と影響を評価</p>
-                <div style="margin-top:8px;"><span class="tnfd-check">✓ 対応済み</span></div>
+                <p>参考インデックスとレッドリスト照合で、依存・影響を読み解くための材料を示しています。</p>
+                <div style="margin-top:8px;"><span class="tnfd-check">参考入力</span></div>
             </div>
             <div class="tnfd-card">
                 <div class="phase">📊</div>
                 <h4>A — Assess</h4>
-                <p>月次トレンド・分類群カバレッジでリスクと機会を定量化</p>
-                <div style="margin-top:8px;"><span class="tnfd-check">✓ 対応済み</span></div>
+                <p>月次トレンドや分類群カバーから、追加調査や運用改善の優先順位を考える例です。</p>
+                <div style="margin-top:8px;"><span class="tnfd-check">参考入力</span></div>
             </div>
             <div class="tnfd-card">
                 <div class="phase">📝</div>
                 <h4>P — Prepare</h4>
-                <p>本レポートにより開示可能なフォーマットで情報を整理</p>
-                <div style="margin-top:8px;"><span class="tnfd-check">✓ 対応済み</span></div>
+                <p>レポート体裁で社内共有しやすくまとめていますが、開示判断そのものは別途レビューが必要です。</p>
+                <div style="margin-top:8px;"><span class="tnfd-check">参考入力</span></div>
             </div>
         </div>
 
@@ -640,7 +661,7 @@ $maxTaxonomy = max($taxonomyBreakdown);
         <h2><span class="icon">🔴</span> レッドリスト該当種</h2>
         <div class="rl-alert">
             <div class="rl-alert-header">⚠️ <?php echo $redListCount; ?>種のレッドリスト掲載種を確認</div>
-            <p>当サイトで確認された種のうち、環境省レッドリストまたは静岡県レッドデータブックに掲載されている種が<?php echo $redListCount; ?>種検出されました。</p>
+            <p>当サイトで確認された種のうち、環境省レッドリストまたは静岡県レッドデータブックに掲載されている種が<?php echo $redListCount; ?>種あります。重要な観測シグナルとして、現場計画との照合対象になります。</p>
         </div>
 
         <!-- Species Table -->
@@ -702,10 +723,25 @@ $maxTaxonomy = max($taxonomyBreakdown);
             <?php endforeach; ?>
         </div>
 
+        <h2><span class="icon">📚</span> 参考フレームワーク</h2>
+        <div class="rl-alert" style="background:#f8fafc; border-color:#cbd5e1; color:#334155;">
+            <div class="rl-alert-header" style="color:#0f172a;">このサンプルが参考にしている一次情報</div>
+            <ul style="margin-left: 18px;">
+                <?php foreach ($referenceLinks as $ref): ?>
+                    <li>
+                        <a href="<?php echo htmlspecialchars($ref['url']); ?>" target="_blank" rel="noopener noreferrer">
+                            <?php echo htmlspecialchars($ref['label']); ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            <p style="margin-top: 10px;">このページの数値は表示例です。フレームワークの準拠判定や認証判定を自動で行うものではありません。</p>
+        </div>
+
         <!-- Footer -->
         <div class="report-footer">
-            <p>本レポートは ikimon.life により自動生成されました。データソース: 市民科学観察記録（CC BY）</p>
-            <p>レッドリスト照合: 環境省レッドリスト2020 / 静岡県RDB 2020 | BIS算出: BiodiversityScorer v1.0</p>
+            <p>本レポートは ikimon.life の営業用サンプルです。数値・種リストは架空の表示例であり、実測結果ではありません。</p>
+            <p>表示思想: 観測ベースの参考レポート / データソース例: 市民科学観察記録 / レッドリスト照合: 環境省レッドリスト2020 / 静岡県RDB 2020</p>
             <p style="margin-top: 8px;">© <?php echo date('Y'); ?> ikimon.life — Citizen Science for Nature Symbiosis</p>
         </div>
     </div>

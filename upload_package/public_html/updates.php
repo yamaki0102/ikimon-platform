@@ -155,7 +155,7 @@ Auth::init();
                         </li>
                         <li class="flex items-start gap-2">
                             <span class="text-blue-400 shrink-0">✓</span>
-                            <span><strong>BISスコア</strong>: 生物多様性スコアの自動計算</span>
+                            <span><strong>参考インデックス</strong>: 観測の厚みと保全シグナルの自動要約</span>
                         </li>
                         <li class="flex items-start gap-2">
                             <span class="text-blue-400 shrink-0">✓</span>

@@ -315,7 +315,7 @@ $photos = $d['photos'];
         <div class="stats-bar">
             <div class="stat">📷 写真数: <strong><?php echo count($photos); ?></strong></div>
             <div class="stat">🌿 確認種: <strong><?php echo $d['totalSpecies']; ?></strong></div>
-            <div class="stat">🎯 BIS: <strong><?php echo $d['bis']; ?></strong></div>
+            <div class="stat">🎯 参考指標: <strong><?php echo $d['monitoringReferenceIndex']; ?></strong></div>
             <div class="stat">📊 総観察: <strong><?php echo $d['totalObs']; ?></strong></div>
         </div>
 
@@ -357,7 +357,8 @@ $photos = $d['photos'];
                 <strong><?php echo $d['totalObs']; ?>件</strong>の観察データから、
                 写真付きの記録を抜粋してまとめたものです。
                 確認された<strong><?php echo $d['totalSpecies']; ?>種</strong>のうち、
-                <strong><?php echo count($d['redListSpecies']); ?>種</strong>がレッドリスト掲載種として確認されています。
+                <strong><?php echo count($d['redListSpecies']); ?>種</strong>がレッドリスト掲載種として照合されています。
+                写真つきの観測傾向を把握するための補助資料であり、単独での評価や開示判断には使わない前提です。
             </div>
         </div>
 

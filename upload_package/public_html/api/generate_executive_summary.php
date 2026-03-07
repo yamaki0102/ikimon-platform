@@ -34,13 +34,27 @@ try {
 $topSpecies = array_slice($d['speciesMap'], 0, 5, true);
 $events = $d['events'];
 
-// BIS rating label
-$bisLabel = match (true) {
-    $d['bis'] >= 75 => '優秀',
-    $d['bis'] >= 50 => '良好',
-    $d['bis'] >= 25 => '要改善',
-    default => '要注意',
+// Monitoring reference label
+$referenceIndexLabel = match (true) {
+    $d['monitoringReferenceIndex'] >= 75 => '観測厚め',
+    $d['monitoringReferenceIndex'] >= 50 => '傾向把握中',
+    $d['monitoringReferenceIndex'] >= 25 => '補足観測推奨',
+    default => '判断保留',
 };
+
+$summaryActions = [];
+if (($d['activeMonths'] ?? 0) < 6) {
+    $summaryActions[] = '未観測月を優先して埋め、季節バイアスを減らす。';
+}
+if (($d['researchGradePercent'] ?? 0) < 60) {
+    $summaryActions[] = '写真・位置・日時・同定コメントの記録ルールを揃え、再利用性を上げる。';
+}
+if (count($d['redListSpecies'] ?? []) > 0) {
+    $summaryActions[] = '重要種の確認記録を現場計画と照合し、必要に応じて専門家レビューにつなげる。';
+}
+if (empty($summaryActions)) {
+    $summaryActions[] = '継続観測を維持し、月次で変化と記録品質を追跡する。';
+}
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -149,7 +163,7 @@ $bisLabel = match (true) {
             text-align: center;
         }
 
-        .kpi-mini.bis {
+        .kpi-mini.reference-index {
             background: var(--primary);
             color: white;
             border-color: var(--primary);
@@ -213,15 +227,15 @@ $bisLabel = match (true) {
             color: var(--muted);
         }
 
-        /* BIS Breakdown mini */
-        .bis-mini-row {
+        /* Reference Index Breakdown mini */
+        .reference-index-mini-row {
             display: flex;
             align-items: center;
             gap: 6px;
             margin: 3px 0;
         }
 
-        .bis-mini-bar {
+        .reference-index-mini-bar {
             flex: 1;
             height: 5px;
             background: #e5e7eb;
@@ -229,19 +243,19 @@ $bisLabel = match (true) {
             overflow: hidden;
         }
 
-        .bis-mini-fill {
+        .reference-index-mini-fill {
             height: 100%;
             background: var(--primary);
             border-radius: 3px;
         }
 
-        .bis-mini-label {
+        .reference-index-mini-label {
             font-size: 9px;
             color: var(--muted);
             min-width: 55px;
         }
 
-        .bis-mini-val {
+        .reference-index-mini-val {
             font-size: 9px;
             font-weight: 700;
             min-width: 25px;
@@ -349,9 +363,9 @@ $bisLabel = match (true) {
 
         <!-- KPI Strip -->
         <div class="kpi-strip">
-            <div class="kpi-mini bis">
-                <span class="val"><?php echo $d['bis']; ?></span>
-                <span class="lbl">BIS (<?php echo $bisLabel; ?>)</span>
+            <div class="kpi-mini reference-index">
+                    <span class="val"><?php echo $d['monitoringReferenceIndex']; ?></span>
+                    <span class="lbl">参考指標 (<?php echo $referenceIndexLabel; ?>)</span>
             </div>
             <div class="kpi-mini">
                 <span class="val"><?php echo $d['totalSpecies']; ?></span>
@@ -373,27 +387,27 @@ $bisLabel = match (true) {
 
         <!-- Two Column -->
         <div class="two-col">
-            <!-- Left: BIS Breakdown -->
+            <!-- Left: Reference Index Breakdown -->
             <div class="col-box">
-                <h3>🎯 BISスコア内訳</h3>
+                <h3>🎯 参考指標の内訳</h3>
                 <?php
-                $bisAxisLabelsJa = [
+$referenceIndexAxisLabelsJa = [
                     'richness'           => '種の豊富さ',
                     'data_confidence'    => 'データ信頼性',
                     'conservation_value' => '保全価値',
                     'taxonomic_coverage' => '分類群カバー',
                     'monitoring_effort'  => 'モニタリング',
                 ];
-                foreach ($d['bisBreakdown'] as $key => $axis):
-                    $labelJa = $bisAxisLabelsJa[$key] ?? $axis['label'];
+                    foreach ($d['monitoringReferenceBreakdown'] as $key => $axis):
+                    $labelJa = $referenceIndexAxisLabelsJa[$key] ?? $axis['label'];
                     $maxPt = round($axis['weight'] * 100);
                 ?>
-                    <div class="bis-mini-row">
-                        <div class="bis-mini-label"><?php echo $labelJa; ?></div>
-                        <div class="bis-mini-bar">
-                            <div class="bis-mini-fill" style="width: <?php echo $axis['score']; ?>%;"></div>
+                    <div class="reference-index-mini-row">
+                        <div class="reference-index-mini-label"><?php echo $labelJa; ?></div>
+                        <div class="reference-index-mini-bar">
+                            <div class="reference-index-mini-fill" style="width: <?php echo $axis['score']; ?>%;"></div>
                         </div>
-                        <div class="bis-mini-val"><?php echo round($axis['weighted']); ?>/<?php echo $maxPt; ?></div>
+                        <div class="reference-index-mini-val"><?php echo round($axis['weighted']); ?>/<?php echo $maxPt; ?></div>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -431,11 +445,23 @@ $bisLabel = match (true) {
             <div class="col-box">
                 <h3>📋 準拠フレームワーク</h3>
                 <div style="font-size: 11px;">
-                    <div style="margin: 3px 0;">✅ TNFD LEAP — 全4フェーズ対応</div>
-                    <div style="margin: 3px 0;">✅ 30by30 — モニタリングデータ蓄積</div>
+                    <div style="margin: 3px 0;">参考: TNFD LEAP — 入力整理に活用</div>
+                    <div style="margin: 3px 0;">参考: 30x30 — 面積目標とは別に観測情報を整理</div>
                     <div style="margin: 3px 0;">✅ Darwin Core — 国際標準データ形式</div>
-                    <div style="margin: 3px 0;">✅ SDGs 4, 13, 14, 15, 17 — 貢献項目</div>
+                    <div style="margin: 3px 0;">参考: SDGs 4, 13, 14, 15, 17 — 関連項目の整理</div>
                 </div>
+            </div>
+        </div>
+
+        <div class="col-box" style="margin-bottom: 16px;">
+            <h3>🧭 経営判断の前に見るポイント</h3>
+            <div style="font-size: 11px; color: var(--text); line-height: 1.7;">
+                <p style="margin-bottom: 8px;">この1枚は、観測データから現状と優先課題を早く掴むための要約です。認証可否や法令適合を直接示すものではなく、重要判断では専門家レビューや現地確認と併用してください。</p>
+                <ul style="margin-left: 18px;">
+                    <?php foreach ($summaryActions as $action): ?>
+                        <li><?php echo htmlspecialchars($action); ?></li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
         </div>
 
@@ -459,7 +485,7 @@ $bisLabel = match (true) {
         <div class="signoff">
             <div>
                 Generated by <strong>ikimon</strong> (https://ikimon.life)<br>
-                Data: Citizen Science / GBIF Backbone Taxonomy
+                Data: Citizen Science / GBIF Backbone Taxonomy / Observation-based reference summary
             </div>
             <div style="text-align: right;">
                 &copy; <?php echo date('Y'); ?> ikimon Project<br>

@@ -3,7 +3,7 @@
 /**
  * Phase 15: Spatial Biodiversity Index API (v2)
  *
- * Calculate Biodiversity Integrity Score (BIS) and summarize data
+ * Calculate an observation-based monitoring reference index and summarize data
  * based on pure spatial coordinates (Lat/Lng) rather than predefined sites.
  * 
  * Usage:
@@ -46,8 +46,8 @@ $allObs = DataStore::fetchAll('observations');
 $spatialObs = [];
 
 foreach ($allObs as $obs) {
-    $obsLat = $obs['location']['lat'] ?? null;
-    $obsLng = $obs['location']['lng'] ?? null;
+    $obsLat = $obs['lat'] ?? ($obs['location']['lat'] ?? null);
+    $obsLng = $obs['lng'] ?? ($obs['location']['lng'] ?? null);
 
     if ($obsLat !== null && $obsLng !== null) {
         $distance = GeoUtils::distance($lat, $lng, $obsLat, $obsLng);
@@ -64,7 +64,7 @@ $areaHa = (pi() * pow($radius, 2)) / 10000;
 // MVP limitation: BiodiversityScorer calculates Red List using $obs metadata, 
 // which is currently appended during import. Future versions should do real-time
 // Point-in-Polygon checks against regional Red List GeoJSON bounds here.
-$scoreData = BiodiversityScorer::calculate($spatialObs, ['area_ha' => $areaHa]);
+$scoreData = MonitoringReferenceScorer::calculate($spatialObs, ['area_ha' => $areaHa]);
 
 // Top species are now structured objects with Immutable Taxon Concept IDs
 // This guarantees data integrity for 100 years even if scientific names change or species go extinct/reclassified.
@@ -88,6 +88,10 @@ foreach ($spatialObs as $obs) {
 // Prepare JSON response
 $response = [
     'success' => true,
+    'limitations' => [
+        'Presence-only observation data; absence and abundance are not estimated.',
+        'Use as a monitoring input, not as a standalone certification or disclosure conclusion.',
+    ],
     'query' => [
         'lat' => $lat,
         'lng' => $lng,
@@ -95,7 +99,7 @@ $response = [
         'area_ha' => round($areaHa, 2)
     ],
     'index' => [
-        'bis_score' => $scoreData['total_score'],
+        'monitoring_reference_index' => $scoreData['total_score'],
         'evaluation' => $scoreData['evaluation'],
         'shannon_index' => $scoreData['shannon_index'],
         'species_count' => $scoreData['species_count'],
@@ -108,7 +112,7 @@ $response = [
         'yoy_trend' => ($obsLastYear > 0) ? round((($obsThisYear - $obsLastYear) / $obsLastYear) * 100, 1) . '%' : 'N/A'
     ],
     'top_species' => $topSpecies,
-    'bis_breakdown' => $scoreData['breakdown']
+    'monitoring_reference_breakdown' => $scoreData['breakdown']
 ];
 
 echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_PRETTY_PRINT);

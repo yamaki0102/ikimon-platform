@@ -32,8 +32,8 @@ class PrivacyFilter
      */
     public static function forAmbient(array $observation, int $gridM = 1000): array
     {
-        $lat = (float)($observation['latitude'] ?? 0);
-        $lng = (float)($observation['longitude'] ?? 0);
+        $lat = (float)($observation['latitude'] ?? $observation['lat'] ?? 0);
+        $lng = (float)($observation['longitude'] ?? $observation['lng'] ?? 0);
         $speciesName = $observation['species_name'] ?? '';
         $observedAt = $observation['observed_at'] ?? $observation['created_at'] ?? '';
 
@@ -89,8 +89,8 @@ class PrivacyFilter
             // Only show if time delay has passed
             $obsTime = strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now');
             $delaySec = GeoUtils::roundForAmbient(
-                (float)($obs['latitude'] ?? 0),
-                (float)($obs['longitude'] ?? 0),
+                (float)($obs['latitude'] ?? $obs['lat'] ?? 0),
+                (float)($obs['longitude'] ?? $obs['lng'] ?? 0),
                 self::isProtectedSpecies($obs['species_name'] ?? '')
             )['delay_s'];
 

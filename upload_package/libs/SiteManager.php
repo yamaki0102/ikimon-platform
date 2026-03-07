@@ -323,10 +323,10 @@ class SiteManager
         // Advanced analytics
         require_once __DIR__ . '/BiodiversityScorer.php';
 
-        // Use BiodiversityScorer for consistent scoring across the platform
+        // Use MonitoringReferenceScorer for consistent scoring across the platform
         // SiteInfo usually doesn't have biome yet, but we pass what we have
         $siteInfo = ['biome_type' => 'unknown']; // Sites might need biome data in JSON later
-        $scorerResult = BiodiversityScorer::calculate($observations, $siteInfo);
+        $scorerResult = MonitoringReferenceScorer::calculate($observations, $siteInfo);
 
         // Map Scorer results to SiteStats Structure
         $shannonH = $scorerResult['breakdown']['richness']['raw'] ?? $shannonH;
