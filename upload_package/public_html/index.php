@@ -13,11 +13,14 @@ $currentUser = Auth::user();
 $filter = $_GET['filter'] ?? 'all';
 $followedUserIds = ($currentUser && $filter === 'following') ? FollowManager::getFollowedUserIds($currentUser['id']) : [];
 $latest_obs = DataStore::getLatest('observations', 20, function ($item) use ($filter, $currentUser, $followedUserIds) {
-    // Exclude test/E2E users and sample images
+    // Exclude test/E2E users, guest users, and broken images
     $userName = $item['user_name'] ?? '';
     if (strpos($userName, 'E2E_') === 0) return false;
+    if (preg_match('/^gues$/i', $userName)) return false;
+    if (preg_match('/^Guest$/i', $userName)) return false;
     $photo = $item['photos'][0] ?? '';
-    if (strpos($photo, 'sample_') !== false) return false;
+    if (empty($photo) || strpos($photo, 'sample_') !== false) return false;
+    if (!preg_match('/^uploads\//', $photo)) return false;
 
     if ($filter === 'unidentified') {
         return empty($item['taxon']['id']);
@@ -38,7 +41,9 @@ $dailyQuest = $dailyQuests[0] ?? null;
 $allObs = DataStore::fetchAll('observations');
 $totalObs = count($allObs);
 $uniqueSpecies = count(array_unique(array_filter(array_map(function ($o) {
-    return $o['taxon']['id'] ?? null;
+    $name = $o['taxon']['name'] ?? '';
+    if (!$name || $name === '未同定') return null;
+    return $o['taxon']['key'] ?? $o['taxon']['scientific_name'] ?? $name;
 }, $allObs))));
 unset($allObs);
 ?>

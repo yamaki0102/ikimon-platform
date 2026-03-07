@@ -48,7 +48,6 @@ if ($isGuest) {
     <!-- Leaflet -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" rel="stylesheet" />
-    <style>
     <!-- Offline Manager -->
     <script src="js/ToastManager.js"></script>
     <script src="js/OfflineManager.js?v=2.1"></script>
