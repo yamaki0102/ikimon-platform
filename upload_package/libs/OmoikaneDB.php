@@ -52,12 +52,14 @@ class OmoikaneDB
             )
         ");
 
-        // Auto-upgrade for existing databases to support CC-BY-SA compliance citations
+        // Auto-upgrade for existing databases
         try {
             $this->pdo->exec("ALTER TABLE species ADD COLUMN source_citations TEXT;");
-        } catch (PDOException $e) {
-            // Column likely already exists, ignore safely
-        }
+        } catch (PDOException $e) { /* already exists */ }
+        try {
+            $this->pdo->exec("ALTER TABLE species ADD COLUMN japanese_name TEXT;");
+        } catch (PDOException $e) { /* already exists */ }
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_japanese_name ON species(japanese_name);");
 
         // Table: ecological_constraints (The Searchable Dimensions)
         $this->pdo->exec("

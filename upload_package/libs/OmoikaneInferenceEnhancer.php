@@ -68,6 +68,8 @@ class OmoikaneInferenceEnhancer
         $totalExamples = 0;
         $searchedExamples = 0;
         $matchedExamples = 0;
+        $matchedByJaName = 0;
+        $matchedByFallback = 0;
 
         foreach ($suggestions as &$suggestion) {
             $support = 0.0;
@@ -86,6 +88,8 @@ class OmoikaneInferenceEnhancer
                 if (!$species) continue;
                 $matchedExamples++;
                 $matchCount++;
+                if (($species['match_source'] ?? '') === 'japanese_name') $matchedByJaName++;
+                else $matchedByFallback++;
 
                 // Habitat check
                 $habitatResult = $this->checkHabitatMatch($species, $biome);
@@ -138,6 +142,8 @@ class OmoikaneInferenceEnhancer
                 'examples_total' => $totalExamples,
                 'examples_searched' => $searchedExamples,
                 'examples_matched' => $matchedExamples,
+                'matched_by_ja_name' => $matchedByJaName,
+                'matched_by_fallback' => $matchedByFallback,
             ],
         ];
     }
@@ -157,16 +163,36 @@ class OmoikaneInferenceEnhancer
 
     /**
      * Search Omoikane by Japanese name.
-     * Searches notes, morphological_traits, and key_differences for the name.
+     * Priority: 1) species.japanese_name exact match  2) LIKE fallback on text fields
      * Returns the highest trust_score match, or null if not found.
      */
     private function findByJapaneseName(string $japaneseName): ?array
     {
+        // Priority 1: Exact match on structured japanese_name column
+        $stmt = $this->pdo->prepare("
+            SELECT s.id, s.scientific_name, s.japanese_name,
+                   e.habitat, e.altitude, e.season, e.notes,
+                   COALESCE(ts.trust_score, 0.0) AS trust_score,
+                   'japanese_name' AS match_source
+            FROM species s
+            LEFT JOIN ecological_constraints e ON s.id = e.species_id
+            LEFT JOIN trust_scores ts ON s.id = ts.species_id
+            WHERE s.distillation_status = 'distilled'
+              AND s.japanese_name = :name
+            ORDER BY COALESCE(ts.trust_score, 0.0) DESC
+            LIMIT 1
+        ");
+        $stmt->execute([':name' => $japaneseName]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) return $row;
+
+        // Priority 2: LIKE fallback on notes/traits (low precision, kept for coverage)
         $likeName = '%' . $japaneseName . '%';
         $stmt = $this->pdo->prepare("
-            SELECT s.id, s.scientific_name,
+            SELECT s.id, s.scientific_name, s.japanese_name,
                    e.habitat, e.altitude, e.season, e.notes,
-                   COALESCE(ts.trust_score, 0.0) AS trust_score
+                   COALESCE(ts.trust_score, 0.0) AS trust_score,
+                   'like_fallback' AS match_source
             FROM species s
             LEFT JOIN ecological_constraints e ON s.id = e.species_id
             LEFT JOIN identification_keys k ON s.id = k.species_id

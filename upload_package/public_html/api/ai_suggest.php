@@ -121,6 +121,8 @@ $omoikaneMeta = [
     'caution_count' => 0,
     'examples_total' => 0,
     'examples_matched' => 0,
+    'matched_by_ja_name' => 0,
+    'matched_by_fallback' => 0,
 ];
 try {
     require_once __DIR__ . '/../../libs/OmoikaneInferenceEnhancer.php';
@@ -139,6 +141,8 @@ try {
     $omoikaneMeta['enabled'] = true;
     $omoikaneMeta['examples_total'] = $stats['examples_total'] ?? 0;
     $omoikaneMeta['examples_matched'] = $stats['examples_matched'] ?? 0;
+    $omoikaneMeta['matched_by_ja_name'] = $stats['matched_by_ja_name'] ?? 0;
+    $omoikaneMeta['matched_by_fallback'] = $stats['matched_by_fallback'] ?? 0;
     foreach ($enrichedSuggestions as $s) {
         if (($s['omoikane_support'] ?? 0) > 0 || ($s['omoikane_conflict'] ?? 0) > 0) $omoikaneMeta['match_count']++;
         if (!empty($s['caution'])) $omoikaneMeta['caution_count']++;
@@ -148,9 +152,11 @@ try {
     $logCounter++;
     if ($logCounter <= 100 || $logCounter % 10 === 0) {
         error_log(sprintf(
-            "[ai_suggest] Omoikane: examples=%d matched=%d caution=%d biome=%s",
+            "[ai_suggest] Omoikane: examples=%d matched=%d(ja:%d/fb:%d) caution=%d biome=%s",
             $omoikaneMeta['examples_total'],
             $omoikaneMeta['examples_matched'],
+            $omoikaneMeta['matched_by_ja_name'],
+            $omoikaneMeta['matched_by_fallback'],
             $omoikaneMeta['caution_count'],
             $result['environment']['biome'] ?? 'unknown'
         ));
