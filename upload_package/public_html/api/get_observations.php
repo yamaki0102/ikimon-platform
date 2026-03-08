@@ -89,14 +89,19 @@ usort($observations, function ($a, $b) {
 // H003: Hybrid Search Logic (Keyword + Omoikane)
 if (!empty($query)) {
     // Step 1: Omoikane structured query (non-fatal)
+    // Only query Omoikane when parseSearchIntent extracts ecological dimensions.
+    // Keyword-only queries (e.g. "カブトムシ") are handled by existing stripos match.
     $omoikaneMatches = [];
     try {
-        require_once __DIR__ . '/../../libs/OmoikaneSearchEngine.php';
         $filters = parseSearchIntent($query);
-        $engine = new OmoikaneSearchEngine();
-        $results = $engine->search($filters, 100, 0);
-        foreach ($results as $r) {
-            $omoikaneMatches[strtolower($r['scientific_name'])] = $r;
+        $hasEcoDimension = !empty($filters['habitat']) || !empty($filters['season']) || !empty($filters['altitude']);
+        if ($hasEcoDimension) {
+            require_once __DIR__ . '/../../libs/OmoikaneSearchEngine.php';
+            $engine = new OmoikaneSearchEngine();
+            $results = $engine->search($filters, 100, 0);
+            foreach ($results as $r) {
+                $omoikaneMatches[strtolower($r['scientific_name'])] = $r;
+            }
         }
     } catch (\Exception $e) { /* fallback silently */ }
 
@@ -173,31 +178,40 @@ function parseSearchIntent(string $query): array
     $remaining = $q;
 
     // Habitat mapping (JP → EN)
+    // Note: Single-char terms (森,山,川,林) can false-match names (森田,山本).
+    // We skip single-char matches when followed by another kanji.
     $habitatMap = [
-        '森林' => 'forest', '森' => 'forest', '林' => 'forest',
-        '草原' => 'grassland', '草地' => 'grassland',
+        '森林' => 'forest', '草原' => 'grassland', '草地' => 'grassland',
         '湿地' => 'wetland', '水辺' => 'wetland',
         '海岸' => 'coastal', '干潟' => 'coastal',
-        '高山' => 'alpine', '山' => 'mountain',
-        '河川' => 'riparian', '川' => 'riparian',
+        '高山' => 'alpine', '河川' => 'riparian',
         '都市' => 'urban', '公園' => 'urban',
+        '森' => 'forest', '林' => 'forest',
+        '山' => 'mountain', '川' => 'riparian',
     ];
     foreach ($habitatMap as $term => $mapped) {
-        if (mb_strpos($q, $term) !== false) {
-            $filters['habitat'] = $mapped;
-            $remaining = str_replace($term, '', $remaining);
-            break;
+        $pos = mb_strpos($q, $term);
+        if ($pos === false) continue;
+        // For single-char terms, skip if followed by another CJK character (likely a name)
+        if (mb_strlen($term) === 1) {
+            $nextChar = mb_substr($q, $pos + 1, 1);
+            if ($nextChar !== '' && preg_match('/\p{Han}/u', $nextChar)) continue;
         }
+        $filters['habitat'] = $mapped;
+        $remaining = str_replace($term, '', $remaining);
+        break;
     }
 
-    // Season mapping
+    // Season mapping (skip if followed by kanji, e.g. 春日, 冬木)
     $seasonMap = ['春' => 'spring', '夏' => 'summer', '秋' => 'autumn', '冬' => 'winter'];
     foreach ($seasonMap as $term => $mapped) {
-        if (mb_strpos($q, $term) !== false) {
-            $filters['season'] = $mapped;
-            $remaining = str_replace($term, '', $remaining);
-            break;
-        }
+        $pos = mb_strpos($q, $term);
+        if ($pos === false) continue;
+        $nextChar = mb_substr($q, $pos + 1, 1);
+        if ($nextChar !== '' && preg_match('/\p{Han}/u', $nextChar)) continue;
+        $filters['season'] = $mapped;
+        $remaining = str_replace($term, '', $remaining);
+        break;
     }
 
     // Altitude pattern: digits + m
