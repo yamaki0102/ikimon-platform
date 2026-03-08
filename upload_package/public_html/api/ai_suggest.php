@@ -115,7 +115,13 @@ if ($result === false) {
 
 // Cross-validate with Omoikane knowledge graph (non-fatal)
 $enrichedSuggestions = $result['suggestions'];
-$omoikaneMeta = ['enabled' => false, 'match_count' => 0, 'caution_count' => 0];
+$omoikaneMeta = [
+    'enabled' => false,
+    'match_count' => 0,
+    'caution_count' => 0,
+    'examples_total' => 0,
+    'examples_matched' => 0,
+];
 try {
     require_once __DIR__ . '/../../libs/OmoikaneInferenceEnhancer.php';
     $enhancer = new OmoikaneInferenceEnhancer();
@@ -129,10 +135,25 @@ try {
         ]
     );
     $enrichedSuggestions = $enhanced['suggestions'];
+    $stats = $enhanced['stats'] ?? [];
     $omoikaneMeta['enabled'] = true;
+    $omoikaneMeta['examples_total'] = $stats['examples_total'] ?? 0;
+    $omoikaneMeta['examples_matched'] = $stats['examples_matched'] ?? 0;
     foreach ($enrichedSuggestions as $s) {
         if (($s['omoikane_support'] ?? 0) > 0 || ($s['omoikane_conflict'] ?? 0) > 0) $omoikaneMeta['match_count']++;
         if (!empty($s['caution'])) $omoikaneMeta['caution_count']++;
+    }
+    // Sampled logging: log every request for first 100, then 1-in-10
+    static $logCounter = 0;
+    $logCounter++;
+    if ($logCounter <= 100 || $logCounter % 10 === 0) {
+        error_log(sprintf(
+            "[ai_suggest] Omoikane: examples=%d matched=%d caution=%d biome=%s",
+            $omoikaneMeta['examples_total'],
+            $omoikaneMeta['examples_matched'],
+            $omoikaneMeta['caution_count'],
+            $result['environment']['biome'] ?? 'unknown'
+        ));
     }
 } catch (\Exception $e) {
     // Non-fatal: return original suggestions

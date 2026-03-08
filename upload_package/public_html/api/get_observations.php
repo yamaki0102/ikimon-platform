@@ -192,23 +192,32 @@ function parseSearchIntent(string $query): array
     foreach ($habitatMap as $term => $mapped) {
         $pos = mb_strpos($q, $term);
         if ($pos === false) continue;
-        // For single-char terms, skip if followed by another CJK character (likely a name)
+        // For single-char terms, skip if adjacent to another kanji (likely a name/place)
+        // e.g. 森田→skip, 金山→skip, 森の鳥→match, 山で見た→match
         if (mb_strlen($term) === 1) {
             $nextChar = mb_substr($q, $pos + 1, 1);
             if ($nextChar !== '' && preg_match('/\p{Han}/u', $nextChar)) continue;
+            if ($pos > 0) {
+                $prevChar = mb_substr($q, $pos - 1, 1);
+                if (preg_match('/\p{Han}/u', $prevChar)) continue;
+            }
         }
         $filters['habitat'] = $mapped;
         $remaining = str_replace($term, '', $remaining);
         break;
     }
 
-    // Season mapping (skip if followed by kanji, e.g. 春日, 冬木)
+    // Season mapping (skip if adjacent to kanji, e.g. 春日→skip, 初春→skip, 春の花→match)
     $seasonMap = ['春' => 'spring', '夏' => 'summer', '秋' => 'autumn', '冬' => 'winter'];
     foreach ($seasonMap as $term => $mapped) {
         $pos = mb_strpos($q, $term);
         if ($pos === false) continue;
         $nextChar = mb_substr($q, $pos + 1, 1);
         if ($nextChar !== '' && preg_match('/\p{Han}/u', $nextChar)) continue;
+        if ($pos > 0) {
+            $prevChar = mb_substr($q, $pos - 1, 1);
+            if (preg_match('/\p{Han}/u', $prevChar)) continue;
+        }
         $filters['season'] = $mapped;
         $remaining = str_replace($term, '', $remaining);
         break;

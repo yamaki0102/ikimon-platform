@@ -64,6 +64,11 @@ class OmoikaneInferenceEnhancer
         }
         $biome = strtolower($environment['biome'] ?? '');
 
+        // Diagnostic counters
+        $totalExamples = 0;
+        $searchedExamples = 0;
+        $matchedExamples = 0;
+
         foreach ($suggestions as &$suggestion) {
             $support = 0.0;
             $conflict = 0.0;
@@ -73,10 +78,13 @@ class OmoikaneInferenceEnhancer
 
             // Parse examples: "ヤマトシジミ, ベニシジミ" → array
             $examples = $this->parseExamples($suggestion['examples'] ?? '');
+            $totalExamples += count($examples);
 
             foreach ($examples as $japaneseName) {
+                $searchedExamples++;
                 $species = $this->findByJapaneseName($japaneseName);
                 if (!$species) continue;
+                $matchedExamples++;
                 $matchCount++;
 
                 // Habitat check
@@ -124,7 +132,14 @@ class OmoikaneInferenceEnhancer
             return $scoreB <=> $scoreA;
         });
 
-        return ['suggestions' => $suggestions];
+        return [
+            'suggestions' => $suggestions,
+            'stats' => [
+                'examples_total' => $totalExamples,
+                'examples_searched' => $searchedExamples,
+                'examples_matched' => $matchedExamples,
+            ],
+        ];
     }
 
     // --- Private helpers ---
@@ -141,23 +156,29 @@ class OmoikaneInferenceEnhancer
     }
 
     /**
-     * Search Omoikane by Japanese name (via notes LIKE search).
-     * Returns species+eco data or null.
+     * Search Omoikane by Japanese name.
+     * Searches notes, morphological_traits, and key_differences for the name.
+     * Returns the highest trust_score match, or null if not found.
      */
     private function findByJapaneseName(string $japaneseName): ?array
     {
+        $likeName = '%' . $japaneseName . '%';
         $stmt = $this->pdo->prepare("
             SELECT s.id, s.scientific_name,
                    e.habitat, e.altitude, e.season, e.notes,
                    COALESCE(ts.trust_score, 0.0) AS trust_score
             FROM species s
             LEFT JOIN ecological_constraints e ON s.id = e.species_id
+            LEFT JOIN identification_keys k ON s.id = k.species_id
             LEFT JOIN trust_scores ts ON s.id = ts.species_id
             WHERE s.distillation_status = 'distilled'
-              AND e.notes LIKE :name
+              AND (e.notes LIKE :n1
+                   OR k.morphological_traits LIKE :n2
+                   OR k.key_differences LIKE :n3)
+            ORDER BY COALESCE(ts.trust_score, 0.0) DESC
             LIMIT 1
         ");
-        $stmt->execute([':name' => '%' . $japaneseName . '%']);
+        $stmt->execute([':n1' => $likeName, ':n2' => $likeName, ':n3' => $likeName]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
     }
