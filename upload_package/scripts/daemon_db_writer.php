@@ -113,6 +113,19 @@ function writeOneFile($file, $dbPath, $archiveDir) {
         }
         
         $pdo->exec('COMMIT');
+
+        // Compute trust score for distilled species (non-fatal)
+        if ($isTarget && $speciesId) {
+            try {
+                require_once __DIR__ . '/../libs/TrustScoreCalculator.php';
+                $calc = new TrustScoreCalculator();
+                $score = $calc->computeForSpecies($speciesId);
+                echo "[" . date('H:i:s') . "] TRUST: $scientificName = $score\n";
+            } catch (\Exception $e) {
+                echo "[" . date('H:i:s') . "] TRUST SKIP: " . substr($e->getMessage(), 0, 50) . "\n";
+            }
+        }
+
         @rename($file, $archiveDir . '/' . basename($file));
         echo "[" . date('H:i:s') . "] WRITE OK: $scientificName\n";
         return true;
