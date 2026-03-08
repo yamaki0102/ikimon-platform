@@ -154,19 +154,6 @@ class OmoikaneInferenceEnhancer
             LEFT JOIN ecological_constraints e ON s.id = e.species_id
             LEFT JOIN trust_scores ts ON s.id = ts.species_id
             WHERE s.distillation_status = 'distilled'
-              AND (e.notes LIKE :name1 OR k.morphological_traits LIKE :name2)
-            LIMIT 1
-        ");
-        // Oops — need identification_keys join for k reference
-        // Actually let's simplify: just search notes
-        $stmt = $this->pdo->prepare("
-            SELECT s.id, s.scientific_name,
-                   e.habitat, e.altitude, e.season, e.notes,
-                   COALESCE(ts.trust_score, 0.0) AS trust_score
-            FROM species s
-            LEFT JOIN ecological_constraints e ON s.id = e.species_id
-            LEFT JOIN trust_scores ts ON s.id = ts.species_id
-            WHERE s.distillation_status = 'distilled'
               AND e.notes LIKE :name
             LIMIT 1
         ");

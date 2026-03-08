@@ -115,6 +115,7 @@ if ($result === false) {
 
 // Cross-validate with Omoikane knowledge graph (non-fatal)
 $enrichedSuggestions = $result['suggestions'];
+$omoikaneMeta = ['enabled' => false, 'match_count' => 0, 'caution_count' => 0];
 try {
     require_once __DIR__ . '/../../libs/OmoikaneInferenceEnhancer.php';
     $enhancer = new OmoikaneInferenceEnhancer();
@@ -128,8 +129,14 @@ try {
         ]
     );
     $enrichedSuggestions = $enhanced['suggestions'];
+    $omoikaneMeta['enabled'] = true;
+    foreach ($enrichedSuggestions as $s) {
+        if (($s['omoikane_support'] ?? 0) > 0 || ($s['omoikane_conflict'] ?? 0) > 0) $omoikaneMeta['match_count']++;
+        if (!empty($s['caution'])) $omoikaneMeta['caution_count']++;
+    }
 } catch (\Exception $e) {
     // Non-fatal: return original suggestions
+    error_log("[ai_suggest] Omoikane crossValidate failed: " . substr($e->getMessage(), 0, 80));
 }
 
 echo json_encode([
@@ -139,6 +146,7 @@ echo json_encode([
     'meta' => [
         'model' => 'gemini-3.1-flash-lite-preview',
         'processing_ms' => $processingMs,
+        'omoikane' => $omoikaneMeta,
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 
