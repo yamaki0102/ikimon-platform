@@ -20,10 +20,14 @@ _*
 !_archive/
 *.log
 *.tmp
+tmp_*.php
+tmp_*.html
+tmp_ai_review/
 
 # === Data (user-generated, server-specific) ===
 upload_package/data/redlists/scraped_production_master.csv
 upload_package/data/uploads/
+upload_package/data/taxonomy/
 
 # === Archive (retired debug/migration files) ===
 _archive/
@@ -35,6 +39,7 @@ _archive/
 .env
 .env.local
 *.pem
+upload_package/config/secret.php
 
 # === Runtime Data (never commit) ===
 upload_package/data/cache/
@@ -53,12 +58,21 @@ upload_package/data/my_fields/
 upload_package/data/sites/
 upload_package/data/analytics/
 upload_package/data/rate_limits/
+upload_package/data/sessions/
 upload_package/data/*.json
 upload_package/data/*.db
 upload_package/data/*.sqlite3
+upload_package/data/*.sqlite3-shm
+upload_package/data/*.sqlite3-wal
 upload_package/daemon_*.pid
 upload_package/check_*.py
 upload_package/patch_*.py
+upload_package/.claude/
+upload_package/public_html/*.bak
+upload_package/tmp_*.html
+upload_package/scripts/backfill_dryrun.php
+upload_package/scripts/inspect_obs.php
+upload_package/scripts/inspect_photos.php
 /composer.phar
 /.phpunit.cache/
 /tests/fixtures/
