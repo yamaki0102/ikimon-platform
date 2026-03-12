@@ -62,6 +62,32 @@ $meta_description = "自然がもたらす心身の健康。あなたのフィ�
                     <span>🌳</span> 週間自然時間
                 </h2>
 
+                <div class="mb-5 rounded-2xl border p-4"
+                    :class="data?.habit_guidance?.achieved ? 'bg-emerald-50 border-emerald-200' : 'bg-sky-50 border-sky-200'">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-widest"
+                                :class="data?.habit_guidance?.achieved ? 'text-emerald-700' : 'text-sky-700'">WEEKLY LOOP</p>
+                            <p class="text-base font-black text-text mt-1" x-text="data?.habit_guidance?.cta_label ?? ''"></p>
+                            <p class="text-sm mt-1"
+                                :class="data?.habit_guidance?.achieved ? 'text-emerald-900/80' : 'text-sky-900/80'"
+                                x-text="data?.habit_guidance?.cta_message ?? ''"></p>
+                        </div>
+                        <div class="shrink-0 text-right">
+                            <p class="text-2xl" x-text="data?.habit_guidance?.achieved ? '✅' : '🥾'"></p>
+                            <p class="text-xs font-bold text-muted" x-text="(data?.habit_guidance?.current_week_minutes ?? 0) + ' / ' + (data?.habit_guidance?.target_minutes ?? 120) + '分'"></p>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-3">
+                        <a href="ikimon_walk.php" data-wellness-cta="walk" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-white/80 text-sm font-bold text-text hover:border-border-strong transition">
+                            <i data-lucide="footprints" class="w-4 h-4 text-emerald-600"></i> さんぽを続ける
+                        </a>
+                        <a href="post.php" data-wellness-cta="post" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-white/80 text-sm font-bold text-text hover:border-border-strong transition">
+                            <i data-lucide="camera" class="w-4 h-4 text-primary"></i> 記録する
+                        </a>
+                    </div>
+                </div>
+
                 <!-- 4-Week Grid -->
                 <div class="space-y-4">
                     <template x-for="(week, i) in (data?.weekly_nature ?? [])" :key="i">
@@ -260,21 +286,40 @@ $meta_description = "自然がもたらす心身の健康。あなたのフィ�
                         const sessData = await sessRes.json();
                         if (sessData.success && sessData.sessions) {
                             this.sessions = sessData.sessions.map(s => ({
-                                date: new Date(s.start_time * 1000).toLocaleDateString('ja-JP', {
+                                date: new Date(s.started_at).toLocaleDateString('ja-JP', {
                                     month: 'short',
                                     day: 'numeric',
                                     weekday: 'short'
                                 }),
                                 duration_min: s.duration_min ?? 0,
                                 observation_count: s.observation_count ?? 0,
-                                species_count: s.unique_species ?? 0,
+                                species_count: s.species_count ?? 0,
                             }));
                         }
                     } catch (e) {
                         console.error('Wellness dashboard load error', e);
                     }
                     this.loading = false;
-                    this.$nextTick(() => lucide.createIcons());
+                    this.$nextTick(() => {
+                        lucide.createIcons();
+                        if (window.ikimonAnalytics && this.data?.habit_guidance) {
+                            window.ikimonAnalytics.track('today_card_view', {
+                                location: 'wellness',
+                                completed: !!this.data.habit_guidance.achieved,
+                                remaining_minutes: this.data.habit_guidance.remaining_minutes ?? 0
+                            });
+                        }
+                        document.querySelectorAll('[data-wellness-cta]').forEach((el) => {
+                            el.addEventListener('click', () => {
+                                if (window.ikimonAnalytics) {
+                                    window.ikimonAnalytics.track('today_card_cta', {
+                                        location: 'wellness',
+                                        target: el.getAttribute('data-wellness-cta')
+                                    });
+                                }
+                            });
+                        });
+                    });
                 }
             };
         }

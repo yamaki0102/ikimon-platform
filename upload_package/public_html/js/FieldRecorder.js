@@ -359,6 +359,14 @@ class FieldRecorder {
             const result = await resp.json();
             console.log('[FieldRecorder] Synced', result.saved, 'points. Total:', result.total_points);
 
+            if (result.habit_qualified && window.ikimonAnalytics) {
+                window.ikimonAnalytics.track('walk_habit_qualified', {
+                    session_id: this.sessionId,
+                    total_distance: result.total_distance,
+                    total_points: result.total_points
+                });
+            }
+
             // Update debug info
             const debugEl = document.getElementById('debug-info');
             if (debugEl) {
