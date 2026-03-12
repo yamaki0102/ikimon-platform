@@ -12,15 +12,16 @@
  * {
  *   "success": true,
  *   "suggestions": [
- *     { "label": "チョウ目 シジミチョウ科", "confidence": "high", "emoji": "🦋", "reason": "翅の模様からシジミチョウ科と推定" }
+ *     { "label": "シジミチョウ科", "confidence": "high", "emoji": "🦋", "reason": "翅の模様から推定" }
  *   ],
- *   "meta": { "model": "gemini-2.5-flash", "processing_ms": 1234 }
+ *   "environment": { "biome": "forest", "cultivation": "wild", "life_stage": "adult", "substrate_tags": ["grass"] },
+ *   "meta": { "model": "gemini-3.1-flash-lite-preview", "processing_ms": 1234 }
  * }
  * 
  * 設計原則:
  * - 512px以下にリサイズしてからAPI送信（元画像は送信しない）
  * - EXIF情報（GPS含む）は完全除去
- * - レスポンスは科(Family)レベルまで。種レベル同定はしない
+ * - レスポンスは種(Species)未満の分類階級（目・科・属）で返す
  * - ユーザー情報は一切送信しない
  */
 
@@ -112,12 +113,67 @@ if ($result === false) {
     exit;
 }
 
+// Cross-validate with Omoikane knowledge graph (non-fatal)
+$enrichedSuggestions = $result['suggestions'];
+$omoikaneMeta = [
+    'enabled' => false,
+    'match_count' => 0,
+    'caution_count' => 0,
+    'examples_total' => 0,
+    'examples_matched' => 0,
+    'matched_by_ja_name' => 0,
+    'matched_by_fallback' => 0,
+];
+try {
+    require_once __DIR__ . '/../../libs/OmoikaneInferenceEnhancer.php';
+    $enhancer = new OmoikaneInferenceEnhancer();
+    $enhanced = $enhancer->crossValidate(
+        $result['suggestions'],
+        $result['environment'] ?? [],
+        [
+            'lat' => $_POST['lat'] ?? null,
+            'lng' => $_POST['lng'] ?? null,
+            'observed_at' => $_POST['observed_at'] ?? null,
+        ]
+    );
+    $enrichedSuggestions = $enhanced['suggestions'];
+    $stats = $enhanced['stats'] ?? [];
+    $omoikaneMeta['enabled'] = true;
+    $omoikaneMeta['examples_total'] = $stats['examples_total'] ?? 0;
+    $omoikaneMeta['examples_matched'] = $stats['examples_matched'] ?? 0;
+    $omoikaneMeta['matched_by_ja_name'] = $stats['matched_by_ja_name'] ?? 0;
+    $omoikaneMeta['matched_by_fallback'] = $stats['matched_by_fallback'] ?? 0;
+    foreach ($enrichedSuggestions as $s) {
+        if (($s['omoikane_support'] ?? 0) > 0 || ($s['omoikane_conflict'] ?? 0) > 0) $omoikaneMeta['match_count']++;
+        if (!empty($s['caution'])) $omoikaneMeta['caution_count']++;
+    }
+    // Sampled logging: log every request for first 100, then 1-in-10
+    static $logCounter = 0;
+    $logCounter++;
+    if ($logCounter <= 100 || $logCounter % 10 === 0) {
+        error_log(sprintf(
+            "[ai_suggest] Omoikane: examples=%d matched=%d(ja:%d/fb:%d) caution=%d biome=%s",
+            $omoikaneMeta['examples_total'],
+            $omoikaneMeta['examples_matched'],
+            $omoikaneMeta['matched_by_ja_name'],
+            $omoikaneMeta['matched_by_fallback'],
+            $omoikaneMeta['caution_count'],
+            $result['environment']['biome'] ?? 'unknown'
+        ));
+    }
+} catch (\Exception $e) {
+    // Non-fatal: return original suggestions
+    error_log("[ai_suggest] Omoikane crossValidate failed: " . substr($e->getMessage(), 0, 80));
+}
+
 echo json_encode([
     'success' => true,
-    'suggestions' => $result['suggestions'],
+    'suggestions' => $enrichedSuggestions,
+    'environment' => $result['environment'] ?? [],
     'meta' => [
-        'model' => 'gemini-2.5-flash',
+        'model' => 'gemini-3.1-flash-lite-preview',
         'processing_ms' => $processingMs,
+        'omoikane' => $omoikaneMeta,
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 
@@ -175,31 +231,38 @@ function resizeAndStripExif(string $path, string $mimeType, int $maxDim): array|
 }
 
 /**
- * Call Gemini 2.5 Flash API with image for species identification.
- * Returns parsed suggestions or false.
+ * Call Gemini 3.1 Flash Lite API with image for species identification + environment analysis.
+ * Returns parsed suggestions + environment or false.
  */
 function callGeminiFlash(string $base64Image, string $mimeType): array|false
 {
     $apiKey = GEMINI_API_KEY;
-    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={$apiKey}";
 
     $prompt = <<<PROMPT
-あなたは生物多様性の専門家で、一般の人にもわかりやすく説明するのが得意です。この写真に写っている生き物を分類してください。
+あなたは生物多様性の専門家で、一般の人にもわかりやすく説明するのが得意です。この写真に写っている生き物を分類し、撮影環境も分析してください。
 
 ## ルール
-1. **科（Family）レベルまでの同定**にとどめてください。種レベルの断定は禁止です。
+1. **種（Species）レベルの断定は禁止**。目・科・属など、確信度に応じた適切な分類階級で回答してください。自信があれば属レベル、不確かなら目レベルなど柔軟に判断。
 2. 写真に複数の生き物が見える場合は、最大3つまで候補を出してください。
 3. 各候補に対して以下を出力してください:
-   - label: 日本語の分類名（例: 「ツツジ科」「シジミチョウ科」「カモ科」）。目名は省略して科名のみ。
+   - label: 日本語の分類名（例: 「ツツジ科」「シジミチョウ科」「カモ科」「テントウムシ属」「チョウ目」）。
    - emoji: その生き物を表す最適な絵文字（1文字）
    - confidence: "high"（かなり確信）、"medium"（たぶん）、"low"（わからない）
    - reason: なぜそう判断したか（30文字以内の日本語）
    - examples: **一般人が知っているメジャーな種を2〜3個**列挙（例: 「ブルーベリー、ツツジ、サツキ」）。学名ではなく日本語の通称で。
-4. 生き物が写っていない場合は空の配列を返してください。
+4. 生き物が写っていない場合はsuggestionsを空の配列にしてください。
 5. 確信が持てない場合は confidence を "low" にして正直に伝えてください。
 
+## 環境分析
+写真の背景や状況から、以下も推定してください（environment オブジェクトとして出力）:
+- biome: 撮影環境。"forest"(森林), "grassland"(草地・河川敷), "wetland"(湿地・水辺), "coastal"(海岸・干潟), "urban"(都市・公園), "farmland"(農地・里山) のいずれか。判断できなければ "unknown"。
+- cultivation: "wild"(野生) or "cultivated"(植栽・飼育)。花壇や鉢植え、飼育ケージなら cultivated。
+- life_stage: "adult"(成体/成虫), "juvenile"(幼体/幼虫), "egg"(卵・種子), "trace"(痕跡・足跡) のいずれか。判断できなければ "unknown"。
+- substrate_tags: 地面の状態の配列。次から該当するものを選択: "rock"(岩場), "sand"(砂地), "gravel"(砂利), "grass"(草地), "leaf_litter"(落ち葉), "deadwood"(倒木・朽木), "water"(水辺), "artificial"(人工物)。該当なしなら空配列。
+
 ## 出力形式（JSON のみ）
-{"suggestions": [{"label": "...", "emoji": "...", "confidence": "...", "reason": "...", "examples": "..."}]}
+{"suggestions": [{"label": "...", "emoji": "...", "confidence": "...", "reason": "...", "examples": "..."}], "environment": {"biome": "...", "cultivation": "...", "life_stage": "...", "substrate_tags": [...]}}
 
 JSONのみ出力し、説明文やマークダウンは含めないでください。
 PROMPT;
@@ -220,7 +283,7 @@ PROMPT;
         ],
         'generationConfig' => [
             'temperature' => 0.2,
-            'maxOutputTokens' => 512,
+            'maxOutputTokens' => 768,
             'responseMimeType' => 'application/json',
         ],
     ];
@@ -288,5 +351,18 @@ PROMPT;
         if (count($suggestions) >= 3) break; // Max 3 suggestions
     }
 
-    return ['suggestions' => $suggestions];
+    // Validate and sanitize environment
+    $env = $parsed['environment'] ?? [];
+    $validBiomes = ['forest', 'grassland', 'wetland', 'coastal', 'urban', 'farmland', 'unknown'];
+    $validStages = ['adult', 'juvenile', 'egg', 'trace', 'unknown'];
+    $validSubstrates = ['rock', 'sand', 'gravel', 'grass', 'leaf_litter', 'deadwood', 'water', 'artificial'];
+
+    $environment = [
+        'biome' => in_array($env['biome'] ?? '', $validBiomes, true) ? $env['biome'] : 'unknown',
+        'cultivation' => in_array($env['cultivation'] ?? '', ['wild', 'cultivated'], true) ? $env['cultivation'] : 'wild',
+        'life_stage' => in_array($env['life_stage'] ?? '', $validStages, true) ? $env['life_stage'] : 'unknown',
+        'substrate_tags' => array_values(array_intersect($env['substrate_tags'] ?? [], $validSubstrates)),
+    ];
+
+    return ['suggestions' => $suggestions, 'environment' => $environment];
 }

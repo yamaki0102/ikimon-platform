@@ -35,19 +35,21 @@ class OmoikaneSearchEngine
         $pdo = $this->db->getPDO();
 
         $query = "
-            SELECT 
-                s.id, 
-                s.scientific_name, 
-                e.habitat, 
-                e.altitude, 
-                e.season, 
+            SELECT
+                s.id,
+                s.scientific_name,
+                e.habitat,
+                e.altitude,
+                e.season,
                 e.notes,
-                k.morphological_traits, 
-                k.similar_species, 
-                k.key_differences
+                k.morphological_traits,
+                k.similar_species,
+                k.key_differences,
+                COALESCE(ts.trust_score, 0.0) AS trust_score
             FROM species s
             LEFT JOIN ecological_constraints e ON s.id = e.species_id
             LEFT JOIN identification_keys k ON s.id = k.species_id
+            LEFT JOIN trust_scores ts ON s.id = ts.species_id
             WHERE s.distillation_status = 'distilled'
         ";
 
@@ -78,8 +80,8 @@ class OmoikaneSearchEngine
             $query .= " AND " . implode(" AND ", $conditions);
         }
 
-        // Add sorting and pagination
-        $query .= " ORDER BY s.id ASC LIMIT :limit OFFSET :offset";
+        // Sort by trust_score (higher = more reliable), then by id
+        $query .= " ORDER BY COALESCE(ts.trust_score, 0.0) DESC, s.id ASC LIMIT :limit OFFSET :offset";
 
         $stmt = $pdo->prepare($query);
 
