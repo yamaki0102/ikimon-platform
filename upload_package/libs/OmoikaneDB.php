@@ -52,12 +52,14 @@ class OmoikaneDB
             )
         ");
 
-        // Auto-upgrade for existing databases to support CC-BY-SA compliance citations
+        // Auto-upgrade for existing databases
         try {
             $this->pdo->exec("ALTER TABLE species ADD COLUMN source_citations TEXT;");
-        } catch (PDOException $e) {
-            // Column likely already exists, ignore safely
-        }
+        } catch (PDOException $e) { /* already exists */ }
+        try {
+            $this->pdo->exec("ALTER TABLE species ADD COLUMN japanese_name TEXT;");
+        } catch (PDOException $e) { /* already exists */ }
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_japanese_name ON species(japanese_name);");
 
         // Table: ecological_constraints (The Searchable Dimensions)
         $this->pdo->exec("
@@ -109,6 +111,21 @@ class OmoikaneDB
             )
         ");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_specimen_species ON specimen_records(species_id);");
+
+        // Table: trust_scores (Quality Gate for distilled data)
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS trust_scores (
+                species_id INTEGER PRIMARY KEY,
+                trust_score REAL DEFAULT 0.0,
+                source_count INTEGER DEFAULT 0,
+                trusted_source_count INTEGER DEFAULT 0,
+                field_completeness REAL DEFAULT 0.0,
+                inferred_ratio REAL DEFAULT 0.0,
+                computed_at DATETIME,
+                FOREIGN KEY (species_id) REFERENCES species(id) ON DELETE CASCADE
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_trust_score ON trust_scores(trust_score);");
 
         // --- Reverse-Lookup Indexes ---
         // These indexes allow extremely fast querying (e.g. "Find all species in 'Forest' above '1000m' during 'Summer'")
