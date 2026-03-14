@@ -10,6 +10,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
+require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../../libs/CorporateSites.php';
 
 // Get site ID
@@ -19,6 +20,13 @@ $siteDef = CorporateSites::SITES[$siteId] ?? null;
 if (!$siteDef) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['success' => false, 'message' => 'Site not found'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+    exit;
+}
+
+$corporation = CorporatePlanGate::resolveCorporationForSite((string)$siteId);
+if ($corporation && !CorporatePlanGate::canUseAdvancedOutputs($corporation)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Community ワークスペースでは 30x30 参考レポートを出力できません。Public プランで有効になります。'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 

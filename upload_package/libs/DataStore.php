@@ -235,6 +235,7 @@ class DataStore
     public static function getLatest($resource, $limit = 10, $filter = null)
     {
         $results = [];
+        $seenIds = [];
 
         // 1. Check Index for rapid retrieval (if available) - TODO in Phase 4
 
@@ -251,7 +252,10 @@ class DataStore
 
                 foreach ($items as $item) {
                     if ($filter && !$filter($item)) continue;
+                    $itemId = $item['id'] ?? null;
+                    if ($itemId !== null && isset($seenIds[$itemId])) continue;
                     $results[] = $item;
+                    if ($itemId !== null) $seenIds[$itemId] = true;
                     if (count($results) >= $limit) break 2;
                 }
             }
@@ -262,7 +266,10 @@ class DataStore
             $legacy = array_reverse(self::get($resource));
             foreach ($legacy as $item) {
                 if ($filter && !$filter($item)) continue;
+                $itemId = $item['id'] ?? null;
+                if ($itemId !== null && isset($seenIds[$itemId])) continue;
                 $results[] = $item;
+                if ($itemId !== null) $seenIds[$itemId] = true;
                 if (count($results) >= $limit) break;
             }
         }

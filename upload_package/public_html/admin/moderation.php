@@ -97,8 +97,16 @@ $tab = $_GET['tab'] ?? 'flags';
                                     <?php if (!empty($flag['details'])): ?>
                                         <p class="text-sm text-slate-400 mb-2"><?php echo htmlspecialchars($flag['details']); ?></p>
                                     <?php endif; ?>
+                                    <?php
+                                    $targetType = $flag['target_type'] ?? 'unknown';
+                                    $targetId = $flag['target_id'] ?? '';
+                                    $targetLink = '../observation_detail.php?id=' . urlencode($targetId);
+                                    if ($targetType === 'surveyor_profile') {
+                                        $targetLink = '../surveyor_profile.php?id=' . urlencode($targetId);
+                                    }
+                                    ?>
                                     <p class="text-xs text-slate-500 mb-4">
-                                        対象ID: <a href="../observation_detail.php?id=<?php echo $flag['target_id'] ?? ''; ?>" target="_blank" rel="noopener noreferrer" class="underline hover:text-white"><?php echo htmlspecialchars($flag['target_id'] ?? ''); ?></a>
+                                        対象ID: <a href="<?php echo htmlspecialchars($targetLink); ?>" target="_blank" rel="noopener noreferrer" class="underline hover:text-white"><?php echo htmlspecialchars($targetId); ?></a>
                                         | 通報者: <?php echo htmlspecialchars($flag['reporter_id'] ?? 'anonymous'); ?>
                                     </p>
                                     <div class="flex gap-3">

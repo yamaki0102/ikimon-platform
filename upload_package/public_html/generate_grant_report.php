@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../libs/EventManager.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/GeoUtils.php';
@@ -22,6 +23,12 @@ if (!$eventId) {
 $event = EventManager::get($eventId);
 if (!$event) {
     die("イベントが見つかりません。");
+}
+
+$corporation = CorporatePlanGate::resolveCorporationForEvent($event);
+if ($corporation && !CorporatePlanGate::canUseAdvancedOutputs($corporation)) {
+    http_response_code(403);
+    die("Community ワークスペースでは助成金レポートを出力できません。Public プランで有効になります。");
 }
 
 // 権限チェック（主催者 or 管理者）

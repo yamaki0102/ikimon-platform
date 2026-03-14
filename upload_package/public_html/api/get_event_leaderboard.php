@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/EventManager.php';
 require_once __DIR__ . '/../../libs/GeoUtils.php';
+require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../../libs/SiteManager.php';
 
 function event_range(array $event): array
@@ -133,6 +134,9 @@ if (!$event) {
     exit;
 }
 
+$corporation = CorporatePlanGate::resolveCorporationForEvent($event);
+$canRevealSpeciesDetails = CorporatePlanGate::canRevealSpeciesDetails($corporation);
+
 [$rangeStart, $rangeEnd] = event_range($event);
 $participantMap = [];
 foreach (($event['participants'] ?? []) as $participant) {
@@ -215,7 +219,7 @@ foreach (event_observation_candidates($rangeStart, $rangeEnd) as $obs) {
             'url' => $photo,
             'likes' => (int)($counts['likes'] ?? 0),
             'observed_at' => $obsObservedAt,
-            'taxon_name' => $species['name'],
+            'taxon_name' => $canRevealSpeciesDetails ? $species['name'] : '',
         ];
     }
 }
@@ -272,11 +276,12 @@ echo json_encode([
         'total_species' => count($totalSpeciesSet),
         'total_participants' => max(count($participantMap), count($leaderboard)),
         'event_days' => $eventDays,
-        'top_species' => array_map(
+        'species_detail_available' => $canRevealSpeciesDetails,
+        'top_species' => $canRevealSpeciesDetails ? array_map(
             fn(string $name, int $count): array => ['name' => $name, 'count' => $count],
             array_slice(array_keys($topSpeciesMap), 0, 5),
             array_slice(array_values($topSpeciesMap), 0, 5)
-        ),
+        ) : [],
     ],
     'top_photos' => array_slice($topPhotos, 0, 6),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
