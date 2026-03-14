@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/Lang.php';
 require_once __DIR__ . '/../../libs/CspNonce.php';
 require_once __DIR__ . '/../../libs/CSRF.php';
+require_once __DIR__ . '/../../libs/Asset.php';
 Lang::init();
 
 // Send CSP header with nonce (before any output)
@@ -23,7 +24,6 @@ $desc = !empty($meta_description) ? $meta_description : $default_desc;
 $image = !empty($meta_image) ? $meta_image : $default_image;
 $url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
 $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
-
 ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -53,10 +53,11 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ikimon">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
+<link rel="manifest" href="/manifest.php">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/img/icon-192.png">
 
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content="website">
@@ -156,11 +157,11 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 
 <!-- Tezawari Engines -->
-<script defer src="js/SoundManager.js"></script>
-<script defer src="js/HapticEngine.js"></script>
-<script defer src="js/MotionEngine.js"></script>
-<script defer src="js/OfflineManager.js?v=2.1"></script>
-<script defer src="js/analytics.js"></script>
+<script defer src="<?= htmlspecialchars(Asset::versioned('/js/SoundManager.js')) ?>"></script>
+<script defer src="<?= htmlspecialchars(Asset::versioned('/js/HapticEngine.js')) ?>"></script>
+<script defer src="<?= htmlspecialchars(Asset::versioned('/js/MotionEngine.js')) ?>"></script>
+<script defer src="<?= htmlspecialchars(Asset::versioned('/js/OfflineManager.js')) ?>"></script>
+<script defer src="<?= htmlspecialchars(Asset::versioned('/assets/js/analytics.js')) ?>"></script>
 
 <!-- Critical FOUC Prevention (CSS遅延の保険) -->
 <style>
@@ -170,17 +171,20 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 </style>
 
 <!-- Design System v2 CSS Stack -->
-<link rel="stylesheet" href="assets/css/tokens.css?v=2.1">
-<link rel="stylesheet" href="assets/css/style.css?v=2.1">
-<link rel="stylesheet" href="assets/css/skeleton.css?v=2.1">
-<link rel="stylesheet" href="assets/css/input.css?v=2.1">
+<link rel="stylesheet" href="<?= htmlspecialchars(Asset::versioned('/assets/css/tokens.css')) ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(Asset::versioned('/assets/css/style.css')) ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(Asset::versioned('/assets/css/skeleton.css')) ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(Asset::versioned('/assets/css/input.css')) ?>">
 
 <!-- Service Worker + PWA Install -->
 <script nonce="<?= CspNonce::attr() ?>">
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log('SW registered:', reg.scope))
+            navigator.serviceWorker.register('/sw.php', { updateViaCache: 'none' })
+                .then(reg => {
+                    reg.update();
+                    console.log('SW registered:', reg.scope);
+                })
                 .catch(err => console.log('SW registration failed:', err));
         });
     }
@@ -211,3 +215,5 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
         if (banner) banner.style.display = 'none';
     }
 </script>
+
+<?php include __DIR__ . '/feedback_widget.php'; ?>
