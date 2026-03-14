@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/RedList.php';
+require_once __DIR__ . '/../libs/BioUtils.php';
 Auth::init();
 
 // Dynamic stats for researcher page
@@ -17,7 +18,7 @@ foreach ($allObs as $o) {
         $researcherSpecies[$name] = true;
         if (RedList::check($name)) $researcherRedlistCount++;
     }
-    if (($o['status'] ?? '') === 'Research Grade') $researcherRgCount++;
+    if (BioUtils::isResearchGradeLike($o['status'] ?? ($o['quality_grade'] ?? ''))) $researcherRgCount++;
 }
 $researcherSpeciesCount = count($researcherSpecies);
 $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $researcherTotalObs * 100) : 0;
@@ -27,7 +28,7 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>研究者の方へ | ikimon</title>
+    <title>データを持ち帰りたい方へ | ikimon</title>
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
 <body class="js-loading pt-14 bg-base text-text font-body">
@@ -41,15 +42,15 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
         <div class="max-w-4xl mx-auto text-center">
             <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/20 border border-purple-500/30 backdrop-blur-md mb-6">
                 <i data-lucide="microscope" class="w-4 h-4 text-purple-400"></i>
-                <span class="text-xs font-bold tracking-wider uppercase text-purple-400">For Researchers</span>
+                <span class="text-xs font-bold tracking-wider uppercase text-purple-400">For Data Use</span>
             </div>
             <h1 class="text-4xl md:text-6xl font-black mb-6 tracking-tight">
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">市民科学</span>データで<br>
-                研究を加速する
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">市民の記録</span>を<br>
+                ていねいに持ち帰る
             </h1>
             <p class="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
-                GBIF準拠のオープンデータ。Darwin Core形式でエクスポート可能。<br>
-                浜松地域の生物多様性データにアクセスできます。
+                GBIF準拠のオープンデータを、研究・教育・地域アーカイブの用途で持ち帰れます。<br>
+                Darwin Core 形式でのエクスポートにも対応しています。
             </p>
             <div class="flex flex-col md:flex-row gap-4 justify-center">
                 <a href="explore.php" class="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4">
@@ -83,10 +84,10 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
                     <div class="glass-card p-6 rounded-2xl border border-white/10">
                         <h3 class="font-bold mb-2 flex items-center gap-2">
                             <i data-lucide="check-circle" class="w-5 h-5 text-green-400"></i>
-                            Research Grade システム
+                            研究利用ステータス
                         </h3>
                         <p class="text-sm text-gray-400">
-                            複数の専門家による検証を経たデータには「Research Grade」ステータスが付与されます。
+                            科・属で安定した記録は「研究利用可」、種以下まで安定した記録は「種レベル研究用」として扱います。
                         </p>
                     </div>
                     <div class="glass-card p-6 rounded-2xl border border-white/10">
@@ -108,7 +109,7 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
                             <span class="text-2xl font-black text-purple-400"><?= number_format($researcherTotalObs) ?></span>
                         </div>
                         <div class="flex justify-between items-center py-3 border-b border-white/10">
-                            <span class="text-gray-400">Research Grade</span>
+                            <span class="text-gray-400">研究利用可以上</span>
                             <span class="text-2xl font-black text-green-400"><?= $researcherRgRate ?>%</span>
                         </div>
                         <div class="flex justify-between items-center py-3 border-b border-white/10">
@@ -129,7 +130,7 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
     <section id="data-access" class="py-16 px-6">
         <div class="max-w-4xl mx-auto">
             <h2 class="text-2xl font-bold text-center mb-4">データアクセスポリシー</h2>
-            <p class="text-gray-400 text-center mb-12">研究目的でのデータ利用を支援します</p>
+            <p class="text-gray-400 text-center mb-12">研究・教育・地域アーカイブ用途でのデータ利用を支援します</p>
             
             <div class="grid md:grid-cols-3 gap-8">
                 <!-- Public -->
@@ -139,8 +140,8 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
                     </div>
                     <h3 class="font-bold mb-2">公開データ</h3>
                     <p class="text-sm text-gray-400 mb-4">
-                        Research Gradeの観察データは<br>
-                        APIで自由にアクセス可能
+                        研究利用可以上の観察データは<br>
+                        APIで自由に持ち帰り可能
                     </p>
                     <span class="text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-400 font-bold">
                         CC BY-NC
@@ -183,15 +184,15 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
     <!-- CTA Section -->
     <section class="py-16 px-6">
         <div class="max-w-2xl mx-auto text-center glass-card p-12 rounded-[2rem] border border-purple-500/30">
-            <h2 class="text-3xl font-black mb-4">共同研究のご相談</h2>
+            <h2 class="text-3xl font-black mb-4">データ活用のご相談</h2>
             <p class="text-gray-400 mb-8">
-                市民科学データの品質評価、<br>
-                地域生態系モニタリングの共同研究を募集しています。
+                研究、教育、地域アーカイブづくりなど、<br>
+                市民の記録をどう活かすかの相談を受け付けています。
             </p>
             <div class="flex flex-col gap-4">
                 <a href="mailto:research@ikimon.life" class="btn-primary flex items-center justify-center gap-2">
                     <i data-lucide="mail"></i>
-                    研究連携のお問い合わせ
+                    データ活用のお問い合わせ
                 </a>
                 <a href="id_center.php" class="btn-secondary flex items-center justify-center gap-2">
                     <i data-lucide="microscope"></i>

@@ -3,11 +3,11 @@
 /**
  * B2B Demo Landing Page
  * 
- * Showcases ikimon's biodiversity monitoring capabilities
+ * Showcases ikimon's site record experience
  * using real data from I-KAN Co., Ltd. (愛管株式会社).
  * 
  * This page serves as the entry point for the interactive demo,
- * leading visitors to the anonymized report view.
+ * leading visitors to the anonymized summary view.
  */
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/Auth.php';
@@ -43,7 +43,7 @@ $pageTitle = 'デモ体験 — ikimon for Business';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?></title>
-    <meta name="description" content="愛管株式会社の実データを使ったikimonデモ。生物多様性スコア、TNFD LEAP対応レポートを体験してください。">
+    <meta name="description" content="愛管株式会社の実データを使ったikimonデモ。自然の記録がどう積み上がり、どう見返せるかを体験できます。">
     <meta name="robots" content="noindex, nofollow">
     <?php include __DIR__ . '/../components/meta.php'; ?>
     <style>
@@ -297,14 +297,14 @@ $pageTitle = 'デモ体験 — ikimon for Business';
         </div>
 
         <h1 class="demo-title">
-            「<span class="accent">観察</span>すれば、<br>
-            TNFDレポートが完成する」<br>
+            「<span class="accent">観察</span>すると、<br>
+            その場所の自然がたまっていく」<br>
             を体験してください。
         </h1>
 
         <p class="demo-subtitle">
-            <strong>愛管株式会社</strong>の実際のフィールドデータを使用した<br>
-            ikimon 生物多様性モニタリングのデモンストレーションです。
+            <strong>愛管株式会社</strong>の実際のフィールドデータを使って、<br>
+            ikimon で自然の記録がどう積み上がり、どう見返せるかを試せるデモです。
         </p>
 
         <div class="demo-stats">
@@ -317,13 +317,13 @@ $pageTitle = 'デモ体験 — ikimon for Business';
                 <span class="label">確認種数</span>
             </div>
             <div class="demo-stat">
-                <span class="num green">TNFD</span>
-                <span class="label">LEAP 準拠</span>
+                <span class="num green">季節</span>
+                <span class="label">ふり返り対応</span>
             </div>
         </div>
 
         <a href="report.php" class="demo-cta">
-            レポートを見る <span class="arrow">→</span>
+            まとめを見る <span class="arrow">→</span>
         </a>
     </main>
 
@@ -333,23 +333,23 @@ $pageTitle = 'デモ体験 — ikimon for Business';
         <div class="demo-features">
             <div class="demo-feature">
                 <div class="icon">📊</div>
-                <h3>参考インデックス</h3>
-                <p>観測データの厚みや保全シグナルを0〜100で俯瞰する参考値です。絶対評価や認証判定ではありません。</p>
+                <h3>記録のまとまりメモ</h3>
+                <p>記録の広がりや継続の様子をざっくり見返すための内部向けメモです。評価や認証の代わりではありません。</p>
             </div>
             <div class="demo-feature">
                 <div class="icon">🔴</div>
-                <h3>レッドリスト照合</h3>
-                <p>環境省・都道府県レッドリストと自動照合。該当種がいれば自動的にアラート表示されます。</p>
+                <h3>気をつけて見たい種</h3>
+                <p>環境省・都道府県レッドリストと照らし合わせて、注意して見返したい記録を拾いやすくします。</p>
             </div>
             <div class="demo-feature">
                 <div class="icon">📋</div>
-                <h3>TNFD LEAP 対応表</h3>
-                <p>TNFD（自然関連財務情報開示タスクフォース）のLEAPフレームワークへの対応状況を一目で確認。</p>
+                <h3>共有しやすいまとめ</h3>
+                <p>社内共有や外部資料づくりの前段として、その場所で何が記録されたかを整理して見られます。</p>
             </div>
             <div class="demo-feature">
                 <div class="icon">🦋</div>
-                <h3>確認種リスト</h3>
-                <p>GBIF Backbone Taxonomy準拠の学名と和名。PDFとしてそのまま稟議書に添付できます。</p>
+                <h3>見つかった生きもの一覧</h3>
+                <p>学名と和名をそろえた一覧として、その場所でどんな生きものが記録されたかを残せます。</p>
             </div>
         </div>
 
@@ -361,7 +361,7 @@ $pageTitle = 'デモ体験 — ikimon for Business';
 
         <div style="text-align: center;">
             <a href="/for-business.php" class="demo-back">
-                ← 企業・自治体の方へ に戻る
+                ← 組織で使いたい方へ に戻る
             </a>
         </div>
     </section>

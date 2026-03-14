@@ -92,14 +92,16 @@ Auth::init();
                         データ品質のコツ
                     </h2>
                     <div class="grid md:grid-cols-2 gap-6">
-                        <div class="space-y-3 text-gray-300 text-sm">
-                            <p>✅ <strong>全体像と特徴部分</strong>を撮ると同定精度が上がる</p>
-                            <p>✅ <strong>横から・上から</strong>の複数アングルがベスト</p>
-                            <p>✅ 手のひらや定規を添えると<strong>サイズ感</strong>がわかる</p>
+                        <div class="space-y-3 text-gray-600 text-sm">
+                            <p>✅ <strong class="text-gray-800">全体像と特徴部分</strong>を撮ると同定精度が上がる</p>
+                            <p>✅ <strong class="text-gray-800">横から・上から</strong>の複数アングルがベスト</p>
+                            <p>✅ 手のひらや定規を添えると<strong class="text-gray-800">サイズ感</strong>がわかる</p>
+                            <p>✅ <strong class="text-gray-800">個体数</strong>を選択すると個体数変動の追跡データに</p>
                         </div>
-                        <div class="space-y-3 text-gray-300 text-sm">
-                            <p>💡 種名がわからなければ<strong>空欄でOK</strong>！</p>
+                        <div class="space-y-3 text-gray-600 text-sm">
+                            <p>💡 種名がわからなければ<strong class="text-gray-800">空欄でOK</strong>！</p>
                             <p>💡 「○○の仲間？」と書いても全然大丈夫</p>
+                            <p>💡 個体数は<strong class="text-gray-800">だいたいでOK</strong> — 正確さより継続が大事</p>
                             <p>💡 間違いは「<strong class="text-emerald-600">新しい情報が見つかりました</strong>」— 責めたりしない</p>
                         </div>
                     </div>
@@ -122,9 +124,7 @@ Auth::init();
         </div>
     </main>
 
-    <footer class="border-t border-gray-200 text-center py-12">
-        <p class="text-[var(--color-text-muted)] text-sm">&copy; 2024 ikimon. All rights reserved.</p>
-    </footer>
+    <?php include __DIR__ . '/components/footer.php'; ?>
 
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();

@@ -20,7 +20,7 @@ Auth::init();
     <main class="max-w-3xl mx-auto px-4 pt-24 pb-20 md:pt-28">
 
         <h1 class="text-2xl md:text-3xl font-black tracking-tight text-text mb-2">📜 利用規約</h1>
-        <p class="text-xs text-muted mb-8">最終更新日: 2026年2月20日</p>
+        <p class="text-xs text-muted mb-8">最終更新日: 2026年3月11日</p>
 
         <div class="space-y-8 text-sm text-text leading-relaxed">
 
@@ -36,7 +36,7 @@ Auth::init();
                     <li>生物の観察記録の投稿・閲覧</li>
                     <li>コミュニティによる種の同定</li>
                     <li>フィールドマップ・図鑑・ランキングの利用</li>
-                    <li>API・レポート生成（有料プラン）</li>
+                    <li>API・まとめ出力（有料プラン）</li>
                 </ul>
             </section>
 
@@ -73,7 +73,7 @@ Auth::init();
 
             <section>
                 <h2 class="text-lg font-black text-text mb-3">第6条（有料プラン）</h2>
-                <p>本サービスの一部機能（API アクセス、DwC-A エクスポート、TNFD レポート生成等）は有料プランでのみ提供されます。料金は<a href="pricing.php" class="text-primary underline">料金プランページ</a>に記載のとおりです。</p>
+                <p>本サービスの一部機能（API アクセス、DwC-A エクスポート、共有向けのまとめ出力等）は有料プランでのみ提供されます。料金は<a href="for-business/#pricing" class="text-primary underline">料金プランページ</a>に記載のとおりです。</p>
                 <p class="mt-2">有料プランの解約は、メールにて承ります。解約月の末日までサービスをご利用いただけます。</p>
             </section>
 
@@ -84,7 +84,7 @@ Auth::init();
 
             <section>
                 <h2 class="text-lg font-black text-text mb-3">第8条（免責事項）</h2>
-                <p>本サービスは「現状有姿」で提供されます。コミュニティによる同定結果の正確性について、運営者は保証しません。学術研究等での利用にあたっては、専門家による検証を推奨します。</p>
+                <p>本サービスは「現状有姿」で提供されます。コミュニティによる同定結果の正確性について、運営者は保証しません。外部資料への利用や研究用途で用いる場合は、目的に応じて専門家による検証を推奨します。</p>
             </section>
 
             <section>
@@ -116,7 +116,7 @@ Auth::init();
                             </tr>
                             <tr class="border-b border-border">
                                 <td class="px-4 py-3 font-bold text-muted bg-surface">販売価格</td>
-                                <td class="px-4 py-3"><a href="pricing.php" class="text-primary underline">料金プランページ</a>に記載</td>
+                                <td class="px-4 py-3"><a href="for-business/#pricing" class="text-primary underline">料金プランページ</a>に記載</td>
                             </tr>
                             <tr class="border-b border-border">
                                 <td class="px-4 py-3 font-bold text-muted bg-surface">支払方法</td>
@@ -143,7 +143,7 @@ Auth::init();
 
     </main>
 
-    <?php include __DIR__ . '/components/footer_nav.php'; ?>
+    <?php include __DIR__ . '/components/footer.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>
