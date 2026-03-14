@@ -1,5 +1,15 @@
-const CACHE_NAME = 'ikimon-v16-shell';
-const PHOTO_CACHE = 'ikimon-v16-photos';
+<?php
+
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../libs/Asset.php';
+
+$version = Asset::pwaVersion();
+
+header('Content-Type: application/javascript; charset=UTF-8');
+header('Cache-Control: no-cache, no-store, must-revalidate');
+?>
+const CACHE_NAME = 'ikimon-pwa-shell-v<?= $version ?>';
+const PHOTO_CACHE = 'ikimon-pwa-photos-v<?= $version ?>';
 const ASSETS_TO_CACHE = [
     './',
     'index.php',
@@ -21,29 +31,23 @@ const ASSETS_TO_CACHE = [
     'assets/css/style.css',
     'assets/css/skeleton.css',
     'assets/css/input.css',
-    'assets/img/icon-192.png',
-    'manifest.json'
+    'assets/img/pwa-icon-192.png',
+    'manifest.php'
 ];
 
-// Install Event: Cache Shell + Specific Assets
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('[Service Worker] Caching all: app shell and content');
-                return cache.addAll(ASSETS_TO_CACHE);
-            })
+            .then((cache) => cache.addAll(ASSETS_TO_CACHE))
     );
     self.skipWaiting();
 });
 
-// Activate Event: Cleanup Old Caches
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keyList) => {
             return Promise.all(keyList.map((key) => {
                 if (key !== CACHE_NAME && key !== PHOTO_CACHE) {
-                    console.log('[Service Worker] Removing old cache', key);
                     return caches.delete(key);
                 }
             }));
@@ -52,16 +56,12 @@ self.addEventListener('activate', (event) => {
     return self.clients.claim();
 });
 
-// Fetch Event: Smart Strategy per resource type
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Skip non-GET requests (POST for form submission etc.)
     if (event.request.method !== 'GET') return;
 
-    // Skip API calls — always fetch fresh (except taxon_suggest)
     if (url.pathname.includes('/api/')) {
-        // taxon_suggest: NetworkFirst with short cache for offline autocomplete
         if (url.pathname.includes('taxon_suggest')) {
             event.respondWith(
                 fetch(event.request)
@@ -77,7 +77,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // User-uploaded photos → Cache First (immutable content)
     if (url.pathname.includes('/uploads/photos/')) {
         event.respondWith(
             caches.match(event.request).then(cached => {
@@ -94,7 +93,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Post flow should always prefer fresh assets/html to avoid stale UI on mobile
     if (
         url.pathname.endsWith('/post.php') || url.pathname === '/post.php' ||
         url.pathname.endsWith('/explore.php') || url.pathname === '/explore.php' ||
@@ -112,7 +110,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Navigation requests (HTML) → Network First, Fallback to Cache/Offline
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request)
@@ -121,15 +118,11 @@ self.addEventListener('fetch', (event) => {
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
                     return response;
                 })
-                .catch(() => {
-                    return caches.match(event.request)
-                        .then(res => res || caches.match('offline.html'));
-                })
+                .catch(() => caches.match(event.request).then(res => res || caches.match('offline.html')))
         );
         return;
     }
 
-    // JS/CSS assets → Network First (prevents stale UI after deploy)
     if (url.pathname.endsWith('.css') || url.pathname.endsWith('.js')) {
         event.respondWith(
             fetch(event.request)
@@ -143,7 +136,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Other Static Assets → Stale While Revalidate
     event.respondWith(
         caches.match(event.request).then((cached) => {
             const fetched = fetch(event.request).then(response => {
@@ -156,4 +148,3 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
-
