@@ -184,7 +184,7 @@ $currentUser = Auth::user();
                         id: obs.id,
                         species_name: this.idForm.name,
                         comment: this.idForm.comment,
-                        status: 'Research Grade'
+                        status: '種レベル研究用'
                     };
 
                     try {

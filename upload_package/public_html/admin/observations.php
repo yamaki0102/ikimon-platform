@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/UserStore.php';
+require_once __DIR__ . '/../../libs/BioUtils.php';
 Auth::init();
 Auth::requireRole('Analyst');
 
@@ -26,7 +27,7 @@ usort($observations, function ($a, $b) {
 // Apply filters
 if ($statusFilter) {
     $observations = array_filter($observations, function ($o) use ($statusFilter) {
-        return ($o['status'] ?? '') === $statusFilter;
+        return BioUtils::displayStatus($o, 'Unknown') === $statusFilter;
     });
 }
 if ($search) {
@@ -44,7 +45,7 @@ $observations = array_slice(array_values($observations), ($page - 1) * $perPage,
 $allObs = DataStore::fetchAll('observations');
 $statusCounts = [];
 foreach ($allObs as $o) {
-    $s = $o['status'] ?? 'Unknown';
+    $s = BioUtils::displayStatus($o, 'Unknown');
     $statusCounts[$s] = ($statusCounts[$s] ?? 0) + 1;
 }
 ?>
@@ -137,10 +138,10 @@ foreach ($allObs as $o) {
                                 </td>
                                 <td class="px-4 py-3">
                                     <?php
-                                    $status = $obs['status'] ?? 'Pending';
+                                    $status = BioUtils::displayStatus($obs, 'Pending');
                                     $colors = [
-                                        'Research Grade' => 'bg-emerald-500/10 text-emerald-400',
-                                        '研究用' => 'bg-emerald-500/10 text-emerald-400',
+                                        '研究利用可' => 'bg-emerald-500/10 text-emerald-400',
+                                        '種レベル研究用' => 'bg-teal-500/10 text-teal-300',
                                         '要同定' => 'bg-yellow-500/10 text-yellow-400',
                                         '未同定' => 'bg-slate-500/10 text-slate-400',
                                         'Needs ID' => 'bg-yellow-500/10 text-yellow-400',

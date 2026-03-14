@@ -18,6 +18,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Auth.php';
+require_once __DIR__ . '/../../libs/BioUtils.php';
 
 Auth::init();
 
@@ -74,8 +75,8 @@ foreach ($userObs as $obs) {
     }
 }
 
-// Research Grade count
-$rgCount = count(array_filter($userObs, fn($o) => ($o['status'] ?? '') === 'Research Grade'));
+// Research-usable count
+$rgCount = count(array_filter($userObs, fn($o) => BioUtils::isResearchGradeObservation($o)));
 
 // Build Wrapped-style slides
 $slides = [];

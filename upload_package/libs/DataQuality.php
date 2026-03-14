@@ -12,6 +12,8 @@
  * Grade D: Incomplete (写真なし AND 位置なし)
  */
 
+require_once __DIR__ . '/BioUtils.php';
+
 class DataQuality
 {
     const GRADE_A = 'A';
@@ -22,14 +24,14 @@ class DataQuality
     /** Grade definitions: label, icon, color, description */
     const GRADES = [
         'A' => [
-            'label'       => '研究用',
+            'label'       => '研究利用可',
             'icon'        => 'shield-check',
             'emoji'       => '🟢',
             'color'       => 'text-green-600',
             'bg'          => 'bg-green-50',
             'border'      => 'border-green-200',
             'bar_color'   => 'bg-green-500',
-            'description' => 'コミュニティが検証済み。研究・統計に利用可能。',
+            'description' => 'コミュニティが検証済み。科・属・種レベルで研究・統計に利用可能。',
         ],
         'B' => [
             'label'       => '要同定',
@@ -89,8 +91,7 @@ class DataQuality
         $identifications = $obs['identifications'] ?? [];
         $status = $obs['status'] ?? '';
 
-        // Grade A: Research Grade — status is '研究用' or 'Research Grade'
-        if (in_array($status, ['研究用', 'Research Grade'], true)) {
+        if (BioUtils::isResearchGradeLike($status) || BioUtils::isResearchGradeLike($obs['quality_grade'] ?? '')) {
             return self::GRADE_A;
         }
 

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../../libs/Auth.php';
 require_once __DIR__ . '/../../../libs/DataStore.php';
+require_once __DIR__ . '/../../../libs/BioUtils.php';
 
 Auth::init();
 if (!Auth::hasRole('Analyst')) {
@@ -26,7 +27,9 @@ if (!$obs) {
 }
 
 // Update fields
-$obs['status'] = 'Research Grade'; // Verified!
+$obs['status'] = '種レベル研究用';
+$obs['quality_grade'] = 'Research Grade';
+$obs['quality_detail'] = 'species_supported';
 $obs['verified_by'] = Auth::user()['id'] ?? 'admin';
 $obs['verified_at'] = date('Y-m-d H:i:s');
 

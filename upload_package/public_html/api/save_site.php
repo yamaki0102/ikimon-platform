@@ -1,21 +1,14 @@
 <?php
 
-/**
- * API: Save/Create a site boundary
- * 
- * POST /api/save_site.php
- * Body: JSON { site_id, name, description, address, geojson }
- * 
- * Creates data/sites/{site_id}/boundary.geojson
- */
-
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/CSRF.php';
+require_once __DIR__ . '/../../libs/SiteManager.php';
+require_once __DIR__ . '/../../libs/CorporateAccess.php';
+require_once __DIR__ . '/../../libs/CorporateManager.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-// Auth check
 Auth::init();
 $user = Auth::user();
 if (!$user) {
@@ -24,105 +17,137 @@ if (!$user) {
     exit;
 }
 
-// Only accept POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'POST only'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
-// Parse input
+CSRF::validateRequest();
+
 $input = json_decode(file_get_contents('php://input'), true);
-if (!$input) {
+if (!is_array($input)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Invalid JSON'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
-$siteId      = preg_replace('/[^a-zA-Z0-9_-]/', '', $input['site_id'] ?? '');
-$name        = trim($input['name'] ?? '');
-$description = trim($input['description'] ?? '');
-$address     = trim($input['address'] ?? '');
-$geometry    = $input['geometry'] ?? null;
+$siteId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($input['site_id'] ?? ''));
+$name = trim((string)($input['name'] ?? ''));
+$description = trim((string)($input['description'] ?? ''));
+$address = trim((string)($input['address'] ?? ''));
+$geometry = $input['geometry'] ?? null;
+$ownerOrgId = trim((string)($input['owner_org_id'] ?? ''));
 
-// Validation
-if (!$siteId || strlen($siteId) < 2 || strlen($siteId) > 64) {
+if ($siteId === '' || strlen($siteId) < 2 || strlen($siteId) > 64) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'site_id は2〜64文字の英数字で指定してください'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
-
-if (!$name) {
+if ($name === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'サイト名を入力してください'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
-
-if (!$geometry || !isset($geometry['type']) || !isset($geometry['coordinates'])) {
+if (!$geometry || !isset($geometry['type'], $geometry['coordinates'])) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'エリアを地図上で描画してください'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
-
-// Validate geometry type (Polygon or MultiPolygon)
-if (!in_array($geometry['type'], ['Polygon', 'MultiPolygon'])) {
+if (!in_array((string)$geometry['type'], ['Polygon', 'MultiPolygon'], true)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'ジオメトリタイプはPolygonまたはMultiPolygonのみです'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
-// Calculate center
+$existingSite = SiteManager::load($siteId);
+$isUpdate = $existingSite !== null;
+
+if ($isUpdate) {
+    if (!CorporateAccess::canEditSite($siteId, $user)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'この拠点を編集する権限がありません'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+        exit;
+    }
+    $ownerOrgId = trim((string)($existingSite['owner_org_id'] ?? $ownerOrgId));
+} else {
+    $manageable = CorporateAccess::getManageableCorporations($user);
+    if (empty($manageable)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'サイトを作成できる団体ワークスペースがありません'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+        exit;
+    }
+    if ($ownerOrgId === '' && count($manageable) === 1) {
+        $ownerOrgId = (string)($manageable[0]['id'] ?? '');
+    }
+    if ($ownerOrgId === '' || !CorporateAccess::canEditCorporation($ownerOrgId, $user)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => '保存先の団体ワークスペースを選択してください'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+        exit;
+    }
+}
+
+$corporation = $ownerOrgId !== '' ? CorporateManager::get($ownerOrgId) : null;
+if (!$corporation) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => '団体ワークスペースが見つかりません'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+    exit;
+}
+
 $allPoints = [];
 if ($geometry['type'] === 'Polygon') {
-    $allPoints = $geometry['coordinates'][0];
-} elseif ($geometry['type'] === 'MultiPolygon') {
+    $allPoints = $geometry['coordinates'][0] ?? [];
+} else {
     foreach ($geometry['coordinates'] as $polygon) {
-        $allPoints = array_merge($allPoints, $polygon[0]);
+        $allPoints = array_merge($allPoints, $polygon[0] ?? []);
     }
 }
 $center = [0, 0];
 if (!empty($allPoints)) {
-    $sumLng = $sumLat = 0;
-    foreach ($allPoints as $p) {
-        $sumLng += $p[0];
-        $sumLat += $p[1];
+    $sumLng = 0;
+    $sumLat = 0;
+    foreach ($allPoints as $point) {
+        $sumLng += (float)($point[0] ?? 0);
+        $sumLat += (float)($point[1] ?? 0);
     }
-    $n = count($allPoints);
-    $center = [round($sumLng / $n, 6), round($sumLat / $n, 6)];
+    $count = count($allPoints);
+    $center = [round($sumLng / $count, 6), round($sumLat / $count, 6)];
 }
 
-// Build GeoJSON FeatureCollection
+$createdAt = (string)($existingSite['created'] ?? date('Y-m-d'));
+$createdBy = (string)($existingSite['created_by'] ?? ($user['id'] ?? $user['username'] ?? 'unknown'));
 $geojson = [
     'type' => 'FeatureCollection',
-    'features' => [
-        [
-            'type' => 'Feature',
-            'properties' => [
-                'site_id'     => $siteId,
-                'name'        => $name,
-                'description' => $description,
-                'address'     => $address,
-                'center'      => $center,
-                'status'      => 'active',
-                'created_by'  => $user['id'] ?? $user['username'] ?? 'unknown',
-                'created'     => date('Y-m-d'),
-                'updated'     => date('Y-m-d'),
-            ],
-            'geometry' => $geometry,
-        ]
-    ]
+    'features' => [[
+        'type' => 'Feature',
+        'properties' => [
+            'site_id' => $siteId,
+            'id' => $siteId,
+            'name' => $name,
+            'description' => $description,
+            'address' => $address,
+            'owner' => (string)($corporation['name'] ?? ''),
+            'owner_org_id' => $ownerOrgId,
+            'center' => $center,
+            'status' => (string)($existingSite['status'] ?? 'active'),
+            'created_by' => $createdBy,
+            'created' => $createdAt,
+            'updated' => date('Y-m-d'),
+        ],
+        'geometry' => $geometry,
+    ]],
 ];
 
-// Save to disk
 $siteDir = DATA_DIR . '/sites/' . $siteId;
 if (!is_dir($siteDir)) {
     mkdir($siteDir, 0755, true);
 }
 
-$filePath = $siteDir . '/boundary.geojson';
-$isUpdate = file_exists($filePath);
-
-$result = file_put_contents($filePath, json_encode($geojson, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG));
+$result = file_put_contents(
+    $siteDir . '/boundary.geojson',
+    json_encode($geojson, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+    LOCK_EX
+);
 
 if ($result === false) {
     http_response_code(500);
@@ -135,7 +160,8 @@ echo json_encode([
     'message' => $isUpdate ? 'サイトを更新しました' : 'サイトを作成しました',
     'data' => [
         'site_id' => $siteId,
-        'name'    => $name,
-        'center'  => $center,
-    ]
+        'name' => $name,
+        'center' => $center,
+        'owner_org_id' => $ownerOrgId,
+    ],
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

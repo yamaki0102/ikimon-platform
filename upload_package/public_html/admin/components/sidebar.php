@@ -4,7 +4,7 @@
  * Admin Sidebar Component
  * 
  * Usage: 
- *   $adminPage = 'index'; // 'index', 'observations', 'moderation', 'verification', 'users', 'corporate'
+ *   $adminPage = 'index'; // 'index', 'applications', 'observations', 'moderation', 'verification', 'users', 'surveyors', 'corporate'
  *   include __DIR__ . '/components/sidebar.php';
  *
  * Required: $currentUser (from Auth::user()) and $pendingFlags (int, optional)
@@ -23,11 +23,13 @@ $currentUser = $currentUser ?? Auth::user();
         <?php
         $navItems = [
             ['id' => 'index',        'href' => 'index.php',        'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
+            ['id' => 'applications', 'href' => 'business_applications.php', 'icon' => 'inbox',  'label' => '申込み管理'],
             ['id' => 'observations', 'href' => 'observations.php', 'icon' => 'eye',              'label' => '観察管理'],
             ['id' => 'moderation',   'href' => 'moderation.php',   'icon' => 'shield-alert',     'label' => 'モデレーション', 'badge' => $pendingFlags],
             ['id' => 'verification', 'href' => 'verification.php', 'icon' => 'check-circle-2',   'label' => '検証キュー'],
             ['id' => 'users',        'href' => 'users.php',        'icon' => 'users',            'label' => 'ユーザー管理'],
-            ['id' => 'corporate',    'href' => 'corporate.php',    'icon' => 'building-2',       'label' => '法人サイト'],
+            ['id' => 'surveyors',    'href' => 'surveyors.php',    'icon' => 'badge-check',      'label' => '調査員管理'],
+            ['id' => 'corporate',    'href' => 'corporate.php',    'icon' => 'building-2',       'label' => '契約団体'],
         ];
         foreach ($navItems as $item):
             $isActive = ($adminPage === $item['id']);

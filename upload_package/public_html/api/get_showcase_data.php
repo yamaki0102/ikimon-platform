@@ -19,6 +19,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/SiteManager.php';
 require_once __DIR__ . '/../../libs/RedListManager.php';
+require_once __DIR__ . '/../../libs/BioUtils.php';
 
 $siteId = $_GET['site_id'] ?? '';
 if (!$siteId) {
@@ -81,9 +82,8 @@ foreach ($siteObs as $obs) {
     // Taxonomy breakdown
     $taxonomyBreakdown[$taxonGroupJa] = ($taxonomyBreakdown[$taxonGroupJa] ?? 0) + 1;
 
-    // Research Grade
-    $status = $obs['quality_grade'] ?? ($obs['status'] ?? '');
-    if (in_array($status, ['Research Grade', '研究用'])) {
+    // Research-usable
+    if (BioUtils::isResearchGradeObservation($obs)) {
         $researchGradeCount++;
     }
 

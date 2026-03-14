@@ -4,6 +4,8 @@ require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/UserStore.php';
 require_once __DIR__ . '/../../libs/Moderation.php';
+require_once __DIR__ . '/../../libs/BioUtils.php';
+require_once __DIR__ . '/../../libs/BusinessApplicationManager.php';
 Auth::init();
 
 Auth::requireRole('Analyst');
@@ -15,10 +17,10 @@ usort($observations, function ($a, $b) {
 });
 $totalObservations = count($observations);
 $pendingCount = count(array_filter($observations, function ($o) {
-    return ($o['status'] ?? '') === 'Needs ID';
+    return BioUtils::displayStatus($o, '') === '要同定';
 }));
 $rgCount = count(array_filter($observations, function ($o) {
-    return in_array($o['status'] ?? '', ['Research Grade', '研究用'], true);
+    return BioUtils::isResearchGradeObservation($o);
 }));
 $thisMonthCount = count(array_filter($observations, function ($o) {
     return date('Y-m', strtotime($o['observed_at'] ?? '2000-01-01')) === date('Y-m');
@@ -36,6 +38,8 @@ $specialistCount = count(array_filter($users, function ($u) {
 $modStats = Moderation::getStats();
 $pendingFlags = $modStats['active_flags'] ?? 0;
 $bannedCount = $modStats['active_bans'] ?? 0;
+$bizStats = BusinessApplicationManager::stats();
+$bizPending = ($bizStats['statuses']['new'] ?? 0) + ($bizStats['statuses']['reviewing'] ?? 0);
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -60,7 +64,7 @@ $bannedCount = $modStats['active_bans'] ?? 0;
         </header>
 
         <!-- KPI Cards Row 1 -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <p class="text-slate-400 text-xs font-bold uppercase mb-2">総観察数</p>
                 <p class="text-3xl font-black text-emerald-400"><?php echo number_format($totalObservations); ?></p>
@@ -70,13 +74,18 @@ $bannedCount = $modStats['active_bans'] ?? 0;
                 <p class="text-3xl font-black text-cyan-400"><?php echo number_format($thisMonthCount); ?></p>
             </div>
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                <p class="text-slate-400 text-xs font-bold uppercase mb-2">Research Grade</p>
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">研究利用可以上</p>
                 <p class="text-3xl font-black text-green-400"><?php echo number_format($rgCount); ?></p>
                 <p class="text-xs text-slate-500 mt-1"><?php echo $totalObservations > 0 ? round($rgCount / $totalObservations * 100) : 0; ?>%</p>
             </div>
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <p class="text-slate-400 text-xs font-bold uppercase mb-2">同定待ち</p>
                 <p class="text-3xl font-black <?php echo $pendingCount > 10 ? 'text-yellow-400' : 'text-white'; ?>"><?php echo $pendingCount; ?></p>
+            </div>
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">B2B新規受付</p>
+                <p class="text-3xl font-black <?php echo $bizPending > 0 ? 'text-emerald-400' : 'text-slate-500'; ?>"><?php echo $bizPending; ?></p>
+                <a href="business_applications.php" class="text-xs text-emerald-400 hover:underline mt-1 inline-block">確認 →</a>
             </div>
         </div>
         <!-- KPI Cards Row 2 -->
@@ -123,15 +132,16 @@ $bannedCount = $modStats['active_bans'] ?? 0;
                         </tr>
                     <?php else: ?>
                         <?php foreach (array_slice($recentObservations, 0, 6) as $obs): ?>
+                            <?php $displayStatus = BioUtils::displayStatus($obs, 'Pending'); ?>
                             <tr>
                                 <td class="px-6 py-4 text-slate-400"><?php echo htmlspecialchars($obs['observed_at'] ?? '-'); ?></td>
                                 <td class="px-6 py-4 font-bold"><?php echo htmlspecialchars($obs['user_name'] ?? 'Unknown'); ?></td>
                                 <td class="px-6 py-4">Uploaded <span class="text-slate-300"><?php echo htmlspecialchars($obs['taxon']['name'] ?? 'Unknown'); ?></span></td>
                                 <td class="px-6 py-4">
-                                    <?php if (($obs['status'] ?? '') === 'Research Grade'): ?>
-                                        <span class="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold">Research</span>
+                                    <?php if (BioUtils::isResearchGradeObservation($obs)): ?>
+                                        <span class="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold"><?php echo htmlspecialchars($displayStatus); ?></span>
                                     <?php else: ?>
-                                        <span class="px-2 py-1 rounded bg-yellow-500/10 text-yellow-400 text-xs font-bold"><?php echo htmlspecialchars($obs['status'] ?? 'Pending'); ?></span>
+                                        <span class="px-2 py-1 rounded bg-yellow-500/10 text-yellow-400 text-xs font-bold"><?php echo htmlspecialchars($displayStatus); ?></span>
                                     <?php endif; ?>
                                 </td>
                             </tr>

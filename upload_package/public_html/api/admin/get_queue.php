@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../../libs/Auth.php';
 require_once __DIR__ . '/../../../libs/DataStore.php';
+require_once __DIR__ . '/../../../libs/BioUtils.php';
 
 Auth::init();
 if (!Auth::hasRole('Analyst')) {
@@ -9,14 +10,13 @@ if (!Auth::hasRole('Analyst')) {
     exit;
 }
 
-// Fetch pending observations
-// In a real DB, we would use WHERE status != 'Research Grade' LIMIT 20
-// With JSON store, we fetch all and filter.
+// Fetch pending observations.
+// With JSON store, fetch all and exclude already research-usable records.
 $all = DataStore::fetchAll('observations');
 $pending = [];
 
 foreach ($all as $obs) {
-    if (($obs['status'] ?? '') !== 'Research Grade') {
+    if (!BioUtils::isResearchGradeObservation($obs)) {
         // Add minimal data needed for verification
         // Fix relative path for Admin view (which is one level deeper)
         $img = $obs['photos'][0] ?? '';
