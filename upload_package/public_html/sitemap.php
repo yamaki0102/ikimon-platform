@@ -60,7 +60,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         <priority>0.6</priority>
     </url>
     <url>
-        <loc><?php echo $baseUrl; ?>/pricing.php</loc>
+        <loc><?php echo $baseUrl; ?>/for-business/</loc>
         <changefreq>monthly</changefreq>
         <priority>0.6</priority>
     </url>
@@ -90,7 +90,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         <priority>0.5</priority>
     </url>
     <url>
-        <loc><?php echo $baseUrl; ?>/showcase.php</loc>
+        <loc><?php echo $baseUrl; ?>/for-business/</loc>
         <changefreq>weekly</changefreq>
         <priority>0.6</priority>
     </url>

@@ -28,6 +28,7 @@
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/CSRF.php';
+require_once __DIR__ . '/../../libs/Taxonomy.php';
 
 // ── Rate Limiting (Simple per-session) ──
 session_start();
@@ -164,6 +165,15 @@ try {
 } catch (\Exception $e) {
     // Non-fatal: return original suggestions
     error_log("[ai_suggest] Omoikane crossValidate failed: " . substr($e->getMessage(), 0, 80));
+}
+
+foreach ($enrichedSuggestions as $index => $suggestion) {
+    $resolved = Taxonomy::resolveSuggestion($suggestion);
+    if ($resolved === null) {
+        continue;
+    }
+    $enrichedSuggestions[$index]['resolved_taxon'] = Taxonomy::toObservationTaxon($resolved);
+    $enrichedSuggestions[$index]['taxonomy_version'] = $resolved['taxonomy_version'] ?? null;
 }
 
 echo json_encode([

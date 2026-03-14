@@ -30,9 +30,10 @@ if (!$currentUser) {
 
         body {
             overflow: auto;
-            /* Allow mobile scrolling */
             height: 100vh;
-            background-color: #050505;
+            background:
+                radial-gradient(circle at top left, rgba(16, 185, 129, 0.08), transparent 28%),
+                linear-gradient(180deg, #f8fcfa 0%, #f4f7f5 100%);
         }
 
         @media (min-width: 768px) {
@@ -64,16 +65,16 @@ if (!$currentUser) {
         }
 
         .scrollbar-thin::-webkit-scrollbar-track {
-            background: #111;
+            background: rgba(15, 23, 42, 0.04);
         }
 
         .scrollbar-thin::-webkit-scrollbar-thumb {
-            background: #333;
+            background: rgba(100, 116, 139, 0.32);
             border-radius: 2px;
         }
 
         .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-            background: #555;
+            background: rgba(100, 116, 139, 0.5);
         }
 
         .item-selected {
@@ -82,16 +83,108 @@ if (!$currentUser) {
         }
 
         .tree-node:hover {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(16, 185, 129, 0.08);
         }
 
         .shortcut-badge {
             font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
             font-size: var(--text-xs);
             padding: 1px 5px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 3px;
+            color: var(--color-text-muted);
+        }
+
+        .workbench-topbar {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--color-border);
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+        }
+
+        .workbench-panel {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        .workbench-toolbar {
+            background: rgba(255, 255, 255, 0.82);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .workbench-stage {
+            background:
+                linear-gradient(180deg, rgba(240, 253, 250, 0.92), rgba(255, 255, 255, 0.92));
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+        }
+
+        .workbench-photo-button {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            color: var(--color-text-muted);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        }
+
+        .workbench-photo-button:hover {
+            color: var(--color-text);
+            background: rgba(255, 255, 255, 0.98);
+        }
+
+        .workbench-hit-button {
+            min-width: 44px;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+            touch-action: manipulation;
+        }
+
+        .workbench-hit-button i,
+        .workbench-hit-button svg,
+        .lightbox-nav-zone i,
+        .lightbox-nav-zone svg {
+            pointer-events: none;
+        }
+
+        .workbench-meta-card {
+            background: rgba(248, 250, 249, 0.92);
+            border: 1px solid rgba(15, 23, 42, 0.06);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+        }
+
+        .lightbox-backdrop {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .lightbox-nav-zone {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: min(22%, 160px);
+            display: flex;
+            align-items: center;
+            z-index: 3;
+            touch-action: manipulation;
+        }
+
+        .lightbox-nav-zone--left {
+            left: 0;
+            justify-content: flex-start;
+            padding-left: 12px;
+        }
+
+        .lightbox-nav-zone--right {
+            right: 0;
+            justify-content: flex-end;
+            padding-right: 12px;
         }
 
         /* Mobile filter drawer */
@@ -101,7 +194,7 @@ if (!$currentUser) {
                 inset: 0;
                 z-index: 45;
                 padding-top: 44px;
-                background: #0a0d14;
+                background: rgba(248, 250, 249, 0.98);
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
             }
@@ -112,18 +205,18 @@ if (!$currentUser) {
 <body x-data="workbench()" @keydown.window="handleKeydown($event)">
 
     <!-- Top Bar (Cockpit Toolbar) -->
-    <header class="h-11 bg-[#0a0d14] border-b border-white/5 flex items-center justify-between px-4 z-20 select-none">
+    <header class="workbench-topbar h-12 flex items-center justify-between px-4 z-20 select-none">
         <div class="flex items-center gap-3">
-            <a href="id_center.php" class="text-xs text-gray-500 hover:text-white transition font-bold flex items-center gap-1.5">
+            <a href="id_center.php" class="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition font-bold flex items-center gap-1.5">
                 <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
             </a>
-            <h1 class="text-xs font-black text-gray-300 flex items-center gap-2 tracking-tight">
+            <h1 class="text-xs font-black text-[var(--color-text)] flex items-center gap-2 tracking-tight">
                 <i data-lucide="layout-dashboard" class="text-[var(--color-primary)] w-3.5 h-3.5"></i>
                 ID Workbench
             </h1>
-            <div class="h-4 w-px bg-white/10"></div>
-            <div class="text-token-xs font-mono text-gray-600">
-                <span x-text="filteredItems.length" class="text-white font-bold"></span>件
+            <div class="h-4 w-px bg-black/10"></div>
+            <div class="text-token-xs font-mono text-[var(--color-text-muted)]">
+                <span x-text="filteredItems.length" class="text-[var(--color-text)] font-bold"></span>件
                 <span x-show="selectedIds.length > 0" class="text-[var(--color-primary)] ml-1">
                     | <span x-text="selectedIds.length" class="font-bold"></span>選択中
                 </span>
@@ -131,7 +224,7 @@ if (!$currentUser) {
         </div>
         <div class="flex items-center gap-2">
             <!-- Keyboard shortcuts legend (XL+) -->
-            <div class="hidden xl:flex items-center gap-2 text-token-xs text-gray-600 mr-2">
+            <div class="hidden xl:flex items-center gap-2 text-token-xs text-[var(--color-text-muted)] mr-2">
                 <span class="shortcut-badge">N</span>次
                 <span class="shortcut-badge">P</span>前
                 <span class="shortcut-badge">/</span>検索
@@ -144,19 +237,19 @@ if (!$currentUser) {
             <div class="relative">
                 <button @click="showHelp = !showHelp" title="使い方・ショートカット"
                     class="p-1.5 rounded-md transition text-token-xs font-bold"
-                    :class="showHelp ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-500 hover:text-white hover:bg-white/10'">
+                    :class="showHelp ? 'bg-[var(--color-primary)]/15 text-[var(--color-primary-dark)]' : 'bg-white/70 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-white'">
                     <i data-lucide="circle-help" class="w-3.5 h-3.5"></i>
                 </button>
                 <!-- Help Popup -->
                 <div x-show="showHelp" x-cloak @click.outside="showHelp = false"
-                    class="absolute right-0 top-8 w-64 bg-[#141820] border border-white/10 rounded-xl shadow-2xl p-4 z-50 text-token-xs text-gray-400 space-y-3">
-                    <p class="text-white font-bold text-xs flex items-center gap-1.5">
+                    class="absolute right-0 top-8 w-64 bg-white/95 border border-black/5 rounded-2xl shadow-2xl p-4 z-50 text-token-xs text-[var(--color-text-muted)] space-y-3">
+                    <p class="text-[var(--color-text)] font-bold text-xs flex items-center gap-1.5">
                         <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-[var(--color-primary)]"></i>
                         ID Workbench とは？
                     </p>
-                    <p class="text-gray-400 leading-relaxed">未同定・要確認の観察をまとめて同定できる作業台です。左のフィルタで絞り込み、写真をクリックして名前を提案しましょう。</p>
-                    <hr class="border-white/10">
-                    <p class="text-gray-300 font-bold">キーボードショートカット</p>
+                    <p class="leading-relaxed">未同定・要確認の観察をまとめて見て、その場で大きな写真を確認しながら同定を進める作業台です。</p>
+                    <hr class="border-black/5">
+                    <p class="text-[var(--color-text)] font-bold">キーボードショートカット</p>
                     <div class="grid grid-cols-2 gap-x-3 gap-y-1 font-mono">
                         <p><span class="shortcut-badge">N</span> 次へ</p>
                         <p><span class="shortcut-badge">P</span> 前へ</p>
@@ -167,7 +260,7 @@ if (!$currentUser) {
                         <p><span class="shortcut-badge">Esc</span> 解除</p>
                         <p><span class="shortcut-badge">Ctrl+A</span> 全選択</p>
                     </div>
-                    <hr class="border-white/10">
+                    <hr class="border-black/5">
                     <div class="grid grid-cols-2 gap-x-3 gap-y-1 font-mono">
                         <p><span class="shortcut-badge">Click</span> 選択</p>
                         <p><span class="shortcut-badge">Dbl</span> 同定</p>
@@ -180,30 +273,30 @@ if (!$currentUser) {
                 class="md:hidden flex items-center gap-1 px-2 py-1 rounded-md text-token-xs font-bold transition"
                 :class="showMobileFilter || taxonFilter !== 'all' || statusFilter !== 'all' || filterText
                     ? 'bg-[var(--color-primary)]/20 text-[var(--color-primary)]'
-                    : 'bg-white/5 text-gray-400 hover:text-white'">
+                    : 'bg-white/70 text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
                 <i data-lucide="filter" class="w-3 h-3"></i>
                 <span x-text="taxonFilter !== 'all' || statusFilter !== 'all' || filterText ? '絞込中' : 'フィルタ'"></span>
             </button>
             <!-- Grid Size (desktop only) -->
-            <div class="hidden md:flex items-center gap-1 bg-white/5 rounded-md p-0.5">
-                <button @click="gridCols = Math.max(1, gridCols - 1)" class="p-1 text-gray-500 hover:text-white transition"><i data-lucide="minus" class="w-3 h-3"></i></button>
-                <span class="text-token-xs font-mono text-gray-400 w-4 text-center" x-text="gridCols"></span>
-                <button @click="gridCols = Math.min(5, gridCols + 1)" class="p-1 text-gray-500 hover:text-white transition"><i data-lucide="plus" class="w-3 h-3"></i></button>
+            <div class="hidden md:flex items-center gap-1 bg-white/80 rounded-full p-0.5 border border-black/5 shadow-sm">
+                <button @click="gridCols = Math.max(1, gridCols - 1)" class="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition"><i data-lucide="minus" class="w-3 h-3"></i></button>
+                <span class="text-token-xs font-mono text-[var(--color-text-muted)] w-4 text-center" x-text="gridCols"></span>
+                <button @click="gridCols = Math.min(5, gridCols + 1)" class="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition"><i data-lucide="plus" class="w-3 h-3"></i></button>
             </div>
         </div>
     </header>
 
     <!-- Welcome Banner (first-visit only) -->
     <div x-show="showWelcome" x-cloak
-        class="relative bg-gradient-to-r from-[var(--color-primary)]/20 to-blue-900/20 border-b border-[var(--color-primary)]/20 px-4 py-2.5 flex items-center gap-4 shrink-0">
+        class="relative bg-gradient-to-r from-[var(--color-primary)]/14 via-white to-[var(--color-secondary)]/10 border-b border-[var(--color-primary)]/20 px-4 py-2.5 flex items-center gap-4 shrink-0">
         <div class="flex items-center gap-3 flex-1 min-w-0">
             <span class="text-lg shrink-0">🔬</span>
             <div class="min-w-0">
-                <p class="text-xs font-black text-white">ID Workbench — 同定作業台</p>
-                <p class="text-token-xs text-gray-400 leading-relaxed hidden sm:block">未同定・要確認の観察を効率よく同定できるページです。
-                    <span class="text-gray-300">① 左でフィルタ</span> →
-                    <span class="text-gray-300">② 写真をクリックで選択</span> →
-                    <span class="text-gray-300">③「同定する」で名前を提案</span>
+                <p class="text-xs font-black text-[var(--color-text)]">ID Workbench — 同定作業台</p>
+                <p class="text-token-xs text-[var(--color-text-muted)] leading-relaxed hidden sm:block">iNaturalist の Identify のように、一覧の流れを止めずに写真を大きく見ながら同定できるようにしています。
+                    <span class="text-[var(--color-text)]">① 左で絞る</span> →
+                    <span class="text-[var(--color-text)]">② 真ん中で選ぶ</span> →
+                    <span class="text-[var(--color-text)]">③ 右や下で大きく見て同定</span>
                 </p>
             </div>
         </div>
@@ -213,7 +306,7 @@ if (!$currentUser) {
                 詳しく見る
             </button>
             <button @click="showWelcome = false; localStorage.setItem('ikimon_wb_welcomed','1')"
-                class="p-1 rounded-full text-gray-500 hover:text-white hover:bg-white/10 transition" title="閉じる">
+                class="p-1 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-white/80 transition" title="閉じる">
                 <i data-lucide="x" class="w-3.5 h-3.5"></i>
             </button>
         </div>
@@ -224,24 +317,24 @@ if (!$currentUser) {
 
         <!-- LEFT PANEL: Taxonomy Tree Filter -->
         <aside :class="showMobileFilter ? 'mobile-filter-drawer flex flex-col' : 'hidden md:flex md:flex-col'"
-            class="w-full md:w-56 lg:w-64 bg-[#0a0d14] md:border-r border-white/5 shrink-0 md:h-full">
+            class="workbench-panel w-full md:w-60 lg:w-72 md:border-r border-black/5 shrink-0 md:h-full">
             <!-- Mobile drawer header -->
-            <div class="md:hidden flex items-center justify-between px-3 py-2 border-b border-white/5 shrink-0">
-                <span class="text-xs font-black text-gray-300">フィルタ</span>
-                <button @click="showMobileFilter = false" class="p-1.5 hover:bg-white/10 rounded-full transition">
-                    <i data-lucide="x" class="w-4 h-4 text-gray-400"></i>
+            <div class="md:hidden flex items-center justify-between px-3 py-2 border-b border-black/5 shrink-0">
+                <span class="text-xs font-black text-[var(--color-text)]">フィルタ</span>
+                <button @click="showMobileFilter = false" class="p-1.5 hover:bg-black/5 rounded-full transition">
+                    <i data-lucide="x" class="w-4 h-4 text-[var(--color-text-muted)]"></i>
                 </button>
             </div>
             <!-- Search -->
-            <div class="p-3 border-b border-white/5">
+            <div class="p-3 border-b border-black/5">
                 <div class="flex items-center gap-2">
                     <div class="relative flex-1">
-                        <i data-lucide="search" class="absolute left-2 top-[7px] w-3 h-3 text-gray-600"></i>
+                        <i data-lucide="search" class="absolute left-2 top-[7px] w-3 h-3 text-[var(--color-text-faint)]"></i>
                         <input type="text" x-model="filterText" x-ref="filterInput"
                             placeholder="絞り込み..."
-                            class="w-full bg-white/5 border border-white/10 rounded-md pl-7 pr-3 py-1 text-token-xs focus:outline-none focus:border-[var(--color-primary)] transition placeholder-gray-600">
+                            class="w-full bg-white border border-black/5 rounded-xl pl-7 pr-3 py-2 text-token-xs focus:outline-none focus:border-[var(--color-primary)] transition placeholder-[var(--color-text-faint)]">
                     </div>
-                    <button @click="$dispatch('open-navigator')" class="p-1.5 rounded-md bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 transition shrink-0" title="AIナビゲーターで絞り込む">
+                    <button @click="$dispatch('open-navigator')" class="p-2 rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 transition shrink-0" title="AIナビゲーターで絞り込む">
                         <i data-lucide="compass" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
@@ -249,14 +342,14 @@ if (!$currentUser) {
 
             <!-- Taxonomy Tree -->
             <div class="flex-1 overflow-y-auto scrollbar-thin p-2">
-                <h3 class="text-token-xs font-bold text-gray-600 uppercase tracking-widest px-2 mb-2">分類群フィルタ</h3>
+                <h3 class="text-token-xs font-bold text-[var(--color-text-faint)] uppercase tracking-widest px-2 mb-2">分類群フィルタ</h3>
 
                 <!-- All -->
                 <button @click="taxonFilter = 'all'"
                     class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
-                    :class="taxonFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'">
+                        :class="taxonFilter === 'all' ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
                     <span class="flex items-center gap-2">🌍 すべて</span>
-                    <span class="text-token-xs font-mono text-gray-600" x-text="allItems.length"></span>
+                    <span class="text-token-xs font-mono text-[var(--color-text-faint)]" x-text="allItems.length"></span>
                 </button>
 
                 <div class="mt-2 space-y-px">
@@ -265,74 +358,86 @@ if (!$currentUser) {
                             <!-- Kingdom/Group header -->
                             <button @click="setTaxonFilter(group.id)"
                                 class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
-                                :class="taxonFilter === group.id ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]' : 'text-gray-400 hover:text-gray-200'">
+                                :class="taxonFilter === group.id ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
                                 <span class="flex items-center gap-2">
                                     <span x-text="group.icon" class="text-xs"></span>
                                     <span x-text="group.label"></span>
                                 </span>
-                                <span class="text-token-xs font-mono" :class="taxonFilter === group.id ? 'text-[var(--color-primary)]' : 'text-gray-600'" x-text="groupCounts[group.id] || 0"></span>
+                                <span class="text-token-xs font-mono" :class="taxonFilter === group.id ? 'text-[var(--color-primary-dark)]' : 'text-[var(--color-text-faint)]'" x-text="groupCounts[group.id] || 0"></span>
                             </button>
                         </div>
                     </template>
                 </div>
 
                 <!-- Status Sections -->
-                <div class="border-t border-white/5 mt-3 pt-3">
-                    <h3 class="text-token-xs font-bold text-gray-600 uppercase tracking-widest px-2 mb-2">ステータス</h3>
+                <div class="border-t border-black/5 mt-3 pt-3">
+                    <h3 class="text-token-xs font-bold text-[var(--color-text-faint)] uppercase tracking-widest px-2 mb-2">ステータス</h3>
                     <button @click="statusFilter = 'unidentified'"
                         class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
-                        :class="statusFilter === 'unidentified' ? 'bg-red-500/10 text-red-400' : 'text-gray-400 hover:text-gray-200'">
+                        :class="statusFilter === 'unidentified' ? 'bg-red-500/10 text-red-500' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
                         <span>🔴 未同定</span>
-                        <span class="text-token-xs font-mono text-gray-600" x-text="statusCounts.unidentified"></span>
+                        <span class="text-token-xs font-mono text-[var(--color-text-faint)]" x-text="statusCounts.unidentified"></span>
                     </button>
                     <button @click="statusFilter = 'suggested'"
                         class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
-                        :class="statusFilter === 'suggested' ? 'bg-purple-500/10 text-purple-400' : 'text-gray-400 hover:text-gray-200'">
+                        :class="statusFilter === 'suggested' ? 'bg-purple-500/10 text-purple-500' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
                         <span>🟣 要確認</span>
-                        <span class="text-token-xs font-mono text-gray-600" x-text="statusCounts.suggested"></span>
+                        <span class="text-token-xs font-mono text-[var(--color-text-faint)]" x-text="statusCounts.suggested"></span>
+                    </button>
+                    <button @click="statusFilter = 'ai-multi'"
+                        class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
+                        :class="statusFilter === 'ai-multi' ? 'bg-amber-500/10 text-amber-700' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
+                        <span>🧭 AI複数候補</span>
+                        <span class="text-token-xs font-mono text-[var(--color-text-faint)]" x-text="statusCounts.aiMulti"></span>
+                    </button>
+                    <button @click="statusFilter = 'ai-genus'"
+                        class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
+                        :class="statusFilter === 'ai-genus' ? 'bg-emerald-500/10 text-emerald-700' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
+                        <span>🌱 属までは近い</span>
+                        <span class="text-token-xs font-mono text-[var(--color-text-faint)]" x-text="statusCounts.aiGenus"></span>
                     </button>
                     <button @click="statusFilter = 'all'"
                         class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between mt-1"
-                        :class="statusFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200'">
+                        :class="statusFilter === 'all' ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
                         <span>⬜ 全ステータス</span>
                     </button>
                     <button @click="statusFilter = 'later'" x-show="laterItems.length > 0"
                         class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
-                        :class="statusFilter === 'later' ? 'bg-blue-500/10 text-blue-400' : 'text-gray-400 hover:text-gray-200'">
+                        :class="statusFilter === 'later' ? 'bg-blue-500/10 text-blue-600' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'">
                         <span>🔖 あとで</span>
-                        <span class="text-token-xs font-mono text-gray-600" x-text="laterItems.length"></span>
+                        <span class="text-token-xs font-mono text-[var(--color-text-faint)]" x-text="laterItems.length"></span>
                     </button>
                     <button @click="statusFilter = 'passed'" x-show="passItems.length > 0"
                         class="tree-node w-full text-left px-2 py-1.5 rounded-md text-token-xs font-bold transition flex items-center justify-between"
-                        :class="statusFilter === 'passed' ? 'bg-white/10 text-gray-300' : 'text-gray-600 hover:text-gray-400'">
+                        :class="statusFilter === 'passed' ? 'bg-slate-500/10 text-slate-700' : 'text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]'">
                         <span>⏭ パス済み</span>
-                        <span class="text-token-xs font-mono text-gray-600" x-text="passItems.length"></span>
+                        <span class="text-token-xs font-mono text-[var(--color-text-faint)]" x-text="passItems.length"></span>
                     </button>
                 </div>
 
                 <!-- Pass/Later Management -->
-                <div x-show="passItems.length > 0 || laterItems.length > 0" class="border-t border-white/5 mt-3 pt-3 px-2 space-y-1">
+                <div x-show="passItems.length > 0 || laterItems.length > 0" class="border-t border-black/5 mt-3 pt-3 px-2 space-y-1">
                     <div x-show="passItems.length > 0" class="flex items-center justify-between">
-                        <span class="text-token-xs text-gray-600">パス済み <span x-text="passItems.length" class="font-bold text-gray-500"></span>件</span>
-                        <button @click="clearAllPass()" class="text-token-xs text-gray-600 hover:text-red-400 transition font-bold">全解除</button>
+                        <span class="text-token-xs text-[var(--color-text-muted)]">パス済み <span x-text="passItems.length" class="font-bold text-[var(--color-text-faint)]"></span>件</span>
+                        <button @click="clearAllPass()" class="text-token-xs text-[var(--color-text-muted)] hover:text-red-500 transition font-bold">全解除</button>
                     </div>
                     <div x-show="laterItems.length > 0" class="flex items-center justify-between">
-                        <span class="text-token-xs text-gray-600">あとで <span x-text="laterItems.length" class="font-bold text-gray-500"></span>件</span>
-                        <button @click="clearAllLater()" class="text-token-xs text-gray-600 hover:text-gray-400 transition font-bold">クリア</button>
+                        <span class="text-token-xs text-[var(--color-text-muted)]">あとで <span x-text="laterItems.length" class="font-bold text-[var(--color-text-faint)]"></span>件</span>
+                        <button @click="clearAllLater()" class="text-token-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition font-bold">クリア</button>
                     </div>
                 </div>
 
                 <!-- Saved Presets -->
-                <div class="border-t border-white/5 mt-3 pt-3" x-show="presets.length > 0">
-                    <h3 class="text-token-xs font-bold text-gray-600 uppercase tracking-widest px-2 mb-2">プリセット</h3>
+                <div class="border-t border-black/5 mt-3 pt-3" x-show="presets.length > 0">
+                    <h3 class="text-token-xs font-bold text-[var(--color-text-faint)] uppercase tracking-widest px-2 mb-2">プリセット</h3>
                     <template x-for="(preset, pi) in presets" :key="pi">
                         <div class="group flex items-center">
                             <button @click="applyPreset(preset)"
-                                class="tree-node flex-1 text-left px-2 py-1 rounded-md text-token-xs font-bold text-gray-400 hover:text-white transition truncate">
+                                class="tree-node flex-1 text-left px-2 py-1 rounded-md text-token-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition truncate">
                                 <i data-lucide="tag" class="w-2.5 h-2.5 inline opacity-40"></i>
                                 <span x-text="preset.name"></span>
                             </button>
-                            <button @click="removePreset(pi)" class="p-1 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition">
+                            <button @click="removePreset(pi)" class="p-1 text-[var(--color-text-faint)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
                                 <i data-lucide="x" class="w-3 h-3"></i>
                             </button>
                         </div>
@@ -341,10 +446,10 @@ if (!$currentUser) {
             </div>
 
             <!-- Save Preset Button / Inline Form -->
-            <div class="p-2 border-t border-white/5">
+            <div class="p-2 border-t border-black/5">
                 <template x-if="!showPresetForm">
                     <button @click="showPresetForm = true; $nextTick(() => $refs.presetInput && $refs.presetInput.focus())"
-                        class="w-full py-1.5 rounded-md text-token-xs font-bold bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition flex items-center justify-center gap-1.5">
+                        class="w-full py-2 rounded-xl text-token-xs font-bold bg-white border border-black/5 text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-text)] transition flex items-center justify-center gap-1.5">
                         <i data-lucide="plus" class="w-3 h-3"></i> プリセット保存
                     </button>
                 </template>
@@ -354,13 +459,13 @@ if (!$currentUser) {
                             @keydown.escape.prevent="showPresetForm = false; presetNameInput = ''"
                             placeholder="プリセット名..."
                             maxlength="20"
-                            class="flex-1 min-w-0 bg-white/10 border border-white/20 rounded-md px-2 py-1 text-token-xs text-white placeholder-gray-600 focus:outline-none focus:border-[var(--color-primary)] transition">
+                            class="flex-1 min-w-0 bg-white border border-black/5 rounded-xl px-2 py-2 text-token-xs text-[var(--color-text)] placeholder-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-primary)] transition">
                         <button type="submit" title="保存"
                             class="p-1.5 rounded-md bg-[var(--color-primary)]/20 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/30 transition shrink-0">
                             <i data-lucide="check" class="w-3 h-3"></i>
                         </button>
                         <button type="button" @click="showPresetForm = false; presetNameInput = ''" title="キャンセル"
-                            class="p-1.5 rounded-md bg-white/5 text-gray-500 hover:text-white transition shrink-0">
+                            class="p-1.5 rounded-md bg-white border border-black/5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition shrink-0">
                             <i data-lucide="x" class="w-3 h-3"></i>
                         </button>
                     </form>
@@ -369,45 +474,55 @@ if (!$currentUser) {
         </aside>
 
         <!-- CENTER PANEL: Grid -->
-        <main class="flex-1 bg-[#050505] flex flex-col relative min-w-0 min-h-0 order-first md:order-none">
+        <main class="flex-1 bg-[var(--color-bg-surface)] flex flex-col relative min-w-0 min-h-0 order-first md:order-none">
             <!-- Mobile Quick Filter Chips (mobile only) -->
-            <div class="md:hidden flex items-center gap-1.5 px-3 py-2 bg-[#0a0d14] border-b border-white/5 overflow-x-auto scrollbar-hide shrink-0">
+            <div class="md:hidden flex items-center gap-1.5 px-3 py-2 bg-white/90 border-b border-black/5 overflow-x-auto scrollbar-hide shrink-0 backdrop-blur-sm">
                 <button @click="statusFilter = 'all'; taxonFilter = 'all'"
                     class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
-                    :class="statusFilter === 'all' && taxonFilter === 'all' ? 'bg-white/15 border-white/20 text-white' : 'bg-white/5 border-white/10 text-gray-500'">
+                    :class="statusFilter === 'all' && taxonFilter === 'all' ? 'bg-[var(--color-primary)]/10 border-[var(--color-primary)]/20 text-[var(--color-primary-dark)]' : 'bg-white border-black/5 text-[var(--color-text-muted)]'">
                     🌍 全て
                 </button>
                 <button @click="statusFilter = 'unidentified'; taxonFilter = 'all'"
                     class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
-                    :class="statusFilter === 'unidentified' ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'bg-white/5 border-white/10 text-gray-500'">
+                    :class="statusFilter === 'unidentified' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-white border-black/5 text-[var(--color-text-muted)]'">
                     🔴 未同定 <span x-text="statusCounts.unidentified" class="font-mono ml-0.5 opacity-70"></span>
                 </button>
                 <button @click="statusFilter = 'suggested'; taxonFilter = 'all'"
                     class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
-                    :class="statusFilter === 'suggested' ? 'bg-purple-500/20 border-purple-500/40 text-purple-300' : 'bg-white/5 border-white/10 text-gray-500'">
+                    :class="statusFilter === 'suggested' ? 'bg-purple-500/10 border-purple-500/20 text-purple-500' : 'bg-white border-black/5 text-[var(--color-text-muted)]'">
                     🟣 要確認 <span x-text="statusCounts.suggested" class="font-mono ml-0.5 opacity-70"></span>
                 </button>
-                <div class="w-px h-4 bg-white/10 shrink-0"></div>
+                <button @click="statusFilter = 'ai-multi'; taxonFilter = 'all'"
+                    class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
+                    :class="statusFilter === 'ai-multi' ? 'bg-amber-500/10 border-amber-500/20 text-amber-700' : 'bg-white border-black/5 text-[var(--color-text-muted)]'">
+                    🧭 AI複数 <span x-text="statusCounts.aiMulti" class="font-mono ml-0.5 opacity-70"></span>
+                </button>
+                <button @click="statusFilter = 'ai-genus'; taxonFilter = 'all'"
+                    class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
+                    :class="statusFilter === 'ai-genus' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700' : 'bg-white border-black/5 text-[var(--color-text-muted)]'">
+                    🌱 属までは近い <span x-text="statusCounts.aiGenus" class="font-mono ml-0.5 opacity-70"></span>
+                </button>
+                <div class="w-px h-4 bg-black/10 shrink-0"></div>
                 <template x-for="group in taxonGroups.slice(0, 5)" :key="group.id">
                     <button @click="taxonFilter = group.id; statusFilter = 'all'"
                         class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
-                        :class="taxonFilter === group.id ? 'bg-[var(--color-primary)]/20 border-[var(--color-primary)]/40 text-[var(--color-primary)]' : 'bg-white/5 border-white/10 text-gray-500'">
+                        :class="taxonFilter === group.id ? 'bg-[var(--color-primary)]/10 border-[var(--color-primary)]/20 text-[var(--color-primary-dark)]' : 'bg-white border-black/5 text-[var(--color-text-muted)]'">
                         <span x-text="group.icon"></span><span x-text="group.label"></span>
                     </button>
                 </template>
             </div>
             <!-- Grid Toolbar -->
-            <div class="h-8 bg-[#0a0d14] border-b border-white/5 flex items-center px-3 justify-between shrink-0">
+            <div class="workbench-toolbar h-10 flex items-center px-3 justify-between shrink-0">
                 <div class="flex items-center gap-2">
-                    <span class="text-token-xs font-bold text-gray-500">並替:</span>
-                    <select x-model="sortBy" class="bg-transparent border-none text-token-xs text-gray-400 focus:outline-none cursor-pointer">
+                    <span class="text-token-xs font-bold text-[var(--color-text-muted)]">並替:</span>
+                    <select x-model="sortBy" class="bg-transparent border-none text-token-xs text-[var(--color-text-secondary)] focus:outline-none cursor-pointer">
                         <option value="newest">新しい順</option>
                         <option value="oldest">古い順</option>
                     </select>
                 </div>
                 <div class="flex items-center gap-2" x-show="selectedIds.length > 0">
                     <button @click="batchQuickID()" class="text-token-xs font-bold text-[var(--color-primary)] hover:underline">一括同定</button>
-                    <button @click="clearSelection()" class="text-token-xs font-bold text-gray-500 hover:text-white">選択解除</button>
+                    <button @click="clearSelection()" class="text-token-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)]">選択解除</button>
                 </div>
             </div>
 
@@ -418,45 +533,68 @@ if (!$currentUser) {
                     <div class="w-8 h-8 border-2 border-white/10 border-t-[var(--color-primary)] rounded-full animate-spin"></div>
                 </div>
 
-                <div x-show="!loading" class="grid gap-1.5" :class="gridClasses">
+                <div x-show="!loading" class="grid gap-3" :class="gridClasses">
                     <template x-for="(item, index) in filteredItems" :key="item.id">
-                        <div class="relative group aspect-[4/3] bg-[#111] rounded-lg overflow-hidden select-none transition-all duration-75 cursor-pointer"
+                        <div class="relative group rounded-[20px] overflow-hidden select-none transition-all duration-150 cursor-pointer bg-white border border-black/5 shadow-sm"
+                            @click="activateItem(item, index)"
                             :class="{
                                  'item-selected': selectedIds.includes(item.id),
-                                 'ring-1 ring-white/5': !selectedIds.includes(item.id) && activeItemId !== item.id,
-                                 'ring-2 ring-[var(--color-primary)] brightness-110 scale-[1.02] z-10': activeItemId === item.id,
+                                 'ring-1 ring-black/5': !selectedIds.includes(item.id) && activeItemId !== item.id,
+                                 'ring-2 ring-[var(--color-primary)] shadow-[0_12px_32px_rgba(16,185,129,0.18)] -translate-y-0.5 z-10': activeItemId === item.id,
                              }">
-                            <!-- Image -->
-                            <img :src="item.photos && item.photos[0] ? item.photos[0] : 'assets/img/no-photo.svg'"
-                                :alt="item.taxon ? item.taxon.name : '観察写真'"
-                                @click.stop="activateItem(item, index)"
+                            <div class="relative aspect-[4/3] overflow-hidden bg-[var(--color-bg-surface)]">
+                                <img :src="currentPhotoSrc(item)"
+                                :alt="displayName(item)"
                                 @dblclick.stop="openQuickID(item, index)"
-                                class="w-full h-full object-cover md:opacity-60 md:group-hover:opacity-100 transition duration-200">
+                                class="w-full h-full object-cover transition duration-200 group-hover:scale-[1.02]">
 
-                            <!-- Status badge -->
-                            <div class="absolute top-1 left-1 flex gap-0.5 pointer-events-none">
-                                <span x-show="!item.taxon" class="px-1 py-px bg-red-500/80 rounded text-token-xs text-white font-bold">UnID</span>
-                                <span x-show="item.taxon" class="px-1 py-px bg-purple-500/60 rounded text-token-xs text-white font-bold">Prop</span>
-                            </div>
+                                <div class="absolute inset-x-0 top-0 flex items-start justify-between p-2">
+                                    <!-- Status badge -->
+                                    <div class="flex gap-1 pointer-events-none">
+                                        <span x-show="!item.taxon" class="px-2 py-0.5 bg-red-500/90 rounded-full text-token-xs text-white font-bold">未同定</span>
+                                        <span x-show="item.taxon" class="px-2 py-0.5 bg-purple-500/80 rounded-full text-token-xs text-white font-bold">提案あり</span>
+                                        <span x-show="hasMultipleAiCandidates(item)" class="px-2 py-0.5 bg-amber-400/90 rounded-full text-token-xs text-black font-bold">AI複数</span>
+                                        <span x-show="hasAiGenusHint(item)" class="px-2 py-0.5 bg-emerald-400/90 rounded-full text-token-xs text-black font-bold">属近い</span>
+                                    </div>
 
-                            <!-- Select checkbox -->
-                            <div class="absolute top-0 right-0 p-1.5 cursor-pointer opacity-0 group-hover:opacity-100 transition" @click.stop="toggleSelect(item.id, index, $event)">
-                                <div class="w-4 h-4 rounded border border-white/30 bg-black/40 flex items-center justify-center"
-                                    :class="selectedIds.includes(item.id) ? '!bg-[var(--color-primary)] !border-[var(--color-primary)]' : ''">
-                                    <i x-show="selectedIds.includes(item.id)" data-lucide="check" class="w-2.5 h-2.5 text-black"></i>
+                                    <div class="flex items-center gap-1.5">
+                                        <button @click.stop="openPhotoViewer(item, 0)"
+                                            class="workbench-photo-button workbench-hit-button rounded-full transition"
+                                            title="写真を大きく見る">
+                                            <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                        <div class="cursor-pointer opacity-90" @click.stop="toggleSelect(item.id, index, $event)">
+                                            <div class="w-5 h-5 rounded-full border border-white/70 bg-white/85 flex items-center justify-center shadow-sm"
+                                                :class="selectedIds.includes(item.id) ? '!bg-[var(--color-primary)] !border-[var(--color-primary)]' : ''">
+                                                <i x-show="selectedIds.includes(item.id)" data-lucide="check" class="w-3 h-3 text-white"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="absolute inset-x-0 bottom-0 px-2 pb-2 pt-8 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none">
+                                    <p class="text-sm font-black text-white truncate" x-text="displayName(item)"></p>
+                                    <p class="text-token-xs text-white/80 truncate" x-text="secondaryLabel(item)"></p>
                                 </div>
                             </div>
 
-                            <!-- Brief info overlay (always visible on mobile) -->
-                            <div class="absolute bottom-0 inset-x-0 p-1.5 bg-gradient-to-t from-black/80 to-transparent md:opacity-0 md:group-hover:opacity-100 transition pointer-events-none">
-                                <p class="text-token-xs font-bold text-white truncate" x-text="item.taxon ? item.taxon.name : 'Unknown'"></p>
-                            </div>
-
-                            <!-- Quick actions (always on mobile, hover on desktop) -->
-                            <div class="absolute bottom-0 right-0 p-1 flex gap-0.5 md:opacity-0 md:group-hover:opacity-100 transition" @click.stop>
-                                <button @click="openQuickID(item, index)" class="p-1 rounded bg-[var(--color-primary)] text-black hover:brightness-110 transition" title="同定 (Enter)">
-                                    <i data-lucide="zap" class="w-3 h-3"></i>
-                                </button>
+                            <div class="px-3 py-3 workbench-meta-card border-t-0 rounded-t-none">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <p class="text-token-xs font-bold text-[var(--color-text)] truncate" x-text="displayName(item)"></p>
+                                        <p class="text-token-xs text-[var(--color-text-muted)] truncate" x-text="item.municipality || (item.location ? item.location.name : '場所情報なし')"></p>
+                                    </div>
+                                    <span class="text-token-xs text-[var(--color-text-faint)] shrink-0" x-text="formatDate(item.observed_at)"></span>
+                                </div>
+                                <div class="mt-2 flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-1.5 text-token-xs text-[var(--color-text-muted)] min-w-0">
+                                        <i data-lucide="messages-square" class="w-3.5 h-3.5 text-[var(--color-primary)]"></i>
+                                        <span class="truncate" x-text="item.identifications?.length ? item.identifications.length + '件の同定あり' : '最初の同定を待っています'"></span>
+                                    </div>
+                                    <button @click.stop="openQuickID(item, index)" class="px-2.5 py-1.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] text-token-xs font-bold hover:bg-[var(--color-primary)]/20 transition shrink-0" title="同定 (Enter)">
+                                        同定する
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -472,49 +610,89 @@ if (!$currentUser) {
         </main>
 
         <!-- RIGHT PANEL: Inspector (desktop only) -->
-        <aside class="hidden md:flex md:flex-col w-full md:w-72 lg:w-80 bg-[#0a0d14] md:border-l border-white/5 shrink-0 md:h-full">
-            <!-- Active item preview -->
+        <aside class="hidden md:flex md:flex-col w-full md:w-80 lg:w-[25rem] workbench-panel md:border-l border-black/5 shrink-0 md:h-full">
             <template x-if="activeItem">
                 <div class="flex-1 flex flex-col overflow-y-auto scrollbar-thin">
-                    <!-- Compact header: thumbnail + taxon name -->
-                    <div class="flex items-center gap-3 p-3 border-b border-white/5 shrink-0">
-                        <!-- Thumbnail strip (clickable to cycle photos) -->
-                        <div class="relative shrink-0 cursor-pointer group/thumb" @click="activePhotoIdx = (activePhotoIdx + 1) % (activeItem.photos?.length || 1)">
-                            <img :src="activeItem.photos && activeItem.photos[activePhotoIdx] ? activeItem.photos[activePhotoIdx] : 'assets/img/no-photo.svg'"
-                                :alt="activeItem.taxon ? activeItem.taxon.name : '観察写真'"
-                                class="w-16 h-16 rounded-xl object-cover border border-white/10">
-                            <template x-if="activeItem.photos && activeItem.photos.length > 1">
-                                <div class="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 opacity-0 group-hover/thumb:opacity-100 transition">
-                                    <i data-lucide="images" class="w-4 h-4 text-white"></i>
+                    <div class="p-4 pb-3 border-b border-black/5 shrink-0">
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div class="min-w-0">
+                                <p class="text-token-xs font-bold uppercase tracking-widest text-[var(--color-text-faint)]">選択中の観察</p>
+                                <h3 class="font-black text-lg leading-tight text-[var(--color-text)]" x-text="displayName(activeItem)"></h3>
+                                <p class="text-token-xs text-[var(--color-text-muted)] italic truncate" x-text="activeItem.taxon ? activeItem.taxon.scientific_name : (latestAiAssessment(activeItem)?.best_specific_taxon?.scientific_name || latestAiAssessment(activeItem)?.recommended_taxon?.scientific_name || '')"></p>
+                                <p class="text-token-xs text-[var(--color-text-faint)] mt-1 font-mono truncate" x-text="activeItem.id"></p>
+                            </div>
+                            <button @click="openPhotoViewer(activeItem, activePhotoIdx)"
+                                class="workbench-photo-button workbench-hit-button rounded-full shrink-0"
+                                title="写真を大きく見る">
+                                <i data-lucide="maximize-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <div class="workbench-stage rounded-[24px] p-3">
+                            <div class="relative aspect-[4/3] overflow-hidden rounded-[20px] bg-[var(--color-bg-surface)]">
+                                <img :src="currentPhotoSrc(activeItem, activePhotoIdx)"
+                                    :alt="displayName(activeItem)"
+                                    @click="openPhotoViewer(activeItem, activePhotoIdx)"
+                                    class="w-full h-full object-contain cursor-zoom-in">
+                                <div class="absolute inset-x-0 top-0 flex items-center justify-between p-2">
+                                    <span class="px-2.5 py-1 rounded-full bg-black/55 text-white text-token-xs font-bold shadow-sm" x-text="displayName(activeItem)"></span>
+                                    <span class="px-2 py-1 rounded-full bg-white/90 text-[var(--color-text-muted)] text-token-xs font-bold shadow-sm" x-text="photoCounter(activeItem, activePhotoIdx)"></span>
+                                </div>
+                                <template x-if="(activeItem.photos?.length || 0) > 1">
+                                    <div class="absolute inset-x-0 bottom-0 flex items-center justify-between p-2">
+                                        <button @click.stop="shiftActivePhoto(-1)" class="workbench-photo-button workbench-hit-button rounded-full">
+                                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                                        </button>
+                                        <button @click.stop="shiftActivePhoto(1)" class="workbench-photo-button workbench-hit-button rounded-full">
+                                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                            <template x-if="(activeItem.photos?.length || 0) > 1">
+                                <div class="mt-3 flex gap-2 overflow-x-auto scrollbar-thin">
+                                    <template x-for="(photo, photoIndex) in activeItem.photos" :key="photo + '-' + photoIndex">
+                                        <button @click="setActivePhoto(photoIndex)"
+                                            class="shrink-0 rounded-2xl overflow-hidden border-2 transition"
+                                            :class="activePhotoIdx === photoIndex ? 'border-[var(--color-primary)] shadow-[0_8px_20px_rgba(16,185,129,0.18)]' : 'border-transparent opacity-70 hover:opacity-100'">
+                                            <img :src="photo" :alt="displayName(activeItem)" class="w-16 h-16 object-cover">
+                                        </button>
+                                    </template>
                                 </div>
                             </template>
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <h3 class="font-bold text-sm leading-tight" x-text="activeItem.taxon ? activeItem.taxon.name : '未同定'"></h3>
-                            <p class="text-token-xs text-gray-500 italic truncate" x-text="activeItem.taxon ? activeItem.taxon.scientific_name : ''"></p>
-                            <p class="text-token-xs text-gray-700 mt-0.5 font-mono truncate" x-text="activeItem.id"></p>
-                        </div>
                     </div>
 
-                    <!-- Item Details -->
-                    <div class="p-3 space-y-3">
-                        <div class="text-token-xs text-gray-400 space-y-1">
+                    <div class="p-4 space-y-4">
+                        <div class="workbench-meta-card rounded-2xl p-3 text-token-xs text-[var(--color-text-muted)] space-y-1.5">
                             <p class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3 h-3"></i> <span x-text="formatDate(activeItem.observed_at)"></span></p>
                             <p class="flex items-center gap-1.5" x-show="activeItem.municipality || activeItem.location"><i data-lucide="map-pin" class="w-3 h-3"></i> <span x-text="activeItem.municipality || (activeItem.location ? activeItem.location.name : '')"></span></p>
                             <p class="flex items-center gap-1.5"><i data-lucide="user" class="w-3 h-3"></i> <span x-text="activeItem.user_name || '匿名'"></span></p>
                         </div>
 
-                        <!-- Existing IDs -->
+                        <template x-if="latestAiAssessment(activeItem)">
+                            <div class="workbench-meta-card rounded-2xl p-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-token-xs font-bold uppercase tracking-widest text-[var(--color-text-faint)]">AIヒント</p>
+                                        <p class="text-sm font-bold text-[var(--color-text)]" x-text="latestAiAssessment(activeItem)?.recommended_taxon?.label || latestAiAssessment(activeItem)?.best_specific_taxon?.label || '見分け候補あり'"></p>
+                                    </div>
+                                    <span x-show="hasMultipleAiCandidates(activeItem)" class="px-2 py-1 rounded-full bg-amber-500/10 text-amber-700 text-token-xs font-bold">複数候補</span>
+                                </div>
+                                <p class="mt-2 text-token-xs text-[var(--color-text-muted)] leading-relaxed" x-text="latestAiAssessment(activeItem)?.simple_summary || latestAiAssessment(activeItem)?.why_not_more_specific || 'いま見えている情報から、次に確認したい点を絞っています。'"></p>
+                            </div>
+                        </template>
+
                         <template x-if="activeItem.identifications && activeItem.identifications.length > 0">
                             <div>
-                                <h4 class="text-token-xs font-bold text-gray-600 uppercase tracking-widest mb-1.5">提案された同定</h4>
+                                <h4 class="text-token-xs font-bold text-[var(--color-text-faint)] uppercase tracking-widest mb-1.5">提案された同定</h4>
                                 <template x-for="idEntry in activeItem.identifications" :key="idEntry.id">
-                                    <div class="flex items-center gap-2 py-1 border-b border-white/5">
-                                        <div class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-token-xs" x-text="(idEntry.user_name || '?').charAt(0)"></div>
+                                    <div class="flex items-center gap-2 py-2 border-b border-black/5">
+                                        <div class="w-6 h-6 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] flex items-center justify-center text-token-xs font-bold" x-text="(idEntry.user_name || '?').charAt(0)"></div>
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-1.5 leading-none mb-0.5">
-                                                <p class="text-token-xs font-bold truncate" x-text="idEntry.taxon_name"></p>
-                                                <span x-show="idEntry.life_stage && idEntry.life_stage !== 'unknown'" class="text-token-xs px-1 py-0.5 rounded bg-white/10 text-gray-500 font-bold shrink-0" x-text="idEntry.life_stage === 'adult' ? '成体' : idEntry.life_stage === 'juvenile' ? '幼体' : idEntry.life_stage === 'egg' ? '卵等' : '痕跡'"></span>
+                                                <p class="text-token-xs font-bold truncate text-[var(--color-text)]" x-text="idEntry.taxon_name"></p>
+                                                <span x-show="idEntry.life_stage && idEntry.life_stage !== 'unknown'" class="text-token-xs px-1.5 py-0.5 rounded-full bg-black/5 text-[var(--color-text-muted)] font-bold shrink-0" x-text="idEntry.life_stage === 'adult' ? '成体' : idEntry.life_stage === 'juvenile' ? '幼体' : idEntry.life_stage === 'egg' ? '卵等' : '痕跡'"></span>
                                             </div>
                                         </div>
                                     </div>
@@ -522,71 +700,74 @@ if (!$currentUser) {
                             </div>
                         </template>
 
-                        <!-- Action buttons -->
-                        <div class="space-y-1.5 pt-2">
+                        <div class="space-y-2 pt-1">
                             <button @click="openQuickID(activeItem, activeItemIndex)"
-                                class="w-full py-2 rounded-lg bg-[var(--color-primary)] text-black text-xs font-bold hover:brightness-110 transition flex items-center justify-center gap-1.5 shadow-lg">
+                                class="w-full py-3 rounded-2xl bg-[var(--color-primary)] text-black text-xs font-bold hover:brightness-110 transition flex items-center justify-center gap-1.5 shadow-lg">
                                 <i data-lucide="zap" class="w-3.5 h-3.5"></i> 同定する
                                 <span class="shortcut-badge !bg-black/20 !border-black/20 !text-black/60">Enter</span>
                             </button>
                             <div class="grid grid-cols-2 gap-1.5">
                                 <button @click="markPass(activeItem.id)"
-                                    class="py-1.5 rounded-lg border border-white/5 bg-white/5 text-gray-400 text-token-xs font-bold hover:bg-red-500/10 hover:text-red-400 transition flex items-center justify-center gap-1">
+                                    class="py-2 rounded-xl border border-black/5 bg-white text-[var(--color-text-muted)] text-token-xs font-bold hover:bg-red-500/10 hover:text-red-500 transition flex items-center justify-center gap-1">
                                     <i data-lucide="x" class="w-3 h-3"></i> パス
                                     <span class="shortcut-badge">X</span>
                                 </button>
                                 <button @click="markLater(activeItem.id)"
-                                    class="py-1.5 rounded-lg border border-white/5 bg-white/5 text-gray-400 text-token-xs font-bold hover:bg-blue-500/10 hover:text-blue-400 transition flex items-center justify-center gap-1">
+                                    class="py-2 rounded-xl border border-black/5 bg-white text-[var(--color-text-muted)] text-token-xs font-bold hover:bg-blue-500/10 hover:text-blue-500 transition flex items-center justify-center gap-1">
                                     <i data-lucide="bookmark" class="w-3 h-3"></i> あとで
                                     <span class="shortcut-badge">B</span>
                                 </button>
                             </div>
                             <a :href="'post.php?taxon_name=' + encodeURIComponent(activeItem.taxon ? activeItem.taxon.name : '')"
                                 x-show="activeItem.taxon"
-                                class="block w-full py-1.5 rounded-lg border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5 text-[var(--color-primary)] text-token-xs font-bold hover:bg-[var(--color-primary)]/10 transition text-center">
+                                class="block w-full py-2 rounded-xl border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5 text-[var(--color-primary-dark)] text-token-xs font-bold hover:bg-[var(--color-primary)]/10 transition text-center">
                                 📸 この種で観察を投稿
                             </a>
-                            <a :href="'observation_detail.php?id=' + activeItem.id"
-                                class="block w-full py-1.5 rounded-lg border border-white/5 bg-white/5 text-gray-400 text-token-xs font-bold hover:bg-white/10 hover:text-white transition text-center">
-                                詳細ページを開く
-                            </a>
+                            <div class="grid grid-cols-2 gap-1.5">
+                                <button @click="openPhotoViewer(activeItem, activePhotoIdx)"
+                                    class="py-2 rounded-xl border border-black/5 bg-white text-[var(--color-text-muted)] text-token-xs font-bold hover:bg-black/5 hover:text-[var(--color-text)] transition text-center">
+                                    大きく見る
+                                </button>
+                                <a :href="'observation_detail.php?id=' + activeItem.id"
+                                    class="block py-2 rounded-xl border border-black/5 bg-white text-[var(--color-text-muted)] text-token-xs font-bold hover:bg-black/5 hover:text-[var(--color-text)] transition text-center">
+                                    詳細ページ
+                                </a>
+                            </div>
+                            <p class="text-token-xs text-[var(--color-text-faint)] text-center">詳細ページは補助です。この画面で写真確認と同定を進められます。</p>
                         </div>
                     </div>
                 </div>
             </template>
 
-            <!-- Empty state -->
             <template x-if="!activeItem">
-                <div class="flex-1 flex flex-col items-center justify-center text-gray-600 p-6 gap-5">
-                    <!-- Step guide -->
+                <div class="flex-1 flex flex-col items-center justify-center text-[var(--color-text-muted)] p-6 gap-5">
                     <div class="w-full space-y-2">
-                        <p class="text-token-xs text-gray-500 font-bold uppercase tracking-widest mb-3 text-center">使い方</p>
-                        <div class="flex items-start gap-3 bg-white/5 rounded-xl p-3">
-                            <span class="w-5 h-5 rounded-full bg-[var(--color-primary)]/20 text-[var(--color-primary)] text-token-xs font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
+                        <p class="text-token-xs text-[var(--color-text-faint)] font-bold uppercase tracking-widest mb-3 text-center">使い方</p>
+                        <div class="workbench-meta-card rounded-2xl p-3 flex items-start gap-3">
+                            <span class="w-5 h-5 rounded-full bg-[var(--color-primary)]/20 text-[var(--color-primary-dark)] text-token-xs font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
                             <div>
-                                <p class="text-xs font-bold text-gray-300">フィルタで絞り込む</p>
-                                <p class="text-token-xs text-gray-500 mt-0.5">左パネルで分類群・ステータスを選ぶ</p>
+                                <p class="text-xs font-bold text-[var(--color-text)]">フィルタで絞り込む</p>
+                                <p class="text-token-xs text-[var(--color-text-muted)] mt-0.5">左パネルで分類群・ステータスを選ぶ</p>
                             </div>
                         </div>
-                        <div class="flex items-start gap-3 bg-white/5 rounded-xl p-3">
-                            <span class="w-5 h-5 rounded-full bg-[var(--color-primary)]/20 text-[var(--color-primary)] text-token-xs font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
+                        <div class="workbench-meta-card rounded-2xl p-3 flex items-start gap-3">
+                            <span class="w-5 h-5 rounded-full bg-[var(--color-primary)]/20 text-[var(--color-primary-dark)] text-token-xs font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
                             <div>
-                                <p class="text-xs font-bold text-gray-300">写真をクリックして選択</p>
-                                <p class="text-token-xs text-gray-500 mt-0.5">ここに詳細と既存の同定が表示される</p>
+                                <p class="text-xs font-bold text-[var(--color-text)]">写真を選ぶ</p>
+                                <p class="text-token-xs text-[var(--color-text-muted)] mt-0.5">右側に大きな写真が出るので、その場で見比べられる</p>
                             </div>
                         </div>
-                        <div class="flex items-start gap-3 bg-white/5 rounded-xl p-3">
-                            <span class="w-5 h-5 rounded-full bg-[var(--color-primary)]/20 text-[var(--color-primary)] text-token-xs font-black flex items-center justify-center shrink-0 mt-0.5">3</span>
+                        <div class="workbench-meta-card rounded-2xl p-3 flex items-start gap-3">
+                            <span class="w-5 h-5 rounded-full bg-[var(--color-primary)]/20 text-[var(--color-primary-dark)] text-token-xs font-black flex items-center justify-center shrink-0 mt-0.5">3</span>
                             <div>
-                                <p class="text-xs font-bold text-gray-300">「同定する」で名前を提案</p>
-                                <p class="text-token-xs text-gray-500 mt-0.5"><span class="shortcut-badge">Enter</span> でも開ける</p>
+                                <p class="text-xs font-bold text-[var(--color-text)]">名前を提案する</p>
+                                <p class="text-token-xs text-[var(--color-text-muted)] mt-0.5"><span class="shortcut-badge">Enter</span> でも同定画面を開ける</p>
                             </div>
                         </div>
                     </div>
-                    <!-- Shortcuts -->
                     <div class="w-full">
-                        <p class="text-token-xs text-gray-500 font-bold uppercase tracking-widest mb-2 text-center">ショートカット</p>
-                        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-token-xs font-mono text-gray-500 bg-white/5 rounded-xl p-3">
+                        <p class="text-token-xs text-[var(--color-text-faint)] font-bold uppercase tracking-widest mb-2 text-center">ショートカット</p>
+                        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-token-xs font-mono text-[var(--color-text-muted)] bg-white rounded-2xl border border-black/5 p-3 shadow-sm">
                             <p><span class="shortcut-badge">N</span> 次へ</p>
                             <p><span class="shortcut-badge">P</span> 前へ</p>
                             <p><span class="shortcut-badge">Enter</span> 同定</p>
@@ -602,8 +783,8 @@ if (!$currentUser) {
 
     <!-- Undo Pass Toast -->
     <div x-show="lastPassedId" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-end="opacity-0 translate-y-2"
-        class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-gray-800 border border-white/10 text-white rounded-full px-4 py-2 shadow-2xl text-xs font-bold whitespace-nowrap">
-        <span class="text-gray-400">パスしました</span>
+        class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white/95 border border-black/5 text-[var(--color-text)] rounded-full px-4 py-2 shadow-2xl text-xs font-bold whitespace-nowrap">
+        <span class="text-[var(--color-text-muted)]">パスしました</span>
         <button @click="undoPass()" class="text-[var(--color-primary)] hover:underline flex items-center gap-1">
             <i data-lucide="undo-2" class="w-3 h-3"></i> 元に戻す
         </button>
@@ -611,47 +792,118 @@ if (!$currentUser) {
 
     <!-- Mobile Bottom Inspector -->
     <div x-show="activeItem && isMobile" x-cloak
-        class="fixed bottom-16 inset-x-0 bg-[#141820]/95 backdrop-blur-sm border-t border-white/10 z-30 md:hidden"
+        class="fixed bottom-16 inset-x-0 bg-white/95 backdrop-blur-sm border-t border-black/5 z-30 md:hidden"
         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
-        <div class="flex items-center gap-3 px-3 py-2.5">
-            <img :src="activeItem?.photos?.[0] || 'assets/img/no-photo.svg'"
-                :alt="activeItem?.taxon?.name || '観察写真'"
-                class="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-white/10">
-            <div class="flex-1 min-w-0">
-                <p class="text-xs font-bold text-white truncate" x-text="activeItem?.taxon?.name || '未同定'"></p>
-                <p class="text-token-xs text-gray-500 truncate" x-text="(activeItem?.municipality || '') + (activeItem?.observed_at ? ' · ' + formatDate(activeItem.observed_at) : '')"></p>
-                <p class="text-token-xs text-gray-600 truncate" x-text="activeItem?.identifications?.length ? activeItem.identifications.length + '件の同定あり' : ''"></p>
+        <div class="px-3 py-3 space-y-3">
+            <button @click="if(activeItem) openPhotoViewer(activeItem, activePhotoIdx)"
+                class="block w-full">
+                <div class="relative aspect-[4/3] rounded-[20px] overflow-hidden workbench-stage p-2">
+                    <img :src="currentPhotoSrc(activeItem, activePhotoIdx)"
+                        :alt="displayName(activeItem)"
+                        class="w-full h-full rounded-[16px] object-contain">
+                    <div class="absolute inset-x-0 top-0 p-3 flex items-center justify-between">
+                        <span class="px-2.5 py-1 rounded-full bg-black/55 text-white text-token-xs font-bold" x-text="displayName(activeItem)"></span>
+                        <span class="px-2 py-1 rounded-full bg-white/90 text-[var(--color-text-muted)] text-token-xs font-bold" x-text="photoCounter(activeItem, activePhotoIdx)"></span>
+                    </div>
+                </div>
+            </button>
+            <div class="flex items-start gap-3">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-black text-[var(--color-text)] truncate" x-text="displayName(activeItem)"></p>
+                    <p class="text-token-xs text-[var(--color-text-muted)] truncate" x-text="(activeItem?.municipality || '') + (activeItem?.observed_at ? ' · ' + formatDate(activeItem.observed_at) : '')"></p>
+                    <p class="text-token-xs text-[var(--color-text-faint)] truncate" x-text="activeItem?.identifications?.length ? activeItem.identifications.length + '件の同定あり' : '最初の同定を待っています'"></p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button @click="if(activeItem) openPhotoViewer(activeItem, activePhotoIdx)"
+                        class="workbench-hit-button rounded-xl bg-black/5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition"
+                        title="大きく見る">
+                        <i data-lucide="maximize-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
             </div>
-            <div class="flex items-center gap-1.5 shrink-0">
+            <div class="grid grid-cols-4 gap-2">
                 <button @click="if(activeItem) markLater(activeItem.id)"
-                    class="p-2 rounded-xl transition"
-                    :class="laterItems.includes(activeItem?.id) ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-gray-500'"
+                    class="p-2 rounded-xl transition border border-black/5"
+                    :class="laterItems.includes(activeItem?.id) ? 'bg-blue-500/10 text-blue-600' : 'bg-white text-[var(--color-text-muted)]'"
                     title="あとで">
                     <i data-lucide="bookmark" class="w-4 h-4"></i>
                 </button>
                 <button @click="if(activeItem) { markPass(activeItem.id); activeItemId = null; }"
-                    class="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-red-400 transition" title="パス">
+                    class="p-2 rounded-xl bg-white border border-black/5 text-[var(--color-text-muted)] hover:text-red-500 transition" title="パス">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
                 <button @click="if(activeItem) openQuickID(activeItem, activeItemIndex)"
-                    class="p-2 rounded-xl bg-white/5 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition" title="同定する">
+                    class="p-2 rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary-dark)] hover:bg-[var(--color-primary)]/20 transition" title="同定する">
                     <i data-lucide="zap" class="w-4 h-4"></i>
                 </button>
                 <a :href="activeItem ? 'observation_detail.php?id=' + activeItem.id : '#'"
-                    class="px-3 py-2 rounded-xl bg-white/10 text-white font-bold text-xs flex items-center gap-1.5 hover:bg-white/20 transition">
+                    class="px-3 py-2 rounded-xl bg-white border border-black/5 text-[var(--color-text-muted)] font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-black/5 hover:text-[var(--color-text)] transition">
                     <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i> 詳細
                 </a>
             </div>
-        </div>
-        <!-- Existing IDs preview (if any) -->
-        <template x-if="activeItem?.identifications?.length > 0">
-            <div class="px-3 pb-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+            <template x-if="activeItem?.identifications?.length > 0">
+                <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide">
                 <template x-for="ident in (activeItem.identifications || []).slice(0, 4)" :key="ident.id">
-                    <span class="shrink-0 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-token-xs text-gray-400 font-bold"
+                    <span class="shrink-0 px-2 py-0.5 rounded-full bg-white border border-black/5 text-token-xs text-[var(--color-text-muted)] font-bold"
                         x-text="ident.taxon_name || '?'"></span>
                 </template>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Photo Lightbox -->
+    <div x-show="photoViewer.open" x-cloak
+        class="fixed inset-0 z-[70] lightbox-backdrop flex items-center justify-center px-3 py-6"
+        @keydown.window.escape.prevent="closePhotoViewer()"
+        @click.self="closePhotoViewer()">
+        <div class="w-full max-w-6xl h-full max-h-[92vh] flex flex-col">
+            <div class="flex items-center justify-between gap-3 text-white mb-3">
+                <div class="min-w-0">
+                    <p class="text-sm font-black truncate" x-text="photoViewer.item ? displayName(photoViewer.item) : '写真プレビュー'"></p>
+                    <p class="text-token-xs text-white/70 truncate" x-text="photoViewer.item ? secondaryLabel(photoViewer.item) : ''"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @click="if(photoViewer.item) openQuickID(photoViewer.item, activeItemIndex)"
+                        class="px-3 py-2 rounded-full bg-[var(--color-primary)] text-black text-token-xs font-bold hover:brightness-110 transition">
+                        同定する
+                    </button>
+                    <button @click="closePhotoViewer()" class="workbench-photo-button workbench-hit-button rounded-full">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
             </div>
-        </template>
+            <div class="relative flex-1 rounded-[28px] overflow-hidden bg-black/20 border border-white/10">
+                <img :src="photoViewer.photo"
+                    :alt="photoViewer.item ? displayName(photoViewer.item) : '観察写真'"
+                    class="w-full h-full object-contain">
+                <template x-if="(photoViewer.item?.photos?.length || 0) > 1">
+                    <div>
+                        <button @click.stop="shiftPhotoViewer(-1)" class="lightbox-nav-zone lightbox-nav-zone--left" aria-label="前の写真">
+                            <span class="workbench-photo-button workbench-hit-button rounded-full">
+                                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                            </span>
+                        </button>
+                        <button @click.stop="shiftPhotoViewer(1)" class="lightbox-nav-zone lightbox-nav-zone--right" aria-label="次の写真">
+                            <span class="workbench-photo-button workbench-hit-button rounded-full">
+                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            </span>
+                        </button>
+                    </div>
+                </template>
+            </div>
+            <template x-if="(photoViewer.item?.photos?.length || 0) > 1">
+                <div class="mt-3 flex items-center gap-2 overflow-x-auto scrollbar-thin">
+                    <template x-for="(photo, photoIndex) in (photoViewer.item?.photos || [])" :key="photo + '-viewer-' + photoIndex">
+                        <button @click="setPhotoViewerPhoto(photoIndex)"
+                            class="shrink-0 rounded-2xl overflow-hidden border-2 transition"
+                            :class="photoViewer.photoIndex === photoIndex ? 'border-[var(--color-primary)]' : 'border-transparent opacity-70 hover:opacity-100'">
+                            <img :src="photo" :alt="photoViewer.item ? displayName(photoViewer.item) : '観察写真'" class="w-20 h-20 object-cover">
+                        </button>
+                    </template>
+                </div>
+            </template>
+        </div>
     </div>
 
     <?php include('components/quick_identify.php'); ?>
@@ -667,6 +919,12 @@ if (!$currentUser) {
                 activeItemId: null,
                 activePhotoIdx: 0,
                 activeItemIndex: -1,
+                photoViewer: {
+                    open: false,
+                    item: null,
+                    photo: '',
+                    photoIndex: 0,
+                },
 
                 // Filters
                 filterText: '',
@@ -812,7 +1070,73 @@ if (!$currentUser) {
                     return {
                         unidentified: this.allItems.filter(i => !i.taxon).length,
                         suggested: this.allItems.filter(i => !!i.taxon).length,
+                        aiMulti: this.allItems.filter(i => this.hasMultipleAiCandidates(i)).length,
+                        aiGenus: this.allItems.filter(i => this.hasAiGenusHint(i)).length,
                     };
+                },
+
+                latestAiAssessment(item) {
+                    return item && Array.isArray(item.ai_assessments) && item.ai_assessments.length > 0 ? item.ai_assessments[0] : null;
+                },
+
+                currentPhotoSrc(item, photoIndex = 0) {
+                    if (!item || !Array.isArray(item.photos) || item.photos.length === 0) {
+                        return 'assets/img/no-photo.svg';
+                    }
+                    return item.photos[photoIndex] || item.photos[0] || 'assets/img/no-photo.svg';
+                },
+
+                displayName(item) {
+                    if (!item) return '未同定';
+                    if (item.taxon && item.taxon.name) return item.taxon.name;
+                    const ai = this.latestAiAssessment(item);
+                    const bestSpecific = ai && ai.best_specific_taxon ? ai.best_specific_taxon : null;
+                    const recommended = ai && ai.recommended_taxon ? ai.recommended_taxon : null;
+                    return (bestSpecific && (bestSpecific.label || bestSpecific.name))
+                        || (recommended && (recommended.label || recommended.name))
+                        || '未同定';
+                },
+
+                secondaryLabel(item) {
+                    if (!item) return '';
+                    const ai = this.latestAiAssessment(item);
+                    const parts = [];
+                    const scientificName = item.taxon?.scientific_name
+                        || ai?.best_specific_taxon?.scientific_name
+                        || ai?.recommended_taxon?.scientific_name
+                        || '';
+                    if (scientificName) parts.push(scientificName);
+                    if (item.municipality) parts.push(item.municipality);
+                    if (parts.length === 0 && ai?.simple_summary) {
+                        return ai.simple_summary;
+                    }
+                    return parts.join(' · ') || 'この場で写真を見比べながら同定できます';
+                },
+
+                photoCounter(item, photoIndex = 0) {
+                    const total = item && Array.isArray(item.photos) && item.photos.length > 0 ? item.photos.length : 1;
+                    return `${Math.min(photoIndex + 1, total)} / ${total}`;
+                },
+
+                hasMultipleAiCandidates(item) {
+                    const ai = this.latestAiAssessment(item);
+                    if (!ai) return false;
+                    const providerLabels = Array.isArray(ai.provider_candidates)
+                        ? ai.provider_candidates.map(c => (c && c.label ? String(c.label).trim() : '')).filter(Boolean)
+                        : [];
+                    const compareLabels = Array.isArray(ai.similar_taxa_to_compare)
+                        ? ai.similar_taxa_to_compare.map(v => String(v).trim()).filter(Boolean)
+                        : [];
+                    const uniqueCandidates = new Set([...providerLabels, ...compareLabels]);
+                    return uniqueCandidates.size >= 2;
+                },
+
+                hasAiGenusHint(item) {
+                    const ai = this.latestAiAssessment(item);
+                    if (!ai) return false;
+                    const recommended = ai.recommended_taxon && typeof ai.recommended_taxon === 'object' ? ai.recommended_taxon : null;
+                    const rank = String((recommended && recommended.rank) || ai.recommended_rank || '').toLowerCase();
+                    return rank === 'genus';
                 },
 
                 setTaxonFilter(id) {
@@ -820,7 +1144,7 @@ if (!$currentUser) {
                 },
 
                 get filteredItems() {
-                    let items = this.allItems;
+                    let items = [...this.allItems];
 
                     // Text filter
                     if (this.filterText) {
@@ -829,13 +1153,20 @@ if (!$currentUser) {
                             const name = i.taxon ? (i.taxon.name || '').toLowerCase() : '';
                             const sci = i.taxon ? (i.taxon.scientific_name || '').toLowerCase() : '';
                             const loc = (i.municipality || (i.location ? i.location.name : '') || '').toLowerCase();
-                            return name.includes(q) || sci.includes(q) || loc.includes(q);
+                            const ai = this.latestAiAssessment(i);
+                            const aiCandidates = [
+                                ...(ai && Array.isArray(ai.provider_candidates) ? ai.provider_candidates.map(c => (c && c.label ? c.label : '')) : []),
+                                ...(ai && Array.isArray(ai.similar_taxa_to_compare) ? ai.similar_taxa_to_compare : []),
+                            ].join(' ').toLowerCase();
+                            return name.includes(q) || sci.includes(q) || loc.includes(q) || aiCandidates.includes(q);
                         });
                     }
 
                     // Status filter
                     if (this.statusFilter === 'unidentified') items = items.filter(i => !i.taxon);
                     if (this.statusFilter === 'suggested') items = items.filter(i => !!i.taxon);
+                    if (this.statusFilter === 'ai-multi') items = items.filter(i => this.hasMultipleAiCandidates(i));
+                    if (this.statusFilter === 'ai-genus') items = items.filter(i => this.hasAiGenusHint(i));
                     if (this.statusFilter === 'later') items = items.filter(i => this.laterItems.includes(i.id));
                     if (this.statusFilter === 'passed') items = items.filter(i => this.passItems.includes(i.id));
 
@@ -882,6 +1213,53 @@ if (!$currentUser) {
                     this.$nextTick(() => lucide.createIcons());
                 },
 
+                setActivePhoto(photoIndex) {
+                    const total = this.activeItem && Array.isArray(this.activeItem.photos) && this.activeItem.photos.length > 0
+                        ? this.activeItem.photos.length
+                        : 1;
+                    this.activePhotoIdx = ((photoIndex % total) + total) % total;
+                },
+
+                shiftActivePhoto(step) {
+                    this.setActivePhoto(this.activePhotoIdx + step);
+                },
+
+                openPhotoViewer(item, photoIndex = 0) {
+                    if (!item) return;
+                    const resolvedIndex = this.filteredItems.findIndex(i => i.id === item.id);
+                    this.activeItemId = item.id;
+                    this.activeItemIndex = resolvedIndex >= 0 ? resolvedIndex : this.activeItemIndex;
+                    this.setActivePhoto(photoIndex);
+                    this.photoViewer = {
+                        open: true,
+                        item,
+                        photoIndex: this.activePhotoIdx,
+                        photo: this.currentPhotoSrc(item, this.activePhotoIdx),
+                    };
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                closePhotoViewer() {
+                    this.photoViewer.open = false;
+                },
+
+                setPhotoViewerPhoto(photoIndex) {
+                    if (!this.photoViewer.item) return;
+                    const total = Array.isArray(this.photoViewer.item.photos) && this.photoViewer.item.photos.length > 0
+                        ? this.photoViewer.item.photos.length
+                        : 1;
+                    const nextIndex = ((photoIndex % total) + total) % total;
+                    this.photoViewer.photoIndex = nextIndex;
+                    this.photoViewer.photo = this.currentPhotoSrc(this.photoViewer.item, nextIndex);
+                    if (this.activeItemId === this.photoViewer.item.id) {
+                        this.activePhotoIdx = nextIndex;
+                    }
+                },
+
+                shiftPhotoViewer(step) {
+                    this.setPhotoViewerPhoto(this.photoViewer.photoIndex + step);
+                },
+
                 openQuickID(item, index) {
                     this.$dispatch('open-quick-id', {
                         item: item,
@@ -924,6 +1302,9 @@ if (!$currentUser) {
                     if (!this.passItems.includes(id)) {
                         this.passItems.push(id);
                         localStorage.setItem('ikimon_skipped_ids', JSON.stringify(this.passItems));
+                    }
+                    if (this.photoViewer.open && this.photoViewer.item && this.photoViewer.item.id === id) {
+                        this.closePhotoViewer();
                     }
                     this.lastPassedId = id;
                     this.lastPassedIndex = this.activeItemIndex;
@@ -968,6 +1349,7 @@ if (!$currentUser) {
                         this.activeItemId = null;
                         return;
                     }
+                    if (this.photoViewer.open) this.closePhotoViewer();
                     let idx = this.activeItemIndex;
                     if (idx < items.length - 1) idx++;
                     this.activateItem(items[idx], idx);
@@ -976,6 +1358,7 @@ if (!$currentUser) {
                 navigatePrev() {
                     const items = this.filteredItems;
                     if (items.length === 0) return;
+                    if (this.photoViewer.open) this.closePhotoViewer();
                     let idx = this.activeItemIndex;
                     if (idx > 0) idx--;
                     this.activateItem(items[idx], idx);
@@ -1030,6 +1413,23 @@ if (!$currentUser) {
                     // Ignore if typing in input
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
+                    if (this.photoViewer.open) {
+                        switch (e.key) {
+                            case 'ArrowLeft':
+                                e.preventDefault();
+                                this.shiftPhotoViewer(-1);
+                                return;
+                            case 'ArrowRight':
+                                e.preventDefault();
+                                this.shiftPhotoViewer(1);
+                                return;
+                            case 'Escape':
+                                e.preventDefault();
+                                this.closePhotoViewer();
+                                return;
+                        }
+                    }
+
                     switch (e.key) {
                         case 'n':
                         case 'N':
@@ -1062,6 +1462,10 @@ if (!$currentUser) {
                             if (this.activeItem) this.markLater(this.activeItem.id);
                             break;
                         case 'Escape':
+                            if (this.photoViewer.open) {
+                                this.closePhotoViewer();
+                                break;
+                            }
                             this.clearSelection();
                             this.activeItemId = null;
                             break;

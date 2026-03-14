@@ -57,4 +57,26 @@ class StreakTrackerTest extends TestCase
         $this->assertSame(3, $data['longest_streak']);
         $this->assertSame(1, $data['current_streak']);
     }
+
+    public function testMultipleActivityTypesMergeOnSameDay(): void
+    {
+        StreakTracker::recordActivity($this->userId, 'post', '2026-03-01');
+        StreakTracker::recordActivity($this->userId, 'identification', '2026-03-01', [
+            'observation_id' => 'obs_123',
+        ]);
+
+        $summary = StreakTracker::getActivitySummary($this->userId, '2026-03-01');
+
+        $this->assertSame(['post', 'identification'], $summary['types']);
+        $this->assertSame('obs_123', $summary['context']['identification']['observation_id']);
+    }
+
+    public function testLegacyDateSignatureStillWorks(): void
+    {
+        StreakTracker::recordActivity($this->userId, '2026-03-01');
+
+        $summary = StreakTracker::getActivitySummary($this->userId, '2026-03-01');
+
+        $this->assertSame(['post'], $summary['types']);
+    }
 }

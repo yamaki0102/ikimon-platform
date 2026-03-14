@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/DataStore.php';
+require_once __DIR__ . '/MyFieldManager.php';
 
 class QuestManager
 {
@@ -10,11 +11,10 @@ class QuestManager
     public static function getDefinitions(): array
     {
         if (self::$definitions !== null) return self::$definitions;
-        if (!file_exists(self::CONFIG_FILE)) {
-            self::$definitions = [];
-            return self::$definitions;
+        $defs = [];
+        if (file_exists(self::CONFIG_FILE)) {
+            $defs = json_decode(file_get_contents(self::CONFIG_FILE), true) ?: [];
         }
-        $defs = json_decode(file_get_contents(self::CONFIG_FILE), true) ?: [];
         self::$definitions = is_array($defs) ? $defs : [];
         return self::$definitions;
     }
@@ -22,7 +22,11 @@ class QuestManager
     public static function getActiveQuests(?string $userId = null): array
     {
         $definitions = self::getDefinitions();
-        if (empty($definitions)) return [];
+        $walkQuest = self::buildWalkQuest();
+
+        if (empty($definitions)) {
+            return [$walkQuest];
+        }
 
         $seed = crc32(date('Y-m-d') . ($userId ?? ''));
         $shuffled = $definitions;
@@ -32,19 +36,15 @@ class QuestManager
             return strcmp($aKey, $bKey);
         });
 
-        return array_slice($shuffled, 0, 3);
+        $selected = array_slice($shuffled, 0, 2);
+        $selected[] = $walkQuest;
+
+        return $selected;
     }
 
     public static function checkProgress(string $userId, string $questId): int
     {
-        $definitions = self::getDefinitions();
-        $quest = null;
-        foreach ($definitions as $q) {
-            if (($q['id'] ?? '') === $questId) {
-                $quest = $q;
-                break;
-            }
-        }
+        $quest = self::findQuestDefinition($questId);
         if (!$quest) return 0;
 
         $today = date('Y-m-d');
@@ -101,9 +101,48 @@ class QuestManager
                     }
                 }
                 return min(100, (int)floor(($newCount / $targetCount) * 100));
+            case 'walk_distance_m':
+                $trackStats = self::collectTodayTrackStats($userId, $today);
+                return min(100, (int)floor(($trackStats['distance_m'] / $targetCount) * 100));
+            case 'walk_sessions':
+                $trackStats = self::collectTodayTrackStats($userId, $today);
+                return min(100, (int)floor(($trackStats['session_count'] / $targetCount) * 100));
         }
 
         return 0;
+    }
+
+    private static function findQuestDefinition(string $questId): ?array
+    {
+        $definitions = self::getDefinitions();
+        foreach ($definitions as $q) {
+            if (($q['id'] ?? '') === $questId) {
+                return $q;
+            }
+        }
+
+        $walkQuest = self::buildWalkQuest();
+        if (($walkQuest['id'] ?? '') === $questId) {
+            return $walkQuest;
+        }
+
+        return null;
+    }
+
+    private static function buildWalkQuest(): array
+    {
+        return [
+            'id' => 'q_walk_light',
+            'type' => 'daily',
+            'icon' => 'footprints',
+            'title' => '自然さんぽ',
+            'description' => '今日は300mだけでも歩いて、自然との接続を続けよう',
+            'target' => [
+                'type' => 'walk_distance_m',
+                'count' => 300,
+            ],
+            'reward' => 120,
+        ];
     }
 
     private static function resolveTaxonGroup(array $obs): ?string
@@ -159,5 +198,26 @@ class QuestManager
             if ($key) $set[$key] = true;
         }
         return $set;
+    }
+
+    private static function collectTodayTrackStats(string $userId, string $today): array
+    {
+        $sessions = MyFieldManager::getUserTracks($userId);
+        $distance = 0.0;
+        $count = 0;
+
+        foreach ($sessions as $session) {
+            $startedAt = $session['started_at'] ?? '';
+            if (strpos($startedAt, $today) !== 0) {
+                continue;
+            }
+            $distance += (float)($session['total_distance'] ?? 0);
+            $count++;
+        }
+
+        return [
+            'distance_m' => $distance,
+            'session_count' => $count,
+        ];
     }
 }

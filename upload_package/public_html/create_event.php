@@ -293,6 +293,37 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             font-weight: 900;
             margin-bottom: 0.5rem;
         }
+
+        .site-strip {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding-bottom: 0.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .site-card {
+            min-width: 220px;
+            border-radius: 1rem;
+            border: 1.5px solid var(--color-border, #e5e7eb);
+            background: white;
+            padding: 0.9rem;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .site-card.active {
+            border-color: var(--color-primary, #10b981);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.04));
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
+        }
+
+        .site-card p {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
     </style>
 </head>
 
@@ -323,6 +354,27 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         <div class="wizard-step" :class="step === 1 ? 'active' : ''">
             <h2 class="text-lg font-black mb-1">📍 どこで？</h2>
             <p class="text-sm text-gray-400 mb-3">住所を検索するか、地図をタップして選んでね</p>
+
+            <div x-show="sites.length > 0" class="mb-3">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-black text-gray-600 tracking-[0.12em] uppercase">おすすめ Site</h3>
+                    <button type="button" x-show="selectedSiteId" @click="clearSiteSelection()" class="text-xs font-bold text-gray-400">
+                        解除
+                    </button>
+                </div>
+                <div class="site-strip">
+                    <template x-for="site in sites" :key="site.id">
+                        <button type="button" class="site-card" :class="{ 'active': selectedSiteId === site.id }" @click="selectSite(site)">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-sm font-black text-gray-900" x-text="site.name"></span>
+                                <span x-show="selectedSiteId === site.id" class="text-[10px] font-black text-emerald-600">選択中</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2" x-text="site.description || 'エリアと連動したイベントを作れます'"></p>
+                            <div class="mt-3 text-[11px] font-bold text-emerald-700" x-text="'ID: ' + site.id"></div>
+                        </button>
+                    </template>
+                </div>
+            </div>
 
             <div class="search-container">
                 <span class="search-icon">🔍</span>
@@ -481,6 +533,34 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             </div>
 
             <div class="form-field">
+                <label>参加方式</label>
+                <select x-model="eventType">
+                    <option value="open">誰でも参加できる</option>
+                    <option value="invite">招待制</option>
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" x-model="enableLeaderboard" class="mt-1">
+                    <span>
+                        <span class="block text-sm font-bold text-gray-700">イベント内ランキングを表示する</span>
+                        <span class="block text-xs text-gray-400 mt-1">投稿数と発見種数を自動集計します</span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="form-field">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" x-model="enableBingo" class="mt-1">
+                    <span>
+                        <span class="block text-sm font-bold text-gray-700">ビンゴカードを自動生成する</span>
+                        <span class="block text-xs text-gray-400 mt-1">開催地に紐づく記録から 3x3 ビンゴを作ります</span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="form-field">
                 <label>助成金・プロジェクト紐付け（任意）</label>
                 <select x-model="grantId">
                     <option value="">-- 指定なし --</option>
@@ -566,7 +646,10 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                 rainPolicy: '',
                 precautions: '',
                 eventCode: '',
+                eventType: 'open',
                 grantId: '',
+                enableBingo: false,
+                enableLeaderboard: true,
                 targetSpecies: [],
                 newSpecies: '',
                 submitting: false,
@@ -576,6 +659,8 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                 map: null,
                 marker: null,
                 circle: null,
+                sites: [],
+                selectedSiteId: '',
                 searchQuery: '',
                 searchResults: [],
                 searchTimeout: null,
@@ -585,6 +670,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                         if (typeof lucide !== 'undefined') lucide.createIcons();
                         this.initMap();
                     });
+                    this.loadSites();
                     // Default date to tomorrow
                     const tomorrow = new Date();
                     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -674,6 +760,33 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     if (this.circle) {
                         this.circle.setRadius(this.radiusM);
                     }
+                },
+
+                async loadSites() {
+                    try {
+                        const res = await fetch('api/list_sites.php');
+                        const data = await res.json();
+                        this.sites = (data.sites || []).filter((site) => site.status === 'active');
+                    } catch (e) {
+                        console.warn('Failed to load sites:', e);
+                    }
+                },
+
+                selectSite(site) {
+                    this.selectedSiteId = site.id;
+                    const center = Array.isArray(site.center) ? site.center : null;
+                    if (center && center.length >= 2) {
+                        this.lng = Number(center[0]);
+                        this.lat = Number(center[1]);
+                    }
+                    this.locationName = site.name || this.locationName;
+                    this.radiusM = Math.max(this.radiusM, 500);
+                    this.map.setView([this.lat, this.lng], 15);
+                    this.placeMarker();
+                },
+
+                clearSiteSelection() {
+                    this.selectedSiteId = '';
                 },
 
                 async searchAddress() {
@@ -812,12 +925,17 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                             rain_policy: this.rainPolicy,
                             precautions: this.precautions,
                             event_code: this.eventCode,
+                            event_type: this.eventType,
                             grant_id: this.grantId,
+                            enable_bingo: this.enableBingo,
+                            enable_leaderboard: this.enableLeaderboard,
+                            site_id: this.selectedSiteId || null,
                             event_date: this.eventDate,
                             start_time: this.startTime,
                             end_time: this.endTime,
                             location: {
-                                type: 'custom',
+                                type: this.selectedSiteId ? 'site' : 'custom',
+                                site_id: this.selectedSiteId || null,
                                 lat: this.lat,
                                 lng: this.lng,
                                 radius_m: this.radiusM,
@@ -836,6 +954,9 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                         const data = await res.json();
 
                         if (data.success) {
+                            if (this.enableBingo && data.event?.id) {
+                                await this.generateBingo(data.event.id, body);
+                            }
                             this.createdId = data.event.id;
                             this.shareUrl = window.location.origin + '/event_detail.php?id=' + this.createdId;
                             this.step = 4;
@@ -854,6 +975,39 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     navigator.clipboard.writeText(this.shareUrl).then(() => {
                         alert('URLをコピーしました！');
                     });
+                },
+
+                async generateBingo(eventId, body) {
+                    try {
+                        const res = await fetch('api/generate_bingo_template.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                event_id: eventId
+                            }),
+                        });
+                        const data = await res.json();
+                        if (!data.success) {
+                            return;
+                        }
+
+                        await fetch('api/save_event.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                ...body,
+                                id: eventId,
+                                bingo_template_id: data.template_id,
+                                bingo_species: data.cells || [],
+                            }),
+                        });
+                    } catch (e) {
+                        console.warn('Bingo generation failed:', e);
+                    }
                 },
             };
         }

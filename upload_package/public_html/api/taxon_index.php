@@ -19,9 +19,12 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: public, max-age=300');
 
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/Lang.php';
 require_once __DIR__ . '/../../libs/Services/ZukanService.php';
 
 try {
+    Lang::init();
+
     $options = [
         'q'       => $_GET['q'] ?? '',
         'group'   => $_GET['group'] ?? '',
