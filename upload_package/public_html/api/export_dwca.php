@@ -34,6 +34,7 @@ $headers = [
     'informationWithheld',
     'habitat',
     'lifeStage',
+    'individualCount',
     'associatedTaxa',
     'associatedReferences',
     'dynamicProperties',
@@ -45,9 +46,9 @@ $headers = [
 // Fetch all observations
 $observations = DataStore::fetchAll('observations');
 
-// Filter for only 'Research Grade' (研究用)
+// Filter for research-usable observations
 $researchGradeObs = array_filter($observations, function ($obs) use ($gate) {
-    $isRG = ($obs['quality_grade'] ?? '') === 'Research Grade' || ($obs['status'] ?? '') === '研究用';
+    $isRG = BioUtils::isResearchGradeLike($obs['status'] ?? ($obs['quality_grade'] ?? ''));
     if (!$isRG) return false;
     // Researcher tier: only CC0 and CC-BY data (GBIF-compatible licenses)
     // Enterprise/Government: all licenses
@@ -175,6 +176,11 @@ function buildDwcRow(array $obs, string $domain, array $licenseMap): array
     // NP: Format taxonConceptID as GBIF species URI for interoperability
     $taxonConceptId = $taxonId ? 'https://www.gbif.org/species/' . $taxonId : '';
 
+    $verificationStatus = BioUtils::displayStatus($obs, '研究利用可');
+    if (!empty($obs['quality_flags']['ecological_verified'])) {
+        $verificationStatus .= ' (Ecologically Verified)';
+    }
+
     return [
         $id,
         'HumanObservation',
@@ -193,11 +199,12 @@ function buildDwcRow(array $obs, string $domain, array $licenseMap): array
         $establishmentMeans,
         $mediaStr,
         $obs['note'] ?? '',
-        !empty($obs['quality_flags']['ecological_verified']) ? 'Research Grade (Ecologically Verified)' : 'Research Grade',
+        $verificationStatus,
         $taxonConceptId,
         $informationWithheld,
         $habitat,
         $lifeStage,
+        $obs['individual_count'] ?? '',
         $associatedTaxa,
         $assocRefs,
         $dynamicProperties,

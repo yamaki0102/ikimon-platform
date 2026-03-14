@@ -87,7 +87,9 @@ if ($lastObs) {
             'observed_at' => $lastObs['observed_at'] ?? '',
             'lat' => $lastObs['lat'] ?? '',
             'lng' => $lastObs['lng'] ?? '',
-            'cultivation' => $lastObs['cultivation'] ?? 'wild'
+            'cultivation' => $lastObs['cultivation'] ?? 'wild',
+            'organism_origin' => $lastObs['organism_origin'] ?? (($lastObs['cultivation'] ?? 'wild') === 'cultivated' ? 'cultivated' : 'wild'),
+            'managed_context' => $lastObs['managed_context'] ?? null,
             // 'note' is usually specific, don't copy
         ]
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

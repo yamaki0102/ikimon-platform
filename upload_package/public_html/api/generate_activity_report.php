@@ -502,7 +502,7 @@ foreach ($events as $ev) {
                 <li>延べ <strong><?php echo $d['totalObs']; ?>件</strong> の生物観察データを収集</li>
                 <li><strong><?php echo $d['totalSpecies']; ?>種</strong> の生物を確認（うちレッドリスト掲載種 <strong><?php echo count($d['redListSpecies']); ?>種</strong>）</li>
             <li>参考インデックス: <strong><?php echo $d['monitoringReferenceIndex']; ?></strong> / 100（観測の厚みと保全シグナルの要約）</li>
-                <li>Research Grade率: <strong><?php echo $d['researchGradePercent']; ?>%</strong>（コミュニティ検証済み）</li>
+                <li>研究利用可以上率: <strong><?php echo $d['researchGradePercent']; ?>%</strong>（コミュニティ検証済み）</li>
                 <?php if (!empty($events)): ?>
                     <li>観察会・イベント <strong><?php echo count($events); ?>回</strong> 実施</li>
                 <?php endif; ?>

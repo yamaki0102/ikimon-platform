@@ -125,7 +125,7 @@ $selectedInvite = ($selectedCorpId !== '' && !empty($selected['email'])) ? Corpo
                         <article class="rounded-[22px] border border-white/10 bg-white/5 p-5"><div class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">総申込み</div><div class="mt-3 text-3xl font-black text-white"><?= number_format($stats['total']) ?></div></article>
                         <article class="rounded-[22px] border border-white/10 bg-white/5 p-5"><div class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">今日見るもの</div><div class="mt-3 text-3xl font-black text-amber-300"><?= number_format($stats['due_today']) ?></div></article>
                         <article class="rounded-[22px] border border-white/10 bg-white/5 p-5"><div class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Public</div><div class="mt-3 text-3xl font-black text-emerald-300"><?= number_format($stats['public']) ?></div></article>
-                        <article class="rounded-[22px] border border-white/10 bg-white/5 p-5"><div class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Pro</div><div class="mt-3 text-3xl font-black text-sky-300"><?= number_format($stats['pro']) ?></div></article>
+                        <article class="rounded-[22px] border border-white/10 bg-white/5 p-5"><div class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">相談</div><div class="mt-3 text-3xl font-black text-sky-300"><?= number_format($stats['consultation'] ?? 0) ?></div></article>
                     </div>
                 </div>
             </section>
