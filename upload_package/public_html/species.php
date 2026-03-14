@@ -1,11 +1,26 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/Lang.php';
 require_once __DIR__ . '/../libs/Services/LibraryService.php';
 require_once __DIR__ . '/../libs/RedListManager.php';
 require_once __DIR__ . '/../libs/DataStore.php';
+require_once __DIR__ . '/../libs/SpeciesNarrative.php';
+require_once __DIR__ . '/../libs/AffiliateManager.php';
 
 Auth::init();
+Lang::init();
+
+function publicPhotoUrl(?string $photoPath): ?string
+{
+    if (!$photoPath) {
+        return null;
+    }
+    if (strpos($photoPath, 'http') === 0) {
+        return $photoPath;
+    }
+    return BASE_URL . '/' . ltrim($photoPath, '/');
+}
 
 // --- Taxon Resolver Routing ---
 $resolverFile = DATA_DIR . '/taxon_resolver.json';
@@ -33,7 +48,7 @@ if ($slug) {
         $entry = $taxa[$slugNorm];
         // Handle synonym redirect
         if (!empty($entry['redirect_to']) && isset($taxa[$entry['redirect_to']])) {
-            header('Location: species.php?name=' . urlencode($entry['redirect_to']), true, 301);
+            header('Location: /species.php?name=' . urlencode($entry['redirect_to']), true, 301);
             exit;
         }
         $taxon = $entry['ja_name'] ?? null;
@@ -50,7 +65,7 @@ if ($slug) {
             // No scientific name available, use Japanese name directly
             $taxon = $jpName;
         } else {
-            header('Location: species.php?name=' . urlencode($mappedSlug), true, 301);
+            header('Location: /species.php?name=' . urlencode($mappedSlug), true, 301);
             exit;
         }
     } else {
@@ -60,7 +75,7 @@ if ($slug) {
 }
 
 if (!$taxon && !$scientificName) {
-    header('Location: zukan.php');
+    header('Location: /zukan.php');
     exit;
 }
 
@@ -93,10 +108,19 @@ $allObs = DataStore::fetchAll('observations');
 $obsLocations = [];
 $firstPhoto = null;
 $monthCounts = array_fill(1, 12, 0); // 1-12 for Jan-Dec
+$observationCount = 0;
 if ($allObs) {
     foreach ($allObs as $obs) {
         $obsName = $obs['taxon']['name'] ?? ($obs['species_name'] ?? '');
-        if ($obsName === $taxon) {
+        $obsScientificName = $obs['taxon']['scientific_name'] ?? '';
+        $matchesTaxon = ($taxon && $obsName === $taxon)
+            || ($scientificName && ($obsScientificName === $scientificName || $obsName === $scientificName));
+
+        if ($matchesTaxon) {
+            $observationCount++;
+            if (!$firstPhoto && !empty($obs['photos'][0])) {
+                $firstPhoto = $obs['photos'][0];
+            }
             // Phenology: count by month
             $obsDate = $obs['observed_at'] ?? '';
             if ($obsDate && preg_match('/^\d{4}-(\d{2})/', $obsDate, $m)) {
@@ -104,16 +128,15 @@ if ($allObs) {
                 if ($mo >= 1 && $mo <= 12) $monthCounts[$mo]++;
             }
             // Map locations
-            if (!empty($obs['location']['lat']) && !empty($obs['location']['lng'])) {
+            $obsLat = $obs['lat'] ?? ($obs['location']['lat'] ?? null);
+            $obsLng = $obs['lng'] ?? ($obs['location']['lng'] ?? null);
+            if (!empty($obsLat) && !empty($obsLng)) {
                 $obsLocations[] = [
-                    'lat' => (float) $obs['location']['lat'],
-                    'lng' => (float) $obs['location']['lng'],
+                    'lat' => (float) $obsLat,
+                    'lng' => (float) $obsLng,
                     'date' => $obsDate,
-                    'observer' => $obs['user']['name'] ?? ''
+                    'observer' => $obs['user_name'] ?? ($obs['user']['name'] ?? '')
                 ];
-                if (!$firstPhoto && !empty($obs['photos'][0])) {
-                    $firstPhoto = $obs['photos'][0];
-                }
             }
         }
     }
@@ -202,6 +225,49 @@ $hasHistoricalShift = count($distinctTimeline) > 1;
 
 // Total data count
 $dataCount = count($citations) + count($keys) + count($papers);
+$speciesNarrative = SpeciesNarrative::build([
+    'display_name' => $taxon ?: $scientificName,
+    'rank' => $entry['rank'] ?? '',
+    'observation_count' => $observationCount,
+    'mapped_location_count' => count($obsLocations),
+    'month_counts' => $monthCounts,
+    'citation_count' => count($citations),
+    'paper_count' => count($papers),
+    'specimen_count' => count($specimenRecords),
+    'has_redlist' => !empty($rlResult),
+    'distilled' => $distilledKnowledge,
+    'messages' => [
+        'intro' => __('species.quick_facts_intro', '最初に、いま分かっていることを短くまとめています。'),
+        'note_single' => __('species.quick_facts_note_single', 'このページの要約は、今ある材料だけで組み立てています。記録や文献が増えると内容も育ちます。'),
+        'note_multi' => __('species.quick_facts_note_multi', 'この要約は、観察・文献・標本・整理メモのうち、ページ内にある材料だけで組み立てています。'),
+        'label_observation' => __('species.quick_facts_observation', '観察から'),
+        'label_literature' => __('species.quick_facts_literature', '文献・標本から'),
+        'label_distilled' => __('species.quick_facts_distilled', '整理メモから'),
+        'label_taxonomy' => __('species.quick_facts_taxonomy', '分類として'),
+        'obs_count' => __('species.quick_facts_obs_count', '{count}件の観察があります。'),
+        'obs_peak' => __('species.quick_facts_obs_peak', '{months}の記録が目立ちます。'),
+        'obs_map' => __('species.quick_facts_obs_map', '地図には{count}地点の記録があります。'),
+        'lit_citations' => __('species.quick_facts_lit_citations', '図鑑文献{count}件'),
+        'lit_papers' => __('species.quick_facts_lit_papers', '論文{count}件'),
+        'lit_specimens' => __('species.quick_facts_lit_specimens', '標本{count}件'),
+        'lit_linked' => __('species.quick_facts_lit_linked', '{items}をひも付けています。'),
+        'lit_redlist' => __('species.quick_facts_lit_redlist', '保全状況の情報も確認できます。'),
+        'distilled_habitat' => __('species.quick_facts_distilled_habitat', '環境の手がかりは {items} です。'),
+        'distilled_season' => __('species.quick_facts_distilled_season', '活動期の手がかりは {items} です。'),
+        'taxonomy_text' => __('species.quick_facts_taxonomy_text', '{name} は {rank} レベルのまとまりです。このページでは、近い仲間の記録をまとめて見られます。'),
+        'month_label' => __('species.quick_facts_month_label', '{month}月'),
+        'list_separator' => __('species.quick_facts_list_separator', '・'),
+        'item_separator' => __('species.quick_facts_item_separator', '、'),
+        'rank_species' => __('zukan.card_summary.rank_species', '種'),
+        'rank_genus' => __('zukan.card_summary.rank_genus', '属'),
+        'rank_family' => __('zukan.card_summary.rank_family', '科'),
+        'rank_order' => __('zukan.card_summary.rank_order', '目'),
+        'rank_class' => __('zukan.card_summary.rank_class', '綱'),
+        'rank_phylum' => __('zukan.card_summary.rank_phylum', '門'),
+        'rank_kingdom' => __('zukan.card_summary.rank_kingdom', '界'),
+        'rank_generic' => __('zukan.card_summary.rank_generic', '分類群'),
+    ],
+]);
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -222,7 +288,7 @@ $dataCount = count($citations) + count($keys) + count($papers);
     $meta_description = implode(' | ', $descParts) . ' — ikimon.life';
     // OGP image: use first observation photo if available
     if ($firstPhoto) {
-        $meta_image = (strpos($firstPhoto, 'http') === 0) ? $firstPhoto : BASE_URL . '/uploads/photos/' . basename($firstPhoto);
+        $meta_image = publicPhotoUrl($firstPhoto);
     }
     // Canonical URL (Clean URL format)
     if ($currentSlug) {
@@ -261,7 +327,7 @@ $dataCount = count($citations) + count($keys) + count($papers);
             ];
         }
         if ($firstPhoto) {
-            $jsonLd['image'] = BASE_URL . '/uploads/photos/' . basename($firstPhoto);
+            $jsonLd['image'] = publicPhotoUrl($firstPhoto);
         }
         // Remove null values
         $jsonLd = array_filter($jsonLd, fn($v) => $v !== null);
@@ -327,6 +393,14 @@ $dataCount = count($citations) + count($keys) + count($papers);
                     <p class="text-sm italic mt-0.5 text-muted"><?php echo htmlspecialchars($scientificName); ?></p>
                 <?php endif; ?>
             </div>
+
+            <?php if ($firstPhoto): ?>
+                <div class="mb-4 overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+                    <img src="<?php echo htmlspecialchars(publicPhotoUrl($firstPhoto)); ?>"
+                        alt="<?php echo htmlspecialchars($taxon ?: $scientificName); ?>"
+                        class="w-full h-56 object-cover">
+                </div>
+            <?php endif; ?>
 
             <!-- Stats Row -->
             <div class="flex items-center gap-3 mb-4">
@@ -395,6 +469,30 @@ $dataCount = count($citations) + count($keys) + count($papers);
                 </template>
             </div>
         </section>
+
+        <?php if (!empty($speciesNarrative['blocks'])): ?>
+            <section class="space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="scroll-text" class="w-4 h-4 text-primary"></i>
+                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-primary"><?php echo htmlspecialchars(__('species.quick_facts_title', 'このページでわかること')); ?></h2>
+                </div>
+                <div class="p-5 rounded-xl border border-border bg-gradient-to-b from-surface to-[var(--color-bg-base)] space-y-3">
+                    <p class="text-sm leading-relaxed text-text-secondary"><?php echo htmlspecialchars($speciesNarrative['intro'] ?? ''); ?></p>
+                    <div class="grid gap-3">
+                        <?php foreach (($speciesNarrative['blocks'] ?? []) as $block): ?>
+                            <div class="rounded-xl border border-border bg-surface px-4 py-3">
+                                <div class="flex items-center gap-2 mb-1.5">
+                                    <i data-lucide="<?php echo htmlspecialchars($block['icon'] ?? 'info'); ?>" class="w-4 h-4 text-primary"></i>
+                                    <div class="text-xs font-bold tracking-wide text-primary"><?php echo htmlspecialchars($block['label'] ?? ''); ?></div>
+                                </div>
+                                <p class="text-sm leading-relaxed text-text-secondary"><?php echo htmlspecialchars($block['text'] ?? ''); ?></p>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="text-xs leading-relaxed text-muted"><?php echo htmlspecialchars($speciesNarrative['note'] ?? ''); ?></div>
+                </div>
+            </section>
+        <?php endif; ?>
 
         <!-- [NEW] Distilled Knowledge (Phase 2) -->
         <?php if (!empty($distilledKnowledge['ecological_constraints']) && (
@@ -508,7 +606,7 @@ $dataCount = count($citations) + count($keys) + count($papers);
                             <div class="flex flex-wrap gap-2">
                                 <?php foreach ($ik['similar_species'] as $similar): ?>
                                     <div class="inline-flex items-center gap-0 rounded-lg border border-accent/20 overflow-hidden shadow-sm">
-                                        <a href="species.php?name=<?php echo urlencode($similar); ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface text-sm font-semibold text-accent hover:bg-accent hover:text-white transition">
+                                        <a href="/species.php?jp=<?php echo urlencode($similar); ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface text-sm font-semibold text-accent hover:bg-accent hover:text-white transition">
                                             <i data-lucide="link-2" class="w-3.5 h-3.5"></i>
                                             <?php echo htmlspecialchars($similar); ?>
                                         </a>
@@ -1039,6 +1137,21 @@ $dataCount = count($citations) + count($keys) + count($papers);
                     </button>
                 </div>
             </section>
+        <?php endif; ?>
+
+        <?php
+        // ── Affiliate Books ──
+        $taxonForAffiliate = [
+            'slug'            => $currentSlug ?? '',
+            'scientific_name' => $scientificName ?? '',
+            'lineage'         => [],
+            'gbif_key'        => $gbifKey ?? null,
+        ];
+        $affiliateContext = 'encyclopedia';
+        $affiliateBooks = AffiliateManager::getBooks($taxonForAffiliate, $affiliateContext);
+        if (!empty($affiliateBooks)):
+        ?>
+            <?php include __DIR__ . '/components/affiliate_books.php'; ?>
         <?php endif; ?>
 
     </main>

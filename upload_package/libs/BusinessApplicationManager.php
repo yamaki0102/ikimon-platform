@@ -207,7 +207,7 @@ class BusinessApplicationManager
             return $item;
         }
 
-        $plan = (($item['plan'] ?? 'public') === 'pro') ? 'pro' : 'public';
+        $plan = 'public';
         $corpId = CorporateManager::register((string)$item['company'], $plan);
         $item['workspace']['corporation_id'] = $corpId;
         $item['workspace']['corporation_plan'] = $plan;
@@ -290,7 +290,8 @@ class BusinessApplicationManager
                 return $due !== '' && $due <= date('Y-m-d') && !in_array(($item['status'] ?? ''), ['active', 'closed'], true);
             })),
             'public' => count(array_filter($items, static fn(array $item): bool => ($item['plan'] ?? '') === 'public')),
-            'pro' => count(array_filter($items, static fn(array $item): bool => ($item['plan'] ?? '') === 'pro')),
+            'consultation' => count(array_filter($items, static fn(array $item): bool => ($item['plan'] ?? '') === 'consultation')),
+            'pro' => 0,
         ];
     }
 
@@ -310,7 +311,6 @@ class BusinessApplicationManager
     public static function planLabel(string $plan): string
     {
         $map = [
-            'pro' => 'Pro',
             'public' => 'Public',
             'consultation' => 'まず相談',
         ];
@@ -360,7 +360,11 @@ class BusinessApplicationManager
     private static function normalizePlan(string $plan): string
     {
         $plan = strtolower(trim($plan));
-        return in_array($plan, ['pro', 'public', 'consultation'], true) ? $plan : 'consultation';
+        return match ($plan) {
+            'public', 'pro' => 'public',
+            'consultation' => 'consultation',
+            default => 'consultation',
+        };
     }
 
     private static function normalizeExpectedStart(string $value): string
@@ -385,7 +389,7 @@ class BusinessApplicationManager
 
     private static function defaultPriority(string $plan): string
     {
-        return $plan === 'public' ? 'high' : 'normal';
+        return self::normalizePlan($plan) === 'public' ? 'high' : 'normal';
     }
 
     private static function normalizePriority(string $priority): string

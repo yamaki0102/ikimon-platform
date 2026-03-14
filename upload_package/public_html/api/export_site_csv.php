@@ -12,8 +12,10 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
+require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../../libs/SiteManager.php';
 require_once __DIR__ . '/../../libs/RedListManager.php';
+require_once __DIR__ . '/../../libs/BioUtils.php';
 
 // --- Initialization ---
 $siteId = $_GET['site_id'] ?? null;
@@ -29,6 +31,12 @@ $site = SiteManager::load($siteId);
 if (!$site) {
     http_response_code(404);
     die("Error: Site not found.");
+}
+
+$corporation = CorporatePlanGate::resolveCorporationForSite((string)$siteId);
+if ($corporation && !CorporatePlanGate::canUseAdvancedOutputs($corporation)) {
+    http_response_code(403);
+    die("Community workspace cannot export raw CSV. Upgrade to Public.");
 }
 
 $redListManager = new RedListManager();
@@ -125,10 +133,7 @@ foreach ($siteObs as $obs) {
     }
 
     // Data Quality
-    $quality = $obs['status'] ?? 'Needs ID';
-    if ($quality === 'Needs ID' && ($obs['identifications_count'] ?? 0) > 1) {
-        $quality = 'Research Grade';
-    }
+    $quality = BioUtils::displayStatus($obs, '要同定');
 
     $row = [
         $obs['id'] ?? '',

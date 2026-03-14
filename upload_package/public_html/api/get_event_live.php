@@ -10,6 +10,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/GeoUtils.php';
+require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../../libs/EventManager.php';
 
 $eventId = $_GET['id'] ?? '';
@@ -23,6 +24,9 @@ if (!$event) {
     echo json_encode(['success' => false, 'message' => 'イベントが見つかりません'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
+
+$corporation = CorporatePlanGate::resolveCorporationForEvent($event);
+$canRevealSpeciesDetails = CorporatePlanGate::canRevealSpeciesDetails($corporation);
 
 // Determine time range for auto-collection (30min buffer)
 $eventDate = $event['event_date'] ?? date('Y-m-d');
@@ -67,7 +71,7 @@ $contributors = [];
 $touchedObsIds = [];
 
 // Helper to add obs
-$addObs = function ($obs, $source) use (&$finalObservations, &$speciesSet, &$contributors, &$touchedObsIds) {
+$addObs = function ($obs, $source) use (&$finalObservations, &$speciesSet, &$contributors, &$touchedObsIds, $canRevealSpeciesDetails) {
     if (!isset($obs['id'])) return;
     $id = $obs['id'];
 
@@ -76,8 +80,9 @@ $addObs = function ($obs, $source) use (&$finalObservations, &$speciesSet, &$con
 
     // Build summary
     $identifications = $obs['identifications'] ?? [];
-    $taxonName = $obs['taxon']['name'] ?? ($identifications[0]['taxon_name'] ?? '不明');
-    $scientificName = $obs['taxon']['scientific_name'] ?? '';
+    $actualTaxonName = $obs['taxon']['name'] ?? ($identifications[0]['taxon_name'] ?? '不明');
+    $taxonName = $canRevealSpeciesDetails ? $actualTaxonName : '種名は Public で表示';
+    $scientificName = $canRevealSpeciesDetails ? ($obs['taxon']['scientific_name'] ?? '') : '';
     $photos = $obs['photos'] ?? [];
     $photo = !empty($photos) ? $photos[0] : null;
 
@@ -95,8 +100,8 @@ $addObs = function ($obs, $source) use (&$finalObservations, &$speciesSet, &$con
     }
 
     // Species
-    if ($taxonName && $taxonName !== '不明') {
-        $speciesSet[$taxonName] = $scientificName;
+    if ($actualTaxonName && $actualTaxonName !== '不明') {
+        $speciesSet[$actualTaxonName] = $obs['taxon']['scientific_name'] ?? '';
     }
 
     $finalObservations[] = [
@@ -187,10 +192,11 @@ echo json_encode([
         'observation_count' => count($finalObservations),
         'contributor_count' => count($contributors),
     ],
-    'species_list'    => array_keys($speciesSet),
+    'species_detail_available' => $canRevealSpeciesDetails,
+    'species_list'    => $canRevealSpeciesDetails ? array_keys($speciesSet) : [],
     'contributors'    => array_values($contributors),
     'observations'    => array_slice($finalObservations, 0, 50),
-    'target_progress' => $targetProgress,
+    'target_progress' => $canRevealSpeciesDetails ? $targetProgress : [],
     'is_live'         => $isLive,
     'is_past'         => $isPast,
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

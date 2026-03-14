@@ -5,6 +5,7 @@ require_once __DIR__ . '/../libs/BioUtils.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/BadgeManager.php';
 require_once __DIR__ . '/../libs/StreakTracker.php';
+require_once __DIR__ . '/../libs/SurveyorManager.php';
 
 require_once __DIR__ . '/../libs/Services/EventLogService.php';
 require_once __DIR__ . '/../libs/Services/SurveyLogService.php';
@@ -36,6 +37,7 @@ foreach ($user_obs as $o) {
         $life_list[$o['taxon']['key']] = $o['taxon'];
     }
 }
+$surveyorApproved = SurveyorManager::isApproved($user);
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -161,6 +163,14 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                     </div>
 
                 </div>
+
+                <?php if ($surveyorApproved): ?>
+                    <div class="mt-6 inline-flex flex-wrap items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
+                        <span class="text-sm font-black text-sky-800">認定調査員として公開中</span>
+                        <a href="surveyor_profile.php?id=<?= urlencode($user['id']) ?>" class="text-xs font-bold text-sky-700 underline">公開ページを見る</a>
+                        <a href="surveyor_profile_edit.php" class="text-xs font-bold text-sky-700 underline">調査員プロフィールを編集</a>
+                    </div>
+                <?php endif; ?>
             </div>
 
         </header>

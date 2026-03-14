@@ -8,11 +8,8 @@
  * This serves as an anti-greenwashing proof for ESG/TNFD reporting.
  */
 
-header('Content-Type: application/json; charset=utf-8');
-// Force download as a file
-header('Content-Disposition: attachment; filename="immutable_proof_package.json"');
-
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../../libs/SiteManager.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 
@@ -30,6 +27,16 @@ if (!$site) {
     echo json_encode(['error' => 'Site not found']);
     exit;
 }
+
+$corporation = CorporatePlanGate::resolveCorporationForSite((string)$siteId);
+if ($corporation && !CorporatePlanGate::canUseAdvancedOutputs($corporation)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Community workspace cannot download proof packages. Upgrade to Public.']);
+    exit;
+}
+
+header('Content-Type: application/json; charset=utf-8');
+header('Content-Disposition: attachment; filename="immutable_proof_package.json"');
 
 // Get all observations
 $allObs = DataStore::fetchAll('observations');

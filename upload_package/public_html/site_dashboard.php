@@ -1,20 +1,21 @@
 <?php
 
 /**
- * Site Dashboard - Premium Business Analytics View
+ * Site Dashboard - Organization Record Board
  * 
- * Enterprise-grade biodiversity dashboard with:
- * - Credit Reference Score (β) with arc gauge
- * - Shannon-Wiener Diversity Index
- * - Chao1 Species Richness Estimation
- * - Seasonal Phenology Matrix
- * - TNFD/30by30 context
+ * Organization-facing view for:
+ * - site-level observation archive
+ * - seasonal review
+ * - participation and continuity checks
+ * - optional external-reference handoff
  * 
  * Usage: site_dashboard.php?site=ikan_hq
  */
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/CorporateAccess.php';
+require_once __DIR__ . '/../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../libs/SiteManager.php';
 require_once __DIR__ . '/../libs/RedListManager.php';
 require_once __DIR__ . '/../libs/DataQuality.php';
@@ -22,6 +23,7 @@ require_once __DIR__ . '/../libs/DataQuality.php';
 Auth::init();
 
 $siteId = $_GET['site'] ?? '';
+$isDemoMode = isset($_GET['demo']) && $_GET['demo'] === '1';
 $site = null;
 $stats = null;
 $geojson = null;
@@ -36,7 +38,9 @@ if ($siteId) {
         $stats = SiteManager::getSiteStats($siteId);
         $geojson = SiteManager::getGeoJSON($siteId);
 
-        if (!empty($stats['top_species'])) {
+        $siteCorporation = CorporatePlanGate::resolveCorporationForSite($siteId);
+        $canRevealSpeciesDetails = CorporatePlanGate::canRevealSpeciesDetails($siteCorporation);
+        if ($canRevealSpeciesDetails && !empty($stats['top_species'])) {
             $rlm = new RedListManager();
             $redListSpecies = $rlm->lookupMultiple(array_keys($stats['top_species']), 'shizuoka');
         }
@@ -52,8 +56,14 @@ if ($siteId) {
         $dqaTotal = array_sum($dqaCounts);
     }
 }
+$corpId = ($siteId !== '') ? (CorporateAccess::resolveCorporationIdForSite($siteId) ?? '') : '';
+$corporation = $corpId !== '' ? CorporatePlanGate::resolveCorporationForSite($siteId) : null;
+$planLabel = $corporation ? CorporateManager::getPlanDefinition((string)($corporation['plan'] ?? 'community'))['label'] : 'Personal';
+$canUseAdvancedOutputs = CorporatePlanGate::canUseAdvancedOutputs($corporation);
+$canRevealSpeciesDetails = CorporatePlanGate::canRevealSpeciesDetails($corporation);
+$isCommunityWorkspace = CorporatePlanGate::isCommunityWorkspace($corporation);
 
-$meta_title = $site ? $site['name'] . ' ダッシュボード' : 'サイトダッシュボード';
+$meta_title = $site ? $site['name'] . ' 記録ボード' : 'サイトの記録ボード';
 
 // Rank color mapping
 // Rank color mapping - aligned with design_db ID:11 (Biodiversity Field)
@@ -114,9 +124,11 @@ if ($stats) {
     ];
     $monitoringSummary[] = [
         'title' => '保全シグナル',
-        'body' => $stats['redlist_count'] > 0
-            ? sprintf('レッドリスト該当種が%d種あります。現場計画と照合し、扱いを慎重に確認する対象です。', $stats['redlist_count'])
-            : '現時点でレッドリスト該当種の確認はありません。未確認イコール不在ではないため、継続観測が必要です。',
+        'body' => $canRevealSpeciesDetails
+            ? ($stats['redlist_count'] > 0
+                ? sprintf('レッドリスト該当種が%d種あります。現場計画と照合し、扱いを慎重に確認する対象です。', $stats['redlist_count'])
+                : '現時点でレッドリスト該当種の確認はありません。未確認イコール不在ではないため、継続観測が必要です。')
+            : 'Community ワークスペースでは、配慮が必要な種の詳細は公開しません。必要な確認や出力は Public プランで扱います。',
     ];
 
     if ($stats['days_since_last_obs'] > 30 || $monitoredMonths < 6) {
@@ -354,8 +366,34 @@ if ($stats) {
                     <div class="inline-flex items-center gap-2 text-primary text-xs font-bold tracking-[0.2em] uppercase mb-4">
                         <i data-lucide="shield-check" class="w-4 h-4"></i> ikimon for Business
                     </div>
-                    <h1 class="text-3xl md:text-4xl font-bold mb-3">サイトダッシュボード</h1>
-                    <p class="text-[#1a2e1f]/60">自然共生サイトのモニタリングデータをリアルタイムで可視化</p>
+                    <h1 class="text-3xl md:text-4xl font-bold mb-3">サイトの記録ボード</h1>
+                    <p class="text-[#1a2e1f]/60">その場所の自然の記録と参加の積み上がりを見返すための画面です</p>
+                </div>
+
+                <div class="glass-card p-5 md:p-6 bg-white mb-6 border border-emerald-100">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <div class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 mb-2">Enterprise Demo</div>
+                            <h2 class="text-xl font-black text-[#0f3d2e]">企業デモはショーケース、契約後の運用はこの画面から</h2>
+                            <p class="text-sm text-slate-600 mt-2 leading-7">
+                                愛管株式会社「連理の木の下で」を題材にした企業向けデモはショーケースページから確認できます。
+                                この画面は、契約後に実サイトを運用するための本番一覧です。
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="for-business/" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold hover:bg-emerald-100 transition">
+                                <i data-lucide="sparkles" class="w-4 h-4"></i> サービス概要
+                            </a>
+                            <?php if (Auth::isLoggedIn()): ?>
+                                <a href="corporate_dashboard.php" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100 transition">
+                                    <i data-lucide="building-2"></i> ワークスペース
+                                </a>
+                            <?php endif; ?>
+                            <a href="site_editor.php" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0f3d2e] text-white font-bold hover:bg-[#135843] transition">
+                                <i data-lucide="map" class="w-4 h-4"></i> サイト登録へ
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 <?php if (empty($allSites)): ?>
@@ -365,8 +403,8 @@ if ($stats) {
                         </div>
                         <h2 class="text-2xl font-bold mb-3 text-[#1a2e1f]">最初のサイトを登録しましょう</h2>
                         <p class="text-[#1a2e1f]/60 text-sm mb-6 leading-relaxed max-w-md mx-auto">
-                            あなたのフィールドを登録して、生物多様性のモニタリングを始めましょう。<br>
-                            蓄積されたデータはここで美しいレポートとして可視化されます。
+                            あなたのフィールドを登録して、自然の記録を残し始めましょう。<br>
+                            蓄積されたデータはここで見返しやすく整理されます。
                         </p>
                         <a href="site_editor.php" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary hover:bg-primary-dark text-white font-bold transition shadow-lg shadow-primary/20">
                             <i data-lucide="plus"></i> サイトを追加する
@@ -423,59 +461,109 @@ if ($stats) {
                             <h1 class="text-2xl md:text-3xl font-black text-[#1a2e1f] whitespace-nowrap"><?php echo htmlspecialchars($site['name']); ?></h1>
                             <span class="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 font-bold border border-emerald-100">
                                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                モニタリング中
+                                記録継続中
                             </span>
                         </div>
                         <p class="text-sm text-[#1a2e1f]/50 ml-8"><?php echo htmlspecialchars($site['address']); ?></p>
                     </div>
                     <div class="flex items-center gap-2 ml-8 md:ml-0 overflow-x-auto pb-2" style="white-space: nowrap; -webkit-overflow-scrolling: touch;">
                         <?php if (Auth::isLoggedIn()): ?>
+                            <a href="corporate_dashboard.php?corp=<?php echo urlencode($corpId); ?>"
+                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-slate-700 hover:text-emerald-600 font-bold border border-gray-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                <i data-lucide="building-2" class="w-3.5 h-3.5"></i> ワークスペース
+                            </a>
+                            <a href="corporate_members.php?corp=<?php echo urlencode($corpId); ?>&site=<?php echo urlencode($siteId); ?>"
+                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-slate-700 hover:text-emerald-600 font-bold border border-gray-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                <i data-lucide="users" class="w-3.5 h-3.5"></i> メンバー管理
+                            </a>
                             <a href="site_editor.php?site=<?php echo urlencode($siteId); ?>"
                                 class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-gray-600 hover:text-emerald-600 font-bold border border-gray-200 shadow-sm transition flex items-center gap-1.5 no-print">
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i> エリア編集
                             </a>
+                            <a href="corporate_settings.php?corp=<?php echo urlencode($corpId); ?>"
+                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-gray-600 hover:text-emerald-600 font-bold border border-gray-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                <i data-lucide="settings-2" class="w-3.5 h-3.5"></i> 設定
+                            </a>
                         <?php endif; ?>
-                        <a href="api/export_site_csv.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
-                            class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-emerald-600 font-bold border border-emerald-200 shadow-sm transition flex items-center gap-1.5 no-print">
-                            <i data-lucide="table" class="w-3.5 h-3.5"></i> 生データCSV
-                        </a>
-                        <button type="button" @click="openPrModal('<?php echo htmlspecialchars($siteId); ?>')"
-                            class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 shadow-sm transition flex items-center gap-1.5 no-print">
-                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> PR原案作成
-                        </button>
-                        <a href="api/download_proof_package.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
-                            class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-sm transition flex items-center gap-1.5 no-print" title="観測証跡のJSONパッケージ">
-                            <i data-lucide="file-json" class="w-3.5 h-3.5"></i> 観測証跡JSON
-                        </a>
-
-                        <!-- B2B API Previews -->
-                        <?php
-                        $previewLat = $site['center'][1] ?? 0;
-                        $previewLng = $site['center'][0] ?? 0;
-                        $testApiKey = 'test_enterprise_940245a9f27112fb6'; // Test Enterprise Key for preview
-                        $previewQs = http_build_query(['lat' => $previewLat, 'lng' => $previewLng, 'radius' => 2000, 'api_key' => $testApiKey]);
-                        ?>
-                        <div class="hidden md:flex items-center gap-1 border-l border-gray-200 pl-3 ml-1">
-                            <a href="api/v2/30by30_report.php?<?php echo htmlspecialchars($previewQs); ?>" target="_blank"
-                                class="text-xs px-3 py-2 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold border border-teal-200 shadow-sm transition flex items-center gap-1 no-print">
-                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i> 30x30参考
+                        <?php if ($canUseAdvancedOutputs): ?>
+                            <a href="api/export_site_csv.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
+                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-emerald-600 font-bold border border-emerald-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                <i data-lucide="table" class="w-3.5 h-3.5"></i> 生データCSV
                             </a>
-                            <a href="api/v2/tnfd_leap_report.php?<?php echo htmlspecialchars($previewQs); ?>" target="_blank"
-                                class="text-xs px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 shadow-sm transition flex items-center gap-1 no-print">
-                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i> TNFD参考
+                            <button type="button" @click="openPrModal('<?php echo htmlspecialchars($siteId); ?>')"
+                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> PR原案作成
+                            </button>
+                            <a href="api/download_proof_package.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
+                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-sm transition flex items-center gap-1.5 no-print" title="観測証跡のJSONパッケージ">
+                                <i data-lucide="file-json" class="w-3.5 h-3.5"></i> 観測証跡JSON
                             </a>
-                        </div>
 
-                        <a href="api/generate_report.php?site_id=<?php echo urlencode($siteId); ?>&from=2000-01-01" target="_blank"
-                            class="text-xs px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold transition shadow-lg shadow-teal-200 flex items-center gap-1.5 no-print" title="観測サマリーレポート (HTML/印刷可)">
-                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 観測サマリー
-                        </a>
-                        <a href="api/generate_site_report.php?site_id=<?php echo urlencode($siteId); ?>&from=2000-01-01" target="_blank"
-                            class="text-xs px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-lg shadow-emerald-200 flex items-center gap-1.5 no-print">
-                            <i data-lucide="download" class="w-3.5 h-3.5"></i> 観測証跡レポート
-                        </a>
+                            <div class="hidden md:flex items-center gap-1 border-l border-gray-200 pl-3 ml-1">
+                                <a href="api/generate_30by30_report.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
+                                    class="text-xs px-3 py-2 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold border border-teal-200 shadow-sm transition flex items-center gap-1 no-print">
+                                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i> 30x30参考
+                                </a>
+                                <a href="api/generate_tnfd_report.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
+                                    class="text-xs px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 shadow-sm transition flex items-center gap-1 no-print">
+                                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i> TNFD参考
+                                </a>
+                            </div>
+
+                            <a href="api/generate_report.php?site_id=<?php echo urlencode($siteId); ?>&from=2000-01-01" target="_blank"
+                                class="text-xs px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold transition shadow-lg shadow-teal-200 flex items-center gap-1.5 no-print" title="観測サマリーレポート (HTML/印刷可)">
+                                <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 観測サマリー
+                            </a>
+                            <a href="api/generate_site_report.php?site_id=<?php echo urlencode($siteId); ?>&from=2000-01-01" target="_blank"
+                                class="text-xs px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-lg shadow-emerald-200 flex items-center gap-1.5 no-print">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> 観測証跡レポート
+                            </a>
+                        <?php else: ?>
+                            <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900 no-print">
+                                <div><?= htmlspecialchars($planLabel) ?> では、完全な種一覧・CSV・証跡レポートは表示しません。啓発や運営用の概要確認まで無料、調査や報告の出力は Public で有効になります。</div>
+                                <a href="for-business/apply.php?plan=public&amp;source=site_dashboard&amp;site=<?= urlencode($siteId); ?>" class="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-600 px-4 py-2 text-xs font-black text-white hover:bg-amber-700 transition">
+                                    <i data-lucide="unlock" class="w-4 h-4"></i> Public へ上げる
+                                </a>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
+
+                <?php if ($isCommunityWorkspace): ?>
+                    <div class="mb-6 rounded-3xl border border-sky-200 bg-sky-50 px-5 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">Community Workspace</div>
+                            <div class="text-lg font-black text-sky-950">無料団体モードでは、概要だけを見せて運営できます</div>
+                            <p class="text-sm text-slate-600 mt-1">観察数、参加人数、分類群、季節カバーは無料のまま。完全な種一覧や証跡出力は Public だけに絞っています。</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="for-business/apply.php?plan=public&amp;source=site_dashboard_banner&amp;site=<?= urlencode($siteId); ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-sky-700 text-white font-bold hover:bg-sky-800 transition no-print">
+                                <i data-lucide="unlock" class="w-4 h-4"></i> Public を相談
+                            </a>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($isDemoMode): ?>
+                    <div class="mb-6 rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Enterprise Demo Detail</div>
+                            <div class="text-lg font-black text-[#0f3d2e]">この画面は「愛管株式会社 / 連理の木の下で」の企業デモ詳細です</div>
+                            <p class="text-sm text-slate-600 mt-1">観測の偏り、更新状況、重要種の照合結果などを確認できます。社外向けの見せ方は公開ショーケースで確認します。</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="for-business/" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-emerald-200 text-emerald-700 font-bold hover:bg-emerald-100 transition">
+                                <i data-lucide="arrow-left" class="w-4 h-4"></i> サービス概要へ戻る
+                            </a>
+                            <a href="site_dashboard.php?site=<?php echo urlencode($siteId); ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100 transition">
+                                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> このサイトの本番画面へ
+                            </a>
+                            <a href="csr_showcase.php?site_id=<?php echo urlencode($siteId); ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition">
+                                <i data-lucide="external-link" class="w-4 h-4"></i> 公開向けの見せ方を見る
+                            </a>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <!-- ② KPI Cards -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
@@ -568,25 +656,25 @@ if ($stats) {
                     </div>
                 <?php endif; ?>
 
-                <!-- ④ Monitoring reference index -->
+                <!-- ④ Record summary memo -->
                 <div class="glass-card bg-emerald-50/30 border-emerald-100 p-6 md:p-8 mb-6 shadow-sm">
                     <div class="flex flex-col md:flex-row md:items-center gap-6">
                         <div class="flex-1">
                             <h2 class="text-sm font-bold text-[#1a2e1f]/60 mb-1 flex items-center gap-2">
-                                モニタリング参考インデックス (β)
-                                <span class="info-tip text-[#1a2e1f]/50" data-tip="観測の厚みと保全シグナルを束ねた社内向けの参考指標です">
+                                記録のまとまりメモ (β)
+                                <span class="info-tip text-[#1a2e1f]/50" data-tip="記録の広がり、継続性、注意して見たい種の有無をまとめた内部向けメモです">
                                     <i data-lucide="info" class="w-3.5 h-3.5"></i>
                                 </span>
                             </h2>
                             <div class="flex items-baseline gap-3 mb-3">
                                 <span class="text-5xl md:text-6xl font-black stat-value count-up" data-target="<?php echo $stats['credit_score']; ?>">0</span>
                                 <span class="text-xs px-3 py-1.5 rounded-full font-bold bg-white border border-[#1a2e1f]/10 text-[#1a2e1f]/60 shadow-sm">
-                                    社内比較用の参考値
+                                    内部で見返すための目安
                                 </span>
                             </div>
                             <p class="text-sm text-[#1a2e1f]/70 leading-relaxed">
-                                数値が高いほど、種構成・保全重要種シグナル・データ品質・継続観測が相対的に揃っている状態を示します。
-                                ただし、認証可否、法令適合、クレジット価格、自然価値そのものを単独で示すものではありません。
+                                記録の広がり、重要種シグナル、記録の揃い方、継続性をひとまとめにした内部向けの目安です。
+                                自然価値そのものや認証可否を示す数値ではなく、どこを見直すと記録が育つかを考えるために使います。
                             </p>
 
                             <!-- Detailed Breakdown -->
@@ -618,8 +706,8 @@ if ($stats) {
                                 </div>
                             <?php else: ?>
                                 <p class="text-xs text-gray-500 leading-relaxed">
-                                    種多様性・保全重要種シグナル・観察努力を組み合わせた0〜100の参考値です。<br>
-                                    ※外部認証やクレジット単位ではなく、方向性を見るための社内向け表示です。
+                                    記録の広がり・重要種シグナル・観察努力を組み合わせた0〜100の内部メモです。<br>
+                                    ※外部評価や認証の代わりではなく、見返し用の表示です。
                                 </p>
                             <?php endif; ?>
                         </div>
@@ -645,7 +733,7 @@ if ($stats) {
                                 <text x="80" y="100" text-anchor="middle" fill="#1a2e1f" opacity="0.4"
                                     font-size="11" font-weight="600"
                                     style="transform: rotate(90deg); transform-origin: 80px 80px;">
-                                    参考値
+                                    目安
                                 </text>
                             </svg>
                         </div>
@@ -904,7 +992,7 @@ if ($stats) {
                         </div>
                     <?php endif; ?>
 
-                    <?php if (!empty($stats['top_species'])): ?>
+                    <?php if ($canRevealSpeciesDetails && !empty($stats['top_species'])): ?>
                         <div class="glass-card p-5">
                             <h2 class="text-xs font-bold tracking-[0.15em] text-gray-400 uppercase mb-3 flex items-center gap-2">
                                 <i data-lucide="bug" class="w-4 h-4"></i> 確認種 TOP 10
@@ -922,6 +1010,15 @@ if ($stats) {
                                     </div>
                                 <?php endforeach; ?>
                             </div>
+                        </div>
+                    <?php elseif (!$canRevealSpeciesDetails): ?>
+                        <div class="glass-card p-5 border border-dashed border-slate-200 bg-slate-50/70">
+                            <h2 class="text-xs font-bold tracking-[0.15em] text-gray-400 uppercase mb-3 flex items-center gap-2">
+                                <i data-lucide="eye-off" class="w-4 h-4"></i> 種一覧は Public で表示
+                            </h2>
+                            <p class="text-sm leading-7 text-slate-600">
+                                無料団体では、分類群や種数の概要だけを公開します。種名一覧、重要種の内訳、証跡ベースの出力は Public プランにまとめています。
+                            </p>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -998,7 +1095,7 @@ if ($stats) {
                 <?php endif; ?>
 
                 <!-- ⑫ Red List Species -->
-                <?php if (!empty($redListSpecies)): ?>
+                <?php if ($canRevealSpeciesDetails && !empty($redListSpecies)): ?>
                     <div class="glass-card p-5 mb-6">
                         <h2 class="text-xs font-bold tracking-[0.15em] text-gray-400 uppercase mb-3 flex items-center gap-2">
                             <span class="text-red-400">⚠️</span> レッドリスト該当種
@@ -1034,7 +1131,7 @@ if ($stats) {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-600 leading-relaxed">
                         <div>
                             <h3 class="text-slate-800 font-bold mb-2">何のための画面か</h3>
-                            <p class="mb-3">企業や拠点の担当者が、観測データから「現状の把握」「抜けている情報」「次の打ち手」を読み取りやすくするための画面です。TNFDや社内報告の準備に使える入力情報を整理しますが、準拠判定や認証判定を自動で行うものではありません。</p>
+                            <p class="mb-3">企業や拠点の担当者が、その場所で何が記録され、どの季節に動きがあり、どこに記録の薄い部分があるかを見返しやすくするための画面です。外部資料づくりの前段にも使えますが、判定や認証を自動で行うものではありません。</p>
 
                             <h3 class="text-slate-800 font-bold mb-2">⚠️ 読み方の前提</h3>
                             <ul class="space-y-1 text-slate-500">
@@ -1044,8 +1141,8 @@ if ($stats) {
                             </ul>
                         </div>
                         <div>
-                            <h3 class="text-slate-800 font-bold mb-2">国際フレームワークとの関係</h3>
-                            <p class="mb-3">TNFDやCBD GBFで求められる「自然との接点把握」「依存・影響・リスクの評価」「透明な開示」に向けた基礎データとして使いやすい形に整理しています。</p>
+                            <h3 class="text-slate-800 font-bold mb-2">外部資料とのつなぎ方</h3>
+                            <p class="mb-3">TNFDやCBD GBFのような外部資料に使う前段として、自然との接点や記録の証跡を見返しやすく整理しています。ここで完結するのではなく、必要に応じて現地確認や専門家レビューにつなぎます。</p>
                             <div class="space-y-2">
                                 <div class="flex items-center gap-2">
                                     <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
@@ -1087,12 +1184,12 @@ if ($stats) {
                             <i data-lucide="shield-alert" class="w-5 h-5 text-gray-400"></i>
                         </div>
                         <div>
-                            <h4 class="text-sm font-bold text-gray-700 mb-2">【重要】データの科学的誠実性に関する免責事項 (Anti-Greenwashing Policy)</h4>
+                            <h4 class="text-sm font-bold text-gray-700 mb-2">【重要】この画面の位置づけ</h4>
                             <p class="text-xs text-gray-500 leading-relaxed mb-2">
                                 本ダッシュボードに表示される指標およびデータは、ikimon.lifeの市民科学（Citizen Science）ならびに専門家による継続的な「確認データ（Presence-only data）」に基づいています。<strong>特定の種の絶対的な生息密度や増減を完全に保証するものではありません。</strong>
                             </p>
                             <p class="text-xs text-gray-500 leading-relaxed">
-                                当プラットフォームは、企業や地域コミュニティによる<span class="text-emerald-600 font-bold">「継続的な自然観察の努力」</span>と、それに伴う<span class="text-emerald-600 font-bold">「写真・GPS・日時を伴う観測証跡」</span>を整理して可視化するものです。TNFDや社内サステナビリティ報告に使う場合は、監視・評価の補完資料として扱い、重要な判断には専門家レビューや現地確認を加えることを推奨します。
+                                当プラットフォームは、企業や地域コミュニティによる<span class="text-emerald-600 font-bold">「継続的な自然観察の努力」</span>と、それに伴う<span class="text-emerald-600 font-bold">「写真・GPS・日時を伴う観測証跡」</span>を整理して見返しやすくするものです。TNFDや社内サステナビリティ報告に使う場合も、まずは補助資料として扱い、重要な判断には専門家レビューや現地確認を加えることを推奨します。
                             </p>
                         </div>
                     </div>
@@ -1248,32 +1345,26 @@ if ($stats) {
                                 }
                             }
 
-                            this.loadSiteObservations();
+                            <?php if ($canRevealSpeciesDetails): ?>
+                            this.loadSiteSummary();
+                            <?php endif; ?>
                         });
                     },
 
-                    async loadSiteObservations() {
+                    async loadSiteSummary() {
                         try {
-                            const res = await fetch('api/get_observations.php?limit=200');
+                            const res = await fetch('api/get_site_summary.php?site_id=<?php echo rawurlencode($siteId); ?>');
                             const result = await res.json();
-                            const obs = result.data || [];
+                            if (!result.success) return;
 
-                            const geojson = <?php echo json_encode($geojson); ?>;
-                            if (!geojson || !geojson.features[0]) return;
+                            const points = result.data?.map_points || [];
+                            if (!points.length) return;
 
-                            const polygon = geojson.features[0].geometry.coordinates[0];
-
-                            const inSite = obs.filter(o => {
-                                const lat = parseFloat(o.lat);
-                                const lng = parseFloat(o.lng);
-                                return this.pointInPolygon(lat, lng, polygon);
-                            });
-
-                            const features = inSite.map(o => ({
+                            const features = points.map(o => ({
                                 type: 'Feature',
                                 properties: {
                                     id: o.id,
-                                    name: o.taxon?.name || o.species_name || '未同定'
+                                    name: o.name || '未同定'
                                 },
                                 geometry: {
                                     type: 'Point',
@@ -1334,26 +1425,8 @@ if ($stats) {
                             });
 
                         } catch (e) {
-                            console.error('Failed to load observations:', e);
+                            console.error('Failed to load site summary:', e);
                         }
-                    },
-
-                    pointInPolygon(lat, lng, polygon) {
-                        let inside = false;
-                        const x = lng,
-                            y = lat;
-                        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-                            const xi = polygon[i][0],
-                                yi = polygon[i][1];
-                            const xj = polygon[j][0],
-                                yj = polygon[j][1];
-                            if (((yi < y && yj >= y) || (yj < y && yi >= y)) && (xi <= x || xj <= x)) {
-                                if (xi + (y - yi) / (yj - yi) * (xj - xi) < x) {
-                                    inside = !inside;
-                                }
-                            }
-                        }
-                        return inside;
                     },
 
                     // PR Auto-Crafter
@@ -1411,6 +1484,7 @@ if ($stats) {
         </script>
     <?php endif; ?>
     <?php include __DIR__ . '/components/badge_notification.php'; ?>
+    <?php include __DIR__ . '/components/footer.php'; ?>
 </body>
 
 </html>

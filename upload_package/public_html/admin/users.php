@@ -27,7 +27,7 @@ $currentUser = Auth::user();
         </header>
 
         <!-- Stats -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p class="text-xs text-slate-400 font-bold uppercase">総ユーザー</p>
                 <p class="text-2xl font-black text-blue-400" x-text="stats.total">—</p>
@@ -39,6 +39,10 @@ $currentUser = Auth::user();
             <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p class="text-xs text-slate-400 font-bold uppercase">管理者</p>
                 <p class="text-2xl font-black text-amber-400" x-text="stats.admins">—</p>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <p class="text-xs text-slate-400 font-bold uppercase">調査員</p>
+                <p class="text-2xl font-black text-sky-400" x-text="stats.surveyors">—</p>
             </div>
             <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <p class="text-xs text-slate-400 font-bold uppercase">BAN中</p>
@@ -60,6 +64,7 @@ $currentUser = Auth::user();
                     <tr>
                         <th class="px-4 py-3">ユーザー</th>
                         <th class="px-4 py-3">ロール</th>
+                        <th class="px-4 py-3">調査員</th>
                         <th class="px-4 py-3">参加日</th>
                         <th class="px-4 py-3">投稿数</th>
                         <th class="px-4 py-3">操作</th>
@@ -68,12 +73,12 @@ $currentUser = Auth::user();
                 <tbody class="divide-y divide-slate-700">
                     <template x-if="loading">
                         <tr>
-                            <td class="px-4 py-8 text-center text-slate-500" colspan="5">読み込み中...</td>
+                            <td class="px-4 py-8 text-center text-slate-500" colspan="6">読み込み中...</td>
                         </tr>
                     </template>
                     <template x-if="!loading && filteredUsers.length === 0">
                         <tr>
-                            <td class="px-4 py-8 text-center text-slate-500" colspan="5">ユーザーが見つかりません</td>
+                            <td class="px-4 py-8 text-center text-slate-500" colspan="6">ユーザーが見つかりません</td>
                         </tr>
                     </template>
                     <template x-for="user in filteredUsers" :key="user.id">
@@ -95,6 +100,21 @@ $currentUser = Auth::user();
                                     class="bg-transparent border-0 text-sm font-bold focus:outline-none cursor-pointer">
                                     <template x-for="role in ['Observer', 'Specialist', 'Analyst', 'Admin']">
                                         <option :value="role" :selected="user.role === role" x-text="role"
+                                            class="bg-slate-800 text-white"></option>
+                                    </template>
+                                </select>
+                            </td>
+                            <td class="px-4 py-3">
+                                <select @change="changeSurveyorStatus(user.id, $event.target.value)"
+                                    :class="{
+                                        'text-sky-400': user.surveyor_status === 'approved',
+                                        'text-amber-400': user.surveyor_status === 'pending',
+                                        'text-red-400': user.surveyor_status === 'suspended',
+                                        'text-slate-400': user.surveyor_status === 'none'
+                                    }"
+                                    class="bg-transparent border-0 text-sm font-bold focus:outline-none cursor-pointer">
+                                    <template x-for="status in ['none', 'pending', 'approved', 'suspended']">
+                                        <option :value="status" :selected="user.surveyor_status === status" x-text="status"
                                             class="bg-slate-800 text-white"></option>
                                     </template>
                                 </select>
@@ -125,6 +145,7 @@ $currentUser = Auth::user();
                     total: 0,
                     specialists: 0,
                     admins: 0,
+                    surveyors: 0,
                     banned: 0
                 },
 
@@ -135,7 +156,7 @@ $currentUser = Auth::user();
                 async fetchUsers() {
                     this.loading = true;
                     try {
-                        const res = await fetch('../api/admin/list_users.php');
+                        const res = await fetch('../api/admin/get_users.php');
                         const data = await res.json();
                         if (data.success) {
                             this.users = data.data;
@@ -153,6 +174,7 @@ $currentUser = Auth::user();
                     this.stats.total = this.users.length;
                     this.stats.specialists = this.users.filter(u => ['Specialist', 'Analyst'].includes(u.role)).length;
                     this.stats.admins = this.users.filter(u => u.role === 'Admin').length;
+                    this.stats.surveyors = this.users.filter(u => u.surveyor_status === 'approved').length;
                     this.stats.banned = this.users.filter(u => u.banned).length;
                 },
 
@@ -175,13 +197,15 @@ $currentUser = Auth::user();
                         return;
                     }
                     try {
-                        await fetch('../api/admin/change_role.php', {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                        await fetch('../api/admin/update_role.php', {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': csrfToken
                             },
                             body: JSON.stringify({
-                                user_id: userId,
+                                id: userId,
                                 role: newRole
                             })
                         });
@@ -191,20 +215,46 @@ $currentUser = Auth::user();
                     }
                 },
 
+                async changeSurveyorStatus(userId, status) {
+                    if (!confirm(`調査員状態を ${status} に変更しますか？`)) {
+                        await this.fetchUsers();
+                        return;
+                    }
+                    try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                        await fetch('../api/admin/update_surveyor_status.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': csrfToken
+                            },
+                            body: JSON.stringify({
+                                id: userId,
+                                status
+                            })
+                        });
+                        await this.fetchUsers();
+                    } catch (e) {
+                        alert('Error changing surveyor status');
+                    }
+                },
+
                 async toggleBan(user) {
                     const action = user.banned ? 'unban' : 'ban';
                     const msg = user.banned ? 'BAN解除しますか？' : 'ShadowBANしますか？';
                     if (!confirm(msg)) return;
 
                     try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                         await fetch('../api/admin/toggle_ban.php', {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': csrfToken
                             },
                             body: JSON.stringify({
-                                user_id: user.id,
-                                action
+                                id: user.id,
+                                banned: !user.banned
                             })
                         });
                         await this.fetchUsers();

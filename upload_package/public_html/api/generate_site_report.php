@@ -22,9 +22,11 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
+require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../../libs/SiteManager.php';
 require_once __DIR__ . '/../../libs/RedListManager.php';
 require_once __DIR__ . '/../../libs/BiodiversityScorer.php';
+require_once __DIR__ . '/../../libs/BioUtils.php';
 
 // --- Initialization ---
 $siteId = $_GET['site_id'] ?? null;
@@ -44,6 +46,14 @@ $site = SiteManager::load($siteId);
 if (!$site) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['success' => false, 'message' => 'Site not found: ' . $siteId], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+    exit;
+}
+
+$corporation = CorporatePlanGate::resolveCorporationForSite((string)$siteId);
+if ($corporation && !CorporatePlanGate::canUseAdvancedOutputs($corporation)) {
+    http_response_code(403);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => false, 'message' => 'Community ワークスペースでは証跡レポートを出力できません。Public プランで有効になります。'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -127,8 +137,8 @@ foreach ($siteObs as $obs) {
     // Taxonomy breakdown
     $taxonomyBreakdown[$taxonGroupJa] = ($taxonomyBreakdown[$taxonGroupJa] ?? 0) + 1;
 
-    // Research Grade
-    if (($obs['quality_grade'] ?? ($obs['status'] ?? '')) === 'Research Grade') {
+    // Research-usable
+    if (BioUtils::isResearchGradeObservation($obs)) {
         $researchGradeCount++;
     }
 }
