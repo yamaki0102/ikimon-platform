@@ -49,6 +49,13 @@ $evtJson = json_encode([
     'rain_policy'    => $event['rain_policy'] ?? '',
     'precautions'    => $event['precautions'] ?? '',
     'grant_id'       => $event['grant_id'] ?? '',
+    'event_type'     => $event['event_type'] ?? 'open',
+    'enable_bingo'   => !empty($event['enable_bingo']),
+    'enable_leaderboard' => !isset($event['enable_leaderboard']) || !empty($event['enable_leaderboard']),
+    'event_code'     => $event['event_code'] ?? '',
+    'site_id'        => $event['site_id'] ?? ($event['location']['site_id'] ?? ''),
+    'bingo_species'  => $event['bingo_species'] ?? [],
+    'bingo_template_id' => $event['bingo_template_id'] ?? '',
     'target_species' => $event['target_species'] ?? [],
 ], JSON_UNESCAPED_UNICODE);
 
@@ -179,6 +186,37 @@ $meta_description = "観察会の情報を編集します。";
         .search-results .result-item:hover {
             background: #f0fdf4;
         }
+
+        .site-strip {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding-bottom: 0.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .site-card {
+            min-width: 220px;
+            border-radius: 1rem;
+            border: 1.5px solid var(--color-border, #e5e7eb);
+            background: white;
+            padding: 0.9rem;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .site-card.active {
+            border-color: var(--color-primary, #10b981);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.04));
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
+        }
+
+        .site-card p {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
     </style>
 </head>
 
@@ -223,6 +261,24 @@ $meta_description = "観察会の情報を編集します。";
         <!-- Location Search -->
         <div class="form-field">
             <label>📍 場所</label>
+            <div x-show="sites.length > 0" class="mb-3">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-black text-gray-600 tracking-[0.12em] uppercase">Site から選ぶ</h3>
+                    <button type="button" x-show="siteId" @click="clearSiteSelection()" class="text-xs font-bold text-gray-400">解除</button>
+                </div>
+                <div class="site-strip">
+                    <template x-for="site in sites" :key="site.id">
+                        <button type="button" class="site-card" :class="{ 'active': siteId === site.id }" @click="selectSite(site)">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-sm font-black text-gray-900" x-text="site.name"></span>
+                                <span x-show="siteId === site.id" class="text-[10px] font-black text-emerald-600">選択中</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2" x-text="site.description || 'エリアと連動したイベントに使えます'"></p>
+                            <div class="mt-3 text-[11px] font-bold text-emerald-700" x-text="'ID: ' + site.id"></div>
+                        </button>
+                    </template>
+                </div>
+            </div>
             <div class="search-container">
                 <span class="search-icon">🔍</span>
                 <input type="text" x-model="searchQuery" @input.debounce.400ms="searchAddress()"
@@ -256,6 +312,28 @@ $meta_description = "観察会の情報を編集します。";
         <div class="form-field">
             <label>メモ（任意・100字）</label>
             <textarea x-model="memo" rows="2" maxlength="100" placeholder="簡単な説明など"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="form-field">
+                <label>参加方式</label>
+                <select x-model="eventType">
+                    <option value="open">誰でも参加できる</option>
+                    <option value="invite">招待制</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>イベントコード（任意）</label>
+                <input type="text" x-model="eventCode" maxlength="20"
+                    @input="eventCode = eventCode.toUpperCase().replace(/[^A-Z0-9]/g, '')"
+                    placeholder="例: HAMANAKO2026">
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label>Site ID（任意）</label>
+            <input type="text" x-model="siteId" maxlength="120" placeholder="例: site_hamanako_area">
+            <p class="text-xs text-gray-400 mt-1">サイト境界と紐付けるとビンゴや集計に利用されます</p>
         </div>
 
         <!-- Meeting Point -->
@@ -298,6 +376,42 @@ $meta_description = "観察会の情報を編集します。";
             </select>
         </div>
 
+        <div class="form-field">
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" x-model="enableLeaderboard" class="mt-1">
+                <span>
+                    <span class="block text-sm font-bold text-gray-700">イベント内ランキングを表示する</span>
+                    <span class="block text-xs text-gray-400 mt-1">終了後サマリーにも使います</span>
+                </span>
+            </label>
+        </div>
+
+        <div class="form-field">
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" x-model="enableBingo" class="mt-1">
+                <span>
+                    <span class="block text-sm font-bold text-gray-700">ビンゴカードを有効化する</span>
+                    <span class="block text-xs text-gray-400 mt-1">必要なら保存時に再生成できます</span>
+                </span>
+            </label>
+        </div>
+
+        <div class="form-field" x-show="enableBingo" x-cloak>
+            <div class="flex items-center justify-between mb-2">
+                <label class="mb-0">ビンゴ候補種</label>
+                <button type="button" @click="regenerateBingo()" :disabled="saving || bingoGenerating"
+                    class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
+                    <span x-text="bingoGenerating ? '生成中...' : '再生成する'"></span>
+                </button>
+            </div>
+            <div class="flex flex-wrap gap-2" x-show="bingoSpecies.length > 0">
+                <template x-for="species in bingoSpecies" :key="species">
+                    <span class="px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 text-xs font-bold" x-text="species"></span>
+                </template>
+            </div>
+            <p x-show="bingoSpecies.length === 0" class="text-xs text-gray-400">まだ生成されていません</p>
+        </div>
+
         <!-- Save Button -->
         <button class="btn-save" @click="saveEvent()" :disabled="saving">
             <span x-show="!saving">💾 保存する</span>
@@ -329,13 +443,22 @@ $meta_description = "観察会の情報を編集します。";
                 rainPolicy: evt.rain_policy,
                 precautions: evt.precautions,
                 grantId: evt.grant_id || '',
+                eventType: evt.event_type || 'open',
+                enableBingo: !!evt.enable_bingo,
+                enableLeaderboard: !!evt.enable_leaderboard,
+                eventCode: evt.event_code || '',
+                siteId: evt.site_id || '',
+                bingoSpecies: evt.bingo_species || [],
+                bingoTemplateId: evt.bingo_template_id || '',
                 searchQuery: '',
                 searchResults: [],
                 saving: false,
+                bingoGenerating: false,
                 errorMsg: '',
                 map: null,
                 marker: null,
                 circle: null,
+                sites: [],
 
                 init() {
                     this.$nextTick(() => {
@@ -354,6 +477,7 @@ $meta_description = "観察会の情報を編集します。";
                             this.placeMarker();
                         });
                     });
+                    this.loadSites();
                 },
 
                 placeMarker() {
@@ -370,6 +494,33 @@ $meta_description = "観察会の情報を編集します。";
 
                 updateRadiusCircle() {
                     if (this.circle) this.circle.setRadius(this.radiusM);
+                },
+
+                async loadSites() {
+                    try {
+                        const res = await fetch('api/list_sites.php');
+                        const data = await res.json();
+                        this.sites = (data.sites || []).filter((site) => site.status === 'active');
+                    } catch (e) {
+                        console.warn('Failed to load sites:', e);
+                    }
+                },
+
+                selectSite(site) {
+                    this.siteId = site.id;
+                    const center = Array.isArray(site.center) ? site.center : null;
+                    if (center && center.length >= 2) {
+                        this.lng = Number(center[0]);
+                        this.lat = Number(center[1]);
+                    }
+                    this.locationName = site.name || this.locationName;
+                    this.radiusM = Math.max(this.radiusM, 500);
+                    this.map.setView([this.lat, this.lng], 15);
+                    this.placeMarker();
+                },
+
+                clearSiteSelection() {
+                    this.siteId = '';
                 },
 
                 async searchAddress() {
@@ -421,12 +572,20 @@ $meta_description = "観察会の情報を編集します。";
                             parking_info: this.parkingInfo,
                             rain_policy: this.rainPolicy,
                             precautions: this.precautions,
+                            event_type: this.eventType,
+                            event_code: this.eventCode,
                             grant_id: this.grantId,
+                            site_id: this.siteId,
+                            enable_bingo: this.enableBingo,
+                            enable_leaderboard: this.enableLeaderboard,
+                            bingo_species: this.bingoSpecies,
+                            bingo_template_id: this.bingoTemplateId,
                             event_date: this.eventDate,
                             start_time: this.startTime,
                             end_time: this.endTime,
                             location: {
                                 type: 'custom',
+                                site_id: this.siteId || null,
                                 lat: this.lat,
                                 lng: this.lng,
                                 radius_m: this.radiusM,
@@ -451,6 +610,36 @@ $meta_description = "観察会の情報を編集します。";
                         this.errorMsg = '通信エラーが発生しました';
                     } finally {
                         this.saving = false;
+                    }
+                },
+
+                async regenerateBingo() {
+                    if (!this.enableBingo) {
+                        return;
+                    }
+                    this.bingoGenerating = true;
+                    this.errorMsg = '';
+                    try {
+                        const res = await fetch('api/generate_bingo_template.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                event_id: this.id,
+                            }),
+                        });
+                        const data = await res.json();
+                        if (!data.success) {
+                            this.errorMsg = data.message || 'ビンゴ生成に失敗しました';
+                            return;
+                        }
+                        this.bingoSpecies = data.cells || [];
+                        this.bingoTemplateId = data.template_id || '';
+                    } catch (e) {
+                        this.errorMsg = 'ビンゴ生成に失敗しました';
+                    } finally {
+                        this.bingoGenerating = false;
                     }
                 },
             };

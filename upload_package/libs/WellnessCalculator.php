@@ -52,6 +52,7 @@ class WellnessCalculator
 
         // 週別の自然時間追跡（週120分目標）
         $weeklyNature = self::calculateWeeklyNature($sessions);
+        $habitGuidance = self::buildHabitGuidance($weeklyNature);
 
         return [
             'user_id'    => $userId,
@@ -61,6 +62,7 @@ class WellnessCalculator
             'cognitive'  => $cognitive,
             'emotional'  => $emotional,
             'weekly_nature' => $weeklyNature,
+            'habit_guidance' => $habitGuidance,
             'generated_at'  => date('c'),
         ];
     }
@@ -342,6 +344,37 @@ class WellnessCalculator
         }
 
         return $result;
+    }
+
+    private static function buildHabitGuidance(array $weeklyNature): array
+    {
+        $currentWeek = end($weeklyNature);
+        if (!is_array($currentWeek)) {
+            return [
+                'current_week_minutes' => 0,
+                'target_minutes' => self::WEEKLY_NATURE_TARGET_MIN,
+                'remaining_minutes' => self::WEEKLY_NATURE_TARGET_MIN,
+                'achieved' => false,
+                'cta_label' => 'まずは10分だけ外に出よう',
+                'cta_message' => '短い散歩でも、今週の自然時間は積み上がる。',
+            ];
+        }
+
+        $remaining = max(0, (int)$currentWeek['target'] - (int)$currentWeek['minutes']);
+        $achieved = !empty($currentWeek['achieved']);
+
+        return [
+            'current_week_minutes' => (int)$currentWeek['minutes'],
+            'target_minutes' => (int)$currentWeek['target'],
+            'remaining_minutes' => $remaining,
+            'achieved' => $achieved,
+            'cta_label' => $achieved ? '今週の自然時間は達成済み' : '今週の自然時間まであと ' . $remaining . '分',
+            'cta_message' => $achieved
+                ? '達成済み。このまま無理せず、次の発見を重ねればいい。'
+                : ($remaining <= 20
+                    ? 'あと少し。短いさんぽでも今週の目標に届く。'
+                    : '次の散歩で自然時間を積み上げよう。'),
+        ];
     }
 
     /**

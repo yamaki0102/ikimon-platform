@@ -12,11 +12,15 @@
 
 require_once __DIR__ . '/../DataStore.php';
 require_once __DIR__ . '/../RedList.php';
+require_once __DIR__ . '/../BioUtils.php';
+require_once __DIR__ . '/../Lang.php';
 
 class ZukanService
 {
     /** Cache TTL for the taxon index (1 hour) */
     private const INDEX_TTL = 3600;
+    private const INDEX_CACHE_KEY = 'zukan_taxon_index_v2026_posts_v2';
+    private const USER_CACHE_PREFIX = 'zukan_user_v2026_v2_';
 
     /** Taxon group mapping for filtering (keys match filter chips, values match inferGroup output) */
     private const GROUP_MAP = [
@@ -37,11 +41,15 @@ class ZukanService
      */
     public static function buildTaxonIndex(): array
     {
-        return DataStore::getCached('zukan_taxon_index', self::INDEX_TTL, function () {
+        return DataStore::getCached(self::INDEX_CACHE_KEY, self::INDEX_TTL, function () {
             $observations = DataStore::fetchAll('observations');
             $index = [];
 
             foreach ($observations as $obs) {
+                if (!self::shouldIncludeObservation($obs)) {
+                    continue;
+                }
+
                 $taxonKey = $obs['taxon']['key'] ?? null;
                 $taxonName = $obs['taxon']['name'] ?? '';
                 if (!$taxonKey || !$taxonName) continue;
@@ -67,7 +75,7 @@ class ZukanService
                 $entry['obs_count']++;
 
                 // Track Research Grade count
-                if (($obs['status'] ?? '') === 'Research Grade') {
+                if (BioUtils::isResearchGradeLike($obs['status'] ?? ($obs['quality_grade'] ?? ''))) {
                     $entry['rg_count']++;
                 }
 
@@ -205,6 +213,11 @@ class ZukanService
 
         $total = count($species);
         $data = array_slice($species, $offset, $limit);
+        $summaryMessages = self::summaryMessages();
+        foreach ($data as &$item) {
+            $item['summary'] = self::buildSummary($item, $summaryMessages);
+        }
+        unset($item);
 
         return [
             'total'    => $total,
@@ -222,11 +235,12 @@ class ZukanService
      */
     public static function getUserFoundSpecies(string $userId): array
     {
-        return DataStore::getCached("zukan_user_{$userId}", 600, function () use ($userId) {
+        return DataStore::getCached(self::USER_CACHE_PREFIX . $userId, 600, function () use ($userId) {
             $observations = DataStore::fetchAll('observations');
             $found = [];
 
             foreach ($observations as $obs) {
+                if (!self::shouldIncludeObservation($obs)) continue;
                 if (($obs['user_id'] ?? '') !== $userId) continue;
                 $key = $obs['taxon']['key'] ?? null;
                 if ($key && !in_array($key, $found)) {
@@ -289,6 +303,22 @@ class ZukanService
             'rg_rate'       => $totalObs > 0 ? round(($totalRg / $totalObs) * 100, 1) : 0,
             'group_counts'  => $groupCounts,
         ];
+    }
+
+    private static function shouldIncludeObservation(array $obs): bool
+    {
+        $createdAt = trim((string)($obs['created_at'] ?? ''));
+        if ($createdAt === '' || (int)substr($createdAt, 0, 4) < 2026) {
+            return false;
+        }
+
+        $sourceType = strtolower(trim((string)($obs['source_type'] ?? '')));
+        $importSource = strtolower(trim((string)($obs['import_source'] ?? '')));
+        if ($sourceType === 'import' || $sourceType === 'dummy' || in_array($importSource, ['seed', 'dummy'], true)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -363,5 +393,107 @@ class ZukanService
         }
 
         return '';
+    }
+
+    private static function buildSummary(array $entry, array $messages): string
+    {
+        $group = self::translateGroup(trim((string)($entry['group'] ?? '')), $messages);
+        $rank = trim((string)($entry['rank'] ?? ''));
+        $obsCount = (int)($entry['obs_count'] ?? 0);
+        $observerCount = (int)($entry['observer_count'] ?? 0);
+        $lastObserved = trim((string)($entry['last_observed'] ?? ''));
+
+        $rankLabels = [
+            'species' => $messages['rank_species'] ?? '種',
+            'genus' => $messages['rank_genus'] ?? '属',
+            'family' => $messages['rank_family'] ?? '科',
+            'order' => $messages['rank_order'] ?? '目',
+            'class' => $messages['rank_class'] ?? '綱',
+            'phylum' => $messages['rank_phylum'] ?? '門',
+            'kingdom' => $messages['rank_kingdom'] ?? '界',
+        ];
+        $rankLabel = $rankLabels[strtolower($rank)] ?? ($rank !== '' ? $rank : ($messages['rank_generic'] ?? '分類群'));
+
+        $parts = [];
+        if ($group !== '') {
+            $parts[] = self::fill($messages['group_rank'] ?? '{group}の{rank}', [
+                '{group}' => $group,
+                '{rank}' => $rankLabel,
+            ]);
+        } else {
+            $parts[] = self::fill($messages['rank_only'] ?? '{rank}として記録', [
+                '{rank}' => $rankLabel,
+            ]);
+        }
+
+        if ($obsCount > 0) {
+            $parts[] = self::fill(($obsCount === 1 ? ($messages['obs_count_singular'] ?? '{count}件の観察') : ($messages['obs_count_plural'] ?? '{count}件の観察')), [
+                '{count}' => (string)$obsCount,
+            ]);
+        }
+        if ($observerCount > 1) {
+            $parts[] = self::fill(($observerCount === 1 ? ($messages['observer_count_singular'] ?? '{count}人が記録') : ($messages['observer_count_plural'] ?? '{count}人が記録')), [
+                '{count}' => (string)$observerCount,
+            ]);
+        }
+
+        if ($lastObserved !== '' && preg_match('/^(\d{4})-(\d{2})/', $lastObserved, $m)) {
+            $parts[] = self::fill($messages['last_observed'] ?? '{year}年{month}月まで記録', [
+                '{year}' => $m[1],
+                '{month}' => $m[2],
+            ]);
+        }
+
+        return implode($messages['separator'] ?? '・', $parts);
+    }
+
+    private static function summaryMessages(): array
+    {
+        return [
+            'group_rank' => __('zukan.card_summary.group_rank', '{group}の{rank}'),
+            'rank_only' => __('zukan.card_summary.rank_only', '{rank}として記録'),
+            'obs_count_singular' => __('zukan.card_summary.obs_count_singular', '{count}件の観察'),
+            'obs_count_plural' => __('zukan.card_summary.obs_count_plural', '{count}件の観察'),
+            'observer_count_singular' => __('zukan.card_summary.observer_count_singular', '{count}人が記録'),
+            'observer_count_plural' => __('zukan.card_summary.observer_count_plural', '{count}人が記録'),
+            'last_observed' => __('zukan.card_summary.last_observed', '{year}年{month}月まで記録'),
+            'rank_species' => __('zukan.card_summary.rank_species', '種'),
+            'rank_genus' => __('zukan.card_summary.rank_genus', '属'),
+            'rank_family' => __('zukan.card_summary.rank_family', '科'),
+            'rank_order' => __('zukan.card_summary.rank_order', '目'),
+            'rank_class' => __('zukan.card_summary.rank_class', '綱'),
+            'rank_phylum' => __('zukan.card_summary.rank_phylum', '門'),
+            'rank_kingdom' => __('zukan.card_summary.rank_kingdom', '界'),
+            'rank_generic' => __('zukan.card_summary.rank_generic', '分類群'),
+            'separator' => __('zukan.card_summary.separator', '・'),
+            'group_bird' => __('zukan.card_summary.group_bird', '鳥類'),
+            'group_insect' => __('zukan.card_summary.group_insect', '昆虫'),
+            'group_plant' => __('zukan.card_summary.group_plant', '植物'),
+            'group_mammal' => __('zukan.card_summary.group_mammal', '哺乳類'),
+            'group_fish' => __('zukan.card_summary.group_fish', '魚類'),
+            'group_fungi' => __('zukan.card_summary.group_fungi', '菌類'),
+            'group_amphibian_reptile' => __('zukan.card_summary.group_amphibian_reptile', '両生爬虫類'),
+            'group_other' => __('zukan.card_summary.group_other', 'その他'),
+        ];
+    }
+
+    private static function fill(string $template, array $replacements): string
+    {
+        return strtr($template, $replacements);
+    }
+
+    private static function translateGroup(string $group, array $messages): string
+    {
+        return match ($group) {
+            '鳥類' => $messages['group_bird'] ?? $group,
+            '昆虫' => $messages['group_insect'] ?? $group,
+            '植物' => $messages['group_plant'] ?? $group,
+            '哺乳類' => $messages['group_mammal'] ?? $group,
+            '魚類' => $messages['group_fish'] ?? $group,
+            '菌類' => $messages['group_fungi'] ?? $group,
+            '両生爬虫類' => $messages['group_amphibian_reptile'] ?? $group,
+            'その他' => $messages['group_other'] ?? $group,
+            default => $group,
+        };
     }
 }

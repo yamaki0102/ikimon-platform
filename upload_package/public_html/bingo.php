@@ -1,446 +1,432 @@
 <?php
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/DataStore.php';
 
 Auth::init();
 $currentUser = Auth::user();
-
-// Load Real Data based on event_id
 $eventId = $_GET['event_id'] ?? '';
 if (!$eventId) {
     header('Location: events.php');
     exit;
 }
 
-require_once __DIR__ . '/../libs/DataStore.php';
 $event = DataStore::findById('events', $eventId);
-
 if (!$event || empty($event['bingo_template_id'])) {
-    // Event doesn't exist or doesn't have bingo set up
     header('Location: event_detail.php?id=' . urlencode($eventId));
     exit;
 }
 
-$templateId = $event['bingo_template_id'];
-$templatePath = DATA_DIR . '/bingo_templates/' . $templateId . '.json';
-$bingoCells = [];
-
-if (file_exists($templatePath)) {
-    $tpl = json_decode(file_get_contents($templatePath), true);
-    if ($tpl && isset($tpl['cells'])) {
-        $bingoCells = $tpl['cells'];
-    }
+$template = DataStore::get('bingo_templates/' . $event['bingo_template_id']);
+$bingoCells = is_array($template['cells'] ?? null) ? $template['cells'] : [];
+if (count($bingoCells) < 8) {
+    $bingoCells = ['タンポポ', 'モンシロチョウ', 'ツバメ', 'スズメ', 'シロツメクサ', 'ダンゴムシ', 'アリンコ', 'テントウムシ'];
 }
+$bingoCells = array_values(array_slice($bingoCells, 0, 8));
 
-// Fallback if template is missing or malformed
-if (empty($bingoCells) || count($bingoCells) < 8) {
-    $bingoCells = ["タンポポ", "モンシロチョウ", "ツバメ", "スズメ", "シロツメクサ", "ダンゴムシ", "アリンコ", "テントウムシ", "カラス"];
-}
-
-// Load user's progress — matches post_observation.php storage format:
-// DATA_DIR/bingo_progress/{user_id}/{template_id}.json
-$userId = $currentUser ? $currentUser['id'] : 'anonymous';
-$progressFile = DATA_DIR . '/bingo_progress/' . $userId . '/' . $templateId . '.json';
+$userId = $currentUser['id'] ?? (Auth::isGuest() ? Auth::getGuestId() : 'anonymous');
+$progress = DataStore::get('bingo_progress/' . $userId . '/' . $event['bingo_template_id'], 60);
 $progressCells = [];
-if (file_exists($progressFile)) {
-    $progData = json_decode(file_get_contents($progressFile), true);
-    if ($progData && isset($progData['cells']) && is_array($progData['cells'])) {
-        // Index by target_species for fast lookup
-        foreach ($progData['cells'] as $pc) {
-            $progressCells[$pc['target_species'] ?? ''] = $pc;
-        }
+foreach (($progress['cells'] ?? []) as $cell) {
+    $name = trim((string)($cell['target_species'] ?? ''));
+    if ($name !== '') {
+        $progressCells[$name] = $cell;
     }
 }
 
-// Build 3x3 Grid with photos from progress data
 $grid = [];
-for ($i = 0; $i < 9; $i++) {
-    if ($i === 4) {
-        // Free space in the middle
-        $grid[] = [
-            'id' => 5,
-            'name' => 'フリー',
-            'matched' => true,
-            'is_free' => true,
-            'photo' => ''
-        ];
-    } else {
-        $speciesName = array_shift($bingoCells);
-        $isMatched = false;
-        $photoUrl = '';
-
-        // Check progress data (cells array from post_observation.php)
-        if (isset($progressCells[$speciesName])) {
-            $pc = $progressCells[$speciesName];
-            if (!empty($pc['matched'])) {
-                $isMatched = true;
-                $photoUrl = $pc['photo_url'] ?? '';
-            }
+$cellId = 1;
+for ($row = 0; $row < 3; $row++) {
+    for ($col = 0; $col < 3; $col++) {
+        if ($row === 1 && $col === 1) {
+            $grid[] = [
+                'id' => $cellId++,
+                'name' => 'フリー',
+                'matched' => true,
+                'is_free' => true,
+                'photo' => '',
+            ];
+            continue;
         }
 
+        $name = array_shift($bingoCells) ?? 'いきもの';
+        $matched = !empty($progressCells[$name]['matched']);
+        $photo = $progressCells[$name]['photo_url'] ?? '';
         $grid[] = [
-            'id' => $i < 4 ? $i + 1 : $i + 2,
-            'name' => $speciesName,
-            'matched' => $isMatched,
-            'photo' => $photoUrl
+            'id' => $cellId++,
+            'name' => $name,
+            'matched' => $matched,
+            'is_free' => false,
+            'photo' => $photo,
         ];
     }
 }
 
-
+$meta_title = 'イベントビンゴ';
+$meta_description = ($event['title'] ?? 'イベント') . ' のビンゴカード';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <title>生きものビンゴ - ikimon.life</title>
-    <!-- GSAP for Bingo Celebrations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
     <style>
+        .bingo-shell {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 1rem 1rem 6rem;
+        }
+
+        .bingo-hero {
+            position: relative;
+            overflow: hidden;
+            border-radius: 1.75rem;
+            padding: 1.25rem;
+            background:
+                radial-gradient(circle at top right, rgba(16, 185, 129, 0.18), transparent 32%),
+                radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.14), transparent 28%),
+                linear-gradient(135deg, #f3fbf7 0%, #ffffff 42%, #eef8ff 100%);
+            border: 1px solid rgba(16, 185, 129, 0.12);
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.06);
+        }
+
         .bingo-board {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            padding: 8px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.75rem;
+            margin-top: 1.25rem;
         }
 
         .bingo-cell {
-            aspect-ratio: 1 / 1;
             position: relative;
-            border-radius: 16px;
+            aspect-ratio: 1 / 1;
+            border-radius: 1.25rem;
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            text-align: center;
-            transition: transform 0.2s, box-shadow 0.2s;
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.62);
+            backdrop-filter: blur(12px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), 0 10px 28px rgba(15, 23, 42, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .bingo-cell.is-free {
-            background: linear-gradient(135deg, var(--color-primary-surface) 0%, #059669 100%);
-            border: 1px solid var(--color-primary);
-            color: white;
+        .bingo-cell:hover {
+            transform: translateY(-2px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), 0 16px 34px rgba(15, 23, 42, 0.12);
         }
 
         .bingo-cell.is-matched {
-            border: 2px solid var(--color-primary);
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+            border-color: rgba(16, 185, 129, 0.5);
         }
 
-        .bingo-cell.is-matched::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--color-primary);
-            opacity: 0.1;
-            pointer-events: none;
+        .bingo-cell.is-free {
+            background: linear-gradient(135deg, #10b981 0%, #0f766e 100%);
+            color: #fff;
         }
 
-        .stamp-mark {
-            position: absolute;
-            width: 80%;
-            height: 80%;
-            z-index: 10;
-            opacity: 0.9;
-            transform: rotate(-15deg);
-            pointer-events: none;
-            /* Placeholder for realistic 'Hanko' stamp CSS/SVG */
-            color: #ef4444;
-            /* red-500 */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            font-weight: 900;
-            border: 4px solid #ef4444;
-            border-radius: 50%;
-        }
-
-        .bingo-cell:not(.is-matched):active {
-            transform: scale(0.95);
-        }
-
-        .bingo-img {
+        .bingo-photo {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
-            opacity: 0.3;
-            mix-blend-mode: multiply;
+            opacity: 0.22;
         }
 
-        .bingo-cell.is-matched .bingo-img {
-            opacity: 1;
-            mix-blend-mode: normal;
+        .bingo-cell.is-matched .bingo-photo {
+            opacity: 0.95;
         }
 
-        .line-strike {
+        .bingo-overlay {
             position: absolute;
-            background: rgba(239, 68, 68, 0.8);
-            z-index: 20;
-            pointer-events: none;
-            border-radius: 4px;
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
-            transform-origin: left center;
+            inset: 0;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0.75rem;
+            background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(15,23,42,0.4) 100%);
         }
 
-        /* Celebration Overlay */
-        #bingoCelebration {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 100;
+        .bingo-label {
+            width: 100%;
+            padding: 0.5rem 0.4rem;
+            border-radius: 0.85rem;
+            text-align: center;
+            font-size: 0.8rem;
+            line-height: 1.35;
+            font-weight: 900;
+            background: rgba(255,255,255,0.88);
+            color: #111827;
+        }
+
+        .bingo-cell.is-free .bingo-label {
+            background: rgba(255,255,255,0.16);
+            color: #fff;
+        }
+
+        .stamp {
+            position: absolute;
+            inset: 16% 16%;
             display: flex;
             align-items: center;
             justify-content: center;
-            perspective: 1000px;
-        }
-
-        .bingo-text {
-            font-size: 6rem;
+            border: 4px solid rgba(239, 68, 68, 0.9);
+            border-radius: 9999px;
+            color: rgba(239, 68, 68, 0.92);
+            font-size: 2.25rem;
             font-weight: 900;
-            color: #fbbf24;
-            /* amber-400 */
-            text-shadow: 0 10px 30px rgba(245, 158, 11, 0.5), 0 0 10px white;
-            opacity: 0;
-            transform: scale(0.5) translateZ(-500px) rotateX(45deg);
+            transform: rotate(-14deg);
+            pointer-events: none;
+            text-shadow: 0 0 12px rgba(255,255,255,0.3);
         }
 
-        <div class="bg-gradient-to-br from-primary-surface via-white to-accent-surface rounded-2xl p-5 mb-8 shadow-sm border border-primary/20"><div class="flex items-center gap-2 mb-2"><span class="bg-primary text-white text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider">EVENT</span><span class="text-xs font-bold text-muted"><?= htmlspecialchars($event['location']['name'] ?? '指定なし') ?></span></div><h2 class="text-xl font-black text-text leading-tight mb-2"><?= htmlspecialchars($event['title'] ?: '名称未設定イベント') ?></h2><p class="text-sm text-text-secondary leading-relaxed mb-4"><?= htmlspecialchars($event['memo'] ?? '') ?></p><div class="flex items-center gap-2 text-xs text-primary-dark font-bold bg-primary/10 rounded-lg p-3"><i data-lucide="gift" class="w-4 h-4"></i>コンプリートして自慢しよう！ </div></div>< !-- Bingo Board Container --><div class="relative bg-white/40 backdrop-blur-xl border border-white/80 rounded-3xl p-2 shadow-xl shadow-primary/5 mx-auto" style="max-width: 400px;" x-data="bingoBoard()">< !-- Background Decoration --><div class="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none"></div><div class="absolute -bottom-10 -left-10 w-32 h-32 bg-accent/10 rounded-full blur-2xl pointer-events-none"></div><div class="bingo-board relative z-10" id="bingoGrid"><?php foreach ($grid as $cell): ?><div class="bingo-cell <?= $cell['matched'] ? 'is-matched' : '' ?> <?= isset($cell['is_free']) && $cell['is_free'] ? 'is-free' : '' ?>"
+        .strike-line {
+            position: absolute;
+            border-radius: 9999px;
+            background: rgba(239, 68, 68, 0.88);
+            box-shadow: 0 0 18px rgba(239, 68, 68, 0.35);
+            transform-origin: left center;
+            pointer-events: none;
+            z-index: 20;
+        }
 
-@click="triggerCell(<?= $cell['id'] ?>)"><?php if (!empty($cell['photo'])): ?><img src="<?= $cell['photo'] ?>" alt="<?= htmlspecialchars($cell['name']) ?>の写真" class="bingo-img"><?php endif; ?><div class="relative z-20 flex flex-col items-center p-2 h-full w-full">< !-- Text distinct background --><div class="w-full bg-white/90 backdrop-blur-sm py-1 px-1 rounded shadow-sm text-center"><span class="text-[11px] font-black <?= isset($cell['is_free']) && $cell['is_free'] ? 'text-primary' : 'text-text' ?> leading-tight block"><?= htmlspecialchars($cell['name']) ?></span></div></div><?php if ($cell['matched'] && empty($cell['is_free'])): ?><div class="stamp-mark" style="transform: rotate(<?= rand(-20, 20) ?>deg);">済</div><?php endif; ?><?php if (isset($cell['is_free']) && $cell['is_free']): ?><div class="absolute inset-0 flex items-center justify-center pointer-events-none"><i data-lucide="star" class="w-8 h-8 text-white opacity-80" fill="currentColor"></i></div><?php endif; ?></div><?php endforeach; ?></div></div><div class="mt-8 text-center"><p class="text-sm font-bold text-muted mb-4">写真を撮ってビンゴのマスを埋めよう！</p><a href="post_observation.php?event_id=<?= urlencode($eventId) ?>" class="btn-primary inline-flex items-center gap-2 px-8 py-4 rounded-full shadow-lg shadow-primary/30 transform hover:scale-105 transition-all text-base font-black active:scale-95"><i data-lucide="camera" class="w-5 h-5"></i>記録する </a></div></section>< !-- Celebration Container --><div id="bingoCelebration"><div class="bingo-text">BINGO !</div></div></main>< !-- Bingo Logic Script --><script nonce="<?= CspNonce::attr() ?>">function bingoBoard() {
+        .bingo-celebration {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .bingo-celebration-text {
+            font-family: "Montserrat", "Zen Kaku Gothic New", sans-serif;
+            font-size: clamp(3rem, 10vw, 6rem);
+            font-weight: 900;
+            color: #f59e0b;
+            text-shadow: 0 14px 40px rgba(245, 158, 11, 0.35);
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-sans min-h-screen pb-24 safe-area-inset-bottom">
+    <?php include __DIR__ . '/components/nav.php'; ?>
+    <div style="height: calc(var(--nav-height, 56px) + var(--safe-top, 0px))"></div>
+
+    <main class="bingo-shell" x-data="bingoBoard()">
+        <div class="flex items-center gap-3 mb-4">
+            <a href="event_detail.php?id=<?php echo urlencode($eventId); ?>" class="size-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <div>
+                <p class="text-[10px] font-black tracking-[0.24em] text-emerald-600 uppercase">Event Bingo</p>
+                <h1 class="text-lg font-black text-gray-900"><?php echo htmlspecialchars($event['title'] ?? 'イベントビンゴ'); ?></h1>
+            </div>
+        </div>
+
+        <section class="bingo-hero">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-bold text-gray-500"><?php echo htmlspecialchars($event['location']['name'] ?? '指定なし'); ?></p>
+                    <p class="text-sm text-gray-600 mt-2 leading-relaxed"><?php echo htmlspecialchars($event['memo'] ?? '見つけたらマスが埋まる、イベント専用のビンゴカードです。'); ?></p>
+                </div>
+                <div class="rounded-full bg-emerald-100 text-emerald-700 text-xs font-black px-3 py-2 whitespace-nowrap">
+                    達成 <span x-text="matchedCount()"></span>/9
+                </div>
+            </div>
+
+            <div class="relative" id="bingoGrid">
+                <div class="bingo-board">
+                    <?php foreach ($grid as $cell): ?>
+                        <div class="bingo-cell <?php echo $cell['matched'] ? 'is-matched' : ''; ?> <?php echo $cell['is_free'] ? 'is-free' : ''; ?>" data-cell-id="<?php echo (int)$cell['id']; ?>">
+                            <?php if (!empty($cell['photo'])): ?>
+                                <img src="<?php echo htmlspecialchars($cell['photo']); ?>" alt="<?php echo htmlspecialchars($cell['name']); ?>" class="bingo-photo">
+                            <?php endif; ?>
+                            <div class="bingo-overlay">
+                                <div class="bingo-label"><?php echo htmlspecialchars($cell['name']); ?></div>
+                            </div>
+                            <?php if ($cell['matched'] && !$cell['is_free']): ?>
+                                <div class="stamp">済</div>
+                            <?php endif; ?>
+                            <?php if ($cell['is_free']): ?>
+                                <div class="absolute inset-0 flex items-center justify-center text-4xl">★</div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <a href="post.php?event_id=<?php echo urlencode($eventId); ?>&event_name=<?php echo urlencode($event['title'] ?? ''); ?>" class="block text-center rounded-2xl bg-emerald-500 text-white font-black py-3.5 shadow-lg shadow-emerald-500/20">
+                    📸 このイベントで記録する
+                </a>
+                <a href="event_detail.php?id=<?php echo urlencode($eventId); ?>" class="block text-center rounded-2xl bg-white border border-gray-200 text-gray-700 font-black py-3.5">
+                    参加ページへ戻る
+                </a>
+            </div>
+        </section>
+
+        <section class="mt-5 rounded-3xl bg-white border border-gray-100 p-5 shadow-sm">
+            <h2 class="text-sm font-black text-gray-900 mb-3">遊び方</h2>
+            <div class="mb-4">
+                <div class="flex items-center justify-between text-xs font-bold text-gray-500 mb-2">
+                    <span>コンプリート進捗</span>
+                    <span x-text="Math.round((matchedCount() / cells.length) * 100) + '%'"></span>
+                </div>
+                <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-500" :style="`width:${(matchedCount() / cells.length) * 100}%`"></div>
+                </div>
+            </div>
+            <ul class="space-y-2 text-sm text-gray-600">
+                <li>このイベントで観察を投稿すると、対応するマスが自動で埋まります。</li>
+                <li>中央のフリーマスは最初から達成済みです。</li>
+                <li>縦・横・斜めの 1 列がそろうと演出が表示されます。</li>
+            </ul>
+        </section>
+
+        <div class="bingo-celebration" id="bingoCelebration">
+            <div class="bingo-celebration-text">BINGO!</div>
+        </div>
+    </main>
+
+    <script nonce="<?= CspNonce::attr() ?>">
+        function bingoBoard() {
             return {
-                cells: <?= json_encode($grid) ?>,
-                gridSize: 3,
+                cells: <?php echo json_encode($grid, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
                 bingoLines: [],
 
                 init() {
-
-                    // Slight delay to allow DOM to render before checking lines
-                    setTimeout(()=> {
-                            this.checkForBingo();
-                        }
-
-                        , 500);
-                }
-
-                ,
-
-                triggerCell(id) {
-                    // For Mockup: Toggle matched state
-                    const cell=this.cells.find(c=> c.id===id);
-
-                    if (cell && !cell.is_free) {
-                        cell.matched= !cell.matched;
-                        if (window.HapticEngine) HapticEngine.light();
+                    this.$nextTick(() => {
                         this.checkForBingo();
-                    }
-                }
+                    });
+                },
 
-                ,
+                matched(index) {
+                    return !!this.cells[index]?.matched;
+                },
+
+                matchedCount() {
+                    return this.cells.filter((cell) => cell.matched).length;
+                },
 
                 checkForBingo() {
-                    const size=this.gridSize;
-                    const grid=[];
+                    const patterns = [
+                        { key: 'row-0', cells: [0, 1, 2] },
+                        { key: 'row-1', cells: [3, 4, 5] },
+                        { key: 'row-2', cells: [6, 7, 8] },
+                        { key: 'col-0', cells: [0, 3, 6] },
+                        { key: 'col-1', cells: [1, 4, 7] },
+                        { key: 'col-2', cells: [2, 5, 8] },
+                        { key: 'diag-1', cells: [0, 4, 8] },
+                        { key: 'diag-2', cells: [2, 4, 6] },
+                    ];
 
-                    // Build 2D array representation
-                    for (let i=0; i < size; i++) {
-                        grid[i]=[];
+                    const found = patterns
+                        .filter((pattern) => pattern.cells.every((idx) => this.matched(idx)))
+                        .map((pattern) => pattern.key);
 
-                        for (let j=0; j < size; j++) {
-                            grid[i][j]=this.cells[i * size+j].matched;
-                        }
-                    }
-
-                    let newLines=[];
-
-                    // Check Rows & Cols
-                    for (let i=0; i < size; i++) {
-                        if (grid[i].every(val=> val)) newLines.push(`row-$ {
-                                i
-                            }
-
-                            `);
-
-                        if (grid.every(row=> row[i])) newLines.push(`col-$ {
-                                i
-                            }
-
-                            `);
-                    }
-
-                    // Check Diagonals
-                    if (grid.every((row, idx)=> row[idx])) newLines.push('diag-1');
-                    if (grid.every((row, idx)=> row[size - 1 - idx])) newLines.push('diag-2');
-
-                    // Find if there's a NEW line that wasn't there before
-                    const newlyFound=newLines.filter(line=> !this.bingoLines.includes(line));
-
+                    const newlyFound = found.filter((line) => !this.bingoLines.includes(line));
+                    this.bingoLines = found;
                     if (newlyFound.length > 0) {
-                        this.bingoLines=newLines; // update state
-                        this.drawStrikeLines(newlyFound);
-                        this.celebrateBingo();
+                        this.drawStrikeLines(found);
+                        this.celebrate();
+                    } else {
+                        this.drawStrikeLines(found);
                     }
-                }
-
-                ,
+                },
 
                 drawStrikeLines(lines) {
-                    const container=document.getElementById('bingoGrid');
-                    const cRect=container.getBoundingClientRect();
-                    const cellSize=cRect.width / this.gridSize;
+                    const container = document.getElementById('bingoGrid');
+                    if (!container) return;
 
-                    lines.forEach(line=> {
-                            const strike=document.createElement('div');
-                            strike.className='line-strike';
-                            strike.style.height='12px'; // thickness
+                    container.querySelectorAll('.strike-line').forEach((line) => line.remove());
+                    const rect = container.getBoundingClientRect();
+                    const board = container.querySelector('.bingo-board');
+                    if (!board) return;
+                    const boardRect = board.getBoundingClientRect();
+                    const size = boardRect.width / 3;
 
-                            let lengthToDraw=cRect.width * 0.95;
-                            let x=0;
-                            let y=0;
-                            let rotation=0;
+                    lines.forEach((line) => {
+                        const el = document.createElement('div');
+                        el.className = 'strike-line';
+                        el.style.height = '10px';
 
-                            if (line.startsWith ('row-')) {
-                                const rowIdx=parseInt(line.split('-')[1]);
-                                y=(rowIdx * cellSize) + (cellSize / 2) - 6;
-                                x=cRect.width * 0.025;
-                            }
+                        let width = boardRect.width * 0.94;
+                        let left = boardRect.left - rect.left + boardRect.width * 0.03;
+                        let top = boardRect.top - rect.top;
+                        let rotation = 0;
 
-                            else if (line.startsWith ('col-')) {
-                                const colIdx=parseInt(line.split('-')[1]);
-                                x=(colIdx * cellSize) + (cellSize / 2) - 6;
-                                y=cRect.width * 0.025;
-                                rotation=90;
-                            }
-
-                            else if (line==='diag-1') {
-                                x=cRect.width * 0.05;
-                                y=cRect.width * 0.05;
-                                lengthToDraw=Math.sqrt(2 * Math.pow(cRect.width * 0.9, 2));
-                                rotation=45;
-                            }
-
-                            else if (line==='diag-2') {
-                                x=cRect.width * 0.95;
-                                y=cRect.width * 0.05;
-                                lengthToDraw=Math.sqrt(2 * Math.pow(cRect.width * 0.9, 2));
-                                rotation=135;
-                            }
-
-                            // Set initial state for GCAP animation
-                            gsap.set(strike, {
-                                width: 0,
-                                left: x,
-                                top: y,
-                                rotation: rotation
-                            });
-
-                        container.appendChild(strike);
-
-                        // Animate drawing the line
-                        gsap.to(strike, {
-                            width: lengthToDraw,
-                            duration: 0.6,
-                            ease: "power3.out",
-                            delay: 0.1
-                        });
-                });
-        }
-
-        ,
-
-        celebrateBingo() {
-            // Fire Confetti bursts
-            const duration=2000;
-            const end=Date.now()+duration;
-
-            (function frame() {
-                    confetti({
-
-                        particleCount: 5,
-                        angle: 60,
-                        spread: 55,
-                        origin: {
-                            x: 0, y: 0.8
+                        if (line.startsWith('row-')) {
+                            const row = Number(line.split('-')[1]);
+                            top += row * size + size / 2 - 5;
+                        } else if (line.startsWith('col-')) {
+                            const col = Number(line.split('-')[1]);
+                            left += col * size + size / 2 - 5;
+                            top += boardRect.width * 0.03;
+                            rotation = 90;
+                        } else if (line === 'diag-1') {
+                            left += boardRect.width * 0.04;
+                            top += boardRect.width * 0.04;
+                            width = Math.sqrt(2 * Math.pow(boardRect.width * 0.92, 2));
+                            rotation = 45;
+                        } else if (line === 'diag-2') {
+                            left += boardRect.width * 0.96;
+                            top += boardRect.width * 0.04;
+                            width = Math.sqrt(2 * Math.pow(boardRect.width * 0.92, 2));
+                            rotation = 135;
                         }
 
-                        ,
-                        colors: ['#10b981', '#f59e0b', '#3b82f6', '#ec4899']
+                        el.style.left = `${left}px`;
+                        el.style.top = `${top}px`;
+                        el.style.width = `${width}px`;
+                        el.style.transform = `rotate(${rotation}deg)`;
+                        container.appendChild(el);
                     });
+                },
 
-                confetti({
-
-                    particleCount: 5,
-                    angle: 120,
-                    spread: 55,
-                    origin: {
-                        x: 1, y: 0.8
+                celebrate() {
+                    if (typeof confetti === 'function') {
+                        confetti({
+                            particleCount: 140,
+                            spread: 85,
+                            origin: { y: 0.65 },
+                            colors: ['#10b981', '#f59e0b', '#3b82f6', '#ef4444'],
+                        });
                     }
 
-                    ,
-                    colors: ['#10b981', '#f59e0b', '#3b82f6', '#ec4899']
-                });
+                    const textEl = document.querySelector('.bingo-celebration-text');
+                    if (textEl && typeof gsap !== 'undefined') {
+                        gsap.killTweensOf(textEl);
+                        gsap.fromTo(textEl, {
+                            opacity: 0,
+                            scale: 0.5,
+                            y: 40,
+                        }, {
+                            opacity: 1,
+                            scale: 1,
+                            y: 0,
+                            duration: 0.45,
+                            ease: 'back.out(1.7)',
+                            onComplete: () => {
+                                gsap.to(textEl, {
+                                    opacity: 0,
+                                    y: -16,
+                                    delay: 1.2,
+                                    duration: 0.5,
+                                });
+                            }
+                        });
+                    }
 
-            if (Date.now() < end) {
-                requestAnimationFrame(frame);
-            }
+                    if (window.HapticEngine) window.HapticEngine.success();
+                    if (window.SoundManager) window.SoundManager.play('success');
+                },
+            };
         }
+    </script>
+</body>
 
-        ());
-
-        // GSAP 3D Text Animation
-        const textEl=document.querySelector('.bingo-text');
-
-        gsap.fromTo(textEl,
-            {
-            opacity: 0, scale: 0.2, z: -500, rotationX: 45
-        }
-
-        ,
-        {
-
-        opacity: 1,
-        scale: 1,
-        z: 0,
-        rotationX: 0,
-        duration: 0.8,
-        ease: "back.out(1.7)",
-        onComplete: ()=> {
-
-            // Float it
-            gsap.to(textEl, {
-                y: -20,
-                duration: 1.5,
-                yoyo: true,
-                repeat: -1,
-                ease: "sine.inOut"
-            });
-
-        // Fade out after 3 seconds
-        gsap.to(textEl, {
-
-            opacity: 0,
-            delay: 3,
-            duration: 1,
-            onComplete: ()=> {
-                gsap.killTweensOf(textEl);
-            }
-        });
-        }
-        });
-
-        if (window.HapticEngine) HapticEngine.success();
-        if (window.SoundManager) SoundManager.play('success');
-        }
-        }
-        }
-
-        </script></body></html>
+</html>

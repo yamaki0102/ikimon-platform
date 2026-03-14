@@ -146,12 +146,15 @@ class TaxonData
     public function toObservationTaxon(): array
     {
         return [
-            'id'              => $this->gbifKey,
+            'id'              => $this->gbifKey !== null ? 'gbif:' . $this->gbifKey : ($this->inatTaxonId !== null ? 'inat:' . $this->inatTaxonId : ($this->slug !== '' ? 'local:' . $this->slug : null)),
             'name'            => $this->commonNames['ja'] ?? $this->scientificName,
             'scientific_name' => $this->scientificName,
             'slug'            => $this->slug,
             'rank'            => $this->rank,
             'inat_taxon_id'   => $this->inatTaxonId,
+            'gbif_key'        => $this->gbifKey,
+            'key'             => $this->gbifKey,
+            'lineage'         => $this->lineage,
             'source'          => $this->source,
             'thumbnail_url'   => $this->thumbnailUrl,
         ];
@@ -162,7 +165,7 @@ class TaxonData
      */
     public function toSearchResult(): array
     {
-        return [
+        $result = [
             'slug'           => $this->slug,
             'scientific_name' => $this->scientificName,
             'rank'           => $this->rank,
@@ -173,7 +176,18 @@ class TaxonData
             'inat_taxon_id'  => $this->inatTaxonId,
             'source'         => $this->source,
             'confidence'     => $this->confidence,
+            // Legacy client compatibility
+            'key'            => $this->gbifKey,
+            'canonicalName'  => $this->commonNames['ja'] ?? $this->scientificName,
+            'scientificName' => $this->scientificName,
+            'lineage'        => $this->lineage,
         ];
+
+        foreach (($this->lineage ?? []) as $rank => $value) {
+            $result[$rank] = $value;
+        }
+
+        return $result;
     }
 
     // --- Private Helpers ---

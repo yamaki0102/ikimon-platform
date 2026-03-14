@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/BioUtils.php';
+
 /**
  * ObserverRank.php — Observer Rank System (観測員ランクシステム)
  *
@@ -167,7 +169,7 @@ class ObserverRank
             if (($obs['user_id'] ?? '') === $userId) {
                 $postCount++;
                 $status = $obs['quality_grade'] ?? ($obs['status'] ?? '');
-                if (in_array($status, ['Research Grade', '研究用'])) {
+                if (BioUtils::isResearchGradeLike($status)) {
                     $rgCount++;
                 }
                 // Track species

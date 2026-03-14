@@ -26,7 +26,7 @@ Auth::init();
         .cluster-panel {
             position: fixed;
             z-index: 45;
-            background: var(--color-surface);
+            background: rgba(255, 255, 255, 0.98);
             display: flex;
             flex-direction: column;
             pointer-events: none;
@@ -44,6 +44,16 @@ Auth::init();
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
+            background: #ffffff;
+        }
+
+        .cluster-panel .panel-header,
+        .obs-detail-topbar {
+            position: sticky;
+            top: 0;
+            z-index: 4;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(8px);
         }
 
         .cluster-panel .panel-item {
@@ -104,10 +114,11 @@ Auth::init();
         /* ===== PC: Left Sidebar ===== */
         @media (min-width: 768px) {
             .cluster-panel {
-                top: 0;
+                top: 56px;
                 left: 0;
                 bottom: 0;
                 width: 380px;
+                height: calc(100vh - 56px);
                 border-right: 1px solid var(--color-border);
                 box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
                 transform: translateX(-100%);
@@ -292,6 +303,21 @@ Auth::init();
             box-shadow: 0 2px 8px rgba(var(--color-primary-rgb, 16, 185, 129), 0.3);
         }
 
+        .map-floating-panel {
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid var(--color-border);
+            border-radius: 24px;
+            padding: 12px;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+            backdrop-filter: blur(10px);
+        }
+
+        @supports not (backdrop-filter: blur(10px)) {
+            .map-floating-panel {
+                background: #ffffff;
+            }
+        }
+
         /* ===== Heatmap Legend ===== */
         .heatmap-legend {
             position: absolute;
@@ -370,7 +396,8 @@ Auth::init();
         <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
         <!-- Floating UI: Search & Toggle -->
-        <div x-show="!showBottomSheet && !selectedObs" x-transition.opacity.duration.200ms class="absolute top-16 left-4 right-4 md:left-8 md:right-auto md:w-96 z-30 pointer-events-auto max-w-md md:max-w-none mx-auto md:mx-0 flex flex-col gap-2">
+        <div x-show="!showBottomSheet && !selectedObs" x-transition.opacity.duration.200ms class="absolute top-16 left-4 right-4 md:left-8 md:right-auto md:w-96 z-30 pointer-events-auto max-w-md md:max-w-none mx-auto md:mx-0 flex flex-col gap-2 map-floating-panel">
+            <p class="text-[11px] text-muted px-1">場所の広がりや活動の流れを地図で見る場所</p>
 
             <!-- Tab Navigation -->
             <div class="map-tab-bar" role="tablist" aria-label="マップ表示タブ">
@@ -379,9 +406,6 @@ Auth::init();
                 </button>
                 <button class="map-tab" role="tab" :aria-selected="activeTab === 'heatmap'" :class="{'active': activeTab === 'heatmap'}" @click="switchTab('heatmap')">
                     <i data-lucide="flame" class="w-3.5 h-3.5"></i> ストランドマップ
-                </button>
-                <button class="map-tab" role="tab" :aria-selected="activeTab === 'sites'" :class="{'active': activeTab === 'sites'}" @click="switchTab('sites')">
-                    <i data-lucide="map" class="w-3.5 h-3.5"></i> サイト一覧
                 </button>
             </div>
 
@@ -454,40 +478,6 @@ Auth::init();
             <div class="text-muted mt-1" x-text="'データ: ' + heatmapPointCount.toLocaleString() + '件'"></div>
         </div>
 
-        <!-- Site List Panel (sites tab only) -->
-        <div class="cluster-panel" :class="{'is-open': activeTab === 'sites' && showSitePanel}" id="siteListPanel">
-            <div class="sheet-handle">
-                <div class="bar"></div>
-            </div>
-            <div class="panel-header flex items-center justify-between">
-                <h3 class="text-sm font-bold text-text flex items-center gap-2">
-                    <i data-lucide="map" class="w-4 h-4 text-primary"></i>
-                    <span>登録サイト</span>
-                    <span class="text-xs font-normal text-muted" x-text="'(' + siteList.length + '件)'"></span>
-                </h3>
-                <button @click="showSitePanel = false" class="p-1.5 rounded-full hover:bg-bg-faint text-muted transition">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-            <div class="panel-list">
-                <template x-for="site in siteList" :key="site.id">
-                    <a :href="'site_dashboard.php?id=' + site.id" class="site-list-item text-decoration-none" style="text-decoration:none; color:inherit;">
-                        <div class="w-8 h-8 rounded-lg bg-primary-surface flex items-center justify-center text-primary flex-shrink-0">
-                            <i data-lucide="trees" class="w-4 h-4"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-bold text-text truncate" x-text="site.name"></p>
-                            <p class="text-xs text-muted truncate" x-text="site.description || ''"></p>
-                        </div>
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-border flex-shrink-0"></i>
-                    </a>
-                </template>
-                <div x-show="siteList.length === 0" class="py-8 text-center text-muted text-sm">
-                    登録サイトはまだありません
-                </div>
-            </div>
-        </div>
-
         <!-- Observation Detail Preview (in-page, no navigation) -->
         <div class="cluster-panel" :class="{'is-open': selectedObs && !showBottomSheet}" id="obsDetailPanel">
             <div class="sheet-handle">
@@ -496,7 +486,7 @@ Auth::init();
             <template x-if="selectedObs">
                 <div class="obs-detail-view">
                     <!-- Header bar with back and close -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--color-border);">
+                    <div class="obs-detail-topbar" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--color-border);">
                         <button @click="selectedObs = null; showBottomSheet = true" style="display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600; color:var(--color-primary); background:none; border:none; cursor:pointer;">
                             ← 一覧に戻る
                         </button>
@@ -758,18 +748,16 @@ Auth::init();
                 showLayerMenu: false,
 
                 // Tab system
-                activeTab: new URLSearchParams(window.location.search).get('tab') || 'markers',
+                activeTab: (() => {
+                    const tab = new URLSearchParams(window.location.search).get('tab') || 'markers';
+                    return ['markers', 'heatmap'].includes(tab) ? tab : 'markers';
+                })(),
 
                 // Heatmap state
                 heatmapTaxon: 'all',
                 heatmapYear: 'all',
                 heatmapPointCount: 0,
                 _heatmapLoaded: false,
-
-                // Sites state
-                siteList: [],
-                showSitePanel: true,
-                _sitesLoaded: false,
 
                 // Ghosts state
                 ghosts: [],
@@ -809,8 +797,6 @@ Auth::init();
                     // Toggle layer visibility
                     const markerLayers = ['clusters', 'cluster-count', 'unclustered-point'];
                     const heatmapLayers = ['heatmap-layer'];
-                    const siteLayers = ['sites-fill', 'sites-border'];
-
                     markerLayers.forEach(id => {
                         if (this.map.getLayer(id)) {
                             this.map.setLayoutProperty(id, 'visibility', tab === 'markers' ? 'visible' : 'none');
@@ -823,12 +809,6 @@ Auth::init();
                         }
                     });
 
-                    siteLayers.forEach(id => {
-                        if (this.map.getLayer(id)) {
-                            this.map.setLayoutProperty(id, 'visibility', tab === 'sites' ? 'visible' : 'none');
-                        }
-                    });
-
                     // Toggle DOM markers (photo markers at high zoom)
                     Object.values(this.markers).forEach(m => {
                         m.getElement().style.display = tab === 'markers' ? '' : 'none';
@@ -838,10 +818,6 @@ Auth::init();
                     if (tab === 'heatmap' && !this._heatmapLoaded) {
                         this.loadHeatmapData();
                     }
-                    if (tab === 'sites' && !this._sitesLoaded) {
-                        this.loadSites();
-                    }
-
                     this.$nextTick(() => lucide.createIcons());
                 },
 
@@ -916,96 +892,6 @@ Auth::init();
                         }
                     } catch (e) {
                         console.error('Heatmap load failed:', e);
-                    }
-                },
-
-                async loadSites() {
-                    try {
-                        // Load sites from the sites data directory
-                        const res = await fetch('api/list_sites.php');
-                        const data = await res.json();
-                        this._sitesLoaded = true;
-
-                        if (data.sites) {
-                            this.siteList = data.sites;
-                        } else if (Array.isArray(data)) {
-                            this.siteList = data;
-                        } else {
-                            this.siteList = [];
-                        }
-
-                        if (!this.map || this.siteList.length === 0) return;
-
-                        // Build GeoJSON from sites
-                        const geojsonFeatures = this.siteList
-                            .filter(s => s.geometry)
-                            .map(s => ({
-                                type: 'Feature',
-                                properties: {
-                                    id: s.id,
-                                    name: s.name
-                                },
-                                geometry: s.geometry
-                            }));
-
-                        const geojson = {
-                            type: 'FeatureCollection',
-                            features: geojsonFeatures
-                        };
-
-                        if (!this.map.getSource('sites-source')) {
-                            this.map.addSource('sites-source', {
-                                type: 'geojson',
-                                data: geojson
-                            });
-
-                            this.map.addLayer({
-                                id: 'sites-fill',
-                                type: 'fill',
-                                source: 'sites-source',
-                                paint: {
-                                    'fill-color': '#10b981',
-                                    'fill-opacity': 0.15
-                                },
-                                layout: {
-                                    visibility: this.activeTab === 'sites' ? 'visible' : 'none'
-                                }
-                            });
-
-                            this.map.addLayer({
-                                id: 'sites-border',
-                                type: 'line',
-                                source: 'sites-source',
-                                paint: {
-                                    'line-color': '#10b981',
-                                    'line-width': 2,
-                                    'line-opacity': 0.8
-                                },
-                                layout: {
-                                    visibility: this.activeTab === 'sites' ? 'visible' : 'none'
-                                }
-                            });
-
-                            // Click site polygon → navigate to dashboard
-                            this.map.on('click', 'sites-fill', (e) => {
-                                if (e.features.length > 0) {
-                                    const siteId = e.features[0].properties.id;
-                                    window.location.href = 'site_dashboard.php?id=' + siteId;
-                                }
-                            });
-                            this.map.on('mouseenter', 'sites-fill', () => {
-                                this.map.getCanvas().style.cursor = 'pointer';
-                            });
-                            this.map.on('mouseleave', 'sites-fill', () => {
-                                this.map.getCanvas().style.cursor = '';
-                            });
-                        }
-
-                        this.showSitePanel = true;
-                        this.$nextTick(() => lucide.createIcons());
-                    } catch (e) {
-                        console.error('Sites load failed:', e);
-                        this.siteList = [];
                     }
                 },
 
@@ -1170,7 +1056,7 @@ Auth::init();
                     this._fetchController = new AbortController();
 
                     const bounds = this.map ? this.map.getBounds() : null;
-                    let url = `api/get_observations.php?limit=500&q=${encodeURIComponent(this.query)}`;
+                    let url = `api/get_observations.php?limit=500&min_created_year=2026&q=${encodeURIComponent(this.query)}`;
                     if (bounds) {
                         const sw = bounds.getSouthWest();
                         const ne = bounds.getNorthEast();

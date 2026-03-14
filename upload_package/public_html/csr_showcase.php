@@ -13,6 +13,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/SiteManager.php';
 require_once __DIR__ . '/../libs/RedListManager.php';
+require_once __DIR__ . '/../libs/BioUtils.php';
 
 $siteId = $_GET['site_id'] ?? '';
 if (!$siteId) {
@@ -77,8 +78,7 @@ foreach ($siteObs as $obs) {
 
     $taxonomyBreakdown[$taxonGroupJa] = ($taxonomyBreakdown[$taxonGroupJa] ?? 0) + 1;
 
-    $status = $obs['quality_grade'] ?? ($obs['status'] ?? '');
-    if (in_array($status, ['Research Grade', '研究用'])) {
+    if (BioUtils::isResearchGradeObservation($obs)) {
         $researchGradeCount++;
     }
 
@@ -420,26 +420,7 @@ $meta_canonical = BASE_URL . '/csr_showcase.php?site_id=' . urlencode($siteId);
             height: 200px;
         }
 
-        /* --- Footer --- */
-        .sc-footer {
-            max-width: 900px;
-            margin: 3rem auto;
-            padding: 2rem 1.5rem;
-            text-align: center;
-            color: #9ca3af;
-            font-size: 11px;
-            border-top: 1px solid #e5e7eb;
-        }
-
-        .sc-footer a {
-            color: var(--sc-primary);
-            text-decoration: none;
-            font-weight: 700;
-        }
-
-        .sc-footer a:hover {
-            text-decoration: underline;
-        }
+        /* Footer: uses shared components/footer.php */
 
         /* --- Mobile --- */
         @media (max-width: 640px) {
@@ -614,18 +595,7 @@ $meta_canonical = BASE_URL . '/csr_showcase.php?site_id=' . urlencode($siteId);
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="sc-footer">
-        <p>
-            Powered by <a href="<?php echo BASE_URL; ?>" target="_blank" rel="noopener noreferrer">ikimon.life</a> — 市民参加型生物多様性プラットフォーム<br>
-            データ取得日: <?php echo date('Y年m月d日 H:i'); ?>
-        </p>
-        <p style="margin-top: 0.5rem;">
-            <a href="site/<?php echo urlencode($siteId); ?>">📊 ダッシュボード</a>
-            &nbsp;|&nbsp;
-            <a href="api/generate_site_report.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank" rel="noopener noreferrer">📄 レポート</a>
-        </p>
-    </footer>
+    <?php include __DIR__ . '/components/footer.php'; ?>
 
 </body>
 

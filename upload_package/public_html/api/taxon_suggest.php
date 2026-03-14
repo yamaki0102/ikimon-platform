@@ -12,6 +12,7 @@
  */
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/TaxonSearchService.php';
+require_once __DIR__ . '/../../libs/Taxonomy.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: public, max-age=3600');
@@ -53,6 +54,8 @@ if (file_exists($resolverFile)) {
             'slug'     => $slug,
             'rank'     => $entry['rank'] ?? 'species',
             'source'   => 'local',
+            'gbif_key' => $entry['gbif_key'] ?? null,
+            'key'      => $entry['gbif_key'] ?? null,
         ];
         if (count($results) >= $limit) break;
     }
@@ -70,6 +73,8 @@ if (file_exists($resolverFile)) {
                     'slug'     => $slug,
                     'rank'     => $entry['rank'] ?? 'species',
                     'source'   => 'local',
+                    'gbif_key' => $entry['gbif_key'] ?? null,
+                    'key'      => $entry['gbif_key'] ?? null,
                 ];
                 if (count($results) >= $limit) break;
             }
@@ -96,8 +101,29 @@ if (count($results) < 3) {
             'source'        => $ir['source'] ?? 'inat',
             'thumbnail_url' => $ir['thumbnail_url'] ?? null,
             'inat_taxon_id' => $ir['inat_taxon_id'] ?? null,
+            'gbif_key'      => $ir['gbif_key'] ?? null,
+            'key'           => $ir['key'] ?? ($ir['gbif_key'] ?? null),
+            'lineage'       => $ir['lineage'] ?? null,
         ];
         if (count($results) >= $limit) break;
+    }
+}
+
+foreach ($results as $index => $row) {
+    if (!empty($row['gbif_key']) || !empty($row['inat_taxon_id'])) {
+        $resolved = Taxonomy::resolveFromInput([
+            'taxon_name' => $row['jp_name'] ?? '',
+            'scientific_name' => $row['sci_name'] ?? '',
+            'taxon_slug' => $row['slug'] ?? '',
+            'taxon_rank' => $row['rank'] ?? 'species',
+            'taxon_key' => $row['gbif_key'] ?? null,
+            'inat_taxon_id' => $row['inat_taxon_id'] ?? null,
+            'lineage' => $row['lineage'] ?? [],
+        ]);
+        $results[$index]['lineage'] = $resolved['lineage'] ?? [];
+        $results[$index]['lineage_ids'] = $resolved['lineage_ids'] ?? [];
+        $results[$index]['ancestry_ids'] = $resolved['ancestry_ids'] ?? [];
+        $results[$index]['taxonomy_version'] = $resolved['taxonomy_version'] ?? null;
     }
 }
 
