@@ -15,6 +15,59 @@ require_once __DIR__ . '/../libs/AffiliateManager.php';
 Auth::init();
 $currentUser = Auth::user();
 
+function containsJapaneseText(string $text): bool
+{
+    return preg_match('/[\p{Hiragana}\p{Katakana}\p{Han}]/u', $text) === 1;
+}
+
+function normalizeAiDisplayText($value, ?string $fallback = null): ?string
+{
+    if (!is_string($value)) {
+        return $fallback;
+    }
+
+    $text = trim(preg_replace('/\s+/u', ' ', $value));
+    if ($text === '') {
+        return $fallback;
+    }
+
+    $parts = preg_split('/(?<=[。！？\n])/u', $text) ?: [];
+    $japaneseParts = [];
+    foreach ($parts as $part) {
+        $part = trim($part);
+        if ($part !== '' && containsJapaneseText($part)) {
+            $japaneseParts[] = $part;
+        }
+    }
+
+    if (!empty($japaneseParts)) {
+        return trim(implode(' ', $japaneseParts));
+    }
+
+    if (containsJapaneseText($text)) {
+        return $text;
+    }
+
+    return $fallback;
+}
+
+function normalizeAiDisplayList($value): array
+{
+    if (!is_array($value)) {
+        return [];
+    }
+
+    $normalized = [];
+    foreach ($value as $item) {
+        $text = normalizeAiDisplayText($item);
+        if ($text !== null) {
+            $normalized[] = $text;
+        }
+    }
+
+    return array_values(array_unique($normalized));
+}
+
 // Get Observation
 $id = $_GET['id'] ?? '';
 $obs = DataStore::findById('observations', $id);
@@ -109,6 +162,24 @@ foreach (array_reverse($obs['ai_assessments'] ?? []) as $assessment) {
     }
 }
 $latestAiFallback = is_array($latestAiAssessment) && (($latestAiAssessment['model'] ?? '') === 'system-fallback');
+if ($latestAiAssessment) {
+    $latestAiAssessment['simple_summary'] = normalizeAiDisplayText(
+        $latestAiAssessment['simple_summary'] ?? null,
+        '写真から読み取れる範囲では、まだ安全に言えるところまでで止めています。'
+    );
+    $latestAiAssessment['summary'] = normalizeAiDisplayText($latestAiAssessment['summary'] ?? null);
+    $latestAiAssessment['why_not_more_specific'] = normalizeAiDisplayText($latestAiAssessment['why_not_more_specific'] ?? null);
+    $latestAiAssessment['geographic_context'] = normalizeAiDisplayText($latestAiAssessment['geographic_context'] ?? null);
+    $latestAiAssessment['seasonal_context'] = normalizeAiDisplayText($latestAiAssessment['seasonal_context'] ?? null);
+    $latestAiAssessment['cautionary_note'] = normalizeAiDisplayText($latestAiAssessment['cautionary_note'] ?? null);
+    $latestAiAssessment['observer_boost'] = normalizeAiDisplayText($latestAiAssessment['observer_boost'] ?? null);
+    $latestAiAssessment['next_step'] = normalizeAiDisplayText(
+        $latestAiAssessment['next_step'] ?? null,
+        '別角度の写真や、体色・模様がわかる写真があると次に絞りやすくなります。'
+    );
+    $latestAiAssessment['diagnostic_features_seen'] = normalizeAiDisplayList($latestAiAssessment['diagnostic_features_seen'] ?? []);
+    $latestAiAssessment['missing_evidence'] = normalizeAiDisplayList($latestAiAssessment['missing_evidence'] ?? []);
+}
 $trustGuidance = BioUtils::buildTrustGuidance($obs);
 $trustProgress = BioUtils::buildTrustProgress($obs);
 $canEditObservation = ObservationMeta::canEditObservation($obs, $currentUser);
