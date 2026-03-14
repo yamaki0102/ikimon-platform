@@ -59,6 +59,7 @@ upload_package/data/sites/
 upload_package/data/analytics/
 upload_package/data/rate_limits/
 upload_package/data/sessions/
+upload_package/data/affiliate/
 upload_package/data/*.json
 upload_package/data/*.db
 upload_package/data/*.sqlite3
