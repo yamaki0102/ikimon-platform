@@ -10,6 +10,15 @@ class AiObservationAssessment
     private const PROMPT_VERSION = 'observation_assessment_v3';
     private const PIPELINE_VERSION = 'memo_fusion_v1';
     private const RANK_ORDER = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'];
+    private const RANK_LABELS = [
+        'kingdom' => '界',
+        'phylum' => '門',
+        'class' => '綱',
+        'order' => '目',
+        'family' => '科',
+        'genus' => '属',
+        'species' => '種',
+    ];
     private const LANE_PROFILES = [
         'fast' => [
             'max_images' => 1,
@@ -111,6 +120,7 @@ class AiObservationAssessment
             'photo_count_used' => count($images),
             'simple_summary' => self::buildSimpleSummary($recommendedTaxon, $bestSpecificTaxon, $payload),
             'text' => self::buildPublicText($payload, $recommendedTaxon, $bestSpecificTaxon),
+            'display_ja' => self::buildDisplayJa($recommendedTaxon, $bestSpecificTaxon, $payload),
         ];
     }
 
@@ -405,9 +415,33 @@ PROMPT;
         return array_values(array_unique($clean));
     }
 
+    private static function sanitizePublicList(array $values, int $limit): array
+    {
+        $clean = [];
+        foreach (array_slice($values, 0, $limit) as $value) {
+            $text = self::normalizePublicText((string)$value, 36);
+            if ($text !== '') {
+                $clean[] = $text;
+            }
+        }
+        return array_values(array_unique($clean));
+    }
+
     private static function clip(string $value, int $limit = 80): string
     {
         return mb_substr(trim(strip_tags($value)), 0, $limit);
+    }
+
+    private static function normalizePublicText(string $value, int $limit = 80): string
+    {
+        $text = self::clip($value, $limit);
+        if ($text === '') {
+            return '';
+        }
+        if (preg_match('/[\p{Hiragana}\p{Katakana}\p{Han}]/u', $text) === 1) {
+            return $text;
+        }
+        return preg_match('/[A-Za-z]/', $text) === 1 ? '' : $text;
     }
 
     private static function decodeModelJsonPayload(string $text): ?array
@@ -644,18 +678,16 @@ PROMPT;
             ? $payload['confidence_band']
             : 'low';
         $payload['recommended_rank'] = self::normalizeRecommendedRank($payload['recommended_rank'] ?? null);
-        $payload['summary'] = self::clip((string)($payload['summary'] ?? ''), 80);
-        $payload['why_not_more_specific'] = self::clip((string)($payload['why_not_more_specific'] ?? ''), 80);
-        $payload['geographic_context'] = self::clip((string)($payload['geographic_context'] ?? ''), 80);
-        $payload['seasonal_context'] = self::clip((string)($payload['seasonal_context'] ?? ''), 80);
-        $payload['observer_boost'] = self::clip((string)($payload['observer_boost'] ?? ''), 80);
-        $payload['next_step'] = self::clip((string)($payload['next_step'] ?? ''), 80);
-        $payload['cautionary_note'] = self::clip((string)($payload['cautionary_note'] ?? ''), 80);
-        $payload['diagnostic_features_seen'] = self::sanitizeList($payload['diagnostic_features_seen'] ?? [], 4);
-        $payload['similar_taxa_to_compare'] = is_array($payload['similar_taxa_to_compare'] ?? null)
-            ? $payload['similar_taxa_to_compare']
-            : [];
-        $payload['missing_evidence'] = self::sanitizeList($payload['missing_evidence'] ?? [], 4);
+        $payload['summary'] = self::normalizePublicText((string)($payload['summary'] ?? ''), 80);
+        $payload['why_not_more_specific'] = self::normalizePublicText((string)($payload['why_not_more_specific'] ?? ''), 80);
+        $payload['geographic_context'] = self::normalizePublicText((string)($payload['geographic_context'] ?? ''), 80);
+        $payload['seasonal_context'] = self::normalizePublicText((string)($payload['seasonal_context'] ?? ''), 80);
+        $payload['observer_boost'] = self::normalizePublicText((string)($payload['observer_boost'] ?? ''), 80);
+        $payload['next_step'] = self::normalizePublicText((string)($payload['next_step'] ?? ''), 80);
+        $payload['cautionary_note'] = self::normalizePublicText((string)($payload['cautionary_note'] ?? ''), 80);
+        $payload['diagnostic_features_seen'] = self::sanitizePublicList($payload['diagnostic_features_seen'] ?? [], 4);
+        $payload['similar_taxa_to_compare'] = self::sanitizePublicList($payload['similar_taxa_to_compare'] ?? [], 4);
+        $payload['missing_evidence'] = self::sanitizePublicList($payload['missing_evidence'] ?? [], 4);
         $payload['suggestions'] = is_array($payload['suggestions'] ?? null) ? $payload['suggestions'] : [];
         return $payload;
     }
@@ -680,6 +712,8 @@ PROMPT;
             'visibility' => 'public',
             'model' => 'system-fallback',
             'processing_lane' => $profile['lane'],
+            'fallback_stage' => $profile['lane'],
+            'fallback_reason' => 'insufficient_confident_signal',
             'prompt_version' => self::PROMPT_VERSION,
             'pipeline_version' => self::PIPELINE_VERSION . '_fallback',
             'taxonomy_version' => $recommended['taxonomy_version'] ?? null,
@@ -710,6 +744,19 @@ PROMPT;
                 'ここで止める理由: 見分けに効く部位がまだ足りず、ここでは保守的に止めています。',
                 '次に試すと良さそう: ' . $nextStep,
             ])),
+            'display_ja' => self::buildDisplayJa(
+                $recommended ? Taxonomy::toObservationTaxon($recommended) : null,
+                $recommended ? Taxonomy::toObservationTaxon($recommended) : null,
+                [
+                    'summary' => $summary,
+                    'why_not_more_specific' => '見分けに効く部位がまだ足りず、ここでは保守的に止めています。',
+                    'diagnostic_features_seen' => [],
+                    'similar_taxa_to_compare' => [],
+                    'missing_evidence' => self::buildFallbackMissingEvidence($observation),
+                    'observer_boost' => '記録としては十分残っています。次の一枚が入ると進めやすくなります。',
+                    'next_step' => $nextStep,
+                ]
+            ),
         ];
     }
 
@@ -788,6 +835,57 @@ PROMPT;
         }
 
         return implode("\n", $lines);
+    }
+
+    private static function buildDisplayJa(?array $recommendedTaxon, ?array $bestSpecificTaxon, array $payload): array
+    {
+        $features = self::sanitizeList($payload['diagnostic_features_seen'] ?? [], 3);
+        $similar = self::sanitizeList($payload['similar_taxa_to_compare'] ?? [], 3);
+        $missing = self::sanitizeList($payload['missing_evidence'] ?? [], 3);
+
+        $narrativeParts = [];
+
+        if ($recommendedTaxon) {
+            $recommendedName = (string)($recommendedTaxon['name'] ?? '未確定');
+            $recommendedRank = (string)($recommendedTaxon['rank'] ?? 'unknown');
+            if ($bestSpecificTaxon && ($bestSpecificTaxon['id'] ?? null) !== ($recommendedTaxon['id'] ?? null)) {
+                $narrativeParts[] = $recommendedName . ' まではかなり近く、候補の中では ' . (string)($bestSpecificTaxon['name'] ?? '未確定') . ' が有力です。';
+            } else {
+                $rankLabel = self::RANK_LABELS[$recommendedRank] ?? '';
+                $rankText = $rankLabel !== '' ? $rankLabel . 'レベルで' : '';
+                $narrativeParts[] = '写真から見ると、' . $rankText . $recommendedName . ' にかなり近そうです。';
+            }
+        }
+
+        $summary = self::clip((string)($payload['summary'] ?? ''), 120);
+        if ($summary !== '') {
+            $narrativeParts[] = $summary;
+        } elseif ($features !== []) {
+            $narrativeParts[] = '見えている手がかりは ' . implode('、', $features) . ' です。';
+        }
+
+        if ($similar !== []) {
+            $narrativeParts[] = '似た候補としては ' . implode('、', $similar) . ' があり、このあたりを見分ける観察になりそうです。';
+        }
+
+        $why = self::clip((string)($payload['why_not_more_specific'] ?? ''), 120);
+        if ($why === '' && $missing !== []) {
+            $why = '花や実、葉のつき方など、違いが出る部位がもう少し見えると次に進みやすいです。';
+        }
+
+        $next = self::clip((string)($payload['next_step'] ?? ''), 120);
+        if ($next === '' && $missing !== []) {
+            $next = implode(' / ', $missing) . ' が分かる写真があると、もう一段絞りやすくなります。';
+        }
+
+        $observerBoost = self::clip((string)($payload['observer_boost'] ?? ''), 120);
+
+        return [
+            'narrative' => self::clip(implode(' ', array_values(array_filter($narrativeParts))), 220),
+            'reason_to_stop' => $why,
+            'next_action' => $next,
+            'observer_note' => $observerBoost,
+        ];
     }
 
     private static function buildStableTaxon(array $resolvedCandidates): ?array
