@@ -65,11 +65,18 @@ Auth::init();
                 </div>
 
                 <!-- Search Bar -->
-                <div class="relative w-full md:flex-1 md:max-w-xl">
-                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"></i>
-                    <input type="text" x-model="query" @input.debounce.500ms="load(true)"
-                        placeholder="種名で検索..."
-                        class="w-full bg-surface border border-border rounded-full py-2.5 pl-10 pr-4 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition text-text placeholder-muted">
+                <div class="flex gap-2 w-full md:flex-1 md:max-w-xl items-center">
+                    <div class="relative flex-1">
+                        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"></i>
+                        <input type="text" x-model="query" @input.debounce.500ms="load(true)"
+                            placeholder="種名で検索..."
+                            class="w-full bg-surface border border-border rounded-full py-2.5 pl-10 pr-4 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition text-text placeholder-muted">
+                    </div>
+                    <label class="shrink-0 cursor-pointer bg-surface border border-border rounded-full py-2.5 px-4 text-xs font-bold text-text-secondary hover:bg-primary/10 hover:text-primary hover:border-primary/20 transition flex items-center gap-1.5" title="写真で似た生き物を探す">
+                        <i data-lucide="camera" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">写真で探す</span>
+                        <input type="file" accept="image/*" capture="environment" class="hidden" @change="photoSearch($event)">
+                    </label>
                 </div>
 
                 <!-- Filter Chips -->
@@ -165,9 +172,55 @@ Auth::init();
                 limit: 20,
                 hasMore: true,
                 regionStats: null,
+                photoMode: false,
 
                 init() {
                     this.load();
+                },
+
+                async photoSearch(event) {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    this.loading = true;
+                    this.photoMode = true;
+                    this.items = [];
+                    this.hasMore = false;
+                    try {
+                        const form = new FormData();
+                        form.append('photo', file);
+                        form.append('type', 'all');
+                        form.append('limit', '20');
+                        const res = await fetch('api/semantic_search.php', { method: 'POST', body: form });
+                        const data = await res.json();
+                        if (data.success && data.results) {
+                            const merged = [
+                                ...(data.results.photos || []),
+                                ...(data.results.observations || []),
+                            ];
+                            const seen = new Set();
+                            const unique = [];
+                            for (const hit of merged) {
+                                const obs = hit.observation;
+                                if (!obs || seen.has(obs.id)) continue;
+                                seen.add(obs.id);
+                                unique.push({
+                                    id: obs.id,
+                                    photos: obs.photos || [],
+                                    taxon: obs.taxon || {},
+                                    status: obs.status || '',
+                                    municipality: obs.municipality || '',
+                                    score: hit.score,
+                                });
+                            }
+                            this.items = unique;
+                        }
+                    } catch (e) {
+                        console.error('Photo search error:', e);
+                    } finally {
+                        this.loading = false;
+                        event.target.value = '';
+                        this.$nextTick(() => lucide.createIcons());
+                    }
                 },
 
                 async load(reset = false) {
@@ -176,6 +229,7 @@ Auth::init();
                         this.offset = 0;
                         this.items = [];
                         this.hasMore = true;
+                        this.photoMode = false;
                     }
                     if (!this.hasMore) return;
 

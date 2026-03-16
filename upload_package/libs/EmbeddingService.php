@@ -3,7 +3,7 @@
 /**
  * EmbeddingService - Gemini Embedding 2 multimodal API wrapper for ikimon.life
  *
- * Generates 768-dimensional embedding vectors from text, images, or both.
+ * Generates 3072-dimensional embedding vectors from text, images, or both.
  * Model: gemini-embedding-2-preview (first natively multimodal embedding model)
  *
  * Capabilities:
@@ -11,6 +11,9 @@
  * - Image embedding (observation photos)
  * - Multimodal embedding (text + photo → single unified vector)
  * - Batch embedding (multiple items per API call)
+ * - 8 task types: RETRIEVAL_*, SEMANTIC_SIMILARITY, CLASSIFICATION, CLUSTERING, QUESTION_ANSWERING, FACT_VERIFICATION
+ * - Cross-modal search: photo query → text results, text query → photo results
+ * - Matryoshka Representation Learning: truncatable to 768/1536 if needed
  */
 
 require_once __DIR__ . '/../config/config.php';
@@ -19,8 +22,8 @@ class EmbeddingService
 {
     private const MODEL = 'gemini-embedding-2-preview';
     private const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
-    private const DIMENSIONS = 768;
-    private const MAX_TEXT_LENGTH = 2000;
+    private const DIMENSIONS = 3072;
+    private const MAX_TEXT_LENGTH = 8000; // 8192 token limit ≈ 8000 chars for Japanese
     private const PHOTO_MAX_DIM = 512; // resize photos to 512px max
 
     private string $apiKey;
@@ -95,6 +98,30 @@ class EmbeddingService
     }
 
     /**
+     * Embed for "what is this?" style questions (QUESTION_ANSWERING task type).
+     */
+    public function embedQuestion(string $question): ?array
+    {
+        return $this->embedText($question, 'QUESTION_ANSWERING');
+    }
+
+    /**
+     * Embed for finding similar items (SEMANTIC_SIMILARITY task type).
+     */
+    public function embedForSimilarity(string $text): ?array
+    {
+        return $this->embedText($text, 'SEMANTIC_SIMILARITY');
+    }
+
+    /**
+     * Embed for clustering analysis (CLUSTERING task type).
+     */
+    public function embedForClustering(string $text): ?array
+    {
+        return $this->embedText($text, 'CLUSTERING');
+    }
+
+    /**
      * Batch embed multiple items in one API call.
      * Each request: ['parts' => [...], 'taskType' => '...']
      * Returns array of vectors (null for failed items).
@@ -150,7 +177,7 @@ class EmbeddingService
         $results = [];
         foreach ($requests as $i => $req) {
             $values = $embeddings[$i]['values'] ?? null;
-            $results[] = (is_array($values) && count($values) === self::DIMENSIONS) ? $values : null;
+            $results[] = (is_array($values) && count($values) >= 128) ? $values : null;
         }
 
         return $results;
@@ -467,8 +494,8 @@ class EmbeddingService
         $data = json_decode($response, true);
         $values = $data['embedding']['values'] ?? null;
 
-        if (!is_array($values) || count($values) !== self::DIMENSIONS) {
-            error_log("[embedding] Unexpected response: " . substr($response, 0, 200));
+        if (!is_array($values) || count($values) < 128) {
+            error_log("[embedding] Unexpected response dim=" . (is_array($values) ? count($values) : 'null') . ": " . substr($response, 0, 200));
             return null;
         }
 
