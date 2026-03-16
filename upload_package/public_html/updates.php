@@ -28,6 +28,48 @@ Auth::init();
             <!-- Updates Timeline -->
             <div class="space-y-8">
 
+                <!-- v1.1.0 -->
+                <article class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v1.1.0</span>
+                        <time class="text-sm text-gray-500">2026年3月17日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">セマンティック検索と写真検索</h2>
+                    <p class="text-gray-500 text-sm mb-4">生き物の探し方が変わります。種名がわからなくても、写真や自然な文章から似た記録を見つけられるようになりました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>写真で探す</strong>: カメラで撮った写真やギャラリーから、見た目が似ている生き物の記録を検索。「みつける」ページの検索バー横のカメラアイコンから利用できます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>セマンティック検索</strong>: 「春の森の蝶」「夜に鳴く虫」のような自然な文章で検索できるように。種名がわからなくても、特徴や状況の説明から関連する記録を探せます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>似ている観察</strong>: 各観察記録の詳細ページに「似ている観察」セクションを追加。種名・分類・環境・季節・写真の特徴を総合的に分析し、関連する記録を自動表示します</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>高精度ベクトル検索</strong>: 全観察データを3072次元のマルチモーダルベクトルで再構築。テキストと画像を同じ空間で扱うことで、写真からテキスト記録を、テキストから写真記録を横断的に検索できます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>非同期ジョブシステム</strong>: AI査定・ベクトル生成・データ再計算を並列処理する基盤を導入。投稿後のレスポンス速度が向上しました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>FAQ更新</strong>: 「検索・発見」カテゴリを追加。写真検索の仕組み・プライバシー保護・類似度の読み方など6問を収録</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>セキュリティ修正</strong>: XSS対策の強化、キュー処理の排他制御（flock）追加、enqueue失敗時のグレースフルハンドリング</span>
+                        </li>
+                    </ul>
+                </article>
+
                 <!-- v1.0.0 -->
                 <article class="relative pl-8 border-l-2 border-emerald-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500"></div>
