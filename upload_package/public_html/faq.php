@@ -10,6 +10,7 @@ $faq_categories = [
     'cat_getting_started' => ['icon' => 'sparkles',  'items' => ['a1', 'a2', 'a3', 'a4', 'a5']],
     'cat_recording'       => ['icon' => 'camera',    'items' => ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8']],
     'cat_identification'  => ['icon' => 'search',    'items' => ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7']],
+    'cat_search'          => ['icon' => 'compass',   'items' => ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']],
     'cat_ai_assist'       => ['icon' => 'bot',       'items' => ['f1', 'f2', 'f3', 'f4', 'f5']],
     'cat_business'        => ['icon' => 'building-2', 'items' => ['d1', 'd2', 'd3', 'd4', 'd5']],
     'cat_data_privacy'    => ['icon' => 'shield',    'items' => ['e1', 'e2', 'e3', 'e4', 'e5']],
