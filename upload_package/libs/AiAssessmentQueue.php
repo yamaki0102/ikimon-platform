@@ -3,6 +3,7 @@
 require_once __DIR__ . '/DataStore.php';
 require_once __DIR__ . '/AiBudgetGuard.php';
 require_once __DIR__ . '/AiObservationAssessment.php';
+require_once __DIR__ . '/AsyncJobMetrics.php';
 
 class AiAssessmentQueue
 {
@@ -62,9 +63,21 @@ class AiAssessmentQueue
 
     public static function processPending(int $limit = 20, array $options = []): array
     {
+        $lockPath = DATA_DIR . '/locks/ai_assessment_queue.lock';
+        @mkdir(dirname($lockPath), 0755, true);
+        $lockFp = fopen($lockPath, 'c+');
+        if ($lockFp === false || !flock($lockFp, LOCK_EX | LOCK_NB)) {
+            if ($lockFp) { fclose($lockFp); }
+            return ['processed' => 0, 'failed' => 0, 'completed' => 0, 'deferred' => 0, 'queued_followups' => 0, 'locked' => true];
+        }
+
+        try {
+        $startedAt = microtime(true);
         $queue = DataStore::get(self::FILE, 0);
         if (!is_array($queue) || empty($queue)) {
-            return ['processed' => 0, 'failed' => 0, 'completed' => 0, 'deferred' => 0, 'queued_followups' => 0];
+            $result = ['processed' => 0, 'failed' => 0, 'completed' => 0, 'deferred' => 0, 'queued_followups' => 0, 'queue_snapshot' => self::buildQueueSnapshot([], time())];
+            AsyncJobMetrics::recordQueueRun('ai_assessment', $result + ['duration_ms' => 0]);
+            return $result;
         }
 
         $laneFilter = isset($options['lane']) ? self::normalizeLane((string)$options['lane']) : null;
@@ -154,7 +167,7 @@ class AiAssessmentQueue
 
         DataStore::save(self::FILE, array_values($queue));
 
-        return [
+        $result = [
             'processed' => $processed,
             'failed' => $failed,
             'completed' => $completed,
@@ -162,7 +175,20 @@ class AiAssessmentQueue
             'queued_followups' => $queuedFollowups,
             'lane' => $laneFilter ?? 'all',
             'budget' => AiBudgetGuard::snapshot(),
+            'queue_snapshot' => self::buildQueueSnapshot($queue, $nowTs),
         ];
+        $result['duration_ms'] = (int)round((microtime(true) - $startedAt) * 1000);
+        AsyncJobMetrics::recordQueueRun('ai_assessment', $result);
+        return $result;
+        } finally {
+            flock($lockFp, LOCK_UN);
+            fclose($lockFp);
+        }
+    }
+
+    public static function snapshot(): array
+    {
+        return self::buildQueueSnapshot(DataStore::get(self::FILE, 0), time());
     }
 
     public static function processImmediate(array $observation, array $options = []): ?array
@@ -209,6 +235,45 @@ class AiAssessmentQueue
         $observation['ai_assessments'][] = $assessment;
         $observation['updated_at'] = date('Y-m-d H:i:s');
         DataStore::upsert('observations', $observation);
+    }
+
+    private static function buildQueueSnapshot(array $queue, int $nowTs): array
+    {
+        $pending = 0;
+        $failed = 0;
+        $done = 0;
+        $oldestPending = null;
+        $byLane = [
+            'fast' => 0,
+            'batch' => 0,
+            'deep' => 0,
+        ];
+
+        foreach ($queue as $item) {
+            $status = (string)($item['status'] ?? 'pending');
+            $lane = self::normalizeLane((string)($item['lane'] ?? 'fast'));
+            if ($status === 'pending') {
+                $pending++;
+                $byLane[$lane] = ($byLane[$lane] ?? 0) + 1;
+                $requestedAt = strtotime((string)($item['requested_at'] ?? ''));
+                if ($requestedAt !== false) {
+                    $age = max(0, $nowTs - $requestedAt);
+                    $oldestPending = $oldestPending === null ? $age : max($oldestPending, $age);
+                }
+            } elseif ($status === 'failed') {
+                $failed++;
+            } elseif ($status === 'done') {
+                $done++;
+            }
+        }
+
+        return [
+            'pending' => $pending,
+            'failed' => $failed,
+            'done' => $done,
+            'oldest_pending_seconds' => $oldestPending ?? 0,
+            'by_lane' => $byLane,
+        ];
     }
 
     private static function dueIndexes(array $queue, ?string $laneFilter, int $nowTs): array
