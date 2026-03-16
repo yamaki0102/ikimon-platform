@@ -164,7 +164,7 @@ Auth::init();
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
                     <div class="flex items-center gap-3 mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.2.0</span>
-                        <time class="text-sm text-gray-500">2025年1月1日</time>
+                        <time class="text-sm text-gray-500">2026年1月1日</time>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">新年アップデート</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
@@ -181,7 +181,7 @@ Auth::init();
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
                     <div class="flex items-center gap-3 mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.1.5</span>
-                        <time class="text-sm text-gray-500">2024年12月15日</time>
+                        <time class="text-sm text-gray-500">2025年12月15日</time>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">企業向け機能</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
@@ -196,7 +196,7 @@ Auth::init();
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
                     <div class="flex items-center gap-3 mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.1.0</span>
-                        <time class="text-sm text-gray-500">2024年11月1日</time>
+                        <time class="text-sm text-gray-500">2025年11月1日</time>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">ベータ版</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
