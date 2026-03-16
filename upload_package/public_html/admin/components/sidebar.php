@@ -27,6 +27,7 @@ $currentUser = $currentUser ?? Auth::user();
             ['id' => 'observations', 'href' => 'observations.php', 'icon' => 'eye',              'label' => '観察管理'],
             ['id' => 'moderation',   'href' => 'moderation.php',   'icon' => 'shield-alert',     'label' => 'モデレーション', 'badge' => $pendingFlags],
             ['id' => 'verification', 'href' => 'verification.php', 'icon' => 'check-circle-2',   'label' => '検証キュー'],
+            ['id' => 'queues',       'href' => 'queues.php',       'icon' => 'activity',         'label' => 'ジョブ監視'],
             ['id' => 'users',        'href' => 'users.php',        'icon' => 'users',            'label' => 'ユーザー管理'],
             ['id' => 'surveyors',    'href' => 'surveyors.php',    'icon' => 'badge-check',      'label' => '調査員管理'],
             ['id' => 'corporate',    'href' => 'corporate.php',    'icon' => 'building-2',       'label' => '契約団体'],

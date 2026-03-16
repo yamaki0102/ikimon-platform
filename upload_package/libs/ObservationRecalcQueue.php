@@ -7,6 +7,7 @@
 require_once __DIR__ . '/DataStore.php';
 require_once __DIR__ . '/BioUtils.php';
 require_once __DIR__ . '/Taxonomy.php';
+require_once __DIR__ . '/AsyncJobMetrics.php';
 
 class ObservationRecalcQueue
 {
@@ -31,13 +32,17 @@ class ObservationRecalcQueue
 
     public static function processPending(int $limit = 100): array
     {
+        $startedAt = microtime(true);
         $queue = DataStore::get(self::FILE, 0);
         if (!is_array($queue) || empty($queue)) {
-            return ['processed' => 0, 'failed' => 0];
+            $result = ['processed' => 0, 'failed' => 0, 'completed' => 0, 'queue_snapshot' => self::snapshot()];
+            AsyncJobMetrics::recordQueueRun('observation_recalc', $result + ['duration_ms' => 0]);
+            return $result;
         }
 
         $processed = 0;
         $failed = 0;
+        $completed = 0;
 
         foreach ($queue as $index => $item) {
             if ($processed >= $limit) {
@@ -78,10 +83,54 @@ class ObservationRecalcQueue
             $queue[$index]['attempts'] = (int)($queue[$index]['attempts'] ?? 0) + 1;
             $queue[$index]['last_result'] = $changed ? 'normalized+recalculated' : 'recalculated';
             $processed++;
+            $completed++;
         }
 
         DataStore::save(self::FILE, array_values($queue));
 
-        return ['processed' => $processed, 'failed' => $failed];
+        $result = [
+            'processed' => $processed,
+            'failed' => $failed,
+            'completed' => $completed,
+            'queue_snapshot' => self::buildQueueSnapshot($queue, time()),
+            'duration_ms' => (int)round((microtime(true) - $startedAt) * 1000),
+        ];
+        AsyncJobMetrics::recordQueueRun('observation_recalc', $result);
+        return $result;
+    }
+
+    public static function snapshot(): array
+    {
+        return self::buildQueueSnapshot(DataStore::get(self::FILE, 0), time());
+    }
+
+    private static function buildQueueSnapshot(array $queue, int $nowTs): array
+    {
+        $pending = 0;
+        $failed = 0;
+        $done = 0;
+        $oldestPending = 0;
+
+        foreach ($queue as $item) {
+            $status = (string)($item['status'] ?? 'pending');
+            if ($status === 'pending') {
+                $pending++;
+                $requestedAt = strtotime((string)($item['requested_at'] ?? ''));
+                if ($requestedAt !== false) {
+                    $oldestPending = max($oldestPending, max(0, $nowTs - $requestedAt));
+                }
+            } elseif ($status === 'failed') {
+                $failed++;
+            } elseif ($status === 'done') {
+                $done++;
+            }
+        }
+
+        return [
+            'pending' => $pending,
+            'failed' => $failed,
+            'done' => $done,
+            'oldest_pending_seconds' => $oldestPending,
+        ];
     }
 }

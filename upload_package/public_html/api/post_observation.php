@@ -1,5 +1,6 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
+$requestStartedAt = microtime(true);
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
@@ -10,6 +11,8 @@ require_once __DIR__ . '/../../libs/Taxonomy.php';
 require_once __DIR__ . '/../../libs/ObservationRecalcQueue.php';
 require_once __DIR__ . '/../../libs/ManagedSiteRegistry.php';
 require_once __DIR__ . '/../../libs/AiAssessmentQueue.php';
+require_once __DIR__ . '/../../libs/EmbeddingQueue.php';
+require_once __DIR__ . '/../../libs/AsyncJobMetrics.php';
 require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/Gamification.php';
 require_once __DIR__ . '/../../libs/GeoUtils.php';
@@ -593,7 +596,6 @@ $observation['import_source'] = 'user_post';
 if (DataStore::append('observations', $observation)) {
     ObservationRecalcQueue::enqueue($id, 'observation_created');
     $aiPlan = AiAssessmentQueue::planForObservation($observation, 'observation_created');
-    $immediateAssessment = null;
     // ゲスト投稿カウント更新
     if ($isGuestPost) {
         Auth::incrementGuestPostCount($id);
@@ -652,8 +654,23 @@ if (DataStore::append('observations', $observation)) {
     if (!empty($exifData['date'])) {
         $responseData['exif_date'] = $exifData['date'];
     }
+    $embeddingPlanned = EmbeddingQueue::shouldQueueObservation($observation);
+
+    if ($aiPlan !== null) {
+        AiAssessmentQueue::enqueue($id, (string)$aiPlan['reason'], $aiPlan);
+    }
+    if ($embeddingPlanned) {
+        EmbeddingQueue::enqueue($id, 'observation_created');
+        DataStore::upsert('observations', [
+            'id' => $id,
+            'embedding_status' => 'queued',
+            'embedding_updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
     $responseData['ai_assessment_ready'] = false;
     $responseData['ai_assessment_pending'] = $aiPlan !== null;
+    $responseData['embedding_pending'] = $embeddingPlanned;
 
     // Add Gamification Events to response
     if (!empty($gamificationEvents)) {
@@ -661,22 +678,16 @@ if (DataStore::append('observations', $observation)) {
     }
 
     StreakTracker::recordActivity($userId, 'post');
+    AsyncJobMetrics::recordPostRequest([
+        'observation_id' => $id,
+        'duration_ms' => (int)round((microtime(true) - $requestStartedAt) * 1000),
+        'ai_planned' => $aiPlan !== null,
+        'embedding_planned' => $embeddingPlanned,
+        'ai_queue' => AiAssessmentQueue::snapshot(),
+        'embedding_queue' => EmbeddingQueue::snapshot(),
+    ]);
 
     respondAndContinue(true, 'Observation posted successfully', $responseData);
-
-    if ($aiPlan !== null && ($immediateAssessment === null)) {
-        $lane = (string)($aiPlan['lane'] ?? 'fast');
-        if ($lane === 'fast') {
-            try {
-                $immediateAssessment = AiAssessmentQueue::processImmediate($observation, ['lane' => 'fast']);
-            } catch (Throwable $e) {
-                error_log('Post-send immediate AI assessment failed: ' . $e->getMessage());
-            }
-        }
-        if ($immediateAssessment === null) {
-            AiAssessmentQueue::enqueue($id, (string)$aiPlan['reason'], $aiPlan);
-        }
-    }
     exit;
 } else {
     respond(false, 'データの保存に失敗しました');
