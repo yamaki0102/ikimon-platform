@@ -1644,6 +1644,40 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <?php endif; ?>
                 </div>
 
+                <!-- 3. Similar Observations (loaded via AJAX) -->
+                <div x-data="similarObs" x-init="load()" class="space-y-4" x-show="items.length > 0" x-cloak>
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-black text-base text-text flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                                <i data-lucide="sparkles" class="w-4 h-4 text-primary"></i>
+                            </span>
+                            似ている観察
+                            <span x-show="items.length" class="text-token-xs bg-primary/15 text-primary font-bold px-2 py-0.5 rounded-full" x-text="items.length"></span>
+                        </h3>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <template x-for="obs in items" :key="obs.id">
+                            <a :href="'observation_detail.php?id=' + obs.id" class="group block rounded-xl overflow-hidden bg-white border border-slate-200 hover:border-primary/40 hover:shadow-md transition-all">
+                                <div class="aspect-square bg-slate-100 relative overflow-hidden">
+                                    <template x-if="obs.photos && obs.photos.length > 0">
+                                        <img :src="obs.photos[0].url_sq || obs.photos[0].url" :alt="obs.taxon?.name || ''" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy">
+                                    </template>
+                                    <template x-if="!obs.photos || obs.photos.length === 0">
+                                        <div class="w-full h-full flex items-center justify-center text-slate-300">
+                                            <i data-lucide="image-off" class="w-8 h-8"></i>
+                                        </div>
+                                    </template>
+                                    <div class="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full" x-text="Math.round(obs.score * 100) + '%'"></div>
+                                </div>
+                                <div class="p-2">
+                                    <p class="text-xs font-bold text-text truncate" x-text="obs.taxon?.name || '未同定'"></p>
+                                    <p class="text-[10px] text-muted truncate" x-text="(obs.prefecture || '') + (obs.municipality ? ' ' + obs.municipality : '')"></p>
+                                </div>
+                            </a>
+                        </template>
+                    </div>
+                </div>
+
             </div> <!-- End Right Column -->
 
         </div> <!-- End Grid -->
@@ -1652,6 +1686,22 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <!-- Scripts -->
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('similarObs', () => ({
+                items: [],
+                async load() {
+                    try {
+                        const res = await fetch('api/get_similar_observations.php?id=<?= urlencode($obsId) ?>&limit=6');
+                        const data = await res.json();
+                        if (data.success && data.observations) {
+                            this.items = data.observations;
+                            this.$nextTick(() => lucide.createIcons());
+                        }
+                    } catch (e) { /* silent */ }
+                }
+            }));
+        });
 
         window.handleObservationDelete = async function (trigger, observationId, fallbackCsrfToken) {
             const button = trigger && trigger.closest ? trigger.closest('button') : null;
