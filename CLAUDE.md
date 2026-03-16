@@ -19,7 +19,7 @@
 | **ドメイン** | https://ikimon.life |
 | **ホスティング** | お名前ドットコム RS Plan / PHP 8.2 |
 | **GitHub** | `yamaki0102/ikimon-platform` |
-| **ローカルパス** | `G:\その他のパソコン\マイ ノートパソコン\_antigravity_assets_only_2026\ikimon\ikimon.life` |
+| **ローカルパス** | `C:\Users\YAMAKI\ikimon\ikimon.life` |
 | **現在フェーズ** | ✅ Phase 15A 完了 → 🔲 **Phase 15B: Gamification & Personalization** |
 
 ## 技術スタック
@@ -133,10 +133,10 @@ DataStore::append($resource, $item) // 追記
 ```
 **Web公開ファイルは必ず `public_html/` 配下にアップロードすること。**
 
-## ⚠️ Google Drive 注意事項
+## ⚠️ Google Drive 注意事項（旧環境）
 
-`.git/index.lock` が同期プロセスに掴まれて git 操作が失敗することがある。
-→ `/snapshot` ワークフローの GitHub API フォールバックを使う。
+C ドライブに移行済み。Google Drive 上のコピーはバックアップとして保持。
+バックアップ: `G:\その他のパソコン\マイ ノートパソコン\_antigravity_assets_only_2026\ikimon\ikimon.life`
 
 ## ローカル開発
 
