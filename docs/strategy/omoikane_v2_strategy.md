@@ -109,6 +109,45 @@ data/
     └── YYYY-MM.jsonl
 ```
 
+### パッシブ観察フロー（Phase 6: BOINC for 生物多様性）
+
+ウォーキング・通勤・ドライブの「ながら参加」で生物多様性調査に貢献する分散型パイプライン。
+SETI@home / Folding@home と同じ発想をフィールド調査に適用する。
+
+```
+[Layer 1: オンデバイス（リアルタイム、APIコストゼロ）]
+  スマホ / ウェアラブル
+  ├── BirdNET-Analyzer (TFLite)  ← 鳥の声認識（オフライン）
+  ├── Gemini Nano / MediaPipe    ← 画像粗分類
+  ├── GPS + 気圧 + 温度 + 時刻
+  └── → 送信するのは「イベント」のみ（音声・動画はローカル保持）
+      { type:"bird_call", species_guess:"Uguisu", confidence:0.7,
+        lat, lng, timestamp }    ← ~500バイト/イベント
+
+[Layer 2: サーバー側自動処理]
+  ├── [OmoikaneInferenceEnhancer] 生態的妥当性チェック
+  │     例: 「3月・標高200m・ウグイス」→ ✅ 妥当
+  │     例: 「1月・標高2000m・カブトムシ」→ ❌ 季節外れ → 要確認フラグ
+  ├── [EmbeddingService] 768次元ベクトル化
+  ├── [EmbeddingStore] 類似観察との照合
+  └── → source_type="passive_stream", human_verified=false で保存
+
+[Layer 3: 同定者UI（アクティブ層）]
+  ├── ai_classified データを効率的に同定するキュー
+  ├── フィルタ: 種別 / 地域 / 信頼度 / 専門分野
+  ├── バッチ承認: 「この10件は全部ウグイスで確定」→ 一括承認
+  └── → human_verified=true, confidence_level="research_grade" へ昇格
+
+観察データの状態遷移:
+[raw_stream] → [ai_classified] → [human_verified] → [research_grade]
+```
+
+**2ユーザー層の役割分担**:
+- **パッシブ層**: デバイスをONにして歩くだけ。AIが粗い分類を生成
+- **アクティブ（同定者）層**: パッシブデータを効率良く仕上げる。同定体験の質がループの回転率を決める
+
+**スケール試算**: アクティブウォーカー1,000人 × 1日15イベント = 月間**450,000イベント**、月間データ量 ~225MB（テキストのみ）
+
 ---
 
 ## 4. 論文自動取り込みパイプライン
@@ -325,6 +364,50 @@ WantedBy=multi-user.target
 - [ ] 長期モニタリングダッシュボード（経年変化グラフ）
 - [ ] 研究者向けデータ引用 API（`ikimon.life/api/cite/{obs_id}`）
 
+### Phase 6（〜2029〜、Phase 4と並行検討開始）: パッシブ観察プラットフォーム
+
+**コンセプト**: 「BOINC for 生物多様性」— 歩くだけで生物調査に参加できる分散型プラットフォーム。
+生き物好きでなくても、ウォーキングのついでに貢献できる。
+
+#### オンデバイスAI
+
+| モデル | 用途 | 対応デバイス |
+|--------|------|-------------|
+| BirdNET-Analyzer (TFLite) | 鳥の声認識（オフライン） | Android / iOS |
+| Gemini Nano | テキスト・画像粗分類 | Pixel 8 Pro 以降 |
+| MediaPipe Image Classification | 植物・昆虫の粗分類 | 全スマホ |
+| カスタム TFLite モデル | ikimon 特化分類器 | 全スマホ |
+
+#### データフラグ設計
+
+```json
+{
+  "source_type": "passive_stream | active_observation | manual_upload",
+  "classification_method": "on_device_ai | server_ai | human",
+  "human_verified": false,
+  "verifier_id": null,
+  "confidence_level": "low | medium | high | research_grade"
+}
+```
+
+#### 同定者ファースト設計の原則
+
+同定体験の質がフィードバックループの回転率を決める。
+
+- **溺れさせない**: オモイカネの自動フィルタリングでノイズ除去してから同定キューに渡す
+- **専門性を活かす**: 同定者の得意分類群を学習し、関連データを優先表示
+- **報酬設計**: 同定数・Research Grade 貢献度に応じたスコアとバッジ
+- **コミュニティ**: 難しい同定はディスカッションに回し、専門家が非同期で解決
+
+#### フェーズ内タスク
+
+- [ ] パッシブ観察モード UI（PWA 対応、バックグラウンド録音・位置記録）
+- [ ] オンデバイス BirdNET-Analyzer 統合
+- [ ] イベント送受信 API（`POST /api/passive_event`）
+- [ ] 同定者キュー UI（バッチ承認・フィルタ・議論スレッド）
+- [ ] `source_type` / `human_verified` フラグの DB スキーマ対応
+- [ ] ネイティブアプリ検討（Flutter / React Native）
+
 ---
 
 ## 8. コスト試算
@@ -398,4 +481,4 @@ WantedBy=multi-user.target
 ---
 
 *This document is a living record. Update it as the architecture evolves.*
-*最終更新: 2026-03-19*
+*最終更新: 2026-03-19 (Phase 6 追記)*
