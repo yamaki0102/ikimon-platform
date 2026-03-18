@@ -15,7 +15,7 @@ Auth::init();
 </head>
 
 <body class="bg-base text-text font-body">
-    <?php include __DIR__ . '/components/header.php'; ?>
+    <?php include __DIR__ . '/components/nav.php'; ?>
 
     <main class="max-w-5xl mx-auto px-4 pt-24 pb-20 md:pt-28">
 
@@ -188,7 +188,7 @@ Auth::init();
 
     </main>
 
-    <?php include __DIR__ . '/components/footer_nav.php'; ?>
+    <?php include __DIR__ . '/components/footer.php'; ?>
 
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();

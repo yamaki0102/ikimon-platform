@@ -236,8 +236,17 @@ class ObserverRank
         // TrustLevel
         $trustLevel = TrustLevel::calculate($userId);
 
-        // Streak days (simplified: count distinct dates of posts in last 30 days)
-        $streakDays = self::calculateStreakFromObs($userId, $observations);
+        // Streak days: use StreakTracker (tracks all activity types: post/identification/walk/reflection)
+        // Falls back to post-only calculation if StreakTracker is unavailable
+        $streakDays = 0;
+        if (file_exists(__DIR__ . '/StreakTracker.php')) {
+            require_once __DIR__ . '/StreakTracker.php';
+            $streakData = StreakTracker::getStreak($userId);
+            $streakDays = $streakData['current_streak'] ?? 0;
+        }
+        if ($streakDays === 0) {
+            $streakDays = self::calculateStreakFromObs($userId, $observations);
+        }
 
         return [
             'post_count'             => $postCount,

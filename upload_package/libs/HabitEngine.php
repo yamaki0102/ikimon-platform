@@ -139,7 +139,7 @@ class HabitEngine
             ],
             'walk' => [
                 'type' => 'link',
-                'href' => 'ikimon_walk.php',
+                'href' => 'profile.php',
                 'icon' => 'footprints',
                 'label' => 'さんぽする',
                 'detail' => '短い外出でもOK',

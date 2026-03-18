@@ -107,7 +107,7 @@ $missions = [
                     <div class="text-lg font-black text-text"><?= number_format($userStats['score']) ?></div>
                     <div class="text-token-xs text-faint">スコア</div>
                 </a>
-                <a href="ikimon_walk.php" class="hover:bg-primary-surface rounded-xl py-1.5 transition">
+                <a href="profile.php" class="hover:bg-primary-surface rounded-xl py-1.5 transition">
                     <div class="text-lg font-black text-text"><?= number_format($userStats['territory'], 1) ?></div>
                     <div class="text-token-xs text-faint">km² 探索</div>
                 </a>
@@ -126,10 +126,10 @@ $missions = [
                 <i data-lucide="camera" class="w-6 h-6"></i>
                 <span class="text-xs font-bold">記録する</span>
             </a>
-            <a href="ikimon_walk.php"
+            <a href="wellness.php"
                class="flex flex-col items-center gap-2 bg-elevated border border-border rounded-2xl py-4 px-3 text-center active:scale-95 transition hover:border-border-strong">
-                <i data-lucide="footprints" class="w-6 h-6 text-emerald-600"></i>
-                <span class="text-xs font-bold text-text">さんぽ</span>
+                <i data-lucide="bar-chart-3" class="w-6 h-6 text-emerald-600"></i>
+                <span class="text-xs font-bold text-text">ウェルネス</span>
             </a>
             <a href="explore.php"
                class="flex flex-col items-center gap-2 bg-elevated border border-border rounded-2xl py-4 px-3 text-center active:scale-95 transition hover:border-border-strong">
