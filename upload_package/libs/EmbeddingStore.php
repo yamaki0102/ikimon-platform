@@ -1,65 +1,114 @@
 <?php
 
 /**
- * EmbeddingStore - JSON file-based vector store for ikimon.life
+ * EmbeddingStore - SQLite-based vector store for ikimon.life
  *
- * Stores embedding vectors alongside metadata in flat JSON files.
- * Supports brute-force cosine similarity search (optimal for < 10K vectors).
+ * Stores embedding vectors as packed float32 BLOBs in SQLite.
+ * Supports brute-force cosine similarity search in PHP.
  *
- * Storage: data/embeddings/{type}.json
+ * Storage: data/embeddings/embeddings.sqlite3
  * Types: observations, photos, papers, taxons, omoikane
+ *
+ * Scale design:
+ *   - 768-dim float32 BLOB = 3,072 bytes/entry (vs ~30KB as JSON)
+ *   - 1M entries ≈ 3GB — fits on RS Plan with room
+ *   - WAL mode for concurrent read/write
+ *   - Works on shared hosting (Apache + mod_php, no sqlite-vec required)
+ *
+ * API is backward-compatible with the JSON-file version.
  */
 
 require_once __DIR__ . '/../config/config.php';
 
 class EmbeddingStore
 {
-    private const BASE_DIR = 'embeddings';
-    private const ROUND_PRECISION = 6; // decimal places for vector values
+    private const DEFAULT_DIMENSIONS = 768;
+    private const DEFAULT_MODEL = 'gemini-embedding-2-preview';
 
-    /** In-memory cache for loaded vector files (per-request) */
-    private static array $cache = [];
+    /** Per-request PDO connection cache (PHP-FPM: 1 connection per request) */
+    private static ?PDO $pdo = null;
 
     // ─── CRUD Operations ────────────────────────────────────────
 
     /**
      * Save an embedding vector.
+     * Vector is stored as packed float32 BLOB (4 bytes/value).
      */
     public static function save(string $type, string $id, array $vector, array $meta = []): void
     {
-        $store = self::loadStore($type);
+        $pdo = self::getPDO();
 
-        // Round vector values to reduce JSON size
-        $rounded = array_map(fn($v) => round($v, self::ROUND_PRECISION), $vector);
+        $blob = pack('f*', ...$vector);
+        $dimensions = count($vector);
+        $model = $meta['model'] ?? self::DEFAULT_MODEL;
 
-        $store['vectors'][$id] = array_merge([
-            'v' => $rounded,
-            'updated_at' => date('c'),
-        ], $meta);
+        // Store extra meta (mode, text, has_photo, etc.) as JSON, excluding 'model'
+        $metaJson = json_encode(
+            array_diff_key($meta, ['model' => true]),
+            JSON_UNESCAPED_UNICODE
+        );
 
-        self::saveStore($type, $store);
+        $now = date('c');
+        $compositeId = $type . ':' . $id;
+
+        $stmt = $pdo->prepare("
+            INSERT INTO embeddings
+                (id, type, ref_id, embedding, metadata, dimensions, model, created_at, updated_at)
+            VALUES
+                (:id, :type, :ref_id, :embedding, :metadata, :dimensions, :model, :created_at, :updated_at)
+            ON CONFLICT(id) DO UPDATE SET
+                embedding  = excluded.embedding,
+                metadata   = excluded.metadata,
+                dimensions = excluded.dimensions,
+                model      = excluded.model,
+                updated_at = excluded.updated_at
+        ");
+
+        $stmt->execute([
+            ':id'         => $compositeId,
+            ':type'       => $type,
+            ':ref_id'     => $id,
+            ':embedding'  => $blob,
+            ':metadata'   => $metaJson,
+            ':dimensions' => $dimensions,
+            ':model'      => $model,
+            ':created_at' => $now,
+            ':updated_at' => $now,
+        ]);
     }
 
     /**
-     * Get a single embedding entry by ID.
+     * Get a single embedding entry by type and ID.
+     * Returns array with 'v' (float[]), 'updated_at', and meta keys — same as legacy format.
      */
     public static function get(string $type, string $id): ?array
     {
-        $store = self::loadStore($type);
-        return $store['vectors'][$id] ?? null;
+        $pdo = self::getPDO();
+        $stmt = $pdo->prepare("SELECT * FROM embeddings WHERE id = :id");
+        $stmt->execute([':id' => $type . ':' . $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? self::rowToEntry($row) : null;
     }
 
     /**
-     * Check if an embedding exists (optionally: updated after a given timestamp).
+     * Check if an embedding exists (optionally: created/updated after a given timestamp).
      */
     public static function exists(string $type, string $id, ?string $updatedAfter = null): bool
     {
-        $entry = self::get($type, $id);
-        if (!$entry) return false;
-        if ($updatedAfter && isset($entry['updated_at'])) {
-            return strtotime($entry['updated_at']) >= strtotime($updatedAfter);
+        $pdo = self::getPDO();
+        $compositeId = $type . ':' . $id;
+
+        if ($updatedAfter === null) {
+            $stmt = $pdo->prepare("SELECT 1 FROM embeddings WHERE id = :id");
+            $stmt->execute([':id' => $compositeId]);
+            return (bool) $stmt->fetchColumn();
         }
-        return true;
+
+        $stmt = $pdo->prepare("SELECT updated_at FROM embeddings WHERE id = :id");
+        $stmt->execute([':id' => $compositeId]);
+        $updatedAt = $stmt->fetchColumn();
+        if ($updatedAt === false) return false;
+        return strtotime($updatedAt) >= strtotime($updatedAfter);
     }
 
     /**
@@ -67,77 +116,107 @@ class EmbeddingStore
      */
     public static function delete(string $type, string $id): void
     {
-        $store = self::loadStore($type);
-        unset($store['vectors'][$id]);
-        self::saveStore($type, $store);
+        $pdo = self::getPDO();
+        $stmt = $pdo->prepare("DELETE FROM embeddings WHERE id = :id");
+        $stmt->execute([':id' => $type . ':' . $id]);
     }
 
     /**
-     * Count vectors in a store.
+     * Count vectors in a store by type.
      */
     public static function count(string $type): int
     {
-        $store = self::loadStore($type);
-        return count($store['vectors'] ?? []);
+        $pdo = self::getPDO();
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM embeddings WHERE type = :type");
+        $stmt->execute([':type' => $type]);
+        return (int) $stmt->fetchColumn();
     }
 
     // ─── Search ─────────────────────────────────────────────────
 
     /**
      * Search for top-K most similar vectors using cosine similarity.
-     * Returns [['id' => string, 'score' => float, ...meta], ...]
+     *
+     * Streams all embeddings of the given type row-by-row from SQLite,
+     * unpacks float32 BLOBs, and computes cosine similarity in PHP.
+     * No full file load into memory — each row is processed and discarded.
+     *
+     * Performance: 100K × 768-dim ≈ 2–3 seconds on RS Plan.
+     *
+     * Returns [['id' => string, 'score' => float, 'mode' => string, 'text' => string], ...]
      */
-    public static function search(array $queryVector, string $type, int $topK = 10, float $minScore = 0.3): array
-    {
-        $store = self::loadStore($type);
-        $vectors = $store['vectors'] ?? [];
+    public static function search(
+        array $queryVector,
+        string $type,
+        int $topK = 10,
+        float $minScore = 0.3
+    ): array {
+        $queryNorm = self::norm($queryVector);
+        if ($queryNorm == 0.0) return [];
 
-        if (empty($vectors)) return [];
+        $pdo = self::getPDO();
+        $stmt = $pdo->prepare(
+            "SELECT ref_id, embedding, metadata FROM embeddings WHERE type = :type"
+        );
+        $stmt->execute([':type' => $type]);
 
         $results = [];
-        $queryNorm = self::norm($queryVector);
-        if ($queryNorm == 0) return [];
-
-        foreach ($vectors as $id => $entry) {
-            $v = $entry['v'] ?? null;
-            if (!is_array($v)) continue;
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $v = self::unpackBlob((string) $row['embedding']);
+            if ($v === null) continue;
 
             $score = self::cosineSimilarityFast($queryVector, $v, $queryNorm);
-            if ($score >= $minScore) {
-                $results[] = [
-                    'id' => $id,
-                    'score' => round($score, 4),
-                    'mode' => $entry['mode'] ?? 'unknown',
-                    'text' => $entry['text'] ?? '',
-                ];
-            }
+            if ($score < $minScore) continue;
+
+            $meta = json_decode((string) ($row['metadata'] ?? '{}'), true) ?: [];
+            $results[] = [
+                'id'    => $row['ref_id'],
+                'score' => round($score, 4),
+                'mode'  => $meta['mode'] ?? 'unknown',
+                'text'  => $meta['text'] ?? '',
+            ];
         }
 
-        // Sort by score descending
         usort($results, fn($a, $b) => $b['score'] <=> $a['score']);
-
         return array_slice($results, 0, $topK);
     }
 
     /**
      * Find similar items to an existing vector in the store.
-     * Convenience wrapper: looks up the vector by ID, then searches.
      */
-    public static function findSimilar(string $type, string $id, int $topK = 5, float $minScore = 0.3): array
-    {
+    public static function findSimilar(
+        string $type,
+        string $id,
+        int $topK = 5,
+        float $minScore = 0.3
+    ): array {
         $entry = self::get($type, $id);
         if (!$entry || empty($entry['v'])) return [];
 
         $results = self::search($entry['v'], $type, $topK + 1, $minScore);
-
-        // Exclude self
         return array_values(array_filter($results, fn($r) => $r['id'] !== $id));
+    }
+
+    // ─── Stats ──────────────────────────────────────────────────
+
+    /**
+     * Return per-type counts for all types present in the DB.
+     */
+    public static function stats(): array
+    {
+        $pdo = self::getPDO();
+        $stmt = $pdo->query("SELECT type, COUNT(*) AS cnt FROM embeddings GROUP BY type");
+        $out = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $out[$row['type']] = (int) $row['cnt'];
+        }
+        return $out;
     }
 
     // ─── Math ───────────────────────────────────────────────────
 
     /**
-     * Cosine similarity with pre-computed query norm.
+     * Cosine similarity with pre-computed query norm (fast inner loop).
      */
     private static function cosineSimilarityFast(array $a, array $b, float $aNorm): float
     {
@@ -146,92 +225,98 @@ class EmbeddingStore
         $len = min(count($a), count($b));
 
         for ($i = 0; $i < $len; $i++) {
-            $dot += $a[$i] * $b[$i];
+            $dot    += $a[$i] * $b[$i];
             $bNormSq += $b[$i] * $b[$i];
         }
 
         $bNorm = sqrt($bNormSq);
-        if ($bNorm == 0) return 0.0;
-
+        if ($bNorm == 0.0) return 0.0;
         return $dot / ($aNorm * $bNorm);
     }
 
-    /**
-     * Euclidean norm of a vector.
-     */
     private static function norm(array $v): float
     {
         $sum = 0.0;
-        foreach ($v as $val) {
-            $sum += $val * $val;
-        }
+        foreach ($v as $val) $sum += $val * $val;
         return sqrt($sum);
     }
 
-    // ─── File I/O ───────────────────────────────────────────────
+    // ─── SQLite I/O ─────────────────────────────────────────────
 
-    /**
-     * Load a vector store file.
-     */
-    private static function loadStore(string $type): array
+    private static function getPDO(): PDO
     {
-        if (isset(self::$cache[$type])) {
-            return self::$cache[$type];
+        if (self::$pdo !== null) return self::$pdo;
+
+        $dir = DATA_DIR . '/embeddings';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
         }
 
-        $path = self::storePath($type);
-        if (!file_exists($path)) {
-            $store = [
-                'meta' => [
-                    'model' => 'gemini-embedding-2-preview',
-                    'dimensions' => EmbeddingService::getDimensions(),
-                    'created_at' => date('c'),
-                ],
-                'vectors' => [],
-            ];
-            self::$cache[$type] = $store;
-            return $store;
-        }
+        $pdo = new PDO('sqlite:' . $dir . '/embeddings.sqlite3');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
-        $content = file_get_contents($path);
-        $store = json_decode($content, true) ?: ['meta' => [], 'vectors' => []];
-        self::$cache[$type] = $store;
-        return $store;
+        // WAL for concurrent reads alongside writes from the embedding queue
+        $pdo->exec('PRAGMA journal_mode = WAL;');
+        // NORMAL sync: safe + faster than FULL on RS Plan's disk
+        $pdo->exec('PRAGMA synchronous = NORMAL;');
+        // Wait up to 5s instead of failing immediately on lock
+        $pdo->exec('PRAGMA busy_timeout = 5000;');
+        // 8MB page cache (reduces I/O for repeated searches)
+        $pdo->exec('PRAGMA cache_size = -8000;');
+
+        self::initSchema($pdo);
+        self::$pdo = $pdo;
+        return $pdo;
+    }
+
+    private static function initSchema(PDO $pdo): void
+    {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS embeddings (
+                id         TEXT PRIMARY KEY,        -- '{type}:{ref_id}'
+                type       TEXT NOT NULL,           -- 'observations'|'photos'|'omoikane'|'papers'|'taxons'
+                ref_id     TEXT NOT NULL,           -- original observation/species ID
+                embedding  BLOB NOT NULL,           -- float32 packed: pack('f*', ...$vector)
+                metadata   TEXT,                    -- JSON: mode, text, has_photo, etc.
+                dimensions INTEGER NOT NULL DEFAULT 768,
+                model      TEXT    NOT NULL DEFAULT 'gemini-embedding-2-preview',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        ");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_emb_type   ON embeddings(type)");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_emb_ref_id ON embeddings(ref_id)");
     }
 
     /**
-     * Save a vector store file (with flock).
+     * Unpack a float32 BLOB to PHP float array.
      */
-    private static function saveStore(string $type, array $store): void
+    private static function unpackBlob(string $blob): ?array
     {
-        $path = self::storePath($type);
-        $dir = dirname($path);
-        if (!file_exists($dir)) {
-            mkdir($dir, 0777, true);
-        }
-
-        $store['meta']['updated_at'] = date('c');
-        $json = json_encode($store, JSON_UNESCAPED_UNICODE);
-
-        file_put_contents($path, $json, LOCK_EX);
-
-        // Update cache
-        self::$cache[$type] = $store;
+        if ($blob === '') return null;
+        $values = unpack('f*', $blob);
+        return $values ? array_values($values) : null;
     }
 
     /**
-     * Get the file path for a store type.
+     * Convert DB row to legacy entry format with 'v' key for vector.
      */
-    private static function storePath(string $type): string
+    private static function rowToEntry(array $row): array
     {
-        return DATA_DIR . '/' . self::BASE_DIR . '/' . $type . '.json';
+        $meta = json_decode((string) ($row['metadata'] ?? '{}'), true) ?: [];
+        $v    = self::unpackBlob((string) ($row['embedding'] ?? ''));
+        return array_merge($meta, [
+            'v'          => $v ?? [],
+            'updated_at' => $row['updated_at'],
+        ]);
     }
 
     /**
-     * Clear in-memory cache (useful for long-running scripts).
+     * Clear in-memory PDO connection (useful for long-running scripts to release locks).
      */
     public static function clearCache(): void
     {
-        self::$cache = [];
+        self::$pdo = null;
     }
 }
