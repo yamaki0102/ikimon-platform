@@ -3,6 +3,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Taxon.php';
+require_once __DIR__ . '/../../libs/ThumbnailGenerator.php';
 
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 24;
 $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
@@ -161,6 +162,10 @@ foreach ($data as &$obs) {
     // Inject fresh user name
     if (isset($obs['user_id'])) {
         $obs['user_name'] = BioUtils::getUserName($obs['user_id']);
+    }
+    // Inject resolved thumbnail path (falls back to original if thumb not yet generated)
+    if (!empty($obs['photos'][0])) {
+        $obs['thumb_sm'] = ThumbnailGenerator::resolve($obs['photos'][0], 'sm');
     }
 }
 

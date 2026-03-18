@@ -21,22 +21,22 @@ class AiObservationAssessment
     ];
     private const LANE_PROFILES = [
         'fast' => [
-            'max_images' => 1,
+            'max_images' => 3,
             'max_dim' => 512,
-            'max_output_tokens' => 320,
-            'timeout' => 10,
+            'max_output_tokens' => 800,
+            'timeout' => 15,
         ],
         'batch' => [
-            'max_images' => 2,
-            'max_dim' => 640,
-            'max_output_tokens' => 480,
-            'timeout' => 16,
+            'max_images' => 5,
+            'max_dim' => 512,
+            'max_output_tokens' => 1200,
+            'timeout' => 20,
         ],
         'deep' => [
-            'max_images' => 3,
+            'max_images' => 5,
             'max_dim' => 768,
-            'max_output_tokens' => 720,
-            'timeout' => 20,
+            'max_output_tokens' => 1500,
+            'timeout' => 30,
         ],
     ];
 
@@ -109,7 +109,7 @@ class AiObservationAssessment
             'summary' => self::clip($payload['summary'] ?? ''),
             'why_not_more_specific' => self::clip($payload['why_not_more_specific'] ?? ''),
             'diagnostic_features_seen' => self::sanitizeList($payload['diagnostic_features_seen'] ?? [], 4),
-            'similar_taxa_to_compare' => self::sanitizeList($payload['similar_taxa_to_compare'] ?? [], 4),
+            'similar_taxa_to_compare' => self::sanitizeSimilarTaxa($payload['similar_taxa_to_compare'] ?? [], 4),
             'missing_evidence' => self::sanitizeList($payload['missing_evidence'] ?? [], 4),
             'geographic_context' => self::clip($payload['geographic_context'] ?? ''),
             'seasonal_context' => self::clip($payload['seasonal_context'] ?? ''),
@@ -267,12 +267,13 @@ class AiObservationAssessment
 4. 地理・季節は「弱い補助証拠」としてのみ使ってください。形態と矛盾する場合は採用しないでください。
 5. 複数枚ある場合は、枚数差分で見えている形質の増減を反映してください。
 6. summary / why_not_more_specific / geographic_context / seasonal_context / observer_boost / next_step は80文字以内、日本語。
-7. diagnostic_features_seen / similar_taxa_to_compare / missing_evidence は各4件以内、短い日本語句。
-8. species レベルを勧めるのは写真から識別形質が明瞭な場合だけです。迷うなら genus / family を選んでください。
-9. 観察者を萎縮させる表現は禁止です。「不足」「弱い」より「次にこれが見えると絞りやすい」のように前向きに伝えてください。
-10. observer_boost は、観察者の自己効力感を上げる短い一文にしてください。過度に褒めず、何が既に有効な観察かを伝えてください。
-11. next_step は、次に何を撮れば精度が上がるかを具体的に1文で示してください。負担感ではなく「ここまでできれば十分役立つ」に寄せてください。
-12. suggestions は1〜3件で、迷いがあるときは候補を複数返してください。候補同士で共通する階級があるなら、その共通範囲を意識して suggestions を組んでください。
+7. diagnostic_features_seen / missing_evidence は各4件以内、短い日本語句。
+8. similar_taxa_to_compare は文字列の配列。各要素は「種名|見分けポイント」の形式（パイプ区切り）。見分けポイントは15文字以内。例: ["マンリョウ|実が葉の下に垂れ下がる", "カラタチバナ|葉が細長く実が少ない"]。見分けポイントが書けない場合は種名のみ。
+9. species レベルを勧めるのは写真から識別形質が明瞭な場合だけです。迷うなら genus / family を選んでください。
+10. 観察者を萎縮させる表現は禁止です。「不足」「弱い」より「次にこれが見えると絞りやすい」のように前向きに伝えてください。
+11. observer_boost は、観察者の自己効力感を上げる短い一文にしてください。過度に褒めず、何が既に有効な観察かを伝えてください。
+12. next_step は、次に何を撮れば精度が上がるかを具体的に1文で示してください。負担感ではなく「ここまでできれば十分役立つ」に寄せてください。
+13. suggestions は1〜3件で、迷いがあるときは候補を複数返してください。候補同士で共通する階級があるなら、その共通範囲を意識して suggestions を組んでください。
 
 出力形式:
 {
@@ -286,7 +287,7 @@ class AiObservationAssessment
   "next_step": "...",
   "cautionary_note": "...",
   "diagnostic_features_seen": ["...", "..."],
-  "similar_taxa_to_compare": ["...", "..."],
+  "similar_taxa_to_compare": ["マンリョウ|実が葉の下に垂れ下がる", "カラタチバナ|葉が細長く実が少ない"],
   "missing_evidence": ["...", "..."],
   "references": [],
   "suggestions": [
@@ -425,6 +426,42 @@ PROMPT;
             }
         }
         return array_values(array_unique($clean));
+    }
+
+    /**
+     * Sanitize similar_taxa_to_compare which can be [{name, hint}, ...] or ["string", ...].
+     * Normalizes to [{name, hint}] format, preserving backward compat.
+     */
+    private static function sanitizeSimilarTaxa(array $values, int $limit): array
+    {
+        $clean = [];
+        foreach (array_slice($values, 0, $limit) as $value) {
+            $name = '';
+            $hint = '';
+
+            if (is_array($value) && isset($value['name'])) {
+                // Object format: {"name": "...", "hint": "..."}
+                $name = trim(strip_tags((string)($value['name'] ?? '')));
+                $hint = trim(strip_tags((string)($value['hint'] ?? '')));
+            } elseif (is_string($value)) {
+                // Pipe-delimited format: "種名|見分けポイント" or plain "種名"
+                if (str_contains($value, '|')) {
+                    $parts = explode('|', $value, 2);
+                    $name = trim(strip_tags($parts[0]));
+                    $hint = trim(strip_tags($parts[1] ?? ''));
+                } else {
+                    $name = trim(strip_tags($value));
+                }
+            }
+
+            if ($name !== '') {
+                $clean[] = [
+                    'name' => mb_substr($name, 0, 36),
+                    'hint' => mb_substr($hint, 0, 30),
+                ];
+            }
+        }
+        return array_values($clean);
     }
 
     private static function clip(string $value, int $limit = 80): string
@@ -686,7 +723,7 @@ PROMPT;
         $payload['next_step'] = self::normalizePublicText((string)($payload['next_step'] ?? ''), 80);
         $payload['cautionary_note'] = self::normalizePublicText((string)($payload['cautionary_note'] ?? ''), 80);
         $payload['diagnostic_features_seen'] = self::sanitizePublicList($payload['diagnostic_features_seen'] ?? [], 4);
-        $payload['similar_taxa_to_compare'] = self::sanitizePublicList($payload['similar_taxa_to_compare'] ?? [], 4);
+        $payload['similar_taxa_to_compare'] = self::sanitizeSimilarTaxa($payload['similar_taxa_to_compare'] ?? [], 4);
         $payload['missing_evidence'] = self::sanitizePublicList($payload['missing_evidence'] ?? [], 4);
         $payload['suggestions'] = is_array($payload['suggestions'] ?? null) ? $payload['suggestions'] : [];
         return $payload;
@@ -816,9 +853,14 @@ PROMPT;
         if ($diagnostic !== []) {
             $lines[] = '見えている形質: ' . implode(' / ', $diagnostic);
         }
-        $similar = self::sanitizeList($payload['similar_taxa_to_compare'] ?? [], 3);
-        if ($similar !== []) {
-            $lines[] = '見分け候補: ' . implode(' / ', $similar);
+        $similarRaw = self::sanitizeSimilarTaxa($payload['similar_taxa_to_compare'] ?? [], 3);
+        if ($similarRaw !== []) {
+            $similarLabels = array_map(function ($c) {
+                $label = $c['name'] ?? '';
+                if (!empty($c['hint'])) $label .= '(' . $c['hint'] . ')';
+                return $label;
+            }, $similarRaw);
+            $lines[] = '見分け候補: ' . implode(' / ', $similarLabels);
         }
         $missing = self::sanitizeList($payload['missing_evidence'] ?? [], 3);
         if ($missing !== []) {

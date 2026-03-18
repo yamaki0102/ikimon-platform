@@ -67,42 +67,60 @@ if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === '') {
     exit;
 }
 
-// ── Validate Photo ──
-if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+// ── Validate Photos (multiple) ──
+// Support both 'photos[]' (multi) and legacy 'photo' (single)
+$photoFiles = [];
+if (isset($_FILES['photos']) && is_array($_FILES['photos']['tmp_name'])) {
+    foreach ($_FILES['photos']['tmp_name'] as $i => $tmpName) {
+        if ($_FILES['photos']['error'][$i] === UPLOAD_ERR_OK) {
+            $photoFiles[] = [
+                'tmp_name' => $tmpName,
+                'size' => $_FILES['photos']['size'][$i],
+            ];
+        }
+    }
+} elseif (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+    $photoFiles[] = [
+        'tmp_name' => $_FILES['photo']['tmp_name'],
+        'size' => $_FILES['photo']['size'],
+    ];
+}
+
+if (empty($photoFiles)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'no_photo', 'message' => '写真が必要です。']);
     exit;
 }
 
+// Limit to 5 photos max
+$photoFiles = array_slice($photoFiles, 0, 5);
+
 $allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
 $finfo = new finfo(FILEINFO_MIME_TYPE);
-$mimeType = $finfo->file($_FILES['photo']['tmp_name']);
 
-if (!in_array($mimeType, $allowedTypes, true)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'invalid_type', 'message' => 'JPEG, PNG, WebPのみ対応しています。']);
-    exit;
-}
-
-// Max file size: 10MB
-if ($_FILES['photo']['size'] > 10 * 1024 * 1024) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'file_too_large', 'message' => 'ファイルサイズは10MB以下にしてください。']);
-    exit;
-}
-
-// ── Resize to 512px (privacy + performance) ──
+// ── Validate & Resize all photos ──
 $startTime = hrtime(true);
+$resizedPhotos = [];
 
-$resized = resizeAndStripExif($_FILES['photo']['tmp_name'], $mimeType, 512);
-if ($resized === false) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'resize_failed', 'message' => '画像の処理に失敗しました。']);
+foreach ($photoFiles as $pf) {
+    $mimeType = $finfo->file($pf['tmp_name']);
+    if (!in_array($mimeType, $allowedTypes, true)) continue;
+    if ($pf['size'] > 10 * 1024 * 1024) continue;
+
+    $resized = resizeAndStripExif($pf['tmp_name'], $mimeType, 512);
+    if ($resized !== false) {
+        $resizedPhotos[] = $resized;
+    }
+}
+
+if (empty($resizedPhotos)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'invalid_photos', 'message' => '有効な写真がありません。JPEG, PNG, WebP (10MB以下) を使用してください。']);
     exit;
 }
 
-// ── Call Gemini Flash API ──
-$result = callGeminiFlash($resized['data'], $resized['mime']);
+// ── Call Gemini Flash API with all photos ──
+$result = callGeminiFlash($resizedPhotos);
 
 $endTime = hrtime(true);
 $processingMs = (int)(($endTime - $startTime) / 1e6);
@@ -231,16 +249,23 @@ function resizeAndStripExif(string $path, string $mimeType, int $maxDim): array|
 }
 
 /**
- * Call Gemini 3.1 Flash Lite API with image for species identification + environment analysis.
+ * Call Gemini 3.1 Flash Lite API with multiple images for species identification + environment analysis.
  * Returns parsed suggestions + environment or false.
+ *
+ * @param array $resizedPhotos Array of ['data' => base64, 'mime' => 'image/jpeg']
  */
-function callGeminiFlash(string $base64Image, string $mimeType): array|false
+function callGeminiFlash(array $resizedPhotos): array|false
 {
     $apiKey = GEMINI_API_KEY;
     $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={$apiKey}";
 
+    $photoCount = count($resizedPhotos);
+    $multiPhotoInstruction = $photoCount > 1
+        ? "同じ生物を{$photoCount}枚の異なるアングルで撮影した写真です。**全ての写真を総合的に分析**して判断してください。1枚では見えない特徴（翅の裏表、体の模様、サイズ感など）を組み合わせることで、より正確で自信のある分類が可能になります。"
+        : "この写真に写っている生き物を分類し、撮影環境も分析してください。";
+
     $prompt = <<<PROMPT
-あなたは生物多様性の専門家で、一般の人にもわかりやすく説明するのが得意です。この写真に写っている生き物を分類し、撮影環境も分析してください。
+あなたは生物多様性の専門家で、一般の人にもわかりやすく説明するのが得意です。{$multiPhotoInstruction}
 
 ## ルール
 1. **種（Species）レベルの断定は禁止**。目・科・属など、確信度に応じた適切な分類階級で回答してください。自信があれば属レベル、不確かなら目レベルなど柔軟に判断。
@@ -250,7 +275,7 @@ function callGeminiFlash(string $base64Image, string $mimeType): array|false
    - emoji: その生き物を表す最適な絵文字（1文字）
    - confidence: "high"（かなり確信）、"medium"（たぶん）、"low"（わからない）
    - reason: なぜそう判断したか（30文字以内の日本語）
-   - examples: **一般人が知っているメジャーな種を2〜3個**列挙（例: 「ブルーベリー、ツツジ、サツキ」）。学名ではなく日本語の通称で。
+   - examples: **一般人が知っているメジャーな種を2〜3個**、括弧内に簡潔な見分け特徴を付記（例: 「マンリョウ(実が下垂)、カラタチバナ(葉が細い)、ヤブコウジ(矮小で地を這う)」）。学名ではなく日本語の通称で。
 4. 生き物が写っていない場合はsuggestionsを空の配列にしてください。
 5. 確信が持てない場合は confidence を "low" にして正直に伝えてください。
 
@@ -267,18 +292,21 @@ function callGeminiFlash(string $base64Image, string $mimeType): array|false
 JSONのみ出力し、説明文やマークダウンは含めないでください。
 PROMPT;
 
+    // Build parts: prompt text + all images
+    $parts = [['text' => $prompt]];
+    foreach ($resizedPhotos as $photo) {
+        $parts[] = [
+            'inline_data' => [
+                'mime_type' => $photo['mime'],
+                'data' => $photo['data'],
+            ],
+        ];
+    }
+
     $payload = [
         'contents' => [
             [
-                'parts' => [
-                    ['text' => $prompt],
-                    [
-                        'inline_data' => [
-                            'mime_type' => $mimeType,
-                            'data' => $base64Image,
-                        ],
-                    ],
-                ],
+                'parts' => $parts,
             ],
         ],
         'generationConfig' => [

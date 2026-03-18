@@ -356,9 +356,12 @@ if (!empty($_FILES['photos'])) {
                 // FB-10: Strip EXIF data (including GPS) for privacy protection
                 // Re-encode the image using GD to remove all metadata
                 $stripped = stripExifData($target);
-                if ($stripped) {
-                    $photos[] = 'uploads/photos/' . $id . '/' . $filename;
+                if (!$stripped) {
+                    // Stripping failed (e.g. GD can't decode the file), but the file
+                    // is safely on disk — record it anyway so the photo is not lost.
+                    error_log("stripExifData failed for {$target} — recording without strip");
                 }
+                $photos[] = 'uploads/photos/' . $id . '/' . $filename;
             }
         }
     }
@@ -699,6 +702,20 @@ if (DataStore::append('observations', $observation)) {
     ]);
 
     respondAndContinue(true, 'Observation posted successfully', $responseData);
+
+    // --- Post-response processing (user already got 200 OK) ---
+    // Remove execution time limit so thumbnail generation can complete even on
+    // Apache mod_php where fastcgi_finish_request() is unavailable.
+    @set_time_limit(0);
+
+    // Generate thumbnails (sm=320px, md=640px) in background
+    try {
+        require_once __DIR__ . '/../../libs/ThumbnailGenerator.php';
+        ThumbnailGenerator::generateForObservation($observation);
+    } catch (\Throwable $e) {
+        error_log("Thumbnail generation failed for {$id}: " . $e->getMessage());
+    }
+
     exit;
 } else {
     respond(false, 'データの保存に失敗しました');

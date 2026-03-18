@@ -14,6 +14,7 @@ require_once __DIR__ . '/../libs/ObservationMeta.php';
 require_once __DIR__ . '/../libs/CSRF.php';
 require_once __DIR__ . '/../libs/AffiliateManager.php';
 require_once __DIR__ . '/../libs/RegionalStats.php';
+require_once __DIR__ . '/../libs/GlossaryHelper.php';
 Auth::init();
 $currentUser = Auth::user();
 $csrfToken = CSRF::generate();
@@ -113,7 +114,13 @@ function buildAiDisplayJaFallback(array $assessment): array
     $recommended = is_array($assessment['recommended_taxon'] ?? null) ? $assessment['recommended_taxon'] : null;
     $bestSpecificTaxon = is_array($assessment['best_specific_taxon'] ?? null) ? $assessment['best_specific_taxon'] : null;
     $features = normalizeAiDisplayList($assessment['diagnostic_features_seen'] ?? []);
-    $similar = normalizeAiDisplayList($assessment['similar_taxa_to_compare'] ?? []);
+    // Extract names from similar_taxa (can be [{name, hint}] or ["string"])
+    $similarRaw = $assessment['similar_taxa_to_compare'] ?? [];
+    $similar = [];
+    foreach (is_array($similarRaw) ? $similarRaw : [] as $s) {
+        $n = is_array($s) ? ($s['name'] ?? '') : (string)$s;
+        if (trim($n) !== '') $similar[] = trim($n);
+    }
     $missing = normalizeAiDisplayList($assessment['missing_evidence'] ?? []);
 
     $narrativeParts = [];
@@ -305,7 +312,9 @@ if ($latestAiAssessment) {
         '別角度の写真や、体色・模様がわかる写真があると次に絞りやすくなります。'
     );
     $latestAiAssessment['diagnostic_features_seen'] = normalizeAiDisplayList($latestAiAssessment['diagnostic_features_seen'] ?? []);
-    $latestAiAssessment['similar_taxa_to_compare'] = normalizeAiDisplayList($latestAiAssessment['similar_taxa_to_compare'] ?? []);
+    // similar_taxa_to_compare can be [{name, hint}, ...] objects — skip normalizeAiDisplayList which strips non-strings
+    $rawStc = $latestAiAssessment['similar_taxa_to_compare'] ?? [];
+    $latestAiAssessment['similar_taxa_to_compare'] = is_array($rawStc) ? array_values(array_filter($rawStc, fn($v) => is_array($v) ? !empty($v['name'] ?? '') : is_string($v) && trim($v) !== '')) : [];
     $latestAiAssessment['missing_evidence'] = normalizeAiDisplayList($latestAiAssessment['missing_evidence'] ?? []);
     $fallbackDisplayJa = buildAiDisplayJaFallback($latestAiAssessment);
     $displayJa = is_array($latestAiAssessment['display_ja'] ?? null) ? $latestAiAssessment['display_ja'] : [];
@@ -430,111 +439,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
 </head>
 
-<body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body min-h-screen antialiased" x-data="{
-    photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0,
-    locationName: '<?php echo htmlspecialchars($obs['municipality'] ?? ($obs['prefecture'] ?? ''), ENT_QUOTES); ?>',
-    rxStepped: <?php echo $_rdMyReaction ? 'true' : 'false'; ?>,
-    rxCount: <?php echo (int)$_rdCount; ?>,
-    rxMy: <?php echo $_rdMyReaction ? json_encode($_rdMyReaction) : 'null'; ?>,
-    rxSummary: <?php echo $_rdSummaryJson; ?>,
-    async rxSend(type) {
-        const _csrf = (document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/)||[])[1]||'';
-        const res = await fetch('api/toggle_like.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
-            body: JSON.stringify({ id: '<?php echo htmlspecialchars($id, ENT_QUOTES); ?>', reaction: type })
-        }).then(r =&gt; r.json());
-        if (res.success) {
-            this.rxCount = res.count;
-            this.rxMy = res.my_reaction;
-            this.rxStepped = !!res.my_reaction;
-            this.rxSummary = res.summary || {};
-            if (res.action === 'liked' || res.action === 'changed') {
-                if (window.SoundManager) SoundManager.play('light-click');
-                if (window.HapticEngine) HapticEngine.tick();
-            }
-        }
-    },
-}" x-init="
-    <?php if (!empty($obs['lat']) && !empty($obs['lng'])): ?>
-    fetch('https://nominatim.openstreetmap.org/reverse?lat=<?php echo floatval($obs['lat']); ?>&lon=<?php echo floatval($obs['lng']); ?>&format=json&accept-language=ja&zoom=10')
-        .then(r => r.json())
-        .then(d => { if (d.address) { const city = d.address.city || d.address.town || d.address.village || d.address.county || ''; const state = d.address.state || ''; locationName = city ? city + (state ? ', ' + state : '') : (state || locationName); } })
-        .catch(() => {});
-    <?php endif; ?>
-    },
-    async submitAgree(target) {
-        if(!confirm('「' + target.name + '」に同意しますか？\n(あなたの同意はデータの信頼性に影響します)')) return;
-        const _csrf = (document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/)||[])[1]||'';
-        try {
-            const res = await fetch('api/post_identification.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
-                body: JSON.stringify({
-                    observation_id: '<?php echo htmlspecialchars($id); ?>',
-                    taxon_key: target.key,
-                    taxon_name: target.name,
-                    taxon_slug: target.slug,
-                    scientific_name: target.sci,
-                    confidence: 'sure',
-                    note: '', 
-                    evidence_type: 'visual'
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = window.location.pathname + window.location.search + '&_t=' + Date.now();
-            } else {
-                alert('エラーが発生しました: ' + (data.message || 'Unknown error'));
-            }
-        } catch(e) { alert('通信エラー'); }
-    },
-    async reviewMetadataProposal(proposalId, action) {
-        const labels = { accept: '採用', reject: '却下' };
-        if(!confirm('この提案を' + (labels[action] || action) + 'しますか？')) return;
-        const _csrf = (document.cookie.match(/(?:^|;\\s*)ikimon_csrf=([a-f0-9]{64})/)||[])[1]||'';
-        try {
-            const res = await fetch('/api/review_observation_metadata.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
-                body: JSON.stringify({
-                    observation_id: '<?php echo htmlspecialchars($id, ENT_QUOTES); ?>',
-                    proposal_id: proposalId,
-                    action: action
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = window.location.pathname + window.location.search + '&_t=' + Date.now();
-            } else {
-                alert('エラー: ' + (data.message || '処理できませんでした'));
-            }
-        } catch (e) {
-            alert('通信エラー');
-        }
-    },
-    async supportMetadataProposal(proposalId) {
-        const _csrf = (document.cookie.match(/(?:^|;\\s*)ikimon_csrf=([a-f0-9]{64})/)||[])[1]||'';
-        try {
-            const res = await fetch('/api/support_observation_metadata.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
-                body: JSON.stringify({
-                    observation_id: '<?php echo htmlspecialchars($id, ENT_QUOTES); ?>',
-                    proposal_id: proposalId
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = window.location.pathname + window.location.search + '&_t=' + Date.now();
-            } else {
-                alert('エラー: ' + (data.message || '処理できませんでした'));
-            }
-        } catch (e) {
-            alert('通信エラー');
-        }
-    }
-">
+<body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body min-h-screen antialiased" x-data="obsDetail()" x-init="initObsDetail()">
     <?php include('components/nav.php'); ?>
     <script nonce="<?= CspNonce::attr() ?>">
         document.body.classList.remove('js-loading');
@@ -585,7 +490,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <?php if (!empty($obs['photos'])): ?>
                         <?php foreach ($obs['photos'] as $idx => $photo): ?>
                             <img src="<?php echo htmlspecialchars($photo); ?>"
-                                class="absolute inset-0 w-full h-full object-contain transition-all duration-500"
+                                class="absolute inset-0 w-full h-full object-contain transition-all duration-500 <?php echo $idx === 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'; ?>"
                                 :class="photoActive === <?php echo $idx; ?> ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'"
                                 alt="観察写真 <?php echo $idx + 1; ?>" loading="<?php echo $idx === 0 ? 'eager' : 'lazy'; ?>">
                         <?php endforeach; ?>
@@ -693,6 +598,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <?php endif; ?>
 
                 <?php if ($latestAiAssessment || (($obs['ai_assessment_status'] ?? '') === 'pending')): ?>
+                    <?php echo GlossaryHelper::renderCSS(); ?>
                     <section class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
                         <div class="flex items-start justify-between gap-3 mb-3">
                             <div>
@@ -772,11 +678,11 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                         </div>
                                     </div>
                                     <?php if (!empty($latestAiAssessment['display_ja']['narrative'])): ?>
-                                        <p class="text-sm text-text leading-relaxed mt-3"><?php echo nl2br(htmlspecialchars($latestAiAssessment['display_ja']['narrative'])); ?></p>
+                                        <p class="text-sm text-text leading-relaxed mt-3"><?php echo nl2br(GlossaryHelper::annotate(htmlspecialchars($latestAiAssessment['display_ja']['narrative']))); ?></p>
                                     <?php elseif (!empty($latestAiAssessment['simple_summary'])): ?>
-                                        <p class="text-sm text-text leading-relaxed mt-3"><?php echo nl2br(htmlspecialchars($latestAiAssessment['simple_summary'])); ?></p>
+                                        <p class="text-sm text-text leading-relaxed mt-3"><?php echo nl2br(GlossaryHelper::annotate(htmlspecialchars($latestAiAssessment['simple_summary']))); ?></p>
                                     <?php elseif (!empty($latestAiAssessment['summary'])): ?>
-                                        <p class="text-sm text-text leading-relaxed mt-3"><?php echo nl2br(htmlspecialchars($latestAiAssessment['summary'])); ?></p>
+                                        <p class="text-sm text-text leading-relaxed mt-3"><?php echo nl2br(GlossaryHelper::annotate(htmlspecialchars($latestAiAssessment['summary']))); ?></p>
                                     <?php endif; ?>
                                 </div>
                             <?php endif; ?>
@@ -785,13 +691,13 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                     <?php if (!empty($latestAiAssessment['diagnostic_features_seen'])): ?>
                                         <div class="rounded-xl border border-border bg-base/40 p-3">
                                             <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">写真から拾えている手がかり</p>
-                                            <p class="text-text leading-relaxed"><?php echo htmlspecialchars(implode(' / ', $latestAiAssessment['diagnostic_features_seen'])); ?></p>
+                                            <p class="text-text leading-relaxed"><?php echo GlossaryHelper::annotate(htmlspecialchars(implode(' / ', $latestAiAssessment['diagnostic_features_seen']))); ?></p>
                                         </div>
                                     <?php endif; ?>
                                     <?php if (!empty($latestAiAssessment['display_ja']['reason_to_stop']) || !empty($latestAiAssessment['why_not_more_specific'])): ?>
                                         <div class="rounded-xl border border-border bg-base/40 p-3">
                                             <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">ここで止めておく理由</p>
-                                            <p class="text-muted leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['display_ja']['reason_to_stop'] ?? $latestAiAssessment['why_not_more_specific']); ?></p>
+                                            <p class="text-muted leading-relaxed"><?php echo GlossaryHelper::annotate(htmlspecialchars($latestAiAssessment['display_ja']['reason_to_stop'] ?? $latestAiAssessment['why_not_more_specific'])); ?></p>
                                         </div>
                                     <?php endif; ?>
                                 </div>
@@ -801,53 +707,55 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                         <div class="flex flex-wrap gap-2">
                                             <?php foreach ($aiHints as $aiHint): ?>
                                                 <span class="inline-flex items-center rounded-full bg-white border border-border px-3 py-1 text-xs text-muted">
-                                                    <?php echo htmlspecialchars($aiHint); ?>
+                                                    <?php echo GlossaryHelper::annotate(htmlspecialchars($aiHint)); ?>
                                                 </span>
                                             <?php endforeach; ?>
                                         </div>
                                     </div>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['cautionary_note'])): ?>
-                                    <p class="text-xs text-warning leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['cautionary_note']); ?></p>
+                                    <p class="text-xs text-warning leading-relaxed"><?php echo GlossaryHelper::annotate(htmlspecialchars($latestAiAssessment['cautionary_note'])); ?></p>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['display_ja']['observer_note']) || !empty($latestAiAssessment['observer_boost'])): ?>
                                     <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2">
                                         <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">この観察ですでに助かるところ</p>
-                                        <p class="text-emerald-800 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['display_ja']['observer_note'] ?? $latestAiAssessment['observer_boost']); ?></p>
+                                        <p class="text-emerald-800 leading-relaxed"><?php echo GlossaryHelper::annotate(htmlspecialchars($latestAiAssessment['display_ja']['observer_note'] ?? $latestAiAssessment['observer_boost'])); ?></p>
                                     </div>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['display_ja']['next_action']) || !empty($latestAiAssessment['next_step'])): ?>
                                     <div class="rounded-xl bg-sky-50 border border-sky-200 px-3 py-2">
                                         <p class="text-[10px] font-black text-sky-700 uppercase tracking-widest mb-1">次にあると絞りやすいもの</p>
-                                        <p class="text-sky-800 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['display_ja']['next_action'] ?? $latestAiAssessment['next_step']); ?></p>
+                                        <p class="text-sky-800 leading-relaxed"><?php echo GlossaryHelper::annotate(htmlspecialchars($latestAiAssessment['display_ja']['next_action'] ?? $latestAiAssessment['next_step'])); ?></p>
                                     </div>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['similar_taxa_to_compare']) || !empty($latestAiAssessment['missing_evidence'])): ?>
                                     <div class="rounded-xl border border-border bg-base/30 px-3 py-3 space-y-3">
                                         <?php if (!empty($latestAiAssessment['similar_taxa_to_compare'])): ?>
                                             <div>
-                                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">見分け候補</p>
-                                                <div class="flex flex-wrap gap-2">
-                                                    <?php foreach ($latestAiAssessment['similar_taxa_to_compare'] as $candidateName): ?>
-                                                        <?php $candidateUrl = 'explore.php?q=' . urlencode((string)$candidateName); ?>
-                                                        <a href="<?php echo htmlspecialchars($candidateUrl); ?>" class="inline-flex items-center rounded-full bg-white border border-border px-3 py-1 text-xs text-text hover:border-primary/40 hover:text-primary transition">
-                                                            <?php echo htmlspecialchars((string)$candidateName); ?>
-                                                        </a>
+                                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">🤖 AIの見分けメモ</p>
+                                                <div class="space-y-1.5">
+                                                    <?php foreach ($latestAiAssessment['similar_taxa_to_compare'] as $candidate): ?>
+                                                        <?php
+                                                            $cName = is_array($candidate) ? ($candidate['name'] ?? '') : (string)$candidate;
+                                                            $cHint = is_array($candidate) ? ($candidate['hint'] ?? '') : '';
+                                                        ?>
+                                                        <?php if ($cName !== ''): ?>
+                                                            <div class="inline-flex items-baseline gap-1.5 rounded-lg bg-white border border-border px-3 py-1.5 text-xs">
+                                                                <span class="font-medium text-text"><?php echo GlossaryHelper::annotate(htmlspecialchars($cName)); ?></span>
+                                                                <?php if ($cHint !== ''): ?>
+                                                                    <span class="text-muted">— <?php echo GlossaryHelper::annotate(htmlspecialchars($cHint)); ?></span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        <?php endif; ?>
                                                     <?php endforeach; ?>
                                                 </div>
-                                                <p class="text-[11px] text-muted mt-2">タップすると、その候補に近い記録を探せます。</p>
-                                                <?php if (!empty($latestAiAssessment['missing_evidence'])): ?>
-                                                    <p class="text-[11px] text-muted mt-1">
-                                                        違いが出やすいポイント:
-                                                        <?php echo htmlspecialchars(implode(' / ', array_slice($latestAiAssessment['missing_evidence'], 0, 2))); ?>
-                                                    </p>
-                                                <?php endif; ?>
+                                                <p class="text-[10px] text-faint mt-2">写真から読み取れる手がかりをもとに、AIが似ている候補を挙げています。参考のひとつとしてご活用ください。</p>
                                             </div>
                                         <?php endif; ?>
                                         <?php if (!empty($latestAiAssessment['missing_evidence'])): ?>
                                             <div>
                                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">あるともっと絞りやすい情報</p>
-                                                <p class="text-text leading-relaxed"><?php echo htmlspecialchars(implode(' / ', $latestAiAssessment['missing_evidence'])); ?></p>
+                                                <p class="text-text leading-relaxed"><?php echo GlossaryHelper::annotate(htmlspecialchars(implode(' / ', $latestAiAssessment['missing_evidence']))); ?></p>
                                             </div>
                                         <?php endif; ?>
                                     </div>
@@ -1683,8 +1591,106 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
         </div> <!-- End Grid -->
     </main>
 
+    <?php include __DIR__ . '/components/footer.php'; ?>
+
     <!-- Scripts -->
     <script nonce="<?= CspNonce::attr() ?>">
+        function obsDetail() {
+            return {
+                photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0,
+                locationName: <?php echo json_encode($obs['municipality'] ?? ($obs['prefecture'] ?? ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS); ?>,
+                rxStepped: <?php echo $_rdMyReaction ? 'true' : 'false'; ?>,
+                rxCount: <?php echo (int)$_rdCount; ?>,
+                rxMy: <?php echo $_rdMyReaction ? json_encode($_rdMyReaction, JSON_HEX_TAG | JSON_HEX_APOS) : 'null'; ?>,
+                rxSummary: <?php echo json_encode((object)$_rdSummary, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS); ?>,
+                async rxSend(type) {
+                    var _csrf = (document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/) || [])[1] || '';
+                    var res = await fetch('api/toggle_like.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
+                        body: JSON.stringify({ id: <?php echo json_encode($id, JSON_HEX_TAG | JSON_HEX_APOS); ?>, reaction: type })
+                    }).then(function(r) { return r.json(); });
+                    if (res.success) {
+                        this.rxCount = res.count;
+                        this.rxMy = res.my_reaction;
+                        this.rxStepped = !!res.my_reaction;
+                        this.rxSummary = res.summary || {};
+                        if (res.action === 'liked' || res.action === 'changed') {
+                            if (window.SoundManager) SoundManager.play('light-click');
+                            if (window.HapticEngine) HapticEngine.tick();
+                        }
+                    }
+                },
+                async submitAgree(target) {
+                    if (!confirm('「' + target.name + '」に同意しますか？\n(あなたの同意はデータの信頼性に影響します)')) return;
+                    var _csrf = (document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/) || [])[1] || '';
+                    try {
+                        var res = await fetch('api/post_identification.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
+                            body: JSON.stringify({
+                                observation_id: <?php echo json_encode($id, JSON_HEX_TAG | JSON_HEX_APOS); ?>,
+                                taxon_key: target.key, taxon_name: target.name,
+                                taxon_slug: target.slug, scientific_name: target.sci,
+                                confidence: 'sure', note: '', evidence_type: 'visual'
+                            })
+                        });
+                        var data = await res.json();
+                        if (data.success) {
+                            window.location.href = window.location.pathname + window.location.search + '&_t=' + Date.now();
+                        } else {
+                            alert('エラーが発生しました: ' + (data.message || 'Unknown error'));
+                        }
+                    } catch(e) { alert('通信エラー'); }
+                },
+                async reviewMetadataProposal(proposalId, action) {
+                    var labels = { accept: '採用', reject: '却下' };
+                    if (!confirm('この提案を' + (labels[action] || action) + 'しますか？')) return;
+                    var _csrf = (document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/) || [])[1] || '';
+                    try {
+                        var res = await fetch('/api/review_observation_metadata.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
+                            body: JSON.stringify({
+                                observation_id: <?php echo json_encode($id, JSON_HEX_TAG | JSON_HEX_APOS); ?>,
+                                proposal_id: proposalId, action: action
+                            })
+                        });
+                        var data = await res.json();
+                        if (data.success) {
+                            window.location.href = window.location.pathname + window.location.search + '&_t=' + Date.now();
+                        } else { alert('エラー: ' + (data.message || '処理できませんでした')); }
+                    } catch (e) { alert('通信エラー'); }
+                },
+                async supportMetadataProposal(proposalId) {
+                    var _csrf = (document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/) || [])[1] || '';
+                    try {
+                        var res = await fetch('/api/support_observation_metadata.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
+                            body: JSON.stringify({
+                                observation_id: <?php echo json_encode($id, JSON_HEX_TAG | JSON_HEX_APOS); ?>,
+                                proposal_id: proposalId
+                            })
+                        });
+                        var data = await res.json();
+                        if (data.success) {
+                            window.location.href = window.location.pathname + window.location.search + '&_t=' + Date.now();
+                        } else { alert('エラー: ' + (data.message || '処理できませんでした')); }
+                    } catch (e) { alert('通信エラー'); }
+                }
+            };
+        }
+        function initObsDetail() {
+            <?php if (!empty($obs['lat']) && !empty($obs['lng'])): ?>
+            var self = this;
+            fetch('https://nominatim.openstreetmap.org/reverse?lat=<?php echo floatval($obs['lat']); ?>&lon=<?php echo floatval($obs['lng']); ?>&format=json&accept-language=ja&zoom=10')
+                .then(function(r) { return r.json(); })
+                .then(function(d) { if (d.address) { var city = d.address.city || d.address.town || d.address.village || d.address.county || ''; var state = d.address.state || ''; self.locationName = city ? city + (state ? ', ' + state : '') : (state || self.locationName); } })
+                .catch(function() {});
+            <?php endif; ?>
+        }
+
         lucide.createIcons();
 
         document.addEventListener('alpine:init', () => {

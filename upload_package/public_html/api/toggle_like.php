@@ -14,7 +14,14 @@ if (!Auth::isLoggedIn()) {
 
 $input = json_decode(file_get_contents('php://input'), true);
 $obsId = $input['id'] ?? '';
+$reactionType = $input['reaction'] ?? 'like';
 $user = Auth::user();
+
+// Validate reaction type
+$allowedReactions = ['like', 'beautiful', 'cute'];
+if (!in_array($reactionType, $allowedReactions, true)) {
+    $reactionType = 'like';
+}
 
 if (!$obsId) {
     echo json_encode(['success' => false, 'message' => 'Missing ID'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
@@ -26,17 +33,41 @@ if (!file_exists(dirname($likeFile))) {
     mkdir(dirname($likeFile), 0777, true);
 }
 
-$likes = file_exists($likeFile) ? json_decode(file_get_contents($likeFile), true) : [];
+$raw = file_exists($likeFile) ? json_decode(file_get_contents($likeFile), true) : [];
 $userId = $user['id'];
 
+// Migrate old format (flat array) to new format
+if (isset($raw[0]) && is_string($raw[0])) {
+    $oldUsers = $raw;
+    $reactions = [];
+    foreach ($oldUsers as $u) $reactions[$u] = 'like';
+    $raw = ['users' => $oldUsers, 'reactions' => $reactions];
+} elseif (!isset($raw['users'])) {
+    $raw = ['users' => [], 'reactions' => []];
+}
+
+$users = $raw['users'];
+$reactions = $raw['reactions'];
+
 $action = 'liked';
-if (in_array($userId, $likes)) {
-    // Unlike
-    $likes = array_values(array_diff($likes, [$userId]));
-    $action = 'unliked';
+$currentReaction = $reactions[$userId] ?? null;
+
+if (in_array($userId, $users, true)) {
+    if ($currentReaction === $reactionType) {
+        // Same reaction → unlike (toggle off)
+        $users = array_values(array_diff($users, [$userId]));
+        unset($reactions[$userId]);
+        $action = 'unliked';
+    } else {
+        // Different reaction → change
+        $reactions[$userId] = $reactionType;
+        $action = 'changed';
+    }
 } else {
-    // Like
-    $likes[] = $userId;
+    // New reaction
+    $users[] = $userId;
+    $reactions[$userId] = $reactionType;
+    $action = 'liked';
 
     // Send notification to observation owner (not self)
     $obs = DataStore::findById('observations', $obsId);
@@ -51,6 +82,21 @@ if (in_array($userId, $likes)) {
     }
 }
 
-file_put_contents($likeFile, json_encode($likes, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG), LOCK_EX);
+$data = ['users' => array_values($users), 'reactions' => (object)$reactions];
+file_put_contents($likeFile, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG), LOCK_EX);
 
-echo json_encode(['success' => true, 'action' => $action, 'count' => count($likes)], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+// Build summary
+$summary = [];
+foreach ($reactions as $uid => $r) {
+    $summary[$r] = ($summary[$r] ?? 0) + 1;
+}
+
+$myReaction = ($action !== 'unliked') ? ($reactions[$userId] ?? null) : null;
+
+echo json_encode([
+    'success' => true,
+    'action' => $action,
+    'count' => count($users),
+    'my_reaction' => $myReaction,
+    'summary' => (object)$summary,
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

@@ -536,4 +536,36 @@ class RegionalStats
 
         return $result;
     }
+
+    /**
+     * Quick static lookup: species count for a municipality name.
+     */
+    public static function getForMunicipality(string $municipality): ?array
+    {
+        if ($municipality === '') return null;
+
+        require_once __DIR__ . '/DataStore.php';
+        $all = DataStore::fetchAll('observations');
+        $speciesSet = [];
+        $obsCount = 0;
+
+        foreach ($all as $obs) {
+            $muni = trim($obs['municipality'] ?? '');
+            if ($muni === $municipality) {
+                $obsCount++;
+                $name = $obs['taxon']['name'] ?? '';
+                if ($name && $name !== '未同定') {
+                    $speciesSet[$name] = true;
+                }
+            }
+        }
+
+        if ($obsCount === 0) return null;
+
+        return [
+            'municipality' => $municipality,
+            'species' => count($speciesSet),
+            'observations' => $obsCount,
+        ];
+    }
 }

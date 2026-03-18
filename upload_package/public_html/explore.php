@@ -126,7 +126,7 @@ Auth::init();
             <div class="responsive-grid pb-12" x-show="items.length > 0">
                 <template x-for="obs in items" :key="obs.id">
                     <a :href="'observation_detail.php?id=' + obs.id" class="block aspect-[4/5] rounded-2xl bg-surface border border-border overflow-hidden relative group">
-                        <img :src="obs.photos[0]" :alt="obs.taxon ? obs.taxon.name : '観察写真'" class="w-full h-full object-cover group-hover:scale-110 transition duration-500 loading-skeleton" loading="lazy">
+                        <img :src="obs.thumb_sm || obs.photos[0]" :alt="obs.taxon ? obs.taxon.name : '観察写真'" class="w-full h-full object-cover group-hover:scale-110 transition duration-500 loading-skeleton" loading="lazy">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60"></div>
                         <div class="absolute bottom-3 left-3 right-3 text-white">
                             <p class="text-xs font-bold leading-tight truncate" x-text="obs.taxon ? obs.taxon.name : 'Unknown'"></p>

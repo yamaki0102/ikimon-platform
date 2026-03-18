@@ -2,6 +2,6 @@
     "TargetName": "ikimon.life",
     "LocalDir": "upload_package",
     "SshAlias": "production",
-    "RemoteBase": "~/public_html/ikimon.life/",
+    "RemoteBase": "~/public_html/",
     "Url": "https://ikimon.life/"
 }

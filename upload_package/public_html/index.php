@@ -5,6 +5,7 @@ require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/BioUtils.php';
 require_once __DIR__ . '/../libs/PrivacyFilter.php';
 require_once __DIR__ . '/../libs/FollowManager.php';
+require_once __DIR__ . '/../libs/ThumbnailGenerator.php';
 
 Auth::init();
 $currentUser = Auth::user();
@@ -199,9 +200,7 @@ unset($allObs);
                     <a href="events.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
                         <i data-lucide="calendar" class="w-3.5 h-3.5"></i> 観察会
                     </a>
-                    <a href="ikimon_walk.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
-                        <i data-lucide="footprints" class="w-3.5 h-3.5"></i> さんぽ
-                    </a>
+
                 </div>
             </div>
         </section>
@@ -318,44 +317,23 @@ unset($allObs);
             <!-- Feed Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style="gap:var(--phi-lg)">
                 <?php foreach ($latest_obs as $obs):
-                    $obsCounts = DataStore::getCounts('observations', $obs['id']);
-                    $obsLikes = $obsCounts['likes'] ?? 0;
-                    $obsComments = $obsCounts['comments'] ?? 0;
+                    $obsIdCount = count($obs['identifications'] ?? []);
+                    // Check if current user already reacted
+                    $_feedLikeFile = DATA_DIR . '/likes/' . $obs['id'] . '.json';
+                    $_feedLikeRaw = file_exists($_feedLikeFile) ? json_decode(file_get_contents($_feedLikeFile), true) : [];
+                    if (isset($_feedLikeRaw[0]) && is_string($_feedLikeRaw[0])) {
+                        $_feedLikeUsers = $_feedLikeRaw;
+                        $_feedReactions = [];
+                        foreach ($_feedLikeUsers as $_u) $_feedReactions[$_u] = 'like';
+                        $_feedLikeRaw = ['users' => $_feedLikeUsers, 'reactions' => $_feedReactions];
+                    }
+                    $_feedUsers = $_feedLikeRaw['users'] ?? [];
+                    $_feedReactions = $_feedLikeRaw['reactions'] ?? [];
+                    $_feedCount = count($_feedUsers);
+                    $_feedMyReaction = ($currentUser && in_array($currentUser['id'], $_feedUsers, true))
+                        ? ($_feedReactions[$currentUser['id']] ?? 'like') : null;
                 ?>
-                    <article x-data="{
-                        stepped: false,
-                        count: <?php echo (int)$obsLikes; ?>,
-                        scale: 1,
-                        lastTap: 0,
-                        _tapTimer: null,
-
-                        step(e) {
-                            this.stepped = !this.stepped;
-                            this.count += this.stepped ? 1 : -1;
-                            if (this.stepped) {
-                                if (window.SoundManager) SoundManager.play('light-click');
-                                if (window.HapticEngine) HapticEngine.tick();
-                            }
-                            this.scale = 1.2;
-                            setTimeout(() => this.scale = 1, 200);
-                        },
-
-                        doubleTap(e) {
-                            const now = Date.now();
-                            if (now - this.lastTap < 300) {
-                                // ダブルタップ: いいね
-                                clearTimeout(this._tapTimer);
-                                this._tapTimer = null;
-                                if (!this.stepped) { this.step(e); }
-                            } else {
-                                // シングルタップ: 300ms 後に詳細ページへ
-                                this._tapTimer = setTimeout(() => {
-                                    window.location.href = 'observation_detail.php?id=<?php echo urlencode($obs['id']); ?>';
-                                }, 300);
-                            }
-                            this.lastTap = now;
-                        }
-                     }"
+                    <article x-data="feedCard('<?php echo htmlspecialchars($obs['id'], ENT_QUOTES); ?>', <?php echo (int)$_feedCount; ?>, <?php echo $_feedMyReaction ? "'" . htmlspecialchars($_feedMyReaction, ENT_QUOTES) . "'" : 'null'; ?>)"
                         class="feed-card feed-card--animated rounded-2xl overflow-hidden transition bg-elevated border border-border shadow-sm">
                         <!-- Feed Header -->
                         <div class="px-4 py-3 flex items-center justify-between">
@@ -378,7 +356,17 @@ unset($allObs);
                         <!-- Photo -->
                         <div class="aspect-square w-full bg-surface relative group select-none"
                             @click="doubleTap($event)">
-                            <img src="<?php echo $obs['photos'][0]; ?>" alt="<?php echo htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '観察写真'); ?>" class="w-full h-full object-cover pointer-events-none" loading="lazy" decoding="async" onload="this.parentElement.classList.remove('lazy-img')">
+                            <?php
+                                $feedImg = ThumbnailGenerator::resolve($obs['photos'][0], 'md');
+                                $feedImgSm = ThumbnailGenerator::resolve($obs['photos'][0], 'sm');
+                            ?>
+                            <img src="<?php echo $feedImg; ?>"
+                                 srcset="<?php echo $feedImgSm; ?> 320w, <?php echo $feedImg; ?> 640w, <?php echo $obs['photos'][0]; ?> 1280w"
+                                 sizes="(max-width: 640px) 100vw, 640px"
+                                 alt="<?php echo htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '観察写真'); ?>"
+                                 class="w-full h-full object-cover pointer-events-none"
+                                 loading="lazy" decoding="async"
+                                 onload="this.parentElement.classList.remove('lazy-img')">
 
                             <div x-show="scale > 1"
                                 x-transition:enter="transition ease-out duration-200"
@@ -388,7 +376,7 @@ unset($allObs);
                                 x-transition:leave-start="opacity-100 scale-150"
                                 x-transition:leave-end="opacity-0 scale-0"
                                 class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                                <span class="text-8xl drop-shadow-2xl opacity-90">👣</span>
+                                <span class="text-8xl drop-shadow-2xl opacity-90">✨</span>
                             </div>
 
                             <?php if (isset($obs['taxon']['id'])): ?>
@@ -411,19 +399,36 @@ unset($allObs);
                             <?php endif; ?>
                         </div>
 
-                        <!-- Actions -->
-                        <div class="px-4 py-3 pb-0 flex items-center gap-4">
-                            <button @click="step($event)" class="flex items-center gap-1.5 group active:scale-90 transition-transform">
-                                <span class="text-xl transition duration-300" :class="stepped ? 'opacity-100' : 'opacity-40 group-hover:opacity-70'">👣</span>
-                                <span class="text-xs font-bold text-secondary" x-show="count > 0" x-text="count"></span>
-                            </button>
-                            <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="flex items-center gap-1.5 group active:scale-90 transition-transform">
-                                <i data-lucide="tag" class="w-5 h-5 transition text-faint group-hover:text-secondary"></i>
-                                <?php if ($obsComments > 0): ?>
-                                    <span class="text-xs font-bold text-secondary"><?php echo (int)$obsComments; ?></span>
+                        <!-- Actions: Reactions + Comments -->
+                        <div class="px-4 py-3 pb-0 flex items-center gap-2">
+                            <?php if ($currentUser): ?>
+                                <?php
+                                $feedRxItems = [
+                                    ['id' => 'like', 'emoji' => '✨'],
+                                    ['id' => 'beautiful', 'emoji' => '🌸'],
+                                    ['id' => 'cute', 'emoji' => '❤️'],
+                                ];
+                                foreach ($feedRxItems as $frx): ?>
+                                    <button @click="rxSend('<?php echo $frx['id']; ?>')"
+                                        class="text-lg active:scale-125 transition-transform px-0.5"
+                                        :class="rxMy === '<?php echo $frx['id']; ?>' ? 'opacity-100 scale-110' : 'opacity-30 hover:opacity-70'">
+                                        <?php echo $frx['emoji']; ?>
+                                    </button>
+                                <?php endforeach; ?>
+                                <span class="text-xs font-bold text-secondary ml-0.5" x-show="rxCount > 0" x-text="rxCount"></span>
+                            <?php else: ?>
+                                <span class="text-lg opacity-30">✨</span>
+                                <?php if ($_feedCount > 0): ?>
+                                    <span class="text-xs font-bold text-secondary"><?php echo (int)$_feedCount; ?></span>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                            <div class="flex-1"></div>
+                            <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>#identifications" class="flex items-center gap-1.5 group active:scale-90 transition-transform">
+                                <i data-lucide="message-circle" class="w-4 h-4 transition text-faint group-hover:text-secondary"></i>
+                                <?php if ($obsIdCount > 0): ?>
+                                    <span class="text-xs font-bold text-secondary"><?php echo (int)$obsIdCount; ?></span>
                                 <?php endif; ?>
                             </a>
-                            <div class="flex-1"></div>
                         </div>
 
                         <!-- Caption -->
@@ -603,6 +608,46 @@ unset($allObs);
                     this.startY = 0;
                 }
             }
+        }
+
+        function feedCard(obsId, initCount, initMy) {
+            return {
+                rxCount: initCount,
+                rxMy: initMy,
+                scale: 1,
+                lastTap: 0,
+                _tapTimer: null,
+                async rxSend(type) {
+                    var _csrf = (document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/) || [])[1] || '';
+                    var res = await fetch('api/toggle_like.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
+                        body: JSON.stringify({ id: obsId, reaction: type })
+                    }).then(function(r) { return r.json(); });
+                    if (res.success) {
+                        this.rxMy = res.my_reaction;
+                        this.rxCount = res.count;
+                        if (res.action === 'liked' || res.action === 'changed') {
+                            if (window.SoundManager) SoundManager.play('light-click');
+                            if (window.HapticEngine) HapticEngine.tick();
+                        }
+                    }
+                },
+                doubleTap(e) {
+                    var now = Date.now();
+                    var self = this;
+                    if (now - this.lastTap < 300) {
+                        clearTimeout(this._tapTimer);
+                        this._tapTimer = null;
+                        if (!this.rxMy) { this.rxSend('like'); this.scale = 1.2; setTimeout(function() { self.scale = 1; }, 200); }
+                    } else {
+                        this._tapTimer = setTimeout(function() {
+                            window.location.href = 'observation_detail.php?id=' + encodeURIComponent(obsId);
+                        }, 300);
+                    }
+                    this.lastTap = now;
+                }
+            };
         }
 
         lucide.createIcons();

@@ -166,72 +166,23 @@
                             <p class="text-xs font-bold text-muted"><?php echo htmlspecialchars(Auth::getRankLabel($currentUser)); ?></p>
                         </div>
 
-                        <!-- 個人セクション -->
-                        <a href="dashboard.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> ダッシュボード
-                        </a>
+                        <!-- パーソナル -->
                         <a href="profile.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                             <i data-lucide="user" class="w-4 h-4"></i> <?php echo __('nav.profile'); ?>
                         </a>
-                        <a href="my_organisms.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                            <i data-lucide="leaf" class="w-4 h-4"></i> わたしの発見
-                        </a>
-                        <a href="wellness.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                            <i data-lucide="heart" class="w-4 h-4"></i> ウェルネス
-                        </a>
-                        <a href="id_workbench.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text md:hidden">
-                            <i data-lucide="microscope" class="w-4 h-4"></i> <?php echo __('nav.id_center'); ?>
+                        <a href="dashboard.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                            <i data-lucide="settings" class="w-4 h-4"></i> ダッシュボード・設定
                         </a>
 
-                        <!-- 探索セクション (Mobile Only) -->
-                        <div class="border-t border-border mt-1 pt-1 md:hidden">
-                            <p class="px-3 py-1.5 text-token-xs font-black uppercase tracking-widest text-faint">さがす・参加する</p>
-                            <a href="zukan.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="book-open" class="w-4 h-4"></i> <?php echo __('nav.zukan'); ?>
-                            </a>
-                            <a href="compass.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="compass" class="w-4 h-4"></i> <?php echo __('nav.compass'); ?>
-                            </a>
-                            <a href="events.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="calendar" class="w-4 h-4"></i> <?php echo __('nav.events'); ?>
-                            </a>
-                            <a href="ikimon_walk.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="footprints" class="w-4 h-4"></i> <?php echo __('nav.my_field'); ?>
-                            </a>
-                            <a href="survey.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="microscope" class="w-4 h-4"></i> 🔬 調査
-                            </a>
-                        </div>
-
-                        <!-- 管理セクション -->
-                        <div class="border-t border-border mt-1 pt-1">
-                            <a href="site_dashboard.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text md:hidden">
-                                <i data-lucide="shield-check" class="w-4 h-4"></i> <?php echo __('nav.site_dashboard'); ?>
-                            </a>
-                            <?php if (Auth::hasRole('Analyst')): ?>
+                        <?php if (Auth::hasRole('Analyst')): ?>
+                            <div class="border-t border-border mt-1 pt-1">
                                 <a href="admin/index.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-primary hover:bg-primary-surface">
                                     <i data-lucide="shield-alert" class="w-4 h-4"></i> <?php echo __('nav.admin'); ?>
                                 </a>
-                            <?php endif; ?>
-                        </div>
+                            </div>
+                        <?php endif; ?>
 
-                        <!-- その他 -->
                         <div class="border-t border-border mt-1 pt-1">
-                            <a href="guidelines.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="book-open" class="w-4 h-4"></i> <?php echo __('nav.guidelines'); ?>
-                            </a>
-                            <a href="faq.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="help-circle" class="w-4 h-4"></i> <?php echo __('nav.faq'); ?>
-                            </a>
-                            <a href="about.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="info" class="w-4 h-4"></i> <?php echo __('nav.about'); ?>
-                            </a>
-                            <a href="pricing.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="credit-card" class="w-4 h-4"></i> 料金プラン
-                            </a>
-                            <a href="for-business/" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                                <i data-lucide="building-2" class="w-4 h-4"></i> 企業・研究者の方へ
-                            </a>
                             <a href="logout.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-danger hover:bg-danger-surface">
                                 <i data-lucide="log-out" class="w-4 h-4"></i> <?php echo __('nav.logout'); ?>
                             </a>
@@ -646,13 +597,14 @@
     <div class="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-32">
         <?php if ($currentUser): ?>
             <!-- User Info -->
-            <div class="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
+            <a href="profile.php" class="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
                 <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" alt="<?php echo htmlspecialchars($currentUser['name'] ?? 'ユーザー'); ?>のアバター" class="w-12 h-12 rounded-full object-cover border border-[var(--color-border-strong)]">
-                <div>
+                <div class="flex-1">
                     <p class="font-bold text-[var(--color-text)]"><?php echo htmlspecialchars($currentUser['name']); ?></p>
                     <p class="text-xs font-bold text-[var(--color-muted)]"><?php echo htmlspecialchars(Auth::getRankLabel($currentUser)); ?></p>
                 </div>
-            </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-faint)]"></i>
+            </a>
 
             <!-- Personal Links -->
             <div>
@@ -662,12 +614,6 @@
                 </a>
                 <a href="dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                     <i data-lucide="settings" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ダッシュボード・設定</span>
-                </a>
-                <a href="my_organisms.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                    <i data-lucide="library" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">わたしの発見</span>
-                </a>
-                <a href="wellness.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                    <i data-lucide="heart" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">健康 & インパクト</span>
                 </a>
             </div>
         <?php else: ?>
@@ -704,26 +650,14 @@
             <a href="site_dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="shield-check" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">共生サイト</span>
             </a>
-            <a href="ikimon_walk.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="footprints" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">さんぽ記録</span>
-            </a>
+
             <a href="survey.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="clipboard-list" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">調査に参加</span>
             </a>
         </div>
 
-        <!-- Info / Admin -->
+        <!-- Admin / Logout -->
         <div>
-            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">その他</p>
-            <a href="about.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="info" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ikimonについて</span>
-            </a>
-            <a href="pricing.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="credit-card" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">料金プラン</span>
-            </a>
-            <a href="for-business/" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="building-2" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">企業・研究者の方へ</span>
-            </a>
             <?php if ($currentUser && Auth::hasRole('Analyst')): ?>
                 <a href="admin/index.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-primary)]">
                     <i data-lucide="shield-alert" class="w-5 h-5"></i> <span class="text-sm font-bold text-[var(--color-primary)]">管理者ダッシュボード</span>

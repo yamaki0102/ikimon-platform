@@ -381,4 +381,154 @@ class BioUtils
         }
         return implode(" <span class='text-faint'>&rsaquo;</span> ", $parts);
     }
+
+    /**
+     * Build trust guidance — what the observation needs to reach Research Grade.
+     */
+    public static function buildTrustGuidance(array $obs): array
+    {
+        $status = $obs['quality_grade'] ?? $obs['status'] ?? '';
+        $ids = $obs['identifications'] ?? [];
+        $activeIds = !empty($ids) ? self::deduplicateIdentifications($ids) : [];
+        $ownerId = $obs['user_id'] ?? '';
+        $taxonRank = $obs['taxon']['rank'] ?? '';
+        $speciesOrBelow = in_array($taxonRank, ['species', 'subspecies', 'variety', 'form']);
+        $consensus = $obs['consensus'] ?? [];
+
+        // Already Research Grade
+        if ($status === 'Research Grade' || $status === '研究用') {
+            return ['headline' => '種レベル研究用', 'body' => '', 'steps' => [], 'status' => '種レベル研究用'];
+        }
+
+        $steps = [];
+
+        // Check: has photo
+        if (empty($obs['photos'])) {
+            $steps[] = '📷 写真を追加';
+        }
+
+        // Check: has location
+        if (empty($obs['lat']) || empty($obs['lng'])) {
+            $steps[] = '📍 位置情報を追加';
+        }
+
+        // Check: needs identification
+        if (empty($activeIds)) {
+            $steps[] = '🔍 最初の同定を追加';
+        }
+
+        // Check: needs external identifier
+        $hasOtherIdentifier = false;
+        foreach ($activeIds as $id) {
+            if (($id['user_id'] ?? '') !== $ownerId) {
+                $hasOtherIdentifier = true;
+                break;
+            }
+        }
+        if (!$hasOtherIdentifier && !empty($activeIds)) {
+            $steps[] = '👥 他のユーザーの同定が必要';
+        }
+
+        // Check: species-level
+        if (!$speciesOrBelow && !empty($obs['taxon']['name'])) {
+            $steps[] = '🎯 種レベルまで絞り込み';
+        }
+
+        // Check: agreement score
+        $topScore = $consensus['top_score'] ?? 0;
+        if ($topScore < 2.0 && $hasOtherIdentifier) {
+            $steps[] = '⚖️ 同定スコアの積み上げ';
+        }
+
+        if (empty($steps)) {
+            return ['headline' => '', 'body' => '', 'steps' => [], 'status' => ''];
+        }
+
+        return [
+            'headline' => '研究用グレードへのステップ',
+            'body' => 'この観察が研究用として認定されるために必要な項目です。',
+            'steps' => $steps,
+            'status' => $status,
+        ];
+    }
+
+    /**
+     * Build trust progress — percentage toward Research Grade.
+     */
+    public static function buildTrustProgress(array $obs): array
+    {
+        $status = $obs['quality_grade'] ?? $obs['status'] ?? '';
+        $ids = $obs['identifications'] ?? [];
+        $activeIds = !empty($ids) ? self::deduplicateIdentifications($ids) : [];
+        $ownerId = $obs['user_id'] ?? '';
+        $consensus = $obs['consensus'] ?? [];
+        $taxonRank = $obs['taxon']['rank'] ?? '';
+        $speciesOrBelow = in_array($taxonRank, ['species', 'subspecies', 'variety', 'form']);
+
+        // Already Research Grade
+        if ($status === 'Research Grade' || $status === '研究用') {
+            return [
+                'headline' => '研究用グレード達成！',
+                'next_label' => 'この観察は研究データとして活用できます。',
+                'progress' => 100,
+                'checkpoints' => [
+                    ['label' => '写真あり', 'detail' => '撮影済み', 'complete' => true],
+                    ['label' => '位置情報', 'detail' => '記録済み', 'complete' => true],
+                    ['label' => '種レベル同定', 'detail' => '確定済み', 'complete' => true],
+                    ['label' => 'コミュニティ合意', 'detail' => '達成済み', 'complete' => true],
+                ],
+            ];
+        }
+
+        $checkpoints = [];
+        $completed = 0;
+        $total = 4;
+
+        // 1. Photo
+        $hasPhoto = !empty($obs['photos']);
+        $checkpoints[] = ['label' => '写真あり', 'detail' => $hasPhoto ? '撮影済み' : '写真を追加してください', 'complete' => $hasPhoto];
+        if ($hasPhoto) $completed++;
+
+        // 2. Location
+        $hasLocation = !empty($obs['lat']) && !empty($obs['lng']);
+        $checkpoints[] = ['label' => '位置情報', 'detail' => $hasLocation ? '記録済み' : '位置情報を追加', 'complete' => $hasLocation];
+        if ($hasLocation) $completed++;
+
+        // 3. Species-level ID
+        $hasSpeciesId = $speciesOrBelow && !empty($obs['taxon']['name']);
+        $checkpoints[] = ['label' => '種レベル同定', 'detail' => $hasSpeciesId ? ($obs['taxon']['name'] ?? '確定済み') : '種レベルまで絞り込み', 'complete' => $hasSpeciesId];
+        if ($hasSpeciesId) $completed++;
+
+        // 4. Community agreement
+        $hasOtherIdentifier = false;
+        foreach ($activeIds as $id) {
+            if (($id['user_id'] ?? '') !== $ownerId) {
+                $hasOtherIdentifier = true;
+                break;
+            }
+        }
+        $topScore = $consensus['top_score'] ?? 0;
+        $agreementRate = $consensus['agreement_rate'] ?? 0;
+        $communityOk = $hasOtherIdentifier && $topScore >= 2.0 && $agreementRate > (2 / 3);
+        $communityDetail = $communityOk ? '合意済み' : ($hasOtherIdentifier ? 'スコア積み上げ中' : '他ユーザーの同定待ち');
+        $checkpoints[] = ['label' => 'コミュニティ合意', 'detail' => $communityDetail, 'complete' => $communityOk];
+        if ($communityOk) $completed++;
+
+        $progress = (int)round(($completed / $total) * 100);
+        $nextLabels = ['写真を追加しましょう', '位置情報を記録しましょう', '種名まで同定を絞り込みましょう', 'ほかのユーザーの同定を待ちましょう'];
+        $nextLabel = '';
+        foreach ($checkpoints as $i => $cp) {
+            if (!$cp['complete']) {
+                $nextLabel = $nextLabels[$i] ?? '';
+                break;
+            }
+        }
+
+        return [
+            'headline' => '信頼済みへの進み具合',
+            'next_label' => $nextLabel ?: '研究用グレードに近づいています！',
+            'progress' => $progress,
+            'checkpoints' => $checkpoints,
+        ];
+    }
 }

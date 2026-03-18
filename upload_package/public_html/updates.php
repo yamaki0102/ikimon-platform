@@ -28,13 +28,48 @@ Auth::init();
             <!-- Updates Timeline -->
             <div class="space-y-8">
 
-                <!-- v0.5.0 -->
+                <!-- v0.5.2 -->
                 <article class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500 ring-4 ring-green-100"></div>
                     <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.5.0</span>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.5.2</span>
                         <time class="text-sm text-gray-500">2026年3月17日</time>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">AI考察の専門用語かんたん解説</h2>
+                    <p class="text-gray-500 text-sm mb-4">観察のヒントに出てくる専門用語に、小中学生でもわかるやさしい解説がつくようになりました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>用語ツールチップ</strong>: AI考察内の専門用語（形質・花序・同定など）にカーソルを合わせるかタップすると、やさしい日本語で解説が表示されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>150語以上の用語辞書</strong>: 分類階級・形態（翅・嘴・触角）・植物（花序・鋸歯・葉序）・生態（在来種・擬態・食物連鎖）など幅広くカバー</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>スマート検出</strong>: 「シジュウカラ科」の「科」など、生物名の一部として使われている場合は解説を出さない賢い判定</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>モバイル対応</strong>: スマートフォンでもタップで解説を表示。他の場所をタップすれば閉じます</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.5.1 -->
+                <article class="relative pl-8 border-l-2 border-green-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.5.1</span>
+                        <time class="text-sm text-gray-500">2026年3月17日</time>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">ナビゲーション刷新 & 統合マイページ</h2>
+                    <p class="text-gray-500 text-sm mb-4">ユーザーメニューを大幅に整理し、マイページに全ての個人情報を集約しました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>ユーザーメニュー刷新</strong>: 13項目あったドロップダウンを3項目（マイページ・ダッシュボード・ログアウト）に集約。迷わないナビゲーションに</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>統合マイページ</strong>: 「発見」「ウェルネス」タブを新設。デジタル標本箱とネイチャーウェルネスをマイページ内で直接閲覧可能に</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>モバイルメニュー統一</strong>: デスクトップ・モバイル共にパーソナル情報はマイページに集約。サイト情報系はフッターに移動</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>専門家向けページ刷新</strong>: 研究者・調査員・同定者の3つの役割を1ページに統合。調査プロジェクトへの導線を明確化</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>フッター整理</strong>: 料金プランを追加、重複リンク（チーム）を削除</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.5.0 -->
+                <article class="relative pl-8 border-l-2 border-green-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.5.0</span>
+                        <time class="text-sm text-gray-500">2026年3月17日</time>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">セマンティック検索と写真検索</h2>
                     <p class="text-gray-500 text-sm mb-4">生き物の探し方が広がりました。種名がわからなくても、写真や自然な文章から似た記録を見つけられるようになりました。</p>

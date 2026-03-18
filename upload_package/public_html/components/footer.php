@@ -10,7 +10,6 @@
                 <div class="flex flex-col gap-2">
                     <a href="about.php" class="hover:text-text transition"><?php echo __('nav.about'); ?></a>
                     <a href="faq.php" class="hover:text-text transition"><?php echo __('nav.faq'); ?></a>
-                    <a href="team.php" class="hover:text-text transition"><?php echo __('nav.team'); ?></a>
                     <a href="updates.php" class="hover:text-text transition"><?php echo __('nav.updates'); ?></a>
                     <a href="mailto:contact@ikimon.life" class="hover:text-text transition"><?php echo __('nav.contact'); ?></a>
                 </div>
@@ -20,6 +19,7 @@
             <div>
                 <p class="text-[10px] font-black uppercase tracking-widest text-faint mb-3">Service</p>
                 <div class="flex flex-col gap-2">
+                    <a href="pricing.php" class="hover:text-text transition">料金プラン</a>
                     <a href="for-business/" class="hover:text-primary transition"><?php echo __('nav.business'); ?></a>
                     <a href="for-researcher.php" class="hover:text-text transition">研究者・専門家様</a>
                     <a href="showcase.php" class="hover:text-text transition"><?php echo __('nav.showcase'); ?></a>

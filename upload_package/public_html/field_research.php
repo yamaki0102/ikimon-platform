@@ -171,9 +171,9 @@ if (!$currentUser) {
 
     <!-- Top Bar -->
     <div class="top-bar">
-        <a href="ikimon_walk.php">
+        <a href="profile.php">
             <i data-lucide="chevron-left" style="width:16px;height:16px;"></i>
-            さんぽ記録
+            プロフィール
         </a>
         <span class="top-bar-title">たんけんマップ</span>
         <div style="width:60px;"></div>

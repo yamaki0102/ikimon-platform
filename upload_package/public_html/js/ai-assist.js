@@ -39,14 +39,16 @@ window.AiAssist = {
         this.suggestions = [];
 
         try {
-            // Use the first photo (primary subject)
-            const photo = photos[0];
-
-            // Resize to 512px on client side (privacy + speed)
-            const resizedBlob = await this._resizeImage(photo.file || photo, 512);
-
+            // Resize all photos to 512px on client side (privacy + speed)
+            // Send up to 5 photos for better multi-angle analysis
+            const maxPhotos = Math.min(photos.length, 5);
             const formData = new FormData();
-            formData.append('photo', resizedBlob, 'photo.jpg');
+
+            for (let i = 0; i < maxPhotos; i++) {
+                const photo = photos[i];
+                const resizedBlob = await this._resizeImage(photo.file || photo, 512);
+                formData.append('photos[]', resizedBlob, `photo_${i}.jpg`);
+            }
 
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
