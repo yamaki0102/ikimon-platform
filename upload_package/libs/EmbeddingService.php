@@ -3,7 +3,7 @@
 /**
  * EmbeddingService - Gemini Embedding 2 multimodal API wrapper for ikimon.life
  *
- * Generates 3072-dimensional embedding vectors from text, images, or both.
+ * Generates 768-dimensional embedding vectors from text, images, or both.
  * Model: gemini-embedding-2-preview (first natively multimodal embedding model)
  *
  * Capabilities:
@@ -13,7 +13,12 @@
  * - Batch embedding (multiple items per API call)
  * - 8 task types: RETRIEVAL_*, SEMANTIC_SIMILARITY, CLASSIFICATION, CLUSTERING, QUESTION_ANSWERING, FACT_VERIFICATION
  * - Cross-modal search: photo query → text results, text query → photo results
- * - Matryoshka Representation Learning: truncatable to 768/1536 if needed
+ * - Matryoshka Representation Learning: 768-dim (1/4 of full 3072, 4× faster, ~2% quality loss)
+ *
+ * Dimension choice: 768 (Matryoshka truncation via outputDimensionality)
+ *   Storage: 768 × 4 bytes = 3,072 bytes/entry as float32 BLOB
+ *   vs 3072-dim: 4× smaller, 4× faster cosine search, negligible quality drop
+ *   Allows 1M+ species embeddings within RS Plan disk constraints
  */
 
 require_once __DIR__ . '/../config/config.php';
@@ -22,8 +27,8 @@ class EmbeddingService
 {
     private const MODEL = 'gemini-embedding-2-preview';
     private const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
-    private const DIMENSIONS = 3072;
-    private const MAX_TEXT_LENGTH = 8000; // 8192 token limit ≈ 8000 chars for Japanese
+    private const DIMENSIONS = 768; // Matryoshka truncation: 1/4 of 3072, 4× faster cosine search
+    private const MAX_TEXT_LENGTH = 25000; // ~8192 tokens; Gemini Embedding 2 supports 8192 token input
     private const PHOTO_MAX_DIM = 512; // resize photos to 512px max
 
     private string $apiKey;
@@ -43,6 +48,7 @@ class EmbeddingService
         $text = trim($text);
         if ($text === '' || !$this->apiKey) return null;
 
+        // Truncation is handled upstream in prepareXxx() methods; guard here just in case
         if (mb_strlen($text) > self::MAX_TEXT_LENGTH) {
             $text = mb_substr($text, 0, self::MAX_TEXT_LENGTH);
         }
@@ -315,17 +321,19 @@ class EmbeddingService
 
     /**
      * Prepare embeddable text from an observation record.
+     * Includes rich ecological context to maximize semantic search quality.
      */
     public static function prepareObservationText(array $obs): string
     {
         $parts = [];
 
-        // Taxon info
+        // ── Taxon identity ───────────────────────────────────────
         $taxon = $obs['taxon'] ?? [];
         if (!empty($taxon['name'])) $parts[] = $taxon['name'];
         if (!empty($taxon['scientific_name'])) $parts[] = $taxon['scientific_name'];
+        if (!empty($taxon['common_name'])) $parts[] = $taxon['common_name'];
 
-        // Lineage path
+        // Full lineage path (kingdom > phylum > class > order > family > genus)
         $lineage = $taxon['lineage'] ?? [];
         if ($lineage) {
             $lineageParts = [];
@@ -335,37 +343,66 @@ class EmbeddingService
             if ($lineageParts) $parts[] = implode(' > ', $lineageParts);
         }
 
-        // Location context
-        if (!empty($obs['prefecture'])) $parts[] = $obs['prefecture'];
+        // ── Location ─────────────────────────────────────────────
+        if (!empty($obs['prefecture'])) $parts[] = $obs['prefecture'] . '都道府県';
         if (!empty($obs['municipality'])) $parts[] = $obs['municipality'];
+        if (!empty($obs['locality'])) $parts[] = $obs['locality'];
 
-        // Ecological context
-        if (!empty($obs['biome']) && $obs['biome'] !== 'unknown') $parts[] = 'biome:' . $obs['biome'];
+        // ── Ecological context ───────────────────────────────────
+        if (!empty($obs['biome']) && $obs['biome'] !== 'unknown') {
+            $parts[] = 'biome:' . $obs['biome'];
+        }
+        if (!empty($obs['life_stage']) && $obs['life_stage'] !== 'unknown') {
+            $parts[] = '生活史:' . $obs['life_stage'];
+        }
         if (!empty($obs['cultivation'])) $parts[] = $obs['cultivation'];
-        if (!empty($obs['life_stage']) && $obs['life_stage'] !== 'unknown') $parts[] = $obs['life_stage'];
-        if (!empty($obs['substrate_tags'])) $parts[] = implode(' ', $obs['substrate_tags']);
+        if (!empty($obs['substrate_tags'])) {
+            $parts[] = '基質:' . implode(' ', (array) $obs['substrate_tags']);
+        }
+        if (!empty($obs['behavior'])) $parts[] = $obs['behavior'];
+        if (!empty($obs['sex'])) $parts[] = $obs['sex'];
 
-        // User note
+        // ── Altitude ─────────────────────────────────────────────
+        if (!empty($obs['altitude_m'])) {
+            $parts[] = '標高:' . $obs['altitude_m'] . 'm';
+        }
+
+        // ── Season from observed_at ───────────────────────────────
+        if (!empty($obs['observed_at'])) {
+            $ts = strtotime($obs['observed_at']);
+            if ($ts) {
+                $month = (int) date('n', $ts);
+                $season = match (true) {
+                    $month >= 3 && $month <= 5 => '春',
+                    $month >= 6 && $month <= 8 => '夏',
+                    $month >= 9 && $month <= 11 => '秋',
+                    default => '冬',
+                };
+                $parts[] = $season;
+                $parts[] = date('n', $ts) . '月';
+            }
+        }
+
+        // ── User note ────────────────────────────────────────────
         if (!empty($obs['note'])) $parts[] = $obs['note'];
 
-        // Season from observed_at
-        if (!empty($obs['observed_at'])) {
-            $month = (int) date('n', strtotime($obs['observed_at']));
-            $season = match (true) {
-                $month >= 3 && $month <= 5 => '春',
-                $month >= 6 && $month <= 8 => '夏',
-                $month >= 9 && $month <= 11 => '秋',
-                default => '冬',
-            };
-            $parts[] = $season;
+        // ── Identification notes (community ID) ──────────────────
+        foreach ($obs['identifications'] ?? [] as $ident) {
+            if (!empty($ident['note'])) $parts[] = $ident['note'];
+            if (!empty($ident['taxon']['name'])) $parts[] = $ident['taxon']['name'];
+            if (!empty($ident['taxon']['scientific_name'])) $parts[] = $ident['taxon']['scientific_name'];
         }
 
-        // Identification notes
-        foreach ($obs['identifications'] ?? [] as $id) {
-            if (!empty($id['note'])) $parts[] = $id['note'];
+        // ── Tags / keywords ──────────────────────────────────────
+        if (!empty($obs['tags'])) {
+            $parts[] = implode(' ', (array) $obs['tags']);
         }
 
-        return implode(' ', $parts);
+        $text = implode(' ', array_filter($parts, fn($p) => trim((string)$p) !== ''));
+        // Respect token limit (8192 tokens ≈ 25000 UTF-8 chars for Japanese)
+        return mb_strlen($text) > self::MAX_TEXT_LENGTH
+            ? mb_substr($text, 0, self::MAX_TEXT_LENGTH)
+            : $text;
     }
 
     /**
@@ -426,25 +463,41 @@ class EmbeddingService
 
     /**
      * Prepare embeddable text from an Omoikane species record.
+     *
+     * Expected keys (from JOIN of species + ecological_constraints + identification_keys):
+     *   japanese_name, scientific_name,
+     *   habitat, altitude, season, notes,          (ecological_constraints)
+     *   morphological_traits, similar_species, key_differences  (identification_keys)
      */
     public static function prepareOmoikaneText(array $species): string
     {
         $parts = [];
 
+        // ── Identity ─────────────────────────────────────────────
         if (!empty($species['japanese_name'])) $parts[] = $species['japanese_name'];
         if (!empty($species['scientific_name'])) $parts[] = $species['scientific_name'];
 
-        if (!empty($species['morphological_traits'])) $parts[] = $species['morphological_traits'];
+        // ── Ecology ──────────────────────────────────────────────
+        if (!empty($species['habitat']))  $parts[] = '生息環境:' . $species['habitat'];
+        if (!empty($species['altitude'])) $parts[] = '標高:' . $species['altitude'];
+        if (!empty($species['season']))   $parts[] = '季節:' . $species['season'];
+        if (!empty($species['notes']))    $parts[] = $species['notes'];
 
-        if (!empty($species['habitat'])) $parts[] = $species['habitat'];
-        if (!empty($species['season'])) $parts[] = $species['season'];
-        if (!empty($species['altitude'])) $parts[] = $species['altitude'];
-        if (!empty($species['notes'])) $parts[] = $species['notes'];
+        // ── Morphology & ID keys ─────────────────────────────────
+        if (!empty($species['morphological_traits'])) {
+            $parts[] = '形態:' . $species['morphological_traits'];
+        }
+        if (!empty($species['similar_species'])) {
+            $parts[] = '類似種:' . $species['similar_species'];
+        }
+        if (!empty($species['key_differences'])) {
+            $parts[] = '識別点:' . $species['key_differences'];
+        }
 
-        if (!empty($species['similar_species'])) $parts[] = $species['similar_species'];
-        if (!empty($species['key_differences'])) $parts[] = $species['key_differences'];
-
-        return implode(' ', $parts);
+        $text = implode(' ', array_filter($parts, fn($p) => trim((string)$p) !== ''));
+        return mb_strlen($text) > self::MAX_TEXT_LENGTH
+            ? mb_substr($text, 0, self::MAX_TEXT_LENGTH)
+            : $text;
     }
 
     // ─── Internal ───────────────────────────────────────────────
