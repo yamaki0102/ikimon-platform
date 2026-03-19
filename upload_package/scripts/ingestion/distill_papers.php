@@ -9,6 +9,7 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/PaperStore.php';
+require_once __DIR__ . '/../libs/KnowledgeAutoReviewer.php';
 
 $apiKey = getenv('GEMINI_API_KEY');
 if (!$apiKey && defined('GEMINI_API_KEY')) {
@@ -142,12 +143,40 @@ foreach ($papers as $paper) {
 
     echo " [SUCCESS] Extracted semantics for $doi.\n";
 
+    // Auto-review: 信頼ソースは自動承認、問題ありはアラート
+    $paperMeta = [
+        'doi' => $doi,
+        'source' => $paper['source'] ?? 'unknown',
+        'year' => $paper['year'] ?? null,
+        'title' => $paper['title'] ?? '',
+    ];
+    $reviewResult = KnowledgeAutoReviewer::review($extracted, $paperMeta, $paper['taxon_key'] ?? '');
+
+    if ($reviewResult['decision'] === 'auto_approved') {
+        echo " [AUTO-APPROVED] confidence={$reviewResult['confidence']} — {$reviewResult['reason']}\n";
+        $reviewStatus = 'approved';
+        $reviewedBy = 'auto_reviewer';
+    } else {
+        echo " [NEEDS REVIEW] confidence={$reviewResult['confidence']} — {$reviewResult['reason']}\n";
+        foreach ($reviewResult['alerts'] as $alert) {
+            if ($alert['level'] === 'review' || $alert['level'] === 'warning') {
+                echo "   ⚠ [{$alert['code']}] {$alert['message']}\n";
+            }
+        }
+        $reviewStatus = 'needs_review';
+        $reviewedBy = null;
+    }
+
     // Save to our structured list
     $distilledData[$doi] = [
         'status' => 'distilled',
         'distilled_at' => date('Y-m-d H:i:s'),
         'data' => $extracted,
-        'review_status' => 'pending' // For QA Gate
+        'review_status' => $reviewStatus,
+        'reviewed_by' => $reviewedBy,
+        'reviewed_at' => $reviewedBy ? date('c') : null,
+        'review_confidence' => $reviewResult['confidence'],
+        'review_alerts' => $reviewResult['alerts'],
     ];
     $processed++;
 
