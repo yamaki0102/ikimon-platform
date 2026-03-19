@@ -16,6 +16,7 @@ require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/PaperStore.php';
 require_once __DIR__ . '/../../libs/OmoikaneDB.php';
+require_once __DIR__ . '/../../libs/KnowledgeAutoReviewer.php';
 
 Auth::init();
 Auth::requireRole('Analyst');
@@ -32,6 +33,8 @@ $stats = [
     'pending_distill' => 0,
     'distilled' => 0,
     'reviewed' => 0,
+    'auto_approved' => 0,
+    'needs_review' => 0,
 ];
 
 try {
@@ -39,8 +42,38 @@ try {
     $stats['pending_distill'] = (int) $pdo->query("SELECT COUNT(*) FROM papers WHERE distill_status = 'pending'")->fetchColumn();
     $stats['distilled'] = (int) $pdo->query("SELECT COUNT(*) FROM papers WHERE distill_status = 'distilled'")->fetchColumn();
     $stats['reviewed'] = (int) $pdo->query("SELECT COUNT(*) FROM distilled_knowledge WHERE reviewed_by IS NOT NULL")->fetchColumn();
+    $stats['auto_approved'] = (int) $pdo->query("SELECT COUNT(*) FROM distilled_knowledge WHERE reviewed_by = 'auto_reviewer'")->fetchColumn();
+    $stats['needs_review'] = (int) $pdo->query("SELECT COUNT(*) FROM distilled_knowledge WHERE reviewed_by IS NULL")->fetchColumn();
 } catch (PDOException $e) {
     // テーブルがない場合はゼロのまま
+}
+
+// JSON版の自動承認統計も取得
+$jsonAutoStats = ['auto_approved' => 0, 'needs_review' => 0, 'pending' => 0];
+$distilledStore = 'library/distilled_knowledge';
+$distilledJson = DataStore::get($distilledStore, 0) ?: [];
+foreach ($distilledJson as $doi => $item) {
+    $rs = $item['review_status'] ?? 'pending';
+    if ($rs === 'approved' && ($item['reviewed_by'] ?? '') === 'auto_reviewer') {
+        $jsonAutoStats['auto_approved']++;
+    } elseif ($rs === 'needs_review') {
+        $jsonAutoStats['needs_review']++;
+    } elseif ($rs === 'pending') {
+        $jsonAutoStats['pending']++;
+    }
+}
+
+// JSON版 needs_review のアラートを取得
+$jsonAlerts = [];
+foreach ($distilledJson as $doi => $item) {
+    if (($item['review_status'] ?? '') === 'needs_review') {
+        $jsonAlerts[$doi] = [
+            'data' => $item['data'] ?? [],
+            'alerts' => $item['review_alerts'] ?? [],
+            'confidence' => $item['review_confidence'] ?? 0,
+            'distilled_at' => $item['distilled_at'] ?? '',
+        ];
+    }
 }
 
 // レビュー待ち知識（最新20件）
@@ -78,8 +111,26 @@ try {
 // --- POST処理: レビューアクション ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
     $action = $_POST['action'];
-    $knowledgeId = (int) ($_POST['knowledge_id'] ?? 0);
     $reviewerId = $currentUser['id'] ?? 'unknown';
+
+    // JSON版のレビューアクション
+    $jsonDoi = $_POST['json_doi'] ?? '';
+    if ($jsonDoi && isset($distilledJson[$jsonDoi])) {
+        if ($action === 'approve') {
+            $distilledJson[$jsonDoi]['review_status'] = 'approved';
+            $distilledJson[$jsonDoi]['reviewed_by'] = $reviewerId;
+            $distilledJson[$jsonDoi]['reviewed_at'] = date('c');
+        } elseif ($action === 'reject') {
+            $distilledJson[$jsonDoi]['review_status'] = 'rejected';
+            $distilledJson[$jsonDoi]['reviewed_by'] = $reviewerId;
+        }
+        DataStore::save($distilledStore, $distilledJson);
+        header('Location: ' . $_SERVER['REQUEST_URI']);
+        exit;
+    }
+
+    // SQLite版のレビューアクション
+    $knowledgeId = (int) ($_POST['knowledge_id'] ?? 0);
 
     if ($knowledgeId > 0) {
         try {
@@ -133,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
 <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
     <!-- 統計カード -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div class="bg-white rounded-xl border p-4">
             <div class="text-2xl font-bold"><?= number_format($stats['total_papers']) ?></div>
             <div class="text-sm text-gray-500">総論文数</div>
@@ -147,12 +198,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
             <div class="text-sm text-gray-500">蒸留済み</div>
         </div>
         <div class="bg-white rounded-xl border p-4">
-            <div class="text-2xl font-bold text-green-600"><?= number_format($stats['reviewed']) ?></div>
-            <div class="text-sm text-gray-500">レビュー済み</div>
+            <div class="text-2xl font-bold text-green-600"><?= number_format($stats['auto_approved'] + $jsonAutoStats['auto_approved']) ?></div>
+            <div class="text-sm text-gray-500">自動承認</div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 <?= ($stats['needs_review'] + $jsonAutoStats['needs_review']) > 0 ? 'ring-2 ring-red-200' : '' ?>">
+            <div class="text-2xl font-bold text-red-600"><?= number_format($stats['needs_review'] + $jsonAutoStats['needs_review']) ?></div>
+            <div class="text-sm text-gray-500">要チェック</div>
+        </div>
+        <div class="bg-white rounded-xl border p-4">
+            <div class="text-2xl font-bold text-emerald-600"><?= number_format($stats['reviewed']) ?></div>
+            <div class="text-sm text-gray-500">人間レビュー済</div>
         </div>
     </div>
 
-    <!-- レビュー待ち知識 -->
+    <!-- アラート付き要チェック（JSON版） -->
+    <?php if (!empty($jsonAlerts)): ?>
+    <section>
+        <h2 class="text-lg font-bold mb-3 flex items-center gap-2">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-red-500"></i>
+            要チェック
+            <span class="text-sm bg-red-100 text-red-700 px-2 py-0.5 rounded-full"><?= count($jsonAlerts) ?>件</span>
+        </h2>
+        <div class="space-y-3">
+            <?php foreach ($jsonAlerts as $doi => $alertData): ?>
+                <div class="bg-white rounded-xl border border-red-200 p-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs text-gray-400 mb-1 font-mono"><?= htmlspecialchars($doi, ENT_QUOTES) ?></div>
+
+                            <!-- アラート一覧 -->
+                            <div class="space-y-1 mb-3">
+                                <?php foreach ($alertData['alerts'] as $alert): ?>
+                                    <div class="flex items-center gap-2 text-sm <?php
+                                        echo match ($alert['level']) {
+                                            'review'  => 'text-red-600',
+                                            'warning' => 'text-amber-600',
+                                            default   => 'text-gray-500',
+                                        };
+                                    ?>">
+                                        <i data-lucide="<?= $alert['level'] === 'review' ? 'alert-circle' : ($alert['level'] === 'warning' ? 'alert-triangle' : 'info') ?>" class="w-4 h-4 shrink-0"></i>
+                                        <span><?= htmlspecialchars($alert['message'], ENT_QUOTES) ?></span>
+                                        <span class="text-xs text-gray-400">[<?= htmlspecialchars($alert['code'], ENT_QUOTES) ?>]</span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <!-- 信頼度 -->
+                            <div class="text-xs text-gray-400">
+                                信頼度: <span class="font-bold <?= $alertData['confidence'] < 0.5 ? 'text-red-500' : 'text-amber-500' ?>"><?= round($alertData['confidence'] * 100) ?>%</span>
+                                &middot; 蒸留日: <?= htmlspecialchars($alertData['distilled_at'], ENT_QUOTES) ?>
+                            </div>
+
+                            <!-- 蒸留データプレビュー -->
+                            <details class="mt-2">
+                                <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">蒸留データを表示</summary>
+                                <pre class="mt-1 text-xs bg-gray-50 p-2 rounded-lg overflow-x-auto max-h-40"><?= htmlspecialchars(json_encode($alertData['data'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?></pre>
+                            </details>
+                        </div>
+
+                        <!-- アクションボタン -->
+                        <div class="flex flex-col gap-1.5 shrink-0">
+                            <form method="POST" class="inline">
+                                <input type="hidden" name="action" value="approve">
+                                <input type="hidden" name="json_doi" value="<?= htmlspecialchars($doi, ENT_QUOTES) ?>">
+                                <button type="submit" class="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 text-sm rounded-lg hover:bg-green-100 border border-green-200">
+                                    <i data-lucide="check" class="w-4 h-4"></i> 問題なし
+                                </button>
+                            </form>
+                            <form method="POST" class="inline" onsubmit="return confirm('この蒸留結果を却下しますか？')">
+                                <input type="hidden" name="action" value="reject">
+                                <input type="hidden" name="json_doi" value="<?= htmlspecialchars($doi, ENT_QUOTES) ?>">
+                                <button type="submit" class="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 text-sm rounded-lg hover:bg-red-100 border border-red-200">
+                                    <i data-lucide="x" class="w-4 h-4"></i> 却下
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+
+    <!-- レビュー待ち知識（SQLite版） -->
     <section>
         <h2 class="text-lg font-bold mb-3 flex items-center gap-2">
             <i data-lucide="eye" class="w-5 h-5 text-amber-500"></i>
