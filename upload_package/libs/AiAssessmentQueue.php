@@ -234,6 +234,20 @@ class AiAssessmentQueue
         ));
         $observation['ai_assessments'][] = $assessment;
         $observation['updated_at'] = date('Y-m-d H:i:s');
+
+        // Phase 2: Verification Stage — AI分類結果を反映
+        if (class_exists('DataStageManager')) {
+            $aiResult = [
+                'confidence' => $assessment['confidence'] ?? ($assessment['top_suggestions'][0]['confidence'] ?? 0),
+                'model' => $assessment['model'] ?? 'unknown',
+                'taxon_name' => $assessment['top_suggestions'][0]['name'] ?? '',
+            ];
+            $stageResult = DataStageManager::applyAiClassification($observation, $aiResult);
+            if ($stageResult['success']) {
+                $observation = $stageResult['observation'];
+            }
+        }
+
         DataStore::upsert('observations', $observation);
     }
 

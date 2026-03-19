@@ -10,6 +10,8 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/PaperStore.php';
 require_once __DIR__ . '/../libs/KnowledgeAutoReviewer.php';
+require_once __DIR__ . '/../libs/OmoikaneDB.php';
+require_once __DIR__ . '/../libs/TaxonPaperIndex.php';
 
 $apiKey = getenv('GEMINI_API_KEY');
 if (!$apiKey && defined('GEMINI_API_KEY')) {
@@ -185,8 +187,141 @@ foreach ($papers as $paper) {
 }
 
 if ($processed > 0) {
+    // --- JSON ストレージ保存 ---
     DataStore::save($distilledStore, $distilledData);
-    echo "Saved $processed new distilled records to $distilledStore.\n";
+    echo "\nSaved $processed new distilled records to JSON.\n";
+
+    // --- SQLite 永続化 ---
+    echo "Persisting to SQLite (OmoikaneDB)...\n";
+    try {
+        $db = new OmoikaneDB();
+        $pdo = $db->getPDO();
+        $sqliteOk = 0;
+        $sqliteErr = 0;
+
+        foreach ($distilledData as $doi => $item) {
+            if (($item['status'] ?? '') !== 'distilled') continue;
+            $data = $item['data'] ?? [];
+            $eco = $data['ecological_constraints'] ?? [];
+            $idKeys = $data['identification_keys'] ?? [];
+
+            // 関連する学名を TaxonPaperIndex から取得
+            $taxonKeys = [];
+            $allIndex = TaxonPaperIndex::getIndex();
+            foreach ($allIndex as $taxon => $dois) {
+                if (in_array($doi, $dois, true)) {
+                    $taxonKeys[] = $taxon;
+                }
+            }
+            if (empty($taxonKeys)) continue;
+
+            foreach ($taxonKeys as $taxonKey) {
+                try {
+                    // species テーブルで species_id を取得（なければ作成）
+                    $stmt = $pdo->prepare("INSERT OR IGNORE INTO species (scientific_name) VALUES (:name)");
+                    $stmt->execute([':name' => $taxonKey]);
+                    $speciesId = $pdo->query("SELECT id FROM species WHERE scientific_name = " . $pdo->quote($taxonKey))->fetchColumn();
+                    if (!$speciesId) continue;
+
+                    // ecological_constraints テーブル（UPSERT）
+                    if (!empty($eco['habitat']) || !empty($eco['altitude_range']) || !empty($eco['active_season'])) {
+                        $habitat = is_array($eco['habitat'] ?? null) ? implode(', ', $eco['habitat']) : ($eco['habitat'] ?? '');
+                        $altitude = $eco['altitude_range'] ?? '';
+                        $season = is_array($eco['active_season'] ?? null) ? implode(', ', $eco['active_season']) : ($eco['active_season'] ?? '');
+                        $notes = $eco['notes'] ?? '';
+
+                        $stmt = $pdo->prepare("
+                            INSERT INTO ecological_constraints (species_id, habitat, altitude, season, notes)
+                            VALUES (:sid, :habitat, :altitude, :season, :notes)
+                            ON CONFLICT(species_id) DO UPDATE SET
+                                habitat = CASE WHEN excluded.habitat != '' THEN excluded.habitat ELSE habitat END,
+                                altitude = CASE WHEN excluded.altitude != '' THEN excluded.altitude ELSE altitude END,
+                                season = CASE WHEN excluded.season != '' THEN excluded.season ELSE season END,
+                                notes = CASE WHEN excluded.notes != '' THEN excluded.notes ELSE notes END
+                        ");
+                        $stmt->execute([':sid' => $speciesId, ':habitat' => $habitat, ':altitude' => $altitude, ':season' => $season, ':notes' => $notes]);
+                    }
+
+                    // identification_keys テーブル（UPSERT）
+                    if (!empty($idKeys)) {
+                        $morphTraits = [];
+                        $similarSp = [];
+                        $keyDiffs = [];
+                        foreach ($idKeys as $key) {
+                            if (!empty($key['feature']) && !empty($key['description'])) {
+                                $morphTraits[] = $key['feature'] . ': ' . $key['description'];
+                            }
+                            foreach ($key['comparison_species'] ?? [] as $sp) {
+                                if ($sp && !in_array($sp, $similarSp, true)) {
+                                    $similarSp[] = $sp;
+                                }
+                            }
+                        }
+
+                        $stmt = $pdo->prepare("
+                            INSERT INTO identification_keys (species_id, morphological_traits, similar_species, key_differences)
+                            VALUES (:sid, :morph, :similar, :diffs)
+                            ON CONFLICT(species_id) DO UPDATE SET
+                                morphological_traits = excluded.morphological_traits,
+                                similar_species = excluded.similar_species,
+                                key_differences = excluded.key_differences
+                        ");
+                        $stmt->execute([
+                            ':sid' => $speciesId,
+                            ':morph' => implode("\n", $morphTraits),
+                            ':similar' => implode(', ', $similarSp),
+                            ':diffs' => '',
+                        ]);
+                    }
+
+                    // distilled_knowledge テーブル
+                    $reviewedBy = ($item['review_status'] === 'approved') ? ($item['reviewed_by'] ?? null) : null;
+
+                    // ecological_constraint エントリ
+                    if (!empty($eco['habitat']) || !empty($eco['altitude_range'])) {
+                        $stmt = $pdo->prepare("
+                            INSERT OR IGNORE INTO distilled_knowledge (doi, taxon_key, knowledge_type, content, confidence, reviewed_by)
+                            VALUES (:doi, :taxon, 'ecological_constraint', :content, :conf, :reviewer)
+                        ");
+                        $stmt->execute([
+                            ':doi' => $doi,
+                            ':taxon' => $taxonKey,
+                            ':content' => json_encode($eco, JSON_UNESCAPED_UNICODE),
+                            ':conf' => $item['review_confidence'] ?? 0.0,
+                            ':reviewer' => $reviewedBy,
+                        ]);
+                    }
+
+                    // identification_key エントリ
+                    if (!empty($idKeys)) {
+                        $stmt = $pdo->prepare("
+                            INSERT OR IGNORE INTO distilled_knowledge (doi, taxon_key, knowledge_type, content, confidence, reviewed_by)
+                            VALUES (:doi, :taxon, 'identification_key', :content, :conf, :reviewer)
+                        ");
+                        $stmt->execute([
+                            ':doi' => $doi,
+                            ':taxon' => $taxonKey,
+                            ':content' => json_encode($idKeys, JSON_UNESCAPED_UNICODE),
+                            ':conf' => $item['review_confidence'] ?? 0.0,
+                            ':reviewer' => $reviewedBy,
+                        ]);
+                    }
+
+                    // papers テーブルの distill_status を更新
+                    $stmt = $pdo->prepare("UPDATE papers SET distill_status = 'distilled', distilled_at = :at WHERE doi = :doi");
+                    $stmt->execute([':at' => date('c'), ':doi' => $doi]);
+
+                    $sqliteOk++;
+                } catch (PDOException $e) {
+                    echo " [SQLite ERROR] {$taxonKey}: " . $e->getMessage() . "\n";
+                    $sqliteErr++;
+                }
+            }
+        }
+        echo "SQLite: {$sqliteOk} records persisted, {$sqliteErr} errors.\n";
+    } catch (Throwable $e) {
+        echo "SQLite init failed: " . $e->getMessage() . "\n";
+    }
 } else {
     echo "No new papers needed distillation.\n";
 }
