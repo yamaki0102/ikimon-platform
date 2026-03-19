@@ -99,14 +99,18 @@ class FieldScanEngine: NSObject, ObservableObject {
     // MARK: - Camera Classification
 
     private func classifyCurrentFrame() {
-        // In production: grab frame from ARSession and run through detector
-        // For now: detector runs via CameraManager's onFrameCaptured
-        // The detections flow through the existing SpeciesDetector pipeline
+        // TODO: Production implementation needed.
+        // In production: grab frame from ARSession, run through Vision + Core ML pipeline.
+        // Current state: empty stub. Camera classification is handled by separate ScanView flow.
     }
 
-    // MARK: - Audio (Simulated)
+    // MARK: - Audio (Simulated — DEBUG ONLY)
 
+    /// DEMO: ダミー音声検出。本番では BirdNET Core ML モデルを使用すること。
     private func simulateAudioDetection() {
+        #if !DEBUG
+        return // 本番ビルドではダミー検出を無効化
+        #endif
         let species = [
             ("シジュウカラ", "Parus minor", Float(0.82)),
             ("ヒヨドリ", "Hypsipetes amaurotis", Float(0.75)),

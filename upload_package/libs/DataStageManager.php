@@ -42,7 +42,7 @@ class DataStageManager
     /** 許可される遷移マップ: stage => [次に遷移可能なステージ] */
     const TRANSITIONS = [
         self::STAGE_UNVERIFIED     => [self::STAGE_AI_CLASSIFIED, self::STAGE_NEEDS_REVIEW, self::STAGE_HUMAN_VERIFIED],
-        self::STAGE_AI_CLASSIFIED  => [self::STAGE_NEEDS_REVIEW, self::STAGE_HUMAN_VERIFIED, self::STAGE_RESEARCH_GRADE],
+        self::STAGE_AI_CLASSIFIED  => [self::STAGE_NEEDS_REVIEW, self::STAGE_HUMAN_VERIFIED],
         self::STAGE_NEEDS_REVIEW   => [self::STAGE_HUMAN_VERIFIED, self::STAGE_AI_CLASSIFIED],
         self::STAGE_HUMAN_VERIFIED => [self::STAGE_RESEARCH_GRADE, self::STAGE_NEEDS_REVIEW],
         self::STAGE_RESEARCH_GRADE => [self::STAGE_NEEDS_REVIEW], // 降格のみ（異議申立時）
@@ -214,7 +214,6 @@ class DataStageManager
     {
         $currentStage = self::resolveStage($obs);
 
-        // Research Grade 判定: Grade A かつ 2人以上合意
         $identifications = $obs['identifications'] ?? [];
         $grade = $obs['data_quality'] ?? DataQuality::calculate($obs);
 
@@ -230,11 +229,23 @@ class DataStageManager
 
         $maxAgreement = !empty($taxonCounts) ? max($taxonCounts) : 0;
 
-        // Research Grade 条件: 写真+位置+2人以上合意
-        if ($grade <= 'B' && $maxAgreement >= 2) {
+        // Research Grade 条件（厳格化）:
+        // 1. Grade A のみ（写真+位置+2人以上の同定一致）
+        // 2. 証拠メディアあり
+        // 3. 位置情報あり
+        // 4. 2人以上の human verification が合意
+        // 5. 種 (species) ランク以下まで解決済み
+        $hasEvidence = !empty($obs['photos']);
+        $hasLocation = !empty($obs['lat']) && !empty($obs['lng']);
+        $taxonRank = $obs['taxon']['rank'] ?? '';
+        $isSpeciesOrBelow = in_array($taxonRank, ['species', 'subspecies', 'variety', 'form'], true);
+
+        if ($grade === 'A' && $maxAgreement >= 2 && $hasEvidence && $hasLocation && $isSpeciesOrBelow) {
             return self::transition($obs, self::STAGE_RESEARCH_GRADE, $userId, 'Community consensus reached', [
                 'taxon' => $taxon,
                 'agreement_count' => $maxAgreement,
+                'grade' => $grade,
+                'has_evidence' => true,
             ]);
         }
 
