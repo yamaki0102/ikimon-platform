@@ -15,6 +15,7 @@ require_once __DIR__ . '/../libs/CSRF.php';
 require_once __DIR__ . '/../libs/AffiliateManager.php';
 require_once __DIR__ . '/../libs/RegionalStats.php';
 require_once __DIR__ . '/../libs/GlossaryHelper.php';
+require_once __DIR__ . '/../libs/SubjectHelper.php';
 Auth::init();
 $currentUser = Auth::user();
 $csrfToken = CSRF::generate();
@@ -253,6 +254,26 @@ $aiConfidenceLabelMap = [
     'medium' => 'たぶん',
     'low' => '慎重',
 ];
+// Multi-Subject: subjects[] を保証
+SubjectHelper::ensureSubjects($obs);
+SubjectHelper::distributeIdentifications($obs);
+SubjectHelper::distributeAiAssessments($obs);
+$subjects = $obs['subjects'] ?? [];
+$isMultiSubject = SubjectHelper::isMultiSubject($obs);
+
+// 各 subject の最新AI assessment を取得
+$subjectAiAssessments = [];
+foreach ($subjects as $subject) {
+    $subjectAi = null;
+    foreach (array_reverse($subject['ai_assessments'] ?? []) as $assessment) {
+        if (($assessment['kind'] ?? '') === 'machine_assessment') {
+            $subjectAi = $assessment;
+            break;
+        }
+    }
+    $subjectAiAssessments[$subject['id']] = $subjectAi;
+}
+
 $latestAiAssessment = null;
 foreach (array_reverse($obs['ai_assessments'] ?? []) as $assessment) {
     if (($assessment['kind'] ?? '') === 'machine_assessment') {
@@ -594,6 +615,92 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <p class="mt-3 text-sm text-muted leading-relaxed"><?php echo htmlspecialchars($managedContext['note']); ?></p>
                         <?php endif; ?>
                         <p class="mt-3 text-[11px] text-faint">施設の中でも野生個体は野生として分けて保存します。100年後に来歴をたどれるよう、施設文脈は野外分布とは別に残します。</p>
+                    </section>
+                <?php endif; ?>
+
+                <?php if ($isMultiSubject): ?>
+                    <!-- Multi-Subject: 複数の生物が検出されています -->
+                    <section class="bg-emerald-50 rounded-2xl border border-emerald-200 p-4 shadow-sm" x-data="{ activeSubject: 0 }">
+                        <div class="flex items-center gap-2 mb-3">
+                            <i data-lucide="layers" class="w-4 h-4 text-emerald-600"></i>
+                            <p class="text-sm font-bold text-emerald-800"><?php echo count($subjects); ?>種類の生物が記録されています</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <?php foreach ($subjects as $si => $subject): ?>
+                                <button @click="activeSubject = <?php echo $si; ?>"
+                                    :class="activeSubject === <?php echo $si; ?> ? 'bg-emerald-600 text-white shadow-md' : 'bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-100'"
+                                    class="px-4 py-2 rounded-full text-sm font-bold transition">
+                                    <?php
+                                    $subLabel = $subject['label'] ?? ($subject['taxon']['name'] ?? null);
+                                    if (!$subLabel) {
+                                        $subLabel = '生物 ' . ($si + 1);
+                                    }
+                                    echo htmlspecialchars($subLabel);
+                                    ?>
+                                    <?php if (!empty($subject['taxon'])): ?>
+                                        <span class="text-xs opacity-75 ml-1">(<?php echo htmlspecialchars($subject['taxon']['rank'] ?? ''); ?>)</span>
+                                    <?php endif; ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <?php foreach ($subjects as $si => $subject): ?>
+                            <div x-show="activeSubject === <?php echo $si; ?>" x-transition>
+                                <?php
+                                // Subject-specific AI assessment
+                                $subAi = $subjectAiAssessments[$subject['id']] ?? null;
+                                $subIds = $subject['identifications'] ?? [];
+                                ?>
+
+                                <?php if ($subAi): ?>
+                                    <div class="bg-white rounded-xl border border-emerald-200 p-3 mb-3">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                <?php echo htmlspecialchars($aiConfidenceLabelMap[$subAi['confidence_band'] ?? 'low'] ?? 'AI考察'); ?>
+                                            </span>
+                                            <?php if (!empty($subAi['subject_label'])): ?>
+                                                <span class="text-[10px] text-muted"><?php echo htmlspecialchars($subAi['subject_label']); ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php $subRec = $subAi['recommended_taxon'] ?? null; ?>
+                                        <?php if ($subRec): ?>
+                                            <p class="text-sm font-bold text-text">
+                                                <?php echo htmlspecialchars($subRec['name'] ?? ''); ?>
+                                                <?php if (!empty($subRec['rank'])): ?>
+                                                    <span class="text-xs text-muted">(<?php echo htmlspecialchars(aiRankLabel($subRec['rank'])); ?>)</span>
+                                                <?php endif; ?>
+                                            </p>
+                                        <?php endif; ?>
+                                        <?php if (!empty($subAi['summary'])): ?>
+                                            <p class="text-sm text-text mt-1"><?php echo htmlspecialchars(normalizeAiDisplayText($subAi['summary']) ?? ''); ?></p>
+                                        <?php endif; ?>
+                                        <?php if (!empty($subAi['diagnostic_features_seen'])): ?>
+                                            <p class="text-xs text-muted mt-2">見えている形質: <?php echo htmlspecialchars(implode(' / ', normalizeAiDisplayList($subAi['diagnostic_features_seen']))); ?></p>
+                                        <?php endif; ?>
+                                        <?php if (!empty($subAi['observer_boost'])): ?>
+                                            <p class="text-xs text-emerald-700 mt-1"><?php echo htmlspecialchars(normalizeAiDisplayText($subAi['observer_boost']) ?? ''); ?></p>
+                                        <?php endif; ?>
+                                        <?php if (!empty($subAi['next_step'])): ?>
+                                            <p class="text-xs text-sky-700 mt-1"><?php echo htmlspecialchars(normalizeAiDisplayText($subAi['next_step']) ?? ''); ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($subIds)): ?>
+                                    <div class="space-y-2">
+                                        <?php foreach ($subIds as $subId): ?>
+                                            <div class="flex items-center gap-2 p-2 bg-white rounded-lg border border-border">
+                                                <img src="<?php echo htmlspecialchars($subId['user_avatar'] ?? ''); ?>" class="w-6 h-6 rounded-full" alt="">
+                                                <span class="text-sm font-bold text-text"><?php echo htmlspecialchars($subId['taxon_name'] ?? ''); ?></span>
+                                                <span class="text-xs text-muted">by <?php echo htmlspecialchars($subId['user_name'] ?? ''); ?></span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <p class="text-xs text-muted italic">まだ同定されていません</p>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
                     </section>
                 <?php endif; ?>
 
@@ -1508,6 +1615,31 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                 <i data-lucide="git-merge" class="w-3 h-3"></i>
                                                 別の分類を提案する
                                             </p>
+                                            <!-- Multi-Subject: どの生物？ -->
+                                            <div class="mb-2" x-show="subjects.length > 1 || showSubjectSelector">
+                                                <label class="text-xs text-muted mb-1 block">どの生物について？</label>
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    <template x-for="s in subjects" :key="s.id">
+                                                        <button type="button"
+                                                            @click="selectedSubjectId = s.id; newSubjectLabel = ''"
+                                                            :class="selectedSubjectId === s.id ? 'bg-primary text-white' : 'bg-surface border border-border text-text hover:bg-primary/10'"
+                                                            class="px-3 py-1 text-xs rounded-full transition">
+                                                            <span x-text="s.label || '生物 ' + (subjects.indexOf(s) + 1)"></span>
+                                                        </button>
+                                                    </template>
+                                                    <button type="button"
+                                                        @click="selectedSubjectId = '__new__'; showSubjectSelector = true"
+                                                        :class="selectedSubjectId === '__new__' ? 'bg-emerald-600 text-white' : 'bg-surface border border-dashed border-emerald-400 text-emerald-600 hover:bg-emerald-50'"
+                                                        class="px-3 py-1 text-xs rounded-full transition flex items-center gap-1">
+                                                        <i data-lucide="plus" class="w-3 h-3"></i> 別の生物
+                                                    </button>
+                                                </div>
+                                                <div x-show="selectedSubjectId === '__new__'" x-collapse class="mt-2">
+                                                    <input type="text" x-model="newSubjectLabel"
+                                                        class="w-full bg-surface border border-emerald-300 rounded-lg p-2 text-sm text-text focus:outline-none focus:border-emerald-500"
+                                                        placeholder="ラベル（例: 昆虫、キノコ）...任意">
+                                                </div>
+                                            </div>
                                             <div class="flex items-center gap-2">
                                                 <input type="text" x-ref="disputeInput" x-model="taxonQuery"
                                                     @input.debounce.300ms="search()"
@@ -1632,7 +1764,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 observation_id: <?php echo json_encode($id, JSON_HEX_TAG | JSON_HEX_APOS); ?>,
                                 taxon_key: target.key, taxon_name: target.name,
                                 taxon_slug: target.slug, scientific_name: target.sci,
-                                confidence: 'sure', note: '', evidence_type: 'visual'
+                                confidence: 'sure', note: '', evidence_type: 'visual',
+                                subject_id: target.subject_id || 'primary'
                             })
                         });
                         var data = await res.json();
@@ -1753,6 +1886,14 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 taxonLineageIds: {},
                 suggestions: [],
                 showSugg: false,
+                // Multi-Subject
+                selectedSubjectId: 'primary',
+                newSubjectLabel: '',
+                showSubjectSelector: <?php echo $isMultiSubject ? 'true' : 'false'; ?>,
+                subjects: <?php echo json_encode(array_map(fn($s) => [
+                    'id' => $s['id'],
+                    'label' => $s['label'] ?? ($s['taxon']['name'] ?? null),
+                ], $subjects), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS); ?>,
                 submitting: false,
                 async search() {
                     const q = this.taxonQuery.trim();
@@ -1809,7 +1950,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 lineage_ids: this.taxonLineageIds || {},
                                 confidence: 'sure',
                                 life_stage: 'unknown',
-                                note: ''
+                                note: '',
+                                subject_id: this.selectedSubjectId || 'primary',
+                                new_subject_label: this.newSubjectLabel || null
                             })
                         });
                         const data = await res.json();

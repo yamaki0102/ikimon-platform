@@ -220,6 +220,8 @@ class AiAssessmentQueue
 
     private static function saveAssessmentToObservation(array $observation, array $assessment): void
     {
+        require_once __DIR__ . '/SubjectHelper.php';
+
         if (empty($assessment['id'])) {
             $assessment['id'] = 'ai-' . substr(bin2hex(random_bytes(8)), 0, 12);
         }
@@ -228,11 +230,50 @@ class AiAssessmentQueue
 
         $observation['ai_assessment_status'] = 'completed';
         $observation['ai_assessment_updated_at'] = date('Y-m-d H:i:s');
-        $observation['ai_assessments'] = array_values(array_filter(
-            $observation['ai_assessments'] ?? [],
-            fn($entry) => (string)($entry['kind'] ?? '') !== 'machine_assessment'
-        ));
-        $observation['ai_assessments'][] = $assessment;
+
+        // Multi-Subject: 複数生物検出時は各 subject に assessment を振り分け
+        $multiAssessments = $assessment['_multi_subject_assessments'] ?? null;
+        unset($assessment['_multi_subject_assessments']);
+
+        if ($multiAssessments !== null && count($multiAssessments) > 1) {
+            // 複数生物 → subjects[] を作成/拡張し、それぞれに assessment を格納
+            SubjectHelper::ensureSubjects($observation);
+
+            // 既存の machine_assessment を除去
+            $observation['ai_assessments'] = array_values(array_filter(
+                $observation['ai_assessments'] ?? [],
+                fn($entry) => (string)($entry['kind'] ?? '') !== 'machine_assessment'
+            ));
+
+            foreach ($multiAssessments as $i => $subAssessment) {
+                unset($subAssessment['_multi_subject_assessments']);
+                $subjectId = $subAssessment['subject_id'] ?? 'primary';
+                $subjectLabel = $subAssessment['subject_label'] ?? null;
+
+                // subject が存在しなければ追加（AI が新しい生物を発見した場合）
+                if ($subjectId !== 'primary' && SubjectHelper::findSubjectIndex($observation, $subjectId) < 0) {
+                    SubjectHelper::addSubject($observation, $subjectLabel ?? '');
+                    // addSubject で生成された ID を使う
+                    $lastIdx = count($observation['subjects']) - 1;
+                    $subjectId = $observation['subjects'][$lastIdx]['id'];
+                    $subAssessment['subject_id'] = $subjectId;
+                }
+
+                // フラットな配列にも追加
+                $observation['ai_assessments'][] = $subAssessment;
+            }
+
+            // subjects[] に振り分け
+            SubjectHelper::distributeAiAssessments($observation);
+        } else {
+            // 単一生物（従来の処理）
+            $observation['ai_assessments'] = array_values(array_filter(
+                $observation['ai_assessments'] ?? [],
+                fn($entry) => (string)($entry['kind'] ?? '') !== 'machine_assessment'
+            ));
+            $observation['ai_assessments'][] = $assessment;
+        }
+
         $observation['updated_at'] = date('Y-m-d H:i:s');
 
         // Phase 2: Verification Stage — AI分類結果を反映
