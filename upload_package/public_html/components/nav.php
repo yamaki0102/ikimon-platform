@@ -446,7 +446,7 @@
 </script>
 
 <!-- Mobile Bottom Nav (App Shell) -->
-<nav class="md:hidden bottom-nav" aria-label="モバイル ナビゲーション">
+<nav x-data class="md:hidden bottom-nav" aria-label="モバイル ナビゲーション">
     <a href="index.php"
         <?php if (basename($_SERVER['PHP_SELF']) == 'index.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
         class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'bottom-nav__item--active' : ''; ?>">
@@ -513,8 +513,8 @@
                 @keydown.escape="closeSearch()"
                 placeholder="種名・場所で検索..."
                 class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-[var(--color-surface)] border border-[var(--color-border-strong)] text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
-            <button x-show="q.length > 0" @click="q = ''; results = []" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--color-faint)] hover:text-[var(--color-text)]">
-                <i data-lucide="x" class="w-4 h-4"></i>
+            <button x-show="q.length > 0" @click="q = ''; results = []" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full text-[var(--color-faint)] hover:text-[var(--color-text)]" aria-label="検索をクリア">
+                <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
     </div>
@@ -683,8 +683,10 @@
         <p class="text-xs text-muted">ホーム画面からすぐ起動。フィールドで便利！</p>
     </div>
     <div class="flex gap-2 shrink-0">
-        <button onclick="pwaDismiss()" class="text-xs p-1 text-faint hover:text-text">✕</button>
-        <button onclick="pwaInstall()" class="btn-primary text-xs px-4 py-2">追加</button>
+        <button onclick="pwaDismiss()" class="p-2 min-w-11 min-h-11 flex items-center justify-center text-faint hover:text-text rounded-lg transition" aria-label="閉じる">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <button onclick="pwaInstall()" class="btn-primary text-xs px-4 py-2 min-h-11">追加</button>
     </div>
 </div>
 <style>

@@ -465,8 +465,8 @@ Auth::init();
                     <span>登録サイト</span>
                     <span class="text-xs font-normal text-muted" x-text="'(' + siteList.length + '件)'"></span>
                 </h3>
-                <button @click="showSitePanel = false" class="p-1.5 rounded-full hover:bg-bg-faint text-muted transition">
-                    <i data-lucide="x" class="w-4 h-4"></i>
+                <button @click="showSitePanel = false" class="p-2 min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-bg-faint text-muted transition" aria-label="閉じる">
+                    <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
             <div class="panel-list">
@@ -578,8 +578,8 @@ Auth::init();
                     <span>この周辺の観察</span>
                     <span class="text-xs font-normal text-muted" x-text="'(' + clusterItems.length + '件)'"></span>
                 </h3>
-                <button @click="showBottomSheet = false" class="p-1.5 rounded-full hover:bg-bg-faint text-muted transition">
-                    <i data-lucide="x" class="w-4 h-4"></i>
+                <button @click="showBottomSheet = false" class="p-2 min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-bg-faint text-muted transition" aria-label="閉じる">
+                    <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
             <!-- Observation List -->
