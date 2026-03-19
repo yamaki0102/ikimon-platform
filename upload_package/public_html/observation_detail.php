@@ -713,7 +713,6 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                         <?php endif; ?>
 
                                         <?php
-                                        // Similar taxa comparison
                                         $subSimilar = $subAi['similar_taxa_to_compare'] ?? [];
                                         $subMissing = $subAi['missing_evidence'] ?? [];
                                         if (!empty($subSimilar) || !empty($subMissing)):
