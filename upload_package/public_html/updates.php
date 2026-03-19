@@ -21,20 +21,84 @@ Auth::init();
 
     <main>
     <section class="pt-32 pb-16 px-6">
-        <div class="max-w-3xl mx-auto">
+        <div class="max-w-3xl mx-auto" x-data="{ filter: 'all' }">
             <h1 class="text-3xl font-black mb-4">アップデート履歴</h1>
-            <p class="text-gray-500 mb-12">ikimonの最新の改善と機能追加をお知らせします</p>
+            <p class="text-gray-500 mb-6">ikimonの最新の改善と機能追加をお知らせします</p>
+
+            <!-- Filter Tabs -->
+            <div class="flex gap-2 mb-10 flex-wrap">
+                <button @click="filter = 'all'"
+                    :class="filter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    class="px-4 py-2 rounded-full text-sm font-bold transition">すべて</button>
+                <button @click="filter = 'feature'"
+                    :class="filter === 'feature' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'"
+                    class="px-4 py-2 rounded-full text-sm font-bold transition flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> 新機能
+                </button>
+                <button @click="filter = 'fix'"
+                    :class="filter === 'fix' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'"
+                    class="px-4 py-2 rounded-full text-sm font-bold transition flex items-center gap-1.5">
+                    <i data-lucide="wrench" class="w-3.5 h-3.5"></i> バグ修正・改善
+                </button>
+                <button @click="filter = 'security'"
+                    :class="filter === 'security' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'"
+                    class="px-4 py-2 rounded-full text-sm font-bold transition flex items-center gap-1.5">
+                    <i data-lucide="shield" class="w-3.5 h-3.5"></i> セキュリティ
+                </button>
+            </div>
 
             <!-- Updates Timeline -->
             <div class="space-y-8">
 
-                <!-- v0.5.2 -->
-                <article class="relative pl-8 border-l-2 border-green-500/30">
+                <!-- v0.6.0 — NEW -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500 ring-4 ring-green-100"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.6.0</span>
+                        <time class="text-sm text-gray-500">2026年3月20日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">Growth Learning Loop — 学びのループが回り始める</h2>
+                    <p class="text-gray-500 text-sm mb-4">投稿→考察→成長実感→また投稿したくなる。ikimonの核心である「学習ループ」を強化する大型アップデートです。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>AI考察ティーザー</strong>: 投稿完了画面で「考察ミル」の第一印象をすぐに表示。投稿→考察の間の壁をなくしました</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>QRコード招待</strong>: プロフィールからQRコードを表示して、フィールドで出会った人にパッと招待できます。全画面表示モード付き</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>招待ランディングページ</strong>: 招待された人に考察ミルの価値を実際の観察例で見せる専用ページ。OGP対応でLINE/Twitterでもリッチに展開されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>学習ヒントカード</strong>: ホームフィードに「次にここを見ると深く分かるよ」カードを表示。前回の考察から次の観察への橋渡し</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>成長ログ</strong>: 分類精度・観察ポイント・分類群カバーの3指標で観察力の変化を可視化。「前より見えるようになった自分」が分かります</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>初回/最新観察の比較</strong>: プロフィールに最初の観察と最新の観察を並べて表示。見比べるだけで成長が実感できます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>デイリークエストUI</strong>: プロフィールに今日の目標3つを表示。達成するとスコアとバッジが獲得できます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>考察ミルの質向上</strong>: 「次に出会った時にこう撮ると絞れる」という具体的な1アクションを提案。撮り直し要求ではなく、次の出会いに備える設計に</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>パーソナライズ考察</strong>: 過去の観察履歴を踏まえて、観察者のレベルに合わせた考察を生成するように</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>KPI計測基盤</strong>: AI考察展開率・招待経由登録数・学習ヒントクリック数など16種のイベントを新規追加</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.5.3 — FIX -->
+                <article x-show="filter === 'all' || filter === 'fix'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500 ring-4 ring-green-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.5.3</span>
+                        <time class="text-sm text-gray-500">2026年3月19日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">FIX</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">同定フォーム修正</h2>
+                    <p class="text-gray-500 text-sm mb-4">種名検索・同定送信が正常に動作するようになりました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>同定フォーム送信修正</strong>: 種名検索結果のフィールド名ミスマッチにより同定が送信できないバグを修正。目・科レベルの同定も正常に動作します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>同定センター修正</strong>: クイック同定パネルにも同様の修正を適用</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>APIエラーハンドリング強化</strong>: PHPエラーをJSON形式で返すように改善し、無応答500エラーを解消</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>コウモリ目カタカナ表記</strong>: ローカルリゾルバーに追加し、検索で「翼手目」ではなく「コウモリ目」が優先表示されるように</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.5.2 — NEW -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.5.2</span>
                         <time class="text-sm text-gray-500">2026年3月17日</time>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">AI考察の専門用語かんたん解説</h2>
                     <p class="text-gray-500 text-sm mb-4">観察のヒントに出てくる専門用語に、小中学生でもわかるやさしい解説がつくようになりました。</p>
@@ -46,12 +110,13 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.5.1 -->
-                <article class="relative pl-8 border-l-2 border-green-500/30">
+                <!-- v0.5.1 — NEW -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.5.1</span>
                         <time class="text-sm text-gray-500">2026年3月17日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">ナビゲーション刷新 & 統合マイページ</h2>
                     <p class="text-gray-500 text-sm mb-4">ユーザーメニューを大幅に整理し、マイページに全ての個人情報を集約しました。</p>
@@ -64,12 +129,14 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.5.0 -->
-                <article class="relative pl-8 border-l-2 border-green-500/30">
+                <!-- v0.5.0 — NEW + SECURITY -->
+                <article x-show="filter === 'all' || filter === 'feature' || filter === 'security'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.5.0</span>
                         <time class="text-sm text-gray-500">2026年3月17日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">SECURITY</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">セマンティック検索と写真検索</h2>
                     <p class="text-gray-500 text-sm mb-4">生き物の探し方が広がりました。種名がわからなくても、写真や自然な文章から似た記録を見つけられるようになりました。</p>
@@ -84,12 +151,13 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.4.5 -->
-                <article class="relative pl-8 border-l-2 border-green-500/30">
+                <!-- v0.4.5 — NEW -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.4.5</span>
                         <time class="text-sm text-gray-500">2026年3月12日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">プラットフォーム仕上げ</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
@@ -102,12 +170,13 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.4.0 -->
-                <article class="relative pl-8 border-l-2 border-green-500/30">
+                <!-- v0.4.0 — NEW -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.4.0</span>
                         <time class="text-sm text-gray-500">2026年3月6日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">ゲーミフィケーション & ホームリデザイン</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
@@ -121,12 +190,14 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.3.5 -->
-                <article class="relative pl-8 border-l-2 border-green-500/30">
+                <!-- v0.3.5 — FIX + SECURITY -->
+                <article x-show="filter === 'all' || filter === 'fix' || filter === 'security'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.3.5</span>
                         <time class="text-sm text-gray-500">2026年3月5日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">FIX</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">SECURITY</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">同定ワークベンチ & セキュリティ</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
@@ -136,12 +207,13 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.3.0 -->
-                <article class="relative pl-8 border-l-2 border-green-500/30">
+                <!-- v0.3.0 — FIX -->
+                <article x-show="filter === 'all' || filter === 'fix'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.3.0</span>
                         <time class="text-sm text-gray-500">2026年3月4日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">FIX</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">大規模品質改善</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
@@ -157,12 +229,14 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.2.5 -->
-                <article class="relative pl-8 border-l-2 border-gray-200">
+                <!-- v0.2.5 — NEW + SECURITY -->
+                <article x-show="filter === 'all' || filter === 'feature' || filter === 'security'" x-transition class="relative pl-8 border-l-2 border-gray-200">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.2.5</span>
                         <time class="text-sm text-gray-500">2026年2月27日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">SECURITY</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">セキュリティ強化 & AI複数画像対応</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
@@ -176,12 +250,13 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.2.1 -->
-                <article class="relative pl-8 border-l-2 border-gray-200">
+                <!-- v0.2.1 — NEW -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-gray-200">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.2.1</span>
                         <time class="text-sm text-gray-500">2026年2月21日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">100年アーカイブ & 図鑑エンジン</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
@@ -194,12 +269,14 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.2.0 -->
-                <article class="relative pl-8 border-l-2 border-gray-200">
+                <!-- v0.2.0 — NEW + SECURITY -->
+                <article x-show="filter === 'all' || filter === 'feature' || filter === 'security'" x-transition class="relative pl-8 border-l-2 border-gray-200">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.2.0</span>
                         <time class="text-sm text-gray-500">2026年1月1日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">SECURITY</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">新年アップデート</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
@@ -211,12 +288,13 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.1.5 -->
-                <article class="relative pl-8 border-l-2 border-gray-200">
+                <!-- v0.1.5 — NEW -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-gray-200">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.1.5</span>
                         <time class="text-sm text-gray-500">2025年12月15日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">企業向け機能</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
@@ -226,12 +304,13 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.1.0 -->
-                <article class="relative pl-8 border-l-2 border-gray-200">
+                <!-- v0.1.0 — NEW -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-gray-200">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-gray-600"></div>
-                    <div class="flex items-center gap-3 mb-3">
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200">v0.1.0</span>
                         <time class="text-sm text-gray-500">2025年11月1日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">ベータ版</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
