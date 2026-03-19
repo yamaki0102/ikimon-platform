@@ -28,9 +28,26 @@ Auth::init();
             <!-- Updates Timeline -->
             <div class="space-y-8">
 
-                <!-- v0.6.0 -->
+                <!-- Infrastructure -->
                 <article class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500 ring-4 ring-green-100"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">インフラ</span>
+                        <time class="text-sm text-gray-500">2026年3月20日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">専用VPSへの移行</h2>
+                    <p class="text-gray-500 text-sm mb-4">より高速で安定したサービス提供のため、サーバー基盤を専用VPSへ移行しました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>専用VPS移行</strong>: 共有サーバーから6コア/12GB/400GB NVMe SSDの専用環境に。ページ表示速度とAPI応答が向上します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>SSL/HTTPS対応</strong>: Let's Encrypt による常時SSL化。全通信が暗号化されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>PostgreSQL + PostGIS</strong>: 地理空間データベースを導入。将来的なデータ量の増加と高度な空間検索に対応する基盤を整備しました</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.6.0 -->
+                <article class="relative pl-8 border-l-2 border-green-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
                     <div class="flex items-center gap-3 mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.6.0</span>
                         <time class="text-sm text-gray-500">2026年3月19日</time>
