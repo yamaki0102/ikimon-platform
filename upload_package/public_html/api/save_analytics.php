@@ -54,7 +54,24 @@ $allowedEvents = [
     'bridge_click',
     'onboarding_step',
     'id_attempt',
-    'notification_open'
+    'notification_open',
+    // Growth Loop KPI events
+    'ai_teaser_shown',
+    'ai_teaser_click',
+    'ai_teaser_timeout',
+    'ai_assessment_expand',
+    'share_click',
+    'share_line',
+    'share_twitter',
+    'share_copy_link',
+    'qr_shown',
+    'qr_fullscreen',
+    'qr_save',
+    'invite_link_copy',
+    'learning_hint_click',
+    'quest_card_view',
+    'invite_created',
+    'invite_accepted'
 ];
 
 $added = 0;

@@ -51,6 +51,9 @@ function uploader() {
         _burstDetected: false,   // True if consecutive photos <30s apart
         activeSessionId: null,   // Free Roam session auto-link
         lastObservationId: null,
+        aiStatus: 'idle',     // idle | pending | ready | timeout
+        aiPreview: null,      // { summary, recommended_taxon }
+        aiPollCount: 0,
         submitting: false,
         progress: 0,
         success: false,
@@ -280,6 +283,9 @@ function uploader() {
             this.success = false;
             this.progress = 0;
             this.lastObservationId = null;
+            this.aiStatus = 'idle';
+            this.aiPreview = null;
+            this.aiPollCount = 0;
             this.event_id = null;
             this.event_name = '';
             const now = new Date();
@@ -518,6 +524,40 @@ function uploader() {
                 this.guestPostCount++;
             }
             this.$nextTick(() => lucide.createIcons());
+
+            // AI考察ティーザー: ポーリング開始
+            if (this.lastObservationId) {
+                this.aiStatus = 'pending';
+                this.aiPollCount = 0;
+                this.pollAiStatus();
+            }
+        },
+
+        async pollAiStatus() {
+            if (this.aiPollCount >= 10) {
+                this.aiStatus = 'timeout';
+                if (window.ikimonAnalytics) ikimonAnalytics.track('ai_teaser_timeout', { obs_id: this.lastObservationId });
+                return;
+            }
+            this.aiPollCount++;
+            try {
+                const res = await fetch('api/get_observation_ai_status.php?id=' + encodeURIComponent(this.lastObservationId));
+                const data = await res.json();
+                if (data.ready) {
+                    this.aiPreview = {
+                        summary: data.summary || '',
+                        recommended_taxon: data.recommended_taxon || ''
+                    };
+                    this.aiStatus = 'ready';
+                    if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+                    if (window.ikimonAnalytics) ikimonAnalytics.track('ai_teaser_shown', { obs_id: this.lastObservationId });
+                    this.$nextTick(() => lucide.createIcons());
+                    return;
+                }
+            } catch (e) {
+                console.warn('[AI Teaser] Poll failed:', e);
+            }
+            setTimeout(() => this.pollAiStatus(), 3000);
         },
 
         async searchTaxon() {
