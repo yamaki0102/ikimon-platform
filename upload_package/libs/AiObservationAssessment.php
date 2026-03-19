@@ -271,8 +271,14 @@ class AiObservationAssessment
 8. similar_taxa_to_compare は文字列の配列。各要素は「種名|見分けポイント」の形式（パイプ区切り）。見分けポイントは15文字以内。例: ["マンリョウ|実が葉の下に垂れ下がる", "カラタチバナ|葉が細長く実が少ない"]。見分けポイントが書けない場合は種名のみ。
 9. species レベルを勧めるのは写真から識別形質が明瞭な場合だけです。迷うなら genus / family を選んでください。
 10. 観察者を萎縮させる表現は禁止です。「不足」「弱い」より「次にこれが見えると絞りやすい」のように前向きに伝えてください。
-11. observer_boost は、観察者の自己効力感を上げる短い一文にしてください。過度に褒めず、何が既に有効な観察かを伝えてください。
-12. next_step は、次に何を撮れば精度が上がるかを具体的に1文で示してください。負担感ではなく「ここまでできれば十分役立つ」に寄せてください。
+11. observer_boost は、観察者の自己効力感を上げる短い一文にしてください。過度に褒めず、「この写真のどこが既に有効な手がかりになっているか」を具体的に伝えてください。例: 「翅脈がはっきり写っているので、科レベルの判定に十分です」
+12. next_step のルール（重要）:
+  - 「この写真を撮り直してほしい」は絶対に言わないでください。もう戻れないかもしれません。
+  - 「次にこの生き物（または似た生き物）に出会った時」を前提にしてください。
+  - 具体的な1アクションを指示してください。例: 「次に出会ったら、葉の裏側を接写で1枚撮ると毛の有無で種が絞れます」
+  - 抽象的な指示（「もっと詳しく観察する」「別角度から撮る」等）は禁止。何を・どう撮るかを明示。
+  - 観察者が「それならできそう」と感じる難易度にしてください。観察スキルの少しだけ先を示す。
+  - 80文字以内、日本語、前向きなトーン。
 13. suggestions は1〜3件で、迷いがあるときは候補を複数返してください。候補同士で共通する階級があるなら、その共通範囲を意識して suggestions を組んでください。
 
 出力形式:
@@ -295,6 +301,19 @@ class AiObservationAssessment
   ]
 }
 PROMPT;
+
+        // パーソナライズ: batch/deep lane のみユーザーコンテキスト注入
+        $lane = $profile['lane'] ?? 'fast';
+        if (in_array($lane, ['batch', 'deep'], true)) {
+            $userId = $observation['user_id'] ?? '';
+            if ($userId !== '') {
+                $userCtx = self::buildUserContext($userId);
+                if ($userCtx !== '') {
+                    $prompt .= "\n\n[Observer Context]\n" . $userCtx
+                        . "\nこの観察者のレベルに合わせて next_step の難易度を調整してください。";
+                }
+            }
+        }
 
         $parts = [['text' => $prompt]];
         foreach ($images as $image) {
@@ -462,6 +481,52 @@ PROMPT;
             }
         }
         return array_values($clean);
+    }
+
+    /**
+     * ユーザーの過去観察コンテキストを200文字以内で生成（パーソナライズ用）
+     */
+    private static function buildUserContext(string $userId): string
+    {
+        try {
+            $obs = DataStore::getLatest('observations', 30, function ($item) use ($userId) {
+                return ($item['user_id'] ?? '') === $userId;
+            });
+            if (count($obs) < 2) return '';
+
+            $speciesList = [];
+            $groups = [];
+            $evidenceTags = [];
+            foreach ($obs as $o) {
+                $name = $o['taxon']['name'] ?? '';
+                if ($name !== '' && !isset($speciesList[$name])) {
+                    $speciesList[$name] = true;
+                }
+                $order = $o['taxon']['lineage']['order'] ?? '';
+                if ($order !== '') $groups[$order] = true;
+                foreach ($o['evidence_tags'] ?? [] as $tag) {
+                    $evidenceTags[$tag] = ($evidenceTags[$tag] ?? 0) + 1;
+                }
+            }
+
+            $speciesStr = implode(', ', array_slice(array_keys($speciesList), 0, 5));
+            $groupStr = implode(', ', array_slice(array_keys($groups), 0, 3));
+            arsort($evidenceTags);
+            $tagStr = implode(', ', array_slice(array_keys($evidenceTags), 0, 4));
+
+            $ctx = sprintf(
+                '過去%d件観察, %d種確認(%s等), 得意分類群: %s, よく使う手がかり: %s',
+                count($obs),
+                count($speciesList),
+                $speciesStr,
+                $groupStr ?: '不明',
+                $tagStr ?: 'なし'
+            );
+
+            return mb_substr($ctx, 0, 200);
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     private static function clip(string $value, int $limit = 80): string

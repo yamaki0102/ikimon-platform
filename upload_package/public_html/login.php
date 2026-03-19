@@ -110,6 +110,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $user = UserStore::create($name, $email, $password, 'Observer', '観察者');
 
+                // 招待コード処理
+                $inviteCode = $_POST['invite_code'] ?? ($_SESSION['invite_code'] ?? ($_COOKIE['invite_code'] ?? ''));
+                if ($inviteCode !== '' && $user) {
+                    require_once __DIR__ . '/../libs/InviteManager.php';
+                    $inviter = InviteManager::resolveCode($inviteCode);
+                    if ($inviter) {
+                        InviteManager::recordAcceptance($inviteCode, $user['id'], $user['name']);
+                        // ユーザーレコードに invited_by を記録
+                        $users = DataStore::get('users');
+                        foreach ($users as &$u) {
+                            if ($u['id'] === $user['id']) {
+                                $u['invited_by'] = $inviter['user_id'];
+                                $u['invite_code'] = $inviteCode;
+                                break;
+                            }
+                        }
+                        unset($u);
+                        DataStore::save('users', $users);
+                    }
+                    unset($_SESSION['invite_code']);
+                    setcookie('invite_code', '', time() - 3600, '/');
+                }
+
                 // ゲスト投稿データ引き継ぎ
                 $guestData = Auth::migrateGuestData();
 
