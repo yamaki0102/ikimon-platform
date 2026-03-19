@@ -95,8 +95,45 @@ $taxonKey       = $data['taxon_key'] ?? '';
 $taxonSlug      = $data['taxon_slug'] ?? '';
 $taxonRank      = $lineageData['rank'] ?? ($data['taxon_rank'] ?? '');
 
+// Step 1: ローカルDB（オモイカネ2971種 + TaxonSearchService）で即座に和名→学名解決
+if ($scientificName === '' && $taxonName !== '') {
+    // 1a. オモイカネDB（最速、ネットワーク不要）
+    require_once __DIR__ . '/../../libs/OmoikaneSearchEngine.php';
+    $omoikane = new OmoikaneSearchEngine();
+    $localMatch = $omoikane->resolveByJapaneseName($taxonName);
+    if ($localMatch && !empty($localMatch['scientific_name'])) {
+        $scientificName = $localMatch['scientific_name'];
+    }
+
+    // 1b. TaxonSearchService（iNat/ローカルキャッシュ含む、より広範）
+    //     完全一致 or ja_name完全一致を優先（「アリ」で「ユキノシタ目」がヒットする問題を防ぐ）
+    if ($scientificName === '') {
+        require_once __DIR__ . '/../../libs/TaxonSearchService.php';
+        $searchResults = TaxonSearchService::search($taxonName, ['locale' => 'ja', 'limit' => 5]);
+        $bestMatch = null;
+        foreach ($searchResults as $sr) {
+            $jaName = $sr['ja_name'] ?? '';
+            if ($jaName === $taxonName) {
+                // 完全一致 — 最優先
+                $bestMatch = $sr;
+                break;
+            }
+            if ($bestMatch === null && mb_strpos($jaName, $taxonName) === 0) {
+                // 前方一致 — 次点
+                $bestMatch = $sr;
+            }
+        }
+        if ($bestMatch && !empty($bestMatch['scientific_name'])) {
+            $scientificName = $bestMatch['scientific_name'];
+            if (empty($taxonSlug) && !empty($bestMatch['slug'])) {
+                $taxonSlug = $bestMatch['slug'];
+            }
+        }
+    }
+}
+
+// Step 2: GBIF match で学名・lineage・key を補完
 if ($scientificName === '' || empty($taxonKey) || empty($lineageData['kingdom'])) {
-    // GBIF match で補完を試みる
     $matchQuery = $scientificName !== '' ? $scientificName : $taxonName;
     if ($matchQuery !== '') {
         $gbifMatch = Taxon::match($matchQuery);
