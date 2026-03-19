@@ -163,12 +163,12 @@
                 <div x-show="searchResults.length > 0"
                     x-transition
                     class="absolute top-full left-0 right-0 mt-1 bg-[#111418] border border-white/10 rounded-xl overflow-hidden z-50 shadow-2xl max-h-[40vh] overflow-y-auto">
-                    <template x-for="(result, ri) in searchResults" :key="result.key || ri">
+                    <template x-for="(result, ri) in searchResults" :key="result.slug || ri">
                         <button @click.prevent="selectTaxon(result)"
                             class="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 last:border-0 transition flex items-center justify-between gap-2">
                             <div class="min-w-0">
-                                <p class="font-bold text-sm truncate" x-text="result.canonicalName || result.scientificName"></p>
-                                <p class="text-xs text-gray-500 italic truncate" x-text="result.scientificName"></p>
+                                <p class="font-bold text-sm truncate" x-text="result.ja_name || result.scientific_name"></p>
+                                <p class="text-xs text-gray-500 italic truncate" x-text="result.scientific_name"></p>
                             </div>
                             <span class="text-[9px] px-2 py-0.5 rounded-full bg-white/10 font-bold uppercase shrink-0" x-text="result.rank"></span>
                         </button>
@@ -183,11 +183,11 @@
                     <p class="text-[10px] font-bold text-[var(--color-primary)] flex items-center gap-1 mb-0.5">
                         <i data-lucide="check-circle-2" class="w-3 h-3"></i> 選択中
                     </p>
-                    <p class="text-sm font-bold truncate" x-text="selected ? selected.canonicalName : ''"></p>
-                    <p class="text-xs text-gray-500 italic truncate" x-text="selected ? selected.scientificName : ''"></p>
+                    <p class="text-sm font-bold truncate" x-text="selected ? (selected.ja_name || selected.scientific_name) : ''"></p>
+                    <p class="text-xs text-gray-500 italic truncate" x-text="selected ? selected.scientific_name : ''"></p>
                 </div>
-                <button @click.prevent="clearSelection()" class="p-1.5 hover:bg-red-500/20 rounded-full transition shrink-0">
-                    <i data-lucide="x" class="w-4 h-4 text-red-400"></i>
+                <button @click.prevent="clearSelection()" class="p-2 min-w-11 min-h-11 flex items-center justify-center hover:bg-red-500/20 rounded-full transition shrink-0" aria-label="選択をクリア">
+                    <i data-lucide="x" class="w-5 h-5 text-red-400"></i>
                 </button>
             </div>
 
@@ -366,7 +366,8 @@
                 this.searching = true;
                 try {
                     const res = await fetch(`api/search_taxon.php?q=${encodeURIComponent(this.query)}`);
-                    this.searchResults = await res.json();
+                    const data = await res.json();
+                    this.searchResults = data.results || [];
                 } catch (e) {
                     console.error('Taxon search failed:', e);
                     this.searchResults = [];
@@ -378,7 +379,7 @@
             selectTaxon(result) {
                 this.selected = result;
                 this.searchResults = [];
-                this.query = result.canonicalName || result.scientificName;
+                this.query = result.ja_name || result.scientific_name;
             },
 
             clearSelection() {
@@ -396,11 +397,11 @@
                 try {
                     const payload = {
                         observation_id: this.item.id,
-                        taxon_key: this.selected.key,
-                        taxon_name: this.selected.canonicalName || this.selected.scientificName,
-                        scientific_name: this.selected.scientificName,
+                        taxon_key: this.selected.gbif_key || this.selected.inat_taxon_id || '',
+                        taxon_name: this.selected.ja_name || this.selected.scientific_name,
+                        scientific_name: this.selected.scientific_name,
                         taxon_rank: this.selected.rank || 'species',
-                        taxon_slug: (this.selected.canonicalName || '').toLowerCase().replace(/\s+/g, '-'),
+                        taxon_slug: this.selected.slug || '',
                         confidence: this.confidence,
                         life_stage: this.lifeStage,
                         note: this.note,
@@ -419,7 +420,7 @@
                      */
                     const _csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-                    const res = await fetch('api/post_identification.php', {
+                    const res = await fetch(`api/post_identification.php?csrf_token=${encodeURIComponent(_csrf)}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

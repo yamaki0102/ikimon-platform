@@ -7,33 +7,33 @@
             <!-- Column 1: ikimon -->
             <div>
                 <p class="text-[10px] font-black uppercase tracking-widest text-faint mb-3">ikimon</p>
-                <div class="flex flex-col gap-2">
-                    <a href="about.php" class="hover:text-text transition"><?php echo __('nav.about'); ?></a>
-                    <a href="faq.php" class="hover:text-text transition"><?php echo __('nav.faq'); ?></a>
-                    <a href="updates.php" class="hover:text-text transition"><?php echo __('nav.updates'); ?></a>
-                    <a href="mailto:contact@ikimon.life" class="hover:text-text transition"><?php echo __('nav.contact'); ?></a>
+                <div class="flex flex-col gap-0">
+                    <a href="about.php" class="hover:text-text transition py-2 min-h-11 flex items-center"><?php echo __('nav.about'); ?></a>
+                    <a href="faq.php" class="hover:text-text transition py-2 min-h-11 flex items-center"><?php echo __('nav.faq'); ?></a>
+                    <a href="updates.php" class="hover:text-text transition py-2 min-h-11 flex items-center"><?php echo __('nav.updates'); ?></a>
+                    <a href="mailto:contact@ikimon.life" class="hover:text-text transition py-2 min-h-11 flex items-center"><?php echo __('nav.contact'); ?></a>
                 </div>
             </div>
 
             <!-- Column 2: Service -->
             <div>
                 <p class="text-[10px] font-black uppercase tracking-widest text-faint mb-3">Service</p>
-                <div class="flex flex-col gap-2">
-                    <a href="pricing.php" class="hover:text-text transition">料金プラン</a>
-                    <a href="for-business/" class="hover:text-primary transition"><?php echo __('nav.business'); ?></a>
-                    <a href="for-researcher.php" class="hover:text-text transition">研究者・専門家様</a>
-                    <a href="showcase.php" class="hover:text-text transition"><?php echo __('nav.showcase'); ?></a>
-                    <button onclick="localStorage.removeItem('ikimon_onboarded'); location.reload();" class="hover:text-text transition text-left"><?php echo __('nav.beginners'); ?></button>
+                <div class="flex flex-col gap-0">
+                    <a href="pricing.php" class="hover:text-text transition py-2 min-h-11 flex items-center">料金プラン</a>
+                    <a href="for-business/" class="hover:text-primary transition py-2 min-h-11 flex items-center"><?php echo __('nav.business'); ?></a>
+                    <a href="for-researcher.php" class="hover:text-text transition py-2 min-h-11 flex items-center">研究者・専門家様</a>
+                    <a href="showcase.php" class="hover:text-text transition py-2 min-h-11 flex items-center"><?php echo __('nav.showcase'); ?></a>
+                    <button onclick="localStorage.removeItem('ikimon_onboarded'); location.reload();" class="hover:text-text transition text-left py-2 min-h-11 flex items-center"><?php echo __('nav.beginners'); ?></button>
                 </div>
             </div>
 
             <!-- Column 3: Legal -->
             <div class="col-span-2 md:col-span-1">
                 <p class="text-[10px] font-black uppercase tracking-widest text-faint mb-3">Legal</p>
-                <div class="flex flex-col gap-2">
-                    <a href="terms.php" class="hover:text-text transition"><?php echo __('nav.terms'); ?></a>
-                    <a href="privacy.php" class="hover:text-text transition"><?php echo __('nav.privacy'); ?></a>
-                    <a href="guidelines.php" class="hover:text-text transition"><?php echo __('nav.guidelines'); ?></a>
+                <div class="flex flex-col gap-0">
+                    <a href="terms.php" class="hover:text-text transition py-2 min-h-11 flex items-center"><?php echo __('nav.terms'); ?></a>
+                    <a href="privacy.php" class="hover:text-text transition py-2 min-h-11 flex items-center"><?php echo __('nav.privacy'); ?></a>
+                    <a href="guidelines.php" class="hover:text-text transition py-2 min-h-11 flex items-center"><?php echo __('nav.guidelines'); ?></a>
                 </div>
             </div>
         </div>

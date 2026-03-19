@@ -95,8 +95,8 @@ if ($isGuest) {
                         <p class="text-xs font-bold text-primary truncate" x-text="event_name"></p>
                         <p class="text-[10px] text-primary/60">この観察会に記録が紐づけられます</p>
                     </div>
-                    <button type="button" @click="event_id = null; event_name = ''" class="text-primary/40 hover:text-primary p-1">
-                        <i data-lucide="x" class="w-4 h-4"></i>
+                    <button type="button" @click="event_id = null; event_name = ''" class="text-primary/40 hover:text-primary p-2 min-w-11 min-h-11 flex items-center justify-center" aria-label="観察会連携を解除">
+                        <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
                 </div>
             </template>
@@ -160,11 +160,11 @@ if ($isGuest) {
                             <template x-for="(photo, index) in photos" :key="index">
                                 <div class="relative aspect-square rounded-2xl overflow-hidden bg-surface shadow-md">
                                     <img :src="photo.preview" :alt="'観察写真 ' + (index + 1)" class="w-full h-full object-cover">
-                                    <button @click.prevent="savePhoto(photo, index)" class="absolute top-2 left-2 p-1 bg-black/50 rounded-full hover:bg-primary transition z-30 sm:hidden" title="端末に保存">
-                                        <i data-lucide="download" class="w-3 h-3 text-white"></i>
+                                    <button @click.prevent="savePhoto(photo, index)" class="absolute top-2 left-2 p-2 bg-black/50 rounded-full hover:bg-primary transition z-30 sm:hidden min-w-11 min-h-11 flex items-center justify-center" title="端末に保存" aria-label="端末に保存">
+                                        <i data-lucide="download" class="w-5 h-5 text-white"></i>
                                     </button>
-                                    <button @click.prevent="removePhoto(index)" class="absolute top-2 right-2 p-1 bg-black/50 rounded-full hover:bg-danger transition z-30">
-                                        <i data-lucide="x" class="w-3 h-3 text-white"></i>
+                                    <button @click.prevent="removePhoto(index)" class="absolute top-2 right-2 p-2 bg-black/50 rounded-full hover:bg-danger transition z-30 min-w-11 min-h-11 flex items-center justify-center" aria-label="写真を削除">
+                                        <i data-lucide="x" class="w-5 h-5 text-white"></i>
                                     </button>
                                 </div>
                             </template>
@@ -800,6 +800,47 @@ if ($isGuest) {
                     </div>
                 </template>
 
+                <!-- AI考察ティーザー -->
+                <div class="max-w-xs mx-auto mb-4">
+                    <!-- ローディング状態 -->
+                    <template x-if="aiStatus === 'pending'">
+                        <div class="bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 rounded-2xl p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <div class="w-4 h-4 border-2 border-sky-400 border-t-transparent rounded-full animate-spin"></div>
+                                <p class="text-[10px] font-black text-sky-700 dark:text-sky-400 uppercase tracking-widest">考察ミル稼働中...</p>
+                            </div>
+                            <div class="space-y-2 animate-pulse">
+                                <div class="h-3 bg-sky-200 dark:bg-sky-800 rounded w-3/4"></div>
+                                <div class="h-3 bg-sky-200 dark:bg-sky-800 rounded w-1/2"></div>
+                            </div>
+                        </div>
+                    </template>
+                    <!-- 考察完了 -->
+                    <template x-if="aiStatus === 'ready' && aiPreview">
+                        <div class="bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 rounded-2xl p-4"
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0 translate-y-2"
+                             x-transition:enter-end="opacity-100 translate-y-0">
+                            <p class="text-[10px] font-black text-sky-700 dark:text-sky-400 uppercase tracking-widest mb-2">考察ミルの第一印象</p>
+                            <p x-show="aiPreview.recommended_taxon" class="text-sm font-bold text-sky-900 dark:text-sky-200" x-text="aiPreview.recommended_taxon"></p>
+                            <p class="text-xs text-sky-800 dark:text-sky-300 mt-1 leading-relaxed line-clamp-3" x-text="aiPreview.summary"></p>
+                            <a :href="'observation_detail.php?id=' + lastObservationId"
+                               @click="if(window.ikimonAnalytics) ikimonAnalytics.track('ai_teaser_click', {obs_id: lastObservationId})"
+                               class="inline-flex items-center gap-1 text-xs font-bold text-sky-700 dark:text-sky-400 mt-2 hover:underline">
+                                詳しく見る <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                            </a>
+                        </div>
+                    </template>
+                    <!-- タイムアウト -->
+                    <template x-if="aiStatus === 'timeout'">
+                        <div class="bg-surface border border-border rounded-2xl p-3 text-center">
+                            <p class="text-xs text-muted">
+                                考察の準備中… <a :href="'observation_detail.php?id=' + lastObservationId" class="text-primary font-bold hover:underline">詳細ページで確認 →</a>
+                            </p>
+                        </div>
+                    </template>
+                </div>
+
                 <!-- 同定ブリッジ CTA -->
                 <div class="space-y-3 max-w-xs mx-auto">
                     <!-- 未同定: ID Wizardへ直行（要素3: ブリッジの核心） -->
@@ -855,7 +896,7 @@ if ($isGuest) {
     </script>
     <script src="js/exif-mini.js?v=1.0"></script>
     <script src="js/ai-assist.js?v=2.0"></script>
-    <script src="js/post-uploader.js?v=2.4"></script>
+    <script src="js/post-uploader.js?v=2.5"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>

@@ -213,8 +213,8 @@ if (!$currentUser) {
                 詳しく見る
             </button>
             <button @click="showWelcome = false; localStorage.setItem('ikimon_wb_welcomed','1')"
-                class="p-1 rounded-full text-gray-500 hover:text-white hover:bg-white/10 transition" title="閉じる">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                class="p-2 min-w-11 min-h-11 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-white/10 transition" title="閉じる" aria-label="閉じる">
+                <i data-lucide="x" class="w-4 h-4"></i>
             </button>
         </div>
     </div>
@@ -228,8 +228,8 @@ if (!$currentUser) {
             <!-- Mobile drawer header -->
             <div class="md:hidden flex items-center justify-between px-3 py-2 border-b border-white/5 shrink-0">
                 <span class="text-xs font-black text-gray-300">フィルタ</span>
-                <button @click="showMobileFilter = false" class="p-1.5 hover:bg-white/10 rounded-full transition">
-                    <i data-lucide="x" class="w-4 h-4 text-gray-400"></i>
+                <button @click="showMobileFilter = false" class="p-2 min-w-11 min-h-11 flex items-center justify-center hover:bg-white/10 rounded-full transition" aria-label="フィルタを閉じる">
+                    <i data-lucide="x" class="w-5 h-5 text-gray-400"></i>
                 </button>
             </div>
             <!-- Search -->
