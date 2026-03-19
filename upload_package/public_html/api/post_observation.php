@@ -505,6 +505,10 @@ $observation = [
     // Phase 2: Verification Stage (100-year data lineage)
     'verification_stage' => 'unverified',
     'stage_history' => [],
+    // Century-durability: 位置不確実性と来歴
+    'location_uncertainty_m' => !empty($_POST['coordinate_accuracy']) ? (float)$_POST['coordinate_accuracy'] : 10.0,
+    'source_device' => trim($_POST['source_device'] ?? ($_SERVER['HTTP_X_DEVICE_ID'] ?? 'web')),
+    'schema_version' => '1.0',
 ];
 
 if ($isSurveyorOfficial) {

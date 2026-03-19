@@ -1,17 +1,20 @@
 <?php
 
 /**
- * EcosystemMapper.php — エリア3D生態系モデル構築エンジン
+ * EcosystemMapper.php — エリア生態系モデル構築エンジン
  *
- * 複数のセンサーデータ（GPS、カメラ検出、音声検出、LiDAR点群、
- * 加速度、気圧）を統合し、エリアの生態系デジタルツインを構築する。
+ * @deprecated Phase 7 で CanonicalObservationStore (PostGIS) に移行予定。
+ *   このクラスは JSON ファイルベースの暫定実装。
+ *   新機能はこのクラスに追加せず、移行先の設計を優先すること。
  *
- * データ構造:
- *   Area → Zone[] → Layer[] → Organism[]
- *   時間軸: 各要素にタイムスタンプ → 季節変動・経年変化を追跡
+ * 設計上の注意:
+ *   - raw_events[] は個別イベントとして保持（マージしない）
+ *   - organisms[] は raw_events から導出した derived view
+ *   - taxon_name 文字列だけでのマージは禁止（GBIF key を使うこと）
+ *   - location_uncertainty_m を全イベントに付与すること
  *
  * 出力:
- *   - 3D空間マップ（GeoJSON + 高さ情報）
+ *   - 3D空間マップ（GeoJSON + 高さ情報 + uncertainty）
  *   - 種分布ヒートマップ
  *   - 時系列変動グラフデータ
  *   - エリア生物多様性スコア
@@ -71,9 +74,11 @@ class EcosystemMapper
         // 環境データ
         $environment = self::processEnvironment($scanData['environment'] ?? []);
 
-        // モデルに統合
+        // モデルに統合（raw events を蓄積、organisms は derived）
         $model['sessions'][] = $session;
-        $model['organisms'] = self::mergeOrganisms($model['organisms'], array_merge($organisms, $audioOrganisms));
+        if (!isset($model['raw_events'])) $model['raw_events'] = [];
+        $model['raw_events'] = self::mergeRawEvents($model['raw_events'], array_merge($organisms, $audioOrganisms));
+        $model['organisms'] = self::rebuildDerivedViews($model['raw_events']);
         $model['vegetation'] = self::mergeVegetation($model['vegetation'], $vegetationStructure);
         $model['environment_history'][] = $environment;
         $model['updated_at'] = date('c');
@@ -238,42 +243,35 @@ class EcosystemMapper
 
     // === 内部処理 ===
 
+    /**
+     * 検出データを個別イベントとして保持する（マージしない）。
+     * 各イベントに event_id, source_device, location_uncertainty_m を付与。
+     */
     private static function processDetections(array $detections, string $sessionId): array
     {
-        $organisms = [];
+        $events = [];
         foreach ($detections as $det) {
             if (($det['confidence'] ?? 0) < 0.4) continue;
 
-            $key = ($det['taxon_name'] ?? 'unknown') . '_' . round($det['lat'] ?? 0, 4) . '_' . round($det['lng'] ?? 0, 4);
-
-            if (!isset($organisms[$key])) {
-                $organisms[$key] = [
-                    'taxon_name' => $det['taxon_name'],
-                    'scientific_name' => $det['scientific_name'] ?? '',
-                    'lat' => $det['lat'],
-                    'lng' => $det['lng'],
-                    'alt' => $det['alt'] ?? 0,
-                    'zone' => $det['zone'] ?? self::inferZone($det),
-                    'detection_type' => $det['type'] ?? 'visual',
-                    'best_confidence' => $det['confidence'],
-                    'observation_count' => 0,
-                    'first_seen' => $det['timestamp'] ?? date('c'),
-                    'last_seen' => $det['timestamp'] ?? date('c'),
-                    'sightings' => [],
-                ];
-            }
-
-            $organisms[$key]['observation_count']++;
-            $organisms[$key]['best_confidence'] = max($organisms[$key]['best_confidence'], $det['confidence']);
-            $organisms[$key]['last_seen'] = $det['timestamp'] ?? date('c');
-            $organisms[$key]['sightings'][] = [
+            $events[] = [
+                'event_id' => 'ev_' . bin2hex(random_bytes(8)),
                 'session_id' => $sessionId,
+                'taxon_name' => $det['taxon_name'] ?? 'unknown',
+                'scientific_name' => $det['scientific_name'] ?? '',
+                'taxon_key' => $det['taxon_key'] ?? null,
+                'lat' => $det['lat'] ?? null,
+                'lng' => $det['lng'] ?? null,
+                'alt' => $det['alt'] ?? 0,
+                'zone' => $det['zone'] ?? self::inferZone($det),
+                'detection_type' => $det['type'] ?? 'visual',
+                'confidence' => $det['confidence'] ?? 0,
                 'timestamp' => $det['timestamp'] ?? date('c'),
-                'confidence' => $det['confidence'],
+                'source_device' => $det['source_device'] ?? 'unknown',
+                'location_uncertainty_m' => $det['location_uncertainty_m'] ?? 10.0,
             ];
         }
 
-        return array_values($organisms);
+        return $events;
     }
 
     private static function processAudioEvents(array $events, string $sessionId): array
@@ -316,28 +314,68 @@ class EcosystemMapper
         return self::ZONE_GROUND;
     }
 
-    private static function mergeOrganisms(array $existing, array $new): array
+    /**
+     * raw events を蓄積する（潰さない）。
+     * organisms は rebuildDerivedViews() で導出する。
+     */
+    private static function mergeRawEvents(array $existing, array $new): array
     {
-        $merged = [];
-        foreach ($existing as $org) {
-            $merged[$org['taxon_name']] = $org;
-        }
+        return array_merge($existing, $new);
+    }
 
-        foreach ($new as $org) {
-            $key = $org['taxon_name'];
-            if (isset($merged[$key])) {
-                $merged[$key]['observation_count'] += $org['observation_count'];
-                $merged[$key]['best_confidence'] = max($merged[$key]['best_confidence'], $org['best_confidence']);
-                $merged[$key]['last_seen'] = max($merged[$key]['last_seen'], $org['last_seen']);
-                $merged[$key]['sightings'] = array_merge($merged[$key]['sightings'] ?? [], $org['sightings'] ?? []);
-                // 季節パターン更新
-                $merged[$key]['seasonal_pattern'] = self::buildSeasonalPattern($merged[$key]['sightings']);
-            } else {
-                $merged[$key] = $org;
+    /**
+     * raw_events から derived summary (organisms) を再構築する。
+     * taxon_key があればそれを使い、なければ taxon_name でフォールバック。
+     */
+    public static function rebuildDerivedViews(array $rawEvents): array
+    {
+        $organisms = [];
+
+        foreach ($rawEvents as $event) {
+            $key = $event['taxon_key'] ?? $event['taxon_name'] ?? 'unknown';
+
+            if (!isset($organisms[$key])) {
+                $organisms[$key] = [
+                    'taxon_name' => $event['taxon_name'],
+                    'scientific_name' => $event['scientific_name'] ?? '',
+                    'taxon_key' => $event['taxon_key'] ?? null,
+                    'lat' => $event['lat'],
+                    'lng' => $event['lng'],
+                    'alt' => $event['alt'] ?? 0,
+                    'zone' => $event['zone'] ?? 'ground',
+                    'detection_type' => $event['detection_type'] ?? 'visual',
+                    'best_confidence' => $event['confidence'] ?? 0,
+                    'observation_count' => 0,
+                    'first_seen' => $event['timestamp'] ?? date('c'),
+                    'last_seen' => $event['timestamp'] ?? date('c'),
+                    'sightings' => [],
+                ];
             }
+
+            $organisms[$key]['observation_count']++;
+            $organisms[$key]['best_confidence'] = max(
+                $organisms[$key]['best_confidence'],
+                $event['confidence'] ?? 0
+            );
+            $ts = $event['timestamp'] ?? date('c');
+            if ($ts < $organisms[$key]['first_seen']) $organisms[$key]['first_seen'] = $ts;
+            if ($ts > $organisms[$key]['last_seen']) $organisms[$key]['last_seen'] = $ts;
+            $organisms[$key]['sightings'][] = [
+                'event_id' => $event['event_id'] ?? null,
+                'session_id' => $event['session_id'] ?? null,
+                'timestamp' => $ts,
+                'confidence' => $event['confidence'] ?? 0,
+                'source_device' => $event['source_device'] ?? 'unknown',
+            ];
         }
 
-        return array_values($merged);
+        // 季節パターン追加
+        foreach ($organisms as &$org) {
+            $org['seasonal_pattern'] = self::buildSeasonalPattern($org['sightings']);
+        }
+        unset($org);
+
+        return array_values($organisms);
     }
 
     private static function mergeVegetation(array $existing, array $new): array
@@ -412,11 +450,13 @@ class EcosystemMapper
 
         return [
             'area_id' => $areaId,
+            'schema_version' => '2.0',
             'created_at' => date('c'),
             'updated_at' => date('c'),
             'scan_count' => 0,
             'sessions' => [],
-            'organisms' => [],
+            'raw_events' => [],  // immutable event log
+            'organisms' => [],   // derived from raw_events
             'vegetation' => [],
             'environment_history' => [],
             'bounds' => [],
