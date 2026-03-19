@@ -666,10 +666,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                             <div class="flex items-start justify-between gap-3">
                                                 <div>
                                                     <p class="text-[10px] font-black text-primary uppercase tracking-widest mb-1">いまはここまで絞れそう</p>
-                                                    <p class="text-base font-black text-text">
+                                                    <p class="text-base font-black text-gray-900">
                                                         <?php echo htmlspecialchars($subRec['name'] ?? ''); ?>
                                                         <?php if ($subRecRankLabel): ?>
-                                                            <span class="text-xs text-gray-500 font-normal">(<?php echo htmlspecialchars($subRecRankLabel); ?>)</span>
+                                                            <span class="text-xs text-gray-600 font-bold">(<?php echo htmlspecialchars($subRecRankLabel); ?>)</span>
                                                         <?php endif; ?>
                                                     </p>
                                                 </div>
@@ -679,9 +679,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                             </div>
                                         <?php endif; ?>
                                         <?php if (!empty($subDisplayJa['narrative'])): ?>
-                                            <p class="text-sm text-text leading-relaxed mt-2"><?php echo nl2br(GlossaryHelper::annotate(htmlspecialchars($subDisplayJa['narrative']))); ?></p>
+                                            <p class="text-sm text-gray-800 leading-relaxed mt-2"><?php echo nl2br(GlossaryHelper::annotate(htmlspecialchars($subDisplayJa['narrative']))); ?></p>
                                         <?php elseif (!empty($subAi['summary'])): ?>
-                                            <p class="text-sm text-text leading-relaxed mt-2"><?php echo htmlspecialchars(normalizeAiDisplayText($subAi['summary']) ?? ''); ?></p>
+                                            <p class="text-sm text-gray-800 leading-relaxed mt-2"><?php echo htmlspecialchars(normalizeAiDisplayText($subAi['summary']) ?? ''); ?></p>
                                         <?php endif; ?>
 
                                         <div class="mt-3 grid gap-2 sm:grid-cols-2">
@@ -722,7 +722,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                 <p class="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-2">🤖 AIの見分けメモ</p>
                                                 <?php foreach (array_slice($subSimilar, 0, 3) as $sim): ?>
                                                     <?php if (is_array($sim)): ?>
-                                                        <div class="text-xs text-text mb-1">
+                                                        <div class="text-xs text-gray-800 mb-1">
                                                             <span class="font-bold"><?php echo htmlspecialchars(normalizeAiDisplayText($sim['name'] ?? '') ?? ''); ?></span>
                                                             <?php if (!empty($sim['reason'])): ?>
                                                                 <span class="text-gray-500">— <?php echo htmlspecialchars(normalizeAiDisplayText($sim['reason'] ?? '') ?? ''); ?></span>
@@ -752,7 +752,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                     </div>
                                                 <?php endif; ?>
                                                 <div class="flex-1 min-w-0">
-                                                    <span class="text-sm font-bold text-text"><?php echo htmlspecialchars($subId['taxon_name'] ?? ''); ?></span>
+                                                    <span class="text-sm font-bold text-gray-900"><?php echo htmlspecialchars($subId['taxon_name'] ?? ''); ?></span>
                                                     <span class="text-xs text-gray-500 ml-1"><?php echo htmlspecialchars($subId['user_name'] ?? ''); ?></span>
                                                 </div>
                                                 <?php if (!empty($subId['created_at'])): ?>
@@ -1945,7 +1945,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 items: [],
                 async load() {
                     try {
-                        const res = await fetch('api/get_similar_observations.php?id=<?= urlencode($obsId) ?>&limit=6');
+                        const res = await fetch('api/get_similar_observations.php?id=<?= urlencode($id) ?>&limit=6');
                         const data = await res.json();
                         if (data.success && data.observations) {
                             this.items = data.observations;
