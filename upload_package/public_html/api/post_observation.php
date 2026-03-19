@@ -502,6 +502,9 @@ $observation = [
     ],
     // NP: GPS coordinate accuracy in meters (for DwC coordinateUncertaintyInMeters)
     'coordinate_accuracy' => !empty($_POST['coordinate_accuracy']) ? (int)$_POST['coordinate_accuracy'] : null,
+    // Phase 2: Verification Stage (100-year data lineage)
+    'verification_stage' => 'unverified',
+    'stage_history' => [],
 ];
 
 if ($isSurveyorOfficial) {
