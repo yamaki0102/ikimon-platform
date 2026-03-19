@@ -29,6 +29,12 @@ if (!$obs) {
 }
 
 $is_owner = ($currentUser && isset($obs['user_id']) && $obs['user_id'] === $currentUser['id']);
+
+// Multi-Subject
+require_once __DIR__ . '/../libs/SubjectHelper.php';
+SubjectHelper::ensureSubjects($obs);
+$subjects = $obs['subjects'] ?? [];
+$isMultiSubject = SubjectHelper::isMultiSubject($obs);
 $meta_title = '名前を提案する';
 ?>
 <!DOCTYPE html>
@@ -168,6 +174,32 @@ $meta_title = '名前を提案する';
                 </div>
             </div>
 
+            <?php if ($isMultiSubject): ?>
+            <!-- Multi-Subject: どの生物について？ -->
+            <div>
+                <label class="block text-xs font-bold text-muted uppercase tracking-widest mb-2">どの生物について？</label>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="s in subjects" :key="s.id">
+                        <button type="button" @click="selectedSubjectId = s.id; newSubjectLabel = ''"
+                            :class="selectedSubjectId === s.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-surface border-border text-text hover:bg-emerald-50'"
+                            class="px-4 py-2 text-sm font-bold rounded-full border transition">
+                            <span x-text="s.label || '生物'"></span>
+                        </button>
+                    </template>
+                    <button type="button" @click="selectedSubjectId = '__new__'"
+                        :class="selectedSubjectId === '__new__' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-surface border-dashed border-emerald-400 text-emerald-600 hover:bg-emerald-50'"
+                        class="px-4 py-2 text-sm font-bold rounded-full border transition flex items-center gap-1">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> 別の生物
+                    </button>
+                </div>
+                <div x-show="selectedSubjectId === '__new__'" x-collapse class="mt-2">
+                    <input type="text" x-model="newSubjectLabel"
+                        class="w-full bg-surface border border-emerald-300 rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500"
+                        placeholder="ラベル（例: 昆虫、キノコ）...任意">
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div>
                 <label class="block text-xs font-bold text-muted uppercase tracking-widest mb-2">提案の自信度</label>
                 <div class="grid grid-cols-3 gap-2">
@@ -253,6 +285,13 @@ $meta_title = '名前を提案する';
                 life_stage: 'unknown',
                 note: urlParams.get('note') || '',
                 submitting: false,
+                // Multi-Subject
+                selectedSubjectId: <?php echo json_encode($isMultiSubject ? ($subjects[0]['id'] ?? 'primary') : 'primary', JSON_HEX_TAG | JSON_HEX_APOS); ?>,
+                newSubjectLabel: '',
+                subjects: <?php echo json_encode(array_map(fn($s) => [
+                    'id' => $s['id'],
+                    'label' => $s['label'] ?? null,
+                ], $subjects), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS); ?>,
                 init() {
                     // If taxon_name was provided, trigger a search immediately
                     if (this.query.length >= 2) {
@@ -321,7 +360,9 @@ $meta_title = '名前を提案する';
                                 scientific_name: this.selected.scientificName,
                                 confidence: this.confidence,
                                 life_stage: this.life_stage,
-                                note: this.note
+                                note: this.note,
+                                subject_id: this.selectedSubjectId === '__new__' ? 'primary' : (this.selectedSubjectId || 'primary'),
+                                new_subject_label: this.selectedSubjectId === '__new__' ? (this.newSubjectLabel || null) : null
                             })
                         });
                         const result = await res.json();
