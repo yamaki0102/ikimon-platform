@@ -245,10 +245,19 @@ class AiAssessmentQueue
                 fn($entry) => (string)($entry['kind'] ?? '') !== 'machine_assessment'
             ));
 
+            // AI の routing_hint から各 subject のカテゴリを把握
+            $subjectRoutingMap = []; // subject_id => routing_hint
+
             foreach ($multiAssessments as $i => $subAssessment) {
                 unset($subAssessment['_multi_subject_assessments']);
                 $subjectId = $subAssessment['subject_id'] ?? 'primary';
                 $subjectLabel = $subAssessment['subject_label'] ?? null;
+                $routingHint = $subAssessment['routing_hint'] ?? 'unknown';
+
+                // primary subject にラベルを設定（AI が検出した最初の生物カテゴリ）
+                if ($subjectId === 'primary' && $subjectLabel !== null) {
+                    $observation['subjects'][0]['label'] = $subjectLabel;
+                }
 
                 // subject が存在しなければ追加（AI が新しい生物を発見した場合）
                 if ($subjectId !== 'primary' && SubjectHelper::findSubjectIndex($observation, $subjectId) < 0) {
@@ -259,12 +268,60 @@ class AiAssessmentQueue
                     $subAssessment['subject_id'] = $subjectId;
                 }
 
+                $subjectRoutingMap[$subjectId] = $routingHint;
+
                 // フラットな配列にも追加
                 $observation['ai_assessments'][] = $subAssessment;
             }
 
+            // 既存の同定を適切な subject に自動割り当て
+            // routing_hint と同定の lineage を比較して、マッチする subject に移動
+            if (!empty($observation['identifications']) && count($subjectRoutingMap) > 1) {
+                foreach ($observation['identifications'] as &$existingId) {
+                    $currentSid = $existingId['subject_id'] ?? 'primary';
+                    // primary に紐づいている同定を、AI の検出結果とマッチさせる
+                    if ($currentSid === 'primary') {
+                        $idKingdom = strtolower($existingId['lineage']['kingdom'] ?? '');
+                        $idName = strtolower($existingId['taxon_name'] ?? '');
+
+                        // 同定が昆虫/動物系ならinsect/animal subjectへ
+                        $bestSubject = 'primary';
+                        foreach ($subjectRoutingMap as $sid => $hint) {
+                            if ($sid === 'primary') continue;
+                            $hintLower = strtolower($hint);
+                            // 動物系の同定 → insect/animal subject
+                            if (in_array($hintLower, ['insect', 'animal', 'bird', 'mammal', 'amphibian', 'reptile', 'fish'])) {
+                                if ($idKingdom === 'animalia' || preg_match('/アリ|ハチ|チョウ|トンボ|カブトムシ|クモ|虫|鳥|カエル|ヘビ|魚/u', $idName)) {
+                                    $bestSubject = $sid;
+                                    break;
+                                }
+                            }
+                            // 植物系の同定 → plant subject
+                            if ($hintLower === 'plant') {
+                                if ($idKingdom === 'plantae' || preg_match('/サクラ|マツ|スギ|草|花|木|葉/u', $idName)) {
+                                    $bestSubject = $sid;
+                                    break;
+                                }
+                            }
+                            // キノコ系
+                            if ($hintLower === 'fungus') {
+                                if ($idKingdom === 'fungi' || preg_match('/キノコ|カビ|菌/u', $idName)) {
+                                    $bestSubject = $sid;
+                                    break;
+                                }
+                            }
+                        }
+                        if ($bestSubject !== 'primary') {
+                            $existingId['subject_id'] = $bestSubject;
+                        }
+                    }
+                }
+                unset($existingId);
+            }
+
             // subjects[] に振り分け
             SubjectHelper::distributeAiAssessments($observation);
+            SubjectHelper::distributeIdentifications($observation);
         } else {
             // 単一生物（従来の処理）
             $observation['ai_assessments'] = array_values(array_filter(
