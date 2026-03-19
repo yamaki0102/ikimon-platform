@@ -1,0 +1,39 @@
+name: IkimonScan
+options:
+  bundleIdPrefix: life.ikimon
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  IkimonScan:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    resources:
+      - Resources
+    settings:
+      base:
+        INFOPLIST_FILE: Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: life.ikimon.scan
+    dependencies:
+      - sdk: ARKit.framework
+      - sdk: Vision.framework
+      - sdk: CoreML.framework
+      - sdk: AVFoundation.framework
+      - sdk: CoreLocation.framework
+      - sdk: CoreMotion.framework
+
+schemes:
+  IkimonScan:
+    build:
+      targets:
+        IkimonScan: all
+    run:
+      config: Debug
