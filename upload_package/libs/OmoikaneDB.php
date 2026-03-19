@@ -127,6 +127,57 @@ class OmoikaneDB
         ");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_trust_score ON trust_scores(trust_score);");
 
+        // Table: papers (Phase 2 — 論文メタデータ。PaperStore JSON→SQLite移行)
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS papers (
+                doi TEXT PRIMARY KEY,
+                title TEXT,
+                authors TEXT,
+                year INTEGER,
+                journal TEXT,
+                source TEXT DEFAULT 'gbif_lit',
+                abstract TEXT,
+                language TEXT DEFAULT 'ja',
+                url TEXT,
+                subjects TEXT,
+                ingested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                distilled_at DATETIME,
+                distill_status TEXT DEFAULT 'pending'
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_year ON papers(year);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_source ON papers(source);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_distill ON papers(distill_status);");
+
+        // Table: paper_taxa (Phase 2 — 論文-種マッピング。TaxonPaperIndex JSON→SQLite移行)
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS paper_taxa (
+                doi TEXT NOT NULL,
+                taxon_key TEXT NOT NULL,
+                confidence REAL DEFAULT 1.0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (doi, taxon_key)
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_paper_taxa_taxon ON paper_taxa(taxon_key);");
+
+        // Table: distilled_knowledge (Phase 2 — 蒸留結果。生態制約 + 同定キー)
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS distilled_knowledge (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doi TEXT,
+                taxon_key TEXT NOT NULL,
+                knowledge_type TEXT NOT NULL,
+                content TEXT,
+                confidence REAL DEFAULT 0.0,
+                reviewed_by TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_dk_taxon ON distilled_knowledge(taxon_key);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_dk_type ON distilled_knowledge(knowledge_type);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_dk_doi ON distilled_knowledge(doi);");
+
         // --- Reverse-Lookup Indexes ---
         // These indexes allow extremely fast querying (e.g. "Find all species in 'Forest' above '1000m' during 'Summer'")
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_scientific_name ON species(scientific_name);");
