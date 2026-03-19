@@ -198,6 +198,9 @@ class PassiveObservationEngine
             'photo_ref' => $detection['photo_ref'],
             'audio_snippet_hash' => $detection['audio_snippet_hash'],
             'source' => 'passive',
+            'source_device' => $sessionMeta['device'] ?? 'unknown',
+            'location_uncertainty_m' => 5.0, // GPS default
+            'schema_version' => '1.0',
             'record_mode' => $detection['type'] === self::TYPE_VISUAL ? 'scan' : 'pocket',
             'verification_stage' => $stage,
             'stage_history' => [[

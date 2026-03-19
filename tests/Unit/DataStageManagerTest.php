@@ -204,4 +204,92 @@ class DataStageManagerTest extends TestCase
             $this->assertArrayHasKey($stage, DataStageManager::STAGE_META, "Missing meta for: {$stage}");
         }
     }
+
+    // === research_grade 厳格化テスト ===
+
+    public function testAiClassifiedCannotDirectlyReachResearchGrade(): void
+    {
+        $obs = ['verification_stage' => 'ai_classified'];
+        $result = DataStageManager::transition($obs, 'research_grade', 'system', 'test');
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('遷移不可', $result['error']);
+    }
+
+    public function testResearchGradeRequiresGradeA(): void
+    {
+        // Grade B（写真+位置あるが同定不足）では research_grade になれない
+        $obs = [
+            'verification_stage' => 'human_verified',
+            'data_quality' => 'B',
+            'photos' => [['url' => 'photo.jpg']],
+            'lat' => 35.6, 'lng' => 139.7,
+            'taxon' => ['rank' => 'species'],
+            'identifications' => [
+                ['user_id' => 'u1', 'taxon_name' => 'Parus minor'],
+                ['user_id' => 'u2', 'taxon_name' => 'Parus minor'],
+            ],
+        ];
+
+        $result = DataStageManager::applyHumanIdentification($obs, 'u3', 'Parus minor');
+        // Grade B なので research_grade にはならず human_verified のまま
+        $this->assertSame('human_verified', $result['observation']['verification_stage']);
+    }
+
+    public function testResearchGradeRequiresEvidenceMedia(): void
+    {
+        // 写真なしでは research_grade になれない
+        $obs = [
+            'verification_stage' => 'human_verified',
+            'data_quality' => 'A',
+            'photos' => [], // 証拠メディアなし
+            'lat' => 35.6, 'lng' => 139.7,
+            'taxon' => ['rank' => 'species'],
+            'identifications' => [
+                ['user_id' => 'u1', 'taxon_name' => 'Parus minor'],
+                ['user_id' => 'u2', 'taxon_name' => 'Parus minor'],
+            ],
+        ];
+
+        $result = DataStageManager::applyHumanIdentification($obs, 'u3', 'Parus minor');
+        $this->assertSame('human_verified', $result['observation']['verification_stage']);
+    }
+
+    public function testResearchGradeRequiresSpeciesRank(): void
+    {
+        // genus ランクでは research_grade になれない
+        $obs = [
+            'verification_stage' => 'human_verified',
+            'data_quality' => 'A',
+            'photos' => [['url' => 'photo.jpg']],
+            'lat' => 35.6, 'lng' => 139.7,
+            'taxon' => ['rank' => 'genus'], // 種レベルに達していない
+            'identifications' => [
+                ['user_id' => 'u1', 'taxon_name' => 'Parus'],
+                ['user_id' => 'u2', 'taxon_name' => 'Parus'],
+            ],
+        ];
+
+        $result = DataStageManager::applyHumanIdentification($obs, 'u3', 'Parus');
+        $this->assertSame('human_verified', $result['observation']['verification_stage']);
+    }
+
+    public function testResearchGradeSucceedsWithAllConditions(): void
+    {
+        // 全条件を満たした場合のみ research_grade
+        $obs = [
+            'verification_stage' => 'human_verified',
+            'data_quality' => 'A',
+            'photos' => [['url' => 'photo.jpg']],
+            'lat' => 35.6, 'lng' => 139.7,
+            'taxon' => ['rank' => 'species'],
+            'identifications' => [
+                ['user_id' => 'u1', 'taxon_name' => 'Parus minor'],
+            ],
+        ];
+
+        // 2人目の同定で research_grade に到達
+        $result = DataStageManager::applyHumanIdentification($obs, 'u2', 'Parus minor');
+        $this->assertSame('research_grade', $result['observation']['verification_stage']);
+    }
 }

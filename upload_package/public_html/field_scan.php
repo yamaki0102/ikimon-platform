@@ -358,8 +358,9 @@ function fieldScan() {
         },
 
         classifyAudio() {
-            // ダミー音声検出（開発用）
-            // 本番: サーバー側 or Gemini Nano で推論
+            // DEMO: ダミー音声検出。本番では Gemini Nano (Android) / BirdNET (iOS) のオンデバイス推論、
+            // またはサーバー側 api/v2/audio_classify.php を使用する。
+            // この関数はプロトタイプ用であり、本番仕様として使用してはならない。
             const species = [
                 { n: 'シジュウカラ', s: 'Parus minor', c: 0.82 },
                 { n: 'ヒヨドリ', s: 'Hypsipetes amaurotis', c: 0.75 },
