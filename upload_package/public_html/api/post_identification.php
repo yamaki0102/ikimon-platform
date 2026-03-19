@@ -53,6 +53,11 @@ if (!$data || empty($data['observation_id']) || (empty($data['taxon_key']) && em
     exit;
 }
 
+// Multi-Subject: どの生物に対する同定か（デフォルト: primary）
+$subjectId = $data['subject_id'] ?? 'primary';
+// 新しいサブジェクトを作成する場合
+$newSubjectLabel = $data['new_subject_label'] ?? null;
+
 $obs = DataStore::findById('observations', $data['observation_id']);
 if (!$obs) {
     echo json_encode(['success' => false, 'message' => 'Observation not found'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
@@ -110,23 +115,44 @@ $id_entry = [
     'created_at'     => date('Y-m-d H:i:s'),
     'weight'         => $trustWeight,
     'trust_weight'   => $trustWeight,
+    'subject_id'     => $subjectId,
 ];
 
-// Add to observation — replace existing identification from same user (1 per user)
+// Multi-Subject: 新しいサブジェクトの作成が要求された場合
+require_once __DIR__ . '/../../libs/SubjectHelper.php';
+SubjectHelper::ensureSubjects($obs);
+
+if ($newSubjectLabel !== null && $subjectId === 'primary') {
+    // 「新しい生物を追加」→ 新 subject を作成
+    $subjectId = SubjectHelper::addSubject($obs, $newSubjectLabel);
+    $id_entry['subject_id'] = $subjectId;
+} elseif ($subjectId !== 'primary' && SubjectHelper::findSubjectIndex($obs, $subjectId) < 0) {
+    echo json_encode(['success' => false, 'message' => 'Subject not found: ' . $subjectId], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+    exit;
+}
+
+// Add to observation — replace existing identification from same user PER SUBJECT
 if (!isset($obs['identifications'])) {
     $obs['identifications'] = [];
 }
 
-// Remove any existing identification from this user (overwrite policy)
+// Remove any existing identification from this user for the SAME subject (overwrite policy)
 $obs['identifications'] = array_values(array_filter(
     $obs['identifications'],
-    fn($existing) => ($existing['user_id'] ?? '') !== $currentUser['id']
+    fn($existing) => !(
+        ($existing['user_id'] ?? '') === $currentUser['id']
+        && ($existing['subject_id'] ?? 'primary') === $subjectId
+    )
 ));
 
 $obs['identifications'][] = $id_entry;
 
-// Update status and primary taxon based on consensus
+// subjects[] に同定を振り分け
+SubjectHelper::distributeIdentifications($obs);
+
+// Update status and primary taxon based on consensus (subject-aware)
 BioUtils::updateConsensus($obs);
+SubjectHelper::syncPrimaryToLegacy($obs);
 
 // Recalculate Data Quality Grade
 $obs['data_quality'] = DataQuality::calculate($obs);
@@ -174,6 +200,8 @@ if (DataStore::upsert('observations', $obs)) {
         'success'        => true,
         'identification' => $id_entry,
         'new_status'     => $obs['status'],
+        'subject_id'     => $subjectId,
+        'subject_count'  => SubjectHelper::subjectCount($obs),
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 } else {
     echo json_encode(['success' => false, 'message' => 'Failed to save data'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

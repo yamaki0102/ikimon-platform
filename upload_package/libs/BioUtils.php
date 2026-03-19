@@ -149,28 +149,72 @@ class BioUtils
     public static function updateConsensus(array &$obs): string
     {
         require_once __DIR__ . '/TrustLevel.php';
+        require_once __DIR__ . '/SubjectHelper.php';
+
+        // Multi-Subject 対応: subjects[] を保証
+        SubjectHelper::ensureSubjects($obs);
+        SubjectHelper::distributeIdentifications($obs);
+
+        // 各 subject ごとにコンセンサス計算
+        $anyHasId = false;
+        foreach ($obs['subjects'] as &$subject) {
+            self::computeSubjectConsensus($subject, $obs);
+            if (!empty($subject['identifications'])) {
+                $anyHasId = true;
+            }
+        }
+        unset($subject);
+
+        // Primary subject の結果をレガシーフィールドに同期
+        SubjectHelper::syncPrimaryToLegacy($obs);
+
+        // 観察全体の status は primary subject から
+        $primaryStatus = $obs['subjects'][0]['status'] ?? '未同定';
+        $obs['status'] = $primaryStatus;
+        $obs['quality_grade'] = $obs['subjects'][0]['quality_grade'] ?? 'Casual';
+
+        // ただし他の subject に研究用があれば、観察全体も要同定以上にする
+        foreach ($obs['subjects'] as $subject) {
+            if (($subject['status'] ?? '') === '研究用' && $obs['status'] !== '研究用') {
+                // 他subjectが研究用でもprimaryのstatusを維持（各subjectは独立）
+                break;
+            }
+        }
+
+        return $obs['status'];
+    }
+
+    /**
+     * 個別 subject のコンセンサスを計算。
+     */
+    private static function computeSubjectConsensus(array &$subject, array $obs): void
+    {
+        $ids = $subject['identifications'] ?? [];
 
         // --- Phase 0: No identifications ---
-        if (!isset($obs['identifications']) || empty($obs['identifications'])) {
-            $obs['status'] = '未同定';
-            return '未同定';
+        if (empty($ids)) {
+            $subject['taxon'] = null;
+            $subject['status'] = '未同定';
+            $subject['quality_grade'] = 'Casual';
+            $subject['consensus'] = null;
+            return;
         }
 
         // --- Phase 1: Verifiable check ---
         if (!self::isVerifiable($obs)) {
-            // Set taxon from first identification but mark as Casual
-            $firstId = $obs['identifications'][0];
-            $obs['taxon'] = self::buildTaxonFromId($firstId);
-            $obs['status'] = 'Casual';
-            return 'Casual';
+            $firstId = $ids[0];
+            $subject['taxon'] = self::buildTaxonFromId($firstId);
+            $subject['status'] = 'Casual';
+            $subject['quality_grade'] = 'Casual';
+            return;
         }
 
-        // --- Phase 2: Deduplicate (1 vote per user, latest wins) ---
-        $activeIds = self::deduplicateIdentifications($obs['identifications']);
+        // --- Phase 2: Deduplicate (1 vote per user per subject, latest wins) ---
+        $activeIds = self::deduplicateIdentifications($ids);
 
         // --- Phase 3: Calculate Weighted Votes (WE-Consensus) ---
-        $votesPerTaxon = []; // Weighted score per taxon
-        $rawVotesPerTaxon = []; // Raw count
+        $votesPerTaxon = [];
+        $rawVotesPerTaxon = [];
         $taxonData = [];
         $totalWeight = 0.0;
 
@@ -188,31 +232,30 @@ class BioUtils
             $totalWeight += $weight;
         }
 
-        // Sort by weighted score descending
         arsort($votesPerTaxon);
         $topTaxonKey = array_key_first($votesPerTaxon);
         $topScore = $votesPerTaxon[$topTaxonKey];
-        $topRawVotes = $rawVotesPerTaxon[$topTaxonKey];
 
-        // Set primary taxon to the one with highest weighted score
-        $obs['taxon'] = $taxonData[$topTaxonKey];
+        $subject['taxon'] = $taxonData[$topTaxonKey];
 
-        // Agreement Rate (Weighted)
         $agreementRate = $totalWeight > 0 ? ($topScore / $totalWeight) : 0;
 
-        // Store consensus metadata for transparency
-        $obs['consensus'] = [
-            'total_votes'    => count($activeIds), // Raw count
-            'total_score'    => $totalWeight,      // Weighted total
-            'top_score'      => $topScore,         // Weighted top score
+        $subject['consensus'] = [
+            'total_votes'    => count($activeIds),
+            'total_score'    => $totalWeight,
+            'top_score'      => $topScore,
             'agreement_rate' => round($agreementRate, 3),
-            'algorithm'      => 'we_consensus_v1', // Weighted Evidence Consensus
+            'algorithm'      => 'we_consensus_v2',
             'updated_at'     => date('c'),
         ];
 
-        // --- Phase 4: Determine status ---
+        // Also update obs-level consensus for backward compat (primary subject)
+        if (($subject['id'] ?? '') === 'primary') {
+            $obs['taxon'] = $subject['taxon'];
+            $obs['consensus'] = $subject['consensus'];
+        }
 
-        // Check for unresolved disputes
+        // --- Phase 4: Determine status ---
         $hasOpenDisputes = false;
         foreach ($obs['disputes'] ?? [] as $dispute) {
             if (in_array(($dispute['status'] ?? ''), ['open', 'pending'])) {
@@ -221,7 +264,6 @@ class BioUtils
             }
         }
 
-        // Check if observation owner is the ONLY identifier
         $ownerId = $obs['user_id'] ?? '';
         $hasOtherIdentifier = false;
         foreach ($activeIds as $id) {
@@ -231,16 +273,8 @@ class BioUtils
             }
         }
 
-        // Determine taxon rank
-        $taxonRank = $obs['taxon']['rank'] ?? 'species';
+        $taxonRank = $subject['taxon']['rank'] ?? 'species';
         $speciesOrBelow = in_array($taxonRank, ['species', 'subspecies', 'variety', 'form']);
-
-        // Strict Research Grade Criteria:
-        // 1. Weighted Agreement Rate > 2/3 (66.6%)
-        // 2. Top Weighted Score >= 2.0 (Equivalent to 2 Regulars or 1 Expert)
-        // 3. Must be Species level or lower
-        // 4. Must have external identifier
-        // 5. No open disputes
 
         if (
             $agreementRate > (2 / 3)
@@ -249,19 +283,15 @@ class BioUtils
             && $speciesOrBelow
             && !$hasOpenDisputes
         ) {
-            // Research Grade (研究用)
-            $obs['status'] = '研究用';
-            $obs['quality_grade'] = 'Research Grade'; // Explicit set
+            $subject['status'] = '研究用';
+            $subject['quality_grade'] = 'Research Grade';
         } elseif (count($activeIds) >= 1) {
-            // Has at least one identification but not yet consensus
-            $obs['status'] = '要同定';
-            $obs['quality_grade'] = 'Needs ID';
+            $subject['status'] = '要同定';
+            $subject['quality_grade'] = 'Needs ID';
         } else {
-            $obs['status'] = '未同定';
-            $obs['quality_grade'] = 'Casual';
+            $subject['status'] = '未同定';
+            $subject['quality_grade'] = 'Casual';
         }
-
-        return $obs['status'];
     }
 
     /**
