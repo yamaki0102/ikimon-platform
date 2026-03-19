@@ -70,21 +70,6 @@ $oldStatus = $obs['status'] ?? '未同定';
 // Lineage from client
 $lineageData = $data['lineage'] ?? [];
 
-// Auto-assign subject if not explicitly specified and observation has multiple subjects
-if ($subjectId === null || $subjectId === 'primary') {
-    SubjectHelper::ensureSubjects($obs);
-    if (SubjectHelper::isMultiSubject($obs) && $newSubjectLabel === null) {
-        $autoSubject = SubjectHelper::autoAssignSubject($obs, $lineageData, $data['taxon_name'] ?? '');
-        if ($autoSubject !== 'primary') {
-            $subjectId = $autoSubject;
-            $autoAssigned = true;
-        }
-    }
-}
-if ($subjectId === null) {
-    $subjectId = 'primary';
-}
-
 // Evidence (v2 feature)
 $evidenceType = $data['evidence_type'] ?? 'visual';
 $validEvidenceTypes = ['visual', 'habitat', 'behavior', 'reference', 'sound'];
@@ -101,19 +86,84 @@ $confidence = $data['confidence'] ?? null;
 // Trust weight — stored for analytics only, NOT used in consensus calculation
 $trustWeight = TrustLevel::getWeight($currentUser['id']);
 
+// ── Taxon Normalization ──
+// 学名・taxon_key・lineage が不完全な場合、GBIF API で正規化する。
+// 「カエル」「Frog」「Anura」等が全て同じ taxon に紐づくようにする。
+$taxonName      = trim($data['taxon_name'] ?? '');
+$scientificName = trim($data['scientific_name'] ?? '');
+$taxonKey       = $data['taxon_key'] ?? '';
+$taxonSlug      = $data['taxon_slug'] ?? '';
+$taxonRank      = $lineageData['rank'] ?? ($data['taxon_rank'] ?? '');
+
+if ($scientificName === '' || empty($taxonKey) || empty($lineageData['kingdom'])) {
+    // GBIF match で補完を試みる
+    $matchQuery = $scientificName !== '' ? $scientificName : $taxonName;
+    if ($matchQuery !== '') {
+        $gbifMatch = Taxon::match($matchQuery);
+        if ($gbifMatch && !empty($gbifMatch['usageKey']) && ($gbifMatch['matchType'] ?? '') !== 'NONE') {
+            if ($scientificName === '') {
+                $scientificName = $gbifMatch['scientificName'] ?? $scientificName;
+            }
+            if (empty($taxonKey)) {
+                $taxonKey = (string)($gbifMatch['usageKey'] ?? '');
+            }
+            if ($taxonRank === '' || $taxonRank === 'species') {
+                $taxonRank = strtolower($gbifMatch['rank'] ?? $taxonRank);
+            }
+            if ($taxonSlug === '' && !empty($gbifMatch['canonicalName'])) {
+                $taxonSlug = strtolower(str_replace(' ', '-', $gbifMatch['canonicalName']));
+            }
+            // Lineage 補完
+            if (empty($lineageData['kingdom']) && !empty($gbifMatch['kingdom'])) {
+                $lineageData['kingdom'] = $gbifMatch['kingdom'];
+            }
+            if (empty($lineageData['phylum']) && !empty($gbifMatch['phylum'])) {
+                $lineageData['phylum'] = $gbifMatch['phylum'];
+            }
+            if (empty($lineageData['class']) && !empty($gbifMatch['class'])) {
+                $lineageData['class'] = $gbifMatch['class'];
+            }
+            if (empty($lineageData['order']) && !empty($gbifMatch['order'])) {
+                $lineageData['order'] = $gbifMatch['order'];
+            }
+            if (empty($lineageData['family']) && !empty($gbifMatch['family'])) {
+                $lineageData['family'] = $gbifMatch['family'];
+            }
+            if (empty($lineageData['genus']) && !empty($gbifMatch['genus'])) {
+                $lineageData['genus'] = $gbifMatch['genus'];
+            }
+        }
+    }
+}
+
+// Auto-assign subject（GBIF正規化後の lineage を使う）
+if ($subjectId === null || $subjectId === 'primary') {
+    SubjectHelper::ensureSubjects($obs);
+    if (SubjectHelper::isMultiSubject($obs) && $newSubjectLabel === null) {
+        $autoSubject = SubjectHelper::autoAssignSubject($obs, $lineageData, $taxonName);
+        if ($autoSubject !== 'primary') {
+            $subjectId = $autoSubject;
+            $autoAssigned = true;
+        }
+    }
+}
+if ($subjectId === null) {
+    $subjectId = 'primary';
+}
+
 // Create identification entry
 $id_entry = [
     'id'              => bin2hex(random_bytes(4)),
     'user_id'         => $currentUser['id'],
     'user_name'       => $currentUser['name'],
     'user_avatar'     => $currentUser['avatar'] ?? '',
-    'taxon_key'       => $data['taxon_key'] ?? '',
-    'taxon_name'      => $data['taxon_name'] ?? '',
-    'taxon_slug'      => $data['taxon_slug'] ?? '',
-    'scientific_name' => $data['scientific_name'] ?? '',
+    'taxon_key'       => $taxonKey,
+    'taxon_name'      => $taxonName,
+    'taxon_slug'      => $taxonSlug,
+    'scientific_name' => $scientificName,
     'confidence'      => $confidence,
     'life_stage'      => $data['life_stage'] ?? 'unknown',
-    'taxon_rank'      => $lineageData['rank'] ?? ($data['taxon_rank'] ?? 'species'),
+    'taxon_rank'      => $taxonRank ?: 'species',
     'lineage'         => [
         'kingdom' => $lineageData['kingdom'] ?? null,
         'phylum'  => $lineageData['phylum'] ?? null,
