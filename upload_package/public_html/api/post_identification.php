@@ -32,6 +32,7 @@ require_once __DIR__ . '/../../libs/DataQuality.php';
 require_once __DIR__ . '/../../libs/RateLimiter.php';
 require_once __DIR__ . '/../../libs/TrustLevel.php';
 require_once __DIR__ . '/../../libs/CSRF.php';
+require_once __DIR__ . '/../../libs/DataStageManager.php';
 
 Auth::init();
 CSRF::validateRequest();
@@ -129,6 +130,12 @@ BioUtils::updateConsensus($obs);
 
 // Recalculate Data Quality Grade
 $obs['data_quality'] = DataQuality::calculate($obs);
+
+// Phase 2: Verification Stage Transition
+$stageResult = DataStageManager::applyHumanIdentification($obs, $currentUser['id'], $data['taxon_name'] ?? '');
+if ($stageResult['success']) {
+    $obs = $stageResult['observation'];
+}
 
 // Phase A2: Update quality flags on identification change
 if (!isset($obs['quality_flags'])) $obs['quality_flags'] = [];
