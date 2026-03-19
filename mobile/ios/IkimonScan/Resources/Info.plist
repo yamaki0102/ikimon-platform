@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>ikimon scan</string>
+    <key>CFBundleDisplayName</key>
+    <string>ikimon scan</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>NSCameraUsageDescription</key>
+    <string>カメラで生物をスキャンして自動的に種を同定します</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>検出した生物の位置を記録します</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>バックグラウンドでも位置を記録して散歩ルートを残します</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>鳥や虫の鳴き声を聞いて種を推定します</string>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arkit</string>
+    </array>
+</dict>
+</plist>
