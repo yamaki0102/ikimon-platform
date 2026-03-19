@@ -248,8 +248,9 @@ function walkMode() {
         },
 
         async classifyAudioSnippet() {
-            // ブラウザ版: 録音した音声をサーバーの AI に送って分類
-            // NOTE: 完全な実装にはサーバー側に音声分類APIが必要
+            // DEMO: ダミー音声検出。本番実装ではない。
+            // 本番: ネイティブアプリ (BirdNET/Gemini Nano) でオンデバイス推論すること。
+            // Web版は音声分類の制約が大きいため、簡易版として位置づける。
             // 暫定: ダミー検出（開発用）
             const dummySpecies = [
                 { name: 'シジュウカラ', scientific: 'Parus minor', conf: 0.82 },
