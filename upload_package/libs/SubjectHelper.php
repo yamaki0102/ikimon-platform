@@ -253,4 +253,165 @@ class SubjectHelper
 
         return true;
     }
+
+    /**
+     * lineage（界レベル）とAI routing_hint に基づいて最適な subject を自動判定。
+     *
+     * 戦略:
+     *  1. lineage.kingdom が分かっている場合、各 subject の AI assessment の routing_hint や
+     *     既存同定の lineage.kingdom と照合して最もマッチする subject を返す。
+     *  2. taxon_name の日本語パターンマッチで kingdom を推定。
+     *  3. マッチしなければ 'primary' を返す。
+     *
+     * @return string subject_id
+     */
+    public static function autoAssignSubject(array $obs, array $lineage, string $taxonName = ''): string
+    {
+        self::ensureSubjects($obs);
+
+        if (count($obs['subjects']) <= 1) {
+            return $obs['subjects'][0]['id'] ?? 'primary';
+        }
+
+        // Determine kingdom from lineage or taxon name
+        $kingdom = strtolower(trim($lineage['kingdom'] ?? ''));
+        if ($kingdom === '') {
+            $kingdom = self::guessKingdomFromName($taxonName);
+        }
+        if ($kingdom === '') {
+            return 'primary';
+        }
+
+        // Build kingdom → category mapping
+        $categoryMap = [
+            'animalia' => 'animal',
+            'plantae'  => 'plant',
+            'fungi'    => 'fungi',
+            'chromista' => 'plant',    // 広義で植物寄り
+            'bacteria' => 'microbe',
+            'archaea'  => 'microbe',
+            'protozoa' => 'microbe',
+            'viruses'  => 'microbe',
+        ];
+        $category = $categoryMap[$kingdom] ?? '';
+        if ($category === '') {
+            return 'primary';
+        }
+
+        // Score each subject
+        $bestSubjectId = 'primary';
+        $bestScore = -1;
+
+        foreach ($obs['subjects'] as $subject) {
+            $score = self::scoreSubjectMatch($subject, $category, $kingdom, $obs);
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestSubjectId = $subject['id'];
+            }
+        }
+
+        return $bestSubjectId;
+    }
+
+    /**
+     * subject がどれだけ category にマッチするかスコアリング。
+     */
+    private static function scoreSubjectMatch(array $subject, string $category, string $kingdom, array $obs): int
+    {
+        $score = 0;
+
+        // 1. AI routing_hint と照合（最強シグナル）
+        foreach ($subject['ai_assessments'] ?? [] as $ai) {
+            $hint = strtolower($ai['routing_hint'] ?? '');
+            if ($hint !== '') {
+                if ($category === 'animal' && in_array($hint, ['insect', 'animal', 'bird', 'fish', 'mammal', 'reptile', 'amphibian'])) {
+                    $score += 10;
+                } elseif ($category === 'plant' && in_array($hint, ['plant', 'tree', 'flower', 'moss', 'fern'])) {
+                    $score += 10;
+                } elseif ($category === 'fungi' && in_array($hint, ['fungi', 'mushroom'])) {
+                    $score += 10;
+                }
+            }
+        }
+
+        // 2. subject label と照合
+        $label = strtolower($subject['label'] ?? '');
+        $labelPatterns = [
+            'animal' => ['昆虫', '虫', '鳥', '魚', '動物', 'insect', 'animal', 'bird'],
+            'plant'  => ['植物', '花', '木', '草', 'plant', 'tree', 'flower'],
+            'fungi'  => ['菌', 'きのこ', 'キノコ', 'fungi', 'mushroom'],
+        ];
+        foreach ($labelPatterns[$category] ?? [] as $pattern) {
+            if (mb_stripos($label, $pattern) !== false) {
+                $score += 5;
+                break;
+            }
+        }
+
+        // 3. 既存同定の lineage.kingdom と照合
+        foreach ($subject['identifications'] ?? [] as $id) {
+            $idKingdom = strtolower($id['lineage']['kingdom'] ?? '');
+            if ($idKingdom === $kingdom) {
+                $score += 3;
+            }
+        }
+
+        // 4. subject の taxon の kingdom と照合
+        $subTaxonKingdom = strtolower($subject['taxon']['lineage']['kingdom'] ?? '');
+        if ($subTaxonKingdom === $kingdom) {
+            $score += 3;
+        }
+
+        return $score;
+    }
+
+    /**
+     * 日本語の種名パターンから kingdom を推定。
+     */
+    private static function guessKingdomFromName(string $name): string
+    {
+        if ($name === '') return '';
+
+        // 動物系（昆虫・鳥・魚 etc.）
+        $animalPatterns = [
+            'アリ', 'ハチ', 'チョウ', 'ガ', 'トンボ', 'カブトムシ', 'クワガタ',
+            'セミ', 'バッタ', 'カマキリ', 'テントウムシ', 'ホタル', 'カミキリ',
+            'ゾウムシ', 'ハエ', 'アブ', 'カ', 'ノミ', 'ダニ', 'クモ',
+            'スズメ', 'カラス', 'ハト', 'ツバメ', 'サギ', 'タカ', 'ワシ',
+            'カモ', 'シギ', 'カモメ', 'フクロウ', 'キツツキ', 'ヒヨドリ',
+            'メジロ', 'ウグイス', 'シジュウカラ', 'ムクドリ', 'セキレイ',
+            'ネコ', 'イヌ', 'タヌキ', 'キツネ', 'シカ', 'イノシシ', 'サル',
+            'コウモリ', 'リス', 'ネズミ', 'イタチ', 'アナグマ',
+            'カエル', 'イモリ', 'サンショウウオ', 'ヤモリ', 'トカゲ', 'ヘビ', 'カメ',
+            'メダカ', 'コイ', 'フナ', 'アユ', 'サケ', 'マス',
+            'カニ', 'エビ', 'カタツムリ', 'ナメクジ', 'ミミズ',
+        ];
+        // 科・目名パターン
+        $animalSuffixes = ['科', '目', '亜科', '亜目', '上科'];
+
+        foreach ($animalPatterns as $p) {
+            if (mb_strpos($name, $p) !== false) return 'animalia';
+        }
+
+        // 植物系
+        $plantPatterns = [
+            'サクラ', 'マツ', 'スギ', 'ヒノキ', 'ケヤキ', 'イチョウ',
+            'ツツジ', 'アジサイ', 'バラ', 'ユリ', 'ラン', 'キク',
+            'タンポポ', 'スミレ', 'ススキ', 'ヨモギ', 'シダ', 'コケ',
+            'トベラ', 'クスノキ', 'カシ', 'ナラ', 'ブナ', 'モミ',
+        ];
+        $plantSuffixes = ['属', '科'];
+
+        foreach ($plantPatterns as $p) {
+            if (mb_strpos($name, $p) !== false) return 'plantae';
+        }
+
+        // 菌類
+        $fungiPatterns = ['キノコ', 'きのこ', 'タケ', 'シメジ', 'マツタケ', 'シイタケ', 'カビ'];
+        foreach ($fungiPatterns as $p) {
+            if (mb_strpos($name, $p) !== false) return 'fungi';
+        }
+
+        return '';
+    }
 }

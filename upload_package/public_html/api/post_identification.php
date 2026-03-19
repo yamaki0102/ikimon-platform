@@ -53,10 +53,11 @@ if (!$data || empty($data['observation_id']) || (empty($data['taxon_key']) && em
     exit;
 }
 
-// Multi-Subject: どの生物に対する同定か（デフォルト: primary）
-$subjectId = $data['subject_id'] ?? 'primary';
-// 新しいサブジェクトを作成する場合
+// Multi-Subject: どの生物に対する同定か
+// subject_id が明示指定されていなければ lineage から自動振り分け
+$subjectId = $data['subject_id'] ?? null;
 $newSubjectLabel = $data['new_subject_label'] ?? null;
+$autoAssigned = false;
 
 $obs = DataStore::findById('observations', $data['observation_id']);
 if (!$obs) {
@@ -68,6 +69,21 @@ $oldStatus = $obs['status'] ?? '未同定';
 
 // Lineage from client
 $lineageData = $data['lineage'] ?? [];
+
+// Auto-assign subject if not explicitly specified and observation has multiple subjects
+if ($subjectId === null || $subjectId === 'primary') {
+    SubjectHelper::ensureSubjects($obs);
+    if (SubjectHelper::isMultiSubject($obs) && $newSubjectLabel === null) {
+        $autoSubject = SubjectHelper::autoAssignSubject($obs, $lineageData, $data['taxon_name'] ?? '');
+        if ($autoSubject !== 'primary') {
+            $subjectId = $autoSubject;
+            $autoAssigned = true;
+        }
+    }
+}
+if ($subjectId === null) {
+    $subjectId = 'primary';
+}
 
 // Evidence (v2 feature)
 $evidenceType = $data['evidence_type'] ?? 'visual';
@@ -202,6 +218,7 @@ if (DataStore::upsert('observations', $obs)) {
         'new_status'     => $obs['status'],
         'subject_id'     => $subjectId,
         'subject_count'  => SubjectHelper::subjectCount($obs),
+        'auto_assigned'  => $autoAssigned,
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 } else {
     echo json_encode(['success' => false, 'message' => 'Failed to save data'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
