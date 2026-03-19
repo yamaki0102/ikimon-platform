@@ -272,7 +272,17 @@ $meta_title = '名前を提案する';
                     }
                     try {
                         const res = await fetch(`api/search_taxon.php?q=${encodeURIComponent(this.query)}`);
-                        this.results = await res.json();
+                        const data = await res.json();
+                        // Normalize API response: search_taxon returns {results: [{ja_name, scientific_name, slug, ...}]}
+                        const raw = Array.isArray(data) ? data : (data.results || []);
+                        this.results = raw.map(r => ({
+                            key: r.gbif_key || r.inat_taxon_id || r.slug || r.scientific_name,
+                            canonicalName: r.ja_name || r.scientific_name || '',
+                            scientificName: r.scientific_name || '',
+                            rank: r.rank || 'species',
+                            slug: r.slug || '',
+                            thumbnail: r.thumbnail_url || '',
+                        }));
                     } catch (e) {
                         console.error(e);
                     }
@@ -301,15 +311,16 @@ $meta_title = '名前を提案する';
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+                                'X-Csrf-Token': (document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/) || [])[1] || ''
                             },
                             body: JSON.stringify({
                                 observation_id: '<?php echo $id; ?>',
                                 taxon_key: this.selected.key,
                                 taxon_name: this.selected.canonicalName,
+                                taxon_slug: this.selected.slug || '',
                                 scientific_name: this.selected.scientificName,
                                 confidence: this.confidence,
-                                life_stage: this.life_stage, // Add life_stage
+                                life_stage: this.life_stage,
                                 note: this.note
                             })
                         });
