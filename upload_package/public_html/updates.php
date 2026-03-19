@@ -50,6 +50,24 @@ Auth::init();
             <!-- Updates Timeline -->
             <div class="space-y-8">
 
+                <!-- v0.6.1 — FIX -->
+                <article x-show="filter === 'all' || filter === 'fix'" x-transition class="relative pl-8 border-l-2 border-amber-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-amber-500 ring-4 ring-amber-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">v0.6.1</span>
+                        <time class="text-sm text-gray-500">2026年3月20日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">FIX</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">タッチ操作・ナビゲーション改善</h2>
+                    <p class="text-gray-500 text-sm mb-4">モバイルでのボタン操作やフッターの反応に関する問題を修正しました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>ボトムナビ「マイページ」ボタン修正</strong>: タップしても反応しなかった問題を修正。Alpine.jsスコープの設定漏れが原因でした</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>フッターリンクのタッチ領域拡大</strong>: 全フッターリンクのタップ領域を44px（推奨最小値）に拡大。押しにくかった問題を解消</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>閉じるボタンの操作性向上</strong>: PWAバナー、検索クリア、写真削除、各モーダルの閉じるボタンを44px以上に統一</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>アクセシビリティ向上</strong>: アイコンのみのボタンにaria-labelを追加。スクリーンリーダーでも操作内容が分かるように</span></li>
+                    </ul>
+                </article>
+
                 <!-- v0.6.0 — NEW -->
                 <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500 ring-4 ring-green-100"></div>
