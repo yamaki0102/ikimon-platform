@@ -65,7 +65,7 @@ if ($isGuest) {
 
         <!-- Immersive Header -->
         <header class="fixed top-0 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] h-14 flex items-center justify-between px-4 bg-surface/90 backdrop-blur-xl z-50 border-b border-border">
-            <a href="index.php" onclick="if(document.referrer && new URL(document.referrer).origin === location.origin){history.back();return false;}" aria-label="戻る" class="p-2 -ml-2 text-muted hover:text-text transition min-w-11 min-h-11 flex items-center justify-center">
+            <a href="index.php" aria-label="戻る" class="p-2 -ml-2 text-muted hover:text-text transition min-w-11 min-h-11 flex items-center justify-center">
                 <i data-lucide="x" class="w-6 h-6"></i>
             </a>
             <h1 class="text-sm font-black tracking-widest uppercase text-text">記録する</h1>
