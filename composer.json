@@ -24,6 +24,7 @@
         "test:unit": "phpunit --testsuite Unit",
         "test:feature": "phpunit --testsuite Feature",
         "lint": "php tools/lint.php",
+        "check:marketing-copy": "php tools/check_marketing_copy.php",
         "setup:db": "php upload_package/scripts/setup_sqlite.php"
     },
     "config": {

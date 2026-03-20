@@ -9,10 +9,17 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once ROOT_DIR . '/libs/CspNonce.php';
 require_once ROOT_DIR . '/libs/CSRF.php';
+require_once ROOT_DIR . '/libs/BrandMessaging.php';
 
 $nonce = CspNonce::get();
 CspNonce::sendHeader();
 $csrfToken = CSRF::generate();
+$regionalMessaging = BrandMessaging::regionalRevitalization();
+$publicPlan = $regionalMessaging['public_plan'];
+$communityPlan = $regionalMessaging['community_plan'];
+$freePlan = $regionalMessaging['free_plan'];
+$publicPlanSummary = $publicPlan['description'];
+$freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -21,7 +28,7 @@ $csrfToken = CSRF::generate();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Public プランの相談 | ikimon for Business</title>
-    <meta name="description" content="ikimon for Business の Public プラン相談フォーム。完全な種一覧、CSV、証跡レポートなどの出力が必要な団体向けの窓口です。">
+    <meta name="description" content="<?= htmlspecialchars('ikimon for Business の Public プラン相談フォーム。' . $publicPlanSummary, ENT_QUOTES, 'UTF-8') ?>">
     <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -343,7 +350,7 @@ $csrfToken = CSRF::generate();
             <a href="index.php" class="logo">ikimon<sup>Business</sup></a>
             <div class="lp-nav-links">
                 <a href="index.php" class="hide-mobile">概要</a>
-                <a href="/for-business/#pricing" class="hide-mobile">料金</a>
+                <a href="/for-business/#plans" class="hide-mobile">料金</a>
                 <a href="status.php" class="hide-mobile">進み具合</a>
                 <a href="demo.php" class="btn btn-outline" style="padding: 6px 16px; font-size: 12px;">デモ</a>
             </div>
@@ -354,7 +361,7 @@ $csrfToken = CSRF::generate();
         <div class="container">
             <span class="badge badge-green">📝 APPLY</span>
             <h1 style="margin-top: 8px;">Public プランの相談</h1>
-            <p>フォーム送信後は受付番号を発行します。運営側で内容を確認し、必要な出力や運用体制に合わせて Public 導入まで進めます。</p>
+            <p>フォーム送信後は受付番号を発行します。運営側で内容を確認し、必要な出力や運用体制に合わせて Public 導入まで進めます。<?= htmlspecialchars($freeMunicipalityPolicy) ?></p>
         </div>
     </header>
 
@@ -409,10 +416,10 @@ $csrfToken = CSRF::generate();
                             <label>プラン <span class="req">*必須</span></label>
                             <select name="plan" required>
                                 <option value="">選択してください</option>
-                                <option value="public">Public（完全な種一覧・CSV・証跡レポート / ¥39,800 / 月）</option>
+                                <option value="public">Public（<?= htmlspecialchars($publicPlan['description']) ?> / ¥39,800 / 月）</option>
                                 <option value="consultation">まず相談したい</option>
                             </select>
-                            <p style="margin-top:8px; font-size:12px; color:var(--muted);">個人利用と無料の <strong>Community</strong> 団体ページは申込み不要です。団体ページ作成、スポット登録、観察会開催までは無料で始められます。</p>
+                            <p style="margin-top:8px; font-size:12px; color:var(--muted);">個人利用と無料の <strong><?= htmlspecialchars($communityPlan['tag']) ?></strong> 団体ページは申込み不要です。<?= htmlspecialchars($communityPlan['description']) ?></p>
                         </div>
 
                         <div class="field-row">
@@ -465,8 +472,8 @@ $csrfToken = CSRF::generate();
                         <h3>🧭 どのプランを選ぶ？</h3>
                         <ul>
                             <li><span class="check">Free</span> 個人で始める入口。申込み不要</li>
-                            <li><span class="check">Community</span> 団体ページ・観察会・概要確認を無料で回したいとき</li>
-                            <li><span class="check">Public</span> 完全な種一覧や出力が必要なとき</li>
+                            <li><span class="check"><?= htmlspecialchars($communityPlan['tag']) ?></span> <?= htmlspecialchars($communityPlan['name']) ?>として無料で始めたいとき</li>
+                            <li><span class="check"><?= htmlspecialchars($publicPlan['tag']) ?></span> <?= htmlspecialchars($publicPlan['description']) ?></li>
                         </ul>
                         <a href="create.php" class="btn btn-outline" style="width:100%; justify-content:center; margin-top:12px;">無料の団体ページを作る</a>
                     </div>
@@ -484,14 +491,18 @@ $csrfToken = CSRF::generate();
                     <div class="sidebar-card">
                         <h3>✨ Public でできること</h3>
                         <ul>
-                            <li><span class="check">✓</span> 完全な種一覧と要配慮種の詳細表示</li>
+                            <li><span class="check">✓</span> <?= htmlspecialchars($publicPlan['description']) ?></li>
                             <li><span class="check">✓</span> CSV / 証跡JSON / 各種レポート出力</li>
                             <li><span class="check">✓</span> 継続運用と提出向けの Public サポート</li>
-                            <li><span class="check">✓</span> Community で育てた活動をそのまま昇格</li>
+                            <li><span class="check">✓</span> <?= htmlspecialchars($communityPlan['tag']) ?> で育てた活動をそのまま昇格</li>
                         </ul>
                         <div style="margin-top:14px; border-radius:14px; background:#ecfdf5; border:1px solid #bbf7d0; padding:12px 14px; font-size:13px; color:var(--primary-dark);">
-                            <strong style="display:block; margin-bottom:4px;">Community でできること</strong>
-                            団体ページ作成、スポット登録、観察会開催、観察数や参加人数などの概要確認までは無料で始められます。
+                            <strong style="display:block; margin-bottom:4px;"><?= htmlspecialchars($communityPlan['tag']) ?> でできること</strong>
+                            <?= htmlspecialchars($communityPlan['description']) ?>
+                        </div>
+                        <div style="margin-top:14px; border-radius:14px; background:#f0fdf4; border:1px solid #86efac; padding:12px 14px; font-size:13px; color:var(--primary-dark);">
+                            <strong style="display:block; margin-bottom:4px;"><?= htmlspecialchars($freePlan['tag']) ?>の方針</strong>
+                            <?= htmlspecialchars($freeMunicipalityPolicy) ?>
                         </div>
                     </div>
 
