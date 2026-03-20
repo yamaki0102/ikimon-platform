@@ -88,6 +88,59 @@ class UserStore
     }
 
     /**
+     * Find orphan user by name only (for email/password registration)
+     */
+    public static function claimOrphanByName(string $name): ?array
+    {
+        $name = trim($name);
+        if (!$name) return null;
+
+        foreach (DataStore::get('users') as $u) {
+            if (
+                ($u['name'] ?? '') === $name
+                && empty($u['email'])
+                && empty($u['password_hash'])
+                && empty($u['oauth_id'])
+            ) {
+                return $u;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Find orphan user (has observations but no email/password/oauth)
+     * and claim it by linking OAuth credentials.
+     */
+    public static function claimOrphanUser(array $profile): ?array
+    {
+        $name = trim($profile['name'] ?? '');
+        if (!$name) return null;
+
+        $users = DataStore::get('users');
+        foreach ($users as $u) {
+            // Orphan = no email, no password, no oauth, name matches
+            if (
+                ($u['name'] ?? '') === $name
+                && empty($u['email'])
+                && empty($u['password_hash'])
+                && empty($u['oauth_id'])
+            ) {
+                // Claim this record
+                $fields = [
+                    'email' => strtolower(trim($profile['email'] ?? '')),
+                    'auth_provider' => $profile['provider'],
+                    'oauth_id' => $profile['id'],
+                    'avatar' => $profile['avatar_url'] ?: ($u['avatar'] ?? ''),
+                    'last_login_at' => date('Y-m-d H:i:s'),
+                ];
+                return self::update($u['id'], $fields);
+            }
+        }
+        return null;
+    }
+
+    /**
      * Create a user from OAuth profile (no password)
      */
     public static function createFromOAuth(array $profile): array

@@ -1,3 +1,4 @@
+class OfflineManager {
 constructor() {
     this.dbName = 'ikimon_pwa_v1';
     this.storeName = 'outbox';
@@ -130,7 +131,7 @@ constructor() {
 
             // If no token in item and no fresh token, fetch one? (Too complex for now, assume config exists)
 
-            const res = await fetch('api/post_observation.php', {
+            const res = await fetch('api/post_identification.php?_route=observation', {
                 method: 'POST',
                 body: formData
             });

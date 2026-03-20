@@ -1,5 +1,5 @@
-const CACHE_NAME = 'ikimon-v11-shell';
-const PHOTO_CACHE = 'ikimon-v11-photos';
+const CACHE_NAME = 'ikimon-v12-shell';
+const PHOTO_CACHE = 'ikimon-v12-photos';
 const ASSETS_TO_CACHE = [
     './',
     'index.php',
@@ -15,7 +15,7 @@ const ASSETS_TO_CACHE = [
     'id_wizard.php',
     'site_dashboard.php',
     'offline.html',
-    'js/OfflineManager.js?v=2.1',
+    'js/OfflineManager.js?v=2.2',
     'js/ToastManager.js',
     'js/HapticEngine.js',
     'js/SoundManager.js',
@@ -58,6 +58,30 @@ self.addEventListener('activate', (event) => {
 // Fetch Event: Smart Strategy per resource type
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
+
+    // Emergency route switch: stale clients may still POST to the poisoned
+    // post_observation.php path, so forward those requests to the safe alias.
+    if (event.request.method === 'POST' && url.pathname.endsWith('/api/post_observation.php')) {
+        event.respondWith((async () => {
+            const body = await event.request.clone().blob();
+            const rewrittenRequest = new Request(`${self.location.origin}/api/post_identification.php?_route=observation`, {
+                method: event.request.method,
+                headers: event.request.headers,
+                body,
+                credentials: event.request.credentials,
+                mode: event.request.mode,
+                cache: 'no-store',
+                redirect: event.request.redirect,
+                referrer: event.request.referrer,
+                referrerPolicy: event.request.referrerPolicy,
+                integrity: event.request.integrity,
+                keepalive: event.request.keepalive,
+            });
+
+            return fetch(rewrittenRequest);
+        })());
+        return;
+    }
 
     // Skip non-GET requests (POST for form submission etc.)
     if (event.request.method !== 'GET') return;

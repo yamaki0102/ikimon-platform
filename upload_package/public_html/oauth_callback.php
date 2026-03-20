@@ -55,6 +55,11 @@ try {
             }
         }
 
+        // Still no user → try claiming orphan user (existing record with observations but no auth)
+        if (!$user) {
+            $user = UserStore::claimOrphanUser($profile);
+        }
+
         // Still no user → create new
         if (!$user) {
             $user = UserStore::createFromOAuth($profile);

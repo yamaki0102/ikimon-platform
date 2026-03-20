@@ -1,4 +1,9 @@
 <?php
+// Emergency routing: bypass nginx cache for post_observation.php (500 cached)
+if (isset($_GET['_route']) && $_GET['_route'] === 'observation') {
+    require __DIR__ . '/post_observation.php';
+    exit;
+}
 
 /**
  * post_identification.php — 統合同定API (v1 + v2機能マージ)
@@ -22,6 +27,21 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
+
+// Temporary: catch all errors and return as JSON
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
+});
+set_exception_handler(function($e) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Server error: ' . $e->getMessage(),
+        'file' => basename($e->getFile()) . ':' . $e->getLine(),
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+});
+
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Taxon.php';

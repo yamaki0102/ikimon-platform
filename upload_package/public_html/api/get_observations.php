@@ -164,7 +164,7 @@ foreach ($data as &$obs) {
         $obs['user_name'] = BioUtils::getUserName($obs['user_id']);
     }
     // Inject resolved thumbnail path (falls back to original if thumb not yet generated)
-    if (!empty($obs['photos'][0])) {
+    if (!empty($obs['photos'][0]) && ThumbnailGenerator::exists($obs['photos'][0], 'sm')) {
         $obs['thumb_sm'] = ThumbnailGenerator::resolve($obs['photos'][0], 'sm');
     }
 }

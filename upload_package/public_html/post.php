@@ -50,7 +50,7 @@ if ($isGuest) {
     <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" rel="stylesheet" />
     <!-- Offline Manager -->
     <script src="js/ToastManager.js"></script>
-    <script src="js/OfflineManager.js?v=2.1"></script>
+    <script src="js/OfflineManager.js?v=2.2"></script>
     <script src="js/ai-assist.js?v=2.0"></script>
     <script src="js/gamification-modal.js?v=1.0"></script>
 </head>
@@ -896,7 +896,7 @@ if ($isGuest) {
     </script>
     <script src="js/exif-mini.js?v=1.0"></script>
     <script src="js/ai-assist.js?v=2.0"></script>
-    <script src="js/post-uploader.js?v=2.5"></script>
+    <script src="js/post-uploader.js?v=2.7"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>
