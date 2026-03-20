@@ -353,7 +353,6 @@ CspNonce::sendHeader();
             <a href="index.php" class="logo">ikimon<sup>Business</sup></a>
             <div class="lp-nav-links">
                 <a href="index.php" class="hide-mobile">概要</a>
-                <a href="pricing.php" class="hide-mobile">料金</a>
                 <a href="demo.php" class="btn btn-outline" style="padding: 6px 16px; font-size: 12px;">デモ</a>
             </div>
         </div>
@@ -484,7 +483,6 @@ CspNonce::sendHeader();
             <p style="margin-bottom: 8px;">
                 <a href="../index.php">ikimon ホーム</a>
                 <a href="index.php">ikimon for Business</a>
-                <a href="pricing.php">料金</a>
                 <a href="mailto:contact@ikimon.life">お問い合わせ</a>
             </p>
             <p>&copy; <?php echo date('Y'); ?> ikimon Project.</p>

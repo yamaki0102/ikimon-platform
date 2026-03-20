@@ -73,7 +73,7 @@ Auth::init();
 
             <section>
                 <h2 class="text-lg font-black text-text mb-3">第6条（有料プラン）</h2>
-                <p>本サービスの一部機能（API アクセス、DwC-A エクスポート、TNFD レポート生成等）は有料プランでのみ提供されます。料金は<a href="pricing.php" class="text-primary underline">料金プランページ</a>に記載のとおりです。</p>
+                <p>本サービスの一部機能（API アクセス、DwC-A エクスポート、TNFD レポート生成等）は有料プランでのみ提供されます。料金は別途お問い合わせください。</p>
                 <p class="mt-2">有料プランの解約は、メールにて承ります。解約月の末日までサービスをご利用いただけます。</p>
             </section>
 
@@ -116,7 +116,7 @@ Auth::init();
                             </tr>
                             <tr class="border-b border-border">
                                 <td class="px-4 py-3 font-bold text-muted bg-surface">販売価格</td>
-                                <td class="px-4 py-3"><a href="pricing.php" class="text-primary underline">料金プランページ</a>に記載</td>
+                                <td class="px-4 py-3">別途お問い合わせ</td>
                             </tr>
                             <tr class="border-b border-border">
                                 <td class="px-4 py-3 font-bold text-muted bg-surface">支払方法</td>

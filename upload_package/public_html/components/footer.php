@@ -19,11 +19,8 @@
             <div>
                 <p class="text-[10px] font-black uppercase tracking-widest text-faint mb-3">Service</p>
                 <div class="flex flex-col gap-0">
-                    <a href="pricing.php" class="hover:text-text transition py-2 min-h-11 flex items-center">料金プラン</a>
                     <a href="for-business/" class="hover:text-primary transition py-2 min-h-11 flex items-center"><?php echo __('nav.business'); ?></a>
                     <a href="for-researcher.php" class="hover:text-text transition py-2 min-h-11 flex items-center">研究者・専門家様</a>
-                    <a href="showcase.php" class="hover:text-text transition py-2 min-h-11 flex items-center"><?php echo __('nav.showcase'); ?></a>
-                    <button onclick="localStorage.removeItem('ikimon_onboarded'); location.reload();" class="hover:text-text transition text-left py-2 min-h-11 flex items-center"><?php echo __('nav.beginners'); ?></button>
                 </div>
             </div>
 

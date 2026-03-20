@@ -119,7 +119,6 @@ Auth::init();
         <div class="flex flex-wrap gap-3 mt-10 pt-6 border-t border-border">
             <a href="terms.php" class="text-xs font-bold text-primary hover:underline">📜 利用規約</a>
             <a href="faq.php" class="text-xs font-bold text-primary hover:underline">❓ よくある質問</a>
-            <a href="pricing.php" class="text-xs font-bold text-primary hover:underline">💰 料金プラン</a>
         </div>
 
     </main>

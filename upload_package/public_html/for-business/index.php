@@ -648,7 +648,6 @@ CspNonce::sendHeader();
                 <a href="../index.php" class="hide-mobile" style="font-size:12px; opacity:0.6;">← ikimon 一般サイトへ</a>
                 <a href="#how" class="hide-mobile">仕組み</a>
                 <a href="#reports" class="hide-mobile">レポート</a>
-                <a href="pricing.php" class="hide-mobile">料金</a>
                 <a href="demo.php" class="btn btn-outline" style="padding: 6px 16px; font-size: 12px;">デモを体験</a>
                 <a href="apply.php" class="btn btn-primary-lp" style="padding: 6px 16px; font-size: 12px;">導入する</a>
             </div>
@@ -918,7 +917,7 @@ CspNonce::sendHeader();
             </table>
 
             <div style="margin-top: 24px;">
-                <a href="pricing.php" class="btn btn-primary-lp btn-lg">📋 詳しい料金比較を見る →</a>
+                <a href="apply.php" class="btn btn-primary-lp btn-lg">📋 導入のご相談はこちら →</a>
             </div>
         </div>
     </section>

@@ -103,7 +103,7 @@ Auth::init();
                         <i data-lucide="camera"></i>
                         観察を始める
                     </a>
-                    <a href="showcase.php" class="btn-secondary flex-1 flex items-center justify-center gap-2">
+                    <a href="for-business/" class="btn-secondary flex-1 flex items-center justify-center gap-2">
                         <i data-lucide="building-2"></i>
                         企業・自治体の方へ
                     </a>
