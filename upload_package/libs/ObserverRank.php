@@ -98,10 +98,10 @@ class ObserverRank
         // === Fieldwork Axis ===
         $er = $rules['fieldwork'] ?? [];
         $fieldworkScore = 0;
-        $fieldworkScore += ($ctx['my_field_count'] ?? 0) * $er['field_created'];
-        $fieldworkScore += ($ctx['track_session_count'] ?? 0) * $er['track_session'];
-        $fieldworkScore += (int)(($ctx['total_walk_distance_km'] ?? 0) * $er['walk_distance_km']);
-        $fieldworkScore += ($ctx['my_field_total_obs'] ?? 0) * $er['field_observation'];
+        $fieldworkScore += ($ctx['my_field_count'] ?? 0) * ($er['field_created'] ?? 30);
+        $fieldworkScore += ($ctx['track_session_count'] ?? 0) * ($er['track_session'] ?? 10);
+        $fieldworkScore += (int)(($ctx['total_walk_distance_km'] ?? 0) * ($er['walk_distance_km'] ?? 5));
+        $fieldworkScore += ($ctx['my_field_total_obs'] ?? 0) * ($er['field_observation'] ?? 8);
 
         // Survey (Phase 15C)
         $fieldworkScore += ($ctx['survey_count'] ?? 0) * ($er['survey_session'] ?? 30);
