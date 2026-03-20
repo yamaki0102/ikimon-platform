@@ -148,10 +148,10 @@ $meta_title = '名前を提案する';
                     <template x-for="item in results" :key="item.slug">
                         <button @click.prevent="select(item)" class="w-full text-left p-4 hover:bg-surface border-b border-border last:border-0 transition">
                             <p class="font-bold flex items-center justify-between">
-                                <span x-text="item.ja_name || item.scientific_name"></span>
+                                <span x-text="item.canonicalName || item.scientificName"></span>
                                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-surface font-normal uppercase" x-text="item.rank"></span>
                             </p>
-                            <p class="text-xs text-muted italic" x-text="item.scientific_name"></p>
+                            <p class="text-xs text-muted italic" x-text="item.scientificName"></p>
                         </button>
                     </template>
                 </div>
@@ -165,8 +165,8 @@ $meta_title = '名前を提案する';
                 </p>
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-xl font-bold" x-text="selected ? (selected.ja_name || selected.scientific_name) : ''"></h3>
-                        <p class="text-sm text-muted italic" x-text="selected ? selected.scientific_name : ''"></p>
+                        <h3 class="text-xl font-bold" x-text="selected ? (selected.canonicalName || selected.scientificName) : ''"></h3>
+                        <p class="text-sm text-muted italic" x-text="selected ? selected.scientificName : ''"></p>
                     </div>
                     <button @click.prevent="selected = null; query = ''" class="p-2 hover:bg-red-500/20 rounded-full transition">
                         <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i>
@@ -330,7 +330,7 @@ $meta_title = '名前を提案する';
                 select(item) {
                     this.selected = item;
                     this.results = [];
-                    this.query = item.ja_name || item.scientific_name;
+                    this.query = item.canonicalName || item.scientificName;
                 },
 
                 swipe() {
