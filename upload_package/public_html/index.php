@@ -402,16 +402,25 @@ unset($allObs);
                         <div class="aspect-square w-full bg-surface relative group select-none"
                             @click="doubleTap($event)">
                             <?php
-                                $feedImg = ThumbnailGenerator::resolve($obs['photos'][0], 'md');
-                                $feedImgSm = ThumbnailGenerator::resolve($obs['photos'][0], 'sm');
+                                $feedPhoto = $obs['photos'][0] ?? null;
+                                $feedHasImage = $feedPhoto && ThumbnailGenerator::exists($feedPhoto, 'md');
+                                $feedImg = $feedHasImage ? ThumbnailGenerator::resolve($feedPhoto, 'md') : null;
+                                $feedImgSm = $feedHasImage ? ThumbnailGenerator::resolve($feedPhoto, 'sm') : null;
                             ?>
-                            <img src="<?php echo $feedImg; ?>"
-                                 srcset="<?php echo $feedImgSm; ?> 320w, <?php echo $feedImg; ?> 640w, <?php echo $obs['photos'][0]; ?> 1280w"
-                                 sizes="(max-width: 640px) 100vw, 640px"
-                                 alt="<?php echo htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '観察写真'); ?>"
-                                 class="w-full h-full object-cover pointer-events-none"
-                                 loading="lazy" decoding="async"
-                                 onload="this.parentElement.classList.remove('lazy-img')">
+                            <?php if ($feedHasImage): ?>
+                                <img src="<?php echo htmlspecialchars($feedImg); ?>"
+                                     srcset="<?php echo htmlspecialchars($feedImgSm); ?> 320w, <?php echo htmlspecialchars($feedImg); ?> 640w, <?php echo htmlspecialchars($feedPhoto); ?> 1280w"
+                                     sizes="(max-width: 640px) 100vw, 640px"
+                                     alt="<?php echo htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '観察写真'); ?>"
+                                     class="w-full h-full object-cover pointer-events-none"
+                                     loading="lazy" decoding="async"
+                                     onload="this.parentElement.classList.remove('lazy-img')">
+                            <?php else: ?>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface text-muted">
+                                    <i data-lucide="image-off" class="w-8 h-8 text-faint"></i>
+                                    <span class="text-sm font-medium">画像準備中</span>
+                                </div>
+                            <?php endif; ?>
 
                             <div x-show="scale > 1"
                                 x-transition:enter="transition ease-out duration-200"

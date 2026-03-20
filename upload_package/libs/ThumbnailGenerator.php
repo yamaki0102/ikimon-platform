@@ -179,6 +179,21 @@ class ThumbnailGenerator
     }
 
     /**
+     * 元画像または生成済みサムネイルが存在するかを返す
+     */
+    public static function exists(string $photoPath, string $suffix = 'sm'): bool
+    {
+        $absPath = PUBLIC_DIR . '/' . ltrim($photoPath, '/');
+        if (file_exists($absPath)) {
+            return true;
+        }
+
+        $thumbPath = self::thumbnailPath($photoPath, $suffix);
+        $absThumbPath = PUBLIC_DIR . '/' . ltrim($thumbPath, '/');
+        return file_exists($absThumbPath);
+    }
+
+    /**
      * 観察の最初の写真のサムネイルURLを返す（フィード/グリッド用）
      *
      * @param array $observation 観察レコード
@@ -188,6 +203,9 @@ class ThumbnailGenerator
     public static function feedImage(array $observation, string $suffix = 'sm'): ?string
     {
         if (empty($observation['photos'][0])) {
+            return null;
+        }
+        if (!self::exists($observation['photos'][0], $suffix)) {
             return null;
         }
         return self::resolve($observation['photos'][0], $suffix);

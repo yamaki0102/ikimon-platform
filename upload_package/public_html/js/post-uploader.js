@@ -450,7 +450,7 @@ function uploader() {
                 if (this.validationWarnings.length === 0 && this.hasConstraints && !this.validating && this.taxon_slug) {
                     formData.append('ecological_verified', '1');
                 }
-                const res = await fetch('api/post_observation.php', {
+                const res = await fetch('api/post_identification.php?_route=observation', {
                     method: 'POST',
                     body: formData
                 });

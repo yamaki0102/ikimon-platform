@@ -108,7 +108,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif (UserStore::findByEmail($email)) {
                 $error = 'このメールアドレスは既に登録されています。';
             } else {
-                $user = UserStore::create($name, $email, $password, 'Observer', '観察者');
+                // Try claiming orphan user first (existing record with observations but no auth)
+                $orphan = UserStore::claimOrphanByName($name);
+                if ($orphan) {
+                    $user = UserStore::update($orphan['id'], [
+                        'email' => strtolower(trim($email)),
+                        'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                        'auth_provider' => 'local',
+                    ]);
+                } else {
+                    $user = UserStore::create($name, $email, $password, 'Observer', '観察者');
+                }
 
                 // 招待コード処理
                 $inviteCode = $_POST['invite_code'] ?? ($_SESSION['invite_code'] ?? ($_COOKIE['invite_code'] ?? ''));

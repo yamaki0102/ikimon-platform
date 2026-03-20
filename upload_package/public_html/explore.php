@@ -79,7 +79,7 @@ Auth::init();
                     </label>
                 </div>
 
-                <!-- Filter Chips -->
+                <!-- Filter Chips: Taxon Group -->
                 <div class="relative shrink-0">
                     <div class="flex gap-2 overflow-x-auto scrollbar-hide pr-6" role="tablist" aria-label="分類フィルタ">
                         <button @click="filter='all'; load(true)" role="tab" :aria-selected="filter === 'all'" :class="filter === 'all' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition">すべて</button>
@@ -89,6 +89,18 @@ Auth::init();
                         <button @click="filter='fungi'; load(true)" role="tab" :aria-selected="filter === 'fungi'" :class="filter === 'fungi' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🍄 菌類</button>
                         <button @click="filter='mammals'; load(true)" role="tab" :aria-selected="filter === 'mammals'" :class="filter === 'mammals' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🐾 哺乳類</button>
                         <button @click="filter='herps'; load(true)" role="tab" :aria-selected="filter === 'herps'" :class="filter === 'herps' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🐸 両生爬虫類</button>
+                    </div>
+                    <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-10 md:hidden" style="background:linear-gradient(to right,transparent,#fff)"></div>
+                </div>
+
+                <!-- Filter Chips: ID Status -->
+                <div class="relative shrink-0">
+                    <div class="flex gap-2 overflow-x-auto scrollbar-hide pr-6" role="tablist" aria-label="判定ステータス">
+                        <button @click="statusFilter=''; load(true)" role="tab" :aria-selected="statusFilter === ''" :class="statusFilter === '' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-3 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="filter" class="w-3 h-3"></i> 判定</button>
+                        <button @click="statusFilter='Research Grade'; load(true)" role="tab" :aria-selected="statusFilter === 'Research Grade'" :class="statusFilter === 'Research Grade' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-3 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary"></span> 確定済み</button>
+                        <button @click="statusFilter='Suggested'; load(true)" role="tab" :aria-selected="statusFilter === 'Suggested'" :class="statusFilter === 'Suggested' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-3 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-warning"></span> AI提案中</button>
+                        <button @click="statusFilter='Needs ID'; load(true)" role="tab" :aria-selected="statusFilter === 'Needs ID'" :class="statusFilter === 'Needs ID' ? 'bg-gray-500/10 text-gray-600 border-gray-500/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-3 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-muted"></span> 未同定</button>
+                        <button @click="statusFilter='unresolved'; load(true)" role="tab" :aria-selected="statusFilter === 'unresolved'" :class="statusFilter === 'unresolved' ? 'bg-rose-500/10 text-rose-600 border-rose-500/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-3 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="help-circle" class="w-3 h-3"></i> 同定求む</button>
                     </div>
                     <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-10 md:hidden" style="background:linear-gradient(to right,transparent,#fff)"></div>
                 </div>
@@ -166,6 +178,7 @@ Auth::init();
             return {
                 query: '',
                 filter: 'all',
+                statusFilter: '',
                 items: [],
                 loading: false,
                 offset: 0,
@@ -242,6 +255,9 @@ Auth::init();
                         let url = `api/get_observations.php?limit=${this.limit}&offset=${this.offset}&q=${encodeURIComponent(this.query)}`;
                         if (this.filter !== 'all' && groupMap[this.filter]) {
                             url += `&taxon_group=${groupMap[this.filter]}`;
+                        }
+                        if (this.statusFilter) {
+                            url += `&status=${encodeURIComponent(this.statusFilter)}`;
                         }
                         const res = await fetch(url);
                         const result = await res.json();
