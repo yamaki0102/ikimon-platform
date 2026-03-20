@@ -1,28 +1,416 @@
 <?php
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/CspNonce.php';
 Auth::init();
+CspNonce::sendHeader();
+
+$isLoggedIn = Auth::isLoggedIn();
+$ctaHref = $isLoggedIn ? 'post.php' : 'login.php?redirect=post.php';
+$ctaLabel = $isLoggedIn ? '観察を始める' : '無料で始める';
+
+$meta_title = 'ikimonの想い — 自然が、子どもとまちを結ぶ | ikimon';
+$meta_description = '自然観察を通じた地域創生。消滅可能性自治体への無償提供、原体験から生まれたビジョン。ikimon.lifeが目指す未来。';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ikimonについて | ikimon</title>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <style>
-        .story-section {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600&display=swap" rel="stylesheet">
+    <style nonce="<?= CspNonce::attr() ?>">
+        /* ── msg: about.php page-scoped styles ── */
+
+        .msg-hero {
+            background: linear-gradient(135deg, #0a0f0a 0%, #0f1a12 50%, #0a0f0a 100%);
+            color: #e5e7eb;
+            padding: 72px 20px 56px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
         }
-        .diff-card {
-            transition: transform 0.2s;
+        .msg-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -30%;
+            width: 80%;
+            height: 200%;
+            background: radial-gradient(ellipse, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+            pointer-events: none;
         }
-        .diff-card:hover {
-            transform: translateY(-2px);
+        .msg-hero h1 {
+            font-family: 'Shippori Mincho', serif;
+            font-size: clamp(1.75rem, 4vw, 3rem);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            line-height: 1.5;
+            color: #ffffff;
+            margin-bottom: 16px;
+            position: relative;
+        }
+        .msg-hero .msg-hero-sub {
+            font-size: clamp(0.875rem, 1.5vw, 1.0625rem);
+            color: rgba(255, 255, 255, 0.55);
+            letter-spacing: 0.04em;
+            margin-bottom: 0;
+        }
+
+        /* signature block */
+        .msg-signature {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 40px;
+            padding-top: 32px;
+            border-top: 1px solid var(--color-border, rgba(0,0,0,0.06));
+        }
+        .msg-signature-photo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 2px solid rgba(16, 185, 129, 0.3);
+        }
+        .msg-signature-name {
+            font-weight: 700;
+            color: var(--color-text, #1a2e1f);
+            font-size: 1rem;
+        }
+        .msg-signature-title {
+            font-size: 0.8125rem;
+            color: var(--color-text-faint, #9ca3af);
+            margin-top: 2px;
+        }
+
+        /* ── editorial sections ── */
+        .msg-section {
+            padding: 64px 20px;
+        }
+        .msg-section-inner {
+            max-width: 680px;
+            margin: 0 auto;
+        }
+        .msg-surface {
+            background: var(--color-bg-surface, #f8faf9);
+        }
+        .msg-section h2 {
+            font-family: 'Shippori Mincho', serif;
+            font-size: clamp(1.25rem, 2.5vw, 1.625rem);
+            font-weight: 600;
+            color: var(--color-text, #1a2e1f);
+            margin-bottom: 32px;
+            letter-spacing: 0.03em;
+            line-height: 1.5;
+        }
+
+        /* lead blockquote */
+        .msg-lead {
+            border-left: 3px solid var(--color-primary, #10b981);
+            padding-left: 20px;
+            font-family: 'Shippori Mincho', serif;
+            font-size: clamp(1.0625rem, 2vw, 1.25rem);
+            color: var(--color-text, #1a2e1f);
+            line-height: 1.8;
+            margin-bottom: 40px;
+        }
+
+        /* body text */
+        .msg-body p {
+            font-size: 1rem;
+            line-height: 2.0;
+            color: var(--color-text-muted, #64748b);
+            margin-bottom: 20px;
+        }
+        .msg-body p strong {
+            color: var(--color-text, #1a2e1f);
+        }
+
+        /* green accent line */
+        .msg-accent {
+            color: var(--color-primary-dark, #059669);
+            font-weight: 600;
+            font-size: 1.0625rem;
+            line-height: 1.8;
+            margin: 28px 0;
+        }
+
+        /* large accent (section closer) */
+        .msg-accent-lg {
+            color: var(--color-primary-dark, #059669);
+            font-family: 'Shippori Mincho', serif;
+            font-weight: 600;
+            font-size: clamp(1.125rem, 2vw, 1.375rem);
+            line-height: 1.6;
+            text-align: center;
+            margin: 48px 0 0;
+            padding: 32px 0;
+            border-top: 1px solid var(--color-border, rgba(0,0,0,0.06));
+        }
+
+        /* insight blocks */
+        .msg-insight {
+            display: flex;
+            gap: 16px;
+            margin: 28px 0;
+            align-items: flex-start;
+        }
+        .msg-insight-num {
+            font-family: 'Shippori Mincho', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--color-primary, #10b981);
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .msg-insight-body {
+            flex: 1;
+        }
+        .msg-insight-text {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--color-text, #1a2e1f);
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+        .msg-cite {
+            font-size: 0.8125rem;
+            color: var(--color-text-faint, #9ca3af);
+            line-height: 1.6;
+        }
+
+        /* stat hero */
+        .msg-stat-hero {
+            text-align: center;
+            padding: 40px 0;
+            margin: 32px 0;
+            border-top: 1px solid var(--color-border, rgba(0,0,0,0.06));
+            border-bottom: 1px solid var(--color-border, rgba(0,0,0,0.06));
+        }
+        .msg-stat-row {
+            display: flex;
+            justify-content: center;
+            align-items: baseline;
+            gap: 12px;
+        }
+        .msg-stat-number {
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(2.5rem, 6vw, 3.5rem);
+            font-weight: 900;
+            color: var(--color-text, #1a2e1f);
+            letter-spacing: -0.02em;
+            line-height: 1;
+        }
+        .msg-stat-slash {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            color: var(--color-text-faint, #9ca3af);
+            font-weight: 300;
+        }
+        .msg-stat-sub {
+            font-size: clamp(1.25rem, 3vw, 1.75rem);
+            color: var(--color-text-muted, #64748b);
+            font-weight: 700;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .msg-stat-labels {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 12px;
+        }
+        .msg-stat-label {
+            font-size: 0.8125rem;
+            color: var(--color-text-muted, #64748b);
+            letter-spacing: 0.03em;
+        }
+
+        /* examples list */
+        .msg-examples {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 12px;
+            background: var(--color-bg-surface, #f8faf9);
+            border: 1px solid var(--color-border, rgba(0,0,0,0.06));
+        }
+        .msg-surface .msg-examples {
+            background: var(--color-bg-base, #ffffff);
+        }
+        .msg-example-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            color: var(--color-text-muted, #64748b);
+            padding: 6px 0;
+        }
+        .msg-example-item span:last-child {
+            font-weight: 700;
+            font-family: 'Montserrat', sans-serif;
+            color: var(--color-text, #1a2e1f);
+        }
+
+        /* plan blocks */
+        .msg-plans {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin: 28px 0;
+        }
+        .msg-plan-item {
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border, rgba(0,0,0,0.06));
+        }
+        .msg-plan-item.msg-plan-free {
+            background: rgba(16, 185, 129, 0.06);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+        .msg-plan-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .msg-plan-free .msg-plan-tag {
+            background: var(--color-primary, #10b981);
+            color: #ffffff;
+        }
+        .msg-plan-item:not(.msg-plan-free) .msg-plan-tag {
+            background: var(--color-bg-surface, #f8faf9);
+            color: var(--color-text-muted, #64748b);
+            border: 1px solid var(--color-border, rgba(0,0,0,0.06));
+        }
+        .msg-plan-name {
+            font-weight: 700;
+            color: var(--color-text, #1a2e1f);
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+        .msg-plan-desc {
+            font-size: 0.875rem;
+            color: var(--color-text-muted, #64748b);
+            line-height: 1.6;
+        }
+
+        /* CTA section */
+        .msg-cta-section {
+            text-align: center;
+            padding: 64px 20px;
+        }
+        .msg-cta-inner {
+            max-width: 680px;
+            margin: 0 auto;
+        }
+        .msg-cta-heading {
+            font-family: 'Shippori Mincho', serif;
+            font-size: clamp(1.25rem, 2.5vw, 1.625rem);
+            font-weight: 600;
+            color: var(--color-text, #1a2e1f);
+            margin-bottom: 32px;
+            letter-spacing: 0.03em;
+        }
+        .msg-cta-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 400px;
+            margin: 0 auto 40px;
+        }
+        .msg-cta-buttons .btn-primary,
+        .msg-cta-buttons .btn-secondary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .msg-contact {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding-top: 32px;
+            border-top: 1px solid var(--color-border, rgba(0,0,0,0.06));
+        }
+        .msg-contact-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            color: var(--color-text-muted, #64748b);
+        }
+        .msg-contact-item a {
+            color: var(--color-primary-dark, #059669);
+        }
+
+        /* guide links (simplified) */
+        .msg-guides {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 0 20px 64px;
+        }
+        .msg-guides-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--color-text-faint, #9ca3af);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .msg-guide-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            transition: background 0.2s;
+            text-decoration: none;
+        }
+        .msg-guide-link:hover {
+            background: var(--color-bg-surface, #f8faf9);
+        }
+        .msg-guide-link .msg-guide-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--color-text, #1a2e1f);
+        }
+        .msg-guide-link .msg-guide-desc {
+            font-size: 0.75rem;
+            color: var(--color-text-faint, #9ca3af);
+        }
+        .msg-guide-link i {
+            color: var(--color-text-faint, #9ca3af);
+            flex-shrink: 0;
+        }
+
+        /* ── responsive ── */
+        @media (min-width: 640px) {
+            .msg-hero {
+                padding: 88px 24px 64px;
+            }
+            .msg-section {
+                padding: 80px 24px;
+            }
+            .msg-cta-buttons {
+                flex-direction: row;
+                max-width: 500px;
+            }
+            .msg-cta-buttons .btn-primary,
+            .msg-cta-buttons .btn-secondary {
+                flex: 1;
+            }
         }
     </style>
 </head>
-
 <body class="js-loading pt-14 bg-base text-text font-body">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
@@ -31,509 +419,458 @@ Auth::init();
     </script>
 
     <main>
-    <!-- Hero Section -->
-    <section class="pt-20 pb-12 px-6">
-        <div class="max-w-4xl mx-auto text-center">
-            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-surface border border-primary/20 backdrop-blur-md mb-5">
-                <span class="text-xs font-bold tracking-wider uppercase text-primary-dark">About ikimon</span>
+
+    <!-- ============================================
+         Section 1: Hero
+         ============================================ -->
+    <section class="msg-hero">
+        <h1>自然が、子どもとまちを結ぶ。</h1>
+        <p class="msg-hero-sub">ikimon.lifeが目指す地域創生のかたち</p>
+    </section>
+
+    <!-- ============================================
+         Section 2: 原体験 — 岩内の記憶
+         ============================================ -->
+    <section class="msg-section">
+        <div class="msg-section-inner">
+
+            <h2>原体験</h2>
+
+            <div class="msg-lead">
+                玄関先の飛び石をひっくり返すと、その下にハサミムシがいた。
             </div>
-            <h1 class="text-4xl md:text-6xl font-black mb-4 tracking-tight">
-                なぜ、<span class="text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]">ikimon</span>を作ったのか
-            </h1>
-            <p class="text-base md:text-lg font-medium text-muted max-w-2xl mx-auto leading-relaxed">
-                8年前の挑戦、4年間の原体験、そして「散歩と観察で世界を変える」という確信
+
+            <div class="msg-body">
+                <p>
+                    北海道・岩内町。<br>
+                    幼稚園から小学1年生まで過ごした、僕の最初のふるさとです。
+                </p>
+                <p>
+                    海がありました。山がありました。川もありました。<br>
+                    そして、家の前には——当時の僕には「ジャングル」としか思えないほどの庭がありました。
+                </p>
+                <p>
+                    玄関先の石畳をひっくり返して、ハサミムシを捕まえる。<br>
+                    飼育に挑戦して、毎日観察する。<br>
+                    秋になるとスキー場に行って、トノサマバッタを10匹以上捕まえる。<br>
+                    それだけで、世界は最高に面白かった。
+                </p>
+                <p>
+                    でも、そのときの写真は1枚も残っていません。<br>
+                    もし記録があったら、何度も見返して、もっと愛着が深まっていたんじゃないか。<br>
+                    そう思うことがあります。
+                </p>
+
+                <p class="msg-accent">
+                    飛び石がなければ、ハサミムシとの出会いはなかった。<br>
+                    整備されたスキー場がなければ、バッタの記憶も残らなかった。
+                </p>
+
+                <p>
+                    手つかずの自然も、もちろん大切です。<br>
+                    でも、人が手入れをしている場所——玄関先の石畳、草を刈ったゲレンデ、管理された里山——<br>
+                    そういう場所にこそ、子どもが生き物と出会うきっかけがあります。
+                </p>
+            </div>
+
+            <h2 style="margin-top: 48px;">まちの解像度が上がると、愛着も上がる</h2>
+
+            <div class="msg-body">
+                <p>
+                    いつも歩いている道の街路樹、なんという木か知っていますか？<br>
+                    街でよく見かけるカラス、ハシブトガラスとハシボソガラスの違いはわかりますか？
+                </p>
+                <p>
+                    知らなくても、生活は何も困りません。<br>
+                    でも、一度知ると——<br>
+                    同じ道が、ちょっとだけ違って見えるようになる。
+                </p>
+                <p>
+                    名前を知ること。季節の変化に気づくこと。<br>
+                    それは、自分が暮らしている場所の「解像度」が上がるということです。
+                </p>
+
+                <p class="msg-accent">
+                    解像度が上がると、愛着が生まれる。<br>
+                    愛着が生まれると、その場所を大切にしたくなる。
+                </p>
+
+                <p>
+                    ikimon.lifeは、そのきっかけを作りたい。<br>
+                    見つけて、記録して、見返す。<br>
+                    それだけで、まちとの関係が少しずつ変わっていく。
+                </p>
+
+                <p class="msg-accent-lg">
+                    子どもと自然の結びつきを、失いたくない。
+                </p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============================================
+         Section 3: なぜ、地域創生なのか
+         ============================================ -->
+    <section class="msg-section msg-surface">
+        <div class="msg-section-inner">
+
+            <h2>なぜ、地域創生なのか</h2>
+
+            <div class="msg-body">
+                <p>
+                    地域創生って、誰かひとりが頑張ってできることじゃありません。<br>
+                    ikimon.lifeだけで実現できるとも思っていません。
+                </p>
+                <p>
+                    でも、地域の大人たちが——親も、先生も、近所のおじさんも——<br>
+                    子どもと一緒に自然の中を歩く機会を作っていくことで、<br>
+                    少しずつ、何かが変わり始めると信じています。
+                </p>
+                <p>
+                    自然の中を歩くことは、心と体の健康につながる。<br>
+                    観察を通じて地域の自然を知ることは、地元への愛着につながる。<br>
+                    そして地元を好きな人が増えることは、その地域が生き残っていく力になる。
+                </p>
+                <p>
+                    ikimon.lifeは、その循環のきっかけを作る道具でありたい。<br>
+                    使うのは、地域に暮らすみなさんです。
+                </p>
+                <p>
+                    感覚だけの話じゃありません。<br>
+                    全国の調査が、繰り返し同じことを示しています。
+                </p>
+            </div>
+
+            <!-- Insight 1 -->
+            <div class="msg-insight">
+                <span class="msg-insight-num">1</span>
+                <div class="msg-insight-body">
+                    <p class="msg-insight-text">
+                        地域への愛着は、「自然」と「人のつながり」がセットで語られる
+                    </p>
+                    <p class="msg-cite">
+                        香取市の中学生調査では、地元を好きな理由の1位が「自然が豊かだから」（72.8%）、2位が「地域の人がやさしく、親切だから」（58.3%）。
+                        浜松市の若年層調査でも、81.8%が「浜松が好き」と答え、魅力として人間関係と自然環境を挙げている。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Insight 2 -->
+            <div class="msg-insight">
+                <span class="msg-insight-num">2</span>
+                <div class="msg-insight-body">
+                    <p class="msg-insight-text">
+                        子どもが「帰りたい」と思う理由——<br>「自然が豊か」「人が優しい」「生まれた場所」
+                    </p>
+                    <p class="msg-cite">
+                        飯島町の中学生調査で、「住みたい・帰ってきたい」理由の最多は「自然が多い、空気が美味しい」（45.5%）。
+                        「どちらかというと帰りたい」層でも、「自然豊か・住みやすい」が62.5%で最多、次いで「人の優しさ・地域とのつながり」（12.5%）。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Insight 3 -->
+            <div class="msg-insight">
+                <span class="msg-insight-num">3</span>
+                <div class="msg-insight-body">
+                    <p class="msg-insight-text">
+                        家族以外の「信頼できる大人」がいることが、子どもの安心感を支えている
+                    </p>
+                    <p class="msg-cite">
+                        上越市の調査では、子どもの55.18%に「信頼できる大人」が、51.71%に「自分のことを大切にしてくれる大人」がいると報告されている。
+                        自然観察の場は、こうした家族以外の大人との接点を自然に生み出す。
+                    </p>
+                </div>
+            </div>
+
+            <h2 style="margin-top: 48px;">子どもだけじゃない。大人もイキイキしていないと</h2>
+
+            <div class="msg-body">
+                <p>
+                    地域創生というと、つい「若い人を呼び戻す」「子どもを増やす」という話になりがちです。<br>
+                    でも、そこに暮らしている大人たちが心身ともに元気でなければ、<br>
+                    子どもを見守る余裕も、地域を支える力も生まれません。
+                </p>
+                <p>
+                    実は、自然の中を歩くことには、科学的に裏付けられた効果があります。
+                </p>
+            </div>
+
+            <div class="msg-insight">
+                <span class="msg-insight-num" style="font-size: 1.5rem;">🧠</span>
+                <div class="msg-insight-body">
+                    <p class="msg-insight-text">
+                        自然環境での歩行は、脳の前頭前野を活性化させる
+                    </p>
+                    <p class="msg-cite">
+                        都市環境と比較して、自然の中を歩くことでストレスホルモンが低下し、注意力の回復や創造性の向上が確認されている。
+                        生き物を観察する行為は、能動的な注意を要するため、認知的エンゲージメントをさらに高める。
+                    </p>
+                </div>
+            </div>
+
+            <div class="msg-insight">
+                <span class="msg-insight-num" style="font-size: 1.5rem;">👟</span>
+                <div class="msg-insight-body">
+                    <p class="msg-insight-text">
+                        1日9,800歩で認知症リスクが51%低下する
+                    </p>
+                    <p class="msg-cite">
+                        JAMA Neurology掲載の大規模研究（78,430人対象）による。
+                        散歩は特別な道具もお金もいらない、最も手軽な健康習慣。
+                        そこに「観察」が加わると、ただ歩くだけでは得られない好奇心と達成感が生まれる。
+                    </p>
+                </div>
+            </div>
+
+            <div class="msg-body" style="margin-top: 32px;">
+                <p>
+                    大人が健康で、笑っていて、余裕がある。<br>
+                    そんな大人がそばにいるから、子どもは安心して外に出られる。<br>
+                    子どもと一緒に歩くから、大人も自然と体を動かし、気持ちが軽くなる。
+                </p>
+                <p>
+                    自然観察は、この循環を——<br>
+                    子どもの好奇心、大人の健康、世代を超えた交流を——<br>
+                    特別な仕掛けなしに、自然に生み出します。
+                </p>
+            </div>
+
+            <p class="msg-accent-lg">
+                自然観察は、地域創生のすべてじゃない。<br>
+                でも、きっと力になれる。
             </p>
+
         </div>
     </section>
 
-    <!-- Founder Story Section -->
-    <section class="py-12 px-6 story-section">
-        <div class="max-w-3xl mx-auto">
+    <!-- ============================================
+         Section 4: 消滅可能性自治体
+         ============================================ -->
+    <section class="msg-section">
+        <div class="msg-section-inner">
 
-            <!-- Story Content -->
-            <div class="glass-card rounded-[2rem] p-8 md:p-12 border border-border">
+            <h2>744の自治体が、消えるかもしれない</h2>
 
-                <!-- Founder Photo -->
-                <div class="flex items-center gap-6 mb-8 pb-8 border-b border-border">
-                    <img src="assets/img/yamaki.jpg" alt="八巻 毅" class="w-20 h-20 rounded-full object-cover shadow-md">
-                    <div>
-                        <h2 class="text-xl font-bold text-text">八巻 毅</h2>
-                        <p class="text-sm text-muted">ikimon 創業者 / CEO</p>
-                    </div>
+            <div class="msg-body">
+                <p>
+                    2024年4月、人口戦略会議が発表したレポートは、<br>
+                    多くの人に衝撃を与えました。
+                </p>
+                <p>
+                    2050年までに、20〜39歳の女性人口が50%以上減少すると推計される自治体——<br>
+                    いわゆる「消滅可能性自治体」が、全国で744。<br>
+                    全自治体の、43%にあたります。
+                </p>
+            </div>
+
+            <div class="msg-stat-hero">
+                <div class="msg-stat-row">
+                    <span class="msg-stat-number">744</span>
+                    <span class="msg-stat-slash">/</span>
+                    <span class="msg-stat-sub">1,729</span>
                 </div>
-
-                <article class="prose prose-lg max-w-none space-y-6 text-muted leading-relaxed">
-
-                    <h3 class="text-2xl font-bold text-text">はじまり：「ZUKAN」という挑戦</h3>
-                    <p>
-                        8年前、東京で「生きものを絶滅させない世の中」を目指す
-                        生物プラットフォーム——<strong class="text-text">ZUKAN</strong>を構想し、プロトタイプを開発していました。
-                        図鑑のように美しくて、SNSのように気軽で、記録としても長く残せるもの。
-                        日経新聞社×noteのコラボサロン「Nサロン」でプレゼンテーションを行い、
-                        チームを組んで事業として動き始めていました。
-                    </p>
-
-                    <h3 class="text-2xl font-bold text-text mt-8">転機：浜松への移住</h3>
-                    <p>
-                        4年前、浜松に移住しました。<br>
-                        天竜川の河畔林、佐鳴湖の水鳥、三方原台地の里山——
-                        東京では意識すらしなかった自然が、ここでは日常のすぐそばにあった。
-                        朝の散歩で聞こえるウグイスの声、庭に飛んできたアゲハチョウ。
-                        小さな発見の連続が、ZUKANで目指していたことを呼び覚ましました。
-                    </p>
-
-                    <h3 class="text-2xl font-bold text-text mt-8">地方の現実と、浜松の挑戦</h3>
-                    <p>
-                        暮らしていくうちに、地方が抱える課題も見えてきました。
-                        人口減少と高齢化が進む中、自然環境の記録を担う人材がいない。
-                        「何がどこにいるのか」すら分からないまま、開発計画が進んでいく。
-                    </p>
-                    <p>
-                        一方で、浜松市は面白い挑戦をしていました。<br>
-                        <strong class="text-text">浜松ウエルネス推進協議会</strong>は、
-                        「予防・健幸都市」を掲げ、市民の健康と産業振興を同時に進めようとしている。
-                        <strong class="text-text">生物多様性はままつ戦略2024</strong>では、
-                        ネイチャーポジティブや30by30目標という国際的な枠組みを地域に落とし込もうとしていた。
-                        市は未来を向いている。でも、それを支える記録の土台が足りない。
-                    </p>
-
-                    <h3 class="text-2xl font-bold text-text mt-8">確信：愛管での経験</h3>
-                    <p>
-                        決定的だったのは、愛管株式会社で<strong class="text-text">自然共生サイト</strong>に
-                        関わった経験です。
-                        企業や地域が「この場所に、どんな生きものがいたか」を振り返ろうとしても、
-                        過去から現在までの観察記録が残っていない。そこに大きな空白がありました。
-                    </p>
-                    <p>
-                        企業も自治体も、自然との関わり方をこれまで以上に言葉にする場面が増えている。
-                        でも、その前提になる日々の観察記録を集めて、見返せる仕組みが存在しない。
-                    </p>
-                    <p>
-                        <strong class="text-text">「このサービスは、今すぐ必要だ」</strong>——
-                        そう確信しました。
-                    </p>
-
-                    <h3 class="text-2xl font-bold text-text mt-8">ikimon：ZUKANを受け継いで</h3>
-                    <p>
-                        かつて自ら構想し、プロトタイプまで作ったZUKAN事業を買い取り、
-                        ikimonとしてリニューアルしました。<br>
-                        美しい図鑑ではなく、まず「使える」ものを。
-                        完璧を目指すのではなく、今日からデータが溜まり始めるものを。
-                        市民の「見つけた！」を、その場で終わらない記録に変え、
-                        地域のアーカイブにも、組織の自然のふり返りにもつながるものを。
-                    </p>
-                    <p>
-                        デザインも、コードも、データベース設計も、全部ひとりで。
-                        浜松の自室から。急いで作りました。<br>
-                        完璧じゃないことは分かっています。
-                        でも、<strong class="text-text">自然は待ってくれない</strong>。
-                        毎日どこかで生態系が変わり、記録されないまま失われていく。
-                        だから、動き出すことにしました。
-                    </p>
-
-                    <blockquote class="border-l-4 border-[var(--color-primary)] pl-6 my-8 italic text-xl text-text">
-                        「8年前に始めた挑戦を、浜松の自然が再び目覚めさせた。<br>
-                        完璧を待たない。自然は待ってくれないから。」
-                    </blockquote>
-
-                    <h3 class="text-2xl font-bold text-text mt-8">少しずつ、認めてもらえるように</h3>
-                    <p>
-                        ありがたいことに、この取り組みは少しずつ評価をいただいています。<br>
-                        浜松市のスタートアップ支援プログラム<strong class="text-text">「HSI」に採択</strong>され、
-                        <strong class="text-text">静岡県SDGsビジネスアワード</strong>でも賞をいただきました。
-                        ひとりで始めたプロジェクトが、地域の文脈の中で意味を持ち始めている。
-                        それが、何よりの励みです。
-                    </p>
-
-                    <h3 class="text-2xl font-bold text-text mt-8">ビジョン：自然と共に生きる社会へ</h3>
-                    <p>
-                        散歩をすることが健康になり、観察をすることが記録になり、
-                        記録が地域や組織の自然との付き合い方を少しずつ変えていく。
-                        ウェルネスと生物多様性が一本の線でつながる——
-                        浜松からその実験を始めます。
-                    </p>
-
-                </article>
-
-                <!-- Call to Action -->
-                <div class="mt-12 pt-8 border-t border-border flex flex-col md:flex-row gap-4">
-                    <a href="post.php" class="btn-primary flex-1 flex items-center justify-center gap-2">
-                        <i data-lucide="camera"></i>
-                        観察を始める
-                    </a>
-                    <a href="for-business/" class="btn-secondary flex-1 flex items-center justify-center gap-2">
-                        <i data-lucide="building-2"></i>
-                        企業・自治体の方へ
-                    </a>
+                <div class="msg-stat-labels">
+                    <span class="msg-stat-label">消滅可能性自治体</span>
+                    <span class="msg-stat-label">全国の自治体数</span>
                 </div>
+            </div>
 
-                <!-- 関連ガイド -->
-                <div class="mt-10 pt-8 border-t border-border">
-                    <h4 class="text-sm font-bold text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <i data-lucide="book-open" class="w-4 h-4"></i> もっと知る
-                    </h4>
-                    <div class="space-y-2">
-                        <a href="guide/walking-brain-science.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface transition group">
-                            <span class="text-2xl">🧠</span>
-                            <div class="flex-1">
-                                <p class="text-sm font-bold group-hover:text-[var(--color-primary)] text-text">自然の中を歩くと脳に何が起きるのか？</p>
-                                <p class="text-xs text-muted">散歩×生きもの観察の科学的エビデンス</p>
-                            </div>
-                            <i data-lucide="arrow-right" class="w-4 h-4 text-faint group-hover:text-[var(--color-primary)] transition"></i>
-                        </a>
-                        <a href="guide/steps-dementia-prevention.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface transition group">
-                            <span class="text-2xl">👟</span>
-                            <div class="flex-1">
-                                <p class="text-sm font-bold group-hover:text-[var(--color-primary)] text-text">1日9,800歩で認知症リスク51%減</p>
-                                <p class="text-xs text-muted">JAMA Neurologyの大規模研究をやさしく紹介</p>
-                            </div>
-                            <i data-lucide="arrow-right" class="w-4 h-4 text-faint group-hover:text-[var(--color-primary)] transition"></i>
-                        </a>
-                        <a href="guide/nature-positive.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface transition group">
-                            <span class="text-2xl">🌿</span>
-                            <div class="flex-1">
-                                <p class="text-sm font-bold group-hover:text-[var(--color-primary)] text-text">ネイチャーポジティブ完全ガイド</p>
-                                <p class="text-xs text-muted">お散歩×観察×健康の全体像</p>
-                            </div>
-                            <i data-lucide="arrow-right" class="w-4 h-4 text-faint group-hover:text-[var(--color-primary)] transition"></i>
-                        </a>
-                    </div>
+            <div class="msg-body">
+                <p>
+                    特に深刻な地域があります。
+                </p>
+            </div>
+
+            <div class="msg-examples">
+                <div class="msg-example-item">
+                    <span>群馬県 南牧村</span>
+                    <span>-88.0%</span>
                 </div>
+                <div class="msg-example-item">
+                    <span>青森県 外ヶ浜町</span>
+                    <span>-87.5%</span>
+                </div>
+                <div class="msg-example-item">
+                    <span>北海道 歌志内市</span>
+                    <span>-86.7%</span>
+                </div>
+                <div class="msg-example-item" style="padding-top: 12px; border-top: 1px solid var(--color-border, rgba(0,0,0,0.06));">
+                    <span>秋田県全体</span>
+                    <span>96%が消滅可能性</span>
+                </div>
+                <div class="msg-example-item">
+                    <span>青森県全体</span>
+                    <span>87.5%が消滅可能性</span>
+                </div>
+            </div>
 
+            <div class="msg-body">
+                <p>
+                    数字の向こうにあるのは、誰かのふるさとです。<br>
+                    子どもの頃に駆け回った野山。通学路沿いの川。秋のスキー場。<br>
+                    その風景の中で生き物と出会い、誰かに名前を教えてもらった記憶。
+                </p>
+                <p>
+                    自治体が消えるということは、そういう記憶が生まれる場所が、<br>
+                    なくなるということです。
+                </p>
+            </div>
+
+            <div class="msg-lead" style="margin-top: 40px;">
+                最も危機的な自治体に、ikimon.lifeを届けたい。
+            </div>
+
+            <div class="msg-body">
+                <p>
+                    若年女性人口の減少率が80%を超える自治体——<br>
+                    最も厳しい状況に直面している地域に、<br>
+                    ikimon.lifeのすべての機能を<strong>無償で提供</strong>します。
+                </p>
+                <p>
+                    それだけで何かが劇的に変わるとは思っていません。<br>
+                    でも、自然を通じた小さなきっかけが、<br>
+                    地域に一人でも「ここが好きだ」と思う子どもを増やせるなら。
+                </p>
+            </div>
+
+            <p class="msg-accent-lg">
+                この町で育った記憶を、次の世代にも残したい。
+            </p>
+
+        </div>
+    </section>
+
+    <!-- ============================================
+         Section 5: ビジネスモデル
+         ============================================ -->
+    <section class="msg-section msg-surface">
+        <div class="msg-section-inner">
+
+            <h2>持続可能なかたち</h2>
+
+            <div class="msg-body">
+                <p>
+                    IKIMON株式会社は、僕ひとりのスタートアップです。<br>
+                    大きな組織じゃないからこそ、身軽に動ける。
+                </p>
+                <p>
+                    企業や大規模自治体向けのPublicプランで得られる収益があれば、<br>
+                    会社としての持続可能性は十分に保てると考えています。<br>
+                    だから、最も支援を必要としている地域には、無償で届けられる。
+                </p>
+            </div>
+
+            <div class="msg-plans">
+                <div class="msg-plan-item msg-plan-free">
+                    <span class="msg-plan-tag">無償提供</span>
+                    <p class="msg-plan-name">消滅可能性自治体（若年女性減少率80%以上）</p>
+                    <p class="msg-plan-desc">プラットフォームのすべての機能を、完全無料で提供します。レポート出力・データエクスポートを含みます。</p>
+                </div>
+                <div class="msg-plan-item">
+                    <span class="msg-plan-tag">Community</span>
+                    <p class="msg-plan-name">一般市民・小規模団体</p>
+                    <p class="msg-plan-desc">観察の投稿・同定・図鑑・観察会への参加まで無料。誰でもすぐに始められます。</p>
+                </div>
+                <div class="msg-plan-item">
+                    <span class="msg-plan-tag">Public</span>
+                    <p class="msg-plan-name">企業・大規模自治体</p>
+                    <p class="msg-plan-desc">種の全リスト、CSV、証跡レポートなど、調査・報告に使う出力機能を提供する有料プランです。</p>
+                </div>
+            </div>
+
+            <p class="msg-accent">
+                小さな会社だからこそ、届けたい場所に届けられる。
+            </p>
+
+            <div class="msg-body" style="margin-top: 32px;">
+                <p>
+                    まだ始まったばかりのプロジェクトです。<br>
+                    一歩ずつ、着実に前に進んでいきます。
+                </p>
+                <p>
+                    応援していただけると嬉しいです。
+                </p>
+            </div>
+
+            <div class="msg-signature">
+                <img src="assets/img/yamaki.jpg" alt="八巻 毅" class="msg-signature-photo">
+                <div>
+                    <p class="msg-signature-name">八巻 毅</p>
+                    <p class="msg-signature-title">IKIMON株式会社 代表</p>
+                </div>
             </div>
 
         </div>
     </section>
 
-    <!-- Why ikimon? -->
-    <section class="py-12 px-6">
-        <div class="max-w-3xl mx-auto">
-            <div class="glass-card rounded-[2rem] p-8 md:p-12 border border-border">
+    <!-- ============================================
+         Section 6: CTA
+         ============================================ -->
+    <section class="msg-cta-section">
+        <div class="msg-cta-inner">
 
-                <div class="flex items-center gap-3 mb-8">
-                    <div class="w-12 h-12 rounded-xl bg-primary-surface border border-primary/20 flex items-center justify-center">
-                        <i data-lucide="layers" class="w-6 h-6 text-[var(--color-primary)]"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-2xl font-bold text-text">ikimonが生まれた理由</h2>
-                        <p class="text-sm text-muted">Why ikimon?</p>
-                    </div>
+            <p class="msg-cta-heading">
+                一緒に、自然とまちをつなぎませんか？
+            </p>
+
+            <div class="msg-cta-buttons">
+                <a href="<?= htmlspecialchars($ctaHref) ?>" class="btn-primary">
+                    <i data-lucide="camera" class="w-4 h-4"></i>
+                    <?= htmlspecialchars($ctaLabel) ?>
+                </a>
+                <a href="for-business/" class="btn-secondary">
+                    <i data-lucide="building-2" class="w-4 h-4"></i>
+                    企業・自治体の方へ
+                </a>
+            </div>
+
+            <div class="msg-contact">
+                <div class="msg-contact-item">
+                    <i data-lucide="map-pin" class="w-4 h-4"></i>
+                    <span>静岡県浜松市</span>
                 </div>
-
-                <div class="space-y-6 text-muted leading-relaxed">
-                    <p>
-                        市民科学の世界には、すでに素晴らしいプラットフォームがいくつも存在しています。
-                        数億件の観察データを集めたグローバルサービス、
-                        AI同定とゲーミフィケーションで市民参加を広げた国内アプリ、
-                        鳥類に特化した専門的なコミュニティ——
-                        どれも市民科学の発展に大きく貢献してきた先駆者たちです。
-                    </p>
-                    <p>
-                        ikimonは、それらの偉大な取り組みに敬意を持ちながら、
-                        <strong class="text-text">まだ誰も手をつけていない領域</strong>に挑みます。
-                    </p>
-                </div>
-
-                <!-- ikimonの独自性 -->
-                <div class="mt-8 space-y-4">
-                    <h3 class="text-lg font-bold text-text mb-4 flex items-center gap-2">
-                        <i data-lucide="sparkles" class="w-5 h-5 text-[var(--color-accent)]"></i>
-                        ikimonが切り拓く領域
-                    </h3>
-
-                    <!-- 世界初: ウェルネス × 生物多様性 -->
-                    <div class="diff-card p-5 rounded-xl border-2 border-[var(--color-primary)] bg-primary-surface/30">
-                        <div class="flex items-start gap-3">
-                            <div class="shrink-0 mt-0.5">
-                                <span class="inline-block px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full bg-[var(--color-primary)] text-white">世界初</span>
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-text mb-2">ウェルネス × 生物多様性の統合</p>
-                                <p class="text-sm text-muted">
-                                    散歩の歩数記録、自然の中での滞在時間、観察による認知的エンゲージメント——
-                                    ikimonは「自然観察が健康活動になる」という概念を世界で初めてプラットフォーム化しました。
-                                    1日9,800歩で認知症リスク51%減（JAMA Neurology）、
-                                    週120分の自然接触で幸福度が有意に向上（White et al. 2019）——
-                                    これらの科学的エビデンスを、実際のサービスに落とし込んでいます。
-                                </p>
-                                <p class="text-xs text-faint mt-2">
-                                    既存の市民科学プラットフォームに、ウェルネス機能を持つものは確認されていません。
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- データ主権 -->
-                    <div class="diff-card p-5 rounded-xl border border-border bg-surface">
-                        <div class="flex items-start gap-3">
-                            <div class="shrink-0 mt-1">
-                                <i data-lucide="shield-check" class="w-5 h-5 text-[var(--color-secondary)]"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-text mb-2">明示的なデータ主権宣言</p>
-                                <p class="text-sm text-muted">
-                                    ikimonは、ユーザーの観察データを外部のAI企業に提供・販売しないことを明確に宣言しています。
-                                    robots.txtによるAIクローラーブロック、EXIF位置情報の自動除去、
-                                    CC BY-NC 4.0ライセンスの適用など、技術的な保護措置も実装済みです。
-                                    データの主権はユーザーとコミュニティにあります。
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- WE-Consensus -->
-                    <div class="diff-card p-5 rounded-xl border border-border bg-surface">
-                        <div class="flex items-start gap-3">
-                            <div class="shrink-0 mt-1">
-                                <i data-lucide="scale" class="w-5 h-5 text-[var(--color-primary)]"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-text mb-2">WE-Consensus：分類系列ベースの加重合意</p>
-                                <p class="text-sm text-muted">
-                                    多数決やAI任せではない、独自の同定アルゴリズムです。
-                                    同定者の専門性や過去の実績に応じて重みを付け、
-                                    さらに各同定を国際分類体系（GBIF / iNaturalist）で正規化した上で
-                                    分類系列（Lineage）の整合性を自動チェックします。
-                                    系列が矛盾する同定が混在すると衝突として検出され、
-                                    解消されるまで記録の確からしさは上がりません。
-                                    LCA（最小共通祖先）ベースの合意判定により、
-                                    少人数のコミュニティでも高精度な同定を実現しています。
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 企業 × 市民の一体型 -->
-                    <div class="diff-card p-5 rounded-xl border border-border bg-surface">
-                        <div class="flex items-start gap-3">
-                            <div class="shrink-0 mt-1">
-                                <i data-lucide="building-2" class="w-5 h-5 text-[var(--color-accent)]"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-text mb-2">市民参加と企業レポーティングの一体化</p>
-                                <p class="text-sm text-muted">
-                                    市民がゲーミフィケーションを楽しみながら記録した観察が、
-                                    そのまま地域の自然アーカイブや組織のふり返りにもつながる——
-                                    「楽しむ人」と「残したい人」が同じプラットフォーム上でつながる設計です。
-                                    Shannon-Wiener多様度指数、Chao1推定種数、季節フェノロジーなどの
-                                    科学的指標をリアルタイムで算出します。
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <p class="text-sm text-muted mt-6">
-                        ikimonは既存サービスと競合するのではなく、
-                        <strong class="text-text">「まだ誰も埋めていない領域」</strong>を担います。
-                        市民科学のエコシステム全体が豊かになることが、生物多様性の保全につながると信じています。
-                    </p>
+                <div class="msg-contact-item">
+                    <i data-lucide="mail" class="w-4 h-4"></i>
+                    <a href="mailto:contact@ikimon.life">contact@ikimon.life</a>
                 </div>
             </div>
+
         </div>
     </section>
 
-    <!-- Data Ethics & Data Sovereignty Policy -->
-    <section class="py-12 px-6 story-section">
-        <div class="max-w-3xl mx-auto">
-            <div class="glass-card rounded-[2rem] p-8 md:p-12 border border-border">
-                <div class="flex items-center gap-3 mb-8">
-                    <div class="w-12 h-12 rounded-xl bg-secondary-surface border border-[var(--color-secondary-surface)] flex items-center justify-center">
-                        <i data-lucide="shield-check" class="w-6 h-6 text-[var(--color-secondary)]"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-2xl font-bold text-text">データ倫理 & データ主権方針</h2>
-                        <p class="text-sm text-muted">Data Ethics & Data Sovereignty Policy</p>
-                    </div>
-                </div>
-
-                <div class="space-y-8 text-muted leading-relaxed">
-                    <div>
-                        <h3 class="text-lg font-bold text-text mb-3 flex items-center gap-2">
-                            <i data-lucide="shield-alert" class="w-5 h-5 text-[var(--color-secondary)]"></i>
-                            第三者へのデータ提供拒否
-                        </h3>
-                        <p>
-                            ikimonは、ユーザーが投稿した観察データ（写真・位置情報・テキスト）を、
-                            <strong>外部のAI企業やその他の第三者に提供・販売・ライセンス供与することは一切行いません</strong>。
-                            また、AIクローラーやスクレイパーによる無断収集に対して、
-                            技術的な保護措置（robots.txt、rate limiting、HTTPヘッダーブロック）を実施しています。
-                            <strong>データの主権はユーザーとikimonコミュニティにあります。</strong>
-                        </p>
-                    </div>
-
-                    <div>
-                        <h3 class="text-lg font-bold text-text mb-3 flex items-center gap-2">
-                            <i data-lucide="sparkles" class="w-5 h-5 text-[var(--color-accent)]"></i>
-                            ikimon自身によるAI活用の将来ビジョン
-                        </h3>
-                        <p>
-                            ikimonでは将来的に、コミュニティが作り上げた高精度な同定データを活用して、
-                            <strong>AI同定機能の開発</strong>を計画しています。
-                            つまり、みなさんの同定の一つひとつが、将来のAI同定の精度を支える「教師データ」になります。
-                        </p>
-                        <ul class="mt-2 space-y-1 text-muted text-sm">
-                            <li>• データはikimonのサービス内でのみ使用され、外部に流出することはありません</li>
-                            <li>• AI同定が実現しても、最終的な種名確定は引き続きコミュニティ合意で行います</li>
-                            <li>• AIはあくまで「提案」を行い、人間が「確定」する——この原則は変わりません</li>
-                        </ul>
-                    </div>
-
-                    <div>
-                        <h3 class="text-lg font-bold text-text mb-3 flex items-center gap-2">
-                            <i data-lucide="users" class="w-5 h-5 text-[var(--color-primary)]"></i>
-                            コミュニティ合意による同定
-                        </h3>
-                        <p>
-                            ikimonの種同定は、<strong>WE-Consensus（分類系列ベースの加重合意）</strong>と呼ばれる
-                            独自のアルゴリズムに基づいています。
-                            各同定は国際分類体系（GBIF / iNaturalist）に照合して正規化（canonical taxon 化）され、
-                            LCA（最小共通祖先）ベースで合意を判定します。
-                            分類系列が矛盾する同定は自動検出され、データの品質を守ります。
-                            現在のAI画像認識では近縁種の識別や幼虫・冬芽などの同定に精度が足りないため、
-                            <strong>今の段階ではコミュニティの目利きの方が信頼性が高い</strong>のです。
-                            将来的にikimonのデータでAIを訓練し、コミュニティとAIが協力して同定を行う世界を目指しています。
-                        </p>
-                    </div>
-
-                    <div>
-                        <h3 class="text-lg font-bold text-text mb-3 flex items-center gap-2">
-                            <i data-lucide="lock" class="w-5 h-5 text-[var(--color-secondary)]"></i>
-                            希少種データの保護
-                        </h3>
-                        <p>
-                            レッドリスト該当種の詳細な位置情報は、密猟や乱獲を防ぐため、
-                            <strong>自動的にマスキング</strong>されます。
-                            公開APIやレポートでは精度を落としたデータのみが出力され、
-                            GBIF（地球規模生物多様性情報機構）の推奨プラクティスに準拠しています。
-                        </p>
-                    </div>
-
-                    <div class="p-4 bg-surface rounded-xl border border-border text-sm">
-                        <p class="font-bold text-text mb-1">技術的保護措置</p>
-                        <ul class="space-y-1 text-muted">
-                            <li>• <code class="text-xs bg-border px-1 rounded">robots.txt</code> によるAIクローラーブロック（GPTBot, CCBot等）</li>
-                            <li>• 写真メタデータ（EXIF位置情報）の自動除去</li>
-                            <li>• APIレートリミット（大量取得防止）</li>
-                            <li>• 観察データのCC BY-NC 4.0ライセンス適用（商用利用不可）</li>
-                        </ul>
-                    </div>
-                </div>
+    <!-- Related Guides -->
+    <div class="msg-guides">
+        <p class="msg-guides-label">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+            もっと知る
+        </p>
+        <a href="guide/walking-brain-science.php" class="msg-guide-link">
+            <span style="font-size: 1.5rem;">🧠</span>
+            <div style="flex: 1;">
+                <p class="msg-guide-title">自然の中を歩くと脳に何が起きるのか？</p>
+                <p class="msg-guide-desc">散歩×生きもの観察の科学的エビデンス</p>
             </div>
-        </div>
-    </section>
-
-    <!-- Team Section -->
-    <section class="py-12 px-6" id="team">
-        <div class="max-w-3xl mx-auto">
-            <div class="glass-card rounded-[2rem] p-8 md:p-12 border border-border">
-
-                <!-- Label -->
-                <div class="mb-8">
-                    <span class="text-xs font-bold tracking-wider uppercase text-muted">FOUNDER</span>
-                </div>
-
-                <!-- Profile row -->
-                <div class="flex flex-col gap-8">
-
-                    <!-- Photo -->
-                    <div class="flex flex-col items-center gap-4">
-                        <img src="assets/img/yamaki.jpg" alt="八巻 毅" class="w-full max-w-sm rounded-2xl object-cover shadow-lg aspect-[4/5]">
-                        <div class="text-center">
-                            <p class="text-lg font-black text-text">八巻 毅</p>
-                            <p class="text-sm text-muted">代表 / CEO</p>
-                            <p class="text-xs text-faint mt-0.5">IKIMON株式会社</p>
-                        </div>
-                    </div>
-
-                    <!-- Message -->
-                    <div class="flex-1 space-y-4 text-muted leading-relaxed">
-                        <p>
-                            ikimonは今、<strong class="text-text">私ひとりで作っています。</strong><br>
-                            デザインも、コードも、データ設計も。浜松の自室から。
-                        </p>
-                        <p>
-                            大量絶滅の時代と言われる今、約100万種の動植物が数十年のうちに絶滅すると言われています。
-                            その危機感と向き合い続け、「市民の観察が科学になる」仕組みを作ることを選びました。
-                        </p>
-                        <p>
-                            小さく始めることを恥じていません。<br>
-                            <strong class="text-text">すべての人が生き物観察を楽しめる社会</strong>を作るために、今日も一歩ずつ動いています。
-                        </p>
-
-                        <!-- Contact & info -->
-                        <div class="pt-4 border-t border-border space-y-2 text-sm">
-                            <div class="flex items-center gap-2 text-muted">
-                                <i data-lucide="map-pin" class="w-4 h-4 shrink-0 text-faint"></i>
-                                <span>静岡県浜松市</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-muted">
-                                <i data-lucide="mail" class="w-4 h-4 shrink-0 text-faint"></i>
-                                <a href="mailto:contact@ikimon.life" class="text-primary hover:underline">contact@ikimon.life</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Join CTA -->
-                <div class="mt-10 pt-8 border-t border-border">
-                    <h3 class="text-sm font-bold text-text mb-2">一緒に作りませんか？</h3>
-                    <p class="text-sm text-muted mb-5">
-                        以下のポジションを募集しています。自然が好きな方ならどなたでも歓迎します。
-                    </p>
-                    <div class="grid md:grid-cols-2 gap-3 mb-6">
-                        <div class="p-4 rounded-xl border border-border bg-surface">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
-                                    <i data-lucide="graduation-cap" class="w-5 h-5 text-purple-500"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-bold text-text">生態学・環境科学</p>
-                                    <p class="text-xs text-muted">アドバイザー募集中</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="p-4 rounded-xl border border-border bg-surface">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                                    <i data-lucide="building-2" class="w-5 h-5 text-blue-500"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-bold text-text">ビジネス・サステナビリティ</p>
-                                    <p class="text-xs text-muted">アドバイザー募集中</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="p-4 rounded-xl border border-border bg-surface">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
-                                    <i data-lucide="code" class="w-5 h-5 text-green-600"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-bold text-text">エンジニア・デザイナー</p>
-                                    <p class="text-xs text-muted">開発メンバー募集中</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="p-4 rounded-xl border border-border bg-surface">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                                    <i data-lucide="binoculars" class="w-5 h-5 text-amber-600"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm font-bold text-text">自然観察指導員・市民科学者</p>
-                                    <p class="text-xs text-muted">コミュニティ募集中</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <a href="mailto:team@ikimon.life" class="btn-primary inline-flex items-center justify-center gap-2">
-                        <i data-lucide="mail" class="w-4 h-4"></i>
-                        お問い合わせ
-                    </a>
-                </div>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
+        <a href="guide/steps-dementia-prevention.php" class="msg-guide-link">
+            <span style="font-size: 1.5rem;">👟</span>
+            <div style="flex: 1;">
+                <p class="msg-guide-title">1日9,800歩で認知症リスク51%減</p>
+                <p class="msg-guide-desc">JAMA Neurologyの大規模研究をやさしく紹介</p>
             </div>
-        </div>
-    </section>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
+        <a href="guide/nature-positive.php" class="msg-guide-link">
+            <span style="font-size: 1.5rem;">🌿</span>
+            <div style="flex: 1;">
+                <p class="msg-guide-title">ネイチャーポジティブ完全ガイド</p>
+                <p class="msg-guide-desc">お散歩×観察×健康の全体像</p>
+            </div>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
+    </div>
 
     <!-- Footer -->
     <?php include __DIR__ . '/components/footer.php'; ?>
@@ -544,5 +881,4 @@ Auth::init();
         lucide.createIcons();
     </script>
 </body>
-
 </html>
