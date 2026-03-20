@@ -160,11 +160,11 @@ if ($isGuest) {
                             <template x-for="(photo, index) in photos" :key="index">
                                 <div class="relative aspect-square rounded-2xl overflow-hidden bg-surface shadow-md">
                                     <img :src="photo.preview" :alt="'観察写真 ' + (index + 1)" class="w-full h-full object-cover">
-                                    <button @click.prevent="savePhoto(photo, index)" class="absolute top-2 left-2 p-2 bg-black/50 rounded-full hover:bg-primary transition z-30 sm:hidden min-w-11 min-h-11 flex items-center justify-center" title="端末に保存" aria-label="端末に保存">
-                                        <i data-lucide="download" class="w-5 h-5 text-white"></i>
+                                    <button @click.prevent="savePhoto(photo, index)" class="absolute top-2 left-2 p-2.5 bg-black/50 rounded-full hover:bg-primary transition z-30 sm:hidden touch-target" title="端末に保存" aria-label="端末に保存">
+                                        <i data-lucide="download" class="w-4 h-4 text-white"></i>
                                     </button>
-                                    <button @click.prevent="removePhoto(index)" class="absolute top-2 right-2 p-2 bg-black/50 rounded-full hover:bg-danger transition z-30 min-w-11 min-h-11 flex items-center justify-center" aria-label="写真を削除">
-                                        <i data-lucide="x" class="w-5 h-5 text-white"></i>
+                                    <button @click.prevent="removePhoto(index)" class="absolute top-2 right-2 p-2.5 bg-black/50 rounded-full hover:bg-danger transition z-30 touch-target" aria-label="写真を削除">
+                                        <i data-lucide="x" class="w-4 h-4 text-white"></i>
                                     </button>
                                 </div>
                             </template>

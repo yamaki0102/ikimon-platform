@@ -419,6 +419,22 @@ h6 {
     transform: scale(0.92);
 }
 
+/* ── Touch Target Expansion ── */
+.touch-target {
+    position: relative;
+}
+
+.touch-target::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    border-radius: 50%;
+}
+
 /* ── Prose / Article Content ── */
 .prose-ikimon {
     --tw-prose-body: var(--color-text-secondary);
