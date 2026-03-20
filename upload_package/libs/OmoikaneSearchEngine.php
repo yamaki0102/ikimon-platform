@@ -133,4 +133,67 @@ class OmoikaneSearchEngine
         $result = $stmt->fetch();
         return $result ? $result : null;
     }
+
+    /**
+     * 和名（日本語名）から学名を解決する。
+     * 部分一致・方言・別名にも対応。
+     *
+     * @return array|null ['scientific_name' => ..., 'japanese_name' => ...] or null
+     */
+    public function resolveByJapaneseName(string $name): ?array
+    {
+        $name = trim($name);
+        if ($name === '') return null;
+
+        $pdo = $this->db->getPDO();
+
+        // 1. 完全一致（最速）
+        $stmt = $pdo->prepare("SELECT scientific_name, japanese_name FROM species WHERE japanese_name = :name LIMIT 1");
+        $stmt->execute([':name' => $name]);
+        $row = $stmt->fetch();
+        if ($row) return $row;
+
+        // 2. 「科」「属」「目」等の分類接尾辞を除去して再検索
+        $stripped = preg_replace('/[科属目綱門界族亜]+$/u', '', $name);
+        if ($stripped !== '' && $stripped !== $name) {
+            $stmt = $pdo->prepare("SELECT scientific_name, japanese_name FROM species WHERE japanese_name = :name LIMIT 1");
+            $stmt->execute([':name' => $stripped]);
+            $row = $stmt->fetch();
+            if ($row) return $row;
+        }
+
+        // 3. 前方一致（「アリ」→「アリ科」等にヒット、ただし最短一致を優先）
+        $stmt = $pdo->prepare("SELECT scientific_name, japanese_name FROM species WHERE japanese_name LIKE :pattern ORDER BY LENGTH(japanese_name) ASC LIMIT 1");
+        $stmt->execute([':pattern' => $name . '%']);
+        $row = $stmt->fetch();
+        if ($row) return $row;
+
+        // 4. 部分一致（方言・別名が含まれるケース）
+        $stmt = $pdo->prepare("SELECT scientific_name, japanese_name FROM species WHERE japanese_name LIKE :pattern ORDER BY LENGTH(japanese_name) ASC LIMIT 1");
+        $stmt->execute([':pattern' => '%' . $name . '%']);
+        $row = $stmt->fetch();
+        if ($row) return $row;
+
+        return null;
+    }
+
+    /**
+     * 学名から和名を解決する。
+     */
+    public function resolveByScientificName(string $sciName): ?array
+    {
+        $sciName = trim($sciName);
+        if ($sciName === '') return null;
+
+        $pdo = $this->db->getPDO();
+        $stmt = $pdo->prepare("SELECT scientific_name, japanese_name FROM species WHERE scientific_name = :name LIMIT 1");
+        $stmt->execute([':name' => $sciName]);
+        $row = $stmt->fetch();
+        if ($row) return $row;
+
+        // 部分一致（属名だけの場合など）
+        $stmt = $pdo->prepare("SELECT scientific_name, japanese_name FROM species WHERE scientific_name LIKE :pattern ORDER BY LENGTH(scientific_name) ASC LIMIT 1");
+        $stmt->execute([':pattern' => $sciName . '%']);
+        return $stmt->fetch() ?: null;
+    }
 }

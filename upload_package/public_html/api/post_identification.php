@@ -53,6 +53,12 @@ if (!$data || empty($data['observation_id']) || (empty($data['taxon_key']) && em
     exit;
 }
 
+// Multi-Subject: どの生物に対する同定か
+// subject_id が明示指定されていなければ lineage から自動振り分け
+$subjectId = $data['subject_id'] ?? null;
+$newSubjectLabel = $data['new_subject_label'] ?? null;
+$autoAssigned = false;
+
 $obs = DataStore::findById('observations', $data['observation_id']);
 if (!$obs) {
     echo json_encode(['success' => false, 'message' => 'Observation not found'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
@@ -80,19 +86,121 @@ $confidence = $data['confidence'] ?? null;
 // Trust weight — stored for analytics only, NOT used in consensus calculation
 $trustWeight = TrustLevel::getWeight($currentUser['id']);
 
+// ── Taxon Normalization ──
+// 学名・taxon_key・lineage が不完全な場合、GBIF API で正規化する。
+// 「カエル」「Frog」「Anura」等が全て同じ taxon に紐づくようにする。
+$taxonName      = trim($data['taxon_name'] ?? '');
+$scientificName = trim($data['scientific_name'] ?? '');
+$taxonKey       = $data['taxon_key'] ?? '';
+$taxonSlug      = $data['taxon_slug'] ?? '';
+$taxonRank      = $lineageData['rank'] ?? ($data['taxon_rank'] ?? '');
+
+// Step 1: ローカルDB（オモイカネ2971種 + TaxonSearchService）で即座に和名→学名解決
+if ($scientificName === '' && $taxonName !== '') {
+    // 1a. オモイカネDB（最速、ネットワーク不要）
+    require_once __DIR__ . '/../../libs/OmoikaneSearchEngine.php';
+    $omoikane = new OmoikaneSearchEngine();
+    $localMatch = $omoikane->resolveByJapaneseName($taxonName);
+    if ($localMatch && !empty($localMatch['scientific_name'])) {
+        $scientificName = $localMatch['scientific_name'];
+    }
+
+    // 1b. TaxonSearchService（iNat/ローカルキャッシュ含む、より広範）
+    //     完全一致 or ja_name完全一致を優先（「アリ」で「ユキノシタ目」がヒットする問題を防ぐ）
+    if ($scientificName === '') {
+        require_once __DIR__ . '/../../libs/TaxonSearchService.php';
+        $searchResults = TaxonSearchService::search($taxonName, ['locale' => 'ja', 'limit' => 5]);
+        $bestMatch = null;
+        foreach ($searchResults as $sr) {
+            $jaName = $sr['ja_name'] ?? '';
+            if ($jaName === $taxonName) {
+                // 完全一致 — 最優先
+                $bestMatch = $sr;
+                break;
+            }
+            if ($bestMatch === null && mb_strpos($jaName, $taxonName) === 0) {
+                // 前方一致 — 次点
+                $bestMatch = $sr;
+            }
+        }
+        if ($bestMatch && !empty($bestMatch['scientific_name'])) {
+            $scientificName = $bestMatch['scientific_name'];
+            if (empty($taxonSlug) && !empty($bestMatch['slug'])) {
+                $taxonSlug = $bestMatch['slug'];
+            }
+        }
+    }
+}
+
+// Step 2: GBIF match で学名・lineage・key を補完
+if ($scientificName === '' || empty($taxonKey) || empty($lineageData['kingdom'])) {
+    $matchQuery = $scientificName !== '' ? $scientificName : $taxonName;
+    if ($matchQuery !== '') {
+        $gbifMatch = Taxon::match($matchQuery);
+        if ($gbifMatch && !empty($gbifMatch['usageKey']) && ($gbifMatch['matchType'] ?? '') !== 'NONE') {
+            if ($scientificName === '') {
+                $scientificName = $gbifMatch['scientificName'] ?? $scientificName;
+            }
+            if (empty($taxonKey)) {
+                $taxonKey = (string)($gbifMatch['usageKey'] ?? '');
+            }
+            if ($taxonRank === '' || $taxonRank === 'species') {
+                $taxonRank = strtolower($gbifMatch['rank'] ?? $taxonRank);
+            }
+            if ($taxonSlug === '' && !empty($gbifMatch['canonicalName'])) {
+                $taxonSlug = strtolower(str_replace(' ', '-', $gbifMatch['canonicalName']));
+            }
+            // Lineage 補完
+            if (empty($lineageData['kingdom']) && !empty($gbifMatch['kingdom'])) {
+                $lineageData['kingdom'] = $gbifMatch['kingdom'];
+            }
+            if (empty($lineageData['phylum']) && !empty($gbifMatch['phylum'])) {
+                $lineageData['phylum'] = $gbifMatch['phylum'];
+            }
+            if (empty($lineageData['class']) && !empty($gbifMatch['class'])) {
+                $lineageData['class'] = $gbifMatch['class'];
+            }
+            if (empty($lineageData['order']) && !empty($gbifMatch['order'])) {
+                $lineageData['order'] = $gbifMatch['order'];
+            }
+            if (empty($lineageData['family']) && !empty($gbifMatch['family'])) {
+                $lineageData['family'] = $gbifMatch['family'];
+            }
+            if (empty($lineageData['genus']) && !empty($gbifMatch['genus'])) {
+                $lineageData['genus'] = $gbifMatch['genus'];
+            }
+        }
+    }
+}
+
+// Auto-assign subject（GBIF正規化後の lineage を使う）
+if ($subjectId === null || $subjectId === 'primary') {
+    SubjectHelper::ensureSubjects($obs);
+    if (SubjectHelper::isMultiSubject($obs) && $newSubjectLabel === null) {
+        $autoSubject = SubjectHelper::autoAssignSubject($obs, $lineageData, $taxonName);
+        if ($autoSubject !== 'primary') {
+            $subjectId = $autoSubject;
+            $autoAssigned = true;
+        }
+    }
+}
+if ($subjectId === null) {
+    $subjectId = 'primary';
+}
+
 // Create identification entry
 $id_entry = [
     'id'              => bin2hex(random_bytes(4)),
     'user_id'         => $currentUser['id'],
     'user_name'       => $currentUser['name'],
     'user_avatar'     => $currentUser['avatar'] ?? '',
-    'taxon_key'       => $data['taxon_key'] ?? '',
-    'taxon_name'      => $data['taxon_name'] ?? '',
-    'taxon_slug'      => $data['taxon_slug'] ?? '',
-    'scientific_name' => $data['scientific_name'] ?? '',
+    'taxon_key'       => $taxonKey,
+    'taxon_name'      => $taxonName,
+    'taxon_slug'      => $taxonSlug,
+    'scientific_name' => $scientificName,
     'confidence'      => $confidence,
     'life_stage'      => $data['life_stage'] ?? 'unknown',
-    'taxon_rank'      => $lineageData['rank'] ?? ($data['taxon_rank'] ?? 'species'),
+    'taxon_rank'      => $taxonRank ?: 'species',
     'lineage'         => [
         'kingdom' => $lineageData['kingdom'] ?? null,
         'phylum'  => $lineageData['phylum'] ?? null,
@@ -110,23 +218,44 @@ $id_entry = [
     'created_at'     => date('Y-m-d H:i:s'),
     'weight'         => $trustWeight,
     'trust_weight'   => $trustWeight,
+    'subject_id'     => $subjectId,
 ];
 
-// Add to observation — replace existing identification from same user (1 per user)
+// Multi-Subject: 新しいサブジェクトの作成が要求された場合
+require_once __DIR__ . '/../../libs/SubjectHelper.php';
+SubjectHelper::ensureSubjects($obs);
+
+if ($newSubjectLabel !== null && $subjectId === 'primary') {
+    // 「新しい生物を追加」→ 新 subject を作成
+    $subjectId = SubjectHelper::addSubject($obs, $newSubjectLabel);
+    $id_entry['subject_id'] = $subjectId;
+} elseif ($subjectId !== 'primary' && SubjectHelper::findSubjectIndex($obs, $subjectId) < 0) {
+    echo json_encode(['success' => false, 'message' => 'Subject not found: ' . $subjectId], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+    exit;
+}
+
+// Add to observation — replace existing identification from same user PER SUBJECT
 if (!isset($obs['identifications'])) {
     $obs['identifications'] = [];
 }
 
-// Remove any existing identification from this user (overwrite policy)
+// Remove any existing identification from this user for the SAME subject (overwrite policy)
 $obs['identifications'] = array_values(array_filter(
     $obs['identifications'],
-    fn($existing) => ($existing['user_id'] ?? '') !== $currentUser['id']
+    fn($existing) => !(
+        ($existing['user_id'] ?? '') === $currentUser['id']
+        && ($existing['subject_id'] ?? 'primary') === $subjectId
+    )
 ));
 
 $obs['identifications'][] = $id_entry;
 
-// Update status and primary taxon based on consensus
+// subjects[] に同定を振り分け
+SubjectHelper::distributeIdentifications($obs);
+
+// Update status and primary taxon based on consensus (subject-aware)
 BioUtils::updateConsensus($obs);
+SubjectHelper::syncPrimaryToLegacy($obs);
 
 // Recalculate Data Quality Grade
 $obs['data_quality'] = DataQuality::calculate($obs);
@@ -174,6 +303,9 @@ if (DataStore::upsert('observations', $obs)) {
         'success'        => true,
         'identification' => $id_entry,
         'new_status'     => $obs['status'],
+        'subject_id'     => $subjectId,
+        'subject_count'  => SubjectHelper::subjectCount($obs),
+        'auto_assigned'  => $autoAssigned,
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 } else {
     echo json_encode(['success' => false, 'message' => 'Failed to save data'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
