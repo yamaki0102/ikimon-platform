@@ -68,7 +68,45 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.6.0 — NEW -->
+                <!-- Infrastructure -->
+                <article class="relative pl-8 border-l-2 border-green-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500 ring-4 ring-green-100"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">インフラ</span>
+                        <time class="text-sm text-gray-500">2026年3月20日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">専用VPSへの移行</h2>
+                    <p class="text-gray-500 text-sm mb-4">より高速で安定したサービス提供のため、サーバー基盤を専用VPSへ移行しました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>専用VPS移行</strong>: 共有サーバーから6コア/12GB/400GB NVMe SSDの専用環境に。ページ表示速度とAPI応答が向上します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>SSL/HTTPS対応</strong>: Let's Encrypt による常時SSL化。全通信が暗号化されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>PostgreSQL + PostGIS</strong>: 地理空間データベースを導入。将来的なデータ量の増加と高度な空間検索に対応する基盤を整備しました</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.6.0 — Multi-Subject -->
+                <article class="relative pl-8 border-l-2 border-green-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.6.0</span>
+                        <time class="text-sm text-gray-500">2026年3月19日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">マルチサブジェクト観察 & 学名自動正規化</h2>
+                    <p class="text-gray-500 text-sm mb-4">1つの写真に複数の生物が写っている場合、それぞれ独立して同定・AI解説できるようになりました。また、どんな言語で名前を入力しても学名に自動変換されます。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>マルチサブジェクト対応</strong>: 1つの観察に「植物」「昆虫」など複数の生物を記録可能に。タブで切り替えて、それぞれのAI考察と同定を確認できます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>AI複数生物検出</strong>: AIが写真内の複数生物を自動検出し、それぞれ独立した解説・手がかり・次のステップを提示。植物は属レベル、昆虫は科レベルなど、精度に応じた解説を出します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>同定の自動振り分け</strong>: 「アリ科」と同定すれば自動で昆虫サブジェクトに、「トベラ」なら植物サブジェクトに振り分け。分類階層(kingdom)を見て判定します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>3段階 学名自動正規化</strong>: 「カエル」「Frog」「Anura」など、どの言語で入力しても学名に自動変換。①オモイカネDB(2971種)→②TaxonSearch→③GBIF APIの3段階で解決します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>サブジェクト別コンセンサス</strong>: 各生物ごとに独立した合意形成。植物と昆虫で別々にコミュニティの意見が集約されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>同定フォーム改善</strong>: 複数サブジェクトがある観察では「どの生物について？」のセレクターが表示。検索候補のドロップダウンも修正しました</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>Darwin Core 互換</strong>: マルチサブジェクトのデータモデルは DwC Event Core + Occurrence Extension パターンに準拠。GBIF等への将来的なデータ提供にも対応</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.6.0 — Growth Learning Loop -->
                 <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500 ring-4 ring-green-100"></div>
                     <div class="flex items-center gap-3 flex-wrap mb-3">

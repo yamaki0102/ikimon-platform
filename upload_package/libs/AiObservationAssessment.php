@@ -81,6 +81,22 @@ class AiObservationAssessment
             return self::buildFallbackAssessment($observation, $profile, count($images));
         }
 
+        // Multi-Subject: AIが複数生物を検出した場合
+        $isMultiSubject = !empty($payload['multi_subject']) && !empty($payload['subjects']);
+
+        if ($isMultiSubject) {
+            return self::buildMultiSubjectAssessments($payload, $observation, $profile, count($images));
+        }
+
+        // Single subject (従来の処理)
+        return self::buildSingleAssessment($payload, $observation, $profile, count($images));
+    }
+
+    /**
+     * 単一生物の assessment を構築（従来の処理）。
+     */
+    private static function buildSingleAssessment(array $payload, array $observation, array $profile, int $imageCount, ?string $subjectId = null, ?string $subjectLabel = null): array
+    {
         $providerCandidates = self::buildProviderCandidates($payload['suggestions'] ?? [], (string)$profile['model']);
         $fusion = self::synthesizeCandidateFusion(array_values(array_filter(
             array_map(fn($candidate) => $candidate['resolved'] ?? null, $providerCandidates)
@@ -88,7 +104,7 @@ class AiObservationAssessment
         $recommendedTaxon = $fusion['recommended_taxon'] ?? null;
         $bestSpecificTaxon = $fusion['best_specific_taxon'] ?? null;
 
-        return [
+        $assessment = [
             'id' => 'ai-' . substr(bin2hex(random_bytes(8)), 0, 12),
             'kind' => 'machine_assessment',
             'created_at' => date('Y-m-d H:i:s'),
@@ -117,11 +133,74 @@ class AiObservationAssessment
             'next_step' => self::clip($payload['next_step'] ?? ''),
             'cautionary_note' => self::clip($payload['cautionary_note'] ?? ''),
             'references' => [],
-            'photo_count_used' => count($images),
+            'photo_count_used' => $imageCount,
             'simple_summary' => self::buildSimpleSummary($recommendedTaxon, $bestSpecificTaxon, $payload),
             'text' => self::buildPublicText($payload, $recommendedTaxon, $bestSpecificTaxon),
             'display_ja' => self::buildDisplayJa($recommendedTaxon, $bestSpecificTaxon, $payload),
         ];
+
+        // Multi-Subject 属性
+        if ($subjectId !== null) {
+            $assessment['subject_id'] = $subjectId;
+            $assessment['subject_label'] = $subjectLabel;
+        }
+
+        return $assessment;
+    }
+
+    /**
+     * 複数生物検出時: 各 subject ごとに独立した assessment を構築。
+     * 返り値は配列の配列ではなく、最初の subject の assessment を返す（互換用）。
+     * 全 subject の assessments は observation の subjects[] に直接格納される。
+     *
+     * @return array Primary subject の assessment（互換用）
+     */
+    private static function buildMultiSubjectAssessments(array $payload, array $observation, array $profile, int $imageCount): array
+    {
+        require_once __DIR__ . '/SubjectHelper.php';
+
+        $subjects = $payload['subjects'] ?? [];
+        $assessments = [];
+        $primaryAssessment = null;
+
+        foreach ($subjects as $i => $subjectPayload) {
+            $label = self::clip($subjectPayload['label'] ?? ('生物 ' . ($i + 1)), 20);
+
+            // subject ペイロードにトップレベルの共通フィールドをマージ
+            $mergedPayload = array_merge([
+                'geographic_context' => $payload['geographic_context'] ?? '',
+                'seasonal_context' => $payload['seasonal_context'] ?? '',
+                'references' => [],
+            ], $subjectPayload);
+
+            // subject_id: 最初は primary、以降は自動生成
+            $subjectId = $i === 0 ? 'primary' : ('subj-ai-' . bin2hex(random_bytes(3)));
+
+            $assessment = self::buildSingleAssessment(
+                $mergedPayload,
+                $observation,
+                $profile,
+                $imageCount,
+                $subjectId,
+                $label
+            );
+
+            $assessment['multi_subject'] = true;
+            $assessment['subject_index'] = $i;
+
+            $assessments[] = $assessment;
+
+            if ($i === 0) {
+                $primaryAssessment = $assessment;
+            }
+        }
+
+        // 全 assessments をメタデータとして primary に格納
+        if ($primaryAssessment !== null) {
+            $primaryAssessment['_multi_subject_assessments'] = $assessments;
+        }
+
+        return $primaryAssessment ?? self::buildSingleAssessment($payload, $observation, $profile, $imageCount);
     }
 
     public static function synthesizeCandidateFusion(array $resolvedCandidates): array
@@ -280,6 +359,9 @@ class AiObservationAssessment
   - 観察者が「それならできそう」と感じる難易度にしてください。観察スキルの少しだけ先を示す。
   - 80文字以内、日本語、前向きなトーン。
 13. suggestions は1〜3件で、迷いがあるときは候補を複数返してください。候補同士で共通する階級があるなら、その共通範囲を意識して suggestions を組んでください。
+14. **複数生物検出**: 写真に明確に異なる生物が写っている場合（例: 花の上にアリがいる、木にキノコが生えている）、multi_subject を true にし、subjects 配列にそれぞれの生物の評価を独立して出力してください。各 subject は label（"植物"、"昆虫" 等）と独自の suggestions / summary / diagnostic_features 等を持ちます。
+15. 生物が1種類だけの場合は multi_subject を false にし、subjects は空配列にしてください（従来のトップレベル出力のみ）。
+16. 各 subject の解説は独立しており、それぞれの分類階層が異なっていても構いません（植物は属レベル、昆虫は科レベル等）。
 
 出力形式:
 {
@@ -298,6 +380,29 @@ class AiObservationAssessment
   "references": [],
   "suggestions": [
     {"label": "ツツジ科", "confidence": "high", "reason": "花形と葉のつき方が一致", "emoji": "🌺"}
+  ],
+  "multi_subject": false,
+  "subjects": []
+}
+
+複数生物検出時の subjects 形式:
+{
+  "multi_subject": true,
+  "subjects": [
+    {
+      "label": "植物",
+      "confidence_band": "high",
+      "recommended_rank": "genus",
+      "summary": "...",
+      "why_not_more_specific": "...",
+      "observer_boost": "...",
+      "next_step": "...",
+      "cautionary_note": "...",
+      "diagnostic_features_seen": ["...", "..."],
+      "similar_taxa_to_compare": ["...|..."],
+      "missing_evidence": ["...", "..."],
+      "suggestions": [{"label": "...", "confidence": "high", "reason": "...", "emoji": "🌿"}]
+    }
   ]
 }
 PROMPT;
@@ -758,6 +863,61 @@ PROMPT;
             ],
         ];
 
+        $base['properties'] += [
+            'multi_subject' => ['type' => 'BOOLEAN'],
+            'subjects' => [
+                'type' => 'ARRAY',
+                'items' => [
+                    'type' => 'OBJECT',
+                    'properties' => [
+                        'label' => ['type' => 'STRING'],
+                        'confidence_band' => [
+                            'type' => 'STRING',
+                            'enum' => ['high', 'medium', 'low'],
+                        ],
+                        'recommended_rank' => [
+                            'type' => 'STRING',
+                            'enum' => ['family', 'genus', 'species', 'order', 'class', 'phylum', 'kingdom', 'unknown'],
+                        ],
+                        'summary' => ['type' => 'STRING'],
+                        'why_not_more_specific' => ['type' => 'STRING'],
+                        'observer_boost' => ['type' => 'STRING'],
+                        'next_step' => ['type' => 'STRING'],
+                        'cautionary_note' => ['type' => 'STRING'],
+                        'diagnostic_features_seen' => [
+                            'type' => 'ARRAY',
+                            'items' => ['type' => 'STRING'],
+                        ],
+                        'similar_taxa_to_compare' => [
+                            'type' => 'ARRAY',
+                            'items' => ['type' => 'STRING'],
+                        ],
+                        'missing_evidence' => [
+                            'type' => 'ARRAY',
+                            'items' => ['type' => 'STRING'],
+                        ],
+                        'suggestions' => [
+                            'type' => 'ARRAY',
+                            'items' => [
+                                'type' => 'OBJECT',
+                                'properties' => [
+                                    'label' => ['type' => 'STRING'],
+                                    'confidence' => [
+                                        'type' => 'STRING',
+                                        'enum' => ['high', 'medium', 'low'],
+                                    ],
+                                    'reason' => ['type' => 'STRING'],
+                                    'emoji' => ['type' => 'STRING'],
+                                ],
+                                'required' => ['label', 'confidence', 'reason', 'emoji'],
+                            ],
+                        ],
+                    ],
+                    'required' => ['label', 'confidence_band', 'recommended_rank', 'summary', 'suggestions'],
+                ],
+            ],
+        ];
+
         $base['required'] = array_merge($base['required'], [
             'why_not_more_specific',
             'geographic_context',
@@ -768,6 +928,8 @@ PROMPT;
             'similar_taxa_to_compare',
             'missing_evidence',
             'references',
+            'multi_subject',
+            'subjects',
         ]);
 
         return $base;
