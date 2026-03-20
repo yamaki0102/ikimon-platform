@@ -171,6 +171,7 @@ class Gamification
             $user['score'] = $score;
             $user['post_count'] = $postCount;
             $user['id_count'] = $idCount;
+            $user['species_count'] = count($uniqueSpecies);
             $userBadges = BadgeManager::getUserBadges($userId);
             $user['badges'] = array_column($userBadges, 'id');
 
