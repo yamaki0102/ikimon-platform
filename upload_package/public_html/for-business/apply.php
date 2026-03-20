@@ -1,16 +1,25 @@
 <?php
 
 /**
- * B2B Apply Page — 導入申込フォーム
+ * B2B Apply Page — Public プラン相談フォーム
  * 
- * セルフサービス申込。初期は問い合わせフォームとして機能。
- * 将来的に自動プロビジョニングに拡張予定。
+ * 無料の Community は別導線でセルフ作成。
+ * このページは Public プラン相談用。
  */
 require_once __DIR__ . '/../../config/config.php';
 require_once ROOT_DIR . '/libs/CspNonce.php';
+require_once ROOT_DIR . '/libs/CSRF.php';
+require_once ROOT_DIR . '/libs/BrandMessaging.php';
 
 $nonce = CspNonce::get();
 CspNonce::sendHeader();
+$csrfToken = CSRF::generate();
+$regionalMessaging = BrandMessaging::regionalRevitalization();
+$publicPlan = $regionalMessaging['public_plan'];
+$communityPlan = $regionalMessaging['community_plan'];
+$freePlan = $regionalMessaging['free_plan'];
+$publicPlanSummary = $publicPlan['description'];
+$freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -18,8 +27,8 @@ CspNonce::sendHeader();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>導入の申込み | ikimon for Business</title>
-    <meta name="description" content="ikimon for Business の導入申込フォーム。最短5分で開始できます。">
+    <title>Public プランの相談 | ikimon for Business</title>
+    <meta name="description" content="<?= htmlspecialchars('ikimon for Business の Public プラン相談フォーム。' . $publicPlanSummary, ENT_QUOTES, 'UTF-8') ?>">
     <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -309,19 +318,7 @@ CspNonce::sendHeader();
             color: var(--primary-dark);
         }
 
-        .lp-footer {
-            padding: 32px 0;
-            text-align: center;
-            font-size: 12px;
-            color: var(--muted);
-            border-top: 1px solid var(--border);
-        }
-
-        .lp-footer a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            margin: 0 8px;
-        }
+        /* Footer: uses shared components/footer.php */
 
         @media (max-width: 768px) {
             .form-layout {
@@ -353,6 +350,8 @@ CspNonce::sendHeader();
             <a href="index.php" class="logo">ikimon<sup>Business</sup></a>
             <div class="lp-nav-links">
                 <a href="index.php" class="hide-mobile">概要</a>
+                <a href="/for-business/#plans" class="hide-mobile">料金</a>
+                <a href="status.php" class="hide-mobile">進み具合</a>
                 <a href="demo.php" class="btn btn-outline" style="padding: 6px 16px; font-size: 12px;">デモ</a>
             </div>
         </div>
@@ -361,8 +360,8 @@ CspNonce::sendHeader();
     <header class="page-header">
         <div class="container">
             <span class="badge badge-green">📝 APPLY</span>
-            <h1 style="margin-top: 8px;">導入の申込み</h1>
-            <p>下記フォームを送信いただければ、最短翌営業日にサイト設定が完了します。</p>
+            <h1 style="margin-top: 8px;">Public プランの相談</h1>
+            <p>フォーム送信後は受付番号を発行します。運営側で内容を確認し、必要な出力や運用体制に合わせて Public 導入まで進めます。<?= htmlspecialchars($freeMunicipalityPolicy) ?></p>
         </div>
     </header>
 
@@ -371,6 +370,7 @@ CspNonce::sendHeader();
             <div id="formArea" class="form-layout">
                 <div class="form-main">
                     <form id="applyForm" method="POST" action="#" onsubmit="return handleSubmit(event)">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                         <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 16px;">企業情報</h3>
 
                         <div class="field">
@@ -404,7 +404,7 @@ CspNonce::sendHeader();
 
                         <div class="field">
                             <label>モニタリング対象の拠点名 <span class="req">*必須</span></label>
-                            <input type="text" name="site_name" required placeholder="例：本社敷地、工場隣接緑地">
+                            <input type="text" name="site_name" required placeholder="例：本社敷地、工場まわりの緑地、公園エリア">
                         </div>
 
                         <div class="field">
@@ -416,18 +416,50 @@ CspNonce::sendHeader();
                             <label>プラン <span class="req">*必須</span></label>
                             <select name="plan" required>
                                 <option value="">選択してください</option>
-                                <option value="community">Community（無料）</option>
-                                <option value="business">Business（¥498,000 / 年）</option>
+                                <option value="public">Public（<?= htmlspecialchars($publicPlan['description']) ?> / ¥39,800 / 月）</option>
+                                <option value="consultation">まず相談したい</option>
+                            </select>
+                            <p style="margin-top:8px; font-size:12px; color:var(--muted);">個人利用と無料の <strong><?= htmlspecialchars($communityPlan['tag']) ?></strong> 団体ページは申込み不要です。<?= htmlspecialchars($communityPlan['description']) ?></p>
+                        </div>
+
+                        <div class="field-row">
+                            <div class="field">
+                                <label>始めたい時期</label>
+                                <select name="expected_start">
+                                    <option value="soon">できるだけ早く</option>
+                                    <option value="this_month">今月中に</option>
+                                    <option value="next_quarter">1〜3か月以内に</option>
+                                    <option value="exploring">まずは相談したい</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>想定している拠点数</label>
+                                <select name="planned_site_count">
+                                    <option value="1">1拠点</option>
+                                    <option value="2-5">2〜5拠点</option>
+                                    <option value="6+">6拠点以上</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label>主な使い方</label>
+                            <select name="use_mode">
+                                <option value="">選択してください</option>
+                                <option value="archive">その場所の自然記録を残したい</option>
+                                <option value="program">授業・観察会・小さな調査で使いたい</option>
+                                <option value="team">チームで見返せる形にしたい</option>
+                                <option value="handoff">外部資料づくりの下準備にしたい</option>
                             </select>
                         </div>
 
                         <div class="field">
                             <label>備考・ご質問など</label>
-                            <textarea name="message" rows="3" placeholder="複数拠点のモニタリングを検討中、など自由にお書きください"></textarea>
+                            <textarea name="message" rows="3" placeholder="複数拠点の記録運用を検討中、学校連携もしたい、など自由にお書きください"></textarea>
                         </div>
 
                         <div class="form-submit">
-                            <button type="submit" class="btn btn-primary-lp">📝 申込みを送信する</button>
+                            <button type="submit" class="btn btn-primary-lp">📝 相談内容を送信する</button>
                         </div>
                         <p style="font-size: 11px; color: var(--muted); margin-top: 8px; text-align: center;">
                             送信後、担当よりご連絡いたします。<a href="../privacy.php" style="color: var(--primary);">プライバシーポリシー</a>に同意のうえお申し込みください。
@@ -437,25 +469,41 @@ CspNonce::sendHeader();
 
                 <div class="form-sidebar">
                     <div class="sidebar-card">
+                        <h3>🧭 どのプランを選ぶ？</h3>
+                        <ul>
+                            <li><span class="check">Free</span> 個人で始める入口。申込み不要</li>
+                            <li><span class="check"><?= htmlspecialchars($communityPlan['tag']) ?></span> <?= htmlspecialchars($communityPlan['name']) ?>として無料で始めたいとき</li>
+                            <li><span class="check"><?= htmlspecialchars($publicPlan['tag']) ?></span> <?= htmlspecialchars($publicPlan['description']) ?></li>
+                        </ul>
+                        <a href="create.php" class="btn btn-outline" style="width:100%; justify-content:center; margin-top:12px;">無料の団体ページを作る</a>
+                    </div>
+
+                    <div class="sidebar-card">
                         <h3>🎯 導入の流れ</h3>
                         <ul>
-                            <li><span class="check">1.</span> 本フォームで申込み送信</li>
-                            <li><span class="check">2.</span> 担当より確認メール（1営業日以内）</li>
-                            <li><span class="check">3.</span> サイト画面で敷地境界を描画</li>
-                            <li><span class="check">4.</span> 観察開始！</li>
+                            <li><span class="check">1.</span> 受付番号つきで申込み保存</li>
+                            <li><span class="check">2.</span> 運営側で内容確認・初回連絡</li>
+                            <li><span class="check">3.</span> 拠点境界と初期設定を準備</li>
+                            <li><span class="check">4.</span> 記録ボードを開いて運用開始</li>
                         </ul>
                     </div>
 
                     <div class="sidebar-card">
-                        <h3>✅ Business プラン特典</h3>
+                        <h3>✨ Public でできること</h3>
                         <ul>
-                            <li><span class="check">✓</span> サイト数 無制限</li>
-                            <li><span class="check">✓</span> 全6種レポート生成</li>
-                            <li><span class="check">✓</span> 企業ダッシュボード</li>
-                            <li><span class="check">✓</span> 観察会テンプレート</li>
-                            <li><span class="check">✓</span> メンバー管理</li>
-                            <li><span class="check">✓</span> データエクスポート</li>
+                            <li><span class="check">✓</span> <?= htmlspecialchars($publicPlan['description']) ?></li>
+                            <li><span class="check">✓</span> CSV / 証跡JSON / 各種レポート出力</li>
+                            <li><span class="check">✓</span> 継続運用と提出向けの Public サポート</li>
+                            <li><span class="check">✓</span> <?= htmlspecialchars($communityPlan['tag']) ?> で育てた活動をそのまま昇格</li>
                         </ul>
+                        <div style="margin-top:14px; border-radius:14px; background:#ecfdf5; border:1px solid #bbf7d0; padding:12px 14px; font-size:13px; color:var(--primary-dark);">
+                            <strong style="display:block; margin-bottom:4px;"><?= htmlspecialchars($communityPlan['tag']) ?> でできること</strong>
+                            <?= htmlspecialchars($communityPlan['description']) ?>
+                        </div>
+                        <div style="margin-top:14px; border-radius:14px; background:#f0fdf4; border:1px solid #86efac; padding:12px 14px; font-size:13px; color:var(--primary-dark);">
+                            <strong style="display:block; margin-bottom:4px;"><?= htmlspecialchars($freePlan['tag']) ?>の方針</strong>
+                            <?= htmlspecialchars($freeMunicipalityPolicy) ?>
+                        </div>
                     </div>
 
                     <div class="sidebar-card" style="background: var(--primary-light);">
@@ -469,50 +517,66 @@ CspNonce::sendHeader();
 
             <div id="successMessage" class="success-message">
                 <p style="font-size: 40px; margin-bottom: 12px;">🎉</p>
-                <h2>お申込みありがとうございます</h2>
-                <p>1営業日以内に担当者よりメールにてご連絡いたします。</p>
+                <h2>ご相談ありがとうございます</h2>
+                <p id="successLead">受付番号を発行しました。1営業日以内に、Public 導入や出力要件の進め方をご案内します。</p>
+                <div style="margin-top: 20px; padding: 16px; border-radius: 12px; background: rgba(255,255,255,0.7);">
+                    <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: var(--primary-dark); text-transform: uppercase;">受付番号</div>
+                    <div id="successReference" style="font-size: 24px; font-weight: 900; color: var(--primary-dark); margin-top: 6px;">-</div>
+                    <p id="successNext" style="font-size: 13px; color: var(--primary-dark); margin-top: 8px;">次のご案内をお待ちください。</p>
+                </div>
                 <div style="margin-top: 24px;">
                     <a href="index.php" class="btn btn-outline">トップに戻る</a>
+                    <a id="statusLink" href="status.php" class="btn btn-primary-lp">進み具合を見る</a>
                 </div>
             </div>
         </div>
     </section>
 
-    <footer class="lp-footer">
-        <div class="container">
-            <p style="margin-bottom: 8px;">
-                <a href="../index.php">ikimon ホーム</a>
-                <a href="index.php">ikimon for Business</a>
-                <a href="mailto:contact@ikimon.life">お問い合わせ</a>
-            </p>
-            <p>&copy; <?php echo date('Y'); ?> ikimon Project.</p>
-        </div>
-    </footer>
+    <?php include __DIR__ . '/../components/footer.php'; ?>
 
     <script nonce="<?= $nonce ?>">
+        function getCsrfToken() {
+            const m = document.cookie.match(/(?:^|;\\s*)ikimon_csrf=([a-f0-9]{64})/);
+            return m ? m[1] : document.querySelector('input[name=\"csrf_token\"]')?.value || '';
+        }
+
         function handleSubmit(e) {
             e.preventDefault();
             const form = document.getElementById('applyForm');
             const data = new FormData(form);
+            const payload = Object.fromEntries(data.entries());
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = '送信中...';
 
-            // 初期フェーズ: mailto で送信
-            const subject = encodeURIComponent('[ikimon B2B] 導入申込: ' + data.get('company'));
-            const body = encodeURIComponent(
-                '会社名: ' + data.get('company') + '\n' +
-                '担当者: ' + data.get('contact_name') + '\n' +
-                '部署: ' + (data.get('department') || '未記入') + '\n' +
-                'メール: ' + data.get('email') + '\n' +
-                '電話: ' + (data.get('phone') || '未記入') + '\n' +
-                '拠点名: ' + data.get('site_name') + '\n' +
-                '所在地: ' + (data.get('site_location') || '未記入') + '\n' +
-                'プラン: ' + data.get('plan') + '\n' +
-                '備考: ' + (data.get('message') || 'なし') + '\n'
-            );
-            window.location.href = 'mailto:contact@ikimon.life?subject=' + subject + '&body=' + body;
-
-            // 成功表示
-            document.getElementById('formArea').style.display = 'none';
-            document.getElementById('successMessage').classList.add('show');
+            fetch('../api/business/submit_application.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Csrf-Token': getCsrfToken()
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(function(response) {
+                    return response.json().then(function(json) {
+                        if (!response.ok || !json.success) {
+                            throw new Error(json.message || '送信に失敗しました。');
+                        }
+                        return json;
+                    });
+                })
+                .then(function(result) {
+                    document.getElementById('formArea').style.display = 'none';
+                    document.getElementById('successMessage').classList.add('show');
+                    document.getElementById('successReference').textContent = result.reference || '-';
+                    document.getElementById('successNext').textContent = (result.status_label || '新規受付') + ' / 次の動き: ' + (result.next_action || '初回連絡');
+                    document.getElementById('statusLink').href = 'status.php?ref=' + encodeURIComponent(result.reference || '');
+                })
+                .catch(function(error) {
+                    alert(error.message || '送信に失敗しました。時間をおいてもう一度お試しください。');
+                    submitButton.disabled = false;
+                    submitButton.textContent = '📝 相談内容を送信する';
+                });
 
             return false;
         }
