@@ -1813,7 +1813,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <a :href="'observation_detail.php?id=' + obs.id" class="group block rounded-xl overflow-hidden bg-white border border-slate-200 hover:border-primary/40 hover:shadow-md transition-all">
                                 <div class="aspect-square bg-slate-100 relative overflow-hidden">
                                     <template x-if="obs.photos && obs.photos.length > 0">
-                                        <img :src="obs.photos[0].url_sq || obs.photos[0].url" :alt="obs.taxon?.name || ''" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy">
+                                        <img :src="typeof obs.photos[0] === 'string' ? obs.photos[0] : (obs.photos[0].url_sq || obs.photos[0].url)" :alt="obs.taxon?.name || ''" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy">
                                     </template>
                                     <template x-if="!obs.photos || obs.photos.length === 0">
                                         <div class="w-full h-full flex items-center justify-center text-slate-300">
