@@ -60,16 +60,6 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         <priority>0.6</priority>
     </url>
     <url>
-        <loc><?php echo $baseUrl; ?>/pricing.php</loc>
-        <changefreq>monthly</changefreq>
-        <priority>0.6</priority>
-    </url>
-    <url>
-        <loc><?php echo $baseUrl; ?>/guidelines.php</loc>
-        <changefreq>monthly</changefreq>
-        <priority>0.4</priority>
-    </url>
-    <url>
         <loc><?php echo $baseUrl; ?>/terms.php</loc>
         <changefreq>yearly</changefreq>
         <priority>0.3</priority>
@@ -88,11 +78,6 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         <loc><?php echo $baseUrl; ?>/team.php</loc>
         <changefreq>monthly</changefreq>
         <priority>0.5</priority>
-    </url>
-    <url>
-        <loc><?php echo $baseUrl; ?>/showcase.php</loc>
-        <changefreq>weekly</changefreq>
-        <priority>0.6</priority>
     </url>
     <url>
         <loc><?php echo $baseUrl; ?>/faq.php</loc>
