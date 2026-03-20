@@ -53,6 +53,7 @@ require_once __DIR__ . '/../../libs/RateLimiter.php';
 require_once __DIR__ . '/../../libs/TrustLevel.php';
 require_once __DIR__ . '/../../libs/CSRF.php';
 require_once __DIR__ . '/../../libs/DataStageManager.php';
+require_once __DIR__ . '/../../libs/SubjectHelper.php';
 
 Auth::init();
 CSRF::validateRequest();
