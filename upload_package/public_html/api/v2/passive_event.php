@@ -100,7 +100,12 @@ if (empty($validEvents)) {
 // パッシブ観察エンジンで処理
 $result = PassiveObservationEngine::processEventBatch($validEvents, $userId, $sessionMeta);
 
-// 観察を保存
+// 保存先を分離:
+// - ウォーク（音声検出）→ DataStore（フィード表示） + Canonical Schema（デジタルツイン）
+// - ライブスキャン → Canonical Schema のみ（デジタルツイン専用、フィードには出さない）
+$scanMode = $sessionMeta['scan_mode'] ?? 'walk';
+$isLiveScan = ($scanMode === 'live-scan');
+
 $savedCount = 0;
 foreach ($result['observations'] as $obs) {
     // プライバシーフィルタ（保護種チェック）
@@ -110,37 +115,38 @@ foreach ($result['observations'] as $obs) {
         }
     }
 
-    // ユーザー情報を付与
     $obs['user_name'] = $userName;
     $obs['user_avatar'] = $userAvatar;
-    $obs['observation_source'] = $sessionMeta['scan_mode'] ?? 'walk';
+    $obs['observation_source'] = $scanMode;
 
-    if (DataStore::append('observations', $obs)) {
+    // ウォークの音声検出 → フィード用 DataStore にも保存
+    if (!$isLiveScan) {
+        DataStore::append('observations', $obs);
+    }
+
+    // 全モード → Canonical Schema（デジタルツインに蓄積）
+    try {
+        $eventId = CanonicalStore::createEvent([
+            'event_date'       => $obs['observed_at'] ?? date('c'),
+            'decimal_latitude' => $obs['lat'] ?? null,
+            'decimal_longitude'=> $obs['lng'] ?? null,
+            'sampling_protocol'=> $isLiveScan ? 'live-scan' : 'walk-audio',
+            'recorded_by'      => $userId,
+            'capture_device'   => $sessionMeta['device'] ?? null,
+        ]);
+        CanonicalStore::createOccurrence([
+            'event_id'            => $eventId,
+            'scientific_name'     => $obs['taxon']['scientific_name'] ?? null,
+            'basis_of_record'     => 'MachineObservation',
+            'evidence_tier'       => 1,
+            'observation_source'  => $scanMode,
+            'detection_confidence'=> $obs['detection_confidence'] ?? null,
+            'detection_model'     => $obs['detection_model'] ?? null,
+            'original_observation_id' => $obs['id'] ?? null,
+        ]);
         $savedCount++;
-
-        // Canonical Schema にも同期（ライブマップ用）
-        try {
-            $eventId = CanonicalStore::createEvent([
-                'event_date'       => $obs['observed_at'] ?? date('c'),
-                'decimal_latitude' => $obs['lat'] ?? null,
-                'decimal_longitude'=> $obs['lng'] ?? null,
-                'sampling_protocol'=> ($sessionMeta['scan_mode'] ?? 'walk') === 'live-scan' ? 'live-scan' : 'walk-audio',
-                'recorded_by'      => $userId,
-                'capture_device'   => $sessionMeta['device'] ?? null,
-            ]);
-            CanonicalStore::createOccurrence([
-                'event_id'            => $eventId,
-                'scientific_name'     => $obs['taxon']['scientific_name'] ?? null,
-                'basis_of_record'     => 'MachineObservation',
-                'evidence_tier'       => 1,
-                'observation_source'  => $sessionMeta['scan_mode'] ?? 'walk',
-                'detection_confidence'=> $obs['detection_confidence'] ?? null,
-                'detection_model'     => $obs['detection_model'] ?? null,
-                'original_observation_id' => $obs['id'] ?? null,
-            ]);
-        } catch (Exception $e) {
-            error_log('[passive_event] Canonical sync error: ' . $e->getMessage());
-        }
+    } catch (Exception $e) {
+        error_log('[passive_event] Canonical sync error: ' . $e->getMessage());
     }
 }
 
