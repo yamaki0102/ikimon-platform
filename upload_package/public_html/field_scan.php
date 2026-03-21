@@ -70,8 +70,13 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
         <div id="env-text" style="color:#ccc;line-height:1.4"></div>
     </div>
 
-    <!-- デバッグステータス -->
-    <div id="debug-status" style="position:absolute;top:50px;right:8px;z-index:20;background:rgba(0,0,0,0.8);border-radius:8px;padding:6px 10px;font-size:10px;color:#4ade80;max-width:180px;font-family:monospace"></div>
+    <!-- アクティビティログ -->
+    <div id="debug-status" style="position:absolute;top:50px;right:8px;z-index:20;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);border-radius:10px;padding:8px 10px;font-size:10px;color:#4ade80;max-width:180px;font-family:monospace;line-height:1.5"></div>
+
+    <!-- スキャン回数カウンター -->
+    <div id="scan-pulse" style="position:absolute;bottom:46%;right:12px;z-index:10;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border-radius:10px;padding:6px 10px;font-size:11px;color:#999">
+        📷 <span id="frame-count">0</span>回 · 🎤 <span id="audio-count">0</span>回
+    </div>
 
     <!-- 検出バナー -->
     <div id="det-banner" style="display:none;position:absolute;bottom:46%;left:50%;transform:translateX(-50%);z-index:10;background:rgba(0,0,0,0.7);backdrop-filter:blur(12px);border-radius:16px;padding:12px 20px;text-align:center;max-width:80%">
@@ -105,6 +110,7 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
 var S = {
     active: false, startTime: null, timerInt: null,
     stream: null, captureInt: null, envInt: null, watchId: null, envHistory: [],
+    frameScanCount: 0, audioScanCount: 0,
     routePoints: [], speciesMap: {}, totalDet: 0, audioDet: 0, visualDet: 0,
     minimap: null, posMarker: null,
     recorder: null, recTimer: null, analyzing: false, chunks: [], mime: '',
@@ -213,7 +219,9 @@ async function captureFrame() {
         var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
         if (last) { fd.append('lat', last.lat); fd.append('lng', last.lng); }
 
-        dbg('📷 送信中...');
+        S.frameScanCount++;
+        document.getElementById('frame-count').textContent = S.frameScanCount;
+        dbg('📷 #' + S.frameScanCount + ' 送信中...');
         var resp = await fetch('/api/v2/ai_classify.php', {method:'POST', body:fd});
         if (!resp.ok) { dbg('📷 HTTP ' + resp.status); return; }
         var json = await resp.json();
@@ -271,7 +279,9 @@ async function sendAudio(blob) {
         fd.append('audio', blob, 'snippet' + (S.mime.indexOf('mp4') >= 0 ? '.mp4' : '.webm'));
         fd.append('lat', last ? last.lat : 35.0);
         fd.append('lng', last ? last.lng : 139.0);
-        dbg('🎤 送信中...');
+        S.audioScanCount++;
+        document.getElementById('audio-count').textContent = S.audioScanCount;
+        dbg('🎤 #' + S.audioScanCount + ' 送信中...');
         var resp = await fetch('/api/v2/analyze_audio.php', {method:'POST', body:fd});
         if (!resp.ok) { dbg('🎤 HTTP ' + resp.status); return; }
         var json = await resp.json();
