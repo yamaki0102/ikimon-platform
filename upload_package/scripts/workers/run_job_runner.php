@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../libs/JobRunner.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/JobRunner.php';
 
 $profile = $argv[1] ?? 'fast';
 
