@@ -194,6 +194,7 @@ foreach ($result['observations'] as $obs) {
             CanonicalStore::createOccurrence([
                 'event_id'            => $childEventId,
                 'scientific_name'     => $obs['taxon']['scientific_name'] ?? null,
+                'vernacular_name'     => $obs['taxon']['name'] ?? $obs['species_name'] ?? null,
                 'basis_of_record'     => 'MachineObservation',
                 'evidence_tier'       => 1,
                 'observation_source'  => $scanMode,

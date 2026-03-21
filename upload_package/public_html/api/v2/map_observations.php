@@ -14,6 +14,7 @@
 
 require_once __DIR__ . '/bootstrap.php';
 require_once ROOT_DIR . '/libs/CanonicalStore.php';
+require_once ROOT_DIR . '/libs/BioUtils.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     api_error('Method not allowed', 405);
@@ -33,9 +34,20 @@ $dbPath = DATA_DIR . '/ikimon.db';
 $pdo = new PDO('sqlite:' . $dbPath);
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+// vernacular_name カラムが存在するか確認
+$hasVernacular = false;
+try {
+    $cols = $pdo->query("PRAGMA table_info(occurrences)")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($cols as $c) {
+        if ($c['name'] === 'vernacular_name') { $hasVernacular = true; break; }
+    }
+} catch (Exception $e) {}
+
+$vernSelect = $hasVernacular ? ', o.vernacular_name' : ", '' AS vernacular_name";
+
 $sql = "
     SELECT
-        o.occurrence_id, o.scientific_name, o.evidence_tier,
+        o.occurrence_id, o.scientific_name{$vernSelect}, o.evidence_tier,
         o.observation_source, o.detection_confidence, o.adjusted_confidence,
         o.detection_model, o.created_at AS occ_created,
         e.event_date, e.decimal_latitude AS lat, e.decimal_longitude AS lng,
@@ -71,9 +83,21 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// GeoJSON 変換
+// GeoJSON 変換（和名優先表示）
 $features = [];
 foreach ($rows as $r) {
+    $sciName = $r['scientific_name'] ?? '';
+    $vernName = $r['vernacular_name'] ?? '';
+
+    // 表示名の決定: vernacular_name > resolveJaName(scientific_name) > scientific_name
+    $displayName = '';
+    if ($vernName !== '') {
+        $displayName = $vernName;
+    } elseif ($sciName !== '') {
+        $resolved = BioUtils::resolveJaName($sciName);
+        $displayName = $resolved;
+    }
+
     $features[] = [
         'type' => 'Feature',
         'geometry' => [
@@ -82,7 +106,8 @@ foreach ($rows as $r) {
         ],
         'properties' => [
             'id' => $r['occurrence_id'],
-            'name' => $r['scientific_name'],
+            'name' => $displayName ?: '検出',
+            'scientific_name' => $sciName,
             'tier' => floatval($r['evidence_tier']),
             'source' => $r['observation_source'],
             'confidence' => $r['adjusted_confidence'] ? floatval($r['adjusted_confidence']) : floatval($r['detection_confidence']),

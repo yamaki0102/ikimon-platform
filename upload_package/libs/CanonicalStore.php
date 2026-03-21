@@ -21,6 +21,7 @@ require_once __DIR__ . '/../config/config.php';
 class CanonicalStore
 {
     private static ?PDO $pdo = null;
+    private static bool $vernacularChecked = false;
 
     // ─── Connection ─────────────────────────────────────────────
 
@@ -34,6 +35,17 @@ class CanonicalStore
             self::$pdo->exec('PRAGMA journal_mode = WAL');
         }
         return self::$pdo;
+    }
+
+    private static function ensureVernacularColumn(PDO $pdo): void
+    {
+        if (self::$vernacularChecked) return;
+        self::$vernacularChecked = true;
+        try {
+            $pdo->exec("ALTER TABLE occurrences ADD COLUMN vernacular_name TEXT");
+        } catch (\Throwable $e) {
+            // column already exists
+        }
     }
 
     // ─── Layer 1: Events ────────────────────────────────────────
@@ -118,9 +130,11 @@ class CanonicalStore
             ? (is_string($data['confidence_context']) ? $data['confidence_context'] : json_encode($data['confidence_context'], JSON_UNESCAPED_UNICODE))
             : null;
 
+        self::ensureVernacularColumn($pdo);
+
         $stmt = $pdo->prepare("
             INSERT INTO occurrences (
-                occurrence_id, event_id, scientific_name, taxon_rank,
+                occurrence_id, event_id, scientific_name, vernacular_name, taxon_rank,
                 taxon_concept_version, basis_of_record, individual_count,
                 evidence_tier, evidence_tier_at, evidence_tier_by,
                 data_quality, observation_source, original_observation_id,
@@ -128,7 +142,7 @@ class CanonicalStore
                 detection_model, detection_model_hash,
                 occurrence_status
             ) VALUES (
-                :occ_id, :event_id, :sci_name, :rank,
+                :occ_id, :event_id, :sci_name, :vern_name, :rank,
                 :taxon_version, :basis, :count,
                 :tier, :tier_at, :tier_by,
                 :quality, :source, :orig_id,
@@ -142,6 +156,7 @@ class CanonicalStore
             ':occ_id'        => $occId,
             ':event_id'      => $data['event_id'],
             ':sci_name'      => $data['scientific_name'] ?? null,
+            ':vern_name'     => $data['vernacular_name'] ?? null,
             ':rank'          => $data['taxon_rank'] ?? 'species',
             ':taxon_version' => $data['taxon_concept_version'] ?? null,
             ':basis'         => $data['basis_of_record'] ?? 'MachineObservation',
