@@ -59,3 +59,6 @@ upload_package/scripts/inspect_photos.php
 /composer.phar
 /.phpunit.cache/
 /tests/fixtures/
+
+# === Claude Code Review Gate (local, ephemeral) ===
+.claude/review-gate/
