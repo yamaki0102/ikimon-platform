@@ -40,7 +40,35 @@ $base64 = base64_encode($imageData);
 $lat = floatval($_POST['lat'] ?? 0);
 $lng = floatval($_POST['lng'] ?? 0);
 
-$prompt = <<<'PROMPT'
+$contextBlock = '';
+$context = isset($_POST['context']) ? json_decode($_POST['context'], true) : null;
+if (is_array($context)) {
+    $parts = [];
+    if (!empty($context['environment'])) {
+        $env = $context['environment'];
+        $envLine = '環境: ';
+        $envParts = [];
+        if (!empty($env['habitat'])) $envParts[] = $env['habitat'];
+        if (!empty($env['vegetation'])) $envParts[] = $env['vegetation'];
+        if (!empty($env['canopy_cover'])) $envParts[] = '林冠被覆' . $env['canopy_cover'] . '%';
+        if (!empty($env['water']) && $env['water'] !== 'なし') $envParts[] = '水系: ' . $env['water'];
+        if ($envParts) $parts[] = $envLine . implode('、', $envParts);
+    }
+    if (!empty($context['recent_detections']) && is_array($context['recent_detections'])) {
+        $dets = array_slice($context['recent_detections'], 0, 8);
+        $detStrs = array_map(function($d) {
+            $name = $d['name'] ?? '';
+            $conf = isset($d['confidence']) ? number_format($d['confidence'], 2) : '?';
+            return $name . '(' . $conf . ')';
+        }, $dets);
+        if ($detStrs) $parts[] = '直近の検出: ' . implode(', ', $detStrs);
+    }
+    if ($parts) {
+        $contextBlock = "\n\n【スキャン文脈】\n" . implode("\n", $parts) . "\nこの環境と直近の検出結果を参考に、同定の精度を高めてください。既に検出された種が再度映っている場合は同じ名前で統一してください。\n";
+    }
+}
+
+$prompt = <<<PROMPT
 この写真に映っている「生きている生物」のみを列挙してください。
 
 対象:
@@ -57,7 +85,7 @@ $prompt = <<<'PROMPT'
 
 確信度が低くてもOK。「〜に見える」「〜かもしれない」レベルで構いません。
 植栽の街路樹や庭の花も対象です。
-
+{$contextBlock}
 重要な命名ルール:
 - 「雑草」「草」「木」のような雑な名前は絶対に使わないでください
 - 種名がわかれば和名で（例: オオバコ、エノコログサ、シロツメクサ）
