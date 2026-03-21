@@ -64,6 +64,12 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
         </div>
     </div>
 
+    <!-- 環境コンテキスト（カメラ上部にオーバーレイ） -->
+    <div id="env-panel" style="display:none;position:absolute;top:50px;left:8px;z-index:10;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);border-radius:12px;padding:8px 12px;max-width:200px;font-size:11px">
+        <div style="color:#4ade80;font-weight:bold;margin-bottom:4px">🌳 環境</div>
+        <div id="env-text" style="color:#ccc;line-height:1.4"></div>
+    </div>
+
     <!-- 検出バナー -->
     <div id="det-banner" style="display:none;position:absolute;bottom:46%;left:50%;transform:translateX(-50%);z-index:10;background:rgba(0,0,0,0.7);backdrop-filter:blur(12px);border-radius:16px;padding:12px 20px;text-align:center;max-width:80%">
         <div id="det-name" style="font-size:18px;font-weight:900"></div>
@@ -76,6 +82,7 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
         <div style="display:flex;gap:4px;padding:4px 8px;background:#000">
             <button class="tab-btn active" data-tab="map" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.15);color:#fff;border:none">🗺️ マップ</button>
             <button class="tab-btn" data-tab="species" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666;border:none">🌿 種リスト <span id="sp-count">0</span></button>
+            <button class="tab-btn" data-tab="env" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666;border:none">🌳 環境</button>
         </div>
         <div id="tab-map" style="height:calc(100% - 32px);border-top:1px solid rgba(255,255,255,0.1)">
             <div id="minimap" style="width:100%;height:100%"></div>
@@ -84,13 +91,17 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             <div id="species-list" style="font-size:13px"></div>
             <div id="species-empty" style="text-align:center;color:#555;font-size:12px;padding:40px 0">まだ検出なし</div>
         </div>
+        <div id="tab-env" style="height:calc(100% - 32px);overflow-y:auto;padding:8px;display:none">
+            <div id="env-log" style="font-size:12px"></div>
+            <div id="env-empty" style="text-align:center;color:#555;font-size:12px;padding:40px 0">環境スキャン待ち（10秒ごとに自動実行）</div>
+        </div>
     </div>
 </div>
 
 <script nonce="<?= CspNonce::attr() ?>">
 var S = {
     active: false, startTime: null, timerInt: null,
-    stream: null, captureInt: null, watchId: null,
+    stream: null, captureInt: null, envInt: null, watchId: null, envHistory: [],
     routePoints: [], speciesMap: {}, totalDet: 0, audioDet: 0, visualDet: 0,
     minimap: null, posMarker: null,
     recorder: null, recTimer: null, analyzing: false, chunks: [], mime: '',
@@ -130,6 +141,10 @@ async function startScan() {
         // Camera capture every 2 seconds
         S.captureInt = setInterval(captureFrame, 2000);
 
+        // Environment scan every 10 seconds
+        S.envInt = setInterval(envScan, 10000);
+        setTimeout(envScan, 3000); // 最初の1回は3秒後
+
         // Audio recorder
         setupAudioRecorder();
     } catch(e) {
@@ -152,6 +167,7 @@ function stopScan() {
     S.active = false;
     clearInterval(S.timerInt);
     clearInterval(S.captureInt);
+    clearInterval(S.envInt);
     if (S.recTimer) clearTimeout(S.recTimer);
     if (S.recorder && S.recorder.state === 'recording') try { S.recorder.stop(); } catch(e) {}
     if (S.watchId) navigator.geolocation.clearWatch(S.watchId);
@@ -304,6 +320,72 @@ function setSensor(id, on) {
     }
 }
 
+// ===== Environment Scan =====
+async function envScan() {
+    if (!S.active) return;
+    try {
+        var v = document.getElementById('cam');
+        var c = document.getElementById('cap');
+        if (!v.videoWidth) return;
+        c.width = Math.min(v.videoWidth, 512);
+        c.height = Math.round(c.width * v.videoHeight / v.videoWidth);
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+
+        var blob = await new Promise(function(r) { c.toBlob(r, 'image/jpeg', 0.6); });
+        var fd = new FormData();
+        fd.append('photo', blob, 'env.jpg');
+        var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
+        if (last) { fd.append('lat', last.lat); fd.append('lng', last.lng); }
+
+        var resp = await fetch('/api/v2/env_scan.php', {method:'POST', body:fd});
+        if (!resp.ok) return;
+        var json = await resp.json();
+        if (json.success && json.data && json.data.environment) {
+            var env = json.data.environment;
+            S.envHistory.unshift(env);
+            if (S.envHistory.length > 20) S.envHistory.pop();
+
+            // カメラ上の環境パネル更新
+            var panel = document.getElementById('env-panel');
+            var text = '';
+            if (env.habitat) text += env.habitat;
+            if (env.vegetation) text += '<br>' + env.vegetation;
+            if (env.description) text = env.description;
+            document.getElementById('env-text').innerHTML = text;
+            panel.style.display = '';
+
+            // 環境ログタブ更新
+            updateEnvLog();
+
+            // マップにハビタットマーカー追加
+            if (S.minimap && last) {
+                var el = document.createElement('div');
+                el.style.cssText = 'font-size:14px;opacity:0.6';
+                el.textContent = '🌳';
+                el.title = env.description || env.habitat || '';
+                new maplibregl.Marker({element:el}).setLngLat([last.lng, last.lat]).addTo(S.minimap);
+            }
+        }
+    } catch(e) { console.warn('Env scan error:', e); }
+}
+
+function updateEnvLog() {
+    document.getElementById('env-empty').style.display = S.envHistory.length ? 'none' : '';
+    document.getElementById('env-log').innerHTML = S.envHistory.map(function(env) {
+        var time = env.timestamp ? new Date(env.timestamp).toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}) : '';
+        var tags = [];
+        if (env.habitat) tags.push('<span style="background:rgba(34,197,94,0.2);color:#4ade80;padding:1px 6px;border-radius:8px">' + env.habitat + '</span>');
+        if (env.vegetation) tags.push('<span style="background:rgba(59,130,246,0.2);color:#60a5fa;padding:1px 6px;border-radius:8px">' + env.vegetation + '</span>');
+        if (env.ground) tags.push('<span style="background:rgba(245,158,11,0.2);color:#fbbf24;padding:1px 6px;border-radius:8px">' + env.ground + '</span>');
+        if (env.water && env.water !== 'なし') tags.push('<span style="background:rgba(59,130,246,0.3);color:#93c5fd;padding:1px 6px;border-radius:8px">💧' + env.water + '</span>');
+        return '<div style="padding:8px;margin-bottom:6px;background:rgba(255,255,255,0.05);border-radius:8px">'
+            + '<div style="color:#999;font-size:10px;margin-bottom:4px">' + time + '</div>'
+            + '<div style="display:flex;flex-wrap:wrap;gap:4px">' + tags.join('') + '</div>'
+            + (env.description ? '<div style="color:#aaa;font-size:11px;margin-top:4px">' + env.description + '</div>' : '')
+            + '</div>';
+    }).join('');
+}
+
 // ===== Map =====
 function initMap(lat, lng) {
     if (S.minimap) return;
@@ -350,6 +432,7 @@ document.querySelectorAll('.tab-btn').forEach(function(btn) {
         var tab = this.getAttribute('data-tab');
         document.getElementById('tab-map').style.display = tab === 'map' ? '' : 'none';
         document.getElementById('tab-species').style.display = tab === 'species' ? '' : 'none';
+        document.getElementById('tab-env').style.display = tab === 'env' ? '' : 'none';
     });
 });
 
