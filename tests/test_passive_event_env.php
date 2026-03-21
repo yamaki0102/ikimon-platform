@@ -61,6 +61,7 @@ $events = [
         'timestamp' => '2026-03-21T10:31:00+09:00',
         'model' => 'gemini-vision',
         'environment_snapshot' => $envHistory[0],
+        'frame_ref' => 'scan_frames/2026-03/ls_test123/f_abc123.jpg',
     ],
     [
         'type' => 'audio',
@@ -114,6 +115,16 @@ foreach ($result['observations'] as $obs) {
     }
 }
 echo $allHaveEnv ? "  ✅ 全 observation に environment_snapshot あり\n" : "";
+
+// frame_ref が継承されているか
+$sakuraObs = null;
+foreach ($result['observations'] as $obs) {
+    if ($obs['species_name'] === 'ソメイヨシノ') $sakuraObs = $obs;
+}
+$hasFrameRef = $sakuraObs && !empty($sakuraObs['photo_ref']) && strpos($sakuraObs['photo_ref'], 'scan_frames/') === 0;
+echo $hasFrameRef
+    ? "  ✅ ソメイヨシノに frame_ref 紐付けOK ({$sakuraObs['photo_ref']})\n"
+    : "  ❌ FAIL: ソメイヨシノに frame_ref なし\n";
 
 // ── Step 2: Canonical Schema に保存 ──
 echo "\nStep 2: Canonical Schema 保存\n";
