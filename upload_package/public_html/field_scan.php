@@ -222,16 +222,16 @@ async function captureFrame() {
         S.frameScanCount++;
         document.getElementById('frame-count').textContent = S.frameScanCount;
         dbg('📷 #' + S.frameScanCount + ' 送信中...');
-        var resp = await fetch('/api/v2/ai_classify.php', {method:'POST', body:fd});
+        var resp = await fetch('/api/v2/scan_classify.php', {method:'POST', body:fd});
         if (!resp.ok) { dbg('📷 HTTP ' + resp.status); return; }
         var json = await resp.json();
         if (json.success && json.data && json.data.suggestions && json.data.suggestions.length > 0) {
             json.data.suggestions.forEach(function(sug) {
-                addDetection(sug.name, sug.scientific_name || '', sug.confidence, 'visual');
+                addDetection(sug.name, sug.scientific_name || '', sug.confidence || 0.5, 'visual');
             });
-            dbg('📷 ' + json.data.suggestions.length + '件検出');
+            dbg('📷 ' + json.data.suggestions.length + '件検出!');
         } else {
-            dbg('📷 検出なし');
+            dbg('📷 対象なし');
         }
     } catch(e) { dbg('📷 ERR: ' + e.message); }
 }
