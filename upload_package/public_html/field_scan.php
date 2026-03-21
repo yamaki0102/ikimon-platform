@@ -156,16 +156,17 @@ async function startScan() {
         setSensor('cam', true);
         setSensor('mic', true);
 
-        // Camera capture every 2 seconds
+        // Wi-Fi判定 → 画像品質を調整
+        var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        S.isWifi = !conn || conn.type === 'wifi' || conn.type === 'ethernet';
+
+        // 映像スキャンは常に2秒間隔（Wi-Fiなら高画質、モバイルなら低画質）
         S.captureInt = setInterval(captureFrame, 2000);
-
-        dbg('5. 映像キャプチャ 2秒間隔');
-
-        // Environment scan every 10 seconds
-        S.envInt = setInterval(envScan, 10000);
+        S.envInt = setInterval(envScan, S.isWifi ? 10000 : 30000);
         setTimeout(envScan, 3000);
+        dbg(S.isWifi ? '5. Wi-Fi → 高画質' : '5. モバイル → 低画質モード');
 
-        // Audio recorder
+        // 音声は常にON（BirdNET on VPS = 低通信量）
         setupAudioRecorder();
         dbg('6. 音声レコーダー開始');
     } catch(e) {
@@ -210,11 +211,14 @@ async function captureFrame() {
         var v = document.getElementById('cam');
         var c = document.getElementById('cap');
         if (!v.videoWidth) { dbg('📷 待機中(videoWidth=0)'); return; }
-        c.width = Math.min(v.videoWidth, 640);
+        // Wi-Fi: 640px/q0.7、モバイル: 320px/q0.5（通信量半減）
+        var maxW = S.isWifi ? 640 : 320;
+        var quality = S.isWifi ? 0.7 : 0.5;
+        c.width = Math.min(v.videoWidth, maxW);
         c.height = Math.round(c.width * v.videoHeight / v.videoWidth);
         c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
 
-        var blob = await new Promise(function(r) { c.toBlob(r, 'image/jpeg', 0.7); });
+        var blob = await new Promise(function(r) { c.toBlob(r, 'image/jpeg', quality); });
         var fd = new FormData();
         fd.append('photo', blob, 'scan.jpg');
         var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
