@@ -506,11 +506,11 @@ function nav_avatar(string $avatar): string {
 
     <!-- Search Header -->
     <div class="flex items-center gap-3 px-4 pt-[calc(var(--safe-top,0px)+12px)] pb-3 border-b border-[var(--color-border)]">
-        <button @click="closeSearch()" class="p-2 rounded-full text-[var(--color-muted)] hover:bg-[var(--color-bg-faint)] transition flex-shrink-0">
+        <button @click="closeSearch()" class="p-2 rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-faint)] transition flex-shrink-0">
             <i data-lucide="arrow-left" class="w-5 h-5"></i>
         </button>
         <div class="relative flex-1">
-            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-faint)]"></i>
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-faint)]"></i>
             <input type="text"
                 x-ref="mobileSearchInput"
                 x-model="q"
@@ -518,8 +518,8 @@ function nav_avatar(string $avatar): string {
                 @keydown.enter="goFirst()"
                 @keydown.escape="closeSearch()"
                 placeholder="種名・場所で検索..."
-                class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-[var(--color-surface)] border border-[var(--color-border-strong)] text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
-            <button x-show="q.length > 0" @click="q = ''; results = []" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full text-[var(--color-faint)] hover:text-[var(--color-text)]" aria-label="検索をクリア">
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-[var(--color-bg-surface)] border border-[var(--color-border-strong)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
+            <button x-show="q.length > 0" @click="q = ''; results = []" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full text-[var(--color-text-faint)] hover:text-[var(--color-text)]" aria-label="検索をクリア">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -527,7 +527,7 @@ function nav_avatar(string $avatar): string {
 
     <!-- Quick Links (empty state) -->
     <div x-show="results.length === 0 && q.length < 2" class="flex-1 overflow-y-auto px-4 py-4">
-        <p class="text-xs font-bold uppercase tracking-wider text-[var(--color-faint)] mb-3">よく使うページ</p>
+        <p class="text-xs font-bold uppercase tracking-wider text-[var(--color-text-faint)] mb-3">よく使うページ</p>
         <a href="/explore.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">🧭</span>
             <span class="text-sm font-bold">観察マップ</span>
@@ -557,9 +557,9 @@ function nav_avatar(string $avatar): string {
                 <span class="text-lg mt-0.5 flex-shrink-0" x-text="r.icon || '🔍'"></span>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold text-[var(--color-text)] truncate" x-text="r.name || r.common_name"></p>
-                    <p class="text-xs text-[var(--color-muted)] truncate" x-text="searchLabel(r)"></p>
+                    <p class="text-xs text-[var(--color-text-muted)] truncate" x-text="searchLabel(r)"></p>
                 </div>
-                <span class="text-token-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--color-surface)] text-[var(--color-faint)] flex-shrink-0 mt-1"
+                <span class="text-token-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--color-bg-surface)] text-[var(--color-text-faint)] flex-shrink-0 mt-1"
                     x-text="r.type === 'taxon' ? '種名' : (r.type === 'site' ? 'サイト' : '場所')"></span>
             </button>
         </template>
@@ -573,8 +573,8 @@ function nav_avatar(string $avatar): string {
     <!-- No results -->
     <div x-show="q.length >= 2 && results.length === 0 && !loading" class="flex-1 flex flex-col items-center justify-center px-8 text-center">
         <span class="text-4xl mb-3">🔍</span>
-        <p class="text-sm font-bold text-[var(--color-muted)]">「<span x-text="q"></span>」の結果が見つかりません</p>
-        <p class="text-xs text-[var(--color-faint)] mt-1">別のキーワードを試してみてね</p>
+        <p class="text-sm font-bold text-[var(--color-text-muted)]">「<span x-text="q"></span>」の結果が見つかりません</p>
+        <p class="text-xs text-[var(--color-text-faint)] mt-1">別のキーワードを試してみてね</p>
     </div>
 </div>
 
@@ -594,7 +594,7 @@ function nav_avatar(string $avatar): string {
     <!-- Menu Header -->
     <div class="flex items-center justify-between px-4 pt-[calc(var(--safe-top,0px)+12px)] pb-3 border-b border-[var(--color-border)]">
         <p class="font-bold text-[var(--color-text)]">メニュー</p>
-        <button @click="closeMenu()" class="p-2 rounded-full text-[var(--color-muted)] hover:bg-[var(--color-bg-faint)] transition flex-shrink-0">
+        <button @click="closeMenu()" class="p-2 rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-faint)] transition flex-shrink-0">
             <i data-lucide="x" class="w-5 h-5"></i>
         </button>
     </div>
@@ -603,27 +603,27 @@ function nav_avatar(string $avatar): string {
     <div class="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-32">
         <?php if ($currentUser): ?>
             <!-- User Info -->
-            <a href="/profile.php" class="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
+            <a href="/profile.php" class="flex items-center gap-4 p-4 bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border)]">
                 <img src="<?php echo htmlspecialchars(nav_avatar($currentUser['avatar'])); ?>" alt="<?php echo htmlspecialchars($currentUser['name'] ?? 'ユーザー'); ?>のアバター" class="w-12 h-12 rounded-full object-cover border border-[var(--color-border-strong)]">
                 <div class="flex-1">
                     <p class="font-bold text-[var(--color-text)]"><?php echo htmlspecialchars($currentUser['name']); ?></p>
-                    <p class="text-xs font-bold text-[var(--color-muted)]"><?php echo htmlspecialchars(Auth::getRankLabel($currentUser)); ?></p>
+                    <p class="text-xs font-bold text-[var(--color-text-muted)]"><?php echo htmlspecialchars(Auth::getRankLabel($currentUser)); ?></p>
                 </div>
-                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-faint)]"></i>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-text-faint)]"></i>
             </a>
 
             <!-- Personal Links -->
             <div>
-                <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">パーソナル</p>
+                <p class="text-xs font-black uppercase tracking-wider text-[var(--color-text-faint)] mb-2 px-2">パーソナル</p>
                 <a href="/profile.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                    <i data-lucide="user" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.profile'); ?></span>
+                    <i data-lucide="user" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.profile'); ?></span>
                 </a>
                 <a href="/dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                    <i data-lucide="settings" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ダッシュボード・設定</span>
+                    <i data-lucide="settings" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">ダッシュボード・設定</span>
                 </a>
             </div>
         <?php else: ?>
-            <div class="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] text-center">
+            <div class="p-4 bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border)] text-center">
                 <p class="text-sm font-bold text-[var(--color-text)] mb-3">ログインしてikimonをもっと楽しもう！</p>
                 <a href="/login.php" class="btn-primary block w-full py-2">ログイン / 新規登録</a>
             </div>
@@ -631,34 +631,34 @@ function nav_avatar(string $avatar): string {
 
         <!-- Discover / Community Links -->
         <div>
-            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">さがす</p>
+            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-text-faint)] mb-2 px-2">さがす</p>
             <a href="/explore.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="search" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">観察マップ</span>
+                <i data-lucide="search" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">観察マップ</span>
             </a>
             <a href="/map.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="map" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">フィールドマップ</span>
+                <i data-lucide="map" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">フィールドマップ</span>
             </a>
             <a href="/zukan.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="book-open" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">いきもの図鑑</span>
+                <i data-lucide="book-open" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">いきもの図鑑</span>
             </a>
             <a href="/compass.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="compass" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">コンパス</span>
+                <i data-lucide="compass" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">コンパス</span>
             </a>
         </div>
         <div>
-            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">参加する</p>
+            <p class="text-xs font-black uppercase tracking-wider text-[var(--color-text-faint)] mb-2 px-2">参加する</p>
             <a href="/id_workbench.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="microscope" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">同定する</span>
+                <i data-lucide="microscope" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">同定する</span>
             </a>
             <a href="/events.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="calendar" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">観察会</span>
+                <i data-lucide="calendar" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">観察会</span>
             </a>
             <a href="/site_dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="shield-check" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">共生サイト</span>
+                <i data-lucide="shield-check" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">共生サイト</span>
             </a>
 
             <a href="/survey.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="clipboard-list" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">調査に参加</span>
+                <i data-lucide="clipboard-list" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">調査に参加</span>
             </a>
         </div>
 
@@ -787,7 +787,7 @@ function nav_avatar(string $avatar): string {
         </div>
 
         <!-- Title -->
-        <p class="text-center text-sm font-bold text-[var(--color-muted)] px-4 pb-3"><?php echo __('nav.record_mode_title'); ?></p>
+        <p class="text-center text-sm font-bold text-[var(--color-text-muted)] px-4 pb-3"><?php echo __('nav.record_mode_title'); ?></p>
 
         <!-- Options -->
         <div class="px-4 pb-2 space-y-2">
@@ -797,9 +797,9 @@ function nav_avatar(string $avatar): string {
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold text-[var(--color-text)]"><?php echo __('nav.record_observation'); ?></p>
-                    <p class="text-xs text-[var(--color-muted)]"><?php echo __('nav.record_observation_desc'); ?></p>
+                    <p class="text-xs text-[var(--color-text-muted)]"><?php echo __('nav.record_observation_desc'); ?></p>
                 </div>
-                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-faint)] flex-shrink-0"></i>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-text-faint)] flex-shrink-0"></i>
             </a>
 
             <a href="/walk.php" class="record-sheet__option" @click="open = false">
@@ -808,9 +808,9 @@ function nav_avatar(string $avatar): string {
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold text-[var(--color-text)]"><?php echo __('nav.record_walk'); ?></p>
-                    <p class="text-xs text-[var(--color-muted)]"><?php echo __('nav.record_walk_desc'); ?></p>
+                    <p class="text-xs text-[var(--color-text-muted)]"><?php echo __('nav.record_walk_desc'); ?></p>
                 </div>
-                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-faint)] flex-shrink-0"></i>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-text-faint)] flex-shrink-0"></i>
             </a>
 
             <a href="/field_scan.php" class="record-sheet__option" @click="open = false">
@@ -819,15 +819,15 @@ function nav_avatar(string $avatar): string {
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold text-[var(--color-text)]"><?php echo __('nav.record_scan'); ?></p>
-                    <p class="text-xs text-[var(--color-muted)]"><?php echo __('nav.record_scan_desc'); ?></p>
+                    <p class="text-xs text-[var(--color-text-muted)]"><?php echo __('nav.record_scan_desc'); ?></p>
                 </div>
-                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-faint)] flex-shrink-0"></i>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-text-faint)] flex-shrink-0"></i>
             </a>
         </div>
 
         <!-- Cancel -->
         <div class="px-4 pb-[calc(var(--safe-bottom,0px)+16px)] pt-1">
-            <button @click="open = false" class="w-full py-3 text-sm font-bold text-[var(--color-muted)] rounded-xl bg-[var(--color-surface)] active:bg-[var(--color-bg-faint)] transition">
+            <button @click="open = false" class="w-full py-3 text-sm font-bold text-[var(--color-text-muted)] rounded-xl bg-[var(--color-bg-surface)] active:bg-[var(--color-bg-faint)] transition">
                 <?php echo __('nav.record_cancel'); ?>
             </button>
         </div>
