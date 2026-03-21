@@ -191,8 +191,8 @@ unset($allObs);
                     <a href="zukan.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
                         <i data-lucide="book-open" class="w-3.5 h-3.5"></i> 図鑑
                     </a>
-                    <a href="explore.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
-                        <i data-lucide="map" class="w-3.5 h-3.5"></i> 探索マップ
+                    <a href="livemap.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                        <i data-lucide="globe" class="w-3.5 h-3.5"></i> ライブマップ
                     </a>
                     <a href="compass.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
                         <i data-lucide="trophy" class="w-3.5 h-3.5"></i> コンパス
