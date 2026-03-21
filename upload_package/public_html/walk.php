@@ -11,6 +11,7 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/DataStore.php';
 Auth::init();
 
 $currentUser = Auth::user();
@@ -18,6 +19,22 @@ if (!$currentUser) {
     header('Location: login.php?redirect=walk.php');
     exit;
 }
+
+// ユーザーの過去ウォークデータ集計
+$userId = $currentUser['id'] ?? '';
+$allObs = DataStore::fetchAll('observations');
+$userObs = array_filter($allObs, fn($o) => ($o['user_id'] ?? '') === $userId);
+$totalUserObs = count($userObs);
+$userSpecies = count(array_unique(array_filter(array_map(fn($o) => $o['taxon']['scientific_name'] ?? $o['taxon']['name'] ?? null, $userObs))));
+
+// 直近の音声検出（全ユーザー）— Canonical Schema がまだ少ないので JSON からも
+$recentAudioObs = array_filter($allObs, fn($o) => ($o['observation_source'] ?? '') === 'walk' || ($o['model'] ?? '') === 'birdnet-v2.4');
+$recentAudioCount = count($recentAudioObs);
+
+// 全体統計
+$totalObs = count($allObs);
+$totalSpecies = count(array_unique(array_filter(array_map(fn($o) => $o['taxon']['scientific_name'] ?? $o['taxon']['name'] ?? null, $allObs))));
+unset($allObs);
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -28,6 +45,7 @@ if (!$currentUser) {
     ?>
     <link rel="stylesheet" href="assets/css/tokens.css?v=2026_naturalism">
     <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
+    <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body class="bg-[#050505] text-white min-h-screen" x-data="walkMode()">
 
@@ -35,19 +53,92 @@ if (!$currentUser) {
 
 <main class="max-w-lg mx-auto px-4 py-6" style="padding-top: calc(var(--nav-height, 56px) + 1.5rem)">
 
-    <!-- ヘッダー -->
-    <div class="text-center mb-8">
-        <div class="text-5xl mb-3" x-text="isWalking ? '🟢' : '🌿'"></div>
-        <h1 class="text-xl font-black">ウォークモード</h1>
-        <p class="text-sm text-gray-500 mt-1" x-text="isWalking ? '環境音をモニタリング中...' : '画面を開いたまま散歩するだけ'"></p>
+    <!-- 開始前の情報パネル -->
+    <div x-show="!isWalking && !showSummary" class="space-y-5">
+
+        <!-- ヘッダー -->
+        <div class="text-center">
+            <div class="text-5xl mb-3">🌿</div>
+            <h1 class="text-xl font-black">ウォークモード</h1>
+            <p class="text-sm text-gray-400 mt-1">スマホを持って散歩するだけ。鳥の鳴き声をAIが自動判定します。</p>
+        </div>
+
+        <!-- メインボタン -->
+        <button @click="startWalk()"
+                class="w-full py-5 rounded-2xl text-lg font-bold bg-green-600 hover:bg-green-700 active:scale-95 transition mb-2">
+            🎧 ウォーク開始
+        </button>
+
+        <!-- 仕組み説明 -->
+        <div class="bg-white/5 rounded-xl p-4 space-y-3">
+            <h3 class="text-sm font-bold text-gray-300">どうやって動く？</h3>
+            <div class="grid grid-cols-1 gap-2 text-xs text-gray-400">
+                <div class="flex items-start gap-2">
+                    <span class="text-green-400 mt-0.5">🎤</span>
+                    <span>3秒ごとに環境音を録音し、<strong class="text-white">BirdNET AI</strong> が鳥種を自動判定</span>
+                </div>
+                <div class="flex items-start gap-2">
+                    <span class="text-blue-400 mt-0.5">📍</span>
+                    <span>GPSで歩行ルートを記録。検出地点がマッピングされます</span>
+                </div>
+                <div class="flex items-start gap-2">
+                    <span class="text-purple-400 mt-0.5">🔬</span>
+                    <span>検出データは <strong class="text-white">6,522種</strong> の鳥類データベースと照合</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 天気情報（GPS取得後に表示） -->
+        <div x-show="weather" x-cloak class="bg-white/5 rounded-xl p-4 flex items-center gap-4">
+            <span class="text-4xl" x-text="weather?.icon || ''"></span>
+            <div class="flex-1">
+                <div class="text-base font-bold text-white" x-text="weather?.description || ''"></div>
+                <div class="text-sm text-gray-400" x-text="weather ? weather.temp + '°C / 湿度 ' + weather.humidity + '%' : ''"></div>
+                <div class="text-xs text-gray-500" x-text="weather ? '風速 ' + weather.windSpeed + 'm/s' : ''"></div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-gray-500" x-text="weather?.birdActivity || ''"></div>
+            </div>
+        </div>
+        <div x-show="!weather" class="bg-white/5 rounded-xl p-4 text-center text-xs text-gray-500">
+            📍 位置情報を取得中...（天気情報を読み込みます）
+        </div>
+
+        <!-- ユーザー統計 -->
+        <div class="grid grid-cols-3 gap-3 text-center">
+            <div class="bg-white/5 rounded-xl p-3">
+                <div class="text-xl font-black text-emerald-400"><?= number_format($totalUserObs) ?></div>
+                <div class="text-[10px] text-gray-500">あなたの観察</div>
+            </div>
+            <div class="bg-white/5 rounded-xl p-3">
+                <div class="text-xl font-black text-blue-400"><?= number_format($userSpecies) ?></div>
+                <div class="text-[10px] text-gray-500">確認種数</div>
+            </div>
+            <div class="bg-white/5 rounded-xl p-3">
+                <div class="text-xl font-black text-amber-400"><?= number_format($totalSpecies) ?></div>
+                <div class="text-[10px] text-gray-500">全体の種数</div>
+            </div>
+        </div>
+
+        <!-- ヒント -->
+        <div class="text-xs text-gray-500 text-center p-3 bg-white/5 rounded-xl leading-relaxed">
+            💡 早朝（5-8時）は鳥が最も活発です。静かな場所ほど検出精度が上がります。<br>
+            ⚠️ この画面を開いたまま歩いてください。タブを閉じると停止します。
+        </div>
     </div>
 
-    <!-- メインボタン -->
-    <button @click="isWalking ? stopWalk() : startWalk()"
-            class="w-full py-5 rounded-2xl text-lg font-bold transition mb-6"
-            :class="isWalking ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'">
-        <span x-text="isWalking ? '🛑 ウォーク終了' : '🎧 ウォーク開始'"></span>
-    </button>
+    <!-- ウォーク中のヘッダー -->
+    <div x-show="isWalking" x-cloak class="text-center mb-4">
+        <div class="text-5xl mb-3">🟢</div>
+        <h1 class="text-xl font-black">モニタリング中</h1>
+        <p class="text-sm text-green-400 mt-1">環境音をAI分析しています...</p>
+
+        <!-- 停止ボタン -->
+        <button @click="stopWalk()"
+                class="w-full py-5 rounded-2xl text-lg font-bold bg-red-600 hover:bg-red-700 active:scale-95 transition mt-4">
+            🛑 ウォーク終了
+        </button>
+    </div>
 
     <!-- ウォーク中の情報 -->
     <template x-if="isWalking">
@@ -99,11 +190,16 @@ if (!$currentUser) {
                 </div>
             </div>
 
-            <!-- 注意 -->
-            <div class="text-xs text-gray-600 text-center p-3 bg-amber-900/20 rounded-xl">
-                ⚠️ この画面を開いたまま歩いてください。<br>
-                タブを閉じると記録が停止します。<br>
-                より高性能な体験は <strong>ikimon pocket</strong> アプリで。
+            <!-- 天気情報 -->
+            <div x-show="weather" x-cloak class="bg-white/5 rounded-xl p-3 flex items-center gap-3">
+                <span class="text-2xl" x-text="weather?.icon || ''"></span>
+                <div class="flex-1">
+                    <div class="text-sm font-medium" x-text="weather?.description || ''"></div>
+                    <div class="text-xs text-gray-500" x-text="weather ? weather.temp + '°C / 湿度 ' + weather.humidity + '%' : ''"></div>
+                </div>
+                <div class="text-right text-xs text-gray-500">
+                    <div x-text="weather ? '風速 ' + weather.windSpeed + 'm/s' : ''"></div>
+                </div>
             </div>
         </div>
     </template>
@@ -164,6 +260,72 @@ function walkMode() {
         analyser: null,
         mediaStream: null,
         summaryData: { duration: '0:00', speciesCount: 0, species: [] },
+        weather: null,
+
+        init() {
+            // ページ読み込み時に位置情報→天気を取得
+            this._fetchWeather();
+        },
+
+        async _fetchWeather() {
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: false, timeout: 10000
+                    });
+                });
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+
+                const resp = await fetch(
+                    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=Asia/Tokyo`
+                );
+                const data = await resp.json();
+                const c = data.current;
+
+                const wmo = this._weatherCodeToInfo(c.weather_code);
+                const hour = new Date().getHours();
+                let birdActivity = '';
+                if (hour >= 5 && hour <= 8) birdActivity = '🔥 鳥の活動ピーク帯';
+                else if (hour >= 16 && hour <= 18) birdActivity = '🌅 夕方の活動帯';
+                else if (hour >= 21 || hour <= 4) birdActivity = '🌙 夜行性種のみ';
+                else birdActivity = '☀️ 日中';
+
+                this.weather = {
+                    temp: Math.round(c.temperature_2m),
+                    humidity: c.relative_humidity_2m,
+                    windSpeed: c.wind_speed_10m,
+                    description: wmo.description,
+                    icon: wmo.icon,
+                    birdActivity,
+                };
+            } catch (e) {
+                console.warn('Weather fetch failed:', e);
+            }
+        },
+
+        _weatherCodeToInfo(code) {
+            const map = {
+                0: { icon: '☀️', description: '快晴' },
+                1: { icon: '🌤️', description: '晴れ' },
+                2: { icon: '⛅', description: '薄曇り' },
+                3: { icon: '☁️', description: '曇り' },
+                45: { icon: '🌫️', description: '霧' },
+                48: { icon: '🌫️', description: '着氷霧' },
+                51: { icon: '🌦️', description: '小雨' },
+                53: { icon: '🌧️', description: '雨' },
+                55: { icon: '🌧️', description: '強い雨' },
+                61: { icon: '🌧️', description: '小雨' },
+                63: { icon: '🌧️', description: '雨' },
+                65: { icon: '🌧️', description: '大雨' },
+                71: { icon: '🌨️', description: '小雪' },
+                73: { icon: '🌨️', description: '雪' },
+                75: { icon: '❄️', description: '大雪' },
+                80: { icon: '🌦️', description: 'にわか雨' },
+                95: { icon: '⛈️', description: '雷雨' },
+            };
+            return map[code] || { icon: '🌤️', description: '晴れ' };
+        },
 
         async startWalk() {
             this.isWalking = true;
