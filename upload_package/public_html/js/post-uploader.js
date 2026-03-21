@@ -107,24 +107,31 @@ function uploader() {
                 String(now.getHours()).padStart(2, '0') + ':' +
                 String(now.getMinutes()).padStart(2, '0');
 
-            // GPS自動取得
+            // GPS自動取得 — デバイスGPSは保存のみ。lat/lngへの反映は写真追加後に行う
             if ('geolocation' in navigator) {
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         this.deviceGps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                         this.gpsAccuracy = pos.coords.accuracy;
-                        // EXIF GPS が既に適用済みなら上書きしない
-                        if (this.locationSource === 'exif' || this.locationSource === 'manual') {
-                            console.log('[GPS] Device GPS acquired but EXIF/manual already set, skipping overwrite');
-                            return;
-                        }
-                        this.lat = pos.coords.latitude.toFixed(6);
-                        this.lng = pos.coords.longitude.toFixed(6);
-                        this.locationSource = 'gps';
-                        this.reverseGeocode(this.lat, this.lng);
-                        if (this.map && this.marker) {
-                            this.map.flyTo([this.lat, this.lng], 15);
-                            this.marker.setLatLng([this.lat, this.lng]);
+                        console.log('[GPS] Device GPS acquired:', pos.coords.latitude.toFixed(6), pos.coords.longitude.toFixed(6));
+                        // 写真未追加 & EXIF/手動未設定の場合のみ座標を反映
+                        if (this.photos.length === 0 && this.locationSource === 'default') {
+                            this.lat = pos.coords.latitude.toFixed(6);
+                            this.lng = pos.coords.longitude.toFixed(6);
+                            this.locationSource = 'gps';
+                            // マップ未初期化なので reverseGeocode/flyTo は不要
+                        } else if (this.locationSource !== 'exif' && this.locationSource !== 'manual') {
+                            // 写真追加済みだがEXIF GPSなし → デバイスGPSを使用
+                            this.lat = pos.coords.latitude.toFixed(6);
+                            this.lng = pos.coords.longitude.toFixed(6);
+                            this.locationSource = 'gps';
+                            this.reverseGeocode(this.lat, this.lng);
+                            if (this.map && this.marker) {
+                                this.map.flyTo([this.lat, this.lng], 15);
+                                this.marker.setLatLng([this.lat, this.lng]);
+                            }
+                        } else {
+                            console.log('[GPS] EXIF/manual GPS already set, device GPS stored as reference only');
                         }
                     },
                     () => {
@@ -747,6 +754,24 @@ function uploader() {
                             }
                         } catch (e) { /* ignore */ }
                     }
+                }
+
+                // First photo with no EXIF GPS → fall back to device GPS if available
+                if (isFirstPhoto && exif.lat === null && this.locationSource === 'default' && this.deviceGps) {
+                    console.log('[EXIF] No GPS in photo, falling back to device GPS');
+                    this.lat = this.deviceGps.lat.toFixed(6);
+                    this.lng = this.deviceGps.lng.toFixed(6);
+                    this.locationSource = 'gps';
+                    this.reverseGeocode(this.lat, this.lng);
+                    const applyDeviceGps = () => {
+                        if (this.map && this.marker) {
+                            this.map.flyTo([this.deviceGps.lat, this.deviceGps.lng], 15);
+                            this.marker.setLatLng([this.deviceGps.lat, this.deviceGps.lng]);
+                        } else {
+                            setTimeout(applyDeviceGps, 500);
+                        }
+                    };
+                    applyDeviceGps();
                 }
 
                 // Show toast
