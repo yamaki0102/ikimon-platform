@@ -410,15 +410,17 @@ unset($allObs);
                             </button>
                         </div>
 
-                        <!-- Photo -->
-                        <div class="aspect-square w-full bg-surface relative group select-none"
+                        <!-- Photo / Activity Card -->
+                        <?php
+                            $feedPhoto = $obs['photos'][0] ?? null;
+                            $feedHasImage = $feedPhoto && ThumbnailGenerator::exists($feedPhoto, 'md');
+                            $feedImg = $feedHasImage ? ThumbnailGenerator::resolve($feedPhoto, 'md') : null;
+                            $feedImgSm = $feedHasImage ? ThumbnailGenerator::resolve($feedPhoto, 'sm') : null;
+                            $isScanSummary = ($obs['observation_source'] ?? '') === 'live-scan-summary';
+                            $isAudioDet = in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'passive']);
+                        ?>
+                        <div class="<?= $isScanSummary ? 'w-full' : 'aspect-square w-full' ?> bg-surface relative group select-none"
                             @click="doubleTap($event)">
-                            <?php
-                                $feedPhoto = $obs['photos'][0] ?? null;
-                                $feedHasImage = $feedPhoto && ThumbnailGenerator::exists($feedPhoto, 'md');
-                                $feedImg = $feedHasImage ? ThumbnailGenerator::resolve($feedPhoto, 'md') : null;
-                                $feedImgSm = $feedHasImage ? ThumbnailGenerator::resolve($feedPhoto, 'sm') : null;
-                            ?>
                             <?php if ($feedHasImage): ?>
                                 <img src="<?php echo htmlspecialchars($feedImg); ?>"
                                      srcset="<?php echo htmlspecialchars($feedImgSm); ?> 320w, <?php echo htmlspecialchars($feedImg); ?> 640w, <?php echo htmlspecialchars($feedPhoto); ?> 1280w"
@@ -427,7 +429,7 @@ unset($allObs);
                                      class="w-full h-full object-cover pointer-events-none"
                                      loading="lazy" decoding="async"
                                      onload="this.parentElement.classList.remove('lazy-img')">
-                            <?php elseif (($obs['observation_source'] ?? '') === 'live-scan-summary'): ?>
+                            <?php elseif ($isScanSummary): ?>
                                 <?php
                                     $ss = $obs['scan_summary'] ?? [];
                                     $dur = $ss['duration_min'] ?? 0;
@@ -435,23 +437,33 @@ unset($allObs);
                                     $topSp = $ss['top_species'] ?? [];
                                     $envDesc = $ss['environment']['description'] ?? '';
                                 ?>
-                                <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-blue-900/90 to-purple-900/90 p-4">
-                                    <div class="text-4xl">📡</div>
-                                    <div class="text-white font-bold text-base">ライブスキャン <?= $dur ?>分間</div>
-                                    <div class="flex gap-3 text-sm">
-                                        <span class="px-2 py-0.5 bg-green-500/20 text-green-300 rounded-full"><?= $spCount ?>種</span>
-                                        <span class="px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded-full">🐦<?= $ss['audio_detections'] ?? 0 ?></span>
-                                        <span class="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">📷<?= $ss['visual_detections'] ?? 0 ?></span>
+                                <div class="flex flex-col gap-3 bg-gradient-to-br from-blue-900/90 to-purple-900/90 p-5">
+                                    <!-- ヘッダー -->
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-3xl">📡</span>
+                                        <div>
+                                            <div class="text-white font-bold">ライブスキャン <?= $dur ?>分間</div>
+                                            <div class="flex gap-2 text-xs mt-1">
+                                                <span class="px-2 py-0.5 bg-green-500/20 text-green-300 rounded-full"><?= $spCount ?>種検出</span>
+                                                <span class="px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded-full">🐦 <?= $ss['audio_detections'] ?? 0 ?></span>
+                                                <span class="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">📷 <?= $ss['visual_detections'] ?? 0 ?></span>
+                                            </div>
+                                        </div>
                                     </div>
+                                    <!-- 検出された種 -->
                                     <?php if (!empty($topSp)): ?>
-                                    <div class="flex flex-wrap gap-1 justify-center">
-                                        <?php foreach (array_slice($topSp, 0, 4) as $sp): ?>
-                                        <span class="text-xs px-2 py-0.5 bg-white/10 text-gray-200 rounded-full"><?= htmlspecialchars($sp['name'] ?? '') ?></span>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <?php foreach (array_slice($topSp, 0, 6) as $sp): ?>
+                                        <span class="text-xs px-2.5 py-1 bg-white/10 text-gray-200 rounded-full"><?= htmlspecialchars($sp['name'] ?? '') ?></span>
                                         <?php endforeach; ?>
+                                        <?php if (count($topSp) > 6): ?>
+                                        <span class="text-xs px-2.5 py-1 text-gray-400">+<?= count($topSp) - 6 ?></span>
+                                        <?php endif; ?>
                                     </div>
                                     <?php endif; ?>
+                                    <!-- 環境 -->
                                     <?php if ($envDesc): ?>
-                                    <div class="text-xs text-gray-300 mt-1">🌳 <?= htmlspecialchars($envDesc) ?></div>
+                                    <div class="text-xs text-gray-300 bg-white/5 rounded-lg px-3 py-2">🌳 <?= htmlspecialchars($envDesc) ?></div>
                                     <?php endif; ?>
                                 </div>
                             <?php elseif (in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'live-scan', 'passive'])): ?>
