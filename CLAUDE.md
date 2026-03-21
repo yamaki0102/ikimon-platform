@@ -153,11 +153,19 @@ composer test
 
 ## デプロイ
 
+### 本番 (Xserver VPS) ← 現在のDNS先
+```
+SSH接続: ssh -i ~/Downloads/ikimon.pem root@162.43.44.131
+方式: git push → SSH deploy.sh (git pull + PHP-FPM reload)
+デプロイ: ssh -i ~/Downloads/ikimon.pem root@162.43.44.131 /var/www/ikimon.life/deploy.sh
+Webルート: /var/www/ikimon.life/repo/upload_package/public_html
+データ: /var/www/ikimon.life/repo/upload_package/data
+```
+
+### 旧共有ホスティング (お名前RS) ← DNS切替済み
 ```
 SSH接続: r1522484@www1070.onamae.ne.jp -p 8022
 秘密鍵: ~/.ssh/production.pem
-方式: Zip → SCP → SSH unzip
-除外: .git, tests/, debug_*.php, test_*.php
 ```
 
 ## エージェントワークフロー

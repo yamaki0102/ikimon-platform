@@ -13,7 +13,7 @@
  */
 
 require_once __DIR__ . '/bootstrap.php';
-require_once ROOT_DIR . 'libs/CanonicalStore.php';
+require_once ROOT_DIR . '/libs/CanonicalStore.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     api_error('Method not allowed', 405);
