@@ -32,19 +32,21 @@ $user_obs = array_filter($all_obs, function ($o) use ($user) {
     return isset($o['user_id']) && (string)$o['user_id'] === (string)$user['id'];
 });
 
-// Live Scan stats for this user
+// Live Scan stats for this user (from passive_sessions)
 $profileScanStats = ['count' => 0, 'duration_min' => 0, 'species' => [], 'total_detections' => 0];
-foreach ($user_obs as $o) {
-    if (($o['observation_source'] ?? '') !== 'live-scan-summary') continue;
-    $ss = $o['scan_summary'] ?? [];
+$sessions = DataStore::fetchAll('passive_sessions');
+foreach ($sessions as $s) {
+    if (($s['user_id'] ?? '') !== $user['id']) continue;
+    if (($s['session_meta']['scan_mode'] ?? '') !== 'live-scan') continue;
+    $summary = $s['summary'] ?? [];
     $profileScanStats['count']++;
-    $profileScanStats['duration_min'] += (int)($ss['duration_min'] ?? 0);
-    $profileScanStats['total_detections'] += (int)($ss['total_detections'] ?? 0);
-    foreach ($ss['top_species'] ?? [] as $sp) {
-        $name = $sp['name'] ?? '';
+    $profileScanStats['duration_min'] += (int)round(($summary['duration_sec'] ?? 0) / 60);
+    $profileScanStats['total_detections'] += (int)($summary['total_detections'] ?? 0);
+    foreach ($summary['species'] ?? [] as $name => $cnt) {
         if ($name) $profileScanStats['species'][$name] = true;
     }
 }
+unset($sessions);
 $profileScanStats['unique_species'] = count($profileScanStats['species']);
 unset($profileScanStats['species']);
 

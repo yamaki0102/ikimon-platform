@@ -46,23 +46,22 @@ $orsRankIcon   = $_ors ? ($_ors['rank']['icon']    ?? '🌱') : '🌱';
 $orsRankColor  = $_ors ? ($_ors['rank']['color']   ?? '#8bc34a') : '#8bc34a';
 $orsRankName   = $_ors ? ($_ors['rank']['name_ja'] ?? '見習い')  : '見習い';
 
-// Live Scan Impact Stats
+// Live Scan Impact Stats (from passive_sessions)
 $scanStats = ['count' => 0, 'duration_min' => 0, 'species' => [], 'total_detections' => 0];
 if ($currentUser) {
-    $allObs = DataStore::fetchAll('observations');
-    foreach ($allObs as $o) {
-        if (($o['user_id'] ?? '') !== $currentUser['id']) continue;
-        if (($o['observation_source'] ?? '') !== 'live-scan-summary') continue;
-        $ss = $o['scan_summary'] ?? [];
+    $sessions = DataStore::fetchAll('passive_sessions');
+    foreach ($sessions as $s) {
+        if (($s['user_id'] ?? '') !== $currentUser['id']) continue;
+        if (($s['session_meta']['scan_mode'] ?? '') !== 'live-scan') continue;
+        $summary = $s['summary'] ?? [];
         $scanStats['count']++;
-        $scanStats['duration_min'] += (int)($ss['duration_min'] ?? 0);
-        $scanStats['total_detections'] += (int)($ss['total_detections'] ?? 0);
-        foreach ($ss['top_species'] ?? [] as $sp) {
-            $name = $sp['name'] ?? '';
+        $scanStats['duration_min'] += (int)round(($summary['duration_sec'] ?? 0) / 60);
+        $scanStats['total_detections'] += (int)($summary['total_detections'] ?? 0);
+        foreach ($summary['species'] ?? [] as $name => $cnt) {
             if ($name) $scanStats['species'][$name] = true;
         }
     }
-    unset($allObs);
+    unset($sessions);
 }
 $scanStats['unique_species'] = count($scanStats['species']);
 unset($scanStats['species']);
