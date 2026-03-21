@@ -38,6 +38,7 @@ require_once ROOT_DIR . '/libs/DataQuality.php';
 require_once ROOT_DIR . '/libs/DataStageManager.php';
 require_once ROOT_DIR . '/libs/PrivacyFilter.php';
 require_once ROOT_DIR . '/libs/PassiveObservationEngine.php';
+require_once ROOT_DIR . '/libs/CanonicalStore.php';
 
 // 認証
 Auth::init();
@@ -112,10 +113,34 @@ foreach ($result['observations'] as $obs) {
     // ユーザー情報を付与
     $obs['user_name'] = $userName;
     $obs['user_avatar'] = $userAvatar;
-    $obs['observation_source'] = 'walk';
+    $obs['observation_source'] = $sessionMeta['scan_mode'] ?? 'walk';
 
     if (DataStore::append('observations', $obs)) {
         $savedCount++;
+
+        // Canonical Schema にも同期（ライブマップ用）
+        try {
+            $eventId = CanonicalStore::createEvent([
+                'event_date'       => $obs['observed_at'] ?? date('c'),
+                'decimal_latitude' => $obs['lat'] ?? null,
+                'decimal_longitude'=> $obs['lng'] ?? null,
+                'sampling_protocol'=> ($sessionMeta['scan_mode'] ?? 'walk') === 'live-scan' ? 'live-scan' : 'walk-audio',
+                'recorded_by'      => $userId,
+                'capture_device'   => $sessionMeta['device'] ?? null,
+            ]);
+            CanonicalStore::createOccurrence([
+                'event_id'            => $eventId,
+                'scientific_name'     => $obs['taxon']['scientific_name'] ?? null,
+                'basis_of_record'     => 'MachineObservation',
+                'evidence_tier'       => 1,
+                'observation_source'  => $sessionMeta['scan_mode'] ?? 'walk',
+                'detection_confidence'=> $obs['detection_confidence'] ?? null,
+                'detection_model'     => $obs['detection_model'] ?? null,
+                'original_observation_id' => $obs['id'] ?? null,
+            ]);
+        } catch (Exception $e) {
+            error_log('[passive_event] Canonical sync error: ' . $e->getMessage());
+        }
     }
 }
 

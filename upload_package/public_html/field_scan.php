@@ -280,6 +280,37 @@ function addDetection(name, sci, conf, source) {
     showDetBanner(name, sci, conf, source);
     addMapMarker(name, source);
     updateSpeciesList();
+
+    // リアルタイムでサーバーに送信（デジタルツインに蓄積）
+    sendDetectionToServer(name, sci, conf, source);
+}
+
+function sendDetectionToServer(name, sci, conf, source) {
+    var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
+    var event = {
+        type: source === 'audio' ? 'audio' : 'visual',
+        taxon_name: name,
+        scientific_name: sci,
+        confidence: conf,
+        lat: last ? last.lat : null,
+        lng: last ? last.lng : null,
+        timestamp: new Date().toISOString(),
+        model: source === 'audio' ? 'birdnet-v2.4' : 'gemini-vision',
+    };
+    // 非同期で送信（失敗してもUIをブロックしない）
+    fetch('/api/v2/passive_event.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            events: [event],
+            session: {
+                duration_sec: Math.floor((Date.now() - S.startTime) / 1000),
+                device: navigator.userAgent.indexOf('iPhone') >= 0 ? 'iPhone' : 'Android',
+                app_version: 'web_1.0',
+                scan_mode: 'live-scan',
+            }
+        })
+    }).catch(function() {});
 }
 
 function updateCounts() {
