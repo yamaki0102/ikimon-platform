@@ -35,6 +35,12 @@ require_once __DIR__ . '/../libs/SubjectHelper.php';
 SubjectHelper::ensureSubjects($obs);
 $subjects = $obs['subjects'] ?? [];
 $isMultiSubject = SubjectHelper::isMultiSubject($obs);
+
+// new_subject パラメータ: 常にsubjectセレクターを表示し、「別の生物」をデフォルト選択
+$forceNewSubject = isset($_GET['new_subject']) && $_GET['new_subject'] === '1';
+$prefillLabel = trim($_GET['label'] ?? '');
+$showSubjectSelector = true; // 常に表示
+
 $meta_title = '名前を提案する';
 ?>
 <!DOCTYPE html>
@@ -174,8 +180,7 @@ $meta_title = '名前を提案する';
                 </div>
             </div>
 
-            <?php if ($isMultiSubject): ?>
-            <!-- Multi-Subject: どの生物について？ -->
+            <!-- Subject Selector: どの生物について？ -->
             <div>
                 <label class="block text-xs font-bold text-muted uppercase tracking-widest mb-2">どの生物について？</label>
                 <div class="flex flex-wrap gap-2">
@@ -198,7 +203,6 @@ $meta_title = '名前を提案する';
                         placeholder="ラベル（例: 昆虫、キノコ）...任意">
                 </div>
             </div>
-            <?php endif; ?>
 
             <div>
                 <label class="block text-xs font-bold text-muted uppercase tracking-widest mb-2">提案の自信度</label>
@@ -286,8 +290,8 @@ $meta_title = '名前を提案する';
                 note: urlParams.get('note') || '',
                 submitting: false,
                 // Multi-Subject
-                selectedSubjectId: <?php echo json_encode($isMultiSubject ? ($subjects[0]['id'] ?? 'primary') : 'primary', JSON_HEX_TAG | JSON_HEX_APOS); ?>,
-                newSubjectLabel: '',
+                selectedSubjectId: <?php echo json_encode($forceNewSubject ? '__new__' : ($subjects[0]['id'] ?? 'primary'), JSON_HEX_TAG | JSON_HEX_APOS); ?>,
+                newSubjectLabel: <?php echo json_encode($prefillLabel, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS); ?>,
                 subjects: <?php echo json_encode(array_map(fn($s) => [
                     'id' => $s['id'],
                     'label' => $s['label'] ?? null,
