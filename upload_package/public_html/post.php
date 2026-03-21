@@ -146,6 +146,9 @@ if ($isGuest) {
                             </div>
                         </div>
 
+                        <!-- EXIF Debug (temporary) -->
+                        <div x-show="_exifDebug" x-text="_exifDebug" class="text-[10px] font-mono bg-yellow-100 text-yellow-900 px-3 py-2 rounded-xl mb-2 break-all"></div>
+
                         <!-- Photo Counter -->
                         <div x-show="photos.length > 0" class="flex items-center justify-between mb-2 px-1">
                             <span class="text-xs font-bold text-muted">
@@ -779,7 +782,7 @@ if ($isGuest) {
         };
     </script>
     <script src="js/exif-mini.js?v=3.1"></script>
-    <script src="js/post-uploader.js?v=3.1"></script>
+    <script src="js/post-uploader.js?v=3.2"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>
