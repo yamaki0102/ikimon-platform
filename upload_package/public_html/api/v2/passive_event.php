@@ -211,10 +211,20 @@ $sessionLog = [
 ];
 DataStore::append('passive_sessions', $sessionLog);
 
+// スキャンクエスト生成
+$scanQuests = [];
+if ($isLiveScan && !empty($result['summary']['species'])) {
+    require_once ROOT_DIR . '/libs/QuestManager.php';
+    $questSessionMeta = array_merge($sessionMeta, ['session_id' => $result['session_id']]);
+    $scanQuests = QuestManager::generateFromScan($userId, $result['summary'], $questSessionMeta);
+    QuestManager::saveScanQuests($userId, $scanQuests);
+}
+
 api_success([
     'session_id' => $result['session_id'],
     'observations_created' => $savedCount,
     'summary' => $result['summary'],
+    'scan_quests' => $scanQuests,
 ], [
     'events_received' => count($events),
     'events_valid' => count($validEvents),
