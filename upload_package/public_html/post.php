@@ -626,9 +626,9 @@ if ($isGuest) {
         </main>
 
         <!-- Fixed Bottom Action Bar (hidden until photo added) -->
-        <div x-show="photos.length > 0" x-transition class="fixed bottom-0 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] p-4 bg-gradient-to-t from-base via-base to-transparent z-40 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+        <div x-show="photos.length > 0" x-transition class="fixed bottom-0 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] p-4 bg-gradient-to-t from-base via-base to-transparent z-40 pb-[calc(env(safe-area-inset-bottom)+1rem)] pointer-events-none">
             <button @click="submit" :disabled="submitting || photos.length === 0"
-                class="w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:shadow-none active:scale-95">
+                class="w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:shadow-none active:scale-95 pointer-events-auto">
                 <i data-lucide="send" x-show="!submitting" class="w-5 h-5"></i>
                 <span x-show="!submitting">足跡を残す<span x-show="photos.length > 0" class="ml-1 text-sm opacity-80" x-text="'(' + photos.length + '枚)'"></span></span>
                 <span x-show="submitting" class="flex items-center gap-2"><span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>送信中...</span>
