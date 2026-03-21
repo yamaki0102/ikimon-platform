@@ -170,10 +170,10 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 </style>
 
 <!-- Design System v2 CSS Stack -->
-<link rel="stylesheet" href="/assets/css/tokens.css?v=2.1">
-<link rel="stylesheet" href="/assets/css/style.css?v=2.1">
-<link rel="stylesheet" href="/assets/css/skeleton.css?v=2.1">
-<link rel="stylesheet" href="/assets/css/input.css?v=2.1">
+<link rel="stylesheet" href="/assets/css/tokens.css?v=2.2">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.2">
+<link rel="stylesheet" href="/assets/css/skeleton.css?v=2.2">
+<link rel="stylesheet" href="/assets/css/input.css?v=2.2">
 
 <!-- Service Worker: Force migration to v13 -->
 <script nonce="<?= CspNonce::attr() ?>">
