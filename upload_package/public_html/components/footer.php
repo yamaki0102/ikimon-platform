@@ -21,6 +21,8 @@
                 <div class="flex flex-col gap-0">
                     <a href="for-business/" class="hover:text-primary transition py-2 min-h-11 flex items-center"><?php echo __('nav.business'); ?></a>
                     <a href="for-researcher.php" class="hover:text-text transition py-2 min-h-11 flex items-center">研究者・専門家様</a>
+                    <a href="guide/nature-positive.php" class="hover:text-text transition py-2 min-h-11 flex items-center">ネイチャーポジティブガイド</a>
+                    <a href="guide/satoyama-initiative.php" class="hover:text-text transition py-2 min-h-11 flex items-center">里山イニシアティブガイド</a>
                 </div>
             </div>
 
