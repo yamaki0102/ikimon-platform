@@ -51,7 +51,6 @@ if ($isGuest) {
     <!-- Offline Manager -->
     <script src="js/ToastManager.js"></script>
     <script src="js/OfflineManager.js?v=2.2"></script>
-    <script src="js/ai-assist.js?v=2.0"></script>
     <script src="js/gamification-modal.js?v=1.0"></script>
 </head>
 
@@ -182,121 +181,6 @@ if ($isGuest) {
                     </div>
                 </div>
 
-                <!-- 🤖 AI Assist Section -->
-                <div x-show="photos.length > 0" x-transition class="mt-4">
-                    <!-- Ask AI Button -->
-                    <div x-show="!AiAssist.asked && !AiAssist.loading">
-                        <button type="button"
-                            @click="AiAssist.ask(photos)"
-                            :disabled="!navigator.onLine"
-                            class="w-full py-3 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-bold text-sm flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
-                            <i data-lucide="sparkles" class="w-4 h-4"></i>
-                            <span x-text="navigator.onLine ? 'AIにきいてみる' : '📵 オフラインのため利用不可'"></span>
-                        </button>
-                        <p class="text-center text-[10px] text-muted mt-1.5">写真から生き物の種類をAIが推定します（参考情報）</p>
-                    </div>
-
-                    <!-- Loading State -->
-                    <div x-show="AiAssist.loading" class="text-center py-6">
-                        <div class="inline-flex items-center gap-3 bg-surface border border-border rounded-2xl px-5 py-3">
-                            <div class="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                            <span class="text-sm font-bold text-text">AIが分析中...</span>
-                        </div>
-                        <p class="text-[10px] text-muted mt-2">通常10秒以内に結果が出ます</p>
-                    </div>
-
-                    <!-- Error State -->
-                    <div x-show="AiAssist.error" x-transition class="bg-danger/10 border border-danger/30 rounded-2xl px-4 py-3 text-center shadow-sm">
-                        <p class="text-xs font-bold text-danger opacity-90 flex items-start justify-center gap-1.5 text-left leading-relaxed">
-                            <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 translate-y-0.5"></i>
-                            <span x-text="AiAssist.error"></span>
-                        </p>
-                        <button type="button" @click="AiAssist.ask(photos)" class="text-[11px] text-primary font-bold mt-2.5 bg-surface px-4 py-1.5 rounded-full border border-primary/20 hover:bg-primary/10 transition active:scale-95 shadow-sm">🔄 もう一度試す</button>
-                    </div>
-
-                    <!-- Suggestion Cards -->
-                    <div x-show="AiAssist.asked && AiAssist.suggestions.length > 0" x-transition class="space-y-2">
-                        <p class="text-[10px] font-black text-faint uppercase tracking-widest px-2 flex items-center gap-1">
-                            <i data-lucide="sparkles" class="w-3 h-3 text-primary"></i>
-                            AIの提案（参考情報）
-                        </p>
-                        <template x-for="(s, i) in AiAssist.suggestions" :key="i">
-                            <button type="button"
-                                @click="AiAssist.applySuggestion(s, $data); showDetails = true;"
-                                class="w-full text-left bg-surface hover:bg-primary/5 border border-border hover:border-primary/30 rounded-2xl px-4 py-3 transition active:scale-[0.98] flex items-center gap-3">
-                                <span class="text-2xl" x-text="s.emoji"></span>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-bold text-text truncate" x-text="s.label"></p>
-                                    <p class="text-[10px] text-muted truncate" x-text="s.reason"></p>
-                                    <p x-show="s.examples" class="text-[10px] text-primary/70 truncate" x-text="s.examples ? '💡 ' + s.examples + ' など' : ''"></p>
-                                </div>
-                                <span class="text-[9px] font-bold px-2 py-1 rounded-full whitespace-nowrap"
-                                    :class="AiAssist.confidenceColor(s.confidence)"
-                                    x-text="AiAssist.confidenceLabel(s.confidence)"></span>
-                            </button>
-                            <template x-if="s.caution">
-                                <div class="mt-1 ml-12 text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded flex items-start gap-1">
-                                    <span class="shrink-0">⚠️</span>
-                                    <span x-text="s.caution"></span>
-                                </div>
-                            </template>
-                        </template>
-                        <p class="text-center text-[10px] text-muted px-4">
-                            💡 タップで名前欄にコピーできます。
-                            <span class="font-bold">最終的な種名はあなたが決めてください。</span>
-                        </p>
-                        <p x-show="AiAssist.processingMs" class="text-center text-[9px] text-faint">
-                            ⚡ <span x-text="(AiAssist.processingMs / 1000).toFixed(1)"></span>秒で分析
-                        </p>
-                    </div>
-
-                    <!-- No Suggestions -->
-                    <div x-show="AiAssist.asked && AiAssist.suggestions.length === 0 && !AiAssist.error" x-transition
-                        class="bg-surface border border-border rounded-2xl px-4 py-3 text-center">
-                        <p class="text-sm font-bold text-muted">🔬 生き物を特定できませんでした</p>
-                        <p class="text-[10px] text-faint mt-1">別の角度の写真で試すと結果が変わるかもしれません</p>
-                    </div>
-
-                    <!-- Environment Auto-fill Card -->
-                    <div x-show="AiAssist.asked && AiAssist.environment && !AiAssist.error" x-transition class="mt-3">
-                        <div x-show="!AiAssist.environmentApplied"
-                            class="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/60 rounded-2xl px-4 py-3">
-                            <div class="flex items-center justify-between mb-2">
-                                <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-1">
-                                    <i data-lucide="scan-eye" class="w-3 h-3"></i>
-                                    環境をAIが推定
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-1.5 mb-3">
-                                <template x-if="AiAssist.environment.biome && AiAssist.environment.biome !== 'unknown'">
-                                    <span class="text-[10px] font-bold bg-white/80 text-emerald-800 px-2 py-1 rounded-lg border border-emerald-200/50" x-text="AiAssist.biomeLabel(AiAssist.environment.biome)"></span>
-                                </template>
-                                <template x-if="AiAssist.environment.cultivation === 'cultivated'">
-                                    <span class="text-[10px] font-bold bg-white/80 text-purple-700 px-2 py-1 rounded-lg border border-purple-200/50" x-text="AiAssist.cultivationLabel(AiAssist.environment.cultivation)"></span>
-                                </template>
-                                <template x-if="AiAssist.environment.life_stage && AiAssist.environment.life_stage !== 'unknown'">
-                                    <span class="text-[10px] font-bold bg-white/80 text-blue-700 px-2 py-1 rounded-lg border border-blue-200/50" x-text="AiAssist.lifeStageLabel(AiAssist.environment.life_stage)"></span>
-                                </template>
-                                <template x-for="tag in (AiAssist.environment.substrate_tags || [])" :key="tag">
-                                    <span class="text-[10px] font-bold bg-white/80 text-amber-800 px-2 py-1 rounded-lg border border-amber-200/50" x-text="AiAssist.substrateLabel(tag)"></span>
-                                </template>
-                            </div>
-                            <button type="button" @click="AiAssist.applyEnvironment($data); showDetails = true; $nextTick(() => lucide.createIcons())"
-                                class="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20 active:scale-95 transition">
-                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-                                この環境情報を反映する
-                            </button>
-                            <p class="text-center text-[9px] text-emerald-600/70 mt-1.5">詳細画面で確認・修正できます</p>
-                        </div>
-                        <div x-show="AiAssist.environmentApplied" x-transition
-                            class="bg-emerald-50 border border-emerald-200/40 rounded-2xl px-4 py-2.5 text-center">
-                            <p class="text-[11px] font-bold text-emerald-700 flex items-center justify-center gap-1">
-                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
-                                環境情報を反映しました
-                            </p>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Form Fields (Slide In) -->
                 <div class="space-y-6" x-show="photos.length > 0" x-transition x-ref="formFields">
@@ -894,9 +778,8 @@ if ($isGuest) {
             survey_id: '<?php echo $activeSurvey ? $activeSurvey['id'] : ''; ?>'
         };
     </script>
-    <script src="js/exif-mini.js?v=1.0"></script>
-    <script src="js/ai-assist.js?v=2.0"></script>
-    <script src="js/post-uploader.js?v=2.7"></script>
+    <script src="js/exif-mini.js?v=3.1"></script>
+    <script src="js/post-uploader.js?v=3.0"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>

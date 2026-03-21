@@ -2,7 +2,7 @@
  * exif-mini.js — ikimon.life 用 軽量 EXIF リーダー
  * JPEG / HEIC ファイルから GPS座標 と 撮影日時 のみを抽出する
  * 外部ライブラリ不要（ArrayBuffer ベースのバイナリパース）
- * @version 3.0 — HEIC (ISOBMFF) 対応 + Orientation / GPSImgDirection 抽出
+ * @version 3.1 — Fix: scan ALL APP1 markers (XMP before EXIF case) + enhanced logging
  */
 const EXIF = (() => {
     'use strict';
@@ -16,24 +16,31 @@ const EXIF = (() => {
         const result = { lat: null, lng: null, date: null, orientation: null, imgDirection: null };
 
         try {
-            // Read first 256KB (EXIF is always near the start, HEIC may need more)
-            const slice = file.slice(0, 262144);
+            // Read first 512KB (HEIC may need more than 256KB)
+            const slice = file.slice(0, 524288);
             const buffer = await slice.arrayBuffer();
             const view = new DataView(buffer);
+
+            console.log('[EXIF] Reading file:', file.name, 'type:', file.type, 'size:', file.size,
+                'magic:', view.byteLength >= 2 ? '0x' + view.getUint16(0).toString(16) : 'N/A');
 
             // Detect format by magic bytes
             if (view.byteLength >= 2 && view.getUint16(0) === 0xFFD8) {
                 // JPEG
-                return parseJpegExif(buffer);
+                const r = parseJpegExif(buffer);
+                console.log('[EXIF] JPEG result:', r.lat !== null ? 'GPS found' : 'no GPS', r.date ? 'date found' : 'no date');
+                return r;
             } else if (view.byteLength >= 12 && isHeifContainer(view)) {
                 // HEIC / HEIF (ISOBMFF container)
-                return parseHeicExif(buffer);
+                const r = parseHeicExif(buffer);
+                console.log('[EXIF] HEIC result:', r.lat !== null ? 'GPS found' : 'no GPS', r.date ? 'date found' : 'no date');
+                return r;
             } else {
-                // Try JPEG parse anyway (some files may have wrong MIME type)
+                console.log('[EXIF] Unknown format, trying JPEG parse');
                 return parseJpegExif(buffer);
             }
         } catch (e) {
-            console.warn('EXIF read failed:', e);
+            console.warn('[EXIF] Read failed:', e);
             return result;
         }
     }
@@ -51,7 +58,7 @@ const EXIF = (() => {
     // ===== JPEG EXIF PARSER =====
 
     function parseJpegExif(buffer) {
-        const result = { lat: null, lng: null, date: null };
+        const result = { lat: null, lng: null, date: null, orientation: null, imgDirection: null };
         const view = new DataView(buffer);
 
         if (view.getUint16(0) !== 0xFFD8) return result;
@@ -60,13 +67,22 @@ const EXIF = (() => {
         while (offset < view.byteLength - 4) {
             const marker = view.getUint16(offset);
 
+            // Stop at SOS (Start of Scan) — no more metadata after this
+            if (marker === 0xFFDA) break;
+
             if (marker === 0xFFE1) {
-                const length = view.getUint16(offset + 2);
-                if (view.getUint32(offset + 4) === 0x45786966 && view.getUint16(offset + 8) === 0x0000) {
+                const segLen = view.getUint16(offset + 2);
+                // Check for 'Exif\0\0' header (0x45786966 0x0000)
+                if (offset + 10 < view.byteLength &&
+                    view.getUint32(offset + 4) === 0x45786966 &&
+                    view.getUint16(offset + 8) === 0x0000) {
                     const tiffOffset = offset + 10;
                     parseTiff(view, tiffOffset, result);
+                    return result; // Found EXIF APP1, done
                 }
-                return result;
+                // Not EXIF (could be XMP) — skip and keep scanning
+                offset += 2 + segLen;
+                continue;
             }
 
             if ((marker & 0xFF00) === 0xFF00) {
