@@ -429,6 +429,16 @@ function fieldScan() {
 
             this.latestDetection = { name, scientific_name: scientific, confidence, source };
 
+            // ミニマップにマーカー追加
+            if (this._minimap && this.routePoints.length > 0) {
+                var last = this.routePoints[this.routePoints.length - 1];
+                var el = document.createElement('div');
+                el.style.cssText = 'font-size:18px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5))';
+                el.textContent = source === 'audio' ? '🐦' : '🌿';
+                el.title = name;
+                new maplibregl.Marker({element: el}).setLngLat([last.lng, last.lat]).addTo(this._minimap);
+            }
+
             // 3秒後にフェード
             setTimeout(() => {
                 if (this.latestDetection?.name === name) this.latestDetection = null;
