@@ -435,8 +435,8 @@ if (!$currentUser) {
 
                             <!-- Status badge -->
                             <div class="absolute top-1 left-1 flex gap-0.5 pointer-events-none">
-                                <span x-show="!item.taxon" class="px-1 py-px bg-red-500/80 rounded text-token-xs text-white font-bold">UnID</span>
-                                <span x-show="item.taxon" class="px-1 py-px bg-purple-500/60 rounded text-token-xs text-white font-bold">Prop</span>
+                                <span x-show="!item.taxon" class="px-1 py-px bg-red-500/80 rounded text-token-xs text-white font-bold">未同定</span>
+                                <span x-show="item.taxon" class="px-1 py-px bg-purple-500/60 rounded text-token-xs text-white font-bold">要確認</span>
                             </div>
 
                             <!-- Select checkbox -->
@@ -449,7 +449,7 @@ if (!$currentUser) {
 
                             <!-- Brief info overlay (always visible on mobile) -->
                             <div class="absolute bottom-0 inset-x-0 p-1.5 bg-gradient-to-t from-black/80 to-transparent md:opacity-0 md:group-hover:opacity-100 transition pointer-events-none">
-                                <p class="text-token-xs font-bold text-white truncate" x-text="item.taxon ? item.taxon.name : 'Unknown'"></p>
+                                <p class="text-token-xs font-bold text-white truncate" x-text="item.taxon ? item.taxon.name : '未同定'"></p>
                             </div>
 
                             <!-- Quick actions (always on mobile, hover on desktop) -->
