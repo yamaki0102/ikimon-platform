@@ -803,8 +803,11 @@ unset($allObs);
     <script src="js/ToastManager.js"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log('SW Registered!', reg))
+            navigator.serviceWorker.register('sw.js?v=13')
+                .then(reg => {
+                    console.log('SW Registered!', reg);
+                    reg.update();
+                })
                 .catch(err => console.error('SW Failed', err));
         }
     </script>
