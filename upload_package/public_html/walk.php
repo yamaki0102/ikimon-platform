@@ -34,6 +34,8 @@ unset($allObs, $userObs);
     ?>
     <link rel="stylesheet" href="assets/css/tokens.css?v=2026_naturalism">
     <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 </head>
 <body class="bg-[#050505] text-white min-h-screen">
 
@@ -100,46 +102,53 @@ unset($allObs, $userObs);
     </div>
 
     <!-- ===== 画面2: ウォーク中 ===== -->
-    <div id="screen-walking" class="space-y-4" style="display:none">
-        <div class="text-center">
-            <div class="text-5xl mb-3">🟢</div>
-            <h1 class="text-xl font-black">モニタリング中</h1>
-            <p class="text-sm text-green-400 mt-1">周囲の音をAI分析しています...</p>
+    <div id="screen-walking" class="space-y-3" style="display:none">
+
+        <!-- ステータスバー（コンパクト） -->
+        <div class="flex items-center justify-between bg-white/5 rounded-xl px-4 py-2">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                <span class="text-sm font-bold" id="elapsed">0:00</span>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-gray-400">
+                <span>🐦 <strong class="text-green-400" id="det-count">0</strong></span>
+                <span>📍 <strong class="text-blue-400" id="gps-count">0</strong></span>
+            </div>
+            <button id="btn-stop" class="px-4 py-1.5 rounded-full text-xs font-bold bg-red-600 hover:bg-red-700 active:scale-95 transition">
+                🛑 終了
+            </button>
         </div>
 
-        <button id="btn-stop"
-                class="w-full py-5 rounded-2xl text-lg font-bold bg-red-600 hover:bg-red-700 active:scale-95 transition">
-            🛑 ウォーク終了
-        </button>
-
-        <div class="grid grid-cols-3 gap-3 text-center">
-            <div class="bg-white/5 rounded-xl p-3">
-                <div class="text-2xl font-black" id="elapsed">0:00</div>
-                <div class="text-xs text-gray-500">経過時間</div>
-            </div>
-            <div class="bg-white/5 rounded-xl p-3">
-                <div class="text-2xl font-black text-green-400" id="det-count">0</div>
-                <div class="text-xs text-gray-500">音声検出</div>
-            </div>
-            <div class="bg-white/5 rounded-xl p-3">
-                <div class="text-2xl font-black text-blue-400" id="gps-count">0</div>
-                <div class="text-xs text-gray-500">GPS点</div>
-            </div>
+        <!-- リアルタイムマップ -->
+        <div class="rounded-xl overflow-hidden border border-white/10" style="height: 300px">
+            <div id="walk-map" style="width:100%; height:100%"></div>
         </div>
 
-        <!-- 音声レベル -->
-        <div class="bg-white/5 rounded-xl p-4">
-            <div class="flex items-center gap-3 mb-2">
-                <span class="text-gray-500">🎤</span>
-                <span class="text-xs text-gray-500">環境音レベル</span>
-            </div>
-            <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+        <!-- 音声レベル（細いバー） -->
+        <div class="flex items-center gap-2 px-1">
+            <span class="text-xs text-gray-500">🎤</span>
+            <div class="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
                 <div class="h-full bg-green-500 transition-all duration-200 rounded-full" id="audio-bar" style="width:0%"></div>
             </div>
         </div>
 
-        <!-- 検出リスト -->
-        <div id="det-list"></div>
+        <!-- 最新検出（1件だけ目立たせる） -->
+        <div id="latest-det" class="hidden">
+            <div class="flex items-center gap-3 p-3 bg-green-900/30 border border-green-700/30 rounded-xl animate-pulse">
+                <span class="text-2xl">🐦</span>
+                <div class="flex-1">
+                    <div class="text-sm font-bold text-green-300" id="latest-name"></div>
+                    <div class="text-xs text-gray-400" id="latest-sci"></div>
+                </div>
+                <span class="text-sm font-bold text-green-400" id="latest-conf"></span>
+            </div>
+        </div>
+
+        <!-- 検出リスト（折りたたみ） -->
+        <details class="bg-white/5 rounded-xl">
+            <summary class="px-4 py-2 text-xs text-gray-400 cursor-pointer">検出履歴を表示</summary>
+            <div id="det-list" class="px-2 pb-2"></div>
+        </details>
     </div>
 
     <!-- ===== 画面3: 完了 ===== -->
@@ -239,6 +248,82 @@ function clearPending() {
     try { localStorage.removeItem(PENDING_KEY); } catch(e) {}
 }
 
+// ===== Map =====
+var walkMap = null;
+var mapMarkers = [];
+
+function initMap(lat, lng) {
+    if (walkMap) return;
+    walkMap = new maplibregl.Map({
+        container: 'walk-map',
+        style: {
+            version: 8,
+            sources: {
+                osm: {
+                    type: 'raster',
+                    tiles: ['https://tile.openstreetmap.jp/styles/osm-bright-ja/{z}/{x}/{y}.png'],
+                    tileSize: 256,
+                    attribution: '&copy; OpenStreetMap contributors'
+                }
+            },
+            layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
+        },
+        center: [lng, lat],
+        zoom: 16,
+    });
+
+    // ルートラインのソース
+    walkMap.on('load', function() {
+        walkMap.addSource('route', {
+            type: 'geojson',
+            data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } }
+        });
+        walkMap.addLayer({
+            id: 'route-line',
+            type: 'line',
+            source: 'route',
+            paint: { 'line-color': '#10b981', 'line-width': 3, 'line-opacity': 0.8 }
+        });
+
+        // 現在地マーカー
+        var el = document.createElement('div');
+        el.style.cssText = 'width:16px;height:16px;background:#3b82f6;border:3px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(59,130,246,0.5)';
+        W._posMarker = new maplibregl.Marker({element: el}).setLngLat([lng, lat]).addTo(walkMap);
+    });
+}
+
+function updateMapRoute() {
+    if (!walkMap || !walkMap.getSource('route')) return;
+    var coords = W.routePoints.map(function(p) { return [p.lng, p.lat]; });
+    if (coords.length < 2) return;
+    walkMap.getSource('route').setData({
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: coords }
+    });
+    // 現在地を追従
+    var last = coords[coords.length - 1];
+    if (W._posMarker) W._posMarker.setLngLat(last);
+    walkMap.easeTo({ center: last, duration: 500 });
+}
+
+function addMapDetectionMarker(det) {
+    if (!walkMap || !det.lat || !det.lng) return;
+    var el = document.createElement('div');
+    el.style.cssText = 'font-size:24px;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));transition:transform 0.3s';
+    el.textContent = '🐦';
+    el.title = det.name + ' (' + Math.round(det.confidence * 100) + '%)';
+    // 出現アニメーション
+    el.style.transform = 'scale(0)';
+    setTimeout(function() { el.style.transform = 'scale(1)'; }, 50);
+
+    var marker = new maplibregl.Marker({element: el})
+        .setLngLat([det.lng, det.lat])
+        .setPopup(new maplibregl.Popup({offset: 20, closeButton: false})
+            .setHTML('<div style="font-size:12px;color:#000"><strong>' + det.name + '</strong><br>' + Math.round(det.confidence * 100) + '% — ' + det.time + '</div>'))
+        .addTo(walkMap);
+    mapMarkers.push(marker);
+}
+
 // ===== Screen switching (plain DOM, no framework) =====
 function showScreen(name) {
     document.getElementById('screen-ready').style.display = name === 'ready' ? '' : 'none';
@@ -288,11 +373,15 @@ async function startWalk() {
         document.getElementById('elapsed').textContent = Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
     }, 1000);
 
-    // GPS
+    // GPS + Map
     if (navigator.geolocation) {
         W.watchId = navigator.geolocation.watchPosition(function(pos) {
-            W.routePoints.push({lat:pos.coords.latitude, lng:pos.coords.longitude, timestamp:Date.now()});
+            var lat = pos.coords.latitude, lng = pos.coords.longitude;
+            W.routePoints.push({lat:lat, lng:lng, timestamp:Date.now()});
             document.getElementById('gps-count').textContent = W.routePoints.length;
+            // 初回GPS取得でマップ初期化
+            if (W.routePoints.length === 1) initMap(lat, lng);
+            updateMapRoute();
         }, function(){}, {enableHighAccuracy:true, maximumAge:5000});
     }
 
@@ -332,6 +421,10 @@ function stopWalk() {
     if (W.watchId) navigator.geolocation.clearWatch(W.watchId);
     if (W.mediaStream) W.mediaStream.getTracks().forEach(function(t){t.stop()});
     if (W.audioCtx) W.audioCtx.close();
+
+    // マップクリーンアップ
+    if (walkMap) { walkMap.remove(); walkMap = null; }
+    mapMarkers = [];
 
     // 最終保存
     saveSession();
@@ -415,7 +508,9 @@ async function sendAudio(blob) {
                 W.detections.push(det);
                 document.getElementById('det-count').textContent = W.detections.length;
                 addDetectionCard(det);
-                saveSession(); // 検出ごとに即座に保存
+                addMapDetectionMarker(det);
+                showLatestDetection(det);
+                saveSession();
                 if (navigator.vibrate) navigator.vibrate(30);
             });
         }
@@ -425,6 +520,18 @@ async function sendAudio(blob) {
         W.analyzing = false;
         if (W.walking) startCycle();
     }
+}
+
+function showLatestDetection(det) {
+    var panel = document.getElementById('latest-det');
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    document.getElementById('latest-name').textContent = det.name;
+    document.getElementById('latest-sci').textContent = det.scientific_name || '';
+    document.getElementById('latest-conf').textContent = Math.round(det.confidence * 100) + '%';
+    // 5秒後にフェードアウト
+    if (W._latestTimer) clearTimeout(W._latestTimer);
+    W._latestTimer = setTimeout(function() { panel.classList.add('hidden'); }, 5000);
 }
 
 function addDetectionCard(det) {
