@@ -794,7 +794,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
             </div>
 
             <div class="msg-signature">
-                <img src="assets/img/yamaki.jpg" alt="八巻 毅" class="msg-signature-photo">
+                <img src="/assets/img/yamaki.webp" alt="八巻 毅" class="msg-signature-photo">
                 <div>
                     <p class="msg-signature-name">八巻 毅</p>
                     <p class="msg-signature-title">IKIMON株式会社 代表</p>
