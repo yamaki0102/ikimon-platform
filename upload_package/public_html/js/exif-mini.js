@@ -266,22 +266,47 @@ const EXIF = (() => {
                     result.orientation = view.getUint16(valueOffset, le);
                 }
             } else {
+                // GPS IFD tags
+                console.log(`[EXIF GPS IFD] tag=${tag} type=${type} count=${numValues}`);
                 if (tag === 1) {
                     result._latRef = String.fromCharCode(view.getUint8(valueOffset));
+                    console.log('[EXIF GPS] latRef:', result._latRef);
                 }
                 if (tag === 3) {
                     result._lngRef = String.fromCharCode(view.getUint8(valueOffset));
+                    console.log('[EXIF GPS] lngRef:', result._lngRef);
                 }
-                if (tag === 2 && type === 5 && numValues === 3) {
-                    const dataOffset = tiffStart + view.getUint32(valueOffset, le);
-                    if (dataOffset + 24 <= view.byteLength) {
-                        result._latDMS = readRationals(view, dataOffset, 3, le);
+                if (tag === 2) {
+                    console.log('[EXIF GPS] Lat tag: type=' + type + ' numValues=' + numValues);
+                    if (type === 5 && numValues === 3) {
+                        const dataOffset = tiffStart + view.getUint32(valueOffset, le);
+                        console.log('[EXIF GPS] Lat dataOffset=' + dataOffset + ' bufLen=' + view.byteLength);
+                        if (dataOffset + 24 <= view.byteLength) {
+                            // Log raw bytes
+                            const rawBytes = [];
+                            for (let b = 0; b < 24; b++) rawBytes.push(view.getUint8(dataOffset + b));
+                            console.log('[EXIF GPS] Lat raw bytes:', rawBytes.map(x => x.toString(16).padStart(2,'0')).join(' '));
+                            result._latDMS = readRationals(view, dataOffset, 3, le);
+                            console.log('[EXIF GPS] Lat DMS:', result._latDMS);
+                        } else {
+                            console.warn('[EXIF GPS] Lat data out of bounds!');
+                        }
                     }
                 }
-                if (tag === 4 && type === 5 && numValues === 3) {
-                    const dataOffset = tiffStart + view.getUint32(valueOffset, le);
-                    if (dataOffset + 24 <= view.byteLength) {
-                        result._lngDMS = readRationals(view, dataOffset, 3, le);
+                if (tag === 4) {
+                    console.log('[EXIF GPS] Lng tag: type=' + type + ' numValues=' + numValues);
+                    if (type === 5 && numValues === 3) {
+                        const dataOffset = tiffStart + view.getUint32(valueOffset, le);
+                        console.log('[EXIF GPS] Lng dataOffset=' + dataOffset + ' bufLen=' + view.byteLength);
+                        if (dataOffset + 24 <= view.byteLength) {
+                            const rawBytes = [];
+                            for (let b = 0; b < 24; b++) rawBytes.push(view.getUint8(dataOffset + b));
+                            console.log('[EXIF GPS] Lng raw bytes:', rawBytes.map(x => x.toString(16).padStart(2,'0')).join(' '));
+                            result._lngDMS = readRationals(view, dataOffset, 3, le);
+                            console.log('[EXIF GPS] Lng DMS:', result._lngDMS);
+                        } else {
+                            console.warn('[EXIF GPS] Lng data out of bounds!');
+                        }
                     }
                 }
 
@@ -298,12 +323,18 @@ const EXIF = (() => {
         }
 
         if (result._latDMS && result._lngDMS) {
+            console.log('[EXIF GPS] DMS lat:', JSON.stringify(result._latDMS), 'ref:', result._latRef);
+            console.log('[EXIF GPS] DMS lng:', JSON.stringify(result._lngDMS), 'ref:', result._lngRef);
+            result._gpsDebug = {latDMS: result._latDMS, lngDMS: result._lngDMS, latRef: result._latRef, lngRef: result._lngRef};
             result.lat = dmsToDecimal(result._latDMS, result._latRef || 'N');
             result.lng = dmsToDecimal(result._lngDMS, result._lngRef || 'E');
             delete result._latDMS;
             delete result._lngDMS;
             delete result._latRef;
             delete result._lngRef;
+        } else {
+            result._gpsDebug = {latDMS: result._latDMS || null, lngDMS: result._lngDMS || null, error: 'no_dms'};
+            console.log('[EXIF GPS] No DMS data found. _latDMS:', result._latDMS, '_lngDMS:', result._lngDMS);
         }
 
         return gpsPointer;

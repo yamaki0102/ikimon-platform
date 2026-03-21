@@ -781,8 +781,8 @@ if ($isGuest) {
             survey_id: '<?php echo $activeSurvey ? $activeSurvey['id'] : ''; ?>'
         };
     </script>
-    <script src="js/exif-mini.js?v=3.1"></script>
-    <script src="js/post-uploader.js?v=3.2"></script>
+    <script src="js/exif-mini.js?v=3.2"></script>
+    <script src="js/post-uploader.js?v=3.3"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>

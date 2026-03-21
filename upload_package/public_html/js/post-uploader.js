@@ -674,9 +674,30 @@ function uploader() {
                 this._exifData.push(entry);
                 console.log(`[EXIF #${photoIndex}]`, entry);
 
-                // DEBUG: 画面にEXIF結果を表示（一時的）
+                // DEBUG: 画面にEXIF結果を表示（ベータ期間中）
                 this._exifDebug = `EXIF: type=${file.type} size=${file.size} GPS=${exif.lat !== null ? exif.lat.toFixed(4)+','+exif.lng.toFixed(4) : 'なし'} date=${exif.date || 'なし'} src=${this.locationSource}`;
                 console.log('[EXIF DEBUG]', this._exifDebug);
+
+                // ベータ: EXIFログをサーバーに送信
+                try {
+                    fetch('api/exif_log.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            file_type: file.type,
+                            file_size: file.size,
+                            file_name: file.name,
+                            exif_lat: exif.lat,
+                            exif_lng: exif.lng,
+                            exif_date: exif.date,
+                            orientation: exif.orientation,
+                            location_source: this.locationSource,
+                            device_gps: this.deviceGps,
+                            gps_debug: exif._gpsDebug || null,
+                            ua: navigator.userAgent
+                        })
+                    }).catch(() => {});
+                } catch(e) {}
 
                 const isFirstPhoto = (photoIndex === 1);
                 const toastParts = [];
