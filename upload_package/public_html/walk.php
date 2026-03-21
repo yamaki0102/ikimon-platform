@@ -197,7 +197,7 @@ function walkMode() {
                 );
             }
 
-            // 音声モニタリング
+            // 音声モニタリング + 録音 + BirdNET 分析
             try {
                 this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 this.audioContext = new AudioContext();
@@ -217,11 +217,8 @@ function walkMode() {
                 };
                 updateLevel();
 
-                // 定期的にサーバーに音声スニペットを送信して分類
-                // （簡易版: 15秒間隔でキャプチャ→AI分類）
-                this._audioClassifyInterval = setInterval(() => {
-                    this.classifyAudioSnippet();
-                }, 15000);
+                // MediaRecorder セットアップ（3秒チャンクで録音→BirdNET送信）
+                this._setupAudioRecorder();
 
             } catch (err) {
                 console.warn('Audio not available:', err);
@@ -231,7 +228,12 @@ function walkMode() {
         stopWalk() {
             this.isWalking = false;
             clearInterval(this.timerInterval);
-            clearInterval(this._audioClassifyInterval);
+            if (this._recordingTimer) clearTimeout(this._recordingTimer);
+
+            // MediaRecorder を停止
+            if (this._mediaRecorder && this._mediaRecorder.state === 'recording') {
+                try { this._mediaRecorder.stop(); } catch (e) { /* ignore */ }
+            }
 
             if (this.watchId) navigator.geolocation.clearWatch(this.watchId);
             if (this.mediaStream) this.mediaStream.getTracks().forEach(t => t.stop());
@@ -247,35 +249,129 @@ function walkMode() {
             this.showSummary = true;
         },
 
-        async classifyAudioSnippet() {
-            // DEMO: ダミー音声検出。本番実装ではない。
-            // 本番: ネイティブアプリ (BirdNET/Gemini Nano) でオンデバイス推論すること。
-            // Web版は音声分類の制約が大きいため、簡易版として位置づける。
-            // 暫定: ダミー検出（開発用）
-            const dummySpecies = [
-                { name: 'シジュウカラ', scientific: 'Parus minor', conf: 0.82 },
-                { name: 'ヒヨドリ', scientific: 'Hypsipetes amaurotis', conf: 0.75 },
-                { name: 'メジロ', scientific: 'Zosterops japonicus', conf: 0.68 },
-                { name: 'ウグイス', scientific: 'Horornis diphone', conf: 0.71 },
-                { name: 'ハシブトガラス', scientific: 'Corvus macrorhynchos', conf: 0.90 },
-            ];
+        /**
+         * MediaRecorder をセットアップし、3秒チャンクで録音→BirdNET API に送信
+         */
+        _setupAudioRecorder() {
+            if (!this.mediaStream) return;
 
-            // 20%の確率でランダムに検出（デモ用）
-            if (Math.random() < 0.2) {
-                const sp = dummySpecies[Math.floor(Math.random() * dummySpecies.length)];
-                const now = new Date();
-                this.audioDetections.push({
-                    name: sp.name,
-                    scientific_name: sp.scientific,
-                    confidence: sp.conf + (Math.random() * 0.1 - 0.05),
-                    time: now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0'),
-                    timestamp: Date.now(),
-                    lat: this.routePoints.length > 0 ? this.routePoints[this.routePoints.length - 1].lat : null,
-                    lng: this.routePoints.length > 0 ? this.routePoints[this.routePoints.length - 1].lng : null,
+            // MIME タイプ検出（iOS Safari は webm 非対応 → mp4 フォールバック）
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : MediaRecorder.isTypeSupported('audio/mp4')
+                    ? 'audio/mp4'
+                    : '';
+
+            if (!mimeType) {
+                console.warn('No supported audio recording format');
+                return;
+            }
+
+            this._mediaRecorder = new MediaRecorder(this.mediaStream, { mimeType });
+            this._audioChunks = [];
+            this._isAnalyzing = false;
+
+            this._mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    this._audioChunks.push(e.data);
+                }
+            };
+
+            this._mediaRecorder.onstop = () => {
+                if (this._audioChunks.length === 0 || !this.isWalking) return;
+                const blob = new Blob(this._audioChunks, { type: mimeType });
+                this._audioChunks = [];
+                this._sendAudioForAnalysis(blob, mimeType);
+            };
+
+            // 3秒間隔で録音→停止→送信→再開のサイクル
+            this._startRecordingCycle();
+        },
+
+        _startRecordingCycle() {
+            if (!this.isWalking || !this._mediaRecorder) return;
+
+            // 前回の分析がまだ進行中なら次のサイクルまでスキップ
+            if (this._isAnalyzing) {
+                this._recordingTimer = setTimeout(() => this._startRecordingCycle(), 1000);
+                return;
+            }
+
+            try {
+                this._audioChunks = [];
+                this._mediaRecorder.start();
+
+                // 3秒後に停止（→ onstop で送信）
+                this._recordingTimer = setTimeout(() => {
+                    if (this._mediaRecorder && this._mediaRecorder.state === 'recording') {
+                        this._mediaRecorder.stop();
+                    }
+                    // 次のサイクルは送信完了後に開始（_sendAudioForAnalysis 内）
+                }, 3000);
+            } catch (err) {
+                console.warn('Recording error:', err);
+                // リトライ
+                this._recordingTimer = setTimeout(() => this._startRecordingCycle(), 5000);
+            }
+        },
+
+        /**
+         * 録音した音声チャンクを BirdNET API に送信
+         */
+        async _sendAudioForAnalysis(blob, mimeType) {
+            if (!this.isWalking) return;
+            this._isAnalyzing = true;
+
+            try {
+                const lastPoint = this.routePoints.length > 0
+                    ? this.routePoints[this.routePoints.length - 1]
+                    : null;
+
+                const formData = new FormData();
+                const ext = mimeType.includes('mp4') ? '.mp4' : '.webm';
+                formData.append('audio', blob, `snippet${ext}`);
+                formData.append('lat', lastPoint?.lat ?? 35.0);
+                formData.append('lng', lastPoint?.lng ?? 139.0);
+
+                const resp = await fetch('/api/v2/analyze_audio.php', {
+                    method: 'POST',
+                    body: formData,
                 });
 
-                // バイブレーション
-                if (navigator.vibrate) navigator.vibrate(30);
+                if (!resp.ok) {
+                    if (resp.status === 429) {
+                        console.warn('Rate limited, slowing down');
+                        await new Promise(r => setTimeout(r, 5000));
+                    }
+                    return;
+                }
+
+                const json = await resp.json();
+                if (json.success && json.data?.detections) {
+                    const now = new Date();
+                    for (const d of json.data.detections) {
+                        this.audioDetections.push({
+                            name: d.common_name || d.scientific_name,
+                            scientific_name: d.scientific_name,
+                            confidence: d.confidence,
+                            time: now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0'),
+                            timestamp: Date.now(),
+                            lat: lastPoint?.lat ?? null,
+                            lng: lastPoint?.lng ?? null,
+                        });
+
+                        // バイブレーション（検出時）
+                        if (navigator.vibrate) navigator.vibrate(30);
+                    }
+                }
+            } catch (err) {
+                console.warn('Audio analysis error:', err);
+            } finally {
+                this._isAnalyzing = false;
+                // 次の録音サイクルを開始
+                if (this.isWalking) {
+                    this._startRecordingCycle();
+                }
             }
         },
 
@@ -290,7 +386,7 @@ function walkMode() {
                     lat: d.lat,
                     lng: d.lng,
                     timestamp: new Date(d.timestamp).toISOString(),
-                    model: 'web_audio_v1',
+                    model: 'birdnet-v2.4',
                 }));
 
                 const resp = await fetch('/api/v2/passive_event.php', {
