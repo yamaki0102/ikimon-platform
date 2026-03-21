@@ -365,20 +365,25 @@ Tier 4:   外部監査（DNA、標本、学術引用）
 | 0.17 | CanonicalStore.php 実装 | Codex | `libs/CanonicalStore.php` |
 | 0.18 | 既存観察 → Canonical Schema 同期ロジック | Codex | `libs/CanonicalSync.php` |
 
-**5層テーブル設計:**
+**5層 + ライブ層テーブル設計（100年耐久 + リアルタイム対応）:**
 
 ```sql
+-- ===== 100年耐久レイヤー =====
+
 -- Layer 1: Event（いつ・どこで・どうやって）
 CREATE TABLE events (
-    event_id TEXT PRIMARY KEY,
-    parent_event_id TEXT,             -- 調査セッションの親子
-    event_date TEXT NOT NULL,
+    event_id TEXT PRIMARY KEY,       -- UUIDv4（不変）
+    parent_event_id TEXT,            -- 調査セッションの親子
+    event_date TEXT NOT NULL,        -- ISO8601
     decimal_latitude REAL,
     decimal_longitude REAL,
-    sampling_protocol TEXT,           -- 'manual-photo' | 'passive-audio' | 'passive-visual' | 'drive-scan' | 'survey'
-    sampling_effort TEXT,             -- '30 minutes walk' | '2 hour drive'
-    capture_device TEXT,              -- 'iPhone 13 Pro' | 'Pixel 10 Pro'
-    recorded_by TEXT,                 -- user_id
+    geodetic_datum TEXT DEFAULT 'EPSG:4326',  -- ★ 100年後の座標再投影に必須
+    coordinate_uncertainty_m REAL,   -- GPS実測値
+    uncertainty_type TEXT,           -- ★ 'measured' | 'device_default' | 'assumed'
+    sampling_protocol TEXT,          -- 'manual-photo' | 'walk-audio' | 'live-scan' | 'survey'
+    sampling_effort TEXT,            -- '30 minutes walk' | '2 hour live-scan'
+    capture_device TEXT,             -- 'iPhone 13 Pro' | 'Pixel 10 Pro'
+    recorded_by TEXT,                -- user_id
     site_id TEXT,
     schema_version TEXT DEFAULT '1.0',
     created_at TEXT DEFAULT (datetime('now'))
@@ -386,21 +391,38 @@ CREATE TABLE events (
 
 -- Layer 2: Occurrence（何がいたか）
 CREATE TABLE occurrences (
-    occurrence_id TEXT PRIMARY KEY,
+    occurrence_id TEXT PRIMARY KEY,  -- UUIDv4（不変）
     event_id TEXT NOT NULL REFERENCES events(event_id),
     scientific_name TEXT,
-    taxon_rank TEXT,                  -- 'species' | 'genus' | 'family'
+    taxon_rank TEXT,                 -- 'species' | 'genus' | 'family'
+    taxon_concept_version TEXT,      -- ★ 'GBIF Backbone 2026-03' — 100年後の分類変更追跡に必須
     basis_of_record TEXT,            -- 'HumanObservation' | 'MachineObservation'
+    individual_count INTEGER,        -- ★ 個体数（DwC export に必須）
     evidence_tier REAL DEFAULT 1,    -- 1, 1.5, 2, 3, 4
     evidence_tier_at TEXT,
     evidence_tier_by TEXT,           -- 'auto' | reviewer_id
-    data_quality TEXT DEFAULT 'C',   -- A/B/C/D (既存互換)
-    observation_source TEXT,         -- 'photo-upload' | 'walk-audio' | 'scan-camera' | 'field-scan' | 'drive' | 'survey'
+    data_quality TEXT DEFAULT 'C',   -- A/B/C/D（既存互換）
+    observation_source TEXT,         -- 'post' | 'walk' | 'live-scan' | 'survey'
     original_observation_id TEXT,    -- 既存 JSON の obs_xxx への参照
-    detection_confidence REAL,
-    detection_model TEXT,            -- 'gemini-3.1-flash-lite' | 'birdnet-v2.4'
+    detection_confidence REAL,       -- AI生値（加工前）
+    adjusted_confidence REAL,        -- ★ 周辺データ加味後の総合確度
+    confidence_context JSON,         -- ★ 確度補正の根拠（下記参照）
+    detection_model TEXT,            -- 'birdnet-v2.4' | 'gemini-3.1-flash-lite'
+    detection_model_hash TEXT,       -- ★ モデルバイナリの SHA-256（AI再現性）
     created_at TEXT DEFAULT (datetime('now'))
 );
+
+-- ★ confidence_context の構造:
+-- {
+--   "base": 0.72,
+--   "boosts": [
+--     {"type": "nearby_observations", "value": 0.10, "count": 3, "radius_m": 500},
+--     {"type": "vegetation_match", "value": 0.05, "biome": "deciduous_broadleaf"},
+--     {"type": "seasonal_activity", "value": 0.03, "month": 3, "breeding": true}
+--   ],
+--   "adjusted": 0.90,
+--   "method": "contextual_boosting_v1"
+-- }
 
 -- Layer 3: Evidence（証拠メディア）
 CREATE TABLE evidence (
@@ -408,25 +430,27 @@ CREATE TABLE evidence (
     occurrence_id TEXT NOT NULL REFERENCES occurrences(occurrence_id),
     media_type TEXT NOT NULL,        -- 'photo' | 'audio' | 'spectrogram' | 'video-frame'
     media_path TEXT NOT NULL,        -- uploads/photos/... | uploads/audio/...
-    media_hash TEXT,                 -- SHA-256
+    media_hash TEXT,                 -- ★ SHA-256（改竄検知・100年データ完全性）
     capture_timestamp TEXT,
     duration_seconds REAL,           -- 音声の長さ
     metadata JSON,                   -- EXIF, audio params, etc.
     created_at TEXT DEFAULT (datetime('now'))
 );
 
--- Layer 4: Identification（誰が何と同定したか）
+-- Layer 4: Identification（誰が何と同定したか — immutable append-only）
 CREATE TABLE identifications (
     identification_id TEXT PRIMARY KEY,
     occurrence_id TEXT NOT NULL REFERENCES occurrences(occurrence_id),
     identified_by TEXT NOT NULL,     -- user_id | 'ai:birdnet-v2.4' | 'ai:gemini'
     taxon_name TEXT NOT NULL,
+    taxon_concept_version TEXT,      -- ★ 同定時点の分類体系バージョン
     identification_method TEXT,      -- 'ai-audio' | 'ai-image' | 'visual' | 'literature' | 'dna'
     confidence REAL,
     reviewer_level TEXT,             -- 'L0' | 'L1' | 'L2' | 'L3'
     notes TEXT,
     is_current INTEGER DEFAULT 1,   -- 最新の同定か
     created_at TEXT DEFAULT (datetime('now'))
+    -- ★ このテーブルは UPDATE 禁止。新しい同定は INSERT のみ（immutable log）
 );
 
 -- Layer 5: PrivacyAccess（公開制御）
@@ -439,14 +463,50 @@ CREATE TABLE privacy_access (
     created_at TEXT DEFAULT (datetime('now'))
 );
 
--- インデックス
+-- ===== リアルタイムレイヤー（ライブマップ用・揮発性） =====
+
+-- Layer 6: LiveDetections（24h TTL・ライブマップ表示用）
+CREATE TABLE live_detections (
+    detection_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    lat REAL NOT NULL,               -- 100m fuzzy化済み（プライバシー）
+    lng REAL NOT NULL,
+    scientific_name TEXT,
+    common_name TEXT,
+    detection_confidence REAL,
+    adjusted_confidence REAL,
+    detection_type TEXT,             -- 'audio' | 'visual'
+    occurrence_id TEXT,              -- Canonical への紐付け（あれば）
+    detected_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,        -- 24h後に自動削除
+    is_anonymous INTEGER DEFAULT 1
+);
+
+-- ===== インデックス =====
+
+-- Canonical 層
 CREATE INDEX idx_occ_event ON occurrences(event_id);
 CREATE INDEX idx_occ_tier ON occurrences(evidence_tier);
 CREATE INDEX idx_occ_source ON occurrences(observation_source);
 CREATE INDEX idx_occ_species ON occurrences(scientific_name);
+CREATE INDEX idx_occ_adjusted ON occurrences(adjusted_confidence);
 CREATE INDEX idx_evidence_occ ON evidence(occurrence_id);
+CREATE INDEX idx_evidence_hash ON evidence(media_hash);
 CREATE INDEX idx_id_occ ON identifications(occurrence_id);
+
+-- Live 層
+CREATE INDEX idx_live_geo ON live_detections(lat, lng);
+CREATE INDEX idx_live_time ON live_detections(detected_at);
+CREATE INDEX idx_live_expires ON live_detections(expires_at);
 ```
+
+**100年耐久の原則（ADR-001/002 準拠）:**
+1. **Identification テーブルは INSERT のみ。UPDATE 禁止。** 過去の同定記録は消さない
+2. **全メディアに SHA-256 ハッシュ。** 100年後にデータ完全性を検証可能
+3. **`taxon_concept_version` を全同定に記録。** 分類体系が変わっても追跡可能
+4. **`geodetic_datum` を明示。** 座標参照系が変わっても再投影可能
+5. **`confidence_context` で確度補正の根拠を保存。** アルゴリズム変更時に再評価可能
+6. **Live層はCanonical層と分離。** 揮発性データが永続データを汚染しない
 
 ---
 
