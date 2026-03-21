@@ -39,12 +39,17 @@ $currentUser = Auth::user();
 
 <!-- 左上: 統計オーバーレイ -->
 <div class="map-overlay" style="top: calc(var(--nav-height, 56px) + 12px); left: 12px;">
-    <div class="stat-pill rounded-2xl px-4 py-3 space-y-1">
+    <div class="stat-pill rounded-2xl px-4 py-3 space-y-1.5">
         <div class="text-xs text-gray-400 font-bold">🌍 生物デジタルツイン</div>
         <div class="flex items-center gap-4 text-sm">
             <div><span class="text-2xl font-black text-green-400" id="stat-obs">—</span> <span class="text-xs text-gray-400">観察</span></div>
             <div><span class="text-2xl font-black text-blue-400" id="stat-species">—</span> <span class="text-xs text-gray-400">種</span></div>
             <div><span class="text-2xl font-black text-purple-400" id="stat-people">—</span> <span class="text-xs text-gray-400">人</span></div>
+        </div>
+        <div class="flex items-center gap-3 text-[10px] text-gray-500">
+            <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#10b981"></span>ウォーク</span>
+            <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#3b82f6"></span>スキャン</span>
+            <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#a855f7"></span>投稿</span>
         </div>
     </div>
 </div>
@@ -148,7 +153,7 @@ map.on('load', function() {
         source: 'observations',
         minzoom: 10,
         paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 16, 8],
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 14, 7, 18, 12],
             'circle-color': [
                 'match', ['get', 'source'],
                 'post', '#a855f7',
@@ -156,9 +161,9 @@ map.on('load', function() {
                 'live-scan', '#3b82f6',
                 '#f59e0b'
             ],
-            'circle-stroke-width': 1,
+            'circle-stroke-width': 2,
             'circle-stroke-color': '#fff',
-            'circle-opacity': 0.85,
+            'circle-opacity': 0.9,
         }
     });
 
@@ -167,16 +172,27 @@ map.on('load', function() {
         var f = e.features[0];
         var p = f.properties;
         var tierLabels = {1:'AI判定',1.5:'AI+生態学的',2:'検証済み',3:'Research Grade',4:'外部監査'};
-        new maplibregl.Popup({offset: 12, closeButton: false, maxWidth: '250px'})
+        var sourceIcons = {'post':'📷','walk':'🚶','live-scan':'📡'};
+        var sourceLabels = {'post':'投稿','walk':'ウォーク','live-scan':'スキャン'};
+        var sourceColors = {'post':'#a855f7','walk':'#10b981','live-scan':'#3b82f6'};
+        var icon = sourceIcons[p.source] || '🔍';
+        var srcLabel = sourceLabels[p.source] || p.source;
+        var srcColor = sourceColors[p.source] || '#f59e0b';
+        var confPct = p.confidence ? Math.round(p.confidence * 100) + '%' : '';
+        var sciLine = p.scientific_name ? '<div style="color:#999;font-size:10px;font-style:italic;margin-top:1px">' + p.scientific_name + '</div>' : '';
+        var dateStr = p.date ? new Date(p.date).toLocaleDateString('ja-JP', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+
+        new maplibregl.Popup({offset: 12, closeButton: false, maxWidth: '280px'})
             .setLngLat(f.geometry.coordinates)
             .setHTML(
-                '<div style="color:#000;font-size:13px">' +
-                '<strong>' + (p.name || '未同定') + '</strong><br>' +
-                '<span style="color:#666">' +
-                (tierLabels[p.tier] || 'Tier ' + p.tier) + ' · ' +
-                ({'post':'📷 投稿','walk':'🚶 ウォーク','live-scan':'📡 ライブスキャン'}[p.source] || p.source) + ' · ' +
-                (p.date || '') +
-                '</span></div>'
+                '<div style="font-size:13px">' +
+                '<div style="font-weight:800;font-size:15px;margin-bottom:3px">' + icon + ' ' + (p.name || '検出') + '</div>' +
+                sciLine +
+                '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:11px;color:#666">' +
+                '<span style="background:' + srcColor + '22;color:' + srcColor + ';padding:2px 8px;border-radius:99px;font-weight:700">' + srcLabel + '</span>' +
+                (confPct ? '<span>AI ' + confPct + '</span>' : '') +
+                '<span>' + dateStr + '</span>' +
+                '</div></div>'
             )
             .addTo(map);
     });
