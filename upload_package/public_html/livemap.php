@@ -153,7 +153,7 @@ map.on('load', function() {
         source: 'observations',
         minzoom: 10,
         paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 14, 7, 18, 12],
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 6, 13, 10, 16, 16, 18, 22],
             'circle-color': [
                 'match', ['get', 'source'],
                 'post', '#a855f7',
