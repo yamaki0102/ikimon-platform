@@ -20,7 +20,7 @@
 | **📷 写真派** | 自然の写真が好き。きれいな写真を上げたい | post.php で写真アップ | Gemini Vision が裏で種同定＋植生解析 |
 | **🔍 市民科学派** | 丁寧に同定して、研究に貢献したい | observation_detail で同定に参加 | TrustLevel + Evidence Tier で品質管理 |
 | **🚶 パッシブスキャン派** | スマホ持って散歩するだけ | walk.php / field_scan.php でスキャンON | 音声→BirdNET / カメラ→Gemini をVPSでリアルタイム処理 |
-| **🚗 車載スキャン派** | ドライブ中にデータ取りたい | field_scan.php のドライブモード | 音声→BirdNET + カメラ→Gemini Vision で見えるもの全部（樹木、鳥、動物、花、看板の植栽…）を連続同定＋カウント |
+| **📡 ライブスキャン派** | 移動しながら周囲を丸ごと記録したい | field_scan.php（ライブスキャン） | 音声→BirdNET + カメラ→Gemini Vision で見えるもの聞こえるもの全部を連続同定＋カウント。徒歩/自転車/車どれでもOK |
 
 ### データの重ね合わせ
 
@@ -342,7 +342,7 @@ Tier 4:   外部監査（DNA、標本、学術引用）
 全モードで同じ Tier を使う:
 - 写真投稿 → Gemini判定 → Tier 1 → 市民科学者が同定 → Tier 2-3
 - 散歩スキャン → BirdNET判定 → Tier 1 → reviewer確認 → Tier 2-3
-- ドライブ → 連続画像判定 → Tier 1 → 蓄積データで統計的に Tier 1.5
+- ライブスキャン → 連続画像+音声判定 → Tier 1 → 蓄積データで統計的に Tier 1.5
 - 丁寧な観察 → 写真+音声+位置 → 複合証拠で Tier 2 スタートもありえる
 ```
 
@@ -509,7 +509,7 @@ CREATE INDEX idx_id_occ ON identifications(occurrence_id);
   → Reviewer が音声確認「合ってる」→ Tier 2
   → 別 Reviewer も確認 → Tier 3
 
-ドライブ（field_scan.php）
+ライブスキャン（field_scan.php）
   → カメラ: Gemini "ケヤキ 78%" ×15 / "アジサイ 85%" ×8 / "ツバメ飛翔 60%" ×2
   → 音声: BirdNET "ヒバリ 90%" / "セミ類 75%"
   → 見えるもの聞こえるもの全部を連続同定＋カウント → Tier 1 × N件
@@ -593,7 +593,7 @@ class SurveyRecommender {
 │  📷 写真投稿:    ████████████████  320件                     │
 │  🚶 散歩スキャン: ██████████       185件 (うち音声: 142)      │
 │  📸 カメラスキャン: ████████        156件                     │
-│  🚗 ドライブ:     ███              52件                      │
+│  📡 ライブスキャン:     ███              52件                      │
 │  📋 調査モード:   ██               28件                      │
 │                                                             │
 │  ── Evidence Tier 分布 ──                                    │
@@ -624,15 +624,15 @@ class SurveyRecommender {
 
 ---
 
-#### Day 10 (月 03/31): DwC-A Export Adapter + ドライブモード設計
+#### Day 10 (月 03/31): DwC-A Export Adapter + ライブスキャン設計
 
 | # | タスク | 担当 | 成果物 |
 |---|--------|------|--------|
 | 1.5 | DwcExportAdapter.php（Canonical Schema → DwC-A） | Codex | `libs/DwcExportAdapter.php` |
-| 1.6 | field_scan.php にドライブモード追加（UI切替） | Claude | field_scan.php 拡張 |
-| 1.7 | ドライブモードの連続フレーム間隔調整（5秒→移動速度に応じて可変） | Claude | ロジック |
+| 1.6 | field_scan.php にライブスキャン追加（UI切替） | Claude | field_scan.php 拡張 |
+| 1.7 | ライブスキャンの連続フレーム間隔調整（5秒→移動速度に応じて可変） | Claude | ロジック |
 
-**ドライブモードの特別処理:**
+**ライブスキャンの特別処理:**
 ```javascript
 // 速度に応じてキャプチャ間隔を調整
 function getDriveInterval(speedKmh) {
@@ -722,7 +722,7 @@ ikimon.life（2026-04-04 時点）
 ├── 🔍 丁寧な観察 ──→ 手動同定 ────┤
 ├── 🚶 散歩スキャン ──→ BirdNET ★ ──┤
 ├── 📸 カメラスキャン → Gemini ──────┤
-├── 🚗 ドライブ ──→ Gemini+BirdNET ─┤
+├── 📡 ライブスキャン ──→ Gemini+BirdNET ─┤
 │                                   ↓
 │                        Canonical Schema (5層)
 │                                   ↓
@@ -747,7 +747,7 @@ ikimon.life（2026-04-04 時点）
 
 | エージェント | 主な担当 |
 |---|---|
-| **Claude Code** | UI (walk.php差替, レビューUI, KPIダッシュボード, ドライブモード)、ADR、ReviewerLevel、EvidenceTierPromoter、統合テスト |
+| **Claude Code** | UI (walk.php差替, レビューUI, KPIダッシュボード, ライブスキャン)、ADR、ReviewerLevel、EvidenceTierPromoter、統合テスト |
 | **Codex** | VPS構築 (FastAPI+BirdNET)、CanonicalStore、TierPromotionWorkflow、ConsensusEngine、DwcExportAdapter、監査ログ |
 | **八巻** | 法務レビュー依頼、Reviewer候補への声掛け、愛管ヒアリング日程調整 |
 
@@ -761,7 +761,7 @@ main
 ├── claude/review-ui              ← Day 5-6: ReviewerLevel + 音響レビューUI + Tier昇格
 ├── claude/kpi-dashboard          ← Day 8-9: KPIダッシュボード + SurveyRecommender
 ├── codex/dwca-adapter            ← Day 10: DwC-A Export Adapter
-├── claude/drive-mode             ← Day 10: ドライブモード
+├── claude/live-scan              ← Day 10: ライブスキャン
 └── claude/integration            ← Day 13-14: 統合テスト + デプロイ
 ```
 
@@ -775,7 +775,7 @@ main
 | BirdNET の CC BY-NC-SA 4.0 ライセンス | B2B利用制限 | Community面は非商用で問題なし。Enterprise面は別途ライセンス交渉 or SpeciesNet (Apache 2.0) で代替 |
 | iOS Safari で audio/webm 非対応 | iPhone ユーザー | audio/mp4 フォールバック実装済み（Day 2） |
 | VPS の CPU 負荷（同時リクエスト） | レスポンス遅延 | リクエストキュー化。同時3リクエスト制限。ピーク時は推論間隔を延長 |
-| ドライブモードの通信量 | モバイル回線消費 | 音声は opus 圧縮（3秒≈20KB）。画像は 512px にリサイズ |
+| ライブスキャンの通信量 | モバイル回線消費 | 音声は opus 圧縮（3秒≈20KB）。画像は 512px にリサイズ |
 
 ---
 
@@ -820,4 +820,4 @@ main
 |------|--------|------|
 | 2026-03-21 | Claude Opus | 初版 |
 | 2026-03-21 | Claude Opus | v2: コードベース全調査に基づく全面改訂 |
-| 2026-03-21 | Claude Opus | **v3: 「観察のOS」思想で全面書き直し。** BirdNET-Analyzer をVPS上 FastAPI として統合、walk.php/field_scan.php のダミー音声分類を実APIに差替、ドライブモード追加、SurveyRecommender（「ここを深掘りすべき」自動提案）追加、全5観察モードが ikimon.life 内で完結する設計に |
+| 2026-03-21 | Claude Opus | **v3: 「観察のOS」思想で全面書き直し。** BirdNET-Analyzer をVPS上 FastAPI として統合、walk.php/field_scan.php のダミー音声分類を実APIに差替、ライブスキャン追加、SurveyRecommender（「ここを深掘りすべき」自動提案）追加、全5観察モードが ikimon.life 内で完結する設計に |
