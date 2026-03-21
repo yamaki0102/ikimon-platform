@@ -27,7 +27,43 @@ $currentUser = Auth::user();
         #map { position: absolute; inset: 0; top: var(--nav-height, 56px); }
         .map-overlay { position: absolute; z-index: 10; pointer-events: none; }
         .map-overlay > * { pointer-events: auto; }
-        .stat-pill { backdrop-filter: blur(12px); background: rgba(0,0,0,0.7); }
+        .glass { backdrop-filter: blur(16px); background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.08); }
+
+        /* ポップアップ */
+        .maplibregl-popup-content {
+            background: rgba(15,23,42,0.95) !important;
+            backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            border-radius: 16px !important;
+            padding: 16px 20px !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+            min-width: 220px !important;
+            color: #fff !important;
+        }
+        .maplibregl-popup-tip {
+            border-top-color: rgba(15,23,42,0.95) !important;
+        }
+        .maplibregl-popup-close-button {
+            color: rgba(255,255,255,0.5) !important;
+            font-size: 20px !important;
+            right: 8px !important;
+            top: 8px !important;
+        }
+
+        /* フィルターボタン */
+        .filter-chip {
+            padding: 6px 14px;
+            border-radius: 99px;
+            font-size: 13px;
+            font-weight: 700;
+            transition: all 0.15s;
+            cursor: pointer;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            background: transparent;
+        }
+        .filter-chip:hover { color: #fff; background: rgba(255,255,255,0.1); }
+        .filter-chip.active { color: #fff; background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body class="bg-black text-white overflow-hidden" style="height:100vh">
@@ -38,71 +74,73 @@ $currentUser = Auth::user();
 <div id="map"></div>
 
 <!-- 左上: 統計オーバーレイ -->
-<div class="map-overlay" style="top: calc(var(--nav-height, 56px) + 12px); left: 12px;">
-    <div class="stat-pill rounded-2xl px-4 py-3 space-y-1.5">
-        <div class="text-xs text-gray-400 font-bold">🌍 生物デジタルツイン</div>
-        <div class="flex items-center gap-4 text-sm">
-            <div><span class="text-2xl font-black text-green-400" id="stat-obs">—</span> <span class="text-xs text-gray-400">観察</span></div>
-            <div><span class="text-2xl font-black text-blue-400" id="stat-species">—</span> <span class="text-xs text-gray-400">種</span></div>
-            <div><span class="text-2xl font-black text-purple-400" id="stat-people">—</span> <span class="text-xs text-gray-400">人</span></div>
+<div class="map-overlay" style="top: calc(var(--nav-height, 56px) + 16px); left: 16px;">
+    <div class="glass rounded-2xl px-5 py-4 space-y-3">
+        <div class="text-[11px] text-gray-400 font-bold tracking-wider uppercase">生物デジタルツイン</div>
+        <div class="flex items-end gap-5">
+            <div>
+                <div class="text-3xl font-black text-green-400 leading-none" id="stat-obs">—</div>
+                <div class="text-[10px] text-gray-500 font-bold mt-1">観察</div>
+            </div>
+            <div>
+                <div class="text-3xl font-black text-blue-400 leading-none" id="stat-species">—</div>
+                <div class="text-[10px] text-gray-500 font-bold mt-1">種</div>
+            </div>
+            <div>
+                <div class="text-3xl font-black text-purple-400 leading-none" id="stat-people">—</div>
+                <div class="text-[10px] text-gray-500 font-bold mt-1">参加者</div>
+            </div>
         </div>
-        <div class="flex items-center gap-3 text-[10px] text-gray-500">
-            <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#10b981"></span>ウォーク</span>
-            <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#3b82f6"></span>スキャン</span>
-            <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#a855f7"></span>投稿</span>
+        <div class="flex items-center gap-4 text-[11px] text-gray-500 pt-1 border-t border-white/5">
+            <span><span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style="background:#10b981"></span>ウォーク</span>
+            <span><span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style="background:#3b82f6"></span>スキャン</span>
+            <span><span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style="background:#a855f7"></span>投稿</span>
         </div>
     </div>
 </div>
 
 <!-- 右上: フィルター -->
-<div class="map-overlay" style="top: calc(var(--nav-height, 56px) + 12px); right: 12px;">
-    <div class="stat-pill rounded-xl px-3 py-2 flex gap-1.5">
-        <button class="filter-btn text-xs px-2.5 py-1 rounded-full bg-white/20 text-white font-bold" data-source="all" id="filter-all">すべて</button>
-        <button class="filter-btn text-xs px-2.5 py-1 rounded-full text-gray-400" data-source="post">📷</button>
-        <button class="filter-btn text-xs px-2.5 py-1 rounded-full text-gray-400" data-source="walk">🚶</button>
-        <button class="filter-btn text-xs px-2.5 py-1 rounded-full text-gray-400" data-source="live-scan">📡</button>
-        <span class="w-px h-4 bg-white/20"></span>
-        <button id="toggle-grid" class="text-xs px-2.5 py-1 rounded-full text-gray-400">🔲 網羅度</button>
-        <button id="toggle-toilets" class="text-xs px-2.5 py-1 rounded-full text-gray-400">🚻</button>
+<div class="map-overlay" style="top: calc(var(--nav-height, 56px) + 16px); right: 16px;">
+    <div class="glass rounded-2xl px-2 py-1.5 flex items-center gap-1">
+        <button class="filter-chip active" data-source="all" id="filter-all">すべて</button>
+        <button class="filter-chip" data-source="post">📷 投稿</button>
+        <button class="filter-chip" data-source="walk">🚶 ウォーク</button>
+        <button class="filter-chip" data-source="live-scan">📡 スキャン</button>
+        <span class="w-px h-5 bg-white/10 mx-1"></span>
+        <button id="toggle-grid" class="filter-chip">🔲 網羅度</button>
+        <button id="toggle-toilets" class="filter-chip">🚻</button>
     </div>
 </div>
 
 <!-- 右下: 網羅度ステータス -->
-<div class="map-overlay" id="grid-stats" style="bottom: 90px; right: 12px; display:none">
-    <div class="stat-pill rounded-xl px-3 py-2 text-xs space-y-1">
+<div class="map-overlay" id="grid-stats" style="bottom: 100px; right: 16px; display:none">
+    <div class="glass rounded-2xl px-4 py-3 text-sm space-y-1.5">
         <div class="text-gray-400 font-bold">🔲 網羅度</div>
-        <div><span class="text-green-400 font-bold" id="stat-cells">—</span> セル調査済み</div>
-        <div class="text-gray-500">まだ歩かれていない場所が多いほど、あなたの貢献が大きい</div>
+        <div><span class="text-green-400 font-black text-lg" id="stat-cells">—</span> <span class="text-gray-400">セル調査済み</span></div>
+        <div class="text-xs text-gray-500">まだ歩かれていない場所ほど、あなたの貢献が大きい</div>
     </div>
 </div>
 
-<!-- 下部: CTA + 効力感 -->
-<div class="map-overlay" style="bottom: 16px; left: 50%; transform: translateX(-50%); width: calc(100% - 24px); max-width: 500px;">
-    <div class="stat-pill rounded-2xl px-5 py-3">
-        <div class="text-xs text-gray-400 mb-2 text-center">この地図はみんなの観察で成長します</div>
+<!-- 下部: CTA -->
+<div class="map-overlay" style="bottom: 20px; left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 520px;">
+    <div class="glass rounded-2xl px-6 py-4">
         <?php if ($currentUser): ?>
-        <!-- ログイン済み: 自分の貢献 -->
-        <div class="flex items-center justify-between mb-2 text-xs">
-            <span class="text-gray-500">あなたの貢献</span>
-            <span class="text-green-400 font-bold" id="my-contrib">読み込み中...</span>
+        <div class="flex items-center justify-between mb-3">
+            <span class="text-xs text-gray-400">あなたの貢献</span>
+            <span class="text-sm text-green-400 font-bold" id="my-contrib">読み込み中...</span>
         </div>
-        <div class="flex gap-2 justify-center">
-            <a href="walk.php" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-full text-xs font-bold transition">🎧 ウォーク</a>
-            <a href="field_scan.php" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-full text-xs font-bold transition">📡 スキャン</a>
-            <a href="post.php" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-full text-xs font-bold transition">📷 投稿</a>
+        <div class="flex gap-3 justify-center">
+            <a href="walk.php" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold transition text-center">🎧 ウォーク</a>
+            <a href="field_scan.php" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-bold transition text-center">📡 スキャン</a>
+            <a href="post.php" class="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 rounded-xl text-sm font-bold transition text-center">📷 投稿</a>
         </div>
         <?php else: ?>
         <div class="text-center">
-            <a href="login.php" class="inline-block px-6 py-2.5 bg-green-600 hover:bg-green-700 rounded-full text-sm font-bold transition">参加して地図を育てる</a>
+            <p class="text-xs text-gray-400 mb-3">この地図はみんなの観察で成長します</p>
+            <a href="login.php" class="inline-block px-8 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold transition">参加して地図を育てる</a>
         </div>
         <?php endif; ?>
     </div>
-</div>
-
-<!-- 種名ポップアップ用 -->
-<div id="species-popup" class="stat-pill rounded-xl px-4 py-3 hidden" style="position:absolute; z-index:20; max-width:250px">
-    <div class="text-sm font-bold" id="popup-name"></div>
-    <div class="text-xs text-gray-400" id="popup-detail"></div>
 </div>
 
 <script nonce="<?= CspNonce::attr() ?>">
@@ -120,7 +158,6 @@ var map = new maplibregl.Map({
 var currentSource = 'all';
 
 map.on('load', function() {
-    // データソース追加
     map.addSource('observations', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 
     // ヒートマップレイヤー（ズームアウト時）
@@ -161,9 +198,30 @@ map.on('load', function() {
                 'live-scan', '#3b82f6',
                 '#f59e0b'
             ],
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#fff',
-            'circle-opacity': 0.9,
+            'circle-stroke-width': 2.5,
+            'circle-stroke-color': 'rgba(255,255,255,0.9)',
+            'circle-opacity': 0.92,
+        }
+    });
+
+    // ラベルレイヤー（ズームインで種名表示）
+    map.addLayer({
+        id: 'obs-labels',
+        type: 'symbol',
+        source: 'observations',
+        minzoom: 14,
+        layout: {
+            'text-field': ['get', 'name'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 14, 11, 18, 14],
+            'text-offset': [0, 1.8],
+            'text-anchor': 'top',
+            'text-max-width': 8,
+            'text-allow-overlap': false,
+        },
+        paint: {
+            'text-color': '#fff',
+            'text-halo-color': 'rgba(0,0,0,0.8)',
+            'text-halo-width': 1.5,
         }
     });
 
@@ -171,7 +229,6 @@ map.on('load', function() {
     map.on('click', 'obs-points', function(e) {
         var f = e.features[0];
         var p = f.properties;
-        var tierLabels = {1:'AI判定',1.5:'AI+生態学的',2:'検証済み',3:'Research Grade',4:'外部監査'};
         var sourceIcons = {'post':'📷','walk':'🚶','live-scan':'📡'};
         var sourceLabels = {'post':'投稿','walk':'ウォーク','live-scan':'スキャン'};
         var sourceColors = {'post':'#a855f7','walk':'#10b981','live-scan':'#3b82f6'};
@@ -179,20 +236,28 @@ map.on('load', function() {
         var srcLabel = sourceLabels[p.source] || p.source;
         var srcColor = sourceColors[p.source] || '#f59e0b';
         var confPct = p.confidence ? Math.round(p.confidence * 100) + '%' : '';
-        var sciLine = p.scientific_name ? '<div style="color:#999;font-size:10px;font-style:italic;margin-top:1px">' + p.scientific_name + '</div>' : '';
-        var dateStr = p.date ? new Date(p.date).toLocaleDateString('ja-JP', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+        var sciLine = (p.scientific_name && p.scientific_name !== p.name)
+            ? '<div style="font-size:12px;color:rgba(255,255,255,0.4);font-style:italic;margin-top:2px">' + p.scientific_name + '</div>'
+            : '';
+        var dateStr = p.date
+            ? new Date(p.date).toLocaleDateString('ja-JP', {month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'})
+            : '';
+        var tierLabels = {1:'AI判定',1.5:'AI+生態学的',2:'検証済み',3:'Research Grade',4:'外部監査'};
+        var tierLabel = tierLabels[p.tier] || '';
 
-        new maplibregl.Popup({offset: 12, closeButton: false, maxWidth: '280px'})
+        new maplibregl.Popup({offset: 16, closeButton: true, maxWidth: '320px'})
             .setLngLat(f.geometry.coordinates)
             .setHTML(
-                '<div style="font-size:13px">' +
-                '<div style="font-weight:800;font-size:15px;margin-bottom:3px">' + icon + ' ' + (p.name || '検出') + '</div>' +
+                '<div style="font-size:14px">' +
+                '<div style="font-size:20px;font-weight:900;line-height:1.3;margin-bottom:4px">' + icon + ' ' + (p.name || '検出') + '</div>' +
                 sciLine +
-                '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:11px;color:#666">' +
-                '<span style="background:' + srcColor + '22;color:' + srcColor + ';padding:2px 8px;border-radius:99px;font-weight:700">' + srcLabel + '</span>' +
-                (confPct ? '<span>AI ' + confPct + '</span>' : '') +
-                '<span>' + dateStr + '</span>' +
-                '</div></div>'
+                '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px">' +
+                '<span style="background:' + srcColor + ';color:#fff;padding:4px 12px;border-radius:99px;font-weight:700;font-size:12px">' + srcLabel + '</span>' +
+                (confPct ? '<span style="background:rgba(255,255,255,0.1);padding:4px 10px;border-radius:99px;font-size:12px;color:rgba(255,255,255,0.7)">AI ' + confPct + '</span>' : '') +
+                (tierLabel ? '<span style="background:rgba(255,255,255,0.1);padding:4px 10px;border-radius:99px;font-size:12px;color:rgba(255,255,255,0.7)">' + tierLabel + '</span>' : '') +
+                '</div>' +
+                (dateStr ? '<div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:10px">' + dateStr + '</div>' : '') +
+                '</div>'
             )
             .addTo(map);
     });
@@ -222,40 +287,26 @@ map.on('load', function() {
         layout: { visibility: 'none' },
     });
 
-    // サイト境界（SiteManager の GeoJSON）
+    // サイト境界
     map.addSource('sites', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
     map.addLayer({
-        id: 'site-borders',
-        type: 'line',
-        source: 'sites',
+        id: 'site-borders', type: 'line', source: 'sites',
         paint: { 'line-color': '#f59e0b', 'line-width': 2, 'line-dasharray': [3, 2], 'line-opacity': 0.7 },
     });
     map.addLayer({
-        id: 'site-fill',
-        type: 'fill',
-        source: 'sites',
+        id: 'site-fill', type: 'fill', source: 'sites',
         paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.05 },
     });
     map.addLayer({
-        id: 'site-labels',
-        type: 'symbol',
-        source: 'sites',
-        layout: {
-            'text-field': ['get', 'name'],
-            'text-size': 11,
-            'text-anchor': 'center',
-        },
+        id: 'site-labels', type: 'symbol', source: 'sites',
+        layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-anchor': 'center' },
         paint: { 'text-color': '#f59e0b', 'text-halo-color': '#000', 'text-halo-width': 1 },
     });
 
-    // サイト境界をロード
     fetch('/api/v2/ecosystem_map.php?action=list_sites').then(function(r) { return r.json(); }).then(function(json) {
-        if (json.success && json.data && json.data.features) {
-            map.getSource('sites').setData(json.data);
-        }
+        if (json.success && json.data && json.data.features) map.getSource('sites').setData(json.data);
     }).catch(function(){});
 
-    // データ読み込み
     loadData();
 });
 
@@ -270,29 +321,22 @@ function loadData() {
             features: json.data.features
         });
 
-        // 網羅度グリッド
         if (json.data.grid) {
-            map.getSource('grid').setData({
-                type: 'FeatureCollection',
-                features: json.data.grid
-            });
+            map.getSource('grid').setData({ type: 'FeatureCollection', features: json.data.grid });
             var el = document.getElementById('stat-cells');
             if (el) el.textContent = json.data.grid.length;
         }
 
-        // 統計更新
         var s = json.data.stats;
         document.getElementById('stat-obs').textContent = s.total;
         document.getElementById('stat-species').textContent = s.species;
         document.getElementById('stat-people').textContent = s.contributors;
 
-        // 効力感: ログインユーザーの貢献（簡易版: 全体の統計で表示）
         var contrib = document.getElementById('my-contrib');
         if (contrib && s.total > 0) {
             contrib.textContent = s.total + '件の観察で ' + s.species + '種を記録中';
         }
 
-        // データがあればフィット
         if (json.data.features.length > 0) {
             var coords = json.data.features.map(function(f) { return f.geometry.coordinates; });
             var bounds = coords.reduce(function(b, c) {
@@ -305,13 +349,11 @@ function loadData() {
 }
 
 // フィルターボタン
-document.querySelectorAll('.filter-btn').forEach(function(btn) {
+document.querySelectorAll('.filter-chip[data-source]').forEach(function(btn) {
     btn.addEventListener('click', function() {
         currentSource = this.getAttribute('data-source');
-        document.querySelectorAll('.filter-btn').forEach(function(b) {
-            b.className = 'filter-btn text-xs px-2.5 py-1 rounded-full text-gray-400';
-        });
-        this.className = 'filter-btn text-xs px-2.5 py-1 rounded-full bg-white/20 text-white font-bold';
+        document.querySelectorAll('.filter-chip[data-source]').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
         loadData();
     });
 });
@@ -320,39 +362,38 @@ document.querySelectorAll('.filter-btn').forEach(function(btn) {
 document.getElementById('toggle-grid').addEventListener('click', function() {
     gridVisible = !gridVisible;
     map.setLayoutProperty('grid-cells', 'visibility', gridVisible ? 'visible' : 'none');
-    this.className = 'text-xs px-2.5 py-1 rounded-full ' + (gridVisible ? 'bg-white/20 text-white font-bold' : 'text-gray-400');
+    this.classList.toggle('active', gridVisible);
     document.getElementById('grid-stats').style.display = gridVisible ? '' : 'none';
 });
 
-// 🚻 トイレトグル
+// トイレトグル
 var toiletsVisible = false;
 var toiletMarkers = [];
 document.getElementById('toggle-toilets').addEventListener('click', function() {
     toiletsVisible = !toiletsVisible;
-    this.className = 'text-xs px-2.5 py-1 rounded-full ' + (toiletsVisible ? 'bg-white/20 text-white font-bold' : 'text-gray-400');
+    this.classList.toggle('active', toiletsVisible);
     if (toiletsVisible && toiletMarkers.length === 0) {
-        // 現在の地図中心からトイレ取得
         var center = map.getCenter();
-        var radius = 5000;
-        var query = '[out:json][timeout:10];node["amenity"="toilets"](around:' + radius + ',' + center.lat + ',' + center.lng + ');out body;';
-        var url = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
-        fetch(url).then(function(r) { return r.json(); }).then(function(data) {
-            if (!data.elements) return;
-            data.elements.forEach(function(t) {
-                var el = document.createElement('div');
-                el.style.cssText = 'font-size:20px;cursor:pointer';
-                el.textContent = '🚻';
-                var name = t.tags.name || t.tags.description || '公衆トイレ';
-                var fee = t.tags.fee === 'yes' ? '有料' : '無料';
-                var wheelchair = t.tags.wheelchair === 'yes' ? ' ♿' : '';
-                var m = new maplibregl.Marker({element: el})
-                    .setLngLat([t.lon, t.lat])
-                    .setPopup(new maplibregl.Popup({offset: 15, closeButton: false, maxWidth: '200px'})
-                        .setHTML('<div style="color:#000;font-size:12px"><strong>🚻 ' + name + '</strong><br>' + fee + wheelchair + '</div>'))
-                    .addTo(map);
-                toiletMarkers.push(m);
-            });
-        }).catch(function(){});
+        var query = '[out:json][timeout:10];node["amenity"="toilets"](around:5000,' + center.lat + ',' + center.lng + ');out body;';
+        fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.elements) return;
+                data.elements.forEach(function(t) {
+                    var el = document.createElement('div');
+                    el.style.cssText = 'font-size:24px;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))';
+                    el.textContent = '🚻';
+                    var name = t.tags.name || t.tags.description || '公衆トイレ';
+                    var fee = t.tags.fee === 'yes' ? '有料' : '無料';
+                    var wheelchair = t.tags.wheelchair === 'yes' ? ' ♿' : '';
+                    var m = new maplibregl.Marker({element: el})
+                        .setLngLat([t.lon, t.lat])
+                        .setPopup(new maplibregl.Popup({offset: 15, closeButton: false, maxWidth: '220px'})
+                            .setHTML('<div style="font-size:14px;font-weight:700">🚻 ' + name + '</div><div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px">' + fee + wheelchair + '</div>'))
+                        .addTo(map);
+                    toiletMarkers.push(m);
+                });
+            }).catch(function(){});
     } else if (!toiletsVisible) {
         toiletMarkers.forEach(function(m) { m.remove(); });
         toiletMarkers = [];
