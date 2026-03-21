@@ -425,10 +425,10 @@ Auth::init();
                 <h2 class="text-2xl md:text-3xl font-black mb-4">散歩をアップグレードしよう</h2>
                 <p class="text-muted mb-8 max-w-lg mx-auto leading-relaxed">ikimonでお散歩しながら生きものを観察。歩数も脳トレも科学データも、全部手に入る。</p>
                 <div class="flex flex-col sm:flex-row justify-center gap-4">
-                    <a href="../post.php" class="cta-gradient text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg">
+                    <a href="/post.php" class="cta-gradient text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg">
                         <i data-lucide="camera" class="w-5 h-5"></i>観察を始める
                     </a>
-                    <a href="../about.php" class="bg-white text-text font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors border border-border">
+                    <a href="/about.php" class="bg-white text-text font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors border border-border">
                         <i data-lucide="info" class="w-5 h-5"></i>ikimonについて
                     </a>
                 </div>

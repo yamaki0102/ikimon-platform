@@ -720,7 +720,7 @@ Auth::init();
                     里山イニシアチブの理念に賛同する方へ。ikimonで身近な生きものを記録することが、生物多様性保全の第一歩です。
                 </p>
                 <div class="flex flex-col sm:flex-row justify-center gap-3">
-                    <a href="../post.php" class="cta-gradient text-white font-bold px-6 py-3 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg text-sm">
+                    <a href="/post.php" class="cta-gradient text-white font-bold px-6 py-3 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg text-sm">
                         <i data-lucide="camera" class="w-4 h-4"></i>観察を始める
                     </a>
                     <a href="nature-positive.php" class="bg-white text-text font-bold px-6 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors border border-border text-sm">

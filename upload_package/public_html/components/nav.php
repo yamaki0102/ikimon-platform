@@ -9,8 +9,8 @@
 
     <div class="max-w-7xl mx-auto px-4 md:px-6 flex items-center justify-between h-[var(--nav-height)]">
         <!-- Logo -->
-        <a href="index.php" class="flex items-center gap-2 group">
-            <img src="assets/img/icon-192.png" alt="ikimon" class="w-10 h-10 rounded-md shadow-md group-hover:scale-105 transition duration-500">
+        <a href="/index.php" class="flex items-center gap-2 group">
+            <img src="/assets/img/icon-192.png" alt="ikimon" class="w-10 h-10 rounded-md shadow-md group-hover:scale-105 transition duration-500">
             <span class="text-lg font-black tracking-tight font-heading text-text">ikimon</span>
         </a>
 
@@ -56,10 +56,10 @@
                     <?php echo __('nav.explore'); ?> <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
                 </button>
                 <div class="absolute left-0 top-full -mt-2 w-48 z-50 origin-top-left bg-elevated rounded-xl border border-border-strong shadow-lg py-2 opacity-0 invisible scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:scale-100 group-hover:translate-y-2">
-                    <a href="explore.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="search" class="w-4 h-4 text-faint"></i> 観察マップ</a>
-                    <a href="map.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="map" class="w-4 h-4 text-faint"></i> フィールドマップ</a>
-                    <a href="zukan.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="book-open" class="w-4 h-4 text-faint"></i> いきもの図鑑</a>
-                    <a href="compass.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="compass" class="w-4 h-4 text-faint"></i> コンパス</a>
+                    <a href="/explore.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="search" class="w-4 h-4 text-faint"></i> 観察マップ</a>
+                    <a href="/map.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="map" class="w-4 h-4 text-faint"></i> フィールドマップ</a>
+                    <a href="/zukan.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="book-open" class="w-4 h-4 text-faint"></i> いきもの図鑑</a>
+                    <a href="/compass.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="compass" class="w-4 h-4 text-faint"></i> コンパス</a>
                 </div>
             </div>
 
@@ -70,10 +70,10 @@
                     <?php echo __('nav.participate'); ?> <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
                 </button>
                 <div class="absolute left-0 top-full -mt-2 w-48 z-50 origin-top-left bg-elevated rounded-xl border border-border-strong shadow-lg py-2 opacity-0 invisible scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:scale-100 group-hover:translate-y-2">
-                    <a href="id_workbench.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-accent transition"><i data-lucide="microscope" class="w-4 h-4 text-faint"></i> 同定する</a>
-                    <a href="events.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="calendar" class="w-4 h-4 text-faint"></i> 観察会</a>
-                    <a href="site_dashboard.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="shield-check" class="w-4 h-4 text-faint"></i> 共生サイト</a>
-                    <a href="survey.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="clipboard-list" class="w-4 h-4 text-faint"></i> 調査に参加</a>
+                    <a href="/id_workbench.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-accent transition"><i data-lucide="microscope" class="w-4 h-4 text-faint"></i> 同定する</a>
+                    <a href="/events.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="calendar" class="w-4 h-4 text-faint"></i> 観察会</a>
+                    <a href="/site_dashboard.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="shield-check" class="w-4 h-4 text-faint"></i> 共生サイト</a>
+                    <a href="/survey.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="clipboard-list" class="w-4 h-4 text-faint"></i> 調査に参加</a>
                 </div>
             </div>
 
@@ -167,39 +167,39 @@
                         </div>
 
                         <!-- パーソナル -->
-                        <a href="profile.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                        <a href="/profile.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                             <i data-lucide="user" class="w-4 h-4"></i> <?php echo __('nav.profile'); ?>
                         </a>
-                        <a href="dashboard.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                        <a href="/dashboard.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                             <i data-lucide="settings" class="w-4 h-4"></i> ダッシュボード・設定
                         </a>
 
                         <?php if (Auth::hasRole('Analyst')): ?>
                             <div class="border-t border-border mt-1 pt-1">
-                                <a href="admin/index.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-primary hover:bg-primary-surface">
+                                <a href="/admin/index.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-primary hover:bg-primary-surface">
                                     <i data-lucide="shield-alert" class="w-4 h-4"></i> <?php echo __('nav.admin'); ?>
                                 </a>
                             </div>
                         <?php endif; ?>
 
                         <div class="border-t border-border mt-1 pt-1">
-                            <a href="logout.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-danger hover:bg-danger-surface">
+                            <a href="/logout.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-danger hover:bg-danger-surface">
                                 <i data-lucide="log-out" class="w-4 h-4"></i> <?php echo __('nav.logout'); ?>
                             </a>
                         </div>
                     </div>
                 </div>
 
-                <a href="post.php" class="btn-primary flex items-center gap-2 text-sm">
+                <a href="/post.php" class="btn-primary flex items-center gap-2 text-sm">
                     <i data-lucide="camera" class="w-4 h-4"></i>
                     <span class="hidden md:inline"><?php echo __('nav.post'); ?></span>
                 </a>
             <?php else: ?>
-                <a href="login.php" class="btn-secondary flex items-center gap-1.5 text-sm font-bold">
+                <a href="/login.php" class="btn-secondary flex items-center gap-1.5 text-sm font-bold">
                     <i data-lucide="log-in" class="w-4 h-4"></i>
                     <?php echo __('nav.login'); ?>
                 </a>
-                <a href="login.php" class="btn-primary flex items-center gap-1.5 text-sm font-bold">
+                <a href="/login.php" class="btn-primary flex items-center gap-1.5 text-sm font-bold">
                     <i data-lucide="camera" class="w-4 h-4"></i>
                     <span class="hidden md:inline"><?php echo __('nav.post'); ?></span>
                 </a>
@@ -447,13 +447,13 @@
 
 <!-- Mobile Bottom Nav (App Shell) -->
 <nav x-data class="md:hidden bottom-nav" aria-label="モバイル ナビゲーション">
-    <a href="index.php"
+    <a href="/index.php"
         <?php if (basename($_SERVER['PHP_SELF']) == 'index.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
         class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'bottom-nav__item--active' : ''; ?>">
         <i data-lucide="home" class="w-6 h-6"></i>
         <span><?php echo __('nav.home'); ?></span>
     </a>
-    <a href="explore.php"
+    <a href="/explore.php"
         <?php if (basename($_SERVER['PHP_SELF']) == 'explore.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
         class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'explore.php' ? 'bottom-nav__item--active' : ''; ?>">
         <i data-lucide="compass" class="w-6 h-6"></i>
@@ -463,17 +463,17 @@
     <!-- Raised Center Button -->
     <div class="bottom-nav__center">
         <?php if ($currentUser): ?>
-            <a href="post.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
+            <a href="/post.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
                 <i data-lucide="camera" class="w-7 h-7"></i>
             </a>
         <?php else: ?>
-            <a href="login.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
+            <a href="/login.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
                 <i data-lucide="camera" class="w-7 h-7"></i>
             </a>
         <?php endif; ?>
     </div>
 
-    <a href="zukan.php"
+    <a href="/zukan.php"
         <?php if (basename($_SERVER['PHP_SELF']) == 'zukan.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
         class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'zukan.php' ? 'bottom-nav__item--active' : ''; ?>">
         <i data-lucide="book-open" class="w-6 h-6"></i>
@@ -522,23 +522,23 @@
     <!-- Quick Links (empty state) -->
     <div x-show="results.length === 0 && q.length < 2" class="flex-1 overflow-y-auto px-4 py-4">
         <p class="text-xs font-bold uppercase tracking-wider text-[var(--color-faint)] mb-3">よく使うページ</p>
-        <a href="explore.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+        <a href="/explore.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">🧭</span>
             <span class="text-sm font-bold">観察マップ</span>
         </a>
-        <a href="map.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+        <a href="/map.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">🗺️</span>
             <span class="text-sm font-bold"><?php echo __('nav.field_map'); ?></span>
         </a>
-        <a href="zukan.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+        <a href="/zukan.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">📖</span>
             <span class="text-sm font-bold"><?php echo __('nav.zukan'); ?></span>
         </a>
-        <a href="compass.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+        <a href="/compass.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">🧭</span>
             <span class="text-sm font-bold"><?php echo __('nav.compass'); ?></span>
         </a>
-        <a href="survey.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+        <a href="/survey.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">🔬</span>
             <span class="text-sm font-bold">調査に参加</span>
         </a>
@@ -597,7 +597,7 @@
     <div class="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-32">
         <?php if ($currentUser): ?>
             <!-- User Info -->
-            <a href="profile.php" class="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
+            <a href="/profile.php" class="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
                 <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" alt="<?php echo htmlspecialchars($currentUser['name'] ?? 'ユーザー'); ?>のアバター" class="w-12 h-12 rounded-full object-cover border border-[var(--color-border-strong)]">
                 <div class="flex-1">
                     <p class="font-bold text-[var(--color-text)]"><?php echo htmlspecialchars($currentUser['name']); ?></p>
@@ -609,49 +609,49 @@
             <!-- Personal Links -->
             <div>
                 <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">パーソナル</p>
-                <a href="profile.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                <a href="/profile.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                     <i data-lucide="user" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold"><?php echo __('nav.profile'); ?></span>
                 </a>
-                <a href="dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                <a href="/dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                     <i data-lucide="settings" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ダッシュボード・設定</span>
                 </a>
             </div>
         <?php else: ?>
             <div class="p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] text-center">
                 <p class="text-sm font-bold text-[var(--color-text)] mb-3">ログインしてikimonをもっと楽しもう！</p>
-                <a href="login.php" class="btn-primary block w-full py-2">ログイン / 新規登録</a>
+                <a href="/login.php" class="btn-primary block w-full py-2">ログイン / 新規登録</a>
             </div>
         <?php endif; ?>
 
         <!-- Discover / Community Links -->
         <div>
             <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">さがす</p>
-            <a href="explore.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+            <a href="/explore.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="search" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">観察マップ</span>
             </a>
-            <a href="map.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+            <a href="/map.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="map" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">フィールドマップ</span>
             </a>
-            <a href="zukan.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+            <a href="/zukan.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="book-open" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">いきもの図鑑</span>
             </a>
-            <a href="compass.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+            <a href="/compass.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="compass" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">コンパス</span>
             </a>
         </div>
         <div>
             <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">参加する</p>
-            <a href="id_workbench.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+            <a href="/id_workbench.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="microscope" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">同定する</span>
             </a>
-            <a href="events.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+            <a href="/events.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="calendar" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">観察会</span>
             </a>
-            <a href="site_dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+            <a href="/site_dashboard.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="shield-check" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">共生サイト</span>
             </a>
 
-            <a href="survey.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+            <a href="/survey.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="clipboard-list" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">調査に参加</span>
             </a>
         </div>
@@ -659,12 +659,12 @@
         <!-- Admin / Logout -->
         <div>
             <?php if ($currentUser && Auth::hasRole('Analyst')): ?>
-                <a href="admin/index.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-primary)]">
+                <a href="/admin/index.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-primary)]">
                     <i data-lucide="shield-alert" class="w-5 h-5"></i> <span class="text-sm font-bold text-[var(--color-primary)]">管理者ダッシュボード</span>
                 </a>
             <?php endif; ?>
             <?php if ($currentUser): ?>
-                <a href="logout.php" class="flex items-center gap-3 py-3 px-2 text-[var(--color-danger)] mt-4">
+                <a href="/logout.php" class="flex items-center gap-3 py-3 px-2 text-[var(--color-danger)] mt-4">
                     <i data-lucide="log-out" class="w-5 h-5"></i> <span class="text-sm font-bold">ログアウト</span>
                 </a>
             <?php endif; ?>
