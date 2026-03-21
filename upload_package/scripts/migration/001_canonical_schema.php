@@ -176,6 +176,27 @@ try {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_live_expires ON live_detections(expires_at)");
 
     // ========================================
+    // Layer 7: AuditLog（監査ログ — append-only）
+    // ========================================
+    echo "[7/7] Creating audit_log table...\n";
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS audit_log (
+            log_id TEXT PRIMARY KEY,
+            occurrence_id TEXT,
+            event_id TEXT,
+            action TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            old_value TEXT,
+            new_value TEXT,
+            details TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_audit_occ ON audit_log(occurrence_id)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_log(created_at)");
+
+    // ========================================
     // Schema version tracking
     // ========================================
     $db->exec("
