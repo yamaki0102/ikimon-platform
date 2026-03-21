@@ -419,7 +419,7 @@ unset($allObs);
                             $isScanSummary = ($obs['observation_source'] ?? '') === 'live-scan-summary';
                             $isAudioDet = in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'passive']);
                         ?>
-                        <div class="<?= $isScanSummary ? 'w-full' : 'aspect-square w-full' ?> bg-surface relative group select-none"
+                        <div class="<?= $isScanSummary ? 'w-full min-h-[160px]' : ($isAudioDet && !$feedHasImage ? 'w-full aspect-[4/3]' : 'aspect-square w-full') ?> bg-surface relative group select-none"
                             @click="doubleTap($event)">
                             <?php if ($feedHasImage): ?>
                                 <img src="<?php echo htmlspecialchars($feedImg); ?>"

@@ -15,6 +15,37 @@
 require_once __DIR__ . '/bootstrap.php';
 require_once ROOT_DIR . '/libs/CanonicalStore.php';
 
+require_once ROOT_DIR . '/libs/Auth.php';
+
+// ===== POST: 個別検出をリアルタイムマップに追加 =====
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    Auth::init();
+    if (!Auth::isLoggedIn()) {
+        api_error('Authentication required', 401);
+    }
+    if (!api_rate_limit('live_det_post', 60, 60)) {
+        api_error('Rate limit exceeded', 429);
+    }
+
+    $body = api_json_body();
+    $user = Auth::user();
+
+    $detId = CanonicalStore::addLiveDetection([
+        'user_id'              => $user['id'],
+        'lat'                  => (float) ($body['lat'] ?? 0),
+        'lng'                  => (float) ($body['lng'] ?? 0),
+        'scientific_name'      => $body['scientific_name'] ?? null,
+        'common_name'          => $body['common_name'] ?? null,
+        'detection_confidence' => (float) ($body['detection_confidence'] ?? 0),
+        'detection_type'       => $body['detection_type'] ?? 'visual',
+        'is_anonymous'         => 1,
+    ]);
+
+    api_success(['detection_id' => $detId]);
+    exit;
+}
+
+// ===== GET: リアルタイム検出一覧 =====
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     api_error('Method not allowed', 405);
 }

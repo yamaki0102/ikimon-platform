@@ -279,6 +279,26 @@ function stopScan() {
     // セッションサマリーをフィードに1件投稿
     postScanSummary(sp, min);
 
+    // 蓄積した検出を一括で Canonical Schema に送信（1セッション=1 event）
+    var pendingEvents = S.pendingEvents || [];
+    if (pendingEvents.length > 0 || S.routePoints.length > 0) {
+        fetch('/api/v2/passive_event.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                events: pendingEvents,
+                session: {
+                    duration_sec: sec,
+                    distance_m: calcDistance(S.routePoints),
+                    route_polyline: S.routePoints.map(function(p){return p.lat.toFixed(6)+','+p.lng.toFixed(6)}).join(';'),
+                    device: navigator.userAgent.indexOf('iPhone') >= 0 ? 'iPhone' : 'Android',
+                    app_version: 'web_1.0',
+                    scan_mode: 'live-scan',
+                }
+            })
+        }).catch(function() {});
+    }
+
     alert('ライブスキャン完了! ' + sp + '種検出（' + min + '分間）');
     showScreen('ready');
 }
@@ -433,9 +453,26 @@ function postScanSummary(speciesCount, durationMin) {
     }).catch(function() {});
 }
 
+// 個別検出 → live_detections に送信（リアルタイムマップ用、24h TTL）
 function sendDetectionToServer(name, sci, conf, source) {
     var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
-    var event = {
+    fetch('/api/v2/live_detections.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'add',
+            scientific_name: sci || null,
+            common_name: name,
+            detection_confidence: conf,
+            detection_type: source === 'audio' ? 'audio' : 'visual',
+            lat: last ? last.lat : null,
+            lng: last ? last.lng : null,
+        })
+    }).catch(function() {});
+
+    // ローカルに蓄積（セッション終了時に一括 passive_event 送信）
+    if (!S.pendingEvents) S.pendingEvents = [];
+    S.pendingEvents.push({
         type: source === 'audio' ? 'audio' : 'visual',
         taxon_name: name,
         scientific_name: sci,
@@ -444,21 +481,22 @@ function sendDetectionToServer(name, sci, conf, source) {
         lng: last ? last.lng : null,
         timestamp: new Date().toISOString(),
         model: source === 'audio' ? 'birdnet-v2.4' : 'gemini-vision',
-    };
-    // 非同期で送信（失敗してもUIをブロックしない）
-    fetch('/api/v2/passive_event.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            events: [event],
-            session: {
-                duration_sec: Math.floor((Date.now() - S.startTime) / 1000),
-                device: navigator.userAgent.indexOf('iPhone') >= 0 ? 'iPhone' : 'Android',
-                app_version: 'web_1.0',
-                scan_mode: 'live-scan',
-            }
-        })
-    }).catch(function() {});
+    });
+}
+
+// Haversine distance
+function calcDistance(points) {
+    var total = 0;
+    for (var i = 1; i < points.length; i++) {
+        var R = 6371000;
+        var dLat = (points[i].lat - points[i-1].lat) * Math.PI / 180;
+        var dLng = (points[i].lng - points[i-1].lng) * Math.PI / 180;
+        var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+                Math.cos(points[i-1].lat*Math.PI/180)*Math.cos(points[i].lat*Math.PI/180)*
+                Math.sin(dLng/2)*Math.sin(dLng/2);
+        total += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+    return Math.round(total);
 }
 
 function updateCounts() {

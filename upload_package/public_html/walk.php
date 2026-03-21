@@ -355,6 +355,21 @@ function showScreen(name) {
     document.getElementById('screen-done').style.display = name === 'done' ? '' : 'none';
 }
 
+// ===== Distance calculation (Haversine) =====
+function calcDistance(points) {
+    var total = 0;
+    for (var i = 1; i < points.length; i++) {
+        var R = 6371000;
+        var dLat = (points[i].lat - points[i-1].lat) * Math.PI / 180;
+        var dLng = (points[i].lng - points[i-1].lng) * Math.PI / 180;
+        var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+                Math.cos(points[i-1].lat*Math.PI/180)*Math.cos(points[i].lat*Math.PI/180)*
+                Math.sin(dLng/2)*Math.sin(dLng/2);
+        total += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+    return Math.round(total);
+}
+
 // ===== Weather (fire-and-forget on load) =====
 (function loadWeather() {
     if (!navigator.geolocation) { document.getElementById('weather-loading').textContent = ''; return; }
@@ -599,8 +614,11 @@ async function autoUpload() {
     });
     var session = {
         duration_sec: Math.floor((Date.now()-W.startTime)/1000),
+        distance_m: calcDistance(W.routePoints),
+        route_polyline: W.routePoints.map(function(p){return p.lat.toFixed(6)+','+p.lng.toFixed(6)}).join(';'),
         device: navigator.userAgent.indexOf('iPhone')>=0 ? 'iPhone' : 'Android',
         app_version:'web_1.0',
+        scan_mode: 'walk',
         route_points: W.routePoints.length,
     };
 

@@ -19,6 +19,7 @@ require_once ROOT_DIR . '/libs/Auth.php';
 require_once ROOT_DIR . '/libs/TrustLevel.php';
 require_once ROOT_DIR . '/libs/CanonicalStore.php';
 require_once ROOT_DIR . '/libs/EvidenceTierPromoter.php';
+require_once ROOT_DIR . '/libs/ConsensusEngine.php';
 
 // --- Method check ---
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -93,5 +94,17 @@ $result = EvidenceTierPromoter::processReview(
 $result['reviewer_level'] = $reviewerLevel;
 $result['trust_level'] = $trustLevel;
 $result['action'] = $action;
+
+// 合意判定を自動実行（複数レビュアーで Tier 3 に昇格する可能性）
+try {
+    $consensus = ConsensusEngine::applyConsensus($occurrenceId);
+    $result['consensus'] = [
+        'status'   => $consensus['status'],
+        'promoted' => $consensus['promoted'] ?? false,
+        'tier'     => $consensus['tier'] ?? null,
+    ];
+} catch (Exception $e) {
+    $result['consensus'] = ['error' => $e->getMessage()];
+}
 
 api_success($result);
