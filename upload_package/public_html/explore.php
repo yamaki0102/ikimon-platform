@@ -141,7 +141,7 @@ Auth::init();
                         <img :src="obs.thumb_sm || obs.photos[0]" :alt="obs.taxon ? obs.taxon.name : '観察写真'" class="w-full h-full object-cover group-hover:scale-110 transition duration-500 loading-skeleton" loading="lazy">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60"></div>
                         <div class="absolute bottom-3 left-3 right-3 text-white">
-                            <p class="text-xs font-bold leading-tight truncate" x-text="obs.taxon ? obs.taxon.name : 'Unknown'"></p>
+                            <p class="text-xs font-bold leading-tight truncate" x-text="getDisplayName(obs)"></p>
                             <div class="flex items-center gap-1 mt-1 opacity-70">
                                 <i data-lucide="map-pin" class="w-3 h-3"></i>
                                 <span class="text-[10px] truncate" x-text="obs.municipality || (obs.location ? obs.location.name : '')"></span>
@@ -272,6 +272,21 @@ Auth::init();
                         this.loading = false;
                         this.$nextTick(() => lucide.createIcons());
                     }
+                },
+
+                getDisplayName(obs) {
+                    if (obs.taxon && obs.taxon.name) return obs.taxon.name;
+                    if (obs.identifications && obs.identifications.length > 0) {
+                        const last = obs.identifications[obs.identifications.length - 1];
+                        if (last.taxon_name) return last.taxon_name + ' (提案)';
+                    }
+                    if (obs.ai_assessments && obs.ai_assessments.length > 0) {
+                        const last = obs.ai_assessments[obs.ai_assessments.length - 1];
+                        if (last.recommended_taxon && last.recommended_taxon.name) {
+                            return last.recommended_taxon.name + ' (AI)';
+                        }
+                    }
+                    return 'この子だれ？';
                 },
 
                 getStatusColorClass(status) {

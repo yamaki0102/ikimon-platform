@@ -518,10 +518,39 @@ unset($allObs);
                                     <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($obs['taxon']['name']); ?></span>
                                 </a>
                             <?php else: ?>
-                                <div class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-2 border border-white/10">
-                                    <i data-lucide="help-circle" class="w-3 h-3 text-white/50"></i>
-                                    <span class="text-xs text-white/60"><?php echo __('home.identifying'); ?></span>
-                                </div>
+                                <?php
+                                    $feedLatestId = null;
+                                    $feedIds = $obs['identifications'] ?? [];
+                                    if (!empty($feedIds)) {
+                                        $feedLatestId = end($feedIds);
+                                    }
+                                    $feedAiName = null;
+                                    $feedAiAssessments = $obs['ai_assessments'] ?? [];
+                                    if (!empty($feedAiAssessments)) {
+                                        $feedLatestAi = end($feedAiAssessments);
+                                        $feedAiName = $feedLatestAi['recommended_taxon']['name'] ?? null;
+                                    }
+                                ?>
+                                <?php if ($feedLatestId && !empty($feedLatestId['taxon_name'])): ?>
+                                    <a href="observation_detail.php?id=<?= urlencode($obs['id']) ?>#identifications"
+                                        class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-amber-900/60 backdrop-blur-md flex items-center gap-2 border border-amber-400/30 hover:bg-amber-900/80 transition z-10">
+                                        <i data-lucide="user" class="w-3 h-3 text-amber-300"></i>
+                                        <span class="text-xs font-bold text-amber-100"><?= htmlspecialchars($feedLatestId['taxon_name']) ?></span>
+                                        <span class="text-[10px] text-amber-200/60">提案</span>
+                                    </a>
+                                <?php elseif ($feedAiName): ?>
+                                    <a href="observation_detail.php?id=<?= urlencode($obs['id']) ?>"
+                                        class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-blue-900/60 backdrop-blur-md flex items-center gap-2 border border-blue-400/30 hover:bg-blue-900/80 transition z-10">
+                                        <i data-lucide="sparkles" class="w-3 h-3 text-blue-300"></i>
+                                        <span class="text-xs font-bold text-blue-100"><?= htmlspecialchars($feedAiName) ?></span>
+                                        <span class="text-[10px] text-blue-200/60">AI</span>
+                                    </a>
+                                <?php else: ?>
+                                    <div class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-2 border border-white/10">
+                                        <i data-lucide="help-circle" class="w-3 h-3 text-white/50"></i>
+                                        <span class="text-xs text-white/60"><?= __('home.identifying') ?></span>
+                                    </div>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </div>
 

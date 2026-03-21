@@ -57,7 +57,7 @@ return [
         'all_seen' => '最新の発見をすべて確認しました',
         'user_prefix' => '探索者',
         'observed' => '記録しました',
-        'identifying' => '名前募集中',
+        'identifying' => 'この子だれ？',
         'detail' => '詳しく見る',
     ],
 
