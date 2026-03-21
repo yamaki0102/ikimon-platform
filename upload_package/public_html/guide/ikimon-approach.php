@@ -275,6 +275,10 @@ Auth::init();
                 </p>
 
                 <p>
+                    そしてもうひとつ大事なこと。<strong class="text-text">「いなかった」という記録も、科学にとっては宝物</strong>です。「この場所を歩いたけど、○○は見つからなかった」——それは、分布の境界線や個体数の減少を知る手がかりになります。ikimon のウォークモードやライブスキャンは、「探したけどいなかった」という不在データも自動で残します。
+                </p>
+
+                <p>
                     ikimon は、その「ふつうの散歩データ」を<strong class="text-text">100年先まで残る形</strong>で記録するために作られました。
                 </p>
             </div>
@@ -379,59 +383,51 @@ Auth::init();
 
             <div class="space-y-4">
                 <div class="design-reason">
-                    <div class="flex items-start gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
                             <i data-lucide="eye" class="w-4 h-4 text-amber-700"></i>
                         </div>
-                        <div>
-                            <h3 class="font-black text-sm mb-1">「手動で撮る」だけでは見逃す</h3>
-                            <p class="text-sm text-muted leading-relaxed">
-                                人間の目は、興味があるものしか見ません。でも生態系の記録には「そこにいたけど気づかなかった生き物」も大切です。だから ikimon は<strong class="text-text">AIによる受動検出</strong>を採用しました。カメラと音声で、キミが気づかなかった生き物も記録します。
-                            </p>
-                        </div>
+                        <h3 class="font-black text-base leading-snug text-gray-900">「手動で撮る」だけでは見逃す</h3>
                     </div>
+                    <p class="text-sm text-muted leading-relaxed">
+                        人間の目は、興味があるものしか見ません。でも生態系の記録には「そこにいたけど気づかなかった生き物」も大切です。だから ikimon は<strong class="text-text">AIによる受動検出</strong>を採用しました。カメラと音声で、キミが気づかなかった生き物も記録します。
+                    </p>
                 </div>
 
                 <div class="design-reason">
-                    <div class="flex items-start gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
                             <i data-lucide="shield-check" class="w-4 h-4 text-amber-700"></i>
                         </div>
-                        <div>
-                            <h3 class="font-black text-sm mb-1">「誰でも同定できる」だと精度が下がる</h3>
-                            <p class="text-sm text-muted leading-relaxed">
-                                100年後の科学者がデータを使うとき、「この記録は信頼できるのか？」が問題になります。だから ikimon は<strong class="text-text">同定者の専門性で票の重みを変える TrustLevel</strong> を導入しました。昆虫に詳しい人の昆虫同定は、そうでない人より重く扱われます。
-                            </p>
-                        </div>
+                        <h3 class="font-black text-base leading-snug text-gray-900">「誰でも同定できる」だと精度が下がる</h3>
                     </div>
+                    <p class="text-sm text-muted leading-relaxed">
+                        100年後の科学者がデータを使うとき、「この記録は信頼できるのか？」が問題になります。だから ikimon は<strong class="text-text">同定者の専門性で票の重みを変える TrustLevel</strong> を導入しました。昆虫に詳しい人の昆虫同定は、そうでない人より重く扱われます。
+                    </p>
                 </div>
 
                 <div class="design-reason">
-                    <div class="flex items-start gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
                             <i data-lucide="map-pin-off" class="w-4 h-4 text-amber-700"></i>
                         </div>
-                        <div>
-                            <h3 class="font-black text-sm mb-1">「全部公開」だと希少種が危険</h3>
-                            <p class="text-sm text-muted leading-relaxed">
-                                珍しい生き物の正確な場所を公開すると、密猟や採集のリスクがあります。だから ikimon は<strong class="text-text">3層のプライバシー保護</strong>を設計しました。希少種の位置は自動でぼかされ、時間も遅らせて公開されます。
-                            </p>
-                        </div>
+                        <h3 class="font-black text-base leading-snug text-gray-900">「全部公開」だと希少種が危険</h3>
                     </div>
+                    <p class="text-sm text-muted leading-relaxed">
+                        珍しい生き物の正確な場所を公開すると、密猟や採集のリスクがあります。だから ikimon は<strong class="text-text">3層のプライバシー保護</strong>を設計しました。希少種の位置は自動でぼかされ、時間も遅らせて公開されます。
+                    </p>
                 </div>
 
                 <div class="design-reason">
-                    <div class="flex items-start gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
                             <i data-lucide="bar-chart-3" class="w-4 h-4 text-amber-700"></i>
                         </div>
-                        <div>
-                            <h3 class="font-black text-sm mb-1">「種数だけ」では生態系はわからない</h3>
-                            <p class="text-sm text-muted leading-relaxed">
-                                「50種見つかりました」だけでは、その場所の自然が豊かかどうかは判断できません。だから ikimon は<strong class="text-text">5つの軸で評価する BIS スコア</strong>を開発しました。種の多様性、データの質、保全価値、分類群のカバー率、そして調査の継続性。多面的に見ることで、はじめて生態系の健康状態がわかります。
-                            </p>
-                        </div>
+                        <h3 class="font-black text-base leading-snug text-gray-900">「種数だけ」では生態系はわからない</h3>
                     </div>
+                    <p class="text-sm text-muted leading-relaxed">
+                        「50種見つかりました」だけでは、その場所の自然が豊かかどうかは判断できません。だから ikimon は<strong class="text-text">5つの軸で評価する BIS スコア</strong>を開発しました。種の多様性、データの質、保全価値、分類群のカバー率、そして調査の継続性。多面的に見ることで、はじめて生態系の健康状態がわかります。
+                    </p>
                 </div>
             </div>
         </div>
@@ -459,8 +455,8 @@ Auth::init();
 
                 <div class="space-y-3">
                     <div class="privacy-layer" style="border-left-color: #10b981;">
-                        <p class="text-xs font-bold text-emerald-600 mb-1">Private 層 — キミだけ</p>
-                        <p class="text-sm">撮影した本人だけが、正確な座標を見ることができます。</p>
+                        <p class="text-xs font-bold text-emerald-600 mb-1">Private 層 — 投稿者と研究パートナー</p>
+                        <p class="text-sm">撮影した本人と、提携する研究者・専門家が正確な座標を確認できます。</p>
                     </div>
                     <div class="privacy-layer" style="border-left-color: #f59e0b;">
                         <p class="text-xs font-bold text-amber-600 mb-1">Ambient 層 — みんなに公開</p>
@@ -468,7 +464,7 @@ Auth::init();
                     </div>
                     <div class="privacy-layer" style="border-left-color: #6366f1;">
                         <p class="text-xs font-bold text-indigo-600 mb-1">Admin 層 — 管理者限定</p>
-                        <p class="text-sm">サイト管理者と研究パートナーだけが、学術目的で正確なデータにアクセスできます。</p>
+                        <p class="text-sm">サイト管理者が全データを管理・監視し、不正利用を防止します。</p>
                     </div>
                 </div>
 
@@ -517,7 +513,7 @@ Auth::init();
                                 <span class="text-emerald-700 font-black">1</span>
                             </div>
                             <div>
-                                <h3 class="font-black text-sm mb-1">AI + 人間のハイブリッド同定</h3>
+                                <h3 class="font-black text-base leading-snug text-gray-900 mb-2">AI + 人間のハイブリッド同定</h3>
                                 <p class="text-sm text-muted leading-relaxed">
                                     まず AI（Gemini Vision / BirdNET）が候補を提案し、次にコミュニティの同定者が確認します。AIの速さと、人間の経験知を組み合わせることで、速く正確な同定を実現しています。
                                 </p>
@@ -531,7 +527,7 @@ Auth::init();
                                 <span class="text-emerald-700 font-black">2</span>
                             </div>
                             <div>
-                                <h3 class="font-black text-sm mb-1">TrustLevel（信頼度レベル）</h3>
+                                <h3 class="font-black text-base leading-snug text-gray-900 mb-2">TrustLevel（信頼度レベル）</h3>
                                 <p class="text-sm text-muted leading-relaxed">
                                     すべての同定者の票が同じ重みではありません。過去の同定精度や専門分野に基づいて、票の重みが変わります。鳥に詳しい人の鳥の同定は、初心者の同定より重く扱われます。
                                 </p>
@@ -545,7 +541,7 @@ Auth::init();
                                 <span class="text-emerald-700 font-black">3</span>
                             </div>
                             <div>
-                                <h3 class="font-black text-sm mb-1">BIS スコア（5軸評価）</h3>
+                                <h3 class="font-black text-base leading-snug text-gray-900 mb-2">BIS スコア（5軸評価）</h3>
                                 <p class="text-sm text-muted leading-relaxed">
                                     生態系の健康度を5つの軸で評価します。<strong class="text-text">種の多様性</strong>（Shannon-Wiener指数）、<strong class="text-text">データ品質</strong>、<strong class="text-text">保全価値</strong>（レッドリスト種の有無）、<strong class="text-text">分類群カバー率</strong>、そして<strong class="text-text">モニタリングの継続性</strong>。ひとつの数字ではなく、多面的に生態系を見つめます。
                                 </p>
