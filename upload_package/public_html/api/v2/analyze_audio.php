@@ -90,7 +90,7 @@ curl_setopt_array($ch, [
         'audio'    => $cfile,
         'lat'      => $lat,
         'lng'      => $lng,
-        'min_conf' => 0.25,
+        'min_conf' => 0.10,
     ],
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_TIMEOUT        => 15,
