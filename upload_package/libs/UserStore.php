@@ -75,6 +75,28 @@ class UserStore
     }
 
     /**
+     * Find user by secondary email (google_email, emails array)
+     */
+    public static function findBySecondaryEmail(string $email): ?array
+    {
+        $email = strtolower(trim($email));
+        if (empty($email)) return null;
+
+        foreach (DataStore::get('users') as $u) {
+            // Check google_email field
+            if (!empty($u['google_email']) && strtolower($u['google_email']) === $email) {
+                return $u;
+            }
+            // Check emails array
+            $emails = $u['emails'] ?? [];
+            foreach ($emails as $e) {
+                if (strtolower(trim($e)) === $email) return $u;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Find user by OAuth provider and provider-specific UID.
      * Checks both primary oauth_id and oauth_providers array.
      */

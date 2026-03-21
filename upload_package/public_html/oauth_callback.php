@@ -43,7 +43,14 @@ try {
     if (!$user) {
         // Check if email already exists (account merging)
         if (!empty($profile['email'])) {
+            // 1. Primary email match
             $existingUser = UserStore::findByEmail($profile['email']);
+
+            // 2. Secondary emails / google_email match
+            if (!$existingUser) {
+                $existingUser = UserStore::findBySecondaryEmail($profile['email']);
+            }
+
             if ($existingUser) {
                 // Link OAuth to existing email account
                 $user = UserStore::linkOAuth(
