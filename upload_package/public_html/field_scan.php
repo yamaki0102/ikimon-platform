@@ -158,6 +158,12 @@ async function startScan() {
 
         // Camera capture every 2 seconds
         S.captureInt = setInterval(captureFrame, 2000);
+
+        // テスト: 5秒後にダミー検出（フロント動作確認用。後で削除）
+        setTimeout(function() {
+            dbg('TEST: ダミー検出追加');
+            addDetection('テスト植物', 'Test plantus', 0.75, 'visual');
+        }, 5000);
         dbg('5. 映像キャプチャ 2秒間隔');
 
         // Environment scan every 10 seconds
