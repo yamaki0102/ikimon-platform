@@ -50,6 +50,83 @@ Auth::init();
             <!-- Updates Timeline -->
             <div class="space-y-8">
 
+                <!-- v0.7.0 — Live Scan & Walk -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.7.0</span>
+                        <time class="text-sm text-gray-500">2026年3月21日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">ライブスキャン & ウォークモード</h2>
+                    <p class="text-gray-500 text-sm mb-4">カメラをかざすだけでリアルタイムに生きものを検出する「ライブスキャン」と、散歩しながら野鳥の声を拾う「ウォーク」モードが登場。歩くだけで観察が進みます。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>ライブスキャン</strong>: カメラ映像をAIがリアルタイム解析し、フレーム内の生きものを自動検出。2秒間隔でスキャンし、植物・昆虫・鳥など同時に複数検出できます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>環境コンテキストスキャン</strong>: 生きものだけでなく、植生・地面・水辺などの環境情報も自動で記録。生息環境と一緒にデータが残ります</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>スキャン地図</strong>: 検出された生きものがリアルタイムでミニマップにマーカー表示。カメラ上半分＋地図下半分の分割レイアウト</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>ウォークモード</strong>: 散歩中にBirdNETが野鳥の声を自動検出。ルートを地図に描画しながら、検出された鳥がマーカーで表示されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>天気情報表示</strong>: ウォーク開始前にOpen-Meteo連携で現在の天気・気温・風速を表示。観察コンディションが一目でわかります</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>オフライン対応</strong>: 圏外でもlocalStorageにデータを蓄積し、接続回復時に自動アップロード</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>Wi-Fi/モバイル自動最適化</strong>: 回線状況に応じて画像品質を自動調整。モバイル通信でもデータ量を抑えつつ検出精度を維持</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.7.0 — Livemap -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.7.0</span>
+                        <time class="text-sm text-gray-500">2026年3月21日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">ライブマップ — 生物多様性デジタルツイン</h2>
+                    <p class="text-gray-500 text-sm mb-4">ログイン不要で誰でも見られる公開ライブマップ。全ユーザーの観察データとスキャンデータが地図上でリアルタイムに可視化されます。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>公開ライブマップ</strong>: ログイン不要で閲覧可能。ikimonのデータを地図上で誰でも確認できます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>カバレッジグリッド</strong>: 調査済みエリアをメッシュで可視化。どこがまだ調査されていないか一目でわかります</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>サイト境界表示</strong>: 登録されたモニタリングサイトの境界と効果指標をオーバーレイ表示</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>近くのトイレ表示</strong>: Overpass API連携で公衆トイレの位置を全地図に表示。フィールドワークの安心感をプラス</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.7.0 — Scan Impact & Quests -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.7.0</span>
+                        <time class="text-sm text-gray-500">2026年3月21日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">スキャンデータ活用 & 動的クエスト</h2>
+                    <p class="text-gray-500 text-sm mb-4">ライブスキャンで集めたデータが各画面に反映されるようになりました。検出内容に基づいてクエストが自動生成されます。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>Impact表示</strong>: フィード・プロフィール・ダッシュボード・観察詳細の4画面にスキャン結果のインパクトサマリーを追加</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>動的クエスト生成</strong>: スキャンで検出された生きものに基づいて、パーソナライズされたクエストを自動生成。「さっき検出されたシジュウカラを撮影しよう」など</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>AI考察完了通知</strong>: 投稿した観察のAI考察が完了すると通知でお知らせ。待ち時間を気にせず次の観察に集中できます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>フィードにスキャン活動サマリー</strong>: ライブスキャンのアクティビティがフィードに表示。コミュニティの観察活動が見えるように</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.7.0 — Fixes -->
+                <article x-show="filter === 'all' || filter === 'fix'" x-transition class="relative pl-8 border-l-2 border-amber-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-amber-500 ring-4 ring-amber-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">v0.7.0</span>
+                        <time class="text-sm text-gray-500">2026年3月21日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">FIX</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">安定性・アカウント・GPS改善</h2>
+                    <p class="text-gray-500 text-sm mb-4">認証まわりの安定性向上と、GPS位置情報の精度改善を行いました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>OAuth重複アカウント統合</strong>: 同じGoogleアカウントで複数の登録が作られる問題を修正。セカンダリメールの照合も追加し、既存アカウントへ自動統合されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>GPS精度向上</strong>: EXIF位置情報がデバイスGPSに上書きされる競合を解消。写真に埋め込まれた正確な位置が常に優先されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>Service Worker強制更新</strong>: 古いキャッシュが残り続ける問題を解消。旧SWの自動削除＋全キャッシュクリアで確実に最新版に更新されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>投稿画面の操作性修正</strong>: 写真削除ボタン・戻るボタン・送信ボタンがタップに反応しない問題を修正</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>プロフィール表示修正</strong>: 記録数・種数が0と表示される問題を修正</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>ガイドページ追加</strong>: 「ikimonのアプローチ — 100年後の生態系のために」ページを新設。AI活用の哲学やデータの考え方を紹介しています</span></li>
+                    </ul>
+                </article>
+
                 <!-- v0.6.1 — FIX -->
                 <article x-show="filter === 'all' || filter === 'fix'" x-transition class="relative pl-8 border-l-2 border-amber-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-amber-500 ring-4 ring-amber-100"></div>
