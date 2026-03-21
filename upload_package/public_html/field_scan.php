@@ -162,15 +162,7 @@ if (!$currentUser) {
         <div class="text-center">
             <div class="text-6xl mb-4">🌍</div>
             <h1 class="text-2xl font-black">ライブスキャン</h1>
-            <p class="text-gray-500 mt-2">カメラ＋音声で周囲の生き物を自動検出。歩くだけでデータが蓄積されます。</p>
-        </div>
-
-        <!-- エリア名（任意） -->
-        <div>
-            <label class="text-sm text-gray-500 block mb-2">エリア名（任意）</label>
-            <input type="text" x-model="areaName" placeholder="未入力でもOK — GPS座標から自動設定"
-                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:border-green-500 focus:outline-none">
-            <p class="text-xs text-gray-600 mt-1">名前をつけると、同じ場所のデータが蓄積されていきます</p>
+            <p class="text-gray-500 mt-2">歩くだけで周囲の生き物を自動検出。すべてのデータが1つの地図に蓄積されます。</p>
         </div>
 
         <!-- 起動ボタン -->
@@ -180,43 +172,11 @@ if (!$currentUser) {
             ライブスキャン開始
         </button>
 
-        <!-- 使うセンサーの説明 -->
-        <div class="grid grid-cols-2 gap-3">
-            <div class="bg-white/5 rounded-xl p-3 text-center">
-                <div class="text-2xl mb-1">📷</div>
-                <div class="text-xs text-gray-400">カメラで種を検出</div>
-            </div>
-            <div class="bg-white/5 rounded-xl p-3 text-center">
-                <div class="text-2xl mb-1">🎤</div>
-                <div class="text-xs text-gray-400">音声で鳥声を検出</div>
-            </div>
-            <div class="bg-white/5 rounded-xl p-3 text-center">
-                <div class="text-2xl mb-1">📍</div>
-                <div class="text-xs text-gray-400">GPS でルート記録</div>
-            </div>
-            <div class="bg-white/5 rounded-xl p-3 text-center">
-                <div class="text-2xl mb-1">📊</div>
-                <div class="text-xs text-gray-400">センサーで環境記録</div>
-            </div>
-        </div>
-
-        <!-- 過去のエリア -->
-        <div x-show="pastAreas.length > 0">
-            <h3 class="text-sm font-bold text-gray-500 mb-2">スキャン済みエリア</h3>
-            <div class="space-y-2">
-                <template x-for="area in pastAreas" :key="area.id">
-                    <a :href="'ecosystem_view.php?area=' + area.id"
-                       class="block bg-white/5 rounded-xl p-3 hover:bg-white/10 transition">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <div class="font-medium text-sm" x-text="area.name"></div>
-                                <div class="text-xs text-gray-500" x-text="area.species + '種 · ' + area.scans + '回スキャン'"></div>
-                            </div>
-                            <i data-lucide="chevron-right" class="w-4 h-4 text-gray-600"></i>
-                        </div>
-                    </a>
-                </template>
-            </div>
+        <!-- しくみ -->
+        <div class="bg-white/5 rounded-xl p-4 space-y-2 text-xs text-gray-400">
+            <div class="flex items-start gap-2"><span class="text-green-400">🎤</span><span>周囲の音から <strong class="text-white">BirdNET AI（6,522種）</strong>が鳥を自動判定</span></div>
+            <div class="flex items-start gap-2"><span class="text-blue-400">📷</span><span>カメラ映像から植物・昆虫・動物を <strong class="text-white">Gemini AI</strong> が種同定</span></div>
+            <div class="flex items-start gap-2"><span class="text-purple-400">📍</span><span>すべての検出にGPS座標を紐づけ。地球規模のデジタルツインに蓄積</span></div>
         </div>
     </div>
 </div>
@@ -225,8 +185,7 @@ if (!$currentUser) {
 function fieldScan() {
     return {
         isActive: false,
-        areaName: '',
-        areaId: '',
+        sessionId: '',
         bottomPanel: 'species',
         elapsed: '0:00',
         startTime: null,
@@ -236,7 +195,7 @@ function fieldScan() {
         audioDetections: 0,
         routePoints: [],
         latestDetection: null,
-        pastAreas: JSON.parse(localStorage.getItem('ikimon_field_areas') || '[]'),
+        // pastAreas removed — no area concept, all data is GPS-coordinated
 
         // Internals
         _stream: null,
@@ -248,15 +207,8 @@ function fieldScan() {
         _minimap: null,
 
         async start() {
-            // エリア名は任意。未入力ならタイムスタンプIDを自動生成
-            if (this.areaName.trim()) {
-                this.areaId = this.areaName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '');
-                if (!this.areaId) this.areaId = 'scan_' + Date.now();
-            } else {
-                this.areaId = 'scan_' + Date.now();
-                this.areaName = new Date().toLocaleDateString('ja-JP') + ' のスキャン';
-            }
-
+            // エリア概念なし。セッションIDだけ生成
+            this.sessionId = 'scan_' + Date.now();
             this.isActive = true;
             this.startTime = Date.now();
             this.speciesMap = {};
@@ -537,27 +489,10 @@ function fieldScan() {
                 await fetch('/api/v2/ecosystem_map.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ area_id: this.areaId, scan_data: scanData }),
+                    body: JSON.stringify({ session_id: this.sessionId, scan_data: scanData }),
                 });
 
-                // ローカルにエリアを保存
-                const areas = JSON.parse(localStorage.getItem('ikimon_field_areas') || '[]');
-                const existing = areas.find(a => a.id === this.areaId);
-                if (existing) {
-                    existing.scans++;
-                    existing.species = Object.keys(this.speciesMap).length;
-                } else {
-                    areas.push({
-                        id: this.areaId,
-                        name: this.areaName,
-                        species: Object.keys(this.speciesMap).length,
-                        scans: 1,
-                    });
-                }
-                localStorage.setItem('ikimon_field_areas', JSON.stringify(areas));
-                this.pastAreas = areas;
-
-                alert(`ライブスキャン完了!\n${Object.keys(this.speciesMap).length}種検出、${this.totalDetections}件記録`);
+                alert('ライブスキャン完了! ' + Object.keys(this.speciesMap).length + '種検出、' + this.totalDetections + '件記録');
             } catch (e) {
                 console.error('Upload error:', e);
             }
