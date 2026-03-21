@@ -89,7 +89,7 @@ unset($allObs);
         </div>
 
         <!-- 天気情報（GPS取得後に表示） -->
-        <div x-show="weather" x-cloak class="bg-white/5 rounded-xl p-4 flex items-center gap-4">
+        <div :class="!weather && 'hidden'" class="bg-white/5 rounded-xl p-4 flex items-center gap-4">
             <span class="text-4xl" x-text="weather?.icon || ''"></span>
             <div class="flex-1">
                 <div class="text-base font-bold text-white" x-text="weather?.description || ''"></div>
@@ -100,7 +100,7 @@ unset($allObs);
                 <div class="text-xs text-gray-500" x-text="weather?.birdActivity || ''"></div>
             </div>
         </div>
-        <div x-show="!weather" class="bg-white/5 rounded-xl p-4 text-center text-xs text-gray-500">
+        <div :class="weather && 'hidden'" class="bg-white/5 rounded-xl p-4 text-center text-xs text-gray-500">
             📍 位置情報を取得中...（天気情報を読み込みます）
         </div>
 
@@ -128,7 +128,7 @@ unset($allObs);
     </div>
 
     <!-- ウォーク中のヘッダー -->
-    <div x-show="isWalking" x-cloak class="text-center mb-4">
+    <div :class="!isWalking && 'hidden'" class="text-center mb-4">
         <div class="text-5xl mb-3">🟢</div>
         <h1 class="text-xl font-black">モニタリング中</h1>
         <p class="text-sm text-green-400 mt-1">環境音をAI分析しています...</p>
@@ -141,8 +141,7 @@ unset($allObs);
     </div>
 
     <!-- ウォーク中の情報 -->
-    <template x-if="isWalking">
-        <div class="space-y-4">
+    <div :class="!isWalking && 'hidden'" class="space-y-4">
             <!-- ステータス -->
             <div class="grid grid-cols-3 gap-3 text-center">
                 <div class="bg-white/5 rounded-xl p-3">
@@ -191,7 +190,7 @@ unset($allObs);
             </div>
 
             <!-- 天気情報 -->
-            <div x-show="weather" x-cloak class="bg-white/5 rounded-xl p-3 flex items-center gap-3">
+            <div :class="!weather && 'hidden'" class="bg-white/5 rounded-xl p-3 flex items-center gap-3">
                 <span class="text-2xl" x-text="weather?.icon || ''"></span>
                 <div class="flex-1">
                     <div class="text-sm font-medium" x-text="weather?.description || ''"></div>
@@ -202,11 +201,10 @@ unset($allObs);
                 </div>
             </div>
         </div>
-    </template>
+    </div>
 
     <!-- 終了後のサマリー -->
-    <template x-if="showSummary">
-        <div class="bg-white/5 rounded-2xl p-6 text-center space-y-4">
+    <div :class="!showSummary && 'hidden'" class="bg-white/5 rounded-2xl p-6 text-center space-y-4">
             <div class="text-4xl">🎉</div>
             <h2 class="text-lg font-bold">ウォーク完了!</h2>
             <div class="grid grid-cols-2 gap-4">
@@ -239,7 +237,6 @@ unset($allObs);
 
             <button @click="showSummary = false" class="text-sm text-gray-500 hover:text-white">閉じる</button>
         </div>
-    </template>
 
 </main>
 
