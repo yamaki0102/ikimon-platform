@@ -42,12 +42,12 @@ if (!$currentUser) {
 <body class="bg-black text-white" x-data="fieldScan()">
 
 <!-- ライブスキャン画面 -->
-<div class="field-scan" x-show="isActive" x-cloak>
+<div id="scan-active" class="field-scan" style="display:none">
     <canvas x-ref="canvas" class="hidden"></canvas>
 
     <!-- トップバー -->
     <div class="flex items-center justify-between p-2 bg-black flex-shrink-0" style="padding-top: max(env(safe-area-inset-top), 8px)">
-        <button @click="stop()" class="p-2 rounded-full bg-white/10">
+        <button id="btn-scan-stop" class="p-2 rounded-full bg-white/10">
             <i data-lucide="x" class="w-5 h-5"></i>
         </button>
         <div class="flex gap-1.5">
@@ -126,7 +126,7 @@ if (!$currentUser) {
 </div>
 
 <!-- スタート画面 -->
-<div x-show="!isActive" class="min-h-screen">
+<div id="scan-ready" class="min-h-screen">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <div class="max-w-lg mx-auto px-4 py-8 space-y-6" style="padding-top: calc(var(--nav-height, 56px) + 2rem)">
@@ -136,11 +136,10 @@ if (!$currentUser) {
             <p class="text-gray-500 mt-2">歩くだけで周囲の生き物を自動検出。すべてのデータが1つの地図に蓄積されます。</p>
         </div>
 
-        <!-- 起動ボタン -->
-        <button @click="start()"
+        <!-- 起動ボタン（vanilla JS） -->
+        <button id="btn-scan-start"
                 class="w-full py-5 bg-green-600 hover:bg-green-700 rounded-2xl text-lg font-bold transition flex items-center justify-center gap-3">
-            <i data-lucide="radar" class="w-6 h-6"></i>
-            ライブスキャン開始
+            📡 ライブスキャン開始
         </button>
 
         <!-- しくみ -->
@@ -178,9 +177,9 @@ function fieldScan() {
         _minimap: null,
 
         async start() {
-            // エリア概念なし。セッションIDだけ生成
             this.sessionId = 'scan_' + Date.now();
             this.isActive = true;
+            showScanScreen();
             this.startTime = Date.now();
             this.speciesMap = {};
             this.totalDetections = 0;
@@ -249,8 +248,9 @@ function fieldScan() {
             if (this._watchId) navigator.geolocation.clearWatch(this._watchId);
             if (this._stream) this._stream.getTracks().forEach(t => t.stop());
             if (this._audioCtx) this._audioCtx.close();
+            if (this._minimap) { this._minimap.remove(); this._minimap = null; }
 
-            // サーバーに送信
+            showReadyScreen();
             this.uploadToServer();
         },
 
@@ -499,6 +499,41 @@ function fieldScan() {
         },
     };
 }
+
+// ===== Vanilla JS screen switching (Alpine fallback) =====
+function showScanScreen() {
+    document.getElementById('scan-ready').style.display = 'none';
+    document.getElementById('scan-active').style.display = '';
+}
+
+function showReadyScreen() {
+    document.getElementById('scan-active').style.display = 'none';
+    document.getElementById('scan-ready').style.display = '';
+}
+
+document.getElementById('btn-scan-start').addEventListener('click', function() {
+    showScanScreen();
+    // Alpine の start() を呼ぶ
+    var el = document.querySelector('[x-data]');
+    if (el && el.__x) {
+        el.__x.$data.start();
+    } else if (typeof Alpine !== 'undefined') {
+        // Alpine v3
+        var data = Alpine.$data(el);
+        if (data && data.start) data.start();
+    }
+});
+
+document.getElementById('btn-scan-stop').addEventListener('click', function() {
+    var el = document.querySelector('[x-data]');
+    if (el && el.__x) {
+        el.__x.$data.stop();
+    } else if (typeof Alpine !== 'undefined') {
+        var data = Alpine.$data(el);
+        if (data && data.stop) data.stop();
+    }
+    showReadyScreen();
+});
 
 function loadNearbyToilets(lat, lng, targetMap) {
     var radius = 2000;
