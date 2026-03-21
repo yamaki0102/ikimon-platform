@@ -381,6 +381,7 @@ function stopScan() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 events: pendingEvents,
+                env_history: S.envHistory,
                 session: {
                     duration_sec: sec,
                     distance_m: calcDistance(S.routePoints),
@@ -654,7 +655,7 @@ function sendDetectionToServer(name, sci, conf, source) {
     // ローカルに蓄積（セッション終了時に一括 passive_event 送信）
     if (!S.pendingEvents) S.pendingEvents = [];
     var det = S.speciesMap[name] || {};
-    S.pendingEvents.push({
+    var evt = {
         type: source === 'audio' ? 'audio' : 'visual',
         taxon_name: name,
         scientific_name: sci,
@@ -664,7 +665,17 @@ function sendDetectionToServer(name, sci, conf, source) {
         lng: last ? last.lng : null,
         timestamp: new Date().toISOString(),
         model: source === 'audio' ? 'birdnet-v2.4' : 'gemini-vision',
-    });
+    };
+    if (S.envHistory.length > 0) {
+        var env = S.envHistory[0];
+        evt.environment_snapshot = {
+            habitat: env.habitat||'', vegetation: env.vegetation||'',
+            ground: env.ground||'', water: env.water||'',
+            canopy_cover: env.canopy_cover||'', disturbance: env.disturbance||'',
+            description: env.description||'', timestamp: env.timestamp||''
+        };
+    }
+    S.pendingEvents.push(evt);
 }
 
 // Haversine distance
