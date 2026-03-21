@@ -259,6 +259,21 @@ $dqGrade = DataQuality::calculate($obs);
 $dqInfo = DataQuality::getGradeInfo($dqGrade);
 $dqHints = DataQuality::getImprovementHints($obs);
 
+// Passive / Walk Mode Detection
+$isPassive = ($obs['source'] ?? '') === 'passive';
+$passiveSessionId = $obs['session_id'] ?? null;
+$passiveModel = $obs['detection_model'] ?? ($obs['model'] ?? null);
+$passiveConfidence = $obs['detection_confidence'] ?? ($obs['confidence'] ?? null);
+$passiveSessionObservations = [];
+if ($isPassive && $passiveSessionId) {
+    $allObs = DataStore::fetchAll('observations');
+    foreach ($allObs as $o) {
+        if (($o['session_id'] ?? '') === $passiveSessionId && ($o['id'] ?? '') !== $id) {
+            $passiveSessionObservations[] = $o;
+        }
+    }
+}
+
 // Multi-Subject: subjects[] を保証
 SubjectHelper::ensureSubjects($obs);
 SubjectHelper::distributeIdentifications($obs);
@@ -351,6 +366,24 @@ if ($latestAiAssessment) {
         'observer_note' => normalizeAiDisplayText($displayJa['observer_note'] ?? null, $fallbackDisplayJa['observer_note'] ?? null),
     ];
 }
+
+// AI Multi-Subject: AIが検出した追加の生物候補（単一subject観察向け）
+$aiMultiSubjectHints = [];
+if (!$isMultiSubject && $latestAiAssessment) {
+    $multiAssessments = $latestAiAssessment['_multi_subject_assessments'] ?? null;
+    if (is_array($multiAssessments) && count($multiAssessments) > 1) {
+        foreach (array_slice($multiAssessments, 1) as $extraAi) {
+            $aiMultiSubjectHints[] = [
+                'label' => $extraAi['subject_label'] ?? '別の生物',
+                'recommended_taxon' => $extraAi['recommended_taxon'] ?? null,
+                'confidence_band' => $extraAi['confidence_band'] ?? 'low',
+                'routing_hint' => $extraAi['routing_hint'] ?? 'unknown',
+                'summary' => normalizeAiDisplayText($extraAi['summary'] ?? null),
+            ];
+        }
+    }
+}
+
 $trustGuidance = BioUtils::buildTrustGuidance($obs);
 $trustProgress = BioUtils::buildTrustProgress($obs);
 $canEditObservation = ObservationMeta::canEditObservation($obs, $currentUser);
@@ -526,7 +559,200 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
         </div>
         <?php endif; ?>
 
-        <!-- 2-Column Grid Layout (Photo vs Info) -->
+        <?php if ($isPassive): ?>
+        <!-- ====== PASSIVE / WALK MODE: Compact Single-Column Layout ====== -->
+        <div class="max-w-2xl mx-auto space-y-6">
+
+            <!-- Passive Detection Badge -->
+            <div class="flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-2xl p-4">
+                <div class="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center shrink-0">
+                    <i data-lucide="radio" class="w-5 h-5 text-sky-600"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-sky-900">パッシブ検出</p>
+                    <p class="text-xs text-sky-700">
+                        <?php if ($passiveModel): ?>
+                            <span class="font-medium"><?php echo htmlspecialchars($passiveModel); ?></span> で検出
+                        <?php endif; ?>
+                        <?php if ($passiveConfidence): ?>
+                            — 信頼度 <?php echo round((float)$passiveConfidence * 100); ?>%
+                        <?php endif; ?>
+                    </p>
+                </div>
+                <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-sky-100 text-sky-700 border border-sky-200 shrink-0">
+                    ウォークモード
+                </span>
+            </div>
+
+            <!-- Species Info (Compact) -->
+            <div class="bg-surface rounded-2xl p-5 border border-border shadow-sm">
+                <div class="mb-2 text-xs text-muted font-mono">
+                    <?php echo BioUtils::renderLineage($obs['taxon']['lineage'] ?? []); ?>
+                </div>
+                <h1 class="text-xl font-black text-text leading-tight">
+                    <?php echo htmlspecialchars($species_name ?? '未同定'); ?>
+                </h1>
+                <?php if ($scientific_name): ?>
+                    <p class="text-sm text-muted italic mt-1"><?php echo htmlspecialchars($scientific_name); ?></p>
+                <?php endif; ?>
+                <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border <?php echo $statusColor; ?>">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                        <?php echo htmlspecialchars($status); ?>
+                    </span>
+                    <?php if (!empty($obs['observed_at'])): ?>
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface border border-border text-muted">
+                            <i data-lucide="calendar" class="w-3 h-3"></i>
+                            <?php echo date('Y.m.d H:i', strtotime($obs['observed_at'])); ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- AI Assessment (Compact for Passive) -->
+            <?php if ($latestAiAssessment && !$latestAiFallback): ?>
+                <?php $recommended = $latestAiAssessment['recommended_taxon'] ?? null; ?>
+                <div class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
+                    <div class="flex items-center gap-2 mb-2">
+                        <p class="text-[10px] font-black text-faint uppercase tracking-widest">AI考察</p>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                            <?php echo htmlspecialchars($aiConfidenceLabelMap[$latestAiAssessment['confidence_band'] ?? 'low'] ?? 'AI考察'); ?>
+                        </span>
+                    </div>
+                    <?php if ($recommended): ?>
+                        <p class="text-base font-black text-text"><?php echo htmlspecialchars($recommended['name'] ?? ''); ?></p>
+                    <?php endif; ?>
+                    <?php if (!empty($latestAiAssessment['display_ja']['narrative'])): ?>
+                        <p class="text-sm text-text leading-relaxed mt-2"><?php echo htmlspecialchars($latestAiAssessment['display_ja']['narrative']); ?></p>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+            <!-- Location & Map -->
+            <?php if (!empty($obs['lat']) && !empty($obs['lng'])): ?>
+                <div class="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
+                    <div id="passive-map" class="h-48 w-full"></div>
+                    <div class="px-4 py-3">
+                        <p class="text-xs text-muted flex items-center gap-1">
+                            <i data-lucide="map-pin" class="w-3 h-3"></i>
+                            <span x-text="locationName"><?php echo htmlspecialchars($obs['municipality'] ?? ''); ?></span>
+                        </p>
+                    </div>
+                </div>
+                <script nonce="<?= CspNonce::attr() ?>">
+                    document.addEventListener('DOMContentLoaded', function() {
+                        if (document.getElementById('passive-map')) {
+                            var map = new maplibregl.Map({
+                                container: 'passive-map',
+                                style: { version: 8, sources: { osm: { type: 'raster', tiles: ['https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'], tileSize: 256, attribution: '&copy; 国土地理院' } }, layers: [{ id: 'osm', type: 'raster', source: 'osm' }] },
+                                center: [<?php echo floatval($obs['lng']); ?>, <?php echo floatval($obs['lat']); ?>],
+                                zoom: 14,
+                                interactive: false
+                            });
+                            new maplibregl.Marker({ color: '#059669' })
+                                .setLngLat([<?php echo floatval($obs['lng']); ?>, <?php echo floatval($obs['lat']); ?>])
+                                .addTo(map);
+                        }
+                    });
+                </script>
+            <?php endif; ?>
+
+            <!-- Session Observations -->
+            <?php if (!empty($passiveSessionObservations)): ?>
+                <div class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i data-lucide="footprints" class="w-4 h-4 text-primary"></i>
+                        <p class="text-sm font-bold text-text">同じウォークセッション</p>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary"><?php echo count($passiveSessionObservations); ?>件</span>
+                    </div>
+                    <div class="space-y-2">
+                        <?php foreach (array_slice($passiveSessionObservations, 0, 10) as $sessionObs): ?>
+                            <a href="/observation_detail.php?id=<?php echo urlencode($sessionObs['id']); ?>"
+                                class="flex items-center gap-3 p-2.5 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition">
+                                <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                    <i data-lucide="bird" class="w-4 h-4 text-emerald-600"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <span class="text-sm font-bold text-text"><?php echo htmlspecialchars($sessionObs['taxon']['name'] ?? '未同定'); ?></span>
+                                    <?php if (!empty($sessionObs['observed_at'])): ?>
+                                        <span class="text-[10px] text-muted ml-2"><?php echo date('H:i', strtotime($sessionObs['observed_at'])); ?></span>
+                                    <?php endif; ?>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Identification CTA -->
+            <div class="flex gap-2">
+                <a href="/id_form.php?id=<?php echo urlencode($id); ?>"
+                    class="flex-1 py-3 rounded-xl bg-primary-dark hover:bg-primary text-white font-bold text-sm shadow-lg shadow-primary-glow/20 transition flex items-center justify-center gap-2 active:scale-[0.98]">
+                    <span class="text-base">🤔</span>
+                    名前を提案する
+                </a>
+            </div>
+
+            <!-- Identification Timeline (same as regular) -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-black text-base text-text flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <i data-lucide="users" class="w-4 h-4 text-primary"></i>
+                        </span>
+                        みんなの推測ノート
+                        <?php if (count($obs['identifications'] ?? []) > 0): ?>
+                            <span class="text-token-xs bg-primary/15 text-primary font-bold px-2 py-0.5 rounded-full"><?php echo count($obs['identifications']); ?></span>
+                        <?php endif; ?>
+                    </h3>
+                </div>
+                <?php if (empty($obs['identifications'])): ?>
+                    <div class="text-center py-8 bg-surface rounded-2xl border border-border border-dashed">
+                        <p class="text-sm font-bold text-text mb-1">まだ推測コメントはありません</p>
+                        <p class="text-xs text-muted">知っていることを気軽に書いてみよう。</p>
+                    </div>
+                <?php else: ?>
+                    <?php foreach (array_reverse($obs['identifications']) as $ident): ?>
+                        <div class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
+                            <div class="flex items-start gap-3">
+                                <img src="<?php echo htmlspecialchars($ident['user_avatar'] ?? 'https://i.pravatar.cc/100?u=' . ($ident['user_id'] ?? '')); ?>"
+                                    class="w-8 h-8 rounded-full border border-border" loading="lazy" alt="">
+                                <div class="flex-1 min-w-0">
+                                    <span class="text-sm font-bold text-text"><?php echo htmlspecialchars($ident['user_name'] ?? 'Unknown'); ?></span>
+                                    <span class="text-xs text-muted ml-2"><?php echo BioUtils::timeAgo($ident['created_at'] ?? ''); ?></span>
+                                    <p class="text-base font-black text-text mt-1"><?php echo htmlspecialchars($ident['taxon_name'] ?? ''); ?></p>
+                                    <?php if (!empty($ident['note'])): ?>
+                                        <p class="text-xs text-muted mt-1"><?php echo htmlspecialchars($ident['note']); ?></p>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+
+            <!-- Observer Info -->
+            <div class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <?php
+                    $observerName = $obs['user']['name'] ?? 'Unknown';
+                    $observerAvatar = $obs['user']['avatar'] ?? 'https://i.pravatar.cc/100?u=' . ($obs['user_id'] ?? '');
+                    $observerProfileLink = '/profile.php?id=' . urlencode($obs['user_id'] ?? '');
+                    ?>
+                    <a href="<?php echo $observerProfileLink; ?>">
+                        <img src="<?php echo htmlspecialchars($observerAvatar); ?>" class="w-10 h-10 rounded-full border-2 border-border" alt="">
+                    </a>
+                    <div>
+                        <a href="<?php echo $observerProfileLink; ?>" class="text-sm font-bold text-text hover:text-primary transition"><?php echo htmlspecialchars($observerName); ?></a>
+                        <p class="text-xs text-muted">観察者</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- ====== END PASSIVE LAYOUT ====== -->
+
+        <?php else: ?>
+        <!-- ====== REGULAR: 2-Column Grid Layout (Photo vs Info) ====== -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
 
             <!-- LEFT COLUMN: Visuals (LG: 7 cols - ~58%) -->
@@ -656,18 +882,29 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         </div>
                         <div class="flex flex-wrap gap-2 mb-4">
                             <?php foreach ($subjects as $si => $subject): ?>
+                                <?php
+                                $subLabel = $subject['label'] ?? null;
+                                if (!$subLabel) {
+                                    $subLabel = '生物 ' . ($si + 1);
+                                }
+                                $subTabAi = $subjectAiAssessments[$subject['id']] ?? null;
+                                $subTabRec = $subTabAi['recommended_taxon'] ?? null;
+                                $subTabRecName = $subTabRec['name'] ?? null;
+                                ?>
                                 <button @click="activeSubject = <?php echo $si; ?>"
                                     :class="activeSubject === <?php echo $si; ?> ? 'bg-emerald-600 text-white shadow-md' : 'bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-100'"
-                                    class="px-4 py-2 rounded-full text-sm font-bold transition">
-                                    <?php
-                                    $subLabel = $subject['label'] ?? null;
-                                    if (!$subLabel) {
-                                        $subLabel = '生物 ' . ($si + 1);
-                                    }
-                                    echo htmlspecialchars($subLabel);
-                                    ?>
+                                    class="px-4 py-2 rounded-full text-sm font-bold transition flex items-center gap-1.5">
+                                    <span><?php echo htmlspecialchars($subLabel); ?></span>
+                                    <?php if ($subTabRecName): ?>
+                                        <span class="text-[10px] opacity-70">→ <?php echo htmlspecialchars($subTabRecName); ?></span>
+                                    <?php endif; ?>
                                 </button>
                             <?php endforeach; ?>
+                            <a href="/id_form.php?id=<?php echo urlencode($id); ?>&new_subject=1"
+                                class="px-4 py-2 rounded-full text-sm font-bold transition bg-white text-emerald-600 border border-dashed border-emerald-300 hover:bg-emerald-100 flex items-center gap-1">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                別の生物
+                            </a>
                         </div>
 
                         <?php foreach ($subjects as $si => $subject): ?>
@@ -727,40 +964,72 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                             <?php endif; ?>
                                         </div>
 
-                                        <?php if (!empty($subAi['observer_boost'])): ?>
-                                            <p class="text-xs text-emerald-700 mt-2 flex items-center gap-1">
-                                                <i data-lucide="sparkles" class="w-3 h-3"></i>
-                                                <?php echo htmlspecialchars(normalizeAiDisplayText($subAi['observer_boost']) ?? ''); ?>
-                                            </p>
-                                        <?php endif; ?>
-                                        <?php if (!empty($subAi['next_step'])): ?>
-                                            <p class="text-xs text-sky-700 mt-1 flex items-center gap-1">
-                                                <i data-lucide="compass" class="w-3 h-3"></i>
-                                                <?php echo htmlspecialchars(normalizeAiDisplayText($subAi['next_step']) ?? ''); ?>
-                                            </p>
-                                        <?php endif; ?>
-
                                         <?php
+                                        $subGeoCtx = normalizeAiDisplayText($subAi['geographic_context'] ?? null);
+                                        $subSeaCtx = normalizeAiDisplayText($subAi['seasonal_context'] ?? null);
+                                        $subObsBoost = normalizeAiDisplayText($subAi['observer_boost'] ?? null);
+                                        $subNextStep = normalizeAiDisplayText($subAi['next_step'] ?? null);
+                                        $subCaution = normalizeAiDisplayText($subAi['cautionary_note'] ?? null);
                                         $subSimilar = $subAi['similar_taxa_to_compare'] ?? [];
-                                        $subMissing = $subAi['missing_evidence'] ?? [];
-                                        if (!empty($subSimilar) || !empty($subMissing)):
+                                        $subMissing = normalizeAiDisplayList($subAi['missing_evidence'] ?? []);
+                                        $hasSubExtra = $subObsBoost || $subNextStep || $subCaution || !empty($subSimilar) || !empty($subMissing) || $subGeoCtx || $subSeaCtx;
                                         ?>
-                                            <div class="mt-3 pt-3 border-t border-emerald-200">
-                                                <p class="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-2">🤖 AIの見分けメモ</p>
-                                                <?php foreach (array_slice($subSimilar, 0, 3) as $sim): ?>
-                                                    <?php if (is_array($sim)): ?>
-                                                        <div class="text-xs text-gray-800 mb-1">
-                                                            <span class="font-bold"><?php echo htmlspecialchars(normalizeAiDisplayText($sim['name'] ?? '') ?? ''); ?></span>
-                                                            <?php if (!empty($sim['reason'])): ?>
-                                                                <span class="text-gray-500">— <?php echo htmlspecialchars(normalizeAiDisplayText($sim['reason'] ?? '') ?? ''); ?></span>
+
+                                        <?php if ($hasSubExtra): ?>
+                                        <div x-data="{ showMore: false }" class="mt-3">
+                                            <button @click="showMore = !showMore" class="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-1 transition">
+                                                <i data-lucide="chevron-down" class="w-3 h-3 transition-transform" :class="showMore && 'rotate-180'"></i>
+                                                <span x-text="showMore ? '閉じる' : 'もっと見る'"></span>
+                                            </button>
+                                            <div x-show="showMore" x-collapse class="mt-2 space-y-2">
+                                                <?php if ($subGeoCtx || $subSeaCtx): ?>
+                                                    <div class="rounded-lg border border-emerald-200 bg-emerald-50/50 p-2.5">
+                                                        <p class="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1">場所と季節のヒント</p>
+                                                        <div class="flex flex-wrap gap-1.5">
+                                                            <?php if ($subGeoCtx): ?>
+                                                                <span class="inline-flex items-center rounded-full bg-white border border-emerald-200 px-2.5 py-0.5 text-[11px] text-gray-700">場所: <?php echo htmlspecialchars($subGeoCtx); ?></span>
+                                                            <?php endif; ?>
+                                                            <?php if ($subSeaCtx): ?>
+                                                                <span class="inline-flex items-center rounded-full bg-white border border-emerald-200 px-2.5 py-0.5 text-[11px] text-gray-700">季節: <?php echo htmlspecialchars($subSeaCtx); ?></span>
                                                             <?php endif; ?>
                                                         </div>
-                                                    <?php endif; ?>
-                                                <?php endforeach; ?>
-                                                <?php if (!empty($subMissing)): ?>
-                                                    <p class="text-xs text-gray-600 mt-1">あるともっと絞りやすい情報: <?php echo GlossaryHelper::annotate(htmlspecialchars(implode(' / ', normalizeAiDisplayList($subMissing)))); ?></p>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <?php if ($subObsBoost): ?>
+                                                    <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-2">
+                                                        <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-0.5">この観察で助かるところ</p>
+                                                        <p class="text-xs text-emerald-800"><?php echo htmlspecialchars($subObsBoost); ?></p>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <?php if ($subNextStep): ?>
+                                                    <div class="rounded-lg bg-sky-50 border border-sky-200 px-2.5 py-2">
+                                                        <p class="text-[10px] font-black text-sky-700 uppercase tracking-widest mb-0.5">次にあると絞りやすいもの</p>
+                                                        <p class="text-xs text-sky-800"><?php echo htmlspecialchars($subNextStep); ?></p>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <?php if ($subCaution): ?>
+                                                    <p class="text-xs text-amber-700"><?php echo htmlspecialchars($subCaution); ?></p>
+                                                <?php endif; ?>
+                                                <?php if (!empty($subSimilar) || !empty($subMissing)): ?>
+                                                    <div class="pt-2 border-t border-emerald-200">
+                                                        <p class="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-2">AIの見分けメモ</p>
+                                                        <?php foreach (array_slice($subSimilar, 0, 3) as $sim): ?>
+                                                            <?php if (is_array($sim)): ?>
+                                                                <div class="text-xs text-gray-800 mb-1">
+                                                                    <span class="font-bold"><?php echo htmlspecialchars(normalizeAiDisplayText($sim['name'] ?? '') ?? ''); ?></span>
+                                                                    <?php if (!empty($sim['hint'] ?? $sim['reason'] ?? '')): ?>
+                                                                        <span class="text-gray-500">— <?php echo htmlspecialchars(normalizeAiDisplayText($sim['hint'] ?? $sim['reason'] ?? '') ?? ''); ?></span>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        <?php endforeach; ?>
+                                                        <?php if (!empty($subMissing)): ?>
+                                                            <p class="text-xs text-gray-600 mt-1">あるともっと絞りやすい情報: <?php echo GlossaryHelper::annotate(htmlspecialchars(implode(' / ', $subMissing))); ?></p>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 <?php endif; ?>
                                             </div>
+                                        </div>
                                         <?php endif; ?>
                                     </div>
                                 <?php endif; ?>
@@ -968,6 +1237,53 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <p class="text-sm text-muted leading-relaxed">投稿後の参考メモを準備中です。完了すると、写真から拾えている手がかりや、次にあると絞りやすい情報がここに表示されます。</p>
                         <?php endif; ?>
                     </section>
+                <?php endif; ?>
+
+                <!-- AI Multi-Subject Hints: AIが他にも検出した生物 -->
+                <?php if (!empty($aiMultiSubjectHints)): ?>
+                    <section class="bg-amber-50 rounded-2xl border border-amber-200 p-4 shadow-sm" x-data="{ expanded: false }">
+                        <div class="flex items-center gap-2 mb-3">
+                            <i data-lucide="scan-search" class="w-4 h-4 text-amber-600"></i>
+                            <p class="text-sm font-bold text-amber-900">他にもこんな生物が写っているかも</p>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><?php echo count($aiMultiSubjectHints); ?>件</span>
+                        </div>
+                        <div class="space-y-2">
+                            <?php foreach ($aiMultiSubjectHints as $hint): ?>
+                                <div class="bg-white rounded-xl border border-amber-200 p-3 flex items-center gap-3">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm font-bold text-gray-900"><?php echo htmlspecialchars($hint['label']); ?></span>
+                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                <?php echo htmlspecialchars($aiConfidenceLabelMap[$hint['confidence_band']] ?? $hint['confidence_band']); ?>
+                                            </span>
+                                        </div>
+                                        <?php if ($hint['recommended_taxon']): ?>
+                                            <p class="text-xs text-gray-600 mt-0.5"><?php echo htmlspecialchars($hint['recommended_taxon']['name'] ?? ''); ?></p>
+                                        <?php endif; ?>
+                                        <?php if ($hint['summary']): ?>
+                                            <p class="text-xs text-gray-500 mt-1 line-clamp-2"><?php echo htmlspecialchars($hint['summary']); ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                    <a href="/id_form.php?id=<?php echo urlencode($id); ?>&new_subject=1&label=<?php echo urlencode($hint['label']); ?>"
+                                        class="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-bold transition border border-amber-200">
+                                        <i data-lucide="plus" class="w-3 h-3"></i>
+                                        追加
+                                    </a>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
+                <?php endif; ?>
+
+                <!-- Add Another Subject Button (always visible for regular observations) -->
+                <?php if (!$isPassive): ?>
+                    <div class="flex justify-center">
+                        <a href="/id_form.php?id=<?php echo urlencode($id); ?>&new_subject=1"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-dashed border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50 text-emerald-700 text-xs font-bold transition">
+                            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                            別の生物を追加して同定する
+                        </a>
+                    </div>
                 <?php endif; ?>
 
                 <!-- License -->
@@ -1862,6 +2178,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             </div> <!-- End Right Column -->
 
         </div> <!-- End Grid -->
+        <?php endif; /* end $isPassive check */ ?>
     </main>
 
     <?php include __DIR__ . '/components/footer.php'; ?>
