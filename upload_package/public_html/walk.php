@@ -51,8 +51,29 @@ unset($allObs, $userObs);
             <p class="text-sm text-gray-400 mt-1">スマホを持って散歩するだけ。周囲の音をAIが自動で分析します。</p>
         </div>
 
+        <!-- 録音同意 -->
+        <div id="consent-banner" class="bg-amber-900/40 border border-amber-600/50 rounded-xl p-4 space-y-3">
+            <div class="flex items-start gap-2">
+                <span class="text-amber-400 text-lg">🎤</span>
+                <div>
+                    <div class="text-sm font-bold text-amber-300">録音についての確認</div>
+                    <div class="text-xs text-gray-300 mt-1 space-y-1">
+                        <p>ウォーク中、周囲の環境音を<strong class="text-white">3秒間隔</strong>で録音し、BirdNET AI で鳥の声を分析します。</p>
+                        <p>• 録音データは鳥判定後に<strong class="text-white">自動削除</strong>されます（検出時のみ証拠として保存）</p>
+                        <p>• 位置情報は<strong class="text-white">高精度モード</strong>で記録されます</p>
+                        <p>• データは<a href="methodology.php" class="text-blue-400 underline">ikimon.life の方針</a>に基づき管理されます</p>
+                    </div>
+                </div>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="consent-check" class="w-4 h-4 accent-green-500">
+                <span class="text-sm text-gray-200">上記を確認しました</span>
+            </label>
+        </div>
+
         <button id="btn-start"
-                class="w-full py-5 rounded-2xl text-lg font-bold bg-green-600 hover:bg-green-700 active:scale-95 transition">
+                class="w-full py-5 rounded-2xl text-lg font-bold bg-green-600/50 text-green-300 cursor-not-allowed transition"
+                disabled>
             🎧 ウォーク開始
         </button>
 
@@ -671,6 +692,18 @@ function loadNearbyToilets(lat, lng, targetMap) {
         });
     }).catch(function(e) { console.warn('Toilet fetch error:', e); });
 }
+
+// ===== Consent toggle =====
+document.getElementById('consent-check').addEventListener('change', function() {
+    var btn = document.getElementById('btn-start');
+    if (this.checked) {
+        btn.disabled = false;
+        btn.className = 'w-full py-5 rounded-2xl text-lg font-bold bg-green-600 hover:bg-green-700 active:scale-95 transition';
+    } else {
+        btn.disabled = true;
+        btn.className = 'w-full py-5 rounded-2xl text-lg font-bold bg-green-600/50 text-green-300 cursor-not-allowed transition';
+    }
+});
 
 // ===== Event listeners =====
 document.getElementById('btn-start').addEventListener('click', startWalk);

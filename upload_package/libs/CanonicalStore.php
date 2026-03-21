@@ -46,19 +46,27 @@ class CanonicalStore
         $eventId = $data['event_id'] ?? self::uuid();
         $pdo = self::getPDO();
 
+        // sampling_effort を JSON 文字列に変換
+        $effort = $data['sampling_effort'] ?? null;
+        if (is_array($effort)) {
+            $effort = json_encode($effort, JSON_UNESCAPED_UNICODE);
+        }
+
         $stmt = $pdo->prepare("
             INSERT INTO events (
                 event_id, parent_event_id, event_date,
                 decimal_latitude, decimal_longitude, geodetic_datum,
                 coordinate_uncertainty_m, uncertainty_type,
                 sampling_protocol, sampling_effort, capture_device,
-                recorded_by, site_id
+                recorded_by, site_id,
+                session_mode, complete_checklist_flag, target_taxa_scope
             ) VALUES (
                 :event_id, :parent_event_id, :event_date,
                 :lat, :lng, :datum,
                 :uncertainty, :uncertainty_type,
                 :protocol, :effort, :device,
-                :recorded_by, :site_id
+                :recorded_by, :site_id,
+                :session_mode, :checklist_flag, :taxa_scope
             )
         ");
 
@@ -72,10 +80,13 @@ class CanonicalStore
             ':uncertainty'      => $data['coordinate_uncertainty_m'] ?? null,
             ':uncertainty_type' => $data['uncertainty_type'] ?? 'device_default',
             ':protocol'         => $data['sampling_protocol'] ?? null,
-            ':effort'           => $data['sampling_effort'] ?? null,
+            ':effort'           => $effort,
             ':device'           => $data['capture_device'] ?? null,
             ':recorded_by'      => $data['recorded_by'] ?? null,
             ':site_id'          => $data['site_id'] ?? null,
+            ':session_mode'     => $data['session_mode'] ?? null,
+            ':checklist_flag'   => $data['complete_checklist_flag'] ?? 0,
+            ':taxa_scope'       => $data['target_taxa_scope'] ?? null,
         ]);
 
         return $eventId;
@@ -114,14 +125,16 @@ class CanonicalStore
                 evidence_tier, evidence_tier_at, evidence_tier_by,
                 data_quality, observation_source, original_observation_id,
                 detection_confidence, adjusted_confidence, confidence_context,
-                detection_model, detection_model_hash
+                detection_model, detection_model_hash,
+                occurrence_status
             ) VALUES (
                 :occ_id, :event_id, :sci_name, :rank,
                 :taxon_version, :basis, :count,
                 :tier, :tier_at, :tier_by,
                 :quality, :source, :orig_id,
                 :det_conf, :adj_conf, :conf_ctx,
-                :det_model, :det_hash
+                :det_model, :det_hash,
+                :occ_status
             )
         ");
 
@@ -144,6 +157,7 @@ class CanonicalStore
             ':conf_ctx'      => $confidenceContext,
             ':det_model'     => $data['detection_model'] ?? null,
             ':det_hash'      => $data['detection_model_hash'] ?? null,
+            ':occ_status'    => $data['occurrence_status'] ?? 'present',
         ]);
 
         return $occId;
@@ -462,12 +476,94 @@ class CanonicalStore
             SELECT COUNT(*) FROM occurrences WHERE evidence_tier >= 3
         ")->fetchColumn();
 
+        // ─── 努力量ベース KPI ───
+        // セッション数（parent_event_id が NULL = トップレベルセッション）
+        $totalSessions = $pdo->query("
+            SELECT COUNT(*) FROM events WHERE parent_event_id IS NULL
+        ")->fetchColumn();
+
+        // 総努力時間（sampling_effort JSONから duration_sec を集計）
+        $effortRows = $pdo->query("
+            SELECT sampling_effort FROM events
+            WHERE sampling_effort IS NOT NULL AND parent_event_id IS NULL
+        ")->fetchAll(PDO::FETCH_COLUMN);
+
+        $totalEffortSec = 0;
+        $totalDistanceM = 0;
+        foreach ($effortRows as $json) {
+            $eff = json_decode($json, true);
+            if ($eff) {
+                $totalEffortSec += (int) ($eff['duration_sec'] ?? 0);
+                $totalDistanceM += (float) ($eff['distance_m'] ?? 0);
+            }
+        }
+        $totalEffortHours = $totalEffortSec / 3600;
+        $detectionsPerHour = $totalEffortHours > 0
+            ? round($totalOcc / $totalEffortHours, 2)
+            : null;
+
+        // レビュー待ち件数（Tier 1 のまま）
+        $reviewBacklog = $pdo->query("
+            SELECT COUNT(*) FROM occurrences WHERE evidence_tier = 1
+        ")->fetchColumn();
+
+        // レビュー遅延中央値（Tier 1 → 2 以上に昇格した件の秒数）
+        $reviewLatencyMedian = null;
+        $latencies = $pdo->query("
+            SELECT CAST(
+                (julianday(evidence_tier_at) - julianday(created_at)) * 86400
+                AS INTEGER
+            ) as latency_sec
+            FROM occurrences
+            WHERE evidence_tier >= 2 AND evidence_tier_at IS NOT NULL
+            ORDER BY latency_sec
+        ")->fetchAll(PDO::FETCH_COLUMN);
+        if (!empty($latencies)) {
+            $mid = intdiv(count($latencies), 2);
+            $reviewLatencyMedian = count($latencies) % 2 === 0
+                ? ($latencies[$mid - 1] + $latencies[$mid]) / 2
+                : $latencies[$mid];
+        }
+
+        // 不在データ件数
+        $absenceCount = $pdo->query("
+            SELECT COUNT(*) FROM occurrences WHERE occurrence_status = 'absent'
+        ")->fetchColumn();
+
+        // チェックリスト完了セッション数
+        $checklistSessions = $pdo->query("
+            SELECT COUNT(*) FROM events WHERE complete_checklist_flag = 1
+        ")->fetchColumn();
+
+        // コントリビューター数
+        $contributorCount = $pdo->query("
+            SELECT COUNT(DISTINCT recorded_by) FROM events WHERE recorded_by IS NOT NULL
+        ")->fetchColumn();
+
+        // モード別セッション数
+        $byMode = $pdo->query("
+            SELECT session_mode, COUNT(*) as cnt
+            FROM events WHERE parent_event_id IS NULL AND session_mode IS NOT NULL
+            GROUP BY session_mode
+        ")->fetchAll(PDO::FETCH_KEY_PAIR);
+
         return [
-            'total_occurrences'    => (int) $totalOcc,
-            'by_source'            => $bySource,
-            'by_tier'              => $byTier,
-            'unique_species'       => (int) $speciesCount,
-            'research_grade_count' => (int) $researchGrade,
+            'total_occurrences'      => (int) $totalOcc,
+            'by_source'              => $bySource,
+            'by_tier'                => $byTier,
+            'unique_species'         => (int) $speciesCount,
+            'research_grade_count'   => (int) $researchGrade,
+            // Sprint A: 努力量 KPI
+            'total_sessions'         => (int) $totalSessions,
+            'total_effort_hours'     => round($totalEffortHours, 2),
+            'total_distance_km'      => round($totalDistanceM / 1000, 2),
+            'detections_per_hour'    => $detectionsPerHour,
+            'review_backlog'         => (int) $reviewBacklog,
+            'review_latency_median_sec' => $reviewLatencyMedian,
+            'absence_count'          => (int) $absenceCount,
+            'checklist_sessions'     => (int) $checklistSessions,
+            'contributor_count'      => (int) $contributorCount,
+            'by_mode'                => $byMode,
         ];
     }
 

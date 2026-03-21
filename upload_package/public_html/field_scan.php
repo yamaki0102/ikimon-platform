@@ -52,7 +52,28 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             </button>
         </div>
 
-        <button id="btn-start" class="w-full py-5 bg-green-600 hover:bg-green-700 rounded-2xl text-lg font-bold active:scale-95 transition">
+        <!-- 録画・録音同意 -->
+        <div id="consent-banner" class="bg-amber-900/40 border border-amber-600/50 rounded-xl p-4 space-y-3">
+            <div class="flex items-start gap-2">
+                <span class="text-amber-400 text-lg">📡</span>
+                <div>
+                    <div class="text-sm font-bold text-amber-300">カメラ・録音についての確認</div>
+                    <div class="text-xs text-gray-300 mt-1 space-y-1">
+                        <p>スキャン中、<strong class="text-white">カメラ映像</strong>を定期的にキャプチャし、Gemini AI で生物を同定します。</p>
+                        <p>• 徒歩・自転車モードでは<strong class="text-white">環境音</strong>も録音し、BirdNET AI が鳥の声を判定します</p>
+                        <p>• カメラフレームは種判定後に<strong class="text-white">自動削除</strong>されます</p>
+                        <p>• 位置情報は高精度で記録されます</p>
+                        <p>• データは<a href="methodology.php" class="text-blue-400 underline">ikimon.life の方針</a>に基づき管理されます</p>
+                    </div>
+                </div>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="consent-check" class="w-4 h-4 accent-green-500">
+                <span class="text-sm text-gray-200">上記を確認しました</span>
+            </label>
+        </div>
+
+        <button id="btn-start" class="w-full py-5 bg-green-600/50 text-green-300 cursor-not-allowed rounded-2xl text-lg font-bold transition" disabled>
             📡 スキャン開始
         </button>
 
@@ -661,6 +682,18 @@ async function uploadCapturedPhotos() {
         dbg(json.success ? '📸 投稿完了!' : '📸 投稿失敗');
     } catch(e) { dbg('📸 送信ERR'); }
 }
+
+// ===== Consent toggle =====
+document.getElementById('consent-check').addEventListener('change', function() {
+    var btn = document.getElementById('btn-start');
+    if (this.checked) {
+        btn.disabled = false;
+        btn.className = 'w-full py-5 bg-green-600 hover:bg-green-700 rounded-2xl text-lg font-bold active:scale-95 transition';
+    } else {
+        btn.disabled = true;
+        btn.className = 'w-full py-5 bg-green-600/50 text-green-300 cursor-not-allowed rounded-2xl text-lg font-bold transition';
+    }
+});
 
 // ===== Buttons =====
 document.getElementById('btn-start').addEventListener('click', startScan);

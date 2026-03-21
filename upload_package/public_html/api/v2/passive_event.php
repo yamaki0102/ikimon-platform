@@ -106,7 +106,42 @@ $result = PassiveObservationEngine::processEventBatch($validEvents, $userId, $se
 $scanMode = $sessionMeta['scan_mode'] ?? 'walk';
 $isLiveScan = ($scanMode === 'live-scan');
 
+// ─── Canonical Schema: 1セッション = 1 parent event ───
+// Codex C0-1: 努力量データを正しくセッション単位で紐づける
+$parentEventId = null;
 $savedCount = 0;
+
+try {
+    // セッション全体の重心座標を計算
+    $lats = array_filter(array_column($result['observations'], 'lat'));
+    $lngs = array_filter(array_column($result['observations'], 'lng'));
+    $centerLat = !empty($lats) ? array_sum($lats) / count($lats) : null;
+    $centerLng = !empty($lngs) ? array_sum($lngs) / count($lngs) : null;
+
+    // 努力量を構造化 JSON で保存
+    $samplingEffort = [
+        'duration_sec'  => (int) ($sessionMeta['duration_sec'] ?? 0),
+        'distance_m'    => (float) ($sessionMeta['distance_m'] ?? 0),
+        'route_polyline' => $sessionMeta['route_polyline'] ?? null,
+    ];
+
+    // セッション event を作成（parent）
+    $parentEventId = CanonicalStore::createEvent([
+        'event_date'              => date('c'),
+        'decimal_latitude'        => $centerLat,
+        'decimal_longitude'       => $centerLng,
+        'sampling_protocol'       => $isLiveScan ? 'live-scan' : 'walk-audio',
+        'sampling_effort'         => $samplingEffort,
+        'capture_device'          => $sessionMeta['device'] ?? null,
+        'recorded_by'             => $userId,
+        'session_mode'            => $sessionMeta['scan_mode'] ?? $scanMode,
+        'complete_checklist_flag' => (int) ($sessionMeta['complete_checklist'] ?? 0),
+        'target_taxa_scope'       => $sessionMeta['target_taxa_scope'] ?? null,
+    ]);
+} catch (Exception $e) {
+    error_log('[passive_event] Session event creation error: ' . $e->getMessage());
+}
+
 foreach ($result['observations'] as $obs) {
     // プライバシーフィルタ（保護種チェック）
     if (!empty($obs['taxon']['scientific_name']) && class_exists('PrivacyFilter')) {
@@ -125,29 +160,42 @@ foreach ($result['observations'] as $obs) {
     }
 
     // 全モード → Canonical Schema（デジタルツインに蓄積）
-    try {
-        $eventId = CanonicalStore::createEvent([
-            'event_date'       => $obs['observed_at'] ?? date('c'),
-            'decimal_latitude' => $obs['lat'] ?? null,
-            'decimal_longitude'=> $obs['lng'] ?? null,
-            'sampling_protocol'=> $isLiveScan ? 'live-scan' : 'walk-audio',
-            'recorded_by'      => $userId,
-            'capture_device'   => $sessionMeta['device'] ?? null,
-        ]);
-        CanonicalStore::createOccurrence([
-            'event_id'            => $eventId,
-            'scientific_name'     => $obs['taxon']['scientific_name'] ?? null,
-            'basis_of_record'     => 'MachineObservation',
-            'evidence_tier'       => 1,
-            'observation_source'  => $scanMode,
-            'detection_confidence'=> $obs['detection_confidence'] ?? null,
-            'detection_model'     => $obs['detection_model'] ?? null,
-            'original_observation_id' => $obs['id'] ?? null,
-        ]);
-        $savedCount++;
-    } catch (Exception $e) {
-        error_log('[passive_event] Canonical sync error: ' . $e->getMessage());
+    if ($parentEventId) {
+        try {
+            // 個別検出の child event（精密な位置・時刻を持つ）
+            $childEventId = CanonicalStore::createEvent([
+                'parent_event_id'  => $parentEventId,
+                'event_date'       => $obs['observed_at'] ?? date('c'),
+                'decimal_latitude' => $obs['lat'] ?? null,
+                'decimal_longitude'=> $obs['lng'] ?? null,
+                'sampling_protocol'=> $isLiveScan ? 'live-scan' : 'walk-audio',
+                'recorded_by'      => $userId,
+                'capture_device'   => $sessionMeta['device'] ?? null,
+                'session_mode'     => $sessionMeta['scan_mode'] ?? $scanMode,
+                'coordinate_uncertainty_m' => $obs['gps_accuracy'] ?? null,
+            ]);
+
+            CanonicalStore::createOccurrence([
+                'event_id'            => $childEventId,
+                'scientific_name'     => $obs['taxon']['scientific_name'] ?? null,
+                'basis_of_record'     => 'MachineObservation',
+                'evidence_tier'       => 1,
+                'observation_source'  => $scanMode,
+                'detection_confidence'=> $obs['detection_confidence'] ?? null,
+                'detection_model'     => $obs['detection_model'] ?? null,
+                'original_observation_id' => $obs['id'] ?? null,
+                'occurrence_status'   => 'present',
+            ]);
+            $savedCount++;
+        } catch (Exception $e) {
+            error_log('[passive_event] Canonical occurrence error: ' . $e->getMessage());
+        }
     }
+}
+
+// 検出ゼロでもセッション event は残す（不在データ = 努力したが見つからなかった記録）
+if ($savedCount === 0 && $parentEventId) {
+    error_log('[passive_event] Zero detections session recorded as absence data: ' . $parentEventId);
 }
 
 // セッションログを保存
