@@ -116,7 +116,7 @@ Auth::init();
             "author": {
                 "@type": "Person",
                 "name": "八巻 毅",
-                "jobTitle": "IKIMON株式会社 代表取締役"
+                "jobTitle": "IKIMON 代表"
             },
             "publisher": {
                 "@type": "Organization",

@@ -107,7 +107,7 @@ Auth::init();
             "author": {
                 "@type": "Person",
                 "name": "八巻 毅",
-                "jobTitle": "IKIMON株式会社 代表取締役"
+                "jobTitle": "IKIMON 代表"
             },
             "publisher": {
                 "@type": "Organization",
@@ -166,7 +166,7 @@ Auth::init();
                 <div class="author-avatar">Y</div>
                 <div class="text-left">
                     <p class="text-sm font-bold text-text">八巻 毅</p>
-                    <p class="text-xs text-faint">IKIMON株式会社 代表 / 愛管株式会社 自然共生サイト認定者</p>
+                    <p class="text-xs text-faint">IKIMON 代表 / 自然共生サイト認定企業・愛管株式会社パートナー</p>
                 </div>
             </div>
         </div>
