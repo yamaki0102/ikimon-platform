@@ -42,114 +42,85 @@ if (!$currentUser) {
 <body class="bg-black text-white" x-data="fieldScan()">
 
 <!-- ライブスキャン画面 -->
-<div class="field-scan" x-show="isActive" x-cloak>
-    <!-- カメラ映像（背景） -->
-    <video x-ref="video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+<div class="field-scan" x-show="isActive" x-cloak style="display:flex; flex-direction:column">
     <canvas x-ref="canvas" class="hidden"></canvas>
 
-    <!-- UI オーバーレイ -->
-    <div class="absolute inset-0 flex flex-col">
-
-        <!-- トップバー -->
-        <div class="flex items-center justify-between p-3 bg-gradient-to-b from-black/70 to-transparent">
-            <button @click="stop()" class="p-2 rounded-full bg-white/10 backdrop-blur-sm">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-
-            <!-- センサーステータス -->
-            <div class="flex gap-1.5">
-                <span class="sensor-pill" :class="sensors.camera ? 'sensor-active' : 'sensor-inactive'">📷</span>
-                <span class="sensor-pill" :class="sensors.audio ? 'sensor-active' : 'sensor-inactive'">🎤</span>
-                <span class="sensor-pill" :class="sensors.gps ? 'sensor-active' : 'sensor-inactive'">📍</span>
-                <span class="sensor-pill" :class="sensors.motion ? 'sensor-active' : 'sensor-inactive'">📊</span>
-            </div>
-
-            <!-- タイマー + 種カウント -->
-            <div class="flex items-center gap-3 text-xs">
-                <span class="text-gray-400 font-mono" x-text="elapsed"></span>
-                <span class="px-2 py-1 rounded-full bg-green-900/50 text-green-400 font-bold">
-                    <span x-text="Object.keys(speciesMap).length"></span>種
-                </span>
-            </div>
+    <!-- トップバー -->
+    <div class="flex items-center justify-between p-2 bg-black flex-shrink-0" style="padding-top: max(env(safe-area-inset-top), 8px)">
+        <button @click="stop()" class="p-2 rounded-full bg-white/10">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <div class="flex gap-1.5">
+            <span class="sensor-pill" :class="sensors.camera ? 'sensor-active' : 'sensor-inactive'">📷</span>
+            <span class="sensor-pill" :class="sensors.audio ? 'sensor-active' : 'sensor-inactive'">🎤</span>
+            <span class="sensor-pill" :class="sensors.gps ? 'sensor-active' : 'sensor-inactive'">📍</span>
         </div>
+        <div class="flex items-center gap-2 text-xs">
+            <span class="text-gray-400 font-mono" x-text="elapsed"></span>
+            <span class="px-2 py-0.5 rounded-full bg-green-900/50 text-green-400 font-bold text-[11px]">
+                🐦<span x-text="audioDetections"></span>
+                📷<span x-text="totalDetections - audioDetections"></span>
+            </span>
+        </div>
+    </div>
 
-        <!-- 中央: 検出フロート -->
-        <div class="flex-1 flex items-center justify-center">
-            <template x-if="latestDetection">
-                <div class="text-center bg-black/60 backdrop-blur-xl rounded-3xl px-8 py-5 max-w-xs"
-                     x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="opacity-0 scale-90"
-                     x-transition:enter-end="opacity-100 scale-100">
-                    <div class="text-3xl font-black mb-1" x-text="latestDetection.name"></div>
-                    <div class="text-sm text-gray-300 italic mb-2" x-text="latestDetection.scientific_name"></div>
-                    <div class="flex items-center justify-center gap-3 text-xs">
-                        <span class="px-2 py-1 rounded-full"
+    <!-- 上半分: カメラ + 検出オーバーレイ -->
+    <div class="relative flex-1" style="min-height:0">
+        <video x-ref="video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+
+        <!-- 検出フロート（カメラの上に表示） -->
+        <template x-if="latestDetection">
+            <div class="absolute inset-x-0 bottom-2 flex justify-center"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-4"
+                 x-transition:enter-end="opacity-100 translate-y-0">
+                <div class="bg-black/70 backdrop-blur-xl rounded-2xl px-5 py-3 text-center max-w-[80%]">
+                    <div class="text-xl font-black" x-text="latestDetection.name"></div>
+                    <div class="text-xs text-gray-300 italic" x-text="latestDetection.scientific_name"></div>
+                    <div class="flex items-center justify-center gap-2 text-[11px] mt-1">
+                        <span class="px-2 py-0.5 rounded-full"
                               :class="latestDetection.confidence >= 0.7 ? 'bg-green-500/30 text-green-300' : 'bg-amber-500/30 text-amber-300'"
                               x-text="Math.round(latestDetection.confidence * 100) + '%'"></span>
                         <span class="text-gray-500" x-text="latestDetection.source === 'audio' ? '🎤 音声' : '📷 カメラ'"></span>
-                        <span class="text-gray-600" x-text="latestDetection.zone || ''"></span>
                     </div>
                 </div>
-            </template>
+            </div>
+        </template>
+    </div>
+
+    <!-- 下半分: 地図 + 種リスト -->
+    <div class="flex-shrink-0 bg-black" style="height: 45%">
+        <!-- タブ切替 -->
+        <div class="flex gap-1 px-2 py-1.5 bg-black">
+            <button @click="bottomPanel = 'map'" class="text-[11px] px-2.5 py-1 rounded-full"
+                    :class="bottomPanel === 'map' ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-500'">
+                🗺️ マップ
+            </button>
+            <button @click="bottomPanel = 'species'" class="text-[11px] px-2.5 py-1 rounded-full"
+                    :class="bottomPanel === 'species' ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-500'">
+                🌿 種リスト (<span x-text="Object.keys(speciesMap).length"></span>)
+            </button>
         </div>
 
-        <!-- 下部パネル -->
-        <div class="bg-gradient-to-t from-black/80 to-transparent pt-8 pb-6 px-4">
+        <!-- マップ（常に DOM に存在、表示/非表示のみ） -->
+        <div x-show="bottomPanel === 'map'" class="w-full border-t border-white/10" style="height: calc(100% - 36px)">
+            <div x-ref="minimap" class="w-full h-full"></div>
+        </div>
 
-            <!-- ミニマップ + 種リスト の切替 -->
-            <div class="flex gap-2 mb-3">
-                <button @click="bottomPanel = 'map'" class="text-xs px-3 py-1.5 rounded-full"
-                        :class="bottomPanel === 'map' ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-500'">
-                    🗺️ マップ
-                </button>
-                <button @click="bottomPanel = 'species'" class="text-xs px-3 py-1.5 rounded-full"
-                        :class="bottomPanel === 'species' ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-500'">
-                    🌿 種リスト
-                </button>
-                <button @click="bottomPanel = 'stats'" class="text-xs px-3 py-1.5 rounded-full"
-                        :class="bottomPanel === 'stats' ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-500'">
-                    📊 統計
-                </button>
-            </div>
-
-            <!-- ミニマップ -->
-            <div x-show="bottomPanel === 'map'" class="h-32 rounded-xl overflow-hidden border border-white/10">
-                <div x-ref="minimap" class="w-full h-full"></div>
-            </div>
-
-            <!-- 種リスト -->
-            <div x-show="bottomPanel === 'species'" class="h-32 overflow-y-auto space-y-1 scrollbar-thin">
-                <template x-for="[name, data] in Object.entries(speciesMap)" :key="name">
-                    <div class="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5">
-                        <span class="text-xs" x-text="data.source === 'audio' ? '🎤' : '📷'"></span>
-                        <span class="text-sm font-medium flex-1" x-text="name"></span>
-                        <span class="text-xs text-gray-500" x-text="'×' + data.count"></span>
-                        <span class="text-xs" :class="data.confidence >= 0.7 ? 'text-green-400' : 'text-amber-400'"
-                              x-text="Math.round(data.confidence * 100) + '%'"></span>
-                    </div>
-                </template>
-            </div>
-
-            <!-- 統計 -->
-            <div x-show="bottomPanel === 'stats'" class="h-32 grid grid-cols-4 gap-2">
-                <div class="bg-white/5 rounded-lg p-2 text-center">
-                    <div class="text-lg font-black text-green-400" x-text="Object.keys(speciesMap).length"></div>
-                    <div class="text-[10px] text-gray-500">種数</div>
+        <!-- 種リスト -->
+        <div x-show="bottomPanel === 'species'" class="overflow-y-auto px-2 pb-2 space-y-1" style="height: calc(100% - 36px)">
+            <template x-for="[name, data] in Object.entries(speciesMap)" :key="name">
+                <div class="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5">
+                    <span class="text-xs" x-text="data.source === 'audio' ? '🐦' : '🌿'"></span>
+                    <span class="text-sm font-medium flex-1" x-text="name"></span>
+                    <span class="text-xs text-gray-500" x-text="'×' + data.count"></span>
+                    <span class="text-xs" :class="data.confidence >= 0.7 ? 'text-green-400' : 'text-amber-400'"
+                          x-text="Math.round(data.confidence * 100) + '%'"></span>
                 </div>
-                <div class="bg-white/5 rounded-lg p-2 text-center">
-                    <div class="text-lg font-black" x-text="totalDetections"></div>
-                    <div class="text-[10px] text-gray-500">検出</div>
-                </div>
-                <div class="bg-white/5 rounded-lg p-2 text-center">
-                    <div class="text-lg font-black text-blue-400" x-text="routePoints.length"></div>
-                    <div class="text-[10px] text-gray-500">GPS点</div>
-                </div>
-                <div class="bg-white/5 rounded-lg p-2 text-center">
-                    <div class="text-lg font-black text-amber-400" x-text="audioDetections"></div>
-                    <div class="text-[10px] text-gray-500">音声検出</div>
-                </div>
+            </template>
+            <div x-show="Object.keys(speciesMap).length === 0" class="text-center text-xs text-gray-600 py-8">
+                まだ検出なし — 歩いて待ちましょう
             </div>
-
         </div>
     </div>
 </div>
@@ -450,20 +421,36 @@ function fieldScan() {
             const last = this.routePoints[this.routePoints.length - 1];
             const center = last ? [last.lng, last.lat] : [139.6917, 35.6895];
 
+            // bottomPanel を map に切り替えて描画領域を確保
+            this.bottomPanel = 'map';
+
             this._minimap = new maplibregl.Map({
                 container: this.$refs.minimap,
                 style: { version: 8, sources: {
-                    osm: { type: 'raster', tiles: ['https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'], tileSize: 256 }
+                    osm: { type: 'raster', tiles: ['https://tile.openstreetmap.jp/styles/osm-bright-ja/{z}/{x}/{y}.png'], tileSize: 256 }
                 }, layers: [{ id: 'osm', type: 'raster', source: 'osm' }] },
                 center, zoom: 16,
-                interactive: false,
+            });
+
+            // 描画サイズ修正（x-show 切り替え後に必要）
+            var mm = this._minimap;
+            setTimeout(function() { mm.resize(); }, 200);
+
+            // 現在地マーカー
+            this._minimap.on('load', () => {
+                var el = document.createElement('div');
+                el.style.cssText = 'width:12px;height:12px;background:#3b82f6;border:2px solid #fff;border-radius:50%;box-shadow:0 0 6px rgba(59,130,246,0.5)';
+                this._posMarker = new maplibregl.Marker({element: el}).setLngLat(center).addTo(mm);
             });
         },
 
         updateMinimap() {
-            if (!this._minimap || this.routePoints.length < 2) return;
+            if (!this._minimap) return;
             const last = this.routePoints[this.routePoints.length - 1];
-            this._minimap.setCenter([last.lng, last.lat]);
+            if (!last) return;
+            this._minimap.easeTo({center: [last.lng, last.lat], duration: 500});
+            if (this._posMarker) this._posMarker.setLngLat([last.lng, last.lat]);
+            if (this.routePoints.length < 2) return;
 
             // ルートライン更新
             const coords = this.routePoints.map(p => [p.lng, p.lat]);
