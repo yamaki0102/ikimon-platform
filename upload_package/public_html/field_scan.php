@@ -31,7 +31,7 @@ if (!$currentUser) {
     <script src="https://unpkg.com/maplibre-gl@4.1.0/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@4.1.0/dist/maplibre-gl.css" rel="stylesheet">
     <style>
-        .field-scan { position: fixed; inset: 0; z-index: 50; background: #000; }
+        .field-scan { position: fixed; inset: 0; z-index: 50; background: #000; display: flex; flex-direction: column; }
         .sensor-pill { font-size: 10px; padding: 2px 8px; border-radius: 999px; }
         .sensor-active { background: rgba(34,197,94,0.2); color: #4ade80; }
         .sensor-inactive { background: rgba(255,255,255,0.05); color: #666; }
@@ -42,7 +42,7 @@ if (!$currentUser) {
 <body class="bg-black text-white" x-data="fieldScan()">
 
 <!-- ライブスキャン画面 -->
-<div class="field-scan" x-show="isActive" x-cloak style="display:flex; flex-direction:column">
+<div class="field-scan" x-show="isActive" x-cloak>
     <canvas x-ref="canvas" class="hidden"></canvas>
 
     <!-- トップバー -->
