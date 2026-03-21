@@ -453,11 +453,11 @@ function nav_avatar(string $avatar): string {
 
 <!-- Mobile Bottom Nav (App Shell) -->
 <nav x-data class="md:hidden bottom-nav" aria-label="モバイル ナビゲーション">
-    <a href="/index.php"
-        <?php if (basename($_SERVER['PHP_SELF']) == 'index.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
-        class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'bottom-nav__item--active' : ''; ?>">
-        <i data-lucide="home" class="w-6 h-6"></i>
-        <span><?php echo __('nav.home'); ?></span>
+    <a href="/quests.php"
+        <?php if (basename($_SERVER['PHP_SELF']) == 'quests.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
+        class="bottom-nav__item <?php echo basename($_SERVER['PHP_SELF']) == 'quests.php' ? 'bottom-nav__item--active' : ''; ?>">
+        <i data-lucide="scroll-text" class="w-6 h-6"></i>
+        <span>クエスト</span>
     </a>
     <a href="/explore.php"
         <?php if (basename($_SERVER['PHP_SELF']) == 'explore.php'): ?> @click.prevent="window.scrollTo({top: 0, behavior: 'smooth'})" <?php endif; ?>
