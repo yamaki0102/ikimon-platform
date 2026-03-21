@@ -147,7 +147,7 @@ unset($allObs, $userObs);
         <div class="bg-white/5 rounded-2xl p-6 text-center space-y-4">
             <div class="text-4xl">🎉</div>
             <h2 class="text-lg font-bold">ウォーク完了!</h2>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-3 gap-3">
                 <div>
                     <div class="text-2xl font-black" id="sum-duration">0:00</div>
                     <div class="text-xs text-gray-500">時間</div>
@@ -156,13 +156,22 @@ unset($allObs, $userObs);
                     <div class="text-2xl font-black text-green-400" id="sum-species">0</div>
                     <div class="text-xs text-gray-500">種検出</div>
                 </div>
+                <div>
+                    <div class="text-2xl font-black text-blue-400" id="sum-gps">0点</div>
+                    <div class="text-xs text-gray-500">GPS</div>
+                </div>
             </div>
             <div id="sum-list" class="flex flex-wrap gap-1.5 justify-center"></div>
+
+            <!-- 送信ステータス（自動更新） -->
+            <div id="upload-status" class="text-sm text-center p-3 text-blue-400">📡 送信中...</div>
+
+            <!-- 失敗時のみ再送信ボタン -->
             <button id="btn-upload"
                     class="w-full py-3 bg-green-600 hover:bg-green-700 rounded-xl font-bold transition">
-                ikimon.life に投稿
+                🔄 再送信
             </button>
-            <button id="btn-close" class="text-sm text-gray-500 hover:text-white">閉じる</button>
+            <button id="btn-close" class="text-sm text-gray-500 hover:text-white">新しいウォーク</button>
         </div>
     </div>
 
@@ -170,6 +179,8 @@ unset($allObs, $userObs);
 
 <script nonce="<?= CspNonce::attr() ?>">
 // ===== State =====
+var STORAGE_KEY = 'ikimon_walk_session';
+var PENDING_KEY = 'ikimon_walk_pending';
 var W = {
     walking: false,
     startTime: null,
@@ -185,7 +196,48 @@ var W = {
     analyzing: false,
     chunks: [],
     mimeType: '',
+    saveTimer: null,
 };
+
+// ===== localStorage persistence =====
+function saveSession() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            startTime: W.startTime,
+            detections: W.detections,
+            routePoints: W.routePoints,
+            savedAt: Date.now(),
+        }));
+    } catch(e) {}
+}
+
+function loadSession() {
+    try {
+        var data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (data && data.detections && data.detections.length > 0) return data;
+    } catch(e) {}
+    return null;
+}
+
+function clearSession() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+}
+
+function savePending(events, session) {
+    try {
+        var pending = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+        pending.push({ events: events, session: session, savedAt: Date.now() });
+        localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+    } catch(e) {}
+}
+
+function getPending() {
+    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function clearPending() {
+    try { localStorage.removeItem(PENDING_KEY); } catch(e) {}
+}
 
 // ===== Screen switching (plain DOM, no framework) =====
 function showScreen(name) {
@@ -226,6 +278,9 @@ async function startWalk() {
     document.getElementById('det-count').textContent = '0';
     document.getElementById('gps-count').textContent = '0';
     document.getElementById('det-list').innerHTML = '';
+
+    // 10秒ごとに自動保存（電波断・クラッシュ対策）
+    W.saveTimer = setInterval(saveSession, 10000);
 
     // Timer
     W.timer = setInterval(function() {
@@ -271,11 +326,15 @@ async function startWalk() {
 function stopWalk() {
     W.walking = false;
     clearInterval(W.timer);
+    if (W.saveTimer) clearInterval(W.saveTimer);
     if (W.recTimer) clearTimeout(W.recTimer);
     if (W.recorder && W.recorder.state === 'recording') try { W.recorder.stop(); } catch(e) {}
     if (W.watchId) navigator.geolocation.clearWatch(W.watchId);
     if (W.mediaStream) W.mediaStream.getTracks().forEach(function(t){t.stop()});
     if (W.audioCtx) W.audioCtx.close();
+
+    // 最終保存
+    saveSession();
 
     // Summary
     var species = [];
@@ -286,8 +345,12 @@ function stopWalk() {
     document.getElementById('sum-list').innerHTML = species.map(function(s) {
         return '<span class="text-xs px-2 py-1 bg-green-900/30 text-green-400 rounded-full">' + s + '</span>';
     }).join('');
+    document.getElementById('sum-gps').textContent = W.routePoints.length + '点';
 
     showScreen('done');
+
+    // 自動送信を試みる
+    autoUpload();
 }
 
 // ===== Audio Recorder =====
@@ -352,6 +415,7 @@ async function sendAudio(blob) {
                 W.detections.push(det);
                 document.getElementById('det-count').textContent = W.detections.length;
                 addDetectionCard(det);
+                saveSession(); // 検出ごとに即座に保存
                 if (navigator.vibrate) navigator.vibrate(30);
             });
         }
@@ -373,40 +437,117 @@ function addDetectionCard(det) {
     list.insertAdjacentHTML('afterbegin', html);
 }
 
-// ===== Upload =====
-async function uploadResults() {
-    var btn = document.getElementById('btn-upload');
-    btn.textContent = '送信中...';
-    btn.disabled = true;
+// ===== Auto Upload (with offline fallback) =====
+async function autoUpload() {
+    if (W.detections.length === 0 && W.routePoints.length === 0) {
+        updateUploadStatus('検出なし — データはありません', 'gray');
+        clearSession();
+        return;
+    }
+
+    var events = W.detections.map(function(d) {
+        return {type:'audio', taxon_name:d.name, scientific_name:d.scientific_name,
+            confidence:d.confidence, lat:d.lat, lng:d.lng,
+            timestamp:new Date(d.timestamp).toISOString(), model:'birdnet-v2.4'};
+    });
+    var session = {
+        duration_sec: Math.floor((Date.now()-W.startTime)/1000),
+        device: navigator.userAgent.indexOf('iPhone')>=0 ? 'iPhone' : 'Android',
+        app_version:'web_1.0',
+        route_points: W.routePoints.length,
+    };
+
+    updateUploadStatus('📡 送信中...', 'blue');
+
     try {
-        var events = W.detections.map(function(d) {
-            return {type:'audio', taxon_name:d.name, scientific_name:d.scientific_name,
-                confidence:d.confidence, lat:d.lat, lng:d.lng,
-                timestamp:new Date(d.timestamp).toISOString(), model:'birdnet-v2.4'};
-        });
         var resp = await fetch('/api/v2/passive_event.php', {
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({events:events, session:{
-                duration_sec: Math.floor((Date.now()-W.startTime)/1000),
-                device: navigator.userAgent.indexOf('iPhone')>=0 ? 'iPhone' : 'Android',
-                app_version:'web_1.0'
-            }})
+            body: JSON.stringify({events:events, session:session})
         });
         var json = await resp.json();
-        if (json.success) alert((json.data && json.data.observations_created || 0) + '件の観察が投稿されました!');
+        if (json.success) {
+            var count = (json.data && json.data.observations_created) || events.length;
+            updateUploadStatus('✅ ' + count + '件のデータを送信しました', 'green');
+            clearSession();
+        } else {
+            throw new Error(json.error && json.error.message || 'Server error');
+        }
     } catch(e) {
-        alert('送信エラー: ' + e.message);
-    } finally {
-        btn.textContent = 'ikimon.life に投稿';
-        btn.disabled = false;
+        // オフライン or サーバーエラー → localStorage に保存して後で送信
+        savePending(events, session);
+        updateUploadStatus('📱 オフライン保存しました（次回接続時に自動送信）', 'amber');
     }
 }
+
+function updateUploadStatus(msg, color) {
+    var el = document.getElementById('upload-status');
+    if (!el) return;
+    var colors = {green:'text-green-400', blue:'text-blue-400', amber:'text-amber-400', gray:'text-gray-500'};
+    el.className = 'text-sm text-center p-3 ' + (colors[color] || 'text-gray-400');
+    el.textContent = msg;
+}
+
+// ===== Retry pending uploads (on page load) =====
+async function retryPending() {
+    var pending = getPending();
+    if (pending.length === 0) return;
+    for (var i = 0; i < pending.length; i++) {
+        try {
+            var resp = await fetch('/api/v2/passive_event.php', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({events:pending[i].events, session:pending[i].session})
+            });
+            var json = await resp.json();
+            if (json.success) {
+                console.log('Pending walk data uploaded:', pending[i].events.length, 'events');
+            }
+        } catch(e) {
+            // まだオフライン — 残りはそのまま
+            localStorage.setItem(PENDING_KEY, JSON.stringify(pending.slice(i)));
+            return;
+        }
+    }
+    clearPending();
+}
+
+// ===== Manual retry button =====
+async function manualUpload() {
+    updateUploadStatus('📡 再送信中...', 'blue');
+    await autoUpload();
+}
+
+// ページ読み込み時に未送信データを送信試行
+retryPending();
 
 // ===== Event listeners =====
 document.getElementById('btn-start').addEventListener('click', startWalk);
 document.getElementById('btn-stop').addEventListener('click', stopWalk);
-document.getElementById('btn-upload').addEventListener('click', uploadResults);
-document.getElementById('btn-close').addEventListener('click', function() { showScreen('ready'); });
+document.getElementById('btn-upload').addEventListener('click', manualUpload);
+document.getElementById('btn-close').addEventListener('click', function() { clearSession(); showScreen('ready'); });
+
+// ===== Restore unsaved session on page load =====
+(function checkUnsaved() {
+    var saved = loadSession();
+    if (saved && saved.detections.length > 0) {
+        var ago = Math.round((Date.now() - saved.savedAt) / 60000);
+        if (ago < 120) { // 2時間以内なら復元提示
+            var el = document.getElementById('weather-loading');
+            if (el) {
+                el.innerHTML = '⚠️ 前回のウォークデータ（' + saved.detections.length + '件検出、' + ago + '分前）が未送信です。 <button id="btn-restore" class="underline text-green-400">送信する</button>';
+                setTimeout(function() {
+                    var btn = document.getElementById('btn-restore');
+                    if (btn) btn.addEventListener('click', function() {
+                        W.detections = saved.detections;
+                        W.routePoints = saved.routePoints || [];
+                        W.startTime = saved.startTime;
+                        showScreen('done');
+                        autoUpload();
+                    });
+                }, 100);
+            }
+        }
+    }
+})();
 </script>
 </body>
 </html>
