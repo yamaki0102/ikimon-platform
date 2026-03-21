@@ -73,6 +73,14 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             </label>
         </div>
 
+        <div class="flex items-center gap-2 bg-orange-900/30 border border-orange-600/40 rounded-xl px-4 py-2">
+            <span class="text-orange-400 text-base">📶</span>
+            <div>
+                <div class="text-xs font-bold text-orange-300">モバイルデータを使用します</div>
+                <div class="text-[10px] text-orange-200/70">目安: 徒歩15分で約5〜15MB（Wi-Fi推奨）</div>
+            </div>
+        </div>
+
         <button id="btn-start" class="w-full py-5 bg-green-600/50 text-green-300 cursor-not-allowed rounded-2xl text-lg font-bold transition" disabled>
             📡 スキャン開始
         </button>
@@ -112,9 +120,10 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             <span id="s-gps" style="font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666">📍</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+            <span id="data-usage" style="font-size:10px;color:#f97316;font-family:monospace;padding:2px 6px;border-radius:999px;background:rgba(249,115,22,0.15)">📶 0KB</span>
             <span id="timer" style="color:#999;font-family:monospace">0:00</span>
             <span style="padding:2px 8px;border-radius:999px;background:rgba(34,197,94,0.2);color:#4ade80;font-size:11px;font-weight:bold">
-                🐦<span id="cnt-audio">0</span> 📷<span id="cnt-visual">0</span>
+                <span id="sp-count-top" style="font-weight:900">0</span>種
             </span>
         </div>
     </div>
@@ -159,7 +168,36 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             <div id="minimap" style="width:100%;height:100%"></div>
         </div>
         <div id="tab-species" style="height:calc(100% - 32px);overflow-y:auto;padding:4px 8px;display:none">
-            <div id="species-list" style="font-size:13px"></div>
+            <!-- セッションサマリー -->
+            <div id="session-summary" style="display:none;padding:8px;margin-bottom:6px;background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(59,130,246,0.15));border-radius:10px;border:1px solid rgba(34,197,94,0.2)">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                    <span style="font-size:11px;font-weight:900;color:#4ade80">🎯 今回の発見</span>
+                    <span id="session-elapsed" style="font-size:10px;color:#888;font-family:monospace"></span>
+                </div>
+                <div style="display:flex;gap:12px;font-size:12px">
+                    <div><span style="font-size:18px;font-weight:900;color:#fff" id="sum-species">0</span><span style="color:#888;font-size:10px;margin-left:2px">種</span></div>
+                    <div>📷<span style="font-weight:700;color:#60a5fa;margin-left:2px" id="sum-visual">0</span></div>
+                    <div>🎤<span style="font-weight:700;color:#fbbf24;margin-left:2px" id="sum-audio">0</span></div>
+                </div>
+            </div>
+            <!-- カメラ検出セクション -->
+            <div id="visual-section" style="display:none;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid rgba(96,165,250,0.2);margin-bottom:4px">
+                    <span style="font-size:11px">📷</span>
+                    <span style="font-size:11px;font-weight:700;color:#60a5fa">カメラ検出</span>
+                    <span id="visual-count" style="font-size:10px;color:#888;margin-left:auto">0種</span>
+                </div>
+                <div id="visual-list" style="font-size:13px"></div>
+            </div>
+            <!-- 音声検出セクション -->
+            <div id="audio-section" style="display:none;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid rgba(251,191,36,0.2);margin-bottom:4px">
+                    <span style="font-size:11px">🎤</span>
+                    <span style="font-size:11px;font-weight:700;color:#fbbf24">音声検出（鳥）</span>
+                    <span id="audio-sp-count" style="font-size:10px;color:#888;margin-left:auto">0種</span>
+                </div>
+                <div id="audio-list" style="font-size:13px"></div>
+            </div>
             <div id="species-empty" style="text-align:center;color:#555;font-size:12px;padding:40px 0">まだ検出なし</div>
         </div>
         <div id="tab-env" style="height:calc(100% - 32px);overflow-y:auto;padding:8px;display:none">
@@ -179,8 +217,9 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
         </div>
         <div id="done-quests" class="space-y-3 mb-8" style="display:none">
             <div class="flex items-center gap-2 mb-4">
-                <i data-lucide="target" class="w-5 h-5 text-amber-400"></i>
-                <h3 class="text-base font-black text-amber-300">スキャンから生まれたミッション</h3>
+                <i data-lucide="notebook-pen" class="w-5 h-5 text-emerald-400"></i>
+                <h3 class="text-base font-black text-emerald-300">フィールドノート</h3>
+                <span class="text-[10px] text-emerald-400/50 ml-auto">自然からの呼びかけ</span>
             </div>
             <div id="done-quest-list"></div>
         </div>
@@ -208,7 +247,22 @@ var S = {
     routePoints: [], speciesMap: {}, totalDet: 0, audioDet: 0, visualDet: 0,
     minimap: null, posMarker: null,
     recorder: null, recTimer: null, analyzing: false, chunks: [], mime: '',
+    dataUsage: 0,
 };
+
+function formatDataUsage(bytes) {
+    if (bytes < 1024) return bytes + 'B';
+    if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + 'KB';
+    return (bytes/(1024*1024)).toFixed(1) + 'MB';
+}
+function updateDataUsage(addBytes) {
+    S.dataUsage += addBytes;
+    var el = document.getElementById('data-usage');
+    if (el) {
+        el.textContent = '📶 ' + formatDataUsage(S.dataUsage);
+        el.style.color = S.dataUsage > 10*1024*1024 ? '#ef4444' : '#f97316';
+    }
+}
 
 // ===== Screen =====
 function showScreen(name) {
@@ -230,13 +284,18 @@ async function startScan() {
     S.active = true;
     S.startTime = Date.now();
     S.speciesMap = {}; S.totalDet = 0; S.audioDet = 0; S.visualDet = 0;
-    S.routePoints = []; S.envHistory = [];
+    S.routePoints = []; S.envHistory = []; S.dataUsage = 0;
     updateCounts();
 
     // Timer
     S.timerInt = setInterval(function() {
         var sec = Math.floor((Date.now() - S.startTime) / 1000);
-        document.getElementById('timer').textContent = Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
+        var timeStr = Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
+        document.getElementById('timer').textContent = timeStr;
+        var el = document.getElementById('session-elapsed');
+        if (el) el.textContent = timeStr;
+        // 30秒ごとに種リストの「NOW」バッジを更新
+        if (sec % 10 === 0 && Object.keys(S.speciesMap).length > 0) updateSpeciesList();
     }, 1000);
     dbg('2. タイマー開始');
 
@@ -313,7 +372,7 @@ function stopScan() {
 
     // 蓄積した検出を一括で Canonical Schema に送信（1セッション=1 event）
     var pendingEvents = S.pendingEvents || [];
-    document.getElementById('done-summary').textContent = sp + '種検出 · ' + min + '分間のスキャン';
+    document.getElementById('done-summary').textContent = sp + '種検出 · ' + min + '分間のスキャン · 📶 ' + formatDataUsage(S.dataUsage);
     showScreen('done');
 
     if (pendingEvents.length > 0 || S.routePoints.length > 0) {
@@ -335,6 +394,8 @@ function stopScan() {
         .then(function(data) {
             if (data.scan_quests && data.scan_quests.length > 0) {
                 renderScanQuests(data.scan_quests);
+            } else if (data.quest_shown === false && Object.keys(S.speciesMap).length > 0) {
+                renderScanQuests([]);
             }
         }).catch(function() {});
     }
@@ -345,19 +406,49 @@ function renderScanQuests(quests) {
     var list = document.getElementById('done-quest-list');
     container.style.display = '';
     list.innerHTML = '';
+
+    if (!quests || quests.length === 0) {
+        list.innerHTML = '<div class="text-center py-6 text-sm text-emerald-200/50">' +
+            '今回は特別な発見はありませんでした。<br>' +
+            '<span class="text-[11px]">でも、すべての観察がこの地域のデータに蓄積されています。</span></div>';
+        lucide.createIcons();
+        return;
+    }
+
+    var badgeColors = {
+        redlist:          'background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)',
+        area_first:       'background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)',
+        id_challenge:     'background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3)',
+        evidence_upgrade: 'background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)',
+        new_species:      'background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3)',
+        photo_needed:     'background:rgba(156,163,175,0.15);color:#9ca3af;border:1px solid rgba(156,163,175,0.3)',
+    };
+
     quests.forEach(function(q) {
-        var triggerIcon = q.trigger === 'new_species' ? '🆕' : (q.trigger === 'photo_needed' ? '📸' : '🎯');
+        var badgeStyle = badgeColors[q.trigger] || badgeColors.photo_needed;
+        var label = q.rarity_label || q.trigger;
+        var cta = q.cta_text || '記録する';
+        var ttlHours = Math.max(1, Math.floor((new Date(q.expires_at).getTime() - Date.now()) / 3600000));
+
         var div = document.createElement('div');
-        div.className = 'bg-white/10 rounded-xl p-4 hover:bg-white/15 transition';
-        div.innerHTML = '<div class="flex items-center justify-between">' +
-            '<div class="flex-1 min-w-0">' +
-                '<div class="text-sm font-bold">' + triggerIcon + ' ' + escHtml(q.title.replace(/^[^\s]+\s/, '')) + '</div>' +
-                '<div class="text-xs text-blue-200 mt-1">' + escHtml(q.description) + '</div>' +
+        div.style.cssText = 'background:rgba(255,255,255,0.06);border-radius:14px;padding:14px 16px;margin-bottom:8px';
+
+        div.innerHTML =
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' +
+                '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;' + badgeStyle + '">' + escHtml(label) + '</span>' +
+                '<span style="font-size:10px;color:#666;margin-left:auto">⏱ 残り' + ttlHours + '時間</span>' +
             '</div>' +
-            '<a href="post.php?species=' + encodeURIComponent(q.species_name) + '&from=scan_quest&quest_id=' + encodeURIComponent(q.id) + '" ' +
-                'class="shrink-0 ml-3 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-lg px-3 py-2 transition">' +
-                '記録する +' + q.reward + 'pt</a>' +
-        '</div>';
+            '<div style="font-size:14px;font-weight:900;margin-bottom:6px">' + escHtml(q.title) + '</div>' +
+            (q.progress_hint ? '<div style="font-size:11px;color:#4ade80;margin-bottom:6px;padding:4px 8px;background:rgba(34,197,94,0.1);border-radius:6px">' + escHtml(q.progress_hint) + '</div>' : '') +
+            '<div style="font-size:12px;color:#a1a1aa;margin-bottom:10px;line-height:1.5">' + escHtml(q.description) + '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+                '<a href="post.php?species=' + encodeURIComponent(q.species_name) + '&from=scan_quest&quest_id=' + encodeURIComponent(q.id) +
+                    (q.trigger === 'id_challenge' ? '&family_hint=' + encodeURIComponent(q.species_name) : '') +
+                    '" style="flex:1;display:block;text-align:center;padding:10px;border-radius:10px;font-size:13px;font-weight:700;' +
+                    'background:rgba(16,185,129,0.2);color:#4ade80;text-decoration:none;transition:background 0.2s">' +
+                    escHtml(cta) + '</a>' +
+                '<span style="font-size:10px;color:#666">+' + q.reward + 'pt</span>' +
+            '</div>';
         list.appendChild(div);
     });
     lucide.createIcons();
@@ -384,6 +475,7 @@ async function captureFrame() {
         c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
 
         var blob = await new Promise(function(r) { c.toBlob(r, 'image/jpeg', quality); });
+        updateDataUsage(blob.size);
         var fd = new FormData();
         fd.append('photo', blob, 'scan.jpg');
         var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
@@ -394,10 +486,12 @@ async function captureFrame() {
         dbg('📷 #' + S.frameScanCount + ' 送信中...');
         var resp = await fetch('/api/v2/scan_classify.php', {method:'POST', body:fd});
         if (!resp.ok) { dbg('📷 HTTP ' + resp.status); return; }
-        var json = await resp.json();
+        var respText = await resp.text();
+        updateDataUsage(respText.length);
+        var json = JSON.parse(respText);
         if (json.success && json.data && json.data.suggestions && json.data.suggestions.length > 0) {
             json.data.suggestions.forEach(function(sug) {
-                addDetection(sug.name, sug.scientific_name || '', sug.confidence || 0.5, 'visual');
+                addDetection(sug.name, sug.scientific_name || '', sug.confidence || 0.5, 'visual', sug.category || '');
             });
             dbg('📷 ' + json.data.suggestions.length + '件検出!');
         } else {
@@ -449,15 +543,18 @@ async function sendAudio(blob) {
         fd.append('audio', blob, 'snippet' + (S.mime.indexOf('mp4') >= 0 ? '.mp4' : '.webm'));
         fd.append('lat', last ? last.lat : 35.0);
         fd.append('lng', last ? last.lng : 139.0);
+        updateDataUsage(blob.size);
         S.audioScanCount++;
         document.getElementById('audio-count').textContent = S.audioScanCount;
         dbg('🎤 #' + S.audioScanCount + ' 送信中...');
         var resp = await fetch('/api/v2/analyze_audio.php', {method:'POST', body:fd});
         if (!resp.ok) { dbg('🎤 HTTP ' + resp.status); return; }
-        var json = await resp.json();
+        var respText = await resp.text();
+        updateDataUsage(respText.length);
+        var json = JSON.parse(respText);
         if (json.success && json.data && json.data.detections && json.data.detections.length > 0) {
             json.data.detections.forEach(function(d) {
-                addDetection(d.common_name || d.scientific_name, d.scientific_name, d.confidence, 'audio');
+                addDetection(d.common_name || d.scientific_name, d.scientific_name, d.confidence, 'audio', 'bird');
             });
             dbg('🎤 ' + json.data.detections.length + '件検出');
         } else {
@@ -470,16 +567,18 @@ async function sendAudio(blob) {
 }
 
 // ===== Detection =====
-function addDetection(name, sci, conf, source) {
+function addDetection(name, sci, conf, source, category) {
     S.totalDet++;
     if (source === 'audio') S.audioDet++; else S.visualDet++;
 
-    if (!S.speciesMap[name]) {
-        S.speciesMap[name] = {count:0, confidence:0, source:source};
+    var isNew = !S.speciesMap[name];
+    if (isNew) {
+        S.speciesMap[name] = {count:0, confidence:0, source:source, category:category||'', firstSeen:Date.now(), lastSeen:Date.now()};
         if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
     }
     S.speciesMap[name].count++;
     S.speciesMap[name].confidence = Math.max(S.speciesMap[name].confidence, conf);
+    S.speciesMap[name].lastSeen = Date.now();
 
     updateCounts();
     showDetBanner(name, sci, conf, source);
@@ -538,11 +637,13 @@ function sendDetectionToServer(name, sci, conf, source) {
 
     // ローカルに蓄積（セッション終了時に一括 passive_event 送信）
     if (!S.pendingEvents) S.pendingEvents = [];
+    var det = S.speciesMap[name] || {};
     S.pendingEvents.push({
         type: source === 'audio' ? 'audio' : 'visual',
         taxon_name: name,
         scientific_name: sci,
         confidence: conf,
+        category: det.category || '',
         lat: last ? last.lat : null,
         lng: last ? last.lng : null,
         timestamp: new Date().toISOString(),
@@ -566,33 +667,70 @@ function calcDistance(points) {
 }
 
 function updateCounts() {
-    document.getElementById('cnt-audio').textContent = S.audioDet;
-    document.getElementById('cnt-visual').textContent = S.visualDet;
-    document.getElementById('sp-count').textContent = Object.keys(S.speciesMap).length;
+    var spCount = Object.keys(S.speciesMap).length;
+    document.getElementById('sp-count').textContent = spCount;
+    document.getElementById('sp-count-top').textContent = spCount;
 }
 
 function showDetBanner(name, sci, conf, source) {
     var b = document.getElementById('det-banner');
-    document.getElementById('det-name').textContent = name;
+    var isNew = S.speciesMap[name] && S.speciesMap[name].count === 1;
+    var isAudio = source === 'audio';
+    b.style.borderLeft = '4px solid ' + (isAudio ? '#fbbf24' : '#60a5fa');
+    document.getElementById('det-name').innerHTML = name + (isNew ? ' <span style="font-size:11px;padding:1px 6px;border-radius:6px;background:rgba(34,197,94,0.3);color:#4ade80;font-weight:700">NEW!</span>' : '');
     document.getElementById('det-sci').textContent = sci;
-    document.getElementById('det-meta').textContent = (source === 'audio' ? '🎤 音声' : '📷 カメラ') + ' · ' + Math.round(conf * 100) + '%';
+    document.getElementById('det-meta').textContent = (isAudio ? '🎤 音声' : '📷 カメラ') + ' · ' + Math.round(conf * 100) + '%';
     b.style.display = '';
     clearTimeout(S._bannerTimer);
-    S._bannerTimer = setTimeout(function() { b.style.display = 'none'; }, 4000);
+    S._bannerTimer = setTimeout(function() { b.style.display = 'none'; }, isNew ? 5000 : 3000);
 }
 
 function updateSpeciesList() {
     var entries = Object.entries(S.speciesMap);
-    document.getElementById('species-empty').style.display = entries.length ? 'none' : '';
-    document.getElementById('species-list').innerHTML = entries.map(function(e) {
+    var hasAny = entries.length > 0;
+    document.getElementById('species-empty').style.display = hasAny ? 'none' : '';
+
+    var visual = entries.filter(function(e) { return e[1].source === 'visual'; });
+    var audio = entries.filter(function(e) { return e[1].source === 'audio'; });
+
+    // 最新検出順にソート
+    visual.sort(function(a, b) { return b[1].lastSeen - a[1].lastSeen; });
+    audio.sort(function(a, b) { return b[1].lastSeen - a[1].lastSeen; });
+
+    var now = Date.now();
+
+    function renderItem(e) {
         var name = e[0], d = e[1];
-        var icon = d.source === 'audio' ? '🐦' : '🌿';
-        var color = d.confidence >= 0.7 ? 'color:#4ade80' : 'color:#fbbf24';
-        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:rgba(255,255,255,0.05);border-radius:8px">'
-            + '<span>' + icon + '</span><span style="flex:1">' + name + '</span>'
+        var age = now - d.lastSeen;
+        var isRecent = age < 30000; // 30秒以内
+        var confColor = d.confidence >= 0.7 ? 'color:#4ade80' : 'color:#fbbf24';
+        var bg = isRecent ? 'background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3)' : 'background:rgba(255,255,255,0.05)';
+        var badge = isRecent ? '<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(34,197,94,0.3);color:#4ade80;font-weight:700;margin-left:4px">NOW</span>' : '';
+        var timeStr = age < 60000 ? 'たった今' : Math.floor(age / 60000) + '分前';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-radius:8px;' + bg + '">'
+            + '<span style="flex:1;display:flex;align-items:center;gap:4px">' + name + badge + '</span>'
+            + '<span style="font-size:10px;color:#666">' + timeStr + '</span>'
             + '<span style="font-size:11px;color:#888">×' + d.count + '</span>'
-            + '<span style="font-size:11px;' + color + '">' + Math.round(d.confidence * 100) + '%</span></div>';
-    }).join('');
+            + '<span style="font-size:11px;' + confColor + '">' + Math.round(d.confidence * 100) + '%</span></div>';
+    }
+
+    // カメラセクション
+    document.getElementById('visual-section').style.display = visual.length ? '' : 'none';
+    document.getElementById('visual-count').textContent = visual.length + '種';
+    document.getElementById('visual-list').innerHTML = visual.map(renderItem).join('');
+
+    // 音声セクション
+    document.getElementById('audio-section').style.display = audio.length ? '' : 'none';
+    document.getElementById('audio-sp-count').textContent = audio.length + '種';
+    document.getElementById('audio-list').innerHTML = audio.map(renderItem).join('');
+
+    // セッションサマリー更新
+    if (hasAny) {
+        document.getElementById('session-summary').style.display = '';
+        document.getElementById('sum-species').textContent = entries.length;
+        document.getElementById('sum-visual').textContent = visual.length;
+        document.getElementById('sum-audio').textContent = audio.length;
+    }
 }
 
 function setSensor(id, on) {
@@ -615,6 +753,7 @@ async function envScan() {
         c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
 
         var blob = await new Promise(function(r) { c.toBlob(r, 'image/jpeg', 0.6); });
+        updateDataUsage(blob.size);
         var fd = new FormData();
         fd.append('photo', blob, 'env.jpg');
         var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
@@ -622,7 +761,9 @@ async function envScan() {
 
         var resp = await fetch('/api/v2/env_scan.php', {method:'POST', body:fd});
         if (!resp.ok) return;
-        var json = await resp.json();
+        var respText = await resp.text();
+        updateDataUsage(respText.length);
+        var json = JSON.parse(respText);
         if (json.success && json.data && json.data.environment) {
             var env = json.data.environment;
             S.envHistory.unshift(env);
