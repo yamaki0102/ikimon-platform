@@ -16,7 +16,7 @@
  */
 
 require_once __DIR__ . '/bootstrap.php';
-require_once ROOT_DIR . 'libs/Auth.php';
+require_once ROOT_DIR . '/libs/Auth.php';
 
 // --- Method check ---
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -126,7 +126,7 @@ if (!empty($result['detections'])) {
     if ($audioPath) {
         $result['audio_evidence_path'] = $audioPath;
         // SHA-256 ハッシュ（100年耐久: データ完全性検証用）
-        $fullPath = PUBLIC_DIR . $audioPath;
+        $fullPath = PUBLIC_DIR . '/' . $audioPath;
         if (file_exists($fullPath)) {
             $result['audio_hash'] = hash_file('sha256', $fullPath);
         }
@@ -147,7 +147,7 @@ api_success($result);
 function _saveAudioEvidence(array $file, string $mime): ?string
 {
     $yearMonth = date('Y-m');
-    $dir = PUBLIC_DIR . "uploads/audio/{$yearMonth}";
+    $dir = PUBLIC_DIR . "/uploads/audio/{$yearMonth}";
     if (!is_dir($dir)) {
         mkdir($dir, 0755, true);
     }

@@ -15,10 +15,10 @@
  */
 
 require_once __DIR__ . '/bootstrap.php';
-require_once ROOT_DIR . 'libs/Auth.php';
-require_once ROOT_DIR . 'libs/TrustLevel.php';
-require_once ROOT_DIR . 'libs/CanonicalStore.php';
-require_once ROOT_DIR . 'libs/EvidenceTierPromoter.php';
+require_once ROOT_DIR . '/libs/Auth.php';
+require_once ROOT_DIR . '/libs/TrustLevel.php';
+require_once ROOT_DIR . '/libs/CanonicalStore.php';
+require_once ROOT_DIR . '/libs/EvidenceTierPromoter.php';
 
 // --- Method check ---
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
