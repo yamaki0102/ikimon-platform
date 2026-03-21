@@ -28,17 +28,51 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
     <?php include __DIR__ . '/components/nav.php'; ?>
     <div class="max-w-lg mx-auto px-4 py-8 space-y-6" style="padding-top:calc(var(--nav-height,56px) + 2rem)">
         <div class="text-center">
-            <div class="text-6xl mb-4">🌍</div>
+            <div class="text-5xl mb-3">🌍</div>
             <h1 class="text-2xl font-black">ライブスキャン</h1>
-            <p class="text-gray-500 mt-2">歩くだけで周囲の生き物を自動検出。</p>
+            <p class="text-gray-400 mt-1 text-sm">移動しながら周囲の生き物を自動検出</p>
         </div>
+
+        <!-- モード選択 -->
+        <div class="grid grid-cols-3 gap-2" id="mode-selector">
+            <button class="scan-mode-btn active" data-mode="walk" style="background:rgba(16,185,129,0.15);border:2px solid #10b981;border-radius:16px;padding:16px 8px;text-align:center">
+                <div style="font-size:28px">🚶</div>
+                <div style="font-size:12px;font-weight:bold;color:#10b981;margin-top:4px">徒歩</div>
+                <div style="font-size:10px;color:#888;margin-top:2px">📷🎤📍</div>
+            </button>
+            <button class="scan-mode-btn" data-mode="bike" style="background:rgba(255,255,255,0.05);border:2px solid transparent;border-radius:16px;padding:16px 8px;text-align:center">
+                <div style="font-size:28px">🚲</div>
+                <div style="font-size:12px;font-weight:bold;color:#888;margin-top:4px">自転車</div>
+                <div style="font-size:10px;color:#666;margin-top:2px">📷🎤📍</div>
+            </button>
+            <button class="scan-mode-btn" data-mode="car" style="background:rgba(255,255,255,0.05);border:2px solid transparent;border-radius:16px;padding:16px 8px;text-align:center">
+                <div style="font-size:28px">🚗</div>
+                <div style="font-size:12px;font-weight:bold;color:#888;margin-top:4px">車</div>
+                <div style="font-size:10px;color:#666;margin-top:2px">📷📍</div>
+            </button>
+        </div>
+
         <button id="btn-start" class="w-full py-5 bg-green-600 hover:bg-green-700 rounded-2xl text-lg font-bold active:scale-95 transition">
-            📡 ライブスキャン開始
+            📡 スキャン開始
         </button>
+
+        <!-- モード別の説明 -->
         <div class="bg-white/5 rounded-xl p-4 space-y-2 text-xs text-gray-400">
-            <div class="flex items-start gap-2"><span class="text-green-400">🎤</span><span><strong class="text-white">BirdNET AI（6,522種）</strong>が鳥の声を自動判定</span></div>
-            <div class="flex items-start gap-2"><span class="text-blue-400">📷</span><span>カメラ映像から植物・昆虫を <strong class="text-white">Gemini AI</strong> が2秒ごとに種同定</span></div>
-            <div class="flex items-start gap-2"><span class="text-purple-400">📍</span><span>GPS座標を紐づけ。地球規模のデジタルツインに蓄積</span></div>
+            <div id="mode-desc-walk">
+                <div class="flex items-start gap-2"><span class="text-green-400">🎤</span><span>鳥の声をBirdNET AIが自動判定</span></div>
+                <div class="flex items-start gap-2"><span class="text-blue-400">📷</span><span>カメラで植物・昆虫をGemini AIが種同定（2秒間隔）</span></div>
+                <div class="flex items-start gap-2"><span class="text-purple-400">📸</span><span><strong class="text-white">撮影ボタンで即座に観察投稿</strong>も可能</span></div>
+            </div>
+            <div id="mode-desc-bike" style="display:none">
+                <div class="flex items-start gap-2"><span class="text-green-400">🎤</span><span>走行中も鳥の声をBirdNET AIが判定</span></div>
+                <div class="flex items-start gap-2"><span class="text-blue-400">📷</span><span>カメラで風景の生物を3秒間隔で種同定</span></div>
+                <div class="flex items-start gap-2"><span class="text-amber-400">⚡</span><span>速度に応じてキャプチャ間隔を自動調整</span></div>
+            </div>
+            <div id="mode-desc-car" style="display:none">
+                <div class="flex items-start gap-2"><span class="text-blue-400">📷</span><span>車窓からカメラで植生を自動検出（5秒間隔）</span></div>
+                <div class="flex items-start gap-2"><span class="text-red-400">🔇</span><span>音声OFF — 車内ノイズ・ラジオの誤検出を防止</span></div>
+                <div class="flex items-start gap-2"><span class="text-purple-400">📍</span><span>GPSルート沿いの植生トランセクトデータを蓄積</span></div>
+            </div>
         </div>
     </div>
 </div>
@@ -78,6 +112,14 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
         📷 <span id="frame-count">0</span>回 · 🎤 <span id="audio-count">0</span>回
     </div>
 
+    <!-- 撮影ボタン（徒歩モード時のみ） -->
+    <div id="capture-btn-wrap" style="display:none;position:absolute;bottom:46%;left:50%;transform:translateX(-50%);z-index:10">
+        <button id="btn-capture" style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.9);border:4px solid #fff;box-shadow:0 4px 20px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:24px;transition:transform 0.1s" onclick="this.style.transform='scale(0.9)';setTimeout(()=>this.style.transform='',100)">
+            📸
+        </button>
+        <div style="text-align:center;font-size:10px;color:#ccc;margin-top:4px">タップで投稿</div>
+    </div>
+
     <!-- 検出バナー -->
     <div id="det-banner" style="display:none;position:absolute;bottom:46%;left:50%;transform:translateX(-50%);z-index:10;background:rgba(0,0,0,0.7);backdrop-filter:blur(12px);border-radius:16px;padding:12px 20px;text-align:center;max-width:80%">
         <div id="det-name" style="font-size:18px;font-weight:900"></div>
@@ -109,8 +151,9 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
 <script nonce="<?= CspNonce::attr() ?>">
 var S = {
     active: false, startTime: null, timerInt: null,
+    mode: 'walk', // walk | bike | car
     stream: null, captureInt: null, envInt: null, watchId: null, envHistory: [],
-    frameScanCount: 0, audioScanCount: 0,
+    frameScanCount: 0, audioScanCount: 0, capturedPhotos: [],
     routePoints: [], speciesMap: {}, totalDet: 0, audioDet: 0, visualDet: 0,
     minimap: null, posMarker: null,
     recorder: null, recTimer: null, analyzing: false, chunks: [], mime: '',
@@ -156,19 +199,28 @@ async function startScan() {
         setSensor('cam', true);
         setSensor('mic', true);
 
-        // Wi-Fi判定 → 画像品質を調整
         var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
         S.isWifi = !conn || conn.type === 'wifi' || conn.type === 'ethernet';
 
-        // 映像スキャンは常に2秒間隔（Wi-Fiなら高画質、モバイルなら低画質）
-        S.captureInt = setInterval(captureFrame, 2000);
+        // モード別キャプチャ間隔
+        var captureMs = S.mode === 'car' ? 5000 : S.mode === 'bike' ? 3000 : 2000;
+        S.captureInt = setInterval(captureFrame, captureMs);
         S.envInt = setInterval(envScan, S.isWifi ? 10000 : 30000);
         setTimeout(envScan, 3000);
-        dbg(S.isWifi ? '5. Wi-Fi → 高画質' : '5. モバイル → 低画質モード');
+        dbg('5. ' + S.mode + ' 映像 ' + (captureMs/1000) + '秒間隔');
 
-        // 音声は常にON（BirdNET on VPS = 低通信量）
-        setupAudioRecorder();
-        dbg('6. 音声レコーダー開始');
+        // 音声: 車モードはOFF（ノイズ・ラジオ誤検出防止）
+        if (S.mode !== 'car') {
+            setupAudioRecorder();
+            dbg('6. 音声ON');
+        } else {
+            dbg('6. 音声OFF（車モード）');
+        }
+
+        // 撮影ボタン: 徒歩モードのみ表示
+        if (S.mode === 'walk') {
+            document.getElementById('capture-btn-wrap').style.display = '';
+        }
     } catch(e) {
         dbg('ERR カメラ/音声: ' + e.message);
     }
@@ -541,6 +593,74 @@ document.querySelectorAll('.tab-btn').forEach(function(btn) {
         document.getElementById('tab-env').style.display = tab === 'env' ? '' : 'none';
     });
 });
+
+// ===== Mode selection =====
+document.querySelectorAll('.scan-mode-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        S.mode = this.getAttribute('data-mode');
+        document.querySelectorAll('.scan-mode-btn').forEach(function(b) {
+            b.style.background = 'rgba(255,255,255,0.05)';
+            b.style.borderColor = 'transparent';
+            b.querySelector('div:nth-child(2)').style.color = '#888';
+        });
+        this.style.background = 'rgba(16,185,129,0.15)';
+        this.style.borderColor = '#10b981';
+        this.querySelector('div:nth-child(2)').style.color = '#10b981';
+        // 説明文切替
+        document.getElementById('mode-desc-walk').style.display = S.mode === 'walk' ? '' : 'none';
+        document.getElementById('mode-desc-bike').style.display = S.mode === 'bike' ? '' : 'none';
+        document.getElementById('mode-desc-car').style.display = S.mode === 'car' ? '' : 'none';
+    });
+});
+
+// ===== Capture button (walk mode: take photo → observation post) =====
+document.getElementById('btn-capture').addEventListener('click', async function() {
+    try {
+        var v = document.getElementById('cam');
+        var c = document.getElementById('cap');
+        if (!v.videoWidth) return;
+        // フル解像度で撮影
+        c.width = v.videoWidth;
+        c.height = v.videoHeight;
+        c.getContext('2d').drawImage(v, 0, 0);
+
+        var blob = await new Promise(function(r) { c.toBlob(r, 'image/jpeg', 0.9); });
+        S.capturedPhotos.push(blob);
+
+        dbg('📸 撮影 #' + S.capturedPhotos.length);
+        if (navigator.vibrate) navigator.vibrate(50);
+
+        // 3枚溜まったら自動投稿、または1枚でも即送信
+        if (S.capturedPhotos.length >= 3) {
+            uploadCapturedPhotos();
+        } else {
+            // 5秒後に未送信分を送信
+            clearTimeout(S._uploadTimer);
+            S._uploadTimer = setTimeout(uploadCapturedPhotos, 5000);
+        }
+    } catch(e) { dbg('📸 ERR: ' + e.message); }
+});
+
+async function uploadCapturedPhotos() {
+    if (S.capturedPhotos.length === 0) return;
+    var photos = S.capturedPhotos.slice();
+    S.capturedPhotos = [];
+
+    var fd = new FormData();
+    photos.forEach(function(blob, i) {
+        fd.append('photos[]', blob, 'capture_' + i + '.jpg');
+    });
+
+    var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
+    if (last) { fd.append('lat', last.lat); fd.append('lng', last.lng); }
+    fd.append('source', 'live-scan-capture');
+
+    try {
+        var resp = await fetch('/api/v2/quick_post.php', {method: 'POST', body: fd});
+        var json = await resp.json();
+        dbg(json.success ? '📸 投稿完了!' : '📸 投稿失敗');
+    } catch(e) { dbg('📸 送信ERR'); }
+}
 
 // ===== Buttons =====
 document.getElementById('btn-start').addEventListener('click', startScan);
