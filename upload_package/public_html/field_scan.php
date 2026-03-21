@@ -162,15 +162,15 @@ if (!$currentUser) {
         <div class="text-center">
             <div class="text-6xl mb-4">🌍</div>
             <h1 class="text-2xl font-black">ライブスキャン</h1>
-            <p class="text-gray-500 mt-2">起動して歩くだけで、エリアの生態系3Dモデルが構築される</p>
+            <p class="text-gray-500 mt-2">カメラ＋音声で周囲の生き物を自動検出。歩くだけでデータが蓄積されます。</p>
         </div>
 
-        <!-- エリア選択 -->
+        <!-- エリア名（任意） -->
         <div>
-            <label class="text-sm text-gray-500 block mb-2">スキャンエリア</label>
-            <input type="text" x-model="areaName" placeholder="例: 武蔵野公園、自宅周辺..."
+            <label class="text-sm text-gray-500 block mb-2">エリア名（任意）</label>
+            <input type="text" x-model="areaName" placeholder="未入力でもOK — GPS座標から自動設定"
                    class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:border-green-500 focus:outline-none">
-            <p class="text-xs text-gray-600 mt-1">同じ名前で何度もスキャンすると、データが蓄積されていきます</p>
+            <p class="text-xs text-gray-600 mt-1">名前をつけると、同じ場所のデータが蓄積されていきます</p>
         </div>
 
         <!-- 起動ボタン -->
@@ -248,13 +248,14 @@ function fieldScan() {
         _minimap: null,
 
         async start() {
-            if (!this.areaName.trim()) {
-                alert('エリア名を入力してください');
-                return;
+            // エリア名は任意。未入力ならタイムスタンプIDを自動生成
+            if (this.areaName.trim()) {
+                this.areaId = this.areaName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '');
+                if (!this.areaId) this.areaId = 'scan_' + Date.now();
+            } else {
+                this.areaId = 'scan_' + Date.now();
+                this.areaName = new Date().toLocaleDateString('ja-JP') + ' のスキャン';
             }
-
-            this.areaId = this.areaName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '');
-            if (!this.areaId) this.areaId = 'area_' + Date.now();
 
             this.isActive = true;
             this.startTime = Date.now();
