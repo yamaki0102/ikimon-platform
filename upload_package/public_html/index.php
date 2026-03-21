@@ -22,7 +22,7 @@ $latest_obs = DataStore::getLatest('observations', 6, function ($item) use ($fil
     if (empty($userName)) return false;
 
     // 写真付き観察 OR 音声検出（ウォーク/スキャン）を許可
-    $isAudioDetection = in_array($item['observation_source'] ?? $item['source'] ?? '', ['walk', 'live-scan', 'passive']);
+    $isAudioDetection = in_array($item['observation_source'] ?? $item['source'] ?? '', ['walk', 'live-scan', 'passive', 'live-scan-summary']);
     if (!$isAudioDetection) {
         $photo = $item['photos'][0] ?? '';
         if (empty($photo) || strpos($photo, 'sample_') !== false) return false;
@@ -427,6 +427,33 @@ unset($allObs);
                                      class="w-full h-full object-cover pointer-events-none"
                                      loading="lazy" decoding="async"
                                      onload="this.parentElement.classList.remove('lazy-img')">
+                            <?php elseif (($obs['observation_source'] ?? '') === 'live-scan-summary'): ?>
+                                <?php
+                                    $ss = $obs['scan_summary'] ?? [];
+                                    $dur = $ss['duration_min'] ?? 0;
+                                    $spCount = $ss['species_count'] ?? 0;
+                                    $topSp = $ss['top_species'] ?? [];
+                                    $envDesc = $ss['environment']['description'] ?? '';
+                                ?>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-blue-900/90 to-purple-900/90 p-4">
+                                    <div class="text-4xl">📡</div>
+                                    <div class="text-white font-bold text-base">ライブスキャン <?= $dur ?>分間</div>
+                                    <div class="flex gap-3 text-sm">
+                                        <span class="px-2 py-0.5 bg-green-500/20 text-green-300 rounded-full"><?= $spCount ?>種</span>
+                                        <span class="px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded-full">🐦<?= $ss['audio_detections'] ?? 0 ?></span>
+                                        <span class="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">📷<?= $ss['visual_detections'] ?? 0 ?></span>
+                                    </div>
+                                    <?php if (!empty($topSp)): ?>
+                                    <div class="flex flex-wrap gap-1 justify-center">
+                                        <?php foreach (array_slice($topSp, 0, 4) as $sp): ?>
+                                        <span class="text-xs px-2 py-0.5 bg-white/10 text-gray-200 rounded-full"><?= htmlspecialchars($sp['name'] ?? '') ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if ($envDesc): ?>
+                                    <div class="text-xs text-gray-300 mt-1">🌳 <?= htmlspecialchars($envDesc) ?></div>
+                                    <?php endif; ?>
+                                </div>
                             <?php elseif (in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'live-scan', 'passive'])): ?>
                                 <?php
                                     $detType = $obs['detection_type'] ?? 'audio';

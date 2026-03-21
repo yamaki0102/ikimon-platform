@@ -200,7 +200,13 @@ function stopScan() {
     if (S.minimap) { S.minimap.remove(); S.minimap = null; }
 
     var sp = Object.keys(S.speciesMap).length;
-    alert('ライブスキャン完了! ' + sp + '種検出、' + S.totalDet + '件記録');
+    var sec = Math.floor((Date.now() - S.startTime) / 1000);
+    var min = Math.floor(sec / 60);
+
+    // セッションサマリーをフィードに1件投稿
+    postScanSummary(sp, min);
+
+    alert('ライブスキャン完了! ' + sp + '種検出（' + min + '分間）');
     showScreen('ready');
 }
 
@@ -323,6 +329,35 @@ function addDetection(name, sci, conf, source) {
 
     // リアルタイムでサーバーに送信（デジタルツインに蓄積）
     sendDetectionToServer(name, sci, conf, source);
+}
+
+function postScanSummary(speciesCount, durationMin) {
+    if (speciesCount === 0 && S.routePoints.length === 0) return;
+
+    var speciesList = Object.entries(S.speciesMap).map(function(e) {
+        return { name: e[0], count: e[1].count, confidence: e[1].confidence, source: e[1].source };
+    });
+
+    var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
+    var envSummary = S.envHistory.length > 0 ? S.envHistory[0] : null;
+
+    fetch('/api/v2/scan_summary.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            type: 'live-scan-summary',
+            duration_min: durationMin,
+            species_count: speciesCount,
+            total_detections: S.totalDet,
+            audio_detections: S.audioDet,
+            visual_detections: S.visualDet,
+            gps_points: S.routePoints.length,
+            species: speciesList,
+            environment: envSummary,
+            lat: last ? last.lat : null,
+            lng: last ? last.lng : null,
+        })
+    }).catch(function() {});
 }
 
 function sendDetectionToServer(name, sci, conf, source) {
