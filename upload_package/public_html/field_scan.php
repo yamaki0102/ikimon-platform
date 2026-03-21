@@ -159,7 +159,7 @@ if (!$currentUser) {
 <div x-show="!isActive" class="min-h-screen">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
-    <div class="max-w-lg mx-auto px-4 py-8 space-y-6">
+    <div class="max-w-lg mx-auto px-4 py-8 space-y-6" style="padding-top: calc(var(--nav-height, 56px) + 2rem)">
         <div class="text-center">
             <div class="text-6xl mb-4">🌍</div>
             <h1 class="text-2xl font-black">フィールドスキャン</h1>
