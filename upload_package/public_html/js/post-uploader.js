@@ -6,7 +6,6 @@
 function uploader() {
     const config = window.__POST_CONFIG || {};
     return {
-        AiAssist: window.AiAssist,
         photos: [],
         observed_at: '',
         lat: '34.7108',
@@ -320,8 +319,6 @@ function uploader() {
                     };
                     this.photos.push(photo);
                     this.compressPhoto(photo);
-                    // AI Assist: 写真変更時にリセット
-                    if (window.AiAssist) AiAssist.reset();
                     // Analytics: 写真追加イベント
                     if (window.ikimonAnalytics) ikimonAnalytics.track('photo_added', {
                         count: this.photos.length
@@ -426,14 +423,6 @@ function uploader() {
 
             // NP: Send GPS coordinate accuracy for DwC coordinateUncertaintyInMeters
             if (this.gpsAccuracy !== null) formData.append('coordinate_accuracy', Math.round(this.gpsAccuracy));
-
-            // AI Assist: 提案データを記録に添付（精度評価ループ用）
-            if (window.AiAssist && AiAssist.asked && AiAssist.suggestions.length > 0) {
-                formData.append('ai_hint', JSON.stringify({
-                    suggestions: AiAssist.suggestions,
-                    processing_ms: AiAssist.processingMs
-                }));
-            }
 
             // Use compressed blob if available, else original
             for (let i = 0; i < this.photos.length; i++) {

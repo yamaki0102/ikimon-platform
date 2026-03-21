@@ -1,5 +1,5 @@
-const CACHE_NAME = 'ikimon-v12-shell';
-const PHOTO_CACHE = 'ikimon-v12-photos';
+const CACHE_NAME = 'ikimon-v13-shell';
+const PHOTO_CACHE = 'ikimon-v13-photos';
 const ASSETS_TO_CACHE = [
     './',
     'index.php',
@@ -15,7 +15,7 @@ const ASSETS_TO_CACHE = [
     'id_wizard.php',
     'site_dashboard.php',
     'offline.html',
-    'js/OfflineManager.js?v=2.2',
+    'js/OfflineManager.js?v=2.3',
     'js/ToastManager.js',
     'js/HapticEngine.js',
     'js/SoundManager.js',
