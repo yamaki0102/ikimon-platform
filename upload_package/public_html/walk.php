@@ -53,8 +53,8 @@ unset($allObs);
 
 <main class="max-w-lg mx-auto px-4 py-6" style="padding-top: calc(var(--nav-height, 56px) + 1.5rem)">
 
-    <!-- 開始前の情報パネル -->
-    <div x-show="!isWalking && !showSummary" class="space-y-5">
+    <!-- 開始前の情報パネル（デフォルト表示、ウォーク開始で非表示） -->
+    <div :class="(isWalking || showSummary) && 'hidden'" class="space-y-5">
 
         <!-- ヘッダー -->
         <div class="text-center">
@@ -263,17 +263,23 @@ function walkMode() {
         weather: null,
 
         init() {
-            // ページ読み込み時に位置情報→天気を取得
-            this._fetchWeather();
+            // ページ読み込み時に位置情報→天気を取得（エラーでも画面は壊さない）
+            try { this._fetchWeather(); } catch(e) { console.warn('Weather init error:', e); }
         },
 
         async _fetchWeather() {
+            if (!navigator.geolocation) return;
+            let pos;
             try {
-                const pos = await new Promise((resolve, reject) => {
+                pos = await new Promise((resolve, reject) => {
                     navigator.geolocation.getCurrentPosition(resolve, reject, {
                         enableHighAccuracy: false, timeout: 10000
                     });
                 });
+            } catch(e) {
+                console.warn('Geolocation denied or timed out:', e);
+                return;
+            }
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
 
