@@ -13,7 +13,7 @@ $currentUser = Auth::user();
 // Fetch Data for Feed with Filters
 $filter = $_GET['filter'] ?? 'all';
 $followedUserIds = ($currentUser && $filter === 'following') ? FollowManager::getFollowedUserIds($currentUser['id']) : [];
-$latest_obs = DataStore::getLatest('observations', 6, function ($item) use ($filter, $currentUser, $followedUserIds) {
+$latest_obs = DataStore::getLatest('observations', 30, function ($item) use ($filter, $currentUser, $followedUserIds) {
     // Exclude test/E2E users, guest users
     $userName = $item['user_name'] ?? '';
     if (strpos($userName, 'E2E_') === 0) return false;
@@ -40,6 +40,11 @@ $latest_obs = DataStore::getLatest('observations', 6, function ($item) use ($fil
     }
     return true;
 });
+usort($latest_obs, function ($a, $b) {
+    return strtotime($b['created_at'] ?? $b['observed_at'] ?? '0')
+         - strtotime($a['created_at'] ?? $a['observed_at'] ?? '0');
+});
+$latest_obs = array_slice($latest_obs, 0, 6);
 
 // Stats for hero
 $allObs = DataStore::fetchAll('observations');
