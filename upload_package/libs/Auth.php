@@ -60,6 +60,19 @@ class Auth
                 self::restoreFromRememberToken();
             }
 
+            // Refresh user data from DB every 5 minutes to pick up name/avatar changes
+            if (isset($_SESSION['user']) && isset($_SESSION['user']['id'])) {
+                $lastRefresh = $_SESSION['user_refreshed_at'] ?? 0;
+                if (time() - $lastRefresh > 300) {
+                    $fresh = self::getFreshUserData($_SESSION['user']['id']);
+                    if ($fresh && empty($fresh['banned'])) {
+                        unset($fresh['password_hash']);
+                        $_SESSION['user'] = $fresh;
+                    }
+                    $_SESSION['user_refreshed_at'] = time();
+                }
+            }
+
             // Ensure CSRF cookie exists for all pages
             if (empty($_COOKIE['ikimon_csrf'])) {
                 require_once __DIR__ . '/CSRF.php';
