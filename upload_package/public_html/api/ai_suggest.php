@@ -131,6 +131,21 @@ if ($result === false) {
     exit;
 }
 
+// Apply Identifiability filter (Phase 16)
+$identifiabilityWarnings = [];
+try {
+    require_once __DIR__ . '/../../libs/IdentifiabilityScorer.php';
+    $filteredSuggestions = IdentifiabilityScorer::filterSuggestions($result['suggestions']);
+    foreach ($filteredSuggestions as $s) {
+        if (!empty($s['identifiability_warning'])) {
+            $identifiabilityWarnings[] = $s['identifiability_warning'];
+        }
+    }
+    $result['suggestions'] = $filteredSuggestions;
+} catch (\Throwable $e) {
+    error_log("[ai_suggest] IdentifiabilityScorer failed: " . substr($e->getMessage(), 0, 80));
+}
+
 // Cross-validate with Omoikane knowledge graph (non-fatal)
 $enrichedSuggestions = $result['suggestions'];
 $omoikaneMeta = [
@@ -188,10 +203,14 @@ echo json_encode([
     'success' => true,
     'suggestions' => $enrichedSuggestions,
     'environment' => $result['environment'] ?? [],
+    'annotations' => $result['annotations'] ?? [],
+    'comparison_note' => $result['comparison_note'] ?? null,
+    'identifiability_warnings' => $identifiabilityWarnings,
     'meta' => [
         'model' => 'gemini-3.1-flash-lite-preview',
         'processing_ms' => $processingMs,
         'omoikane' => $omoikaneMeta,
+        'phase' => 16,
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 
@@ -286,8 +305,18 @@ function callGeminiFlash(array $resizedPhotos): array|false
 - life_stage: "adult"(成体/成虫), "juvenile"(幼体/幼虫), "egg"(卵・種子), "trace"(痕跡・足跡) のいずれか。判断できなければ "unknown"。
 - substrate_tags: 地面の状態の配列。次から該当するものを選択: "rock"(岩場), "sand"(砂地), "gravel"(砂利), "grass"(草地), "leaf_litter"(落ち葉), "deadwood"(倒木・朽木), "water"(水辺), "artificial"(人工物)。該当なしなら空配列。
 
+## アノテーション（annotations）
+写真から判別できる生物学的アノテーションを推定してください:
+- life_stage_detail: "adult"(成虫/成体), "larva"(幼虫/幼体), "pupa"(蛹), "egg"(卵/卵嚢), "nymph"(若虫), "unknown" のいずれか
+- phenology: 植物のみ。"flowering"(開花), "fruiting"(結実), "budding"(蕾/発芽), "senescing"(落葉/紅葉), "dormant"(休眠), "none"(該当なし) のいずれか。動物なら "none"
+- sex: "male"(オス), "female"(メス), "unknown" のいずれか
+- behavior: 観察できる行動。"feeding"(採餌), "nesting"(営巣), "mating"(交尾), "flying"(飛翔), "resting"(静止), "singing"(鳴き声), "none"(特になし) のいずれか
+
+## 類似種比較（comparison_note）
+候補が2つ以上ある場合、最も可能性の高い候補と2番目の候補について、見分けのポイントを1行（40文字以内）で記述してください。候補が1つしかない場合はnull。
+
 ## 出力形式（JSON のみ）
-{"suggestions": [{"label": "...", "emoji": "...", "confidence": "...", "reason": "...", "examples": "..."}], "environment": {"biome": "...", "cultivation": "...", "life_stage": "...", "substrate_tags": [...]}}
+{"suggestions": [{"label": "...", "emoji": "...", "confidence": "...", "reason": "...", "examples": "..."}], "environment": {"biome": "...", "cultivation": "...", "life_stage": "...", "substrate_tags": [...]}, "annotations": {"life_stage_detail": "...", "phenology": "...", "sex": "...", "behavior": "..."}, "comparison_note": "..."}
 
 JSONのみ出力し、説明文やマークダウンは含めないでください。
 PROMPT;
@@ -392,5 +421,30 @@ PROMPT;
         'substrate_tags' => array_values(array_intersect($env['substrate_tags'] ?? [], $validSubstrates)),
     ];
 
-    return ['suggestions' => $suggestions, 'environment' => $environment];
+    // Validate and sanitize annotations (Phase 16)
+    $ann = $parsed['annotations'] ?? [];
+    $validLifeStageDetail = ['adult', 'larva', 'pupa', 'egg', 'nymph', 'unknown'];
+    $validPhenology = ['flowering', 'fruiting', 'budding', 'senescing', 'dormant', 'none'];
+    $validSex = ['male', 'female', 'unknown'];
+    $validBehavior = ['feeding', 'nesting', 'mating', 'flying', 'resting', 'singing', 'none'];
+
+    $annotations = [
+        'life_stage_detail' => in_array($ann['life_stage_detail'] ?? '', $validLifeStageDetail, true) ? $ann['life_stage_detail'] : 'unknown',
+        'phenology' => in_array($ann['phenology'] ?? '', $validPhenology, true) ? $ann['phenology'] : 'none',
+        'sex' => in_array($ann['sex'] ?? '', $validSex, true) ? $ann['sex'] : 'unknown',
+        'behavior' => in_array($ann['behavior'] ?? '', $validBehavior, true) ? $ann['behavior'] : 'none',
+    ];
+
+    // Comparison note (Phase 16)
+    $comparisonNote = null;
+    if (!empty($parsed['comparison_note']) && is_string($parsed['comparison_note'])) {
+        $comparisonNote = mb_substr(strip_tags($parsed['comparison_note']), 0, 60);
+    }
+
+    return [
+        'suggestions' => $suggestions,
+        'environment' => $environment,
+        'annotations' => $annotations,
+        'comparison_note' => $comparisonNote,
+    ];
 }

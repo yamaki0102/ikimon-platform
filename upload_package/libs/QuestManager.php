@@ -169,8 +169,11 @@ class QuestManager
 
     private static array $QUEST_TYPES = [
         'redlist'          => ['score' => 100, 'reward' => 300, 'rarity_label' => '極めて貴重',    'cta' => '記録を残す',    'icon' => 'alert-triangle'],
+        'rare_find'        => ['score' => 90,  'reward' => 280, 'rarity_label' => 'レアファインド', 'cta' => '珍しい記録を残す', 'icon' => 'sparkles'],
         'area_first'       => ['score' => 80,  'reward' => 250, 'rarity_label' => '地域初記録',    'cta' => '初記録に挑戦',  'icon' => 'map-pin'],
+        'multi_evidence'   => ['score' => 75,  'reward' => 220, 'rarity_label' => '多角的証拠',    'cta' => '写真+音声で記録', 'icon' => 'layers'],
         'id_challenge'     => ['score' => 70,  'reward' => 200, 'rarity_label' => '同定チャレンジ', 'cta' => '同定に挑戦',   'icon' => 'microscope'],
+        'phenology_watch'  => ['score' => 60,  'reward' => 180, 'rarity_label' => '季節ウォッチャー', 'cta' => '季節を記録',  'icon' => 'calendar'],
         'evidence_upgrade' => ['score' => 50,  'reward' => 150, 'rarity_label' => '証拠強化',      'cta' => '証拠を追加',   'icon' => 'shield-check'],
         'new_species'      => ['score' => 40,  'reward' => 150, 'rarity_label' => '初記録種',      'cta' => '図鑑に追加',   'icon' => 'book-open'],
         'photo_needed'     => ['score' => 30,  'reward' => 100, 'rarity_label' => '写真募集',      'cta' => '写真で記録',   'icon' => 'camera'],
@@ -511,5 +514,333 @@ class QuestManager
             if ($key) $set[$key] = true;
         }
         return $set;
+    }
+
+    // ── Phase 16: 新クエストトリガー ──
+
+    /**
+     * 分布異常検出と連動した rare_find クエスト生成
+     */
+    public static function checkRareFindTrigger(string $userId, array $observation): ?array
+    {
+        if (!file_exists(ROOT_DIR . '/libs/DistributionAnalyzer.php')) return null;
+        require_once ROOT_DIR . '/libs/DistributionAnalyzer.php';
+
+        $result = DistributionAnalyzer::analyzeObservation($observation);
+        if ($result === null) return null;
+
+        $name = $observation['taxon']['name'] ?? $observation['taxon_name'] ?? '';
+        $type = self::$QUEST_TYPES['rare_find'];
+        $now = date('c');
+
+        return [
+            'id' => 'sq_' . bin2hex(random_bytes(6)),
+            'type' => 'scan_followup',
+            'species_name' => $name,
+            'trigger' => 'rare_find',
+            'priority_score' => $type['score'],
+            'title' => "{$name} — {$result['area_name']}で珍しい発見！",
+            'description' => $result['message'],
+            'reward' => $type['reward'],
+            'rarity_label' => $result['rarity_level'] === 'area_first' ? '地域初記録' : 'レアファインド',
+            'cta_text' => $type['cta'],
+            'icon' => $type['icon'],
+            'distribution_data' => $result,
+            'created_at' => $now,
+            'expires_at' => date('c', time() + self::SCAN_QUEST_TTL),
+            'completed_at' => null,
+        ];
+    }
+
+    /**
+     * アノテーション付き投稿と連動した phenology_watch クエスト
+     */
+    public static function checkPhenologyTrigger(string $userId, array $observation): ?array
+    {
+        $annotations = $observation['annotations'] ?? [];
+        $phenology = $annotations['phenology'] ?? 'none';
+        if ($phenology === 'none' || $phenology === 'unknown') return null;
+
+        $phenologyLabels = [
+            'flowering' => '開花', 'fruiting' => '結実',
+            'budding' => '発芽', 'senescing' => '紅葉/落葉',
+        ];
+        $label = $phenologyLabels[$phenology] ?? $phenology;
+        $type = self::$QUEST_TYPES['phenology_watch'];
+        $now = date('c');
+
+        $todayAnnotated = self::countTodayAnnotatedObs($userId);
+        if ($todayAnnotated >= 3) return null;
+
+        return [
+            'id' => 'sq_' . bin2hex(random_bytes(6)),
+            'type' => 'scan_followup',
+            'trigger' => 'phenology_watch',
+            'priority_score' => $type['score'],
+            'title' => "季節ウォッチャー: {$label}を記録中",
+            'description' => "今日{$label}の状態を3種記録しよう。フェノロジーデータは気候変動研究に直結します",
+            'progress_hint' => "{$todayAnnotated}/3 種記録済み",
+            'reward' => $type['reward'],
+            'rarity_label' => $type['rarity_label'],
+            'cta_text' => $type['cta'],
+            'icon' => $type['icon'],
+            'target_count' => 3,
+            'current_count' => $todayAnnotated,
+            'created_at' => $now,
+            'expires_at' => date('c', strtotime('tomorrow')),
+            'completed_at' => $todayAnnotated >= 2 ? $now : null,
+        ];
+    }
+
+    private static function countTodayAnnotatedObs(string $userId): int
+    {
+        $today = date('Y-m-d');
+        $obs = DataStore::getLatest('observations', 100, function ($item) use ($userId, $today) {
+            return ($item['user_id'] ?? '') === $userId
+                && strpos($item['created_at'] ?? '', $today) === 0
+                && !empty($item['annotations'])
+                && ($item['annotations']['phenology'] ?? 'none') !== 'none';
+        });
+        return count($obs);
+    }
+
+    // ── Phase 16: クエストチェーン ──
+
+    const CHAIN_DIR = DATA_DIR . '/quest_chains';
+
+    /**
+     * アクティブなチェーンクエストを取得
+     */
+    public static function getUserChains(string $userId): array
+    {
+        $file = self::CHAIN_DIR . '/' . $userId . '.json';
+        if (!file_exists($file)) return [];
+        $data = json_decode(file_get_contents($file), true);
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * チェーンの進捗を更新
+     */
+    public static function advanceChain(string $userId, string $chainId): ?array
+    {
+        $chains = self::getUserChains($userId);
+        foreach ($chains as &$chain) {
+            if (($chain['id'] ?? '') !== $chainId) continue;
+            $steps = $chain['steps'] ?? [];
+            $currentStep = (int)($chain['current_step'] ?? 0);
+
+            if ($currentStep >= count($steps)) continue;
+
+            $chain['current_step'] = $currentStep + 1;
+            if ($chain['current_step'] >= count($steps)) {
+                $chain['completed_at'] = date('c');
+            }
+
+            if (!is_dir(self::CHAIN_DIR)) mkdir(self::CHAIN_DIR, 0755, true);
+            file_put_contents(self::CHAIN_DIR . '/' . $userId . '.json',
+                json_encode($chains, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+            return $chain;
+        }
+        return null;
+    }
+
+    /**
+     * 初期チェーンクエストを生成（季節ベース）
+     */
+    public static function generateSeasonalChains(string $userId): array
+    {
+        $existing = self::getUserChains($userId);
+        $activeIds = array_column($existing, 'id');
+
+        $month = (int)date('n');
+        $chains = [];
+
+        if ($month >= 3 && $month <= 5) {
+            $chainId = 'chain_spring_birds_' . date('Y');
+            if (!in_array($chainId, $activeIds, true)) {
+                $chains[] = [
+                    'id' => $chainId,
+                    'title' => '春の渡り鳥チェーン',
+                    'description' => '春の渡り鳥を段階的に記録しよう',
+                    'icon' => 'bird',
+                    'steps' => [
+                        ['title' => '渡り鳥を1種発見', 'target_count' => 1, 'completed' => false],
+                        ['title' => '渡り鳥を3種発見', 'target_count' => 3, 'completed' => false],
+                        ['title' => '渡り鳥5種+音声証拠', 'target_count' => 5, 'completed' => false],
+                    ],
+                    'current_step' => 0,
+                    'reward_badge' => 'spring_migration_master',
+                    'created_at' => date('c'),
+                    'expires_at' => date('c', mktime(0, 0, 0, 6, 1)),
+                    'completed_at' => null,
+                ];
+            }
+        }
+
+        if ($month >= 4 && $month <= 10) {
+            $chainId = 'chain_insect_diversity_' . date('Y');
+            if (!in_array($chainId, $activeIds, true)) {
+                $chains[] = [
+                    'id' => $chainId,
+                    'title' => '昆虫多様性チェーン',
+                    'description' => '異なる目の昆虫を記録しよう',
+                    'icon' => 'bug',
+                    'steps' => [
+                        ['title' => '昆虫を3目記録', 'target_count' => 3, 'completed' => false],
+                        ['title' => '昆虫を5目記録', 'target_count' => 5, 'completed' => false],
+                        ['title' => '昆虫7目+幼虫1種', 'target_count' => 7, 'completed' => false],
+                    ],
+                    'current_step' => 0,
+                    'reward_badge' => 'insect_diversity_master',
+                    'created_at' => date('c'),
+                    'expires_at' => date('c', mktime(0, 0, 0, 11, 1)),
+                    'completed_at' => null,
+                ];
+            }
+        }
+
+        if ($month >= 3 && $month <= 5 || $month >= 9 && $month <= 11) {
+            $chainId = 'chain_phenology_' . date('Y') . '_' . ($month <= 5 ? 'spring' : 'autumn');
+            if (!in_array($chainId, $activeIds, true)) {
+                $season = $month <= 5 ? '春' : '秋';
+                $chains[] = [
+                    'id' => $chainId,
+                    'title' => "{$season}のフェノロジーチェーン",
+                    'description' => '季節の変化を記録しよう',
+                    'icon' => 'calendar',
+                    'steps' => [
+                        ['title' => "アノテーション付き投稿を3件", 'target_count' => 3, 'completed' => false],
+                        ['title' => "異なる種で5件のアノテーション", 'target_count' => 5, 'completed' => false],
+                        ['title' => "3つの異なるフェノロジー状態を記録", 'target_count' => 3, 'completed' => false],
+                    ],
+                    'current_step' => 0,
+                    'reward_badge' => 'phenology_observer',
+                    'created_at' => date('c'),
+                    'expires_at' => date('c', strtotime('+2 months')),
+                    'completed_at' => null,
+                ];
+            }
+        }
+
+        if (!empty($chains)) {
+            $all = array_merge($existing, $chains);
+            if (!is_dir(self::CHAIN_DIR)) mkdir(self::CHAIN_DIR, 0755, true);
+            file_put_contents(self::CHAIN_DIR . '/' . $userId . '.json',
+                json_encode($all, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        }
+
+        return $chains;
+    }
+
+    // ── Phase 16: AI パーソナルクエスト生成 ──
+
+    /**
+     * GPT-5.4 nano でユーザー個別の今日のクエストを生成
+     */
+    public static function generatePersonalQuest(string $userId, float $lat, float $lng): ?array
+    {
+        $cacheFile = 'personal_quests/' . $userId . '_' . date('Y-m-d');
+        $cached = DataStore::get($cacheFile);
+        if ($cached && is_array($cached)) return $cached;
+
+        if (!file_exists(ROOT_DIR . '/libs/OpenAiClient.php')) return null;
+        require_once ROOT_DIR . '/libs/OpenAiClient.php';
+        if (!OpenAiClient::isConfigured()) return null;
+
+        require_once ROOT_DIR . '/libs/SpeciesRecommender.php';
+        $recommendations = SpeciesRecommender::recommend($lat, $lng, $userId);
+
+        $lifeList = self::collectUserSpecies($userId, '9999-99-99');
+        $speciesCount = count($lifeList);
+
+        $taxonGroups = [];
+        foreach ($lifeList as $name => $_) {
+            $taxonGroups[] = $name;
+        }
+        $recentGroups = array_slice($taxonGroups, -10);
+
+        $recNames = array_map(fn($r) => $r['species_name'], $recommendations);
+        $month = (int)date('n');
+        $seasonLabel = match(true) {
+            $month >= 3 && $month <= 5 => '春',
+            $month >= 6 && $month <= 8 => '夏',
+            $month >= 9 && $month <= 11 => '秋',
+            default => '冬',
+        };
+
+        $recentLabel = $recentGroups[0] ?? '不明';
+        $rec1 = $recNames[0] ?? '不明';
+        $rec2 = $recNames[1] ?? '不明';
+        $rec3 = $recNames[2] ?? '不明';
+
+        $systemPrompt = <<<PROMPT
+あなたは生物多様性プラットフォーム「ikimon」のクエストデザイナーです。
+ユーザーの観察履歴と周辺環境から、今日の最適なチャレンジを1つ生成してください。
+科学的価値のある行動を促し、発見の喜びを感じさせる文章にしてください。
+出力はJSON形式のみ。
+PROMPT;
+
+        $userMessage = <<<MSG
+ユーザー情報:
+- 記録種数: {$speciesCount}種
+- 最近の記録: {$recentLabel}など
+- 現在の季節: {$seasonLabel}（{$month}月）
+- 近くで見つかりそうな未記録種: {$rec1}, {$rec2}, {$rec3}
+
+以下のJSON形式で1つのクエストを生成:
+{"quest_type": "explore|photograph|identify|phenology", "target_description": "具体的な目標(30文字以内)", "motivation_text": "やる気が出る一言(40文字以内)", "difficulty": "easy|medium|hard", "scientific_value": "データの科学的価値(20文字以内)"}
+MSG;
+
+        $schema = [
+            'name' => 'personal_quest',
+            'schema' => [
+                'type' => 'object',
+                'properties' => [
+                    'quest_type' => ['type' => 'string', 'enum' => ['explore', 'photograph', 'identify', 'phenology']],
+                    'target_description' => ['type' => 'string'],
+                    'motivation_text' => ['type' => 'string'],
+                    'difficulty' => ['type' => 'string', 'enum' => ['easy', 'medium', 'hard']],
+                    'scientific_value' => ['type' => 'string'],
+                ],
+                'required' => ['quest_type', 'target_description', 'motivation_text', 'difficulty', 'scientific_value'],
+                'additionalProperties' => false,
+            ],
+        ];
+
+        $result = OpenAiClient::generate($systemPrompt, $userMessage, $schema, [
+            'max_tokens' => 200,
+            'temperature' => 0.8,
+        ]);
+
+        if ($result === null) return null;
+
+        $questData = $result['data'] ?? [];
+        $icons = [
+            'explore' => 'compass', 'photograph' => 'camera',
+            'identify' => 'microscope', 'phenology' => 'calendar',
+        ];
+
+        $quest = [
+            'id' => 'pq_' . bin2hex(random_bytes(6)),
+            'type' => 'personal',
+            'quest_type' => $questData['quest_type'] ?? 'explore',
+            'title' => $questData['target_description'] ?? '今日のチャレンジ',
+            'description' => $questData['motivation_text'] ?? '',
+            'difficulty' => $questData['difficulty'] ?? 'medium',
+            'scientific_value' => $questData['scientific_value'] ?? '',
+            'icon' => $icons[$questData['quest_type'] ?? 'explore'] ?? 'compass',
+            'reward' => match($questData['difficulty'] ?? 'medium') {
+                'easy' => 100, 'hard' => 250, default => 150,
+            },
+            'ai_model' => $result['model'] ?? 'gpt-5.4-nano',
+            'created_at' => date('c'),
+            'expires_at' => date('c', strtotime('tomorrow')),
+            'completed_at' => null,
+        ];
+
+        DataStore::save($cacheFile, $quest);
+        return $quest;
     }
 }
