@@ -484,3 +484,42 @@ h6 {
         max-width: var(--feed-max-width);
     }
 }
+
+/* ============================
+   Record Mode Action Sheet
+   ============================ */
+.record-sheet {
+    background: var(--color-bg-base);
+    border-radius: 20px 20px 0 0;
+    max-width: 500px;
+    margin: 0 auto;
+    box-shadow: 0 -4px 32px rgba(0,0,0,0.15);
+}
+
+.record-sheet__option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    text-decoration: none;
+    transition: background 0.15s, transform 0.1s;
+    min-height: var(--touch-target);
+}
+
+.record-sheet__option:active {
+    transform: scale(0.97);
+    background: var(--color-bg-faint);
+}
+
+.record-sheet__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    flex-shrink: 0;
+}
