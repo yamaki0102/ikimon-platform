@@ -111,11 +111,16 @@ function uploader() {
             if ('geolocation' in navigator) {
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
+                        this.deviceGps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        this.gpsAccuracy = pos.coords.accuracy;
+                        // EXIF GPS が既に適用済みなら上書きしない
+                        if (this.locationSource === 'exif' || this.locationSource === 'manual') {
+                            console.log('[GPS] Device GPS acquired but EXIF/manual already set, skipping overwrite');
+                            return;
+                        }
                         this.lat = pos.coords.latitude.toFixed(6);
                         this.lng = pos.coords.longitude.toFixed(6);
-                        this.gpsAccuracy = pos.coords.accuracy;
                         this.locationSource = 'gps';
-                        this.deviceGps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                         this.reverseGeocode(this.lat, this.lng);
                         if (this.map && this.marker) {
                             this.map.flyTo([this.lat, this.lng], 15);
