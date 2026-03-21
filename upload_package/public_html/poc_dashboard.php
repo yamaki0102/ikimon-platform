@@ -14,11 +14,16 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/CanonicalStore.php';
+require_once __DIR__ . '/../libs/SurveyRecommender.php';
 
 Auth::init();
+$user = Auth::isLoggedIn() ? Auth::user() : null;
 
 // KPI メトリクス取得
 $kpi = CanonicalStore::getKPIMetrics();
+
+// 調査提案を取得
+$recommendations = SurveyRecommender::recommend(null, null, $user['id'] ?? null);
 
 // ソース名の日本語マッピング
 $sourceLabels = [
@@ -257,24 +262,34 @@ $pageTitle = 'PoC Dashboard — 観察のOS';
         </div>
     </div>
 
-    <!-- 自動提案 -->
+    <!-- 自動提案 (SurveyRecommender) -->
     <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">💡 自動提案</h2>
-        <div id="recommendations" class="space-y-3">
-            <div class="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <span class="text-amber-600 mt-0.5">⚠️</span>
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">💡 調査提案</h2>
+        <div class="space-y-3">
+            <?php if (empty($recommendations)): ?>
+            <p class="text-gray-400 text-sm">現在の提案はありません。データが蓄積されると提案が表示されます。</p>
+            <?php else: ?>
+            <?php
+            $priorityColors = [
+                'high'   => ['bg' => 'bg-red-50', 'border' => 'border-red-200', 'title' => 'text-red-800', 'desc' => 'text-red-600'],
+                'medium' => ['bg' => 'bg-amber-50', 'border' => 'border-amber-200', 'title' => 'text-amber-800', 'desc' => 'text-amber-600'],
+                'low'    => ['bg' => 'bg-blue-50', 'border' => 'border-blue-200', 'title' => 'text-blue-800', 'desc' => 'text-blue-600'],
+            ];
+            foreach ($recommendations as $rec):
+                $c = $priorityColors[$rec['priority']] ?? $priorityColors['low'];
+            ?>
+            <div class="flex items-start gap-3 p-3 <?= $c['bg'] ?> <?= $c['border'] ?> border rounded-lg">
+                <span class="mt-0.5 text-lg"><?= $rec['icon'] ?? '💡' ?></span>
                 <div>
-                    <div class="text-sm font-medium text-amber-800">Tier 1 の滞留確認が必要</div>
-                    <div class="text-xs text-amber-600">AI判定のみで止まっている観察がある場合、reviewer による検証を推奨</div>
+                    <div class="text-sm font-medium <?= $c['title'] ?>"><?= htmlspecialchars($rec['title']) ?></div>
+                    <div class="text-xs <?= $c['desc'] ?> mt-0.5"><?= htmlspecialchars($rec['message']) ?></div>
+                    <?php if (!empty($rec['action'])): ?>
+                    <div class="text-xs text-gray-500 mt-1">→ <?= htmlspecialchars($rec['action']) ?></div>
+                    <?php endif; ?>
                 </div>
             </div>
-            <div class="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <span class="text-blue-600 mt-0.5">📋</span>
-                <div>
-                    <div class="text-sm font-medium text-blue-800">データ蓄積を継続</div>
-                    <div class="text-xs text-blue-600">ウォークモードとライブスキャンで音声データを蓄積し、多様性の全体像を構築</div>
-                </div>
-            </div>
+            <?php endforeach; ?>
+            <?php endif; ?>
         </div>
     </div>
 
