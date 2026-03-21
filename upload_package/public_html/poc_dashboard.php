@@ -75,8 +75,8 @@ $pageTitle = 'PoC Dashboard — 観察のOS';
 
 <main class="max-w-7xl mx-auto px-4 py-6" x-data="dashboard()">
 
-    <!-- サマリーカード -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <!-- サマリーカード Row 1 -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <div class="text-3xl font-bold text-blue-600"><?= number_format($kpi['total_occurrences']) ?></div>
             <div class="text-sm text-gray-500 mt-1">総観察数</div>
@@ -96,6 +96,28 @@ $pageTitle = 'PoC Dashboard — 観察のOS';
                     : '—' ?>
             </div>
             <div class="text-sm text-gray-500 mt-1">RG 率</div>
+        </div>
+    </div>
+
+    <!-- サマリーカード Row 2: 努力量 KPI -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="text-3xl font-bold text-cyan-600"><?= number_format($kpi['total_sessions']) ?></div>
+            <div class="text-sm text-gray-500 mt-1">セッション数</div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="text-3xl font-bold text-teal-600"><?= $kpi['total_effort_hours'] ?>h</div>
+            <div class="text-sm text-gray-500 mt-1">総努力時間</div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="text-3xl font-bold text-indigo-600">
+                <?= $kpi['detections_per_hour'] !== null ? $kpi['detections_per_hour'] : '—' ?>
+            </div>
+            <div class="text-sm text-gray-500 mt-1">検出/時間</div>
+        </div>
+        <div class="stat-card bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div class="text-3xl font-bold text-rose-600"><?= number_format($kpi['contributor_count']) ?></div>
+            <div class="text-sm text-gray-500 mt-1">貢献者数</div>
         </div>
     </div>
 
@@ -172,6 +194,69 @@ $pageTitle = 'PoC Dashboard — 観察のOS';
         </div>
     </div>
 
+    <!-- 努力量詳細 -->
+    <div class="grid md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">セッションモード別</h2>
+            <?php
+            $modeLabels = [
+                'walk' => '🚶 ウォーク',
+                'live-scan' => '📡 ライブスキャン',
+                'walk-scan' => '🔍 ウォークスキャン',
+                'bike-scan' => '🚲 自転車スキャン',
+                'car-scan' => '🚗 車スキャン',
+            ];
+            if (!empty($kpi['by_mode'])):
+                $maxMode = max(1, max(array_values($kpi['by_mode'])));
+                foreach ($kpi['by_mode'] as $mode => $cnt):
+                    $ml = $modeLabels[$mode] ?? $mode;
+                    $pctM = round($cnt / $maxMode * 100);
+            ?>
+            <div class="mb-3">
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-700"><?= htmlspecialchars($ml) ?></span>
+                    <span class="font-medium text-gray-900"><?= number_format($cnt) ?>回</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-3">
+                    <div class="bg-teal-500 h-3 rounded-full tier-bar" style="width: <?= $pctM ?>%"></div>
+                </div>
+            </div>
+            <?php endforeach; else: ?>
+            <p class="text-gray-400 text-sm">まだデータがありません</p>
+            <?php endif; ?>
+        </div>
+
+        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">データ品質サマリー</h2>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">レビュー待ち</span>
+                    <span class="text-lg font-bold text-orange-600"><?= number_format($kpi['review_backlog']) ?>件</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">レビュー遅延（中央値）</span>
+                    <span class="text-lg font-bold text-blue-600">
+                        <?= $kpi['review_latency_median_sec'] !== null
+                            ? round($kpi['review_latency_median_sec'] / 60) . '分'
+                            : '未レビュー' ?>
+                    </span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">不在データ</span>
+                    <span class="text-lg font-bold text-gray-600"><?= number_format($kpi['absence_count']) ?>件</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">チェックリスト完了</span>
+                    <span class="text-lg font-bold text-green-600"><?= number_format($kpi['checklist_sessions']) ?>回</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">総距離</span>
+                    <span class="text-lg font-bold text-indigo-600"><?= $kpi['total_distance_km'] ?>km</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 自動提案 -->
     <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
         <h2 class="text-lg font-semibold text-gray-800 mb-4">💡 自動提案</h2>
@@ -217,47 +302,51 @@ function dashboard() {
 }
 
 function gateMetrics() {
-    // PoC 開始時はデータ不足のため仮値。実データは API から取得する想定
-    const total = <?= $kpi['total_occurrences'] ?>;
-    const rg = <?= $kpi['research_grade_count'] ?>;
-    const species = <?= $kpi['unique_species'] ?>;
+    const kpi = <?= json_encode($kpi, JSON_UNESCAPED_UNICODE) ?>;
+
+    const dph = kpi.detections_per_hour;
+    const reviewLatencySec = kpi.review_latency_median_sec;
+    const reviewLatencyMin = reviewLatencySec !== null ? Math.round(reviewLatencySec / 60) : null;
+    const reviewBacklog = kpi.review_backlog;
+    const contributors = kpi.contributor_count;
+    const effortHours = kpi.total_effort_hours;
 
     return {
         gates: [
             {
-                id: 'G1', label: '検出量', threshold: '≥10/時間',
-                value: total > 0 ? Math.round(total / Math.max(1, 24)) + '/h' : '—',
-                pass: total > 0
+                id: 'G1', label: '検出効率', threshold: '≥10/時間',
+                value: dph !== null ? dph + '/h' : '—',
+                pass: dph !== null && dph >= 10
             },
             {
-                id: 'G2', label: 'AI精度', threshold: '≥80%',
-                value: total > 0 ? '—' : '—',
-                pass: false
+                id: 'G2', label: '努力量カバレッジ', threshold: '≥1h',
+                value: effortHours > 0 ? effortHours + 'h' : '—',
+                pass: effortHours >= 1
             },
             {
-                id: 'G3', label: 'レビュー速度', threshold: '≤3分/件',
-                value: '—',
-                pass: false
+                id: 'G3', label: 'レビュー速度', threshold: '≤180分',
+                value: reviewLatencyMin !== null ? reviewLatencyMin + '分' : '未レビュー',
+                pass: reviewLatencyMin !== null && reviewLatencyMin <= 180
             },
             {
-                id: 'G4', label: '昇格速度', threshold: '≤72h',
-                value: '—',
-                pass: false
+                id: 'G4', label: 'レビュー残', threshold: '≤50件',
+                value: reviewBacklog + '件',
+                pass: reviewBacklog <= 50
             },
             {
-                id: 'G5', label: 'Reviewer数', threshold: '≥5名',
-                value: '—',
-                pass: false
+                id: 'G5', label: '貢献者数', threshold: '≥3名',
+                value: contributors + '名',
+                pass: contributors >= 3
             },
             {
-                id: 'G6', label: 'CPU', threshold: '<70%',
-                value: '—',
-                pass: true
+                id: 'G6', label: '種の多様性', threshold: '≥10種',
+                value: kpi.unique_species + '種',
+                pass: kpi.unique_species >= 10
             },
             {
-                id: 'G7', label: 'Storage', threshold: '<50GB',
-                value: '—',
-                pass: true
+                id: 'G7', label: '総観察数', threshold: '≥100件',
+                value: kpi.total_occurrences + '件',
+                pass: kpi.total_occurrences >= 100
             },
         ]
     };
