@@ -211,13 +211,43 @@ $sessionLog = [
 ];
 DataStore::append('passive_sessions', $sessionLog);
 
-// スキャンクエスト生成
+// スキャンクエスト生成（拡張: 検出メタデータを種別に集約）
 $scanQuests = [];
+$questShown = false;
 if ($isLiveScan && !empty($result['summary']['species'])) {
     require_once ROOT_DIR . '/libs/QuestManager.php';
-    $questSessionMeta = array_merge($sessionMeta, ['session_id' => $result['session_id']]);
-    $scanQuests = QuestManager::generateFromScan($userId, $result['summary'], $questSessionMeta);
+
+    $speciesDetail = [];
+    foreach ($validEvents as $ev) {
+        $name = $ev['taxon_name'] ?? '';
+        if (empty($name)) continue;
+        if (!isset($speciesDetail[$name])) {
+            $speciesDetail[$name] = [
+                'count' => 0,
+                'scientific_name' => $ev['scientific_name'] ?? '',
+                'max_confidence' => 0,
+                'category' => $ev['category'] ?? '',
+                'source' => $ev['type'] ?? 'visual',
+            ];
+        }
+        $speciesDetail[$name]['count']++;
+        $speciesDetail[$name]['max_confidence'] = max(
+            $speciesDetail[$name]['max_confidence'],
+            (float)($ev['confidence'] ?? 0)
+        );
+    }
+
+    $extendedSummary = $result['summary'];
+    $extendedSummary['species_detail'] = $speciesDetail;
+
+    $questSessionMeta = array_merge($sessionMeta, [
+        'session_id' => $result['session_id'],
+        'center_lat' => $centerLat,
+        'center_lng' => $centerLng,
+    ]);
+    $scanQuests = QuestManager::generateFromScan($userId, $extendedSummary, $questSessionMeta);
     QuestManager::saveScanQuests($userId, $scanQuests);
+    $questShown = !empty($scanQuests);
 }
 
 api_success([
@@ -225,6 +255,7 @@ api_success([
     'observations_created' => $savedCount,
     'summary' => $result['summary'],
     'scan_quests' => $scanQuests,
+    'quest_shown' => $questShown,
 ], [
     'events_received' => count($events),
     'events_valid' => count($validEvents),

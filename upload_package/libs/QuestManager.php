@@ -161,54 +161,164 @@ class QuestManager
         return $set;
     }
 
-    // ── Scan Quest: 動的クエスト生成 ──
+    // ── Scan Quest: 心理学ベース動的クエスト生成 ──
+    // Variable Ratio + 内発的動機づけ + 科学的価値優先
 
-    const SCAN_QUEST_TTL = 48 * 3600;
+    const SCAN_QUEST_TTL = 72 * 3600; // 72h（Zeigarnik: 長めに残す）
+    const MAX_QUESTS_PER_SCAN = 2;
+
+    private static array $QUEST_TYPES = [
+        'redlist'          => ['score' => 100, 'reward' => 300, 'rarity_label' => '極めて貴重',    'cta' => '記録を残す',    'icon' => 'alert-triangle'],
+        'area_first'       => ['score' => 80,  'reward' => 250, 'rarity_label' => '地域初記録',    'cta' => '初記録に挑戦',  'icon' => 'map-pin'],
+        'id_challenge'     => ['score' => 70,  'reward' => 200, 'rarity_label' => '同定チャレンジ', 'cta' => '同定に挑戦',   'icon' => 'microscope'],
+        'evidence_upgrade' => ['score' => 50,  'reward' => 150, 'rarity_label' => '証拠強化',      'cta' => '証拠を追加',   'icon' => 'shield-check'],
+        'new_species'      => ['score' => 40,  'reward' => 150, 'rarity_label' => '初記録種',      'cta' => '図鑑に追加',   'icon' => 'book-open'],
+        'photo_needed'     => ['score' => 30,  'reward' => 100, 'rarity_label' => '写真募集',      'cta' => '写真で記録',   'icon' => 'camera'],
+    ];
 
     public static function generateFromScan(string $userId, array $summary, array $sessionMeta): array
     {
+        $speciesDetail = $summary['species_detail'] ?? [];
         $detectedSpecies = $summary['species'] ?? [];
-        if (empty($detectedSpecies)) return [];
+        if (empty($detectedSpecies) && empty($speciesDetail)) return [];
 
-        $lifeList = self::collectUserSpecies($userId, '9999-99-99');
-        $photoSpecies = self::collectUserPhotoSpecies($userId);
-
-        $candidates = [];
-        foreach ($detectedSpecies as $name => $count) {
-            if (empty($name) || mb_strlen($name) < 2) continue;
-
-            if (!isset($lifeList[$name])) {
-                $candidates[] = [
-                    'species_name' => $name,
-                    'trigger' => 'new_species',
-                    'priority' => 3,
-                    'reward' => 200,
-                    'title' => '🆕 ' . $name . 'を初記録！詳しく観察しよう',
-                    'description' => 'スキャンで検出された' . $name . 'はキミの初記録種。写真付きで投稿して図鑑に追加しよう',
-                ];
-            } elseif (!isset($photoSpecies[$name])) {
-                $candidates[] = [
-                    'species_name' => $name,
-                    'trigger' => 'photo_needed',
-                    'priority' => 2,
-                    'reward' => 150,
-                    'title' => '📸 ' . $name . 'を写真で記録しよう',
-                    'description' => $name . 'の写真付き観察を投稿すると、研究グレードデータに近づきます',
-                ];
-            } else {
-                $candidates[] = [
-                    'species_name' => $name,
-                    'trigger' => 'high_confidence',
-                    'priority' => 1,
-                    'reward' => 100,
-                    'title' => '🎯 ' . $name . 'を確認投稿しよう',
-                    'description' => $name . 'が検出されました。写真付きで投稿してデータを充実させよう',
-                ];
+        if (empty($speciesDetail)) {
+            foreach ($detectedSpecies as $name => $count) {
+                $speciesDetail[$name] = ['count' => $count, 'scientific_name' => '', 'max_confidence' => 0.5, 'category' => ''];
             }
         }
 
-        usort($candidates, fn($a, $b) => $b['priority'] - $a['priority']);
-        $selected = array_slice($candidates, 0, 3);
+        $lifeList = self::collectUserSpecies($userId, '9999-99-99');
+        $photoSpecies = self::collectUserPhotoSpecies($userId);
+        $lat = (float)($sessionMeta['center_lat'] ?? 0);
+        $lng = (float)($sessionMeta['center_lng'] ?? 0);
+
+        $redListMgr = null;
+        if (file_exists(ROOT_DIR . '/libs/RedListManager.php')) {
+            require_once ROOT_DIR . '/libs/RedListManager.php';
+            $redListMgr = new RedListManager();
+        }
+
+        $hasCanonical = file_exists(ROOT_DIR . '/libs/CanonicalStore.php');
+        if ($hasCanonical) {
+            require_once ROOT_DIR . '/libs/CanonicalStore.php';
+        }
+
+        $candidates = [];
+        $seenSpecies = [];
+
+        foreach ($speciesDetail as $name => $detail) {
+            if (empty($name) || mb_strlen($name) < 2) continue;
+
+            $sci = $detail['scientific_name'] ?? '';
+            $conf = (float)($detail['max_confidence'] ?? 0);
+            $count = (int)($detail['count'] ?? 1);
+            $category = $detail['category'] ?? '';
+
+            $bestTrigger = null;
+            $bestScore = 0;
+            $extraContext = [];
+
+            // 1. レッドリスト種
+            if ($redListMgr && !empty($sci)) {
+                $rlResult = $redListMgr->lookup($name);
+                $natCode = $rlResult['national']['code'] ?? '';
+                if (in_array($natCode, ['CR', 'EN', 'VU'], true)) {
+                    $score = self::$QUEST_TYPES['redlist']['score'];
+                    if ($score > $bestScore) {
+                        $bestTrigger = 'redlist';
+                        $bestScore = $score;
+                        $extraContext['redlist_code'] = $natCode;
+                        $extraContext['redlist_label'] = match($natCode) {
+                            'CR' => '絶滅危惧IA類',
+                            'EN' => '絶滅危惧IB類',
+                            'VU' => '絶滅危惧II類',
+                            default => $natCode,
+                        };
+                    }
+                }
+            }
+
+            // 2. 地域初記録
+            if ($hasCanonical && !empty($sci) && $lat && $lng) {
+                if (self::checkAreaFirstRecord($sci, $lat, $lng)) {
+                    $score = self::$QUEST_TYPES['area_first']['score'];
+                    if ($score > $bestScore) {
+                        $bestTrigger = 'area_first';
+                        $bestScore = $score;
+                    }
+                }
+            }
+
+            // 3. 同定チャレンジ（scientific_name空 = 科名レベル止まり）
+            if (empty($sci) && $conf >= 0.3) {
+                $score = self::$QUEST_TYPES['id_challenge']['score'];
+                if ($score > $bestScore) {
+                    $bestTrigger = 'id_challenge';
+                    $bestScore = $score;
+                }
+            }
+
+            // 4. 証拠グレードアップ（既存Tier1の再検出）
+            if ($hasCanonical && !empty($sci)) {
+                $existing = CanonicalStore::searchBySpecies($sci, 5);
+                $hasTier1 = false;
+                foreach ($existing as $occ) {
+                    if (($occ['evidence_tier'] ?? 0) <= 1) { $hasTier1 = true; break; }
+                }
+                if ($hasTier1) {
+                    $score = self::$QUEST_TYPES['evidence_upgrade']['score'];
+                    if ($score > $bestScore) {
+                        $bestTrigger = 'evidence_upgrade';
+                        $bestScore = $score;
+                    }
+                }
+            }
+
+            // 5. ユーザー初記録
+            if (!isset($lifeList[$name])) {
+                $score = self::$QUEST_TYPES['new_species']['score'];
+                if ($score > $bestScore) {
+                    $bestTrigger = 'new_species';
+                    $bestScore = $score;
+                }
+            }
+
+            // 6. 写真なし
+            if (!isset($photoSpecies[$name]) && isset($lifeList[$name])) {
+                $score = self::$QUEST_TYPES['photo_needed']['score'];
+                if ($score > $bestScore) {
+                    $bestTrigger = 'photo_needed';
+                    $bestScore = $score;
+                }
+            }
+
+            if (!$bestTrigger) continue;
+
+            // ボーナス加算
+            if ($conf >= 0.7) $bestScore += 10;
+            if ($count >= 2) $bestScore += 15;
+
+            $candidates[] = [
+                'species_name' => $name,
+                'scientific_name' => $sci,
+                'trigger' => $bestTrigger,
+                'priority_score' => $bestScore,
+                'confidence' => $conf,
+                'category' => $category,
+                'context' => $extraContext,
+            ];
+        }
+
+        if (empty($candidates)) return [];
+
+        // Variable Ratio 判定
+        if (!self::shouldShowQuests($candidates, $sessionMeta)) {
+            return [];
+        }
+
+        usort($candidates, fn($a, $b) => $b['priority_score'] - $a['priority_score']);
+        $selected = array_slice($candidates, 0, self::MAX_QUESTS_PER_SCAN);
 
         $now = date('c');
         $expires = date('c', time() + self::SCAN_QUEST_TTL);
@@ -216,15 +326,21 @@ class QuestManager
 
         $quests = [];
         foreach ($selected as $c) {
+            $type = self::$QUEST_TYPES[$c['trigger']];
             $quests[] = [
                 'id' => 'sq_' . bin2hex(random_bytes(6)),
                 'type' => 'scan_followup',
                 'species_name' => $c['species_name'],
+                'scientific_name' => $c['scientific_name'],
                 'trigger' => $c['trigger'],
-                'title' => $c['title'],
-                'description' => $c['description'],
-                'reward' => $c['reward'],
-                'icon' => $c['trigger'] === 'new_species' ? 'sparkles' : ($c['trigger'] === 'photo_needed' ? 'camera' : 'target'),
+                'priority_score' => $c['priority_score'],
+                'title' => self::buildQuestTitle($c),
+                'description' => self::buildQuestDescription($c),
+                'progress_hint' => self::buildProgressHint($c),
+                'reward' => $type['reward'],
+                'rarity_label' => $type['rarity_label'],
+                'cta_text' => $type['cta'],
+                'icon' => $type['icon'],
                 'scan_session_id' => $sessionId,
                 'created_at' => $now,
                 'expires_at' => $expires,
@@ -233,6 +349,81 @@ class QuestManager
         }
 
         return $quests;
+    }
+
+    private static function shouldShowQuests(array $candidates, array $sessionMeta): bool
+    {
+        $highValueTriggers = ['redlist', 'area_first', 'id_challenge'];
+        foreach ($candidates as $c) {
+            if (in_array($c['trigger'], $highValueTriggers, true)) {
+                return true;
+            }
+        }
+
+        $seed = crc32($sessionMeta['session_id'] ?? date('c'));
+        $roll = abs($seed) % 100;
+        return $roll < 70;
+    }
+
+    private static function checkAreaFirstRecord(string $scientificName, float $lat, float $lng): bool
+    {
+        if (empty($scientificName) || !$lat || !$lng) return false;
+
+        try {
+            $existing = CanonicalStore::searchBySpecies($scientificName, 50);
+            foreach ($existing as $occ) {
+                $oLat = (float)($occ['decimal_latitude'] ?? 0);
+                $oLng = (float)($occ['decimal_longitude'] ?? 0);
+                if (abs($oLat - $lat) < 0.01 && abs($oLng - $lng) < 0.01) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private static function buildQuestTitle(array $c): string
+    {
+        $name = $c['species_name'];
+        return match($c['trigger']) {
+            'redlist' => '絶滅危惧種の記録チャンス',
+            'area_first' => 'このエリアで ' . $name . ' は初検出',
+            'id_challenge' => $name . ' — 種名を特定できますか？',
+            'evidence_upgrade' => $name . ' の確実な証拠を残そう',
+            'new_species' => 'キミの図鑑に新しい1ページ',
+            'photo_needed' => $name . ' の写真記録を完成させよう',
+            default => $name . ' を記録しよう',
+        };
+    }
+
+    private static function buildQuestDescription(array $c): string
+    {
+        $name = $c['species_name'];
+        return match($c['trigger']) {
+            'redlist' => '環境省レッドリスト ' . ($c['context']['redlist_label'] ?? '') . '。写真記録はこの地域の保全データとして大きな価値があります',
+            'area_first' => 'このエリアで ' . $name . ' はまだ記録がありません。あなたが最初の記録者になれるかもしれません',
+            'id_challenge' => 'AIが「' . $name . '」まで絞り込みました。近づいて特徴を撮影すると、種レベルの同定につながります',
+            'evidence_upgrade' => $name . ' のAI検出記録はありますが、写真証拠がまだありません。1枚の写真でデータの信頼度が上がります',
+            'new_species' => $name . ' はキミがまだ記録したことのない種です。写真付きで図鑑に追加しましょう',
+            'photo_needed' => $name . ' は過去に検出されていますが、写真がまだありません',
+            default => $name . ' を写真で記録しましょう',
+        };
+    }
+
+    private static function buildProgressHint(array $c): string
+    {
+        $pct = max(1, (int)round($c['confidence'] * 100));
+        return match($c['trigger']) {
+            'redlist' => 'AIが ' . $pct . '% の確度で検出。写真1枚で確定記録に',
+            'area_first' => 'AIが ' . $pct . '% の確度で検出。この地域のデータベースに初めて登録されます',
+            'id_challenge' => 'AI同定率 ' . $pct . '%（科レベル）。あと少しで種名確定',
+            'evidence_upgrade' => '現在の証拠グレード: Tier 1（AI単独）→ 写真追加で Tier 2 へ',
+            'new_species' => 'AIが ' . $pct . '% の確度で検出。写真で確定させよう',
+            'photo_needed' => '記録はあるが写真がまだない種です',
+            default => '',
+        };
     }
 
     public static function saveScanQuests(string $userId, array $newQuests): void
