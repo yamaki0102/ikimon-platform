@@ -29,7 +29,9 @@ if ($sw_lat !== null && $sw_lng !== null && $ne_lat !== null && $ne_lng !== null
 $status = $_GET['status'] ?? '';
 if ($status === 'unresolved') {
     $observations = array_filter($observations, function ($obs) {
-        return ($obs['status'] ?? '') === 'Needs ID' || ($obs['status'] ?? '') === 'Suggested';
+        $s = $obs['status'] ?? '';
+        return $s === 'Needs ID' || $s === 'Suggested'
+            || $s === '未同定' || $s === '要同定';
     });
 } elseif (!empty($status)) {
     $observations = array_filter($observations, function ($obs) use ($status) {
