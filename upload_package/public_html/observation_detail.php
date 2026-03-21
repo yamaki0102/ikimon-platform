@@ -254,6 +254,11 @@ $aiConfidenceLabelMap = [
     'medium' => 'たぶん',
     'low' => '慎重',
 ];
+// Data Quality Grade
+$dqGrade = DataQuality::calculate($obs);
+$dqInfo = DataQuality::getGradeInfo($dqGrade);
+$dqHints = DataQuality::getImprovementHints($obs);
+
 // Multi-Subject: subjects[] を保証
 SubjectHelper::ensureSubjects($obs);
 SubjectHelper::distributeIdentifications($obs);
@@ -495,8 +500,31 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <span class="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
                     <?php echo htmlspecialchars($status); ?>
                 </div>
+                <!-- Data Quality Badge -->
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border <?= $dqInfo['border'] ?> <?= $dqInfo['bg'] ?> <?= $dqInfo['color'] ?>"
+                     title="<?= htmlspecialchars($dqInfo['description']) ?>">
+                    <i data-lucide="<?= $dqInfo['icon'] ?>" class="w-3 h-3"></i>
+                    <?= $dqInfo['emoji'] ?> <?= htmlspecialchars($dqInfo['label']) ?>
+                </div>
             </div>
         </div>
+
+        <!-- Data Quality Hints -->
+        <?php if (!empty($dqHints) && $dqGrade !== 'A'): ?>
+        <div class="max-w-4xl mx-auto px-4 -mt-2 mb-4">
+            <div class="<?= $dqInfo['bg'] ?> border <?= $dqInfo['border'] ?> rounded-xl px-4 py-3">
+                <div class="flex items-center gap-2 mb-1.5">
+                    <i data-lucide="lightbulb" class="w-3.5 h-3.5 <?= $dqInfo['color'] ?>"></i>
+                    <span class="text-xs font-bold <?= $dqInfo['color'] ?>">データ品質を上げるには</span>
+                </div>
+                <div class="space-y-1">
+                    <?php foreach ($dqHints as $hint): ?>
+                    <p class="text-xs text-gray-600"><?= htmlspecialchars($hint['text']) ?></p>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- 2-Column Grid Layout (Photo vs Info) -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">

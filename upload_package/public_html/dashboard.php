@@ -46,6 +46,27 @@ $orsRankIcon   = $_ors ? ($_ors['rank']['icon']    ?? '🌱') : '🌱';
 $orsRankColor  = $_ors ? ($_ors['rank']['color']   ?? '#8bc34a') : '#8bc34a';
 $orsRankName   = $_ors ? ($_ors['rank']['name_ja'] ?? '見習い')  : '見習い';
 
+// Live Scan Impact Stats
+$scanStats = ['count' => 0, 'duration_min' => 0, 'species' => [], 'total_detections' => 0];
+if ($currentUser) {
+    $allObs = DataStore::fetchAll('observations');
+    foreach ($allObs as $o) {
+        if (($o['user_id'] ?? '') !== $currentUser['id']) continue;
+        if (($o['observation_source'] ?? '') !== 'live-scan-summary') continue;
+        $ss = $o['scan_summary'] ?? [];
+        $scanStats['count']++;
+        $scanStats['duration_min'] += (int)($ss['duration_min'] ?? 0);
+        $scanStats['total_detections'] += (int)($ss['total_detections'] ?? 0);
+        foreach ($ss['top_species'] ?? [] as $sp) {
+            $name = $sp['name'] ?? '';
+            if ($name) $scanStats['species'][$name] = true;
+        }
+    }
+    unset($allObs);
+}
+$scanStats['unique_species'] = count($scanStats['species']);
+unset($scanStats['species']);
+
 // Daily Quest
 $activeQuests = QuestManager::getActiveQuests();
 $dailyTargets = $activeQuests;
@@ -136,6 +157,46 @@ $missions = [
                 <i data-lucide="map" class="w-6 h-6 text-sky-600"></i>
                 <span class="text-xs font-bold text-text">探索マップ</span>
             </a>
+        </section>
+
+        <!-- 2.5 Live Scan Impact -->
+        <section class="bg-gradient-to-br from-blue-900 to-purple-900 rounded-2xl p-5 text-white">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="text-lg">📡</span>
+                <span class="text-sm font-black">ライブスキャン Impact</span>
+            </div>
+            <?php if ($scanStats['count'] > 0): ?>
+            <div class="grid grid-cols-4 gap-2 text-center mb-4">
+                <div>
+                    <div class="text-xl font-black"><?= $scanStats['count'] ?></div>
+                    <div class="text-[10px] text-blue-200 font-bold">スキャン</div>
+                </div>
+                <div>
+                    <div class="text-xl font-black"><?= $scanStats['duration_min'] ?></div>
+                    <div class="text-[10px] text-blue-200 font-bold">累計(分)</div>
+                </div>
+                <div>
+                    <div class="text-xl font-black"><?= $scanStats['unique_species'] ?></div>
+                    <div class="text-[10px] text-blue-200 font-bold">検出種</div>
+                </div>
+                <div>
+                    <div class="text-xl font-black"><?= number_format($scanStats['total_detections']) ?></div>
+                    <div class="text-[10px] text-blue-200 font-bold">総検出</div>
+                </div>
+            </div>
+            <div class="flex items-start gap-2 bg-white/10 rounded-xl px-3 py-2.5">
+                <i data-lucide="database" class="w-4 h-4 text-blue-300 shrink-0 mt-0.5"></i>
+                <p class="text-xs text-blue-100 leading-relaxed">キミのスキャンデータは地域の生物多様性DBに蓄積され、BISスコア算出・TNFDレポートに活用されています</p>
+            </div>
+            <?php else: ?>
+            <div class="text-center py-3">
+                <p class="text-sm text-blue-200 mb-3">ライブスキャンで地域の生態系データに貢献しよう</p>
+                <a href="field_scan.php" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-full px-4 py-2 transition">
+                    <i data-lucide="scan" class="w-4 h-4"></i>
+                    スキャンを始める
+                </a>
+            </div>
+            <?php endif; ?>
         </section>
 
         <!-- 3. Daily Quest -->

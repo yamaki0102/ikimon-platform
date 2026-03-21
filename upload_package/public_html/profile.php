@@ -32,6 +32,22 @@ $user_obs = array_filter($all_obs, function ($o) use ($user) {
     return isset($o['user_id']) && (string)$o['user_id'] === (string)$user['id'];
 });
 
+// Live Scan stats for this user
+$profileScanStats = ['count' => 0, 'duration_min' => 0, 'species' => [], 'total_detections' => 0];
+foreach ($user_obs as $o) {
+    if (($o['observation_source'] ?? '') !== 'live-scan-summary') continue;
+    $ss = $o['scan_summary'] ?? [];
+    $profileScanStats['count']++;
+    $profileScanStats['duration_min'] += (int)($ss['duration_min'] ?? 0);
+    $profileScanStats['total_detections'] += (int)($ss['total_detections'] ?? 0);
+    foreach ($ss['top_species'] ?? [] as $sp) {
+        $name = $sp['name'] ?? '';
+        if ($name) $profileScanStats['species'][$name] = true;
+    }
+}
+$profileScanStats['unique_species'] = count($profileScanStats['species']);
+unset($profileScanStats['species']);
+
 // Calculate Life List (Unique Species) with photos & Red List status
 $rlManager = new RedListManager();
 $life_list = [];
@@ -470,6 +486,35 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
 
             <!-- Observations Grid -->
             <div x-show="tab === 'observations'" x-transition>
+                <?php if ($profileScanStats['count'] > 0): ?>
+                <div class="bg-gradient-to-r from-blue-900 to-purple-900 rounded-2xl p-4 mb-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span>📡</span>
+                            <span class="text-xs font-bold text-blue-200">ライブスキャン実績</span>
+                        </div>
+                        <a href="field_scan.php" class="text-[10px] text-blue-300 hover:text-white transition">スキャンする →</a>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 mt-3 text-center">
+                        <div>
+                            <div class="text-lg font-black"><?= $profileScanStats['count'] ?></div>
+                            <div class="text-[10px] text-blue-300">回</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-black"><?= $profileScanStats['duration_min'] ?></div>
+                            <div class="text-[10px] text-blue-300">分</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-black"><?= $profileScanStats['unique_species'] ?></div>
+                            <div class="text-[10px] text-blue-300">種検出</div>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-1.5">
+                        <i data-lucide="database" class="w-3 h-3 text-blue-400/70"></i>
+                        <span class="text-[10px] text-blue-300/80">スキャンデータはBISスコア・TNFDレポートに活用されています</span>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                     <?php if (empty($user_obs)): ?>
                         <p class="col-span-full py-20 text-center text-muted font-bold">まだ観察がありません。投稿してみましょう！</p>

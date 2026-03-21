@@ -465,6 +465,10 @@ unset($allObs);
                                     <?php if ($envDesc): ?>
                                     <div class="text-xs text-gray-300 bg-white/5 rounded-lg px-3 py-2">🌳 <?= htmlspecialchars($envDesc) ?></div>
                                     <?php endif; ?>
+                                    <div class="flex items-center gap-1.5 pt-1">
+                                        <i data-lucide="database" class="w-3 h-3 text-blue-400/70"></i>
+                                        <span class="text-[10px] text-blue-300/70">地域の生物多様性データベースに反映済み</span>
+                                    </div>
                                 </div>
                             <?php elseif (in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'live-scan', 'passive'])): ?>
                                 <?php
