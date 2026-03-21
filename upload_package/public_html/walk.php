@@ -49,7 +49,7 @@ unset($allObs, $userObs);
             <p class="text-sm text-gray-400 mt-1">スマホを持って散歩するだけ。周囲の音をAIが自動で分析します。</p>
         </div>
 
-        <button id="btn-start" onclick="startWalk()"
+        <button id="btn-start"
                 class="w-full py-5 rounded-2xl text-lg font-bold bg-green-600 hover:bg-green-700 active:scale-95 transition">
             🎧 ウォーク開始
         </button>
@@ -107,7 +107,7 @@ unset($allObs, $userObs);
             <p class="text-sm text-green-400 mt-1">周囲の音をAI分析しています...</p>
         </div>
 
-        <button onclick="stopWalk()"
+        <button id="btn-stop"
                 class="w-full py-5 rounded-2xl text-lg font-bold bg-red-600 hover:bg-red-700 active:scale-95 transition">
             🛑 ウォーク終了
         </button>
@@ -158,17 +158,17 @@ unset($allObs, $userObs);
                 </div>
             </div>
             <div id="sum-list" class="flex flex-wrap gap-1.5 justify-center"></div>
-            <button id="btn-upload" onclick="uploadResults()"
+            <button id="btn-upload"
                     class="w-full py-3 bg-green-600 hover:bg-green-700 rounded-xl font-bold transition">
                 ikimon.life に投稿
             </button>
-            <button onclick="showScreen('ready')" class="text-sm text-gray-500 hover:text-white">閉じる</button>
+            <button id="btn-close" class="text-sm text-gray-500 hover:text-white">閉じる</button>
         </div>
     </div>
 
 </main>
 
-<script>
+<script nonce="<?= CspNonce::attr() ?>">
 // ===== State =====
 var W = {
     walking: false,
@@ -401,6 +401,12 @@ async function uploadResults() {
         btn.disabled = false;
     }
 }
+
+// ===== Event listeners =====
+document.getElementById('btn-start').addEventListener('click', startWalk);
+document.getElementById('btn-stop').addEventListener('click', stopWalk);
+document.getElementById('btn-upload').addEventListener('click', uploadResults);
+document.getElementById('btn-close').addEventListener('click', function() { showScreen('ready'); });
 </script>
 </body>
 </html>
