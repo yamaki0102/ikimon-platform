@@ -28,11 +28,10 @@ if (!$currentUser) {
     ?>
     <link rel="stylesheet" href="assets/css/tokens.css?v=2026_naturalism">
     <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="bg-[#050505] text-white min-h-screen" x-data="walkMode()">
 
-<?php include __DIR__ . '/components/navbar.php'; ?>
+<?php include __DIR__ . '/components/nav.php'; ?>
 
 <main class="max-w-lg mx-auto px-4 py-6">
 
@@ -415,6 +414,5 @@ function walkMode() {
     };
 }
 </script>
-<script>lucide.createIcons();</script>
 </body>
 </html>
