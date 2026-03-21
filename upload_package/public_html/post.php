@@ -779,7 +779,7 @@ if ($isGuest) {
         };
     </script>
     <script src="js/exif-mini.js?v=3.1"></script>
-    <script src="js/post-uploader.js?v=3.0"></script>
+    <script src="js/post-uploader.js?v=3.1"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>
