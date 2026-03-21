@@ -505,7 +505,33 @@ unset($allObs);
                                 <span class="text-8xl drop-shadow-2xl opacity-90">✨</span>
                             </div>
 
-                            <?php if (isset($obs['taxon']['id'])): ?>
+                            <?php
+                                $feedIsAudioSource = in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'live-scan', 'passive', 'live-scan-summary']);
+                            ?>
+                            <?php if ($feedIsAudioSource): ?>
+                                <?php
+                                    $feedDetName = $obs['taxon']['name'] ?? $obs['species_name'] ?? null;
+                                    $feedDetConf = round(($obs['detection_confidence'] ?? 0) * 100);
+                                    $feedDetSource = match($obs['observation_source'] ?? $obs['source'] ?? '') {
+                                        'walk' => 'ウォーク',
+                                        'live-scan', 'live-scan-summary' => 'スキャン',
+                                        default => 'パッシブ',
+                                    };
+                                ?>
+                                <?php if ($feedDetName): ?>
+                                    <a href="observation_detail.php?id=<?= urlencode($obs['id']) ?>"
+                                        class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-emerald-900/60 backdrop-blur-md flex items-center gap-2 border border-emerald-400/30 hover:bg-emerald-900/80 transition z-10">
+                                        <i data-lucide="audio-lines" class="w-3 h-3 text-emerald-300"></i>
+                                        <span class="text-xs font-bold text-emerald-100"><?= htmlspecialchars($feedDetName) ?></span>
+                                        <span class="text-[10px] text-emerald-200/60"><?= $feedDetSource ?></span>
+                                    </a>
+                                <?php else: ?>
+                                    <div class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-emerald-900/40 backdrop-blur-md flex items-center gap-2 border border-emerald-400/20">
+                                        <i data-lucide="audio-lines" class="w-3 h-3 text-emerald-300/60"></i>
+                                        <span class="text-xs text-emerald-100/60">音声検出</span>
+                                    </div>
+                                <?php endif; ?>
+                            <?php elseif (isset($obs['taxon']['id'])): ?>
                                 <?php
                                 $feedSlug = $obs['taxon']['slug'] ?? null;
                                 $feedSpeciesUrl = $feedSlug
