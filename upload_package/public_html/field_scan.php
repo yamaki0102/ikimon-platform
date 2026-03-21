@@ -285,6 +285,7 @@ async function startScan() {
     S.startTime = Date.now();
     S.speciesMap = {}; S.totalDet = 0; S.audioDet = 0; S.visualDet = 0;
     S.routePoints = []; S.envHistory = []; S.dataUsage = 0;
+    S.sessionId = 'ls_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     updateCounts();
 
     // Timer
@@ -507,14 +508,44 @@ async function captureFrame() {
         updateDataUsage(respText.length);
         var json = JSON.parse(respText);
         if (json.success && json.data && json.data.suggestions && json.data.suggestions.length > 0) {
+            var shouldSaveFrame = false;
             json.data.suggestions.forEach(function(sug) {
+                var isNewSpecies = !S.speciesMap[sug.name];
                 addDetection(sug.name, sug.scientific_name || '', sug.confidence || 0.5, 'visual', sug.category || '');
+                if (isNewSpecies || (sug.confidence || 0) >= 0.80) shouldSaveFrame = true;
             });
             dbg('📷 ' + json.data.suggestions.length + '件検出!');
+            if (shouldSaveFrame) saveKeyFrame(blob, json.data.suggestions[0], last);
         } else {
             dbg('📷 対象なし');
         }
     } catch(e) { dbg('📷 ERR: ' + e.message); }
+}
+
+function saveKeyFrame(blob, topSug, pos) {
+    var sessionId = S.sessionId || 'unknown';
+    var fd = new FormData();
+    fd.append('frame', blob, 'keyframe.jpg');
+    fd.append('session_id', sessionId);
+    fd.append('taxon_name', topSug.name || '');
+    fd.append('confidence', topSug.confidence || 0);
+    if (pos) { fd.append('lat', pos.lat); fd.append('lng', pos.lng); }
+    fetch('/api/v2/save_scan_frame.php', {method:'POST', body:fd})
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success && data.data && data.data.frame_ref) {
+                var name = topSug.name || '';
+                if (S.pendingEvents) {
+                    for (var i = S.pendingEvents.length - 1; i >= 0; i--) {
+                        if (S.pendingEvents[i].taxon_name === name && !S.pendingEvents[i].frame_ref) {
+                            S.pendingEvents[i].frame_ref = data.data.frame_ref;
+                            break;
+                        }
+                    }
+                }
+                dbg('💾 キーフレーム保存: ' + name);
+            }
+        }).catch(function() {});
 }
 
 // ===== Audio Recorder =====

@@ -93,6 +93,7 @@ foreach ($events as $i => $event) {
         'audio_snippet_hash' => $event['audio_snippet_hash'] ?? null,
         'photo_ref'          => $event['photo_ref'] ?? null,
         'environment_snapshot' => $event['environment_snapshot'] ?? null,
+        'frame_ref'          => $event['frame_ref'] ?? null,
     ];
 }
 
@@ -202,17 +203,22 @@ foreach ($result['observations'] as $obs) {
                 'coordinate_uncertainty_m' => $obs['gps_accuracy'] ?? null,
             ]);
 
-            $confContext = null;
+            $confContext = [];
             if ($envSnap) {
-                $confContext = ['environment_at_detection' => $envSnap];
+                $confContext['environment_at_detection'] = $envSnap;
             }
+            $frameRef = $obs['photo_ref'] ?? null;
+            if ($frameRef) {
+                $confContext['frame_ref'] = $frameRef;
+            }
+            if (empty($confContext)) $confContext = null;
 
             CanonicalStore::createOccurrence([
                 'event_id'            => $childEventId,
                 'scientific_name'     => $obs['taxon']['scientific_name'] ?? null,
                 'vernacular_name'     => $obs['taxon']['name'] ?? $obs['species_name'] ?? null,
                 'basis_of_record'     => 'MachineObservation',
-                'evidence_tier'       => 1,
+                'evidence_tier'       => $frameRef ? 2 : 1,
                 'observation_source'  => $scanMode,
                 'detection_confidence'=> $obs['detection_confidence'] ?? null,
                 'confidence_context'  => $confContext,
