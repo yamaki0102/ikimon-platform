@@ -402,7 +402,19 @@ unset($allObs);
                                 </div>
                                 <div>
                                     <p class="text-sm font-bold leading-none text-text"><?php echo htmlspecialchars($obs['user_name'] ?? substr($obs['user_id'], 0, 4)); ?></p>
-                                    <p class="text-token-xs text-muted"><?php echo BioUtils::timeAgo($obs['observed_at']); ?> ・ <?php echo htmlspecialchars($obs['municipality'] ?? $obs['location']['name'] ?? ''); ?></p>
+                                    <?php
+                                        $feedLocation = $obs['municipality'] ?? $obs['location']['name'] ?? '';
+                                        $feedDetCount = $obs['detection_count'] ?? null;
+                                    ?>
+                                    <p class="text-token-xs text-muted">
+                                        <?= BioUtils::timeAgo($obs['observed_at']) ?>
+                                        <?php if ($feedLocation): ?>
+                                            ・ <?= htmlspecialchars($feedLocation) ?>
+                                        <?php endif; ?>
+                                        <?php if ($feedDetCount && $feedDetCount > 1): ?>
+                                            <span class="text-emerald-600 font-bold">· <?= (int)$feedDetCount ?>回検出</span>
+                                        <?php endif; ?>
+                                    </p>
                                 </div>
                             </div>
                             <button class="p-2 transition rounded-full text-faint hover:bg-surface">
@@ -485,7 +497,13 @@ unset($allObs);
                                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-emerald-900/80 to-blue-900/80">
                                     <div class="text-5xl"><?= $detIcon ?></div>
                                     <div class="text-white font-bold text-sm"><?= htmlspecialchars(BioUtils::displayName($obs) ?: '音声検出') ?></div>
-                                    <div class="text-xs text-gray-300"><?= $modeLabel ?> · AI <?= $detConf ?>%</div>
+                                    <div class="text-xs text-gray-300">
+                                        <?= $modeLabel ?> · AI <?= $detConf ?>%
+                                        <?php $audioDetCount = $obs['detection_count'] ?? 0; ?>
+                                        <?php if ($audioDetCount > 1): ?>
+                                            · <span class="text-emerald-300 font-bold"><?= (int)$audioDetCount ?>回検出</span>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             <?php else: ?>
                                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface text-muted">

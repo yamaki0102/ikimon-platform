@@ -39,6 +39,7 @@ require_once ROOT_DIR . '/libs/DataStageManager.php';
 require_once ROOT_DIR . '/libs/PrivacyFilter.php';
 require_once ROOT_DIR . '/libs/PassiveObservationEngine.php';
 require_once ROOT_DIR . '/libs/CanonicalStore.php';
+require_once ROOT_DIR . '/libs/GeoUtils.php';
 
 // 認証
 Auth::init();
@@ -153,6 +154,21 @@ foreach ($result['observations'] as $obs) {
     $obs['user_name'] = $userName;
     $obs['user_avatar'] = $userAvatar;
     $obs['observation_source'] = $scanMode;
+
+    // 逆ジオコーディング（セッション重心で1回だけ実行、全obs共有）
+    static $sessionGeo = null;
+    if ($sessionGeo === null) {
+        $geoLat = (float)($obs['lat'] ?? $centerLat ?? 0);
+        $geoLng = (float)($obs['lng'] ?? $centerLng ?? 0);
+        if ($geoLat != 0 && $geoLng != 0) {
+            $sessionGeo = GeoUtils::reverseGeocode($geoLat, $geoLng);
+        } else {
+            $sessionGeo = ['municipality' => '', 'prefecture' => '', 'country' => ''];
+        }
+    }
+    if (!empty($sessionGeo['municipality'])) {
+        $obs['municipality'] = $sessionGeo['municipality'];
+    }
 
     // ウォークの音声検出 → フィード用 DataStore にも保存
     if (!$isLiveScan) {
