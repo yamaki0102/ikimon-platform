@@ -14,14 +14,20 @@ $currentUser = Auth::user();
 $filter = $_GET['filter'] ?? 'all';
 $followedUserIds = ($currentUser && $filter === 'following') ? FollowManager::getFollowedUserIds($currentUser['id']) : [];
 $latest_obs = DataStore::getLatest('observations', 6, function ($item) use ($filter, $currentUser, $followedUserIds) {
-    // Exclude test/E2E users, guest users, and broken images
+    // Exclude test/E2E users, guest users
     $userName = $item['user_name'] ?? '';
     if (strpos($userName, 'E2E_') === 0) return false;
     if (preg_match('/^gues$/i', $userName)) return false;
     if (preg_match('/^Guest$/i', $userName)) return false;
-    $photo = $item['photos'][0] ?? '';
-    if (empty($photo) || strpos($photo, 'sample_') !== false) return false;
-    if (!preg_match('/^uploads\//', $photo)) return false;
+    if (empty($userName)) return false;
+
+    // 写真付き観察 OR 音声検出（ウォーク/スキャン）を許可
+    $isAudioDetection = in_array($item['observation_source'] ?? $item['source'] ?? '', ['walk', 'live-scan', 'passive']);
+    if (!$isAudioDetection) {
+        $photo = $item['photos'][0] ?? '';
+        if (empty($photo) || strpos($photo, 'sample_') !== false) return false;
+        if (!preg_match('/^uploads\//', $photo)) return false;
+    }
 
     if ($filter === 'unidentified') {
         return empty($item['taxon']['id']);
@@ -421,6 +427,23 @@ unset($allObs);
                                      class="w-full h-full object-cover pointer-events-none"
                                      loading="lazy" decoding="async"
                                      onload="this.parentElement.classList.remove('lazy-img')">
+                            <?php elseif (in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'live-scan', 'passive'])): ?>
+                                <?php
+                                    $detType = $obs['detection_type'] ?? 'audio';
+                                    $detConf = round(($obs['detection_confidence'] ?? 0) * 100);
+                                    $detModel = $obs['detection_model'] ?? '';
+                                    $detIcon = $detType === 'audio' ? '🐦' : '🌿';
+                                    $modeLabel = match($obs['observation_source'] ?? $obs['source'] ?? '') {
+                                        'walk' => '🚶 ウォーク',
+                                        'live-scan' => '📡 ライブスキャン',
+                                        default => '📡 パッシブ',
+                                    };
+                                ?>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-emerald-900/80 to-blue-900/80">
+                                    <div class="text-5xl"><?= $detIcon ?></div>
+                                    <div class="text-white font-bold text-sm"><?= htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '音声検出') ?></div>
+                                    <div class="text-xs text-gray-300"><?= $modeLabel ?> · AI <?= $detConf ?>%</div>
+                                </div>
                             <?php else: ?>
                                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface text-muted">
                                     <i data-lucide="image-off" class="w-8 h-8 text-faint"></i>
