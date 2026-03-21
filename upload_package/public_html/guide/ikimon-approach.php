@@ -468,21 +468,6 @@ Auth::init();
                     </div>
                 </div>
 
-                <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
-                    <i data-lucide="hard-drive" class="w-4 h-4 text-primary"></i>
-                    データの保管方法
-                </h3>
-
-                <p>
-                    ikimon のデータは<strong class="text-text">月単位のファイルに分けて保管</strong>されます。2026年1月の観察は「2026-01」のファイルに、2月は「2026-02」に。シンプルな構造だからこそ壊れにくく、100年後でも読み取れます。
-                </p>
-
-                <div class="blockquote-accent">
-                    <p class="text-sm">
-                        <strong class="text-text">なぜこの方法？</strong> 複雑なデータベースは高速ですが、メンテナンスが大変で、技術が変わると読めなくなるリスクがあります。JSON（テキスト形式）なら、100年後のエンジニアでも中身を理解できます。「未来への互換性」を最優先にした選択です。
-                    </p>
-                </div>
-
                 <p>
                     ikimon に記録されたデータは、将来的にオープンデータとして公開することを目指しています。<strong class="text-text">キミの1枚の写真が、未来の研究者にとっての貴重な資料</strong>になるかもしれません。
                 </p>
