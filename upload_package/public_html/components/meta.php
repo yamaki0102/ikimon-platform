@@ -175,17 +175,52 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <link rel="stylesheet" href="assets/css/skeleton.css?v=2.1">
 <link rel="stylesheet" href="assets/css/input.css?v=2.1">
 
+<!-- Service Worker: Force migration to v13 -->
+<script nonce="<?= CspNonce::attr() ?>">
+    (function(){
+        // One-time cache nuke: unregister old SW, clear all caches, reload
+        var REQUIRED_SW = 'v13';
+        if ('serviceWorker' in navigator && !sessionStorage.getItem('sw_migrated_' + REQUIRED_SW)) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+                var hadOldSW = false;
+                regs.forEach(function(r) {
+                    if (r.active && r.active.scriptURL && r.active.scriptURL.indexOf('v=' + REQUIRED_SW) === -1) {
+                        hadOldSW = true;
+                        r.unregister();
+                        console.log('[SW Migration] Unregistered old SW:', r.active.scriptURL);
+                    }
+                });
+                if (hadOldSW) {
+                    caches.keys().then(function(keys) {
+                        return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+                    }).then(function() {
+                        sessionStorage.setItem('sw_migrated_' + REQUIRED_SW, '1');
+                        console.log('[SW Migration] Caches cleared, reloading...');
+                        location.reload(true);
+                    });
+                } else {
+                    sessionStorage.setItem('sw_migrated_' + REQUIRED_SW, '1');
+                }
+            });
+        }
+    })();
+</script>
 <!-- Service Worker + PWA Install -->
 <script nonce="<?= CspNonce::attr() ?>">
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+            if (!window.__swReloading) {
+                window.__swReloading = true;
+                location.reload();
+            }
+        });
+        window.addEventListener('load', function() {
             navigator.serviceWorker.register('sw.js?v=13')
-                .then(reg => {
+                .then(function(reg) {
                     console.log('SW registered:', reg.scope);
-                    // 強制更新チェック
                     reg.update();
                 })
-                .catch(err => console.log('SW registration failed:', err));
+                .catch(function(err) { console.log('SW reg failed:', err); });
         });
     }
 
