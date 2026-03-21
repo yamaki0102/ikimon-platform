@@ -265,27 +265,19 @@ function walkMode() {
         },
 
         async _fetchWeather() {
-            if (!navigator.geolocation) return;
-            let pos;
             try {
-                pos = await new Promise((resolve, reject) => {
+                if (!navigator.geolocation) return;
+                const pos = await new Promise(function(resolve, reject) {
                     navigator.geolocation.getCurrentPosition(resolve, reject, {
                         enableHighAccuracy: false, timeout: 10000
                     });
                 });
-            } catch(e) {
-                console.warn('Geolocation denied or timed out:', e);
-                return;
-            }
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
-
-                const resp = await fetch(
-                    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=Asia/Tokyo`
-                );
+                const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng + '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=Asia/Tokyo';
+                const resp = await fetch(url);
                 const data = await resp.json();
                 const c = data.current;
-
                 const wmo = this._weatherCodeToInfo(c.weather_code);
                 const hour = new Date().getHours();
                 let birdActivity = '';
@@ -293,14 +285,13 @@ function walkMode() {
                 else if (hour >= 16 && hour <= 18) birdActivity = '🌅 夕方の活動帯';
                 else if (hour >= 21 || hour <= 4) birdActivity = '🌙 夜行性種のみ';
                 else birdActivity = '☀️ 日中';
-
                 this.weather = {
                     temp: Math.round(c.temperature_2m),
                     humidity: c.relative_humidity_2m,
                     windSpeed: c.wind_speed_10m,
                     description: wmo.description,
                     icon: wmo.icon,
-                    birdActivity,
+                    birdActivity: birdActivity,
                 };
             } catch (e) {
                 console.warn('Weather fetch failed:', e);
