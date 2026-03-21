@@ -23,6 +23,7 @@
                     <a href="/for-researcher.php" class="hover:text-text transition py-2 min-h-11 flex items-center">研究者・専門家様</a>
                     <a href="/guide/nature-positive.php" class="hover:text-text transition py-2 min-h-11 flex items-center">ネイチャーポジティブガイド</a>
                     <a href="/guide/satoyama-initiative.php" class="hover:text-text transition py-2 min-h-11 flex items-center">里山イニシアティブガイド</a>
+                    <a href="/guide/ikimon-approach.php" class="hover:text-text transition py-2 min-h-11 flex items-center">ikimon のアプローチ</a>
                 </div>
             </div>
 
