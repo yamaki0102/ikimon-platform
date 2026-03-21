@@ -1,646 +1,769 @@
-# ikimon.life 開発計画 — Phase 6 実証基盤
+# ikimon.life 開発計画 — 「観察のOS」基盤構築
 
 > **正本**: `docs/strategy/DEVELOPMENT_PLAN.md`
 > **最終更新**: 2026-03-21
-> **更新者**: Claude Opus (コードベース全調査に基づく v2)
+> **更新者**: Claude Opus (コードベース全調査 + ビジョン再定義 v3)
 > **共有対象**: Claude Code / Codex / 八巻
 > **戦略文書**: `docs/strategy/v3.8/` (本体 + Appendix A-D)
 > **期間**: 2026-03-22 〜 2026-04-04 (2週間)
 
 ---
 
-## 方針
+## 設計思想：「ikimon.life だけで全部できる」
 
-- **戦略 v3.8** が A評価到達。S評価には外部アクション（法務レビュー、reviewer確保、愛管ヒアリング、PoC実測）が必要
-- 開発は **Phase 6 PoC基盤** に集中。Phase A セットアップ期限: 2026-04-06
-- Gemini Embedding 2 は **テキスト＋画像で導入済み**。マルチモーダル（音声）拡張は PoC 後
-- **既存コードの活用を最大化**する。ゼロから作らない
+**ユーザーに他のアプリを使わせない。** ikimon.life 1つで、あらゆる自然観察が完結する。
 
----
+### 観察の4つのスタイル — すべて ikimon.life 内
 
-## 既存資産の棚卸し（コードベース調査 2026-03-21 実施）
+| スタイル | ユーザー像 | ikimon上の操作 | 技術的な裏側 |
+|---------|----------|--------------|------------|
+| **📷 写真派** | 自然の写真が好き。きれいな写真を上げたい | post.php で写真アップ | Gemini Vision が裏で種同定＋植生解析 |
+| **🔍 市民科学派** | 丁寧に同定して、研究に貢献したい | observation_detail で同定に参加 | TrustLevel + Evidence Tier で品質管理 |
+| **🚶 パッシブスキャン派** | スマホ持って散歩するだけ | walk.php / field_scan.php でスキャンON | 音声→BirdNET / カメラ→Gemini をVPSでリアルタイム処理 |
+| **🚗 車載スキャン派** | ドライブ中にデータ取りたい | field_scan.php のドライブモード | 音声→BirdNET + カメラ→Gemini Vision で見えるもの全部（樹木、鳥、動物、花、看板の植栽…）を連続同定＋カウント |
 
-### 「もう存在するもの」 — Phase 6 の出発点
+### データの重ね合わせ
 
-| 領域 | 既存コンポーネント | ファイル | Phase 6 での活用方針 |
-|------|-------------------|---------|-------------------|
-| **パッシブ検出** | PassiveObservationEngine | `libs/PassiveObservationEngine.php` | BirdNET結果の受け口として拡張。confidence閾値(0.70/0.50/0.30)＋habitat/season boost が既にある |
-| **パッシブAPI** | Passive Event API | `api/v2/passive_event.php` | BirdNET CSV→JSON変換後、このAPIに流し込む |
-| **信頼度** | TrustLevel (L1-L5) | `libs/TrustLevel.php` | Reviewer L0-L3 にマッピング。L1-2→L0, L3→L1, L4→L2, L5→L3 |
-| **同定キュー** | IdentifierQueue | `libs/IdentifierQueue.php` | BirdNET結果のレビューキューとして拡張。分類群フィルタ追加 |
-| **品質グレード** | DataQuality (A/B/C/D) | `libs/DataQuality.php` | Evidence Tier (1/1.5/2/3/4) を並行追加。既存グレードは残す |
-| **同定UI** | id_workbench.php | `public_html/id_workbench.php` | BirdNET音響レビュー用のビューを追加 |
-| **管理者検証** | verification.php | `admin/verification.php` | Speed-IDパネルをreviewer向けに開放 |
-| **DwC-A出力** | export_dwca.php 他4本 | `api/export_dwca.php` 他 | Canonical Schema対応版に段階的に移行 |
-| **GBIF連携** | GbifService | `libs/Services/GbifService.php` | そのまま活用 |
-| **埋め込み** | EmbeddingService/Store/Queue | `libs/Embedding*.php` | BirdNET結果のテキスト埋め込み（種名＋場所＋時間→ベクトル） |
-| **AI評価** | AiObservationAssessment | `libs/AiObservationAssessment.php` (1,371行) | Tier 1.5 自動昇格の判定ロジックに活用 |
-| **プライバシー** | PrivacyFilter + RedListManager | `libs/PrivacyFilter.php`, `libs/RedListManager.php` | 希少種の座標fuzzing。Tier 1.5から除外するフラグ |
-| **監査ログ** | EventLogService | `libs/Services/EventLogService.php` | Identification Layer の auditLog に活用 |
-| **テスト** | PHPUnit 16テスト | `tests/Unit/*.php` | PassiveObservationEngineTest.php が既にある。拡張 |
-
-### 「これから作るもの」
-
-| 領域 | 新規コンポーネント | 理由 |
-|------|-------------------|------|
-| **Evidence Tier** | `evidence_tier` フィールド＋昇格ロジック | 既存DataQuality(A/B/C/D)とは別概念。並行運用 |
-| **Canonical Schema** | 5層SQLiteテーブル＋CanonicalStore.php | 観察データの100年保存基盤。ADR-001で決定済み |
-| **BirdNETインポーター** | BirdNetImporter.php + CLI | CSV→Canonical Schema変換 |
-| **音響レビューUI** | id_workbench.php 内の新ビュー | スペクトログラム表示＋3択（承認/棄却/スキップ） |
-| **KPIダッシュボード** | poc_dashboard.php | G1-G7 の進捗可視化 |
-| **Reviewer L0-L3 マッピング** | ReviewerLevel.php（TrustLevel拡張） | 戦略B2のreviewer tier を実装 |
-
----
-
-## Week 1: Sprint 0 — 基盤整備（2026-03-22 〜 03-28）
-
-### Day 1-2 (土日 03/22-23): ADR決定 + Canonical Schema 設計
-
-#### ADR-005: Evidence Tier のデータモデル設計
-**背景**: 既存の DataQuality (A/B/C/D) と新しい Evidence Tier (1/1.5/2/3/4) の関係を明確にする
-
-| 選択肢 | 内容 | 推奨 |
-|--------|------|------|
-| A | DataQuality を Evidence Tier に置き換える | ❌ 破壊的。既存UIが壊れる |
-| B | **Evidence Tier を別フィールドとして追加。DataQualityと並行運用** | ✅ 推奨 |
-| C | DataQuality を Tier にリネーム | ❌ 意味が異なる（品質 vs 証拠段階） |
-
-**決定事項（B採用の場合）:**
-```php
-// 観察レコードに追加するフィールド
-$obs['evidence_tier'] = 1;        // 1, 1.5, 2, 3, 4
-$obs['evidence_tier_at'] = '...'; // Tier変更日時
-$obs['evidence_tier_by'] = '...'; // 変更者(AI/reviewer_id)
-$obs['evidence_tier_log'] = [];   // 昇格履歴
+```
+写真派のデータ ─────┐
+市民科学のデータ ────┤
+パッシブスキャン ────┼→ 1つの Canonical Schema に蓄積
+車載スキャン ────────┤       ↓
+調査モード ─────────┘   データが重なるほど解像度UP
+                              ↓
+                    ┌─────────────────────────┐
+                    │ 「この地域の全体像はこう」    │
+                    │ 「ここは詳しく調査すべき」    │
+                    │ 「ここはDNA調査が必要」      │
+                    │ 「専門家にお願いすべき箇所」   │
+                    └─────────────────────────┘
+                              ↓
+                    OECM申請 / TNFD報告 / 環境調査レポート
 ```
 
-**タスク:**
+---
 
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 0.1 | ADR-005 作成: Evidence Tier データモデル | Claude | `docs/architecture/adr-005-evidence-tier.md` | 1h |
-| 0.2 | ADR-006 作成: Canonical Schema のストレージ戦略 | Claude | `docs/architecture/adr-006-canonical-storage.md` | 1h |
-| 0.3 | Canonical Schema v0.1 SQLite DDL設計 | Codex | `scripts/migrations/001_canonical_schema.sql` | 2h |
+## 現在地：何が動いていて、何がダミーか
 
-**ADR-006 の論点:**
-既存の ADR-001 は PostgreSQL を想定していたが、PoC では SQLite で十分。
+### コードベース全調査結果（2026-03-21 実施）
 
-| 選択肢 | 内容 | 推奨 |
-|--------|------|------|
-| A | EmbeddingStore.php と同じ SQLite に Canonical テーブルを追加 | ❌ 責務が混在 |
-| B | **専用の canonical.sqlite3 を新設。EmbeddingStore パターンを踏襲** | ✅ 推奨 |
-| C | 既存 JSON に evidence_tier フィールドだけ追加（スキーマ移行なし） | △ 最小だがPoC後に作り直し |
+| コンポーネント | ファイル | 状態 | 詳細 |
+|---|---|---|---|
+| **📸 カメラAI同定** | `scan.php` → `api/v2/ai_classify.php` → `AiObservationAssessment.php` | **✅ 本物** | Gemini Vision API。3段階処理(fast/batch/deep)。マルチサブジェクト対応。1,371行 |
+| **📷 写真投稿AI** | `post.php` → 同上 | **✅ 本物** | EXIF抽出 + WebP圧縮 + Gemini 評価 |
+| **🗺️ GPS追跡** | `walk.php`, `field_scan.php` | **✅ 本物** | Web Geolocation API。5秒間隔。MapLibre地図表示 |
+| **🎤 音声メーター** | `walk.php`, `field_scan.php` | **✅ 本物** | Web Audio API + FFT解析。リアルタイムレベル表示 |
+| **🐦 音声種分類** | `walk.php:classifyAudioSnippet()`, `field_scan.php:classifyAudio()` | **❌ ダミー** | ハードコード5種、20-25%ランダム確率。コメント「本番実装ではない」 |
+| **🔄 パッシブエンジン** | `PassiveObservationEngine.php` | **✅ 本物** | 重複排除、confidence調整(habitat/season boost)、OmoikaneDB連携 |
+| **📡 パッシブAPI** | `api/v2/passive_event.php` | **✅ 本物** | バッチ受信(max500件)、レート制限、プライバシーフィルタ |
+| **🧬 埋め込み検索** | `EmbeddingService/Store/Queue` | **✅ 本物** | Gemini Embedding 2、768次元、SQLite BLOB |
+| **📊 レポート** | `ReportEngine.php`, `tnfd_leap_report.php` | **✅ 本物** | TNFD LEAP、BIS スコア |
+| **🏷️ 信頼度** | `TrustLevel.php` (L1-5) | **✅ 本物** | 重み付き投票、Research Grade判定 |
+| **📋 DwC-A出力** | `export_dwca.php` 他4本 | **✅ 本物** | Darwin Core Archive、プライバシーフィルタ付き |
+| **🗃️ 同定キュー** | `IdentifierQueue.php` | **✅ 本物** | スコアリング、分類群マッチ、サイト重複除去 |
+| **📏 品質グレード** | `DataQuality.php` (A/B/C/D) | **✅ 本物** | 写真+位置→B、2名合意→A |
 
-**推奨: B + C のハイブリッド**
-- 既存観察JSON に `evidence_tier` フィールドを追加（即座に使える）
-- Canonical Schema は `canonical.sqlite3` に新設（BirdNET結果はここに直接格納）
-- 既存観察→Canonical への同期は Phase B で段階的に
+### 結論：**音声AI分類の1箇所をダミー→本物に差し替えれば、全モードが本物になる**
 
 ---
 
-### Day 3 (月 03/24): Pixel 10 Pro 到着 + BirdNET 検証
+## アーキテクチャ：AI Detection Microservice
 
-**八巻アクション（開発者自身）:**
+### なぜ VPS 上の FastAPI か
 
-| 時間 | アクション | 成果物 |
-|------|----------|--------|
-| 午前 | Pixel 10 Pro 開封・初期設定 | — |
-| 午前 | BirdNET アプリインストール・動作確認 | スクリーンショット |
-| 午後 | 自宅近辺で30分間のテスト録音 | BirdNET CSV出力ファイル |
-| 午後 | CSV出力フォーマットの確認・共有 | CSVサンプル → リポジトリに配置 |
+| 方式 | 問題 |
+|------|------|
+| ❌ 外部アプリ（BirdNET）を使ってもらう | ユーザーに負担。ikimon完結の思想に反する |
+| ❌ ブラウザ上でML推論（TFLite.js） | モデル50MB DL。モバイル回線で非現実的 |
+| ❌ PHP から subprocess で Python 呼出 | 毎回モデルロード9秒+。使い物にならない |
+| **✅ VPS上の FastAPI にモデル常駐** | 1リクエスト1-3秒。メモリ500MB。12GB VPSに余裕で収まる |
 
-**開発側（Claude/Codex 並行）:**
+### 構成図
 
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 0.4 | CanonicalStore.php 実装 | Codex | `libs/CanonicalStore.php` | 3h |
-| 0.5 | 既存観察JSONに evidence_tier フィールド追加 | Claude | DataStore/DataQuality 拡張 | 1h |
-| 0.6 | TrustLevel → ReviewerLevel マッピング設計 | Claude | `libs/ReviewerLevel.php` | 2h |
-
-**CanonicalStore.php の設計方針:**
-
-```php
-class CanonicalStore {
-    // EmbeddingStore.php のパターンを踏襲
-    private PDO $db;  // canonical.sqlite3
-
-    // Layer 1: Event
-    public function createEvent(array $data): string;  // returns eventID
-    public function getEvent(string $eventID): ?array;
-
-    // Layer 2: Occurrence
-    public function createOccurrence(string $eventID, array $data): string;
-    public function getOccurrencesByEvent(string $eventID): array;
-    public function updateEvidenceTier(string $occurrenceID, float $tier, string $by, string $reason): void;
-
-    // Layer 3: Evidence
-    public function attachEvidence(string $occurrenceID, array $media): string;
-
-    // Layer 4: Identification
-    public function addIdentification(string $occurrenceID, array $id): string;
-    public function getIdentifications(string $occurrenceID): array;
-
-    // Layer 5: PrivacyAccess
-    public function setAccessTier(string $recordID, string $tier): void;
-
-    // Cross-layer queries
-    public function getOccurrenceWithEvidence(string $occurrenceID): array;
-    public function searchByTier(float $minTier, int $limit = 50): array;
-    public function getKPIMetrics(string $startDate, string $endDate): array;  // G1-G7 用
-}
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ikimon.life (ブラウザ / PWA)                                 │
+│                                                             │
+│  📷 post.php ─────→ Gemini Vision API (既存・変更なし)        │
+│  📸 scan.php ─────→ /api/v2/ai_classify.php (既存・変更なし)  │
+│  🚶 walk.php ─────→ /api/v2/analyze_audio.php (★新規)       │
+│  🗺️ field_scan.php → 同上 + ai_classify.php (カメラ部分は既存) │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ HTTPS
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Xserver VPS (Ubuntu 24.04, 12GB RAM)                        │
+│                                                              │
+│  Nginx ─→ PHP-FPM (既存)                                     │
+│    │                                                         │
+│    └─→ /api/v2/analyze_audio.php (PHP)                       │
+│           │                                                  │
+│           │ HTTP localhost:8100                               │
+│           ▼                                                  │
+│    ┌─────────────────────────────────┐                       │
+│    │ FastAPI Microservice (:8100)     │  ← ★ 新規構築         │
+│    │                                 │                       │
+│    │ BirdNET-Analyzer (常駐)          │  ~500MB RAM           │
+│    │ - 6,522種（全世界の鳥類）         │                       │
+│    │ - CPU推論: 3秒音声→1-2秒         │                       │
+│    │ - lat/lon/week で地域種絞込      │                       │
+│    │                                 │                       │
+│    │ [将来] SpeciesNet (遅延ロード)    │  画像AI追加時          │
+│    └─────────────────────────────────┘                       │
+│                                                              │
+│  メモリ使用量:                                                │
+│  PHP-FPM: ~500MB + BirdNET: ~500MB + OS: ~1GB = 2GB         │
+│  残り 10GB の余裕あり                                         │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-**ReviewerLevel.php の設計:**
+### BirdNET-Analyzer の技術仕様
 
-```php
-// 既存 TrustLevel (1-5) と戦略 Reviewer Level (L0-L3) のブリッジ
-class ReviewerLevel {
-    // マッピング: TrustLevel → Reviewer Level
-    const MAPPING = [
-        1 => 'L0',  // Observer → 一般ユーザー
-        2 => 'L0',  // Naturalist → 一般ユーザー
-        3 => 'L1',  // Ranger → Reviewer
-        4 => 'L2',  // Guardian → Trusted Reviewer
-        5 => 'L3',  // Sage → Expert Reviewer
-    ];
+| 項目 | 値 |
+|------|-----|
+| モデル | V2.4 (TFLite, 50.5MB, 0.826 GFLOPs) |
+| 対応種数 | 6,522（全世界の鳥類 + 11非鳥類イベント） |
+| 入力 | 任意音声（wav/mp3/ogg/webm → ffmpeg で変換） |
+| 推論時間 | 3秒音声 → CPU 1-2秒 |
+| RAM | ~500MB（モデル常駐時） |
+| 地域絞込 | lat/lon/week 指定で出現種をフィルタ |
+| ライセンス | コード: MIT / モデル: CC BY-NC-SA 4.0（非商用OK） |
 
-    public function getReviewerLevel(string $userId): string;
-    public function canApproveTier(string $userId, float $currentTier): bool;
-    public function getReviewPermissions(string $userId): array;
+### ブラウザ→サーバーの音声送信
+
+```javascript
+// walk.php / field_scan.php のダミー関数を差し替え
+async function classifyAudioSnippet() {
+    // 3秒間の音声をキャプチャ
+    const chunks = [];
+    const recorder = new MediaRecorder(audioStream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'   // Android/Chrome
+            : 'audio/mp4'                // iOS Safari
+    });
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.start();
+    await new Promise(r => setTimeout(r, 3000));
+    recorder.stop();
+    await new Promise(r => recorder.onstop = r);
+
+    const blob = new Blob(chunks);
+    const formData = new FormData();
+    formData.append('audio', blob, 'snippet.webm');
+    formData.append('lat', currentLat);
+    formData.append('lng', currentLng);
+
+    // VPS の BirdNET に送信（1-3秒で返る）
+    const res = await fetch('/api/v2/analyze_audio.php', {
+        method: 'POST',
+        body: formData
+    });
+    return await res.json();
+    // → { detections: [{scientific_name, common_name, confidence, start_time, end_time}] }
 }
 ```
 
 ---
 
-### Day 4 (火 03/25): BirdNET CSVフォーマット解析 + インポーター設計
+## 2週間開発計画（日単位）
 
-**前提**: 前日のテスト録音で BirdNET CSV を取得済み
+### Week 1: AI Detection Microservice + 音声AI実接続
 
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 0.7 | BirdNET CSVサンプルをリポジトリに配置 | 八巻 | `tests/fixtures/birdnet_sample.csv` | 15min |
-| 0.8 | ADR-007: BirdNET取り込みフォーマット決定 | Claude | `docs/architecture/adr-007-birdnet-import.md` | 1h |
-| 0.9 | BirdNetImporter.php 設計 + スケルトン | Codex | `libs/BirdNetImporter.php` | 2h |
-| 0.10 | BirdNetImporterTest.php | Codex | `tests/Unit/BirdNetImporterTest.php` | 1h |
+#### Day 1 (土 03/22): VPS に BirdNET-Analyzer セットアップ
 
-**BirdNET CSV の想定フォーマット:**
-```csv
-Start (s),End (s),Scientific name,Common name,Confidence,File
-0.0,3.0,Parus minor,シジュウカラ,0.92,recording_001.wav
-3.0,6.0,Hypsipetes amaurotis,ヒヨドリ,0.85,recording_001.wav
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 0.1 | VPS に Python 3.11 + venv 構築 | Codex | `/opt/ikimon-ai/venv/` |
+| 0.2 | BirdNET-Analyzer + birdnetlib インストール | Codex | 動作確認ログ |
+| 0.3 | ffmpeg インストール確認 | Codex | `which ffmpeg` |
+| 0.4 | FastAPI アプリ作成（`/opt/ikimon-ai/app.py`） | Codex | `POST /analyze` エンドポイント |
+| 0.5 | systemd サービス登録（`ikimon-ai.service`） | Codex | 自動起動設定 |
+| 0.6 | Nginx reverse proxy 設定（内部 :8100） | Codex | 外部からアクセス不可を確認 |
+
+**FastAPI アプリ (`/opt/ikimon-ai/app.py`):**
+
+```python
+from fastapi import FastAPI, UploadFile, Form
+from birdnetlib import Recording
+from birdnetlib.analyzer import Analyzer
+import tempfile, os
+
+app = FastAPI()
+analyzer = Analyzer()  # モデル常駐（起動時に1回ロード）
+
+@app.post("/analyze")
+async def analyze_audio(
+    audio: UploadFile,
+    lat: float = Form(35.0),
+    lng: float = Form(139.0),
+    min_conf: float = Form(0.25)
+):
+    # 一時ファイルに保存 → ffmpeg で wav 変換 → BirdNET 推論
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        content = await audio.read()
+        # webm/mp4 → wav 変換
+        input_tmp = tmp.name.replace(".wav", ".input")
+        with open(input_tmp, "wb") as f:
+            f.write(content)
+        os.system(f"ffmpeg -y -i {input_tmp} -ar 48000 -ac 1 {tmp.name} 2>/dev/null")
+        os.unlink(input_tmp)
+
+        recording = Recording(
+            analyzer, tmp.name,
+            lat=lat, lon=lng,
+            min_conf=min_conf
+        )
+        recording.analyze()
+        os.unlink(tmp.name)
+
+        return {
+            "detections": [
+                {
+                    "scientific_name": d["scientific_name"],
+                    "common_name": d["common_name"],
+                    "confidence": round(d["confidence"], 3),
+                    "start_time": d["start_time"],
+                    "end_time": d["end_time"]
+                }
+                for d in recording.detections
+            ]
+        }
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "model": "BirdNET-Analyzer V2.4", "species_count": 6522}
 ```
 
-**BirdNetImporter.php:**
-```php
-class BirdNetImporter {
-    private CanonicalStore $store;
-    private PassiveObservationEngine $engine;
+**systemd サービス (`/etc/systemd/system/ikimon-ai.service`):**
+```ini
+[Unit]
+Description=ikimon.life AI Detection Service
+After=network.target
 
-    // CSV → Canonical Schema 変換
-    public function importCSV(string $csvPath, array $sessionMeta): ImportResult;
+[Service]
+User=www-data
+WorkingDirectory=/opt/ikimon-ai
+ExecStart=/opt/ikimon-ai/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8100
+Restart=always
 
-    // 1行 → Event + Occurrence + Evidence + Identification
-    private function processRow(array $row, array $sessionMeta): array;
-
-    // Tier 1.5 自動昇格判定（Appendix B1 準拠）
-    private function evaluateAutoPromotion(array $occurrence): float;
-
-    // sessionMeta に含むもの:
-    // - recordedBy: ユーザーID
-    // - decimalLatitude / decimalLongitude: GPS
-    // - eventDate: 録音日時
-    // - captureDevice: "Pixel 10 Pro"
-    // - samplingProtocol: "passive-audio"
-    // - samplingEffort: "2 hours walk"
-}
+[Install]
+WantedBy=multi-user.target
 ```
 
 ---
 
-### Day 5 (水 03/26): BirdNETインポーター実装 + テスト
+#### Day 2 (日 03/23): PHP API + walk.php 実接続
 
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 0.11 | BirdNetImporter.php 本実装 | Codex | 完成版 `libs/BirdNetImporter.php` | 3h |
-| 0.12 | CLI スクリプト作成 | Codex | `scripts/ingestion/import_birdnet.php` | 1h |
-| 0.13 | Tier 1.5 自動昇格ロジック（Appendix B1 準拠） | Claude | `libs/EvidenceTierPromoter.php` | 2h |
-| 0.14 | PassiveObservationEngineTest.php に BirdNET テスト追加 | Codex | テスト拡張 | 1h |
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 0.7 | `api/v2/analyze_audio.php` 新規作成 | Claude | PHP→FastAPI ブリッジ |
+| 0.8 | walk.php の `classifyAudioSnippet()` をダミー→実APIに差替 | Claude | walk.php 更新 |
+| 0.9 | field_scan.php の `classifyAudio()` も同様に差替 | Claude | field_scan.php 更新 |
+| 0.10 | 音声録音→送信→結果表示の E2E テスト | Claude | テスト結果 |
 
-**Tier 1.5 自動昇格ロジック（EvidenceTierPromoter.php）:**
+**`api/v2/analyze_audio.php`（PHP → FastAPI ブリッジ）:**
 
 ```php
-class EvidenceTierPromoter {
-    private RedListManager $redList;
+<?php
+require_once __DIR__ . '/../../config/config.php';
+require_once ROOT_DIR . 'libs/Auth.php';
+require_once ROOT_DIR . 'libs/RateLimiter.php';
+require_once ROOT_DIR . 'libs/CSRF.php';
 
+header('Content-Type: application/json');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    exit(json_encode(['error' => 'Method not allowed']));
+}
+
+if (!Auth::isLoggedIn()) {
+    http_response_code(401);
+    exit(json_encode(['error' => 'Unauthorized']));
+}
+
+// レート制限: 1分あたり20回（3秒間隔のリアルタイム分析に対応）
+$limiter = new RateLimiter('analyze_audio', 20, 60);
+if (!$limiter->check(Auth::getUserId())) {
+    http_response_code(429);
+    exit(json_encode(['error' => 'Rate limit exceeded']));
+}
+
+// 音声ファイル受信
+if (!isset($_FILES['audio'])) {
+    http_response_code(400);
+    exit(json_encode(['error' => 'No audio file']));
+}
+
+$lat = floatval($_POST['lat'] ?? 35.0);
+$lng = floatval($_POST['lng'] ?? 139.0);
+
+// FastAPI に転送
+$ch = curl_init('http://127.0.0.1:8100/analyze');
+$cfile = new CURLFile($_FILES['audio']['tmp_name'], $_FILES['audio']['type'], 'snippet.webm');
+curl_setopt_array($ch, [
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => ['audio' => $cfile, 'lat' => $lat, 'lng' => $lng, 'min_conf' => 0.25],
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 10,
+]);
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($httpCode !== 200 || !$response) {
+    http_response_code(502);
+    exit(json_encode(['error' => 'AI service unavailable']));
+}
+
+echo $response;
+```
+
+---
+
+#### Day 3 (月 03/24): 音声証拠の保存 + Evidence Tier 導入
+
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 0.11 | 音声スニペット保存（`uploads/audio/YYYY-MM/`） | Claude | analyze_audio.php 拡張 |
+| 0.12 | ADR-005: Evidence Tier データモデル | Claude | `docs/architecture/adr-005-evidence-tier.md` |
+| 0.13 | DataQuality.php に `evidence_tier` フィールド追加 | Claude | DataQuality 拡張 |
+| 0.14 | PassiveObservationEngine に evidence_tier 設定ロジック追加 | Codex | エンジン拡張 |
+
+**Evidence Tier の定義（全観察モード共通）:**
+
+```
+Tier 1:   AI単独判定（音声 or 画像）
+Tier 1.5: AI高確信度 + 生態学的妥当性（地域×季節）→ 自動昇格
+Tier 2:   コミュニティ検証（1名の reviewer が確認）
+Tier 3:   合意形成（2名以上の合意、または専門家1名）
+Tier 4:   外部監査（DNA、標本、学術引用）
+
+全モードで同じ Tier を使う:
+- 写真投稿 → Gemini判定 → Tier 1 → 市民科学者が同定 → Tier 2-3
+- 散歩スキャン → BirdNET判定 → Tier 1 → reviewer確認 → Tier 2-3
+- ドライブ → 連続画像判定 → Tier 1 → 蓄積データで統計的に Tier 1.5
+- 丁寧な観察 → 写真+音声+位置 → 複合証拠で Tier 2 スタートもありえる
+```
+
+---
+
+#### Day 4 (火 03/25): Canonical Schema + CanonicalStore
+
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 0.15 | ADR-006: Canonical Schema ストレージ戦略 | Claude | ADR文書 |
+| 0.16 | Canonical Schema v0.1 DDL（5層） | Codex | `scripts/migrations/001_canonical_schema.sql` |
+| 0.17 | CanonicalStore.php 実装 | Codex | `libs/CanonicalStore.php` |
+| 0.18 | 既存観察 → Canonical Schema 同期ロジック | Codex | `libs/CanonicalSync.php` |
+
+**5層テーブル設計:**
+
+```sql
+-- Layer 1: Event（いつ・どこで・どうやって）
+CREATE TABLE events (
+    event_id TEXT PRIMARY KEY,
+    parent_event_id TEXT,             -- 調査セッションの親子
+    event_date TEXT NOT NULL,
+    decimal_latitude REAL,
+    decimal_longitude REAL,
+    sampling_protocol TEXT,           -- 'manual-photo' | 'passive-audio' | 'passive-visual' | 'drive-scan' | 'survey'
+    sampling_effort TEXT,             -- '30 minutes walk' | '2 hour drive'
+    capture_device TEXT,              -- 'iPhone 13 Pro' | 'Pixel 10 Pro'
+    recorded_by TEXT,                 -- user_id
+    site_id TEXT,
+    schema_version TEXT DEFAULT '1.0',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Layer 2: Occurrence（何がいたか）
+CREATE TABLE occurrences (
+    occurrence_id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL REFERENCES events(event_id),
+    scientific_name TEXT,
+    taxon_rank TEXT,                  -- 'species' | 'genus' | 'family'
+    basis_of_record TEXT,            -- 'HumanObservation' | 'MachineObservation'
+    evidence_tier REAL DEFAULT 1,    -- 1, 1.5, 2, 3, 4
+    evidence_tier_at TEXT,
+    evidence_tier_by TEXT,           -- 'auto' | reviewer_id
+    data_quality TEXT DEFAULT 'C',   -- A/B/C/D (既存互換)
+    observation_source TEXT,         -- 'photo-upload' | 'walk-audio' | 'scan-camera' | 'field-scan' | 'drive' | 'survey'
+    original_observation_id TEXT,    -- 既存 JSON の obs_xxx への参照
+    detection_confidence REAL,
+    detection_model TEXT,            -- 'gemini-3.1-flash-lite' | 'birdnet-v2.4'
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Layer 3: Evidence（証拠メディア）
+CREATE TABLE evidence (
+    evidence_id TEXT PRIMARY KEY,
+    occurrence_id TEXT NOT NULL REFERENCES occurrences(occurrence_id),
+    media_type TEXT NOT NULL,        -- 'photo' | 'audio' | 'spectrogram' | 'video-frame'
+    media_path TEXT NOT NULL,        -- uploads/photos/... | uploads/audio/...
+    media_hash TEXT,                 -- SHA-256
+    capture_timestamp TEXT,
+    duration_seconds REAL,           -- 音声の長さ
+    metadata JSON,                   -- EXIF, audio params, etc.
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Layer 4: Identification（誰が何と同定したか）
+CREATE TABLE identifications (
+    identification_id TEXT PRIMARY KEY,
+    occurrence_id TEXT NOT NULL REFERENCES occurrences(occurrence_id),
+    identified_by TEXT NOT NULL,     -- user_id | 'ai:birdnet-v2.4' | 'ai:gemini'
+    taxon_name TEXT NOT NULL,
+    identification_method TEXT,      -- 'ai-audio' | 'ai-image' | 'visual' | 'literature' | 'dna'
+    confidence REAL,
+    reviewer_level TEXT,             -- 'L0' | 'L1' | 'L2' | 'L3'
+    notes TEXT,
+    is_current INTEGER DEFAULT 1,   -- 最新の同定か
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Layer 5: PrivacyAccess（公開制御）
+CREATE TABLE privacy_access (
+    record_id TEXT PRIMARY KEY,      -- occurrence_id
+    coordinate_precision TEXT,       -- 'exact' | 'fuzzy-1km' | 'fuzzy-10km' | 'hidden'
+    access_tier TEXT,                -- 'public' | 'researcher' | 'government' | 'private'
+    legal_basis TEXT,                -- 'consent' | 'legitimate_interest' | 'red_list_protection'
+    sensitive_species INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- インデックス
+CREATE INDEX idx_occ_event ON occurrences(event_id);
+CREATE INDEX idx_occ_tier ON occurrences(evidence_tier);
+CREATE INDEX idx_occ_source ON occurrences(observation_source);
+CREATE INDEX idx_occ_species ON occurrences(scientific_name);
+CREATE INDEX idx_evidence_occ ON evidence(occurrence_id);
+CREATE INDEX idx_id_occ ON identifications(occurrence_id);
+```
+
+---
+
+#### Day 5 (水 03/26): ReviewerLevel + レビューUI
+
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 0.19 | ReviewerLevel.php（TrustLevel → L0-L3 ブリッジ） | Claude | `libs/ReviewerLevel.php` |
+| 0.20 | id_workbench.php に音響レビュータブ追加 | Claude | UI拡張 |
+| 0.21 | `api/v2/review_occurrence.php`（approve/reject/skip） | Codex | API |
+| 0.22 | テスト: ReviewerLevelTest.php | Claude | テスト |
+
+**音響レビューUI（id_workbench.php 内の新タブ）:**
+
+```
+┌────────────────────────────────────────┐
+│ 📋 同定ワークベンチ                      │
+│ [🔬 通常] [🎵 音響] [📸 スキャン]        │
+├────────────────────────────────────────┤
+│                                        │
+│  🎵 シジュウカラ (Parus minor)          │
+│  BirdNET 確信度: 0.92 → Tier 1.5       │
+│  🚶 ウォークモードで検出                  │
+│                                        │
+│  📍 東京都武蔵野市 | 2026-03-24 07:30   │
+│                                        │
+│  [▶ 音声再生 (3秒)]                     │
+│  ┌──────────────────────────────────┐  │
+│  │ ▁▂▃▅▆▇█▇▆▅▃▂▁▂▃▅▇█▇▅▃▁        │  │
+│  │         スペクトログラム             │  │
+│  └──────────────────────────────────┘  │
+│                                        │
+│  📷 同時刻の写真（もしあれば）            │
+│  [img_thumb] [img_thumb]               │
+│                                        │
+│  ┌──────┐  ┌──────┐  ┌──────┐        │
+│  │ ✅承認 │  │ ❌棄却 │  │ ⏭スキップ│        │
+│  └──────┘  └──────┘  └──────┘        │
+│  [💬 コメント...]  [🔄 別の種を提案]     │
+│                                        │
+│  ◀ 前  |  3/12  |  次 ▶               │
+└────────────────────────────────────────┘
+```
+
+---
+
+#### Day 6 (木 03/27): EvidenceTierPromoter + 昇格ワークフロー
+
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 0.23 | EvidenceTierPromoter.php（Tier 1→1.5 自動昇格） | Claude | `libs/EvidenceTierPromoter.php` |
+| 0.24 | TierPromotionWorkflow.php（レビュー→Tier 2/3 昇格） | Codex | `libs/TierPromotionWorkflow.php` |
+| 0.25 | ConsensusEngine.php（合意形成ロジック） | Codex | `libs/ConsensusEngine.php` |
+| 0.26 | テスト: EvidenceTierPromoterTest.php | Claude | テスト |
+
+**全観察モードの Tier 昇格フロー:**
+
+```
+写真投稿（post.php）
+  → Gemini: "シジュウカラ 85%" → Tier 1
+  → 生態学的妥当性チェック → Tier 1.5
+  → ユーザーAが同定「シジュウカラ」→ Tier 2
+  → ユーザーBも同定「シジュウカラ」→ Tier 3 (Research Grade)
+
+散歩スキャン（walk.php）
+  → BirdNET: "シジュウカラ 92%" → Tier 1
+  → 高確信度 + 地域×季節OK → Tier 1.5（自動）
+  → Reviewer が音声確認「合ってる」→ Tier 2
+  → 別 Reviewer も確認 → Tier 3
+
+ドライブ（field_scan.php）
+  → カメラ: Gemini "ケヤキ 78%" ×15 / "アジサイ 85%" ×8 / "ツバメ飛翔 60%" ×2
+  → 音声: BirdNET "ヒバリ 90%" / "セミ類 75%"
+  → 見えるもの聞こえるもの全部を連続同定＋カウント → Tier 1 × N件
+  → 同じ種が複数回検出 → 統計的に Tier 1.5（自動）
+  → 現地で写真追加 → 複合証拠で Tier 2
+
+丁寧な観察（observation_detail）
+  → 写真3枚 + 音声 + GPS + 行動メモ → Tier 2 スタート
+  → 専門家確認 → Tier 3
+```
+
+---
+
+#### Day 7 (金 03/28): Week 1 統合テスト
+
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 0.27 | walk.php: マイク録音→BirdNET→結果表示 E2Eテスト | Claude | テスト結果 |
+| 0.28 | field_scan.php: 音声+カメラ同時スキャン E2Eテスト | Claude | テスト結果 |
+| 0.29 | レビューUI: 音響レビュー→Tier昇格 E2Eテスト | Claude | テスト結果 |
+| 0.30 | `composer test` 全テスト通過 | Codex | CI green |
+| 0.31 | 進捗コミット + push | Claude | git push |
+
+**Week 1 完了時の状態:**
+```
+✅ BirdNET-Analyzer が VPS 上で稼働（FastAPI :8100）
+✅ walk.php のダミー音声分類 → 実 BirdNET に差替済み
+✅ field_scan.php のダミー音声分類 → 実 BirdNET に差替済み
+✅ 音声スニペットが証拠として保存される
+✅ Canonical Schema (SQLite 5層) が稼働
+✅ Evidence Tier (1/1.5/2/3/4) が全モードで動作
+✅ 音響レビューUI が id_workbench 上で動作
+✅ Tier 昇格ワークフロー（自動 + 手動）が動作
+```
+
+---
+
+### Week 2: KPI + レポート + データ重ね合わせ
+
+#### Day 8-9 (土日 03/29-30): KPIダッシュボード + データ蓄積可視化
+
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 1.1 | CanonicalStore::getKPIMetrics() 実装 | Codex | KPI集計SQL |
+| 1.2 | poc_dashboard.php（G1-G7 + Tier分布） | Claude | `public_html/poc_dashboard.php` |
+| 1.3 | 「データの重ね合わせ」可視化（同一地域の複数モードデータ統合表示） | Claude | ダッシュボード拡張 |
+| 1.4 | 「ここを深掘りすべき」自動提案ロジック | Codex | `libs/SurveyRecommender.php` |
+
+**SurveyRecommender.php — 「次に何をすべきか」の自動提案:**
+
+```php
+class SurveyRecommender {
     /**
-     * Appendix B1 準拠:
-     * IF  AI_confidence ≥ threshold(species_group, site)
-     * AND species IN known_species_list(location, season)
-     * AND NOT rare_species_flag
-     * THEN auto_promote to Tier 1.5
+     * 蓄積データから、調査の優先度を自動提案:
+     *
+     * - "この地域は鳥類データは十分。植物データが不足"
+     * - "ここは Tier 1 が多い。reviewer による検証が必要"
+     * - "夜間の音声データがない。夜行性種の調査を推奨"
+     * - "この希少種は DNA 確認が必要。専門家に依頼を"
      */
-    public function evaluate(array $occurrence): PromotionResult {
-        $confidence = $occurrence['identification_confidence'];
-        $species = $occurrence['scientific_name'];
-        $lat = $occurrence['decimal_latitude'];
-        $lng = $occurrence['decimal_longitude'];
-        $month = date('n', strtotime($occurrence['event_date']));
 
-        // 1. 確信度チェック（BirdNET初期値 0.9）
-        if ($confidence < $this->getThreshold($species)) {
-            return PromotionResult::stay(1, "確信度不足: {$confidence}");
-        }
-
-        // 2. 希少種チェック
-        if ($this->redList->isRedListed($species, $lat, $lng)) {
-            return PromotionResult::stay(1, "希少種: 自動昇格対象外");
-        }
-
-        // 3. 生態学的妥当性チェック（地域×季節）
-        if (!$this->isEcologicallyPlausible($species, $lat, $lng, $month)) {
-            return PromotionResult::stay(1, "生態学的妥当性なし");
-        }
-
-        return PromotionResult::promote(1.5, "AI自動昇格");
+    public function analyze(string $siteId): array {
+        return [
+            'coverage_gaps' => [...],     // 分類群×時間帯×季節のギャップ
+            'tier_bottlenecks' => [...],  // Tier 1 が溜まってる分類群
+            'recommended_actions' => [...], // 次にやるべきこと（優先度順）
+            'expert_needed' => [...],     // 専門家が必要な案件
+        ];
     }
 }
 ```
 
-**CLI使用例:**
-```bash
-# BirdNET結果をインポート
-php scripts/ingestion/import_birdnet.php \
-  --csv=tests/fixtures/birdnet_sample.csv \
-  --lat=34.7 --lng=138.1 \
-  --user=yamaki \
-  --device="Pixel 10 Pro" \
-  --date=2026-03-24 \
-  --effort="30 minutes walk"
+**KPIダッシュボード（poc_dashboard.php）:**
 
-# 結果:
-# Imported: 15 occurrences
-# Tier 1: 8 (confidence < 0.9 or rare species)
-# Tier 1.5: 7 (auto-promoted)
+```
+┌─────────────────────────────────────────────────────────────┐
+│  📊 PoC Dashboard — 観察のOS                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ── 観察モード別の貢献 ──                                     │
+│  📷 写真投稿:    ████████████████  320件                     │
+│  🚶 散歩スキャン: ██████████       185件 (うち音声: 142)      │
+│  📸 カメラスキャン: ████████        156件                     │
+│  🚗 ドライブ:     ███              52件                      │
+│  📋 調査モード:   ██               28件                      │
+│                                                             │
+│  ── Evidence Tier 分布 ──                                    │
+│  Tier 1:   ████████████  340件 (46%)                        │
+│  Tier 1.5: ██████       185件 (25%)                         │
+│  Tier 2:   ███          92件  (12%)                         │
+│  Tier 3:   █            12件  (2%)                          │
+│  未判定:   ████         112件 (15%)                          │
+│                                                             │
+│  ── G1-G7 数値ゲート ──                                      │
+│  G1 検出量     12.5/時間  ✅ (≥10)                           │
+│  G2 AI精度     84%       ✅ (≥80%)                           │
+│  G3 レビュー速度 2.1分/件  ✅ (≤3分)                           │
+│  G4 昇格速度   48h中央値  ✅ (≤72h)                           │
+│  G5 Reviewer   7名/月末   ✅ (≥5名)                          │
+│  G6 CPU        45%ﾋﾟｰｸ   ✅ (<70%)                          │
+│  G7 Storage    12GB/50GB  ✅                                │
+│                                                             │
+│  ── 💡 自動提案 ──                                           │
+│  ⚠️ 植物データが不足: 全体の8%のみ。カメラスキャンを推奨        │
+│  ⚠️ 夜間データなし: 夜行性種が未調査。夜間ウォーク推奨          │
+│  📋 Tier 1 が142件滞留: 鳥類 reviewer の追加確保を推奨         │
+│  🧬 ヒクイナ(1件): DNA確認推奨。最寄りの専門家に依頼を          │
+│                                                             │
+│  [📄 Go/No-Go判定レポート生成]  [📊 TNFD出力]                │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Day 6 (木 03/27): 音響レビューUI + ReviewerLevel
+#### Day 10 (月 03/31): DwC-A Export Adapter + ドライブモード設計
 
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 0.15 | ReviewerLevel.php 実装（TrustLevel拡張） | Claude | `libs/ReviewerLevel.php` | 2h |
-| 0.16 | id_workbench.php に音響レビュータブ追加 | Claude | UI拡張 | 3h |
-| 0.17 | レビューAPI: approve/reject/skip | Codex | `api/v2/review_occurrence.php` | 2h |
-| 0.18 | ReviewerLevelTest.php | Claude | `tests/Unit/ReviewerLevelTest.php` | 1h |
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 1.5 | DwcExportAdapter.php（Canonical Schema → DwC-A） | Codex | `libs/DwcExportAdapter.php` |
+| 1.6 | field_scan.php にドライブモード追加（UI切替） | Claude | field_scan.php 拡張 |
+| 1.7 | ドライブモードの連続フレーム間隔調整（5秒→移動速度に応じて可変） | Claude | ロジック |
 
-**音響レビューUI の設計:**
-
-```
-┌────────────────────────────────────────┐
-│ 🎵 音響レビュー                 5件待ち │
-├────────────────────────────────────────┤
-│                                        │
-│  シジュウカラ (Parus minor)            │
-│  BirdNET確信度: 0.92  |  Tier 1.5      │
-│                                        │
-│  📍 静岡県浜松市 | 2026-03-24 07:30    │
-│  🎤 Pixel 10 Pro | passive-audio       │
-│                                        │
-│  [▶ 音声再生]  [スペクトログラム表示]    │
-│                                        │
-│  ┌──────┐  ┌──────┐  ┌──────┐         │
-│  │ ✅    │  │ ❌    │  │ ⏭️    │         │
-│  │ 承認  │  │ 棄却  │  │ スキップ│         │
-│  └──────┘  └──────┘  └──────┘         │
-│                                        │
-│  [ 別の種を提案... ]                    │
-│                                        │
-├────────────────────────────────────────┤
-│  ◀ 前  |  2/5  |  次 ▶                │
-└────────────────────────────────────────┘
-```
-
-**API設計 (`api/v2/review_occurrence.php`):**
-```
-POST /api/v2/review_occurrence.php
-{
-  "occurrence_id": "occ_xxx",
-  "action": "approve" | "reject" | "skip",
-  "reviewer_note": "鳴き声の特徴が一致",
-  "alternative_taxon": null | "Aegithalos caudatus"  // 棄却時の代替提案
+**ドライブモードの特別処理:**
+```javascript
+// 速度に応じてキャプチャ間隔を調整
+function getDriveInterval(speedKmh) {
+    if (speedKmh < 20) return 4000;   // 低速: 4秒（散歩と同じ）
+    if (speedKmh < 50) return 3000;   // 一般道: 3秒
+    return 5000;                       // 高速: 5秒（処理軽減）
 }
 
-Response:
-{
-  "success": true,
-  "new_tier": 2,
-  "reviewer_level": "L1",
-  "audit_log_id": "log_xxx"
-}
+// カメラ（Gemini Vision）+ 音声（BirdNET）を並行稼働
+// → 見えるものも聞こえるものも同時に同定
+// 同じ種が連続検出 → 1件にまとめて count++
+// → 「ケヤキ ×15」「アジサイ ×8」「ヒバリ ×3」のような集計
+// → ルート沿いの生物相トランセクト調査と同等のデータが得られる
 ```
 
 ---
 
-### Day 7 (金 03/28): 統合テスト + Week 1 振り返り
+#### Day 11 (火 04/01): Reviewer キュー + オンボーディング
 
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 0.19 | BirdNET CSV → Canonical → レビューUI の E2E テスト | Claude | 手動テスト結果 | 2h |
-| 0.20 | `composer test` 全テスト通過確認 | Codex | CI green | 1h |
-| 0.21 | Week 1 で発見した問題・設計変更を DEVELOPMENT_PLAN に反映 | Claude | 本ファイル更新 | 30min |
-| 0.22 | 進捗コミット＋push | Claude | git push | 15min |
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 1.8 | IdentifierQueue を全モード対応に拡張 | Claude | IdentifierQueue 拡張 |
+| 1.9 | 分類群フィルタ（鳥類/植物/昆虫/哺乳類/樹木） | Claude | UI + API |
+| 1.10 | reviewer_onboarding.php（Day 1 チェックリスト） | Claude | `public_html/reviewer_onboarding.php` |
 
-**Week 1 完了時の期待状態:**
+---
+
+#### Day 12 (水 04/02): 監査ログ + PrivacyAccess
+
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 1.11 | EventLogService 拡張（Tier変更、レビュー、昇格の全記録） | Codex | EventLogService 拡張 |
+| 1.12 | PrivacyAccess Layer 実装（希少種座標丸め） | Claude | PrivacyFilter 拡張 |
+| 1.13 | 音声ファイルのプライバシー制御（希少種の音声は公開制限） | Codex | アクセス制御 |
+
+---
+
+#### Day 13 (木 04/03): 統合 E2E テスト
+
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 1.14 | 全5モードの E2E テスト | Claude | テスト結果レポート |
+| 1.15 | バグ修正 + エッジケース対応 | Codex/Claude | 修正コミット |
+| 1.16 | `composer test` 全テスト通過 | Codex | CI green |
+
+**E2E テストシナリオ:**
 ```
-✅ Canonical Schema SQLite (canonical.sqlite3) が動作
-✅ BirdNET CSV → Canonical Schema 変換が動作
-✅ Tier 1 / 1.5 の自動判定が動作
-✅ ReviewerLevel (L0-L3) が TrustLevel と連動
-✅ 音響レビューUI のプロトタイプが id_workbench 上で動作
-✅ レビューAPI (approve/reject/skip) が動作
-✅ 全テスト通過
+シナリオ1: 写真派
+  post.php → 写真アップ → Gemini判定 → Tier 1 → 他ユーザー同定 → Tier 2
+
+シナリオ2: 散歩スキャン
+  walk.php → マイクON → 3秒チャンク送信 → BirdNET判定 → Tier 1/1.5
+  → 音声証拠保存確認 → Canonical Schema 格納確認
+
+シナリオ3: フィールドスキャン
+  field_scan.php → カメラ+音声同時 → Gemini+BirdNET並行判定
+  → 地図上にプロット確認 → 種リスト集計確認
+
+シナリオ4: レビュー→昇格
+  id_workbench → 音響タブ → 音声再生 → 承認 → Tier 2 昇格確認
+  → 監査ログ記録確認
+
+シナリオ5: レポート
+  poc_dashboard → G1-G7 表示確認 → 自動提案表示確認
+  → DwC-A Export（Tier 2以上のみ）→ ファイル内容確認
 ```
 
 ---
 
-## Week 2: Sprint 1前半 — 昇格ワークフロー + KPI（2026-03-29 〜 04-04）
+#### Day 14 (金 04/04): デプロイ + 振り返り
 
-### Day 8-9 (土日 03/29-30): Tier昇格ワークフロー完成
-
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 1.1 | Tier 1→2 昇格ワークフロー完全実装 | Claude | `libs/TierPromotionWorkflow.php` | 3h |
-| 1.2 | 監査ログ記録（EventLogService拡張） | Codex | EventLogService 拡張 | 2h |
-| 1.3 | Tier 2→3 合意形成ロジック（Appendix B3 準拠） | Codex | `libs/ConsensusEngine.php` | 3h |
-| 1.4 | TierPromotionWorkflowTest.php | Claude | テスト | 1h |
-
-**TierPromotionWorkflow.php:**
-
-```php
-class TierPromotionWorkflow {
-    /**
-     * Tier昇格フロー:
-     *
-     * Tier 1 (AI候補)
-     *   └→ EvidenceTierPromoter::evaluate() → Tier 1.5 (自動)
-     *
-     * Tier 1 or 1.5
-     *   └→ L1+ reviewer が approve → Tier 2
-     *       └→ 2名の L1+ が同一 taxon に合意 → Tier 3
-     *           └→ 外部監査 → Tier 4 (Phase 7)
-     */
-
-    public function processReview(
-        string $occurrenceID,
-        string $reviewerID,
-        string $action,     // approve|reject|skip
-        ?string $alternativeTaxon = null,
-        ?string $note = null
-    ): PromotionResult;
-
-    // Appendix B3.1: クォーラム判定
-    private function checkConsensus(string $occurrenceID): ?float;
-
-    // Appendix B3.3: Dispute 検出
-    private function detectDispute(array $identifications): bool;
-}
-```
-
-**ConsensusEngine.php（Appendix B3 準拠）:**
-
-```php
-class ConsensusEngine {
-    /**
-     * B3.1 クォーラム:
-     * - 通常種: L1+ 2票の合意 → Tier 3
-     * - 希少種: L2+ 2票 or L3 1票 → Tier 3
-     * - 困難種: L2+ 2票 + 文献引用 → Tier 3
-     *
-     * B3.3 Dispute Resolution:
-     * - 不合意 → 48h待機 → 3人目招集 → 多数決
-     * - L3不在時: Tier 2留め置き + クエスト発行
-     */
-
-    public function evaluate(string $occurrenceID): ConsensusResult;
-    public function isDisputeResolved(string $occurrenceID): bool;
-    public function escalateToExpert(string $occurrenceID): void;
-    public function fallbackNoExpert(string $occurrenceID): void;  // B7.3 L3不在時
-}
-```
+| # | タスク | 担当 | 成果物 |
+|---|--------|------|--------|
+| 1.17 | 全変更を main にマージ | Claude | マージ済みPR |
+| 1.18 | 本番デプロイ | Claude | deploy.sh 実行 |
+| 1.19 | DEVELOPMENT_PLAN.md 更新 | Claude | 本ファイル更新 |
+| 1.20 | Sprint 2 計画の素案 | Claude | 次のスプリント骨子 |
 
 ---
 
-### Day 10 (月 03/31): KPIダッシュボード設計 + 実装開始
-
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 1.5 | KPIダッシュボード設計（G1-G7 表示） | Claude | ワイヤーフレーム | 1h |
-| 1.6 | CanonicalStore::getKPIMetrics() 実装 | Codex | KPI集計SQL | 2h |
-| 1.7 | poc_dashboard.php 実装 | Claude | `public_html/poc_dashboard.php` | 3h |
-
-**KPIダッシュボード UI設計:**
+## 2週間完了時の全体像
 
 ```
-┌────────────────────────────────────────────────┐
-│  📊 Phase 6 PoC Dashboard                      │
-│  期間: 2026-04-07 〜 現在 | サイト: 愛管候補地    │
-├────────────────────────────────────────────────┤
-│                                                │
-│  G1 検出量          G2 AI精度        G3 レビュー速度│
-│  ┌──────┐         ┌──────┐        ┌──────┐    │
-│  │ 12.5 │/時間    │ 84%  │        │ 2.1分 │/件 │
-│  │ ✅≥10 │         │ ✅≥80%│        │ ✅≤3分 │    │
-│  └──────┘         └──────┘        └──────┘    │
-│                                                │
-│  G4 昇格速度        G5 Reviewer持続   G6 CPU     │
-│  ┌──────┐         ┌──────┐        ┌──────┐    │
-│  │ 48h  │中央値   │ 7名  │/月末   │ 45%  │ﾋﾟｰｸ │
-│  │ ✅≤72h│         │ ✅≥5名│        │ ✅<70%│    │
-│  └──────┘         └──────┘        └──────┘    │
-│                                                │
-│  G7 ストレージ                                   │
-│  ┌──────────────────────────┐                  │
-│  │ ████████░░░░░░░  12GB / 50GB   ✅           │
-│  └──────────────────────────┘                  │
-│                                                │
-│  ── Evidence Tier 分布 ──                       │
-│  Tier 1:   ████████████  340件                  │
-│  Tier 1.5: ██████       185件                   │
-│  Tier 2:   ███          92件                    │
-│  Tier 3:   █            12件                    │
-│                                                │
-│  ── 今週のアクティビティ ──                       │
-│  月 火 水 木 金 土 日                             │
-│  🟩 🟩 🟩 ⬜ ⬜ ⬜ ⬜                             │
-│                                                │
-│  [Go/No-Go 判定レポート生成]                     │
-└────────────────────────────────────────────────┘
+ikimon.life（2026-04-04 時点）
+│
+├── 📷 写真投稿 ──→ Gemini Vision ──┐
+├── 🔍 丁寧な観察 ──→ 手動同定 ────┤
+├── 🚶 散歩スキャン ──→ BirdNET ★ ──┤
+├── 📸 カメラスキャン → Gemini ──────┤
+├── 🚗 ドライブ ──→ Gemini+BirdNET ─┤
+│                                   ↓
+│                        Canonical Schema (5層)
+│                                   ↓
+│                        Evidence Tier (1→1.5→2→3→4)
+│                                   ↓
+│                   ┌───────────────────────────┐
+│                   │ データ蓄積 → 重ね合わせ      │
+│                   │ → 全体像 → 深掘り提案       │
+│                   │ → OECM / TNFD レポート     │
+│                   └───────────────────────────┘
+│
+├── 🧬 レビューUI ──→ approve/reject/skip
+├── 📊 KPIダッシュボード ──→ G1-G7 + 自動提案
+└── 📄 DwC-A Export ──→ Tier 2+ のみ公開
 ```
 
-**getKPIMetrics() の SQL:**
-```sql
--- G1: 1時間あたりTier 1イベント数
-SELECT COUNT(*) * 1.0 /
-  (julianday(MAX(event_date)) - julianday(MIN(event_date))) / 24
-FROM occurrences WHERE evidence_tier >= 1;
-
--- G2: Tier 1.5の正答率（reviewer検証ベース）
-SELECT
-  COUNT(CASE WHEN o.evidence_tier >= 2 THEN 1 END) * 100.0 / COUNT(*)
-FROM occurrences o
-WHERE o.evidence_tier_by = 'auto' AND o.evidence_tier >= 1.5;
-
--- G3: 1件あたりのレビュー時間（中央値）
--- G4: Tier 1→2 所要時間（中央値）
--- G5: 月末のActive reviewer数
--- G6: VPS CPU使用率（サーバーモニタリングAPIから）
--- G7: ストレージ使用量
-```
+**ユーザーは ikimon.life だけを使う。他のアプリは一切不要。**
 
 ---
 
-### Day 11 (火 04/01): DwC-A Export Adapter 改修
+## Claude / Codex 役割分担
 
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 1.8 | 既存 export_dwca.php のフィールドマッピング確認 | Codex | 差分レポート | 1h |
-| 1.9 | Canonical Schema → DwC-A 変換アダプタ | Codex | `libs/DwcExportAdapter.php` | 3h |
-| 1.10 | PrivacyAccess Layer の座標丸め実装 | Claude | PrivacyFilter 拡張 | 1h |
-
-**DwcExportAdapter.php:**
-```php
-class DwcExportAdapter {
-    /**
-     * Canonical Schema の5層から DwC-A event core +
-     * occurrence extension + media extension を生成
-     *
-     * 戦略v3.8 Section 5.1 のマッピング表に準拠
-     * PrivacyAccess Layer の coordinatePrecision を適用
-     */
-
-    public function exportOccurrences(float $minTier = 2.0, array $options = []): string;  // CSV
-    public function exportDwCA(float $minTier = 3.0): string;  // ZIP archive
-
-    // DwC-DP 将来移行への布石
-    public function getSchemaVersion(): string;  // "dwc-a-2024" or future "dwc-dp-2026"
-}
-```
-
----
-
-### Day 12 (水 04/02): Reviewer キュー + 分類群フィルタ
-
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 1.11 | IdentifierQueue を BirdNET 結果対応に拡張 | Claude | IdentifierQueue 拡張 | 2h |
-| 1.12 | 分類群フィルタ（鳥類/植物/昆虫/哺乳類） | Claude | UI + API | 2h |
-| 1.13 | Reviewer Day 1 チェックリスト画面 | Claude | `public_html/reviewer_onboarding.php` | 2h |
-
-**IdentifierQueue 拡張:**
-```php
-// 既存のスコアリングに追加
-const WEIGHT_BIRDNET_AUDIO = 3.0;    // BirdNET結果は優先
-const WEIGHT_TIER_PROMOTION = 4.0;   // Tier 1.5→2 昇格待ちは最優先
-
-public function buildReviewQueue(string $userId, array $filters = []): array {
-    // $filters['taxon_group'] = 'Aves' | 'Plantae' | 'Insecta' | 'Mammalia'
-    // $filters['evidence_tier'] = [1, 1.5]  // レビュー対象のTier
-    // $filters['sampling_protocol'] = 'passive-audio'
-}
-```
-
----
-
-### Day 13 (木 04/03): 統合テスト + 実データ投入
-
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 1.14 | Pixel 10 Pro で2回目のフィールド録音（1時間） | 八巻 | BirdNET CSV | 2h |
-| 1.15 | 実データでの E2E テスト: CSV → Import → Review → Tier昇格 | Claude | テスト結果レポート | 2h |
-| 1.16 | バグ修正 + エッジケース対応 | Codex/Claude | 修正コミット | 2h |
-| 1.17 | `composer test` 全テスト通過確認 | Codex | CI green | 30min |
-
-**E2Eテスト シナリオ:**
-```
-1. BirdNET CSV (15件) をインポート
-2. → Tier 1: 8件、Tier 1.5: 7件 を確認
-3. レビューキューに Tier 1.5 の7件が表示されることを確認
-4. 鳥類フィルタで絞り込めることを確認
-5. 1件を承認 → Tier 2 に昇格することを確認
-6. 監査ログに記録されることを確認
-7. KPIダッシュボードに反映されることを確認
-8. DwC-A export で Tier 2 以上のみ出力されることを確認
-```
-
----
-
-### Day 14 (金 04/04): Week 2 完了 + デプロイ準備
-
-| # | タスク | 担当 | 成果物 | 工数 |
-|---|--------|------|--------|------|
-| 1.18 | 全変更を main にマージ（PR経由） | Claude | マージ済みPR | 1h |
-| 1.19 | 本番デプロイ | Claude | deploy.sh 実行 | 30min |
-| 1.20 | DEVELOPMENT_PLAN.md 更新（完了タスクの反映） | Claude | 本ファイル更新 | 30min |
-| 1.21 | 2週間の振り返り + Sprint 2 計画の素案 | Claude | 振り返りメモ | 1h |
-
-**Week 2 完了時の期待状態:**
-```
-✅ BirdNET CSV → Canonical Schema → レビュー → Tier昇格 の全パイプライン稼働
-✅ KPIダッシュボード (G1-G7) がリアルタイム表示
-✅ Reviewer レベル (L0-L3) が TrustLevel と連動
-✅ 分類群フィルタ付きレビューキュー
-✅ DwC-A Export Adapter が Canonical Schema から出力
-✅ 監査ログが全アクションを記録
-✅ Reviewer Day 1 オンボーディング画面
-✅ 実データ（Pixel 10 Pro録音）での動作確認済み
-✅ 本番デプロイ済み
-```
-
----
-
-## Claude / Codex 役割分担（2週間）
-
-| エージェント | 主な担当タスク | 判断基準 |
-|---|---|---|
-| **Claude Code** | UI（レビュー画面、KPIダッシュボード、オンボーディング）、ReviewerLevel、TierPromotionWorkflow、ADR作成、統合テスト | Alpine.js + PHP テンプレート、設計判断、戦略との整合確認 |
-| **Codex** | CanonicalStore.php、BirdNetImporter.php、ConsensusEngine.php、DwcExportAdapter.php、SQL設計、テスト | バックエンドロジック、SQLite、データ変換、バッチ処理 |
-| **八巻** | Pixel 10 Pro セットアップ、BirdNET テスト録音、Reviewer候補への声掛け、法務レビュー依頼書送付 | 外部アクション、フィールドワーク |
+| エージェント | 主な担当 |
+|---|---|
+| **Claude Code** | UI (walk.php差替, レビューUI, KPIダッシュボード, ドライブモード)、ADR、ReviewerLevel、EvidenceTierPromoter、統合テスト |
+| **Codex** | VPS構築 (FastAPI+BirdNET)、CanonicalStore、TierPromotionWorkflow、ConsensusEngine、DwcExportAdapter、監査ログ |
+| **八巻** | 法務レビュー依頼、Reviewer候補への声掛け、愛管ヒアリング日程調整 |
 
 ### ブランチ戦略
 
 ```
 main
-├── claude/phase6-evidence-tier      ← Day 1-2: ADR + evidence_tier フィールド
-├── codex/canonical-schema           ← Day 3-4: CanonicalStore + BirdNetImporter
-├── claude/review-ui                 ← Day 6-7: 音響レビューUI + ReviewerLevel
-├── codex/tier-workflow              ← Day 8-9: TierPromotionWorkflow + ConsensusEngine
-├── claude/kpi-dashboard             ← Day 10-11: KPIダッシュボード + DwC-A
-└── claude/integration               ← Day 13-14: 統合テスト + デプロイ
+├── codex/birdnet-microservice    ← Day 1: VPS + FastAPI + BirdNET
+├── claude/audio-integration      ← Day 2-3: walk.php/field_scan.php 実接続 + 音声保存
+├── codex/canonical-schema        ← Day 4: CanonicalStore + 5層テーブル
+├── claude/review-ui              ← Day 5-6: ReviewerLevel + 音響レビューUI + Tier昇格
+├── claude/kpi-dashboard          ← Day 8-9: KPIダッシュボード + SurveyRecommender
+├── codex/dwca-adapter            ← Day 10: DwC-A Export Adapter
+├── claude/drive-mode             ← Day 10: ドライブモード
+└── claude/integration            ← Day 13-14: 統合テスト + デプロイ
 ```
-
----
-
-## 技術的な判断事項（要ADR）
-
-| # | 論点 | 推奨 | 期限 | 状態 |
-|---|------|------|------|------|
-| ADR-005 | Evidence Tier のデータモデル | B: 既存 DataQuality と並行。observation JSON に evidence_tier 追加 + canonical.sqlite3 新設 | Day 1 | 🔲 |
-| ADR-006 | Canonical Schema のストレージ | B+C: 新規は canonical.sqlite3、既存JSON に evidence_tier フィールド追加 | Day 1 | 🔲 |
-| ADR-007 | BirdNET取り込みフォーマット | CSV直接パース（最もシンプル。BirdNETのネイティブ出力） | Day 4 | 🔲 |
-| ADR-008 | Reviewer認証方式 | A: 既存セッション＋TrustLevel拡張（新しい認証基盤は不要） | Day 6 | 🔲 |
-
----
-
-## 外部アクション（S評価到達に必要）
-
-| アクション | 担当 | 期限 | 状態 | 成果物 |
-|---|---|---|---|---|
-| Pixel 10 Pro + BirdNET セットアップ | 八巻 | 3/24 | 🔲 | 動作確認スクリーンショット + BirdNET CSV |
-| 法務レビュー依頼（Appendix D送付） | 八巻 | 3月末 | 🔲 | 弁護士メモ |
-| Reviewer候補3名への初回アプローチ | 八巻 | 4/1 | 🔲 | 候補者リスト |
-| 愛管株式会社ヒアリング日程調整 | 八巻 | 4月第1週 | 🔲 | 日程確定 |
-| フィールド録音 2回目（1時間） | 八巻 | 4/3 | 🔲 | BirdNET CSV + 環境写真 |
 
 ---
 
@@ -648,26 +771,46 @@ main
 
 | リスク | 影響 | 対策 |
 |--------|------|------|
-| BirdNET CSV フォーマットが想定と異なる | Day 4-5 の工数増 | Day 3 にサンプル取得して即確認。フォーマット適応層を挟む |
-| Pixel 10 Pro の BirdNET 動作に問題 | PoC 全体に影響 | iPhone 13 Pro をバックアップ。BirdNET は iOS版もある |
-| Canonical Schema の設計変更が必要 | Week 2 に波及 | schemaVersion フィールドで移行対応。v0.1 は割り切る |
-| TrustLevel→ReviewerLevel のマッピングが不自然 | UX 混乱 | ユーザーには Reviewer Level のみ表示。内部で TrustLevel は維持 |
-| `composer test` で既存テストが壊れる | CI 赤 | Day 7, 14 に全テスト確認。既存テストは変更しない方針 |
+| BirdNET モデルが日本の鳥で精度が出ない | AI判定品質 | lat/lon で地域種絞込。精度が低い種はグループをリスト化して Tier 1 留め |
+| BirdNET の CC BY-NC-SA 4.0 ライセンス | B2B利用制限 | Community面は非商用で問題なし。Enterprise面は別途ライセンス交渉 or SpeciesNet (Apache 2.0) で代替 |
+| iOS Safari で audio/webm 非対応 | iPhone ユーザー | audio/mp4 フォールバック実装済み（Day 2） |
+| VPS の CPU 負荷（同時リクエスト） | レスポンス遅延 | リクエストキュー化。同時3リクエスト制限。ピーク時は推論間隔を延長 |
+| ドライブモードの通信量 | モバイル回線消費 | 音声は opus 圧縮（3秒≈20KB）。画像は 512px にリサイズ |
+
+---
+
+## BirdNET ライセンスに関する注記
+
+| 項目 | 状態 |
+|------|------|
+| コード (MIT) | ✅ 自由利用可 |
+| モデル (CC BY-NC-SA 4.0) | ⚠️ 非商用は OK。商用利用は Cornell Lab に許可申請が必要 |
+| Community 面（無償） | ✅ 非商用として利用可能 |
+| Enterprise 面（有償） | ⚠️ 商用ライセンス交渉が必要。代替: SpeciesNet (Apache 2.0) or 自前モデル |
+
+**短期戦略**: Community 面で BirdNET を非商用利用。Enterprise 面は SpeciesNet (Apache 2.0) で代替可能。
+
+---
+
+## 外部アクション（S評価到達に必要・BirdNET不要で進む）
+
+| アクション | 担当 | 期限 | 状態 |
+|---|---|---|---|
+| 法務レビュー依頼（Appendix D送付） | 八巻 | 3月末 | 🔲 |
+| Reviewer候補3名への初回アプローチ | 八巻 | 4/1 | 🔲 |
+| 愛管株式会社ヒアリング日程調整 | 八巻 | 4月第1週 | 🔲 |
+| BirdNET 商用ライセンス問い合わせ（Enterprise面用） | 八巻 | 4月中 | 🔲 |
 
 ---
 
 ## 参照ドキュメント
 
-| ドキュメント | パス | 用途 |
-|---|---|---|
-| 戦略本体 v3.8 | `docs/strategy/v3.8/ikimon_life_strategy_2026Q1.md` | §5 Canonical Schema, §14.4 供給能力 |
-| Appendix A | `docs/strategy/v3.8/appendix_a_privacy_governance.md` | PrivacyAccess Layer, APPI整理 |
-| Appendix B | `docs/strategy/v3.8/appendix_b_reviewer_operations.md` | §B1 Tier定義, §B2 Reviewer制度, §B3 合意形成, §B7 Runbook |
-| Appendix C | `docs/strategy/v3.8/appendix_c_phase6_poc.md` | §C3 G1-G7 数値ゲート, §C4 タイムライン |
-| Appendix D | `docs/strategy/v3.8/appendix_d_legal_review_brief.md` | 法務レビュー6論点 |
-| ADR一覧 | `docs/architecture/adr-*.md` | 既存のアーキテクチャ決定 |
-| Codexセットアップ | `CODEX_SETUP.md` | Codex向けクイックスタート |
-| Codexプロンプト集 | `codex-prompts.md` | 既存の監査プロンプト |
+| ドキュメント | パス |
+|---|---|
+| 戦略本体 v3.8 | `docs/strategy/v3.8/ikimon_life_strategy_2026Q1.md` |
+| Appendix A-D | `docs/strategy/v3.8/appendix_*.md` |
+| ADR一覧 | `docs/architecture/adr-*.md` |
+| Codexセットアップ | `CODEX_SETUP.md` |
 
 ---
 
@@ -675,5 +818,6 @@ main
 
 | 日付 | 更新者 | 内容 |
 |------|--------|------|
-| 2026-03-21 | Claude Opus | 初版作成。戦略v3.8 A評価レビュー結果に基づく開発計画 |
-| 2026-03-21 | Claude Opus | **v2: コードベース全調査に基づく全面改訂。** 既存資産（PassiveObservationEngine、TrustLevel、IdentifierQueue、DataQuality、DwC-A Export等）の活用方針を明確化。Day 1-14 の日単位計画に詳細化。ADR 4件の論点と推奨を追加。コード設計（クラス構造・メソッドシグネチャ・UI設計）を具体化 |
+| 2026-03-21 | Claude Opus | 初版 |
+| 2026-03-21 | Claude Opus | v2: コードベース全調査に基づく全面改訂 |
+| 2026-03-21 | Claude Opus | **v3: 「観察のOS」思想で全面書き直し。** BirdNET-Analyzer をVPS上 FastAPI として統合、walk.php/field_scan.php のダミー音声分類を実APIに差替、ドライブモード追加、SurveyRecommender（「ここを深掘りすべき」自動提案）追加、全5観察モードが ikimon.life 内で完結する設計に |
