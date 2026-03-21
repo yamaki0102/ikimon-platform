@@ -56,6 +56,10 @@ $geminiApiKey = defined('GEMINI_API_KEY_SECRET') ? GEMINI_API_KEY_SECRET : (gete
 if (!$geminiApiKey) $geminiApiKey = $_SERVER['GEMINI_API_KEY'] ?? ($_ENV['GEMINI_API_KEY'] ?? '');
 define('GEMINI_API_KEY', $geminiApiKey);
 
+$openaiApiKey = defined('OPENAI_API_KEY_SECRET') ? OPENAI_API_KEY_SECRET : (getenv('OPENAI_API_KEY') ?: '');
+if (!$openaiApiKey) $openaiApiKey = $_SERVER['OPENAI_API_KEY'] ?? ($_ENV['OPENAI_API_KEY'] ?? '');
+define('OPENAI_API_KEY', $openaiApiKey);
+
 // Image Settings
 define('IMAGE_MAX_WIDTH', 1280);
 define('IMAGE_QUALITY', 80);
