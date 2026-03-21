@@ -196,10 +196,10 @@ function nav_avatar(string $avatar): string {
                     </div>
                 </div>
 
-                <a href="/post.php" class="btn-primary flex items-center gap-2 text-sm">
+                <button @click="$dispatch('open-record-sheet')" class="btn-primary flex items-center gap-2 text-sm">
                     <i data-lucide="camera" class="w-4 h-4"></i>
                     <span class="hidden md:inline"><?php echo __('nav.post'); ?></span>
-                </a>
+                </button>
             <?php else: ?>
                 <a href="/login.php" class="btn-secondary flex items-center gap-1.5 text-sm font-bold">
                     <i data-lucide="log-in" class="w-4 h-4"></i>
@@ -469,9 +469,9 @@ function nav_avatar(string $avatar): string {
     <!-- Raised Center Button -->
     <div class="bottom-nav__center">
         <?php if ($currentUser): ?>
-            <a href="/post.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
+            <button @click="$dispatch('open-record-sheet')" class="bottom-nav__center-btn" aria-label="<?php echo __('nav.record_mode_title'); ?>">
                 <i data-lucide="camera" class="w-7 h-7"></i>
-            </a>
+            </button>
         <?php else: ?>
             <a href="/login.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
                 <i data-lucide="camera" class="w-7 h-7"></i>
@@ -747,5 +747,92 @@ function nav_avatar(string $avatar): string {
         };
     })();
 </script>
+
+<!-- Record Mode Action Sheet -->
+<?php if ($currentUser): ?>
+<div x-data="{ open: false }"
+    @open-record-sheet.window="open = true"
+    @keydown.escape.window="open = false"
+    x-show="open"
+    x-cloak
+    class="fixed inset-0 z-[200]"
+    role="dialog"
+    aria-modal="true"
+    aria-label="<?php echo htmlspecialchars(__('nav.record_mode_title')); ?>">
+
+    <!-- Backdrop -->
+    <div @click="open = false"
+        x-show="open"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+
+    <!-- Sheet -->
+    <div x-show="open"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="translate-y-full"
+        x-transition:enter-end="translate-y-0"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="translate-y-0"
+        x-transition:leave-end="translate-y-full"
+        class="absolute bottom-0 left-0 right-0 record-sheet">
+
+        <!-- Handle -->
+        <div class="flex justify-center pt-3 pb-1">
+            <div class="w-10 h-1 rounded-full bg-[var(--color-border-strong)] opacity-50"></div>
+        </div>
+
+        <!-- Title -->
+        <p class="text-center text-sm font-bold text-[var(--color-muted)] px-4 pb-3"><?php echo __('nav.record_mode_title'); ?></p>
+
+        <!-- Options -->
+        <div class="px-4 pb-2 space-y-2">
+            <a href="/post.php" class="record-sheet__option" @click="open = false">
+                <div class="record-sheet__icon" style="background: var(--color-primary-surface);">
+                    <i data-lucide="camera" class="w-6 h-6" style="color: var(--color-primary);"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-[var(--color-text)]"><?php echo __('nav.record_observation'); ?></p>
+                    <p class="text-xs text-[var(--color-muted)]"><?php echo __('nav.record_observation_desc'); ?></p>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-faint)] flex-shrink-0"></i>
+            </a>
+
+            <a href="/walk.php" class="record-sheet__option" @click="open = false">
+                <div class="record-sheet__icon" style="background: var(--color-success-surface, #dcfce7);">
+                    <i data-lucide="footprints" class="w-6 h-6" style="color: var(--color-success, #16a34a);"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-[var(--color-text)]"><?php echo __('nav.record_walk'); ?></p>
+                    <p class="text-xs text-[var(--color-muted)]"><?php echo __('nav.record_walk_desc'); ?></p>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-faint)] flex-shrink-0"></i>
+            </a>
+
+            <a href="/field_scan.php" class="record-sheet__option" @click="open = false">
+                <div class="record-sheet__icon" style="background: var(--color-warning-surface, #fef3c7);">
+                    <i data-lucide="scan-search" class="w-6 h-6" style="color: var(--color-warning, #d97706);"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-[var(--color-text)]"><?php echo __('nav.record_scan'); ?></p>
+                    <p class="text-xs text-[var(--color-muted)]"><?php echo __('nav.record_scan_desc'); ?></p>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-faint)] flex-shrink-0"></i>
+            </a>
+        </div>
+
+        <!-- Cancel -->
+        <div class="px-4 pb-[calc(var(--safe-bottom,0px)+16px)] pt-1">
+            <button @click="open = false" class="w-full py-3 text-sm font-bold text-[var(--color-muted)] rounded-xl bg-[var(--color-surface)] active:bg-[var(--color-bg-faint)] transition">
+                <?php echo __('nav.record_cancel'); ?>
+            </button>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php include __DIR__ . '/toast.php'; ?>
