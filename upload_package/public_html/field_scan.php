@@ -30,7 +30,6 @@ if (!$currentUser) {
     <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
     <script src="https://unpkg.com/maplibre-gl@4.1.0/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@4.1.0/dist/maplibre-gl.css" rel="stylesheet">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         .field-scan { position: fixed; inset: 0; z-index: 50; background: #000; }
         .sensor-pill { font-size: 10px; padding: 2px 8px; border-radius: 999px; }
@@ -222,7 +221,7 @@ if (!$currentUser) {
     </div>
 </div>
 
-<script>
+<script nonce="<?= CspNonce::attr() ?>">
 function fieldScan() {
     return {
         isActive: false,
@@ -565,6 +564,6 @@ function fieldScan() {
     };
 }
 </script>
-<script>lucide.createIcons();</script>
+<script nonce="<?= CspNonce::attr() ?>">if(typeof lucide!=='undefined')lucide.createIcons();</script>
 </body>
 </html>

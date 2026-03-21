@@ -373,13 +373,18 @@ async function startWalk() {
         document.getElementById('elapsed').textContent = Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
     }, 1000);
 
-    // GPS + Map
+    // GPS + Map + 環境コンテキスト
     if (navigator.geolocation) {
         W.watchId = navigator.geolocation.watchPosition(function(pos) {
             var lat = pos.coords.latitude, lng = pos.coords.longitude;
-            W.routePoints.push({lat:lat, lng:lng, timestamp:Date.now()});
+            var point = {
+                lat: lat, lng: lng, timestamp: Date.now(),
+                accuracy: pos.coords.accuracy || null,
+                speed: pos.coords.speed || null,
+                altitude: pos.coords.altitude || null,
+            };
+            W.routePoints.push(point);
             document.getElementById('gps-count').textContent = W.routePoints.length;
-            // 初回GPS取得でマップ初期化
             if (W.routePoints.length === 1) initMap(lat, lng);
             updateMapRoute();
         }, function(){}, {enableHighAccuracy:true, maximumAge:5000});
@@ -496,6 +501,15 @@ async function sendAudio(blob) {
         if (json.success && json.data && json.data.detections) {
             var now = new Date();
             json.data.detections.forEach(function(d) {
+                // 環境コンテキスト: GPS精度・速度・ノイズレベル
+                var audioBar = document.getElementById('audio-bar');
+                var noiseLevel = audioBar ? parseFloat(audioBar.style.width) || 0 : 0;
+                var env = {
+                    gps_accuracy: last ? last.accuracy : null,
+                    gps_speed: last ? last.speed : null,
+                    noise_level: Math.round(noiseLevel),
+                    indoor_likely: last && last.accuracy > 50,
+                };
                 var det = {
                     name: d.common_name || d.scientific_name,
                     scientific_name: d.scientific_name,
@@ -504,6 +518,7 @@ async function sendAudio(blob) {
                     timestamp: Date.now(),
                     lat: last ? last.lat : null,
                     lng: last ? last.lng : null,
+                    environment: env,
                 };
                 W.detections.push(det);
                 document.getElementById('det-count').textContent = W.detections.length;
@@ -555,7 +570,8 @@ async function autoUpload() {
     var events = W.detections.map(function(d) {
         return {type:'audio', taxon_name:d.name, scientific_name:d.scientific_name,
             confidence:d.confidence, lat:d.lat, lng:d.lng,
-            timestamp:new Date(d.timestamp).toISOString(), model:'birdnet-v2.4'};
+            timestamp:new Date(d.timestamp).toISOString(), model:'birdnet-v2.4',
+            environment: d.environment || null};
     });
     var session = {
         duration_sec: Math.floor((Date.now()-W.startTime)/1000),
