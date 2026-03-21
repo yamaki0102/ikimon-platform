@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../libs/JobRunner.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/JobRunner.php';
 
 $limit = isset($argv[1]) ? max(1, (int)$argv[1]) : 8;
 $result = JobRunner::run(['ai_batch', 'ai_deep', 'embedding', 'recalc'], [
