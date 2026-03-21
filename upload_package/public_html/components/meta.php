@@ -53,10 +53,10 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ikimon">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon-192.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/img/icon-192.png">
 
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content="website">
@@ -156,11 +156,11 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 
 <!-- Tezawari Engines -->
-<script defer src="js/SoundManager.js"></script>
-<script defer src="js/HapticEngine.js"></script>
-<script defer src="js/MotionEngine.js"></script>
-<script defer src="js/OfflineManager.js?v=2.2"></script>
-<script defer src="js/analytics.js"></script>
+<script defer src="/js/SoundManager.js"></script>
+<script defer src="/js/HapticEngine.js"></script>
+<script defer src="/js/MotionEngine.js"></script>
+<script defer src="/js/OfflineManager.js?v=2.2"></script>
+<script defer src="/js/analytics.js"></script>
 
 <!-- Critical FOUC Prevention (CSS遅延の保険) -->
 <style>
@@ -170,10 +170,10 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 </style>
 
 <!-- Design System v2 CSS Stack -->
-<link rel="stylesheet" href="assets/css/tokens.css?v=2.1">
-<link rel="stylesheet" href="assets/css/style.css?v=2.1">
-<link rel="stylesheet" href="assets/css/skeleton.css?v=2.1">
-<link rel="stylesheet" href="assets/css/input.css?v=2.1">
+<link rel="stylesheet" href="/assets/css/tokens.css?v=2.1">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.1">
+<link rel="stylesheet" href="/assets/css/skeleton.css?v=2.1">
+<link rel="stylesheet" href="/assets/css/input.css?v=2.1">
 
 <!-- Service Worker: Force migration to v13 -->
 <script nonce="<?= CspNonce::attr() ?>">

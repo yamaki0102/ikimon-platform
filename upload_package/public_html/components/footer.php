@@ -53,5 +53,5 @@
 <?php include __DIR__ . '/cookie_consent.php'; ?>
 
 <!-- Passive Step Tracker (site-wide) -->
-<script src="js/StepCounter.js" nonce="<?= CspNonce::attr() ?>"></script>
-<script src="js/PassiveStepTracker.js" nonce="<?= CspNonce::attr() ?>"></script>
+<script src="/js/StepCounter.js" nonce="<?= CspNonce::attr() ?>"></script>
+<script src="/js/PassiveStepTracker.js" nonce="<?= CspNonce::attr() ?>"></script>
