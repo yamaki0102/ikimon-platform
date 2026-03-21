@@ -561,4 +561,61 @@ class BioUtils
             'checkpoints' => $checkpoints,
         ];
     }
+
+    private static ?array $jaNameCache = null;
+
+    public static function resolveJaName(string $name): string
+    {
+        if ($name === '' || $name === '--') return $name;
+        if (preg_match('/[\p{Hiragana}\p{Katakana}\p{Han}]/u', $name)) return $name;
+
+        if (self::$jaNameCache === null) {
+            self::$jaNameCache = [];
+            $resolverData = DataStore::get('taxon_resolver', 86400);
+            if (!empty($resolverData['taxa'])) {
+                foreach ($resolverData['taxa'] as $entry) {
+                    $sci = strtolower($entry['accepted_name'] ?? '');
+                    $ja = $entry['ja_name'] ?? '';
+                    if ($sci !== '' && $ja !== '') {
+                        self::$jaNameCache[$sci] = $ja;
+                    }
+                }
+            }
+            $dbPath = DATA_DIR . '/library/omoikane.sqlite3';
+            if (file_exists($dbPath)) {
+                try {
+                    $db = new \SQLite3($dbPath, SQLITE3_OPEN_READONLY);
+                    $stmt = $db->query("SELECT scientific_name, japanese_name FROM species WHERE japanese_name != ''");
+                    while ($row = $stmt->fetchArray(SQLITE3_ASSOC)) {
+                        $key = strtolower($row['scientific_name']);
+                        if (!isset(self::$jaNameCache[$key])) {
+                            self::$jaNameCache[$key] = $row['japanese_name'];
+                        }
+                    }
+                    $db->close();
+                } catch (\Exception $e) {}
+            }
+        }
+
+        $lower = strtolower(trim($name));
+        if (isset(self::$jaNameCache[$lower])) {
+            return self::$jaNameCache[$lower];
+        }
+
+        return $name;
+    }
+
+    public static function displayName(array $obs): string
+    {
+        $name = $obs['taxon']['name'] ?? $obs['species_name'] ?? '';
+        if ($name === '' || $name === '未同定') return $name;
+        $resolved = self::resolveJaName($name);
+        if ($resolved !== $name) return $resolved;
+        $sci = $obs['taxon']['scientific_name'] ?? '';
+        if ($sci !== '') {
+            $fromSci = self::resolveJaName($sci);
+            if ($fromSci !== $sci) return $fromSci;
+        }
+        return $name;
+    }
 }
