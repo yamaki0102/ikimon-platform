@@ -33,7 +33,7 @@ if (!$currentUser) {
 
 <?php include __DIR__ . '/components/nav.php'; ?>
 
-<main class="max-w-lg mx-auto px-4 py-6">
+<main class="max-w-lg mx-auto px-4 py-6" style="padding-top: calc(var(--nav-height, 56px) + 1.5rem)">
 
     <!-- ヘッダー -->
     <div class="text-center mb-8">
