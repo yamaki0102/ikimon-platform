@@ -53,11 +53,11 @@ class AiAssessmentQueue
         $hasMachineAssessment = self::hasMachineAssessment($observation);
 
         return match ($reason) {
-            'observation_created' => !$hasMachineAssessment ? ['lane' => 'fast', 'reason' => $reason] : null,
-            'photo_added' => !$hasMachineAssessment || $needsId || $hasConflict ? ['lane' => 'batch', 'reason' => $reason] : null,
-            'identification_updated', 'observation_refreshed' => (($needsId || $hasConflict || !$hasMachineAssessment) ? ['lane' => 'batch', 'reason' => $reason] : null),
+            'observation_created' => !$hasMachineAssessment ? ['lane' => 'deep', 'reason' => $reason] : null,
+            'photo_added' => !$hasMachineAssessment || $needsId || $hasConflict ? ['lane' => 'deep', 'reason' => $reason] : null,
+            'identification_updated', 'observation_refreshed' => (($needsId || $hasConflict || !$hasMachineAssessment) ? ['lane' => 'deep', 'reason' => $reason] : null),
             'manual_deep_review' => ['lane' => 'deep', 'reason' => $reason],
-            default => !$hasMachineAssessment ? ['lane' => 'fast', 'reason' => $reason] : null,
+            default => !$hasMachineAssessment ? ['lane' => 'deep', 'reason' => $reason] : null,
         };
     }
 
