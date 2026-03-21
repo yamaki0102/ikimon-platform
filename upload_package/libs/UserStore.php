@@ -75,13 +75,22 @@ class UserStore
     }
 
     /**
-     * Find user by OAuth provider and provider-specific UID
+     * Find user by OAuth provider and provider-specific UID.
+     * Checks both primary oauth_id and oauth_providers array.
      */
     public static function findByOAuth(string $provider, string $oauthId): ?array
     {
         foreach (DataStore::get('users') as $u) {
+            // Primary match
             if (($u['auth_provider'] ?? '') === $provider && ($u['oauth_id'] ?? '') === $oauthId) {
                 return $u;
+            }
+            // Secondary: check oauth_providers array (multi-provider support)
+            $providers = $u['oauth_providers'] ?? [];
+            foreach ($providers as $p) {
+                if (($p['provider'] ?? '') === $provider && ($p['oauth_id'] ?? '') === $oauthId) {
+                    return $u;
+                }
             }
         }
         return null;
@@ -170,17 +179,45 @@ class UserStore
     }
 
     /**
-     * Link OAuth to existing user (for account merging)
+     * Link OAuth to existing user (for account merging).
+     * Stores in oauth_providers array so multiple providers can coexist.
+     * Also sets primary auth_provider/oauth_id if not already set.
      */
     public static function linkOAuth(string $userId, string $provider, string $oauthId, string $avatarUrl = ''): ?array
     {
-        $fields = [
-            'auth_provider' => $provider,
-            'oauth_id' => $oauthId,
-        ];
+        $user = self::findById($userId);
+        if (!$user) return null;
+
+        // Build oauth_providers array
+        $providers = $user['oauth_providers'] ?? [];
+        $alreadyLinked = false;
+        foreach ($providers as $p) {
+            if (($p['provider'] ?? '') === $provider && ($p['oauth_id'] ?? '') === $oauthId) {
+                $alreadyLinked = true;
+                break;
+            }
+        }
+        if (!$alreadyLinked) {
+            $providers[] = [
+                'provider' => $provider,
+                'oauth_id' => $oauthId,
+                'linked_at' => date('Y-m-d H:i:s'),
+            ];
+        }
+
+        $fields = ['oauth_providers' => $providers];
+
+        // Set primary if not already set or if currently 'local'
+        $currentProvider = $user['auth_provider'] ?? '';
+        if (empty($currentProvider) || $currentProvider === 'local') {
+            $fields['auth_provider'] = $provider;
+            $fields['oauth_id'] = $oauthId;
+        }
+
         if ($avatarUrl) {
             $fields['avatar'] = $avatarUrl;
         }
+
         return self::update($userId, $fields);
     }
 }
