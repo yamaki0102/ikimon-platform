@@ -50,6 +50,44 @@ Auth::init();
             <!-- Updates Timeline -->
             <div class="space-y-8">
 
+                <!-- v0.7.1 — AI Context & Data Persistence -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.7.1</span>
+                        <time class="text-sm text-gray-500">2026年3月21日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">ライブスキャンAI強化 & 環境データ永続保存</h2>
+                    <p class="text-gray-500 text-sm mb-4">ライブスキャンのAI解析精度を向上させ、環境観測データとキーフレーム画像を100年耐久のデジタルツインに永続保存するようになりました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>AI文脈継続解析</strong>: スキャン中のAI解析に直前の検出結果と環境情報を自動注入。フレームごとに独立だった判定が「さっきシジュウカラを検出した公園の中」という文脈を持つようになり、種名のブレ防止と同定精度が向上します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>環境観測データの完全保存</strong>: スキャン中の環境スキャン結果（植生・地形・水系・林冠被覆など）を全件永続保存。「森から河川敷に移動した」環境遷移の記録がデジタルツインに蓄積されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>検出×環境の紐付け</strong>: 各検出に「その瞬間の環境」をスナップショットとして紐付け。100年後の研究者が「この種はどんな環境で発見されたか」を正確に辿れます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>キーフレーム選択保存</strong>: 新種検出・高信頼度検出の瞬間だけフレーム画像をサーバーに保存。全フレーム保存の1/10以下のストレージで、将来のAI再解析やエビデンス証拠を確保します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>エビデンス自動昇格</strong>: キーフレームが保存された検出は evidence_tier が自動で昇格。データ品質の透明性が向上します</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.7.1 — Livemap & Feed -->
+                <article x-show="filter === 'all' || filter === 'fix'" x-transition class="relative pl-8 border-l-2 border-amber-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-amber-500 ring-4 ring-amber-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">v0.7.1</span>
+                        <time class="text-sm text-gray-500">2026年3月21日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">FIX</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">ライブマップ・フィード・表示改善</h2>
+                    <p class="text-gray-500 text-sm mb-4">ライブマップの視認性向上やフィードの並び順修正など、日常利用の質を改善しました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>ライブマップUI/UX大幅改善</strong>: ポイントサイズの拡大、和名の優先表示、視認性の向上でフィールドでも使いやすく</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>和名優先表示</strong>: 学名・英名で登録された種も自動で和名に変換して表示。日本語ユーザーにやさしい画面に</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>フィードの並び順修正</strong>: 新しい投稿が上に表示されるよう、created_at降順でソート</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>クエスト専用ページ</strong>: クエスト一覧を専用ページに分離し、フッターナビからアクセス可能に</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>音声検出の表示改善</strong>: BirdNET検出の場所表示修正と検出回数の追加表示</span></li>
+                    </ul>
+                </article>
+
                 <!-- v0.7.0 — Live Scan & Walk -->
                 <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-emerald-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
