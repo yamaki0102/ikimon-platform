@@ -30,7 +30,6 @@ if (!$currentUser) {
     <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
     <script src="https://unpkg.com/maplibre-gl@4.1.0/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@4.1.0/dist/maplibre-gl.css" rel="stylesheet">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         .field-scan { position: fixed; inset: 0; z-index: 50; background: #000; }
         .sensor-pill { font-size: 10px; padding: 2px 8px; border-radius: 999px; }
@@ -157,9 +156,9 @@ if (!$currentUser) {
 
 <!-- スタート画面 -->
 <div x-show="!isActive" class="min-h-screen">
-    <?php include __DIR__ . '/components/navbar.php'; ?>
+    <?php include __DIR__ . '/components/nav.php'; ?>
 
-    <div class="max-w-lg mx-auto px-4 py-8 space-y-6">
+    <div class="max-w-lg mx-auto px-4 py-8 space-y-6" style="padding-top: calc(var(--nav-height, 56px) + 2rem)">
         <div class="text-center">
             <div class="text-6xl mb-4">🌍</div>
             <h1 class="text-2xl font-black">フィールドスキャン</h1>
@@ -222,7 +221,7 @@ if (!$currentUser) {
     </div>
 </div>
 
-<script>
+<script nonce="<?= CspNonce::attr() ?>">
 function fieldScan() {
     return {
         isActive: false,
@@ -283,8 +282,8 @@ function fieldScan() {
                 // カメラキャプチャ（4秒間隔）
                 this._captureInterval = setInterval(() => this.captureAndClassify(), 4000);
 
-                // 音声分類（10秒間隔、ダミー）
-                this._audioInterval = setInterval(() => this.classifyAudio(), 10000);
+                // 音声録音 + BirdNET 分析（3秒チャンク）
+                this._setupAudioRecorder(this._stream);
             } catch (e) {
                 console.warn('Camera/audio error:', e);
             }
@@ -319,7 +318,10 @@ function fieldScan() {
             this.isActive = false;
             clearInterval(this._timerInterval);
             clearInterval(this._captureInterval);
-            clearInterval(this._audioInterval);
+            if (this._recordingTimer) clearTimeout(this._recordingTimer);
+            if (this._audioRecorder && this._audioRecorder.state === 'recording') {
+                try { this._audioRecorder.stop(); } catch (e) { /* ignore */ }
+            }
             if (this._watchId) navigator.geolocation.clearWatch(this._watchId);
             if (this._stream) this._stream.getTracks().forEach(t => t.stop());
             if (this._audioCtx) this._audioCtx.close();
@@ -357,20 +359,107 @@ function fieldScan() {
             } catch (e) { /* ignore */ }
         },
 
-        classifyAudio() {
-            // DEMO: ダミー音声検出。本番では Gemini Nano (Android) / BirdNET (iOS) のオンデバイス推論、
-            // またはサーバー側 api/v2/audio_classify.php を使用する。
-            // この関数はプロトタイプ用であり、本番仕様として使用してはならない。
-            const species = [
-                { n: 'シジュウカラ', s: 'Parus minor', c: 0.82 },
-                { n: 'ヒヨドリ', s: 'Hypsipetes amaurotis', c: 0.75 },
-                { n: 'メジロ', s: 'Zosterops japonicus', c: 0.68 },
-                { n: 'ウグイス', s: 'Horornis diphone', c: 0.78 },
-            ];
-            if (Math.random() < 0.25) {
-                const sp = species[Math.floor(Math.random() * species.length)];
-                this.addDetection(sp.n, sp.s, sp.c + Math.random() * 0.1, 'audio');
-                this.audioDetections++;
+        /**
+         * 音声ストリームから MediaRecorder を作成し、3秒チャンクで BirdNET API に送信
+         */
+        _setupAudioRecorder(stream) {
+            // 音声トラックのみを抽出
+            const audioTracks = stream.getAudioTracks();
+            if (audioTracks.length === 0) {
+                console.warn('No audio tracks available');
+                return;
+            }
+            const audioStream = new MediaStream(audioTracks);
+
+            // MIME タイプ検出（iOS Safari は webm 非対応 → mp4 フォールバック）
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : MediaRecorder.isTypeSupported('audio/mp4')
+                    ? 'audio/mp4'
+                    : '';
+
+            if (!mimeType) {
+                console.warn('No supported audio recording format');
+                return;
+            }
+
+            this._audioRecorder = new MediaRecorder(audioStream, { mimeType });
+            this._audioChunks = [];
+            this._isAudioAnalyzing = false;
+            this._audioMimeType = mimeType;
+
+            this._audioRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) this._audioChunks.push(e.data);
+            };
+
+            this._audioRecorder.onstop = () => {
+                if (this._audioChunks.length === 0 || !this.isActive) return;
+                const blob = new Blob(this._audioChunks, { type: mimeType });
+                this._audioChunks = [];
+                this._sendAudioChunk(blob);
+            };
+
+            this._startAudioCycle();
+        },
+
+        _startAudioCycle() {
+            if (!this.isActive || !this._audioRecorder) return;
+            if (this._isAudioAnalyzing) {
+                this._recordingTimer = setTimeout(() => this._startAudioCycle(), 1000);
+                return;
+            }
+            try {
+                this._audioChunks = [];
+                this._audioRecorder.start();
+                this._recordingTimer = setTimeout(() => {
+                    if (this._audioRecorder && this._audioRecorder.state === 'recording') {
+                        this._audioRecorder.stop();
+                    }
+                }, 3000);
+            } catch (err) {
+                console.warn('Audio recording error:', err);
+                this._recordingTimer = setTimeout(() => this._startAudioCycle(), 5000);
+            }
+        },
+
+        async _sendAudioChunk(blob) {
+            if (!this.isActive) return;
+            this._isAudioAnalyzing = true;
+
+            try {
+                const lastPoint = this.routePoints.length > 0
+                    ? this.routePoints[this.routePoints.length - 1]
+                    : null;
+
+                const formData = new FormData();
+                const ext = this._audioMimeType.includes('mp4') ? '.mp4' : '.webm';
+                formData.append('audio', blob, `snippet${ext}`);
+                formData.append('lat', lastPoint?.lat ?? 35.0);
+                formData.append('lng', lastPoint?.lng ?? 139.0);
+
+                const resp = await fetch('/api/v2/analyze_audio.php', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!resp.ok) {
+                    if (resp.status === 429) await new Promise(r => setTimeout(r, 5000));
+                    return;
+                }
+
+                const json = await resp.json();
+                if (json.success && json.data?.detections) {
+                    for (const d of json.data.detections) {
+                        const name = d.common_name || d.scientific_name;
+                        this.addDetection(name, d.scientific_name, d.confidence, 'audio');
+                        this.audioDetections++;
+                    }
+                }
+            } catch (err) {
+                console.warn('Audio analysis error:', err);
+            } finally {
+                this._isAudioAnalyzing = false;
+                if (this.isActive) this._startAudioCycle();
             }
         },
 
@@ -475,6 +564,6 @@ function fieldScan() {
     };
 }
 </script>
-<script>lucide.createIcons();</script>
+<script nonce="<?= CspNonce::attr() ?>">if(typeof lucide!=='undefined')lucide.createIcons();</script>
 </body>
 </html>

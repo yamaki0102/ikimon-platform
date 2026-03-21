@@ -117,8 +117,8 @@
             async loadData() {
                 try {
                     const [navRes, taxRes] = await Promise.all([
-                        fetch('data/navigator_data.json?v=' + Date.now()),
-                        fetch('data/navigator_taxonomy.json?v=' + Date.now()).catch(() => null)
+                        fetch('assets/data/navigator_data.json?v=' + Date.now()),
+                        fetch('assets/data/navigator_taxonomy.json?v=' + Date.now()).catch(() => null)
                     ]);
                     
                     this.data = await navRes.json();

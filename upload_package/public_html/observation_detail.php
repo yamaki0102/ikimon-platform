@@ -1483,14 +1483,14 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <div id="reborn-map" class="w-full h-40 rounded-xl bg-surface border border-border overflow-hidden relative z-0"></div>
 
                     <!-- Omoikane Insights (New) -->
-                    <?php if ($omoikaneTraits): ?>
+                    <?php if ($omoikaneTraits && (!empty($omoikaneTraits['habitat']) || !empty($omoikaneTraits['season']) || !empty($omoikaneTraits['altitude']))): ?>
                         <div class="mt-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-5 border border-indigo-200 shadow-sm relative overflow-hidden">
                             <div class="absolute -right-4 -top-4 opacity-[0.03] pointer-events-none">
                                 <span class="material-symbols-outlined text-9xl text-indigo-900">psychiatry</span>
                             </div>
                             <div class="flex items-center gap-2 mb-3 relative z-10">
                                 <span class="material-symbols-outlined text-indigo-600">psychiatry</span>
-                                <h3 class="font-black text-indigo-900 text-sm tracking-wider">オモイカネ インサイト</h3>
+                                <h3 class="font-black text-indigo-900 text-sm tracking-wider">AI インサイト</h3>
                             </div>
                             <div class="space-y-3 relative z-10 text-sm text-indigo-900/80">
                                 <?php if (!empty($omoikaneTraits['habitat'])): ?>
