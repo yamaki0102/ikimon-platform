@@ -200,6 +200,12 @@ unset($allObs);
                     <a href="events.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
                         <i data-lucide="calendar" class="w-3.5 h-3.5"></i> 観察会
                     </a>
+                    <a href="walk.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-100 text-xs font-bold hover:bg-emerald-500/30 transition">
+                        <i data-lucide="footprints" class="w-3.5 h-3.5"></i> ウォーク
+                    </a>
+                    <a href="field_scan.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-100 text-xs font-bold hover:bg-blue-500/30 transition">
+                        <i data-lucide="radar" class="w-3.5 h-3.5"></i> ライブスキャン
+                    </a>
 
                 </div>
             </div>
