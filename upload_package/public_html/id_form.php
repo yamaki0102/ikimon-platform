@@ -293,8 +293,8 @@ $meta_title = '名前を提案する';
                     'label' => $s['label'] ?? null,
                 ], $subjects), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS); ?>,
                 init() {
-                    // If taxon_name was provided, trigger a search immediately
-                    if (this.query.length >= 2) {
+                    const minLen = /[\u3000-\u9FFF\uF900-\uFAFF]/.test(this.query) ? 1 : 2;
+                    if (this.query.length >= minLen) {
                         this.search();
                     }
                 },
@@ -305,7 +305,8 @@ $meta_title = '名前を提案する';
                 touchEnd: 0,
 
                 async search() {
-                    if (this.query.length < 2) {
+                    const minLen = /[\u3000-\u9FFF\uF900-\uFAFF]/.test(this.query) ? 1 : 2;
+                    if (this.query.length < minLen) {
                         this.results = [];
                         return;
                     }
