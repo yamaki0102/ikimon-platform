@@ -37,7 +37,7 @@ source "${VENV_DIR}/bin/activate"
 # --- 4. パッケージインストール ---
 echo "[4/6] Installing Python packages..."
 pip install --upgrade pip -q
-pip install fastapi uvicorn[standard] birdnetlib python-multipart -q
+pip install fastapi uvicorn[standard] birdnetlib python-multipart librosa tensorflow-cpu -q
 
 # --- 5. FastAPI アプリ作成 ---
 echo "[5/6] Writing app.py..."
