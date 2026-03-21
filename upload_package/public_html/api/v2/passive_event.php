@@ -56,6 +56,8 @@ if (!api_rate_limit('passive_event', 10, 60)) {
 
 $user = Auth::user();
 $userId = $user['id'] ?? null;
+$userName = $user['name'] ?? 'Unknown';
+$userAvatar = $user['avatar'] ?? null;
 $body = api_json_body();
 
 $events = $body['events'] ?? [];
@@ -106,6 +108,11 @@ foreach ($result['observations'] as $obs) {
             $obs['privacy_layer'] = PrivacyFilter::LAYER_PRIVATE;
         }
     }
+
+    // ユーザー情報を付与
+    $obs['user_name'] = $userName;
+    $obs['user_avatar'] = $userAvatar;
+    $obs['observation_source'] = 'walk';
 
     if (DataStore::append('observations', $obs)) {
         $savedCount++;
