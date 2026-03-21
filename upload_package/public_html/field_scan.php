@@ -169,6 +169,36 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
     </div>
 </div>
 
+<!-- ===== スキャン完了 ===== -->
+<div id="scan-done" style="display:none" class="min-h-screen bg-gradient-to-br from-blue-950 to-purple-950 text-white">
+    <div class="max-w-lg mx-auto px-4 py-12">
+        <div class="text-center mb-8">
+            <span class="text-5xl mb-4 block">📡</span>
+            <h2 class="text-2xl font-black mb-2">スキャン完了！</h2>
+            <p id="done-summary" class="text-blue-200 text-sm"></p>
+        </div>
+        <div id="done-quests" class="space-y-3 mb-8" style="display:none">
+            <div class="flex items-center gap-2 mb-4">
+                <i data-lucide="target" class="w-5 h-5 text-amber-400"></i>
+                <h3 class="text-base font-black text-amber-300">スキャンから生まれたミッション</h3>
+            </div>
+            <div id="done-quest-list"></div>
+        </div>
+        <div class="flex items-start gap-2 bg-white/10 rounded-xl px-4 py-3 mb-6">
+            <i data-lucide="database" class="w-4 h-4 text-blue-300 shrink-0 mt-0.5"></i>
+            <p class="text-xs text-blue-100">検出データは地域の生物多様性DBに蓄積され、BISスコア・TNFDレポートに活用されます</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="showScreen('ready')" class="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl py-3 text-sm transition">
+                もう一度スキャン
+            </button>
+            <a href="dashboard.php" class="flex-1 bg-white/20 hover:bg-white/30 text-white font-bold rounded-xl py-3 text-sm text-center transition">
+                ダッシュボードへ
+            </a>
+        </div>
+    </div>
+</div>
+
 <script nonce="<?= CspNonce::attr() ?>">
 var S = {
     active: false, startTime: null, timerInt: null,
@@ -184,6 +214,8 @@ var S = {
 function showScreen(name) {
     document.getElementById('scan-ready').style.display = name === 'ready' ? '' : 'none';
     document.getElementById('scan-active').style.display = name === 'active' ? '' : 'none';
+    document.getElementById('scan-done').style.display = name === 'done' ? '' : 'none';
+    if (name === 'done') lucide.createIcons();
 }
 
 // ===== Start =====
@@ -281,6 +313,9 @@ function stopScan() {
 
     // 蓄積した検出を一括で Canonical Schema に送信（1セッション=1 event）
     var pendingEvents = S.pendingEvents || [];
+    document.getElementById('done-summary').textContent = sp + '種検出 · ' + min + '分間のスキャン';
+    showScreen('done');
+
     if (pendingEvents.length > 0 || S.routePoints.length > 0) {
         fetch('/api/v2/passive_event.php', {
             method: 'POST',
@@ -296,11 +331,42 @@ function stopScan() {
                     scan_mode: 'live-scan',
                 }
             })
+        }).then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.scan_quests && data.scan_quests.length > 0) {
+                renderScanQuests(data.scan_quests);
+            }
         }).catch(function() {});
     }
+}
 
-    alert('ライブスキャン完了! ' + sp + '種検出（' + min + '分間）');
-    showScreen('ready');
+function renderScanQuests(quests) {
+    var container = document.getElementById('done-quests');
+    var list = document.getElementById('done-quest-list');
+    container.style.display = '';
+    list.innerHTML = '';
+    quests.forEach(function(q) {
+        var triggerIcon = q.trigger === 'new_species' ? '🆕' : (q.trigger === 'photo_needed' ? '📸' : '🎯');
+        var div = document.createElement('div');
+        div.className = 'bg-white/10 rounded-xl p-4 hover:bg-white/15 transition';
+        div.innerHTML = '<div class="flex items-center justify-between">' +
+            '<div class="flex-1 min-w-0">' +
+                '<div class="text-sm font-bold">' + triggerIcon + ' ' + escHtml(q.title.replace(/^[^\s]+\s/, '')) + '</div>' +
+                '<div class="text-xs text-blue-200 mt-1">' + escHtml(q.description) + '</div>' +
+            '</div>' +
+            '<a href="post.php?species=' + encodeURIComponent(q.species_name) + '&from=scan_quest&quest_id=' + encodeURIComponent(q.id) + '" ' +
+                'class="shrink-0 ml-3 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-lg px-3 py-2 transition">' +
+                '記録する +' + q.reward + 'pt</a>' +
+        '</div>';
+        list.appendChild(div);
+    });
+    lucide.createIcons();
+}
+
+function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
 }
 
 // ===== Camera Capture =====

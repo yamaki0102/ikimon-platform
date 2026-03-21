@@ -70,6 +70,9 @@ unset($scanStats['species']);
 $activeQuests = QuestManager::getActiveQuests();
 $dailyTargets = $activeQuests;
 
+// Scan Quests (dynamic from live scan)
+$scanQuests = $currentUser ? QuestManager::getScanQuests($currentUser['id']) : [];
+
 // Category tiles
 $missions = [
     ['id' => 'insect', 'label' => '昆虫', 'icon' => 'bug',  'color' => 'emerald', 'count_done' => 12,  'count_total' => 450],
@@ -197,6 +200,41 @@ $missions = [
             </div>
             <?php endif; ?>
         </section>
+
+        <!-- 2.7 Scan Quests -->
+        <?php if (!empty($scanQuests)): ?>
+        <section>
+            <div class="flex items-center gap-2 mb-3">
+                <span>📡</span>
+                <h2 class="text-base font-black text-text">スキャンミッション</h2>
+                <span class="text-[10px] text-faint bg-surface border border-border rounded-full px-2 py-0.5"><?= count($scanQuests) ?>件</span>
+            </div>
+            <div class="space-y-2">
+                <?php foreach ($scanQuests as $sq):
+                    $triggerIcon = match($sq['trigger'] ?? '') {
+                        'new_species' => '🆕',
+                        'photo_needed' => '📸',
+                        default => '🎯',
+                    };
+                    $hoursLeft = max(0, (int)round((strtotime($sq['expires_at'] ?? 'now') - time()) / 3600));
+                ?>
+                <div class="bg-gradient-to-r from-blue-900 to-purple-900 rounded-xl p-4 text-white">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-bold"><?= $triggerIcon ?> <?= htmlspecialchars($sq['title'] ?? '') ?></div>
+                            <div class="text-xs text-blue-200 mt-1"><?= htmlspecialchars($sq['description'] ?? '') ?></div>
+                            <div class="text-[10px] text-blue-300/60 mt-1">残り <?= $hoursLeft ?>時間</div>
+                        </div>
+                        <a href="post.php?species=<?= urlencode($sq['species_name'] ?? '') ?>&from=scan_quest&quest_id=<?= urlencode($sq['id'] ?? '') ?>"
+                           class="shrink-0 ml-3 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-lg px-3 py-2 transition">
+                            記録する +<?= (int)($sq['reward'] ?? 0) ?>pt
+                        </a>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </section>
+        <?php endif; ?>
 
         <!-- 3. Daily Quest -->
         <?php if (!empty($dailyTargets)): ?>

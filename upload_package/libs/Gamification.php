@@ -270,6 +270,31 @@ class Gamification
             $user['quest_log'] = $questLog;
             $user['score'] += $questScoreAdded;
 
+            // === Scan Quest Match Check ===
+            $latestObs = DataStore::getLatest('observations', 1, function ($o) use ($userId) {
+                return ($o['user_id'] ?? '') === $userId;
+            });
+            if (!empty($latestObs)) {
+                $lastObs = $latestObs[0];
+                $completedSq = QuestManager::checkScanQuestMatch($userId, $lastObs);
+                if ($completedSq) {
+                    $sqReward = (int)($completedSq['reward'] ?? 0);
+                    $user['score'] += $sqReward;
+                    $events[] = [
+                        'type' => 'quest_complete',
+                        'quest' => $completedSq,
+                        'reward' => $sqReward,
+                    ];
+                    Notification::send(
+                        $userId,
+                        'quest_complete',
+                        'スキャンミッション達成！',
+                        '「' . ($completedSq['title'] ?? '') . '」を達成！ +' . $sqReward . 'pt',
+                        'index.php'
+                    );
+                }
+            }
+
             DataStore::upsert('users', $user);
 
             // Update Session
