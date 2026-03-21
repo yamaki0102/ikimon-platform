@@ -1,5 +1,11 @@
 <?php
 // Nav Component — Design System v2 (tokens.css v2 unified)
+function nav_avatar(string $avatar): string {
+    if ($avatar && !str_starts_with($avatar, '/') && !str_starts_with($avatar, 'http')) {
+        return '/' . $avatar;
+    }
+    return $avatar;
+}
 ?>
 <nav x-data="{ show: true, lastScroll: 0 }"
     @scroll.window="const current = window.pageYOffset; show = current < lastScroll || current < 50; lastScroll = current"
@@ -147,7 +153,7 @@
                     <button @click="open = !open" @click.outside="open = false"
                         class="w-9 h-9 rounded-full overflow-hidden border-2 transition border-border-strong hover:border-primary"
                         aria-label="ユーザーメニュー">
-                        <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" class="w-full h-full object-cover" alt="ユーザーアバター">
+                        <img src="<?php echo htmlspecialchars(nav_avatar($currentUser['avatar'])); ?>" class="w-full h-full object-cover" alt="ユーザーアバター">
                     </button>
 
                     <!-- Dropdown Menu -->
@@ -598,7 +604,7 @@
         <?php if ($currentUser): ?>
             <!-- User Info -->
             <a href="/profile.php" class="flex items-center gap-4 p-4 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)]">
-                <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" alt="<?php echo htmlspecialchars($currentUser['name'] ?? 'ユーザー'); ?>のアバター" class="w-12 h-12 rounded-full object-cover border border-[var(--color-border-strong)]">
+                <img src="<?php echo htmlspecialchars(nav_avatar($currentUser['avatar'])); ?>" alt="<?php echo htmlspecialchars($currentUser['name'] ?? 'ユーザー'); ?>のアバター" class="w-12 h-12 rounded-full object-cover border border-[var(--color-border-strong)]">
                 <div class="flex-1">
                     <p class="font-bold text-[var(--color-text)]"><?php echo htmlspecialchars($currentUser['name']); ?></p>
                     <p class="text-xs font-bold text-[var(--color-muted)]"><?php echo htmlspecialchars(Auth::getRankLabel($currentUser)); ?></p>
