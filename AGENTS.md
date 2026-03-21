@@ -182,9 +182,46 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 }
 ```
 
+## Phase 6: Passive Observation Platform (Current Focus)
+
+**開発計画**: `docs/strategy/DEVELOPMENT_PLAN.md` を参照（Claude/Codex 共有）
+**戦略文書**: `docs/strategy/v3.8/` (本体 + Appendix A-D)
+
+### Canonical Schema v0.1 (5層)
+Phase 6 で実装する中核データモデル。詳細は `docs/strategy/v3.8/ikimon_life_strategy_2026Q1.md` Section 5。
+
+| Layer | 役割 | 主要フィールド |
+|-------|------|---------------|
+| Event | 観測イベント | eventID, parentEventID, samplingProtocol, samplingEffort |
+| Occurrence | 種の出現記録 | occurrenceID, scientificName, basisOfRecord |
+| Evidence | 証拠メディア | evidenceID, mediaHash (SHA-256), evidenceType |
+| Identification | 同定記録 | identificationID, identificationMethod, auditLog |
+| PrivacyAccess | アクセス制御 | accessTier, coordinatePrecision, legalBasis |
+
+### Evidence Tier
+| Tier | 名称 | 用途 |
+|------|------|------|
+| 1 | Hypothesis-grade | AI候補のみ。内部解析用 |
+| 1.5 | Semi-validated | AI高確信度＋生態学的妥当性。統計・マップ表示 |
+| 2 | Review-grade | Reviewer 1名以上確認。図鑑・市民科学データ |
+| 3 | Disclosure-grade | 複数合意＋監査ログ。TNFD/OECM/GBIF |
+| 4 | Credit-grade | 第三者検証済み。クレジット算出根拠 |
+
+### Gemini Embedding 2 (導入済み)
+| ファイル | 役割 |
+|----------|------|
+| `libs/EmbeddingService.php` | 768次元ベクトル生成（テキスト/画像/マルチモーダル） |
+| `libs/EmbeddingStore.php` | SQLite BLOB ベクトルストア + cosine検索 |
+| `libs/EmbeddingQueue.php` | 非同期埋め込みキュー（20件/run） |
+| `api/semantic_search.php` | セマンティック検索API |
+| `api/get_similar_observations.php` | 類似観察検索 |
+
+**注意**: マルチモーダル埋め込み（音声・動画）の拡張は PoC 後に検討。現行はテキスト＋画像のみ運用中。
+
 ## Known Issues to Watch
 
 1. **CDN versions MUST be pinned** — `@latest` is forbidden
 2. **`loading-skeleton`** class on images should be removed after load (explore.php)
 3. **File locking**: `DataStore.php` and most libs use `LOCK_EX`; any new `file_put_contents` must include the `LOCK_EX` flag
 4. **Session GC** on shared hosting — custom timeout via `session.gc_maxlifetime`
+5. **JSON↔SQLite 二重構成**: 観察データは JSON (DataStore)、埋め込みは SQLite (EmbeddingStore)。Canonical Schema 実装時に統合を検討（ADR-005）
