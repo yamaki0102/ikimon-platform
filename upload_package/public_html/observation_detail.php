@@ -962,6 +962,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                 class="mt-2 w-full py-2 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold text-xs border border-emerald-200 transition flex items-center justify-center gap-1.5 active:scale-[0.98]">
                                                 <span>👍</span> そうかも！
                                             </button>
+                                            <p class="text-[10px] text-gray-400 text-center mt-1">AIの提案です — 違うこともあるので、心当たりがあるときにどうぞ</p>
                                         <?php endif; ?>
 
                                         <div class="mt-3 grid gap-2 sm:grid-cols-2">
@@ -1186,6 +1187,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                             そうかも！
                                             <span class="text-xs font-normal opacity-70">（<?php echo htmlspecialchars($recommended['name'] ?? ''); ?>で同定）</span>
                                         </button>
+                                        <p class="text-[10px] text-faint text-center mt-1.5">AIの提案です — 違うこともあるので、心当たりがあるときにどうぞ</p>
                                     <?php endif; ?>
                                 </div>
                             <?php endif; ?>
@@ -2333,7 +2335,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
         });
 
         window.agreeWithAi = async function (target) {
-            if (!confirm('「' + target.name + '」で同定しますか？')) return;
+            if (!confirm('「' + target.name + '」で同定しますか？\n\n※ AIの提案は参考情報です。見覚えがあるときにご活用ください。')) return;
             var _csrf = (document.cookie.match(/(?:^|;\s*)ikimon_csrf=([a-f0-9]{64})/) || [])[1] || '';
             try {
                 var res = await fetch('api/post_identification.php', {
