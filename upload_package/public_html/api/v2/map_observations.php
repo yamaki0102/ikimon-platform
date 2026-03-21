@@ -96,11 +96,40 @@ foreach ($rows as $r) {
 $stats = [
     'total' => count($features),
     'species' => count(array_unique(array_filter(array_column(array_column($features, 'properties'), 'name')))),
-    'contributors' => $pdo->query("SELECT COUNT(DISTINCT recorded_by) FROM events WHERE recorded_by IS NOT NULL")->fetchColumn(),
+    'contributors' => (int)$pdo->query("SELECT COUNT(DISTINCT recorded_by) FROM events WHERE recorded_by IS NOT NULL")->fetchColumn(),
 ];
+
+// 網羅度グリッド（~100m = 0.001度単位のセル）
+$gridStmt = $pdo->query("
+    SELECT
+        ROUND(decimal_latitude, 3) AS grid_lat,
+        ROUND(decimal_longitude, 3) AS grid_lng,
+        COUNT(DISTINCT o.occurrence_id) AS obs_count,
+        COUNT(DISTINCT o.scientific_name) AS species_count,
+        MAX(e.event_date) AS last_survey
+    FROM events e
+    JOIN occurrences o ON e.event_id = o.event_id
+    WHERE e.decimal_latitude IS NOT NULL AND e.decimal_longitude IS NOT NULL
+    GROUP BY grid_lat, grid_lng
+");
+$grid = $gridStmt->fetchAll(PDO::FETCH_ASSOC);
+$gridFeatures = [];
+foreach ($grid as $g) {
+    $gridFeatures[] = [
+        'type' => 'Feature',
+        'geometry' => ['type' => 'Point', 'coordinates' => [floatval($g['grid_lng']), floatval($g['grid_lat'])]],
+        'properties' => [
+            'obs' => (int)$g['obs_count'],
+            'species' => (int)$g['species_count'],
+            'last' => $g['last_survey'],
+        ],
+    ];
+}
+$stats['surveyed_cells'] = count($gridFeatures);
 
 api_success([
     'type' => 'FeatureCollection',
     'features' => $features,
+    'grid' => $gridFeatures,
     'stats' => $stats,
 ]);
