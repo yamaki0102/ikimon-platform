@@ -436,11 +436,14 @@ function fieldScan() {
             var mm = this._minimap;
             setTimeout(function() { mm.resize(); }, 200);
 
-            // 現在地マーカー
+            // 現在地マーカー + トイレ取得
             this._minimap.on('load', () => {
                 var el = document.createElement('div');
                 el.style.cssText = 'width:12px;height:12px;background:#3b82f6;border:2px solid #fff;border-radius:50%;box-shadow:0 0 6px rgba(59,130,246,0.5)';
                 this._posMarker = new maplibregl.Marker({element: el}).setLngLat(center).addTo(mm);
+
+                // 周辺トイレ
+                loadNearbyToilets(center[1], center[0], mm);
             });
         },
 
@@ -495,6 +498,28 @@ function fieldScan() {
             }
         },
     };
+}
+
+function loadNearbyToilets(lat, lng, targetMap) {
+    var radius = 2000;
+    var query = '[out:json][timeout:10];node["amenity"="toilets"](around:' + radius + ',' + lat + ',' + lng + ');out body;';
+    var url = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
+    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+        if (!data.elements) return;
+        data.elements.forEach(function(t) {
+            var el = document.createElement('div');
+            el.style.cssText = 'font-size:16px;cursor:pointer;opacity:0.7';
+            el.textContent = '🚻';
+            var name = t.tags.name || t.tags.description || '公衆トイレ';
+            var fee = t.tags.fee === 'yes' ? '有料' : '無料';
+            var wheelchair = t.tags.wheelchair === 'yes' ? ' ♿' : '';
+            new maplibregl.Marker({element: el})
+                .setLngLat([t.lon, t.lat])
+                .setPopup(new maplibregl.Popup({offset: 15, closeButton: false, maxWidth: '200px'})
+                    .setHTML('<div style="color:#000;font-size:12px"><strong>🚻 ' + name + '</strong><br>' + fee + wheelchair + '</div>'))
+                .addTo(targetMap);
+        });
+    }).catch(function(){});
 }
 </script>
 <script nonce="<?= CspNonce::attr() ?>">if(typeof lucide!=='undefined')lucide.createIcons();</script>
