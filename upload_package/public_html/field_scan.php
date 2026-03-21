@@ -70,6 +70,9 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
         <div id="env-text" style="color:#ccc;line-height:1.4"></div>
     </div>
 
+    <!-- デバッグステータス -->
+    <div id="debug-status" style="position:absolute;top:50px;right:8px;z-index:20;background:rgba(0,0,0,0.8);border-radius:8px;padding:6px 10px;font-size:10px;color:#4ade80;max-width:180px;font-family:monospace"></div>
+
     <!-- 検出バナー -->
     <div id="det-banner" style="display:none;position:absolute;bottom:46%;left:50%;transform:translateX(-50%);z-index:10;background:rgba(0,0,0,0.7);backdrop-filter:blur(12px);border-radius:16px;padding:12px 20px;text-align:center;max-width:80%">
         <div id="det-name" style="font-size:18px;font-weight:900"></div>
@@ -114,12 +117,18 @@ function showScreen(name) {
 }
 
 // ===== Start =====
+function dbg(msg) {
+    var el = document.getElementById('debug-status');
+    if (el) el.innerHTML = msg + '<br>' + (el.innerHTML || '').split('<br>').slice(0, 8).join('<br>');
+}
+
 async function startScan() {
     showScreen('active');
+    dbg('1. 画面切替OK');
     S.active = true;
     S.startTime = Date.now();
     S.speciesMap = {}; S.totalDet = 0; S.audioDet = 0; S.visualDet = 0;
-    S.routePoints = [];
+    S.routePoints = []; S.envHistory = [];
     updateCounts();
 
     // Timer
@@ -127,28 +136,33 @@ async function startScan() {
         var sec = Math.floor((Date.now() - S.startTime) / 1000);
         document.getElementById('timer').textContent = Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
     }, 1000);
+    dbg('2. タイマー開始');
 
     // Camera + Audio
     try {
+        dbg('3. カメラ要求中...');
         S.stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment', width: { ideal: 1280 } },
             audio: true
         });
+        dbg('4. カメラ取得OK');
         document.getElementById('cam').srcObject = S.stream;
         setSensor('cam', true);
         setSensor('mic', true);
 
         // Camera capture every 2 seconds
         S.captureInt = setInterval(captureFrame, 2000);
+        dbg('5. 映像キャプチャ 2秒間隔');
 
         // Environment scan every 10 seconds
         S.envInt = setInterval(envScan, 10000);
-        setTimeout(envScan, 3000); // 最初の1回は3秒後
+        setTimeout(envScan, 3000);
 
         // Audio recorder
         setupAudioRecorder();
+        dbg('6. 音声レコーダー開始');
     } catch(e) {
-        console.warn('Camera/audio error:', e);
+        dbg('ERR カメラ/音声: ' + e.message);
     }
 
     // GPS
@@ -156,9 +170,12 @@ async function startScan() {
         S.watchId = navigator.geolocation.watchPosition(function(pos) {
             setSensor('gps', true);
             S.routePoints.push({lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now()});
-            if (S.routePoints.length === 1) initMap(pos.coords.latitude, pos.coords.longitude);
+            if (S.routePoints.length === 1) {
+                initMap(pos.coords.latitude, pos.coords.longitude);
+                dbg('7. GPS+マップ初期化');
+            }
             updateMapRoute();
-        }, function(){}, {enableHighAccuracy: true, maximumAge: 3000});
+        }, function(e) { dbg('GPS ERR: ' + e.message); }, {enableHighAccuracy: true, maximumAge: 3000});
     }
 }
 
@@ -185,7 +202,7 @@ async function captureFrame() {
     try {
         var v = document.getElementById('cam');
         var c = document.getElementById('cap');
-        if (!v.videoWidth) return;
+        if (!v.videoWidth) { dbg('📷 待機中(videoWidth=0)'); return; }
         c.width = Math.min(v.videoWidth, 640);
         c.height = Math.round(c.width * v.videoHeight / v.videoWidth);
         c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
@@ -196,15 +213,19 @@ async function captureFrame() {
         var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
         if (last) { fd.append('lat', last.lat); fd.append('lng', last.lng); }
 
+        dbg('📷 送信中...');
         var resp = await fetch('/api/v2/ai_classify.php', {method:'POST', body:fd});
-        if (!resp.ok) return;
+        if (!resp.ok) { dbg('📷 HTTP ' + resp.status); return; }
         var json = await resp.json();
-        if (json.success && json.data && json.data.suggestions) {
+        if (json.success && json.data && json.data.suggestions && json.data.suggestions.length > 0) {
             json.data.suggestions.forEach(function(sug) {
                 addDetection(sug.name, sug.scientific_name || '', sug.confidence, 'visual');
             });
+            dbg('📷 ' + json.data.suggestions.length + '件検出');
+        } else {
+            dbg('📷 検出なし');
         }
-    } catch(e) {}
+    } catch(e) { dbg('📷 ERR: ' + e.message); }
 }
 
 // ===== Audio Recorder =====
@@ -250,15 +271,19 @@ async function sendAudio(blob) {
         fd.append('audio', blob, 'snippet' + (S.mime.indexOf('mp4') >= 0 ? '.mp4' : '.webm'));
         fd.append('lat', last ? last.lat : 35.0);
         fd.append('lng', last ? last.lng : 139.0);
+        dbg('🎤 送信中...');
         var resp = await fetch('/api/v2/analyze_audio.php', {method:'POST', body:fd});
-        if (!resp.ok) return;
+        if (!resp.ok) { dbg('🎤 HTTP ' + resp.status); return; }
         var json = await resp.json();
-        if (json.success && json.data && json.data.detections) {
+        if (json.success && json.data && json.data.detections && json.data.detections.length > 0) {
             json.data.detections.forEach(function(d) {
                 addDetection(d.common_name || d.scientific_name, d.scientific_name, d.confidence, 'audio');
             });
+            dbg('🎤 ' + json.data.detections.length + '件検出');
+        } else {
+            dbg('🎤 検出なし');
         }
-    } catch(e) {} finally {
+    } catch(e) { dbg('🎤 ERR: ' + e.message); } finally {
         S.analyzing = false;
         if (S.active) startAudioCycle();
     }
