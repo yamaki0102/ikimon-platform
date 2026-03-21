@@ -60,7 +60,7 @@ $prompt = "この写真の撮影場所の自然環境を分析してください
     . "  \"description\": \"50字以内の総合的な環境記述\"\n"
     . "}\n\nJSONのみ出力してください。";
 
-$model = 'gemini-2.0-flash-lite';
+$model = 'gemini-2.5-flash-lite';
 $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . GEMINI_API_KEY;
 
 $payload = [

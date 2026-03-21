@@ -55,7 +55,7 @@ $prompt = <<<'PROMPT'
 JSONのみ出力。
 PROMPT;
 
-$model = 'gemini-2.0-flash-lite';
+$model = 'gemini-2.5-flash-lite';
 $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . GEMINI_API_KEY;
 
 $payload = [
