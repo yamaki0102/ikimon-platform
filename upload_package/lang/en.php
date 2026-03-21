@@ -56,7 +56,7 @@ return [
         'all_seen' => 'All discoveries reviewed!',
         'user_prefix' => 'Explorer',
         'observed' => 'recorded this',
-        'identifying' => 'Needs ID...',
+        'identifying' => 'Who is this?',
         'detail' => 'View Details',
     ],
 
