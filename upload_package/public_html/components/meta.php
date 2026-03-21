@@ -179,8 +179,12 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <script nonce="<?= CspNonce::attr() ?>">
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log('SW registered:', reg.scope))
+            navigator.serviceWorker.register('sw.js?v=13')
+                .then(reg => {
+                    console.log('SW registered:', reg.scope);
+                    // 強制更新チェック
+                    reg.update();
+                })
                 .catch(err => console.log('SW registration failed:', err));
         });
     }
