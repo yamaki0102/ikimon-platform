@@ -32,6 +32,7 @@ $logEntry = [
     'location_source' => $input['location_source'] ?? '',
     'device_gps' => $input['device_gps'] ?? null,
     'ua' => substr($input['ua'] ?? '', 0, 200),
+    'gps_debug' => $input['gps_debug'] ?? null,
 ];
 
 $logFile = DATA_DIR . '/exif_debug.log';
