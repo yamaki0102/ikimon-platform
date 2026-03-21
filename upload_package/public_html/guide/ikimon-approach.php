@@ -382,6 +382,16 @@ Auth::init();
             </p>
 
             <div class="space-y-4">
+                <!-- AI哲学 -->
+                <div class="blockquote-accent">
+                    <p class="text-sm leading-relaxed">
+                        <strong class="text-text">ikimon の AI 哲学 — 主役は人間、AI はサポート。</strong><br><br>
+                        多くの生き物アプリでは、写真を撮ると AI が「これは○○です」と答えを出します。便利ですが、ikimon はあえて違う道を選びました。<strong class="text-text">AI は「ここを見て」「この特徴に注目して」とヒントを出す役割</strong>に徹し、最終的な判断は人間が行います。<br><br>
+                        ライブスキャンのように広い範囲をざっくり記録するときは AI が活躍します。でも、1件1件の正確な同定は、やっぱり人の目と経験が必要です。<br><br>
+                        100年後には、AI だけで完璧に同定できる時代が来るかもしれません。でも、<strong class="text-text">そのAIを育てるための「人間が確認した正確なデータ」を、いま積み重ねておく必要がある</strong>。それが ikimon の役割です。
+                    </p>
+                </div>
+
                 <div class="design-reason">
                     <div class="flex items-center gap-2 mb-3">
                         <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -390,7 +400,7 @@ Auth::init();
                         <h3 class="font-black text-base leading-snug text-gray-900">「手動で撮る」だけでは見逃す</h3>
                     </div>
                     <p class="text-sm text-muted leading-relaxed">
-                        人間の目は、興味があるものしか見ません。でも生態系の記録には「そこにいたけど気づかなかった生き物」も大切です。だから ikimon は<strong class="text-text">AIによる受動検出</strong>を採用しました。カメラと音声で、キミが気づかなかった生き物も記録します。
+                        人間の目は、興味があるものしか見ません。でも生態系の記録には「そこにいたけど気づかなかった生き物」も大切です。だから ikimon は<strong class="text-text">AIによる受動検出</strong>を採用しました。カメラと音声で、キミが気づかなかった生き物も記録します。ただし、AIが出すのはあくまで候補。最終的な同定は人間が確認します。
                     </p>
                 </div>
 
@@ -498,9 +508,9 @@ Auth::init();
                                 <span class="text-emerald-700 font-black">1</span>
                             </div>
                             <div>
-                                <h3 class="font-black text-base leading-snug text-gray-900 mb-2">AI + 人間のハイブリッド同定</h3>
+                                <h3 class="font-black text-base leading-snug text-gray-900 mb-2">AI はヒントを出し、人が決める</h3>
                                 <p class="text-sm text-muted leading-relaxed">
-                                    まず AI（Gemini Vision / BirdNET）が候補を提案し、次にコミュニティの同定者が確認します。AIの速さと、人間の経験知を組み合わせることで、速く正確な同定を実現しています。
+                                    AI（Gemini Vision / BirdNET）は「答え」ではなく「候補とヒント」を提示します。「この模様に注目」「この鳴き声の特徴は」——そのヒントをもとに、コミュニティの同定者が最終判断します。AIの速さと、人間の経験知の組み合わせです。
                                 </p>
                             </div>
                         </div>
