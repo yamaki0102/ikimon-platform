@@ -481,6 +481,22 @@ async function captureFrame() {
         var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
         if (last) { fd.append('lat', last.lat); fd.append('lng', last.lng); }
 
+        var ctx = {};
+        if (S.envHistory.length > 0) {
+            var env = S.envHistory[0];
+            ctx.environment = {habitat: env.habitat||'', vegetation: env.vegetation||'', canopy_cover: env.canopy_cover||'', water: env.water||''};
+        }
+        var entries = Object.entries(S.speciesMap);
+        if (entries.length > 0) {
+            ctx.recent_detections = entries
+                .sort(function(a,b){ return b[1].lastSeen - a[1].lastSeen; })
+                .slice(0, 8)
+                .map(function(e){ return {name: e[0], confidence: e[1].confidence}; });
+        }
+        if (ctx.environment || ctx.recent_detections) {
+            fd.append('context', JSON.stringify(ctx));
+        }
+
         S.frameScanCount++;
         document.getElementById('frame-count').textContent = S.frameScanCount;
         dbg('📷 #' + S.frameScanCount + ' 送信中...');
