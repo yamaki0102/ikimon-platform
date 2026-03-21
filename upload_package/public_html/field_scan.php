@@ -1,6 +1,6 @@
 <?php
 /**
- * field_scan.php — 統合フィールドスキャン
+ * field_scan.php — ライブスキャン
  *
  * 全センサー統合モード。起動して歩き回るだけで、
  * エリアの3D生態系モデルが自動構築される。
@@ -23,7 +23,7 @@ if (!$currentUser) {
 <html lang="ja">
 <head>
     <?php
-    $meta_title = "フィールドスキャン | ikimon.life";
+    $meta_title = "ライブスキャン | ikimon.life";
     include __DIR__ . '/components/meta.php';
     ?>
     <link rel="stylesheet" href="assets/css/tokens.css?v=2026_naturalism">
@@ -41,7 +41,7 @@ if (!$currentUser) {
 </head>
 <body class="bg-black text-white" x-data="fieldScan()">
 
-<!-- フィールドスキャン画面 -->
+<!-- ライブスキャン画面 -->
 <div class="field-scan" x-show="isActive" x-cloak>
     <!-- カメラ映像（背景） -->
     <video x-ref="video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
@@ -161,7 +161,7 @@ if (!$currentUser) {
     <div class="max-w-lg mx-auto px-4 py-8 space-y-6" style="padding-top: calc(var(--nav-height, 56px) + 2rem)">
         <div class="text-center">
             <div class="text-6xl mb-4">🌍</div>
-            <h1 class="text-2xl font-black">フィールドスキャン</h1>
+            <h1 class="text-2xl font-black">ライブスキャン</h1>
             <p class="text-gray-500 mt-2">起動して歩くだけで、エリアの生態系3Dモデルが構築される</p>
         </div>
 
@@ -177,7 +177,7 @@ if (!$currentUser) {
         <button @click="start()"
                 class="w-full py-5 bg-green-600 hover:bg-green-700 rounded-2xl text-lg font-bold transition flex items-center justify-center gap-3">
             <i data-lucide="radar" class="w-6 h-6"></i>
-            フィールドスキャン開始
+            ライブスキャン開始
         </button>
 
         <!-- 使うセンサーの説明 -->
@@ -556,7 +556,7 @@ function fieldScan() {
                 localStorage.setItem('ikimon_field_areas', JSON.stringify(areas));
                 this.pastAreas = areas;
 
-                alert(`フィールドスキャン完了!\n${Object.keys(this.speciesMap).length}種検出、${this.totalDetections}件記録`);
+                alert(`ライブスキャン完了!\n${Object.keys(this.speciesMap).length}種検出、${this.totalDetections}件記録`);
             } catch (e) {
                 console.error('Upload error:', e);
             }
