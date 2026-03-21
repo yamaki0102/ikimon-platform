@@ -55,6 +55,31 @@ $uniqueSpecies = count(array_unique(array_filter(array_map(function ($o) {
     return $o['taxon']['key'] ?? $o['taxon']['scientific_name'] ?? $name;
 }, $allObs))));
 unset($allObs);
+
+// Community Live Scan Stats (all users)
+$communityScanStats = ['count' => 0, 'duration_min' => 0, 'species' => [], 'total_detections' => 0, 'users' => []];
+$allSessions = DataStore::fetchAll('passive_sessions');
+foreach ($allSessions as $s) {
+    if (($s['session_meta']['scan_mode'] ?? '') !== 'live-scan') continue;
+    $summary = $s['summary'] ?? [];
+    $communityScanStats['count']++;
+    $communityScanStats['duration_min'] += (int)round(($summary['duration_sec'] ?? 0) / 60);
+    $communityScanStats['total_detections'] += (int)($summary['total_detections'] ?? 0);
+    foreach ($summary['species'] ?? [] as $name => $cnt) {
+        if ($name) $communityScanStats['species'][$name] = true;
+    }
+    $uid = $s['user_id'] ?? '';
+    if ($uid) $communityScanStats['users'][$uid] = true;
+}
+unset($allSessions);
+$communityScanStats['unique_species'] = count($communityScanStats['species']);
+$communityScanStats['unique_users'] = count($communityScanStats['users']);
+unset($communityScanStats['species'], $communityScanStats['users']);
+
+// Latest scan summaries (max 5)
+$latestScans = DataStore::getLatest('observations', 5, function ($item) {
+    return ($item['observation_source'] ?? '') === 'live-scan-summary';
+});
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -669,6 +694,91 @@ unset($allObs);
                     </a>
                 </div>
             <?php endif; ?>
+        </section>
+
+        <!-- ==================== みんなのライブスキャン ==================== -->
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-2xl)">
+            <div class="rounded-3xl overflow-hidden border border-blue-500/20">
+                <!-- Header + Stats -->
+                <div class="bg-gradient-to-br from-blue-900 to-purple-900 p-5 md:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">📡</span>
+                            <h2 class="text-base font-black text-white">みんなのライブスキャン</h2>
+                        </div>
+                        <a href="livemap.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                            <i data-lucide="globe" class="w-3.5 h-3.5"></i> ライブマップ
+                        </a>
+                    </div>
+
+                    <?php if ($communityScanStats['count'] > 0): ?>
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        <div class="bg-white/10 rounded-xl py-3">
+                            <div class="text-xl font-black text-white"><?= number_format($communityScanStats['count']) ?></div>
+                            <div class="text-[10px] text-blue-200 font-bold mt-0.5">スキャン</div>
+                        </div>
+                        <div class="bg-white/10 rounded-xl py-3">
+                            <div class="text-xl font-black text-white"><?= number_format($communityScanStats['duration_min']) ?></div>
+                            <div class="text-[10px] text-blue-200 font-bold mt-0.5">累計(分)</div>
+                        </div>
+                        <div class="bg-white/10 rounded-xl py-3">
+                            <div class="text-xl font-black text-white"><?= number_format($communityScanStats['unique_species']) ?></div>
+                            <div class="text-[10px] text-blue-200 font-bold mt-0.5">検出種</div>
+                        </div>
+                        <div class="bg-white/10 rounded-xl py-3">
+                            <div class="text-xl font-black text-white"><?= number_format($communityScanStats['unique_users']) ?></div>
+                            <div class="text-[10px] text-blue-200 font-bold mt-0.5">参加者</div>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <div class="text-center py-3">
+                        <p class="text-sm text-blue-200 mb-3">スマホをかざすだけで周囲の生き物をAIが自動検出</p>
+                        <a href="field_scan.php" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-full px-4 py-2 transition">
+                            <i data-lucide="radar" class="w-4 h-4"></i>
+                            スキャンを始める
+                        </a>
+                    </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Latest Scan Results -->
+                <?php if (!empty($latestScans)): ?>
+                <div class="bg-elevated divide-y divide-border">
+                    <?php foreach ($latestScans as $scan):
+                        $scanSummary = $scan['scan_summary'] ?? [];
+                        $scanDur = $scanSummary['duration_min'] ?? 0;
+                        $scanSpCount = $scanSummary['species_count'] ?? 0;
+                        $scanTopSpecies = array_slice($scanSummary['top_species'] ?? [], 0, 3);
+                        $scanUserName = $scan['user_name'] ?? 'ユーザー';
+                        $scanUserAvatar = $scan['user_avatar'] ?? '';
+                        $scanDate = date('n/j H:i', strtotime($scan['observed_at'] ?? $scan['created_at'] ?? 'now'));
+                    ?>
+                    <a href="observation_detail.php?id=<?= urlencode($scan['id']) ?>" class="flex items-center gap-3 px-4 py-3 hover:bg-surface transition">
+                        <?php if ($scanUserAvatar): ?>
+                        <img src="<?= htmlspecialchars($scanUserAvatar) ?>" alt="" class="w-9 h-9 rounded-full object-cover border border-border shrink-0">
+                        <?php else: ?>
+                        <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                            <i data-lucide="user" class="w-4 h-4 text-blue-500"></i>
+                        </div>
+                        <?php endif; ?>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-bold text-text truncate"><?= htmlspecialchars($scanUserName) ?></span>
+                                <span class="text-[10px] text-muted"><?= $scanDate ?></span>
+                            </div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-xs text-muted"><?= $scanDur ?>分 · <?= $scanSpCount ?>種検出</span>
+                                <?php if (!empty($scanTopSpecies)): ?>
+                                <span class="text-[10px] text-faint truncate"><?= htmlspecialchars(implode(', ', array_map(fn($sp) => $sp['name'] ?? '', $scanTopSpecies))) ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-faint shrink-0"></i>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+            </div>
         </section>
 
         <!-- ==================== 数字で見る ikimon ==================== -->
