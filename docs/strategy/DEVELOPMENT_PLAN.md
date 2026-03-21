@@ -1,8 +1,8 @@
 # ikimon.life 開発計画 — 「観察のOS」基盤構築
 
 > **正本**: `docs/strategy/DEVELOPMENT_PLAN.md`
-> **最終更新**: 2026-03-21
-> **更新者**: Claude Opus (コードベース全調査 + ビジョン再定義 v3)
+> **最終更新**: 2026-03-21 (実装進捗: Day 1-12 コード完了)
+> **更新者**: Claude Opus (コードベース全調査 + ビジョン再定義 v3 + 実装)
 > **共有対象**: Claude Code / Codex / 八巻
 > **戦略文書**: `docs/strategy/v3.8/` (本体 + Appendix A-D)
 > **期間**: 2026-03-22 〜 2026-04-04 (2週間)
@@ -597,16 +597,17 @@ CREATE INDEX idx_live_expires ON live_detections(expires_at);
 | 0.30 | `composer test` 全テスト通過 | Codex | CI green |
 | 0.31 | 進捗コミット + push | Claude | git push |
 
-**Week 1 完了時の状態:**
+**Week 1 完了時の状態: ✅ コード実装完了 (2026-03-21)**
 ```
-✅ BirdNET-Analyzer が VPS 上で稼働（FastAPI :8100）
-✅ walk.php のダミー音声分類 → 実 BirdNET に差替済み
-✅ field_scan.php のダミー音声分類 → 実 BirdNET に差替済み
-✅ 音声スニペットが証拠として保存される
-✅ Canonical Schema (SQLite 5層) が稼働
-✅ Evidence Tier (1/1.5/2/3/4) が全モードで動作
-✅ 音響レビューUI が id_workbench 上で動作
-✅ Tier 昇格ワークフロー（自動 + 手動）が動作
+✅ BirdNET-Analyzer VPS セットアップスクリプト (scripts/setup_birdnet_vps.sh)
+✅ api/v2/analyze_audio.php — PHP→FastAPI ブリッジ（認証・レート制限・MIME検証・証拠保存）
+✅ walk.php のダミー音声分類 → 実 MediaRecorder + BirdNET API（3秒チャンク）
+✅ field_scan.php のダミー音声分類 → 実 MediaRecorder + BirdNET API
+✅ iOS Safari フォールバック（audio/webm → audio/mp4）
+✅ Canonical Schema 5層 + ライブ層 + 監査ログ (001_canonical_schema.php)
+✅ CanonicalStore.php — 全6層CRUD + KPIメトリクス
+✅ EvidenceTierPromoter.php — 自動昇格(1→1.5) + 統計的昇格 + レビューワークフロー
+✅ ADR-005: Evidence Tier データモデル文書
 ```
 
 ---
