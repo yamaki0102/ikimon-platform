@@ -117,6 +117,7 @@ class PassiveObservationEngine
             'model' => $event['model'] ?? 'unknown',
             'audio_snippet_hash' => $event['audio_snippet_hash'] ?? null,
             'photo_ref' => $event['photo_ref'] ?? null,
+            'environment_snapshot' => $event['environment_snapshot'] ?? null,
             'detection_count' => 1,
         ];
     }
@@ -213,6 +214,7 @@ class PassiveObservationEngine
             'data_quality' => ($detection['photo_ref'] && $detection['lat']) ? 'B' : 'C',
             'device' => $sessionMeta['device'] ?? null,
             'import_source' => 'passive_observation',
+            'environment_snapshot' => $detection['environment_snapshot'] ?? null,
             'created_at' => date('Y-m-d H:i:s'),
         ];
     }

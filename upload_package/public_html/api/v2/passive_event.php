@@ -64,6 +64,7 @@ $body = api_json_body();
 
 $events = $body['events'] ?? [];
 $sessionMeta = $body['session'] ?? [];
+$envHistory = $body['env_history'] ?? [];
 
 if (empty($events)) {
     api_error('No events provided.', 400);
@@ -91,6 +92,7 @@ foreach ($events as $i => $event) {
         'model'              => $event['model'] ?? 'unknown',
         'audio_snippet_hash' => $event['audio_snippet_hash'] ?? null,
         'photo_ref'          => $event['photo_ref'] ?? null,
+        'environment_snapshot' => $event['environment_snapshot'] ?? null,
     ];
 }
 
@@ -119,11 +121,12 @@ try {
     $centerLat = !empty($lats) ? array_sum($lats) / count($lats) : null;
     $centerLng = !empty($lngs) ? array_sum($lngs) / count($lngs) : null;
 
-    // 努力量を構造化 JSON で保存
+    // 努力量を構造化 JSON で保存（環境遷移履歴を含む）
     $samplingEffort = [
         'duration_sec'  => (int) ($sessionMeta['duration_sec'] ?? 0),
         'distance_m'    => (float) ($sessionMeta['distance_m'] ?? 0),
         'route_polyline' => $sessionMeta['route_polyline'] ?? null,
+        'env_history'   => !empty($envHistory) ? $envHistory : null,
     ];
 
     // セッション event を作成（parent）
@@ -178,6 +181,13 @@ foreach ($result['observations'] as $obs) {
     // 全モード → Canonical Schema（デジタルツインに蓄積）
     if ($parentEventId) {
         try {
+            // 検出時点の環境スナップショットを sampling_effort に格納
+            $envSnap = $obs['environment_snapshot'] ?? null;
+            $childEffort = null;
+            if ($envSnap) {
+                $childEffort = json_encode(['environment' => $envSnap], JSON_UNESCAPED_UNICODE);
+            }
+
             // 個別検出の child event（精密な位置・時刻を持つ）
             $childEventId = CanonicalStore::createEvent([
                 'parent_event_id'  => $parentEventId,
@@ -185,11 +195,17 @@ foreach ($result['observations'] as $obs) {
                 'decimal_latitude' => $obs['lat'] ?? null,
                 'decimal_longitude'=> $obs['lng'] ?? null,
                 'sampling_protocol'=> $isLiveScan ? 'live-scan' : 'walk-audio',
+                'sampling_effort'  => $childEffort,
                 'recorded_by'      => $userId,
                 'capture_device'   => $sessionMeta['device'] ?? null,
                 'session_mode'     => $sessionMeta['scan_mode'] ?? $scanMode,
                 'coordinate_uncertainty_m' => $obs['gps_accuracy'] ?? null,
             ]);
+
+            $confContext = null;
+            if ($envSnap) {
+                $confContext = ['environment_at_detection' => $envSnap];
+            }
 
             CanonicalStore::createOccurrence([
                 'event_id'            => $childEventId,
@@ -199,6 +215,7 @@ foreach ($result['observations'] as $obs) {
                 'evidence_tier'       => 1,
                 'observation_source'  => $scanMode,
                 'detection_confidence'=> $obs['detection_confidence'] ?? null,
+                'confidence_context'  => $confContext,
                 'detection_model'     => $obs['detection_model'] ?? null,
                 'original_observation_id' => $obs['id'] ?? null,
                 'occurrence_status'   => 'present',
@@ -224,9 +241,29 @@ $sessionLog = [
     'observations_created' => $savedCount,
     'summary' => $result['summary'],
     'session_meta' => $sessionMeta,
+    'env_observation_count' => count($envHistory),
     'created_at' => date('c'),
 ];
 DataStore::append('passive_sessions', $sessionLog);
+
+// 環境観測ログを独立保存（100年後の環境変化追跡用）
+if (!empty($envHistory)) {
+    $envLog = [
+        'session_id' => $result['session_id'],
+        'canonical_event_id' => $parentEventId,
+        'user_id' => $userId,
+        'center_lat' => $centerLat,
+        'center_lng' => $centerLng,
+        'municipality' => $sessionGeo['municipality'] ?? '',
+        'prefecture' => $sessionGeo['prefecture'] ?? '',
+        'scan_date' => date('Y-m-d'),
+        'duration_sec' => (int) ($sessionMeta['duration_sec'] ?? 0),
+        'observations' => $envHistory,
+        'observation_count' => count($envHistory),
+        'created_at' => date('c'),
+    ];
+    DataStore::append('environment_logs', $envLog);
+}
 
 // スキャンクエスト生成（拡張: 検出メタデータを種別に集約）
 $scanQuests = [];
