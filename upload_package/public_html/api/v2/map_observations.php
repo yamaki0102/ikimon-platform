@@ -14,6 +14,7 @@
 
 require_once __DIR__ . '/bootstrap.php';
 require_once ROOT_DIR . '/libs/CanonicalStore.php';
+require_once ROOT_DIR . '/libs/DataStore.php';
 require_once ROOT_DIR . '/libs/BioUtils.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
