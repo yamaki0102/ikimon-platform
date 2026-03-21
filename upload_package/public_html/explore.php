@@ -275,7 +275,13 @@ Auth::init();
                 },
 
                 getDisplayName(obs) {
+                    const src = obs.observation_source || obs.source || '';
+                    const isAudio = ['walk', 'live-scan', 'passive', 'live-scan-summary'].includes(src);
                     if (obs.taxon && obs.taxon.name) return obs.taxon.name;
+                    if (isAudio) {
+                        const label = {walk:'ウォーク','live-scan':'スキャン','live-scan-summary':'スキャン',passive:'パッシブ'}[src] || '検出';
+                        return (obs.species_name || '音声検出') + ' (' + label + ')';
+                    }
                     if (obs.identifications && obs.identifications.length > 0) {
                         const last = obs.identifications[obs.identifications.length - 1];
                         if (last.taxon_name) return last.taxon_name + ' (提案)';
