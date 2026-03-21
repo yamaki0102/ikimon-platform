@@ -4,6 +4,7 @@ require_once __DIR__ . '/DataStore.php';
 require_once __DIR__ . '/AiBudgetGuard.php';
 require_once __DIR__ . '/AiObservationAssessment.php';
 require_once __DIR__ . '/AsyncJobMetrics.php';
+require_once __DIR__ . '/Notification.php';
 
 class AiAssessmentQueue
 {
@@ -138,6 +139,8 @@ class AiAssessmentQueue
                 self::saveAssessmentToObservation($observation, $assessment);
                 $queue[$index] = self::markDone($item, 'completed');
                 $completed++;
+
+                self::notifyObserver($observation, $assessment, $observationId);
 
                 $followup = self::buildFollowupOptions($assessment, $observation, $nowTs, $lane);
                 if ($followup !== null) {
@@ -655,5 +658,26 @@ class AiAssessmentQueue
 
         $queue[] = $payload;
         return $queue;
+    }
+
+    private static function notifyObserver(array $observation, array $assessment, string $observationId): void
+    {
+        $userId = (string)($observation['user_id'] ?? '');
+        if ($userId === '') {
+            return;
+        }
+
+        $suggestions = $assessment['suggestions'] ?? [];
+        $topLabel = is_array($suggestions) && !empty($suggestions) ? (string)($suggestions[0]['label'] ?? '') : '';
+
+        $message = $topLabel !== ''
+            ? '「' . $topLabel . '」かもしれません。観察のヒントを確認してみましょう。'
+            : 'あなたの観察にAIメモが追加されました。';
+
+        try {
+            Notification::send($userId, 'ai_assessment', '観察のヒント 🤖', $message, 'observation_detail.php?id=' . $observationId);
+        } catch (\Throwable $e) {
+            error_log('AI assessment notification failed for ' . $observationId . ': ' . $e->getMessage());
+        }
     }
 }
