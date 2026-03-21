@@ -644,11 +644,13 @@ class SurveyRecommender {
 const hasOnDeviceAI = 'ai' in window && 'languageModel' in window.ai;
 
 if (hasOnDeviceAI) {
-    // Pixel 10 Pro 等: カメラフレームをオンデバイスで推論
+    // Pixel 10 Pro / iPhone Pro 等: カメラフレームをオンデバイスで推論
     // API費用ゼロ、VPS負荷ゼロ、低レイテンシ
+    enableVideoScan();
 } else {
-    // 非対応端末: 音声のみのライブスキャン
-    // カメラは手動タップで投稿フロー（post.php の既存Gemini API）へ
+    // 非対応端末: 映像機能は無効。音声のみのライブスキャン
+    // 写真を撮りたいときは通常の投稿フロー（post.php）で
+    disableVideoScan();
 }
 
 // 速度に応じてキャプチャ間隔を調整（映像AI有効時）
@@ -669,7 +671,7 @@ function getLiveScanInterval(speedKmh) {
 |---------|-----------|---------|-------|
 | 🎤 音声 | VPS (BirdNET) | 全端末 | ゼロ |
 | 📸 映像 | オンデバイス (Gemini Nano) | Pixel 10 Pro 等 | ゼロ |
-| 📸 映像 | ―（無効） | その他の端末 | ― |
+| 📸 映像 | ―（無効。音声のみ） | その他の端末 | ― |
 | 📍 GPS | ブラウザ | 全端末 | ゼロ |
 
 ---
