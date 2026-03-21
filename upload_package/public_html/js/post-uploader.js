@@ -34,6 +34,7 @@ function uploader() {
         exifToast: '',
         exifToastVisible: false,
         deviceGps: null,
+        _exifDebug: '',
         // GPS conflict modal state
         gpsConflict: false,
         gpsConflictData: null,   // { exifLat, exifLng, deviceLat, deviceLng, distance }
@@ -672,6 +673,10 @@ function uploader() {
                 };
                 this._exifData.push(entry);
                 console.log(`[EXIF #${photoIndex}]`, entry);
+
+                // DEBUG: 画面にEXIF結果を表示（一時的）
+                this._exifDebug = `EXIF: type=${file.type} size=${file.size} GPS=${exif.lat !== null ? exif.lat.toFixed(4)+','+exif.lng.toFixed(4) : 'なし'} date=${exif.date || 'なし'} src=${this.locationSource}`;
+                console.log('[EXIF DEBUG]', this._exifDebug);
 
                 const isFirstPhoto = (photoIndex === 1);
                 const toastParts = [];
