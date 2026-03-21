@@ -169,6 +169,12 @@ foreach ($data as &$obs) {
     if (!empty($obs['photos'][0]) && ThumbnailGenerator::exists($obs['photos'][0], 'sm')) {
         $obs['thumb_sm'] = ThumbnailGenerator::resolve($obs['photos'][0], 'sm');
     }
+    // Resolve Japanese names for display
+    $jaDisplay = BioUtils::displayName($obs);
+    if ($jaDisplay !== '') {
+        if (!empty($obs['taxon']['name'])) $obs['taxon']['name'] = $jaDisplay;
+        if (!empty($obs['species_name'])) $obs['species_name'] = $jaDisplay;
+    }
 }
 
 echo json_encode([

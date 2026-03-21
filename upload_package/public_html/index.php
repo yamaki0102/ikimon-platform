@@ -484,7 +484,7 @@ unset($allObs);
                                 ?>
                                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-emerald-900/80 to-blue-900/80">
                                     <div class="text-5xl"><?= $detIcon ?></div>
-                                    <div class="text-white font-bold text-sm"><?= htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '音声検出') ?></div>
+                                    <div class="text-white font-bold text-sm"><?= htmlspecialchars(BioUtils::displayName($obs) ?: '音声検出') ?></div>
                                     <div class="text-xs text-gray-300"><?= $modeLabel ?> · AI <?= $detConf ?>%</div>
                                 </div>
                             <?php else: ?>
@@ -510,7 +510,7 @@ unset($allObs);
                             ?>
                             <?php if ($feedIsAudioSource): ?>
                                 <?php
-                                    $feedDetName = $obs['taxon']['name'] ?? $obs['species_name'] ?? null;
+                                    $feedDetName = BioUtils::displayName($obs) ?: null;
                                     $feedDetConf = round(($obs['detection_confidence'] ?? 0) * 100);
                                     $feedDetSource = match($obs['observation_source'] ?? $obs['source'] ?? '') {
                                         'walk' => 'ウォーク',
@@ -541,7 +541,7 @@ unset($allObs);
                                 <a href="<?php echo htmlspecialchars($feedSpeciesUrl); ?>"
                                     class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md flex items-center gap-2 border border-white/20 hover:bg-black/70 transition z-10">
                                     <i data-lucide="check-circle-2" class="w-3 h-3 text-green-400"></i>
-                                    <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($obs['taxon']['name']); ?></span>
+                                    <span class="text-xs font-bold text-white"><?php echo htmlspecialchars(BioUtils::resolveJaName($obs['taxon']['name'])); ?></span>
                                 </a>
                             <?php else: ?>
                                 <?php
@@ -561,14 +561,14 @@ unset($allObs);
                                     <a href="observation_detail.php?id=<?= urlencode($obs['id']) ?>#identifications"
                                         class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-amber-900/60 backdrop-blur-md flex items-center gap-2 border border-amber-400/30 hover:bg-amber-900/80 transition z-10">
                                         <i data-lucide="user" class="w-3 h-3 text-amber-300"></i>
-                                        <span class="text-xs font-bold text-amber-100"><?= htmlspecialchars($feedLatestId['taxon_name']) ?></span>
+                                        <span class="text-xs font-bold text-amber-100"><?= htmlspecialchars(BioUtils::resolveJaName($feedLatestId['taxon_name'])) ?></span>
                                         <span class="text-[10px] text-amber-200/60">提案</span>
                                     </a>
                                 <?php elseif ($feedAiName): ?>
                                     <a href="observation_detail.php?id=<?= urlencode($obs['id']) ?>"
                                         class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-blue-900/60 backdrop-blur-md flex items-center gap-2 border border-blue-400/30 hover:bg-blue-900/80 transition z-10">
                                         <i data-lucide="sparkles" class="w-3 h-3 text-blue-300"></i>
-                                        <span class="text-xs font-bold text-blue-100"><?= htmlspecialchars($feedAiName) ?></span>
+                                        <span class="text-xs font-bold text-blue-100"><?= htmlspecialchars(BioUtils::resolveJaName($feedAiName)) ?></span>
                                         <span class="text-[10px] text-blue-200/60">AI</span>
                                     </a>
                                 <?php else: ?>
