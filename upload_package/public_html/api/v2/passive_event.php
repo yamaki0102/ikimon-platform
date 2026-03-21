@@ -54,7 +54,8 @@ if (!api_rate_limit('passive_event', 10, 60)) {
     api_error('Rate limit exceeded. Max 10 batches per minute.', 429);
 }
 
-$userId = Auth::getUserId();
+$user = Auth::user();
+$userId = $user['id'] ?? null;
 $body = api_json_body();
 
 $events = $body['events'] ?? [];
