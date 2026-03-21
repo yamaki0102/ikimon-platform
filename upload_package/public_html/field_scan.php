@@ -157,7 +157,7 @@ if (!$currentUser) {
 
 <!-- スタート画面 -->
 <div x-show="!isActive" class="min-h-screen">
-    <?php include __DIR__ . '/components/navbar.php'; ?>
+    <?php include __DIR__ . '/components/nav.php'; ?>
 
     <div class="max-w-lg mx-auto px-4 py-8 space-y-6">
         <div class="text-center">
