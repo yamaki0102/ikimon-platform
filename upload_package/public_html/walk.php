@@ -289,6 +289,9 @@ function initMap(lat, lng) {
         var el = document.createElement('div');
         el.style.cssText = 'width:16px;height:16px;background:#3b82f6;border:3px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(59,130,246,0.5)';
         W._posMarker = new maplibregl.Marker({element: el}).setLngLat([lng, lat]).addTo(walkMap);
+
+        // 周辺トイレを取得
+        loadNearbyToilets(lat, lng, walkMap);
     });
 }
 
@@ -641,6 +644,33 @@ async function manualUpload() {
 
 // ページ読み込み時に未送信データを送信試行
 retryPending();
+
+// ===== Nearby Toilets (Overpass API) =====
+function loadNearbyToilets(lat, lng, targetMap) {
+    var radius = 2000; // 2km圏内
+    var query = '[out:json][timeout:10];node["amenity"="toilets"](around:' + radius + ',' + lat + ',' + lng + ');out body;';
+    var url = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
+
+    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+        if (!data.elements) return;
+        data.elements.forEach(function(t) {
+            var el = document.createElement('div');
+            el.style.cssText = 'font-size:18px;cursor:pointer;opacity:0.7';
+            el.textContent = '🚻';
+
+            var name = t.tags.name || t.tags.description || '公衆トイレ';
+            var access = t.tags.access || 'yes';
+            var fee = t.tags.fee === 'yes' ? '有料' : '無料';
+            var wheelchair = t.tags.wheelchair === 'yes' ? ' ♿' : '';
+
+            new maplibregl.Marker({element: el})
+                .setLngLat([t.lon, t.lat])
+                .setPopup(new maplibregl.Popup({offset: 15, closeButton: false, maxWidth: '200px'})
+                    .setHTML('<div style="color:#000;font-size:12px"><strong>🚻 ' + name + '</strong><br>' + fee + wheelchair + '</div>'))
+                .addTo(targetMap);
+        });
+    }).catch(function(e) { console.warn('Toilet fetch error:', e); });
+}
 
 // ===== Event listeners =====
 document.getElementById('btn-start').addEventListener('click', startWalk);

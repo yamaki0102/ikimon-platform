@@ -58,6 +58,7 @@ $currentUser = Auth::user();
         <button class="filter-btn text-xs px-2.5 py-1 rounded-full text-gray-400" data-source="live-scan">📡</button>
         <span class="w-px h-4 bg-white/20"></span>
         <button id="toggle-grid" class="text-xs px-2.5 py-1 rounded-full text-gray-400">🔲 網羅度</button>
+        <button id="toggle-toilets" class="text-xs px-2.5 py-1 rounded-full text-gray-400">🚻</button>
     </div>
 </div>
 
@@ -305,6 +306,41 @@ document.getElementById('toggle-grid').addEventListener('click', function() {
     map.setLayoutProperty('grid-cells', 'visibility', gridVisible ? 'visible' : 'none');
     this.className = 'text-xs px-2.5 py-1 rounded-full ' + (gridVisible ? 'bg-white/20 text-white font-bold' : 'text-gray-400');
     document.getElementById('grid-stats').style.display = gridVisible ? '' : 'none';
+});
+
+// 🚻 トイレトグル
+var toiletsVisible = false;
+var toiletMarkers = [];
+document.getElementById('toggle-toilets').addEventListener('click', function() {
+    toiletsVisible = !toiletsVisible;
+    this.className = 'text-xs px-2.5 py-1 rounded-full ' + (toiletsVisible ? 'bg-white/20 text-white font-bold' : 'text-gray-400');
+    if (toiletsVisible && toiletMarkers.length === 0) {
+        // 現在の地図中心からトイレ取得
+        var center = map.getCenter();
+        var radius = 5000;
+        var query = '[out:json][timeout:10];node["amenity"="toilets"](around:' + radius + ',' + center.lat + ',' + center.lng + ');out body;';
+        var url = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
+        fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+            if (!data.elements) return;
+            data.elements.forEach(function(t) {
+                var el = document.createElement('div');
+                el.style.cssText = 'font-size:20px;cursor:pointer';
+                el.textContent = '🚻';
+                var name = t.tags.name || t.tags.description || '公衆トイレ';
+                var fee = t.tags.fee === 'yes' ? '有料' : '無料';
+                var wheelchair = t.tags.wheelchair === 'yes' ? ' ♿' : '';
+                var m = new maplibregl.Marker({element: el})
+                    .setLngLat([t.lon, t.lat])
+                    .setPopup(new maplibregl.Popup({offset: 15, closeButton: false, maxWidth: '200px'})
+                        .setHTML('<div style="color:#000;font-size:12px"><strong>🚻 ' + name + '</strong><br>' + fee + wheelchair + '</div>'))
+                    .addTo(map);
+                toiletMarkers.push(m);
+            });
+        }).catch(function(){});
+    } else if (!toiletsVisible) {
+        toiletMarkers.forEach(function(m) { m.remove(); });
+        toiletMarkers = [];
+    }
 });
 </script>
 </body>
