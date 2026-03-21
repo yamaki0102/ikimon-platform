@@ -86,9 +86,16 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // GeoJSON 変換（和名優先表示）
 $features = [];
+$excludeSpecies = ['Homo sapiens'];
+$excludeVernacular = ['ヒト', '人', '人間'];
+
 foreach ($rows as $r) {
     $sciName = $r['scientific_name'] ?? '';
     $vernName = $r['vernacular_name'] ?? '';
+
+    // ホモサピエンスはデフォルト非表示
+    if (in_array($sciName, $excludeSpecies, true)) continue;
+    if (in_array($vernName, $excludeVernacular, true)) continue;
 
     // 表示名の決定: vernacular_name > resolveJaName(scientific_name) > scientific_name
     $displayName = '';
