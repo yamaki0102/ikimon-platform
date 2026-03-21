@@ -47,21 +47,21 @@ $significanceTexts = [
 ];
 
 $badgeColors = [
-    'redlist'          => 'bg-red-500/10 text-red-400 border-red-500/20',
-    'area_first'       => 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    'id_challenge'     => 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    'evidence_upgrade' => 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    'new_species'      => 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    'photo_needed'     => 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+    'redlist'          => 'bg-red-100 text-red-700 border-red-200',
+    'area_first'       => 'bg-amber-100 text-amber-700 border-amber-200',
+    'id_challenge'     => 'bg-purple-100 text-purple-700 border-purple-200',
+    'evidence_upgrade' => 'bg-blue-100 text-blue-700 border-blue-200',
+    'new_species'      => 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    'photo_needed'     => 'bg-gray-100 text-gray-600 border-gray-200',
 ];
 
 $bgGradients = [
-    'redlist'          => 'from-red-950/40 to-red-900/20',
-    'area_first'       => 'from-amber-950/40 to-amber-900/20',
-    'id_challenge'     => 'from-purple-950/40 to-purple-900/20',
-    'evidence_upgrade' => 'from-blue-950/40 to-blue-900/20',
-    'new_species'      => 'from-emerald-950/40 to-emerald-900/20',
-    'photo_needed'     => 'from-gray-950/40 to-gray-900/20',
+    'redlist'          => 'from-red-50 to-rose-50',
+    'area_first'       => 'from-amber-50 to-orange-50',
+    'id_challenge'     => 'from-purple-50 to-violet-50',
+    'evidence_upgrade' => 'from-blue-50 to-sky-50',
+    'new_species'      => 'from-emerald-50 to-teal-50',
+    'photo_needed'     => 'from-gray-50 to-slate-50',
 ];
 ?>
 <!DOCTYPE html>
@@ -78,8 +78,8 @@ $bgGradients = [
 
     <!-- Hero -->
     <div class="text-center mb-6">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-blue-500/20 border border-emerald-500/20 mb-3">
-            <i data-lucide="scroll-text" class="w-8 h-8 text-emerald-400"></i>
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-blue-100 border border-emerald-200 mb-3">
+            <i data-lucide="scroll-text" class="w-8 h-8 text-emerald-600"></i>
         </div>
         <h1 class="text-2xl font-black">フィールドノート</h1>
         <p class="text-sm text-muted mt-1">自然からの呼びかけに応えよう</p>
@@ -97,9 +97,9 @@ $bgGradients = [
     <!-- Active Quest Count -->
     <?php if ($totalActive > 0): ?>
     <div class="flex items-center justify-center gap-3 mb-6">
-        <div class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-2">
-            <span class="text-emerald-400 text-lg font-black"><?= $totalActive ?></span>
-            <span class="text-emerald-300 text-xs font-bold">件のクエストが待っています</span>
+        <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-full px-4 py-2">
+            <span class="text-emerald-700 text-lg font-black"><?= $totalActive ?></span>
+            <span class="text-emerald-600 text-xs font-bold">件のクエストが待っています</span>
         </div>
     </div>
     <?php endif; ?>
@@ -108,7 +108,7 @@ $bgGradients = [
     <?php if (!empty($scanQuests)): ?>
     <section class="mb-8">
         <div class="flex items-center gap-2 mb-4">
-            <i data-lucide="notebook-pen" class="w-5 h-5 text-emerald-400"></i>
+            <i data-lucide="notebook-pen" class="w-5 h-5 text-emerald-600"></i>
             <h2 class="text-base font-black">スキャンから生まれたクエスト</h2>
         </div>
         <div class="space-y-3">
@@ -120,41 +120,41 @@ $bgGradients = [
                 $sig = $significanceTexts[$trigger] ?? null;
                 $cta = $sq['cta_text'] ?? '記録する';
             ?>
-            <div class="bg-gradient-to-br <?= $bg ?> rounded-2xl p-5 border border-white/5">
+            <div class="bg-gradient-to-br <?= $bg ?> rounded-2xl p-5 border border-gray-200">
                 <!-- Badge + TTL -->
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-[10px] font-bold px-2.5 py-1 rounded-md border <?= $badge ?>">
                         <?= htmlspecialchars($sq['rarity_label'] ?? $trigger, ENT_QUOTES, 'UTF-8') ?>
                     </span>
-                    <span class="text-[10px] text-muted flex items-center gap-1">
+                    <span class="text-[10px] text-gray-500 flex items-center gap-1">
                         <i data-lucide="clock" class="w-3 h-3"></i>
                         残り<?= $hoursLeft ?>時間
                     </span>
                 </div>
 
                 <!-- Title -->
-                <h3 class="text-base font-black mb-2"><?= htmlspecialchars($sq['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></h3>
+                <h3 class="text-base font-black text-gray-900 mb-2"><?= htmlspecialchars($sq['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></h3>
 
                 <!-- Progress Hint (Endowed Progress) -->
                 <?php if (!empty($sq['progress_hint'])): ?>
-                <div class="text-xs text-emerald-400 bg-emerald-500/10 rounded-lg px-3 py-2 mb-3">
+                <div class="text-xs text-emerald-700 bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2 mb-3">
                     <?= htmlspecialchars($sq['progress_hint'], ENT_QUOTES, 'UTF-8') ?>
                 </div>
                 <?php endif; ?>
 
                 <!-- Description -->
-                <p class="text-xs text-muted leading-relaxed mb-3">
+                <p class="text-xs text-gray-600 leading-relaxed mb-3">
                     <?= htmlspecialchars($sq['description'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                 </p>
 
                 <!-- Why this matters -->
                 <?php if ($sig): ?>
                 <details class="mb-4 group">
-                    <summary class="text-[11px] text-blue-300/70 cursor-pointer hover:text-blue-300 transition flex items-center gap-1">
+                    <summary class="text-[11px] text-blue-600 cursor-pointer hover:text-blue-700 transition flex items-center gap-1">
                         <i data-lucide="info" class="w-3 h-3"></i>
                         なぜこのクエストが重要？
                     </summary>
-                    <div class="mt-2 text-[11px] text-muted leading-relaxed bg-white/5 rounded-lg p-3">
+                    <div class="mt-2 text-[11px] text-gray-600 leading-relaxed bg-white/70 rounded-lg p-3 border border-gray-100">
                         <?= htmlspecialchars($sig['why'], ENT_QUOTES, 'UTF-8') ?>
                     </div>
                 </details>
@@ -163,10 +163,10 @@ $bgGradients = [
                 <!-- CTA -->
                 <div class="flex items-center gap-3">
                     <a href="post.php?species=<?= urlencode($sq['species_name'] ?? '') ?>&from=scan_quest&quest_id=<?= urlencode($sq['id'] ?? '') ?><?= $trigger === 'id_challenge' ? '&family_hint=' . urlencode($sq['species_name'] ?? '') : '' ?>"
-                       class="flex-1 text-center bg-emerald-600/80 hover:bg-emerald-600 text-white font-bold rounded-xl py-3 text-sm transition">
+                       class="flex-1 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3 text-sm transition">
                         <?= htmlspecialchars($cta, ENT_QUOTES, 'UTF-8') ?>
                     </a>
-                    <span class="text-[10px] text-muted">+<?= (int)($sq['reward'] ?? 0) ?>pt</span>
+                    <span class="text-[10px] text-gray-400">+<?= (int)($sq['reward'] ?? 0) ?>pt</span>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -177,7 +177,7 @@ $bgGradients = [
     <!-- ===== デイリークエスト ===== -->
     <section class="mb-8">
         <div class="flex items-center gap-2 mb-4">
-            <i data-lucide="calendar-check" class="w-5 h-5 text-amber-400"></i>
+            <i data-lucide="calendar-check" class="w-5 h-5 text-amber-600"></i>
             <h2 class="text-base font-black">今日のクエスト</h2>
             <span class="text-[10px] text-muted ml-auto">毎日更新</span>
         </div>
@@ -223,35 +223,35 @@ $bgGradients = [
     <!-- ===== なぜクエストがあるの？ ===== -->
     <section class="mb-8">
         <div class="flex items-center gap-2 mb-4">
-            <i data-lucide="lightbulb" class="w-5 h-5 text-blue-400"></i>
+            <i data-lucide="lightbulb" class="w-5 h-5 text-blue-600"></i>
             <h2 class="text-base font-black">クエストの意味</h2>
         </div>
-        <div class="bg-gradient-to-br from-blue-950/30 to-purple-950/20 rounded-2xl p-5 border border-blue-500/10 space-y-4">
+        <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm space-y-4">
             <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0 mt-0.5">
-                    <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
+                <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="database" class="w-4 h-4 text-emerald-600"></i>
                 </div>
                 <div>
-                    <div class="text-sm font-bold mb-1">すべてが科学データになる</div>
-                    <div class="text-xs text-muted leading-relaxed">あなたの観察はCanonical Schema（100年耐久設計のデータベース）に蓄積されます。将来の研究者、行政、保全活動に活用される可能性があります。</div>
+                    <div class="text-sm font-bold text-gray-900 mb-1">すべてが科学データになる</div>
+                    <div class="text-xs text-gray-600 leading-relaxed">あなたの観察はCanonical Schema（100年耐久設計のデータベース）に蓄積されます。将来の研究者、行政、保全活動に活用される可能性があります。</div>
                 </div>
             </div>
             <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
-                    <i data-lucide="puzzle" class="w-4 h-4 text-amber-400"></i>
+                <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="puzzle" class="w-4 h-4 text-amber-600"></i>
                 </div>
                 <div>
-                    <div class="text-sm font-bold mb-1">AIとのバトンリレー</div>
-                    <div class="text-xs text-muted leading-relaxed">ライブスキャンでAIが「ここまで」判定したものを、あなたが写真や知識で完成させる。人間とAIの協働が、データの質を飛躍的に高めます。</div>
+                    <div class="text-sm font-bold text-gray-900 mb-1">AIとのバトンリレー</div>
+                    <div class="text-xs text-gray-600 leading-relaxed">ライブスキャンでAIが「ここまで」判定したものを、あなたが写真や知識で完成させる。人間とAIの協働が、データの質を飛躍的に高めます。</div>
                 </div>
             </div>
             <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0 mt-0.5">
-                    <i data-lucide="heart" class="w-4 h-4 text-red-400"></i>
+                <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="heart" class="w-4 h-4 text-red-600"></i>
                 </div>
                 <div>
-                    <div class="text-sm font-bold mb-1">希少な記録ほど価値が高い</div>
-                    <div class="text-xs text-muted leading-relaxed">絶滅危惧種や地域初記録のクエストが優先的に出るのは、そのデータが科学的に最も求められているからです。あなたの1枚が保全の判断材料になります。</div>
+                    <div class="text-sm font-bold text-gray-900 mb-1">希少な記録ほど価値が高い</div>
+                    <div class="text-xs text-gray-600 leading-relaxed">絶滅危惧種や地域初記録のクエストが優先的に出るのは、そのデータが科学的に最も求められているからです。あなたの1枚が保全の判断材料になります。</div>
                 </div>
             </div>
         </div>
@@ -260,10 +260,10 @@ $bgGradients = [
     <!-- ===== スキャンへの導線 ===== -->
     <?php if (empty($scanQuests)): ?>
     <section class="mb-8">
-        <div class="bg-gradient-to-br from-emerald-950/30 to-blue-950/20 rounded-2xl p-6 text-center border border-emerald-500/10">
+        <div class="bg-gradient-to-br from-emerald-50 to-blue-50 rounded-2xl p-6 text-center border border-emerald-200">
             <div class="text-4xl mb-3">🌍</div>
-            <h3 class="text-base font-black mb-2">フィールドに出よう</h3>
-            <p class="text-xs text-muted mb-4">ライブスキャンで周囲を探索すると、<br>AIが見つけた発見からクエストが生まれます</p>
+            <h3 class="text-base font-black text-gray-900 mb-2">フィールドに出よう</h3>
+            <p class="text-xs text-gray-600 mb-4">ライブスキャンで周囲を探索すると、<br>AIが見つけた発見からクエストが生まれます</p>
             <a href="field_scan.php" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-6 py-3 text-sm transition">
                 📡 ライブスキャンを始める
             </a>
