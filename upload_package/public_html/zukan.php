@@ -75,7 +75,7 @@ function rlLabel($rl)
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <link rel="stylesheet" href="assets/css/zukan.css?v=3.0">
+    <link rel="stylesheet" href="assets/css/zukan.css?v=3.1">
 </head>
 
 <body class="app-body bg-base text-text font-body" x-data="zukanApp()" x-init="init()">
@@ -571,16 +571,7 @@ function rlLabel($rl)
                             </div>
                         </div>
 
-                        <!-- Footer -->
-                        <div class="zukan-modal__footer">
-                            <template x-if="detailEntry.scientific_name">
-                                <a :href="'species.php?name=' + encodeURIComponent(detailEntry.name)"
-                                    class="zukan-modal__species-link">
-                                    <i data-lucide="external-link" style="width:14px;height:14px;"></i>
-                                    種の詳細ページへ
-                                </a>
-                            </template>
-                        </div>
+                        <div class="zukan-modal__footer"></div>
                     </div>
                 </template>
             </div>
