@@ -225,14 +225,53 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
     }
 
     let deferredPrompt = null;
+
+    const pwaUtil = {
+        isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+        isAndroid: /Android/.test(navigator.userAgent),
+        isSafari: /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/.test(navigator.userAgent),
+        isStandalone: window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true,
+        dismissed: sessionStorage.getItem('pwa-dismissed') === '1'
+    };
+
+    function showPwaBanner(mode) {
+        if (pwaUtil.isStandalone || pwaUtil.dismissed) return;
+        const banner = document.getElementById('pwa-install-banner');
+        const desc = document.getElementById('pwa-install-desc');
+        const btn = document.getElementById('pwa-install-btn');
+        if (!banner) return;
+
+        if (mode === 'ios') {
+            desc.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline -mt-0.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> をタップ →「ホーム画面に追加」';
+            btn.textContent = 'OK';
+            btn.setAttribute('onclick', 'pwaDismiss()');
+        } else if (mode === 'desktop') {
+            desc.textContent = 'ブラウザのアドレスバーからインストールできます';
+            btn.textContent = 'OK';
+            btn.setAttribute('onclick', 'pwaDismiss()');
+        }
+        banner.style.display = 'flex';
+    }
+
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
-        setTimeout(() => {
-            const banner = document.getElementById('pwa-install-banner');
-            if (banner) banner.style.display = 'flex';
-        }, 30000);
+        setTimeout(() => showPwaBanner('chromium'), 30000);
     });
+
+    window.addEventListener('appinstalled', () => {
+        deferredPrompt = null;
+        const banner = document.getElementById('pwa-install-banner');
+        if (banner) banner.style.display = 'none';
+    });
+
+    if (!deferredPrompt && !pwaUtil.isStandalone && !pwaUtil.dismissed) {
+        if (pwaUtil.isIOS && pwaUtil.isSafari) {
+            setTimeout(() => showPwaBanner('ios'), 60000);
+        } else if (!pwaUtil.isAndroid && !pwaUtil.isIOS) {
+            setTimeout(() => showPwaBanner('desktop'), 60000);
+        }
+    }
 
     function pwaInstall() {
         if (!deferredPrompt) return;
@@ -248,5 +287,6 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
     function pwaDismiss() {
         const banner = document.getElementById('pwa-install-banner');
         if (banner) banner.style.display = 'none';
+        sessionStorage.setItem('pwa-dismissed', '1');
     }
 </script>
