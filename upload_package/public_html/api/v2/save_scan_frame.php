@@ -67,6 +67,9 @@ if (!move_uploaded_file($file['tmp_name'], $filepath)) {
 
 $frameRef = "scan_frames/{$yearMonth}/{$sessionId}/{$filename}";
 
+$userId = Auth::user()['id'];
+$timestamp = date('c');
+
 $meta = [
     'frame_ref' => $frameRef,
     'taxon_name' => $_POST['taxon_name'] ?? '',
@@ -74,7 +77,22 @@ $meta = [
     'lat' => isset($_POST['lat']) ? (float) $_POST['lat'] : null,
     'lng' => isset($_POST['lng']) ? (float) $_POST['lng'] : null,
     'size_bytes' => filesize($filepath),
-    'timestamp' => date('c'),
+    'timestamp' => $timestamp,
 ];
+
+$indexFile = DATA_DIR . "/scan_frames/index/{$userId}.json";
+$indexDir = dirname($indexFile);
+if (!is_dir($indexDir)) {
+    mkdir($indexDir, 0755, true);
+}
+$indexData = file_exists($indexFile) ? json_decode(file_get_contents($indexFile), true) : [];
+if (!is_array($indexData)) $indexData = [];
+$indexData[] = [
+    'frame_ref'  => $frameRef,
+    'session_id' => $sessionId,
+    'taxon_name' => $_POST['taxon_name'] ?? '',
+    'timestamp'  => $timestamp,
+];
+file_put_contents($indexFile, json_encode($indexData, JSON_UNESCAPED_UNICODE), LOCK_EX);
 
 api_success(['frame_ref' => $frameRef, 'meta' => $meta]);

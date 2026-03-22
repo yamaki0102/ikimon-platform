@@ -129,7 +129,7 @@ class MyZukanService
                 unset($entry);
             }
 
-            $scanFrameIndex = self::buildScanFrameIndex();
+            $scanFrameIndex = self::loadScanFrameIndex($userId);
 
             $passiveSessions = DataStore::fetchAll('passive_sessions');
             foreach ($passiveSessions as $session) {
@@ -514,7 +514,18 @@ class MyZukanService
         };
     }
 
-    private static function buildScanFrameIndex(): array
+    private static function loadScanFrameIndex(string $userId): array
+    {
+        $indexFile = DATA_DIR . "scan_frames/index/{$userId}.json";
+        if (file_exists($indexFile)) {
+            $data = json_decode(file_get_contents($indexFile), true);
+            return is_array($data) ? $data : [];
+        }
+
+        return self::buildScanFrameIndexFromDisk($userId);
+    }
+
+    private static function buildScanFrameIndexFromDisk(string $userId): array
     {
         $index = [];
         $baseDir = DATA_DIR . 'scan_frames/';
@@ -524,38 +535,46 @@ class MyZukanService
             $files = glob($sessionDir . '/f_*.{jpg,webp}', GLOB_BRACE);
             if (empty($files)) continue;
 
+            $sessionId = basename($sessionDir);
             sort($files);
-            $firstMtime = filemtime($files[0]);
-            $lastMtime = filemtime(end($files));
 
-            $relativePaths = array_map(function ($f) use ($baseDir) {
-                return 'scan_frames/' . substr($f, strlen($baseDir));
-            }, $files);
+            foreach ($files as $f) {
+                $rel = 'scan_frames/' . substr($f, strlen($baseDir));
+                $index[] = [
+                    'frame_ref'  => $rel,
+                    'session_id' => $sessionId,
+                    'taxon_name' => '',
+                    'timestamp'  => date('c', filemtime($f)),
+                ];
+            }
+        }
 
-            $index[] = [
-                'start' => $firstMtime,
-                'end'   => $lastMtime,
-                'files' => $relativePaths,
-            ];
+        if (!empty($index)) {
+            $indexDir = DATA_DIR . 'scan_frames/index/';
+            if (!is_dir($indexDir)) mkdir($indexDir, 0755, true);
+            file_put_contents($indexDir . "{$userId}.json", json_encode($index, JSON_UNESCAPED_UNICODE), LOCK_EX);
         }
 
         return $index;
     }
 
-    private static function findSessionFrames(string $sessionDate, array $scanFrameIndex): array
+    private static function findSessionFrames(string $sessionDate, array $frameIndex): array
     {
-        if (!$sessionDate || empty($scanFrameIndex)) return [];
+        if (!$sessionDate || empty($frameIndex)) return [];
 
         $sessionTime = strtotime($sessionDate);
         if (!$sessionTime) return [];
 
-        foreach ($scanFrameIndex as $entry) {
-            $margin = 300;
-            if ($sessionTime >= ($entry['start'] - $margin) && $sessionTime <= ($entry['end'] + $margin)) {
-                return $entry['files'];
+        $margin = 300;
+        $matched = [];
+        foreach ($frameIndex as $entry) {
+            $frameTime = strtotime($entry['timestamp'] ?? '');
+            if (!$frameTime) continue;
+            if (abs($frameTime - $sessionTime) <= $margin) {
+                $matched[] = $entry['frame_ref'];
             }
         }
 
-        return [];
+        return $matched;
     }
 }
