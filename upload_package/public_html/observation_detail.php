@@ -869,18 +869,33 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 </div>
 
                 <!-- Lightbox -->
+                <?php $photoCount = max(1, count($obs['photos'] ?? [])); ?>
                 <div x-show="lightbox" x-cloak x-transition.opacity class="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-2" role="dialog" aria-modal="true" aria-labelledby="obs-lightbox-title"
-                    @keydown.window.left.prevent="photoActive = (photoActive - 1 + <?php echo max(1, count($obs['photos'] ?? [])); ?>) % <?php echo max(1, count($obs['photos'] ?? [])); ?>"
-                    @keydown.window.right.prevent="photoActive = (photoActive + 1) % <?php echo max(1, count($obs['photos'] ?? [])); ?>"
-                    @keydown.window.escape.prevent="lightbox = false">
+                    @keydown.window.left.prevent="lightbox && (photoActive = (photoActive - 1 + <?php echo $photoCount; ?>) % <?php echo $photoCount; ?>)"
+                    @keydown.window.right.prevent="lightbox && (photoActive = (photoActive + 1) % <?php echo $photoCount; ?>)"
+                    @keydown.window.escape.prevent="lightbox = false"
+                    @touchstart.passive="lbTouchX=$event.touches[0].clientX; lbTouchY=$event.touches[0].clientY"
+                    @touchend="(() => { let dx=lbTouchX-$event.changedTouches[0].clientX, dy=lbTouchY-$event.changedTouches[0].clientY; if(Math.abs(dy)>100&&Math.abs(dy)>Math.abs(dx)){lightbox=false}else if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){photoActive=dx>0?(photoActive+1)%<?php echo $photoCount; ?>:(photoActive-1+<?php echo $photoCount; ?>)%<?php echo $photoCount; ?>} })()">
                     <h2 id="obs-lightbox-title" class="sr-only">観察写真</h2>
                     <button @click.stop="lightbox = false" aria-label="閉じる" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101] hover:bg-white/20 transition">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
                     <?php if (!empty($obs['photos'])): ?>
                         <?php foreach ($obs['photos'] as $idx => $photo): ?>
-                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" alt="観察写真 <?php echo $idx + 1; ?>" class="max-w-full max-h-full object-contain pointer-events-none select-none">
+                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" alt="観察写真 <?php echo $idx + 1; ?>" class="max-w-full max-h-full object-contain select-none">
                         <?php endforeach; ?>
+                        <?php if ($photoCount > 1): ?>
+                        <button @click.stop="photoActive = (photoActive - 1 + <?php echo $photoCount; ?>) % <?php echo $photoCount; ?>" aria-label="前の写真" class="absolute left-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
+                            <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                        </button>
+                        <button @click.stop="photoActive = (photoActive + 1) % <?php echo $photoCount; ?>" aria-label="次の写真" class="absolute right-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
+                            <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                        </button>
+                        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/40 px-3 py-1 rounded-full">
+                            <span x-text="(photoActive + 1) + ' / ' + <?php echo $photoCount; ?>"></span>
+                        </div>
+                        <div class="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/40 text-[10px]" x-show="lightbox" x-transition.opacity.delay.500ms>スワイプで次の写真 / 下スワイプで閉じる</div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
 
@@ -2302,7 +2317,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <script nonce="<?= CspNonce::attr() ?>">
         function obsDetail() {
             return {
-                photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0,
+                photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, lbTouchX: 0, lbTouchY: 0,
                 locationName: <?php echo json_encode($obs['municipality'] ?? ($obs['prefecture'] ?? ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS); ?>,
                 rxStepped: <?php echo $_rdMyReaction ? 'true' : 'false'; ?>,
                 rxCount: <?php echo (int)$_rdCount; ?>,
