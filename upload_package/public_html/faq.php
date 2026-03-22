@@ -157,9 +157,9 @@ $schema = [
             <h3 class="text-xl font-bold mb-2"><?php echo __('faq.still_need_help'); ?></h3>
             <p class="text-gray-400 mb-6 text-sm"><?php echo __('faq.contact_message'); ?></p>
             <a
-                href="mailto:contact@ikimon.life"
+                href="contact.php"
                 class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[var(--color-primary)] text-white font-bold text-sm hover:opacity-90 transition">
-                <i data-lucide="mail" class="w-4 h-4"></i>
+                <i data-lucide="message-circle" class="w-4 h-4"></i>
                 <?php echo __('faq.contact_us'); ?>
             </a>
         </div>
