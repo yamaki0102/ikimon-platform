@@ -85,7 +85,7 @@ unset($allObs, $userObs);
                 </div>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" id="sensitivity-toggle" class="sr-only peer">
+                <input type="checkbox" id="sensitivity-toggle" class="sr-only peer" checked>
                 <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
             </label>
         </div>
@@ -287,7 +287,7 @@ var W = {
     chunks: [],
     mimeType: '',
     saveTimer: null,
-    highSensitivity: false,
+    highSensitivity: true,
     speciesCardCache: {},
     totalPoints: 0,
 };
