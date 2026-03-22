@@ -932,6 +932,112 @@
     object-fit: cover;
 }
 
+.zukan-modal__cover--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface-alt, #f5f5f5);
+}
+
+/* ── Photo Gallery Carousel ── */
+.zukan-gallery {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: #000;
+    touch-action: pan-y;
+}
+
+.zukan-gallery__track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: transform;
+}
+
+.zukan-gallery__slide {
+    flex: 0 0 100%;
+    height: 100%;
+}
+
+.zukan-gallery__slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    cursor: pointer;
+}
+
+.zukan-gallery__arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+    backdrop-filter: blur(4px);
+    transition: background 0.15s;
+}
+
+.zukan-gallery__arrow:active {
+    background: rgba(0,0,0,0.7);
+}
+
+.zukan-gallery__arrow--left { left: 8px; }
+.zukan-gallery__arrow--right { right: 8px; }
+
+.zukan-gallery__dots {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+    max-width: 80%;
+    overflow: hidden;
+}
+
+.zukan-gallery__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.4);
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.zukan-gallery__dot--active {
+    background: #fff;
+    transform: scale(1.3);
+    box-shadow: 0 0 4px rgba(0,0,0,0.3);
+}
+
+.zukan-gallery__counter {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 10px;
+    z-index: 2;
+    backdrop-filter: blur(4px);
+}
+
 .zukan-modal__info {
     padding: var(--zukan-space-md);
 }
