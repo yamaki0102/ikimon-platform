@@ -6,16 +6,32 @@ Auth::init();
 Lang::init();
 
 // FAQ data structure: [category_key => [icon, items[]]]
+// Filter out items that have no translation (e.g., English lang missing new keys)
+function faq_has_translation($item_key) {
+    $q = __("faq.{$item_key}_q");
+    return $q !== "faq.{$item_key}_q";
+}
+
 $faq_categories = [
-    'cat_getting_started' => ['icon' => 'sparkles',  'items' => ['a1', 'a2', 'a3', 'a4', 'a5']],
-    'cat_recording'       => ['icon' => 'camera',    'items' => ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8']],
-    'cat_identification'  => ['icon' => 'search',    'items' => ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7']],
-    'cat_search'          => ['icon' => 'compass',   'items' => ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']],
-    'cat_ai_assist'       => ['icon' => 'bot',       'items' => ['f1', 'f2', 'f3', 'f4', 'f5']],
-    'cat_business'        => ['icon' => 'building-2', 'items' => ['d1', 'd2', 'd3', 'd4', 'd5']],
-    'cat_data_privacy'    => ['icon' => 'shield',    'items' => ['e1', 'e2', 'e3', 'e4', 'e5']],
-    'cat_science'          => ['icon' => 'microscope', 'items' => ['g1', 'g2', 'g3']],
+    'cat_getting_started' => ['icon' => 'sparkles',    'items' => ['a1', 'a2', 'a3', 'a4', 'a5']],
+    'cat_recording'       => ['icon' => 'camera',      'items' => ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8']],
+    'cat_walk_scan'       => ['icon' => 'footprints',   'items' => ['i1', 'i2', 'i3', 'i4', 'i5', 'i6', 'i7']],
+    'cat_identification'  => ['icon' => 'search',      'items' => ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7']],
+    'cat_zukan'           => ['icon' => 'book-open',   'items' => ['j1', 'j2', 'j3', 'j4', 'j5']],
+    'cat_search'          => ['icon' => 'compass',     'items' => ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']],
+    'cat_ai_assist'       => ['icon' => 'bot',         'items' => ['f1', 'f2', 'f3', 'f4', 'f5']],
+    'cat_gamification'    => ['icon' => 'trophy',      'items' => ['k1', 'k2', 'k3', 'k4', 'k5', 'k6']],
+    'cat_business'        => ['icon' => 'building-2',  'items' => ['d1', 'd2', 'd3', 'd4', 'd5']],
+    'cat_data_privacy'    => ['icon' => 'shield',      'items' => ['e1', 'e2', 'e3', 'e4', 'e5']],
+    'cat_science'         => ['icon' => 'microscope',  'items' => ['g1', 'g2', 'g3']],
 ];
+
+// Filter out untranslated items and empty categories
+foreach ($faq_categories as $cat_key => &$cat) {
+    $cat['items'] = array_values(array_filter($cat['items'], 'faq_has_translation'));
+}
+unset($cat);
+$faq_categories = array_filter($faq_categories, fn($cat) => !empty($cat['items']));
 
 // Build structured data for Schema.org FAQPage
 $schema_items = [];

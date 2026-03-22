@@ -170,10 +170,15 @@ return [
         // Category names
         'cat_getting_started' => 'Getting Started',
         'cat_recording' => 'Recording',
+        'cat_walk_scan' => 'Walk, Scan & Field',
         'cat_identification' => 'Identification',
+        'cat_zukan' => 'Encyclopedia & Learning',
+        'cat_search' => 'Search & Discovery',
         'cat_ai_assist' => 'AI Assist',
+        'cat_gamification' => 'Gamification & Community',
         'cat_business' => 'For Business / Government',
         'cat_data_privacy' => 'Data & Privacy',
+        'cat_science' => 'Science & Specimens',
 
         // ── A: Getting Started ──────────────────────
 
