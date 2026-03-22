@@ -689,10 +689,10 @@ function nav_avatar(string $avatar): string {
         <p id="pwa-install-desc" class="text-xs text-muted">ホーム画面からすぐ起動。フィールドで便利！</p>
     </div>
     <div class="flex gap-2 shrink-0">
-        <button onclick="pwaDismiss()" class="p-2 min-w-11 min-h-11 flex items-center justify-center text-faint hover:text-text rounded-lg transition" aria-label="閉じる">
+        <button id="pwa-dismiss-btn" class="p-2 min-w-11 min-h-11 flex items-center justify-center text-faint hover:text-text rounded-lg transition" aria-label="閉じる">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
-        <button id="pwa-install-btn" onclick="pwaInstall()" class="btn-primary text-xs px-4 py-2 min-h-11">追加</button>
+        <button id="pwa-install-btn" class="btn-primary text-xs px-4 py-2 min-h-11">追加</button>
     </div>
 </div>
 <style>
