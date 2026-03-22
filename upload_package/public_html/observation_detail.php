@@ -877,23 +877,15 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     @touchstart="lbOnTouchStart($event)"
                     @touchmove="if($event.touches.length>=2||lbScale>1)$event.preventDefault(); lbOnTouchMove($event)"
                     @touchend="lbOnTouchEnd($event)"
-                    @dblclick.self="lbScale = lbScale > 1 ? 1 : 2.5; lbPanX=0; lbPanY=0"
-                    @click.self="lbClose()">
+                    @dblclick="lbScale = lbScale > 1 ? 1 : 2.5; lbPanX=0; lbPanY=0">
                     <h2 id="obs-lightbox-title" class="sr-only">観察写真</h2>
                     <?php if (!empty($obs['photos'])): ?>
-                        <?php foreach ($obs['photos'] as $idx => $photo): ?>
-                            <img src="<?php echo htmlspecialchars($photo); ?>"
-                                x-show="photoActive === <?php echo $idx; ?>"
-                                @dblclick.stop="lbScale = lbScale > 1 ? 1 : 2.5; lbPanX=0; lbPanY=0"
-                                alt="観察写真 <?php echo $idx + 1; ?>"
-                                class="max-w-full max-h-full object-contain select-none"
-                                :style="photoActive === <?php echo $idx; ?> && lbScale > 1 ? 'transform: scale('+lbScale+') translate('+lbPanX+'px,'+lbPanY+'px)' : ''">
-                        <?php endforeach; ?>
+                    <img :src="lbPhotos[photoActive]" alt="観察写真" class="max-w-full max-h-full object-contain select-none" :style="lbScale > 1 ? 'transform: scale('+lbScale+') translate('+lbPanX+'px,'+lbPanY+'px)' : ''">
                     <?php endif; ?>
                     <button @click.stop="lbClose()" aria-label="閉じる" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101] hover:bg-white/20 transition">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
-                    <?php if (!empty($obs['photos']) && $photoCount > 1): ?>
+                    <?php if ($photoCount > 1): ?>
                     <button @click.stop="lbNav(-1)" aria-label="前の写真" class="absolute left-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition z-[101]">
                         <i data-lucide="chevron-left" class="w-6 h-6"></i>
                     </button>
@@ -2325,6 +2317,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
         function obsDetail() {
             return {
                 photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0,
+                lbPhotos: <?php echo json_encode(array_values($obs['photos'] ?? []), JSON_HEX_TAG | JSON_HEX_APOS); ?>,
                 lbScale: 1, lbPanX: 0, lbPanY: 0,
                 _lbTouchX: 0, _lbTouchY: 0, _lbPinching: false, _lbStartDist: 0, _lbStartScale: 1, _lbLastPanX: null, _lbLastPanY: null,
                 lbNav(dir) {
