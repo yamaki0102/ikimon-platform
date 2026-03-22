@@ -27,33 +27,21 @@ $species = [];
 $totalSpecies = 0;
 $hasMore = false;
 $myStats = null;
-$communityStats = null;
 $mode = 'promo';
 
 if ($isLoggedIn) {
     require_once __DIR__ . '/../libs/Services/MyZukanService.php';
-    $mode = $_GET['mode'] ?? 'my';
-    $sortBy = $_GET['sort'] ?? ($mode === 'my' ? 'latest' : 'obs_count');
+    $mode = 'my';
+    $sortBy = $_GET['sort'] ?? 'latest';
 
-    if ($mode === 'my') {
-        $result = MyZukanService::getSpeciesList($userId, [
-            'q'      => $searchQuery,
-            'group'  => $activeGroup,
-            'sort'   => $sortBy,
-            'limit'  => 24,
-            'offset' => 0,
-        ]);
-        $myStats = $result['stats'];
-    } else {
-        $result = ZukanService::getSpeciesList([
-            'q'      => $searchQuery,
-            'group'  => $activeGroup,
-            'sort'   => $sortBy,
-            'limit'  => 24,
-            'offset' => 0,
-        ]);
-        $communityStats = $result['stats'];
-    }
+    $result = MyZukanService::getSpeciesList($userId, [
+        'q'      => $searchQuery,
+        'group'  => $activeGroup,
+        'sort'   => $sortBy,
+        'limit'  => 24,
+        'offset' => 0,
+    ]);
+    $myStats = $result['stats'];
 
     $species = $result['data'];
     $totalSpecies = $result['total'];
@@ -170,25 +158,10 @@ function rlLabel($rl)
         <!-- Hero -->
         <section class="zukan-hero">
             <div class="zukan-hero__inner">
-                <div class="zukan-hero__top">
-                    <div>
-                        <h1 class="zukan-hero__title" x-show="mode === 'my'">📖 マイ図鑑</h1>
-                        <h1 class="zukan-hero__title" x-show="mode === 'community'" x-cloak>🌿 みんなの図鑑</h1>
-                        <p class="zukan-hero__subtitle" x-show="mode === 'my'" x-text="stats.total_species + ' 種と出会いました'"></p>
-                        <p class="zukan-hero__subtitle" x-show="mode === 'community'" x-cloak>みんなで見つけた地域の生き物カタログ</p>
-                    </div>
-                    <div class="zukan-mode-toggle">
-                        <button class="zukan-mode-toggle__btn"
-                            :class="{'zukan-mode-toggle__btn--active': mode === 'my'}"
-                            @click="switchMode('my')">マイ図鑑</button>
-                        <button class="zukan-mode-toggle__btn"
-                            :class="{'zukan-mode-toggle__btn--active': mode === 'community'}"
-                            @click="switchMode('community')">みんなの図鑑</button>
-                    </div>
-                </div>
+                <h1 class="zukan-hero__title">📖 マイ図鑑</h1>
+                <p class="zukan-hero__subtitle" x-text="stats.total_species + ' 種と出会いました'"></p>
 
-                <!-- My Stats (マイ図鑑モード) -->
-                <template x-if="mode === 'my' && stats">
+                <template x-if="stats">
                     <div>
                         <div class="zukan-stats">
                             <div class="zukan-stat">
@@ -242,24 +215,6 @@ function rlLabel($rl)
                         </template>
                     </div>
                 </template>
-
-                <!-- Community Stats -->
-                <template x-if="mode === 'community' && stats">
-                    <div class="zukan-stats">
-                        <div class="zukan-stat">
-                            <span class="zukan-stat__number" x-text="stats.total_species"></span>
-                            <span class="zukan-stat__label">確認種</span>
-                        </div>
-                        <div class="zukan-stat">
-                            <span class="zukan-stat__number zukan-stat__number--secondary" x-text="formatNumber(stats.total_obs)"></span>
-                            <span class="zukan-stat__label">観察記録</span>
-                        </div>
-                        <div class="zukan-stat">
-                            <span class="zukan-stat__number zukan-stat__number--accent" x-text="stats.rg_rate + '%'"></span>
-                            <span class="zukan-stat__label">RG率</span>
-                        </div>
-                    </div>
-                </template>
             </div>
         </section>
 
@@ -278,25 +233,16 @@ function rlLabel($rl)
                 <div class="zukan-sort">
                     <span class="zukan-sort__label">並び替え</span>
                     <select class="zukan-sort__select" x-model="sortBy" @change="fetchSpecies(true)">
-                        <template x-if="mode === 'my'">
-                            <option value="latest" selected>最近出会った順</option>
-                        </template>
-                        <template x-if="mode === 'my'">
-                            <option value="first">はじめて出会った順</option>
-                        </template>
-                        <template x-if="mode === 'my'">
-                            <option value="encounters">出会い回数順</option>
-                        </template>
+                        <option value="latest" selected>最近出会った順</option>
+                        <option value="first">はじめて出会った順</option>
+                        <option value="encounters">出会い回数順</option>
                         <option value="name">名前順</option>
-                        <template x-if="mode === 'community'">
-                            <option value="obs_count">観察件数順</option>
-                        </template>
                     </select>
                 </div>
             </div>
 
-            <!-- Category Filters (My mode only) -->
-            <div class="zukan-filters" x-show="mode === 'my'">
+            <!-- Category Filters -->
+            <div class="zukan-filters">
                 <button class="zukan-filter-chip"
                     :class="{'zukan-filter-chip--active': activeCategory === ''}"
                     @click="setCategory('')">
@@ -373,23 +319,21 @@ function rlLabel($rl)
         <div class="zukan-grid" id="zukan-grid">
             <template x-if="!loading && speciesList.length === 0">
                 <div class="zukan-empty" style="grid-column: 1 / -1;">
-                    <div class="zukan-empty__icon" x-text="mode === 'my' ? '📖' : '🔍'"></div>
-                    <div class="zukan-empty__text" x-text="mode === 'my' ? 'まだ出会いがありません。散歩に出かけよう!' : '条件に一致する種が見つかりませんでした'"></div>
-                    <template x-if="mode === 'my'">
-                        <div style="margin-top: var(--zukan-space-md);">
-                            <a href="walk.php" class="zukan-promo__btn zukan-promo__btn--primary" style="display:inline-flex;">
-                                <i data-lucide="footprints" style="width:16px;height:16px;"></i>
-                                ウォークに出かける
-                            </a>
-                        </div>
-                    </template>
+                    <div class="zukan-empty__icon">📖</div>
+                    <div class="zukan-empty__text">まだ出会いがありません。散歩に出かけよう!</div>
+                    <div style="margin-top: var(--zukan-space-md);">
+                        <a href="walk.php" class="zukan-promo__btn zukan-promo__btn--primary" style="display:inline-flex;">
+                            <i data-lucide="footprints" style="width:16px;height:16px;"></i>
+                            ウォークに出かける
+                        </a>
+                    </div>
                 </div>
             </template>
 
             <template x-for="(item, idx) in speciesList" :key="item.taxon_key || idx">
                 <div class="zukan-card zukan-card--animated"
                     :style="'animation-delay: ' + (idx % 24) * 40 + 'ms'"
-                    @click="mode === 'my' ? openDetail(item) : (window.location.href = 'species.php?name=' + encodeURIComponent(item.name))"
+                    @click="openDetail(item)"
                     style="cursor:pointer;">
                     <!-- Photo -->
                     <div class="zukan-card__photo">
@@ -429,32 +373,16 @@ function rlLabel($rl)
                         <div class="zukan-card__name" x-text="item.name"></div>
                         <div class="zukan-card__sci" x-text="item.scientific_name"></div>
                         <div class="zukan-card__meta">
-                            <template x-if="mode === 'my'">
-                                <span class="zukan-card__count">
-                                    <span x-text="'×' + item.encounter_count"></span>
-                                </span>
-                            </template>
-                            <template x-if="mode === 'community'">
-                                <span class="zukan-card__count">
-                                    <i data-lucide="eye" style="width:12px; height:12px;"></i>
-                                    <span x-text="item.obs_count"></span>
-                                </span>
-                            </template>
+                            <span class="zukan-card__count">
+                                <span x-text="'×' + item.encounter_count"></span>
+                            </span>
 
-                            <!-- Category icons (My mode) -->
-                            <template x-if="mode === 'my' && item.categories">
+                            <template x-if="item.categories">
                                 <span class="zukan-card__categories">
                                     <template x-for="cat in item.categories" :key="cat">
                                         <span class="zukan-card__cat-icon"
                                             x-text="catIcon(cat)"></span>
                                     </template>
-                                </span>
-                            </template>
-
-                            <template x-if="mode === 'community'">
-                                <span class="zukan-card__observers">
-                                    <i data-lucide="users" style="width:12px; height:12px;"></i>
-                                    <span x-text="item.observer_count"></span>
                                 </span>
                             </template>
                         </div>
@@ -646,16 +574,15 @@ function rlLabel($rl)
     <script nonce="<?= CspNonce::attr() ?>">
         function zukanApp() {
             return {
-                mode: '<?php echo $isLoggedIn ? htmlspecialchars($mode, ENT_QUOTES) : 'promo'; ?>',
                 speciesList: <?php echo json_encode($species, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
                 totalResults: <?php echo $totalSpecies; ?>,
                 hasMore: <?php echo $hasMore ? 'true' : 'false'; ?>,
-                stats: <?php echo json_encode($myStats ?? $communityStats ?? new \stdClass(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+                stats: <?php echo json_encode($myStats ?? new \stdClass(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
 
                 searchQuery: '',
                 activeGroup: '<?php echo htmlspecialchars($activeGroup, ENT_QUOTES); ?>',
                 activeCategory: '',
-                sortBy: '<?php echo $isLoggedIn ? htmlspecialchars($sortBy ?? 'latest', ENT_QUOTES) : 'obs_count'; ?>',
+                sortBy: '<?php echo htmlspecialchars($sortBy ?? 'latest', ENT_QUOTES); ?>',
                 loading: false,
                 loadingMore: false,
                 offset: <?php echo count($species); ?>,
@@ -673,16 +600,6 @@ function rlLabel($rl)
                     });
                 },
 
-                async switchMode(newMode) {
-                    if (this.mode === newMode) return;
-                    this.mode = newMode;
-                    this.activeCategory = '';
-                    this.searchQuery = '';
-                    this.sortBy = newMode === 'my' ? 'latest' : 'obs_count';
-                    this.activeGroup = '';
-                    await this.fetchSpecies(true);
-                },
-
                 async fetchSpecies(reset = false) {
                     if (reset) {
                         this.offset = 0;
@@ -690,6 +607,7 @@ function rlLabel($rl)
                     }
 
                     const params = new URLSearchParams({
+                        mode: 'my',
                         q: this.searchQuery,
                         group: this.activeGroup,
                         sort: this.sortBy,
@@ -697,10 +615,7 @@ function rlLabel($rl)
                         offset: this.offset,
                     });
 
-                    if (this.mode === 'my') {
-                        params.set('mode', 'my');
-                        if (this.activeCategory) params.set('category', this.activeCategory);
-                    }
+                    if (this.activeCategory) params.set('category', this.activeCategory);
 
                     try {
                         const res = await fetch('api/taxon_index.php?' + params.toString());
