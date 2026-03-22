@@ -96,8 +96,10 @@ noteフィールド = 初めて見た人が「へぇ！」と思う豆知識1文
 - 植物種: 「春に最初に咲く桜の代表品種」「秋に紅葉する落葉樹の代表格」
 - 植生レベル: 「森の骨格を作り夏に日陰を提供する」「土壌を固定し崖崩れを防ぐ」
 {$contextBlock}
+higher_group = 鳥類/植物/昆虫/哺乳類/爬虫類/両生類/魚類/クモ類/菌類/コケ・地衣類/その他 の中から1つ。
+
 JSON配列のみ出力:
-[{"name":"和名","scientific_name":"学名","confidence":0.0-1.0,"category":"plant/bird/insect/mammal/fungus/other","note":"へぇポイント1文"}]
+[{"name":"和名","scientific_name":"学名","confidence":0.0-1.0,"category":"plant/bird/insect/mammal/fungus/other","higher_group":"鳥類など","family":"科名(不明なら空)","genus":"属名(不明なら空)","note":"へぇポイント1文"}]
 生物なしなら[]。
 PROMPT;
 

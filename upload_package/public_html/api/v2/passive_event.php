@@ -40,6 +40,8 @@ require_once ROOT_DIR . '/libs/PrivacyFilter.php';
 require_once ROOT_DIR . '/libs/PassiveObservationEngine.php';
 require_once ROOT_DIR . '/libs/CanonicalStore.php';
 require_once ROOT_DIR . '/libs/GeoUtils.php';
+require_once ROOT_DIR . '/libs/MeshCode.php';
+require_once ROOT_DIR . '/libs/MeshAggregator.php';
 
 // 認証
 Auth::init();
@@ -195,7 +197,29 @@ foreach ($result['observations'] as $obs) {
 
     // フィード用 DataStore に保存（ウォーク・ライブスキャン両方）
     $obs['passive_session_id'] = $mergedSessionId;
+
+    // メッシュコード付与（プライバシー保護 + 大量データ集計用）
+    $obsLat = (float)($obs['lat'] ?? $obs['location']['lat'] ?? 0);
+    $obsLng = (float)($obs['lng'] ?? $obs['location']['lng'] ?? 0);
+    if ($obsLat && $obsLng) {
+        $meshInfo = MeshCode::fromLatLng($obsLat, $obsLng);
+        $obs['mesh_code3'] = $meshInfo['mesh3'];
+        $obs['mesh_code4'] = $meshInfo['mesh4'];
+    }
+
+    // higher_group: イベントの type が audio = 鳥類確定、visual = Gemini が返した値を使う
+    if (empty($obs['higher_group'])) {
+        $obs['higher_group'] = MeshAggregator::inferHigherGroup($obs);
+    }
+
     DataStore::append('observations', $obs);
+
+    // メッシュ集計を差分更新（ノーブロッキング・失敗しても観察保存に影響しない）
+    try {
+        MeshAggregator::addObservation($obs);
+    } catch (Throwable $e) {
+        error_log('[passive_event] MeshAggregator error: ' . $e->getMessage());
+    }
 
     // 全モード → Canonical Schema（デジタルツインに蓄積）
     if ($parentEventId) {
