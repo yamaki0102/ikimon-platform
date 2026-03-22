@@ -75,7 +75,7 @@ function rlLabel($rl)
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <link rel="stylesheet" href="assets/css/zukan.css?v=3.3">
+    <link rel="stylesheet" href="assets/css/zukan.css?v=3.4">
 </head>
 
 <body class="app-body bg-base text-text font-body" x-data="zukanApp()" x-init="init()">
@@ -590,54 +590,55 @@ function rlLabel($rl)
                             </template>
                         </div>
 
-                        <!-- ═══ Book-style Page Navigation ═══ -->
-                        <div class="zukan-book-nav">
-                            <div class="zukan-book-nav__bar">
-                                <button class="zukan-book-nav__btn zukan-book-nav__btn--prev"
-                                    :disabled="detailIndex <= 1"
-                                    @click="goToSpecies(detailIndex - 2)">
-                                    <i data-lucide="chevron-left" style="width:20px;height:20px;"></i>
-                                    <span class="zukan-book-nav__btn-label">前の種</span>
-                                </button>
-
-                                <div class="zukan-book-nav__center">
-                                    <div class="zukan-book-nav__page">
-                                        <span class="zukan-book-nav__current" x-text="detailIndex"></span>
-                                        <span class="zukan-book-nav__sep">/</span>
-                                        <span class="zukan-book-nav__total" x-text="speciesList.length"></span>
-                                    </div>
-                                    <div class="zukan-book-nav__progress">
-                                        <div class="zukan-book-nav__progress-fill"
-                                            :style="'width: ' + (detailIndex / speciesList.length * 100) + '%'"></div>
-                                    </div>
-                                </div>
-
-                                <button class="zukan-book-nav__btn zukan-book-nav__btn--next"
-                                    :disabled="detailIndex >= speciesList.length"
-                                    @click="goToSpecies(detailIndex)">
-                                    <span class="zukan-book-nav__btn-label">次の種</span>
-                                    <i data-lucide="chevron-right" style="width:20px;height:20px;"></i>
-                                </button>
-                            </div>
-
-                            <!-- Peek: Next species preview -->
-                            <template x-if="detailIndex < speciesList.length">
-                                <div class="zukan-book-nav__peek" @click="goToSpecies(detailIndex)">
-                                    <span class="zukan-book-nav__peek-label">次</span>
-                                    <template x-if="speciesList[detailIndex]?.cover_photo || speciesList[detailIndex]?.photo">
-                                        <img :src="speciesList[detailIndex].cover_photo || speciesList[detailIndex].photo"
-                                            class="zukan-book-nav__peek-img" loading="lazy">
-                                    </template>
-                                    <template x-if="!speciesList[detailIndex]?.cover_photo && !speciesList[detailIndex]?.photo">
-                                        <div class="zukan-book-nav__peek-placeholder">📖</div>
-                                    </template>
-                                    <span class="zukan-book-nav__peek-name" x-text="speciesList[detailIndex]?.name"></span>
-                                    <i data-lucide="chevron-right" style="width:14px;height:14px;opacity:0.4;"></i>
-                                </div>
-                            </template>
-                        </div>
                     </div>
                 </template>
+
+                <!-- ═══ Book-style Page Navigation (outside scroll area) ═══ -->
+                <div class="zukan-book-nav" x-show="showDetail && detailEntry" x-cloak>
+                    <div class="zukan-book-nav__bar">
+                        <button class="zukan-book-nav__btn zukan-book-nav__btn--prev"
+                            :disabled="detailIndex <= 1"
+                            @click="goToSpecies(detailIndex - 2)">
+                            <i data-lucide="chevron-left" style="width:20px;height:20px;"></i>
+                            <span class="zukan-book-nav__btn-label">前の種</span>
+                        </button>
+
+                        <div class="zukan-book-nav__center">
+                            <div class="zukan-book-nav__page">
+                                <span class="zukan-book-nav__current" x-text="detailIndex"></span>
+                                <span class="zukan-book-nav__sep">/</span>
+                                <span class="zukan-book-nav__total" x-text="speciesList.length"></span>
+                            </div>
+                            <div class="zukan-book-nav__progress">
+                                <div class="zukan-book-nav__progress-fill"
+                                    :style="'width: ' + (detailIndex / speciesList.length * 100) + '%'"></div>
+                            </div>
+                        </div>
+
+                        <button class="zukan-book-nav__btn zukan-book-nav__btn--next"
+                            :disabled="detailIndex >= speciesList.length"
+                            @click="goToSpecies(detailIndex)">
+                            <span class="zukan-book-nav__btn-label">次の種</span>
+                            <i data-lucide="chevron-right" style="width:20px;height:20px;"></i>
+                        </button>
+                    </div>
+
+                    <!-- Peek: Next species preview -->
+                    <template x-if="detailIndex < speciesList.length">
+                        <div class="zukan-book-nav__peek" @click="goToSpecies(detailIndex)">
+                            <span class="zukan-book-nav__peek-label">次</span>
+                            <template x-if="speciesList[detailIndex]?.cover_photo || speciesList[detailIndex]?.photo">
+                                <img :src="speciesList[detailIndex].cover_photo || speciesList[detailIndex].photo"
+                                    class="zukan-book-nav__peek-img" loading="lazy">
+                            </template>
+                            <template x-if="!speciesList[detailIndex]?.cover_photo && !speciesList[detailIndex]?.photo">
+                                <div class="zukan-book-nav__peek-placeholder">📖</div>
+                            </template>
+                            <span class="zukan-book-nav__peek-name" x-text="speciesList[detailIndex]?.name"></span>
+                            <i data-lucide="chevron-right" style="width:14px;height:14px;opacity:0.4;"></i>
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
 
@@ -860,8 +861,8 @@ function rlLabel($rl)
 
                     this.$nextTick(() => {
                         if (typeof lucide !== 'undefined') lucide.createIcons();
-                        const mc = this.$el.querySelector('.zukan-modal__content');
-                        if (mc) mc.scrollTop = 0;
+                        const scrollArea = this.$el.querySelector('.zukan-modal__content > div:first-child');
+                        if (scrollArea) scrollArea.scrollTop = 0;
                     });
                 },
 
