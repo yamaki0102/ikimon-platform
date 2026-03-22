@@ -104,7 +104,7 @@ class DataStore
             Indexer::addToIndex("{$resource}_index", $item['id'], $file);
         }
         // User Index
-        if (isset($item['user_id'])) {
+        if (isset($item['user_id']) && isset($item['id'])) {
             Indexer::addToIndex("user_{$item['user_id']}_{$resource}", $date, $item['id']);
         }
 
