@@ -103,16 +103,36 @@ class UserStore
     public static function findByOAuth(string $provider, string $oauthId): ?array
     {
         foreach (DataStore::get('users') as $u) {
+            $matched = false;
+
             // Primary match
             if (($u['auth_provider'] ?? '') === $provider && ($u['oauth_id'] ?? '') === $oauthId) {
-                return $u;
+                $matched = true;
             }
+
             // Secondary: check oauth_providers array (multi-provider support)
-            $providers = $u['oauth_providers'] ?? [];
-            foreach ($providers as $p) {
-                if (($p['provider'] ?? '') === $provider && ($p['oauth_id'] ?? '') === $oauthId) {
-                    return $u;
+            if (!$matched) {
+                foreach ($u['oauth_providers'] ?? [] as $p) {
+                    if (($p['provider'] ?? '') === $provider && ($p['oauth_id'] ?? '') === $oauthId) {
+                        $matched = true;
+                        break;
+                    }
                 }
+            }
+
+            if ($matched) {
+                // If this account was merged into another, return the merge target instead
+                if (!empty($u['merged_into'])) {
+                    $target = self::findById($u['merged_into']);
+                    if ($target && empty($target['banned'])) {
+                        return $target;
+                    }
+                }
+                // Skip banned accounts without merge target
+                if (!empty($u['banned'])) {
+                    continue;
+                }
+                return $u;
             }
         }
         return null;
