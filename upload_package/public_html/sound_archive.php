@@ -316,7 +316,7 @@ $csrfToken = CSRF::generate();
 
     </main>
 
-    <script>
+    <script nonce="<?= CspNonce::attr() ?>">
     function soundArchive() {
         return {
             items: [],
@@ -519,7 +519,7 @@ $csrfToken = CSRF::generate();
         };
     }
     </script>
-    <script>lucide.createIcons();</script>
+    <script nonce="<?= CspNonce::attr() ?>">lucide.createIcons();</script>
     <?php include __DIR__ . '/components/footer.php'; ?>
 </body>
 
