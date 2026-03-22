@@ -250,10 +250,23 @@ class Auth
         $tokensFile = self::getTokensFilePath();
         $tokens = self::loadTokens($tokensFile);
 
-        // Remove any existing tokens for this user (1 token per user)
-        $tokens = array_filter($tokens, function ($t) use ($userId) {
-            return ($t['user_id'] ?? '') !== $userId;
-        });
+        // Grace period: keep old tokens for 60s to avoid race conditions
+        // (concurrent requests during scan can both try to restore session)
+        $graceExpiry = time() + 60;
+        $tokens = array_values(array_map(function ($t) use ($userId, $graceExpiry) {
+            if (($t['user_id'] ?? '') === $userId && !isset($t['grace_until'])) {
+                $t['grace_until'] = $graceExpiry;
+            }
+            return $t;
+        }, $tokens));
+
+        // Remove expired grace tokens (grace period already passed)
+        $now = time();
+        $tokens = array_values(array_filter($tokens, function ($t) use ($userId, $now) {
+            if (($t['user_id'] ?? '') !== $userId) return true;
+            if (isset($t['grace_until']) && $t['grace_until'] < $now) return false;
+            return true;
+        }));
 
         // Add new token
         $tokens[] = [
@@ -309,14 +322,17 @@ class Auth
                     $freshUser = self::getFreshUserData($user['id'] ?? '');
                     if ($freshUser && empty($freshUser['banned'])) {
                         session_regenerate_id(true);
-                        $_SESSION['user'] = $freshUser; // Use fresh data, not stale token copy
+                        $_SESSION['user'] = $freshUser;
                         $_SESSION['last_activity'] = time();
                         $_SESSION['login_time'] = time();
                         $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
                         $_SESSION['restored_from_token'] = true;
 
-                        // Rotate token for security (invalidate old, issue new)
-                        self::issueRememberToken($freshUser);
+                        // Rotate token only if this is the original (non-grace) token
+                        // to avoid repeated rotations from concurrent requests
+                        if (!isset($stored['grace_until'])) {
+                            self::issueRememberToken($freshUser);
+                        }
                         return;
                     }
                     // User banned or deleted — revoke token

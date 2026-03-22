@@ -1176,23 +1176,35 @@ function postScanSummary(speciesCount, durationMin) {
     var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
     var envSummary = S.envHistory.length > 0 ? S.envHistory[0] : null;
 
+    var summaryPayload = {
+        scan_mode: 'live-scan',
+        duration_min: durationMin,
+        species_count: speciesCount,
+        total_detections: S.totalDet,
+        audio_detections: S.audioDet,
+        visual_detections: S.visualDet,
+        gps_points: S.routePoints.length,
+        species: speciesList,
+        environment: envSummary,
+        session_id: S.serverSessionId || S.sessionId,
+        lat: last ? last.lat : null,
+        lng: last ? last.lng : null,
+    };
+
     fetch('/api/v2/scan_summary.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            type: 'live-scan-summary',
-            duration_min: durationMin,
-            species_count: speciesCount,
-            total_detections: S.totalDet,
-            audio_detections: S.audioDet,
-            visual_detections: S.visualDet,
-            gps_points: S.routePoints.length,
-            species: speciesList,
-            environment: envSummary,
-            lat: last ? last.lat : null,
-            lng: last ? last.lng : null,
-        })
-    }).catch(function() {});
+        credentials: 'same-origin',
+        body: JSON.stringify(summaryPayload)
+    }).then(function(r) {
+        if (r.status === 401) {
+            localStorage.setItem('ikimon_pending_summary', JSON.stringify(summaryPayload));
+            dbg('⚠️ サマリー送信失敗（認証切れ）— 再ログイン後にリトライ');
+        }
+        return r.json();
+    }).catch(function() {
+        localStorage.setItem('ikimon_pending_summary', JSON.stringify(summaryPayload));
+    });
 }
 
 // 個別検出 → live_detections に送信（リアルタイムマップ用、24h TTL）
@@ -1748,6 +1760,26 @@ document.getElementById('btn-stop').addEventListener('click', stopScan);
 
 // ページ読込時に未送信データを自動再送
 retryScanPending();
+
+// 未送信サマリーのリトライ
+(function retryPendingSummary() {
+    var raw = localStorage.getItem('ikimon_pending_summary');
+    if (!raw) return;
+    try {
+        var payload = JSON.parse(raw);
+        fetch('/api/v2/scan_summary.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+        }).then(function(r) {
+            if (r.ok) {
+                localStorage.removeItem('ikimon_pending_summary');
+                dbg('✅ Pending summary retried successfully');
+            }
+        }).catch(function() {});
+    } catch(e) {}
+})();
 
 // オンライン復帰時に自動リトライ
 window.addEventListener('online', function() {

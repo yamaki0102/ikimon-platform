@@ -21,9 +21,12 @@ $latest_obs = DataStore::getLatest('observations', 30, function ($item) use ($fi
     if (preg_match('/^Guest$/i', $userName)) return false;
     if (empty($userName)) return false;
 
-    // 写真付き観察 OR 音声検出（ウォーク/スキャン）を許可
-    $isAudioDetection = in_array($item['observation_source'] ?? $item['source'] ?? '', ['walk', 'live-scan', 'passive', 'live-scan-summary', 'walk-summary']);
-    if (!$isAudioDetection) {
+    // 写真付き観察 OR セッションサマリー（ウォーク/スキャン）を許可
+    // 個別検出(walk, live-scan, passive)はフィードには表示しない（サマリーでまとめて表示）
+    $isSummary = in_array($item['observation_source'] ?? $item['source'] ?? '', ['live-scan-summary', 'walk-summary']);
+    $isIndividualDetection = in_array($item['observation_source'] ?? $item['source'] ?? '', ['walk', 'live-scan', 'passive']);
+    if ($isIndividualDetection) return false;
+    if (!$isSummary) {
         $photo = $item['photos'][0] ?? '';
         if (empty($photo) || strpos($photo, 'sample_') !== false) return false;
         if (!preg_match('/^uploads\//', $photo)) return false;
@@ -50,9 +53,9 @@ $feedWalk = [];
 $feedScan = [];
 foreach ($latest_obs as $o) {
     $src = $o['observation_source'] ?? $o['source'] ?? '';
-    if (in_array($src, ['walk-summary', 'walk'])) {
+    if ($src === 'walk-summary') {
         $feedWalk[] = $o;
-    } elseif (in_array($src, ['live-scan-summary', 'live-scan', 'passive'])) {
+    } elseif ($src === 'live-scan-summary') {
         $feedScan[] = $o;
     } else {
         $feedManual[] = $o;
@@ -609,16 +612,16 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                             </div>
 
                             <?php
-                                $feedIsAudioSource = in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'live-scan', 'passive', 'live-scan-summary', 'walk-summary']);
+                                $feedIsAudioSource = in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['live-scan-summary', 'walk-summary']);
                             ?>
                             <?php if ($feedIsAudioSource): ?>
                                 <?php
                                     $feedDetName = BioUtils::displayName($obs) ?: null;
                                     $feedDetConf = round(($obs['detection_confidence'] ?? 0) * 100);
                                     $feedDetSource = match($obs['observation_source'] ?? $obs['source'] ?? '') {
-                                        'walk' => 'ウォーク',
-                                        'live-scan', 'live-scan-summary' => 'スキャン',
-                                        default => 'パッシブ',
+                                        'walk-summary' => 'ウォーク',
+                                        'live-scan-summary' => 'スキャン',
+                                        default => 'スキャン',
                                     };
                                 ?>
                                 <?php if ($feedDetName): ?>
