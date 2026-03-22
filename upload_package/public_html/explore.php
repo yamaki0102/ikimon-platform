@@ -252,7 +252,7 @@ Auth::init();
                             birds: 'bird', insects: 'insect', plants: 'plant',
                             fungi: 'fungi', mammals: 'mammal', herps: 'amphibian_reptile'
                         };
-                        let url = `api/get_observations.php?limit=${this.limit}&offset=${this.offset}&q=${encodeURIComponent(this.query)}`;
+                        let url = `api/get_observations.php?limit=${this.limit}&offset=${this.offset}&q=${encodeURIComponent(this.query)}&exclude_sources=walk,live-scan,live-scan-summary,passive`;
                         if (this.filter !== 'all' && groupMap[this.filter]) {
                             url += `&taxon_group=${groupMap[this.filter]}`;
                         }
