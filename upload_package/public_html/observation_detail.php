@@ -883,7 +883,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     </button>
                     <?php if (!empty($obs['photos'])): ?>
                         <?php foreach ($obs['photos'] as $idx => $photo): ?>
-                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" @dblclick.stop="lbScale = lbScale > 1 ? 1 : 2.5; lbPanX=0; lbPanY=0" alt="観察写真 <?php echo $idx + 1; ?>" class="max-w-full max-h-full object-contain select-none transition-transform duration-100" :style="'transform: scale('+lbScale+') translate('+lbPanX+'px,'+lbPanY+'px)'">
+                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" @dblclick.stop="lbScale = lbScale > 1 ? 1 : 2.5; lbPanX=0; lbPanY=0" alt="観察写真 <?php echo $idx + 1; ?>" class="max-w-full max-h-full object-contain select-none transition-transform duration-100" :style="photoActive === <?php echo $idx; ?> ? 'transform: scale('+lbScale+') translate('+lbPanX+'px,'+lbPanY+'px)' : ''">
                         <?php endforeach; ?>
                         <?php if ($photoCount > 1): ?>
                         <button @click.stop="lbScale=1;lbPanX=0;lbPanY=0;photoActive = (photoActive - 1 + <?php echo $photoCount; ?>) % <?php echo $photoCount; ?>" aria-label="前の写真" class="absolute left-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
