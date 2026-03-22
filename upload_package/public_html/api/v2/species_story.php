@@ -9,11 +9,11 @@
  * AI生成の短い解説を返す。結果はキャッシュ。
  */
 
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../libs/Auth.php';
-require_once __DIR__ . '/../../libs/DataStore.php';
-require_once __DIR__ . '/../../libs/Services/MyZukanService.php';
-require_once __DIR__ . '/../../libs/Cache.php';
+require_once __DIR__ . '/../../../config/config.php';
+require_once __DIR__ . '/../../../libs/Auth.php';
+require_once __DIR__ . '/../../../libs/DataStore.php';
+require_once __DIR__ . '/../../../libs/Services/MyZukanService.php';
+require_once __DIR__ . '/../../../libs/Cache.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: private, max-age=3600');
