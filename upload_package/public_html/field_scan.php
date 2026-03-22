@@ -119,6 +119,17 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             📡 スキャン開始
         </button>
 
+        <!-- 出現予測（スキャン前のワクワク演出） -->
+        <div id="predict-section" class="bg-gradient-to-br from-indigo-900/30 to-purple-900/20 border border-indigo-500/20 rounded-2xl p-4 mb-3 hidden">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-sm">🔮</span>
+                <span class="text-xs font-bold text-indigo-300">この場所で出会えるかも</span>
+                <span id="predict-env-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 ml-auto"></span>
+            </div>
+            <div id="predict-list" class="space-y-2"></div>
+            <div class="text-[9px] text-gray-600 mt-2">🤖 AI予測です。私有地への立入にご注意ください</div>
+        </div>
+
         <!-- モード別の説明 -->
         <div class="bg-white/5 rounded-xl p-4 space-y-2 text-xs text-gray-400">
             <div id="mode-desc-walk">
@@ -1459,6 +1470,38 @@ async function uploadCapturedPhotos() {
         updateBtn(this.checked);
     });
 })();
+
+// ===== Species Prediction (ページロード時) =====
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        fetch('/api/v2/predict_species.php?lat=' + pos.coords.latitude + '&lng=' + pos.coords.longitude + '&limit=5')
+            .then(function(r) { return r.json(); })
+            .then(function(j) {
+                if (!j.success || !j.data || !j.data.predictions || j.data.predictions.length === 0) return;
+                var d = j.data;
+                if (d.environment) {
+                    document.getElementById('predict-env-badge').textContent = (d.environment.icon || '') + ' ' + (d.environment.label || '');
+                }
+                var html = d.predictions.map(function(p) {
+                    var pct = Math.round(p.probability * 100);
+                    var barColor = pct >= 70 ? '#4ade80' : pct >= 40 ? '#fbbf24' : '#93c5fd';
+                    var note = p.note || '';
+                    if (note.length > 50) note = note.substring(0, 50) + '...';
+                    var badge = p.observed_nearby ? '<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(34,197,94,0.2);color:#4ade80">実績あり</span>' : '';
+                    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">'
+                        + '<div style="flex:1">'
+                        + '<div style="font-size:13px;font-weight:700;color:#e0e7ff">' + p.name + ' ' + badge + '</div>'
+                        + (note ? '<div style="font-size:10px;color:#9ca3af;margin-top:1px">' + note + '</div>' : '')
+                        + '</div>'
+                        + '<div style="text-align:right">'
+                        + '<div style="font-size:12px;font-weight:800;color:' + barColor + '">' + pct + '%</div>'
+                        + '</div></div>';
+                }).join('');
+                document.getElementById('predict-list').innerHTML = html;
+                document.getElementById('predict-section').classList.remove('hidden');
+            }).catch(function() {});
+    }, function() {}, {enableHighAccuracy: false, timeout: 5000});
+}
 
 // ===== Sensitivity toggle =====
 var _sensSlider = document.getElementById('sensitivity-slider');
