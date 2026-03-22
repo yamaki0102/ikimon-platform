@@ -815,6 +815,7 @@ async function fetchRecap(speciesList, durationSec) {
                 lat: last ? last.lat : 0,
                 lng: last ? last.lng : 0,
                 scan_mode: 'walk',
+                hour: new Date().getHours(),
             })
         });
         if (!resp.ok) return;
@@ -852,7 +853,10 @@ async function fetchRecap(speciesList, durationSec) {
         if (data.contribution && data.contribution.length > 0) {
             var contribEl = document.getElementById('recap-contribution');
             document.getElementById('recap-contrib-list').innerHTML = data.contribution.map(function(c) {
-                return '<div class="flex items-start gap-2 text-sm"><span>' + c.icon + '</span><span class="text-gray-300">' + c.text + '</span></div>';
+                if (c.highlight) {
+                    return '<div style="background:linear-gradient(135deg,rgba(251,191,36,0.15),rgba(245,158,11,0.08));border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:8px 10px;margin-bottom:4px" class="flex items-start gap-2 text-sm"><span>' + c.icon + '</span><span style="color:#fde68a;font-weight:600">' + c.text + '</span></div>';
+                }
+                return '<div class="flex items-start gap-2 text-sm" style="margin-bottom:2px"><span>' + c.icon + '</span><span class="text-gray-300">' + c.text + '</span></div>';
             }).join('');
             contribEl.classList.remove('hidden');
         }

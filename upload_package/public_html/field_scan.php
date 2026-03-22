@@ -87,13 +87,28 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             <div class="flex items-center gap-2">
                 <span class="text-lg">🎤</span>
                 <div>
-                    <div class="text-sm font-bold text-gray-200">高感度モード</div>
-                    <div class="text-[10px] text-gray-500">小さな声や遠い鳴き声も候補として表示</div>
+                    <div class="text-sm font-bold text-gray-200">音声感度</div>
+                    <div id="sensitivity-desc" class="text-[10px] text-gray-500">通常: 信頼度40%以上を表示</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-gray-500">低</span>
+                <input type="range" id="sensitivity-slider" min="0" max="2" value="0" class="w-20 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500">
+                <span class="text-[10px] text-gray-500">超</span>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3 mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">🔋</span>
+                <div>
+                    <div class="text-sm font-bold text-gray-200">省エネモード</div>
+                    <div class="text-[10px] text-gray-500">カメラ間隔2倍、GPS精度を緩和（音声は通常動作）</div>
                 </div>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" id="sensitivity-toggle" class="sr-only peer">
-                <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                <input type="checkbox" id="powersave-toggle" class="sr-only peer">
+                <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
             </label>
         </div>
 
@@ -249,6 +264,15 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             </div>
             <div id="done-quest-list"></div>
         </div>
+        <!-- 今日のベスト発見 -->
+        <div id="scan-recap-best" class="bg-gradient-to-br from-emerald-900/40 to-teal-900/30 border border-emerald-500/20 rounded-2xl p-5 mb-4 hidden">
+            <div class="text-[10px] text-emerald-400/70 font-bold mb-1">今日のベスト発見</div>
+            <div id="scan-recap-best-name" class="text-xl font-black text-emerald-300"></div>
+            <div id="scan-recap-best-sci" class="text-xs text-emerald-400/60 font-italic mb-2"></div>
+            <div id="scan-recap-best-note" class="text-sm text-gray-200 leading-relaxed mb-2"></div>
+            <a id="scan-recap-best-link" href="#" class="text-xs text-emerald-400 hover:underline">📖 図鑑で詳しく見る →</a>
+        </div>
+
         <!-- AIストーリー -->
         <div id="scan-recap-narrative" class="bg-white/10 rounded-2xl p-5 mb-4 hidden">
             <div id="scan-recap-narrative-text" class="text-sm text-gray-200 leading-relaxed"></div>
@@ -297,7 +321,7 @@ var S = {
     minimap: null, posMarker: null,
     recorder: null, recTimer: null, analyzing: false, chunks: [], mime: '',
     dataUsage: 0,
-    highSensitivity: false,
+    sensitivityLevel: 0, // 0=通常, 1=高感度, 2=超高感度
     speciesCardCache: {},
     totalPoints: 0,
     audioEmptyStreak: 0,
@@ -371,7 +395,8 @@ async function startScan() {
         // バッテリー監視
         S.batteryLevel = 1.0;
         S.isCharging = false;
-        S.powerSaveMode = false;
+        S.manualPowerSave = !!document.getElementById('powersave-toggle').checked;
+        S.powerSaveMode = S.manualPowerSave;
         if (navigator.getBattery) {
             navigator.getBattery().then(function(batt) {
                 S.batteryLevel = batt.level;
@@ -428,20 +453,19 @@ async function startScan() {
             }, function(e) { dbg('GPS ERR: ' + e.message); }, {enableHighAccuracy: highAcc, maximumAge: 5000});
         }
         startGpsWatch(true);
-        setTimeout(function() { if (S.active) startGpsWatch(false); dbg('GPS → 省電力'); }, 30000);
+        var gpsDowngradeMs = S.powerSaveMode ? 10000 : 30000;
+        setTimeout(function() { if (S.active) startGpsWatch(false); dbg('GPS → 省電力'); }, gpsDowngradeMs);
     }
 }
 
 // ===== Adaptive Capture Scheduling =====
 function getAdaptiveCaptureMs() {
     var base = S.baseCaptureMs;
-    // 省エネモード: 全間隔2倍
     if (S.powerSaveMode) base *= 2;
-    // 速度連動（歩行モードのみ）
     if (S.mode === 'walk') {
         var speed = S.currentSpeed || 0;
-        if (speed < 0.3) base = Math.max(base, 8000); // 静止 → 8秒
-        else if (speed > 2.0) base = Math.min(base, 1500); // 速歩 → 1.5秒
+        if (speed < 0.3) base = Math.max(base, 12000); // 静止 → 12秒（景色変わらない）
+        else if (speed > 2.0) base = Math.min(base, 1500);
     }
     return base;
 }
@@ -474,15 +498,16 @@ function checkPowerSave() {
             showScanToast('🔋 省エネモード ON');
         }
     } else {
-        S.powerSaveMode = false;
+        S.powerSaveMode = S.manualPowerSave || false;
     }
 }
 
 function getAdaptiveAudioMs() {
+    if (S.sensitivityLevel >= 2) return S.powerSaveMode ? 6000 : 3000; // 超高感度: ペナルティなし
     var base = 3000;
     if (S.powerSaveMode) base = 6000;
-    if (S.audioEmptyStreak >= 10) base = Math.max(base, 8000);
-    else if (S.audioEmptyStreak >= 5) base = Math.max(base, 5000);
+    if (S.audioEmptyStreak >= 10) base = Math.max(base, 6000);
+    else if (S.audioEmptyStreak >= 5) base = Math.max(base, 4000);
     return base;
 }
 
@@ -547,6 +572,7 @@ async function fetchScanRecap(speciesList, durationSec) {
     if (speciesList.length === 0) return;
     try {
         var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
+        var envWeather = (S.envHistory && S.envHistory.length > 0 && S.envHistory[0].weather) ? S.envHistory[0].weather : null;
         var resp = await fetch('/api/v2/session_recap.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -557,12 +583,29 @@ async function fetchScanRecap(speciesList, durationSec) {
                 lat: last ? last.lat : 0,
                 lng: last ? last.lng : 0,
                 scan_mode: 'live-scan',
+                hour: new Date().getHours(),
+                weather: envWeather,
             })
         });
         if (!resp.ok) return;
         var json = await resp.json();
         if (!json.success || !json.data) return;
         var d = json.data;
+
+        // 今日のベスト発見（最も信頼度が高い種）
+        if (d.species_cards && d.species_cards.length > 0) {
+            var best = d.species_cards.reduce(function(a, b) { return (a.confidence || 0) >= (b.confidence || 0) ? a : b; });
+            if (best && best.name) {
+                document.getElementById('scan-recap-best-name').textContent = best.name;
+                document.getElementById('scan-recap-best-sci').textContent = best.scientific_name || '';
+                var bestNote = best.morphological_traits || best.notes || (S.speciesMap[best.name] ? S.speciesMap[best.name].note : '') || '';
+                if (bestNote.length > 120) bestNote = bestNote.substring(0, 120) + '...';
+                document.getElementById('scan-recap-best-note').textContent = bestNote;
+                var sciQ = encodeURIComponent(best.scientific_name || best.name);
+                document.getElementById('scan-recap-best-link').href = 'zukan.php?q=' + sciQ;
+                document.getElementById('scan-recap-best').classList.remove('hidden');
+            }
+        }
 
         if (d.narrative) {
             document.getElementById('scan-recap-narrative-text').textContent = d.narrative;
@@ -587,7 +630,10 @@ async function fetchScanRecap(speciesList, durationSec) {
 
         if (d.contribution && d.contribution.length > 0) {
             document.getElementById('scan-recap-contrib-list').innerHTML = d.contribution.map(function(c) {
-                return '<div class="flex items-start gap-2 text-sm"><span>' + c.icon + '</span><span class="text-blue-100">' + c.text + '</span></div>';
+                if (c.highlight) {
+                    return '<div style="background:linear-gradient(135deg,rgba(251,191,36,0.15),rgba(245,158,11,0.08));border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:8px 10px;margin-bottom:4px" class="flex items-start gap-2 text-sm"><span>' + c.icon + '</span><span style="color:#fde68a;font-weight:600">' + c.text + '</span></div>';
+                }
+                return '<div class="flex items-start gap-2 text-sm" style="margin-bottom:2px"><span>' + c.icon + '</span><span class="text-blue-100">' + c.text + '</span></div>';
             }).join('');
             document.getElementById('scan-recap-contribution').classList.remove('hidden');
         }
@@ -709,7 +755,7 @@ async function captureFrame() {
             var shouldSaveFrame = false;
             json.data.suggestions.forEach(function(sug) {
                 var isNewSpecies = !S.speciesMap[sug.name];
-                addDetection(sug.name, sug.scientific_name || '', sug.confidence || 0.5, 'visual', sug.category || '');
+                addDetection(sug.name, sug.scientific_name || '', sug.confidence || 0.5, 'visual', sug.category || '', sug.note || '');
                 if (isNewSpecies || (sug.confidence || 0) >= 0.80) shouldSaveFrame = true;
             });
             dbg('📷 ' + json.data.suggestions.length + '件検出!');
@@ -792,7 +838,8 @@ async function sendAudio(blob) {
         fd.append('audio', blob, 'snippet' + (S.mime.indexOf('mp4') >= 0 ? '.mp4' : '.webm'));
         fd.append('lat', last ? last.lat : 35.0);
         fd.append('lng', last ? last.lng : 139.0);
-        if (S.highSensitivity) fd.append('min_conf', '0.05');
+        if (S.sensitivityLevel >= 2) fd.append('min_conf', '0.03');
+        else if (S.sensitivityLevel >= 1) fd.append('min_conf', '0.05');
         updateDataUsage(blob.size);
         S.audioScanCount++;
         document.getElementById('audio-count').textContent = S.audioScanCount;
@@ -802,7 +849,7 @@ async function sendAudio(blob) {
         var respText = await resp.text();
         updateDataUsage(respText.length);
         var json = JSON.parse(respText);
-        var displayThreshold = S.highSensitivity ? 0.25 : 0.40;
+        var displayThreshold = S.sensitivityLevel >= 2 ? 0.15 : S.sensitivityLevel >= 1 ? 0.25 : 0.40;
         if (json.success && json.data && json.data.detections && json.data.detections.length > 0) {
             var filtered = json.data.detections.filter(function(d) { return d.confidence >= displayThreshold; });
             filtered.forEach(function(d) {
@@ -848,21 +895,22 @@ function setScanListenState(state) {
 }
 
 // ===== Detection =====
-function addDetection(name, sci, conf, source, category) {
+function addDetection(name, sci, conf, source, category, note) {
     S.totalDet++;
     if (source === 'audio') S.audioDet++; else S.visualDet++;
 
     var isNew = !S.speciesMap[name];
     if (isNew) {
-        S.speciesMap[name] = {count:0, confidence:0, source:source, category:category||'', firstSeen:Date.now(), lastSeen:Date.now()};
+        S.speciesMap[name] = {count:0, confidence:0, source:source, category:category||'', note:note||'', firstSeen:Date.now(), lastSeen:Date.now()};
         if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
     }
     S.speciesMap[name].count++;
     S.speciesMap[name].confidence = Math.max(S.speciesMap[name].confidence, conf);
     S.speciesMap[name].lastSeen = Date.now();
+    if (note && !S.speciesMap[name].note) S.speciesMap[name].note = note;
 
     updateCounts();
-    showDetBanner(name, sci, conf, source);
+    showDetBanner(name, sci, conf, source, note);
     addMapMarker(name, source);
     updateSpeciesList();
 
@@ -963,10 +1011,12 @@ function updateCounts() {
     document.getElementById('sp-count-top').textContent = spCount;
 }
 
-function showDetBanner(name, sci, conf, source) {
+function showDetBanner(name, sci, conf, source, note) {
     var b = document.getElementById('det-banner');
     var isNew = S.speciesMap[name] && S.speciesMap[name].count === 1;
     var isAudio = source === 'audio';
+    var cat = (S.speciesMap[name] && S.speciesMap[name].category) || '';
+    var isVegRecord = cat === 'plant' && /広葉|落葉|常緑|針葉|イネ科|キク科|シダ|つる性|草本|低木|高木/.test(name);
 
     // 信頼度バッジ
     var badge = document.getElementById('det-conf-badge');
@@ -985,19 +1035,30 @@ function showDetBanner(name, sci, conf, source) {
         b.style.borderLeft = '4px solid #666';
     }
 
-    document.getElementById('det-name').innerHTML = name + (isNew ? ' <span style="font-size:11px;padding:1px 6px;border-radius:6px;background:rgba(34,197,94,0.3);color:#4ade80;font-weight:700">NEW!</span>' : '');
+    var nameHtml = name;
+    if (isNew) nameHtml += ' <span style="font-size:11px;padding:1px 6px;border-radius:6px;background:rgba(34,197,94,0.3);color:#4ade80;font-weight:700">NEW!</span>';
+    if (isVegRecord) nameHtml += ' <span style="font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(34,197,94,0.15);color:#86efac;font-weight:600">🌳 植生記録</span>';
+    document.getElementById('det-name').innerHTML = nameHtml;
     document.getElementById('det-sci').textContent = sci || '';
     document.getElementById('det-meta').textContent = (isAudio ? '🎤 音声' : '📷 カメラ') + ' · ' + confPct + '%';
     b.style.display = '';
 
-    // 種カード情報（非同期取得）
+    // note（AI特徴1文）を即座に表示 — OmoikaneDB待ち不要
     var cardInfo = document.getElementById('det-card-info');
-    cardInfo.style.display = 'none';
+    if (note) {
+        document.getElementById('det-card-trait').textContent = note;
+        document.getElementById('det-card-habitat').textContent = '';
+        cardInfo.style.display = '';
+    } else {
+        cardInfo.style.display = 'none';
+    }
+
+    // OmoikaneDB から詳細を非同期で上書き（noteよりリッチな情報）
     fetchScanSpeciesCard(name, sci).then(function(card) {
         if (!card) return;
         var trait = card.morphological_traits || card.notes || '';
         if (trait.length > 80) trait = trait.substring(0, 80) + '...';
-        document.getElementById('det-card-trait').textContent = trait;
+        if (trait) document.getElementById('det-card-trait').textContent = trait;
         document.getElementById('det-card-habitat').textContent = card.habitat ? '🌿 ' + card.habitat : '';
         cardInfo.style.display = '';
     });
@@ -1063,12 +1124,16 @@ function updateSpeciesList() {
         var confLabel = d.confidence >= 0.7 ? '確定' : d.confidence >= 0.4 ? '推定' : '候補';
         var bg = isRecent ? 'background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3)' : 'background:rgba(255,255,255,0.05)';
         var badge = isRecent ? '<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(34,197,94,0.3);color:#4ade80;font-weight:700;margin-left:4px">NOW</span>' : '';
+        var isVeg = d.category === 'plant' && /広葉|落葉|常緑|針葉|イネ科|キク科|シダ|つる性|草本|低木|高木/.test(name);
+        var vegBadge = isVeg ? ' <span style="font-size:8px;padding:1px 4px;border-radius:4px;background:rgba(34,197,94,0.1);color:#86efac">🌳植生</span>' : '';
         var timeStr = age < 60000 ? 'たった今' : Math.floor(age / 60000) + '分前';
         var cardId = 'sp-card-' + name.replace(/[^a-zA-Z0-9]/g, '_');
+        var noteHtml = d.note ? '<div style="font-size:10px;color:#a3e635;margin-top:1px">💡 ' + d.note + '</div>' : '';
         return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px;margin-bottom:4px;border-radius:10px;' + bg + '">'
             + '<div style="flex:1">'
-            + '<div style="display:flex;align-items:center;gap:4px">' + name + badge
+            + '<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">' + name + badge + vegBadge
             + ' <span style="font-size:9px;padding:1px 5px;border-radius:6px;' + confColor.replace('color:', 'color:') + ';background:rgba(255,255,255,0.06)">' + confLabel + '</span></div>'
+            + noteHtml
             + '<div id="' + cardId + '" style="font-size:10px;color:#9ca3af;margin-top:2px;line-height:1.3"></div>'
             + '</div>'
             + '<div style="text-align:right;shrink:0">'
@@ -1332,8 +1397,12 @@ async function uploadCapturedPhotos() {
 })();
 
 // ===== Sensitivity toggle =====
-var _sensToggle = document.getElementById('sensitivity-toggle');
-if (_sensToggle) _sensToggle.addEventListener('change', function() { S.highSensitivity = this.checked; });
+var _sensSlider = document.getElementById('sensitivity-slider');
+if (_sensSlider) _sensSlider.addEventListener('input', function() {
+    S.sensitivityLevel = parseInt(this.value);
+    var descs = ['通常: 信頼度40%以上を表示', '高感度: 信頼度25%以上を表示', '超高感度: 信頼度15%以上（誤検出が増えます）'];
+    document.getElementById('sensitivity-desc').textContent = descs[S.sensitivityLevel] || descs[0];
+});
 
 // ===== Buttons =====
 document.getElementById('btn-start').addEventListener('click', startScan);

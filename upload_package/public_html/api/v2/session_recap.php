@@ -41,6 +41,8 @@ $distanceM = intval($input['distance_m'] ?? 0);
 $lat = floatval($input['lat'] ?? 0);
 $lng = floatval($input['lng'] ?? 0);
 $scanMode = $input['scan_mode'] ?? 'walk';
+$hour = isset($input['hour']) ? intval($input['hour']) : intval(date('G'));
+$weather = $input['weather'] ?? null;
 
 if (empty($species)) {
     api_success([
@@ -86,24 +88,88 @@ try {
     error_log("[session_recap] Omoikane error: " . $e->getMessage());
 }
 
-// --- Contribution metrics ---
+// --- Contribution metrics (文脈依存8パターン) ---
 $contribution = [];
 $userId = Auth::user()['id'] ?? '';
 $month = date('Y-m');
+$currentMonth = date('n') . '月';
 
 try {
     $allObs = DataStore::fetchAll('observations');
+
+    // (1) この場所が初スキャンかチェック（500m圏内）
+    $nearbyObs = [];
+    if ($lat && $lng) {
+        foreach ($allObs as $o) {
+            $oLat = floatval($o['location']['lat'] ?? $o['lat'] ?? 0);
+            $oLng = floatval($o['location']['lng'] ?? $o['lng'] ?? 0);
+            if ($oLat && $oLng && abs($oLat - $lat) < 0.005 && abs($oLng - $lng) < 0.005) {
+                $nearbyObs[] = $o;
+            }
+        }
+    }
+
+    if (empty($nearbyObs)) {
+        $contribution[] = [
+            'icon' => '🗺️',
+            'text' => 'この場所は初めてスキャンされました！ 生物多様性の空白地帯を埋めています',
+            'highlight' => true,
+        ];
+    } else {
+        // (2) 前回スキャンからの間隔
+        $dates = array_filter(array_map(fn($o) => $o['observed_at'] ?? $o['created_at'] ?? '', $nearbyObs));
+        if (!empty($dates)) {
+            sort($dates);
+            $lastDate = end($dates);
+            $daysSince = (time() - strtotime($lastDate)) / 86400;
+            if ($daysSince > 14) {
+                $weeks = max(1, round($daysSince / 7));
+                $contribution[] = [
+                    'icon' => '📅',
+                    'text' => "前回のスキャンは{$weeks}週間前。季節変化の追跡に貢献しています",
+                ];
+            }
+        }
+    }
+
+    // (3) 天候データの価値
+    if ($weather && in_array($weather, ['rain', 'cloudy', 'snow', 'fog'])) {
+        $weatherLabels = ['rain' => '雨', 'cloudy' => '曇り', 'snow' => '雪', 'fog' => '霧'];
+        $wLabel = $weatherLabels[$weather] ?? $weather;
+        $contribution[] = [
+            'icon' => '🌧️',
+            'text' => "{$wLabel}の日のデータは貴重です。天候と生物活動の関係を記録しています",
+        ];
+    }
+
+    // (4) 時間帯データの価値
+    if ($hour < 7) {
+        $contribution[] = ['icon' => '🌅', 'text' => '早朝のデータは少なく貴重です。時間帯別の生物活動パターンに貢献'];
+    } elseif ($hour >= 18) {
+        $contribution[] = ['icon' => '🌆', 'text' => '夕方以降のデータは少なく貴重です。夜行性生物の記録に貢献'];
+    }
+
+    // (5) 月間データ密度の向上
     $monthObs = array_filter($allObs, function($o) use ($month) {
         return str_starts_with($o['observed_at'] ?? $o['created_at'] ?? '', $month);
     });
-    $totalMonthCount = count($monthObs);
-
+    $beforeCount = count($monthObs);
+    $afterCount = $beforeCount + count($species);
     $contribution[] = [
         'icon' => '📊',
-        'text' => "この地域の{$month}の記録に " . count($species) . " 件のデータを追加",
+        'text' => "{$currentMonth}の地域データが {$beforeCount}件 → {$afterCount}件 に。統計的な信頼性が高まりました",
     ];
 
-    // 初記録チェック
+    // (6) 植生記録の価値
+    $plantCount = count(array_filter($species, fn($s) => ($s['category'] ?? '') === 'plant'));
+    if ($plantCount > 0) {
+        $contribution[] = [
+            'icon' => '🌳',
+            'text' => "植生 {$plantCount} 件を記録。森の健康状態モニタリングの基盤データです",
+        ];
+    }
+
+    // (7) 初記録チェック（既存ロジック維持）
     $existingSpecies = array_unique(array_filter(array_map(
         fn($o) => $o['taxon']['scientific_name'] ?? $o['taxon']['name'] ?? null,
         $allObs
@@ -115,15 +181,20 @@ try {
             $contribution[] = [
                 'icon' => '🌟',
                 'text' => ($sp['name'] ?? $key) . ' はこの地点で初記録です！',
+                'highlight' => true,
             ];
         }
     }
 
+    // (8) ユーザー累計貢献
+    $userObs = array_filter($allObs, fn($o) => ($o['user_id'] ?? '') === $userId);
+    $totalUserCount = count($userObs) + count($species);
     $contribution[] = [
-        'icon' => '🌍',
-        'text' => '市民科学データとして生物多様性モニタリングに活用されます',
+        'icon' => '🏅',
+        'text' => "キミの累計データ: {$totalUserCount}件。この地域の生態系理解に着実に貢献中",
     ];
 } catch (Throwable $e) {
+    error_log("[session_recap] Contribution error: " . $e->getMessage());
     $contribution[] = [
         'icon' => '📊',
         'text' => count($species) . ' 件の観察データを記録しました',
@@ -139,26 +210,30 @@ try {
         $durationMin = round($durationSec / 60);
         $distanceKm = round($distanceM / 1000, 1);
 
+        $plantNames = array_map(fn($c) => $c['name'], array_filter($speciesCards, fn($c) => ($c['category'] ?? '') === 'plant' || preg_match('/広葉|落葉|常緑|針葉|草本|低木|高木|シダ|つる/', $c['name'])));
+        $plantNote = count($plantNames) > 0 ? "\n- 植生記録: " . implode('、', array_slice($plantNames, 0, 3)) . "（植生データは生態系の基盤記録として重要）" : '';
+        $currentMonth = date('n');
+
         $narrativePrompt = <<<PROMPT
-あなたは自然観察のナレーターです。以下のフィールド観察セッションについて、参加者に向けた振り返り文を日本語で150字以内で書いてください。
+あなたは自然観察の仲間です。以下の観察セッションについて、参加者への振り返りを書いてください。
 
 - 観察モード: {$scanMode}
-- 時間: {$durationMin}分
-- 距離: {$distanceKm}km
-- 検出種: {$namesList}
+- 時間: {$durationMin}分、距離: {$distanceKm}km
+- 検出種: {$namesList}{$plantNote}
 
 要件:
-- 1番目の種について特徴や面白い豆知識を1つ含める
-- 季節（今は3月）との関連があれば触れる
-- 温かく前向きなトーン
-- 150字以内の1段落
+1. 最も印象的な発見について「へぇ！」と思える豆知識を1つ
+2. 植生レベルの記録（広葉樹等）があれば、なぜその記録が大切かを1文
+3. 季節（{$currentMonth}月）との関連
+4. 温かく前向き、対等なトーン（先生→生徒ではなく仲間として）
+5. 300字以内
 PROMPT;
 
         $model = 'gemini-3.1-flash-lite-preview';
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . GEMINI_API_KEY;
         $payload = [
             'contents' => [['parts' => [['text' => $narrativePrompt]]]],
-            'generationConfig' => ['temperature' => 0.7, 'maxOutputTokens' => 200],
+            'generationConfig' => ['temperature' => 0.7, 'maxOutputTokens' => 350],
         ];
 
         $ch = curl_init($url);
