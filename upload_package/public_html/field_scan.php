@@ -17,6 +17,9 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
     <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js" defer></script>
+    <script src="assets/js/BioPrescreen.js?v=17c" defer></script>
     <style>
         #scan-active { position:fixed; inset:0; z-index:50; background:#000; display:flex; flex-direction:column; }
         @keyframes scanFade { 0%{opacity:0;transform:translateX(-50%) translateY(-10px)} 10%{opacity:1;transform:translateX(-50%) translateY(0)} 80%{opacity:1} 100%{opacity:0;transform:translateX(-50%) translateY(-10px)} }
@@ -416,10 +419,18 @@ async function startScan() {
         // アダプティブキャプチャ間隔
         S.baseCaptureMs = S.mode === 'car' ? 5000 : S.mode === 'bike' ? 3000 : 2000;
         S.currentSpeed = 0;
+        S.prescreenSkipped = 0;
         scheduleNextCapture();
         S.envInt = setInterval(envScan, S.isWifi ? 10000 : 30000);
         setTimeout(envScan, 3000);
         dbg('5. ' + S.mode + ' アダプティブ間隔');
+
+        // TF.js プレスクリーン非同期初期化（スキャン開始をブロックしない）
+        if (typeof BioPrescreen !== 'undefined') {
+            BioPrescreen.init().then(function(ok) {
+                dbg(ok ? '🧠 プレスクリーン準備完了' : '🧠 フォールバック: 全フレーム送信');
+            });
+        }
 
         // 音声: 車モードはOFF（ノイズ・ラジオ誤検出防止）
         if (S.mode !== 'car') {
@@ -532,7 +543,11 @@ function stopScan() {
 
     // 蓄積した検出を一括で Canonical Schema に送信（1セッション=1 event）
     var pendingEvents = S.pendingEvents || [];
-    document.getElementById('done-summary').textContent = sp + '種検出 · ' + min + '分間のスキャン · 📶 ' + formatDataUsage(S.dataUsage);
+    var summaryText = sp + '種検出 · ' + min + '分間のスキャン · 📶 ' + formatDataUsage(S.dataUsage);
+    if (typeof BioPrescreen !== 'undefined' && BioPrescreen.stats.total > 0) {
+        summaryText += ' · 🧠 ' + BioPrescreen.getSkipRate() + '%最適化';
+    }
+    document.getElementById('done-summary').textContent = summaryText;
     showScreen('done');
 
     // リッチレビュー取得
@@ -719,6 +734,18 @@ async function captureFrame() {
         c.width = Math.min(v.videoWidth, maxW);
         c.height = Math.round(c.width * v.videoHeight / v.videoWidth);
         c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+
+        // TF.js プレスクリーニング: 生物がいなさそうなフレームはスキップ
+        if (typeof BioPrescreen !== 'undefined' && BioPrescreen.available) {
+            var ps = await BioPrescreen.prescreen(c);
+            if (!ps.shouldSend) {
+                S.prescreenSkipped++;
+                S.frameScanCount++;
+                document.getElementById('frame-count').textContent = S.frameScanCount;
+                dbg('📷 スキップ (bio:' + ps.bioScore.toFixed(2) + ' green:' + ps.greenScore.toFixed(2) + ')');
+                return;
+            }
+        }
 
         var blob = await new Promise(function(r) { c.toBlob(r, 'image/jpeg', quality); });
         updateDataUsage(blob.size);
