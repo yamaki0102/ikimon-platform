@@ -1034,7 +1034,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                 'subject_id' => $subject['id'] ?? 'primary',
                                             ];
                                             ?>
-                                            <button onclick="window.agreeWithAi(<?php echo htmlspecialchars(json_encode($subAgreeTarget, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8'); ?>)"
+                                            <button @click="window.agreeWithAi(<?php echo htmlspecialchars(json_encode($subAgreeTarget, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8'); ?>)"
                                                 class="mt-2 w-full py-2 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold text-xs border border-emerald-200 transition flex items-center justify-center gap-1.5 active:scale-[0.98]">
                                                 <span>👍</span> そうかも！
                                             </button>
@@ -1257,7 +1257,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                             'subject_id' => 'primary',
                                         ];
                                         ?>
-                                        <button onclick="window.agreeWithAi(<?php echo htmlspecialchars(json_encode($aiAgreeTarget, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8'); ?>)"
+                                        <button @click="window.agreeWithAi(<?php echo htmlspecialchars(json_encode($aiAgreeTarget, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8'); ?>)"
                                             class="mt-3 w-full py-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-bold text-sm border border-primary/20 transition flex items-center justify-center gap-2 active:scale-[0.98]">
                                             <span>👍</span>
                                             そうかも！
