@@ -909,6 +909,29 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     </div>
                 <?php endif; ?>
 
+                <!-- Audio Evidence Player -->
+                <?php if (!empty($obs['audio_evidence_path'])): ?>
+                <div class="mt-3 bg-surface rounded-2xl border border-border p-4 shadow-sm"
+                     x-data="{ playing: false, audioEl: null }"
+                     x-init="audioEl = $refs.audioPlayer"
+                     x-effect="$nextTick(() => lucide.createIcons({ attrs: { class: ['w-5','h-5'] }, nameAttr: 'data-lucide', nodes: [$el] }))"
+                    <div class="flex items-center gap-3">
+                        <button @click="playing ? (audioEl.pause(), playing = false) : (audioEl.play(), playing = true)"
+                                class="w-10 h-10 flex items-center justify-center rounded-full transition"
+                                :class="playing ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'">
+                            <i :data-lucide="playing ? 'pause' : 'play'" class="w-5 h-5"></i>
+                        </button>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-semibold text-text">鳴き声の録音</div>
+                            <div class="text-token-xs text-muted">ウォーク中にBirdNETが検出した音声</div>
+                        </div>
+                        <i data-lucide="audio-lines" class="w-5 h-5 text-muted flex-shrink-0"></i>
+                    </div>
+                    <audio x-ref="audioPlayer" @ended="playing = false" preload="metadata"
+                           src="/<?php echo htmlspecialchars($obs['audio_evidence_path'], ENT_QUOTES, 'UTF-8'); ?>"></audio>
+                </div>
+                <?php endif; ?>
+
                 <!-- Owner Narrative -->
                 <?php $observerName = $obs['user_display_name'] ?? $obs['user_name'] ?? $obs['user']['display_name'] ?? $obs['user']['name'] ?? BioUtils::getUserName($obs['user_id']); ?>
                 <div class="mt-4 bg-surface rounded-2xl border border-border p-4 shadow-sm">
