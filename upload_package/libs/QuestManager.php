@@ -672,10 +672,6 @@ class QuestManager
         $quests = [];
         foreach ($selected as $c) {
             $type = self::$QUEST_TYPES[$c['trigger']];
-            $ttl = in_array($c['trigger'], ['redlist', 'area_first'], true)
-                ? self::FIELD_SIGNAL_TTL_HIGH
-                : self::FIELD_SIGNAL_TTL_MID;
-            $expires = date('c', time() + $ttl);
             $quests[] = [
                 'id' => 'sq_' . bin2hex(random_bytes(6)),
                 'type' => 'field_signal',
@@ -692,7 +688,7 @@ class QuestManager
                 'icon' => $type['icon'],
                 'scan_session_id' => $sessionId,
                 'created_at' => $now,
-                'expires_at' => $expires,
+                'expires_at' => null,
                 'completed_at' => null,
             ];
         }
@@ -782,16 +778,13 @@ class QuestManager
         $existing = DataStore::get($file) ?: [];
         if (!is_array($existing)) $existing = [];
 
-        $now = time();
-        $existing = array_filter($existing, function ($q) use ($now) {
-            if (!empty($q['completed_at'])) return false;
-            $exp = strtotime($q['expires_at'] ?? '');
-            return $exp && $exp > $now;
+        $existing = array_filter($existing, function ($q) {
+            return empty($q['completed_at']);
         });
 
         $existing = array_merge(array_values($existing), $newQuests);
-        if (count($existing) > 10) {
-            $existing = array_slice($existing, -10);
+        if (count($existing) > 20) {
+            $existing = array_slice($existing, -20);
         }
         DataStore::save($file, $existing);
     }
@@ -805,7 +798,9 @@ class QuestManager
         $now = time();
         return array_values(array_filter($quests, function ($q) use ($now) {
             if (!empty($q['completed_at'])) return false;
-            $exp = strtotime($q['expires_at'] ?? '');
+            $expiresAt = $q['expires_at'] ?? null;
+            if ($expiresAt === null) return true;
+            $exp = strtotime($expiresAt);
             return $exp && $exp > $now;
         }));
     }
@@ -1189,5 +1184,206 @@ MSG;
 
         DataStore::save($cacheFile, $quest);
         return $quest;
+    }
+
+    // ── Community Signals: 他人枠 ──
+
+    const COMMUNITY_SIGNALS_FILE = 'community_signals';
+    const COMMUNITY_SIGNAL_TTL = 72 * 3600;
+    const COMMUNITY_MAX_RESPONDENTS = 5;
+    const COMMUNITY_REWARD_CAP = 300;
+
+    public static function publishCommunitySignal(string $userId, array $quest, float $lat, float $lng): void
+    {
+        if (empty($quest['species_name']) || empty($quest['trigger'])) return;
+
+        $existing = DataStore::get(self::COMMUNITY_SIGNALS_FILE) ?: [];
+        if (!is_array($existing)) $existing = [];
+
+        $dupKey = $quest['species_name'] . '|' . round($lat, 2) . '|' . round($lng, 2);
+        foreach ($existing as $s) {
+            if (!($s['closed'] ?? false)) {
+                $sKey = ($s['species_name'] ?? '') . '|' . round($s['center_lat'] ?? 0, 2) . '|' . round($s['center_lng'] ?? 0, 2);
+                if ($sKey === $dupKey) return;
+            }
+        }
+
+        $reward = min((int)($quest['reward'] ?? 300), self::COMMUNITY_REWARD_CAP);
+
+        $roundedLat = round($lat, 2);
+        $roundedLng = round($lng, 2);
+
+        $areaLabel = '';
+        if (file_exists(ROOT_DIR . '/libs/GeoUtils.php')) {
+            require_once ROOT_DIR . '/libs/GeoUtils.php';
+            $geo = GeoUtils::reverseGeocode($lat, $lng);
+            $areaLabel = ($geo['municipality'] ?? '') ?: ($geo['prefecture'] ?? '');
+            if ($areaLabel) $areaLabel .= '周辺';
+        }
+
+        $signal = [
+            'id' => 'cs_' . bin2hex(random_bytes(6)),
+            'source_user_id' => $userId,
+            'species_name' => $quest['species_name'],
+            'scientific_name' => $quest['scientific_name'] ?? '',
+            'trigger' => $quest['trigger'],
+            'title' => $quest['title'] ?? '',
+            'description' => $quest['description'] ?? '',
+            'reward' => $reward,
+            'rarity_label' => $quest['rarity_label'] ?? '',
+            'cta_text' => $quest['cta_text'] ?? '記録する',
+            'icon' => $quest['icon'] ?? 'radio',
+            'center_lat' => $roundedLat,
+            'center_lng' => $roundedLng,
+            'area_label' => $areaLabel,
+            'created_at' => date('c'),
+            'expires_at' => date('c', time() + self::COMMUNITY_SIGNAL_TTL),
+            'respondents' => [],
+            'max_respondents' => self::COMMUNITY_MAX_RESPONDENTS,
+            'closed' => false,
+        ];
+
+        $existing[] = $signal;
+
+        self::cleanupCommunitySignals($existing);
+        DataStore::save(self::COMMUNITY_SIGNALS_FILE, $existing);
+    }
+
+    public static function getCommunitySignals(string $userId, ?float $lat = null, ?float $lng = null): array
+    {
+        $all = DataStore::get(self::COMMUNITY_SIGNALS_FILE) ?: [];
+        if (!is_array($all)) return [];
+
+        $now = time();
+        $result = [];
+
+        foreach ($all as $s) {
+            if ($s['closed'] ?? false) continue;
+            if (($s['source_user_id'] ?? '') === $userId) continue;
+            if (in_array($userId, $s['respondents'] ?? [], true)) continue;
+
+            $exp = strtotime($s['expires_at'] ?? '');
+            if ($exp && $exp <= $now) continue;
+
+            $respondents = $s['respondents'] ?? [];
+            if (count($respondents) >= ($s['max_respondents'] ?? self::COMMUNITY_MAX_RESPONDENTS)) continue;
+
+            if ($lat !== null && $lng !== null) {
+                $dist = self::haversineDistance($lat, $lng, $s['center_lat'] ?? 0, $s['center_lng'] ?? 0);
+                if ($dist > 2.0) continue;
+                $s['distance_km'] = round($dist, 1);
+            }
+
+            $s['remaining_slots'] = ($s['max_respondents'] ?? self::COMMUNITY_MAX_RESPONDENTS) - count($respondents);
+            $result[] = $s;
+        }
+
+        usort($result, function ($a, $b) {
+            $aScore = self::$QUEST_TYPES[$a['trigger'] ?? '']['score'] ?? 0;
+            $bScore = self::$QUEST_TYPES[$b['trigger'] ?? '']['score'] ?? 0;
+            return $bScore - $aScore;
+        });
+
+        return $result;
+    }
+
+    public static function respondToCommunitySignal(string $userId, string $signalId): bool
+    {
+        $all = DataStore::get(self::COMMUNITY_SIGNALS_FILE) ?: [];
+        if (!is_array($all)) return false;
+
+        foreach ($all as &$s) {
+            if (($s['id'] ?? '') !== $signalId) continue;
+            if ($s['closed'] ?? false) return false;
+            if (($s['source_user_id'] ?? '') === $userId) return false;
+
+            $respondents = $s['respondents'] ?? [];
+            if (in_array($userId, $respondents, true)) return true;
+            if (count($respondents) >= ($s['max_respondents'] ?? self::COMMUNITY_MAX_RESPONDENTS)) return false;
+
+            $s['respondents'][] = $userId;
+
+            if (count($s['respondents']) >= ($s['max_respondents'] ?? self::COMMUNITY_MAX_RESPONDENTS)) {
+                $s['closed'] = true;
+            }
+
+            DataStore::save(self::COMMUNITY_SIGNALS_FILE, $all);
+            return true;
+        }
+        return false;
+    }
+
+    public static function completeCommunitySignal(string $userId, string $signalId): ?array
+    {
+        $all = DataStore::get(self::COMMUNITY_SIGNALS_FILE) ?: [];
+        if (!is_array($all)) return null;
+
+        foreach ($all as &$s) {
+            if (($s['id'] ?? '') !== $signalId) continue;
+
+            $completed = $s['completed_by'] ?? [];
+            if (in_array($userId, $completed, true)) return null;
+
+            if (!isset($s['completed_by'])) $s['completed_by'] = [];
+            $s['completed_by'][] = $userId;
+
+            DataStore::save(self::COMMUNITY_SIGNALS_FILE, $all);
+            return $s;
+        }
+        return null;
+    }
+
+    public static function checkCommunitySignalMatch(string $userId, array $obs): ?array
+    {
+        if (empty($obs['photos'])) return null;
+        $obsSpecies = $obs['taxon']['name'] ?? $obs['species_name'] ?? '';
+        if (empty($obsSpecies)) return null;
+
+        $all = DataStore::get(self::COMMUNITY_SIGNALS_FILE) ?: [];
+        if (!is_array($all)) return null;
+
+        $now = time();
+        foreach ($all as $s) {
+            if ($s['closed'] ?? false) continue;
+            if (($s['source_user_id'] ?? '') === $userId) continue;
+            $exp = strtotime($s['expires_at'] ?? '');
+            if ($exp && $exp <= $now) continue;
+            if (($s['species_name'] ?? '') !== $obsSpecies) continue;
+
+            $completed = $s['completed_by'] ?? [];
+            if (in_array($userId, $completed, true)) continue;
+
+            $respondents = $s['respondents'] ?? [];
+            if (count($respondents) >= ($s['max_respondents'] ?? self::COMMUNITY_MAX_RESPONDENTS)) continue;
+
+            self::respondToCommunitySignal($userId, $s['id']);
+            return self::completeCommunitySignal($userId, $s['id']);
+        }
+        return null;
+    }
+
+    private static function cleanupCommunitySignals(array &$signals): void
+    {
+        $now = time();
+        $signals = array_values(array_filter($signals, function ($s) use ($now) {
+            if ($s['closed'] ?? false) {
+                $created = strtotime($s['created_at'] ?? '');
+                return $created && ($now - $created) < 7 * 86400;
+            }
+            $exp = strtotime($s['expires_at'] ?? '');
+            if ($exp && $exp <= $now) return false;
+            return true;
+        }));
+    }
+
+    private static function haversineDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $R = 6371.0;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) * sin($dLat / 2)
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) * sin($dLng / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        return $R * $c;
     }
 }
