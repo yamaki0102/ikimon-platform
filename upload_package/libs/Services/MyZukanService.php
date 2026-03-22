@@ -57,7 +57,7 @@ class MyZukanService
 
             foreach ($observations as $obs) {
                 $taxonName = $obs['taxon']['name'] ?? '';
-                if (!$taxonName || in_array($taxonName, self::GENERIC_NAMES)) continue;
+                if (!$taxonName || self::isGenericName($taxonName)) continue;
                 $taxonKey = $obs['taxon']['key'] ?? '';
                 if (!$taxonKey) {
                     $taxonKey = $nameToKey[$taxonName] ?? ('name_' . md5($taxonName));
@@ -156,7 +156,7 @@ class MyZukanService
                 $sessionFrames = self::findSessionFrames($sessionDate, $scanFrameIndex);
 
                 foreach ($speciesMap as $speciesName => $detectionCount) {
-                    if (!$speciesName || in_array($speciesName, self::GENERIC_NAMES)) continue;
+                    if (!$speciesName || self::isGenericName($speciesName)) continue;
 
                     $sKey = $nameToKey[$speciesName] ?? ('name_' . md5($speciesName));
 
@@ -496,6 +496,15 @@ class MyZukanService
         if ($count >= 5)  return self::ENCOUNTER_LABELS[5];
         if ($count >= 2)  return self::ENCOUNTER_LABELS[2];
         return self::ENCOUNTER_LABELS[1];
+    }
+
+    private static function isGenericName(string $name): bool
+    {
+        if (in_array($name, self::GENERIC_NAMES)) return true;
+        foreach (self::GENERIC_NAMES as $generic) {
+            if (mb_strpos($name, $generic) !== false) return true;
+        }
+        return false;
     }
 
     private static function getSeason(string $date): string
