@@ -883,14 +883,14 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <img :src="lbPhotos[photoActive]" alt="観察写真" class="max-w-full max-h-full object-contain select-none pointer-events-none" :style="lbScale > 1 ? 'transform: scale('+lbScale+') translate('+lbPanX+'px,'+lbPanY+'px)' : ''">
                     <?php endif; ?>
                     <button @click.stop="lbClose()" type="button" aria-label="閉じる" class="absolute top-3 right-3 text-white p-3 bg-white/15 rounded-full z-[101] hover:bg-white/25 active:bg-white/30 transition">
-                        <i data-lucide="x" class="w-7 h-7"></i>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                     <?php if ($photoCount > 1): ?>
                     <button @click.stop="lbNav(-1)" type="button" aria-label="前の写真" class="absolute left-1 top-1/2 -translate-y-1/2 text-white p-3 bg-white/15 rounded-full z-[101] hover:bg-white/25 active:bg-white/30 transition">
-                        <i data-lucide="chevron-left" class="w-7 h-7"></i>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                     </button>
                     <button @click.stop="lbNav(1)" type="button" aria-label="次の写真" class="absolute right-1 top-1/2 -translate-y-1/2 text-white p-3 bg-white/15 rounded-full z-[101] hover:bg-white/25 active:bg-white/30 transition">
-                        <i data-lucide="chevron-right" class="w-7 h-7"></i>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     </button>
                     <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/40 px-3 py-1.5 rounded-full z-[101]">
                         <span x-text="(photoActive + 1) + ' / ' + <?php echo $photoCount; ?>"></span>
