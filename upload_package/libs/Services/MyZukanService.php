@@ -129,6 +129,92 @@ class MyZukanService
                 unset($entry);
             }
 
+            $passiveSessions = DataStore::fetchAll('passive_sessions');
+            foreach ($passiveSessions as $session) {
+                if (($session['user_id'] ?? '') !== $userId) continue;
+
+                $speciesMap = $session['summary']['species'] ?? [];
+                $sessionDate = $session['created_at'] ?? '';
+                $scanMode = $session['session_meta']['scan_mode'] ?? '';
+                $byType = $session['summary']['by_type'] ?? [];
+                $hasAudioDetection = ($byType['audio'] ?? 0) > 0;
+                $sessionType = $scanMode === 'live-scan' ? 'scan' : 'walk';
+
+                foreach ($speciesMap as $speciesName => $detectionCount) {
+                    if (!$speciesName || in_array($speciesName, [
+                        '空', '建物', '窓', '電柱', 'トラック', '砂利', '側溝の蓋',
+                        '地面', '影', '換気口', '排水溝', '自動車', 'ヒト', '人物',
+                    ])) continue;
+
+                    $sKey = $nameToKey[$speciesName] ?? ('name_' . md5($speciesName));
+
+                    if (!isset($index[$sKey])) {
+                        $index[$sKey] = [
+                            'taxon_key'       => $sKey,
+                            'name'            => $speciesName,
+                            'scientific_name' => '',
+                            'rank'            => 'species',
+                            'group'           => '',
+                            'lineage'         => null,
+                            'cover_photo'     => null,
+                            'first_encounter' => null,
+                            'latest_encounter'=> null,
+                            'encounter_count' => 0,
+                            'categories'      => [],
+                            'has_audio'       => false,
+                            'encounters'      => [],
+                            'red_list'        => null,
+                        ];
+                    }
+
+                    $entry = &$index[$sKey];
+                    $entry['encounter_count']++;
+
+                    if (!in_array($sessionType, $entry['categories'])) {
+                        $entry['categories'][] = $sessionType;
+                    }
+
+                    if ($hasAudioDetection) {
+                        $entry['has_audio'] = true;
+                        if (!in_array('audio', $entry['categories'])) {
+                            $entry['categories'][] = 'audio';
+                        }
+                    }
+
+                    if ($sessionDate) {
+                        if (!$entry['first_encounter'] || $sessionDate < $entry['first_encounter']) {
+                            $entry['first_encounter'] = $sessionDate;
+                        }
+                        if (!$entry['latest_encounter'] || $sessionDate > $entry['latest_encounter']) {
+                            $entry['latest_encounter'] = $sessionDate;
+                        }
+                    }
+
+                    $durationSec = $session['summary']['duration_sec'] ?? $session['session_meta']['duration_sec'] ?? 0;
+                    $distanceM = $session['summary']['distance_m'] ?? 0;
+
+                    $entry['encounters'][] = [
+                        'id'             => $session['session_id'] ?? '',
+                        'date'           => $sessionDate,
+                        'type'           => $sessionType,
+                        'photos'         => [],
+                        'audio_url'      => null,
+                        'note'           => $detectionCount > 1 ? "{$detectionCount}回検出" : '',
+                        'location_label' => '',
+                        'season_icon'    => self::seasonIcon($sessionDate),
+                        'walk_info'      => [
+                            'session_id'   => $session['session_id'] ?? '',
+                            'distance_m'   => $distanceM,
+                            'duration_min' => $durationSec > 0 ? round($durationSec / 60) : null,
+                            'field_name'   => '',
+                            'step_count'   => null,
+                        ],
+                    ];
+
+                    unset($entry);
+                }
+            }
+
             foreach ($index as &$entry) {
                 usort($entry['encounters'], fn($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? ''));
 
