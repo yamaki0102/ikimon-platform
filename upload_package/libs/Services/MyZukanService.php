@@ -528,7 +528,7 @@ class MyZukanService
     private static function buildScanFrameIndexFromDisk(string $userId): array
     {
         $index = [];
-        $baseDir = DATA_DIR . 'scan_frames/';
+        $baseDir = DATA_DIR . '/scan_frames/';
         if (!is_dir($baseDir)) return $index;
 
         foreach (glob($baseDir . '*/ls_*', GLOB_ONLYDIR) as $sessionDir) {
@@ -550,7 +550,7 @@ class MyZukanService
         }
 
         if (!empty($index)) {
-            $indexDir = DATA_DIR . 'scan_frames/index/';
+            $indexDir = DATA_DIR . '/scan_frames/index/';
             if (!is_dir($indexDir)) mkdir($indexDir, 0755, true);
             file_put_contents($indexDir . "{$userId}.json", json_encode($index, JSON_UNESCAPED_UNICODE), LOCK_EX);
         }
