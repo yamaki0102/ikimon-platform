@@ -210,34 +210,34 @@ Auth::init();
             <div class="bg-surface rounded-2xl p-6 border border-border">
                 <h2 class="text-lg font-black mb-4 flex items-center gap-2">
                     <i data-lucide="list" class="w-5 h-5 text-primary"></i>
-                    このガイドの内容
+                    ガイドカテゴリー
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-                    <a href="#why" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-emerald-600 font-bold">01</span> WHY — なぜネイチャーポジティブなのか
+                    <a href="#nature-positive" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
+                        <span class="text-xs text-emerald-600 font-bold">01</span> ネイチャーポジティブ
+                    </a>
+                    <a href="#regional" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
+                        <span class="text-xs text-orange-600 font-bold">04</span> 地方創生と生きもの
+                    </a>
+                    <a href="#satoyama" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
+                        <span class="text-xs text-green-600 font-bold">02</span> 里山イニシアティブ
+                    </a>
+                    <a href="#japan-bio" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
+                        <span class="text-xs text-cyan-600 font-bold">05</span> 日本の生物多様性
                     </a>
                     <a href="#health" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-violet-600 font-bold">04</span> KNOW × HEALTH — 生きものを知り、健康に歩く
+                        <span class="text-xs text-violet-600 font-bold">03</span> 自然と健康の科学
                     </a>
-                    <a href="#data" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-cyan-600 font-bold">02</span> DATA — 数字で見る生物多様性
-                    </a>
-                    <a href="#do" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-amber-600 font-bold">05</span> DO — 始めてみよう
-                    </a>
-                    <a href="#how" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-blue-600 font-bold">03</span> HOW — 企業・自治体の取り組み
-                    </a>
-                    <a href="#cta" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-primary font-bold">→</span> ikimonで始める
+                    <a href="#guidelines" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
+                        <span class="text-xs text-blue-600 font-bold">06</span> コミュニティガイドライン
                     </a>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Cluster 1: WHY -->
-    <section id="why" class="py-10 px-6 cluster-section">
+    <!-- Category 1: ネイチャーポジティブ -->
+    <section id="nature-positive" class="py-10 px-6 cluster-section">
         <div class="max-w-4xl mx-auto">
             <div class="cluster-card p-6 md:p-8">
                 <div class="flex items-center gap-3 mb-6">
@@ -245,21 +245,13 @@ Auth::init();
                         <i data-lucide="sprout" class="w-5 h-5 text-emerald-600"></i>
                     </div>
                     <div>
-                        <p class="text-xs font-bold text-emerald-600 uppercase tracking-wider">Cluster 1</p>
-                        <h2 class="text-xl font-black">WHY — なぜネイチャーポジティブなのか</h2>
+                        <p class="text-xs font-bold text-emerald-600 uppercase tracking-wider">Category 1</p>
+                        <h2 class="text-xl font-black">ネイチャーポジティブ</h2>
                     </div>
                 </div>
-                <p class="text-muted mb-6 leading-relaxed">ネイチャーポジティブとは、自然の損失を止め、回復に向かわせること。2030年までに生物多様性の損失を止め、反転させる——それが世界目標です。</p>
+                <p class="text-muted mb-6 leading-relaxed">自然の損失を止め、回復に向かわせること。30by30、自然共生サイト、企業の取り組みまで。</p>
 
                 <div class="space-y-2">
-                    <a href="walking-brain-science.php" class="article-link">
-                        <span class="stat-pill bg-emerald-50 text-emerald-700">★★★</span>
-                        <div class="min-w-0">
-                            <p class="font-bold text-sm">自然の中を歩くと脳に何が起きるのか？</p>
-                            <p class="text-xs text-faint mt-0.5">5つのメカニズムを科学的エビデンスとともに解説</p>
-                        </div>
-                        <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
-                    </a>
                     <a href="what-is-nature-positive.php" class="article-link">
                         <span class="stat-pill bg-emerald-50 text-emerald-700">★★★</span>
                         <div class="min-w-0">
@@ -268,12 +260,57 @@ Auth::init();
                         </div>
                         <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
                     </a>
+                    <a href="nature-coexistence-sites-analysis.php" class="article-link">
+                        <span class="stat-pill bg-emerald-50 text-emerald-700">★★★</span>
+                        <div class="min-w-0">
+                            <p class="font-bold text-sm">自然共生サイト全420+認定 完全分析</p>
+                            <p class="text-xs text-faint mt-0.5">都道府県・業種・活動類型マップ</p>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
+                    </a>
+                    <a href="corporate-walking-program.php" class="article-link">
+                        <span class="stat-pill bg-emerald-50 text-emerald-700">★★★</span>
+                        <div class="min-w-0">
+                            <p class="font-bold text-sm">企業が「お散歩プログラム」を導入すべき5つの理由</p>
+                            <p class="text-xs text-faint mt-0.5">経団連334社×TNFD209社データに基づくB2B分析</p>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
+                    </a>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Cluster 4: KNOW × HEALTH -->
+    <!-- Category 2: 里山イニシアティブ -->
+    <section id="satoyama" class="py-10 px-6 cluster-section">
+        <div class="max-w-4xl mx-auto">
+            <div class="cluster-card p-6 md:p-8" style="border-color: rgba(34, 197, 94, 0.15);">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                        <i data-lucide="mountain" class="w-5 h-5 text-green-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-green-600 uppercase tracking-wider">Category 2</p>
+                        <h2 class="text-xl font-black">里山イニシアティブ</h2>
+                    </div>
+                </div>
+                <p class="text-muted mb-6 leading-relaxed">2010年の名古屋国際会議で生まれた里山の知恵を世界に広げる取り組み。348の組織が参加する、人と自然の共生モデル。</p>
+
+                <div class="space-y-2">
+                    <a href="satoyama-initiative.php" class="article-link">
+                        <span class="stat-pill bg-green-50 text-green-700">★★★</span>
+                        <div class="min-w-0">
+                            <p class="font-bold text-sm">里山イニシアチブとは？市民科学との接点</p>
+                            <p class="text-xs text-faint mt-0.5">COP10発・日本の知恵が世界標準に。IPSI 348組織の取り組み</p>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Category 3: 自然と健康の科学 -->
     <section id="health" class="py-10 px-6 cluster-section">
         <div class="max-w-4xl mx-auto">
             <div class="cluster-card p-6 md:p-8" style="border-color: rgba(139, 92, 246, 0.15);">
@@ -282,13 +319,21 @@ Auth::init();
                         <i data-lucide="brain" class="w-5 h-5 text-violet-600"></i>
                     </div>
                     <div>
-                        <p class="text-xs font-bold text-violet-600 uppercase tracking-wider">Cluster 4</p>
-                        <h2 class="text-xl font-black">KNOW × HEALTH — 生きものを知り、健康に歩く</h2>
+                        <p class="text-xs font-bold text-violet-600 uppercase tracking-wider">Category 3</p>
+                        <h2 class="text-xl font-black">自然と健康の科学</h2>
                     </div>
                 </div>
-                <p class="text-muted mb-6 leading-relaxed">ikimonの核心。お散歩×生きもの観察が脳と身体をどう変えるのか、科学的エビデンスで解説します。</p>
+                <p class="text-muted mb-6 leading-relaxed">お散歩×生きもの観察が脳と身体をどう変えるのか。科学的エビデンスで解説します。</p>
 
                 <div class="space-y-2">
+                    <a href="walking-brain-science.php" class="article-link">
+                        <span class="stat-pill bg-violet-50 text-violet-700">★★★</span>
+                        <div class="min-w-0">
+                            <p class="font-bold text-sm">自然の中を歩くと脳に何が起きるのか？</p>
+                            <p class="text-xs text-faint mt-0.5">5つのメカニズムを科学的エビデンスとともに解説</p>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
+                    </a>
                     <a href="steps-dementia-prevention.php" class="article-link">
                         <span class="stat-pill bg-violet-50 text-violet-700">★★★</span>
                         <div class="min-w-0">
@@ -305,47 +350,61 @@ Auth::init();
                         </div>
                         <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
                     </a>
-                    <div class="article-link opacity-50 cursor-default">
-                        <span class="stat-pill bg-gray-100 text-gray-400">★★★</span>
-                        <div class="min-w-0">
-                            <p class="font-bold text-sm text-faint">歩数×同定数が脳を変える｜ikimonの活用法</p>
-                            <p class="text-xs text-gray-300">準備中</p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Cluster 2: DATA -->
-    <section id="data" class="py-10 px-6 cluster-section">
+    <!-- Category 4: 地方創生と生きもの -->
+    <section id="regional" class="py-10 px-6 cluster-section">
+        <div class="max-w-4xl mx-auto">
+            <div class="cluster-card p-6 md:p-8" style="border-color: rgba(249, 115, 22, 0.15);">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                        <i data-lucide="map" class="w-5 h-5 text-orange-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-orange-600 uppercase tracking-wider">Category 4</p>
+                        <h2 class="text-xl font-black">地方創生と生きもの</h2>
+                    </div>
+                </div>
+                <p class="text-muted mb-6 leading-relaxed">消滅可能性自治体744。しかし過疎地域ほど自然は豊か。自然資本を活かした地方創生の可能性。</p>
+
+                <div class="space-y-2">
+                    <a href="regional-biodiversity.php" class="article-link">
+                        <span class="stat-pill bg-orange-50 text-orange-700">★★★</span>
+                        <div class="min-w-0">
+                            <p class="font-bold text-sm">地方創生と生物多様性——消滅可能性自治体が持つ自然資本</p>
+                            <p class="text-xs text-faint mt-0.5">増田レポート、自然共生サイト、エコツーリズム、市民科学の可能性</p>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Category 5: 日本の生物多様性 -->
+    <section id="japan-bio" class="py-10 px-6 cluster-section">
         <div class="max-w-4xl mx-auto">
             <div class="cluster-card p-6 md:p-8" style="border-color: rgba(6, 182, 212, 0.15);">
                 <div class="flex items-center gap-3 mb-6">
                     <div class="w-10 h-10 rounded-xl bg-cyan-100 flex items-center justify-center">
-                        <i data-lucide="bar-chart-3" class="w-5 h-5 text-cyan-600"></i>
+                        <i data-lucide="globe-2" class="w-5 h-5 text-cyan-600"></i>
                     </div>
                     <div>
-                        <p class="text-xs font-bold text-cyan-600 uppercase tracking-wider">Cluster 2 & 5</p>
-                        <h2 class="text-xl font-black">DATA — 数字で見る生物多様性</h2>
+                        <p class="text-xs font-bold text-cyan-600 uppercase tracking-wider">Category 5</p>
+                        <h2 class="text-xl font-black">日本の生物多様性</h2>
                     </div>
                 </div>
-                <p class="text-muted mb-6 leading-relaxed">自然共生サイト420+サイトの全データベース、経団連334社のアンケート分析、そしてikimonが持つ741件の学術論文参照。</p>
+                <p class="text-muted mb-6 leading-relaxed">世界が認めた自然の宝庫。カエルやサンショウウオの74%が日本だけの種。名古屋で始まった国際目標から30by30まで。</p>
 
                 <div class="space-y-2">
-                    <a href="nature-coexistence-sites-analysis.php" class="article-link">
+                    <a href="japan-biodiversity.php" class="article-link">
                         <span class="stat-pill bg-cyan-50 text-cyan-700">★★★</span>
                         <div class="min-w-0">
-                            <p class="font-bold text-sm">自然共生サイト全420+認定 完全分析</p>
-                            <p class="text-xs text-faint mt-0.5">都道府県・業種・活動類型マップ</p>
-                        </div>
-                        <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
-                    </a>
-                    <a href="satoyama-initiative.php" class="article-link">
-                        <span class="stat-pill bg-cyan-50 text-cyan-700">★★★</span>
-                        <div class="min-w-0">
-                            <p class="font-bold text-sm">里山イニシアチブとは？市民科学との接点</p>
-                            <p class="text-xs text-faint mt-0.5">COP10発・日本の知恵が世界標準に。IPSI 348組織の取り組み</p>
+                            <p class="font-bold text-sm">日本の生物多様性——世界が注目する島国の自然</p>
+                            <p class="text-xs text-faint mt-0.5">日本だけの生きもの、イギリスとの比較、名古屋からの国際貢献、30by30</p>
                         </div>
                         <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
                     </a>
@@ -354,65 +413,30 @@ Auth::init();
         </div>
     </section>
 
-    <!-- Cluster 3: HOW -->
-    <section id="how" class="py-10 px-6 cluster-section">
+    <!-- Category 6: コミュニティガイドライン -->
+    <section id="guidelines" class="py-10 px-6 cluster-section">
         <div class="max-w-4xl mx-auto">
             <div class="cluster-card p-6 md:p-8" style="border-color: rgba(59, 130, 246, 0.15);">
                 <div class="flex items-center gap-3 mb-6">
                     <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                        <i data-lucide="building-2" class="w-5 h-5 text-blue-600"></i>
+                        <i data-lucide="shield-check" class="w-5 h-5 text-blue-600"></i>
                     </div>
                     <div>
-                        <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Cluster 3</p>
-                        <h2 class="text-xl font-black">HOW — 企業・自治体の取り組み</h2>
+                        <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Category 6</p>
+                        <h2 class="text-xl font-black">コミュニティガイドライン</h2>
                     </div>
                 </div>
-                <p class="text-muted mb-6 leading-relaxed">経団連334社調査、TNFD対応209社分析、そしてikimonを活用した健康経営プログラム。</p>
+                <p class="text-muted mb-6 leading-relaxed">ikimonで活動するためのルールと倫理。誠実な記録、互いの尊重、自然への配慮。</p>
 
                 <div class="space-y-2">
-                    <div class="article-link opacity-50 cursor-default">
-                        <span class="stat-pill bg-gray-100 text-gray-400">★★☆</span>
-                        <div class="min-w-0">
-                            <p class="font-bold text-sm text-faint">経団連334社アンケートからわかること</p>
-                            <p class="text-xs text-gray-300">準備中</p>
-                        </div>
-                    </div>
-                    <a href="corporate-walking-program.php" class="article-link">
+                    <a href="/guidelines.php" class="article-link">
                         <span class="stat-pill bg-blue-50 text-blue-700">★★★</span>
                         <div class="min-w-0">
-                            <p class="font-bold text-sm">企業が「お散歩プログラム」を導入すべき5つの理由</p>
-                            <p class="text-xs text-faint mt-0.5">経団連334社×TNFD209社データに基づくB2B分析</p>
+                            <p class="font-bold text-sm">コミュニティガイドライン</p>
+                            <p class="text-xs text-faint mt-0.5">観察ルール・データ品質・倫理・安全のための指針</p>
                         </div>
                         <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"></i>
                     </a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Cluster 6: DO -->
-    <section id="do" class="py-10 px-6 cluster-section">
-        <div class="max-w-4xl mx-auto">
-            <div class="cluster-card p-6 md:p-8" style="border-color: rgba(245, 158, 11, 0.15);">
-                <div class="flex items-center gap-3 mb-6">
-                    <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                        <i data-lucide="target" class="w-5 h-5 text-amber-600"></i>
-                    </div>
-                    <div>
-                        <p class="text-xs font-bold text-amber-600 uppercase tracking-wider">Cluster 6</p>
-                        <h2 class="text-xl font-black">DO — 始めてみよう</h2>
-                    </div>
-                </div>
-                <p class="text-muted mb-6 leading-relaxed">明日からできること。あなたの近所から、世界の生物多様性に貢献する第一歩を。</p>
-
-                <div class="space-y-2">
-                    <div class="article-link opacity-50 cursor-default">
-                        <span class="stat-pill bg-gray-100 text-gray-400">★★★</span>
-                        <div class="min-w-0">
-                            <p class="font-bold text-sm text-faint">ikimon×健康経営：お散歩プログラムの始め方</p>
-                            <p class="text-xs text-gray-300">準備中 — B2B向け導入ガイド</p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

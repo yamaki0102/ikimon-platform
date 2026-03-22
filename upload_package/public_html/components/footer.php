@@ -22,6 +22,9 @@
                 <div class="flex flex-col gap-0">
                     <a href="/guide/nature-positive.php" class="hover:text-text transition py-2 min-h-11 flex items-center">ネイチャーポジティブガイド</a>
                     <a href="/guide/satoyama-initiative.php" class="hover:text-text transition py-2 min-h-11 flex items-center">里山イニシアティブガイド</a>
+                    <a href="/guide/walking-brain-science.php" class="hover:text-text transition py-2 min-h-11 flex items-center">自然と健康の科学</a>
+                    <a href="/guide/regional-biodiversity.php" class="hover:text-text transition py-2 min-h-11 flex items-center">地方創生と生きもの</a>
+                    <a href="/guide/japan-biodiversity.php" class="hover:text-text transition py-2 min-h-11 flex items-center">日本の生物多様性</a>
                     <a href="/guidelines.php" class="hover:text-text transition py-2 min-h-11 flex items-center"><?php echo __('nav.guidelines'); ?></a>
                 </div>
             </div>
