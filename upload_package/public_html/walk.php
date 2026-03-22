@@ -955,9 +955,25 @@ async function autoUpload() {
 
     try {
         var resp = await fetch('/api/v2/passive_event.php', {
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            credentials:'same-origin',
             body: JSON.stringify({events:events, session:session})
         });
+
+        if (resp.status === 401) {
+            updateUploadStatus('⚠️ ログインが切れました。再ログインしてください', 'amber');
+            savePending(events, session);
+            setTimeout(function(){ window.location.href = '/login.php?redirect=' + encodeURIComponent(location.pathname); }, 2000);
+            return;
+        }
+        if (resp.status === 429) {
+            updateUploadStatus('⏳ 送信制限中です。少し待ってから再試行します', 'amber');
+            savePending(events, session);
+            setTimeout(function(){ retryPending(); }, 10000);
+            return;
+        }
+
         var json = await resp.json();
         if (json.success) {
             var count = (json.data && json.data.observations_created) || events.length;
@@ -966,12 +982,17 @@ async function autoUpload() {
             clearSession();
             postWalkSummary();
         } else {
-            throw new Error(json.error && json.error.message || 'Server error');
+            var errMsg = (json.error && json.error.message) || 'サーバーエラー';
+            savePending(events, session);
+            updateUploadStatus('❌ 送信エラー: ' + errMsg + '（データは保存済み）', 'amber');
         }
     } catch(e) {
-        // オフライン or サーバーエラー → localStorage に保存して後で送信
         savePending(events, session);
-        updateUploadStatus('📱 オフライン保存しました（次回接続時に自動送信）', 'amber');
+        if (navigator.onLine) {
+            updateUploadStatus('❌ サーバー接続エラー（データは保存済み、自動リトライします）', 'amber');
+        } else {
+            updateUploadStatus('📱 オフライン保存しました（接続回復時に自動送信）', 'amber');
+        }
     }
 }
 
@@ -1015,23 +1036,39 @@ async function postWalkSummary() {
 async function retryPending() {
     var pending = getPending();
     if (pending.length === 0) return;
+    var remaining = [];
     for (var i = 0; i < pending.length; i++) {
         try {
             var resp = await fetch('/api/v2/passive_event.php', {
-                method:'POST', headers:{'Content-Type':'application/json'},
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                credentials:'same-origin',
                 body: JSON.stringify({events:pending[i].events, session:pending[i].session})
             });
+            if (resp.status === 401) {
+                console.warn('Walk retry: auth expired, keeping pending data');
+                remaining = pending.slice(i);
+                break;
+            }
             var json = await resp.json();
             if (json.success) {
-                console.log('Pending walk data uploaded:', pending[i].events.length, 'events');
+                console.log('✅ Pending walk data uploaded:', pending[i].events.length, 'events');
+                updateUploadStatus('✅ 保留データを送信しました', 'green');
+            } else {
+                console.warn('Walk retry: server rejected:', json.error);
+                remaining.push(pending[i]);
             }
         } catch(e) {
-            // まだオフライン — 残りはそのまま
-            localStorage.setItem(PENDING_KEY, JSON.stringify(pending.slice(i)));
-            return;
+            console.warn('Walk retry: network error, keeping remaining');
+            remaining = remaining.concat(pending.slice(i));
+            break;
         }
     }
-    clearPending();
+    if (remaining.length > 0) {
+        localStorage.setItem(PENDING_KEY, JSON.stringify(remaining));
+    } else {
+        clearPending();
+    }
 }
 
 // ===== Manual retry button =====
@@ -1042,6 +1079,23 @@ async function manualUpload() {
 
 // ページ読み込み時に未送信データを送信試行
 retryPending();
+
+// オンライン復帰時に自動リトライ
+window.addEventListener('online', function() {
+    console.log('🔄 Walk: Online detected, retrying pending...');
+    setTimeout(retryPending, 1500);
+});
+
+// タブ復帰時にもリトライ
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && navigator.onLine) {
+        var pending = getPending();
+        if (pending.length > 0) {
+            console.log('🔄 Walk: Tab visible, retrying pending...');
+            retryPending();
+        }
+    }
+});
 
 // ===== Nearby Toilets (Overpass API) =====
 function loadNearbyToilets(lat, lng, targetMap) {

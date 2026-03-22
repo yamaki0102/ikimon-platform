@@ -630,9 +630,25 @@ function flushEvents(isFinal) {
     fetch('/api/v2/passive_event.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
+        credentials: 'same-origin',
         body: JSON.stringify(payload)
-    }).then(function(r) { return r.json(); })
+    }).then(function(r) {
+        if (r.status === 401) {
+            dbg('⚠️ ログイン切れ — 再ログインが必要です');
+            saveScanPending(batch, payload.session);
+            if (typeof showToast === 'function') showToast('ログインが切れました。再ログインしてください', 'warning');
+            setTimeout(function(){ window.location.href = '/login.php?redirect=' + encodeURIComponent(location.pathname); }, 2000);
+            return null;
+        }
+        if (r.status === 429) {
+            dbg('⏳ レート制限 — 10秒後にリトライ');
+            saveScanPending(batch, payload.session);
+            return null;
+        }
+        return r.json();
+    })
     .then(function(data) {
+        if (!data) return;
         if (data.success) {
             S.sentEventCount += batch.length;
             if (data.data && data.data.session_id) S.serverSessionId = data.data.session_id;
@@ -642,10 +658,16 @@ function flushEvents(isFinal) {
                 renderScanQuests(data.scan_quests);
             }
         } else {
-            throw new Error('Server error');
+            var errMsg = (data.error && data.error.message) || 'サーバーエラー';
+            dbg('❌ 送信エラー: ' + errMsg);
+            saveScanPending(batch, payload.session);
         }
     }).catch(function(e) {
-        dbg('⚠️ 送信失敗 → オフライン保存');
+        if (navigator.onLine) {
+            dbg('❌ サーバー接続エラー（データは保存済み）');
+        } else {
+            dbg('📱 オフライン — データを保存しました');
+        }
         saveScanPending(batch, payload.session);
     });
 
@@ -696,12 +718,19 @@ async function retryScanPending() {
                 var resp = await fetch('/api/v2/passive_event.php', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
                     body: JSON.stringify({events: p.events, session: p.session})
                 });
+                if (resp.status === 401) {
+                    remaining = remaining.concat(pending.slice(i));
+                    dbg('⚠️ 再送中にログイン切れ');
+                    break;
+                }
                 var json = await resp.json();
                 if (!json.success) remaining.push(p);
             } catch(e) {
-                remaining.push(pending[i]);
+                remaining = remaining.concat(pending.slice(i));
+                break;
             }
         }
         localStorage.setItem(key, JSON.stringify(remaining));
@@ -1719,6 +1748,24 @@ document.getElementById('btn-stop').addEventListener('click', stopScan);
 
 // ページ読込時に未送信データを自動再送
 retryScanPending();
+
+// オンライン復帰時に自動リトライ
+window.addEventListener('online', function() {
+    dbg('🔄 Online detected, retrying pending...');
+    setTimeout(retryScanPending, 1500);
+});
+
+// タブ復帰時にもリトライ
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && navigator.onLine) {
+        var key = 'ikimon_scan_pending';
+        var pending = JSON.parse(localStorage.getItem(key) || '[]');
+        if (pending.length > 0) {
+            dbg('🔄 Tab visible, retrying pending...');
+            retryScanPending();
+        }
+    }
+});
 
 // ページ離脱時にも未送信データを保存
 window.addEventListener('beforeunload', function() {
