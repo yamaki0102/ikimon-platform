@@ -871,13 +871,6 @@
     width: 100%;
     max-width: 560px;
     background: var(--color-bg-surface, white);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.zukan-modal__content > div:first-child {
-    flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
@@ -1279,7 +1272,9 @@
 
 /* ── Book-style Page Navigation (sticky bottom) ── */
 .zukan-book-nav {
-    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
     padding: 10px var(--zukan-space-md);
     border-top: 2px solid var(--color-border);
     background: var(--color-bg-surface, white);
