@@ -484,8 +484,9 @@ class MyZukanService
 
     private static function encounterLabel(int $count): string
     {
+        if ($count >= 30) return self::ENCOUNTER_LABELS[30];
         if ($count >= 10) return self::ENCOUNTER_LABELS[10];
-        if ($count >= 3)  return self::ENCOUNTER_LABELS[3];
+        if ($count >= 5)  return self::ENCOUNTER_LABELS[5];
         if ($count >= 2)  return self::ENCOUNTER_LABELS[2];
         return self::ENCOUNTER_LABELS[1];
     }
