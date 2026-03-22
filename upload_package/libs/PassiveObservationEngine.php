@@ -62,6 +62,15 @@ class PassiveObservationEngine
             $speciesSeen[$speciesKey] = $result;
         }
 
+        // 和名解決（BirdNET英名→和名）
+        foreach ($speciesSeen as &$detection) {
+            $detection['taxon_name'] = self::resolveJapaneseName(
+                $detection['taxon_name'],
+                $detection['scientific_name'] ?? null
+            );
+        }
+        unset($detection);
+
         // 観察レコードに変換
         foreach ($speciesSeen as $speciesKey => $detection) {
             $observations[] = self::toObservation($detection, $userId, $sessionId, $sessionMeta);
@@ -261,5 +270,36 @@ class PassiveObservationEngine
             $month >= 9 && $month <= 11 => 'Autumn',
             default                     => 'Winter',
         };
+    }
+
+    private static function resolveJapaneseName(string $name, ?string $scientificName): string
+    {
+        if (!preg_match('/^[A-Za-z]/', $name)) {
+            return $name;
+        }
+
+        try {
+            $omoikanePath = ROOT_DIR . '/libs/OmoikaneSearchEngine.php';
+            if (!file_exists($omoikanePath)) return $name;
+            require_once $omoikanePath;
+
+            $engine = new \OmoikaneSearchEngine();
+
+            if ($scientificName) {
+                $resolved = $engine->resolveByScientificName($scientificName);
+                if ($resolved && !empty($resolved['japanese_name'])) {
+                    return $resolved['japanese_name'];
+                }
+            }
+
+            $resolved = $engine->resolveByJapaneseName($name);
+            if ($resolved && !empty($resolved['japanese_name'])) {
+                return $resolved['japanese_name'];
+            }
+        } catch (\Throwable $e) {
+            error_log("[PassiveObservationEngine] resolveJapaneseName error: " . $e->getMessage());
+        }
+
+        return $name;
     }
 }
