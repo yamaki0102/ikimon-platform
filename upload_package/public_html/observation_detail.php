@@ -260,11 +260,15 @@ $dqInfo = DataQuality::getGradeInfo($dqGrade);
 $dqHints = DataQuality::getImprovementHints($obs);
 
 // Passive / Walk Mode Detection
-$isPassive = ($obs['source'] ?? '') === 'passive';
+$isPassive = ($obs['source'] ?? '') === 'passive'
+    || in_array($obs['observation_source'] ?? '', ['walk', 'live-scan', 'walk-summary', 'live-scan-summary']);
+$isSummaryObs = in_array($obs['observation_source'] ?? '', ['walk-summary', 'live-scan-summary']);
 $passiveSessionId = $obs['session_id'] ?? null;
 $passiveModel = $obs['detection_model'] ?? ($obs['model'] ?? null);
 $passiveConfidence = $obs['detection_confidence'] ?? ($obs['confidence'] ?? null);
 $passiveSessionObservations = [];
+$sessionLog = null;
+$sessionRecap = null;
 if ($isPassive && $passiveSessionId) {
     $allObs = DataStore::fetchAll('observations');
     foreach ($allObs as $o) {
@@ -272,6 +276,14 @@ if ($isPassive && $passiveSessionId) {
             $passiveSessionObservations[] = $o;
         }
     }
+    $allSessions = DataStore::fetchAll('passive_sessions');
+    foreach ($allSessions as $s) {
+        if (($s['session_id'] ?? '') === $passiveSessionId) {
+            $sessionLog = $s;
+            break;
+        }
+    }
+    $sessionRecap = DataStore::get("session_recaps/{$passiveSessionId}");
 }
 
 // Multi-Subject: subjects[] を保証
@@ -584,6 +596,61 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 </span>
             </div>
 
+            <!-- Session Context Card -->
+            <?php if ($sessionLog): ?>
+            <?php
+                $sessMeta = $sessionLog['session_meta'] ?? [];
+                $sessDurSec = (int)($sessMeta['duration_sec'] ?? 0);
+                $sessDurMin = max(1, round($sessDurSec / 60));
+                $sessDistM = (int)($sessMeta['distance_m'] ?? 0);
+                $sessSpecies = (int)($sessionLog['summary']['species_count'] ?? count($passiveSessionObservations) + 1);
+                $sessScanMode = $sessMeta['scan_mode'] ?? 'walk';
+                $sessModeIcon = $sessScanMode === 'walk' ? '🚶' : '📡';
+                $sessModeLabel = $sessScanMode === 'walk' ? 'ウォーク' : 'ライブスキャン';
+            ?>
+            <div class="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-lg"><?= $sessModeIcon ?></span>
+                    <span class="text-sm font-bold text-emerald-900"><?= $sessModeLabel ?>セッション</span>
+                </div>
+                <div class="grid grid-cols-3 gap-3 text-center">
+                    <div>
+                        <div class="text-lg font-black text-emerald-800"><?= $sessDurMin ?>分</div>
+                        <div class="text-[10px] text-emerald-600">時間</div>
+                    </div>
+                    <?php if ($sessDistM > 0): ?>
+                    <div>
+                        <div class="text-lg font-black text-emerald-800"><?= round($sessDistM / 1000, 1) ?>km</div>
+                        <div class="text-[10px] text-emerald-600">距離</div>
+                    </div>
+                    <?php else: ?>
+                    <div>
+                        <div class="text-lg font-black text-emerald-800"><?= (int)($sessMeta['route_points'] ?? 0) ?></div>
+                        <div class="text-[10px] text-emerald-600">GPS点</div>
+                    </div>
+                    <?php endif; ?>
+                    <div>
+                        <div class="text-lg font-black text-emerald-800"><?= $sessSpecies ?>種</div>
+                        <div class="text-[10px] text-emerald-600">検出</div>
+                    </div>
+                </div>
+                <?php if ($sessionRecap && !empty($sessionRecap['narrative'])): ?>
+                <div class="mt-3 text-xs text-emerald-800 bg-white/60 rounded-xl p-3 leading-relaxed">
+                    <?= htmlspecialchars(mb_substr($sessionRecap['narrative'], 0, 150)) ?><?= mb_strlen($sessionRecap['narrative']) > 150 ? '…' : '' ?>
+                </div>
+                <?php endif; ?>
+                <?php if ($passiveConfidence): ?>
+                <div class="mt-3 flex items-center gap-2">
+                    <span class="text-[10px] text-emerald-600">AI信頼度</span>
+                    <div class="flex-1 bg-emerald-200/50 rounded-full h-1.5">
+                        <div class="bg-emerald-500 h-1.5 rounded-full" style="width: <?= round((float)$passiveConfidence * 100) ?>%"></div>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-700"><?= round((float)$passiveConfidence * 100) ?>%</span>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
             <!-- Species Info (Compact) -->
             <div class="bg-surface rounded-2xl p-5 border border-border shadow-sm">
                 <div class="mb-2 text-xs text-muted font-mono">
@@ -660,10 +727,14 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             <!-- Session Observations -->
             <?php if (!empty($passiveSessionObservations)): ?>
                 <div class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
-                    <div class="flex items-center gap-2 mb-3">
+                    <div class="flex items-center gap-2 mb-3 flex-wrap">
                         <i data-lucide="footprints" class="w-4 h-4 text-primary"></i>
-                        <p class="text-sm font-bold text-text">同じウォークセッション</p>
+                        <p class="text-sm font-bold text-text">同じセッション</p>
                         <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary"><?php echo count($passiveSessionObservations); ?>件</span>
+                        <?php if ($sessionLog): ?>
+                            <?php $sm = $sessionLog['session_meta'] ?? []; ?>
+                            <span class="text-[10px] text-muted"><?= max(1, round(((int)($sm['duration_sec'] ?? 0)) / 60)) ?>分<?= ((int)($sm['distance_m'] ?? 0)) > 0 ? ' · ' . round(((int)($sm['distance_m'] ?? 0)) / 1000, 1) . 'km' : '' ?></span>
+                        <?php endif; ?>
                     </div>
                     <div class="space-y-2">
                         <?php foreach (array_slice($passiveSessionObservations, 0, 10) as $sessionObs): ?>
@@ -700,7 +771,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         <span class="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
                             <i data-lucide="users" class="w-4 h-4 text-primary"></i>
                         </span>
-                        みんなの推測ノート
+                        <?= $isPassive ? 'AI判定フィードバック' : 'みんなの推測ノート' ?>
                         <?php if (count($obs['identifications'] ?? []) > 0): ?>
                             <span class="text-token-xs bg-primary/15 text-primary font-bold px-2 py-0.5 rounded-full"><?php echo count($obs['identifications']); ?></span>
                         <?php endif; ?>
@@ -708,8 +779,13 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 </div>
                 <?php if (empty($obs['identifications'])): ?>
                     <div class="text-center py-8 bg-surface rounded-2xl border border-border border-dashed">
-                        <p class="text-sm font-bold text-text mb-1">まだ推測コメントはありません</p>
-                        <p class="text-xs text-muted">知っていることを気軽に書いてみよう。</p>
+                        <?php if ($isPassive): ?>
+                            <p class="text-sm font-bold text-text mb-1">AIの判定についてどう思う？</p>
+                            <p class="text-xs text-muted">補足情報や正しい名前があれば教えてね。</p>
+                        <?php else: ?>
+                            <p class="text-sm font-bold text-text mb-1">まだ推測コメントはありません</p>
+                            <p class="text-xs text-muted">知っていることを気軽に書いてみよう。</p>
+                        <?php endif; ?>
                     </div>
                 <?php else: ?>
                     <?php foreach (array_reverse($obs['identifications']) as $ident): ?>
@@ -735,8 +811,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             <div class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
                 <div class="flex items-center gap-3">
                     <?php
-                    $observerName = $obs['user']['name'] ?? 'Unknown';
-                    $observerAvatar = $obs['user']['avatar'] ?? 'https://i.pravatar.cc/100?u=' . ($obs['user_id'] ?? '');
+                    $observerName = $obs['user_name'] ?? $obs['user_display_name'] ?? $obs['user']['name'] ?? BioUtils::getUserName($obs['user_id'] ?? '');
+                    $observerAvatar = $obs['user_avatar'] ?? $obs['user']['avatar'] ?? 'https://i.pravatar.cc/150?u=' . ($obs['user_id'] ?? '');
                     $observerProfileLink = '/profile.php?id=' . urlencode($obs['user_id'] ?? '');
                     ?>
                     <a href="<?php echo $observerProfileLink; ?>">
@@ -744,7 +820,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     </a>
                     <div>
                         <a href="<?php echo $observerProfileLink; ?>" class="text-sm font-bold text-text hover:text-primary transition"><?php echo htmlspecialchars($observerName); ?></a>
-                        <p class="text-xs text-muted">観察者</p>
+                        <p class="text-xs text-muted"><?= $isPassive ? '記録者' : '観察者' ?></p>
                     </div>
                 </div>
             </div>
@@ -1927,7 +2003,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <span class="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
                                 <i data-lucide="users" class="w-4 h-4 text-primary"></i>
                             </span>
-                            みんなの推測ノート
+                            <?= $isPassive ? 'AI判定フィードバック' : 'みんなの推測ノート' ?>
                             <?php if (count($obs['identifications'] ?? []) > 0): ?>
                                 <span class="text-token-xs bg-primary/15 text-primary font-bold px-2 py-0.5 rounded-full"><?php echo count($obs['identifications']); ?></span>
                             <?php endif; ?>
@@ -1943,9 +2019,14 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <div id="id-list-container" class="space-y-3">
                         <?php if (empty($obs['identifications'])): ?>
                             <div class="text-center py-12 bg-surface rounded-2xl border border-border border-dashed">
-                                <div class="text-5xl mb-4">🌱</div>
-                                <p class="text-sm font-bold text-text mb-1">まだ推測コメントはありません</p>
-                                <p class="text-xs text-muted mb-4">知っていることを気軽に書いてみよう。<br>小さなヒントも投稿者の助けになるよ！</p>
+                                <div class="text-5xl mb-4"><?= $isPassive ? '🤖' : '🌱' ?></div>
+                                <?php if ($isPassive): ?>
+                                    <p class="text-sm font-bold text-text mb-1">AIの判定についてどう思う？</p>
+                                    <p class="text-xs text-muted mb-4">補足情報や正しい名前があれば教えてね。</p>
+                                <?php else: ?>
+                                    <p class="text-sm font-bold text-text mb-1">まだ推測コメントはありません</p>
+                                    <p class="text-xs text-muted mb-4">知っていることを気軽に書いてみよう。<br>小さなヒントも投稿者の助けになるよ！</p>
+                                <?php endif; ?>
                                 <a href="/id_form.php?id=<?php echo urlencode($id); ?>"
                                     class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition border border-primary/20">
                                     <i data-lucide="zap" class="w-3.5 h-3.5"></i>

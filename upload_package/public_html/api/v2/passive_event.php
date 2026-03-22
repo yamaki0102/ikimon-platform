@@ -58,8 +58,17 @@ if (!api_rate_limit('passive_event', 10, 60)) {
 
 $user = Auth::user();
 $userId = $user['id'] ?? null;
-$userName = $user['name'] ?? 'Unknown';
+$userName = $user['name'] ?? '';
 $userAvatar = $user['avatar'] ?? null;
+if (empty($userName) || $userName === 'Unknown') {
+    require_once ROOT_DIR . '/libs/UserStore.php';
+    $freshUser = UserStore::findById($userId);
+    if ($freshUser && !empty($freshUser['name'])) {
+        $userName = $freshUser['name'];
+        $userAvatar = $freshUser['avatar'] ?? $userAvatar;
+    }
+}
+if (empty($userName)) $userName = 'Unknown';
 $body = api_json_body();
 
 $events = $body['events'] ?? [];
