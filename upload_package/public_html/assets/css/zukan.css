@@ -1024,6 +1024,23 @@
     box-shadow: 0 0 4px rgba(0,0,0,0.3);
 }
 
+.zukan-gallery__expand-hint {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    z-index: 2;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+}
+
 .zukan-gallery__counter {
     position: absolute;
     top: 10px;
@@ -1036,6 +1053,103 @@
     border-radius: 10px;
     z-index: 2;
     backdrop-filter: blur(4px);
+}
+
+/* ── Fullscreen Lightbox ── */
+.zukan-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.zukan-lightbox__bg {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+}
+
+.zukan-lightbox__close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+}
+
+.zukan-lightbox__counter {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 3;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.zukan-lightbox__img-wrap {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 50px 10px;
+}
+
+.zukan-lightbox__img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.zukan-lightbox__arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+}
+
+.zukan-lightbox__arrow--left { left: 8px; }
+.zukan-lightbox__arrow--right { right: 8px; }
+
+.zukan-lightbox__hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    color: rgba(255,255,255,0.4);
+    font-size: 0.7rem;
+    text-align: center;
+    pointer-events: none;
 }
 
 .zukan-modal__info {
