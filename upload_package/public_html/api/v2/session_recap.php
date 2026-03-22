@@ -303,10 +303,26 @@ try {
     error_log("[session_recap] Gamification error: " . $e->getMessage());
 }
 
-api_success([
+$recapResponse = [
     'narrative' => $narrative,
     'species_cards' => $speciesCards,
     'contribution' => $contribution,
     'rank_progress' => $rankProgress,
     'ai_disclaimer' => true,
-]);
+];
+
+$inputSessionId = $input['session_id'] ?? null;
+if ($inputSessionId) {
+    try {
+        DataStore::save("session_recaps/{$inputSessionId}", [
+            'narrative' => $narrative,
+            'contribution' => $contribution,
+            'species_count' => count($speciesCards),
+            'saved_at' => date('c'),
+        ]);
+    } catch (Throwable $e) {
+        error_log("[session_recap] Recap save error: " . $e->getMessage());
+    }
+}
+
+api_success($recapResponse);

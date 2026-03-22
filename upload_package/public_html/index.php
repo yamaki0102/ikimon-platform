@@ -22,7 +22,7 @@ $latest_obs = DataStore::getLatest('observations', 30, function ($item) use ($fi
     if (empty($userName)) return false;
 
     // 写真付き観察 OR 音声検出（ウォーク/スキャン）を許可
-    $isAudioDetection = in_array($item['observation_source'] ?? $item['source'] ?? '', ['walk', 'live-scan', 'passive', 'live-scan-summary']);
+    $isAudioDetection = in_array($item['observation_source'] ?? $item['source'] ?? '', ['walk', 'live-scan', 'passive', 'live-scan-summary', 'walk-summary']);
     if (!$isAudioDetection) {
         $photo = $item['photos'][0] ?? '';
         if (empty($photo) || strpos($photo, 'sample_') !== false) return false;
@@ -458,7 +458,8 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                             $feedHasImage = $feedPhoto && ThumbnailGenerator::exists($feedPhoto, 'md');
                             $feedImg = $feedHasImage ? ThumbnailGenerator::resolve($feedPhoto, 'md') : null;
                             $feedImgSm = $feedHasImage ? ThumbnailGenerator::resolve($feedPhoto, 'sm') : null;
-                            $isScanSummary = ($obs['observation_source'] ?? '') === 'live-scan-summary';
+                            $isScanSummary = in_array($obs['observation_source'] ?? '', ['live-scan-summary', 'walk-summary']);
+                            $isWalkSummary = ($obs['observation_source'] ?? '') === 'walk-summary';
                             $isAudioDet = in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'passive']);
                         ?>
                         <div class="<?= $isScanSummary ? 'w-full min-h-[160px]' : ($isAudioDet && !$feedHasImage ? 'w-full aspect-[4/3]' : 'aspect-square w-full') ?> bg-surface relative group select-none"
@@ -479,16 +480,23 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                                     $topSp = $ss['top_species'] ?? [];
                                     $envDesc = $ss['environment']['description'] ?? '';
                                 ?>
-                                <div class="flex flex-col gap-3 bg-gradient-to-br from-blue-900/90 to-purple-900/90 p-5">
+                                <div class="flex flex-col gap-3 bg-gradient-to-br <?= $isWalkSummary ? 'from-emerald-900/90 to-teal-900/90' : 'from-blue-900/90 to-purple-900/90' ?> p-5">
                                     <!-- ヘッダー -->
                                     <div class="flex items-center gap-3">
-                                        <span class="text-3xl">📡</span>
+                                        <span class="text-3xl"><?= $isWalkSummary ? '🚶' : '📡' ?></span>
                                         <div>
-                                            <div class="text-white font-bold">ライブスキャン <?= $dur ?>分間</div>
-                                            <div class="flex gap-2 text-xs mt-1">
+                                            <div class="text-white font-bold"><?= $isWalkSummary ? 'ウォーク' : 'ライブスキャン' ?> <?= $dur ?>分間</div>
+                                            <div class="flex gap-2 text-xs mt-1 flex-wrap">
                                                 <span class="px-2 py-0.5 bg-green-500/20 text-green-300 rounded-full"><?= $spCount ?>種検出</span>
-                                                <span class="px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded-full">🐦 <?= $ss['audio_detections'] ?? 0 ?></span>
-                                                <span class="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">📷 <?= $ss['visual_detections'] ?? 0 ?></span>
+                                                <?php if ($isWalkSummary): ?>
+                                                    <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full">🐦 <?= $ss['audio_detections'] ?? 0 ?></span>
+                                                    <?php if (($ss['distance_m'] ?? 0) > 0): ?>
+                                                    <span class="px-2 py-0.5 bg-teal-500/20 text-teal-300 rounded-full">📏 <?= round(($ss['distance_m'] ?? 0) / 1000, 1) ?>km</span>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <span class="px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded-full">🐦 <?= $ss['audio_detections'] ?? 0 ?></span>
+                                                    <span class="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">📷 <?= $ss['visual_detections'] ?? 0 ?></span>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>

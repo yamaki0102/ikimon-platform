@@ -549,6 +549,8 @@ function stopWalk() {
     });
     var speciesList = Object.values(speciesMap);
     var sec = Math.floor((Date.now() - W.startTime) / 1000);
+    W.speciesList = speciesList;
+    W.sessionDuration = sec;
     document.getElementById('sum-duration').textContent = Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
     document.getElementById('sum-species').textContent = speciesList.length;
     document.getElementById('sum-gps').textContent = W.routePoints.length + '点';
@@ -816,6 +818,7 @@ async function fetchRecap(speciesList, durationSec) {
                 lng: last ? last.lng : 0,
                 scan_mode: 'walk',
                 hour: new Date().getHours(),
+                session_id: W.sessionId || null,
             })
         });
         if (!resp.ok) return;
@@ -919,7 +922,9 @@ async function autoUpload() {
         if (json.success) {
             var count = (json.data && json.data.observations_created) || events.length;
             updateUploadStatus('✅ ' + count + '件のデータを送信しました', 'green');
+            W.sessionId = json.data?.session_id || null;
             clearSession();
+            postWalkSummary();
         } else {
             throw new Error(json.error && json.error.message || 'Server error');
         }
@@ -936,6 +941,34 @@ function updateUploadStatus(msg, color) {
     var colors = {green:'text-green-400', blue:'text-blue-400', amber:'text-amber-400', gray:'text-gray-500'};
     el.className = 'text-sm text-center p-3 ' + (colors[color] || 'text-gray-400');
     el.textContent = msg;
+}
+
+// ===== Post Walk Summary to Feed =====
+async function postWalkSummary() {
+    if (!W.speciesList || W.speciesList.length === 0) return;
+    try {
+        var last = W.routePoints.length > 0 ? W.routePoints[W.routePoints.length - 1] : null;
+        await fetch('/api/v2/scan_summary.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                scan_mode: 'walk',
+                duration_min: Math.floor((W.sessionDuration || 0) / 60),
+                species_count: W.speciesList.length,
+                total_detections: W.detections.length,
+                audio_detections: W.detections.length,
+                visual_detections: 0,
+                gps_points: W.routePoints.length,
+                species: W.speciesList,
+                distance_m: calcDistance(W.routePoints),
+                session_id: W.sessionId || null,
+                lat: last ? last.lat : null,
+                lng: last ? last.lng : null,
+            })
+        });
+    } catch(e) {
+        console.warn('Walk summary error:', e);
+    }
 }
 
 // ===== Retry pending uploads (on page load) =====
