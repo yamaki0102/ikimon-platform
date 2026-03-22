@@ -870,32 +870,33 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                 <!-- Lightbox -->
                 <?php $photoCount = max(1, count($obs['photos'] ?? [])); ?>
-                <div x-show="lightbox" x-cloak x-transition.opacity class="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-2 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="obs-lightbox-title"
+                <div x-show="lightbox" x-cloak x-transition.opacity class="fixed inset-0 z-[100] bg-black/95 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="obs-lightbox-title"
                     @keydown.window.left.prevent="lightbox && lbScale<=1 && (photoActive = (photoActive - 1 + <?php echo $photoCount; ?>) % <?php echo $photoCount; ?>)"
                     @keydown.window.right.prevent="lightbox && lbScale<=1 && (photoActive = (photoActive + 1) % <?php echo $photoCount; ?>)"
                     @keydown.window.escape.prevent="lightbox = false; lbScale=1"
                     @touchstart="lbOnTouchStart($event)"
                     @touchmove.prevent="lbOnTouchMove($event)"
-                    @touchend="lbOnTouchEnd($event)">
+                    @touchend="lbOnTouchEnd($event)"
+                    @dblclick="lbScale = lbScale > 1 ? 1 : 2.5; lbPanX=0; lbPanY=0">
                     <h2 id="obs-lightbox-title" class="sr-only">観察写真</h2>
                     <button @click.stop="lightbox = false; lbScale=1" aria-label="閉じる" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101] hover:bg-white/20 transition">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
                     <?php if (!empty($obs['photos'])): ?>
                         <?php foreach ($obs['photos'] as $idx => $photo): ?>
-                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" @dblclick.stop="lbScale = lbScale > 1 ? 1 : 2.5; lbPanX=0; lbPanY=0" alt="観察写真 <?php echo $idx + 1; ?>" class="max-w-full max-h-full object-contain select-none transition-transform duration-100" :style="photoActive === <?php echo $idx; ?> ? 'transform: scale('+lbScale+') translate('+lbPanX+'px,'+lbPanY+'px)' : ''">
+                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" alt="観察写真 <?php echo $idx + 1; ?>" class="absolute inset-0 w-full h-full object-contain select-none pointer-events-none" :style="photoActive === <?php echo $idx; ?> ? 'transform: scale('+lbScale+') translate('+lbPanX+'px,'+lbPanY+'px)' : ''">
                         <?php endforeach; ?>
                         <?php if ($photoCount > 1): ?>
-                        <button @click.stop="lbScale=1;lbPanX=0;lbPanY=0;photoActive = (photoActive - 1 + <?php echo $photoCount; ?>) % <?php echo $photoCount; ?>" aria-label="前の写真" class="absolute left-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
+                        <button @click.stop="lbScale=1;lbPanX=0;lbPanY=0;photoActive = (photoActive - 1 + <?php echo $photoCount; ?>) % <?php echo $photoCount; ?>" aria-label="前の写真" class="absolute left-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition z-[101]">
                             <i data-lucide="chevron-left" class="w-6 h-6"></i>
                         </button>
-                        <button @click.stop="lbScale=1;lbPanX=0;lbPanY=0;photoActive = (photoActive + 1) % <?php echo $photoCount; ?>" aria-label="次の写真" class="absolute right-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
+                        <button @click.stop="lbScale=1;lbPanX=0;lbPanY=0;photoActive = (photoActive + 1) % <?php echo $photoCount; ?>" aria-label="次の写真" class="absolute right-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition z-[101]">
                             <i data-lucide="chevron-right" class="w-6 h-6"></i>
                         </button>
-                        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/40 px-3 py-1 rounded-full">
+                        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/40 px-3 py-1 rounded-full z-[101]">
                             <span x-text="(photoActive + 1) + ' / ' + <?php echo $photoCount; ?>"></span>
                         </div>
-                        <div class="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/40 text-[10px]" x-show="lightbox" x-transition.opacity.delay.500ms>スワイプで次の写真 / 下スワイプで閉じる</div>
+                        <div class="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/40 text-[10px] z-[101]" x-show="lightbox" x-transition.opacity.delay.500ms>スワイプで次の写真 / 下スワイプで閉じる</div>
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>
