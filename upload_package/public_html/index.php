@@ -282,7 +282,7 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
 
         <!-- ==================== 学習ヒントカード (ログインユーザーのみ) ==================== -->
         <?php if ($currentUser): ?>
-        <section class="max-w-5xl mx-auto px-4 md:px-6 mb-4" x-data="learningHint()" x-init="load()" x-cloak>
+        <section class="max-w-5xl mx-auto px-4 md:px-6 mt-3 mb-4" x-data="learningHint()" x-init="load()" x-cloak>
             <template x-if="hint">
                 <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4">
                     <div class="flex items-start gap-3">
