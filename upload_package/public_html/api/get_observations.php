@@ -84,6 +84,16 @@ $observations = array_filter($observations, function ($obs) {
     return true;
 });
 
+// Source Filter: exclude sensor-based observations (walk, live-scan, passive, etc.)
+$excludeSources = $_GET['exclude_sources'] ?? '';
+if (!empty($excludeSources)) {
+    $excludeList = array_map('trim', explode(',', $excludeSources));
+    $observations = array_filter($observations, function ($obs) use ($excludeList) {
+        $src = $obs['observation_source'] ?? $obs['source'] ?? '';
+        return empty($src) || !in_array($src, $excludeList, true);
+    });
+}
+
 // Reverse sort by date
 usort($observations, function ($a, $b) {
     return strtotime($b['updated_at'] ?? $b['observed_at']) - strtotime($a['updated_at'] ?? $a['observed_at']);
