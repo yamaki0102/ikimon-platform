@@ -168,16 +168,16 @@ var currentSource = 'all';
 map.on('load', function() {
     map.addSource('observations', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 
-    // ヒートマップレイヤー（ズームアウト時）
+    // ヒートマップレイヤー（ズーム 14 まで）
     map.addLayer({
         id: 'obs-heat',
         type: 'heatmap',
         source: 'observations',
-        maxzoom: 12,
+        maxzoom: 14,
         paint: {
             'heatmap-weight': ['interpolate', ['linear'], ['get', 'confidence'], 0, 0.3, 1, 1],
-            'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 0.5, 12, 2],
-            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 4, 12, 20],
+            'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 0.5, 14, 3],
+            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 4, 14, 28],
             'heatmap-color': [
                 'interpolate', ['linear'], ['heatmap-density'],
                 0, 'rgba(0,0,0,0)',
@@ -187,18 +187,18 @@ map.on('load', function() {
                 0.8, 'rgba(245,158,11,0.8)',
                 1.0, 'rgba(239,68,68,0.9)'
             ],
-            'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.8, 14, 0]
+            'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 12, 0.85, 15, 0]
         }
     });
 
-    // ポイントレイヤー（ズームイン時）
+    // ポイントレイヤー（ズーム 14 以降のみ個別表示）
     map.addLayer({
         id: 'obs-points',
         type: 'circle',
         source: 'observations',
-        minzoom: 10,
+        minzoom: 14,
         paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 6, 13, 10, 16, 16, 18, 22],
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 8, 16, 14, 18, 20],
             'circle-color': [
                 'match', ['get', 'source'],
                 'post', '#a855f7',
@@ -206,7 +206,7 @@ map.on('load', function() {
                 'live-scan', '#3b82f6',
                 '#f59e0b'
             ],
-            'circle-stroke-width': 2.5,
+            'circle-stroke-width': 2,
             'circle-stroke-color': 'rgba(255,255,255,0.9)',
             'circle-opacity': 0.92,
         }
