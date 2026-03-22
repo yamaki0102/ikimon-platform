@@ -12,8 +12,9 @@
 class MeshCode
 {
     // 3次メッシュのセルサイズ（度）
-    const MESH3_LAT = 1.0 / 15.0;   // ≈ 0.0667°
-    const MESH3_LNG = 1.0 / 8.0;    // = 0.125° / 10 = 0.0125°
+    // 1次: lat=2/3°, lng=1° → 2次: /8 → 3次: /10
+    const MESH3_LAT = 1.0 / 120.0;  // (2/3) / 8 / 10 = 1/120° ≈ 0.00833° ≈ 0.93km
+    const MESH3_LNG = 1.0 / 80.0;   // 1 / 8 / 10 = 1/80° ≈ 0.0125° ≈ 1.14km
 
     /**
      * 緯度経度から 3次・4次メッシュコードを計算
@@ -75,7 +76,7 @@ class MeshCode
         $lat_sw = ($p + $q / 8.0 + $r / 80.0) / 1.5;
         $lng_sw = 100.0 + $u + $v / 8.0 + $w / 80.0;
         $lat_ne = $lat_sw + self::MESH3_LAT;
-        $lng_ne = $lng_sw + (1.0 / 80.0);
+        $lng_ne = $lng_sw + self::MESH3_LNG;
 
         return [$lat_sw, $lng_sw, $lat_ne, $lng_ne];
     }
