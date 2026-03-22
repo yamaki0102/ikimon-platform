@@ -41,10 +41,23 @@ $lat = floatval($_POST['lat'] ?? 0);
 $lng = floatval($_POST['lng'] ?? 0);
 
 $contextBlock = '';
+
+// GeoContext: OSM/地理データから環境文脈を取得
+$geoContextLine = '';
+if ($lat && $lng) {
+    try {
+        require_once ROOT_DIR . '/libs/GeoContext.php';
+        $geoContextLine = GeoContext::getPromptContext($lat, $lng);
+    } catch (Throwable $e) {
+        error_log("[scan_classify] GeoContext error: " . $e->getMessage());
+    }
+}
+
 $context = isset($_POST['context']) ? json_decode($_POST['context'], true) : null;
-if (is_array($context)) {
+if (is_array($context) || $geoContextLine) {
     $parts = [];
-    if (!empty($context['environment'])) {
+    if ($geoContextLine) $parts[] = $geoContextLine;
+    if (is_array($context) && !empty($context['environment'])) {
         $env = $context['environment'];
         $envLine = '環境: ';
         $envParts = [];

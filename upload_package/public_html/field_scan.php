@@ -156,6 +156,7 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
         <div style="display:flex;align-items:center;gap:8px;font-size:12px">
             <span id="data-usage" style="font-size:10px;color:#f97316;font-family:monospace;padding:2px 6px;border-radius:999px;background:rgba(249,115,22,0.15)">📶 0KB</span>
             <span id="timer" style="color:#999;font-family:monospace">0:00</span>
+            <span id="geo-label" style="display:none;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.2);color:#93c5fd;font-size:10px;font-weight:600"></span>
             <span style="padding:2px 8px;border-radius:999px;background:rgba(34,197,94,0.2);color:#4ade80;font-size:11px;font-weight:bold">
                 <span id="sp-count-top" style="font-weight:900">0</span>種
             </span>
@@ -430,6 +431,22 @@ async function startScan() {
             BioPrescreen.init().then(function(ok) {
                 dbg(ok ? '🧠 プレスクリーン準備完了' : '🧠 フォールバック: 全フレーム送信');
             });
+        }
+
+        // GeoContext: 環境ラベルを取得してステータスバーに表示
+        var geoPos = S.routePoints.length > 0 ? S.routePoints[0] : null;
+        if (geoPos) {
+            fetch('/api/v2/geo_context.php?lat=' + geoPos.lat + '&lng=' + geoPos.lng)
+                .then(function(r) { return r.json(); })
+                .then(function(j) {
+                    if (j.success && j.data && j.data.environment_label) {
+                        var gl = document.getElementById('geo-label');
+                        gl.textContent = j.data.environment_icon + ' ' + j.data.environment_label;
+                        gl.style.display = '';
+                        S.geoContext = j.data;
+                        dbg('🗺️ ' + j.data.environment_label);
+                    }
+                }).catch(function() {});
         }
 
         // 音声: 車モードはOFF（ノイズ・ラジオ誤検出防止）

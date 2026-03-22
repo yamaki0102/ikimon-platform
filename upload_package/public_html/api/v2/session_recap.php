@@ -88,7 +88,21 @@ try {
     error_log("[session_recap] Omoikane error: " . $e->getMessage());
 }
 
-// --- Contribution metrics (文脈依存8パターン) ---
+// --- GeoContext: 地理的環境文脈 ---
+$geoContrib = null;
+$geoLabel = '';
+if ($lat && $lng) {
+    try {
+        require_once ROOT_DIR . '/libs/GeoContext.php';
+        $geoContrib = GeoContext::getContributionContext($lat, $lng);
+        $geoCtx = GeoContext::getContext($lat, $lng);
+        $geoLabel = $geoCtx['environment_label'] ?? '';
+    } catch (Throwable $e) {
+        error_log("[session_recap] GeoContext error: " . $e->getMessage());
+    }
+}
+
+// --- Contribution metrics (文脈依存8パターン + 地理) ---
 $contribution = [];
 $userId = Auth::user()['id'] ?? '';
 $month = date('Y-m');
@@ -193,6 +207,11 @@ try {
         'icon' => '🏅',
         'text' => "キミの累計データ: {$totalUserCount}件。この地域の生態系理解に着実に貢献中",
     ];
+
+    // (9) 地理的環境文脈による貢献メッセージ
+    if ($geoContrib) {
+        $contribution[] = $geoContrib;
+    }
 } catch (Throwable $e) {
     error_log("[session_recap] Contribution error: " . $e->getMessage());
     $contribution[] = [
@@ -214,19 +233,22 @@ try {
         $plantNote = count($plantNames) > 0 ? "\n- 植生記録: " . implode('、', array_slice($plantNames, 0, 3)) . "（植生データは生態系の基盤記録として重要）" : '';
         $currentMonth = date('n');
 
+        $geoNote = $geoLabel ? "\n- 観察地点の環境: {$geoLabel}" : '';
+
         $narrativePrompt = <<<PROMPT
 あなたは自然観察の仲間です。以下の観察セッションについて、参加者への振り返りを書いてください。
 
 - 観察モード: {$scanMode}
 - 時間: {$durationMin}分、距離: {$distanceKm}km
-- 検出種: {$namesList}{$plantNote}
+- 検出種: {$namesList}{$plantNote}{$geoNote}
 
 要件:
 1. 最も印象的な発見について「へぇ！」と思える豆知識を1つ
-2. 植生レベルの記録（広葉樹等）があれば、なぜその記録が大切かを1文
-3. 季節（{$currentMonth}月）との関連
-4. 温かく前向き、対等なトーン（先生→生徒ではなく仲間として）
-5. 300字以内
+2. 観察地点の環境（公園、水辺、森林等）と検出種の関係に触れる
+3. 植生レベルの記録（広葉樹等）があれば、なぜその記録が大切かを1文
+4. 季節（{$currentMonth}月）との関連
+5. 温かく前向き、対等なトーン（先生→生徒ではなく仲間として）
+6. 300字以内
 PROMPT;
 
         $model = 'gemini-3.1-flash-lite-preview';
