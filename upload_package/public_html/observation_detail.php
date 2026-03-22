@@ -880,19 +880,19 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     @dblclick="lbScale = lbScale > 1 ? 1 : 2.5; lbPanX=0; lbPanY=0">
                     <h2 id="obs-lightbox-title" class="sr-only">観察写真</h2>
                     <?php if (!empty($obs['photos'])): ?>
-                    <img :src="lbPhotos[photoActive]" alt="観察写真" class="max-w-full max-h-full object-contain select-none" :style="lbScale > 1 ? 'transform: scale('+lbScale+') translate('+lbPanX+'px,'+lbPanY+'px)' : ''">
+                    <img :src="lbPhotos[photoActive]" alt="観察写真" class="max-w-full max-h-full object-contain select-none pointer-events-none" :style="lbScale > 1 ? 'transform: scale('+lbScale+') translate('+lbPanX+'px,'+lbPanY+'px)' : ''">
                     <?php endif; ?>
-                    <button @click.stop="lbClose()" aria-label="閉じる" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101] hover:bg-white/20 transition">
-                        <i data-lucide="x" class="w-6 h-6"></i>
+                    <button @click.stop="lbClose()" type="button" aria-label="閉じる" class="absolute top-3 right-3 text-white p-3 bg-white/15 rounded-full z-[101] hover:bg-white/25 active:bg-white/30 transition">
+                        <i data-lucide="x" class="w-7 h-7"></i>
                     </button>
                     <?php if ($photoCount > 1): ?>
-                    <button @click.stop="lbNav(-1)" aria-label="前の写真" class="absolute left-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition z-[101]">
-                        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                    <button @click.stop="lbNav(-1)" type="button" aria-label="前の写真" class="absolute left-1 top-1/2 -translate-y-1/2 text-white p-3 bg-white/15 rounded-full z-[101] hover:bg-white/25 active:bg-white/30 transition">
+                        <i data-lucide="chevron-left" class="w-7 h-7"></i>
                     </button>
-                    <button @click.stop="lbNav(1)" aria-label="次の写真" class="absolute right-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition z-[101]">
-                        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                    <button @click.stop="lbNav(1)" type="button" aria-label="次の写真" class="absolute right-1 top-1/2 -translate-y-1/2 text-white p-3 bg-white/15 rounded-full z-[101] hover:bg-white/25 active:bg-white/30 transition">
+                        <i data-lucide="chevron-right" class="w-7 h-7"></i>
                     </button>
-                    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/40 px-3 py-1 rounded-full z-[101]">
+                    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/40 px-3 py-1.5 rounded-full z-[101]">
                         <span x-text="(photoActive + 1) + ' / ' + <?php echo $photoCount; ?>"></span>
                     </div>
                     <?php endif; ?>
