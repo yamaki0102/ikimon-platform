@@ -50,6 +50,49 @@ Auth::init();
             <!-- Updates Timeline -->
             <div class="space-y-8">
 
+                <!-- v0.8.0 — My Zukan & Species Story -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.8.0</span>
+                        <time class="text-sm text-gray-500">2026年3月22日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">マイ図鑑リニューアル & AIパーソナライズ種解説</h2>
+                    <p class="text-gray-500 text-sm mb-4">図鑑を「マイ図鑑」に全面刷新。自分が出会った種だけの個人コレクションになり、AIがあなたの出会い体験に基づいた種解説を自動生成します。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>マイ図鑑</strong>: 図鑑を「自分が関わった種だけの個人コレクション」にリニューアル。投稿・同定・ライブスキャンで出会った種が自動的に蓄積されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>スキャンフレーム画像</strong>: ライブスキャンで検出された種のキーフレーム画像がマイ図鑑に表示されるように。撮影しなくても記録が残ります</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>AIパーソナライズ種解説</strong>: あなたの出会いコンテキスト（場所・季節・観察回数）に基づいた種解説をAIが自動生成。「3月の公園で3回出会ったシジュウカラ」のようなストーリーに</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>ポケモン図鑑風ページナビ</strong>: 種詳細ページに前後スワイプナビゲーション + 全種の総数表示。図鑑をめくる感覚で種を巡れます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>写真カルーセルギャラリー</strong>: 種に関連する全出会い写真をスワイプで閲覧。フルスクリーン写真ビューアも搭載</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>クエストシステム再設計</strong>: 自己決定理論（SDT）・自己効力感・ジョブクラフティング理論に基づくクエスト設計に刷新。やらされ感のない内発的動機づけに</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>フィールドシグナル拡張</strong>: 自分のシグナル（無期限表示）に加え、他ユーザーのコミュニティシグナルも表示。フィールドの情報共有が活性化します</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.8.0 — Fixes -->
+                <article x-show="filter === 'all' || filter === 'fix'" x-transition class="relative pl-8 border-l-2 border-amber-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-amber-500 ring-4 ring-amber-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">v0.8.0</span>
+                        <time class="text-sm text-gray-500">2026年3月22日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">FIX</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">ライトボックス・ライブマップ・データ品質改善</h2>
+                    <p class="text-gray-500 text-sm mb-4">写真閲覧体験の大幅改善、ライブマップのプライバシー強化、データ品質向上を行いました。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>ライトボックス全面改善</strong>: ピンチズーム対応、スワイプ矢印ナビゲーション、インラインSVGアイコン化、タッチ操作の全面整理。スマホでの写真閲覧が快適に</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>ライブマップ完全メッシュ化</strong>: 個別ポイント表示を廃止し、メッシュポリゴンベースに完全移行。プライバシー保護と視認性を両立</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>一般カテゴリ名フィルタ</strong>: 「常緑広葉樹」「ミツバチ属」等の一般名がマイ図鑑・投稿・同定に混入しないよう自動フィルタリング</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>重複種の自動統合</strong>: 「ミツバチ」と「ミツバチ属」等の重複エントリを自動マージ。同名種のtaxon_keyも名前ベースで統合</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>OAuthアカウント統合修正</strong>: merged/bannedアカウントをスキップしmerge先を正しく返すように修正</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>DataStore並行書き込み修正</strong>: 複数の同時書き込みでデータが消失するバグを修正。増分送信＋オフラインフォールバックも改善</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>観察カード・探索ページ修正</strong>: 「...」メニューとリアクション表示の修正、探索ページからセンサー系データを除外</span></li>
+                        <li class="flex items-start gap-2"><span class="text-amber-400 shrink-0">✓</span><span><strong>AI考察CSP修正</strong>: 「そうかも！」ボタンがCSPでブロックされる問題を解消。quick_post APIにAI考察キューイングも追加</span></li>
+                    </ul>
+                </article>
+
                 <!-- v0.7.1 — AI Context & Data Persistence -->
                 <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-emerald-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
@@ -200,27 +243,6 @@ Auth::init();
                     </ul>
                 </article>
 
-                <!-- v0.6.0 — Multi-Subject -->
-                <article class="relative pl-8 border-l-2 border-green-500/30">
-                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
-                    <div class="flex items-center gap-3 mb-3">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.6.0</span>
-                        <time class="text-sm text-gray-500">2026年3月19日</time>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
-                    </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">マルチサブジェクト観察 & 学名自動正規化</h2>
-                    <p class="text-gray-500 text-sm mb-4">1つの写真に複数の生物が写っている場合、それぞれ独立して同定・AI解説できるようになりました。また、どんな言語で名前を入力しても学名に自動変換されます。</p>
-                    <ul class="space-y-2 text-gray-600 text-sm">
-                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>マルチサブジェクト対応</strong>: 1つの観察に「植物」「昆虫」など複数の生物を記録可能に。タブで切り替えて、それぞれのAI考察と同定を確認できます</span></li>
-                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>AI複数生物検出</strong>: AIが写真内の複数生物を自動検出し、それぞれ独立した解説・手がかり・次のステップを提示。植物は属レベル、昆虫は科レベルなど、精度に応じた解説を出します</span></li>
-                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>同定の自動振り分け</strong>: 「アリ科」と同定すれば自動で昆虫サブジェクトに、「トベラ」なら植物サブジェクトに振り分け。分類階層(kingdom)を見て判定します</span></li>
-                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>3段階 学名自動正規化</strong>: 「カエル」「Frog」「Anura」など、どの言語で入力しても学名に自動変換。①オモイカネDB(2971種)→②TaxonSearch→③GBIF APIの3段階で解決します</span></li>
-                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>サブジェクト別コンセンサス</strong>: 各生物ごとに独立した合意形成。植物と昆虫で別々にコミュニティの意見が集約されます</span></li>
-                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>同定フォーム改善</strong>: 複数サブジェクトがある観察では「どの生物について？」のセレクターが表示。検索候補のドロップダウンも修正しました</span></li>
-                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>Darwin Core 互換</strong>: マルチサブジェクトのデータモデルは DwC Event Core + Occurrence Extension パターンに準拠。GBIF等への将来的なデータ提供にも対応</span></li>
-                    </ul>
-                </article>
-
                 <!-- v0.6.0 — Growth Learning Loop -->
                 <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-green-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500 ring-4 ring-green-100"></div>
@@ -242,6 +264,27 @@ Auth::init();
                         <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>考察ミルの質向上</strong>: 「次に出会った時にこう撮ると絞れる」という具体的な1アクションを提案。撮り直し要求ではなく、次の出会いに備える設計に</span></li>
                         <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>パーソナライズ考察</strong>: 過去の観察履歴を踏まえて、観察者のレベルに合わせた考察を生成するように</span></li>
                         <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>KPI計測基盤</strong>: AI考察展開率・招待経由登録数・学習ヒントクリック数など16種のイベントを新規追加</span></li>
+                    </ul>
+                </article>
+
+                <!-- v0.6.0 — Multi-Subject -->
+                <article class="relative pl-8 border-l-2 border-green-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-green-500"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">v0.6.0</span>
+                        <time class="text-sm text-gray-500">2026年3月19日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">マルチサブジェクト観察 & 学名自動正規化</h2>
+                    <p class="text-gray-500 text-sm mb-4">1つの写真に複数の生物が写っている場合、それぞれ独立して同定・AI解説できるようになりました。また、どんな言語で名前を入力しても学名に自動変換されます。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>マルチサブジェクト対応</strong>: 1つの観察に「植物」「昆虫」など複数の生物を記録可能に。タブで切り替えて、それぞれのAI考察と同定を確認できます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>AI複数生物検出</strong>: AIが写真内の複数生物を自動検出し、それぞれ独立した解説・手がかり・次のステップを提示。植物は属レベル、昆虫は科レベルなど、精度に応じた解説を出します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>同定の自動振り分け</strong>: 「アリ科」と同定すれば自動で昆虫サブジェクトに、「トベラ」なら植物サブジェクトに振り分け。分類階層(kingdom)を見て判定します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>3段階 学名自動正規化</strong>: 「カエル」「Frog」「Anura」など、どの言語で入力しても学名に自動変換。①オモイカネDB(2971種)→②TaxonSearch→③GBIF APIの3段階で解決します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>サブジェクト別コンセンサス</strong>: 各生物ごとに独立した合意形成。植物と昆虫で別々にコミュニティの意見が集約されます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>同定フォーム改善</strong>: 複数サブジェクトがある観察では「どの生物について？」のセレクターが表示。検索候補のドロップダウンも修正しました</span></li>
+                        <li class="flex items-start gap-2"><span class="text-green-400 shrink-0">✓</span><span><strong>Darwin Core 互換</strong>: マルチサブジェクトのデータモデルは DwC Event Core + Occurrence Extension パターンに準拠。GBIF等への将来的なデータ提供にも対応</span></li>
                     </ul>
                 </article>
 
