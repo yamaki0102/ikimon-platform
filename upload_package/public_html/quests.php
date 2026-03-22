@@ -14,7 +14,7 @@ $communitySignals = $currentUser ? QuestManager::getCommunitySignals($currentUse
 $goalsWithProgress = $currentUser ? QuestManager::getActiveGoalsWithProgress($currentUser['id']) : [];
 $goalCatalog = QuestManager::getGoalCatalog();
 $recommendedGoals = $currentUser ? QuestManager::getRecommendedGoals($currentUser['id']) : [];
-$csrfToken = CSRF::token();
+$csrfToken = CSRF::generate();
 
 $activeGoalIds = [];
 if ($currentUser) {
