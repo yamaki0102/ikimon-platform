@@ -1270,6 +1270,190 @@
     border-color: var(--color-primary);
 }
 
+/* ── Book-style Page Navigation ── */
+.zukan-book-nav {
+    padding: var(--zukan-space-md);
+    border-top: 2px solid var(--color-border);
+    background: linear-gradient(180deg, var(--color-surface, #fff) 0%, rgba(0,0,0,0.02) 100%);
+}
+
+.zukan-book-nav__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.zukan-book-nav__btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 10px;
+    background: var(--color-primary, #4CAF50);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 80px;
+    justify-content: center;
+}
+
+.zukan-book-nav__btn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+}
+
+.zukan-book-nav__btn:not(:disabled):active {
+    transform: scale(0.95);
+}
+
+.zukan-book-nav__center {
+    flex: 1;
+    text-align: center;
+    min-width: 60px;
+}
+
+.zukan-book-nav__page {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--color-text);
+    letter-spacing: 1px;
+}
+
+.zukan-book-nav__current {
+    font-size: 1.1rem;
+    color: var(--color-primary, #4CAF50);
+}
+
+.zukan-book-nav__sep {
+    margin: 0 2px;
+    opacity: 0.4;
+}
+
+.zukan-book-nav__total {
+    opacity: 0.5;
+}
+
+.zukan-book-nav__progress {
+    margin-top: 6px;
+    height: 3px;
+    background: var(--color-border, #e0e0e0);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.zukan-book-nav__progress-fill {
+    height: 100%;
+    background: var(--color-primary, #4CAF50);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.zukan-book-nav__peek {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: var(--zukan-space-sm);
+    padding: 10px 12px;
+    background: var(--color-surface-alt, rgba(0,0,0,0.03));
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.zukan-book-nav__peek:active {
+    background: rgba(var(--color-primary-rgb, 76, 175, 80), 0.08);
+}
+
+.zukan-book-nav__peek-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--color-primary, #4CAF50);
+    background: rgba(var(--color-primary-rgb, 76, 175, 80), 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.zukan-book-nav__peek-img {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.zukan-book-nav__peek-placeholder {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--color-border);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.zukan-book-nav__peek-name {
+    flex: 1;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Timeline Photos Carousel ── */
+.zukan-timeline__photos {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 0;
+    scrollbar-width: none;
+}
+
+.zukan-timeline__photos::-webkit-scrollbar {
+    display: none;
+}
+
+.zukan-timeline__photo {
+    width: 120px;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+
+.zukan-timeline__photo:active {
+    transform: scale(0.96);
+}
+
+@media (max-width: 480px) {
+    .zukan-book-nav__btn {
+        padding: 8px 10px;
+        min-width: 70px;
+        font-size: 0.72rem;
+    }
+    .zukan-book-nav__btn-label {
+        display: none;
+    }
+    .zukan-timeline__photo {
+        width: 100px;
+        height: 75px;
+    }
+}
+
 /* ── Responsive (Promo) ── */
 @media (max-width: 480px) {
     .zukan-promo__inner {
