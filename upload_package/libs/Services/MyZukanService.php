@@ -142,6 +142,15 @@ class MyZukanService
 
             $scanFrameIndex = self::loadScanFrameIndex($userId);
 
+            $audioBySession = [];
+            foreach ($observations as $o) {
+                if (empty($o['audio_evidence_path']) || empty($o['session_id'])) continue;
+                $sp = $o['species_name'] ?? ($o['taxon']['name'] ?? '');
+                if ($sp) {
+                    $audioBySession[$o['session_id']][$sp] = $o['audio_evidence_path'];
+                }
+            }
+
             $passiveSessions = DataStore::fetchAll('passive_sessions');
             foreach ($passiveSessions as $session) {
                 if (($session['user_id'] ?? '') !== $userId) continue;
@@ -215,12 +224,15 @@ class MyZukanService
                         $entry['cover_photo'] = $framePhotos[0];
                     }
 
+                    $sid = $session['session_id'] ?? '';
+                    $sessionAudio = $audioBySession[$sid][$speciesName] ?? null;
+
                     $entry['encounters'][] = [
-                        'id'             => $session['session_id'] ?? '',
+                        'id'             => $sid,
                         'date'           => $sessionDate,
                         'type'           => $sessionType,
                         'photos'         => $framePhotos,
-                        'audio_url'      => null,
+                        'audio_url'      => $sessionAudio,
                         'note'           => $detectionCount > 1 ? "{$detectionCount}回検出" : '',
                         'location_label' => '',
                         'season_icon'    => self::seasonIcon($sessionDate),

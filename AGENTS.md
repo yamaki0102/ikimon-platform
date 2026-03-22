@@ -1,5 +1,17 @@
 # ikimon.life — Agent Guide
 
+## Agent Delegation Rules
+
+以下の条件で `.claude/agents/` のサブエージェントに委譲する:
+
+| 条件 | 委譲先 Agent |
+|---|---|
+| API エンドポイントの新規作成・変更 | `security-reviewer` |
+| 認証・セッション・ファイルアップロード関連の変更 | `security-reviewer` |
+| 3ファイル以上の変更を含むコミット前 | `code-reviewer` |
+| DataStore / SiteManager の呼び出しパターン変更 | `code-reviewer` |
+| `/deploy` 実行前・本番プッシュ前 | `deploy-validator` |
+
 Citizen-science biodiversity platform. Japanese UI, PHP backend, Alpine.js frontend.
 
 > **共通ルール・デプロイ方針・SSHサーバー構成は `~/.codex/AGENTS.md` を参照。**

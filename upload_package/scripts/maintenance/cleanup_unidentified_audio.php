@@ -16,7 +16,7 @@ $dryRun = in_array('--dry-run', $argv ?? [], true);
 $maxAgeDays = 7;
 $cutoff = time() - ($maxAgeDays * 86400);
 
-$preserveStages = ['verified', 'community_confirmed', 'expert_confirmed'];
+$preserveStages = ['ai_classified', 'verified', 'community_confirmed', 'expert_confirmed'];
 
 $observations = DataStore::fetchAll('observations');
 $audioDir = PUBLIC_DIR . '/uploads/audio';
