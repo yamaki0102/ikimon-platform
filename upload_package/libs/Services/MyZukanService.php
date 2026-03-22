@@ -32,12 +32,24 @@ class MyZukanService
             $tracks = self::loadUserTracks($userId);
             $index = [];
 
+            $nameToKey = [];
+
+            foreach ($observations as $obs) {
+                $taxonName = $obs['taxon']['name'] ?? '';
+                if (!$taxonName) continue;
+                $taxonKey = $obs['taxon']['key'] ?? '';
+
+                if ($taxonKey && !isset($nameToKey[$taxonName])) {
+                    $nameToKey[$taxonName] = $taxonKey;
+                }
+            }
+
             foreach ($observations as $obs) {
                 $taxonName = $obs['taxon']['name'] ?? '';
                 if (!$taxonName) continue;
                 $taxonKey = $obs['taxon']['key'] ?? '';
                 if (!$taxonKey) {
-                    $taxonKey = 'name_' . md5($taxonName);
+                    $taxonKey = $nameToKey[$taxonName] ?? ('name_' . md5($taxonName));
                 }
 
                 $obsUserId = $obs['user_id'] ?? '';
