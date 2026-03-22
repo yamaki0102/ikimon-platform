@@ -40,7 +40,7 @@ if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === '') {
 }
 
 $cacheKey = "species_story_{$userId}_{$taxonKey}";
-$cached = Cache::get($cacheKey, 86400 * 7);
+$cached = Cache::get($cacheKey, 86400 * 365);
 if ($cached !== null) {
     echo json_encode(['success' => true, 'story' => $cached], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
@@ -57,7 +57,7 @@ $encounterSummary = buildEncounterContext($entry);
 $story = generateStory($entry, $encounterSummary);
 
 if ($story) {
-    Cache::set($cacheKey, $story, 86400 * 7);
+    Cache::set($cacheKey, $story, 86400 * 365);
 }
 
 echo json_encode(['success' => true, 'story' => $story], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
