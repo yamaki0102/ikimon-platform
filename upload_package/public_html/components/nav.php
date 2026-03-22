@@ -66,6 +66,7 @@ function nav_avatar(string $avatar): string {
                     <a href="/map.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="map" class="w-4 h-4 text-faint"></i> フィールドマップ</a>
                     <a href="/zukan.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="book-open" class="w-4 h-4 text-faint"></i> いきもの図鑑</a>
                     <a href="/compass.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="compass" class="w-4 h-4 text-faint"></i> コンパス</a>
+                    <a href="/sound_archive.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="audio-lines" class="w-4 h-4 text-faint"></i> サウンドアーカイブ</a>
                 </div>
             </div>
 
@@ -643,6 +644,9 @@ function nav_avatar(string $avatar): string {
             </a>
             <a href="/compass.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="compass" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">コンパス</span>
+            </a>
+            <a href="/sound_archive.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                <i data-lucide="audio-lines" class="w-5 h-5 text-[var(--color-text-muted)]"></i> <span class="text-sm font-bold">サウンドアーカイブ</span>
             </a>
         </div>
         <div>

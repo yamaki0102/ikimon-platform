@@ -17,6 +17,8 @@
 
 require_once __DIR__ . '/bootstrap.php';
 require_once ROOT_DIR . '/libs/Auth.php';
+require_once ROOT_DIR . '/libs/DataStore.php';
+require_once ROOT_DIR . '/libs/GeoUtils.php';
 
 // --- Method check ---
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -70,6 +72,9 @@ $lat = isset($_POST['lat']) ? floatval($_POST['lat']) : 35.0;
 $lng = isset($_POST['lng']) ? floatval($_POST['lng']) : 139.0;
 $minConf = isset($_POST['min_conf']) ? floatval($_POST['min_conf']) : 0.10;
 $minConf = max(0.01, min(0.50, $minConf));
+$archiveMode = isset($_POST['archive_mode']) && $_POST['archive_mode'] === '1';
+$sourceMode = isset($_POST['source_mode']) ? $_POST['source_mode'] : 'walk';
+$gpsAccuracy = isset($_POST['gps_accuracy']) ? floatval($_POST['gps_accuracy']) : 0;
 
 // 座標の妥当性チェック
 if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
@@ -162,6 +167,18 @@ if (!empty($result['detections'])) {
     }
 }
 
+// --- Archive low-confidence detections for citizen ID ---
+if ($archiveMode && !empty($result['detections']) && !$audioPath) {
+    $topConf = $result['detections'][0]['confidence'] ?? 0;
+    if ($topConf >= 0.05) {
+        $archiveResult = _saveToArchive($file, $detectedMime, $lat, $lng, $gpsAccuracy, $sourceMode, $result['detections']);
+        if ($archiveResult) {
+            $result['archived'] = true;
+            $result['archive_id'] = $archiveResult['id'];
+        }
+    }
+}
+
 // --- Return detections ---
 api_success($result);
 
@@ -193,6 +210,74 @@ function _saveAudioEvidence(array $file, string $mime): ?string
     }
 
     return "uploads/audio/{$yearMonth}/{$filename}";
+}
+
+/**
+ * 低信頼度検出の音声をサウンドアーカイブに保存
+ */
+function _saveToArchive(array $file, string $mime, float $lat, float $lng, float $accuracy, string $sourceMode, array $detections): ?array
+{
+    $yearMonth = date('Y-m');
+    $dir = PUBLIC_DIR . "/uploads/audio/archive/{$yearMonth}";
+    if (!is_dir($dir)) {
+        mkdir($dir, 0755, true);
+    }
+
+    $ext = _audioExtension($mime);
+    $id = 'sa_' . bin2hex(random_bytes(8));
+    $filename = $id . $ext;
+    $destPath = "{$dir}/{$filename}";
+
+    if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+        if (!copy($file['tmp_name'], $destPath)) {
+            return null;
+        }
+    }
+
+    $audioRelPath = "uploads/audio/archive/{$yearMonth}/{$filename}";
+    $hash = file_exists($destPath) ? hash_file('sha256', $destPath) : null;
+
+    $areaName = '';
+    try {
+        $geo = GeoUtils::reverseGeocode($lat, $lng);
+        $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
+    } catch (Throwable $e) {
+        // Nominatim failure is non-critical
+    }
+
+    $topDet = $detections[0] ?? null;
+    $user = Auth::user();
+
+    $record = [
+        'id'                    => $id,
+        'user_id'               => $user['id'] ?? '',
+        'audio_path'            => $audioRelPath,
+        'audio_hash'            => $hash,
+        'image_path'            => null,
+        'duration_ms'           => 3000,
+        'recorded_at'           => date('c'),
+        'location'              => [
+            'lat'       => $lat,
+            'lng'       => $lng,
+            'accuracy'  => $accuracy,
+            'area_name' => $areaName ?: '不明',
+        ],
+        'source'                => $sourceMode,
+        'birdnet_result'        => [
+            'top_species'      => $topDet['scientific_name'] ?? null,
+            'top_confidence'   => $topDet['confidence'] ?? 0,
+            'all_detections'   => $detections,
+        ],
+        'identification_status' => 'needs_id',
+        'identifications'       => [],
+        'reports'               => ['human_voice' => [], 'inappropriate' => [], 'noise' => []],
+        'hidden'                => false,
+        'hidden_reason'         => null,
+        'created_at'            => date('c'),
+    ];
+
+    DataStore::append('sound_archive', $record);
+    return ['id' => $id, 'path' => $audioRelPath];
 }
 
 /**
