@@ -110,14 +110,23 @@ $bgGradients = [
                 $cta = $sq['cta_text'] ?? '記録する';
             ?>
             <div class="bg-gradient-to-br <?= $bg ?> rounded-2xl p-5 border border-gray-200">
+                <?php $sqArea = $sq['area_label'] ?? ''; ?>
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-[10px] font-bold px-2.5 py-1 rounded-md border <?= $badge ?>">
                         <?= htmlspecialchars($sq['rarity_label'] ?? $trigger, ENT_QUOTES, 'UTF-8') ?>
                     </span>
-                    <span class="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                        <i data-lucide="infinity" class="w-3 h-3"></i>
-                        無期限
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <?php if ($sqArea): ?>
+                        <span class="text-[10px] text-gray-500 flex items-center gap-1">
+                            <i data-lucide="map-pin" class="w-3 h-3"></i>
+                            <?= htmlspecialchars($sqArea, ENT_QUOTES, 'UTF-8') ?>
+                        </span>
+                        <?php endif; ?>
+                        <span class="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                            <i data-lucide="infinity" class="w-3 h-3"></i>
+                            無期限
+                        </span>
+                    </div>
                 </div>
                 <h3 class="text-base font-black text-gray-900 mb-2"><?= htmlspecialchars($sq['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></h3>
                 <?php if (!empty($sq['progress_hint'])): ?>
