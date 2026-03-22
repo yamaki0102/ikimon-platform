@@ -19,10 +19,11 @@ class MyZukanService
     ];
 
     private const ENCOUNTER_LABELS = [
-        1  => 'はじめまして!',
-        2  => 'また会えた!',
-        3  => 'なかよし!',
-        10 => 'だいすき!',
+        1  => 'はじめまして',
+        2  => '顔なじみ',
+        5  => 'おなじみ',
+        10 => '常連さん',
+        30 => 'ベストフレンド',
     ];
 
     public static function buildUserIndex(string $userId): array
