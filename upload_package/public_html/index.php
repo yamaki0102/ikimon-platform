@@ -284,19 +284,19 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
         <?php if ($currentUser): ?>
         <section class="max-w-5xl mx-auto px-4 md:px-6 mb-4" x-data="learningHint()" x-init="load()" x-cloak>
             <template x-if="hint">
-                <div class="bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 rounded-2xl p-4">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-4">
                     <div class="flex items-start gap-3">
                         <!-- 写真サムネ -->
                         <a :href="'observation_detail.php?id=' + hint.obs_id" class="shrink-0">
                             <img :src="hint.photo_url" alt="" class="w-14 h-14 rounded-xl object-cover border border-sky-200" loading="lazy">
                         </a>
                         <div class="flex-1 min-w-0">
-                            <p class="text-[10px] font-black text-sky-700 dark:text-sky-400 uppercase tracking-widest mb-1">次にここを見ると、もっと深く分かるよ</p>
-                            <p x-show="hint.taxon_name" class="text-xs font-bold text-sky-900 dark:text-sky-200 mb-1" x-text="hint.taxon_name"></p>
-                            <p class="text-xs text-sky-800 dark:text-sky-300 leading-relaxed line-clamp-2" x-text="hint.next_action"></p>
+                            <p class="text-[10px] font-black text-sky-700 uppercase tracking-widest mb-1">次にここを見ると、もっと深く分かるよ</p>
+                            <p x-show="hint.taxon_name" class="text-xs font-bold text-sky-900 mb-1" x-text="hint.taxon_name"></p>
+                            <p class="text-xs text-sky-800 leading-relaxed line-clamp-2" x-text="hint.next_action"></p>
                             <a :href="'observation_detail.php?id=' + hint.obs_id"
                                @click="if(window.ikimonAnalytics) ikimonAnalytics.track('learning_hint_click', {obs_id: hint.obs_id})"
-                               class="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 dark:text-sky-400 mt-1.5 hover:underline">
+                               class="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 mt-1.5 hover:underline">
                                 考察を読む <i data-lucide="arrow-right" class="w-3 h-3"></i>
                             </a>
                         </div>
