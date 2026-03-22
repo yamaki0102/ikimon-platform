@@ -75,7 +75,7 @@ function rlLabel($rl)
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <link rel="stylesheet" href="assets/css/zukan.css?v=3.2">
+    <link rel="stylesheet" href="assets/css/zukan.css?v=3.3">
 </head>
 
 <body class="app-body bg-base text-text font-body" x-data="zukanApp()" x-init="init()">
@@ -419,7 +419,9 @@ function rlLabel($rl)
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
-            @keydown.escape.window="closeDetail()">
+            @keydown.escape.window="closeDetail()"
+            @keydown.left.window="showDetail && detailIndex > 1 && goToSpecies(detailIndex - 2)"
+            @keydown.right.window="showDetail && detailIndex < speciesList.length && goToSpecies(detailIndex)">
             <div class="zukan-modal__backdrop" @click="closeDetail()"></div>
             <div class="zukan-modal__content" @click.stop>
                 <template x-if="detailEntry">
@@ -588,7 +590,52 @@ function rlLabel($rl)
                             </template>
                         </div>
 
-                        <div class="zukan-modal__footer"></div>
+                        <!-- ═══ Book-style Page Navigation ═══ -->
+                        <div class="zukan-book-nav">
+                            <div class="zukan-book-nav__bar">
+                                <button class="zukan-book-nav__btn zukan-book-nav__btn--prev"
+                                    :disabled="detailIndex <= 1"
+                                    @click="goToSpecies(detailIndex - 2)">
+                                    <i data-lucide="chevron-left" style="width:20px;height:20px;"></i>
+                                    <span class="zukan-book-nav__btn-label">前の種</span>
+                                </button>
+
+                                <div class="zukan-book-nav__center">
+                                    <div class="zukan-book-nav__page">
+                                        <span class="zukan-book-nav__current" x-text="detailIndex"></span>
+                                        <span class="zukan-book-nav__sep">/</span>
+                                        <span class="zukan-book-nav__total" x-text="speciesList.length"></span>
+                                    </div>
+                                    <div class="zukan-book-nav__progress">
+                                        <div class="zukan-book-nav__progress-fill"
+                                            :style="'width: ' + (detailIndex / speciesList.length * 100) + '%'"></div>
+                                    </div>
+                                </div>
+
+                                <button class="zukan-book-nav__btn zukan-book-nav__btn--next"
+                                    :disabled="detailIndex >= speciesList.length"
+                                    @click="goToSpecies(detailIndex)">
+                                    <span class="zukan-book-nav__btn-label">次の種</span>
+                                    <i data-lucide="chevron-right" style="width:20px;height:20px;"></i>
+                                </button>
+                            </div>
+
+                            <!-- Peek: Next species preview -->
+                            <template x-if="detailIndex < speciesList.length">
+                                <div class="zukan-book-nav__peek" @click="goToSpecies(detailIndex)">
+                                    <span class="zukan-book-nav__peek-label">次</span>
+                                    <template x-if="speciesList[detailIndex]?.cover_photo || speciesList[detailIndex]?.photo">
+                                        <img :src="speciesList[detailIndex].cover_photo || speciesList[detailIndex].photo"
+                                            class="zukan-book-nav__peek-img" loading="lazy">
+                                    </template>
+                                    <template x-if="!speciesList[detailIndex]?.cover_photo && !speciesList[detailIndex]?.photo">
+                                        <div class="zukan-book-nav__peek-placeholder">📖</div>
+                                    </template>
+                                    <span class="zukan-book-nav__peek-name" x-text="speciesList[detailIndex]?.name"></span>
+                                    <i data-lucide="chevron-right" style="width:14px;height:14px;opacity:0.4;"></i>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </template>
             </div>
@@ -635,6 +682,30 @@ function rlLabel($rl)
                             this.showDetail = false;
                             document.body.style.overflow = '';
                             this.stopAudio();
+                        }
+                    });
+
+                    let touchStartX = 0;
+                    let touchStartY = 0;
+                    this.$nextTick(() => {
+                        const modal = this.$el.querySelector('.zukan-modal__content');
+                        if (modal) {
+                            modal.addEventListener('touchstart', (e) => {
+                                touchStartX = e.touches[0].clientX;
+                                touchStartY = e.touches[0].clientY;
+                            }, { passive: true });
+                            modal.addEventListener('touchend', (e) => {
+                                if (!this.showDetail) return;
+                                const dx = e.changedTouches[0].clientX - touchStartX;
+                                const dy = e.changedTouches[0].clientY - touchStartY;
+                                if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                                    if (dx < 0 && this.detailIndex < this.speciesList.length) {
+                                        this.goToSpecies(this.detailIndex);
+                                    } else if (dx > 0 && this.detailIndex > 1) {
+                                        this.goToSpecies(this.detailIndex - 2);
+                                    }
+                                }
+                            }, { passive: true });
                         }
                     });
                 },
@@ -736,6 +807,61 @@ function rlLabel($rl)
 
                     this.$nextTick(() => {
                         if (typeof lucide !== 'undefined') lucide.createIcons();
+                    });
+                },
+
+                async goToSpecies(index) {
+                    if (index < 0 || index >= this.speciesList.length) return;
+                    const item = this.speciesList[index];
+                    this.stopAudio();
+
+                    const content = this.$el.querySelector('.zukan-modal__content');
+                    if (content) {
+                        const dir = index >= (this.detailIndex - 1) ? 1 : -1;
+                        content.style.transition = 'transform 0.15s ease-out, opacity 0.15s';
+                        content.style.transform = `translateX(${-dir * 30}px)`;
+                        content.style.opacity = '0.3';
+                        await new Promise(r => setTimeout(r, 150));
+
+                        this.detailIndex = index + 1;
+                        this.detailEntry = { ...item };
+                        this.storyText = null;
+                        this.storyLoading = false;
+                        this.timelineExpanded = false;
+
+                        content.style.transform = `translateX(${dir * 30}px)`;
+                        await new Promise(r => setTimeout(r, 10));
+                        content.style.transform = 'translateX(0)';
+                        content.style.opacity = '1';
+                    } else {
+                        this.detailIndex = index + 1;
+                        this.detailEntry = { ...item };
+                        this.storyText = null;
+                        this.storyLoading = false;
+                        this.timelineExpanded = false;
+                    }
+
+                    this.fetchStory(item.taxon_key);
+
+                    if (item.encounters && item.encounters.length < item.encounter_count) {
+                        this.detailLoading = true;
+                        try {
+                            const res = await fetch('api/taxon_index.php?mode=my&detail=1&taxon_key=' + encodeURIComponent(item.taxon_key));
+                            const data = await res.json();
+                            if (data.success && data.entry) {
+                                this.detailEntry = data.entry;
+                            }
+                        } catch (err) {
+                            console.error('Detail fetch error:', err);
+                        } finally {
+                            this.detailLoading = false;
+                        }
+                    }
+
+                    this.$nextTick(() => {
+                        if (typeof lucide !== 'undefined') lucide.createIcons();
+                        const mc = this.$el.querySelector('.zukan-modal__content');
+                        if (mc) mc.scrollTop = 0;
                     });
                 },
 
