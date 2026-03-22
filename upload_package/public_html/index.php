@@ -84,9 +84,12 @@ foreach ($allSessions as $s) {
     if ($mode === 'walk') $target = &$communityWalkStats;
     elseif ($mode === 'live-scan') $target = &$communityScanStats;
     else continue;
+    $durSec = (int)($summary['duration_sec'] ?? 0);
+    $detections = (int)($summary['total_detections'] ?? 0);
+    if ($durSec < 30 || $detections < 1) continue;
     $target['count']++;
-    $target['duration_min'] += (int)round(($summary['duration_sec'] ?? 0) / 60);
-    $target['total_detections'] += (int)($summary['total_detections'] ?? 0);
+    $target['duration_min'] += (int)round($durSec / 60);
+    $target['total_detections'] += $detections;
     foreach ($summary['species'] ?? [] as $name => $cnt) {
         if ($name) $target['species'][$name] = true;
     }
@@ -843,7 +846,7 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                         <div class="flex items-center gap-4 text-sm text-blue-100 flex-wrap">
                             <span><span class="font-black text-white"><?= number_format($communityScanStats['count']) ?></span> 回スキャン</span>
                             <span class="text-blue-400/30">|</span>
-                            <span>合計 <span class="font-black text-white"><?= number_format(round($communityScanStats['duration_min'] / 60, 1)) ?></span> 時間</span>
+                            <span>合計 <span class="font-black text-white"><?= number_format($communityScanStats['duration_min']) ?></span> 分</span>
                             <span class="text-blue-400/30">|</span>
                             <span><span class="font-black text-white"><?= number_format($communityScanStats['unique_species']) ?></span> 種を発見</span>
                         </div>
