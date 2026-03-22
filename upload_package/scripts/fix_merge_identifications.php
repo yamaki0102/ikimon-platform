@@ -12,7 +12,7 @@ require_once __DIR__ . '/../libs/UserStore.php';
 
 $dryRun = in_array('--dry-run', $argv ?? []);
 
-$mergeIds = ['user_69bd41455eeba', 'user_69bc926c2eca4'];
+$mergeIds = ['user_69bd41455eeba', 'user_69bc926c2eca4', 'user_699f83a08bd2e'];
 $targetId = 'user_admin_001';
 
 $primary = UserStore::findById($targetId);
