@@ -870,25 +870,26 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                 <!-- Lightbox -->
                 <?php $photoCount = max(1, count($obs['photos'] ?? [])); ?>
-                <div x-show="lightbox" x-cloak x-transition.opacity class="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-2" role="dialog" aria-modal="true" aria-labelledby="obs-lightbox-title"
-                    @keydown.window.left.prevent="lightbox && (photoActive = (photoActive - 1 + <?php echo $photoCount; ?>) % <?php echo $photoCount; ?>)"
-                    @keydown.window.right.prevent="lightbox && (photoActive = (photoActive + 1) % <?php echo $photoCount; ?>)"
-                    @keydown.window.escape.prevent="lightbox = false"
-                    @touchstart.passive="lbTouchX=$event.touches[0].clientX; lbTouchY=$event.touches[0].clientY"
-                    @touchend="(() => { let dx=lbTouchX-$event.changedTouches[0].clientX, dy=lbTouchY-$event.changedTouches[0].clientY; if(Math.abs(dy)>100&&Math.abs(dy)>Math.abs(dx)){lightbox=false}else if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){photoActive=dx>0?(photoActive+1)%<?php echo $photoCount; ?>:(photoActive-1+<?php echo $photoCount; ?>)%<?php echo $photoCount; ?>} })()">
+                <div x-show="lightbox" x-cloak x-transition.opacity class="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-2 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="obs-lightbox-title"
+                    @keydown.window.left.prevent="lightbox && lbScale<=1 && (photoActive = (photoActive - 1 + <?php echo $photoCount; ?>) % <?php echo $photoCount; ?>)"
+                    @keydown.window.right.prevent="lightbox && lbScale<=1 && (photoActive = (photoActive + 1) % <?php echo $photoCount; ?>)"
+                    @keydown.window.escape.prevent="lightbox = false; lbScale=1"
+                    @touchstart="lbOnTouchStart($event)"
+                    @touchmove.prevent="lbOnTouchMove($event)"
+                    @touchend="lbOnTouchEnd($event)">
                     <h2 id="obs-lightbox-title" class="sr-only">観察写真</h2>
-                    <button @click.stop="lightbox = false" aria-label="閉じる" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101] hover:bg-white/20 transition">
+                    <button @click.stop="lightbox = false; lbScale=1" aria-label="閉じる" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101] hover:bg-white/20 transition">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
                     <?php if (!empty($obs['photos'])): ?>
                         <?php foreach ($obs['photos'] as $idx => $photo): ?>
-                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" alt="観察写真 <?php echo $idx + 1; ?>" class="max-w-full max-h-full object-contain select-none">
+                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" @dblclick.stop="lbScale = lbScale > 1 ? 1 : 2.5; lbPanX=0; lbPanY=0" alt="観察写真 <?php echo $idx + 1; ?>" class="max-w-full max-h-full object-contain select-none transition-transform duration-100" :style="'transform: scale('+lbScale+') translate('+lbPanX+'px,'+lbPanY+'px)'">
                         <?php endforeach; ?>
                         <?php if ($photoCount > 1): ?>
-                        <button @click.stop="photoActive = (photoActive - 1 + <?php echo $photoCount; ?>) % <?php echo $photoCount; ?>" aria-label="前の写真" class="absolute left-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
+                        <button @click.stop="lbScale=1;lbPanX=0;lbPanY=0;photoActive = (photoActive - 1 + <?php echo $photoCount; ?>) % <?php echo $photoCount; ?>" aria-label="前の写真" class="absolute left-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
                             <i data-lucide="chevron-left" class="w-6 h-6"></i>
                         </button>
-                        <button @click.stop="photoActive = (photoActive + 1) % <?php echo $photoCount; ?>" aria-label="次の写真" class="absolute right-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
+                        <button @click.stop="lbScale=1;lbPanX=0;lbPanY=0;photoActive = (photoActive + 1) % <?php echo $photoCount; ?>" aria-label="次の写真" class="absolute right-2 top-1/2 -translate-y-1/2 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
                             <i data-lucide="chevron-right" class="w-6 h-6"></i>
                         </button>
                         <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/40 px-3 py-1 rounded-full">
@@ -2317,7 +2318,39 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <script nonce="<?= CspNonce::attr() ?>">
         function obsDetail() {
             return {
-                photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, lbTouchX: 0, lbTouchY: 0,
+                photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0,
+                lbTouchX: 0, lbTouchY: 0, lbScale: 1, lbPanX: 0, lbPanY: 0, lbPinching: false, lbStartDist: 0, lbStartScale: 1,
+                lbOnTouchStart(e) {
+                    if (e.touches.length === 2) {
+                        this.lbPinching = true;
+                        this.lbStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                        this.lbStartScale = this.lbScale;
+                    } else if (e.touches.length === 1 && this.lbScale <= 1) {
+                        this.lbTouchX = e.touches[0].clientX;
+                        this.lbTouchY = e.touches[0].clientY;
+                    }
+                },
+                lbOnTouchMove(e) {
+                    if (e.touches.length === 2 && this.lbPinching) {
+                        let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                        this.lbScale = Math.min(5, Math.max(1, this.lbStartScale * (dist / this.lbStartDist)));
+                        if (this.lbScale <= 1) { this.lbPanX = 0; this.lbPanY = 0; }
+                    } else if (e.touches.length === 1 && this.lbScale > 1) {
+                        this.lbPanX += e.touches[0].clientX - (this._lastPanX || e.touches[0].clientX);
+                        this.lbPanY += e.touches[0].clientY - (this._lastPanY || e.touches[0].clientY);
+                        this._lastPanX = e.touches[0].clientX;
+                        this._lastPanY = e.touches[0].clientY;
+                    }
+                },
+                lbOnTouchEnd(e) {
+                    this._lastPanX = null; this._lastPanY = null;
+                    if (this.lbPinching) { this.lbPinching = false; if (this.lbScale <= 1.05) { this.lbScale = 1; this.lbPanX = 0; this.lbPanY = 0; } return; }
+                    if (this.lbScale > 1) return;
+                    let dx = this.lbTouchX - e.changedTouches[0].clientX, dy = this.lbTouchY - e.changedTouches[0].clientY;
+                    const cnt = <?php echo $photoCount; ?>;
+                    if (Math.abs(dy) > 100 && Math.abs(dy) > Math.abs(dx)) { this.lightbox = false; this.lbScale = 1; }
+                    else if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) { this.photoActive = dx > 0 ? (this.photoActive + 1) % cnt : (this.photoActive - 1 + cnt) % cnt; }
+                },
                 locationName: <?php echo json_encode($obs['municipality'] ?? ($obs['prefecture'] ?? ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS); ?>,
                 rxStepped: <?php echo $_rdMyReaction ? 'true' : 'false'; ?>,
                 rxCount: <?php echo (int)$_rdCount; ?>,
