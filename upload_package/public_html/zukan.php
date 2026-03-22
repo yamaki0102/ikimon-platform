@@ -35,11 +35,12 @@ if ($isLoggedIn) {
     $sortBy = $_GET['sort'] ?? 'latest';
 
     $result = MyZukanService::getSpeciesList($userId, [
-        'q'      => $searchQuery,
-        'group'  => $activeGroup,
-        'sort'   => $sortBy,
-        'limit'  => 24,
-        'offset' => 0,
+        'q'        => $searchQuery,
+        'group'    => $activeGroup,
+        'category' => 'post',
+        'sort'     => $sortBy,
+        'limit'    => 24,
+        'offset'   => 0,
     ]);
     $myStats = $result['stats'];
 
@@ -244,14 +245,14 @@ function rlLabel($rl)
             <!-- Category Filters -->
             <div class="zukan-filters">
                 <button class="zukan-filter-chip"
+                    :class="{'zukan-filter-chip--active': activeCategory === 'post'}"
+                    @click="setCategory('post')">
+                    📸 観察投稿
+                </button>
+                <button class="zukan-filter-chip"
                     :class="{'zukan-filter-chip--active': activeCategory === ''}"
                     @click="setCategory('')">
                     🌍 すべて
-                </button>
-                <button class="zukan-filter-chip"
-                    :class="{'zukan-filter-chip--active': activeCategory === 'post'}"
-                    @click="setCategory('post')">
-                    📸 投稿
                 </button>
                 <button class="zukan-filter-chip"
                     :class="{'zukan-filter-chip--active': activeCategory === 'walk'}"
@@ -753,7 +754,7 @@ function rlLabel($rl)
 
                 searchQuery: '',
                 activeGroup: '<?php echo htmlspecialchars($activeGroup, ENT_QUOTES); ?>',
-                activeCategory: '',
+                activeCategory: 'post',
                 sortBy: '<?php echo htmlspecialchars($sortBy ?? 'latest', ENT_QUOTES); ?>',
                 loading: false,
                 loadingMore: false,
