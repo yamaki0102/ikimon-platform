@@ -481,9 +481,22 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                                     </p>
                                 </div>
                             </div>
-                            <button class="p-2 transition rounded-full text-faint hover:bg-surface">
-                                <i data-lucide="more-horizontal" class="w-4 h-4"></i>
-                            </button>
+                            <div class="relative" x-data="{ menuOpen: false }" @click.outside="menuOpen = false">
+                                <button @click="menuOpen = !menuOpen" class="p-2 transition rounded-full text-faint hover:bg-surface">
+                                    <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+                                </button>
+                                <div x-show="menuOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                                    class="absolute right-0 top-full mt-1 w-44 bg-elevated rounded-xl shadow-lg border border-border z-50 py-1 overflow-hidden" x-cloak>
+                                    <button @click="navigator.clipboard.writeText(location.origin + '/observation_detail.php?id=<?= urlencode($obs['id']) ?>'); menuOpen = false; if(window.ToastManager) ToastManager.show('リンクをコピーしました','success');"
+                                        class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-text hover:bg-surface transition text-left">
+                                        <i data-lucide="link" class="w-4 h-4 text-muted"></i>リンクをコピー
+                                    </button>
+                                    <button @click="if(navigator.share) navigator.share({title:'<?= htmlspecialchars(BioUtils::displayName($obs) ?: '観察記録', ENT_QUOTES) ?>',url:location.origin+'/observation_detail.php?id=<?= urlencode($obs['id']) ?>'}); menuOpen = false;"
+                                        class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-text hover:bg-surface transition text-left">
+                                        <i data-lucide="share-2" class="w-4 h-4 text-muted"></i>共有する
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Photo / Activity Card -->
@@ -688,7 +701,18 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                                 <?php endforeach; ?>
                                 <span class="text-xs font-bold text-secondary ml-0.5" x-show="rxCount > 0" x-text="rxCount"></span>
                             <?php else: ?>
-                                <span class="text-lg opacity-30">✨</span>
+                                <?php
+                                $feedRxGuest = [
+                                    ['id' => 'like', 'emoji' => '✨'],
+                                    ['id' => 'beautiful', 'emoji' => '🌸'],
+                                    ['id' => 'cute', 'emoji' => '❤️'],
+                                ];
+                                foreach ($feedRxGuest as $frxg): ?>
+                                    <a href="login.php?redirect=<?= urlencode('observation_detail.php?id=' . $obs['id']) ?>"
+                                        class="text-lg opacity-30 hover:opacity-60 transition-opacity px-0.5">
+                                        <?= $frxg['emoji'] ?>
+                                    </a>
+                                <?php endforeach; ?>
                                 <?php if ($_feedCount > 0): ?>
                                     <span class="text-xs font-bold text-secondary"><?php echo (int)$_feedCount; ?></span>
                                 <?php endif; ?>
