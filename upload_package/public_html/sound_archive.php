@@ -171,7 +171,7 @@ $csrfToken = CSRF::generate();
             <div class="bg-elevated w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
                 <div class="flex items-center justify-between">
                     <h3 class="font-bold text-lg">音声をアップロード</h3>
-                    <button @click="showUpload = false" class="text-muted hover:text-text"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    <button @click="showUpload = false" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface text-muted hover:text-text transition"><i data-lucide="x" class="w-5 h-5 pointer-events-none"></i></button>
                 </div>
 
                 <div class="space-y-3">
@@ -232,7 +232,7 @@ $csrfToken = CSRF::generate();
             <div class="bg-elevated w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
                 <div class="flex items-center justify-between">
                     <h3 class="font-bold text-lg">この音を同定する</h3>
-                    <button @click="identifyModal = false" class="text-muted hover:text-text"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    <button @click="identifyModal = false" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface text-muted hover:text-text transition"><i data-lucide="x" class="w-5 h-5 pointer-events-none"></i></button>
                 </div>
 
                 <!-- Replay in modal -->
@@ -296,7 +296,7 @@ $csrfToken = CSRF::generate();
             <div class="bg-elevated w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl p-5 space-y-3">
                 <div class="flex items-center justify-between">
                     <h3 class="font-bold text-lg">通報する</h3>
-                    <button @click="reportModal = false" class="text-muted hover:text-text"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    <button @click="reportModal = false" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface text-muted hover:text-text transition"><i data-lucide="x" class="w-5 h-5 pointer-events-none"></i></button>
                 </div>
 
                 <button @click="submitReport('human_voice')"
