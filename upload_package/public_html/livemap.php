@@ -224,10 +224,11 @@ map.on('load', function() {
         id: 'mesh-label',
         type: 'symbol',
         source: 'mesh',
-        minzoom: 11,
+        minzoom: 10,
+        maxzoom: 13,
         layout: {
-            'text-field': ['concat', ['to-string', ['get', 'total']], '件'],
-            'text-size': ['interpolate', ['linear'], ['zoom'], 11, 9, 14, 13],
+            'text-field': ['get', 'label_short'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 10, 9, 13, 12],
             'text-anchor': 'center',
         },
         paint: {
@@ -237,56 +238,110 @@ map.on('load', function() {
         },
     });
 
-    // ── メッシュクリック → ポップアップ ──
+    map.addLayer({
+        id: 'mesh-label-detail',
+        type: 'symbol',
+        source: 'mesh',
+        minzoom: 13,
+        layout: {
+            'text-field': ['get', 'label_detail'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 13, 11, 16, 14],
+            'text-anchor': 'center',
+        },
+        paint: {
+            'text-color': '#fff',
+            'text-halo-color': 'rgba(0,0,0,0.85)',
+            'text-halo-width': 2,
+        },
+    });
+
+    // ── メッシュクリック → 生き物カード ──
     map.on('click', 'mesh-fill', function(e) {
         var f = e.features[0];
         var p = f.properties;
         var byGroup = p.by_group;
         if (typeof byGroup === 'string') { try { byGroup = JSON.parse(byGroup); } catch(ex) { byGroup = {}; } }
-        var families = p.families;
-        if (typeof families === 'string') { try { families = JSON.parse(families); } catch(ex) { families = []; } }
+        var species = p.species;
+        if (typeof species === 'string') { try { species = JSON.parse(species); } catch(ex) { species = []; } }
+        if (!Array.isArray(species)) species = [];
 
         var gc = {
             '鳥類':'#f59e0b','植物':'#10b981','昆虫':'#f97316','哺乳類':'#8b5cf6',
             '爬虫類':'#84cc16','両生類':'#06b6d4','魚類':'#3b82f6','クモ類':'#ec4899',
             '菌類':'#a78bfa','コケ・地衣類':'#6b7280','その他':'#9ca3af'
         };
+        var gi = {
+            '鳥類':'🐦','植物':'🌿','昆虫':'🐛','哺乳類':'🦊',
+            '爬虫類':'🦎','両生類':'🐸','魚類':'🐟','クモ類':'🕷',
+            '菌類':'🍄','コケ・地衣類':'🌱','その他':'🔍'
+        };
 
-        var rows = '';
+        // グループ別バー
+        var bars = '';
         if (byGroup) {
-            Object.entries(byGroup).sort(function(a,b) { return b[1]-a[1]; }).forEach(function(kv) {
+            Object.entries(byGroup).sort(function(a,b){return b[1]-a[1]}).forEach(function(kv) {
                 var c = gc[kv[0]] || '#9ca3af';
-                var pct = p.total > 0 ? Math.round((kv[1] / p.total) * 100) : 0;
-                rows += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px">' +
-                    '<span style="width:8px;height:8px;border-radius:50%;background:'+c+';flex-shrink:0;display:inline-block"></span>' +
-                    '<span style="font-size:12px;color:rgba(255,255,255,0.8);min-width:72px">'+kv[0]+'</span>' +
-                    '<div style="flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:2px">' +
+                var icon = gi[kv[0]] || '•';
+                var pct = p.total > 0 ? Math.round((kv[1]/p.total)*100) : 0;
+                bars += '<div style="display:flex;align-items:center;gap:6px;margin-top:4px">' +
+                    '<span style="font-size:12px;width:16px;text-align:center">'+icon+'</span>' +
+                    '<span style="font-size:11px;color:rgba(255,255,255,0.7);min-width:52px">'+kv[0]+'</span>' +
+                    '<div style="flex:1;height:3px;background:rgba(255,255,255,0.06);border-radius:2px">' +
                       '<div style="width:'+pct+'%;height:100%;background:'+c+';border-radius:2px"></div>' +
                     '</div>' +
-                    '<span style="font-size:11px;color:rgba(255,255,255,0.4);min-width:20px;text-align:right">'+kv[1]+'</span>' +
-                    '</div>';
+                    '<span style="font-size:10px;color:rgba(255,255,255,0.35);min-width:16px;text-align:right">'+kv[1]+'</span></div>';
             });
         }
 
-        var famLine = (families && families.length > 0)
-            ? '<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px">科: '+families.join('、')+'</div>'
-            : '';
+        // 種カード（グループごとに整理）
+        var speciesHtml = '';
+        if (species.length > 0) {
+            var grouped = {};
+            species.forEach(function(sp) {
+                var g = sp.group || 'その他';
+                if (!grouped[g]) grouped[g] = [];
+                grouped[g].push(sp);
+            });
+            var groupOrder = Object.keys(grouped).sort(function(a,b) {
+                return (byGroup[b]||0) - (byGroup[a]||0);
+            });
+            speciesHtml += '<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.06);padding-top:10px">' +
+                '<div style="font-size:10px;color:rgba(255,255,255,0.3);font-weight:700;letter-spacing:0.05em;margin-bottom:8px">このエリアの生き物</div>';
+            groupOrder.forEach(function(g) {
+                var icon = gi[g] || '•';
+                var color = gc[g] || '#9ca3af';
+                speciesHtml += '<div style="margin-bottom:8px">' +
+                    '<div style="font-size:10px;color:'+color+';font-weight:700;margin-bottom:4px">'+icon+' '+g+'</div>' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+                grouped[g].forEach(function(sp) {
+                    var sci = (sp.sci && sp.sci !== sp.name) ? ' <span style="font-style:italic;opacity:0.5">'+sp.sci+'</span>' : '';
+                    speciesHtml += '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.06);'+
+                        'border:1px solid '+color+'33;border-radius:8px;padding:3px 8px;font-size:11px;color:rgba(255,255,255,0.85)">' +
+                        sp.name +
+                        (sp.count > 1 ? '<span style="font-size:9px;color:rgba(255,255,255,0.4);font-weight:700">×'+sp.count+'</span>' : '') +
+                        '</span>';
+                });
+                speciesHtml += '</div></div>';
+            });
+            speciesHtml += '</div>';
+        }
+
         var lastLine = p.last_obs
-            ? '<div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:5px">最終記録: '+p.last_obs+'</div>'
+            ? '<div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:8px">最終記録: '+p.last_obs+'</div>'
             : '';
 
         var coords = f.geometry.coordinates[0];
         var lx=0, ly=0;
         coords.forEach(function(c) { lx+=c[0]; ly+=c[1]; });
 
-        new maplibregl.Popup({ offset: 12, closeButton: true, maxWidth: '300px' })
+        new maplibregl.Popup({ offset: 12, closeButton: true, maxWidth: '340px' })
             .setLngLat([lx/coords.length, ly/coords.length])
             .setHTML(
-                '<div style="font-size:14px">' +
-                '<div style="font-size:10px;color:rgba(255,255,255,0.25);letter-spacing:0.08em;font-family:monospace;margin-bottom:6px">MESH '+p.mesh_code+'</div>' +
-                '<div style="font-size:22px;font-weight:900;line-height:1"><span style="color:#10b981">'+p.total+'</span> <span style="font-size:13px;color:rgba(255,255,255,0.5)">件の検出</span></div>' +
-                '<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:2px">'+p.group_count+' グループ</div>' +
-                rows + famLine + lastLine +
+                '<div style="font-size:14px;max-height:400px;overflow-y:auto">' +
+                '<div style="font-size:9px;color:rgba(255,255,255,0.2);letter-spacing:0.08em;font-family:monospace">MESH '+p.mesh_code+'</div>' +
+                '<div style="font-size:24px;font-weight:900;line-height:1;margin-top:4px"><span style="color:#10b981">'+p.total+'</span> <span style="font-size:13px;color:rgba(255,255,255,0.45)">件の検出</span></div>' +
+                '<div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:2px">'+p.group_count+' グループ · '+(species.length)+' 種</div>' +
+                bars + speciesHtml + lastLine +
                 '</div>'
             )
             .addTo(map);
@@ -315,6 +370,22 @@ map.on('load', function() {
 function loadMesh() {
     fetch('/api/v2/mesh_aggregates.php').then(function(r) { return r.json(); }).then(function(gj) {
         if (!gj.features || gj.features.length === 0) return;
+
+        var GI = {'鳥類':'🐦','植物':'🌿','昆虫':'🐛','哺乳類':'🦊',
+            '爬虫類':'🦎','両生類':'🐸','魚類':'🐟','クモ類':'🕷',
+            '菌類':'🍄','コケ・地衣類':'🌱','その他':'🔍'};
+
+        gj.features.forEach(function(f) {
+            var bg = f.properties.by_group;
+            if (typeof bg === 'string') { try { bg = JSON.parse(bg); } catch(e) { bg = {}; } }
+            var sorted = bg ? Object.entries(bg).sort(function(a,b){return b[1]-a[1]}) : [];
+            var topIcon = sorted.length > 0 ? (GI[sorted[0][0]] || '📍') : '📍';
+            f.properties.label_short = topIcon + ' ' + f.properties.total;
+            var detail = sorted.slice(0, 3).map(function(kv) {
+                return (GI[kv[0]] || '•') + kv[1];
+            }).join('  ');
+            f.properties.label_detail = detail || (f.properties.total + '件');
+        });
 
         map.getSource('mesh').setData(gj);
 
@@ -370,7 +441,7 @@ function loadMesh() {
 document.getElementById('toggle-mesh').addEventListener('click', function() {
     meshVisible = !meshVisible;
     var vis = meshVisible ? 'visible' : 'none';
-    ['mesh-fill','mesh-outline','mesh-label','mesh-heat'].forEach(function(id) {
+    ['mesh-fill','mesh-outline','mesh-label','mesh-label-detail','mesh-heat'].forEach(function(id) {
         map.setLayoutProperty(id, 'visibility', vis);
     });
     this.classList.toggle('active', meshVisible);
