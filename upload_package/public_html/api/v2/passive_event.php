@@ -113,25 +113,36 @@ if (empty($validEvents)) {
 // パッシブ観察エンジンで処理
 $result = PassiveObservationEngine::processEventBatch($validEvents, $userId, $sessionMeta);
 
-// 保存先を分離:
-// - ウォーク（音声検出）→ DataStore（フィード表示） + Canonical Schema（デジタルツイン）
-// - ライブスキャン → Canonical Schema のみ（デジタルツイン専用、フィードには出さない）
 $scanMode = $sessionMeta['scan_mode'] ?? 'walk';
 $isLiveScan = ($scanMode === 'live-scan');
+$isIncremental = !empty($sessionMeta['is_incremental']);
+$isFinal = !empty($sessionMeta['is_final']);
+$clientSessionId = $sessionMeta['session_id_client'] ?? null;
+
+// ─── 増分バッチ: client_session_id で論理統合 ───
+$existingSessionLog = null;
+$mergedSessionId = $result['session_id'];
+if ($clientSessionId && $isIncremental) {
+    $allSessions = DataStore::fetchAll('passive_sessions');
+    foreach (array_reverse($allSessions) as $s) {
+        if (($s['client_session_id'] ?? '') === $clientSessionId) {
+            $existingSessionLog = $s;
+            $mergedSessionId = $s['session_id'] ?? $mergedSessionId;
+            break;
+        }
+    }
+}
 
 // ─── Canonical Schema: 1セッション = 1 parent event ───
-// Codex C0-1: 努力量データを正しくセッション単位で紐づける
 $parentEventId = null;
 $savedCount = 0;
 
 try {
-    // セッション全体の重心座標を計算
     $lats = array_filter(array_column($result['observations'], 'lat'));
     $lngs = array_filter(array_column($result['observations'], 'lng'));
     $centerLat = !empty($lats) ? array_sum($lats) / count($lats) : null;
     $centerLng = !empty($lngs) ? array_sum($lngs) / count($lngs) : null;
 
-    // 努力量を構造化 JSON で保存（環境遷移履歴を含む）
     $samplingEffort = [
         'duration_sec'  => (int) ($sessionMeta['duration_sec'] ?? 0),
         'distance_m'    => (float) ($sessionMeta['distance_m'] ?? 0),
@@ -139,7 +150,6 @@ try {
         'env_history'   => !empty($envHistory) ? $envHistory : null,
     ];
 
-    // セッション event を作成（parent）
     $parentEventId = CanonicalStore::createEvent([
         'event_date'              => date('c'),
         'decimal_latitude'        => $centerLat,
@@ -183,10 +193,9 @@ foreach ($result['observations'] as $obs) {
         $obs['municipality'] = $sessionGeo['municipality'];
     }
 
-    // ウォークの音声検出 → フィード用 DataStore にも保存
-    if (!$isLiveScan) {
-        DataStore::append('observations', $obs);
-    }
+    // フィード用 DataStore に保存（ウォーク・ライブスキャン両方）
+    $obs['passive_session_id'] = $mergedSessionId;
+    DataStore::append('observations', $obs);
 
     // 全モード → Canonical Schema（デジタルツインに蓄積）
     if ($parentEventId) {
@@ -247,16 +256,24 @@ if ($savedCount === 0 && $parentEventId) {
     error_log('[passive_event] Zero detections session recorded as absence data: ' . $parentEventId);
 }
 
-// セッションログを保存
+// セッションログを保存（バッチごとにレコード追加、client_session_id で論理統合）
 $sessionLog = [
-    'session_id' => $result['session_id'],
+    'id' => 'ps_' . bin2hex(random_bytes(6)),
+    'session_id' => $mergedSessionId,
+    'client_session_id' => $clientSessionId,
     'user_id' => $userId,
+    'scan_mode' => $scanMode,
     'events_received' => count($events),
     'events_valid' => count($validEvents),
     'observations_created' => $savedCount,
     'summary' => $result['summary'],
     'session_meta' => $sessionMeta,
     'env_observation_count' => count($envHistory),
+    'is_incremental' => $isIncremental,
+    'is_final' => $isFinal,
+    'batch_index' => $existingSessionLog ? (($existingSessionLog['batch_index'] ?? 0) + 1) : 0,
+    'started_at' => $existingSessionLog ? ($existingSessionLog['started_at'] ?? date('c')) : date('c'),
+    'ended_at' => $isFinal ? date('c') : null,
     'created_at' => date('c'),
 ];
 DataStore::append('passive_sessions', $sessionLog);
@@ -320,12 +337,14 @@ if ($isLiveScan && !empty($result['summary']['species'])) {
 }
 
 api_success([
-    'session_id' => $result['session_id'],
+    'session_id' => $mergedSessionId,
     'observations_created' => $savedCount,
     'summary' => $result['summary'],
     'scan_quests' => $scanQuests,
     'quest_shown' => $questShown,
+    'is_incremental' => $isIncremental,
 ], [
     'events_received' => count($events),
     'events_valid' => count($validEvents),
+    'batch_merged' => $existingSessionLog !== null,
 ]);
