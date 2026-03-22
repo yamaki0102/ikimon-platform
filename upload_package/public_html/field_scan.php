@@ -545,7 +545,7 @@ function stopScan() {
     var pendingEvents = S.pendingEvents || [];
     var summaryText = sp + '種検出 · ' + min + '分間のスキャン · 📶 ' + formatDataUsage(S.dataUsage);
     if (typeof BioPrescreen !== 'undefined' && BioPrescreen.stats.total > 0) {
-        summaryText += ' · 🧠 ' + BioPrescreen.getSkipRate() + '%最適化';
+        summaryText += ' · 🧠 ' + BioPrescreen.getGeminiSaveRate() + '%ローカル分析';
     }
     document.getElementById('done-summary').textContent = summaryText;
     showScreen('done');
@@ -735,16 +735,34 @@ async function captureFrame() {
         c.height = Math.round(c.width * v.videoHeight / v.videoWidth);
         c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
 
-        // TF.js プレスクリーニング: 生物がいなさそうなフレームはスキップ
+        // Layer 1: MobileNet 分析（全フレーム、¥0）
+        var analysis = null;
+        var mobilenetClasses = [];
         if (typeof BioPrescreen !== 'undefined' && BioPrescreen.available) {
-            var ps = await BioPrescreen.prescreen(c);
-            if (!ps.shouldSend) {
-                S.prescreenSkipped++;
-                S.frameScanCount++;
-                document.getElementById('frame-count').textContent = S.frameScanCount;
-                dbg('📷 スキップ (bio:' + ps.bioScore.toFixed(2) + ' green:' + ps.greenScore.toFixed(2) + ')');
-                return;
+            analysis = await BioPrescreen.analyze(c);
+            // MobileNet の検出結果をローカル記録（データ100%保持）
+            if (analysis.localDetections.length > 0) {
+                analysis.localDetections.forEach(function(det) {
+                    mobilenetClasses.push(det.className);
+                    // MobileNet 結果に既に Gemini マッピングがあればローカルで addDetection
+                    var known = BioPrescreen.getKnownClasses()[det.className];
+                    if (known && known.geminiMapping && !det.isNew) {
+                        known.geminiMapping.forEach(function(gm) {
+                            addDetection(gm.name, gm.scientific_name || '', det.probability * 0.7, 'visual', gm.category || '', gm.note || '');
+                        });
+                    }
+                });
             }
+        }
+
+        S.frameScanCount++;
+        document.getElementById('frame-count').textContent = S.frameScanCount;
+
+        // Layer 2: Gemini API（新種・不明・定期サンプリング時のみ）
+        var needGemini = !analysis || analysis.needGemini;
+        if (!needGemini) {
+            dbg('📷 #' + S.frameScanCount + ' ローカル記録 (' + analysis.reason + ')');
+            return;
         }
 
         var blob = await new Promise(function(r) { c.toBlob(r, 'image/jpeg', quality); });
@@ -770,15 +788,17 @@ async function captureFrame() {
             fd.append('context', JSON.stringify(ctx));
         }
 
-        S.frameScanCount++;
-        document.getElementById('frame-count').textContent = S.frameScanCount;
-        dbg('📷 #' + S.frameScanCount + ' 送信中...');
+        dbg('📷 #' + S.frameScanCount + ' Gemini送信 (' + (analysis ? analysis.reason : 'no-model') + ')');
         var resp = await fetch('/api/v2/scan_classify.php', {method:'POST', body:fd});
         if (!resp.ok) { dbg('📷 HTTP ' + resp.status); return; }
         var respText = await resp.text();
         updateDataUsage(respText.length);
         var json = JSON.parse(respText);
         if (json.success && json.data && json.data.suggestions && json.data.suggestions.length > 0) {
+            // Gemini 結果を MobileNet クラスに紐付けて学習
+            if (typeof BioPrescreen !== 'undefined' && BioPrescreen.available && mobilenetClasses.length > 0) {
+                BioPrescreen.learnFromGemini(mobilenetClasses, json.data.suggestions);
+            }
             var shouldSaveFrame = false;
             json.data.suggestions.forEach(function(sug) {
                 var isNewSpecies = !S.speciesMap[sug.name];
