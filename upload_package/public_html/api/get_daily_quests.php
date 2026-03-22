@@ -1,8 +1,9 @@
 <?php
 /**
- * get_daily_quests.php — デイリークエストAPI
+ * get_daily_quests.php — 後方互換ラッパー
  *
- * 今日のクエスト3件 + 各進捗率を返す。
+ * v2 マイゴールシステムへの移行済み。
+ * 既存クライアント向けに、アクティブゴールをクエスト形式で返す。
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -21,25 +22,30 @@ if (!$user) {
 }
 
 $userId = $user['id'];
-$quests = QuestManager::getActiveQuests($userId);
+$goalsWithProgress = QuestManager::getActiveGoalsWithProgress($userId);
 
 $result = [];
-foreach ($quests as $q) {
-    $progress = QuestManager::checkProgress($userId, $q['id']);
+foreach ($goalsWithProgress as $gp) {
+    $goal = $gp['goal'];
+    $progress = $gp['progress'];
     $result[] = [
-        'id' => $q['id'],
-        'icon' => $q['icon'] ?? '🎯',
-        'title' => $q['title'] ?? $q['name'] ?? '',
-        'description' => $q['description'] ?? '',
-        'reward' => $q['reward'] ?? 100,
-        'target' => $q['target'] ?? 1,
-        'progress' => min($progress, 100),
-        'completed' => $progress >= 100,
+        'id' => $goal['id'],
+        'icon' => $goal['icon'] ?? 'target',
+        'title' => $goal['title'] ?? '',
+        'description' => $goal['description'] ?? '',
+        'reward' => $goal['reward_per_milestone'] ?? 100,
+        'target' => $progress['target'],
+        'progress' => $progress['percent'],
+        'completed' => $progress['completed'],
+        'milestones' => $progress['milestones'],
+        'milestones_completed' => $progress['milestones_completed'],
     ];
 }
 
 echo json_encode([
     'success' => true,
     'quests' => $result,
+    'goals' => $result,
     'date' => date('Y-m-d'),
+    'version' => 2,
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

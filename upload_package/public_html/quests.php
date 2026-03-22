@@ -3,21 +3,31 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/QuestManager.php';
+require_once __DIR__ . '/../libs/CSRF.php';
 
 Auth::init();
 $currentUser = Auth::user();
-$meta_title = 'クエスト | ikimon.life';
+$meta_title = 'マイゴール | ikimon.life';
 
-$dailyQuests = QuestManager::getActiveQuests($currentUser ? $currentUser['id'] : null);
-$scanQuests = $currentUser ? QuestManager::getScanQuests($currentUser['id']) : [];
-$totalActive = count($scanQuests) + count($dailyQuests);
+$fieldSignals = $currentUser ? QuestManager::getScanQuests($currentUser['id']) : [];
+$goalsWithProgress = $currentUser ? QuestManager::getActiveGoalsWithProgress($currentUser['id']) : [];
+$goalCatalog = QuestManager::getGoalCatalog();
+$recommendedGoals = $currentUser ? QuestManager::getRecommendedGoals($currentUser['id']) : [];
+$csrfToken = CSRF::token();
 
-$dailyProgress = [];
+$activeGoalIds = [];
 if ($currentUser) {
-    foreach ($dailyQuests as $q) {
-        $dailyProgress[$q['id'] ?? ''] = QuestManager::checkProgress($currentUser['id'], $q['id'] ?? '');
-    }
+    $userData = QuestManager::getUserGoals($currentUser['id']);
+    $activeGoalIds = $userData['active_goals'] ?? [];
 }
+
+$categories = [
+    'observation' => ['label' => '観察', 'icon' => 'eye'],
+    'identification' => ['label' => '同定', 'icon' => 'microscope'],
+    'exploration' => ['label' => '探索', 'icon' => 'compass'],
+    'phenology' => ['label' => 'フェノロジー', 'icon' => 'calendar'],
+    'specialization' => ['label' => '専門特化', 'icon' => 'target'],
+];
 
 $significanceTexts = [
     'redlist' => [
@@ -33,16 +43,8 @@ $significanceTexts = [
         'icon' => 'microscope',
     ],
     'evidence_upgrade' => [
-        'why' => '写真証拠が加わることで、AI単独検出（Tier 1）からコミュニティ検証可能（Tier 2）にデータグレードが上がります。論文に引用できる品質に近づきます。',
+        'why' => '写真証拠が加わることで、AI単独検出（Tier 1）からコミュニティ検証可能（Tier 2）にデータグレードが上がります。',
         'icon' => 'trending-up',
-    ],
-    'new_species' => [
-        'why' => 'あなたのLife Listが広がるだけでなく、地域の種多様性データベースが豊かになります。将来の研究者がこのデータを参照する日が来るかもしれません。',
-        'icon' => 'sparkles',
-    ],
-    'photo_needed' => [
-        'why' => '写真付き記録は、将来の同定修正や分類学的再検討に不可欠です。音声やAI検出だけでは確認できない形態的特徴を保存できます。',
-        'icon' => 'camera',
     ],
 ];
 
@@ -51,8 +53,6 @@ $badgeColors = [
     'area_first'       => 'bg-amber-100 text-amber-700 border-amber-200',
     'id_challenge'     => 'bg-purple-100 text-purple-700 border-purple-200',
     'evidence_upgrade' => 'bg-blue-100 text-blue-700 border-blue-200',
-    'new_species'      => 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    'photo_needed'     => 'bg-gray-100 text-gray-600 border-gray-200',
 ];
 
 $bgGradients = [
@@ -60,8 +60,6 @@ $bgGradients = [
     'area_first'       => 'from-amber-50 to-orange-50',
     'id_challenge'     => 'from-purple-50 to-violet-50',
     'evidence_upgrade' => 'from-blue-50 to-sky-50',
-    'new_species'      => 'from-emerald-50 to-teal-50',
-    'photo_needed'     => 'from-gray-50 to-slate-50',
 ];
 ?>
 <!DOCTYPE html>
@@ -74,54 +72,47 @@ $bgGradients = [
 <body class="bg-background text-text">
 <?php include __DIR__ . '/components/nav.php'; ?>
 
-<main class="max-w-lg mx-auto px-4 pb-24" style="padding-top:calc(var(--nav-height,56px) + 1.5rem)">
+<main class="max-w-lg mx-auto px-4 pb-24" style="padding-top:calc(var(--nav-height,56px) + 1.5rem)"
+      x-data="goalsPage()" x-init="init()">
 
     <!-- Hero -->
     <div class="text-center mb-6">
         <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-blue-100 border border-emerald-200 mb-3">
-            <i data-lucide="scroll-text" class="w-8 h-8 text-emerald-600"></i>
+            <i data-lucide="target" class="w-8 h-8 text-emerald-600"></i>
         </div>
-        <h1 class="text-2xl font-black">フィールドノート</h1>
-        <p class="text-sm text-muted mt-1">自然からの呼びかけに応えよう</p>
+        <h1 class="text-2xl font-black">マイゴール</h1>
+        <p class="text-sm text-muted mt-1">自分のペースで、自分の目標を</p>
     </div>
 
     <?php if (!$currentUser): ?>
-    <!-- ログイン促進 -->
     <div class="bg-surface border border-border rounded-2xl p-6 text-center">
         <i data-lucide="lock" class="w-8 h-8 text-muted mx-auto mb-3"></i>
-        <p class="text-sm text-muted mb-4">ログインするとクエストが解放されます</p>
+        <p class="text-sm text-muted mb-4">ログインするとマイゴールが解放されます</p>
         <a href="login.php?redirect=quests.php" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-6 py-3 text-sm transition">ログイン</a>
     </div>
     <?php else: ?>
 
-    <!-- Active Quest Count -->
-    <?php if ($totalActive > 0): ?>
-    <div class="flex items-center justify-center gap-3 mb-6">
-        <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-full px-4 py-2">
-            <span class="text-emerald-700 text-lg font-black"><?= $totalActive ?></span>
-            <span class="text-emerald-600 text-xs font-bold">件のクエストが待っています</span>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- ===== スキャンクエスト（フィールドノート） ===== -->
-    <?php if (!empty($scanQuests)): ?>
+    <!-- ===== フィールドシグナル（科学的緊急性あり時のみ） ===== -->
+    <?php if (!empty($fieldSignals)): ?>
     <section class="mb-8">
         <div class="flex items-center gap-2 mb-4">
-            <i data-lucide="notebook-pen" class="w-5 h-5 text-emerald-600"></i>
-            <h2 class="text-base font-black">スキャンから生まれたクエスト</h2>
+            <i data-lucide="radio" class="w-5 h-5 text-red-500"></i>
+            <h2 class="text-base font-black">フィールドシグナル</h2>
+            <span class="text-[10px] text-red-500 font-bold ml-auto flex items-center gap-1">
+                <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                期間限定
+            </span>
         </div>
         <div class="space-y-3">
-            <?php foreach ($scanQuests as $sq):
-                $trigger = $sq['trigger'] ?? 'new_species';
+            <?php foreach ($fieldSignals as $sq):
+                $trigger = $sq['trigger'] ?? 'id_challenge';
                 $hoursLeft = max(0, (int)round((strtotime($sq['expires_at'] ?? 'now') - time()) / 3600));
-                $badge = $badgeColors[$trigger] ?? $badgeColors['new_species'];
-                $bg = $bgGradients[$trigger] ?? $bgGradients['new_species'];
+                $badge = $badgeColors[$trigger] ?? $badgeColors['id_challenge'];
+                $bg = $bgGradients[$trigger] ?? $bgGradients['id_challenge'];
                 $sig = $significanceTexts[$trigger] ?? null;
                 $cta = $sq['cta_text'] ?? '記録する';
             ?>
             <div class="bg-gradient-to-br <?= $bg ?> rounded-2xl p-5 border border-gray-200">
-                <!-- Badge + TTL -->
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-[10px] font-bold px-2.5 py-1 rounded-md border <?= $badge ?>">
                         <?= htmlspecialchars($sq['rarity_label'] ?? $trigger, ENT_QUOTES, 'UTF-8') ?>
@@ -131,42 +122,30 @@ $bgGradients = [
                         残り<?= $hoursLeft ?>時間
                     </span>
                 </div>
-
-                <!-- Title -->
                 <h3 class="text-base font-black text-gray-900 mb-2"><?= htmlspecialchars($sq['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></h3>
-
-                <!-- Progress Hint (Endowed Progress) -->
                 <?php if (!empty($sq['progress_hint'])): ?>
                 <div class="text-xs text-emerald-700 bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-2 mb-3">
                     <?= htmlspecialchars($sq['progress_hint'], ENT_QUOTES, 'UTF-8') ?>
                 </div>
                 <?php endif; ?>
-
-                <!-- Description -->
-                <p class="text-xs text-gray-600 leading-relaxed mb-3">
-                    <?= htmlspecialchars($sq['description'] ?? '', ENT_QUOTES, 'UTF-8') ?>
-                </p>
-
-                <!-- Why this matters -->
+                <p class="text-xs text-gray-600 leading-relaxed mb-3"><?= htmlspecialchars($sq['description'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
                 <?php if ($sig): ?>
-                <details class="mb-4 group">
+                <details class="mb-4">
                     <summary class="text-[11px] text-blue-600 cursor-pointer hover:text-blue-700 transition flex items-center gap-1">
                         <i data-lucide="info" class="w-3 h-3"></i>
-                        なぜこのクエストが重要？
+                        なぜ重要？
                     </summary>
                     <div class="mt-2 text-[11px] text-gray-600 leading-relaxed bg-white/70 rounded-lg p-3 border border-gray-100">
                         <?= htmlspecialchars($sig['why'], ENT_QUOTES, 'UTF-8') ?>
                     </div>
                 </details>
                 <?php endif; ?>
-
-                <!-- CTA -->
                 <div class="flex items-center gap-3">
-                    <a href="post.php?species=<?= urlencode($sq['species_name'] ?? '') ?>&from=scan_quest&quest_id=<?= urlencode($sq['id'] ?? '') ?><?= $trigger === 'id_challenge' ? '&family_hint=' . urlencode($sq['species_name'] ?? '') : '' ?>"
+                    <a href="post.php?species=<?= urlencode($sq['species_name'] ?? '') ?>&from=field_signal&quest_id=<?= urlencode($sq['id'] ?? '') ?>"
                        class="flex-1 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3 text-sm transition">
                         <?= htmlspecialchars($cta, ENT_QUOTES, 'UTF-8') ?>
                     </a>
-                    <span class="text-[10px] text-gray-400">+<?= (int)($sq['reward'] ?? 0) ?>pt</span>
+                    <span class="text-sm text-amber-600 font-black">+<?= (int)($sq['reward'] ?? 0) ?>pt</span>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -174,108 +153,293 @@ $bgGradients = [
     </section>
     <?php endif; ?>
 
-    <!-- ===== デイリークエスト ===== -->
+    <!-- ===== マイゴール ===== -->
     <section class="mb-8">
         <div class="flex items-center gap-2 mb-4">
-            <i data-lucide="calendar-check" class="w-5 h-5 text-amber-600"></i>
-            <h2 class="text-base font-black">今日のクエスト</h2>
-            <span class="text-[10px] text-muted ml-auto">毎日更新</span>
+            <i data-lucide="flag" class="w-5 h-5 text-emerald-600"></i>
+            <h2 class="text-base font-black">マイゴール</h2>
+            <span class="text-[10px] text-muted ml-auto">期限なし・いつでも達成</span>
         </div>
-        <?php if (!empty($dailyQuests)): ?>
+
+        <?php if (!empty($goalsWithProgress)): ?>
         <div class="space-y-3">
-            <?php foreach ($dailyQuests as $quest):
-                $progress = $dailyProgress[$quest['id'] ?? ''] ?? 0;
-                $isDone = $progress >= 100;
+            <?php foreach ($goalsWithProgress as $gp):
+                $goal = $gp['goal'];
+                $progress = $gp['progress'];
+                $milestones = $progress['milestones'] ?? [];
+                $target = $progress['target'];
+                $current = $progress['current'];
+                $percent = $progress['percent'];
+                $completedMs = $progress['milestones_completed'] ?? [];
+                $totalMs = $progress['total_milestones'];
+                $currentMs = $progress['current_milestone'];
+                $isComplete = $progress['completed'];
             ?>
-            <div class="bg-surface border border-border rounded-2xl p-4 <?= $isDone ? 'opacity-60' : '' ?>">
+            <div class="bg-surface border border-border rounded-2xl p-4 <?= $isComplete ? 'ring-2 ring-emerald-300' : '' ?>">
                 <div class="flex items-center gap-3">
-                    <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 <?= $isDone ? 'bg-emerald-500/20' : 'bg-amber-500/10 border border-amber-500/20' ?>">
-                        <?php if ($isDone): ?>
-                            <i data-lucide="check" class="w-5 h-5 text-emerald-400"></i>
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 <?= $isComplete ? 'bg-emerald-500/20' : 'bg-emerald-500/10 border border-emerald-500/20' ?>">
+                        <?php if ($isComplete): ?>
+                            <i data-lucide="trophy" class="w-5 h-5 text-emerald-500"></i>
                         <?php else: ?>
-                            <i data-lucide="<?= htmlspecialchars($quest['icon'] ?? 'target', ENT_QUOTES, 'UTF-8') ?>" class="w-5 h-5 text-amber-500"></i>
+                            <i data-lucide="<?= htmlspecialchars($goal['icon'] ?? 'target', ENT_QUOTES, 'UTF-8') ?>" class="w-5 h-5 text-emerald-600"></i>
                         <?php endif; ?>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <div class="text-sm font-bold <?= $isDone ? 'line-through text-muted' : '' ?>"><?= htmlspecialchars($quest['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
-                        <div class="text-xs text-muted mt-0.5"><?= htmlspecialchars($quest['description'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+                        <div class="text-sm font-bold"><?= htmlspecialchars($goal['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+                        <div class="text-xs text-muted mt-0.5"><?= $current ?> / <?= $target ?></div>
                     </div>
                     <div class="text-right shrink-0">
-                        <div class="text-[10px] text-amber-500 font-bold">+<?= (int)($quest['reward'] ?? 0) ?>pt</div>
-                        <?php if (!$isDone && $progress > 0): ?>
-                        <div class="text-[10px] text-muted"><?= $progress ?>%</div>
-                        <?php endif; ?>
+                        <div class="text-[10px] text-emerald-600 font-bold">+<?= (int)($goal['reward_per_milestone'] ?? 100) ?>pt/達成</div>
+                        <div class="text-[10px] text-muted"><?= $currentMs ?>/<?= $totalMs ?> マイルストーン</div>
                     </div>
                 </div>
-                <?php if (!$isDone): ?>
-                <div class="mt-3 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                    <div class="h-full rounded-full transition-all duration-500 <?= $progress > 0 ? 'bg-amber-500' : 'bg-white/10' ?>" style="width:<?= $progress ?>%"></div>
+
+                <!-- Progress bar with milestone markers -->
+                <div class="mt-3 relative">
+                    <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-500 <?= $isComplete ? 'bg-emerald-400' : 'bg-emerald-500' ?>"
+                             style="width:<?= $percent ?>%"></div>
+                    </div>
+                    <?php if (!empty($milestones) && $target > 0): ?>
+                    <div class="flex justify-between mt-1">
+                        <?php foreach ($milestones as $m):
+                            $mPercent = min(100, ($m / $target) * 100);
+                            $reached = in_array($m, $completedMs, true);
+                        ?>
+                        <span class="text-[9px] <?= $reached ? 'text-emerald-600 font-bold' : 'text-gray-400' ?>"><?= $m ?></span>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
-                <?php endif; ?>
+
+                <!-- Remove goal button -->
+                <div class="mt-2 flex justify-end">
+                    <button @click="deactivateGoal('<?= htmlspecialchars($goal['id'], ENT_QUOTES, 'UTF-8') ?>')"
+                            class="text-[10px] text-gray-400 hover:text-red-400 transition">
+                        ゴール解除（進捗は保持）
+                    </button>
+                </div>
             </div>
             <?php endforeach; ?>
         </div>
         <?php else: ?>
-        <div class="text-center text-sm text-muted py-6">クエストを読み込めませんでした</div>
+        <div class="bg-surface border border-border rounded-2xl p-6 text-center">
+            <i data-lucide="plus-circle" class="w-8 h-8 text-muted mx-auto mb-3"></i>
+            <p class="text-sm text-muted mb-2">まだゴールを選んでいません</p>
+            <p class="text-xs text-muted">下のカタログから、気になるゴールを追加してみよう</p>
+        </div>
+        <?php endif; ?>
+
+        <?php if (count($activeGoalIds) < QuestManager::MAX_ACTIVE_GOALS): ?>
+        <div class="mt-3 text-center">
+            <button @click="showCatalog = !showCatalog"
+                    class="text-sm text-emerald-600 hover:text-emerald-700 font-bold transition flex items-center gap-1 mx-auto">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                ゴールを追加（あと<?= QuestManager::MAX_ACTIVE_GOALS - count($activeGoalIds) ?>個）
+            </button>
+        </div>
         <?php endif; ?>
     </section>
 
-    <!-- ===== なぜクエストがあるの？ ===== -->
+    <!-- ===== ゴールカタログ ===== -->
+    <section x-show="showCatalog" x-transition class="mb-8">
+        <div class="flex items-center gap-2 mb-4">
+            <i data-lucide="book-open" class="w-5 h-5 text-blue-600"></i>
+            <h2 class="text-base font-black">ゴールカタログ</h2>
+        </div>
+
+        <!-- おすすめ -->
+        <?php if (!empty($recommendedGoals)): ?>
+        <div class="mb-4">
+            <div class="text-xs font-bold text-amber-600 mb-2 flex items-center gap-1">
+                <i data-lucide="sparkles" class="w-3 h-3"></i>
+                おすすめ
+            </div>
+            <div class="space-y-2">
+                <?php foreach ($recommendedGoals as $rg):
+                    $isActive = in_array($rg['id'], $activeGoalIds, true);
+                ?>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                        <i data-lucide="<?= htmlspecialchars($rg['icon'] ?? 'target', ENT_QUOTES, 'UTF-8') ?>" class="w-4 h-4 text-amber-600"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-bold"><?= htmlspecialchars($rg['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+                        <div class="text-[11px] text-gray-500"><?= htmlspecialchars($rg['description'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+                    </div>
+                    <?php if (!$isActive): ?>
+                    <button @click="activateGoal('<?= htmlspecialchars($rg['id'], ENT_QUOTES, 'UTF-8') ?>')"
+                            class="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg px-3 py-1.5 transition">
+                        追加
+                    </button>
+                    <?php else: ?>
+                    <span class="text-[10px] text-emerald-600 font-bold shrink-0">追加済み</span>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- カテゴリ別 -->
+        <?php foreach ($categories as $catKey => $catInfo):
+            $catGoals = array_filter($goalCatalog, fn($g) => ($g['category'] ?? '') === $catKey);
+            if (empty($catGoals)) continue;
+        ?>
+        <details class="mb-3 group">
+            <summary class="flex items-center gap-2 cursor-pointer p-3 bg-surface border border-border rounded-xl hover:bg-gray-50 transition">
+                <i data-lucide="<?= $catInfo['icon'] ?>" class="w-4 h-4 text-gray-500"></i>
+                <span class="text-sm font-bold"><?= $catInfo['label'] ?></span>
+                <span class="text-[10px] text-muted ml-auto"><?= count($catGoals) ?>個</span>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180"></i>
+            </summary>
+            <div class="mt-2 space-y-2 pl-2">
+                <?php foreach ($catGoals as $g):
+                    $isActive = in_array($g['id'], $activeGoalIds, true);
+                    $diff = $g['difficulty'] ?? 'medium';
+                    $diffLabel = match($diff) { 'easy' => '初級', 'hard' => '上級', default => '中級' };
+                    $diffColor = match($diff) { 'easy' => 'text-emerald-600', 'hard' => 'text-red-600', default => 'text-amber-600' };
+                ?>
+                <div class="bg-surface border border-border rounded-xl p-3 flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                        <i data-lucide="<?= htmlspecialchars($g['icon'] ?? 'target', ENT_QUOTES, 'UTF-8') ?>" class="w-4 h-4 text-gray-500"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-bold"><?= htmlspecialchars($g['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+                        <div class="text-[11px] text-gray-500 mt-0.5"><?= htmlspecialchars($g['description'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-[10px] <?= $diffColor ?> font-bold"><?= $diffLabel ?></span>
+                            <span class="text-[10px] text-gray-400">+<?= (int)($g['reward_per_milestone'] ?? 100) ?>pt/マイルストーン</span>
+                        </div>
+                    </div>
+                    <?php if (!$isActive): ?>
+                    <button @click="activateGoal('<?= htmlspecialchars($g['id'], ENT_QUOTES, 'UTF-8') ?>')"
+                            class="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg px-3 py-1.5 transition">
+                        追加
+                    </button>
+                    <?php else: ?>
+                    <span class="text-[10px] text-emerald-600 font-bold shrink-0">追加済み</span>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </details>
+        <?php endforeach; ?>
+    </section>
+
+    <!-- ===== なぜマイゴール？ ===== -->
     <section class="mb-8">
         <div class="flex items-center gap-2 mb-4">
             <i data-lucide="lightbulb" class="w-5 h-5 text-blue-600"></i>
-            <h2 class="text-base font-black">クエストの意味</h2>
+            <h2 class="text-base font-black">マイゴールの哲学</h2>
         </div>
         <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm space-y-4">
             <div class="flex items-start gap-3">
                 <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
-                    <i data-lucide="database" class="w-4 h-4 text-emerald-600"></i>
+                    <i data-lucide="heart" class="w-4 h-4 text-emerald-600"></i>
                 </div>
                 <div>
-                    <div class="text-sm font-bold text-gray-900 mb-1">すべてが科学データになる</div>
-                    <div class="text-xs text-gray-600 leading-relaxed">あなたの観察はCanonical Schema（100年耐久設計のデータベース）に蓄積されます。将来の研究者、行政、保全活動に活用される可能性があります。</div>
+                    <div class="text-sm font-bold text-gray-900 mb-1">キミが選ぶ、キミのペース</div>
+                    <div class="text-xs text-gray-600 leading-relaxed">期限なし。焦る必要はありません。自分で選んだ目標だからこそ、達成した時の喜びも格別です。</div>
                 </div>
             </div>
             <div class="flex items-start gap-3">
                 <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
-                    <i data-lucide="puzzle" class="w-4 h-4 text-amber-600"></i>
+                    <i data-lucide="layers" class="w-4 h-4 text-amber-600"></i>
                 </div>
                 <div>
-                    <div class="text-sm font-bold text-gray-900 mb-1">AIとのバトンリレー</div>
-                    <div class="text-xs text-gray-600 leading-relaxed">ライブスキャンでAIが「ここまで」判定したものを、あなたが写真や知識で完成させる。人間とAIの協働が、データの質を飛躍的に高めます。</div>
+                    <div class="text-sm font-bold text-gray-900 mb-1">マイルストーンで小さな達成感</div>
+                    <div class="text-xs text-gray-600 leading-relaxed">大きなゴールも、途中のマイルストーンで一歩ずつ報酬がもらえます。進捗は永久に保存されます。</div>
                 </div>
             </div>
             <div class="flex items-start gap-3">
                 <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
-                    <i data-lucide="heart" class="w-4 h-4 text-red-600"></i>
+                    <i data-lucide="radio" class="w-4 h-4 text-red-600"></i>
                 </div>
                 <div>
-                    <div class="text-sm font-bold text-gray-900 mb-1">希少な記録ほど価値が高い</div>
-                    <div class="text-xs text-gray-600 leading-relaxed">絶滅危惧種や地域初記録のクエストが優先的に出るのは、そのデータが科学的に最も求められているからです。あなたの1枚が保全の判断材料になります。</div>
+                    <div class="text-sm font-bold text-gray-900 mb-1">フィールドシグナルだけが時限</div>
+                    <div class="text-xs text-gray-600 leading-relaxed">絶滅危惧種や地域初記録など、科学的に本当に急ぐものだけに期限があります。それ以外は、すべて無期限です。</div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ===== スキャンへの導線 ===== -->
-    <?php if (empty($scanQuests)): ?>
+    <!-- ===== フィールドへの導線 ===== -->
+    <?php if (empty($fieldSignals)): ?>
     <section class="mb-8">
         <div class="bg-gradient-to-br from-emerald-50 to-blue-50 rounded-2xl p-6 text-center border border-emerald-200">
-            <div class="text-4xl mb-3">🌍</div>
-            <h3 class="text-base font-black text-gray-900 mb-2">フィールドに出よう</h3>
-            <p class="text-xs text-gray-600 mb-4">ライブスキャンで周囲を探索すると、<br>AIが見つけた発見からクエストが生まれます</p>
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-100 mb-3">
+                <i data-lucide="radio" class="w-6 h-6 text-emerald-600"></i>
+            </div>
+            <h3 class="text-base font-black text-gray-900 mb-2">フィールドシグナルを受信しよう</h3>
+            <p class="text-xs text-gray-600 mb-4">ライブスキャンで周囲を探索すると、<br>科学的に重要な発見がシグナルとして届きます</p>
             <a href="field_scan.php" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-6 py-3 text-sm transition">
-                📡 ライブスキャンを始める
+                ライブスキャンを始める
             </a>
         </div>
     </section>
     <?php endif; ?>
 
     <?php endif; ?>
-
 </main>
 
 <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
-<script nonce="<?= CspNonce::attr() ?>">lucide.createIcons();</script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script nonce="<?= CspNonce::attr() ?>">
+function goalsPage() {
+    return {
+        showCatalog: <?= empty($goalsWithProgress) ? 'true' : 'false' ?>,
+        csrfToken: '<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>',
+
+        init() {
+            lucide.createIcons();
+            this.$nextTick(() => lucide.createIcons());
+        },
+
+        async activateGoal(goalId) {
+            try {
+                const res = await fetch('/api/v2/goals.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': this.csrfToken,
+                    },
+                    body: JSON.stringify({ action: 'activate', goal_id: goalId, csrf_token: this.csrfToken }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'エラーが発生しました');
+                }
+            } catch (e) {
+                alert('通信エラーが発生しました');
+            }
+        },
+
+        async deactivateGoal(goalId) {
+            if (!confirm('このゴールを解除しますか？進捗は保持されます。')) return;
+            try {
+                const res = await fetch('/api/v2/goals.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': this.csrfToken,
+                    },
+                    body: JSON.stringify({ action: 'deactivate', goal_id: goalId, csrf_token: this.csrfToken }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'エラーが発生しました');
+                }
+            } catch (e) {
+                alert('通信エラーが発生しました');
+            }
+        }
+    };
+}
+</script>
 </body>
 </html>
