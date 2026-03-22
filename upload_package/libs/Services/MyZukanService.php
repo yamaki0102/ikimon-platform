@@ -237,6 +237,8 @@ class MyZukanService
                 }
             }
 
+            $index = self::mergeRelatedEntries($index);
+
             foreach ($index as &$entry) {
                 usort($entry['encounters'], fn($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? ''));
 
@@ -496,6 +498,72 @@ class MyZukanService
         if ($count >= 5)  return self::ENCOUNTER_LABELS[5];
         if ($count >= 2)  return self::ENCOUNTER_LABELS[2];
         return self::ENCOUNTER_LABELS[1];
+    }
+
+    private static function mergeRelatedEntries(array $index): array
+    {
+        $nameMap = [];
+        foreach ($index as $key => $entry) {
+            $nameMap[$entry['name']] = $key;
+        }
+
+        $suffixes = ['属', '科', '目'];
+        $toRemove = [];
+
+        foreach ($index as $key => $entry) {
+            $name = $entry['name'];
+            foreach ($suffixes as $suffix) {
+                if (mb_substr($name, -mb_strlen($suffix)) === $suffix) {
+                    $baseName = mb_substr($name, 0, -mb_strlen($suffix));
+                    if (isset($nameMap[$baseName]) && $nameMap[$baseName] !== $key) {
+                        $targetKey = $nameMap[$baseName];
+                        $index[$targetKey]['encounters'] = array_merge(
+                            $index[$targetKey]['encounters'],
+                            $entry['encounters']
+                        );
+                        $index[$targetKey]['encounter_count'] += $entry['encounter_count'];
+                        foreach ($entry['categories'] as $cat) {
+                            if (!in_array($cat, $index[$targetKey]['categories'])) {
+                                $index[$targetKey]['categories'][] = $cat;
+                            }
+                        }
+                        if (!$index[$targetKey]['cover_photo'] && $entry['cover_photo']) {
+                            $index[$targetKey]['cover_photo'] = $entry['cover_photo'];
+                        }
+                        if ($entry['has_audio']) $index[$targetKey]['has_audio'] = true;
+                        $toRemove[] = $key;
+                        continue 2;
+                    }
+                }
+
+                $withSuffix = $name . $suffix;
+                if (isset($nameMap[$withSuffix]) && $nameMap[$withSuffix] !== $key) {
+                    $fromKey = $nameMap[$withSuffix];
+                    if (in_array($fromKey, $toRemove)) continue;
+                    $index[$key]['encounters'] = array_merge(
+                        $index[$key]['encounters'],
+                        $index[$fromKey]['encounters']
+                    );
+                    $index[$key]['encounter_count'] += $index[$fromKey]['encounter_count'];
+                    foreach ($index[$fromKey]['categories'] as $cat) {
+                        if (!in_array($cat, $index[$key]['categories'])) {
+                            $index[$key]['categories'][] = $cat;
+                        }
+                    }
+                    if (!$index[$key]['cover_photo'] && $index[$fromKey]['cover_photo']) {
+                        $index[$key]['cover_photo'] = $index[$fromKey]['cover_photo'];
+                    }
+                    if ($index[$fromKey]['has_audio']) $index[$key]['has_audio'] = true;
+                    $toRemove[] = $fromKey;
+                }
+            }
+        }
+
+        foreach ($toRemove as $key) {
+            unset($index[$key]);
+        }
+
+        return $index;
     }
 
     private static function isGenericName(string $name): bool
