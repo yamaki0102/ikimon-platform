@@ -871,6 +871,13 @@
     width: 100%;
     max-width: 560px;
     background: var(--color-bg-surface, white);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.zukan-modal__content > div:first-child {
+    flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
@@ -1270,11 +1277,13 @@
     border-color: var(--color-primary);
 }
 
-/* ── Book-style Page Navigation ── */
+/* ── Book-style Page Navigation (sticky bottom) ── */
 .zukan-book-nav {
-    padding: var(--zukan-space-md);
+    flex-shrink: 0;
+    padding: 10px var(--zukan-space-md);
     border-top: 2px solid var(--color-border);
-    background: linear-gradient(180deg, var(--color-surface, #fff) 0%, rgba(0,0,0,0.02) 100%);
+    background: var(--color-bg-surface, white);
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
 }
 
 .zukan-book-nav__bar {
