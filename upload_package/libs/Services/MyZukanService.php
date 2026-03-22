@@ -33,9 +33,12 @@ class MyZukanService
             $index = [];
 
             foreach ($observations as $obs) {
-                $taxonKey = $obs['taxon']['key'] ?? null;
                 $taxonName = $obs['taxon']['name'] ?? '';
-                if (!$taxonKey || !$taxonName) continue;
+                if (!$taxonName) continue;
+                $taxonKey = $obs['taxon']['key'] ?? '';
+                if (!$taxonKey) {
+                    $taxonKey = 'name_' . md5($taxonName);
+                }
 
                 $obsUserId = $obs['user_id'] ?? '';
                 $obsDate = $obs['observed_at'] ?? $obs['created_at'] ?? '';
