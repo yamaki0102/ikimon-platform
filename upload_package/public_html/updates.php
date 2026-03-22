@@ -50,6 +50,24 @@ Auth::init();
             <!-- Updates Timeline -->
             <div class="space-y-8">
 
+                <!-- v0.8.1 — Sound Archive -->
+                <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 flex-wrap mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.8.1</span>
+                        <time class="text-sm text-gray-500">2026年3月22日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">サウンドアーカイブ — 生き物の声を集めて同定しよう</h2>
+                    <p class="text-gray-500 text-sm mb-4">ウォーク・スキャンで録音された「生き物っぽい音」を自動アーカイブ。誰でも聞いて種名を提案でき、みんなの力で同定を進められます。飼育動物の声も手動アップロードOK。</p>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>自動アーカイブ</strong>: ウォーク・スキャン中に録音された音声のうち、AI同定に至らなかった「生き物っぽい音」を自動保存。周波数フィルタ（2-8kHz帯）で人の会話を端末側で除外します</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>手動アップロード</strong>: 音声+画像を同時にアップロード可能。飼育している犬や猫の声、庭の虫の鳴き声など、観察投稿とは別に気軽に記録できます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>市民同定</strong>: 音声を聞いて「これは○○だと思う」と提案。3人の提案が一致すると「同定済み」に昇格。将来のAI学習データとしても活用予定</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>通報機能</strong>: 人の声やノイズが混入した音声は通報で非表示に。データは運営が確認用に保持します</span></li>
+                    </ul>
+                </article>
+
                 <!-- v0.8.0 — My Zukan & Species Story -->
                 <article x-show="filter === 'all' || filter === 'feature'" x-transition class="relative pl-8 border-l-2 border-emerald-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
