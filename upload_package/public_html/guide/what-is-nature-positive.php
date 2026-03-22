@@ -144,7 +144,7 @@ $meta_description = 'ネイチャーポジティブ(自然再興)の意味、背
                 <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center text-lg font-black text-[#05070a]">Y</div>
                 <div>
                     <p class="text-sm font-bold">八巻 毅</p>
-                    <p class="text-xs text-gray-400">IKIMON株式会社 代表 / 愛管株式会社 自然共生サイト認定取得者</p>
+                    <p class="text-xs text-gray-400">ikimon 代表 / 自然共生サイト認定企業・愛管株式会社パートナー</p>
                     <p class="text-xs text-gray-400 mt-0.5">最終更新: 2026年2月27日</p>
                 </div>
             </div>
@@ -234,7 +234,7 @@ $meta_description = 'ネイチャーポジティブ(自然再興)の意味、背
 
                     <div class="blockquote-accent rounded-xl p-5 my-6">
                         <p class="text-sm text-gray-600 italic">
-                            💡 <strong>当事者として</strong>：私の所属する愛管株式会社は浜松市で「連理の木の下で」を自然共生サイトに認定取得しました。
+                            💡 <strong>パートナー事例</strong>：ikimonのパートナー企業・愛管株式会社が浜松市で「連理の木の下で」を自然共生サイトに認定取得しました。
                             中小企業でも申請でき、プロセスで自社の生物多様性を「見える化」する効果があります。
                             <a href="aikan-renri-report.php" class="text-emerald-600 font-bold hover:underline">→ 詳しい体験レポートはこちら</a>
                         </p>

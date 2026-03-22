@@ -166,7 +166,7 @@ $meta_description = '環境省の自然共生サイト（OECM）全420+認定サ
                 <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-lg font-black text-white">Y</div>
                 <div>
                     <p class="text-sm font-bold">八巻 毅</p>
-                    <p class="text-xs text-gray-400">IKIMON株式会社 代表 / 自然共生サイト認定取得者（愛管株式会社）</p>
+                    <p class="text-xs text-gray-400">ikimon 代表 / 自然共生サイト認定企業・愛管株式会社パートナー</p>
                     <p class="text-xs text-gray-400 mt-0.5">データソース: 環境省PDF (R5-R7) ｜ 最終更新: 2026年2月27日</p>
                 </div>
             </div>
