@@ -532,6 +532,14 @@ class QuestManager
         $lat = (float)($sessionMeta['center_lat'] ?? 0);
         $lng = (float)($sessionMeta['center_lng'] ?? 0);
 
+        $areaLabel = $sessionMeta['area_label'] ?? '';
+        if (!$areaLabel && $lat && $lng && file_exists(ROOT_DIR . '/libs/GeoUtils.php')) {
+            require_once ROOT_DIR . '/libs/GeoUtils.php';
+            $geo = GeoUtils::reverseGeocode($lat, $lng);
+            $areaLabel = ($geo['municipality'] ?? '') ?: ($geo['prefecture'] ?? '');
+            if ($areaLabel) $areaLabel .= '周辺';
+        }
+
         $redListMgr = null;
         if (file_exists(ROOT_DIR . '/libs/RedListManager.php')) {
             require_once ROOT_DIR . '/libs/RedListManager.php';
@@ -687,6 +695,9 @@ class QuestManager
                 'cta_text' => $type['cta'],
                 'icon' => $type['icon'],
                 'scan_session_id' => $sessionId,
+                'center_lat' => $lat,
+                'center_lng' => $lng,
+                'area_label' => $areaLabel,
                 'created_at' => $now,
                 'expires_at' => null,
                 'completed_at' => null,
