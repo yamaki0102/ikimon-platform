@@ -197,13 +197,10 @@ class MyZukanService
                     $durationSec = $session['summary']['duration_sec'] ?? $session['session_meta']['duration_sec'] ?? 0;
                     $distanceM = $session['summary']['distance_m'] ?? 0;
 
+                    $closestFrame = self::findClosestFrame($sessionDate, $scanFrameIndex);
                     $framePhotos = [];
-                    if (!empty($sessionFrames)) {
-                        $maxFrames = min(4, count($sessionFrames));
-                        $step = max(1, (int)(count($sessionFrames) / $maxFrames));
-                        for ($fi = 0; $fi < count($sessionFrames) && count($framePhotos) < $maxFrames; $fi += $step) {
-                            $framePhotos[] = 'api/v2/scan_frame.php?path=' . urlencode($sessionFrames[$fi]);
-                        }
+                    if ($closestFrame) {
+                        $framePhotos[] = 'api/v2/scan_frame.php?path=' . urlencode($closestFrame);
                     }
 
                     if (!$entry['cover_photo'] && !empty($framePhotos)) {
@@ -556,6 +553,29 @@ class MyZukanService
         }
 
         return $index;
+    }
+
+    private static function findClosestFrame(string $sessionDate, array $frameIndex): ?string
+    {
+        if (!$sessionDate || empty($frameIndex)) return null;
+
+        $targetTime = strtotime($sessionDate);
+        if (!$targetTime) return null;
+
+        $bestFrame = null;
+        $bestDiff = PHP_INT_MAX;
+
+        foreach ($frameIndex as $entry) {
+            $frameTime = strtotime($entry['timestamp'] ?? '');
+            if (!$frameTime) continue;
+            $diff = abs($frameTime - $targetTime);
+            if ($diff < $bestDiff && $diff <= 10) {
+                $bestDiff = $diff;
+                $bestFrame = $entry['frame_ref'];
+            }
+        }
+
+        return $bestFrame;
     }
 
     private static function findSessionFrames(string $sessionDate, array $frameIndex): array
