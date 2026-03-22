@@ -64,7 +64,7 @@ Auth::init();
                         <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>マイ図鑑</strong>: 図鑑を「自分が関わった種だけの個人コレクション」にリニューアル。投稿・同定・ライブスキャンで出会った種が自動的に蓄積されます</span></li>
                         <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>スキャンフレーム画像</strong>: ライブスキャンで検出された種のキーフレーム画像がマイ図鑑に表示されるように。撮影しなくても記録が残ります</span></li>
                         <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>AIパーソナライズ種解説</strong>: あなたの出会いコンテキスト（場所・季節・観察回数）に基づいた種解説をAIが自動生成。「3月の公園で3回出会ったシジュウカラ」のようなストーリーに</span></li>
-                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>ポケモン図鑑風ページナビ</strong>: 種詳細ページに前後スワイプナビゲーション + 全種の総数表示。図鑑をめくる感覚で種を巡れます</span></li>
+                        <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>図鑑ページナビ</strong>: 種詳細ページに前後スワイプナビゲーション + 全種の総数表示。図鑑をめくる感覚で種を巡れます</span></li>
                         <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>写真カルーセルギャラリー</strong>: 種に関連する全出会い写真をスワイプで閲覧。フルスクリーン写真ビューアも搭載</span></li>
                         <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>クエストシステム再設計</strong>: 自己決定理論（SDT）・自己効力感・ジョブクラフティング理論に基づくクエスト設計に刷新。やらされ感のない内発的動機づけに</span></li>
                         <li class="flex items-start gap-2"><span class="text-emerald-400 shrink-0">✓</span><span><strong>フィールドシグナル拡張</strong>: 自分のシグナル（無期限表示）に加え、他ユーザーのコミュニティシグナルも表示。フィールドの情報共有が活性化します</span></li>
