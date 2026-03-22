@@ -129,6 +129,8 @@ class MyZukanService
                 unset($entry);
             }
 
+            $scanFrameIndex = self::buildScanFrameIndex();
+
             $passiveSessions = DataStore::fetchAll('passive_sessions');
             foreach ($passiveSessions as $session) {
                 if (($session['user_id'] ?? '') !== $userId) continue;
@@ -139,6 +141,8 @@ class MyZukanService
                 $byType = $session['summary']['by_type'] ?? [];
                 $hasAudioDetection = ($byType['audio'] ?? 0) > 0;
                 $sessionType = $scanMode === 'live-scan' ? 'scan' : 'walk';
+
+                $sessionFrames = self::findSessionFrames($sessionDate, $scanFrameIndex);
 
                 foreach ($speciesMap as $speciesName => $detectionCount) {
                     if (!$speciesName || in_array($speciesName, [
@@ -193,11 +197,24 @@ class MyZukanService
                     $durationSec = $session['summary']['duration_sec'] ?? $session['session_meta']['duration_sec'] ?? 0;
                     $distanceM = $session['summary']['distance_m'] ?? 0;
 
+                    $framePhotos = [];
+                    if (!empty($sessionFrames)) {
+                        $maxFrames = min(4, count($sessionFrames));
+                        $step = max(1, (int)(count($sessionFrames) / $maxFrames));
+                        for ($fi = 0; $fi < count($sessionFrames) && count($framePhotos) < $maxFrames; $fi += $step) {
+                            $framePhotos[] = 'api/v2/scan_frame.php?path=' . urlencode($sessionFrames[$fi]);
+                        }
+                    }
+
+                    if (!$entry['cover_photo'] && !empty($framePhotos)) {
+                        $entry['cover_photo'] = $framePhotos[0];
+                    }
+
                     $entry['encounters'][] = [
                         'id'             => $session['session_id'] ?? '',
                         'date'           => $sessionDate,
                         'type'           => $sessionType,
-                        'photos'         => [],
+                        'photos'         => $framePhotos,
                         'audio_url'      => null,
                         'note'           => $detectionCount > 1 ? "{$detectionCount}回検出" : '',
                         'location_label' => '',
@@ -495,5 +512,50 @@ class MyZukanService
             '冬' => '❄️',
             default => '',
         };
+    }
+
+    private static function buildScanFrameIndex(): array
+    {
+        $index = [];
+        $baseDir = DATA_DIR . 'scan_frames/';
+        if (!is_dir($baseDir)) return $index;
+
+        foreach (glob($baseDir . '*/ls_*', GLOB_ONLYDIR) as $sessionDir) {
+            $files = glob($sessionDir . '/f_*.{jpg,webp}', GLOB_BRACE);
+            if (empty($files)) continue;
+
+            sort($files);
+            $firstMtime = filemtime($files[0]);
+            $lastMtime = filemtime(end($files));
+
+            $relativePaths = array_map(function ($f) use ($baseDir) {
+                return 'scan_frames/' . substr($f, strlen($baseDir));
+            }, $files);
+
+            $index[] = [
+                'start' => $firstMtime,
+                'end'   => $lastMtime,
+                'files' => $relativePaths,
+            ];
+        }
+
+        return $index;
+    }
+
+    private static function findSessionFrames(string $sessionDate, array $scanFrameIndex): array
+    {
+        if (!$sessionDate || empty($scanFrameIndex)) return [];
+
+        $sessionTime = strtotime($sessionDate);
+        if (!$sessionTime) return [];
+
+        foreach ($scanFrameIndex as $entry) {
+            $margin = 300;
+            if ($sessionTime >= ($entry['start'] - $margin) && $sessionTime <= ($entry['end'] + $margin)) {
+                return $entry['files'];
+            }
+        }
+
+        return [];
     }
 }
