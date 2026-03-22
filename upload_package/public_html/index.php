@@ -735,52 +735,43 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
             <?php endif; ?>
         </section>
 
-        <!-- ==================== みんなのウォーク ==================== -->
+        <!-- ==================== ウォークモード ==================== -->
         <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)">
             <div class="rounded-3xl overflow-hidden border border-emerald-500/20">
                 <div class="bg-gradient-to-br from-emerald-900 to-teal-900 p-5 md:p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="text-lg">🚶</span>
-                            <h2 class="text-base font-black text-white">みんなのウォーク</h2>
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">🚶</span>
+                                <h2 class="text-lg font-black text-white">散歩で野鳥調査</h2>
+                            </div>
+                            <p class="text-sm text-emerald-200/80 leading-relaxed mb-4">いつもの散歩道を歩くだけ。スマホがポケットの中で鳥の声をAIが自動判定。歩いた時間と出会った鳥を記録します。</p>
+                            <a href="walk.php" class="inline-flex items-center gap-2 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 text-sm font-bold rounded-full px-5 py-2.5 transition active:scale-95 shadow-lg shadow-emerald-400/20">
+                                <i data-lucide="footprints" class="w-4 h-4"></i>
+                                ウォークを始める
+                            </a>
                         </div>
-                        <a href="walk.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
-                            <i data-lucide="footprints" class="w-3.5 h-3.5"></i> ウォーク開始
-                        </a>
                     </div>
 
                     <?php if ($communityWalkStats['count'] > 0): ?>
-                    <div class="grid grid-cols-4 gap-2 text-center">
-                        <div class="bg-white/10 rounded-xl py-3">
-                            <div class="text-xl font-black text-white"><?= number_format($communityWalkStats['count']) ?></div>
-                            <div class="text-[10px] text-emerald-200 font-bold mt-0.5">ウォーク</div>
+                    <div class="mt-5 pt-4 border-t border-white/10">
+                        <p class="text-[11px] text-emerald-300/60 font-bold mb-2">みんなの記録</p>
+                        <div class="flex items-center gap-4 text-sm text-emerald-100">
+                            <span><span class="font-black text-white"><?= number_format($communityWalkStats['count']) ?></span> 回散歩</span>
+                            <span class="text-emerald-400/30">|</span>
+                            <span>合計 <span class="font-black text-white"><?= number_format($communityWalkStats['duration_min']) ?></span> 分</span>
+                            <span class="text-emerald-400/30">|</span>
+                            <span><span class="font-black text-white"><?= number_format($communityWalkStats['unique_species']) ?></span> 種の鳥を録音</span>
                         </div>
-                        <div class="bg-white/10 rounded-xl py-3">
-                            <div class="text-xl font-black text-white"><?= number_format($communityWalkStats['duration_min']) ?></div>
-                            <div class="text-[10px] text-emerald-200 font-bold mt-0.5">累計(分)</div>
-                        </div>
-                        <div class="bg-white/10 rounded-xl py-3">
-                            <div class="text-xl font-black text-white"><?= number_format($communityWalkStats['unique_species']) ?></div>
-                            <div class="text-[10px] text-emerald-200 font-bold mt-0.5">録音種</div>
-                        </div>
-                        <div class="bg-white/10 rounded-xl py-3">
-                            <div class="text-xl font-black text-white"><?= number_format($communityWalkStats['unique_users']) ?></div>
-                            <div class="text-[10px] text-emerald-200 font-bold mt-0.5">参加者</div>
-                        </div>
-                    </div>
-                    <?php else: ?>
-                    <div class="text-center py-3">
-                        <p class="text-sm text-emerald-200 mb-3">散歩しながら鳥の声をAIが自動で録音・判定</p>
-                        <a href="walk.php" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-full px-4 py-2 transition">
-                            <i data-lucide="footprints" class="w-4 h-4"></i>
-                            ウォークを始める
-                        </a>
                     </div>
                     <?php endif; ?>
                 </div>
 
                 <?php if (!empty($latestWalkSummaries)): ?>
                 <div class="bg-elevated divide-y divide-border">
+                    <div class="px-4 py-2.5 bg-emerald-50/50">
+                        <span class="text-[11px] font-bold text-emerald-700">最近のウォーク</span>
+                    </div>
                     <?php foreach ($latestWalkSummaries as $ws):
                         $wsSummary = $ws['scan_summary'] ?? [];
                         $wsDur = $wsSummary['duration_min'] ?? 0;
@@ -796,7 +787,7 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                         <img src="<?= htmlspecialchars($wsUserAvatar) ?>" alt="" class="w-9 h-9 rounded-full object-cover border border-border shrink-0">
                         <?php else: ?>
                         <div class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                            <i data-lucide="user" class="w-4 h-4 text-emerald-500"></i>
+                            <i data-lucide="bird" class="w-4 h-4 text-emerald-500"></i>
                         </div>
                         <?php endif; ?>
                         <div class="flex-1 min-w-0">
@@ -805,11 +796,15 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                                 <span class="text-[10px] text-muted"><?= $wsDate ?></span>
                             </div>
                             <div class="flex items-center gap-2 mt-0.5">
-                                <span class="text-xs text-muted"><?= $wsDur ?>分<?= $wsDist ? " · {$wsDist}" : '' ?> · <?= $wsSpCount ?>種録音</span>
-                                <?php if (!empty($wsTopSpecies)): ?>
-                                <span class="text-[10px] text-faint truncate"><?= htmlspecialchars(implode(', ', array_map(fn($sp) => $sp['name'] ?? '', $wsTopSpecies))) ?></span>
-                                <?php endif; ?>
+                                <span class="text-xs text-muted"><?= $wsDur ?>分の散歩<?= $wsDist ? "({$wsDist})" : '' ?>で<?= $wsSpCount ?>種の鳥に出会った</span>
                             </div>
+                            <?php if (!empty($wsTopSpecies)): ?>
+                            <div class="flex gap-1 mt-1">
+                                <?php foreach ($wsTopSpecies as $sp): ?>
+                                <span class="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full"><?= htmlspecialchars($sp['name'] ?? '') ?></span>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php endif; ?>
                         </div>
                         <i data-lucide="chevron-right" class="w-4 h-4 text-faint shrink-0"></i>
                     </a>
@@ -819,52 +814,48 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
             </div>
         </section>
 
-        <!-- ==================== みんなのライブスキャン ==================== -->
+        <!-- ==================== ライブスキャン ==================== -->
         <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-2xl)">
             <div class="rounded-3xl overflow-hidden border border-blue-500/20">
                 <div class="bg-gradient-to-br from-blue-900 to-purple-900 p-5 md:p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="text-lg">📡</span>
-                            <h2 class="text-base font-black text-white">みんなのライブスキャン</h2>
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-2xl">📡</span>
+                                <h2 class="text-lg font-black text-white">カメラで生きもの図鑑</h2>
+                            </div>
+                            <p class="text-sm text-blue-200/80 leading-relaxed mb-4">スマホのカメラを周りにかざすだけ。植物・昆虫・鳥 ― 映ったものをAIがリアルタイムで判定して、自動で記録します。</p>
+                            <div class="flex gap-2">
+                                <a href="field_scan.php" class="inline-flex items-center gap-2 bg-blue-400 hover:bg-blue-300 text-blue-950 text-sm font-bold rounded-full px-5 py-2.5 transition active:scale-95 shadow-lg shadow-blue-400/20">
+                                    <i data-lucide="radar" class="w-4 h-4"></i>
+                                    スキャン開始
+                                </a>
+                                <a href="livemap.php" class="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                                    <i data-lucide="globe" class="w-3.5 h-3.5"></i> マップ
+                                </a>
+                            </div>
                         </div>
-                        <a href="livemap.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
-                            <i data-lucide="globe" class="w-3.5 h-3.5"></i> ライブマップ
-                        </a>
                     </div>
 
                     <?php if ($communityScanStats['count'] > 0): ?>
-                    <div class="grid grid-cols-4 gap-2 text-center">
-                        <div class="bg-white/10 rounded-xl py-3">
-                            <div class="text-xl font-black text-white"><?= number_format($communityScanStats['count']) ?></div>
-                            <div class="text-[10px] text-blue-200 font-bold mt-0.5">スキャン</div>
+                    <div class="mt-5 pt-4 border-t border-white/10">
+                        <p class="text-[11px] text-blue-300/60 font-bold mb-2">みんなの記録</p>
+                        <div class="flex items-center gap-4 text-sm text-blue-100 flex-wrap">
+                            <span><span class="font-black text-white"><?= number_format($communityScanStats['count']) ?></span> 回スキャン</span>
+                            <span class="text-blue-400/30">|</span>
+                            <span>合計 <span class="font-black text-white"><?= number_format(round($communityScanStats['duration_min'] / 60, 1)) ?></span> 時間</span>
+                            <span class="text-blue-400/30">|</span>
+                            <span><span class="font-black text-white"><?= number_format($communityScanStats['unique_species']) ?></span> 種を発見</span>
                         </div>
-                        <div class="bg-white/10 rounded-xl py-3">
-                            <div class="text-xl font-black text-white"><?= number_format($communityScanStats['duration_min']) ?></div>
-                            <div class="text-[10px] text-blue-200 font-bold mt-0.5">累計(分)</div>
-                        </div>
-                        <div class="bg-white/10 rounded-xl py-3">
-                            <div class="text-xl font-black text-white"><?= number_format($communityScanStats['unique_species']) ?></div>
-                            <div class="text-[10px] text-blue-200 font-bold mt-0.5">検出種</div>
-                        </div>
-                        <div class="bg-white/10 rounded-xl py-3">
-                            <div class="text-xl font-black text-white"><?= number_format($communityScanStats['unique_users']) ?></div>
-                            <div class="text-[10px] text-blue-200 font-bold mt-0.5">参加者</div>
-                        </div>
-                    </div>
-                    <?php else: ?>
-                    <div class="text-center py-3">
-                        <p class="text-sm text-blue-200 mb-3">スマホをかざすだけで周囲の生き物をAIが自動検出</p>
-                        <a href="field_scan.php" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-full px-4 py-2 transition">
-                            <i data-lucide="radar" class="w-4 h-4"></i>
-                            スキャンを始める
-                        </a>
                     </div>
                     <?php endif; ?>
                 </div>
 
                 <?php if (!empty($latestScans)): ?>
                 <div class="bg-elevated divide-y divide-border">
+                    <div class="px-4 py-2.5 bg-blue-50/50">
+                        <span class="text-[11px] font-bold text-blue-700">最近のスキャン</span>
+                    </div>
                     <?php foreach ($latestScans as $scan):
                         $scanSummary = $scan['scan_summary'] ?? [];
                         $scanDur = $scanSummary['duration_min'] ?? 0;
@@ -879,7 +870,7 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                         <img src="<?= htmlspecialchars($scanUserAvatar) ?>" alt="" class="w-9 h-9 rounded-full object-cover border border-border shrink-0">
                         <?php else: ?>
                         <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                            <i data-lucide="user" class="w-4 h-4 text-blue-500"></i>
+                            <i data-lucide="scan" class="w-4 h-4 text-blue-500"></i>
                         </div>
                         <?php endif; ?>
                         <div class="flex-1 min-w-0">
@@ -888,11 +879,15 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                                 <span class="text-[10px] text-muted"><?= $scanDate ?></span>
                             </div>
                             <div class="flex items-center gap-2 mt-0.5">
-                                <span class="text-xs text-muted"><?= $scanDur ?>分 · <?= $scanSpCount ?>種検出</span>
-                                <?php if (!empty($scanTopSpecies)): ?>
-                                <span class="text-[10px] text-faint truncate"><?= htmlspecialchars(implode(', ', array_map(fn($sp) => $sp['name'] ?? '', $scanTopSpecies))) ?></span>
-                                <?php endif; ?>
+                                <span class="text-xs text-muted"><?= $scanDur ?>分間のスキャンで<?= $scanSpCount ?>種を発見</span>
                             </div>
+                            <?php if (!empty($scanTopSpecies)): ?>
+                            <div class="flex gap-1 mt-1">
+                                <?php foreach ($scanTopSpecies as $sp): ?>
+                                <span class="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full"><?= htmlspecialchars($sp['name'] ?? '') ?></span>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php endif; ?>
                         </div>
                         <i data-lucide="chevron-right" class="w-4 h-4 text-faint shrink-0"></i>
                     </a>
