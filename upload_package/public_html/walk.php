@@ -639,6 +639,8 @@ async function sendAudio(blob) {
                     lat: last ? last.lat : null,
                     lng: last ? last.lng : null,
                     environment: env,
+                    audio_evidence_path: json.data.audio_evidence_path || null,
+                    audio_hash: json.data.audio_hash || null,
                 };
                 W.detections.push(det);
                 document.getElementById('det-count').textContent = W.detections.length;
@@ -899,7 +901,9 @@ async function autoUpload() {
         return {type:'audio', taxon_name:d.name, scientific_name:d.scientific_name,
             confidence:d.confidence, lat:d.lat, lng:d.lng,
             timestamp:new Date(d.timestamp).toISOString(), model:'birdnet-v2.4',
-            environment: d.environment || null};
+            environment: d.environment || null,
+            audio_evidence_path: d.audio_evidence_path || null,
+            audio_snippet_hash: d.audio_hash || null};
     });
     var session = {
         duration_sec: Math.floor((Date.now()-W.startTime)/1000),

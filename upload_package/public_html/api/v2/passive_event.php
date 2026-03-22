@@ -102,6 +102,7 @@ foreach ($events as $i => $event) {
         'timestamp'          => $event['timestamp'] ?? date('c'),
         'model'              => $event['model'] ?? 'unknown',
         'audio_snippet_hash' => $event['audio_snippet_hash'] ?? null,
+        'audio_evidence_path' => $event['audio_evidence_path'] ?? null,
         'photo_ref'          => $event['photo_ref'] ?? null,
         'environment_snapshot' => $event['environment_snapshot'] ?? null,
         'frame_ref'          => $event['frame_ref'] ?? null,

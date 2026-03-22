@@ -116,6 +116,7 @@ class PassiveObservationEngine
             'timestamp' => $timestamp,
             'model' => $event['model'] ?? 'unknown',
             'audio_snippet_hash' => $event['audio_snippet_hash'] ?? null,
+            'audio_evidence_path' => $event['audio_evidence_path'] ?? null,
             'photo_ref' => $event['photo_ref'] ?? null,
             'environment_snapshot' => $event['environment_snapshot'] ?? null,
             'frame_ref' => $event['frame_ref'] ?? null,
@@ -199,6 +200,7 @@ class PassiveObservationEngine
             'detection_count' => $detection['detection_count'] ?? 1,
             'photo_ref' => $detection['photo_ref'] ?? $detection['frame_ref'],
             'audio_snippet_hash' => $detection['audio_snippet_hash'],
+            'audio_evidence_path' => $detection['audio_evidence_path'] ?? null,
             'source' => 'passive',
             'source_device' => $sessionMeta['device'] ?? 'unknown',
             'location_uncertainty_m' => 5.0, // GPS default
