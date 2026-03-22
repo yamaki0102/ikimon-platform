@@ -468,6 +468,25 @@ function rlLabel($rl)
                             </div>
                         </div>
 
+                        <!-- AI Story -->
+                        <div class="zukan-story" x-show="storyText || storyLoading">
+                            <template x-if="storyLoading">
+                                <div class="zukan-story__loading">
+                                    <div class="zukan-spinner" style="width:20px;height:20px;border-width:2px;"></div>
+                                    <span>解説を生成中...</span>
+                                </div>
+                            </template>
+                            <template x-if="storyText">
+                                <div>
+                                    <p class="zukan-story__text" x-text="storyText"></p>
+                                    <p class="zukan-story__disclaimer">
+                                        <i data-lucide="info" style="width:12px;height:12px;"></i>
+                                        AIによる解説です。正確でない場合があります
+                                    </p>
+                                </div>
+                            </template>
+                        </div>
+
                         <!-- Timeline -->
                         <div class="zukan-timeline">
                             <h3 class="zukan-timeline__title">出会いの記録</h3>
@@ -552,13 +571,15 @@ function rlLabel($rl)
                             </div>
                         </div>
 
-                        <!-- Link to species page -->
+                        <!-- Footer -->
                         <div class="zukan-modal__footer">
-                            <a :href="'species.php?name=' + encodeURIComponent(detailEntry.name)"
-                                class="zukan-modal__species-link">
-                                <i data-lucide="external-link" style="width:14px;height:14px;"></i>
-                                種の詳細ページへ
-                            </a>
+                            <template x-if="detailEntry.scientific_name">
+                                <a :href="'species.php?name=' + encodeURIComponent(detailEntry.name)"
+                                    class="zukan-modal__species-link">
+                                    <i data-lucide="external-link" style="width:14px;height:14px;"></i>
+                                    種の詳細ページへ
+                                </a>
+                            </template>
                         </div>
                     </div>
                 </template>
@@ -593,6 +614,8 @@ function rlLabel($rl)
                 detailIndex: 0,
                 detailLoading: false,
                 playingAudio: null,
+                storyText: null,
+                storyLoading: false,
 
                 init() {
                     this.$nextTick(() => {
@@ -668,8 +691,12 @@ function rlLabel($rl)
                     this.detailIndex = this.speciesList.indexOf(item) + 1;
                     this.detailEntry = { ...item };
                     this.showDetail = true;
+                    this.storyText = null;
+                    this.storyLoading = false;
                     document.body.style.overflow = 'hidden';
                     history.pushState({ zukanDetail: true }, '', '#detail');
+
+                    this.fetchStory(item.taxon_key);
 
                     if (item.encounters && item.encounters.length < item.encounter_count) {
                         this.detailLoading = true;
@@ -692,6 +719,21 @@ function rlLabel($rl)
                     this.$nextTick(() => {
                         if (typeof lucide !== 'undefined') lucide.createIcons();
                     });
+                },
+
+                async fetchStory(taxonKey) {
+                    this.storyLoading = true;
+                    try {
+                        const res = await fetch('api/v2/species_story.php?taxon_key=' + encodeURIComponent(taxonKey));
+                        const data = await res.json();
+                        if (data.success && data.story) {
+                            this.storyText = data.story;
+                        }
+                    } catch (err) {
+                        console.error('Story fetch error:', err);
+                    } finally {
+                        this.storyLoading = false;
+                    }
                 },
 
                 closeDetail() {
