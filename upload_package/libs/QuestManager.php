@@ -5,7 +5,12 @@ require_once __DIR__ . '/DataStore.php';
 class QuestManager
 {
     const CONFIG_FILE = ROOT_DIR . '/data/config/quests.json';
+    const CATALOG_FILE = ROOT_DIR . '/data/config/quest_catalog.json';
+    const GOALS_DIR = DATA_DIR . '/user_goals';
+    const MAX_ACTIVE_GOALS = 5;
+
     private static $definitions = null;
+    private static ?array $catalog = null;
 
     public static function getDefinitions(): array
     {
@@ -18,6 +23,333 @@ class QuestManager
         self::$definitions = is_array($defs) ? $defs : [];
         return self::$definitions;
     }
+
+    // ── Goal Catalog System (v2) ──
+
+    public static function getGoalCatalog(): array
+    {
+        if (self::$catalog !== null) return self::$catalog;
+        if (!file_exists(self::CATALOG_FILE)) {
+            self::$catalog = [];
+            return self::$catalog;
+        }
+        $data = json_decode(file_get_contents(self::CATALOG_FILE), true) ?: [];
+        self::$catalog = $data['goals'] ?? [];
+        return self::$catalog;
+    }
+
+    public static function getUserGoals(string $userId): array
+    {
+        $file = self::GOALS_DIR . '/' . $userId . '.json';
+        if (!file_exists($file)) return [];
+        $data = json_decode(file_get_contents($file), true);
+        return is_array($data) ? $data : [];
+    }
+
+    private static function saveUserGoals(string $userId, array $data): void
+    {
+        if (!is_dir(self::GOALS_DIR)) mkdir(self::GOALS_DIR, 0755, true);
+        file_put_contents(self::GOALS_DIR . '/' . $userId . '.json',
+            json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    }
+
+    public static function activateGoal(string $userId, string $goalId): bool
+    {
+        $catalog = self::getGoalCatalog();
+        $goalDef = null;
+        foreach ($catalog as $g) {
+            if (($g['id'] ?? '') === $goalId) { $goalDef = $g; break; }
+        }
+        if (!$goalDef) return false;
+
+        $data = self::getUserGoals($userId);
+        $activeGoals = $data['active_goals'] ?? [];
+        if (in_array($goalId, $activeGoals, true)) return true;
+        if (count($activeGoals) >= self::MAX_ACTIVE_GOALS) return false;
+
+        $activeGoals[] = $goalId;
+        $data['active_goals'] = $activeGoals;
+        if (!isset($data['progress'][$goalId])) {
+            $data['progress'][$goalId] = [
+                'current' => 0,
+                'last_milestone' => 0,
+                'milestones_completed' => [],
+                'activated_at' => date('Y-m-d'),
+                'last_updated' => date('Y-m-d'),
+            ];
+        }
+        self::saveUserGoals($userId, $data);
+        return true;
+    }
+
+    public static function deactivateGoal(string $userId, string $goalId): bool
+    {
+        $data = self::getUserGoals($userId);
+        $activeGoals = $data['active_goals'] ?? [];
+        $key = array_search($goalId, $activeGoals, true);
+        if ($key === false) return false;
+
+        array_splice($activeGoals, $key, 1);
+        $data['active_goals'] = array_values($activeGoals);
+        self::saveUserGoals($userId, $data);
+        return true;
+    }
+
+    public static function checkGoalProgress(string $userId, string $goalId): array
+    {
+        $catalog = self::getGoalCatalog();
+        $goalDef = null;
+        foreach ($catalog as $g) {
+            if (($g['id'] ?? '') === $goalId) { $goalDef = $g; break; }
+        }
+        if (!$goalDef) return ['current' => 0, 'target' => 0, 'milestones' => [], 'current_milestone' => 0];
+
+        $target = $goalDef['target'] ?? [];
+        $milestones = $goalDef['milestones'] ?? [];
+        $targetCount = (int)($target['count'] ?? 0);
+
+        $current = self::computeGoalCount($userId, $target);
+
+        $completedMilestones = [];
+        $currentMilestoneIndex = 0;
+        foreach ($milestones as $i => $m) {
+            if ($current >= $m) {
+                $completedMilestones[] = $m;
+                $currentMilestoneIndex = $i + 1;
+            }
+        }
+
+        return [
+            'current' => $current,
+            'target' => $targetCount,
+            'percent' => $targetCount > 0 ? min(100, (int)floor(($current / $targetCount) * 100)) : 0,
+            'milestones' => $milestones,
+            'milestones_completed' => $completedMilestones,
+            'current_milestone' => $currentMilestoneIndex,
+            'total_milestones' => count($milestones),
+            'completed' => $current >= $targetCount,
+        ];
+    }
+
+    private static function computeGoalCount(string $userId, array $target): int
+    {
+        $metric = $target['metric'] ?? '';
+        $type = $target['type'] ?? '';
+
+        if (!empty($target['taxon_group'])) {
+            $groups = explode('|', $target['taxon_group']);
+            $all = DataStore::fetchAll('observations');
+            $species = [];
+            foreach ($all as $obs) {
+                if (($obs['user_id'] ?? '') !== $userId) continue;
+                $group = self::resolveTaxonGroup($obs);
+                if (in_array($group, $groups, true)) {
+                    $key = self::resolveSpeciesKey($obs);
+                    if ($key) $species[$key] = true;
+                }
+            }
+            return count($species);
+        }
+
+        if (!empty($target['taxon_order'])) {
+            $all = DataStore::fetchAll('observations');
+            $species = [];
+            foreach ($all as $obs) {
+                if (($obs['user_id'] ?? '') !== $userId) continue;
+                $order = $obs['taxon']['lineage']['order'] ?? '';
+                if ($order === $target['taxon_order']) {
+                    $key = self::resolveSpeciesKey($obs);
+                    if ($key) $species[$key] = true;
+                }
+            }
+            return count($species);
+        }
+
+        switch ($type) {
+            case 'post_count':
+                $all = DataStore::fetchAll('observations');
+                $count = 0;
+                foreach ($all as $obs) {
+                    if (($obs['user_id'] ?? '') !== $userId) continue;
+                    if ($metric === 'total_with_photo' && empty($obs['photos'])) continue;
+                    $count++;
+                }
+                return $count;
+
+            case 'identifications':
+                $all = DataStore::fetchAll('observations');
+                $count = 0;
+                foreach ($all as $obs) {
+                    foreach ($obs['identifications'] ?? [] as $id) {
+                        if (($id['user_id'] ?? '') === $userId) $count++;
+                    }
+                }
+                return $count;
+
+            case 'new_species':
+                $lifeList = self::collectUserSpecies($userId, '9999-99-99');
+                return count($lifeList);
+
+            case 'new_location':
+                $locations = self::collectUserLocations($userId, '9999-99-99');
+                return count($locations);
+
+            case 'phenology':
+                $all = DataStore::fetchAll('observations');
+                $count = 0;
+                foreach ($all as $obs) {
+                    if (($obs['user_id'] ?? '') !== $userId) continue;
+                    $phenology = $obs['annotations']['phenology'] ?? 'none';
+                    if ($phenology !== 'none' && $phenology !== 'unknown') $count++;
+                }
+                return $count;
+
+            case 'taxon_groups':
+                $all = DataStore::fetchAll('observations');
+                $groups = [];
+                foreach ($all as $obs) {
+                    if (($obs['user_id'] ?? '') !== $userId) continue;
+                    $g = self::resolveTaxonGroup($obs);
+                    if ($g) $groups[$g] = true;
+                }
+                return count($groups);
+        }
+
+        return 0;
+    }
+
+    public static function getActiveGoalsWithProgress(string $userId): array
+    {
+        $data = self::getUserGoals($userId);
+        $activeGoals = $data['active_goals'] ?? [];
+        if (empty($activeGoals)) return [];
+
+        $catalog = self::getGoalCatalog();
+        $catalogMap = [];
+        foreach ($catalog as $g) {
+            $catalogMap[$g['id']] = $g;
+        }
+
+        $result = [];
+        foreach ($activeGoals as $goalId) {
+            if (!isset($catalogMap[$goalId])) continue;
+            $goalDef = $catalogMap[$goalId];
+            $progress = self::checkGoalProgress($userId, $goalId);
+            $stored = $data['progress'][$goalId] ?? [];
+
+            $result[] = [
+                'goal' => $goalDef,
+                'progress' => $progress,
+                'last_milestone' => (int)($stored['last_milestone'] ?? 0),
+                'milestones_completed' => $stored['milestones_completed'] ?? [],
+                'activated_at' => $stored['activated_at'] ?? null,
+            ];
+        }
+        return $result;
+    }
+
+    public static function syncGoalMilestones(string $userId): array
+    {
+        $data = self::getUserGoals($userId);
+        $activeGoals = $data['active_goals'] ?? [];
+        if (empty($activeGoals)) return [];
+
+        $newMilestones = [];
+        $changed = false;
+
+        foreach ($activeGoals as $goalId) {
+            $progress = self::checkGoalProgress($userId, $goalId);
+            $stored = $data['progress'][$goalId] ?? [
+                'current' => 0, 'last_milestone' => 0,
+                'milestones_completed' => [], 'activated_at' => date('Y-m-d'), 'last_updated' => date('Y-m-d'),
+            ];
+
+            $oldMilestone = (int)($stored['last_milestone'] ?? 0);
+            $newMilestone = $progress['current_milestone'];
+
+            if ($newMilestone > $oldMilestone) {
+                $catalog = self::getGoalCatalog();
+                $goalDef = null;
+                foreach ($catalog as $g) {
+                    if (($g['id'] ?? '') === $goalId) { $goalDef = $g; break; }
+                }
+
+                $reward = $goalDef['reward_per_milestone'] ?? 100;
+                $totalReward = ($newMilestone - $oldMilestone) * $reward;
+
+                $stored['last_milestone'] = $newMilestone;
+                $stored['milestones_completed'] = $progress['milestones_completed'];
+                $stored['current'] = $progress['current'];
+                $stored['last_updated'] = date('Y-m-d');
+                $data['progress'][$goalId] = $stored;
+                $changed = true;
+
+                $newMilestones[] = [
+                    'goal_id' => $goalId,
+                    'goal' => $goalDef,
+                    'milestone_index' => $newMilestone,
+                    'milestone_value' => $progress['milestones'][$newMilestone - 1] ?? 0,
+                    'reward' => $totalReward,
+                    'progress' => $progress,
+                ];
+            } else {
+                $stored['current'] = $progress['current'];
+                $stored['last_updated'] = date('Y-m-d');
+                $data['progress'][$goalId] = $stored;
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            self::saveUserGoals($userId, $data);
+        }
+
+        return $newMilestones;
+    }
+
+    public static function getRecommendedGoals(string $userId): array
+    {
+        $catalog = self::getGoalCatalog();
+        $data = self::getUserGoals($userId);
+        $activeGoals = $data['active_goals'] ?? [];
+
+        $available = [];
+        foreach ($catalog as $g) {
+            if (!in_array($g['id'], $activeGoals, true)) {
+                $available[] = $g;
+            }
+        }
+
+        $lifeList = self::collectUserSpecies($userId, '9999-99-99');
+        $speciesCount = count($lifeList);
+
+        usort($available, function ($a, $b) use ($speciesCount) {
+            $aScore = self::recommendationScore($a, $speciesCount);
+            $bScore = self::recommendationScore($b, $speciesCount);
+            return $bScore - $aScore;
+        });
+
+        return array_slice($available, 0, 5);
+    }
+
+    private static function recommendationScore(array $goal, int $speciesCount): int
+    {
+        $score = 0;
+        $diff = $goal['difficulty'] ?? 'medium';
+        if ($speciesCount < 10 && $diff === 'easy') $score += 30;
+        elseif ($speciesCount >= 10 && $speciesCount < 30 && $diff === 'medium') $score += 30;
+        elseif ($speciesCount >= 30 && $diff === 'hard') $score += 30;
+
+        if (in_array('beginner', $goal['tags'] ?? []) && $speciesCount < 10) $score += 20;
+
+        $month = (int)date('n');
+        if ($month >= 3 && $month <= 5 && in_array('birds', $goal['tags'] ?? [])) $score += 15;
+        if ($month >= 4 && $month <= 10 && in_array('insects', $goal['tags'] ?? [])) $score += 15;
+
+        return $score;
+    }
+
+    // ── Legacy: Daily Quests (backward compat) ──
 
     public static function getActiveQuests(?string $userId = null): array
     {
@@ -161,20 +493,24 @@ class QuestManager
         return $set;
     }
 
-    // ── Scan Quest: 心理学ベース動的クエスト生成 ──
-    // Variable Ratio + 内発的動機づけ + 科学的価値優先
+    // ── Field Signals: 科学的緊急性のある観察機会のみ ──
+    // 高価値4トリガーのみ時限付き。低価値はマイゴール統合
 
-    const SCAN_QUEST_TTL = 72 * 3600; // 72h（Zeigarnik: 長めに残す）
+    const FIELD_SIGNAL_TTL_HIGH = 48 * 3600;  // 48h: redlist, area_first
+    const FIELD_SIGNAL_TTL_MID  = 72 * 3600;  // 72h: id_challenge, evidence_upgrade
+    const SCAN_QUEST_TTL = 72 * 3600; // legacy compat
     const MAX_QUESTS_PER_SCAN = 2;
 
+    private static array $FIELD_SIGNAL_TRIGGERS = ['redlist', 'area_first', 'id_challenge', 'evidence_upgrade'];
+
     private static array $QUEST_TYPES = [
-        'redlist'          => ['score' => 100, 'reward' => 300, 'rarity_label' => '極めて貴重',    'cta' => '記録を残す',    'icon' => 'alert-triangle'],
+        'redlist'          => ['score' => 100, 'reward' => 450, 'rarity_label' => '極めて貴重',    'cta' => '記録を残す',    'icon' => 'alert-triangle'],
         'rare_find'        => ['score' => 90,  'reward' => 280, 'rarity_label' => 'レアファインド', 'cta' => '珍しい記録を残す', 'icon' => 'sparkles'],
-        'area_first'       => ['score' => 80,  'reward' => 250, 'rarity_label' => '地域初記録',    'cta' => '初記録に挑戦',  'icon' => 'map-pin'],
+        'area_first'       => ['score' => 80,  'reward' => 375, 'rarity_label' => '地域初記録',    'cta' => '初記録に挑戦',  'icon' => 'map-pin'],
         'multi_evidence'   => ['score' => 75,  'reward' => 220, 'rarity_label' => '多角的証拠',    'cta' => '写真+音声で記録', 'icon' => 'layers'],
-        'id_challenge'     => ['score' => 70,  'reward' => 200, 'rarity_label' => '同定チャレンジ', 'cta' => '同定に挑戦',   'icon' => 'microscope'],
+        'id_challenge'     => ['score' => 70,  'reward' => 300, 'rarity_label' => '同定チャレンジ', 'cta' => '同定に挑戦',   'icon' => 'microscope'],
         'phenology_watch'  => ['score' => 60,  'reward' => 180, 'rarity_label' => '季節ウォッチャー', 'cta' => '季節を記録',  'icon' => 'calendar'],
-        'evidence_upgrade' => ['score' => 50,  'reward' => 150, 'rarity_label' => '証拠強化',      'cta' => '証拠を追加',   'icon' => 'shield-check'],
+        'evidence_upgrade' => ['score' => 50,  'reward' => 225, 'rarity_label' => '証拠強化',      'cta' => '証拠を追加',   'icon' => 'shield-check'],
         'new_species'      => ['score' => 40,  'reward' => 150, 'rarity_label' => '初記録種',      'cta' => '図鑑に追加',   'icon' => 'book-open'],
         'photo_needed'     => ['score' => 30,  'reward' => 100, 'rarity_label' => '写真募集',      'cta' => '写真で記録',   'icon' => 'camera'],
     ];
@@ -315,7 +651,14 @@ class QuestManager
 
         if (empty($candidates)) return [];
 
-        // Variable Ratio 判定
+        // フィールドシグナル: 高価値トリガーのみ時限クエスト化
+        $candidates = array_values(array_filter($candidates, function ($c) {
+            return in_array($c['trigger'], self::$FIELD_SIGNAL_TRIGGERS, true);
+        }));
+
+        if (empty($candidates)) return [];
+
+        // Variable Ratio: redlist/area_first は常時表示、他は85%
         if (!self::shouldShowQuests($candidates, $sessionMeta)) {
             return [];
         }
@@ -324,15 +667,18 @@ class QuestManager
         $selected = array_slice($candidates, 0, self::MAX_QUESTS_PER_SCAN);
 
         $now = date('c');
-        $expires = date('c', time() + self::SCAN_QUEST_TTL);
         $sessionId = $sessionMeta['session_id'] ?? ('ps_' . bin2hex(random_bytes(6)));
 
         $quests = [];
         foreach ($selected as $c) {
             $type = self::$QUEST_TYPES[$c['trigger']];
+            $ttl = in_array($c['trigger'], ['redlist', 'area_first'], true)
+                ? self::FIELD_SIGNAL_TTL_HIGH
+                : self::FIELD_SIGNAL_TTL_MID;
+            $expires = date('c', time() + $ttl);
             $quests[] = [
                 'id' => 'sq_' . bin2hex(random_bytes(6)),
-                'type' => 'scan_followup',
+                'type' => 'field_signal',
                 'species_name' => $c['species_name'],
                 'scientific_name' => $c['scientific_name'],
                 'trigger' => $c['trigger'],
@@ -356,16 +702,16 @@ class QuestManager
 
     private static function shouldShowQuests(array $candidates, array $sessionMeta): bool
     {
-        $highValueTriggers = ['redlist', 'area_first', 'id_challenge'];
+        $alwaysShow = ['redlist', 'area_first'];
         foreach ($candidates as $c) {
-            if (in_array($c['trigger'], $highValueTriggers, true)) {
+            if (in_array($c['trigger'], $alwaysShow, true)) {
                 return true;
             }
         }
 
         $seed = crc32($sessionMeta['session_id'] ?? date('c'));
         $roll = abs($seed) % 100;
-        return $roll < 70;
+        return $roll < 85;
     }
 
     private static function checkAreaFirstRecord(string $scientificName, float $lat, float $lng): bool
@@ -673,7 +1019,7 @@ class QuestManager
                     'current_step' => 0,
                     'reward_badge' => 'spring_migration_master',
                     'created_at' => date('c'),
-                    'expires_at' => date('c', mktime(0, 0, 0, 6, 1)),
+                    'expires_at' => null,
                     'completed_at' => null,
                 ];
             }
@@ -695,7 +1041,7 @@ class QuestManager
                     'current_step' => 0,
                     'reward_badge' => 'insect_diversity_master',
                     'created_at' => date('c'),
-                    'expires_at' => date('c', mktime(0, 0, 0, 11, 1)),
+                    'expires_at' => null,
                     'completed_at' => null,
                 ];
             }
@@ -718,7 +1064,7 @@ class QuestManager
                     'current_step' => 0,
                     'reward_badge' => 'phenology_observer',
                     'created_at' => date('c'),
-                    'expires_at' => date('c', strtotime('+2 months')),
+                    'expires_at' => null,
                     'completed_at' => null,
                 ];
             }
@@ -741,7 +1087,8 @@ class QuestManager
      */
     public static function generatePersonalQuest(string $userId, float $lat, float $lng): ?array
     {
-        $cacheFile = 'personal_quests/' . $userId . '_' . date('Y-m-d');
+        $weekKey = date('Y') . '-W' . date('W');
+        $cacheFile = 'personal_quests/' . $userId . '_' . $weekKey;
         $cached = DataStore::get($cacheFile);
         if ($cached && is_array($cached)) return $cached;
 
@@ -836,7 +1183,7 @@ MSG;
             },
             'ai_model' => $result['model'] ?? 'gpt-5.4-nano',
             'created_at' => date('c'),
-            'expires_at' => date('c', strtotime('tomorrow')),
+            'expires_at' => null,
             'completed_at' => null,
         ];
 

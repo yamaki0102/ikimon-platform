@@ -225,52 +225,36 @@ class Gamification
             }
             $user['observer_rank_level'] = $newLevel;
 
-            // === Quest Progress Check ===
-            $activeQuests = QuestManager::getActiveQuests();
-            $questLog = $user['quest_log'] ?? [];
-            $today = date('Y-m-d');
-            $questScoreAdded = 0;
-
-            foreach ($activeQuests as $quest) {
-                $qId = $quest['id'];
-                if (isset($questLog[$today][$qId])) continue;
-
-                $progress = QuestManager::checkProgress($userId, $qId);
-                if ($progress >= 100) {
-                    $reward = $quest['reward'] ?? 0;
-                    $questScoreAdded += $reward;
-
-                    // Log completion
-                    if (!isset($questLog[$today])) $questLog[$today] = [];
-                    $questLog[$today][$qId] = [
-                        'completed_at' => date('Y-m-d H:i:s'),
-                        'reward' => $reward
-                    ];
-
-                    $events[] = [
-                        'type' => 'quest_complete',
-                        'quest' => $quest,
-                        'reward' => $reward
-                    ];
-
-                    Notification::send(
-                        $userId,
-                        'quest_complete',
-                        'クエスト達成！',
-                        '「' . $quest['title'] . '」を達成しました！ +' . $reward . 'pt',
-                        'index.php'
-                    );
-                    EventLog::log($userId, 'quest_complete', [
-                        'quest_id' => $quest['id'],
-                        'quest_title' => $quest['title'],
-                        'reward' => $reward,
-                    ]);
-                }
+            // === Goal Milestone Check (v2) ===
+            $goalMilestones = QuestManager::syncGoalMilestones($userId);
+            $goalScoreAdded = 0;
+            foreach ($goalMilestones as $ms) {
+                $goalScoreAdded += $ms['reward'];
+                $events[] = [
+                    'type' => 'quest_complete',
+                    'quest' => [
+                        'id' => $ms['goal_id'],
+                        'title' => ($ms['goal']['title'] ?? '') . '（マイルストーン ' . $ms['milestone_value'] . '）',
+                        'icon' => $ms['goal']['icon'] ?? 'target',
+                    ],
+                    'reward' => $ms['reward'],
+                ];
+                Notification::send(
+                    $userId,
+                    'quest_complete',
+                    'ゴール達成！',
+                    '「' . ($ms['goal']['title'] ?? '') . '」マイルストーン ' . $ms['milestone_value'] . ' 達成！ +' . $ms['reward'] . 'pt',
+                    'quests.php'
+                );
+                EventLog::log($userId, 'goal_milestone', [
+                    'goal_id' => $ms['goal_id'],
+                    'milestone' => $ms['milestone_value'],
+                    'reward' => $ms['reward'],
+                ]);
             }
-            $user['quest_log'] = $questLog;
-            $user['score'] += $questScoreAdded;
+            $user['score'] += $goalScoreAdded;
 
-            // === Scan Quest Match Check ===
+            // === Field Signal Match Check ===
             $latestObs = DataStore::getLatest('observations', 1, function ($o) use ($userId) {
                 return ($o['user_id'] ?? '') === $userId;
             });
@@ -288,9 +272,9 @@ class Gamification
                     Notification::send(
                         $userId,
                         'quest_complete',
-                        'スキャンミッション達成！',
+                        'フィールドシグナル達成！',
                         '「' . ($completedSq['title'] ?? '') . '」を達成！ +' . $sqReward . 'pt',
-                        'index.php'
+                        'quests.php'
                     );
                 }
             }
