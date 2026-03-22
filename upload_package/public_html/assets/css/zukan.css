@@ -1214,6 +1214,36 @@
     border-color: rgba(139, 92, 246, 0.5);
 }
 
+/* ── Timeline Count & Expand ── */
+.zukan-timeline__count {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    margin-left: 4px;
+}
+
+.zukan-timeline__expand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px;
+    margin-top: var(--zukan-space-sm);
+    background: var(--color-surface-alt, rgba(0,0,0,0.03));
+    border: 1px dashed var(--color-border);
+    border-radius: 8px;
+    color: var(--color-primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.zukan-timeline__expand:hover {
+    background: rgba(var(--color-primary-rgb, 76, 175, 80), 0.08);
+}
+
 /* ── Modal Footer ── */
 .zukan-modal__footer {
     padding: var(--zukan-space-md);
