@@ -501,16 +501,22 @@ async function startWalk() {
         W.audioCtx = new AudioContext();
         var source = W.audioCtx.createMediaStreamSource(W.mediaStream);
         W.analyser = W.audioCtx.createAnalyser();
-        W.analyser.fftSize = 256;
+        W.analyser.fftSize = 2048;
         source.connect(W.analyser);
 
-        // Level meter
+        // Level meter (2-8kHz band for bioacoustics relevance)
         (function updateLevel() {
             if (!W.walking) return;
             var data = new Uint8Array(W.analyser.frequencyBinCount);
             W.analyser.getByteFrequencyData(data);
-            var avg = data.reduce(function(a,b){return a+b},0) / data.length;
-            document.getElementById('audio-bar').style.width = Math.min(100, avg*1.5) + '%';
+            var sr = W.audioCtx.sampleRate;
+            var binSize = sr / 2048;
+            var lo = Math.floor(500 / binSize);
+            var hi = Math.min(Math.ceil(8000 / binSize), data.length - 1);
+            var sum = 0;
+            for (var i = lo; i <= hi; i++) sum += data[i];
+            var avg = sum / (hi - lo + 1);
+            document.getElementById('audio-bar').style.width = Math.min(100, avg * 1.2) + '%';
             requestAnimationFrame(updateLevel);
         })();
 
@@ -564,6 +570,30 @@ function stopWalk() {
     fetchRecap(speciesList, sec);
 }
 
+// ===== Bioacoustic Frequency Filter =====
+function hasBirdFrequencyEnergy() {
+    if (!W.analyser) return true;
+    var data = new Uint8Array(W.analyser.frequencyBinCount);
+    W.analyser.getByteFrequencyData(data);
+    var sr = W.audioCtx.sampleRate;
+    var binSize = sr / W.analyser.fftSize;
+
+    // 2-8kHz: bird/insect/frog vocalization range
+    var birdLo = Math.floor(2000 / binSize);
+    var birdHi = Math.min(Math.ceil(8000 / binSize), data.length - 1);
+    var birdE = 0;
+    for (var i = birdLo; i <= birdHi; i++) birdE += data[i];
+    birdE /= (birdHi - birdLo + 1);
+
+    // 0-1kHz: human voice dominant range
+    var lowHi = Math.min(Math.ceil(1000 / binSize), data.length - 1);
+    var lowE = 0;
+    for (var i = 0; i <= lowHi; i++) lowE += data[i];
+    lowE /= (lowHi + 1);
+
+    return birdE > 15 && lowE < birdE * 1.5;
+}
+
 // ===== Audio Recorder =====
 function setupRecorder() {
     if (!W.mediaStream) return;
@@ -578,7 +608,8 @@ function setupRecorder() {
         if (W.chunks.length === 0 || !W.walking) return;
         var blob = new Blob(W.chunks, {type: W.mimeType});
         W.chunks = [];
-        sendAudio(blob);
+        var passedFilter = hasBirdFrequencyEnergy();
+        sendAudio(blob, passedFilter);
     };
     startCycle();
 }
@@ -598,7 +629,7 @@ function startCycle() {
     }
 }
 
-async function sendAudio(blob) {
+async function sendAudio(blob, passedFreqFilter) {
     if (!W.walking) return;
     W.analyzing = true;
     setListenState('analyzing');
@@ -610,6 +641,11 @@ async function sendAudio(blob) {
         fd.append('lat', last ? last.lat : 35.0);
         fd.append('lng', last ? last.lng : 139.0);
         if (W.highSensitivity) fd.append('min_conf', '0.05');
+        if (passedFreqFilter) {
+            fd.append('archive_mode', '1');
+            fd.append('source_mode', 'walk');
+            if (last && last.accuracy) fd.append('gps_accuracy', last.accuracy);
+        }
 
         var displayThreshold = W.highSensitivity ? 0.25 : 0.40;
 

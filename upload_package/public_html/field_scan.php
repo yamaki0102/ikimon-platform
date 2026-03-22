@@ -576,6 +576,7 @@ function stopScan() {
     if (S.recorder && S.recorder.state === 'recording') try { S.recorder.stop(); } catch(e) {}
     if (S.watchId) navigator.geolocation.clearWatch(S.watchId);
     if (S.stream) S.stream.getTracks().forEach(function(t) { t.stop(); });
+    if (S.audioCtx) try { S.audioCtx.close(); } catch(e) {}
     if (S.minimap) { S.minimap.remove(); S.minimap = null; }
 
     var sp = Object.keys(S.speciesMap).length;
@@ -966,6 +967,28 @@ function saveKeyFrame(blob, topSug, pos) {
         }).catch(function() {});
 }
 
+// ===== Bioacoustic Frequency Filter =====
+function hasBirdFrequencyEnergy() {
+    if (!S.analyser) return true;
+    var data = new Uint8Array(S.analyser.frequencyBinCount);
+    S.analyser.getByteFrequencyData(data);
+    var sr = S.audioCtx.sampleRate;
+    var binSize = sr / S.analyser.fftSize;
+
+    var birdLo = Math.floor(2000 / binSize);
+    var birdHi = Math.min(Math.ceil(8000 / binSize), data.length - 1);
+    var birdE = 0;
+    for (var i = birdLo; i <= birdHi; i++) birdE += data[i];
+    birdE /= (birdHi - birdLo + 1);
+
+    var lowHi = Math.min(Math.ceil(1000 / binSize), data.length - 1);
+    var lowE = 0;
+    for (var i = 0; i <= lowHi; i++) lowE += data[i];
+    lowE /= (lowHi + 1);
+
+    return birdE > 15 && lowE < birdE * 1.5;
+}
+
 // ===== Audio Recorder =====
 function setupAudioRecorder() {
     if (!S.stream) return;
@@ -976,6 +999,14 @@ function setupAudioRecorder() {
     if (!S.mime) return;
 
     var audioStream = new MediaStream(tracks);
+
+    // AnalyserNode for frequency filter
+    S.audioCtx = new AudioContext();
+    var src = S.audioCtx.createMediaStreamSource(audioStream);
+    S.analyser = S.audioCtx.createAnalyser();
+    S.analyser.fftSize = 2048;
+    src.connect(S.analyser);
+
     S.recorder = new MediaRecorder(audioStream, {mimeType: S.mime});
     S.chunks = [];
     S.recorder.ondataavailable = function(e) { if (e.data.size > 0) S.chunks.push(e.data); };
@@ -983,7 +1014,8 @@ function setupAudioRecorder() {
         if (S.chunks.length === 0 || !S.active) return;
         var blob = new Blob(S.chunks, {type: S.mime});
         S.chunks = [];
-        sendAudio(blob);
+        var passedFilter = hasBirdFrequencyEnergy();
+        sendAudio(blob, passedFilter);
     };
     startAudioCycle();
 }
@@ -1002,7 +1034,7 @@ function startAudioCycle() {
     } catch(e) { S.recTimer = setTimeout(startAudioCycle, audioMs); }
 }
 
-async function sendAudio(blob) {
+async function sendAudio(blob, passedFreqFilter) {
     if (!S.active) return;
     S.analyzing = true;
     setScanListenState('analyzing');
@@ -1014,6 +1046,11 @@ async function sendAudio(blob) {
         fd.append('lng', last ? last.lng : 139.0);
         if (S.sensitivityLevel >= 2) fd.append('min_conf', '0.03');
         else if (S.sensitivityLevel >= 1) fd.append('min_conf', '0.05');
+        if (passedFreqFilter) {
+            fd.append('archive_mode', '1');
+            fd.append('source_mode', 'field_scan');
+            if (last && last.accuracy) fd.append('gps_accuracy', last.accuracy);
+        }
         updateDataUsage(blob.size);
         S.audioScanCount++;
         document.getElementById('audio-count').textContent = S.audioScanCount;
