@@ -4,7 +4,7 @@
  * SEO: /guide/ikimon-approach.php
  */
 $meta_title = 'ikimon のアプローチ — 100年後の生態系のために';
-$meta_description = '散歩しながら自然を記録する。それだけで、未来の科学者への贈り物になる。ikimonが採用する受動検出AI・3層プライバシー保護・5軸生物多様性評価の設計思想を、中高生にもわかるように解説。';
+$meta_description = 'GBIFデータの80%以上が市民科学由来、iNaturalist2億件。世界中で市民の記録が科学と政策を動かしている。ikimonの設計思想と、その背景にある世界的潮流をエビデンスで解説。';
 $meta_image = 'https://ikimon.life/assets/img/ogp-default.png';
 $meta_canonical = 'https://ikimon.life/guide/ikimon-approach.php';
 
@@ -112,7 +112,7 @@ Auth::init();
     </style>
 
     <script type="application/ld+json" nonce="<?= CspNonce::attr() ?>">
-    {
+    [{
         "@context": "https://schema.org",
         "@type": "Article",
         "headline": "ikimon のアプローチ — 100年後の生態系のために",
@@ -126,14 +126,46 @@ Auth::init();
             "name": "ikimon.life"
         },
         "datePublished": "2026-03-21",
-        "dateModified": "2026-03-21",
+        "dateModified": "2026-03-22",
         "about": [
             { "@type": "Thing", "name": "市民科学" },
             { "@type": "Thing", "name": "生物多様性モニタリング" },
-            { "@type": "Thing", "name": "受動検出AI" }
+            { "@type": "Thing", "name": "受動検出AI" },
+            { "@type": "Thing", "name": "GBIF" },
+            { "@type": "Thing", "name": "30by30" }
         ],
-        "description": "散歩しながら自然を記録する。それだけで、未来の科学者への贈り物になる。ikimonの設計思想を解説。"
-    }
+        "description": "GBIFデータの80%以上が市民科学由来。世界中で市民の記録が科学と政策を動かしている。ikimonの設計思想と世界的潮流をエビデンスで解説。"
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "市民科学のデータは本当に科学的に使えるのか？",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "GBIFに登録された2010年以降のデータの80%以上が市民科学由来で、2020-2024年に7,786本の査読付き論文で使用されています。IPBESやIUCNレッドリストの評価にも市民科学データが使われています。"
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "日本でも市民科学は進んでいるのか？",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "2026年1月時点で485サイトが自然共生サイトに認定され、30by30アライアンスには1,000以上の組織が参加しています。市民データと専門家データを50-70%の割合で混合すると最も正確な種分布推定が得られることが研究で示されています。"
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "散歩するだけで本当に保全に貢献できるのか？",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "国連の生物多様性枠組み（GBF）の365指標のうち51%は市民の参加がないと収集できないものです。散歩中の記録は科学データとなり、政策決定の根拠に使われます。また、参加者自身の健康やウェルビーイングの向上も研究で確認されています。"
+                }
+            }
+        ]
+    }]
     </script>
 </head>
 
@@ -170,6 +202,9 @@ Auth::init();
                 <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-cyan-100 text-cyan-700">
                     <i data-lucide="database" class="w-3 h-3"></i>オープンデータ
                 </span>
+                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                    <i data-lucide="globe" class="w-3 h-3"></i>エビデンス
+                </span>
             </div>
 
             <h1 class="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-4">
@@ -178,7 +213,8 @@ Auth::init();
 
             <p class="text-lg text-muted leading-relaxed mb-6">
                 散歩しながら自然を記録する。<br>
-                それだけで、未来の科学者への贈り物になる。
+                それだけで、未来の科学者への贈り物になる。<br>
+                <span class="text-sm">世界中で、同じことを考えている人がいる。</span>
             </p>
 
             <div class="flex items-center gap-4">
@@ -196,20 +232,24 @@ Auth::init();
         <div class="max-w-3xl mx-auto">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div class="evidence-card text-center">
-                    <p class="stat-number text-2xl md:text-3xl font-black">741+</p>
-                    <p class="text-xs text-muted mt-1">参照論文</p>
+                    <p class="stat-number text-2xl md:text-3xl font-black">80%+</p>
+                    <p class="text-xs text-muted mt-1">GBIF データの市民科学比率</p>
+                    <p class="text-[10px] text-faint mt-0.5">2010年以降</p>
                 </div>
                 <div class="evidence-card text-center">
-                    <p class="stat-number text-2xl md:text-3xl font-black">6,522</p>
-                    <p class="text-xs text-muted mt-1">鳥声AI対応種</p>
+                    <p class="stat-number text-2xl md:text-3xl font-black">2億件</p>
+                    <p class="text-xs text-muted mt-1">iNaturalist 累計観察</p>
+                    <p class="text-[10px] text-faint mt-0.5">330万人が参加</p>
                 </div>
                 <div class="evidence-card text-center">
-                    <p class="stat-number text-2xl md:text-3xl font-black">3層</p>
-                    <p class="text-xs text-muted mt-1">プライバシー保護</p>
+                    <p class="stat-number text-2xl md:text-3xl font-black">485</p>
+                    <p class="text-xs text-muted mt-1">自然共生サイト認定</p>
+                    <p class="text-[10px] text-faint mt-0.5">日本 2026年1月</p>
                 </div>
                 <div class="evidence-card text-center">
-                    <p class="stat-number text-2xl md:text-3xl font-black">5軸</p>
-                    <p class="text-xs text-muted mt-1">生物多様性評価</p>
+                    <p class="stat-number text-2xl md:text-3xl font-black">51%</p>
+                    <p class="text-xs text-muted mt-1">GBF 指標の市民参加率</p>
+                    <p class="text-[10px] text-faint mt-0.5">365指標中</p>
                 </div>
             </div>
         </div>
@@ -227,20 +267,26 @@ Auth::init();
                     <a href="#why-record" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
                         <span class="text-xs text-emerald-600 font-bold">01</span> なぜ記録が大切なの？
                     </a>
+                    <a href="#global-context" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
+                        <span class="text-xs text-blue-600 font-bold">02</span> 世界はいま、どう動いているか
+                    </a>
                     <a href="#three-methods" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-emerald-600 font-bold">02</span> 3つの記録方法
+                        <span class="text-xs text-emerald-600 font-bold">03</span> 3つの記録方法
                     </a>
                     <a href="#design-philosophy" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-emerald-600 font-bold">03</span> なぜこう作ったのか
+                        <span class="text-xs text-emerald-600 font-bold">04</span> なぜこう作ったのか
                     </a>
                     <a href="#data-protection" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-emerald-600 font-bold">04</span> データの守り方
+                        <span class="text-xs text-emerald-600 font-bold">05</span> データの守り方
                     </a>
                     <a href="#data-trust" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-emerald-600 font-bold">05</span> データの信頼性
+                        <span class="text-xs text-emerald-600 font-bold">06</span> データの信頼性
+                    </a>
+                    <a href="#references" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
+                        <span class="text-xs text-gray-500 font-bold">07</span> 参考文献
                     </a>
                     <a href="#action" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-amber-600 font-bold">06</span> キミができること
+                        <span class="text-xs text-amber-600 font-bold">08</span> キミができること
                     </a>
                 </div>
             </div>
@@ -265,6 +311,13 @@ Auth::init();
 
                 <div class="blockquote-accent">
                     <p class="text-sm">
+                        世界最大の生物多様性データベース GBIF（地球規模生物多様性情報機構）に登録されている 2010年以降のデータのうち、<strong class="text-text">80%以上が市民科学から生まれたもの</strong>です。このデータを使って、毎日約7本のペースで査読付き論文が世界中で出版されています。
+                        <span class="block text-[11px] text-faint mt-1">出典: GBIF Science Review / BioScience 2024</span>
+                    </p>
+                </div>
+
+                <div class="blockquote-accent mt-3">
+                    <p class="text-sm">
                         気候変動により、日本の生き物の分布は年々変化しています。桜の開花は50年前より10日以上早くなり、かつて見られた昆虫が姿を消し、南方の蝶が北上しています。<strong class="text-text">でも、「いつから変わったのか」を証明するデータが足りない。</strong>
                     </p>
                 </div>
@@ -279,13 +332,115 @@ Auth::init();
                 </p>
 
                 <p>
+                    これは日本だけの話じゃありません。アメリカの iNaturalist には 330万人が参加して 2億件の観察を記録しています。フィンランドでは MK という鳥声認識アプリに<strong class="text-text">国民の5%（31万人）</strong>が参加し、1,630万件の録音データが集まりました。「ふつうの人が、ふつうに記録する」ことが、世界中で科学を動かしています。
+                </p>
+
+                <p>
                     ikimon は、その「ふつうの散歩データ」を<strong class="text-text">100年先まで残る形</strong>で記録するために作られました。
                 </p>
             </div>
         </div>
     </section>
 
-    <!-- Section 2: 3つの記録方法 -->
+    <!-- Section 2: 世界はいま、どう動いているか -->
+    <section id="global-context" class="py-8 px-6 bg-surface section-anchor">
+        <div class="max-w-3xl mx-auto">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <i data-lucide="globe" class="w-5 h-5 text-blue-600"></i>
+                </div>
+                <h2 class="text-xl font-black">世界はいま、どう動いているか</h2>
+            </div>
+
+            <div class="space-y-4 text-[15px] leading-relaxed text-muted">
+                <p>
+                    「市民が生き物を記録して、それが科学や政策に使われる」——これは夢物語じゃなくて、もう起きていることです。いくつか数字を見てみましょう。
+                </p>
+
+                <!-- 国際政策との接続 -->
+                <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
+                    <i data-lucide="landmark" class="w-4 h-4 text-blue-600"></i>
+                    政策を動かすデータ
+                </h3>
+
+                <p>
+                    国連の生物多様性枠組み（GBF）には、自然を守るための 365 の指標があります。このうち<strong class="text-text">51% は市民の参加がないと収集できない</strong>ものです。気候変動でいう IPCC に相当する <strong class="text-text">IPBES（生物多様性版 IPCC）</strong>も、市民科学データに依拠して評価を行っています。
+                </p>
+
+                <p>
+                    2022年に採択された「30x30目標」——2030年までに陸と海の30%を保全する——の進捗モニタリングにも、市民のデータが不可欠です。専門家だけでは、時間的にも空間的にも、カバーしきれないからです。
+                </p>
+
+                <div class="evidence-card">
+                    <p class="text-xs font-bold text-blue-600 mb-2">
+                        <i data-lucide="bar-chart-2" class="w-3 h-3 inline"></i> 数字で見る政策インパクト
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <p class="font-bold text-text">GBIF 経由の論文</p>
+                            <p>2020-2024年に <strong class="text-text">7,786本</strong>の査読論文が GBIF データを使用。2019年から倍増。</p>
+                        </div>
+                        <div>
+                            <p class="font-bold text-text">EU の動き</p>
+                            <p>Horizon Europe が市民科学による生物多様性観測能力の強化に予算を配分。</p>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-faint mt-2">出典: GBIF Science Review 2024 / PNAS 2025</p>
+                </div>
+
+                <!-- 日本の動き -->
+                <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
+                    <i data-lucide="map-pin" class="w-4 h-4 text-emerald-600"></i>
+                    日本の動き
+                </h3>
+
+                <p>
+                    日本では環境省が「自然共生サイト」の認定制度を 2023年に開始しました。2026年1月時点で <strong class="text-text">485サイトが認定</strong>され、うち 282サイト（54,500ヘクタール）が国際データベースに OECM として登録されています。30by30 アライアンスには<strong class="text-text">企業・自治体・NGO など 1,000以上の組織</strong>が参加しています。
+                </p>
+
+                <p>
+                    興味深い研究結果もあります。生き物の分布を正確に推定するには、専門家のデータだけでも、市民のデータだけでもダメで、<strong class="text-text">両方を 50-70% の割合で混ぜたときがいちばん精度が高い</strong>ことがわかっています。専門家と市民が補い合う関係です。
+                    <span class="block text-[11px] text-faint mt-1">出典: eLife 2024 "Boosting biodiversity monitoring using smartphone-driven data"</span>
+                </p>
+
+                <!-- 健康との接点 -->
+                <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
+                    <i data-lucide="heart-pulse" class="w-4 h-4 text-rose-500"></i>
+                    歩くことの副産物
+                </h3>
+
+                <p>
+                    市民科学には、自然を守る以外の効果もあります。2024年の Frontiers の研究では、生物多様性の市民科学に参加した人は<strong class="text-text">自然とのつながり（nature relatedness）と自己効力感が有意に向上</strong>したことが報告されています。
+                </p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="evidence-card">
+                        <p class="text-xs font-bold text-emerald-600 mb-1">個人への効果</p>
+                        <ul class="text-sm space-y-1">
+                            <li>自然への関心・愛着の向上</li>
+                            <li>屋外活動による身体的健康</li>
+                            <li>ストレス軽減・気分改善</li>
+                        </ul>
+                    </div>
+                    <div class="evidence-card">
+                        <p class="text-xs font-bold text-blue-600 mb-1">社会への効果</p>
+                        <ul class="text-sm space-y-1">
+                            <li>地域コミュニティの形成</li>
+                            <li>社会的孤立感の低減</li>
+                            <li>環境リテラシーの向上</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="text-[11px] text-faint">出典: Frontiers in Environmental Science 2024 / PMC 2022</p>
+
+                <p>
+                    生き物を記録するために外を歩く。それだけで、科学データが生まれ、政策の根拠になり、自分の健康にもつながる。市民科学は「お手伝い」ではなく、<strong class="text-text">社会インフラの一部</strong>になりつつあります。
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: 3つの記録方法 -->
     <section id="three-methods" class="py-8 px-6 bg-surface section-anchor">
         <div class="max-w-3xl mx-auto">
             <div class="flex items-center gap-3 mb-6">
@@ -498,7 +653,11 @@ Auth::init();
             <div class="space-y-4 text-[15px] leading-relaxed text-muted">
                 <p>
                     「市民が集めたデータって、本当に科学に使えるの？」<br>
-                    ikimon はこの疑問に、<strong class="text-text">3つの仕組み</strong>で答えます。
+                    答えは数字が出ています。2020年から2024年の5年間で、GBIF の市民科学データを使った査読付き論文は<strong class="text-text">7,786本</strong>。IPBES（生物多様性版 IPCC）や IUCN レッドリストの評価にも市民科学データが使われています。「使えるか？」ではなく「なくてはならない」段階にあります。
+                </p>
+
+                <p>
+                    ikimon はこの信頼性を、<strong class="text-text">3つの仕組み</strong>で支えています。
                 </p>
 
                 <div class="grid grid-cols-1 gap-4">
@@ -543,6 +702,72 @@ Auth::init();
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 7: 参考文献 -->
+    <section id="references" class="py-8 px-6 bg-surface section-anchor">
+        <div class="max-w-3xl mx-auto">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <i data-lucide="book-open" class="w-5 h-5 text-gray-600"></i>
+                </div>
+                <h2 class="text-xl font-black">参考文献</h2>
+            </div>
+
+            <p class="text-[15px] text-muted leading-relaxed mb-4">
+                このページで引用したデータの出典です。すべて公開されている論文・公的資料です。
+            </p>
+
+            <div class="space-y-3">
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">GBIF — Citizen Science</p>
+                    <p class="text-xs text-muted mt-1">市民科学データが GBIF ネットワーク全体に占める割合と、研究利用の統計</p>
+                    <a href="https://www.gbif.org/citizen-science" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">gbif.org/citizen-science</a>
+                </div>
+
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">iNaturalist accelerates biodiversity research</p>
+                    <p class="text-xs text-muted mt-1">BioScience, 2024. iNaturalist データの研究利用が5年で10倍に増加した分析</p>
+                    <a href="https://academic.oup.com/bioscience/article/75/11/953/8185761" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">academic.oup.com</a>
+                </div>
+
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">Boosting biodiversity monitoring using smartphone-driven, rapidly accumulating community-sourced data</p>
+                    <p class="text-xs text-muted mt-1">eLife, 2024. スマートフォンベースの市民科学データと専門家データの最適混合比率の研究</p>
+                    <a href="https://elifesciences.org/articles/93694" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">elifesciences.org</a>
+                </div>
+
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">A digital twin for real-time biodiversity forecasting with citizen science data</p>
+                    <p class="text-xs text-muted mt-1">Nature Ecology & Evolution, 2025. フィンランド MK アプリの市民科学データを用いたデジタルツイン</p>
+                    <a href="https://www.nature.com/articles/s41559-025-02966-3" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">nature.com</a>
+                </div>
+
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">Enhancing the health and wellbeing benefits of biodiversity citizen science</p>
+                    <p class="text-xs text-muted mt-1">Frontiers in Environmental Science, 2024. 市民科学参加による健康・ウェルビーイング効果の研究</p>
+                    <a href="https://www.frontiersin.org/journals/environmental-science/articles/10.3389/fenvs.2024.1444161/full" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">frontiersin.org</a>
+                </div>
+
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">Nine changes needed to deliver a radical transformation in biodiversity measurement</p>
+                    <p class="text-xs text-muted mt-1">PNAS, 2025. 生物多様性の計測手法を変革するために必要な9つの変化</p>
+                    <a href="https://www.pnas.org/doi/10.1073/pnas.2519345123" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">pnas.org</a>
+                </div>
+
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">環境省 — 30by30ロードマップ</p>
+                    <p class="text-xs text-muted mt-1">日本の 30by30 目標達成に向けたロードマップと自然共生サイト制度の概要</p>
+                    <a href="https://www.env.go.jp/nature/biodiversity/OECM.html" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">env.go.jp</a>
+                </div>
+
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">Japan NBSAP 2023-2030</p>
+                    <p class="text-xs text-muted mt-1">生物多様性条約（CBD）に基づく日本の国家戦略・行動計画</p>
+                    <a href="https://www.cbd.int/doc/nbsap/NBSAPJapan2023-2030-Flier-English.pdf" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">cbd.int</a>
                 </div>
             </div>
         </div>
