@@ -44,6 +44,23 @@ usort($latest_obs, function ($a, $b) {
     return strtotime($b['created_at'] ?? $b['observed_at'] ?? '0')
          - strtotime($a['created_at'] ?? $a['observed_at'] ?? '0');
 });
+
+$feedManual = [];
+$feedWalk = [];
+$feedScan = [];
+foreach ($latest_obs as $o) {
+    $src = $o['observation_source'] ?? $o['source'] ?? '';
+    if (in_array($src, ['walk-summary', 'walk'])) {
+        $feedWalk[] = $o;
+    } elseif (in_array($src, ['live-scan-summary', 'live-scan', 'passive'])) {
+        $feedScan[] = $o;
+    } else {
+        $feedManual[] = $o;
+    }
+}
+$feedManual = array_slice($feedManual, 0, 6);
+$feedWalk = array_slice($feedWalk, 0, 4);
+$feedScan = array_slice($feedScan, 0, 4);
 $latest_obs = array_slice($latest_obs, 0, 6);
 
 // Stats for hero
@@ -56,25 +73,39 @@ $uniqueSpecies = count(array_unique(array_filter(array_map(function ($o) {
 }, $allObs))));
 unset($allObs);
 
-// Community Live Scan Stats (all users)
+// Community Session Stats (all users)
+$communityWalkStats = ['count' => 0, 'duration_min' => 0, 'species' => [], 'total_detections' => 0, 'users' => []];
 $communityScanStats = ['count' => 0, 'duration_min' => 0, 'species' => [], 'total_detections' => 0, 'users' => []];
 $allSessions = DataStore::fetchAll('passive_sessions');
 foreach ($allSessions as $s) {
-    if (($s['session_meta']['scan_mode'] ?? '') !== 'live-scan') continue;
+    $mode = $s['session_meta']['scan_mode'] ?? '';
     $summary = $s['summary'] ?? [];
-    $communityScanStats['count']++;
-    $communityScanStats['duration_min'] += (int)round(($summary['duration_sec'] ?? 0) / 60);
-    $communityScanStats['total_detections'] += (int)($summary['total_detections'] ?? 0);
+    $target = null;
+    if ($mode === 'walk') $target = &$communityWalkStats;
+    elseif ($mode === 'live-scan') $target = &$communityScanStats;
+    else continue;
+    $target['count']++;
+    $target['duration_min'] += (int)round(($summary['duration_sec'] ?? 0) / 60);
+    $target['total_detections'] += (int)($summary['total_detections'] ?? 0);
     foreach ($summary['species'] ?? [] as $name => $cnt) {
-        if ($name) $communityScanStats['species'][$name] = true;
+        if ($name) $target['species'][$name] = true;
     }
     $uid = $s['user_id'] ?? '';
-    if ($uid) $communityScanStats['users'][$uid] = true;
+    if ($uid) $target['users'][$uid] = true;
+    unset($target);
 }
 unset($allSessions);
-$communityScanStats['unique_species'] = count($communityScanStats['species']);
-$communityScanStats['unique_users'] = count($communityScanStats['users']);
-unset($communityScanStats['species'], $communityScanStats['users']);
+foreach ([&$communityWalkStats, &$communityScanStats] as &$stats) {
+    $stats['unique_species'] = count($stats['species']);
+    $stats['unique_users'] = count($stats['users']);
+    unset($stats['species'], $stats['users']);
+}
+unset($stats);
+
+// Latest walk summaries (max 5)
+$latestWalkSummaries = DataStore::getLatest('observations', 5, function ($item) {
+    return ($item['observation_source'] ?? '') === 'walk-summary';
+});
 
 // Latest scan summaries (max 5)
 $latestScans = DataStore::getLatest('observations', 5, function ($item) {
@@ -401,9 +432,9 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                 <?php include __DIR__ . '/components/regional_completion.php'; ?>
             </div>
 
-            <!-- Feed Grid -->
+            <!-- Feed Grid: 観察投稿が主役 -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style="gap:var(--phi-lg)">
-                <?php foreach ($latest_obs as $obs):
+                <?php foreach ((!empty($feedManual) ? $feedManual : $latest_obs) as $obs):
                     $obsIdCount = count($obs['identifications'] ?? []);
                     // Check if current user already reacted
                     $_feedLikeFile = DATA_DIR . '/likes/' . $obs['id'] . '.json';
@@ -562,7 +593,7 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                             </div>
 
                             <?php
-                                $feedIsAudioSource = in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'live-scan', 'passive', 'live-scan-summary']);
+                                $feedIsAudioSource = in_array($obs['observation_source'] ?? $obs['source'] ?? '', ['walk', 'live-scan', 'passive', 'live-scan-summary', 'walk-summary']);
                             ?>
                             <?php if ($feedIsAudioSource): ?>
                                 <?php
@@ -704,10 +735,93 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
             <?php endif; ?>
         </section>
 
+        <!-- ==================== みんなのウォーク ==================== -->
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)">
+            <div class="rounded-3xl overflow-hidden border border-emerald-500/20">
+                <div class="bg-gradient-to-br from-emerald-900 to-teal-900 p-5 md:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🚶</span>
+                            <h2 class="text-base font-black text-white">みんなのウォーク</h2>
+                        </div>
+                        <a href="walk.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                            <i data-lucide="footprints" class="w-3.5 h-3.5"></i> ウォーク開始
+                        </a>
+                    </div>
+
+                    <?php if ($communityWalkStats['count'] > 0): ?>
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        <div class="bg-white/10 rounded-xl py-3">
+                            <div class="text-xl font-black text-white"><?= number_format($communityWalkStats['count']) ?></div>
+                            <div class="text-[10px] text-emerald-200 font-bold mt-0.5">ウォーク</div>
+                        </div>
+                        <div class="bg-white/10 rounded-xl py-3">
+                            <div class="text-xl font-black text-white"><?= number_format($communityWalkStats['duration_min']) ?></div>
+                            <div class="text-[10px] text-emerald-200 font-bold mt-0.5">累計(分)</div>
+                        </div>
+                        <div class="bg-white/10 rounded-xl py-3">
+                            <div class="text-xl font-black text-white"><?= number_format($communityWalkStats['unique_species']) ?></div>
+                            <div class="text-[10px] text-emerald-200 font-bold mt-0.5">録音種</div>
+                        </div>
+                        <div class="bg-white/10 rounded-xl py-3">
+                            <div class="text-xl font-black text-white"><?= number_format($communityWalkStats['unique_users']) ?></div>
+                            <div class="text-[10px] text-emerald-200 font-bold mt-0.5">参加者</div>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <div class="text-center py-3">
+                        <p class="text-sm text-emerald-200 mb-3">散歩しながら鳥の声をAIが自動で録音・判定</p>
+                        <a href="walk.php" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-full px-4 py-2 transition">
+                            <i data-lucide="footprints" class="w-4 h-4"></i>
+                            ウォークを始める
+                        </a>
+                    </div>
+                    <?php endif; ?>
+                </div>
+
+                <?php if (!empty($latestWalkSummaries)): ?>
+                <div class="bg-elevated divide-y divide-border">
+                    <?php foreach ($latestWalkSummaries as $ws):
+                        $wsSummary = $ws['scan_summary'] ?? [];
+                        $wsDur = $wsSummary['duration_min'] ?? 0;
+                        $wsSpCount = $wsSummary['species_count'] ?? 0;
+                        $wsDist = ($wsSummary['distance_m'] ?? 0) > 0 ? round(($wsSummary['distance_m'] ?? 0) / 1000, 1) . 'km' : '';
+                        $wsTopSpecies = array_slice($wsSummary['top_species'] ?? [], 0, 3);
+                        $wsUserName = $ws['user_name'] ?? 'ユーザー';
+                        $wsUserAvatar = $ws['user_avatar'] ?? '';
+                        $wsDate = date('n/j H:i', strtotime($ws['observed_at'] ?? $ws['created_at'] ?? 'now'));
+                    ?>
+                    <a href="observation_detail.php?id=<?= urlencode($ws['id']) ?>" class="flex items-center gap-3 px-4 py-3 hover:bg-surface transition">
+                        <?php if ($wsUserAvatar): ?>
+                        <img src="<?= htmlspecialchars($wsUserAvatar) ?>" alt="" class="w-9 h-9 rounded-full object-cover border border-border shrink-0">
+                        <?php else: ?>
+                        <div class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                            <i data-lucide="user" class="w-4 h-4 text-emerald-500"></i>
+                        </div>
+                        <?php endif; ?>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-bold text-text truncate"><?= htmlspecialchars($wsUserName) ?></span>
+                                <span class="text-[10px] text-muted"><?= $wsDate ?></span>
+                            </div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-xs text-muted"><?= $wsDur ?>分<?= $wsDist ? " · {$wsDist}" : '' ?> · <?= $wsSpCount ?>種録音</span>
+                                <?php if (!empty($wsTopSpecies)): ?>
+                                <span class="text-[10px] text-faint truncate"><?= htmlspecialchars(implode(', ', array_map(fn($sp) => $sp['name'] ?? '', $wsTopSpecies))) ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-faint shrink-0"></i>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+        </section>
+
         <!-- ==================== みんなのライブスキャン ==================== -->
         <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-2xl)">
             <div class="rounded-3xl overflow-hidden border border-blue-500/20">
-                <!-- Header + Stats -->
                 <div class="bg-gradient-to-br from-blue-900 to-purple-900 p-5 md:p-6">
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center gap-2">
@@ -749,7 +863,6 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                     <?php endif; ?>
                 </div>
 
-                <!-- Latest Scan Results -->
                 <?php if (!empty($latestScans)): ?>
                 <div class="bg-elevated divide-y divide-border">
                     <?php foreach ($latestScans as $scan):
