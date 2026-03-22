@@ -68,6 +68,8 @@ if (!in_array($detectedMime, $allowedMimes, true)) {
 // --- Parameters ---
 $lat = isset($_POST['lat']) ? floatval($_POST['lat']) : 35.0;
 $lng = isset($_POST['lng']) ? floatval($_POST['lng']) : 139.0;
+$minConf = isset($_POST['min_conf']) ? floatval($_POST['min_conf']) : 0.10;
+$minConf = max(0.05, min(0.50, $minConf));
 
 // 座標の妥当性チェック
 if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
@@ -90,7 +92,7 @@ curl_setopt_array($ch, [
         'audio'    => $cfile,
         'lat'      => $lat,
         'lng'      => $lng,
-        'min_conf' => 0.10,
+        'min_conf' => $minConf,
     ],
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_TIMEOUT        => 15,
@@ -117,6 +119,33 @@ $result = json_decode($response, true);
 if (!$result || !isset($result['detections'])) {
     error_log("[analyze_audio] Invalid BirdNET response: " . substr($response, 0, 500));
     api_error('Invalid AI response', 502);
+}
+
+// --- Enrich detections with Japanese names ---
+if (!empty($result['detections'])) {
+    try {
+        require_once ROOT_DIR . '/libs/OmoikaneSearchEngine.php';
+        $omoikane = new OmoikaneSearchEngine();
+        foreach ($result['detections'] as &$det) {
+            $jaName = null;
+            if (!empty($det['scientific_name'])) {
+                $resolved = $omoikane->resolveByScientificName($det['scientific_name']);
+                if ($resolved && !empty($resolved['japanese_name'])) {
+                    $jaName = $resolved['japanese_name'];
+                }
+            }
+            if (!$jaName && !empty($det['common_name'])) {
+                $resolved = $omoikane->resolveByJapaneseName($det['common_name']);
+                if ($resolved && !empty($resolved['japanese_name'])) {
+                    $jaName = $resolved['japanese_name'];
+                }
+            }
+            $det['japanese_name'] = $jaName;
+        }
+        unset($det);
+    } catch (Throwable $e) {
+        error_log("[analyze_audio] Omoikane enrichment error: " . $e->getMessage());
+    }
 }
 
 // --- Save audio evidence if detections found ---
