@@ -994,6 +994,38 @@
     color: var(--color-text-muted);
 }
 
+/* ── AI Story ── */
+.zukan-story {
+    padding: var(--zukan-space-md);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.04) 0%, rgba(16, 185, 129, 0.04) 100%);
+    border-top: 1px solid var(--color-border);
+}
+
+.zukan-story__loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    padding: var(--zukan-space-xs) 0;
+}
+
+.zukan-story__text {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--color-text);
+    margin-bottom: var(--zukan-space-xs);
+}
+
+.zukan-story__disclaimer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    color: var(--color-text-faint);
+    opacity: 0.7;
+}
+
 /* ── Timeline ── */
 .zukan-timeline {
     padding: var(--zukan-space-md);
