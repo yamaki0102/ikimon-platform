@@ -75,7 +75,7 @@ function rlLabel($rl)
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <link rel="stylesheet" href="assets/css/zukan.css?v=3.6">
+    <link rel="stylesheet" href="assets/css/zukan.css?v=3.7">
 </head>
 
 <body class="app-body bg-base text-text font-body" x-data="zukanApp()" x-init="init()">
@@ -159,14 +159,14 @@ function rlLabel($rl)
         <section class="zukan-hero">
             <div class="zukan-hero__inner">
                 <h1 class="zukan-hero__title">📖 マイ図鑑</h1>
-                <p class="zukan-hero__subtitle" x-text="stats.total_species + ' 種と出会いました'"></p>
+                <p class="zukan-hero__subtitle" x-text="stats.total_species + ' の生き物と出会いました'"></p>
 
                 <template x-if="stats">
                     <div>
                         <div class="zukan-stats">
                             <div class="zukan-stat">
                                 <span class="zukan-stat__number" x-text="stats.total_species"></span>
-                                <span class="zukan-stat__label">種</span>
+                                <span class="zukan-stat__label">いきもの</span>
                             </div>
                             <div class="zukan-stat">
                                 <span class="zukan-stat__number zukan-stat__number--secondary" x-text="stats.total_encounters"></span>
@@ -179,31 +179,31 @@ function rlLabel($rl)
                             <template x-if="stats.category_counts.post > 0">
                                 <span class="zukan-category-stat">
                                     <i data-lucide="camera" style="width:14px;height:14px;"></i>
-                                    <span x-text="stats.category_counts.post + '種'"></span>
+                                    <span x-text="stats.category_counts.post "></span>
                                 </span>
                             </template>
                             <template x-if="stats.category_counts.walk > 0">
                                 <span class="zukan-category-stat">
                                     <i data-lucide="footprints" style="width:14px;height:14px;"></i>
-                                    <span x-text="stats.category_counts.walk + '種'"></span>
+                                    <span x-text="stats.category_counts.walk "></span>
                                 </span>
                             </template>
                             <template x-if="stats.category_counts.scan > 0">
                                 <span class="zukan-category-stat">
                                     <i data-lucide="scan-line" style="width:14px;height:14px;"></i>
-                                    <span x-text="stats.category_counts.scan + '種'"></span>
+                                    <span x-text="stats.category_counts.scan "></span>
                                 </span>
                             </template>
                             <template x-if="stats.category_counts.identify > 0">
                                 <span class="zukan-category-stat">
                                     <i data-lucide="microscope" style="width:14px;height:14px;"></i>
-                                    <span x-text="stats.category_counts.identify + '種'"></span>
+                                    <span x-text="stats.category_counts.identify "></span>
                                 </span>
                             </template>
                             <template x-if="stats.category_counts.audio > 0">
                                 <span class="zukan-category-stat">
                                     <i data-lucide="music" style="width:14px;height:14px;"></i>
-                                    <span x-text="stats.category_counts.audio + '種'"></span>
+                                    <span x-text="stats.category_counts.audio "></span>
                                 </span>
                             </template>
                         </div>
@@ -407,7 +407,7 @@ function rlLabel($rl)
         <!-- Result Count -->
         <div class="text-center pb-8" style="max-width: var(--content-max-width); margin: 0 auto;">
             <p class="text-xs text-muted" x-show="!loading">
-                <span x-text="totalResults"></span> 種を表示中
+                <span x-text="totalResults"></span> 件を表示中
             </p>
         </div>
 
@@ -446,7 +446,7 @@ function rlLabel($rl)
                                 <template x-for="(photo, pi) in allPhotos()" :key="photo + pi">
                                     <div class="zukan-gallery__slide">
                                         <img :src="photo" :alt="detailEntry.name" loading="lazy"
-                                            @click="window.open(photo, '_blank')">
+                                            @click.stop="fullscreenPhoto = true">
                                     </div>
                                 </template>
                             </div>
@@ -470,6 +470,11 @@ function rlLabel($rl)
                                         :class="{'zukan-gallery__dot--active': di === galleryIndex}"
                                         @click.stop="galleryIndex = di"></button>
                                 </template>
+                            </div>
+
+                            <!-- Expand hint -->
+                            <div class="zukan-gallery__expand-hint">
+                                <i data-lucide="maximize-2" style="width:16px;height:16px;"></i>
                             </div>
 
                             <!-- Counter -->
@@ -647,11 +652,11 @@ function rlLabel($rl)
                                     <div class="zukan-book-nav__page">
                                         <span class="zukan-book-nav__current" x-text="detailIndex"></span>
                                         <span class="zukan-book-nav__sep">/</span>
-                                        <span class="zukan-book-nav__total" x-text="speciesList.length"></span>
+                                        <span class="zukan-book-nav__total" x-text="totalResults"></span>
                                     </div>
                                     <div class="zukan-book-nav__progress">
                                         <div class="zukan-book-nav__progress-fill"
-                                            :style="'width: ' + (detailIndex / speciesList.length * 100) + '%'"></div>
+                                            :style="'width: ' + (detailIndex / totalResults * 100) + '%'"></div>
                                     </div>
                                 </div>
 
@@ -682,6 +687,54 @@ function rlLabel($rl)
                     </div>
                 </template>
             </div>
+        </div>
+
+        <!-- ═══ Fullscreen Photo Viewer ═══ -->
+        <div class="zukan-lightbox" x-show="fullscreenPhoto" x-cloak
+            x-transition:enter="transition ease-out duration-150"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-100"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            @keydown.escape.window="fullscreenPhoto = false"
+            @keydown.left.window="fullscreenPhoto && galleryIndex > 0 && galleryIndex--"
+            @keydown.right.window="fullscreenPhoto && galleryIndex < allPhotos().length - 1 && galleryIndex++"
+            x-data="{lx:0,ly:0}"
+            @touchstart="lx=$event.touches[0].clientX;ly=$event.touches[0].clientY"
+            @touchend="let dx=$event.changedTouches[0].clientX-lx,dy=$event.changedTouches[0].clientY-ly;if(Math.abs(dy)>100&&Math.abs(dy)>Math.abs(dx)){fullscreenPhoto=false}else if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){if(dx<0&&galleryIndex<allPhotos().length-1)galleryIndex++;else if(dx>0&&galleryIndex>0)galleryIndex--}">
+            <div class="zukan-lightbox__bg" @click="fullscreenPhoto = false"></div>
+
+            <!-- Close -->
+            <button class="zukan-lightbox__close" @click="fullscreenPhoto = false">
+                <i data-lucide="x" style="width:24px;height:24px;"></i>
+            </button>
+
+            <!-- Counter -->
+            <div class="zukan-lightbox__counter" x-show="allPhotos().length > 1">
+                <span x-text="(galleryIndex + 1) + ' / ' + allPhotos().length"></span>
+            </div>
+
+            <!-- Image -->
+            <div class="zukan-lightbox__img-wrap">
+                <img :src="allPhotos()[galleryIndex]" class="zukan-lightbox__img"
+                    @click.stop>
+            </div>
+
+            <!-- Arrows -->
+            <button class="zukan-lightbox__arrow zukan-lightbox__arrow--left"
+                x-show="galleryIndex > 0"
+                @click.stop="galleryIndex--">
+                <i data-lucide="chevron-left" style="width:28px;height:28px;"></i>
+            </button>
+            <button class="zukan-lightbox__arrow zukan-lightbox__arrow--right"
+                x-show="galleryIndex < allPhotos().length - 1"
+                @click.stop="galleryIndex++">
+                <i data-lucide="chevron-right" style="width:28px;height:28px;"></i>
+            </button>
+
+            <!-- Hint -->
+            <div class="zukan-lightbox__hint">スワイプで次の写真 / 下スワイプで閉じる</div>
         </div>
 
         <audio id="zukanAudioPlayer" style="display:none;" @ended="playingAudio = null"></audio>
@@ -716,6 +769,7 @@ function rlLabel($rl)
                 storyLoading: false,
                 timelineExpanded: false,
                 galleryIndex: 0,
+                fullscreenPhoto: false,
 
                 init() {
                     this.$nextTick(() => {
@@ -873,6 +927,9 @@ function rlLabel($rl)
 
                 async goToSpecies(index) {
                     if (index < 0 || index >= this.speciesList.length) return;
+                    if (index >= this.speciesList.length - 3 && this.hasMore && !this.loadingMore) {
+                        this.loadMore();
+                    }
                     const item = this.speciesList[index];
                     this.stopAudio();
 
