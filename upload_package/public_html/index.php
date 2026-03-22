@@ -924,6 +924,71 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
             </div>
         </section>
 
+        <!-- ==================== サウンドアーカイブ ==================== -->
+        <?php
+        $soundArchive = DataStore::getLatest('sound_archive', 6, function ($item) {
+            return empty($item['hidden']);
+        });
+        usort($soundArchive, function ($a, $b) {
+            return strcmp($b['created_at'] ?? '', $a['created_at'] ?? '');
+        });
+        $soundArchive = array_slice($soundArchive, 0, 6);
+        ?>
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)" x-data="{ saPlaying: null }">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="audio-lines" class="w-5 h-5 text-violet-500"></i>
+                    <h2 class="font-black text-text" style="font-size:var(--text-md)">サウンドアーカイブ</h2>
+                </div>
+                <a href="/sound_archive.php" class="text-token-xs font-bold text-primary hover:underline">すべて見る →</a>
+            </div>
+            <p class="text-token-xs text-muted mb-3">生き物の声を集めて、みんなで同定しよう</p>
+
+            <?php if (empty($soundArchive)): ?>
+            <div class="bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-200 rounded-2xl p-6 text-center">
+                <i data-lucide="mic" class="w-10 h-10 text-violet-300 mx-auto mb-2"></i>
+                <p class="text-sm font-bold text-violet-700 mb-1">まだ音声がありません</p>
+                <p class="text-token-xs text-violet-500 mb-3">ウォーク・スキャンで自動録音、または手動でアップロードできます</p>
+                <a href="/sound_archive.php" class="inline-flex items-center gap-1.5 bg-violet-600 text-white px-4 py-2 rounded-full text-xs font-bold hover:bg-violet-700 transition">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i> 音声をアップロード
+                </a>
+            </div>
+            <?php else: ?>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <?php foreach ($soundArchive as $sa): ?>
+                <div class="bg-surface border border-border rounded-xl p-3 space-y-1.5">
+                    <?php if (!empty($sa['image_path'])): ?>
+                    <img src="/<?= htmlspecialchars($sa['image_path'], ENT_QUOTES, 'UTF-8') ?>" class="w-full h-20 object-cover rounded-lg" loading="lazy">
+                    <?php endif; ?>
+                    <button @click="if(saPlaying==='<?= $sa['id'] ?>'){$refs.saAudio.pause();saPlaying=null}else{$refs.saAudio.src='/<?= htmlspecialchars($sa['audio_path'], ENT_QUOTES, 'UTF-8') ?>';$refs.saAudio.play();saPlaying='<?= $sa['id'] ?>'}" class="w-full flex items-center gap-2 py-1.5 rounded-lg transition" :class="saPlaying==='<?= $sa['id'] ?>' ? 'text-red-500' : 'text-violet-600'">
+                        <span class="w-7 h-7 flex items-center justify-center rounded-full" :class="saPlaying==='<?= $sa['id'] ?>' ? 'bg-red-100' : 'bg-violet-100'">
+                            <i :data-lucide="saPlaying==='<?= $sa['id'] ?>' ? 'pause' : 'play'" class="w-3.5 h-3.5"></i>
+                        </span>
+                        <span class="text-[11px] font-bold truncate text-text"><?= htmlspecialchars($sa['location']['area_name'] ?? '不明', ENT_QUOTES, 'UTF-8') ?></span>
+                    </button>
+                    <div class="text-[10px] text-muted">
+                        <?= date('n/j H:i', strtotime($sa['recorded_at'] ?? $sa['created_at'] ?? 'now')) ?>
+                        <?php
+                        $idCount = count($sa['identifications'] ?? []);
+                        $status = $sa['identification_status'] ?? 'needs_id';
+                        if ($status === 'identified'): ?>
+                            <span class="text-emerald-600 font-bold ml-1">同定済み</span>
+                        <?php elseif ($idCount > 0): ?>
+                            <span class="text-blue-500 font-bold ml-1"><?= $idCount ?>件提案</span>
+                        <?php else: ?>
+                            <span class="text-amber-500 font-bold ml-1">同定待ち</span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (!empty($sa['birdnet_result']['top_species'])): ?>
+                    <div class="text-[10px] text-faint truncate">AI: <?= htmlspecialchars($sa['birdnet_result']['top_species'], ENT_QUOTES, 'UTF-8') ?></div>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <audio x-ref="saAudio" @ended="saPlaying = null" preload="none" style="display:none"></audio>
+            <?php endif; ?>
+        </section>
+
         <!-- ==================== 数字で見る ikimon ==================== -->
         <?php
         $allObs = DataStore::fetchAll('observations');
