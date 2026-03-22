@@ -122,7 +122,7 @@ function generateStory(array $entry, string $context): ?string
 【解説】
 PROMPT;
 
-    $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=' . GEMINI_API_KEY;
+    $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' . GEMINI_API_KEY;
 
     $payload = [
         'contents' => [['parts' => [['text' => $prompt]]]],
