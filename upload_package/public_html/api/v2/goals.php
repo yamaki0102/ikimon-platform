@@ -45,11 +45,13 @@ if ($method === 'GET') {
 
     $goalsWithProgress = QuestManager::getActiveGoalsWithProgress($currentUser['id']);
     $fieldSignals = QuestManager::getScanQuests($currentUser['id']);
+    $communitySignals = QuestManager::getCommunitySignals($currentUser['id']);
 
     echo json_encode([
         'success' => true,
         'goals' => $goalsWithProgress,
         'field_signals' => $fieldSignals,
+        'community_signals' => $communitySignals,
         'max_goals' => QuestManager::MAX_ACTIVE_GOALS,
     ], JSON_UNESCAPED_UNICODE);
     exit;

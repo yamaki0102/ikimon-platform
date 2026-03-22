@@ -358,6 +358,10 @@ if ($isLiveScan && !empty($result['summary']['species'])) {
     $scanQuests = QuestManager::generateFromScan($userId, $extendedSummary, $questSessionMeta);
     QuestManager::saveScanQuests($userId, $scanQuests);
     $questShown = !empty($scanQuests);
+
+    foreach ($scanQuests as $sq) {
+        QuestManager::publishCommunitySignal($userId, $sq, $centerLat, $centerLng);
+    }
 }
 
 api_success([

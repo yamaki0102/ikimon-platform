@@ -10,6 +10,7 @@ $currentUser = Auth::user();
 $meta_title = 'マイゴール | ikimon.life';
 
 $fieldSignals = $currentUser ? QuestManager::getScanQuests($currentUser['id']) : [];
+$communitySignals = $currentUser ? QuestManager::getCommunitySignals($currentUser['id']) : [];
 $goalsWithProgress = $currentUser ? QuestManager::getActiveGoalsWithProgress($currentUser['id']) : [];
 $goalCatalog = QuestManager::getGoalCatalog();
 $recommendedGoals = $currentUser ? QuestManager::getRecommendedGoals($currentUser['id']) : [];
@@ -92,21 +93,17 @@ $bgGradients = [
     </div>
     <?php else: ?>
 
-    <!-- ===== フィールドシグナル（科学的緊急性あり時のみ） ===== -->
+    <!-- ===== マイシグナル（自分のスキャンから・無期限） ===== -->
     <?php if (!empty($fieldSignals)): ?>
     <section class="mb-8">
         <div class="flex items-center gap-2 mb-4">
-            <i data-lucide="radio" class="w-5 h-5 text-red-500"></i>
-            <h2 class="text-base font-black">フィールドシグナル</h2>
-            <span class="text-[10px] text-red-500 font-bold ml-auto flex items-center gap-1">
-                <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                期間限定
-            </span>
+            <i data-lucide="radio" class="w-5 h-5 text-emerald-600"></i>
+            <h2 class="text-base font-black">マイシグナル</h2>
+            <span class="text-[10px] text-muted ml-auto">自分のスキャンから・無期限</span>
         </div>
         <div class="space-y-3">
             <?php foreach ($fieldSignals as $sq):
                 $trigger = $sq['trigger'] ?? 'id_challenge';
-                $hoursLeft = max(0, (int)round((strtotime($sq['expires_at'] ?? 'now') - time()) / 3600));
                 $badge = $badgeColors[$trigger] ?? $badgeColors['id_challenge'];
                 $bg = $bgGradients[$trigger] ?? $bgGradients['id_challenge'];
                 $sig = $significanceTexts[$trigger] ?? null;
@@ -117,9 +114,9 @@ $bgGradients = [
                     <span class="text-[10px] font-bold px-2.5 py-1 rounded-md border <?= $badge ?>">
                         <?= htmlspecialchars($sq['rarity_label'] ?? $trigger, ENT_QUOTES, 'UTF-8') ?>
                     </span>
-                    <span class="text-[10px] text-gray-500 flex items-center gap-1">
-                        <i data-lucide="clock" class="w-3 h-3"></i>
-                        残り<?= $hoursLeft ?>時間
+                    <span class="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                        <i data-lucide="infinity" class="w-3 h-3"></i>
+                        無期限
                     </span>
                 </div>
                 <h3 class="text-base font-black text-gray-900 mb-2"><?= htmlspecialchars($sq['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></h3>
@@ -147,6 +144,63 @@ $bgGradients = [
                     </a>
                     <span class="text-sm text-amber-600 font-black">+<?= (int)($sq['reward'] ?? 0) ?>pt</span>
                 </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+
+    <!-- ===== コミュニティシグナル（他人のスキャンから・先着5名） ===== -->
+    <?php if (!empty($communitySignals)): ?>
+    <section class="mb-8">
+        <div class="flex items-center gap-2 mb-4">
+            <i data-lucide="users" class="w-5 h-5 text-blue-500"></i>
+            <h2 class="text-base font-black">コミュニティシグナル</h2>
+            <span class="text-[10px] text-blue-500 font-bold ml-auto flex items-center gap-1">
+                <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                近くの発見
+            </span>
+        </div>
+        <div class="space-y-3">
+            <?php foreach ($communitySignals as $cs):
+                $trigger = $cs['trigger'] ?? 'id_challenge';
+                $hoursLeft = max(0, (int)round((strtotime($cs['expires_at'] ?? 'now') - time()) / 3600));
+                $badge = $badgeColors[$trigger] ?? $badgeColors['id_challenge'];
+                $remaining = (int)($cs['remaining_slots'] ?? 0);
+                $distKm = $cs['distance_km'] ?? null;
+                $areaLabel = $cs['area_label'] ?? '';
+                $cta = $cs['cta_text'] ?? '記録する';
+            ?>
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-200">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-[10px] font-bold px-2.5 py-1 rounded-md border <?= $badge ?>">
+                        <?= htmlspecialchars($cs['rarity_label'] ?? $trigger, ENT_QUOTES, 'UTF-8') ?>
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <?php if ($areaLabel): ?>
+                        <span class="text-[10px] text-gray-500"><?= htmlspecialchars($areaLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                        <?php if ($distKm !== null): ?>
+                        <span class="text-[10px] text-blue-600 font-bold">~<?= $distKm ?>km</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <h3 class="text-base font-black text-gray-900 mb-2"><?= htmlspecialchars($cs['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></h3>
+                <p class="text-xs text-gray-600 leading-relaxed mb-3"><?= htmlspecialchars($cs['description'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-blue-600 font-bold bg-blue-100 px-2 py-0.5 rounded">残り<?= $remaining ?>枠</span>
+                        <span class="text-[10px] text-gray-400 flex items-center gap-1">
+                            <i data-lucide="clock" class="w-3 h-3"></i>
+                            残り<?= $hoursLeft ?>時間
+                        </span>
+                    </div>
+                    <span class="text-sm text-amber-600 font-black">+<?= (int)($cs['reward'] ?? 0) ?>pt</span>
+                </div>
+                <a href="post.php?species=<?= urlencode($cs['species_name'] ?? '') ?>&from=community_signal&signal_id=<?= urlencode($cs['id'] ?? '') ?>"
+                   class="block text-center bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl py-3 text-sm transition">
+                    <?= htmlspecialchars($cta, ENT_QUOTES, 'UTF-8') ?>
+                </a>
             </div>
             <?php endforeach; ?>
         </div>

@@ -279,6 +279,32 @@ class Gamification
                 }
             }
 
+            // === Community Signal Match Check ===
+            if (!empty($latestObs)) {
+                $completedCs = QuestManager::checkCommunitySignalMatch($userId, $latestObs[0]);
+                if ($completedCs) {
+                    $csReward = (int)($completedCs['reward'] ?? 0);
+                    $user['score'] += $csReward;
+                    $events[] = [
+                        'type' => 'quest_complete',
+                        'quest' => $completedCs,
+                        'reward' => $csReward,
+                    ];
+                    Notification::send(
+                        $userId,
+                        'quest_complete',
+                        'コミュニティシグナル達成！',
+                        '「' . ($completedCs['title'] ?? '') . '」を達成！ +' . $csReward . 'pt',
+                        'quests.php'
+                    );
+                    EventLog::log($userId, 'community_signal_complete', [
+                        'signal_id' => $completedCs['id'] ?? '',
+                        'species' => $completedCs['species_name'] ?? '',
+                        'reward' => $csReward,
+                    ]);
+                }
+            }
+
             DataStore::upsert('users', $user);
 
             // Update Session
