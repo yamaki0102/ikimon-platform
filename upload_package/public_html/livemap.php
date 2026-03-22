@@ -112,12 +112,20 @@ $currentUser = Auth::user();
     </div>
 </div>
 
-<!-- 右下: 網羅度ステータス -->
+<!-- 右下: メッシュ集計ステータス -->
 <div class="map-overlay" id="grid-stats" style="bottom: 100px; right: 16px; display:none">
     <div class="glass rounded-2xl px-4 py-3 text-sm space-y-1.5">
-        <div class="text-gray-400 font-bold">🔲 網羅度</div>
-        <div><span class="text-green-400 font-black text-lg" id="stat-cells">—</span> <span class="text-gray-400">セル調査済み</span></div>
-        <div class="text-xs text-gray-500">まだ歩かれていない場所ほど、あなたの貢献が大きい</div>
+        <div class="text-gray-400 font-bold">🔲 生物多様性メッシュ</div>
+        <div><span class="text-green-400 font-black text-lg" id="stat-cells">—</span> <span class="text-gray-400">メッシュ表示中</span></div>
+        <div class="text-xs text-gray-500 pb-1">1km四方の永続メッシュ — 色は最多グループ</div>
+        <div class="border-t border-white/5 pt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-gray-400">
+            <span><span class="inline-block w-2 h-2 rounded-sm mr-1" style="background:#f59e0b"></span>鳥類</span>
+            <span><span class="inline-block w-2 h-2 rounded-sm mr-1" style="background:#10b981"></span>植物</span>
+            <span><span class="inline-block w-2 h-2 rounded-sm mr-1" style="background:#f97316"></span>昆虫</span>
+            <span><span class="inline-block w-2 h-2 rounded-sm mr-1" style="background:#8b5cf6"></span>哺乳類</span>
+            <span><span class="inline-block w-2 h-2 rounded-sm mr-1" style="background:#06b6d4"></span>両生類</span>
+            <span><span class="inline-block w-2 h-2 rounded-sm mr-1" style="background:#3b82f6"></span>魚類</span>
+        </div>
     </div>
 </div>
 
@@ -264,28 +272,137 @@ map.on('load', function() {
     map.on('mouseenter', 'obs-points', function() { map.getCanvas().style.cursor = 'pointer'; });
     map.on('mouseleave', 'obs-points', function() { map.getCanvas().style.cursor = ''; });
 
-    // 網羅度グリッドソース
-    map.addSource('grid', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    // メッシュ集計ソース（生物多様性グリッド）
+    map.addSource('mesh', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+
     map.addLayer({
-        id: 'grid-cells',
-        type: 'circle',
-        source: 'grid',
-        minzoom: 11,
+        id: 'mesh-fill',
+        type: 'fill',
+        source: 'mesh',
         paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 8, 16, 30],
-            'circle-color': [
-                'interpolate', ['linear'], ['get', 'species'],
-                0, 'rgba(16,185,129,0.15)',
-                3, 'rgba(16,185,129,0.3)',
-                10, 'rgba(59,130,246,0.4)',
-                20, 'rgba(168,85,247,0.5)'
+            'fill-color': [
+                'match', ['get', 'top_group'],
+                '鳥類',     '#f59e0b',
+                '植物',     '#10b981',
+                '昆虫',     '#f97316',
+                '哺乳類',   '#8b5cf6',
+                '爬虫類',   '#84cc16',
+                '両生類',   '#06b6d4',
+                '魚類',     '#3b82f6',
+                'クモ類',   '#ec4899',
+                '菌類',     '#a78bfa',
+                'コケ・地衣類', '#6b7280',
+                '#9ca3af'
             ],
-            'circle-stroke-width': 1,
-            'circle-stroke-color': 'rgba(255,255,255,0.1)',
-            'circle-opacity': 0.6,
+            'fill-opacity': [
+                'interpolate', ['linear'], ['get', 'total'],
+                1, 0.15, 10, 0.32, 30, 0.52, 100, 0.68
+            ],
         },
         layout: { visibility: 'none' },
     });
+
+    map.addLayer({
+        id: 'mesh-outline',
+        type: 'line',
+        source: 'mesh',
+        paint: {
+            'line-color': [
+                'match', ['get', 'top_group'],
+                '鳥類',     '#f59e0b',
+                '植物',     '#10b981',
+                '昆虫',     '#f97316',
+                '哺乳類',   '#8b5cf6',
+                '爬虫類',   '#84cc16',
+                '両生類',   '#06b6d4',
+                '魚類',     '#3b82f6',
+                'クモ類',   '#ec4899',
+                '菌類',     '#a78bfa',
+                'コケ・地衣類', '#6b7280',
+                'rgba(255,255,255,0.3)'
+            ],
+            'line-width': 0.8,
+            'line-opacity': 0.6,
+        },
+        layout: { visibility: 'none' },
+    });
+
+    map.addLayer({
+        id: 'mesh-label',
+        type: 'symbol',
+        source: 'mesh',
+        minzoom: 11,
+        layout: {
+            'text-field': ['to-string', ['get', 'total']],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 11, 9, 14, 12],
+            'text-anchor': 'center',
+            'visibility': 'none',
+        },
+        paint: {
+            'text-color': '#fff',
+            'text-halo-color': 'rgba(0,0,0,0.75)',
+            'text-halo-width': 1.5,
+        },
+    });
+
+    // メッシュクリックでポップアップ
+    map.on('click', 'mesh-fill', function(e) {
+        var f = e.features[0];
+        var p = f.properties;
+        var byGroup = p.by_group;
+        if (typeof byGroup === 'string') { try { byGroup = JSON.parse(byGroup); } catch(ex) { byGroup = {}; } }
+        var families = p.families;
+        if (typeof families === 'string') { try { families = JSON.parse(families); } catch(ex) { families = []; } }
+
+        var groupColors = {
+            '鳥類':'#f59e0b','植物':'#10b981','昆虫':'#f97316','哺乳類':'#8b5cf6',
+            '爬虫類':'#84cc16','両生類':'#06b6d4','魚類':'#3b82f6','クモ類':'#ec4899',
+            '菌類':'#a78bfa','コケ・地衣類':'#6b7280','その他':'#9ca3af'
+        };
+
+        var groupRows = '';
+        if (byGroup) {
+            var sorted = Object.entries(byGroup).sort(function(a, b) { return b[1] - a[1]; });
+            sorted.forEach(function(kv) {
+                var color = groupColors[kv[0]] || '#9ca3af';
+                var pct = p.total > 0 ? Math.round((kv[1] / p.total) * 100) : 0;
+                groupRows += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px">' +
+                    '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';flex-shrink:0"></span>' +
+                    '<span style="font-size:12px;color:rgba(255,255,255,0.8);min-width:80px">' + kv[0] + '</span>' +
+                    '<div style="flex:1;height:4px;background:rgba(255,255,255,0.1);border-radius:2px">' +
+                      '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:2px"></div>' +
+                    '</div>' +
+                    '<span style="font-size:11px;color:rgba(255,255,255,0.45);min-width:20px;text-align:right">' + kv[1] + '</span>' +
+                    '</div>';
+            });
+        }
+
+        var famLine = (families && families.length > 0)
+            ? '<div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:10px">科: ' + families.join('、') + '</div>'
+            : '';
+        var lastObs = p.last_obs
+            ? '<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:5px">最終記録: ' + p.last_obs + '</div>'
+            : '';
+
+        var coords = f.geometry.coordinates[0];
+        var lngSum = 0, latSum = 0;
+        coords.forEach(function(c) { lngSum += c[0]; latSum += c[1]; });
+        var center = [lngSum / coords.length, latSum / coords.length];
+
+        new maplibregl.Popup({ offset: 12, closeButton: true, maxWidth: '300px' })
+            .setLngLat(center)
+            .setHTML(
+                '<div style="font-size:14px">' +
+                '<div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:0.08em;font-family:monospace;margin-bottom:6px">' + p.mesh_code + '</div>' +
+                '<div style="font-size:22px;font-weight:900;line-height:1"><span style="color:#10b981">' + p.total + '</span> <span style="font-size:13px;color:rgba(255,255,255,0.55)">件の検出</span></div>' +
+                '<div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:2px">' + p.group_count + ' グループ検出</div>' +
+                groupRows + famLine + lastObs +
+                '</div>'
+            )
+            .addTo(map);
+    });
+    map.on('mouseenter', 'mesh-fill', function() { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'mesh-fill', function() { map.getCanvas().style.cursor = ''; });
 
     // サイト境界
     map.addSource('sites', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
@@ -321,12 +438,6 @@ function loadData() {
             features: json.data.features
         });
 
-        if (json.data.grid) {
-            map.getSource('grid').setData({ type: 'FeatureCollection', features: json.data.grid });
-            var el = document.getElementById('stat-cells');
-            if (el) el.textContent = json.data.grid.length;
-        }
-
         var s = json.data.stats;
         document.getElementById('stat-obs').textContent = s.total;
         document.getElementById('stat-species').textContent = s.species;
@@ -348,6 +459,21 @@ function loadData() {
     }).catch(function(e) { console.warn('Map data load error:', e); });
 }
 
+function loadMesh() {
+    var b = map.getBounds();
+    var url = '/api/v2/mesh_aggregates.php' +
+        '?lat_min=' + b.getSouth().toFixed(4) +
+        '&lng_min=' + b.getWest().toFixed(4) +
+        '&lat_max=' + b.getNorth().toFixed(4) +
+        '&lng_max=' + b.getEast().toFixed(4);
+    fetch(url).then(function(r) { return r.json(); }).then(function(gj) {
+        if (!gj.features) return;
+        map.getSource('mesh').setData(gj);
+        var el = document.getElementById('stat-cells');
+        if (el) el.textContent = gj.features.length;
+    }).catch(function(e) { console.warn('Mesh load error:', e); });
+}
+
 // フィルターボタン
 document.querySelectorAll('.filter-chip[data-source]').forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -358,12 +484,21 @@ document.querySelectorAll('.filter-chip[data-source]').forEach(function(btn) {
     });
 });
 
-// 網羅度グリッドトグル
+// 生物多様性メッシュトグル
 document.getElementById('toggle-grid').addEventListener('click', function() {
     gridVisible = !gridVisible;
-    map.setLayoutProperty('grid-cells', 'visibility', gridVisible ? 'visible' : 'none');
+    var vis = gridVisible ? 'visible' : 'none';
+    map.setLayoutProperty('mesh-fill',    'visibility', vis);
+    map.setLayoutProperty('mesh-outline', 'visibility', vis);
+    map.setLayoutProperty('mesh-label',   'visibility', vis);
     this.classList.toggle('active', gridVisible);
     document.getElementById('grid-stats').style.display = gridVisible ? '' : 'none';
+    if (gridVisible) loadMesh();
+});
+
+// メッシュ: パン/ズーム後に再取得
+map.on('moveend', function() {
+    if (gridVisible) loadMesh();
 });
 
 // トイレトグル
