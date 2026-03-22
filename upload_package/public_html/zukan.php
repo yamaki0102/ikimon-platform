@@ -598,6 +598,13 @@ function rlLabel($rl)
                     this.$nextTick(() => {
                         if (typeof lucide !== 'undefined') lucide.createIcons();
                     });
+                    window.addEventListener('popstate', (e) => {
+                        if (this.showDetail) {
+                            this.showDetail = false;
+                            document.body.style.overflow = '';
+                            this.stopAudio();
+                        }
+                    });
                 },
 
                 async fetchSpecies(reset = false) {
@@ -662,6 +669,7 @@ function rlLabel($rl)
                     this.detailEntry = { ...item };
                     this.showDetail = true;
                     document.body.style.overflow = 'hidden';
+                    history.pushState({ zukanDetail: true }, '', '#detail');
 
                     if (item.encounters && item.encounters.length < item.encounter_count) {
                         this.detailLoading = true;
@@ -687,9 +695,13 @@ function rlLabel($rl)
                 },
 
                 closeDetail() {
+                    if (!this.showDetail) return;
                     this.showDetail = false;
                     document.body.style.overflow = '';
                     this.stopAudio();
+                    if (location.hash === '#detail') {
+                        history.back();
+                    }
                 },
 
                 toggleAudio(url) {
