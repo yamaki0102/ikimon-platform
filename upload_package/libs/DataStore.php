@@ -71,9 +71,10 @@ class DataStore
         // Robust Read-Modify-Write with flock
         $fp = fopen($path, 'c+'); // Open for read/write, create if not exists
         if (flock($fp, LOCK_EX)) {
-            // Read current contents
-            $filesize = filesize($path);
-            $content = $filesize > 0 ? fread($fp, $filesize) : '';
+            // Read current contents (clearstatcache to avoid stale filesize under concurrent writes)
+            clearstatcache(true, $path);
+            rewind($fp);
+            $content = stream_get_contents($fp);
             $data = json_decode($content, true) ?: [];
 
             // Modify
