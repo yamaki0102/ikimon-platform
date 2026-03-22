@@ -378,7 +378,14 @@ async function startScan() {
     S.speciesMap = {}; S.totalDet = 0; S.audioDet = 0; S.visualDet = 0;
     S.routePoints = []; S.envHistory = []; S.dataUsage = 0;
     S.sessionId = 'ls_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    S.pendingEvents = [];
+    S.sentEventCount = 0;
+    S.batchTimer = null;
+    S.serverSessionId = null;
     updateCounts();
+
+    // 30秒ごとに増分送信
+    S.batchTimer = setInterval(flushEvents, 30000);
 
     // Timer
     S.timerInt = setInterval(function() {
@@ -556,6 +563,7 @@ function stopScan() {
     clearInterval(S.timerInt);
     if (S.captureInt) clearTimeout(S.captureInt);
     clearInterval(S.envInt);
+    if (S.batchTimer) clearInterval(S.batchTimer);
     if (S.recTimer) clearTimeout(S.recTimer);
     if (S.recorder && S.recorder.state === 'recording') try { S.recorder.stop(); } catch(e) {}
     if (S.watchId) navigator.geolocation.clearWatch(S.watchId);
@@ -566,49 +574,132 @@ function stopScan() {
     var sec = Math.floor((Date.now() - S.startTime) / 1000);
     var min = Math.floor(sec / 60);
 
-    // セッションサマリーをフィードに1件投稿
     postScanSummary(sp, min);
 
-    // 蓄積した検出を一括で Canonical Schema に送信（1セッション=1 event）
-    var pendingEvents = S.pendingEvents || [];
     var summaryText = sp + '種検出 · ' + min + '分間のスキャン · 📶 ' + formatDataUsage(S.dataUsage);
     if (typeof BioPrescreen !== 'undefined' && BioPrescreen.stats.total > 0) {
         summaryText += ' · 🧠 ' + BioPrescreen.getGeminiSaveRate() + '%ローカル分析';
     }
+    summaryText += ' · 送信済 ' + S.sentEventCount + '件';
     document.getElementById('done-summary').textContent = summaryText;
     showScreen('done');
 
-    // リッチレビュー取得
     var speciesList = Object.entries(S.speciesMap).map(function(e) {
         return {name: e[0], scientific_name: '', confidence: e[1].confidence, count: e[1].count};
     });
     fetchScanRecap(speciesList, sec);
 
-    if (pendingEvents.length > 0 || S.routePoints.length > 0) {
-        fetch('/api/v2/passive_event.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                events: pendingEvents,
-                env_history: S.envHistory,
-                session: {
-                    duration_sec: sec,
-                    distance_m: calcDistance(S.routePoints),
-                    route_polyline: S.routePoints.map(function(p){return p.lat.toFixed(6)+','+p.lng.toFixed(6)}).join(';'),
-                    device: navigator.userAgent.indexOf('iPhone') >= 0 ? 'iPhone' : 'Android',
-                    app_version: 'web_1.0',
-                    scan_mode: 'live-scan',
-                }
-            })
-        }).then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.scan_quests && data.scan_quests.length > 0) {
-                renderScanQuests(data.scan_quests);
-            } else if (data.quest_shown === false && Object.keys(S.speciesMap).length > 0) {
-                renderScanQuests([]);
-            }
-        }).catch(function() {});
+    // 最終フラッシュ（未送信分 + セッション完了通知）
+    flushEvents(true);
+}
+
+// ===== 増分バッチ送信 =====
+function flushEvents(isFinal) {
+    var events = S.pendingEvents || [];
+    if (events.length === 0 && !isFinal) return;
+
+    var batch = events.splice(0, events.length);
+    var sec = Math.floor((Date.now() - S.startTime) / 1000);
+    var payload = {
+        events: batch,
+        session: {
+            duration_sec: sec,
+            distance_m: calcDistance(S.routePoints),
+            route_polyline: S.routePoints.map(function(p){return p.lat.toFixed(6)+','+p.lng.toFixed(6)}).join(';'),
+            device: navigator.userAgent.indexOf('iPhone') >= 0 ? 'iPhone' : 'Android',
+            app_version: 'web_1.0',
+            scan_mode: 'live-scan',
+            session_id_client: S.sessionId,
+            is_incremental: !isFinal,
+        }
+    };
+    if (isFinal) {
+        payload.env_history = S.envHistory;
+        payload.session.is_final = true;
     }
+
+    fetch('/api/v2/passive_event.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    }).then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            S.sentEventCount += batch.length;
+            if (data.data && data.data.session_id) S.serverSessionId = data.data.session_id;
+            dbg('📡 ' + batch.length + '件送信OK (計' + S.sentEventCount + ')');
+            removePendingFromStorage(batch);
+            if (isFinal && data.scan_quests && data.scan_quests.length > 0) {
+                renderScanQuests(data.scan_quests);
+            }
+        } else {
+            throw new Error('Server error');
+        }
+    }).catch(function(e) {
+        dbg('⚠️ 送信失敗 → オフライン保存');
+        saveScanPending(batch, payload.session);
+    });
+
+    // 送信と同時にローカルにもバックアップ
+    if (batch.length > 0) {
+        saveScanPending(batch, payload.session);
+    }
+}
+
+// ===== localStorage バックアップ =====
+function saveScanPending(events, session) {
+    try {
+        var key = 'ikimon_scan_pending';
+        var existing = JSON.parse(localStorage.getItem(key) || '[]');
+        existing.push({
+            events: events,
+            session: session,
+            sessionId: S.sessionId,
+            savedAt: new Date().toISOString()
+        });
+        // 古いデータ（48時間超）を削除
+        var cutoff = Date.now() - 48 * 3600 * 1000;
+        existing = existing.filter(function(p) { return new Date(p.savedAt).getTime() > cutoff; });
+        localStorage.setItem(key, JSON.stringify(existing));
+    } catch(e) {}
+}
+
+function removePendingFromStorage(sentEvents) {
+    try {
+        var key = 'ikimon_scan_pending';
+        var existing = JSON.parse(localStorage.getItem(key) || '[]');
+        // 送信成功したセッションのデータを削除
+        existing = existing.filter(function(p) { return p.sessionId !== S.sessionId; });
+        localStorage.setItem(key, JSON.stringify(existing));
+    } catch(e) {}
+}
+
+async function retryScanPending() {
+    try {
+        var key = 'ikimon_scan_pending';
+        var pending = JSON.parse(localStorage.getItem(key) || '[]');
+        if (pending.length === 0) return;
+        dbg('📱 未送信 ' + pending.length + '件を再送中...');
+        var remaining = [];
+        for (var i = 0; i < pending.length; i++) {
+            try {
+                var p = pending[i];
+                var resp = await fetch('/api/v2/passive_event.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({events: p.events, session: p.session})
+                });
+                var json = await resp.json();
+                if (!json.success) remaining.push(p);
+            } catch(e) {
+                remaining.push(pending[i]);
+            }
+        }
+        localStorage.setItem(key, JSON.stringify(remaining));
+        if (pending.length > remaining.length) {
+            dbg('✅ ' + (pending.length - remaining.length) + '件再送成功');
+        }
+    } catch(e) {}
 }
 
 async function fetchScanRecap(speciesList, durationSec) {
@@ -1514,6 +1605,25 @@ if (_sensSlider) _sensSlider.addEventListener('input', function() {
 // ===== Buttons =====
 document.getElementById('btn-start').addEventListener('click', startScan);
 document.getElementById('btn-stop').addEventListener('click', stopScan);
+
+// ページ読込時に未送信データを自動再送
+retryScanPending();
+
+// ページ離脱時にも未送信データを保存
+window.addEventListener('beforeunload', function() {
+    if (S.active && S.pendingEvents && S.pendingEvents.length > 0) {
+        var sec = Math.floor((Date.now() - S.startTime) / 1000);
+        saveScanPending(S.pendingEvents, {
+            duration_sec: sec,
+            distance_m: calcDistance(S.routePoints),
+            scan_mode: 'live-scan',
+            device: navigator.userAgent.indexOf('iPhone') >= 0 ? 'iPhone' : 'Android',
+            app_version: 'web_1.0',
+            session_id_client: S.sessionId,
+            is_final: true,
+        });
+    }
+});
 </script>
 </body>
 </html>
