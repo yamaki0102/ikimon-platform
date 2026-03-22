@@ -69,7 +69,7 @@ if (!in_array($detectedMime, $allowedMimes, true)) {
 $lat = isset($_POST['lat']) ? floatval($_POST['lat']) : 35.0;
 $lng = isset($_POST['lng']) ? floatval($_POST['lng']) : 139.0;
 $minConf = isset($_POST['min_conf']) ? floatval($_POST['min_conf']) : 0.10;
-$minConf = max(0.05, min(0.50, $minConf));
+$minConf = max(0.01, min(0.50, $minConf));
 
 // 座標の妥当性チェック
 if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
