@@ -14,6 +14,7 @@
 require_once __DIR__ . '/bootstrap.php';
 require_once ROOT_DIR . '/libs/Auth.php';
 require_once ROOT_DIR . '/libs/DataStore.php';
+require_once ROOT_DIR . '/libs/AiAssessmentQueue.php';
 
 Auth::init();
 if (!Auth::isLoggedIn()) {
@@ -86,6 +87,15 @@ $observation = [
 ];
 
 DataStore::append('observations', $observation);
+
+$aiPlan = AiAssessmentQueue::planForObservation($observation, 'observation_created');
+if ($aiPlan !== null) {
+    try {
+        AiAssessmentQueue::enqueue($obsId, (string)$aiPlan['reason'], $aiPlan);
+    } catch (\Throwable $e) {
+        error_log("enqueue AI failed for quick_post {$obsId}: " . $e->getMessage());
+    }
+}
 
 api_success([
     'id' => $obsId,
