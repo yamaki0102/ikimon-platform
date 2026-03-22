@@ -215,13 +215,19 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
 
     <!-- 下半分: 地図 -->
     <div style="position:absolute;bottom:0;left:0;right:0;height:45%;background:#000">
-        <div style="display:flex;gap:4px;padding:4px 8px;background:#000">
-            <button class="tab-btn active" data-tab="map" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.15);color:#fff;border:none">🗺️ マップ</button>
-            <button class="tab-btn" data-tab="species" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666;border:none">🌿 種リスト <span id="sp-count">0</span></button>
-            <button class="tab-btn" data-tab="env" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666;border:none">🌳 環境</button>
+        <div style="display:flex;gap:4px;padding:4px 8px;background:#000;overflow-x:auto">
+            <button class="tab-btn active" data-tab="map" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.15);color:#fff;border:none;white-space:nowrap">🗺️ マップ</button>
+            <button class="tab-btn" data-tab="log" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666;border:none;white-space:nowrap;position:relative">📋 ログ <span id="log-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#ef4444;color:#fff;font-size:9px;border-radius:999px;padding:0 4px;min-width:14px;text-align:center"></span></button>
+            <button class="tab-btn" data-tab="species" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666;border:none;white-space:nowrap">🌿 種 <span id="sp-count">0</span></button>
+            <button class="tab-btn" data-tab="env" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666;border:none;white-space:nowrap">🌳 環境</button>
         </div>
         <div id="tab-map" style="height:calc(100% - 32px);border-top:1px solid rgba(255,255,255,0.1)">
             <div id="minimap" style="width:100%;height:100%"></div>
+        </div>
+        <!-- 検出ログタブ: 時系列で全検出を閲覧できる -->
+        <div id="tab-log" style="height:calc(100% - 32px);overflow-y:auto;padding:4px 8px;display:none">
+            <div id="det-log-list" style="font-size:13px;display:flex;flex-direction:column;gap:4px"></div>
+            <div id="det-log-empty" style="text-align:center;color:#555;font-size:12px;padding:40px 0">まだ検出なし</div>
         </div>
         <div id="tab-species" style="height:calc(100% - 32px);overflow-y:auto;padding:4px 8px;display:none">
             <!-- セッションサマリー -->
@@ -340,6 +346,8 @@ var S = {
     speciesCardCache: {},
     totalPoints: 0,
     audioEmptyStreak: 0,
+    detectionLog: [], // 時系列検出ログ（ドロワー表示用）
+    logDrawerOpen: false,
 };
 
 function formatDataUsage(bytes) {
@@ -1075,6 +1083,14 @@ function addDetection(name, sci, conf, source, category, note) {
     S.speciesMap[name].lastSeen = Date.now();
     if (note && !S.speciesMap[name].note) S.speciesMap[name].note = note;
 
+    // 時系列ログに追記（ドロワーで後から見返せる）
+    S.detectionLog.push({
+        name: name, sci: sci, conf: conf, source: source,
+        note: note || '', isNew: isNew,
+        time: Math.floor((Date.now() - S.startTime) / 1000),
+    });
+    updateLogDrawerBadge();
+
     updateCounts();
     showDetBanner(name, sci, conf, source, note);
     addMapMarker(name, source);
@@ -1169,6 +1185,57 @@ function calcDistance(points) {
         total += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
     return Math.round(total);
+}
+
+function updateLogDrawerBadge() {
+    if (S.logDrawerOpen) {
+        updateLogDrawer();
+        return;
+    }
+    var badge = document.getElementById('log-badge');
+    if (badge) {
+        badge.style.display = '';
+        badge.textContent = S.detectionLog.length;
+    }
+}
+
+function updateLogDrawer() {
+    var list = document.getElementById('det-log-list');
+    var empty = document.getElementById('det-log-empty');
+    if (!list) return;
+
+    var grouped = {};
+    S.detectionLog.slice().reverse().forEach(function(d) {
+        if (!grouped[d.name]) grouped[d.name] = {latest: d, count: 0};
+        grouped[d.name].count++;
+    });
+
+    var html = '';
+    var entries = S.detectionLog.slice().reverse();
+    entries.forEach(function(d) {
+        var sec = d.time;
+        var timeStr = sec < 60 ? sec + 's' : Math.floor(sec/60) + 'm' + (sec%60) + 's';
+        var confPct = Math.round(d.conf * 100);
+        var confColor = d.conf >= 0.7 ? '#4ade80' : d.conf >= 0.4 ? '#fbbf24' : '#9ca3af';
+        var srcIcon = d.source === 'audio' ? '🎤' : '📷';
+        var newBadge = d.isNew ? '<span style="font-size:9px;padding:1px 5px;border-radius:5px;background:rgba(34,197,94,0.25);color:#4ade80;font-weight:700;margin-left:4px">NEW</span>' : '';
+        var note = d.note ? '<div style="font-size:10px;color:#9ca3af;margin-top:2px;line-height:1.4">' + d.note.substring(0, 80) + (d.note.length > 80 ? '…' : '') + '</div>' : '';
+        html += '<div style="padding:8px;background:rgba(255,255,255,0.05);border-radius:10px;border-left:3px solid ' + confColor + '">'
+            + '<div style="display:flex;align-items:center;gap:6px">'
+            + '<span style="font-size:10px;color:#666;font-family:monospace;min-width:32px">' + timeStr + '</span>'
+            + '<span style="font-size:10px">' + srcIcon + '</span>'
+            + '<span style="font-size:13px;font-weight:700;color:#fff">' + d.name + '</span>'
+            + newBadge
+            + '<span style="margin-left:auto;font-size:10px;color:' + confColor + ';font-weight:700">' + confPct + '%</span>'
+            + '</div>'
+            + (d.sci ? '<div style="font-size:10px;color:#6b7280;font-style:italic;margin-top:1px;padding-left:52px">' + d.sci + '</div>' : '')
+            + note
+            + '</div>';
+    });
+
+    list.innerHTML = html;
+    empty.style.display = entries.length === 0 ? '' : 'none';
+    list.style.display = entries.length === 0 ? 'none' : '';
 }
 
 function updateCounts() {
@@ -1465,8 +1532,15 @@ document.querySelectorAll('.tab-btn').forEach(function(btn) {
         this.style.background = 'rgba(255,255,255,0.15)'; this.style.color = '#fff'; this.classList.add('active');
         var tab = this.getAttribute('data-tab');
         document.getElementById('tab-map').style.display = tab === 'map' ? '' : 'none';
+        document.getElementById('tab-log').style.display = tab === 'log' ? '' : 'none';
         document.getElementById('tab-species').style.display = tab === 'species' ? '' : 'none';
         document.getElementById('tab-env').style.display = tab === 'env' ? '' : 'none';
+        if (tab === 'log') {
+            document.getElementById('log-badge').style.display = 'none';
+            S.logDrawerOpen = true;
+        } else {
+            S.logDrawerOpen = false;
+        }
     });
 });
 
