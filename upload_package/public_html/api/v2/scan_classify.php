@@ -69,37 +69,12 @@ if (is_array($context)) {
 }
 
 $prompt = <<<PROMPT
-この写真に映っている「生きている生物」のみを列挙してください。
-
-対象:
-- 植物（樹木、草、花、苔、シダ、地衣類、藻類）
-- 動物（鳥、昆虫、哺乳類、爬虫類、両生類、クモ）
-- 菌類（キノコ）
-
-対象外（絶対に含めないで）:
-- 人間、ヒト、人物、歩行者
-- 地面、土、砂利、石、岩
-- レンガ、コンクリート、アスファルト、タイル
-- 建物、フェンス、ベンチ、電柱などの人工構造物
-- 水たまり、空、雲、影
-
-確信度が低くてもOK。「〜に見える」「〜かもしれない」レベルで構いません。
-植栽の街路樹や庭の花も対象です。
+写真の生物を和名で列挙。植物・動物・菌類が対象。人間・人工物・地面・空は除外。
+確信度低くてもOK。植栽も含む。和名→科属→形態の順で具体的に。「草」「木」等の雑名禁止。
 {$contextBlock}
-重要な命名ルール:
-- 「雑草」「草」「木」のような雑な名前は絶対に使わないでください
-- 種名がわかれば和名で（例: オオバコ、エノコログサ、シロツメクサ）
-- 種名がわからなければ科や属で（例: イネ科の草本、キク科の多年草、マメ科の植物）
-- それでも難しければ形態で（例: ロゼット型の草本、つる性植物、常緑広葉樹）
-- すべての生き物に敬意を持った名前をつけてください
-
-JSON配列で回答:
-[
-  {"name": "和名", "scientific_name": "学名（わかれば空文字）", "confidence": 0.0-1.0, "category": "plant/bird/insect/mammal/fungus/other", "note": "一言メモ"}
-]
-
-生物が一切映っていない場合のみ [] を返してください。
-JSONのみ出力。
+JSON配列のみ出力:
+[{"name":"和名","scientific_name":"学名","confidence":0.0-1.0,"category":"plant/bird/insect/mammal/fungus/other","note":"特徴1文"}]
+生物なしなら[]。
 PROMPT;
 
 $model = 'gemini-3.1-flash-lite-preview';
@@ -113,8 +88,8 @@ $payload = [
         ],
     ]],
     'generationConfig' => [
-        'temperature' => 0.4,
-        'maxOutputTokens' => 500,
+        'temperature' => 0.2,
+        'maxOutputTokens' => 300,
     ],
 ];
 
@@ -124,7 +99,7 @@ curl_setopt_array($ch, [
     CURLOPT_POSTFIELDS     => json_encode($payload),
     CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT        => 12,
+    CURLOPT_TIMEOUT        => 8,
 ]);
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
