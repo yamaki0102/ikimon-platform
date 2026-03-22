@@ -1009,24 +1009,30 @@ async function postWalkSummary() {
     if (!W.speciesList || W.speciesList.length === 0) return;
     try {
         var last = W.routePoints.length > 0 ? W.routePoints[W.routePoints.length - 1] : null;
-        await fetch('/api/v2/scan_summary.php', {
+        var summaryPayload = {
+            scan_mode: 'walk',
+            duration_min: Math.floor((W.sessionDuration || 0) / 60),
+            species_count: W.speciesList.length,
+            total_detections: W.detections.length,
+            audio_detections: W.detections.length,
+            visual_detections: 0,
+            gps_points: W.routePoints.length,
+            species: W.speciesList,
+            distance_m: calcDistance(W.routePoints),
+            session_id: W.sessionId || null,
+            lat: last ? last.lat : null,
+            lng: last ? last.lng : null,
+        };
+        var resp = await fetch('/api/v2/scan_summary.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                scan_mode: 'walk',
-                duration_min: Math.floor((W.sessionDuration || 0) / 60),
-                species_count: W.speciesList.length,
-                total_detections: W.detections.length,
-                audio_detections: W.detections.length,
-                visual_detections: 0,
-                gps_points: W.routePoints.length,
-                species: W.speciesList,
-                distance_m: calcDistance(W.routePoints),
-                session_id: W.sessionId || null,
-                lat: last ? last.lat : null,
-                lng: last ? last.lng : null,
-            })
+            credentials: 'same-origin',
+            body: JSON.stringify(summaryPayload)
         });
+        if (resp.status === 401) {
+            localStorage.setItem('ikimon_pending_summary', JSON.stringify(summaryPayload));
+            console.warn('Walk summary: auth expired, saved for retry');
+        }
     } catch(e) {
         console.warn('Walk summary error:', e);
     }
@@ -1079,6 +1085,26 @@ async function manualUpload() {
 
 // ページ読み込み時に未送信データを送信試行
 retryPending();
+
+// 未送信サマリーのリトライ
+(function retryPendingSummary() {
+    var raw = localStorage.getItem('ikimon_pending_summary');
+    if (!raw) return;
+    try {
+        var payload = JSON.parse(raw);
+        fetch('/api/v2/scan_summary.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+        }).then(function(r) {
+            if (r.ok) {
+                localStorage.removeItem('ikimon_pending_summary');
+                console.log('✅ Pending summary retried successfully');
+            }
+        }).catch(function() {});
+    } catch(e) {}
+})();
 
 // オンライン復帰時に自動リトライ
 window.addEventListener('online', function() {
