@@ -46,9 +46,11 @@ class MeshAggregator
         $higherGroup = $obs['higher_group'] ?? self::inferHigherGroup($obs);
         $family      = $obs['taxon']['family'] ?? null;
         $genus       = $obs['taxon']['genus'] ?? null;
+        $speciesName = $obs['taxon']['name'] ?? $obs['species_name'] ?? null;
+        $sciName     = $obs['taxon']['scientific_name'] ?? null;
         $date        = substr($obs['created_at'] ?? date('Y-m-d'), 0, 10);
 
-        self::updateCell($mesh3, $bbox3, $higherGroup, $family, $genus, $date);
+        self::updateCell($mesh3, $bbox3, $higherGroup, $family, $genus, $speciesName, $sciName, $date);
     }
 
     /**
@@ -60,6 +62,8 @@ class MeshAggregator
         ?string $group,
         ?string $family,
         ?string $genus,
+        ?string $speciesName,
+        ?string $sciName,
         string  $date
     ): void {
         $path = DATA_DIR . '/' . self::$cacheFile . '.json';
@@ -86,6 +90,7 @@ class MeshAggregator
                 'by_group'  => [],
                 'families'  => [],
                 'genera'    => [],
+                'species'   => [],
                 'bbox'      => $bbox3,
                 'first_obs' => $date,
                 'last_obs'  => $date,
@@ -106,6 +111,21 @@ class MeshAggregator
             $cell['genera'][] = $genus;
             if (count($cell['genera']) > 30) array_shift($cell['genera']);
         }
+        if ($speciesName && $speciesName !== 'Unknown') {
+            if (!isset($cell['species'][$speciesName])) {
+                $cell['species'][$speciesName] = [
+                    'sci'   => $sciName ?? '',
+                    'group' => $group ?? 'その他',
+                    'count' => 0,
+                ];
+            }
+            $cell['species'][$speciesName]['count']++;
+            if (count($cell['species']) > 50) {
+                uasort($cell['species'], fn($a, $b) => $b['count'] <=> $a['count']);
+                $cell['species'] = array_slice($cell['species'], 0, 50, true);
+            }
+        }
+
         if ($date > $cell['last_obs']) $cell['last_obs'] = $date;
 
         $json = json_encode($agg, JSON_UNESCAPED_UNICODE);
@@ -160,13 +180,26 @@ class MeshAggregator
                 ? array_key_first(arsort_return($cell['by_group']))
                 : null;
 
+            $speciesList = [];
+            $rawSpecies = $cell['species'] ?? [];
+            uasort($rawSpecies, fn($a, $b) => $b['count'] <=> $a['count']);
+            foreach (array_slice($rawSpecies, 0, 20, true) as $name => $sp) {
+                $speciesList[] = [
+                    'name'  => $name,
+                    'sci'   => $sp['sci'] ?? '',
+                    'group' => $sp['group'] ?? 'その他',
+                    'count' => $sp['count'],
+                ];
+            }
+
             $features[] = MeshCode::toGeoJsonFeature($code, [
-                'total'      => $cell['total'],
-                'by_group'   => $cell['by_group'],
-                'families'   => array_slice($cell['families'], 0, 5),
-                'top_group'  => $topGroup,
-                'last_obs'   => $cell['last_obs'],
-                'group_count'=> count($cell['by_group']),
+                'total'       => $cell['total'],
+                'by_group'    => $cell['by_group'],
+                'families'    => array_slice($cell['families'], 0, 5),
+                'top_group'   => $topGroup,
+                'last_obs'    => $cell['last_obs'],
+                'group_count' => count($cell['by_group']),
+                'species'     => $speciesList,
             ]);
         }
 
