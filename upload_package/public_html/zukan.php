@@ -75,7 +75,7 @@ function rlLabel($rl)
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <link rel="stylesheet" href="assets/css/zukan.css?v=3.1">
+    <link rel="stylesheet" href="assets/css/zukan.css?v=3.2">
 </head>
 
 <body class="app-body bg-base text-text font-body" x-data="zukanApp()" x-init="init()">
@@ -489,14 +489,17 @@ function rlLabel($rl)
 
                         <!-- Timeline -->
                         <div class="zukan-timeline">
-                            <h3 class="zukan-timeline__title">出会いの記録</h3>
+                            <h3 class="zukan-timeline__title">
+                                出会いの記録
+                                <span class="zukan-timeline__count" x-text="'(' + (detailEntry.encounters ? detailEntry.encounters.length : 0) + '回)'"></span>
+                            </h3>
 
                             <template x-if="detailLoading">
                                 <div class="zukan-loading"><div class="zukan-spinner"></div></div>
                             </template>
 
                             <div class="zukan-timeline__list">
-                                <template x-for="(enc, i) in detailEntry.encounters" :key="enc.id + '-' + i">
+                                <template x-for="(enc, i) in visibleEncounters()" :key="enc.id + '-' + i">
                                     <div class="zukan-timeline__item">
                                         <div class="zukan-timeline__dot"
                                             :class="'zukan-timeline__dot--' + enc.type"></div>
@@ -569,6 +572,20 @@ function rlLabel($rl)
                                     </div>
                                 </template>
                             </div>
+
+                            <!-- Show more button -->
+                            <template x-if="detailEntry.encounters && detailEntry.encounters.length > 5 && !timelineExpanded">
+                                <button class="zukan-timeline__expand" @click="timelineExpanded = true">
+                                    <i data-lucide="chevron-down" style="width:16px;height:16px;"></i>
+                                    <span x-text="'残り ' + (detailEntry.encounters.length - 5) + ' 件を表示'"></span>
+                                </button>
+                            </template>
+                            <template x-if="timelineExpanded && detailEntry.encounters && detailEntry.encounters.length > 5">
+                                <button class="zukan-timeline__expand" @click="timelineExpanded = false">
+                                    <i data-lucide="chevron-up" style="width:16px;height:16px;"></i>
+                                    <span>折りたたむ</span>
+                                </button>
+                            </template>
                         </div>
 
                         <div class="zukan-modal__footer"></div>
@@ -607,6 +624,7 @@ function rlLabel($rl)
                 playingAudio: null,
                 storyText: null,
                 storyLoading: false,
+                timelineExpanded: false,
 
                 init() {
                     this.$nextTick(() => {
@@ -678,12 +696,21 @@ function rlLabel($rl)
                     this.fetchSpecies(true);
                 },
 
+                visibleEncounters() {
+                    if (!this.detailEntry || !this.detailEntry.encounters) return [];
+                    if (this.timelineExpanded || this.detailEntry.encounters.length <= 5) {
+                        return this.detailEntry.encounters;
+                    }
+                    return this.detailEntry.encounters.slice(0, 5);
+                },
+
                 async openDetail(item) {
                     this.detailIndex = this.speciesList.indexOf(item) + 1;
                     this.detailEntry = { ...item };
                     this.showDetail = true;
                     this.storyText = null;
                     this.storyLoading = false;
+                    this.timelineExpanded = false;
                     document.body.style.overflow = 'hidden';
                     history.pushState({ zukanDetail: true }, '', '#detail');
 
