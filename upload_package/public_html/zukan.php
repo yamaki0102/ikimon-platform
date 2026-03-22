@@ -75,7 +75,7 @@ function rlLabel($rl)
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <link rel="stylesheet" href="assets/css/zukan.css?v=3.5">
+    <link rel="stylesheet" href="assets/css/zukan.css?v=3.6">
 </head>
 
 <body class="app-body bg-base text-text font-body" x-data="zukanApp()" x-init="init()">
@@ -435,10 +435,53 @@ function rlLabel($rl)
                             <span class="zukan-modal__number" x-text="'No.' + detailIndex"></span>
                         </div>
 
-                        <!-- Cover Photo -->
-                        <template x-if="detailEntry.cover_photo">
-                            <div class="zukan-modal__cover">
-                                <img :src="detailEntry.cover_photo" :alt="detailEntry.name" loading="lazy">
+                        <!-- Photo Gallery Carousel -->
+                        <div class="zukan-gallery" x-show="allPhotos().length > 0"
+                            x-data="{gx:0,gy:0}"
+                            @touchstart="gx=$event.touches[0].clientX;gy=$event.touches[0].clientY"
+                            @touchend="let dx=$event.changedTouches[0].clientX-gx,dy=$event.changedTouches[0].clientY-gy;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){if(dx<0&&galleryIndex<allPhotos().length-1)galleryIndex++;else if(dx>0&&galleryIndex>0)galleryIndex--}"
+                            @click.stop>
+                            <div class="zukan-gallery__track"
+                                :style="'transform: translateX(-' + (galleryIndex * 100) + '%)'">
+                                <template x-for="(photo, pi) in allPhotos()" :key="photo + pi">
+                                    <div class="zukan-gallery__slide">
+                                        <img :src="photo" :alt="detailEntry.name" loading="lazy"
+                                            @click="window.open(photo, '_blank')">
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Arrow buttons -->
+                            <button class="zukan-gallery__arrow zukan-gallery__arrow--left"
+                                x-show="galleryIndex > 0"
+                                @click.stop="galleryIndex--">
+                                <i data-lucide="chevron-left" style="width:20px;height:20px;"></i>
+                            </button>
+                            <button class="zukan-gallery__arrow zukan-gallery__arrow--right"
+                                x-show="galleryIndex < allPhotos().length - 1"
+                                @click.stop="galleryIndex++">
+                                <i data-lucide="chevron-right" style="width:20px;height:20px;"></i>
+                            </button>
+
+                            <!-- Dots -->
+                            <div class="zukan-gallery__dots" x-show="allPhotos().length > 1">
+                                <template x-for="(_, di) in allPhotos()" :key="'dot'+di">
+                                    <button class="zukan-gallery__dot"
+                                        :class="{'zukan-gallery__dot--active': di === galleryIndex}"
+                                        @click.stop="galleryIndex = di"></button>
+                                </template>
+                            </div>
+
+                            <!-- Counter -->
+                            <div class="zukan-gallery__counter" x-show="allPhotos().length > 1">
+                                <span x-text="(galleryIndex + 1) + ' / ' + allPhotos().length"></span>
+                            </div>
+                        </div>
+
+                        <!-- Fallback: no photos -->
+                        <template x-if="allPhotos().length === 0">
+                            <div class="zukan-modal__cover zukan-modal__cover--empty">
+                                <i data-lucide="camera-off" style="width:40px;height:40px;opacity:0.2;"></i>
                             </div>
                         </template>
 
@@ -672,6 +715,7 @@ function rlLabel($rl)
                 storyText: null,
                 storyLoading: false,
                 timelineExpanded: false,
+                galleryIndex: 0,
 
                 init() {
                     this.$nextTick(() => {
@@ -767,6 +811,22 @@ function rlLabel($rl)
                     this.fetchSpecies(true);
                 },
 
+                allPhotos() {
+                    if (!this.detailEntry) return [];
+                    const photos = [];
+                    const seen = new Set();
+                    if (this.detailEntry.cover_photo) {
+                        photos.push(this.detailEntry.cover_photo);
+                        seen.add(this.detailEntry.cover_photo);
+                    }
+                    for (const enc of (this.detailEntry.encounters || [])) {
+                        for (const p of (enc.photos || [])) {
+                            if (!seen.has(p)) { photos.push(p); seen.add(p); }
+                        }
+                    }
+                    return photos;
+                },
+
                 visibleEncounters() {
                     if (!this.detailEntry || !this.detailEntry.encounters) return [];
                     if (this.timelineExpanded || this.detailEntry.encounters.length <= 5) {
@@ -782,6 +842,7 @@ function rlLabel($rl)
                     this.storyText = null;
                     this.storyLoading = false;
                     this.timelineExpanded = false;
+                    this.galleryIndex = 0;
                     document.body.style.overflow = 'hidden';
                     history.pushState({ zukanDetail: true }, '', '#detail');
 
@@ -828,6 +889,7 @@ function rlLabel($rl)
                         this.storyText = null;
                         this.storyLoading = false;
                         this.timelineExpanded = false;
+                        this.galleryIndex = 0;
 
                         content.style.transform = `translateX(${dir * 30}px)`;
                         await new Promise(r => setTimeout(r, 10));
@@ -839,6 +901,7 @@ function rlLabel($rl)
                         this.storyText = null;
                         this.storyLoading = false;
                         this.timelineExpanded = false;
+                        this.galleryIndex = 0;
                     }
 
                     this.fetchStory(item.taxon_key);
