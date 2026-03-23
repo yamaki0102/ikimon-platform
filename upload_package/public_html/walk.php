@@ -1254,16 +1254,16 @@ document.getElementById('voice-toggle').addEventListener('change', function() {
     if (sel) sel.style.display = this.checked ? 'flex' : 'none';
 });
 
-// 音声ガイド設定の復元
-(function restoreVoiceSettings() {
-    if (VoiceGuide.isEnabled()) {
+// 音声ガイド設定の復元（defer スクリプト VoiceGuide.js 実行後に走る）
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof VoiceGuide !== 'undefined' && VoiceGuide.isEnabled()) {
         var vt = document.getElementById('voice-toggle');
         if (vt) vt.checked = true;
         var sel = document.getElementById('voice-mode-selector');
         if (sel) sel.style.display = 'flex';
         selectVoiceMode(VoiceGuide.getVoiceMode());
     }
-})();
+});
 
 // 音声ガイド解説取得
 async function fetchVoiceGuide(name, sciName, confidence, count, isFirst) {

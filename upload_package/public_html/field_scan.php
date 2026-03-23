@@ -1971,14 +1971,14 @@ async function _fetchAmbient() {
     } catch(e) {}
 }
 
-// 音声ガイド設定復元
-(function() {
-    if (VoiceGuide.isEnabled()) {
+// 音声ガイド設定復元（defer スクリプト VoiceGuide.js 実行後に走る）
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof VoiceGuide !== 'undefined' && VoiceGuide.isEnabled()) {
         var t = document.getElementById('voice-guide-toggle');
         if (t) { t.checked = true; document.getElementById('vg-mode-sel').style.display = 'flex'; }
         selectVgMode(VoiceGuide.getVoiceMode());
     }
-})();
+});
 
 // ページ離脱時にも未送信データを保存
 window.addEventListener('beforeunload', function() {
