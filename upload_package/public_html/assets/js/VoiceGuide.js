@@ -104,11 +104,22 @@ var VoiceGuide = (function() {
         speechSynthesis.speak(utter);
     }
 
+    var _audioTimeout = null;
     function _playAudio(url) {
         currentAudio = new Audio(url);
-        currentAudio.onended = function() { currentAudio = null; _processQueue(); };
-        currentAudio.onerror = function() { currentAudio = null; _processQueue(); };
-        currentAudio.play().catch(function() { currentAudio = null; _processQueue(); });
+        var done = false;
+        function finish() {
+            if (done) return; done = true;
+            if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
+            currentAudio = null; _processQueue();
+        }
+        currentAudio.onended = finish;
+        currentAudio.onerror = finish;
+        currentAudio.play().then(function() {
+            // 再生開始成功 → duration + 2秒後にフォールバック終了
+            var dur = currentAudio && currentAudio.duration ? currentAudio.duration * 1000 + 2000 : 15000;
+            _audioTimeout = setTimeout(finish, dur);
+        }).catch(finish);
     }
 
     return {
