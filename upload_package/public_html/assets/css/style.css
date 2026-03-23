@@ -4,6 +4,12 @@
  * 2026-02-10
  */
 
+/* ── Global: SVG inside interactive elements must not steal clicks ── */
+a svg, a i,
+button svg, button i {
+    pointer-events: none;
+}
+
 /* ── Base ── */
 body {
     font-family: var(--font-body);
