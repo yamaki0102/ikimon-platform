@@ -482,17 +482,23 @@ async function startWalk() {
     if (navigator.geolocation) {
         W.watchId = navigator.geolocation.watchPosition(function(pos) {
             var lat = pos.coords.latitude, lng = pos.coords.longitude;
+            var acc = pos.coords.accuracy || 999;
             var point = {
                 lat: lat, lng: lng, timestamp: Date.now(),
-                accuracy: pos.coords.accuracy || null,
+                accuracy: acc,
                 speed: pos.coords.speed || null,
                 altitude: pos.coords.altitude || null,
             };
-            W.routePoints.push(point);
-            document.getElementById('gps-count').textContent = W.routePoints.length;
-            if (W.routePoints.length === 1) initMap(lat, lng);
-            updateMapRoute();
-        }, function(){}, {enableHighAccuracy:true, maximumAge:5000});
+            // 精度50m以下のポイントのみルートに使用（距離計算の精度確保）
+            if (acc <= 50) {
+                W.routePoints.push(point);
+                document.getElementById('gps-count').textContent = W.routePoints.length;
+                if (W.routePoints.length === 1) initMap(lat, lng);
+                updateMapRoute();
+            }
+            // 検出用の位置は精度に関わらず最新を保持
+            W.lastGpsPos = {lat: lat, lng: lng, accuracy: acc};
+        }, function(){}, {enableHighAccuracy:true, maximumAge:3000, timeout:10000});
     }
 
     // Audio

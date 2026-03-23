@@ -491,24 +491,26 @@ async function startScan() {
         dbg('ERR カメラ/音声: ' + e.message);
     }
 
-    // GPS（30秒後にhigh accuracy OFF で電池節約）
+    // GPS（常時 high accuracy）
     if (navigator.geolocation) {
-        function startGpsWatch(highAcc) {
-            if (S.watchId) navigator.geolocation.clearWatch(S.watchId);
-            S.watchId = navigator.geolocation.watchPosition(function(pos) {
-                setSensor('gps', true);
-                S.currentSpeed = pos.coords.speed || 0;
-                S.routePoints.push({lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now(), speed: S.currentSpeed});
+        S.watchId = navigator.geolocation.watchPosition(function(pos) {
+            setSensor('gps', true);
+            var acc = pos.coords.accuracy || 999;
+            S.currentSpeed = pos.coords.speed || 0;
+            // 精度50m以下のポイントのみルートに使用（距離計算の精度確保）
+            if (acc <= 50) {
+                S.routePoints.push({lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now(), speed: S.currentSpeed, accuracy: acc});
                 if (S.routePoints.length === 1) {
                     initMap(pos.coords.latitude, pos.coords.longitude);
-                    dbg('7. GPS+マップ初期化');
+                    dbg('7. GPS+マップ初期化 (精度' + Math.round(acc) + 'm)');
                 }
                 updateMapRoute();
-            }, function(e) { dbg('GPS ERR: ' + e.message); }, {enableHighAccuracy: highAcc, maximumAge: 5000});
-        }
-        startGpsWatch(true);
-        var gpsDowngradeMs = S.powerSaveMode ? 10000 : 30000;
-        setTimeout(function() { if (S.active) startGpsWatch(false); dbg('GPS → 省電力'); }, gpsDowngradeMs);
+            } else {
+                dbg('GPS精度低 (' + Math.round(acc) + 'm) — スキップ');
+            }
+            // 検出用の位置は精度に関わらず最新を保持
+            S.lastGpsPos = {lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc};
+        }, function(e) { dbg('GPS ERR: ' + e.message); }, {enableHighAccuracy: true, maximumAge: 3000, timeout: 10000});
     }
 }
 
