@@ -150,17 +150,18 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                     </button>
                     <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
                             data-speaker="mochiko" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                        🐶 もち子さん
+                        👩 女性
                     </button>
                     <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
                             data-speaker="ryusei" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                        🐉 青山龍星
+                        👨 男性
                     </button>
                     <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
                             data-speaker="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
                         🟢 ずんだもん
                     </button>
                 </div>
+                <div class="text-[9px] text-gray-600 text-right px-1 mt-2">音声: <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noopener" class="underline">VOICEVOX</a></div>
             </div>
         </div>
 
