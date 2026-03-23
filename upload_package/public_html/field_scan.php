@@ -558,29 +558,50 @@ async function startScan() {
         startGpsWatch();
     }
 
-    // 音声ガイド: UIトグルの状態を再確認して同期
+    // 音声ガイド: 強制同期（トグルがONなら確実に有効化）
     var vgOn = document.getElementById('voice-guide-toggle');
-    if (vgOn && vgOn.checked && !VoiceGuide.isEnabled()) {
-        VoiceGuide.setEnabled(true);
+    var vgChecked = vgOn && vgOn.checked;
+    dbg('🔊 toggle=' + vgChecked + ' VG=' + (typeof VoiceGuide !== 'undefined' ? VoiceGuide.isEnabled() : 'undef'));
+    if (vgChecked) {
+        try { VoiceGuide.setEnabled(true); } catch(e) { dbg('🔊 setEnabled err: ' + e.message); }
     }
-    // 音声ガイドONならアンビエントコメンタリー開始（全モード）
-    if (VoiceGuide.isEnabled()) {
-        dbg('🔊 音声ガイドON (' + VoiceGuide.getVoiceMode() + ')');
+    var vgActive = false;
+    try { vgActive = VoiceGuide.isEnabled(); } catch(e) { dbg('🔊 isEnabled err: ' + e.message); }
+
+    if (vgActive) {
+        var vgMode = VoiceGuide.getVoiceMode();
+        dbg('🔊 ON mode=' + vgMode);
         // モバイルブラウザの自動再生ロック解除（ユーザージェスチャー内で空発話）
         if ('speechSynthesis' in window) {
             var unlock = new SpeechSynthesisUtterance('');
             unlock.volume = 0;
             speechSynthesis.speak(unlock);
         }
-        // 開始アナウンス（選択モードに合わせる）
-        if (VoiceGuide.getVoiceMode() === 'zundamon') {
+        // 開始アナウンス
+        if (vgMode === 'zundamon') {
             VoiceGuide.announceAudio('/assets/audio/zundamon_preview.wav');
         } else {
             VoiceGuide.announce('音声ガイドを開始します');
         }
         startAmbientCommentary();
+        // 15秒後に強制テスト発話（API不要）
+        setTimeout(function() {
+            dbg('🔊 テスト発話');
+            if (vgMode === 'zundamon') {
+                fetch('/api/v2/voice_guide.php?mode=ambient&lat=35.6&lng=139.7&voice_mode=zundamon&session_count=0&elapsed_min=0&detected_species=')
+                    .then(function(r) { dbg('🔊 API=' + r.status); return r.json(); })
+                    .then(function(j) {
+                        dbg('🔊 resp=' + JSON.stringify(j).substring(0, 100));
+                        if (j.success && j.data && j.data.audio_url) VoiceGuide.announceAudio(j.data.audio_url);
+                        else if (j.success && j.data && j.data.guide_text) VoiceGuide.announce(j.data.guide_text);
+                    })
+                    .catch(function(e) { dbg('🔊 fetch ERR: ' + e.message); });
+            } else {
+                VoiceGuide.announce('テスト。音声ガイドは正常に動いています。');
+            }
+        }, 15000);
     } else {
-        dbg('🔇 音声ガイドOFF');
+        dbg('🔇 OFF');
     }
 }
 
