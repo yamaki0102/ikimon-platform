@@ -85,7 +85,7 @@ unset($allObs, $userObs);
             <button type="button" class="flex-1 py-3 rounded-xl text-sm font-bold border-2 transition mode-btn"
                     data-mode="cycle" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af"
                     onclick="selectMode('cycle')">
-                🚲 自転車
+                🚲 自転車/バイク
             </button>
             <button type="button" class="flex-1 py-3 rounded-xl text-sm font-bold border-2 transition mode-btn"
                     data-mode="drive" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af"
@@ -269,11 +269,12 @@ unset($allObs, $userObs);
                 <span class="text-sm font-bold" id="drive-status-text" style="color:#86efac">システム正常</span>
             </div>
 
-            <!-- 音声レベル -->
-            <div class="w-48 mx-auto">
+            <!-- 音声レベル（自転車/バイクモードのみ表示） -->
+            <div class="w-48 mx-auto" id="drive-audio-section" style="display:none">
                 <div class="h-2 bg-white/10 rounded-full overflow-hidden">
                     <div class="h-full bg-green-500 transition-all duration-200 rounded-full" id="drive-audio-bar" style="width:0%"></div>
                 </div>
+                <div class="text-[10px] text-gray-600 mt-1">🎤 音声検出中</div>
             </div>
 
             <!-- カウンター -->
@@ -586,11 +587,13 @@ async function startWalk() {
         document.getElementById('sensitivity-toggle').checked = true;
         W.highSensitivity = true;
         var modeIcons = {drive:'🚗', cycle:'🚲'};
-        var modeLabels = {drive:'ドライブ中', cycle:'サイクリング中'};
+        var modeLabels = {drive:'ドライブ中', cycle:'ライド中'};
         var driveIcon = document.querySelector('#screen-drive .text-6xl');
         var driveTitle = document.querySelector('#screen-drive h2');
         if (driveIcon) driveIcon.textContent = modeIcons[selectedMode] || '🚗';
         if (driveTitle) driveTitle.textContent = modeLabels[selectedMode] || 'ドライブ中';
+        var audioSection = document.getElementById('drive-audio-section');
+        if (audioSection) audioSection.style.display = (selectedMode === 'cycle') ? '' : 'none';
         W.lastCommentaryTime = Date.now();
     }
 
@@ -634,42 +637,52 @@ async function startWalk() {
         }, function(){}, gpsOpts);
     }
 
-    // Audio
-    try {
-        W.mediaStream = await navigator.mediaDevices.getUserMedia({audio:true});
-        W.audioCtx = new AudioContext();
-        var source = W.audioCtx.createMediaStreamSource(W.mediaStream);
-        W.analyser = W.audioCtx.createAnalyser();
-        W.analyser.fftSize = 2048;
-        source.connect(W.analyser);
+    // Audio（ドライブモードはマイク不要 — GPSガイドのみ）
+    if (W.selectedMode !== 'drive') {
+        try {
+            W.mediaStream = await navigator.mediaDevices.getUserMedia({audio:true});
+            W.audioCtx = new AudioContext();
+            var source = W.audioCtx.createMediaStreamSource(W.mediaStream);
+            W.analyser = W.audioCtx.createAnalyser();
+            W.analyser.fftSize = 2048;
+            source.connect(W.analyser);
 
-        // Level meter (2-8kHz band for bioacoustics relevance)
-        (function updateLevel() {
-            if (!W.walking) return;
-            var data = new Uint8Array(W.analyser.frequencyBinCount);
-            W.analyser.getByteFrequencyData(data);
-            var sr = W.audioCtx.sampleRate;
-            var binSize = sr / 2048;
-            var lo = Math.floor(500 / binSize);
-            var hi = Math.min(Math.ceil(8000 / binSize), data.length - 1);
-            var sum = 0;
-            for (var i = lo; i <= hi; i++) sum += data[i];
-            var avg = sum / (hi - lo + 1);
-            var pct = Math.min(100, avg * 1.2) + '%';
-            document.getElementById('audio-bar').style.width = pct;
-            var driveBar = document.getElementById('drive-audio-bar');
-            if (driveBar && W.driveMode) driveBar.style.width = pct;
-            requestAnimationFrame(updateLevel);
-        })();
+            // Level meter (2-8kHz band for bioacoustics relevance)
+            (function updateLevel() {
+                if (!W.walking) return;
+                var data = new Uint8Array(W.analyser.frequencyBinCount);
+                W.analyser.getByteFrequencyData(data);
+                var sr = W.audioCtx.sampleRate;
+                var binSize = sr / 2048;
+                var lo = Math.floor(500 / binSize);
+                var hi = Math.min(Math.ceil(8000 / binSize), data.length - 1);
+                var sum = 0;
+                for (var i = lo; i <= hi; i++) sum += data[i];
+                var avg = sum / (hi - lo + 1);
+                var pct = Math.min(100, avg * 1.2) + '%';
+                document.getElementById('audio-bar').style.width = pct;
+                var driveBar = document.getElementById('drive-audio-bar');
+                if (driveBar && W.driveMode) driveBar.style.width = pct;
+                requestAnimationFrame(updateLevel);
+            })();
 
-        // Recorder
-        setupRecorder();
-    } catch(e) {
-        console.warn('Audio error:', e);
+            // Recorder
+            setupRecorder();
+        } catch(e) {
+            console.warn('Audio error:', e);
+        }
     }
 
     // ドライブ/自転車モード: 定期コメンタリー開始
     if (W.driveMode) startAmbientCommentary();
+
+    // ドライブモード: マイクなしなので初回コメンタリーを即座に開始
+    if (W.selectedMode === 'drive') {
+        setTimeout(function() {
+            VoiceGuide.announce('ドライブモードを開始します。周辺の自然について音声でご案内します。');
+            setTimeout(fetchAmbientCommentary, 8000);
+        }, 2000);
+    }
 }
 
 // ===== Stop Walk =====
@@ -1384,7 +1397,7 @@ function selectMode(mode) {
         b.style.color = isActive ? '#86efac' : '#9ca3af';
     });
     var btn = document.getElementById('btn-start');
-    var modeLabels = {walk:'🎧 ウォーク開始', drive:'🚗 ドライブ開始', cycle:'🚲 サイクリング開始'};
+    var modeLabels = {walk:'🎧 ウォーク開始', drive:'🚗 ドライブ開始', cycle:'🚲 ライド開始'};
     btn.textContent = modeLabels[mode] || '🎧 開始';
     if (mode === 'drive' || mode === 'cycle') {
         document.getElementById('voice-toggle').checked = true;
