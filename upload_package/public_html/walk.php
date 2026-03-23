@@ -45,7 +45,7 @@ unset($allObs, $userObs);
 
 <?php include __DIR__ . '/components/nav.php'; ?>
 
-<main class="max-w-lg mx-auto px-4 py-6" style="padding-top: calc(var(--nav-height, 56px) + 1.5rem)">
+<main class="max-w-lg mx-auto px-4 py-6" style="padding-top: calc(var(--nav-height, 56px) + 1.5rem);padding-bottom:calc(var(--bottom-nav-height,72px) + 2rem)">
 
     <!-- ===== 画面1: 開始前 ===== -->
     <div id="screen-ready" class="space-y-5">

@@ -30,7 +30,7 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
 <!-- ===== 開始前 ===== -->
 <div id="scan-ready" class="min-h-screen">
     <?php include __DIR__ . '/components/nav.php'; ?>
-    <div class="max-w-lg mx-auto px-4 py-8 space-y-6" style="padding-top:calc(var(--nav-height,56px) + 2rem)">
+    <div class="max-w-lg mx-auto px-4 py-8 space-y-6" style="padding-top:calc(var(--nav-height,56px) + 2rem);padding-bottom:calc(var(--bottom-nav-height,72px) + 2rem)">
         <div class="text-center">
             <div class="text-5xl mb-3">🌍</div>
             <h1 class="text-2xl font-black">ライブスキャン</h1>
