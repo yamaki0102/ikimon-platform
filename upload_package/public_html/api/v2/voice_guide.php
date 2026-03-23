@@ -43,12 +43,33 @@ $timeOfDay = match(true) {
     default => '夜',
 };
 
+// --- 過去発話の記憶（ユーザーごとに直近30件を保持） ---
+$user = Auth::user();
+$userId = $user['id'] ?? 'unknown';
+$historyFile = DATA_DIR . "voice_guide_history/{$userId}.json";
+$pastTexts = [];
+if (file_exists($historyFile)) {
+    $pastTexts = json_decode(file_get_contents($historyFile), true) ?: [];
+}
+
+function _saveHistory(string $userId, string $text, array &$pastTexts): void
+{
+    $pastTexts[] = ['text' => mb_substr($text, 0, 80), 'at' => date('c')];
+    if (count($pastTexts) > 30) $pastTexts = array_slice($pastTexts, -30);
+    $dir = DATA_DIR . 'voice_guide_history';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    file_put_contents(DATA_DIR . "voice_guide_history/{$userId}.json",
+        json_encode($pastTexts, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+}
+
 // --- アンビエントモード（定期コメンタリー） ---
 if ($requestMode === 'ambient') {
     $lat = api_param('lat', 0, 'float');
     $lng = api_param('lng', 0, 'float');
     $detectedSpecies = api_param('detected_species', '');
     $elapsedMin = api_param('elapsed_min', 0, 'int');
+    $sessionCount = api_param('session_count', 0, 'int');
+    $weather = api_param('weather', '');
 
     $areaName = '';
     try {
@@ -72,12 +93,48 @@ if ($requestMode === 'ambient') {
         '都市と自然の共生について',
         '水辺の生態系の大切さ',
         '市民科学と生物多様性モニタリング',
+        '日本の国立公園と自然保護区',
+        '鳥のさえずりの意味と種類',
+        '虫の鳴き声と季節の関係',
+        '植物と昆虫の共進化',
+        '渡り鳥のルートと日本',
+        '身近な樹木が支える生態系',
+        '土壌の微生物と森の健康',
+        '川や湿地の浄化機能',
+        '日本固有種の話',
+        '外来種問題と生態系への影響',
+        '動物の擬態やカモフラージュ',
+        '花粉を運ぶ昆虫たちの役割',
+        '夜行性の生き物たちの世界',
+        '都市のヒートアイランドと生き物',
+        '日本の伝統文化と自然の関わり（俳句・和歌・七十二候）',
+        '生き物の名前の由来や語源',
+        '江戸時代の博物学と本草学',
+        '世界と比較した日本の生物多様性',
+        'この時間帯に活動する生き物の理由',
+        '天候と生き物の行動の関係',
     ];
     $topic = $topicPool[array_rand($topicPool)];
 
     $speciesContext = $detectedSpecies
         ? "さっき検出された種: {$detectedSpecies}。この種に関連づけて話を展開して。"
         : 'まだ検出がないので、この地域で出会えそうな生き物について話して。';
+
+    $weatherContext = $weather ? "現在の天気: {$weather}" : '';
+
+    // 深さの段階: セッション内の発話回数で進化
+    $depthInstruction = match(true) {
+        $sessionCount <= 3 => 'リスナーは初心者。基本的で親しみやすい話を。',
+        $sessionCount <= 10 => '少し詳しい生態の話を。「実は」で始まるような意外な事実がいい。',
+        $sessionCount <= 20 => '通な話題を。研究で分かった最近の発見や、専門家が注目している話題など。',
+        default => 'マニアックな深い話を。進化の歴史、生態系の仕組み、保全の課題など踏み込んだ内容で。',
+    };
+
+    // 過去発話の要約（直近10件）をプロンプトに注入
+    $recentTexts = array_slice(array_column($pastTexts, 'text'), -10);
+    $avoidList = !empty($recentTexts)
+        ? "以下は最近話した内容です。これらと重複しない、全く別の話題にしてください:\n" . implode("\n", array_map(fn($t) => "- {$t}", $recentTexts))
+        : '';
 
     $prompt = <<<PROMPT
 あなたは車や自転車で移動中の人のネイチャーガイドです。
@@ -87,14 +144,17 @@ if ($requestMode === 'ambient') {
 
 地域: {$areaName}（緯度{$lat}、経度{$lng}付近）
 季節: {$seasonName}（{$month}月）  時間帯: {$timeOfDay}
+{$weatherContext}
 経過時間: {$elapsedMin}分
 {$speciesContext}
+{$depthInstruction}
 
 今回のテーマ: {$topic}
 
+{$avoidList}
+
 条件:
 - 2〜3文、80文字以内
-- 前回と違う話題になるよう、毎回新鮮な切り口で
 - 難しい漢字はひらがなで（例: 囀り→さえずり、蝶→チョウ）
 - 学名は使わないで
 - 「へぇ」と思える内容、聞いて楽しい話に
@@ -107,6 +167,8 @@ PROMPT;
             ? "この辺りは自然豊かな場所なのだ！"
             : "自然を感じながらのドライブ、いいですね。";
     }
+
+    _saveHistory($userId, $guideText, $pastTexts);
 
     $result = ['guide_text' => $guideText, 'audio_url' => null];
     if ($isZundamon) {
@@ -163,6 +225,11 @@ if ($isFirstToday) $contextParts[] = '今日初めての検出';
 if ($detectionCount > 1) $contextParts[] = "今日{$detectionCount}回目の検出";
 $contextStr = $contextParts ? implode('、', $contextParts) : '';
 
+$recentTexts = array_slice(array_column($pastTexts, 'text'), -10);
+$avoidList = !empty($recentTexts)
+    ? "以下は最近話した内容です。これらと全く別の角度にしてください:\n" . implode("\n", array_map(fn($t) => "- {$t}", $recentTexts))
+    : '';
+
 $prompt = <<<PROMPT
 あなたは移動中の人に音声で読み上げる、生き物の短い解説を作る係です。
 
@@ -175,10 +242,12 @@ $prompt = <<<PROMPT
 
 図鑑情報: {$traits}
 
+{$avoidList}
+
 条件:
 - 1〜2文、50文字以内
 - 毎回違う角度で（生態・文化・歴史・季節の行動・豆知識・名前の由来などランダムに選んで）
-- 音声読み上げ用なので、難しい漢字はひらがなで書く（例: 囀り→さえずり、雌雄→オスメス）
+- 音声読み上げ用なので、難しい漢字はひらがなで書く（例: 囀り→さえずり、蝶→チョウ）
 - 学名は読み上げないで
 - 聞いて「へぇ」と思える内容に
 PROMPT;
@@ -190,6 +259,8 @@ if (empty($guideText)) {
         ? "{$displayName}を見つけたのだ！"
         : "{$displayName}がいますよ。";
 }
+
+_saveHistory($userId, $guideText, $pastTexts);
 
 $result = ['guide_text' => $guideText, 'audio_url' => null];
 
