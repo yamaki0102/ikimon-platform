@@ -188,39 +188,28 @@ var VoiceGuide = (function() {
         speechSynthesis.speak(utter);
     }
 
-    var _audioCtx = null;
-    var _audioSource = null;
     var _audioTimeout = null;
-
-    function _getAudioCtx() {
-        if (!_audioCtx) {
-            _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (_audioCtx.state === 'suspended') _audioCtx.resume();
-        return _audioCtx;
-    }
-
     function _playAudio(url) {
+        currentAudio = new Audio(url);
+        currentAudio.crossOrigin = 'anonymous';
         var done = false;
         function finish() {
             if (done) return; done = true;
             if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
-            _audioSource = null; currentAudio = null; _processQueue();
+            currentAudio = null; _processQueue();
         }
-
-        var ctx = _getAudioCtx();
-        fetch(url).then(function(r) { return r.arrayBuffer(); }).then(function(buf) {
-            return ctx.decodeAudioData(buf);
-        }).then(function(decoded) {
-            if (done) return;
-            _audioSource = ctx.createBufferSource();
-            _audioSource.buffer = decoded;
-            _audioSource.connect(ctx.destination);
-            _audioSource.onended = finish;
-            _audioSource.start(0);
-            currentAudio = { pause: function() { try { _audioSource.stop(); } catch(e) {} } };
-            _audioTimeout = setTimeout(finish, decoded.duration * 1000 + 2000);
+        currentAudio.onended = finish;
+        currentAudio.onerror = finish;
+        currentAudio.onpause = function() { setTimeout(finish, 500); };
+        currentAudio.play().then(function() {
+            // iOS: duration が NaN の場合があるので最大15秒でフォールバック
+            var dur = currentAudio && isFinite(currentAudio.duration)
+                ? currentAudio.duration * 1000 + 2000
+                : 15000;
+            _audioTimeout = setTimeout(finish, dur);
         }).catch(finish);
+        // 絶対フォールバック: 何があっても15秒で解放
+        setTimeout(function() { if (!done) finish(); }, 15000);
     }
 
     return {
