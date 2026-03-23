@@ -75,25 +75,6 @@ unset($allObs, $userObs);
             </label>
         </div>
 
-        <!-- モード選択 -->
-        <div class="flex gap-2" id="mode-selector">
-            <button type="button" class="flex-1 py-3 rounded-xl text-sm font-bold border-2 transition mode-btn active"
-                    data-mode="walk" style="border-color:#22c55e;background:rgba(34,197,94,0.1);color:#86efac"
-                    onclick="selectMode('walk')">
-                🚶 ウォーク
-            </button>
-            <button type="button" class="flex-1 py-3 rounded-xl text-sm font-bold border-2 transition mode-btn"
-                    data-mode="cycle" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af"
-                    onclick="selectMode('cycle')">
-                🚲 自転車/バイク
-            </button>
-            <button type="button" class="flex-1 py-3 rounded-xl text-sm font-bold border-2 transition mode-btn"
-                    data-mode="drive" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af"
-                    onclick="selectMode('drive')">
-                🚗 ドライブ
-            </button>
-        </div>
-
         <!-- 感度モード -->
         <div class="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
             <div class="flex items-center gap-2">
@@ -257,56 +238,6 @@ unset($allObs, $userObs);
         </details>
     </div>
 
-    <!-- ===== 画面2D: ドライブ中（超シンプル） ===== -->
-    <div id="screen-drive" class="flex flex-col items-center justify-center" style="display:none;min-height:70vh">
-        <div class="text-center space-y-6 w-full">
-            <div class="text-6xl">🚗</div>
-            <h2 class="text-xl font-black">ドライブ中</h2>
-
-            <!-- システムステータス -->
-            <div class="flex items-center justify-center gap-2">
-                <span class="w-3 h-3 rounded-full animate-pulse" id="drive-status-dot" style="background:#22c55e"></span>
-                <span class="text-sm font-bold" id="drive-status-text" style="color:#86efac">システム正常</span>
-            </div>
-
-            <!-- 音声レベル（自転車/バイクモードのみ表示） -->
-            <div class="w-48 mx-auto" id="drive-audio-section" style="display:none">
-                <div class="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div class="h-full bg-green-500 transition-all duration-200 rounded-full" id="drive-audio-bar" style="width:0%"></div>
-                </div>
-                <div class="text-[10px] text-gray-600 mt-1">🎤 音声検出中</div>
-            </div>
-
-            <!-- カウンター -->
-            <div class="flex items-center justify-center gap-8">
-                <div class="text-center">
-                    <div class="text-3xl font-black text-green-400" id="drive-det-count">0</div>
-                    <div class="text-xs text-gray-500">種 検出</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-3xl font-black text-gray-400" id="drive-elapsed">0:00</div>
-                    <div class="text-xs text-gray-500">経過</div>
-                </div>
-            </div>
-
-            <!-- 終了ボタン -->
-            <button id="btn-drive-stop" class="w-40 mx-auto py-4 rounded-2xl text-base font-bold bg-red-600 hover:bg-red-700 active:scale-95 transition block">
-                ■ 終了
-            </button>
-        </div>
-    </div>
-
-    <!-- ===== 画面R: レポート作成中 ===== -->
-    <div id="screen-report-loading" class="flex flex-col items-center justify-center" style="display:none;min-height:70vh">
-        <div class="text-center space-y-6">
-            <div class="w-12 h-12 mx-auto border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div>
-            <h2 class="text-lg font-bold text-gray-200">レポート作成中...</h2>
-            <div class="text-sm text-gray-400">
-                <span id="report-summary-text">データを集計しています</span>
-            </div>
-        </div>
-    </div>
-
     <!-- ===== 画面3: 完了 ===== -->
     <div id="screen-done" class="space-y-4" style="display:none">
         <!-- 基本統計 -->
@@ -388,9 +319,6 @@ var W = {
     highSensitivity: true,
     speciesCardCache: {},
     totalPoints: 0,
-    driveMode: false,
-    errorCount: 0,
-    successCount: 0,
     detCountToday: {},
 };
 
@@ -520,8 +448,6 @@ function addMapDetectionMarker(det) {
 function showScreen(name) {
     document.getElementById('screen-ready').style.display = name === 'ready' ? '' : 'none';
     document.getElementById('screen-walking').style.display = name === 'walking' ? '' : 'none';
-    document.getElementById('screen-drive').style.display = name === 'drive' ? '' : 'none';
-    document.getElementById('screen-report-loading').style.display = name === 'report-loading' ? '' : 'none';
     document.getElementById('screen-done').style.display = name === 'done' ? '' : 'none';
 }
 
@@ -565,38 +491,15 @@ function calcDistance(points) {
 
 // ===== Start Walk =====
 async function startWalk() {
-    var selectedMode = document.querySelector('.mode-btn.active')?.dataset?.mode || 'walk';
-    W.driveMode = (selectedMode === 'drive' || selectedMode === 'cycle');
-    W.selectedMode = selectedMode;
-    showScreen(W.driveMode ? 'drive' : 'walking');
+    showScreen('walking');
     W.walking = true;
     W.startTime = Date.now();
     W.detections = [];
     W.routePoints = [];
-    W.errorCount = 0;
-    W.successCount = 0;
     W.detCountToday = {};
-
-    if (!W.driveMode) {
-        document.getElementById('det-count').textContent = '0';
-        document.getElementById('gps-count').textContent = '0';
-        document.getElementById('det-list').innerHTML = '';
-    }
-
-    if (W.driveMode) {
-        VoiceGuide.setEnabled(true);
-        document.getElementById('sensitivity-toggle').checked = true;
-        W.highSensitivity = true;
-        var modeIcons = {drive:'🚗', cycle:'🚲'};
-        var modeLabels = {drive:'ドライブ中', cycle:'ライド中'};
-        var driveIcon = document.querySelector('#screen-drive .text-6xl');
-        var driveTitle = document.querySelector('#screen-drive h2');
-        if (driveIcon) driveIcon.textContent = modeIcons[selectedMode] || '🚗';
-        if (driveTitle) driveTitle.textContent = modeLabels[selectedMode] || 'ドライブ中';
-        var audioSection = document.getElementById('drive-audio-section');
-        if (audioSection) audioSection.style.display = (selectedMode === 'cycle') ? '' : 'none';
-        W.lastCommentaryTime = Date.now();
-    }
+    document.getElementById('det-count').textContent = '0';
+    document.getElementById('gps-count').textContent = '0';
+    document.getElementById('det-list').innerHTML = '';
 
     // 10秒ごとに自動保存（電波断・クラッシュ対策）
     W.saveTimer = setInterval(saveSession, 10000);
@@ -604,18 +507,11 @@ async function startWalk() {
     // Timer
     W.timer = setInterval(function() {
         var sec = Math.floor((Date.now() - W.startTime) / 1000);
-        var timeStr = Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
-        var elNorm = document.getElementById('elapsed');
-        var elDrive = document.getElementById('drive-elapsed');
-        if (elNorm) elNorm.textContent = timeStr;
-        if (elDrive && W.driveMode) elDrive.textContent = timeStr;
+        document.getElementById('elapsed').textContent = Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
     }, 1000);
 
-    // GPS（ドライブモードは省電力: enableHighAccuracy=false, maximumAge長め）
+    // GPS + Map
     if (navigator.geolocation) {
-        var gpsOpts = W.driveMode
-            ? {enableHighAccuracy:false, maximumAge:10000, timeout:15000}
-            : {enableHighAccuracy:true, maximumAge:3000, timeout:10000};
         W.watchId = navigator.geolocation.watchPosition(function(pos) {
             var lat = pos.coords.latitude, lng = pos.coords.longitude;
             var acc = pos.coords.accuracy || 999;
@@ -625,64 +521,45 @@ async function startWalk() {
                 speed: pos.coords.speed || null,
                 altitude: pos.coords.altitude || null,
             };
-            var maxAcc = W.driveMode ? 200 : 50;
-            if (acc <= maxAcc) {
+            if (acc <= 50) {
                 W.routePoints.push(point);
-                if (!W.driveMode) {
-                    document.getElementById('gps-count').textContent = W.routePoints.length;
-                    if (W.routePoints.length === 1) initMap(lat, lng);
-                    updateMapRoute();
-                }
+                document.getElementById('gps-count').textContent = W.routePoints.length;
+                if (W.routePoints.length === 1) initMap(lat, lng);
+                updateMapRoute();
             }
             W.lastGpsPos = {lat: lat, lng: lng, accuracy: acc};
-        }, function(){}, gpsOpts);
+        }, function(){}, {enableHighAccuracy:true, maximumAge:3000, timeout:10000});
     }
 
-    // Audio（ドライブモードはマイク不要 — GPSガイドのみ）
-    if (W.selectedMode !== 'drive') {
-        try {
-            W.mediaStream = await navigator.mediaDevices.getUserMedia({audio:true});
-            W.audioCtx = new AudioContext();
-            var source = W.audioCtx.createMediaStreamSource(W.mediaStream);
-            W.analyser = W.audioCtx.createAnalyser();
-            W.analyser.fftSize = 2048;
-            source.connect(W.analyser);
+    // Audio
+    try {
+        W.mediaStream = await navigator.mediaDevices.getUserMedia({audio:true});
+        W.audioCtx = new AudioContext();
+        var source = W.audioCtx.createMediaStreamSource(W.mediaStream);
+        W.analyser = W.audioCtx.createAnalyser();
+        W.analyser.fftSize = 2048;
+        source.connect(W.analyser);
 
-            // Level meter (2-8kHz band for bioacoustics relevance)
-            (function updateLevel() {
-                if (!W.walking) return;
-                var data = new Uint8Array(W.analyser.frequencyBinCount);
-                W.analyser.getByteFrequencyData(data);
-                var sr = W.audioCtx.sampleRate;
-                var binSize = sr / 2048;
-                var lo = Math.floor(500 / binSize);
-                var hi = Math.min(Math.ceil(8000 / binSize), data.length - 1);
-                var sum = 0;
-                for (var i = lo; i <= hi; i++) sum += data[i];
-                var avg = sum / (hi - lo + 1);
-                var pct = Math.min(100, avg * 1.2) + '%';
-                document.getElementById('audio-bar').style.width = pct;
-                var driveBar = document.getElementById('drive-audio-bar');
-                if (driveBar && W.driveMode) driveBar.style.width = pct;
-                requestAnimationFrame(updateLevel);
-            })();
+        // Level meter (2-8kHz band for bioacoustics relevance)
+        (function updateLevel() {
+            if (!W.walking) return;
+            var data = new Uint8Array(W.analyser.frequencyBinCount);
+            W.analyser.getByteFrequencyData(data);
+            var sr = W.audioCtx.sampleRate;
+            var binSize = sr / 2048;
+            var lo = Math.floor(500 / binSize);
+            var hi = Math.min(Math.ceil(8000 / binSize), data.length - 1);
+            var sum = 0;
+            for (var i = lo; i <= hi; i++) sum += data[i];
+            var avg = sum / (hi - lo + 1);
+            document.getElementById('audio-bar').style.width = Math.min(100, avg * 1.2) + '%';
+            requestAnimationFrame(updateLevel);
+        })();
 
-            // Recorder
-            setupRecorder();
-        } catch(e) {
-            console.warn('Audio error:', e);
-        }
-    }
-
-    // ドライブ/自転車モード: 定期コメンタリー開始
-    if (W.driveMode) startAmbientCommentary();
-
-    // ドライブモード: マイクなしなので初回コメンタリーを即座に開始
-    if (W.selectedMode === 'drive') {
-        setTimeout(function() {
-            VoiceGuide.announce('ドライブモードを開始します。周辺の自然について音声でご案内します。');
-            setTimeout(fetchAmbientCommentary, 8000);
-        }, 2000);
+        // Recorder
+        setupRecorder();
+    } catch(e) {
+        console.warn('Audio error:', e);
     }
 }
 
@@ -721,16 +598,8 @@ function stopWalk() {
     document.getElementById('sum-gps').textContent = W.routePoints.length + '点';
 
     VoiceGuide.stop();
-    if (ambientTimer) { clearInterval(ambientTimer); ambientTimer = null; }
 
-    // レポート画面表示（ドライブモードのみ中間画面）
-    if (W.driveMode) {
-        var rptText = document.getElementById('report-summary-text');
-        if (rptText) rptText.textContent = speciesList.length + '種を検出 / ' + Math.floor(sec/60) + '分間';
-        showScreen('report-loading');
-    } else {
-        showScreen('done');
-    }
+    showScreen('done');
 
     // 自動送信を試みる
     autoUpload();
@@ -862,22 +731,12 @@ async function sendAudio(blob, passedFreqFilter) {
 
                 // 実績トースト
                 var isNewToUser = d.scientific_name && userLifeList.indexOf(d.scientific_name) === -1;
-                if (!W.driveMode) {
-                    if (W.detections.length === 1) showToast('初検出!');
-                    else if (isNewToUser) showToast('新しい出会い!');
-                }
+                if (W.detections.length === 1) showToast('初検出!');
+                else if (isNewToUser) showToast('新しい出会い!');
 
                 setListenState('detected');
                 setTimeout(function() { setListenState('listening'); }, 2000);
                 if (navigator.vibrate) navigator.vibrate(d.confidence >= 0.7 ? [30, 20, 30] : [20]);
-
-                // ドライブモード: 検出カウント更新
-                if (W.driveMode) {
-                    var speciesSet = {};
-                    W.detections.forEach(function(dd) { speciesSet[dd.scientific_name || dd.name] = true; });
-                    var el = document.getElementById('drive-det-count');
-                    if (el) el.textContent = Object.keys(speciesSet).length;
-                }
 
                 // 音声ガイド
                 if (VoiceGuide.isEnabled()) {
@@ -903,18 +762,12 @@ async function sendAudio(blob, passedFreqFilter) {
                 }
             });
             if (filtered.length === 0) setListenState('listening');
-            W.successCount++;
-            updateDriveStatus();
         } else {
             setListenState('listening');
-            W.successCount++;
-            updateDriveStatus();
         }
     } catch(e) {
         console.warn('Analysis error:', e);
         setListenState('listening');
-        W.errorCount++;
-        updateDriveStatus();
     } finally {
         W.analyzing = false;
         if (W.walking) startCycle();
@@ -1130,8 +983,6 @@ async function fetchRecap(speciesList, durationSec) {
         }
     } catch(e) {
         console.warn('Recap error:', e);
-    } finally {
-        if (W.driveMode) showScreen('done');
     }
 }
 
@@ -1388,26 +1239,6 @@ function loadNearbyToilets(lat, lng, targetMap) {
 var sensToggle = document.getElementById('sensitivity-toggle');
 if (sensToggle) sensToggle.addEventListener('change', function() { W.highSensitivity = this.checked; });
 
-// ===== Mode selection =====
-function selectMode(mode) {
-    document.querySelectorAll('.mode-btn').forEach(function(b) {
-        var isActive = b.dataset.mode === mode;
-        b.classList.toggle('active', isActive);
-        b.style.borderColor = isActive ? '#22c55e' : 'transparent';
-        b.style.background = isActive ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)';
-        b.style.color = isActive ? '#86efac' : '#9ca3af';
-    });
-    var btn = document.getElementById('btn-start');
-    var modeLabels = {walk:'🎧 ウォーク開始', drive:'🚗 ドライブ開始', cycle:'🚲 ライド開始'};
-    btn.textContent = modeLabels[mode] || '🎧 開始';
-    if (mode === 'drive' || mode === 'cycle') {
-        document.getElementById('voice-toggle').checked = true;
-        VoiceGuide.setEnabled(true);
-        var sel = document.getElementById('voice-mode-selector');
-        if (sel) sel.style.display = 'flex';
-    }
-}
-
 function selectVoiceMode(mode) {
     VoiceGuide.setVoiceMode(mode);
     document.querySelectorAll('.voice-mode-btn').forEach(function(b) {
@@ -1436,30 +1267,6 @@ document.getElementById('voice-toggle').addEventListener('change', function() {
     }
 })();
 
-// ドライブステータス更新
-function updateDriveStatus() {
-    if (!W.driveMode) return;
-    var dot = document.getElementById('drive-status-dot');
-    var txt = document.getElementById('drive-status-text');
-    if (!dot || !txt) return;
-    var total = W.successCount + W.errorCount;
-    if (total < 3) return;
-    var errorRate = W.errorCount / total;
-    if (errorRate > 0.5) {
-        dot.style.background = '#ef4444';
-        txt.style.color = '#fca5a5';
-        txt.textContent = '接続不安定';
-    } else if (errorRate > 0.2) {
-        dot.style.background = '#f59e0b';
-        txt.style.color = '#fde68a';
-        txt.textContent = 'やや不安定';
-    } else {
-        dot.style.background = '#22c55e';
-        txt.style.color = '#86efac';
-        txt.textContent = 'システム正常';
-    }
-}
-
 // 音声ガイド解説取得
 async function fetchVoiceGuide(name, sciName, confidence, count, isFirst) {
     try {
@@ -1477,59 +1284,9 @@ async function fetchVoiceGuide(name, sciName, confidence, count, isFirst) {
     } catch(e) { return null; }
 }
 
-// ===== Ambient Commentary (定期トーク) =====
-var ambientTimer = null;
-function startAmbientCommentary() {
-    if (!W.driveMode || !VoiceGuide.isEnabled()) return;
-    VoiceGuide.onFinish(function() { W.lastCommentaryTime = Date.now(); });
-    var INTERVAL = 10 * 1000; // 10秒ごとにチェック
-    ambientTimer = setInterval(function() {
-        if (VoiceGuide.isSpeaking()) return; // 発話中はスキップ
-        var sinceLast = Date.now() - (W.lastCommentaryTime || W.startTime);
-        if (sinceLast < 15000) return; // 最後の発話終了から15秒の沈黙を確保
-        fetchAmbientCommentary();
-    }, INTERVAL);
-}
-
-async function fetchAmbientCommentary() {
-    try {
-        var last = W.routePoints.length > 0 ? W.routePoints[W.routePoints.length-1] : null;
-        var speciesNames = [];
-        var seen = {};
-        W.detections.forEach(function(d) {
-            var n = d.japanese_name || d.name;
-            if (!seen[n]) { speciesNames.push(n); seen[n] = true; }
-        });
-        var elapsedMin = Math.floor((Date.now() - W.startTime) / 60000);
-        var params = new URLSearchParams();
-        params.set('mode', 'ambient');
-        params.set('lat', last ? last.lat : 35);
-        params.set('lng', last ? last.lng : 139);
-        params.set('detected_species', speciesNames.slice(0, 5).join(','));
-        params.set('elapsed_min', elapsedMin);
-        params.set('voice_mode', VoiceGuide.getVoiceMode());
-        params.set('session_count', W.ambientCount || 0);
-        if (W.weatherText) params.set('weather', W.weatherText);
-        W.ambientCount = (W.ambientCount || 0) + 1;
-
-        var resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
-        if (!resp.ok) return;
-        var json = await resp.json();
-        if (json.success && json.data) {
-            W.lastCommentaryTime = Date.now();
-            if (json.data.audio_url) {
-                VoiceGuide.announceAudio(json.data.audio_url);
-            } else if (json.data.guide_text) {
-                VoiceGuide.announce(json.data.guide_text);
-            }
-        }
-    } catch(e) {}
-}
-
 // ===== Event listeners =====
 document.getElementById('btn-start').addEventListener('click', startWalk);
 document.getElementById('btn-stop').addEventListener('click', stopWalk);
-document.getElementById('btn-drive-stop').addEventListener('click', stopWalk);
 document.getElementById('btn-upload').addEventListener('click', manualUpload);
 document.getElementById('btn-close').addEventListener('click', function() { clearSession(); showScreen('ready'); });
 
