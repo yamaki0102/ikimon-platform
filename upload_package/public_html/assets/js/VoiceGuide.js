@@ -147,22 +147,26 @@ if (document.readyState === 'loading') {
  * GuideOrchestrator — セッション全体の感情の流れを管理
  *
  * 感情レンズ: wonder / quest / mastery / memory / contribution
- * セッションフェーズ: opening → active → closing
- * 沈黙管理: 一定時間検出がなければ silence モードを発動
+ * 選択ロジック: 固定ローテーションではなく、文脈に応じて最適なレンズを選ぶ
+ * 沈黙管理: 段階的に深まる（5分→穏やか / 15分→五感 / 25分→詩的）
+ * Opening: GPS取得を待ってから発火
  */
 var GuideOrchestrator = (function() {
-    var LENSES = ['wonder', 'quest', 'mastery', 'memory', 'contribution'];
-    var SILENCE_THRESHOLD_MS = 5 * 60 * 1000; // 5分
+    var SILENCE_INTERVALS = [
+        { minMs: 5 * 60 * 1000,  depthLabel: 'gentle' },
+        { minMs: 10 * 60 * 1000, depthLabel: 'sensory' },
+        { minMs: 8 * 60 * 1000,  depthLabel: 'poetic' },
+    ];
 
     var session = {
         active: false,
         startTime: 0,
         detectionCount: 0,
-        lensIndex: 0,
         lastDetectionTime: 0,
         lastSilenceTime: 0,
         silenceCount: 0,
         species: [],
+        speciesDetCounts: {},
         lat: 0,
         lng: 0,
         weather: '',
@@ -170,19 +174,22 @@ var GuideOrchestrator = (function() {
         highlightSpecies: '',
         highlightConfidence: 0,
         totalSilentMin: 0,
+        openingSent: false,
+        gpsReady: false,
     };
 
     var silenceTimer = null;
+    var openingWaitTimer = null;
 
     function startSession(opts) {
         session.active = true;
         session.startTime = Date.now();
         session.detectionCount = 0;
-        session.lensIndex = 0;
         session.lastDetectionTime = Date.now();
         session.lastSilenceTime = 0;
         session.silenceCount = 0;
         session.species = [];
+        session.speciesDetCounts = {};
         session.lat = opts.lat || 0;
         session.lng = opts.lng || 0;
         session.weather = opts.weather || '';
@@ -190,14 +197,32 @@ var GuideOrchestrator = (function() {
         session.highlightSpecies = '';
         session.highlightConfidence = 0;
         session.totalSilentMin = 0;
+        session.openingSent = false;
+        session.gpsReady = (session.lat !== 0 && session.lng !== 0);
 
         _startSilenceWatch();
-        _fetchOpening();
+
+        if (session.gpsReady) {
+            _fetchOpening();
+        } else {
+            openingWaitTimer = setInterval(function() {
+                if (session.lat !== 0 && session.lng !== 0) {
+                    clearInterval(openingWaitTimer);
+                    openingWaitTimer = null;
+                    if (!session.openingSent) _fetchOpening();
+                }
+            }, 1000);
+            setTimeout(function() {
+                if (openingWaitTimer) { clearInterval(openingWaitTimer); openingWaitTimer = null; }
+                if (!session.openingSent) _fetchOpening();
+            }, 15000);
+        }
     }
 
     function endSession() {
         if (!session.active) return;
         session.active = false;
+        if (openingWaitTimer) { clearInterval(openingWaitTimer); openingWaitTimer = null; }
         _stopSilenceWatch();
         _fetchClosing();
     }
@@ -207,18 +232,40 @@ var GuideOrchestrator = (function() {
         session.detectionCount++;
         session.lastDetectionTime = Date.now();
         var name = det.japanese_name || det.name;
+        var key = det.scientific_name || name;
+        session.speciesDetCounts[key] = (session.speciesDetCounts[key] || 0) + 1;
         if (session.species.indexOf(name) === -1) session.species.push(name);
         if ((det.confidence || 0) > session.highlightConfidence) {
             session.highlightSpecies = name;
             session.highlightConfidence = det.confidence || 0;
         }
-        _resetSilenceWatch();
     }
 
-    function getCurrentLens() {
-        var lens = LENSES[session.lensIndex % LENSES.length];
-        session.lensIndex++;
-        return lens;
+    function getCurrentLens(det) {
+        var name = det ? (det.japanese_name || det.name) : '';
+        var key = det ? (det.scientific_name || name) : '';
+        var conf = det ? (det.confidence || 0) : 0;
+        var thisSpeciesCount = session.speciesDetCounts[key] || 0;
+        var isNewSpecies = thisSpeciesCount <= 1;
+        var elapsed = Math.floor((Date.now() - session.startTime) / 60000);
+
+        // 初検出 or 高確信度の新種 → 必ず wonder
+        if (session.detectionCount <= 1) return 'wonder';
+        if (isNewSpecies && conf >= 0.7) return 'wonder';
+
+        // 同種の再検出 → mastery（見分け方や生態の深い話）
+        if (thisSpeciesCount >= 3) return 'mastery';
+
+        // セッション後半（20分以降） → memory に傾ける
+        if (elapsed >= 20) {
+            return (session.detectionCount % 2 === 0) ? 'memory' : 'quest';
+        }
+
+        // 3種以上見つかったらcontribution
+        if (session.species.length >= 3 && session.detectionCount % 3 === 0) return 'contribution';
+
+        // 通常: wonder と quest を交互（好奇心を維持）
+        return (session.detectionCount % 2 === 0) ? 'quest' : 'wonder';
     }
 
     function getSessionState() {
@@ -237,7 +284,15 @@ var GuideOrchestrator = (function() {
         session.lng = lng;
     }
 
+    function _voiceResult(json) {
+        if (!json || !json.success || !json.data) return;
+        var d = json.data;
+        if (d.audio_url) VoiceGuide.announceAudio(d.audio_url);
+        else if (d.guide_text) VoiceGuide.announce(d.guide_text);
+    }
+
     function _fetchOpening() {
+        session.openingSent = true;
         if (!VoiceGuide.isEnabled()) return;
         var params = new URLSearchParams();
         params.set('mode', 'opening');
@@ -249,15 +304,7 @@ var GuideOrchestrator = (function() {
 
         fetch('/api/v2/voice_guide.php?' + params.toString())
             .then(function(r) { return r.ok ? r.json() : null; })
-            .then(function(json) {
-                if (!json || !json.success || !json.data) return;
-                var d = json.data;
-                if (d.audio_url) {
-                    VoiceGuide.announceAudio(d.audio_url);
-                } else if (d.guide_text) {
-                    VoiceGuide.announce(d.guide_text);
-                }
-            })
+            .then(_voiceResult)
             .catch(function() {});
     }
 
@@ -278,15 +325,7 @@ var GuideOrchestrator = (function() {
 
         fetch('/api/v2/voice_guide.php?' + params.toString())
             .then(function(r) { return r.ok ? r.json() : null; })
-            .then(function(json) {
-                if (!json || !json.success || !json.data) return;
-                var d = json.data;
-                if (d.audio_url) {
-                    VoiceGuide.announceAudio(d.audio_url);
-                } else if (d.guide_text) {
-                    VoiceGuide.announce(d.guide_text);
-                }
-            })
+            .then(_voiceResult)
             .catch(function() {});
     }
 
@@ -295,7 +334,12 @@ var GuideOrchestrator = (function() {
         if (VoiceGuide.isSpeaking()) return;
 
         var sinceLastDet = Math.floor((Date.now() - session.lastDetectionTime) / 60000);
-        session.totalSilentMin += Math.min(sinceLastDet, 5);
+        session.totalSilentMin = sinceLastDet;
+
+        // 沈黙の深さ段階
+        var depth = 'gentle';
+        if (session.silenceCount >= 3) depth = 'poetic';
+        else if (session.silenceCount >= 1) depth = 'sensory';
 
         var params = new URLSearchParams();
         params.set('mode', 'silence');
@@ -303,20 +347,13 @@ var GuideOrchestrator = (function() {
         params.set('lng', session.lng);
         params.set('weather', session.weather);
         params.set('silent_min', sinceLastDet);
+        params.set('silence_depth', depth);
         params.set('detected_species', session.species.length > 0 ? 'これまでに' + session.species.join('、') + 'を検出' : '');
         params.set('voice_mode', VoiceGuide.getVoiceMode());
 
         fetch('/api/v2/voice_guide.php?' + params.toString())
             .then(function(r) { return r.ok ? r.json() : null; })
-            .then(function(json) {
-                if (!json || !json.success || !json.data) return;
-                var d = json.data;
-                if (d.audio_url) {
-                    VoiceGuide.announceAudio(d.audio_url);
-                } else if (d.guide_text) {
-                    VoiceGuide.announce(d.guide_text);
-                }
-            })
+            .then(_voiceResult)
             .catch(function() {});
 
         session.silenceCount++;
@@ -329,14 +366,12 @@ var GuideOrchestrator = (function() {
             if (!session.active) return;
             var sinceLast = Date.now() - session.lastDetectionTime;
             var sinceSilence = session.lastSilenceTime ? Date.now() - session.lastSilenceTime : Infinity;
-            if (sinceLast >= SILENCE_THRESHOLD_MS && sinceSilence >= SILENCE_THRESHOLD_MS) {
+            // 最初の沈黙は5分後、以降は間隔を広げる（5分→8分→10分）
+            var threshold = SILENCE_INTERVALS[Math.min(session.silenceCount, SILENCE_INTERVALS.length - 1)].minMs;
+            if (sinceLast >= threshold && sinceSilence >= threshold) {
                 _fetchSilence();
             }
         }, 60000);
-    }
-
-    function _resetSilenceWatch() {
-        session.lastDetectionTime = Date.now();
     }
 
     function _stopSilenceWatch() {
