@@ -160,7 +160,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <script defer src="/js/HapticEngine.js"></script>
 <script defer src="/js/MotionEngine.js"></script>
 <script defer src="/js/OfflineManager.js?v=2.2"></script>
-<script defer src="/assets/js/VoiceGuide.js?v=5"></script>
+<script defer src="/assets/js/VoiceGuide.js?v=<?= @filemtime(PUBLIC_DIR . '/assets/js/VoiceGuide.js') ?>"></script>
 <script defer src="/assets/js/analytics.js"></script>
 
 <!-- Critical FOUC Prevention (CSS遅延の保険) -->
@@ -171,10 +171,10 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 </style>
 
 <!-- Design System v2 CSS Stack -->
-<link rel="stylesheet" href="/assets/css/tokens.css?v=2.2">
-<link rel="stylesheet" href="/assets/css/style.css?v=2.3">
-<link rel="stylesheet" href="/assets/css/skeleton.css?v=2.2">
-<link rel="stylesheet" href="/assets/css/input.css?v=2.2">
+<link rel="stylesheet" href="/assets/css/tokens.css?v=<?= @filemtime(PUBLIC_DIR . '/assets/css/tokens.css') ?>">
+<link rel="stylesheet" href="/assets/css/style.css?v=<?= @filemtime(PUBLIC_DIR . '/assets/css/style.css') ?>">
+<link rel="stylesheet" href="/assets/css/skeleton.css?v=<?= @filemtime(PUBLIC_DIR . '/assets/css/skeleton.css') ?>">
+<link rel="stylesheet" href="/assets/css/input.css?v=<?= @filemtime(PUBLIC_DIR . '/assets/css/input.css') ?>">
 
 <!-- Service Worker: Force migration to v13 -->
 <script nonce="<?= CspNonce::attr() ?>">
