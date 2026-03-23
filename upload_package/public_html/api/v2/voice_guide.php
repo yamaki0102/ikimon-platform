@@ -45,7 +45,8 @@ $timeOfDay = match(true) {
 
 // --- 過去発話の記憶（ユーザーごとに直近30件を保持） ---
 $user = Auth::user();
-$userId = $user['id'] ?? 'unknown';
+$userId = preg_replace('/[^a-zA-Z0-9_\-]/', '', $user['id'] ?? '');
+if (empty($userId)) api_error('Invalid session', 401);
 $historyFile = DATA_DIR . "voice_guide_history/{$userId}.json";
 $pastTexts = [];
 if (file_exists($historyFile)) {
@@ -334,7 +335,7 @@ function _callGemini(string $prompt): string
     $payload = [
         'contents' => [['parts' => [['text' => $prompt]]]],
         'generationConfig' => [
-            'temperature' => 1.2,
+            'temperature' => 1.0,
             'maxOutputTokens' => 150,
             'topP' => 0.95,
         ],
