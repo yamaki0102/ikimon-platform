@@ -26,8 +26,11 @@ if (!api_rate_limit('voice_guide', 30, 60)) {
 
 $requestMode = api_param('mode', 'detection');
 $voiceMode = api_param('voice_mode', 'bluetooth');
+if (!in_array($voiceMode, ['standard', 'bluetooth', 'mochiko', 'ryusei', 'zundamon'], true)) {
+    $voiceMode = 'bluetooth';
+}
 $isZundamonStyle = ($voiceMode === 'zundamon');
-$useVoicevoxAudio = ($voiceMode === 'zundamon' || $voiceMode === 'bluetooth');
+$useVoicevoxAudio = ($voiceMode !== 'standard');
 
 $month = (int)date('n');
 $hour = (int)date('G');
@@ -882,19 +885,15 @@ function _pickVoicevoxSpeakerId(array $preferredNames): int
 
 function _resolveVoicevoxSpeakerId(string $voiceMode): int
 {
-    if ($voiceMode === 'zundamon') {
-        return _pickVoicevoxSpeakerId(['ずんだもん']);
-    }
-
-    return _pickVoicevoxSpeakerId([
-        '九州そら',
-        '玄野武宏',
-        '白上虎太郎',
-        '青山龍星',
-        '四国めたん',
-        '春日部つむぎ',
-        'ずんだもん',
-    ]);
+    return match ($voiceMode) {
+        'zundamon' => _pickVoicevoxSpeakerId(['ずんだもん']),
+        'mochiko'  => _pickVoicevoxSpeakerId(['もち子さん']),
+        'ryusei'   => _pickVoicevoxSpeakerId(['青山龍星']),
+        default    => _pickVoicevoxSpeakerId([
+            '九州そら', '玄野武宏', '白上虎太郎', '青山龍星',
+            '四国めたん', '春日部つむぎ', 'ずんだもん',
+        ]),
+    };
 }
 
 function _generateVoicevoxAudio(string $text, string $voiceMode = 'zundamon'): ?string

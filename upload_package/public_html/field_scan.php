@@ -130,18 +130,26 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                     <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
                 </label>
             </div>
-            <div id="vg-mode-sel" class="flex gap-2 px-1" style="display:none">
-                <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-mode-btn active"
+            <div id="vg-mode-sel" class="flex flex-wrap gap-2 px-1" style="display:none">
+                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition vg-mode-btn active"
                         data-vmode="bluetooth" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
-                    📶 Bluetooth優先
+                    📶 Bluetooth
                 </button>
-                <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
-                        data-vmode="standard" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                    📱 端末読み上げ
+                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
+                        data-vmode="mochiko" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                    🐶 もち子さん
                 </button>
-                <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
+                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
+                        data-vmode="ryusei" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                    🐉 青山龍星
+                </button>
+                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
                         data-vmode="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
                     🟢 ずんだもん
+                </button>
+                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
+                        data-vmode="standard" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                    📱 端末読み上げ
                 </button>
             </div>
         </div>
@@ -2001,14 +2009,14 @@ function selectVgMode(mode) {
         b.style.color = active ? '#93c5fd' : '#9ca3af';
     });
     // プレビュー再生（選択確認）
-    if (mode === 'bluetooth' || mode === 'zundamon') {
-        new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
-    } else {
+    if (mode === 'standard') {
         if ('speechSynthesis' in window) {
             var u = new SpeechSynthesisUtterance('音声ガイドです');
             u.lang = 'ja-JP'; u.rate = 1.0;
             speechSynthesis.speak(u);
         }
+    } else {
+        new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
     }
 }
 
