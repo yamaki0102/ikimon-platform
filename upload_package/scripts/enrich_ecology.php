@@ -192,7 +192,7 @@ function _fetchWikipedia(string $jaName): ?string
         'action' => 'query',
         'titles' => $jaName,
         'prop' => 'extracts',
-        'exintro' => false,
+        'exintro' => 0,
         'explaintext' => true,
         'exsectionformat' => 'plain',
         'format' => 'json',
@@ -205,7 +205,7 @@ function _fetchWikipedia(string $jaName): ?string
     $data = json_decode($response, true);
     $pages = $data['query']['pages'] ?? [];
     foreach ($pages as $page) {
-        if (isset($page['extract']) && mb_strlen($page['extract']) > 100) {
+        if (isset($page['extract']) && mb_strlen($page['extract']) >= 50) {
             return mb_substr($page['extract'], 0, 3000);
         }
     }
