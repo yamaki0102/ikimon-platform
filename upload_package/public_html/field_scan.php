@@ -126,19 +126,17 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                     </div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="voice-guide-toggle" class="sr-only peer" onchange="try{VoiceGuide.setEnabled(this.checked)}catch(e){} document.getElementById('vg-mode-sel').style.display=this.checked?'flex':'none'">
+                    <input type="checkbox" id="voice-guide-toggle" class="sr-only peer">
                     <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
                 </label>
             </div>
             <div id="vg-mode-sel" class="flex gap-2 px-1" style="display:none">
                 <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-mode-btn active"
-                        data-vmode="standard" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd"
-                        onclick="selectVgMode('standard')">
+                        data-vmode="standard" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
                     📱 スマホ標準
                 </button>
                 <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
-                        data-vmode="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af"
-                        onclick="selectVgMode('zundamon')">
+                        data-vmode="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
                     🟢 ずんだもん
                 </button>
             </div>
@@ -2008,11 +2006,21 @@ async function _fetchAmbient() {
     } catch(e) {}
 }
 
-// 音声ガイド設定復元（defer スクリプト VoiceGuide.js 実行後に走る）
+// 音声ガイド: イベントリスナー登録（CSP nonce対応 — onchange/onclick は CSP でブロックされる）
 document.addEventListener('DOMContentLoaded', function() {
+    var vgToggle = document.getElementById('voice-guide-toggle');
+    if (vgToggle) {
+        vgToggle.addEventListener('change', function() {
+            try { VoiceGuide.setEnabled(this.checked); } catch(e) {}
+            document.getElementById('vg-mode-sel').style.display = this.checked ? 'flex' : 'none';
+        });
+    }
+    document.querySelectorAll('.vg-mode-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() { selectVgMode(this.dataset.vmode); });
+    });
+    // 設定復元
     if (typeof VoiceGuide !== 'undefined' && VoiceGuide.isEnabled()) {
-        var t = document.getElementById('voice-guide-toggle');
-        if (t) { t.checked = true; document.getElementById('vg-mode-sel').style.display = 'flex'; }
+        if (vgToggle) { vgToggle.checked = true; document.getElementById('vg-mode-sel').style.display = 'flex'; }
         selectVgMode(VoiceGuide.getVoiceMode());
     }
 });
