@@ -2010,6 +2010,8 @@ async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
         p.set('detection_count', count || 1);
         p.set('is_first_today', isFirst ? '1' : '0');
         p.set('voice_mode', VoiceGuide.getVoiceMode());
+        var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
+        if (last) { p.set('lat', last.lat); p.set('lng', last.lng); }
         var r = await fetch('/api/v2/voice_guide.php?' + p.toString());
         if (!r.ok) return;
         var j = await r.json();
