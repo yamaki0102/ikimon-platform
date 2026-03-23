@@ -101,19 +101,17 @@ unset($allObs, $userObs);
                     </div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="voice-toggle" class="sr-only peer" onchange="try{VoiceGuide.setEnabled(this.checked)}catch(e){} document.getElementById('voice-mode-selector').style.display=this.checked?'flex':'none'">
+                    <input type="checkbox" id="voice-toggle" class="sr-only peer">
                     <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
                 </label>
             </div>
             <div id="voice-mode-selector" class="flex gap-2 px-1" style="display:none">
                 <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition voice-mode-btn active"
-                        data-vmode="standard" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd"
-                        onclick="selectVoiceMode('standard')">
+                        data-vmode="standard" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
                     📱 スマホ標準
                 </button>
                 <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition voice-mode-btn"
-                        data-vmode="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af"
-                        onclick="selectVoiceMode('zundamon')">
+                        data-vmode="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
                     🟢 ずんだもん
                 </button>
             </div>
@@ -1254,13 +1252,20 @@ document.getElementById('voice-toggle').addEventListener('change', function() {
     if (sel) sel.style.display = this.checked ? 'flex' : 'none';
 });
 
-// 音声ガイド設定の復元（defer スクリプト VoiceGuide.js 実行後に走る）
+// 音声ガイド: イベントリスナー登録 + 設定復元（CSP nonce対応）
 document.addEventListener('DOMContentLoaded', function() {
+    var vgToggle = document.getElementById('voice-toggle');
+    if (vgToggle) {
+        vgToggle.addEventListener('change', function() {
+            try { VoiceGuide.setEnabled(this.checked); } catch(e) {}
+            document.getElementById('voice-mode-selector').style.display = this.checked ? 'flex' : 'none';
+        });
+    }
+    document.querySelectorAll('.voice-mode-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() { selectVoiceMode(this.dataset.vmode); });
+    });
     if (typeof VoiceGuide !== 'undefined' && VoiceGuide.isEnabled()) {
-        var vt = document.getElementById('voice-toggle');
-        if (vt) vt.checked = true;
-        var sel = document.getElementById('voice-mode-selector');
-        if (sel) sel.style.display = 'flex';
+        if (vgToggle) { vgToggle.checked = true; document.getElementById('voice-mode-selector').style.display = 'flex'; }
         selectVoiceMode(VoiceGuide.getVoiceMode());
     }
 });
