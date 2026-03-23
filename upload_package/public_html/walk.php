@@ -1250,6 +1250,15 @@ function selectVoiceMode(mode) {
         b.style.background = isActive ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.05)';
         b.style.color = isActive ? '#93c5fd' : '#9ca3af';
     });
+    if (mode === 'zundamon') {
+        new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
+    } else {
+        if ('speechSynthesis' in window) {
+            var u = new SpeechSynthesisUtterance('音声ガイドです');
+            u.lang = 'ja-JP'; u.rate = 1.0;
+            speechSynthesis.speak(u);
+        }
+    }
 }
 
 // 音声ガイドトグル連動
