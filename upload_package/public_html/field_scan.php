@@ -2028,8 +2028,9 @@ function selectVgSpeaker(s) {
         b.style.background = on ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.05)';
         b.style.color = on ? '#c4b5fd' : '#9ca3af';
     });
-    if (s === 'zundamon') {
-        new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
+    var previewMap = { auto: 'auto', mochiko: 'mochiko', ryusei: 'ryusei', zundamon: 'zundamon' };
+    if (previewMap[s]) {
+        new Audio('/assets/audio/' + previewMap[s] + '_preview.wav').play().catch(function(){});
     }
 }
 
