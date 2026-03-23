@@ -2028,7 +2028,9 @@ function selectVgSpeaker(s) {
         b.style.background = on ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.05)';
         b.style.color = on ? '#c4b5fd' : '#9ca3af';
     });
-    new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
+    if (s === 'zundamon') {
+        new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
+    }
 }
 
 async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
