@@ -617,14 +617,15 @@ function stopWalk() {
     document.getElementById('sum-species').textContent = speciesList.length;
     document.getElementById('sum-gps').textContent = W.routePoints.length + '点';
 
-    // closing ナレーション → 読み上げ後に画面遷移
-    if (VoiceGuide.isEnabled()) {
-        GuideOrchestrator.endSession();
-    } else {
-        VoiceGuide.stop();
-    }
+    // まず再生中の音声を止める
+    VoiceGuide.stop();
 
     showScreen('done');
+
+    // done 画面表示後に closing ナレーションを非同期取得→読み上げ
+    if (VoiceGuide.isEnabled()) {
+        GuideOrchestrator.endSession();
+    }
 
     // 自動送信を試みる
     autoUpload();
@@ -769,9 +770,9 @@ async function sendAudio(blob, passedFreqFilter) {
                     W.detCountToday[key] = (W.detCountToday[key] || 0) + 1;
                     var isFirst = W.detCountToday[key] === 1;
 
-                    // GuideOrchestrator に検出を通知
+                    // GuideOrchestrator に検出を通知 → 文脈適応型レンズ選択
                     GuideOrchestrator.onDetection(det);
-                    var emotionLens = GuideOrchestrator.getCurrentLens();
+                    var emotionLens = GuideOrchestrator.getCurrentLens(det);
 
                     if (VoiceGuide.getVoiceMode() === 'standard') {
                         VoiceGuide.announce(jaName + verb);

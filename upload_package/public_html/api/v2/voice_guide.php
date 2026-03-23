@@ -81,6 +81,17 @@ if ($requestMode === 'opening') {
     $nearbyContext = ($lat && $lng) ? _getNearbyObservations($lat, $lng, 2.0) : '';
     $pastSpeciesCount = substr_count($nearbyContext, "\n") + ($nearbyContext ? 1 : 0);
 
+    // 過去の散歩の記憶を引き出す
+    $pastHighlights = _loadPastHighlights($userId, 3);
+    $memoryContext = '';
+    if (!empty($pastHighlights)) {
+        $lastVisit = $pastHighlights[0];
+        $daysSince = (int)((time() - strtotime($lastVisit['date'])) / 86400);
+        if ($daysSince > 0 && $daysSince < 90) {
+            $memoryContext = "前回は{$daysSince}日前に{$lastVisit['area']}で{$lastVisit['highlight_species']}に会っている。さりげなく触れて。";
+        }
+    }
+
     $styleInstruction = $isZundamon
         ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
         : '親しい友人のような口調で。敬語は軽めに。';
@@ -98,6 +109,7 @@ if ($requestMode === 'opening') {
 {$weatherNote}
 {$tempNote}
 この付近の過去の観察記録: {$pastSpeciesCount}種
+{$memoryContext}
 
 過去の観察データ:
 {$nearbyContext}
@@ -146,6 +158,16 @@ if ($requestMode === 'closing') {
         $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
     } catch (Throwable $e) {}
 
+    // 過去の today_highlight を読み出し（最新5件）
+    $pastHighlights = _loadPastHighlights($userId, 5);
+    $memoryContext = '';
+    if (!empty($pastHighlights)) {
+        $memoryLines = array_map(function($h) {
+            return "- {$h['date']} {$h['area']}: {$h['highlight_species']}（{$h['weather']}）";
+        }, $pastHighlights);
+        $memoryContext = "キミの最近の自然体験:\n" . implode("\n", $memoryLines) . "\n→ 過去の体験と今日をつなげる一言を添えられるなら添えて。";
+    }
+
     $styleInstruction = $isZundamon
         ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
         : '親しい友人のような温かい口調で。';
@@ -153,6 +175,21 @@ if ($requestMode === 'closing') {
     $silentContext = $silentMinutes > 5
         ? "今日は静かな時間が{$silentMinutes}分ほどあった。それも自然体験の一部として肯定的に触れて。"
         : '';
+
+    $timeFeeling = match($timeOfDay) {
+        '朝' => '朝の澄んだ空気の中で',
+        '日中' => '',
+        '夕方' => '夕暮れの柔らかい光の中で',
+        '夜' => '暗がりの静けさの中で',
+        default => '',
+    };
+    $weatherFeeling = match(true) {
+        str_contains($weather, '雨') => '雨上がりの匂いが漂う',
+        str_contains($weather, '曇') => '雲に覆われた穏やかな',
+        str_contains($weather, '晴') => '澄んだ空の下の',
+        str_contains($weather, '風') => '風の強い',
+        default => '',
+    };
 
     $prompt = <<<PROMPT
 あなたは自然散策の相棒です。セッションが終わった仲間に、今日の体験を記憶に残す短いメッセージを贈ってください。
@@ -166,22 +203,30 @@ if ($requestMode === 'closing') {
 検出された種: {$speciesListRaw}（{$speciesCount}種）
 最も印象的な出会い: {$highlightSpecies}
 {$silentContext}
+{$memoryContext}
 
 要件:
-- 数字の羅列（「N分でN種」）で終わらない。その日の体験の手触りを伝える
+- 「今日は{$weatherFeeling}{$timeFeeling}…」のように、天気と時間帯の空気感から始める
 - 最も印象的な出会いに触れて、その出会いに小さな意味を添える（豆知識1つ）
-- 「今日は〇〇な午後だったね」のように、天気や時間帯の空気感を含める
-- 最後に「次は〇〇してみて」と再訪の伏線を1つ
+- 数字の羅列（「N分でN種」）で終わらない。その日の体験の手触りを伝える
+- 最後に「次は〇〇してみて」と具体的な再訪の伏線を1つ（時間帯・季節・場所を変える提案）
 - 合計3〜4文、120文字以内
-- 集計レポートではなく、友達との会話の終わりのように
+- 集計レポートではなく、散歩から帰る友達に贈る最後の一言として
 - 音声読み上げ用なので難しい漢字はひらがなで
 PROMPT;
 
     $guideText = _callGemini($prompt);
     if (empty($guideText)) {
-        $guideText = $isZundamon
-            ? "{$durationMin}分のお散歩、お疲れさまなのだ！{$highlightSpecies}との出会いが素敵だったのだ！"
-            : "お疲れさま。{$highlightSpecies}との出会い、よかったね。また来よう。";
+        $atmosPrefix = $weatherFeeling ? "{$weatherFeeling}一日だったね。" : "{$seasonName}の{$timeOfDay}、お疲れさま。";
+        if ($speciesCount === 0) {
+            $guideText = $isZundamon
+                ? "{$atmosPrefix}生き物には会えなかったけど、{$areaName}の空気を感じられたのだ！次は朝早く来てみるのだ。"
+                : "{$atmosPrefix}静かな時間だったけど、それも自然体験。次は違う時間帯に来てみて。";
+        } else {
+            $guideText = $isZundamon
+                ? "{$atmosPrefix}{$highlightSpecies}に会えたのだ！この出会いを覚えておくのだ。次は朝に来てみるのだ！"
+                : "{$atmosPrefix}{$highlightSpecies}との出会い、覚えておこう。次は少し早い時間に来てみて。違う顔ぶれに会えるかも。";
+        }
     }
 
     _saveHistory($userId, $guideText, $pastTexts);
@@ -217,6 +262,7 @@ if ($requestMode === 'silence') {
     $weather = api_param('weather', '');
     $silentMin = api_param('silent_min', 5, 'int');
     $detectedSpecies = api_param('detected_species', '');
+    $silenceDepth = api_param('silence_depth', 'gentle');
 
     $areaName = '';
     try {
@@ -229,17 +275,27 @@ if ($requestMode === 'silence') {
         ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
         : '穏やかで詩的な口調で。';
 
-    $silenceAngles = [
-        '今は耳を澄ませる時間。風の音、葉擦れの音、遠くの鳥の声に意識を向けてみて',
-        '静かな時間も自然観察の一部。目を凝らしてみて。足元に小さな発見があるかも',
-        '何もいないように見えて、実はたくさんの生き物がこちらを見ている。気配を感じてみて',
-        '自然のリズムはゆっくり。焦らなくていい。この静けさを楽しんで',
-        '葉っぱの裏を覗いてみて。小さな虫たちの世界が広がっているかも',
-        '深呼吸してみて。この場所の匂いを覚えておこう。季節が変われば匂いも変わる',
-        '鳥たちは警戒すると黙る。少し立ち止まって待ってみると、また歌い始めるかも',
-        '地面をよく見て。小さな足跡や食べ跡があれば、夜の住人がいる証拠',
+    $depthAngles = [
+        'gentle' => [
+            '今は耳を澄ませる時間。風の音、葉擦れの音、遠くの鳥の声に意識を向けてみて',
+            '静かな時間も自然観察の一部。目を凝らしてみて。足元に小さな発見があるかも',
+            '鳥たちは警戒すると黙る。少し立ち止まって待ってみると、また歌い始めるかも',
+        ],
+        'sensory' => [
+            '深呼吸してみて。この場所の匂いを覚えておこう。季節が変われば匂いも変わる',
+            '目を閉じて10秒。風の向き、日差しの温度、足元の感触。五感で覚える散歩にしよう',
+            '葉っぱの裏を覗いてみて。小さな虫たちの世界が広がっているかも',
+            '地面をよく見て。小さな足跡や食べ跡があれば、夜の住人がいる証拠',
+        ],
+        'poetic' => [
+            '何もいないように見えて、実はたくさんの生き物がこちらを見ている。気配を感じてみて',
+            '自然のリズムはゆっくり。この静けさは、次の出会いまでの間合い',
+            'この静かな時間を、この場所はきっと覚えている。キミがここにいたことも',
+            'いつか「あの日、何も見つからなかったけど良い散歩だった」と思い出す日が来るかもね',
+        ],
     ];
-    $angle = $silenceAngles[array_rand($silenceAngles)];
+    $pool = $depthAngles[$silenceDepth] ?? $depthAngles['gentle'];
+    $angle = $pool[array_rand($pool)];
 
     $recentTexts = array_slice(array_column($pastTexts, 'text'), -5);
     $avoidList = !empty($recentTexts)
@@ -271,9 +327,14 @@ PROMPT;
 
     $guideText = _callGemini($prompt);
     if (empty($guideText)) {
-        $guideText = $isZundamon
-            ? '静かな時間も大切なのだ。耳を澄ませてみるのだ。'
-            : '静かだね。耳を澄ませてみて。遠くで何か鳴いてるかも。';
+        $fallbacks = $isZundamon
+            ? ['gentle' => '静かな時間も大切なのだ。耳を澄ませてみるのだ。',
+               'sensory' => '深呼吸してみるのだ。この場所の匂いを覚えておくのだ。',
+               'poetic' => 'この静けさの中に、ずんだもんたちは包まれているのだ。']
+            : ['gentle' => '静かだね。耳を澄ませてみて。遠くで何か鳴いてるかも。',
+               'sensory' => '深呼吸してみて。この場所の匂いを覚えておこう。',
+               'poetic' => 'この静けさも、きっといい思い出になる。'];
+        $guideText = $fallbacks[$silenceDepth] ?? $fallbacks['gentle'];
     }
 
     _saveHistory($userId, $guideText, $pastTexts);
@@ -572,6 +633,14 @@ function _inferEmotionTags(int $speciesCount, int $durationMin, int $silentMin):
     if ($durationMin < 15) $tags[] = 'brief';
     if (empty($tags)) $tags[] = 'gentle';
     return $tags;
+}
+
+function _loadPastHighlights(string $userId, int $count = 5): array
+{
+    $file = DATA_DIR . "today_highlights/{$userId}.json";
+    if (!file_exists($file)) return [];
+    $all = json_decode(file_get_contents($file), true) ?: [];
+    return array_slice(array_reverse($all), 0, $count);
 }
 
 function _saveTodayHighlight(string $userId, array $highlight): void
