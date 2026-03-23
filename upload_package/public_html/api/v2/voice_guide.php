@@ -78,6 +78,9 @@ if ($requestMode === 'ambient') {
         $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
     } catch (Throwable $e) {}
 
+    // 付近の過去観察・同定データを取得（半径2km以内）
+    $nearbyContext = _getNearbyObservations($lat, $lng, 2.0);
+
     $styleInstruction = $isZundamon
         ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
         : '優しいネイチャーガイドの口調で話してください。';
@@ -117,8 +120,12 @@ if ($requestMode === 'ambient') {
     $topic = $topicPool[array_rand($topicPool)];
 
     $speciesContext = $detectedSpecies
-        ? "さっき検出された種: {$detectedSpecies}。この種に関連づけて話を展開して。"
-        : 'まだ検出がないので、この地域で出会えそうな生き物について話して。';
+        ? "今日検出された種: {$detectedSpecies}。この種に関連づけて話を展開して。"
+        : '';
+
+    $nearbySpeciesContext = $nearbyContext
+        ? "この付近（半径2km）の過去の観察・同定データ:\n{$nearbyContext}\nこのデータを活かして話を展開して。"
+        : 'この地域で出会えそうな生き物について話して。';
 
     $weatherContext = $weather ? "現在の天気: {$weather}" : '';
 
@@ -147,6 +154,7 @@ if ($requestMode === 'ambient') {
 {$weatherContext}
 経過時間: {$elapsedMin}分
 {$speciesContext}
+{$nearbySpeciesContext}
 {$depthInstruction}
 
 今回のテーマ: {$topic}
@@ -272,6 +280,51 @@ if ($isZundamon && !empty($guideText)) {
 }
 
 api_success($result);
+
+function _getNearbyObservations(float $lat, float $lng, float $radiusKm): string
+{
+    try {
+        $allObs = DataStore::fetchAll('observations');
+        $nearby = [];
+        $R = 6371;
+        foreach ($allObs as $obs) {
+            $oLat = (float)($obs['location']['lat'] ?? $obs['lat'] ?? 0);
+            $oLng = (float)($obs['location']['lng'] ?? $obs['lng'] ?? 0);
+            if ($oLat == 0 && $oLng == 0) continue;
+            $dLat = deg2rad($oLat - $lat);
+            $dLng = deg2rad($oLng - $lng);
+            $a = sin($dLat/2)**2 + cos(deg2rad($lat)) * cos(deg2rad($oLat)) * sin($dLng/2)**2;
+            $dist = $R * 2 * atan2(sqrt($a), sqrt(1 - $a));
+            if ($dist <= $radiusKm) {
+                $name = $obs['taxon']['name'] ?? $obs['species_name'] ?? '';
+                $sci = $obs['taxon']['scientific_name'] ?? '';
+                $idStatus = $obs['identification_status'] ?? '';
+                if ($name) {
+                    $key = $sci ?: $name;
+                    if (!isset($nearby[$key])) {
+                        $nearby[$key] = ['name' => $name, 'sci' => $sci, 'count' => 0, 'identified' => false];
+                    }
+                    $nearby[$key]['count']++;
+                    if ($idStatus === 'confirmed' || $idStatus === 'agreed') {
+                        $nearby[$key]['identified'] = true;
+                    }
+                }
+            }
+        }
+        if (empty($nearby)) return '';
+        uasort($nearby, fn($a, $b) => $b['count'] - $a['count']);
+        $lines = [];
+        foreach (array_slice($nearby, 0, 8) as $sp) {
+            $label = $sp['name'];
+            if ($sp['identified']) $label .= '（同定済み）';
+            $label .= " — {$sp['count']}回観察";
+            $lines[] = "- {$label}";
+        }
+        return implode("\n", $lines);
+    } catch (Throwable $e) {
+        return '';
+    }
+}
 
 function _callGemini(string $prompt): string
 {
