@@ -2014,10 +2014,12 @@ async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
 // GPS更新(handleGpsPosition)やカメラキャプチャ時にtryAmbient()を呼ぶ
 function tryAmbient() {
     if (!S.active || !VoiceGuide.isEnabled()) return;
-    if (VoiceGuide.isSpeaking()) return;
     if (S._ambientFetching) return;
     var since = Date.now() - (S._lastVoiceTime || 0);
-    if (since < 30000) return; // 最低30秒間隔
+    // speakingでも60秒経ったら強制リセット（モバイルでonendedが発火しない対策）
+    if (VoiceGuide.isSpeaking() && since < 60000) return;
+    if (VoiceGuide.isSpeaking()) { VoiceGuide.stop(); dbg('🔊 speaking強制リセット'); }
+    if (since < 30000) return;
     _fetchAmbientNow();
 }
 
