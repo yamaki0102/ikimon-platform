@@ -558,6 +558,11 @@ async function startScan() {
         startGpsWatch();
     }
 
+    // 音声ガイド: UIトグルの状態を再確認して同期
+    var vgOn = document.getElementById('voice-guide-toggle');
+    if (vgOn && vgOn.checked && !VoiceGuide.isEnabled()) {
+        VoiceGuide.setEnabled(true);
+    }
     // 音声ガイドONならアンビエントコメンタリー開始（全モード）
     if (VoiceGuide.isEnabled()) {
         // モバイルブラウザの自動再生ロック解除（ユーザージェスチャー内で空発話）
@@ -566,6 +571,7 @@ async function startScan() {
             unlock.volume = 0;
             speechSynthesis.speak(unlock);
         }
+        VoiceGuide.announce('音声ガイドを開始します');
         startAmbientCommentary();
     }
 }

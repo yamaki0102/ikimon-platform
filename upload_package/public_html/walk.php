@@ -492,11 +492,19 @@ async function startWalk() {
     showScreen('walking');
     W.walking = true;
     W.startTime = Date.now();
-    // モバイルブラウザの自動再生ロック解除（ユーザージェスチャー内で空発話）
-    if (VoiceGuide.isEnabled() && 'speechSynthesis' in window) {
-        var unlock = new SpeechSynthesisUtterance('');
-        unlock.volume = 0;
-        speechSynthesis.speak(unlock);
+    // 音声ガイド: UIトグルの状態を再確認して同期
+    var vgOn = document.getElementById('voice-toggle');
+    if (vgOn && vgOn.checked && !VoiceGuide.isEnabled()) {
+        VoiceGuide.setEnabled(true);
+    }
+    if (VoiceGuide.isEnabled()) {
+        // モバイルブラウザの自動再生ロック解除（ユーザージェスチャー内で空発話）
+        if ('speechSynthesis' in window) {
+            var unlock = new SpeechSynthesisUtterance('');
+            unlock.volume = 0;
+            speechSynthesis.speak(unlock);
+        }
+        VoiceGuide.announce('音声ガイドを開始します');
     }
     W.detections = [];
     W.routePoints = [];
