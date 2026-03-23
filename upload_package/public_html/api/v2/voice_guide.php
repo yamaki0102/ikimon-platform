@@ -501,17 +501,29 @@ try {
 
 $displayName = $name ?: $sciName;
 
+// --- 生態系知識データの注入 ---
+$ecoContext = _getEcologyContext($sciName ?: $name, $displayName);
+
 // 地域情報を取得
 $lat = api_param('lat', 0, 'float');
 $lng = api_param('lng', 0, 'float');
 $areaName = '';
+$prefecture = '';
 if ($lat && $lng) {
     try {
         require_once ROOT_DIR . '/libs/GeoUtils.php';
         $geo = GeoUtils::reverseGeocode($lat, $lng);
-        $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
+        $prefecture = $geo['prefecture'] ?? '';
+        $areaName = trim($prefecture . ' ' . ($geo['municipality'] ?? ''));
     } catch (Throwable $e) {}
 }
+
+// 地域生態系データの注入
+$regionalContext = _getRegionalEcology($prefecture);
+// 季節データの注入
+$phenologyContext = _getSeasonalPhenology($month);
+// 共起種データの注入
+$coOccurrenceContext = _getCoOccurrence($sciName ?: $name, $displayName);
 
 // 分類カテゴリ名かどうか判定（常緑広葉樹、落葉高木 etc → 具体種を教えるモード）
 $isCategoryName = preg_match('/^(常緑|落葉|針葉|広葉|低木|高木|草本|つる性|シダ|イネ科|キク科)/', $name);
@@ -575,6 +587,10 @@ $prompt = <<<PROMPT
 {$categoryInstruction}
 
 図鑑情報: {$traits}
+{$ecoContext}
+{$coOccurrenceContext}
+{$regionalContext}
+{$phenologyContext}
 {$nearbyInstruction}
 
 {$avoidList}
@@ -584,9 +600,9 @@ $prompt = <<<PROMPT
 
 条件:
 - 2〜3文、80文字以内
+- 上記の「生態系データ」「共起種」「地域特徴」「季節情報」を根拠にして話す。根拠のない話は作らない
 - 「今回の話し方」に従って、{$areaName}に密着した具体的で面白い話をして
 - 「N回目の検出」のような事務的情報は入れない
-- 可能なら過去の観察データや地域の特徴に触れて
 - 音声読み上げ用なので難しい漢字はひらがなで（例: 囀り→さえずり）
 - 学名は読み上げないで
 - 聞いて「へぇ」と思える具体的な内容に
@@ -612,6 +628,83 @@ if ($isZundamon && !empty($guideText)) {
 }
 
 api_success($result);
+
+// --- 生態系知識データローダー群 ---
+
+function _loadEcologyData(string $filename): array
+{
+    static $cache = [];
+    if (isset($cache[$filename])) return $cache[$filename];
+    $path = DATA_DIR . "/ecology/{$filename}";
+    if (!file_exists($path)) return $cache[$filename] = [];
+    $data = json_decode(file_get_contents($path), true);
+    return $cache[$filename] = ($data ?: []);
+}
+
+function _getEcologyContext(string $key, string $displayName): string
+{
+    $roles = _loadEcologyData('ecosystem_roles.json');
+    $entry = $roles[$key] ?? null;
+    if (!$entry) {
+        foreach ($roles as $k => $v) {
+            if (($v['ja'] ?? '') === $displayName) { $entry = $v; break; }
+        }
+    }
+    if (!$entry) return '';
+    $parts = [];
+    if (!empty($entry['ecosystem_role'])) $parts[] = "生態系での役割: {$entry['ecosystem_role']}";
+    if (!empty($entry['indicates'])) $parts[] = "この種がいる意味: {$entry['indicates']}";
+    if (!empty($entry['food_web'])) $parts[] = "食物連鎖: {$entry['food_web']}";
+    return "【生態系データ（事実）】\n" . implode("\n", $parts);
+}
+
+function _getCoOccurrence(string $key, string $displayName): string
+{
+    $coData = _loadEcologyData('co_occurrence.json');
+    if (empty($coData)) return '';
+    $matches = [];
+    foreach ($coData as $group) {
+        $species = $group['species'] ?? [];
+        foreach ($species as $sp) {
+            if ($sp === $displayName || $sp === $key) {
+                $others = array_filter($species, fn($s) => $s !== $displayName && $s !== $key);
+                $matches[] = implode('・', array_slice($others, 0, 3)) . "（{$group['reason']}）";
+                break;
+            }
+        }
+    }
+    if (empty($matches)) return '';
+    return "【共起種データ（事実）】一緒にいやすい種: " . implode(' / ', array_slice($matches, 0, 2));
+}
+
+function _getRegionalEcology(string $prefecture): string
+{
+    if (empty($prefecture)) return '';
+    $regional = _loadEcologyData('regional_ecology.json');
+    $entry = $regional[$prefecture] ?? null;
+    if (!$entry) return '';
+    $parts = [];
+    if (!empty($entry['features'])) $parts[] = $entry['features'];
+    if (!empty($entry['biodiversity_note'])) $parts[] = $entry['biodiversity_note'];
+    if (empty($parts)) return '';
+    return "【地域の生態系（事実）】{$prefecture}: " . implode('。', $parts);
+}
+
+function _getSeasonalPhenology(int $month): string
+{
+    $pheno = _loadEcologyData('seasonal_phenology.json');
+    $entry = $pheno[(string)$month] ?? null;
+    if (!$entry) return '';
+    $events = [];
+    foreach (['bird_events', 'plant_events', 'insect_events'] as $key) {
+        if (!empty($entry[$key]) && is_array($entry[$key])) {
+            $events = array_merge($events, array_slice($entry[$key], 0, 2));
+        }
+    }
+    if (empty($events)) return '';
+    $tip = $entry['observation_tips'] ?? '';
+    return "【今月の自然（事実）】" . implode('。', array_slice($events, 0, 3)) . ($tip ? "。観察のコツ: {$tip}" : '');
+}
 
 function _inferEmotionTags(int $speciesCount, int $durationMin, int $silentMin): array
 {
