@@ -58,8 +58,9 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
 
         <!-- 録画・録音同意 -->
         <details id="settings-panel" open>
-            <summary class="text-sm text-gray-400 cursor-pointer mb-3 flex items-center gap-1">
-                <span class="text-xs">⚙️</span> 設定・確認事項
+            <summary class="text-sm text-gray-300 cursor-pointer mb-3 flex items-center justify-between bg-white/10 border border-white/10 rounded-xl px-4 py-3 hover:bg-white/15 transition">
+                <span class="flex items-center gap-2">⚙️ 設定・確認事項</span>
+                <span class="text-xs text-gray-500 transition-transform duration-200 details-arrow">▼</span>
             </summary>
 
         <div id="consent-banner" class="bg-amber-900/40 border border-amber-600/50 rounded-xl p-4 space-y-3">
