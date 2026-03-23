@@ -80,6 +80,7 @@ unset($allObs, $userObs);
                 <span class="text-sm text-gray-200">上記を確認しました</span>
             </label>
         </div>
+        </details>
 
         <!-- 感度モード -->
         <div class="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
@@ -145,7 +146,6 @@ unset($allObs, $userObs);
                 <div class="text-[9px] text-gray-600 text-right px-1 mt-2">音声: <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noopener" class="underline">VOICEVOX</a></div>
             </div>
         </div>
-        </details>
 
         <button id="btn-start"
                 class="w-full py-5 rounded-2xl text-lg font-bold bg-green-600/50 text-green-300 cursor-not-allowed transition"

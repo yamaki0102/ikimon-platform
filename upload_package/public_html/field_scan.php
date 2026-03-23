@@ -90,6 +90,7 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                 <div class="text-[10px] text-orange-200/70">目安: 徒歩15分で約5〜15MB（Wi-Fi推奨）</div>
             </div>
         </div>
+        </details>
 
         <!-- 感度モード -->
         <div class="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
@@ -170,7 +171,6 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                 <div class="text-[9px] text-gray-600 text-right px-1 mt-2">音声: <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noopener" class="underline">VOICEVOX</a></div>
             </div>
         </div>
-        </details>
 
         <button id="btn-start" class="w-full py-5 bg-green-600/50 text-green-300 cursor-not-allowed rounded-2xl text-lg font-bold transition" disabled>
             📡 スキャン開始
