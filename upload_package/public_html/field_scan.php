@@ -1320,18 +1320,20 @@ function addDetection(name, sci, conf, source, category, note) {
     // リアルタイムでサーバーに送信（デジタルツインに蓄積）
     sendDetectionToServer(name, sci, conf, source);
 
-    // 音声ガイド（同じ種は初回+5回ごとのみ。ドライブ時はアンビエント優先）
+    // 音声ガイド（検出とアンビエントを交互に。連続発話防止）
     if (VoiceGuide.isEnabled()) {
         S._vgCount = S._vgCount || {};
         S._vgCount[name] = (S._vgCount[name] || 0) + 1;
         var cnt = S._vgCount[name];
         var isFirstDet = cnt === 1;
-        var shouldSpeak = isFirstDet || cnt % 5 === 0;
-        if (shouldSpeak) {
-            if (VoiceGuide.getVoiceMode() === 'standard') {
-                var verb = conf >= 0.7 ? 'です' : conf >= 0.4 ? 'かもしれません' : 'の可能性があります';
-                VoiceGuide.announce(name + verb);
-            }
+        // 発話中・再生中はスキップ（キュー詰まり防止）
+        if (VoiceGuide.isSpeaking()) return;
+        // 前回の発話から20秒以内はスキップ（アンビエントに譲る）
+        var sinceLast = Date.now() - (S._lastDetVoiceTime || 0);
+        if (sinceLast < 20000 && !isFirstDet) return;
+        if (isFirstDet || cnt % 5 === 0) {
+            S._lastDetVoiceTime = Date.now();
+            S._lastVoiceTime = Date.now();
             _fetchVoiceGuide(name, sci, conf, cnt, isFirstDet);
         }
     }
@@ -2016,10 +2018,17 @@ async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
         if (!r.ok) return;
         var j = await r.json();
         if (j.success && j.data) {
-            if (j.data.audio_url) VoiceGuide.announceAudio(j.data.audio_url);
-            else if (j.data.guide_text) VoiceGuide.announce(j.data.guide_text);
+            S._lastVoiceTime = Date.now();
+            var vs = document.getElementById('drive-voice-status');
+            if (j.data.audio_url) {
+                if (vs) vs.textContent = '🔊 ' + (j.data.guide_text || name).substring(0, 20) + '...';
+                VoiceGuide.announceAudio(j.data.audio_url);
+            } else if (j.data.guide_text) {
+                if (vs) vs.textContent = '🔊 ' + j.data.guide_text.substring(0, 20) + '...';
+                VoiceGuide.announce(j.data.guide_text);
+            }
         }
-    } catch(e) {}
+    } catch(e) { dbg('🔊 detGuide ERR: ' + e.message); }
 }
 
 // アンビエントコメンタリー — GPS更新トリガー方式（setTimeoutはスリープで凍結されるため不使用）
@@ -2028,8 +2037,8 @@ function tryAmbient() {
     if (!S.active || !VoiceGuide.isEnabled()) return;
     if (S._ambientFetching) return;
     var since = Date.now() - (S._lastVoiceTime || 0);
-    // speakingでも60秒経ったら強制リセット（モバイルでonendedが発火しない対策）
-    if (VoiceGuide.isSpeaking() && since < 60000) return;
+    // speakingでも30秒経ったら強制リセット（モバイルでonendedが発火しない対策）
+    if (VoiceGuide.isSpeaking() && since < 30000) return;
     if (VoiceGuide.isSpeaking()) { VoiceGuide.stop(); dbg('🔊 speaking強制リセット'); }
     if (since < 30000) return;
     _fetchAmbientNow();
