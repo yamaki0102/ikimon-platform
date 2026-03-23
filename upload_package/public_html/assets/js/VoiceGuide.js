@@ -142,3 +142,213 @@ if (document.readyState === 'loading') {
 } else {
     VoiceGuide.init(); VoiceGuide.loadSetting();
 }
+
+/**
+ * GuideOrchestrator — セッション全体の感情の流れを管理
+ *
+ * 感情レンズ: wonder / quest / mastery / memory / contribution
+ * セッションフェーズ: opening → active → closing
+ * 沈黙管理: 一定時間検出がなければ silence モードを発動
+ */
+var GuideOrchestrator = (function() {
+    var LENSES = ['wonder', 'quest', 'mastery', 'memory', 'contribution'];
+    var SILENCE_THRESHOLD_MS = 5 * 60 * 1000; // 5分
+
+    var session = {
+        active: false,
+        startTime: 0,
+        detectionCount: 0,
+        lensIndex: 0,
+        lastDetectionTime: 0,
+        lastSilenceTime: 0,
+        silenceCount: 0,
+        species: [],
+        lat: 0,
+        lng: 0,
+        weather: '',
+        temperature: '',
+        highlightSpecies: '',
+        highlightConfidence: 0,
+        totalSilentMin: 0,
+    };
+
+    var silenceTimer = null;
+
+    function startSession(opts) {
+        session.active = true;
+        session.startTime = Date.now();
+        session.detectionCount = 0;
+        session.lensIndex = 0;
+        session.lastDetectionTime = Date.now();
+        session.lastSilenceTime = 0;
+        session.silenceCount = 0;
+        session.species = [];
+        session.lat = opts.lat || 0;
+        session.lng = opts.lng || 0;
+        session.weather = opts.weather || '';
+        session.temperature = opts.temperature || '';
+        session.highlightSpecies = '';
+        session.highlightConfidence = 0;
+        session.totalSilentMin = 0;
+
+        _startSilenceWatch();
+        _fetchOpening();
+    }
+
+    function endSession() {
+        if (!session.active) return;
+        session.active = false;
+        _stopSilenceWatch();
+        _fetchClosing();
+    }
+
+    function onDetection(det) {
+        if (!session.active) return;
+        session.detectionCount++;
+        session.lastDetectionTime = Date.now();
+        var name = det.japanese_name || det.name;
+        if (session.species.indexOf(name) === -1) session.species.push(name);
+        if ((det.confidence || 0) > session.highlightConfidence) {
+            session.highlightSpecies = name;
+            session.highlightConfidence = det.confidence || 0;
+        }
+        _resetSilenceWatch();
+    }
+
+    function getCurrentLens() {
+        var lens = LENSES[session.lensIndex % LENSES.length];
+        session.lensIndex++;
+        return lens;
+    }
+
+    function getSessionState() {
+        return {
+            detectionCount: session.detectionCount,
+            speciesCount: session.species.length,
+            species: session.species.slice(),
+            elapsedMin: Math.floor((Date.now() - session.startTime) / 60000),
+            highlightSpecies: session.highlightSpecies,
+            silentMin: session.totalSilentMin,
+        };
+    }
+
+    function updatePosition(lat, lng) {
+        session.lat = lat;
+        session.lng = lng;
+    }
+
+    function _fetchOpening() {
+        if (!VoiceGuide.isEnabled()) return;
+        var params = new URLSearchParams();
+        params.set('mode', 'opening');
+        params.set('lat', session.lat);
+        params.set('lng', session.lng);
+        params.set('weather', session.weather);
+        params.set('temperature', session.temperature);
+        params.set('voice_mode', VoiceGuide.getVoiceMode());
+
+        fetch('/api/v2/voice_guide.php?' + params.toString())
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(json) {
+                if (!json || !json.success || !json.data) return;
+                var d = json.data;
+                if (d.audio_url) {
+                    VoiceGuide.announceAudio(d.audio_url);
+                } else if (d.guide_text) {
+                    VoiceGuide.announce(d.guide_text);
+                }
+            })
+            .catch(function() {});
+    }
+
+    function _fetchClosing() {
+        if (!VoiceGuide.isEnabled()) return;
+        var state = getSessionState();
+        var params = new URLSearchParams();
+        params.set('mode', 'closing');
+        params.set('lat', session.lat);
+        params.set('lng', session.lng);
+        params.set('weather', session.weather);
+        params.set('species', session.species.join(','));
+        params.set('species_count', state.speciesCount);
+        params.set('duration_min', state.elapsedMin);
+        params.set('highlight_species', session.highlightSpecies || (session.species[0] || ''));
+        params.set('silent_minutes', session.totalSilentMin);
+        params.set('voice_mode', VoiceGuide.getVoiceMode());
+
+        fetch('/api/v2/voice_guide.php?' + params.toString())
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(json) {
+                if (!json || !json.success || !json.data) return;
+                var d = json.data;
+                if (d.audio_url) {
+                    VoiceGuide.announceAudio(d.audio_url);
+                } else if (d.guide_text) {
+                    VoiceGuide.announce(d.guide_text);
+                }
+            })
+            .catch(function() {});
+    }
+
+    function _fetchSilence() {
+        if (!VoiceGuide.isEnabled() || !session.active) return;
+        if (VoiceGuide.isSpeaking()) return;
+
+        var sinceLastDet = Math.floor((Date.now() - session.lastDetectionTime) / 60000);
+        session.totalSilentMin += Math.min(sinceLastDet, 5);
+
+        var params = new URLSearchParams();
+        params.set('mode', 'silence');
+        params.set('lat', session.lat);
+        params.set('lng', session.lng);
+        params.set('weather', session.weather);
+        params.set('silent_min', sinceLastDet);
+        params.set('detected_species', session.species.length > 0 ? 'これまでに' + session.species.join('、') + 'を検出' : '');
+        params.set('voice_mode', VoiceGuide.getVoiceMode());
+
+        fetch('/api/v2/voice_guide.php?' + params.toString())
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(json) {
+                if (!json || !json.success || !json.data) return;
+                var d = json.data;
+                if (d.audio_url) {
+                    VoiceGuide.announceAudio(d.audio_url);
+                } else if (d.guide_text) {
+                    VoiceGuide.announce(d.guide_text);
+                }
+            })
+            .catch(function() {});
+
+        session.silenceCount++;
+        session.lastSilenceTime = Date.now();
+    }
+
+    function _startSilenceWatch() {
+        _stopSilenceWatch();
+        silenceTimer = setInterval(function() {
+            if (!session.active) return;
+            var sinceLast = Date.now() - session.lastDetectionTime;
+            var sinceSilence = session.lastSilenceTime ? Date.now() - session.lastSilenceTime : Infinity;
+            if (sinceLast >= SILENCE_THRESHOLD_MS && sinceSilence >= SILENCE_THRESHOLD_MS) {
+                _fetchSilence();
+            }
+        }, 60000);
+    }
+
+    function _resetSilenceWatch() {
+        session.lastDetectionTime = Date.now();
+    }
+
+    function _stopSilenceWatch() {
+        if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null; }
+    }
+
+    return {
+        startSession: startSession,
+        endSession: endSession,
+        onDetection: onDetection,
+        getCurrentLens: getCurrentLens,
+        getSessionState: getSessionState,
+        updatePosition: updatePosition,
+    };
+})();
