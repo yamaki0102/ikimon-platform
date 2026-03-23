@@ -531,8 +531,8 @@ async function startScan() {
         startGpsWatch();
     }
 
-    // 車/自転車モードで音声ガイドONならアンビエントコメンタリー開始
-    if (VoiceGuide.isEnabled() && (S.mode === 'car' || S.mode === 'bike')) {
+    // 音声ガイドONならアンビエントコメンタリー開始（全モード）
+    if (VoiceGuide.isEnabled()) {
         startAmbientCommentary();
     }
 }
