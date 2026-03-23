@@ -492,6 +492,12 @@ async function startWalk() {
     showScreen('walking');
     W.walking = true;
     W.startTime = Date.now();
+    // モバイルブラウザの自動再生ロック解除（ユーザージェスチャー内で空発話）
+    if (VoiceGuide.isEnabled() && 'speechSynthesis' in window) {
+        var unlock = new SpeechSynthesisUtterance('');
+        unlock.volume = 0;
+        speechSynthesis.speak(unlock);
+    }
     W.detections = [];
     W.routePoints = [];
     W.detCountToday = {};

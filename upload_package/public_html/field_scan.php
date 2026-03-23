@@ -560,6 +560,12 @@ async function startScan() {
 
     // 音声ガイドONならアンビエントコメンタリー開始（全モード）
     if (VoiceGuide.isEnabled()) {
+        // モバイルブラウザの自動再生ロック解除（ユーザージェスチャー内で空発話）
+        if ('speechSynthesis' in window) {
+            var unlock = new SpeechSynthesisUtterance('');
+            unlock.volume = 0;
+            speechSynthesis.speak(unlock);
+        }
         startAmbientCommentary();
     }
 }
