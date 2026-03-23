@@ -565,14 +565,22 @@ async function startScan() {
     }
     // 音声ガイドONならアンビエントコメンタリー開始（全モード）
     if (VoiceGuide.isEnabled()) {
+        dbg('🔊 音声ガイドON (' + VoiceGuide.getVoiceMode() + ')');
         // モバイルブラウザの自動再生ロック解除（ユーザージェスチャー内で空発話）
         if ('speechSynthesis' in window) {
             var unlock = new SpeechSynthesisUtterance('');
             unlock.volume = 0;
             speechSynthesis.speak(unlock);
         }
-        VoiceGuide.announce('音声ガイドを開始します');
+        // 開始アナウンス（選択モードに合わせる）
+        if (VoiceGuide.getVoiceMode() === 'zundamon') {
+            VoiceGuide.announceAudio('/assets/audio/zundamon_preview.wav');
+        } else {
+            VoiceGuide.announce('音声ガイドを開始します');
+        }
         startAmbientCommentary();
+    } else {
+        dbg('🔇 音声ガイドOFF');
     }
 }
 
@@ -1993,14 +2001,20 @@ async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
 // アンビエントコメンタリー（車/自転車モード）
 var _ambientTimer = null;
 function startAmbientCommentary() {
-    if (!VoiceGuide.isEnabled()) return;
+    if (!VoiceGuide.isEnabled()) { dbg('🔇 ambient: VG disabled'); return; }
+    dbg('🔊 ambient: 開始');
     VoiceGuide.onFinish(function() { S._lastVoiceTime = Date.now(); });
+    // 初回は10秒後に実行（開始アナウンスの後）
+    setTimeout(function() {
+        dbg('🔊 ambient: 初回fetch');
+        _fetchAmbient();
+    }, 10000);
     _ambientTimer = setInterval(function() {
         if (VoiceGuide.isSpeaking()) return;
         var since = Date.now() - (S._lastVoiceTime || S.startTime);
-        if (since < 15000) return;
+        if (since < 20000) return;
         _fetchAmbient();
-    }, 10000);
+    }, 15000);
 }
 
 async function _fetchAmbient() {
@@ -2017,8 +2031,9 @@ async function _fetchAmbient() {
         p.set('voice_mode', VoiceGuide.getVoiceMode());
         p.set('session_count', S._ambientCount || 0);
         S._ambientCount = (S._ambientCount || 0) + 1;
+        dbg('🔊 API呼出し #' + S._ambientCount);
         var r = await fetch('/api/v2/voice_guide.php?' + p.toString());
-        if (!r.ok) return;
+        if (!r.ok) { dbg('🔊 API err: ' + r.status); return; }
         var j = await r.json();
         if (j.success && j.data) {
             S._lastVoiceTime = Date.now();
