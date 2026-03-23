@@ -582,29 +582,24 @@ async function startScan() {
             unlock.volume = 0;
             speechSynthesis.speak(unlock);
         }
-        // 開始アナウンス
-        if (vgMode === 'zundamon') {
-            VoiceGuide.announceAudio('/assets/audio/zundamon_preview.wav');
-        } else {
-            VoiceGuide.announce('音声ガイドを開始します');
-        }
+        // 開始アナウンス + 即座にガイド取得（setTimeoutはスリープで凍結されるため）
+        dbg('🔊 即座にAPI呼出し');
+        fetch('/api/v2/voice_guide.php?mode=ambient&lat=35.6&lng=139.7&voice_mode=' + vgMode + '&session_count=0&elapsed_min=0&detected_species=')
+            .then(function(r) { dbg('🔊 API=' + r.status); return r.json(); })
+            .then(function(j) {
+                dbg('🔊 resp ok=' + j.success);
+                if (j.success && j.data) {
+                    if (j.data.audio_url) {
+                        dbg('🔊 audio_url=' + j.data.audio_url);
+                        VoiceGuide.announceAudio(j.data.audio_url);
+                    } else if (j.data.guide_text) {
+                        dbg('🔊 text=' + j.data.guide_text.substring(0, 30));
+                        VoiceGuide.announce(j.data.guide_text);
+                    }
+                }
+            })
+            .catch(function(e) { dbg('🔊 fetch ERR: ' + e.message); });
         startAmbientCommentary();
-        // 15秒後に強制テスト発話（API不要）
-        setTimeout(function() {
-            dbg('🔊 テスト発話');
-            if (vgMode === 'zundamon') {
-                fetch('/api/v2/voice_guide.php?mode=ambient&lat=35.6&lng=139.7&voice_mode=zundamon&session_count=0&elapsed_min=0&detected_species=')
-                    .then(function(r) { dbg('🔊 API=' + r.status); return r.json(); })
-                    .then(function(j) {
-                        dbg('🔊 resp=' + JSON.stringify(j).substring(0, 100));
-                        if (j.success && j.data && j.data.audio_url) VoiceGuide.announceAudio(j.data.audio_url);
-                        else if (j.success && j.data && j.data.guide_text) VoiceGuide.announce(j.data.guide_text);
-                    })
-                    .catch(function(e) { dbg('🔊 fetch ERR: ' + e.message); });
-            } else {
-                VoiceGuide.announce('テスト。音声ガイドは正常に動いています。');
-            }
-        }, 15000);
     } else {
         dbg('🔇 OFF');
     }
