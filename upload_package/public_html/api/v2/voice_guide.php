@@ -225,6 +225,25 @@ try {
 
 $displayName = $name ?: $sciName;
 
+// 地域情報を取得
+$lat = api_param('lat', 0, 'float');
+$lng = api_param('lng', 0, 'float');
+$areaName = '';
+if ($lat && $lng) {
+    try {
+        require_once ROOT_DIR . '/libs/GeoUtils.php';
+        $geo = GeoUtils::reverseGeocode($lat, $lng);
+        $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
+    } catch (Throwable $e) {}
+}
+
+// 分類カテゴリ名かどうか判定（常緑広葉樹、落葉高木 etc → 具体種を教えるモード）
+$isCategoryName = preg_match('/^(常緑|落葉|針葉|広葉|低木|高木|草本|つる性|シダ|イネ科|キク科)/', $name);
+$nearbyContext = '';
+if ($lat && $lng) {
+    $nearbyContext = _getNearbyObservations($lat, $lng, 2.0);
+}
+
 $styleInstruction = $isZundamon
     ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」を使い、元気で親しみやすい感じ。一人称は「ずんだもん」。'
     : '優しいネイチャーガイドの口調で話してください。「〜ですよ」「〜なんです」など親しみやすく。';
@@ -239,26 +258,53 @@ $avoidList = !empty($recentTexts)
     ? "以下は最近話した内容です。これらと全く別の角度にしてください:\n" . implode("\n", array_map(fn($t) => "- {$t}", $recentTexts))
     : '';
 
+$categoryInstruction = $isCategoryName
+    ? "「{$displayName}」は分類カテゴリ名です。この地域（{$areaName}）で実際に見られる具体的な種名を挙げて、「この辺りだと〇〇や△△が見られるかも」のように話してください。季節や時間帯に合った種を選んで。"
+    : '';
+
+$areaInstruction = $areaName ? "地域: {$areaName}" : '';
+$nearbyInstruction = $nearbyContext ? "付近の過去観察データ:\n{$nearbyContext}" : '';
+
+// 解説パターンをランダムに選択（飽きさせない工夫）
+$talkAngles = [
+    'この地域で実際に見られる具体的な種を挙げて「この辺りだと〇〇がいるかも」と教えて',
+    'この生き物に関する意外な豆知識を1つ教えて（「実は…」で始めて）',
+    'この季節・この時間帯ならではの観察のコツを教えて',
+    '日本の文化や歴史との関わりを1つ教えて（俳句・和歌・民話・言い伝えなど）',
+    'この生き物の名前の由来や語源を教えて',
+    'この生き物と他の生き物との面白い関係（共生・食物連鎖・競争など）を教えて',
+    '「もし車を降りて近くで見たら」何に注目すべきか教えて',
+    'この地域の自然環境の特徴と、この生き物がなぜここにいるのか教えて',
+    '世界や日本の他の地域と比較して、この地域の特徴を教えて',
+    'この生き物を通じて分かる生態系の健康度や環境の変化について教えて',
+];
+$chosenAngle = $talkAngles[array_rand($talkAngles)];
+
 $prompt = <<<PROMPT
 あなたは移動中の人に音声で読み上げる、生き物の短い解説を作る係です。
 
 {$styleInstruction}
 
 生き物: {$displayName}（{$sciName}）
+{$areaInstruction}
 季節: {$seasonName}（{$month}月）
 時間帯: {$timeOfDay}
 {$contextStr}
+{$categoryInstruction}
 
 図鑑情報: {$traits}
+{$nearbyInstruction}
 
 {$avoidList}
 
+今回の話し方: {$chosenAngle}
+
 条件:
-- 1〜2文、50文字以内
-- 毎回違う角度で（生態・文化・歴史・季節の行動・豆知識・名前の由来などランダムに選んで）
+- 2〜3文、80文字以内
+- 上記の「今回の話し方」に従って話して。毎回違う切り口になるようシステムが選んでいます
 - 音声読み上げ用なので、難しい漢字はひらがなで書く（例: 囀り→さえずり、蝶→チョウ）
 - 学名は読み上げないで
-- 聞いて「へぇ」と思える内容に
+- 聞いて「へぇ」と思える具体的な内容に
 PROMPT;
 
 $guideText = _callGemini($prompt);
