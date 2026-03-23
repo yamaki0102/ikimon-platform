@@ -118,6 +118,9 @@ foreach ($targets as $sciName => $data) {
     // Gemini で構造化抽出
     if ($apiKey && !$dryRun) {
         $newFacts = _extractFactsWithGemini($jaName, $sciName, $rawSources, $data);
+        if ($newFacts === null) {
+            echo "  ⚠ Gemini extraction failed\n";
+        }
         if (!empty($newFacts)) {
             // 既存の facts に追加（重複除去）
             $existingFacts = $data['facts'] ?? [$data['ecosystem_role'] ?? ''];
@@ -376,10 +379,16 @@ PROMPT;
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    if ($httpCode !== 200 || !$response) return null;
+    if ($httpCode !== 200 || !$response) {
+        echo "    Gemini HTTP: {$httpCode}\n";
+        return null;
+    }
 
     $data = json_decode($response, true);
     $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+    if (!$text) {
+        echo "    Gemini: empty response\n";
+    }
     if (!$text) return null;
 
     $result = json_decode($text, true);
