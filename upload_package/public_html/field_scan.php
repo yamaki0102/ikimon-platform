@@ -213,9 +213,12 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
     <video id="cam" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:55%;object-fit:cover"></video>
     <canvas id="cap" style="display:none"></canvas>
 
+    <!-- 停止ボタン（トップバー外に配置 — モバイルのタップ判定問題を回避） -->
+    <button id="btn-stop" style="position:absolute;top:8px;left:12px;padding:8px;border-radius:50%;background:rgba(255,0,0,0.6);z-index:9999;color:#fff;border:none;font-size:16px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">✕</button>
+
     <!-- トップバー -->
     <div style="position:absolute;top:0;left:0;right:0;z-index:10;padding:8px 12px;background:linear-gradient(to bottom,rgba(0,0,0,0.7),transparent);display:flex;align-items:center;justify-content:space-between;padding-top:max(env(safe-area-inset-top),8px)">
-        <button id="btn-stop" style="padding:8px;border-radius:50%;background:rgba(255,0,0,0.6)">✕</button>
+        <div style="width:32px"></div>
         <div id="sensor-badges" style="display:flex;gap:6px">
             <span id="s-cam" style="font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666">📷</span>
             <span id="s-mic" style="font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666">🎤</span>
@@ -477,7 +480,7 @@ async function startScan() {
     // 全モード共通: 停止ボタンを画面下部に大きく固定配置
     var stopBtn = document.getElementById('btn-stop');
     if (stopBtn) {
-        stopBtn.style.cssText = 'position:fixed;bottom:max(env(safe-area-inset-bottom,8px),12px);left:50%;transform:translateX(-50%);padding:14px 40px;border-radius:16px;background:rgba(255,0,0,0.85);color:#fff;font-size:16px;font-weight:bold;border:2px solid rgba(255,255,255,0.4);z-index:9999;box-shadow:0 4px 20px rgba(255,0,0,0.4);-webkit-tap-highlight-color:transparent';
+        stopBtn.style.cssText = 'position:fixed;bottom:max(env(safe-area-inset-bottom,8px),12px);left:50%;transform:translateX(-50%);padding:14px 40px;border-radius:16px;background:rgba(255,0,0,0.85);color:#fff;font-size:16px;font-weight:bold;border:2px solid rgba(255,255,255,0.4);z-index:9999;box-shadow:0 4px 20px rgba(255,0,0,0.4);-webkit-tap-highlight-color:transparent;touch-action:manipulation';
         stopBtn.textContent = '■ スキャン終了';
     }
     if (S.mode === 'car') applyDriveLayout();
@@ -745,25 +748,27 @@ function getAdaptiveAudioMs() {
 // ===== Stop =====
 function stopScan() {
     S.active = false;
-    clearInterval(S.timerInt);
-    if (S.captureInt) clearTimeout(S.captureInt);
-    clearInterval(S.envInt);
-    if (S.batchTimer) clearInterval(S.batchTimer);
-    if (S.recTimer) clearTimeout(S.recTimer);
-    VoiceGuide.stop();
-    if (_ambientTimer) { clearInterval(_ambientTimer); _ambientTimer = null; }
-    if (S.recorder && S.recorder.state === 'recording') try { S.recorder.stop(); } catch(e) {}
-    if (S.watchId) navigator.geolocation.clearWatch(S.watchId);
-    if (S._gpsPollTimer) clearInterval(S._gpsPollTimer);
-    if (S.stream) S.stream.getTracks().forEach(function(t) { t.stop(); });
-    if (S.audioCtx) try { S.audioCtx.close(); } catch(e) {}
-    if (S.minimap) { S.minimap.remove(); S.minimap = null; }
+
+    // リソース解放（各行を try/catch で保護 — 1つの失敗で終了遷移が止まらないように）
+    try { clearInterval(S.timerInt); } catch(e) {}
+    try { if (S.captureInt) clearTimeout(S.captureInt); } catch(e) {}
+    try { clearInterval(S.envInt); } catch(e) {}
+    try { if (S.batchTimer) clearInterval(S.batchTimer); } catch(e) {}
+    try { if (S.recTimer) clearTimeout(S.recTimer); } catch(e) {}
+    try { VoiceGuide.stop(); } catch(e) { dbg('⚠️ VoiceGuide.stop err: ' + e.message); }
+    try { if (_ambientTimer) { clearInterval(_ambientTimer); _ambientTimer = null; } } catch(e) {}
+    try { if (S.recorder && S.recorder.state === 'recording') S.recorder.stop(); } catch(e) {}
+    try { if (S.watchId) navigator.geolocation.clearWatch(S.watchId); } catch(e) {}
+    try { if (S._gpsPollTimer) clearInterval(S._gpsPollTimer); } catch(e) {}
+    try { if (S.stream) S.stream.getTracks().forEach(function(t) { t.stop(); }); } catch(e) {}
+    try { if (S.audioCtx) S.audioCtx.close(); } catch(e) {}
+    try { if (S.minimap) { S.minimap.remove(); S.minimap = null; } } catch(e) {}
 
     var sp = Object.keys(S.speciesMap).length;
     var sec = Math.floor((Date.now() - S.startTime) / 1000);
     var min = Math.floor(sec / 60);
 
-    postScanSummary(sp, min);
+    try { postScanSummary(sp, min); } catch(e) {}
 
     var summaryText = sp + '種検出 · ' + min + '分間のスキャン · 📶 ' + formatDataUsage(S.dataUsage);
     if (typeof BioPrescreen !== 'undefined' && BioPrescreen.stats.total > 0) {
@@ -776,10 +781,10 @@ function stopScan() {
     var speciesList = Object.entries(S.speciesMap).map(function(e) {
         return {name: e[0], scientific_name: '', confidence: e[1].confidence, count: e[1].count};
     });
-    fetchScanRecap(speciesList, sec);
+    try { fetchScanRecap(speciesList, sec); } catch(e) {}
 
     // 最終フラッシュ（未送信分 + セッション完了通知）
-    flushEvents(true);
+    try { flushEvents(true); } catch(e) {}
 }
 
 // ===== 増分バッチ送信 =====
@@ -1975,7 +1980,9 @@ if (_sensSlider) _sensSlider.addEventListener('input', function() {
 
 // ===== Buttons =====
 document.getElementById('btn-start').addEventListener('click', startScan);
-document.getElementById('btn-stop').addEventListener('click', stopScan);
+var _stopBtn = document.getElementById('btn-stop');
+_stopBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); stopScan(); });
+_stopBtn.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); stopScan(); }, {passive: false});
 
 // ページ読込時に未送信データを自動再送
 retryScanPending();
@@ -2053,6 +2060,7 @@ async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
         p.set('detection_count', count || 1);
         p.set('is_first_today', isFirst ? '1' : '0');
         p.set('voice_mode', VoiceGuide.getVoiceMode());
+        p.set('transport_mode', S.mode || 'walk');
         var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
         if (last) { p.set('lat', last.lat); p.set('lng', last.lng); }
         var r = await fetch('/api/v2/voice_guide.php?' + p.toString());
@@ -2100,6 +2108,7 @@ async function _fetchAmbientNow() {
         p.set('detected_species', names);
         p.set('elapsed_min', min);
         p.set('voice_mode', VoiceGuide.getVoiceMode());
+        p.set('transport_mode', S.mode || 'walk');
         p.set('session_count', S._ambientCount || 0);
         S._ambientCount = (S._ambientCount || 0) + 1;
         dbg('🔊 API #' + S._ambientCount);
