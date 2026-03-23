@@ -55,12 +55,6 @@ unset($allObs, $userObs);
             <p class="text-sm text-gray-400 mt-1">スマホを持って散歩するだけ。周囲の音をAIが自動で分析します。</p>
         </div>
 
-        <!-- 即開始ボタン（2回目以降表示） -->
-        <button id="btn-start-quick" class="w-full py-5 rounded-2xl text-lg font-bold bg-green-600 hover:bg-green-700 active:scale-95 transition hidden"
-                onclick="document.getElementById('btn-start').click()">
-            🎧 ウォーク開始
-        </button>
-
         <details id="settings-panel" open>
             <summary class="text-sm text-gray-400 cursor-pointer mb-3 flex items-center gap-1">
                 <span class="text-xs">⚙️</span> 設定・確認事項
@@ -1288,26 +1282,15 @@ function loadNearbyToilets(lat, lng, targetMap) {
             btn.className = 'w-full py-5 rounded-2xl text-lg font-bold bg-green-600/50 text-green-300 cursor-not-allowed transition';
         }
     }
-    var quickBtn = document.getElementById('btn-start-quick');
     var panel = document.getElementById('settings-panel');
-    function syncQuickBtn(consented) {
-        if (consented) {
-            quickBtn.classList.remove('hidden');
-            if (panel) panel.removeAttribute('open');
-        } else {
-            quickBtn.classList.add('hidden');
-            if (panel) panel.setAttribute('open', '');
-        }
-    }
     if (localStorage.getItem('ikimon_walk_consent') === '1') {
         cb.checked = true;
         updateBtn(true);
-        syncQuickBtn(true);
+        if (panel) panel.removeAttribute('open');
     }
     cb.addEventListener('change', function() {
         localStorage.setItem('ikimon_walk_consent', this.checked ? '1' : '0');
         updateBtn(this.checked);
-        syncQuickBtn(this.checked);
     });
 })();
 
