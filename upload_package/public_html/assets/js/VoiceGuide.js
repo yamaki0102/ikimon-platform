@@ -14,6 +14,7 @@ var VoiceGuide = (function() {
     var queue = [];
     var speaking = false;
     var currentAudio = null;
+    var onFinishCallback = null;
 
     function init() {
         if ('speechSynthesis' in window) {
@@ -73,8 +74,14 @@ var VoiceGuide = (function() {
         if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     }
 
+    function onFinish(fn) { onFinishCallback = fn; }
+
     function _processQueue() {
-        if (queue.length === 0) { speaking = false; return; }
+        if (queue.length === 0) {
+            speaking = false;
+            if (onFinishCallback) onFinishCallback();
+            return;
+        }
         speaking = true;
         var item = queue.shift();
         if (item.type === 'audio') {
@@ -113,6 +120,8 @@ var VoiceGuide = (function() {
         loadSetting: loadSetting,
         announce: announce,
         announceAudio: announceAudio,
+        onFinish: onFinish,
+        isSpeaking: function() { return speaking; },
         stop: stop
     };
 })();
