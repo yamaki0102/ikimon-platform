@@ -1480,10 +1480,10 @@ async function fetchVoiceGuide(name, sciName, confidence, count, isFirst) {
 var ambientTimer = null;
 function startAmbientCommentary() {
     if (!W.driveMode || !VoiceGuide.isEnabled()) return;
-    var INTERVAL = 60 * 1000; // 1分ごとにチェック
+    var INTERVAL = 35 * 1000; // 35秒ごとにチェック
     ambientTimer = setInterval(function() {
         var sinceLast = Date.now() - (W.lastCommentaryTime || W.startTime);
-        if (sinceLast < 40000) return; // 最後の発話から40秒未満ならスキップ
+        if (sinceLast < 20000) return; // 最後の発話から20秒未満ならスキップ
         fetchAmbientCommentary();
     }, INTERVAL);
 }
