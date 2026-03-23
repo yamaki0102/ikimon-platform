@@ -130,27 +130,37 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                     <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
                 </label>
             </div>
-            <div id="vg-mode-sel" class="flex flex-wrap gap-2 px-1" style="display:none">
-                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition vg-mode-btn active"
-                        data-vmode="bluetooth" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
-                    📶 Bluetooth
-                </button>
-                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
-                        data-vmode="mochiko" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                    🐶 もち子さん
-                </button>
-                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
-                        data-vmode="ryusei" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                    🐉 青山龍星
-                </button>
-                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
-                        data-vmode="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                    🟢 ずんだもん
-                </button>
-                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
-                        data-vmode="standard" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                    📱 端末読み上げ
-                </button>
+            <div id="vg-settings" style="display:none">
+                <div class="text-[10px] text-gray-500 px-1 mb-1">出力先</div>
+                <div class="flex gap-2 px-1 mb-3">
+                    <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-output-btn active"
+                            data-output="bluetooth" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
+                        📶 Bluetooth
+                    </button>
+                    <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-output-btn"
+                            data-output="speaker" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                        📱 端末スピーカー
+                    </button>
+                </div>
+                <div class="text-[10px] text-gray-500 px-1 mb-1">話者</div>
+                <div class="flex flex-wrap gap-2 px-1">
+                    <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn active"
+                            data-speaker="auto" style="border-color:#8b5cf6;background:rgba(139,92,246,0.1);color:#c4b5fd">
+                        🎙️ 自動
+                    </button>
+                    <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
+                            data-speaker="mochiko" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                        🐶 もち子さん
+                    </button>
+                    <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
+                            data-speaker="ryusei" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                        🐉 青山龍星
+                    </button>
+                    <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
+                            data-speaker="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                        🟢 ずんだもん
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -1999,25 +2009,26 @@ document.addEventListener('visibilitychange', function() {
 });
 
 // ===== Voice Guide helpers =====
-function selectVgMode(mode) {
-    VoiceGuide.setVoiceMode(mode);
-    document.querySelectorAll('.vg-mode-btn').forEach(function(b) {
-        var active = b.dataset.vmode === mode;
-        b.classList.toggle('active', active);
-        b.style.borderColor = active ? '#3b82f6' : 'transparent';
-        b.style.background = active ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.05)';
-        b.style.color = active ? '#93c5fd' : '#9ca3af';
+function selectVgOutput(o) {
+    VoiceGuide.setOutput(o);
+    document.querySelectorAll('.vg-output-btn').forEach(function(b) {
+        var on = b.dataset.output === o;
+        b.classList.toggle('active', on);
+        b.style.borderColor = on ? '#3b82f6' : 'transparent';
+        b.style.background = on ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.05)';
+        b.style.color = on ? '#93c5fd' : '#9ca3af';
     });
-    // プレビュー再生（選択確認）
-    if (mode === 'standard') {
-        if ('speechSynthesis' in window) {
-            var u = new SpeechSynthesisUtterance('音声ガイドです');
-            u.lang = 'ja-JP'; u.rate = 1.0;
-            speechSynthesis.speak(u);
-        }
-    } else {
-        new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
-    }
+}
+function selectVgSpeaker(s) {
+    VoiceGuide.setSpeaker(s);
+    document.querySelectorAll('.vg-speaker-btn').forEach(function(b) {
+        var on = b.dataset.speaker === s;
+        b.classList.toggle('active', on);
+        b.style.borderColor = on ? '#8b5cf6' : 'transparent';
+        b.style.background = on ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.05)';
+        b.style.color = on ? '#c4b5fd' : '#9ca3af';
+    });
+    new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
 }
 
 async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
@@ -2097,19 +2108,24 @@ async function _fetchAmbientNow() {
 // 音声ガイド: イベントリスナー登録（CSP nonce対応 — onchange/onclick は CSP でブロックされる）
 document.addEventListener('DOMContentLoaded', function() {
     var vgToggle = document.getElementById('voice-guide-toggle');
+    var vgSettings = document.getElementById('vg-settings');
     if (vgToggle) {
         vgToggle.addEventListener('change', function() {
             try { VoiceGuide.setEnabled(this.checked); } catch(e) {}
-            document.getElementById('vg-mode-sel').style.display = this.checked ? 'flex' : 'none';
+            if (vgSettings) vgSettings.style.display = this.checked ? 'block' : 'none';
         });
     }
-    document.querySelectorAll('.vg-mode-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() { selectVgMode(this.dataset.vmode); });
+    document.querySelectorAll('.vg-output-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() { selectVgOutput(this.dataset.output); });
     });
-    // 設定復元
+    document.querySelectorAll('.vg-speaker-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() { selectVgSpeaker(this.dataset.speaker); });
+    });
     if (typeof VoiceGuide !== 'undefined' && VoiceGuide.isEnabled()) {
-        if (vgToggle) { vgToggle.checked = true; document.getElementById('vg-mode-sel').style.display = 'flex'; }
-        selectVgMode(VoiceGuide.getVoiceMode());
+        if (vgToggle) { vgToggle.checked = true; }
+        if (vgSettings) vgSettings.style.display = 'block';
+        selectVgOutput(VoiceGuide.getOutput());
+        selectVgSpeaker(VoiceGuide.getSpeaker());
     }
 });
 

@@ -4,7 +4,7 @@
  * API v2: Voice Guide — AI解説 + VOICEVOX音声生成
  *
  * GET /api/v2/voice_guide.php
- *   ?name=シジュウカラ&scientific_name=Parus+minor&confidence=0.85&voice_mode=standard|bluetooth|zundamon
+ *   ?name=シジュウカラ&scientific_name=Parus+minor&confidence=0.85&voice_mode=standard|auto|mochiko|ryusei|zundamon
  *   ?mode=ambient&lat=35.0&lng=139.0&detected_species=シジュウカラ,ウグイス  (定期コメンタリー)
  *
  * レスポンス:
@@ -25,9 +25,9 @@ if (!api_rate_limit('voice_guide', 30, 60)) {
 }
 
 $requestMode = api_param('mode', 'detection');
-$voiceMode = api_param('voice_mode', 'bluetooth');
-if (!in_array($voiceMode, ['standard', 'bluetooth', 'mochiko', 'ryusei', 'zundamon'], true)) {
-    $voiceMode = 'bluetooth';
+$voiceMode = api_param('voice_mode', 'auto');
+if (!in_array($voiceMode, ['standard', 'auto', 'mochiko', 'ryusei', 'zundamon'], true)) {
+    $voiceMode = 'auto';
 }
 $isZundamonStyle = ($voiceMode === 'zundamon');
 $useVoicevoxAudio = ($voiceMode !== 'standard');

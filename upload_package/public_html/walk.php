@@ -91,7 +91,7 @@ unset($allObs, $userObs);
         </div>
 
         <!-- 音声ガイド設定 -->
-        <div id="voice-settings" class="space-y-2">
+        <div class="space-y-2">
             <div class="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
                 <div class="flex items-center gap-2">
                     <span class="text-lg">🔊</span>
@@ -105,27 +105,37 @@ unset($allObs, $userObs);
                     <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
                 </label>
             </div>
-            <div id="voice-mode-selector" class="flex flex-wrap gap-2 px-1" style="display:none">
-                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition voice-mode-btn active"
-                        data-vmode="bluetooth" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
-                    📶 Bluetooth
-                </button>
-                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition voice-mode-btn"
-                        data-vmode="mochiko" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                    🐶 もち子さん
-                </button>
-                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition voice-mode-btn"
-                        data-vmode="ryusei" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                    🐉 青山龍星
-                </button>
-                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition voice-mode-btn"
-                        data-vmode="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                    🟢 ずんだもん
-                </button>
-                <button type="button" class="flex-1 min-w-[30%] py-2 rounded-lg text-xs font-bold border transition voice-mode-btn"
-                        data-vmode="standard" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
-                    📱 端末読み上げ
-                </button>
+            <div id="voice-settings" style="display:none">
+                <div class="text-[10px] text-gray-500 px-1 mb-1">出力先</div>
+                <div class="flex gap-2 px-1 mb-3">
+                    <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition voice-output-btn active"
+                            data-output="bluetooth" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
+                        📶 Bluetooth
+                    </button>
+                    <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition voice-output-btn"
+                            data-output="speaker" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                        📱 端末スピーカー
+                    </button>
+                </div>
+                <div class="text-[10px] text-gray-500 px-1 mb-1">話者</div>
+                <div class="flex flex-wrap gap-2 px-1">
+                    <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition voice-speaker-btn active"
+                            data-speaker="auto" style="border-color:#8b5cf6;background:rgba(139,92,246,0.1);color:#c4b5fd">
+                        🎙️ 自動
+                    </button>
+                    <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition voice-speaker-btn"
+                            data-speaker="mochiko" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                        🐶 もち子さん
+                    </button>
+                    <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition voice-speaker-btn"
+                            data-speaker="ryusei" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                        🐉 青山龍星
+                    </button>
+                    <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition voice-speaker-btn"
+                            data-speaker="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                        🟢 ずんだもん
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -1280,47 +1290,48 @@ function loadNearbyToilets(lat, lng, targetMap) {
 var sensToggle = document.getElementById('sensitivity-toggle');
 if (sensToggle) sensToggle.addEventListener('change', function() { W.highSensitivity = this.checked; });
 
-function selectVoiceMode(mode) {
-    VoiceGuide.setVoiceMode(mode);
-    document.querySelectorAll('.voice-mode-btn').forEach(function(b) {
-        var isActive = b.dataset.vmode === mode;
-        b.classList.toggle('active', isActive);
-        b.style.borderColor = isActive ? '#3b82f6' : 'transparent';
-        b.style.background = isActive ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.05)';
-        b.style.color = isActive ? '#93c5fd' : '#9ca3af';
+function selectOutput(o) {
+    VoiceGuide.setOutput(o);
+    document.querySelectorAll('.voice-output-btn').forEach(function(b) {
+        var on = b.dataset.output === o;
+        b.classList.toggle('active', on);
+        b.style.borderColor = on ? '#3b82f6' : 'transparent';
+        b.style.background = on ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.05)';
+        b.style.color = on ? '#93c5fd' : '#9ca3af';
     });
-    if (mode === 'standard') {
-        if ('speechSynthesis' in window) {
-            var u = new SpeechSynthesisUtterance('音声ガイドです');
-            u.lang = 'ja-JP'; u.rate = 1.0;
-            speechSynthesis.speak(u);
-        }
-    } else {
-        new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
-    }
+}
+function selectSpeaker(s) {
+    VoiceGuide.setSpeaker(s);
+    document.querySelectorAll('.voice-speaker-btn').forEach(function(b) {
+        var on = b.dataset.speaker === s;
+        b.classList.toggle('active', on);
+        b.style.borderColor = on ? '#8b5cf6' : 'transparent';
+        b.style.background = on ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.05)';
+        b.style.color = on ? '#c4b5fd' : '#9ca3af';
+    });
+    new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
 }
 
-// 音声ガイドトグル連動
-document.getElementById('voice-toggle').addEventListener('change', function() {
-    var sel = document.getElementById('voice-mode-selector');
-    if (sel) sel.style.display = this.checked ? 'flex' : 'none';
-});
-
-// 音声ガイド: イベントリスナー登録 + 設定復元（CSP nonce対応）
 document.addEventListener('DOMContentLoaded', function() {
     var vgToggle = document.getElementById('voice-toggle');
+    var vgSettings = document.getElementById('voice-settings');
     if (vgToggle) {
         vgToggle.addEventListener('change', function() {
             try { VoiceGuide.setEnabled(this.checked); } catch(e) {}
-            document.getElementById('voice-mode-selector').style.display = this.checked ? 'flex' : 'none';
+            if (vgSettings) vgSettings.style.display = this.checked ? 'block' : 'none';
         });
     }
-    document.querySelectorAll('.voice-mode-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() { selectVoiceMode(this.dataset.vmode); });
+    document.querySelectorAll('.voice-output-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() { selectOutput(this.dataset.output); });
+    });
+    document.querySelectorAll('.voice-speaker-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() { selectSpeaker(this.dataset.speaker); });
     });
     if (typeof VoiceGuide !== 'undefined' && VoiceGuide.isEnabled()) {
-        if (vgToggle) { vgToggle.checked = true; document.getElementById('voice-mode-selector').style.display = 'flex'; }
-        selectVoiceMode(VoiceGuide.getVoiceMode());
+        if (vgToggle) { vgToggle.checked = true; }
+        if (vgSettings) vgSettings.style.display = 'block';
+        selectOutput(VoiceGuide.getOutput());
+        selectSpeaker(VoiceGuide.getSpeaker());
     }
 });
 
