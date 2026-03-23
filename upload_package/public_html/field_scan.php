@@ -1953,6 +1953,16 @@ function selectVgMode(mode) {
         b.style.background = active ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.05)';
         b.style.color = active ? '#93c5fd' : '#9ca3af';
     });
+    // プレビュー再生（選択確認）
+    if (mode === 'zundamon') {
+        new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
+    } else {
+        if ('speechSynthesis' in window) {
+            var u = new SpeechSynthesisUtterance('音声ガイドです');
+            u.lang = 'ja-JP'; u.rate = 1.0;
+            speechSynthesis.speak(u);
+        }
+    }
 }
 
 async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
