@@ -652,10 +652,25 @@ function _getEcologyContext(string $key, string $displayName): string
     }
     if (!$entry) return '';
     $parts = [];
-    if (!empty($entry['ecosystem_role'])) $parts[] = "生態系での役割: {$entry['ecosystem_role']}";
-    if (!empty($entry['indicates'])) $parts[] = "この種がいる意味: {$entry['indicates']}";
+
+    // facts（配列）からランダムに1つ選ぶ。旧形式(ecosystem_role文字列)にも対応
+    $facts = $entry['facts'] ?? null;
+    if (is_array($facts) && !empty($facts)) {
+        $parts[] = "生態系の事実: " . $facts[array_rand($facts)];
+    } elseif (!empty($entry['ecosystem_role'])) {
+        $parts[] = "生態系での役割: {$entry['ecosystem_role']}";
+    }
+
+    // indicates（配列）からランダムに1つ選ぶ
+    $indicates = $entry['indicates'] ?? null;
+    if (is_array($indicates) && !empty($indicates)) {
+        $parts[] = "この種がいる意味: " . $indicates[array_rand($indicates)];
+    } elseif (is_string($indicates) && !empty($indicates)) {
+        $parts[] = "この種がいる意味: {$indicates}";
+    }
+
     if (!empty($entry['food_web'])) $parts[] = "食物連鎖: {$entry['food_web']}";
-    return "【生態系データ（事実）】\n" . implode("\n", $parts);
+    return "【生態系データ（事実。これを根拠にして話して）】\n" . implode("\n", $parts);
 }
 
 function _getCoOccurrence(string $key, string $displayName): string
