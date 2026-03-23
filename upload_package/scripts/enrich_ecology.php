@@ -169,6 +169,23 @@ if (!$dryRun && $enrichedCount > 0) {
 // Helper Functions
 // ====================================================================
 
+function _curlGet(string $url, int $timeout = 10): ?string
+{
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTPHEADER => ['User-Agent: ikimon.life/1.0 (biodiversity research; contact@ikimon.life)'],
+    ]);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return ($httpCode === 200 && $response) ? $response : null;
+}
+
 function _fetchWikipedia(string $jaName): ?string
 {
     $url = 'https://ja.wikipedia.org/w/api.php?' . http_build_query([
@@ -182,19 +199,13 @@ function _fetchWikipedia(string $jaName): ?string
         'redirects' => 1,
     ]);
 
-    $ctx = stream_context_create(['http' => [
-        'header' => "User-Agent: ikimon.life/1.0 (biodiversity research; contact@ikimon.life)\r\n",
-        'timeout' => 10,
-    ]]);
-
-    $response = @file_get_contents($url, false, $ctx);
+    $response = _curlGet($url);
     if (!$response) return null;
 
     $data = json_decode($response, true);
     $pages = $data['query']['pages'] ?? [];
     foreach ($pages as $page) {
         if (isset($page['extract']) && mb_strlen($page['extract']) > 100) {
-            // 最大3000文字に制限（Geminiのコンテキスト節約）
             return mb_substr($page['extract'], 0, 3000);
         }
     }
@@ -203,26 +214,19 @@ function _fetchWikipedia(string $jaName): ?string
 
 function _fetchGBIF(string $sciName): ?array
 {
-    // Step 1: species lookup
     $url = 'https://api.gbif.org/v1/species/match?' . http_build_query([
         'name' => $sciName,
         'strict' => 'true',
     ]);
 
-    $ctx = stream_context_create(['http' => ['timeout' => 10,
-        'header' => "User-Agent: ikimon.life/1.0\r\n"]]);
-
-    $response = @file_get_contents($url, false, $ctx);
+    $response = _curlGet($url);
     if (!$response) return null;
 
     $match = json_decode($response, true);
     if (empty($match['usageKey'])) return null;
 
     $speciesKey = $match['usageKey'];
-
-    // Step 2: species detail
-    $detailUrl = "https://api.gbif.org/v1/species/{$speciesKey}";
-    $detailResp = @file_get_contents($detailUrl, false, $ctx);
+    $detailResp = _curlGet("https://api.gbif.org/v1/species/{$speciesKey}");
     $detail = $detailResp ? json_decode($detailResp, true) : [];
 
     return [
@@ -239,14 +243,10 @@ function _fetchGBIF(string $sciName): ?array
 
 function _fetchSemanticScholar(string $sciName, string $jaName): array
 {
-    // Semantic Scholar API — ecology papers
     $query = urlencode("{$sciName} ecology Japan");
     $url = "https://api.semanticscholar.org/graph/v1/paper/search?query={$query}&limit=5&fields=title,abstract,year,citationCount";
 
-    $ctx = stream_context_create(['http' => ['timeout' => 10,
-        'header' => "User-Agent: ikimon.life/1.0\r\n"]]);
-
-    $response = @file_get_contents($url, false, $ctx);
+    $response = _curlGet($url, 15);
     if (!$response) return [];
 
     $data = json_decode($response, true);
@@ -269,10 +269,7 @@ function _fetchJStage(string $jaName): array
     $query = urlencode("{$jaName} 生態");
     $url = "https://api.jstage.jst.go.jp/searchapi/do?service=3&keyword={$query}&count=5";
 
-    $ctx = stream_context_create(['http' => ['timeout' => 10,
-        'header' => "User-Agent: ikimon.life/1.0\r\n"]]);
-
-    $response = @file_get_contents($url, false, $ctx);
+    $response = _curlGet($url);
     if (!$response) return [];
 
     // J-STAGE returns XML
