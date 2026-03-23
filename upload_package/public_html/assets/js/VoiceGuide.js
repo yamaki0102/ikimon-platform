@@ -246,14 +246,17 @@ var GuideOrchestrator = (function() {
         var key = det ? (det.scientific_name || name) : '';
         var conf = det ? (det.confidence || 0) : 0;
         var thisSpeciesCount = session.speciesDetCounts[key] || 0;
-        var isNewSpecies = thisSpeciesCount <= 1;
+        var isNewToUser = det ? !!det._isNewToUser : false;
+        var isNewInSession = thisSpeciesCount <= 1;
         var elapsed = Math.floor((Date.now() - session.startTime) / 60000);
 
-        // 初検出 or 高確信度の新種 → 必ず wonder
-        if (session.detectionCount <= 1) return 'wonder';
-        if (isNewSpecies && conf >= 0.7) return 'wonder';
+        // Life List に未登録の種 → 必ず wonder（本当の「新しい出会い」）
+        if (isNewToUser && conf >= 0.5) return 'wonder';
 
-        // 同種の再検出 → mastery（見分け方や生態の深い話）
+        // セッション初検出 → wonder
+        if (session.detectionCount <= 1) return 'wonder';
+
+        // 同種の再検出3回以上 → mastery（見分け方や生態の深い話）
         if (thisSpeciesCount >= 3) return 'mastery';
 
         // セッション後半（20分以降） → memory に傾ける
@@ -261,10 +264,13 @@ var GuideOrchestrator = (function() {
             return (session.detectionCount % 2 === 0) ? 'memory' : 'quest';
         }
 
-        // 3種以上見つかったらcontribution
+        // 3種以上見つかったら contribution
         if (session.species.length >= 3 && session.detectionCount % 3 === 0) return 'contribution';
 
-        // 通常: wonder と quest を交互（好奇心を維持）
+        // セッション内で初めての種（Life Listには既存） → quest（次を探す動機）
+        if (isNewInSession) return 'quest';
+
+        // 通常: wonder と quest を交互
         return (session.detectionCount % 2 === 0) ? 'quest' : 'wonder';
     }
 

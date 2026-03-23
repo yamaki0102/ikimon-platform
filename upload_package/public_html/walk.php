@@ -771,6 +771,7 @@ async function sendAudio(blob, passedFreqFilter) {
                     var isFirst = W.detCountToday[key] === 1;
 
                     // GuideOrchestrator に検出を通知 → 文脈適応型レンズ選択
+                    det._isNewToUser = isNewToUser;
                     GuideOrchestrator.onDetection(det);
                     var emotionLens = GuideOrchestrator.getCurrentLens(det);
 
