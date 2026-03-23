@@ -431,7 +431,7 @@ function applyDriveLayout() {
     if (active) active.style.background = '#000';
     // 停止ボタンを大きく
     var stopBtn = document.getElementById('btn-stop');
-    if (stopBtn) { stopBtn.style.cssText = 'padding:16px 24px;border-radius:16px;background:rgba(255,0,0,0.7);color:#fff;font-size:16px;font-weight:bold;border:2px solid rgba(255,255,255,0.3);z-index:20'; stopBtn.textContent = '✕ 終了'; }
+    if (stopBtn) { stopBtn.style.cssText = 'padding:16px 24px;border-radius:16px;background:rgba(255,0,0,0.7);color:#fff;font-size:16px;font-weight:bold;border:2px solid rgba(255,255,255,0.3);position:fixed;top:16px;left:16px;z-index:100'; stopBtn.textContent = '✕ 終了'; }
     // ステータス + ガイド状態
     var driveStatus = document.createElement('div');
     driveStatus.id = 'drive-status';
@@ -1327,7 +1327,7 @@ function addDetection(name, sci, conf, source, category, note) {
         var cnt = S._vgCount[name];
         var isFirstDet = cnt === 1;
         // 発話中・再生中はスキップ（キュー詰まり防止）
-        if (VoiceGuide.isSpeaking()) return;
+        try { if (VoiceGuide.isSpeaking()) return; } catch(e) {}
         // 前回の発話から20秒以内はスキップ（アンビエントに譲る）
         var sinceLast = Date.now() - (S._lastDetVoiceTime || 0);
         if (sinceLast < 20000 && !isFirstDet) return;
@@ -2038,8 +2038,10 @@ function tryAmbient() {
     if (S._ambientFetching) return;
     var since = Date.now() - (S._lastVoiceTime || 0);
     // speakingでも30秒経ったら強制リセット（モバイルでonendedが発火しない対策）
-    if (VoiceGuide.isSpeaking() && since < 30000) return;
-    if (VoiceGuide.isSpeaking()) { VoiceGuide.stop(); dbg('🔊 speaking強制リセット'); }
+    var isBusy = false;
+    try { isBusy = VoiceGuide.isSpeaking(); } catch(e) {}
+    if (isBusy && since < 30000) return;
+    if (isBusy) { try { VoiceGuide.stop(); } catch(e) {} dbg('🔊 speaking強制リセット'); }
     if (since < 30000) return;
     _fetchAmbientNow();
 }
