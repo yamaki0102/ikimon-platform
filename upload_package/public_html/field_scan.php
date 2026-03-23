@@ -429,12 +429,17 @@ function applyDriveLayout() {
     if (banner) { banner.style.bottom = 'auto'; banner.style.top = '50%'; banner.style.transform = 'translate(-50%,-50%)'; banner.style.fontSize = '120%'; }
     var active = document.getElementById('scan-active');
     if (active) active.style.background = '#000';
+    // 停止ボタンを大きく
+    var stopBtn = document.getElementById('btn-stop');
+    if (stopBtn) { stopBtn.style.cssText = 'padding:16px 24px;border-radius:16px;background:rgba(255,0,0,0.7);color:#fff;font-size:16px;font-weight:bold;border:2px solid rgba(255,255,255,0.3);z-index:20'; stopBtn.textContent = '✕ 終了'; }
+    // ステータス + ガイド状態
     var driveStatus = document.createElement('div');
     driveStatus.id = 'drive-status';
     driveStatus.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:5';
     driveStatus.innerHTML = '<div style="font-size:48px;margin-bottom:12px" id="drive-icon">📡</div>'
-        + '<div style="font-size:14px;color:#4ade80;font-weight:bold" id="drive-label">スキャン中</div>'
-        + '<div style="font-size:11px;color:#666;margin-top:4px">音声ガイドで案内します</div>';
+        + '<div style="font-size:16px;color:#4ade80;font-weight:bold" id="drive-label">スキャン中</div>'
+        + '<div id="drive-voice-status" style="font-size:12px;color:#60a5fa;margin-top:8px">🔊 ガイド準備中...</div>'
+        + '<div id="drive-species" style="font-size:11px;color:#888;margin-top:8px"></div>';
     active.appendChild(driveStatus);
 }
 
@@ -1315,18 +1320,20 @@ function addDetection(name, sci, conf, source, category, note) {
     // リアルタイムでサーバーに送信（デジタルツインに蓄積）
     sendDetectionToServer(name, sci, conf, source);
 
-    // 音声ガイド
+    // 音声ガイド（同じ種は初回+5回ごとのみ。ドライブ時はアンビエント優先）
     if (VoiceGuide.isEnabled()) {
-        var verb = conf >= 0.7 ? 'です' : conf >= 0.4 ? 'かもしれません' : 'の可能性があります';
         S._vgCount = S._vgCount || {};
         S._vgCount[name] = (S._vgCount[name] || 0) + 1;
-        var isFirstDet = S._vgCount[name] === 1;
-
-        if (VoiceGuide.getVoiceMode() === 'standard') {
-            VoiceGuide.announce(name + verb);
+        var cnt = S._vgCount[name];
+        var isFirstDet = cnt === 1;
+        var shouldSpeak = isFirstDet || cnt % 5 === 0;
+        if (shouldSpeak) {
+            if (VoiceGuide.getVoiceMode() === 'standard') {
+                var verb = conf >= 0.7 ? 'です' : conf >= 0.4 ? 'かもしれません' : 'の可能性があります';
+                VoiceGuide.announce(name + verb);
+            }
+            _fetchVoiceGuide(name, sci, conf, cnt, isFirstDet);
         }
-
-        _fetchVoiceGuide(name, sci, conf, S._vgCount[name], isFirstDet);
     }
 }
 
@@ -1476,6 +1483,8 @@ function updateCounts() {
     var spCount = Object.keys(S.speciesMap).length;
     document.getElementById('sp-count').textContent = spCount;
     document.getElementById('sp-count-top').textContent = spCount;
+    var ds = document.getElementById('drive-species');
+    if (ds) ds.textContent = spCount + '種検出 · ' + S.totalDet + '回';
 }
 
 function showDetBanner(name, sci, conf, source, note) {
@@ -2040,11 +2049,14 @@ async function _fetchAmbientNow() {
         p.set('session_count', S._ambientCount || 0);
         S._ambientCount = (S._ambientCount || 0) + 1;
         dbg('🔊 API #' + S._ambientCount);
+        var vs = document.getElementById('drive-voice-status');
+        if (vs) vs.textContent = '🔊 ガイド取得中...';
         var r = await fetch('/api/v2/voice_guide.php?' + p.toString());
-        if (!r.ok) { dbg('🔊 err ' + r.status); S._ambientFetching = false; return; }
+        if (!r.ok) { dbg('🔊 err ' + r.status); if (vs) vs.textContent = '⚠️ 通信エラー'; S._ambientFetching = false; return; }
         var j = await r.json();
         if (j.success && j.data) {
             S._lastVoiceTime = Date.now();
+            if (vs) vs.textContent = '🔊 ' + (j.data.guide_text || '').substring(0, 20) + '...';
             if (j.data.audio_url) VoiceGuide.announceAudio(j.data.audio_url);
             else if (j.data.guide_text) VoiceGuide.announce(j.data.guide_text);
         }
