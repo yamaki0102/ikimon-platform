@@ -361,13 +361,12 @@ PROMPT;
         'generationConfig' => [
             'temperature' => 0.3,
             'maxOutputTokens' => 500,
-            'responseMimeType' => 'application/json',
         ],
     ];
 
     $ch = curl_init();
     curl_setopt_array($ch, [
-        CURLOPT_URL => "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}",
+        CURLOPT_URL => "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={$apiKey}",
         CURLOPT_POST => true,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_POSTFIELDS => json_encode($payload),
@@ -391,8 +390,16 @@ PROMPT;
     }
     if (!$text) return null;
 
-    $result = json_decode($text, true);
-    return is_array($result) ? $result : null;
+    // ```json ... ``` を除去
+    $text = preg_replace('/^```json\s*/i', '', trim($text));
+    $text = preg_replace('/```\s*$/', '', $text);
+
+    $result = json_decode(trim($text), true);
+    if (!is_array($result)) {
+        echo "    Gemini: JSON parse failed\n";
+        return null;
+    }
+    return $result;
 }
 
 function _mergeFacts(array $existing, array $new): array
