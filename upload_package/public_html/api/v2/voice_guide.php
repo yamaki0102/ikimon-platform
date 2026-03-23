@@ -4,7 +4,7 @@
  * API v2: Voice Guide — AI解説 + VOICEVOX音声生成
  *
  * GET /api/v2/voice_guide.php
- *   ?name=シジュウカラ&scientific_name=Parus+minor&confidence=0.85&voice_mode=standard|zundamon
+ *   ?name=シジュウカラ&scientific_name=Parus+minor&confidence=0.85&voice_mode=standard|bluetooth|zundamon
  *   ?mode=ambient&lat=35.0&lng=139.0&detected_species=シジュウカラ,ウグイス  (定期コメンタリー)
  *
  * レスポンス:
@@ -25,8 +25,9 @@ if (!api_rate_limit('voice_guide', 30, 60)) {
 }
 
 $requestMode = api_param('mode', 'detection');
-$voiceMode = api_param('voice_mode', 'standard');
-$isZundamon = ($voiceMode === 'zundamon');
+$voiceMode = api_param('voice_mode', 'bluetooth');
+$isZundamonStyle = ($voiceMode === 'zundamon');
+$useVoicevoxAudio = ($voiceMode === 'zundamon' || $voiceMode === 'bluetooth');
 
 $month = (int)date('n');
 $hour = (int)date('G');
@@ -92,7 +93,7 @@ if ($requestMode === 'opening') {
         }
     }
 
-    $styleInstruction = $isZundamon
+    $styleInstruction = $isZundamonStyle
         ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
         : '親しい友人のような口調で。敬語は軽めに。';
 
@@ -125,7 +126,7 @@ PROMPT;
 
     $guideText = _callGemini($prompt);
     if (empty($guideText)) {
-        $guideText = $isZundamon
+        $guideText = $isZundamonStyle
             ? "{$areaName}に来たのだ！{$seasonName}の自然を楽しむのだ！"
             : "{$areaName}。{$seasonName}の空気が気持ちいいね。さあ、何に出会えるかな。";
     }
@@ -133,8 +134,8 @@ PROMPT;
     _saveHistory($userId, $guideText, $pastTexts);
 
     $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'opening'];
-    if ($isZundamon) {
-        $audioUrl = _generateVoicevoxAudio($guideText);
+    if ($useVoicevoxAudio) {
+        $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
         if ($audioUrl) $result['audio_url'] = $audioUrl;
     }
     api_success($result);
@@ -168,7 +169,7 @@ if ($requestMode === 'closing') {
         $memoryContext = "キミの最近の自然体験:\n" . implode("\n", $memoryLines) . "\n→ 過去の体験と今日をつなげる一言を添えられるなら添えて。";
     }
 
-    $styleInstruction = $isZundamon
+    $styleInstruction = $isZundamonStyle
         ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
         : '親しい友人のような温かい口調で。';
 
@@ -219,11 +220,11 @@ PROMPT;
     if (empty($guideText)) {
         $atmosPrefix = $weatherFeeling ? "{$weatherFeeling}一日だったね。" : "{$seasonName}の{$timeOfDay}、お疲れさま。";
         if ($speciesCount === 0) {
-            $guideText = $isZundamon
+            $guideText = $isZundamonStyle
                 ? "{$atmosPrefix}生き物には会えなかったけど、{$areaName}の空気を感じられたのだ！次は朝早く来てみるのだ。"
                 : "{$atmosPrefix}静かな時間だったけど、それも自然体験。次は違う時間帯に来てみて。";
         } else {
-            $guideText = $isZundamon
+            $guideText = $isZundamonStyle
                 ? "{$atmosPrefix}{$highlightSpecies}に会えたのだ！この出会いを覚えておくのだ。次は朝に来てみるのだ！"
                 : "{$atmosPrefix}{$highlightSpecies}との出会い、覚えておこう。次は少し早い時間に来てみて。違う顔ぶれに会えるかも。";
         }
@@ -248,8 +249,8 @@ PROMPT;
     _saveTodayHighlight($userId, $highlight);
 
     $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'closing', 'today_highlight' => $highlight];
-    if ($isZundamon) {
-        $audioUrl = _generateVoicevoxAudio($guideText);
+    if ($useVoicevoxAudio) {
+        $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
         if ($audioUrl) $result['audio_url'] = $audioUrl;
     }
     api_success($result);
@@ -271,7 +272,7 @@ if ($requestMode === 'silence') {
         $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
     } catch (Throwable $e) {}
 
-    $styleInstruction = $isZundamon
+    $styleInstruction = $isZundamonStyle
         ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
         : '穏やかで詩的な口調で。';
 
@@ -327,7 +328,7 @@ PROMPT;
 
     $guideText = _callGemini($prompt);
     if (empty($guideText)) {
-        $fallbacks = $isZundamon
+        $fallbacks = $isZundamonStyle
             ? ['gentle' => '静かな時間も大切なのだ。耳を澄ませてみるのだ。',
                'sensory' => '深呼吸してみるのだ。この場所の匂いを覚えておくのだ。',
                'poetic' => 'この静けさの中に、ずんだもんたちは包まれているのだ。']
@@ -340,8 +341,8 @@ PROMPT;
     _saveHistory($userId, $guideText, $pastTexts);
 
     $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'silence'];
-    if ($isZundamon) {
-        $audioUrl = _generateVoicevoxAudio($guideText);
+    if ($useVoicevoxAudio) {
+        $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
         if ($audioUrl) $result['audio_url'] = $audioUrl;
     }
     api_success($result);
@@ -366,7 +367,7 @@ if ($requestMode === 'ambient') {
     // 付近の過去観察・同定データを取得（半径2km以内）
     $nearbyContext = _getNearbyObservations($lat, $lng, 2.0);
 
-    $styleInstruction = $isZundamon
+    $styleInstruction = $isZundamonStyle
         ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
         : '優しいネイチャーガイドの口調で話してください。';
 
@@ -447,7 +448,7 @@ PROMPT;
 
     $guideText = _callGemini($prompt);
     if (empty($guideText)) {
-        $guideText = $isZundamon
+        $guideText = $isZundamonStyle
             ? "この辺りは自然豊かな場所なのだ！"
             : "自然を感じながらのドライブ、いいですね。";
     }
@@ -455,8 +456,8 @@ PROMPT;
     _saveHistory($userId, $guideText, $pastTexts);
 
     $result = ['guide_text' => $guideText, 'audio_url' => null];
-    if ($isZundamon) {
-        $audioUrl = _generateVoicevoxAudio($guideText);
+    if ($useVoicevoxAudio) {
+        $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
         if ($audioUrl) $result['audio_url'] = $audioUrl;
     }
     api_success($result);
@@ -532,7 +533,7 @@ if ($lat && $lng) {
     $nearbyContext = _getNearbyObservations($lat, $lng, 2.0);
 }
 
-$styleInstruction = $isZundamon
+$styleInstruction = $isZundamonStyle
     ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」を使い、元気で親しみやすい感じ。一人称は「ずんだもん」。'
     : '優しいネイチャーガイドの口調で話してください。「〜ですよ」「〜なんです」など親しみやすく。';
 
@@ -611,7 +612,7 @@ PROMPT;
 $guideText = _callGemini($prompt);
 
 if (empty($guideText)) {
-    $guideText = $isZundamon
+    $guideText = $isZundamonStyle
         ? "{$displayName}を見つけたのだ！"
         : "{$displayName}がいますよ。";
 }
@@ -620,8 +621,8 @@ _saveHistory($userId, $guideText, $pastTexts);
 
 $result = ['guide_text' => $guideText, 'audio_url' => null];
 
-if ($isZundamon && !empty($guideText)) {
-    $audioUrl = _generateVoicevoxAudio($guideText);
+if ($useVoicevoxAudio && !empty($guideText)) {
+    $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
     if ($audioUrl) {
         $result['audio_url'] = $audioUrl;
     }
@@ -839,13 +840,71 @@ function _callGemini(string $prompt): string
     return '';
 }
 
-function _generateVoicevoxAudio(string $text): ?string
+function _pickVoicevoxSpeakerId(array $preferredNames): int
+{
+    static $speakers = null;
+
+    if ($speakers === null) {
+        $voicevoxHost = 'http://127.0.0.1:50021';
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $voicevoxHost . '/speakers',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 2,
+            CURLOPT_CONNECTTIMEOUT => 1,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $speakers = ($httpCode === 200 && $response)
+            ? (json_decode($response, true) ?: [])
+            : [];
+    }
+
+    foreach ($preferredNames as $preferredName) {
+        foreach ($speakers as $speaker) {
+            if (($speaker['name'] ?? '') !== $preferredName) continue;
+            $styles = $speaker['styles'] ?? [];
+            foreach ($styles as $style) {
+                if (($style['name'] ?? '') === 'ノーマル' && isset($style['id'])) {
+                    return (int)$style['id'];
+                }
+            }
+            if (!empty($styles[0]['id'])) {
+                return (int)$styles[0]['id'];
+            }
+        }
+    }
+
+    return 3;
+}
+
+function _resolveVoicevoxSpeakerId(string $voiceMode): int
+{
+    if ($voiceMode === 'zundamon') {
+        return _pickVoicevoxSpeakerId(['ずんだもん']);
+    }
+
+    return _pickVoicevoxSpeakerId([
+        '九州そら',
+        '玄野武宏',
+        '白上虎太郎',
+        '青山龍星',
+        '四国めたん',
+        '春日部つむぎ',
+        'ずんだもん',
+    ]);
+}
+
+function _generateVoicevoxAudio(string $text, string $voiceMode = 'zundamon'): ?string
 {
     $voicevoxHost = 'http://127.0.0.1:50021';
+    $speakerId = _resolveVoicevoxSpeakerId($voiceMode);
 
     $ch = curl_init();
     curl_setopt_array($ch, [
-        CURLOPT_URL => $voicevoxHost . '/audio_query?text=' . urlencode($text) . '&speaker=3',
+        CURLOPT_URL => $voicevoxHost . '/audio_query?text=' . urlencode($text) . '&speaker=' . $speakerId,
         CURLOPT_POST => true,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 5,
@@ -859,7 +918,7 @@ function _generateVoicevoxAudio(string $text): ?string
 
     $ch = curl_init();
     curl_setopt_array($ch, [
-        CURLOPT_URL => $voicevoxHost . '/synthesis?speaker=3',
+        CURLOPT_URL => $voicevoxHost . '/synthesis?speaker=' . $speakerId,
         CURLOPT_POST => true,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_POSTFIELDS => $queryJson,

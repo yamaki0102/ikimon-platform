@@ -107,8 +107,12 @@ unset($allObs, $userObs);
             </div>
             <div id="voice-mode-selector" class="flex gap-2 px-1" style="display:none">
                 <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition voice-mode-btn active"
-                        data-vmode="standard" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
-                    📱 スマホ標準
+                        data-vmode="bluetooth" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
+                    📶 Bluetooth優先
+                </button>
+                <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition voice-mode-btn"
+                        data-vmode="standard" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                    📱 端末読み上げ
                 </button>
                 <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition voice-mode-btn"
                         data-vmode="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
@@ -1277,7 +1281,7 @@ function selectVoiceMode(mode) {
         b.style.background = isActive ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.05)';
         b.style.color = isActive ? '#93c5fd' : '#9ca3af';
     });
-    if (mode === 'zundamon') {
+    if (mode === 'bluetooth' || mode === 'zundamon') {
         new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
     } else {
         if ('speechSynthesis' in window) {
