@@ -126,7 +126,7 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                     </div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="voice-guide-toggle" class="sr-only peer" onchange="VoiceGuide.setEnabled(this.checked); document.getElementById('vg-mode-sel').style.display=this.checked?'flex':'none'">
+                    <input type="checkbox" id="voice-guide-toggle" class="sr-only peer" onchange="try{VoiceGuide.setEnabled(this.checked)}catch(e){} document.getElementById('vg-mode-sel').style.display=this.checked?'flex':'none'">
                     <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
                 </label>
             </div>
