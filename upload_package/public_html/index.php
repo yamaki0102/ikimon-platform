@@ -83,22 +83,26 @@ $allSessions = DataStore::fetchAll('passive_sessions');
 foreach ($allSessions as $s) {
     $mode = $s['session_meta']['scan_mode'] ?? '';
     $summary = $s['summary'] ?? [];
-    $target = null;
-    if ($mode === 'walk') $target = &$communityWalkStats;
-    elseif ($mode === 'live-scan') $target = &$communityScanStats;
-    else continue;
+    if ($mode !== 'walk' && $mode !== 'live-scan') continue;
     $durSec = (int)($summary['duration_sec'] ?? 0);
     $detections = (int)($summary['total_detections'] ?? 0);
     if ($durSec < 30 || $detections < 1) continue;
-    $target['count']++;
-    $target['duration_min'] += (int)round($durSec / 60);
-    $target['total_detections'] += $detections;
-    foreach ($summary['species'] ?? [] as $name => $cnt) {
-        if ($name) $target['species'][$name] = true;
+    $bucket = ($mode === 'walk') ? 'walk' : 'scan';
+    if ($bucket === 'walk') {
+        $communityWalkStats['count']++;
+        $communityWalkStats['duration_min'] += (int)round($durSec / 60);
+        $communityWalkStats['total_detections'] += $detections;
+        foreach ($summary['species'] ?? [] as $name => $cnt) { if ($name) $communityWalkStats['species'][$name] = true; }
+        $uid = $s['user_id'] ?? '';
+        if ($uid) $communityWalkStats['users'][$uid] = true;
+    } else {
+        $communityScanStats['count']++;
+        $communityScanStats['duration_min'] += (int)round($durSec / 60);
+        $communityScanStats['total_detections'] += $detections;
+        foreach ($summary['species'] ?? [] as $name => $cnt) { if ($name) $communityScanStats['species'][$name] = true; }
+        $uid = $s['user_id'] ?? '';
+        if ($uid) $communityScanStats['users'][$uid] = true;
     }
-    $uid = $s['user_id'] ?? '';
-    if ($uid) $target['users'][$uid] = true;
-    unset($target);
 }
 unset($allSessions);
 foreach ([&$communityWalkStats, &$communityScanStats] as &$stats) {

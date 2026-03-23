@@ -2344,7 +2344,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 lbScale: 1, lbPanX: 0, lbPanY: 0,
                 _lbTouchX: 0, _lbTouchY: 0, _lbPinching: false, _lbStartDist: 0, _lbStartScale: 1, _lbLastPanX: null, _lbLastPanY: null,
                 lbNav(dir) {
-                    const cnt = <?php echo $photoCount; ?>;
+                    const cnt = <?php echo $photoCount ?? max(1, count($obs['photos'] ?? [])); ?>;
                     this.lbScale = 1; this.lbPanX = 0; this.lbPanY = 0;
                     this.photoActive = (this.photoActive + dir + cnt) % cnt;
                 },
