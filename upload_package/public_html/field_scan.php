@@ -115,6 +115,35 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             </label>
         </div>
 
+        <!-- 音声ガイド -->
+        <div class="space-y-2 mb-3">
+            <div class="flex items-center justify-between bg-white/5 rounded-xl px-4 py-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">🔊</span>
+                    <div>
+                        <div class="text-sm font-bold text-gray-200">音声ガイド</div>
+                        <div class="text-[10px] text-gray-500">検出時に音声で案内します</div>
+                    </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="voice-guide-toggle" class="sr-only peer" onchange="VoiceGuide.setEnabled(this.checked); document.getElementById('vg-mode-sel').style.display=this.checked?'flex':'none'">
+                    <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                </label>
+            </div>
+            <div id="vg-mode-sel" class="flex gap-2 px-1" style="display:none">
+                <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-mode-btn active"
+                        data-vmode="standard" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd"
+                        onclick="selectVgMode('standard')">
+                    📱 スマホ標準
+                </button>
+                <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
+                        data-vmode="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af"
+                        onclick="selectVgMode('zundamon')">
+                    🟢 ずんだもん
+                </button>
+            </div>
+        </div>
+
         <button id="btn-start" class="w-full py-5 bg-green-600/50 text-green-300 cursor-not-allowed rounded-2xl text-lg font-bold transition" disabled>
             📡 スキャン開始
         </button>
@@ -501,6 +530,11 @@ async function startScan() {
     if (navigator.geolocation) {
         startGpsWatch();
     }
+
+    // 車/自転車モードで音声ガイドONならアンビエントコメンタリー開始
+    if (VoiceGuide.isEnabled() && (S.mode === 'car' || S.mode === 'bike')) {
+        startAmbientCommentary();
+    }
 }
 
 function handleGpsPosition(pos) {
@@ -617,6 +651,8 @@ function stopScan() {
     clearInterval(S.envInt);
     if (S.batchTimer) clearInterval(S.batchTimer);
     if (S.recTimer) clearTimeout(S.recTimer);
+    VoiceGuide.stop();
+    if (_ambientTimer) { clearInterval(_ambientTimer); _ambientTimer = null; }
     if (S.recorder && S.recorder.state === 'recording') try { S.recorder.stop(); } catch(e) {}
     if (S.watchId) navigator.geolocation.clearWatch(S.watchId);
     if (S._gpsPollTimer) clearInterval(S._gpsPollTimer);
@@ -1221,6 +1257,20 @@ function addDetection(name, sci, conf, source, category, note) {
 
     // リアルタイムでサーバーに送信（デジタルツインに蓄積）
     sendDetectionToServer(name, sci, conf, source);
+
+    // 音声ガイド
+    if (VoiceGuide.isEnabled()) {
+        var verb = conf >= 0.7 ? 'です' : conf >= 0.4 ? 'かもしれません' : 'の可能性があります';
+        S._vgCount = S._vgCount || {};
+        S._vgCount[name] = (S._vgCount[name] || 0) + 1;
+        var isFirstDet = S._vgCount[name] === 1;
+
+        if (VoiceGuide.getVoiceMode() === 'standard') {
+            VoiceGuide.announce(name + verb);
+        }
+
+        _fetchVoiceGuide(name, sci, conf, S._vgCount[name], isFirstDet);
+    }
 }
 
 function postScanSummary(speciesCount, durationMin) {
@@ -1853,6 +1903,84 @@ document.addEventListener('visibilitychange', function() {
         }
     }
 });
+
+// ===== Voice Guide helpers =====
+function selectVgMode(mode) {
+    VoiceGuide.setVoiceMode(mode);
+    document.querySelectorAll('.vg-mode-btn').forEach(function(b) {
+        var active = b.dataset.vmode === mode;
+        b.classList.toggle('active', active);
+        b.style.borderColor = active ? '#3b82f6' : 'transparent';
+        b.style.background = active ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.05)';
+        b.style.color = active ? '#93c5fd' : '#9ca3af';
+    });
+}
+
+async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
+    try {
+        var p = new URLSearchParams();
+        p.set('name', name || '');
+        p.set('scientific_name', sci || '');
+        p.set('confidence', conf);
+        p.set('detection_count', count || 1);
+        p.set('is_first_today', isFirst ? '1' : '0');
+        p.set('voice_mode', VoiceGuide.getVoiceMode());
+        var r = await fetch('/api/v2/voice_guide.php?' + p.toString());
+        if (!r.ok) return;
+        var j = await r.json();
+        if (j.success && j.data) {
+            if (j.data.audio_url) VoiceGuide.announceAudio(j.data.audio_url);
+            else if (j.data.guide_text) VoiceGuide.announce(j.data.guide_text);
+        }
+    } catch(e) {}
+}
+
+// アンビエントコメンタリー（車/自転車モード）
+var _ambientTimer = null;
+function startAmbientCommentary() {
+    if (!VoiceGuide.isEnabled()) return;
+    VoiceGuide.onFinish(function() { S._lastVoiceTime = Date.now(); });
+    _ambientTimer = setInterval(function() {
+        if (VoiceGuide.isSpeaking()) return;
+        var since = Date.now() - (S._lastVoiceTime || S.startTime);
+        if (since < 15000) return;
+        _fetchAmbient();
+    }, 10000);
+}
+
+async function _fetchAmbient() {
+    try {
+        var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length-1] : null;
+        var names = Object.keys(S.speciesMap).slice(0, 5).join(',');
+        var min = Math.floor((Date.now() - S.startTime) / 60000);
+        var p = new URLSearchParams();
+        p.set('mode', 'ambient');
+        p.set('lat', last ? last.lat : 35);
+        p.set('lng', last ? last.lng : 139);
+        p.set('detected_species', names);
+        p.set('elapsed_min', min);
+        p.set('voice_mode', VoiceGuide.getVoiceMode());
+        p.set('session_count', S._ambientCount || 0);
+        S._ambientCount = (S._ambientCount || 0) + 1;
+        var r = await fetch('/api/v2/voice_guide.php?' + p.toString());
+        if (!r.ok) return;
+        var j = await r.json();
+        if (j.success && j.data) {
+            S._lastVoiceTime = Date.now();
+            if (j.data.audio_url) VoiceGuide.announceAudio(j.data.audio_url);
+            else if (j.data.guide_text) VoiceGuide.announce(j.data.guide_text);
+        }
+    } catch(e) {}
+}
+
+// 音声ガイド設定復元
+(function() {
+    if (VoiceGuide.isEnabled()) {
+        var t = document.getElementById('voice-guide-toggle');
+        if (t) { t.checked = true; document.getElementById('vg-mode-sel').style.display = 'flex'; }
+        selectVgMode(VoiceGuide.getVoiceMode());
+    }
+})();
 
 // ページ離脱時にも未送信データを保存
 window.addEventListener('beforeunload', function() {
