@@ -556,6 +556,7 @@ function calcDistance(points) {
             panel.innerHTML = '<div class="flex items-center gap-4"><div class="text-3xl">' + w.split(' ')[0] + '</div><div class="flex-1"><div class="text-sm font-bold">' + w.split(' ')[1] + '</div><div class="text-xs text-gray-400">' + Math.round(c.temperature_2m) + '°C / 湿度 ' + c.relative_humidity_2m + '% / 風速 ' + c.wind_speed_10m + 'm/s</div></div><div class="text-xs text-gray-500">' + bird + '</div></div>';
             panel.classList.remove('hidden');
             document.getElementById('weather-loading').style.display = 'none';
+            W.weatherText = w.split(' ')[1] + ' ' + Math.round(c.temperature_2m) + '°C 湿度' + c.relative_humidity_2m + '% 風速' + c.wind_speed_10m + 'm/s';
         }).catch(function(){});
     }, function() {
         document.getElementById('weather-loading').textContent = '📍 位置情報が取得できません';
@@ -1507,6 +1508,9 @@ async function fetchAmbientCommentary() {
         params.set('detected_species', speciesNames.slice(0, 5).join(','));
         params.set('elapsed_min', elapsedMin);
         params.set('voice_mode', VoiceGuide.getVoiceMode());
+        params.set('session_count', W.ambientCount || 0);
+        if (W.weatherText) params.set('weather', W.weatherText);
+        W.ambientCount = (W.ambientCount || 0) + 1;
 
         var resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
         if (!resp.ok) return;
