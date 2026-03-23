@@ -397,12 +397,12 @@ async function startScan() {
 
     // Timer
     S.timerInt = setInterval(function() {
+        if (document.hidden) return; // 画面非表示時はUI更新スキップ（省電力）
         var sec = Math.floor((Date.now() - S.startTime) / 1000);
         var timeStr = Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0');
         document.getElementById('timer').textContent = timeStr;
         var el = document.getElementById('session-elapsed');
         if (el) el.textContent = timeStr;
-        // 30秒ごとに種リストの「NOW」バッジを更新
         if (sec % 10 === 0 && Object.keys(S.speciesMap).length > 0) updateSpeciesList();
     }, 1000);
     dbg('2. タイマー開始');
@@ -411,7 +411,7 @@ async function startScan() {
     try {
         dbg('3. カメラ要求中...');
         S.stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 1280 } },
+            video: { facingMode: 'environment', width: { ideal: 640 } },
             audio: true
         });
         dbg('4. カメラ取得OK');
@@ -491,27 +491,66 @@ async function startScan() {
         dbg('ERR カメラ/音声: ' + e.message);
     }
 
-    // GPS（常時 high accuracy）
+    // GPS（スマート切替: 移動中=watchPosition, 静止時=polling で省電力）
+    S._gpsStillSince = 0;
+    S._gpsPolling = false;
+    S._gpsPollTimer = null;
     if (navigator.geolocation) {
-        S.watchId = navigator.geolocation.watchPosition(function(pos) {
-            setSensor('gps', true);
-            var acc = pos.coords.accuracy || 999;
-            S.currentSpeed = pos.coords.speed || 0;
-            // 精度50m以下のポイントのみルートに使用（距離計算の精度確保）
-            if (acc <= 50) {
-                S.routePoints.push({lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now(), speed: S.currentSpeed, accuracy: acc});
-                if (S.routePoints.length === 1) {
-                    initMap(pos.coords.latitude, pos.coords.longitude);
-                    dbg('7. GPS+マップ初期化 (精度' + Math.round(acc) + 'm)');
-                }
-                updateMapRoute();
-            } else {
-                dbg('GPS精度低 (' + Math.round(acc) + 'm) — スキップ');
-            }
-            // 検出用の位置は精度に関わらず最新を保持
-            S.lastGpsPos = {lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc};
-        }, function(e) { dbg('GPS ERR: ' + e.message); }, {enableHighAccuracy: true, maximumAge: 3000, timeout: 10000});
+        startGpsWatch();
     }
+}
+
+function handleGpsPosition(pos) {
+    setSensor('gps', true);
+    var acc = pos.coords.accuracy || 999;
+    S.currentSpeed = pos.coords.speed || 0;
+    if (acc <= 50) {
+        S.routePoints.push({lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now(), speed: S.currentSpeed, accuracy: acc});
+        if (S.routePoints.length === 1) {
+            initMap(pos.coords.latitude, pos.coords.longitude);
+            dbg('7. GPS+マップ初期化 (精度' + Math.round(acc) + 'm)');
+        }
+        if (!document.hidden) updateMapRoute();
+    }
+    S.lastGpsPos = {lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc};
+
+    // 静止検出: speed < 0.3 が30秒続いたら polling に切替
+    if (S.currentSpeed < 0.3) {
+        if (!S._gpsStillSince) S._gpsStillSince = Date.now();
+        if (!S._gpsPolling && Date.now() - S._gpsStillSince > 30000) {
+            switchToGpsPolling();
+        }
+    } else {
+        S._gpsStillSince = 0;
+        if (S._gpsPolling) switchToGpsWatch();
+    }
+}
+
+function startGpsWatch() {
+    S._gpsPolling = false;
+    if (S._gpsPollTimer) { clearInterval(S._gpsPollTimer); S._gpsPollTimer = null; }
+    S.watchId = navigator.geolocation.watchPosition(handleGpsPosition,
+        function(e) { dbg('GPS ERR: ' + e.message); },
+        {enableHighAccuracy: true, maximumAge: 3000, timeout: 10000});
+}
+
+function switchToGpsPolling() {
+    if (S._gpsPolling) return;
+    S._gpsPolling = true;
+    if (S.watchId) { navigator.geolocation.clearWatch(S.watchId); S.watchId = null; }
+    dbg('GPS → polling (静止中)');
+    S._gpsPollTimer = setInterval(function() {
+        if (!S.active) return;
+        navigator.geolocation.getCurrentPosition(handleGpsPosition,
+            function() {}, {enableHighAccuracy: true, maximumAge: 10000, timeout: 10000});
+    }, 15000);
+}
+
+function switchToGpsWatch() {
+    if (!S._gpsPolling) return;
+    dbg('GPS → watch (移動再開)');
+    if (S._gpsPollTimer) { clearInterval(S._gpsPollTimer); S._gpsPollTimer = null; }
+    startGpsWatch();
 }
 
 // ===== Adaptive Capture Scheduling =====
@@ -577,6 +616,7 @@ function stopScan() {
     if (S.recTimer) clearTimeout(S.recTimer);
     if (S.recorder && S.recorder.state === 'recording') try { S.recorder.stop(); } catch(e) {}
     if (S.watchId) navigator.geolocation.clearWatch(S.watchId);
+    if (S._gpsPollTimer) clearInterval(S._gpsPollTimer);
     if (S.stream) S.stream.getTracks().forEach(function(t) { t.stop(); });
     if (S.audioCtx) try { S.audioCtx.close(); } catch(e) {}
     if (S.minimap) { S.minimap.remove(); S.minimap = null; }
@@ -673,10 +713,7 @@ function flushEvents(isFinal) {
         saveScanPending(batch, payload.session);
     });
 
-    // 送信と同時にローカルにもバックアップ
-    if (batch.length > 0) {
-        saveScanPending(batch, payload.session);
-    }
+    // バックアップは catch 内でのみ保存（成功時の二重書込を廃止して省電力）
 }
 
 // ===== localStorage バックアップ =====
@@ -1046,6 +1083,8 @@ function setupAudioRecorder() {
         var blob = new Blob(S.chunks, {type: S.mime});
         S.chunks = [];
         var passedFilter = hasBirdFrequencyEnergy();
+        // 録音完了 → AudioContext を suspend（FFT演算停止で省電力）
+        if (S.audioCtx && S.audioCtx.state === 'running') S.audioCtx.suspend();
         sendAudio(blob, passedFilter);
     };
     startAudioCycle();
@@ -1056,13 +1095,21 @@ function startAudioCycle() {
     if (S.analyzing) { S.recTimer = setTimeout(startAudioCycle, 1000); return; }
     setScanListenState('listening');
     var audioMs = getAdaptiveAudioMs();
-    try {
-        S.chunks = [];
-        S.recorder.start();
-        S.recTimer = setTimeout(function() {
-            if (S.recorder && S.recorder.state === 'recording') S.recorder.stop();
-        }, 3000);
-    } catch(e) { S.recTimer = setTimeout(startAudioCycle, audioMs); }
+    // 録音開始前に AudioContext を resume（suspend中なら）
+    var doRecord = function() {
+        try {
+            S.chunks = [];
+            S.recorder.start();
+            S.recTimer = setTimeout(function() {
+                if (S.recorder && S.recorder.state === 'recording') S.recorder.stop();
+            }, 3000);
+        } catch(e) { S.recTimer = setTimeout(startAudioCycle, audioMs); }
+    };
+    if (S.audioCtx && S.audioCtx.state === 'suspended') {
+        S.audioCtx.resume().then(doRecord);
+    } else {
+        doRecord();
+    }
 }
 
 async function sendAudio(blob, passedFreqFilter) {
@@ -1209,24 +1256,9 @@ function postScanSummary(speciesCount, durationMin) {
     });
 }
 
-// 個別検出 → live_detections に送信（リアルタイムマップ用、24h TTL）
+// 個別検出 → pendingEvents に蓄積（30秒バッチで送信。即時POSTは省電力のため廃止）
 function sendDetectionToServer(name, sci, conf, source) {
-    var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
-    fetch('/api/v2/live_detections.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            action: 'add',
-            scientific_name: sci || null,
-            common_name: name,
-            detection_confidence: conf,
-            detection_type: source === 'audio' ? 'audio' : 'visual',
-            lat: last ? last.lat : null,
-            lng: last ? last.lng : null,
-        })
-    }).catch(function() {});
-
-    // ローカルに蓄積（セッション終了時に一括 passive_event 送信）
+    // ローカルに蓄積（30秒ごとの flushEvents で一括送信）
     if (!S.pendingEvents) S.pendingEvents = [];
     var det = S.speciesMap[name] || {};
     var evt = {
@@ -1253,6 +1285,12 @@ function sendDetectionToServer(name, sci, conf, source) {
 }
 
 // Haversine distance
+function haversine(lat1, lng1, lat2, lng2) {
+    var R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
+    var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
 function calcDistance(points) {
     var total = 0;
     for (var i = 1; i < points.length; i++) {
@@ -1501,6 +1539,13 @@ function setSensor(id, on) {
 // ===== Environment Scan =====
 async function envScan() {
     if (!S.active) return;
+    // 前回スキャン位置から50m以上移動した場合のみ実行（静止中は同じ環境なので省電力）
+    var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
+    if (S._lastEnvPos && last) {
+        var d = haversine(S._lastEnvPos.lat, S._lastEnvPos.lng, last.lat, last.lng);
+        if (d < 50) return;
+    }
+    if (last) S._lastEnvPos = {lat: last.lat, lng: last.lng};
     try {
         var v = document.getElementById('cam');
         var c = document.getElementById('cap');
