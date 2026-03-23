@@ -403,6 +403,11 @@ function showScreen(name) {
 function dbg(msg) {
     var el = document.getElementById('debug-status');
     if (el) el.innerHTML = msg + '<br>' + (el.innerHTML || '').split('<br>').slice(0, 8).join('<br>');
+    console.log('[scan] ' + msg);
+    // サーバーにログ送信（音声ガイドデバッグ用）
+    if (msg.indexOf('🔊') >= 0 || msg.indexOf('🔇') >= 0 || msg.indexOf('ERR') >= 0) {
+        navigator.sendBeacon('/api/v2/client_log.php', JSON.stringify({msg: msg, ts: Date.now(), ua: navigator.userAgent.substring(0,80)}));
+    }
 }
 
 function applyDriveLayout() {
