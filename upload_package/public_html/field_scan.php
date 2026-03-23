@@ -57,6 +57,17 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
         </div>
 
         <!-- 録画・録音同意 -->
+        <!-- 即開始ボタン（2回目以降表示） -->
+        <button id="btn-start-quick" class="w-full py-5 bg-green-600 hover:bg-green-700 active:scale-95 rounded-2xl text-lg font-bold transition hidden"
+                onclick="document.getElementById('btn-start').click()">
+            📡 スキャン開始
+        </button>
+
+        <details id="settings-panel" open>
+            <summary class="text-sm text-gray-400 cursor-pointer mb-3 flex items-center gap-1">
+                <span class="text-xs">⚙️</span> 設定・確認事項
+            </summary>
+
         <div id="consent-banner" class="bg-amber-900/40 border border-amber-600/50 rounded-xl p-4 space-y-3">
             <div class="flex items-start gap-2">
                 <span class="text-amber-400 text-lg">📡</span>
@@ -164,6 +175,7 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                 <div class="text-[9px] text-gray-600 text-right px-1 mt-2">音声: <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noopener" class="underline">VOICEVOX</a></div>
             </div>
         </div>
+        </details>
 
         <button id="btn-start" class="w-full py-5 bg-green-600/50 text-green-300 cursor-not-allowed rounded-2xl text-lg font-bold transition" disabled>
             📡 スキャン開始
@@ -1914,13 +1926,26 @@ async function uploadCapturedPhotos() {
             btn.className = 'w-full py-5 bg-green-600/50 text-green-300 cursor-not-allowed rounded-2xl text-lg font-bold transition';
         }
     }
+    var quickBtn = document.getElementById('btn-start-quick');
+    var panel = document.getElementById('settings-panel');
+    function syncQuickBtn(consented) {
+        if (consented) {
+            quickBtn.classList.remove('hidden');
+            if (panel) panel.removeAttribute('open');
+        } else {
+            quickBtn.classList.add('hidden');
+            if (panel) panel.setAttribute('open', '');
+        }
+    }
     if (localStorage.getItem('ikimon_scan_consent') === '1') {
         cb.checked = true;
         updateBtn(true);
+        syncQuickBtn(true);
     }
     cb.addEventListener('change', function() {
         localStorage.setItem('ikimon_scan_consent', this.checked ? '1' : '0');
         updateBtn(this.checked);
+        syncQuickBtn(this.checked);
     });
 })();
 
