@@ -160,7 +160,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <script defer src="/js/HapticEngine.js"></script>
 <script defer src="/js/MotionEngine.js"></script>
 <script defer src="/js/OfflineManager.js?v=2.2"></script>
-<script defer src="/assets/js/VoiceGuide.js?v=2"></script>
+<script defer src="/assets/js/VoiceGuide.js?v=3"></script>
 <script defer src="/assets/js/analytics.js"></script>
 
 <!-- Critical FOUC Prevention (CSS遅延の保険) -->
