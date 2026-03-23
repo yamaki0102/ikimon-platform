@@ -1368,7 +1368,7 @@ function addDetection(name, sci, conf, source, category, note) {
         // 前回の発話から20秒以内はスキップ（アンビエントに譲る）
         var sinceLast = Date.now() - (S._lastDetVoiceTime || 0);
         if (sinceLast < 20000 && !isFirstDet) return;
-        if (isFirstDet || cnt % 5 === 0) {
+        if (isFirstDet || cnt % 3 === 0) {
             S._lastDetVoiceTime = Date.now();
             S._lastVoiceTime = Date.now();
             _fetchVoiceGuide(name, sci, conf, cnt, isFirstDet);
@@ -2080,12 +2080,12 @@ function tryAmbient() {
     if (!S.active || !VoiceGuide.isEnabled()) return;
     if (S._ambientFetching) return;
     var since = Date.now() - (S._lastVoiceTime || 0);
-    // speakingでも30秒経ったら強制リセット（モバイルでonendedが発火しない対策）
+    // speakingでも20秒経ったら強制リセット（AudioContextのonended未発火対策）
     var isBusy = false;
     try { isBusy = VoiceGuide.isSpeaking(); } catch(e) {}
-    if (isBusy && since < 30000) return;
+    if (isBusy && since < 20000) return;
     if (isBusy) { try { VoiceGuide.stop(); } catch(e) {} dbg('🔊 speaking強制リセット'); }
-    if (since < 30000) return;
+    if (since < 20000) return;
     _fetchAmbientNow();
 }
 
