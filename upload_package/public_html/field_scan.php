@@ -429,9 +429,14 @@ function applyDriveLayout() {
     if (banner) { banner.style.bottom = 'auto'; banner.style.top = '50%'; banner.style.transform = 'translate(-50%,-50%)'; banner.style.fontSize = '120%'; }
     var active = document.getElementById('scan-active');
     if (active) active.style.background = '#000';
-    // 停止ボタンを大きく
+    // 停止ボタンをトップバーから引き抜いて画面下部中央に独立配置（レイヤー干渉回避）
     var stopBtn = document.getElementById('btn-stop');
-    if (stopBtn) { stopBtn.style.cssText = 'padding:16px 24px;border-radius:16px;background:rgba(255,0,0,0.7);color:#fff;font-size:16px;font-weight:bold;border:2px solid rgba(255,255,255,0.3);position:fixed;top:16px;left:16px;z-index:100'; stopBtn.textContent = '✕ 終了'; }
+    if (stopBtn) {
+        stopBtn.parentNode.removeChild(stopBtn);
+        stopBtn.style.cssText = 'position:fixed;bottom:40px;left:50%;transform:translateX(-50%);padding:18px 48px;border-radius:20px;background:rgba(255,0,0,0.8);color:#fff;font-size:18px;font-weight:bold;border:2px solid rgba(255,255,255,0.4);z-index:9999;box-shadow:0 4px 20px rgba(255,0,0,0.4);-webkit-tap-highlight-color:transparent';
+        stopBtn.textContent = '■ スキャン終了';
+        document.getElementById('scan-active').appendChild(stopBtn);
+    }
     // ステータス + ガイド状態
     var driveStatus = document.createElement('div');
     driveStatus.id = 'drive-status';
