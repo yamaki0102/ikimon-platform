@@ -504,7 +504,11 @@ async function startWalk() {
             unlock.volume = 0;
             speechSynthesis.speak(unlock);
         }
-        VoiceGuide.announce('音声ガイドを開始します');
+        if (VoiceGuide.getVoiceMode() === 'zundamon') {
+            VoiceGuide.announceAudio('/assets/audio/zundamon_preview.wav');
+        } else {
+            VoiceGuide.announce('音声ガイドを開始します');
+        }
     }
     W.detections = [];
     W.routePoints = [];
