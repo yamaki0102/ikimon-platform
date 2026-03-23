@@ -1168,11 +1168,9 @@ async function sendAudio(blob, passedFreqFilter) {
         fd.append('lng', last ? last.lng : 139.0);
         if (S.sensitivityLevel >= 2) fd.append('min_conf', '0.03');
         else if (S.sensitivityLevel >= 1) fd.append('min_conf', '0.05');
-        if (passedFreqFilter) {
-            fd.append('archive_mode', '1');
-            fd.append('source_mode', 'field_scan');
-            if (last && last.accuracy) fd.append('gps_accuracy', last.accuracy);
-        }
+        fd.append('source_mode', 'field_scan');
+        if (last && last.accuracy) fd.append('gps_accuracy', last.accuracy);
+        if (passedFreqFilter) fd.append('archive_mode', '1');
         updateDataUsage(blob.size);
         S.audioScanCount++;
         document.getElementById('audio-count').textContent = S.audioScanCount;

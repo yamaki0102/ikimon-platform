@@ -168,7 +168,10 @@ if (!empty($result['detections'])) {
 }
 
 // --- Archive detections for citizen ID (sound archive) ---
-if ($archiveMode && !empty($result['detections'])) {
+// BirdNET が検出を返した時点で生物音声の存在は担保されているため、
+// source_mode が walk/field_scan なら周波数フィルター (archive_mode) に関係なくアーカイブ保存
+$isFieldSource = in_array($sourceMode, ['walk', 'field_scan'], true);
+if (($archiveMode || $isFieldSource) && !empty($result['detections'])) {
     $topConf = $result['detections'][0]['confidence'] ?? 0;
     if ($topConf >= 0.05) {
         $archiveResult = _saveToArchive($file, $detectedMime, $lat, $lng, $gpsAccuracy, $sourceMode, $result['detections'], $audioPath);

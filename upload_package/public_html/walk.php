@@ -679,11 +679,9 @@ async function sendAudio(blob, passedFreqFilter) {
         fd.append('lat', last ? last.lat : 35.0);
         fd.append('lng', last ? last.lng : 139.0);
         if (W.highSensitivity) fd.append('min_conf', '0.05');
-        if (passedFreqFilter) {
-            fd.append('archive_mode', '1');
-            fd.append('source_mode', 'walk');
-            if (last && last.accuracy) fd.append('gps_accuracy', last.accuracy);
-        }
+        fd.append('source_mode', 'walk');
+        if (last && last.accuracy) fd.append('gps_accuracy', last.accuracy);
+        if (passedFreqFilter) fd.append('archive_mode', '1');
 
         var displayThreshold = W.highSensitivity ? 0.25 : 0.40;
 
