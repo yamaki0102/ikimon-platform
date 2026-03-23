@@ -188,7 +188,7 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
     <!-- トップバー -->
     <div style="position:absolute;top:0;left:0;right:0;z-index:10;padding:8px 12px;background:linear-gradient(to bottom,rgba(0,0,0,0.7),transparent);display:flex;align-items:center;justify-content:space-between;padding-top:max(env(safe-area-inset-top),8px)">
         <button id="btn-stop" style="padding:8px;border-radius:50%;background:rgba(255,0,0,0.6)">✕</button>
-        <div style="display:flex;gap:6px">
+        <div id="sensor-badges" style="display:flex;gap:6px">
             <span id="s-cam" style="font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666">📷</span>
             <span id="s-mic" style="font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666">🎤</span>
             <span id="s-gps" style="font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666">📍</span>
@@ -242,9 +242,9 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
         </div>
     </div>
 
-    <!-- 下半分: 地図 -->
-    <div style="position:absolute;bottom:0;left:0;right:0;height:45%;background:#000">
-        <div style="display:flex;gap:4px;padding:4px 8px;background:#000;overflow-x:auto">
+    <!-- 下半分: 地図 + タブ -->
+    <div id="bottom-panel" style="position:absolute;bottom:0;left:0;right:0;height:45%;background:#000">
+        <div id="tab-bar" style="display:flex;gap:4px;padding:4px 8px;background:#000;overflow-x:auto">
             <button class="tab-btn active" data-tab="map" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.15);color:#fff;border:none;white-space:nowrap">🗺️ マップ</button>
             <button class="tab-btn" data-tab="log" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666;border:none;white-space:nowrap;position:relative">📋 ログ <span id="log-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#ef4444;color:#fff;font-size:9px;border-radius:999px;padding:0 4px;min-width:14px;text-align:center"></span></button>
             <button class="tab-btn" data-tab="species" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666;border:none;white-space:nowrap">🌿 種 <span id="sp-count">0</span></button>
@@ -407,8 +407,37 @@ function dbg(msg) {
     if (el) el.innerHTML = msg + '<br>' + (el.innerHTML || '').split('<br>').slice(0, 8).join('<br>');
 }
 
+function applyDriveLayout() {
+    var cam = document.getElementById('cam');
+    if (cam) cam.style.display = 'none';
+    var bp = document.getElementById('bottom-panel');
+    if (bp) bp.style.display = 'none';
+    var dbgEl = document.getElementById('debug-status');
+    if (dbgEl) dbgEl.style.display = 'none';
+    var pulse = document.getElementById('scan-pulse');
+    if (pulse) pulse.style.display = 'none';
+    var envP = document.getElementById('env-panel');
+    if (envP) envP.style.display = 'none';
+    var badges = document.getElementById('sensor-badges');
+    if (badges) badges.style.display = 'none';
+    var dataU = document.getElementById('data-usage');
+    if (dataU) dataU.style.display = 'none';
+    var banner = document.getElementById('det-banner');
+    if (banner) { banner.style.bottom = 'auto'; banner.style.top = '50%'; banner.style.transform = 'translate(-50%,-50%)'; banner.style.fontSize = '120%'; }
+    var active = document.getElementById('scan-active');
+    if (active) active.style.background = '#000';
+    var driveStatus = document.createElement('div');
+    driveStatus.id = 'drive-status';
+    driveStatus.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:5';
+    driveStatus.innerHTML = '<div style="font-size:48px;margin-bottom:12px" id="drive-icon">📡</div>'
+        + '<div style="font-size:14px;color:#4ade80;font-weight:bold" id="drive-label">スキャン中</div>'
+        + '<div style="font-size:11px;color:#666;margin-top:4px">音声ガイドで案内します</div>';
+    active.appendChild(driveStatus);
+}
+
 async function startScan() {
     showScreen('active');
+    if (S.mode === 'car') applyDriveLayout();
     dbg('1. 画面切替OK');
     S.active = true;
     S.startTime = Date.now();
@@ -1449,6 +1478,14 @@ function showDetBanner(name, sci, conf, source, note) {
     document.getElementById('det-sci').textContent = sci || '';
     document.getElementById('det-meta').textContent = (isAudio ? '🎤 音声' : '📷 カメラ') + ' · ' + confPct + '%';
     b.style.display = '';
+
+    // ドライブモード: 検出時はステータスを隠してバナーを目立たせ、5秒後に戻す
+    if (S.mode === 'car') {
+        var ds = document.getElementById('drive-status');
+        if (ds) ds.style.opacity = '0';
+        clearTimeout(S._driveRestoreTimer);
+        S._driveRestoreTimer = setTimeout(function() { if (ds) ds.style.opacity = '1'; }, 5000);
+    }
 
     // note（AI特徴1文）を即座に表示 — OmoikaneDB待ち不要
     var cardInfo = document.getElementById('det-card-info');
