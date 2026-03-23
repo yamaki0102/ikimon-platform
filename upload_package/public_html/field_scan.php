@@ -411,7 +411,7 @@ function applyDriveLayout() {
     var bp = document.getElementById('bottom-panel');
     if (bp) bp.style.display = 'none';
     var dbgEl = document.getElementById('debug-status');
-    if (dbgEl) dbgEl.style.display = 'none';
+    if (dbgEl) { dbgEl.style.top = 'auto'; dbgEl.style.bottom = '8px'; dbgEl.style.right = '8px'; dbgEl.style.maxWidth = '90%'; dbgEl.style.fontSize = '9px'; dbgEl.style.opacity = '0.6'; }
     var pulse = document.getElementById('scan-pulse');
     if (pulse) pulse.style.display = 'none';
     var envP = document.getElementById('env-panel');
@@ -2040,7 +2040,7 @@ async function _fetchAmbient() {
             if (j.data.audio_url) VoiceGuide.announceAudio(j.data.audio_url);
             else if (j.data.guide_text) VoiceGuide.announce(j.data.guide_text);
         }
-    } catch(e) {}
+    } catch(e) { dbg('🔊 ambient ERR: ' + e.message); }
 }
 
 // 音声ガイド: イベントリスナー登録（CSP nonce対応 — onchange/onclick は CSP でブロックされる）
