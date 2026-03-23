@@ -461,14 +461,6 @@ function applyDriveLayout() {
     if (active) active.style.background = '#000';
     var bp = document.getElementById('bottom-panel');
     if (bp) bp.style.display = 'none';
-    // 停止ボタンをトップバーから引き抜いて画面下部中央に独立配置（レイヤー干渉回避）
-    var stopBtn = document.getElementById('btn-stop');
-    if (stopBtn) {
-        stopBtn.parentNode.removeChild(stopBtn);
-        stopBtn.style.cssText = 'position:fixed;bottom:40px;left:50%;transform:translateX(-50%);padding:18px 48px;border-radius:20px;background:rgba(255,0,0,0.8);color:#fff;font-size:18px;font-weight:bold;border:2px solid rgba(255,255,255,0.4);z-index:9999;box-shadow:0 4px 20px rgba(255,0,0,0.4);-webkit-tap-highlight-color:transparent';
-        stopBtn.textContent = '■ スキャン終了';
-        document.getElementById('scan-active').appendChild(stopBtn);
-    }
     // ステータス + ガイド状態
     var driveStatus = document.createElement('div');
     driveStatus.id = 'drive-status';
@@ -482,6 +474,12 @@ function applyDriveLayout() {
 
 async function startScan() {
     showScreen('active');
+    // 全モード共通: 停止ボタンを画面下部に大きく固定配置
+    var stopBtn = document.getElementById('btn-stop');
+    if (stopBtn) {
+        stopBtn.style.cssText = 'position:fixed;bottom:max(env(safe-area-inset-bottom,8px),12px);left:50%;transform:translateX(-50%);padding:14px 40px;border-radius:16px;background:rgba(255,0,0,0.85);color:#fff;font-size:16px;font-weight:bold;border:2px solid rgba(255,255,255,0.4);z-index:9999;box-shadow:0 4px 20px rgba(255,0,0,0.4);-webkit-tap-highlight-color:transparent';
+        stopBtn.textContent = '■ スキャン終了';
+    }
     if (S.mode === 'car') applyDriveLayout();
     dbg('1. 画面切替OK');
     S.active = true;
