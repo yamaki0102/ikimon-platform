@@ -1376,6 +1376,7 @@ function sendDetectionToServer(name, sci, conf, source) {
     // ローカルに蓄積（30秒ごとの flushEvents で一括送信）
     if (!S.pendingEvents) S.pendingEvents = [];
     var det = S.speciesMap[name] || {};
+    var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
     var evt = {
         type: source === 'audio' ? 'audio' : 'visual',
         taxon_name: name,
