@@ -582,24 +582,12 @@ async function startScan() {
             unlock.volume = 0;
             speechSynthesis.speak(unlock);
         }
-        // 開始アナウンス + 即座にガイド取得（setTimeoutはスリープで凍結されるため）
-        dbg('🔊 即座にAPI呼出し');
-        fetch('/api/v2/voice_guide.php?mode=ambient&lat=35.6&lng=139.7&voice_mode=' + vgMode + '&session_count=0&elapsed_min=0&detected_species=')
-            .then(function(r) { dbg('🔊 API=' + r.status); return r.json(); })
-            .then(function(j) {
-                dbg('🔊 resp ok=' + j.success);
-                if (j.success && j.data) {
-                    if (j.data.audio_url) {
-                        dbg('🔊 audio_url=' + j.data.audio_url);
-                        VoiceGuide.announceAudio(j.data.audio_url);
-                    } else if (j.data.guide_text) {
-                        dbg('🔊 text=' + j.data.guide_text.substring(0, 30));
-                        VoiceGuide.announce(j.data.guide_text);
-                    }
-                }
-            })
-            .catch(function(e) { dbg('🔊 fetch ERR: ' + e.message); });
-        startAmbientCommentary();
+        // 初回ガイド取得（GPS取得前なのでデフォルト座標、すぐGPS更新で上書きされる）
+        S._ambientCount = 0;
+        S._lastVoiceTime = 0;
+        S._vgMode = vgMode;
+        _fetchAmbientNow();
+        // 以降はGPS更新・カメラキャプチャ時にトリガー（setTimeoutはスリープで凍結されるため使わない）
     } else {
         dbg('🔇 OFF');
     }
@@ -618,6 +606,9 @@ function handleGpsPosition(pos) {
         if (!document.hidden) updateMapRoute();
     }
     S.lastGpsPos = {lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc};
+
+    // 音声ガイド: GPS更新をトリガーにアンビエント発話
+    tryAmbient();
 
     // 静止検出: speed < 0.3 が30秒続いたら polling に切替
     if (S.currentSpeed < 0.3) {
@@ -2019,42 +2010,35 @@ async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
     } catch(e) {}
 }
 
-// アンビエントコメンタリー（車/自転車モード）
-var _ambientTimer = null;
-function startAmbientCommentary() {
-    if (!VoiceGuide.isEnabled()) { dbg('🔇 ambient: VG disabled'); return; }
-    dbg('🔊 ambient: 開始');
-    VoiceGuide.onFinish(function() { S._lastVoiceTime = Date.now(); });
-    // 初回は10秒後に実行（開始アナウンスの後）
-    setTimeout(function() {
-        dbg('🔊 ambient: 初回fetch');
-        _fetchAmbient();
-    }, 10000);
-    _ambientTimer = setInterval(function() {
-        if (VoiceGuide.isSpeaking()) return;
-        var since = Date.now() - (S._lastVoiceTime || S.startTime);
-        if (since < 20000) return;
-        _fetchAmbient();
-    }, 15000);
+// アンビエントコメンタリー — GPS更新トリガー方式（setTimeoutはスリープで凍結されるため不使用）
+// GPS更新(handleGpsPosition)やカメラキャプチャ時にtryAmbient()を呼ぶ
+function tryAmbient() {
+    if (!S.active || !VoiceGuide.isEnabled()) return;
+    if (VoiceGuide.isSpeaking()) return;
+    if (S._ambientFetching) return;
+    var since = Date.now() - (S._lastVoiceTime || 0);
+    if (since < 30000) return; // 最低30秒間隔
+    _fetchAmbientNow();
 }
 
-async function _fetchAmbient() {
+async function _fetchAmbientNow() {
+    S._ambientFetching = true;
     try {
         var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length-1] : null;
         var names = Object.keys(S.speciesMap).slice(0, 5).join(',');
         var min = Math.floor((Date.now() - S.startTime) / 60000);
         var p = new URLSearchParams();
         p.set('mode', 'ambient');
-        p.set('lat', last ? last.lat : 35);
-        p.set('lng', last ? last.lng : 139);
+        p.set('lat', last ? last.lat : 34.7);
+        p.set('lng', last ? last.lng : 137.7);
         p.set('detected_species', names);
         p.set('elapsed_min', min);
         p.set('voice_mode', VoiceGuide.getVoiceMode());
         p.set('session_count', S._ambientCount || 0);
         S._ambientCount = (S._ambientCount || 0) + 1;
-        dbg('🔊 API呼出し #' + S._ambientCount);
+        dbg('🔊 API #' + S._ambientCount);
         var r = await fetch('/api/v2/voice_guide.php?' + p.toString());
-        if (!r.ok) { dbg('🔊 API err: ' + r.status); return; }
+        if (!r.ok) { dbg('🔊 err ' + r.status); S._ambientFetching = false; return; }
         var j = await r.json();
         if (j.success && j.data) {
             S._lastVoiceTime = Date.now();
@@ -2062,6 +2046,7 @@ async function _fetchAmbient() {
             else if (j.data.guide_text) VoiceGuide.announce(j.data.guide_text);
         }
     } catch(e) { dbg('🔊 ambient ERR: ' + e.message); }
+    S._ambientFetching = false;
 }
 
 // 音声ガイド: イベントリスナー登録（CSP nonce対応 — onchange/onclick は CSP でブロックされる）
