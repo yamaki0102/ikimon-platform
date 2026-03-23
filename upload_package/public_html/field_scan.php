@@ -2042,7 +2042,7 @@ function selectVgSpeaker(s) {
     });
     var previewMap = { auto: 'auto', mochiko: 'mochiko', ryusei: 'ryusei', zundamon: 'zundamon' };
     if (previewMap[s]) {
-        new Audio('/assets/audio/' + previewMap[s] + '_preview.wav').play().catch(function(){});
+        VoiceGuide.playPreview('/assets/audio/' + previewMap[s] + '_preview.wav');
     }
 }
 
