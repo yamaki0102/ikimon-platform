@@ -504,11 +504,14 @@ async function startWalk() {
             unlock.volume = 0;
             speechSynthesis.speak(unlock);
         }
-        if (VoiceGuide.getVoiceMode() === 'zundamon') {
-            VoiceGuide.announceAudio('/assets/audio/zundamon_preview.wav');
-        } else {
-            VoiceGuide.announce('音声ガイドを開始します');
-        }
+        // GuideOrchestrator でセッション開始 → opening ナレーション自動取得
+        var gpsPos = W.lastGpsPos || {};
+        GuideOrchestrator.startSession({
+            lat: gpsPos.lat || 0,
+            lng: gpsPos.lng || 0,
+            weather: W.weatherText || '',
+            temperature: '',
+        });
     }
     W.detections = [];
     W.routePoints = [];
@@ -544,6 +547,7 @@ async function startWalk() {
                 updateMapRoute();
             }
             W.lastGpsPos = {lat: lat, lng: lng, accuracy: acc};
+            if (typeof GuideOrchestrator !== 'undefined') GuideOrchestrator.updatePosition(lat, lng);
         }, function(){}, {enableHighAccuracy:true, maximumAge:3000, timeout:10000});
     }
 
@@ -613,7 +617,12 @@ function stopWalk() {
     document.getElementById('sum-species').textContent = speciesList.length;
     document.getElementById('sum-gps').textContent = W.routePoints.length + '点';
 
-    VoiceGuide.stop();
+    // closing ナレーション → 読み上げ後に画面遷移
+    if (VoiceGuide.isEnabled()) {
+        GuideOrchestrator.endSession();
+    } else {
+        VoiceGuide.stop();
+    }
 
     showScreen('done');
 
@@ -760,11 +769,15 @@ async function sendAudio(blob, passedFreqFilter) {
                     W.detCountToday[key] = (W.detCountToday[key] || 0) + 1;
                     var isFirst = W.detCountToday[key] === 1;
 
+                    // GuideOrchestrator に検出を通知
+                    GuideOrchestrator.onDetection(det);
+                    var emotionLens = GuideOrchestrator.getCurrentLens();
+
                     if (VoiceGuide.getVoiceMode() === 'standard') {
                         VoiceGuide.announce(jaName + verb);
                     }
 
-                    fetchVoiceGuide(jaName, det.scientific_name, det.confidence, W.detCountToday[key], isFirst)
+                    fetchVoiceGuide(jaName, det.scientific_name, det.confidence, W.detCountToday[key], isFirst, emotionLens)
                         .then(function(res) {
                             if (!res) return;
                             if (res.audio_url) {
@@ -1298,7 +1311,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 音声ガイド解説取得
-async function fetchVoiceGuide(name, sciName, confidence, count, isFirst) {
+async function fetchVoiceGuide(name, sciName, confidence, count, isFirst, emotionLens) {
     try {
         var params = new URLSearchParams();
         params.set('name', name || '');
@@ -1307,6 +1320,10 @@ async function fetchVoiceGuide(name, sciName, confidence, count, isFirst) {
         params.set('detection_count', count || 1);
         params.set('is_first_today', isFirst ? '1' : '0');
         params.set('voice_mode', VoiceGuide.getVoiceMode());
+        if (emotionLens) params.set('emotion_lens', emotionLens);
+        var gpsPos = W.lastGpsPos || {};
+        if (gpsPos.lat) params.set('lat', gpsPos.lat);
+        if (gpsPos.lng) params.set('lng', gpsPos.lng);
         var resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
         if (!resp.ok) return null;
         var json = await resp.json();

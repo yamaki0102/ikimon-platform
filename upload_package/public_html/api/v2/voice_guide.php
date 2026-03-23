@@ -63,6 +63,229 @@ function _saveHistory(string $userId, string $text, array &$pastTexts): void
         json_encode($pastTexts, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 }
 
+// --- オープニングモード（セッション開始時の情景描写） ---
+if ($requestMode === 'opening') {
+    $lat = api_param('lat', 0, 'float');
+    $lng = api_param('lng', 0, 'float');
+    $weather = api_param('weather', '');
+    $temperature = api_param('temperature', '', 'string');
+    $lifeListCount = api_param('life_list_count', 0, 'int');
+
+    $areaName = '';
+    try {
+        require_once ROOT_DIR . '/libs/GeoUtils.php';
+        $geo = GeoUtils::reverseGeocode($lat, $lng);
+        $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
+    } catch (Throwable $e) {}
+
+    $nearbyContext = ($lat && $lng) ? _getNearbyObservations($lat, $lng, 2.0) : '';
+    $pastSpeciesCount = substr_count($nearbyContext, "\n") + ($nearbyContext ? 1 : 0);
+
+    $styleInstruction = $isZundamon
+        ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
+        : '親しい友人のような口調で。敬語は軽めに。';
+
+    $weatherNote = $weather ? "天気: {$weather}" : '';
+    $tempNote = $temperature ? "気温: {$temperature}" : '';
+
+    $prompt = <<<PROMPT
+あなたは自然散策の相棒です。これからフィールドに出る人に、その場所の空気感を伝える短い挨拶を生成してください。
+
+{$styleInstruction}
+
+場所: {$areaName}（緯度{$lat}、経度{$lng}）
+季節: {$seasonName}（{$month}月）  時間帯: {$timeOfDay}
+{$weatherNote}
+{$tempNote}
+この付近の過去の観察記録: {$pastSpeciesCount}種
+
+過去の観察データ:
+{$nearbyContext}
+
+要件:
+- その場所の空気感・季節感を2文で描写（例: 風、光、音、匂い）
+- 過去の観察データがあれば「この辺りでは以前〇〇が観察されてるよ」と1文
+- 最後に「何に出会えるかな」的な期待感を1文
+- 合計3〜4文、100文字以内
+- 百科事典的な説明はしない。五感に訴える情景描写を
+- 音声読み上げ用なので難しい漢字はひらがなで
+PROMPT;
+
+    $guideText = _callGemini($prompt);
+    if (empty($guideText)) {
+        $guideText = $isZundamon
+            ? "{$areaName}に来たのだ！{$seasonName}の自然を楽しむのだ！"
+            : "{$areaName}。{$seasonName}の空気が気持ちいいね。さあ、何に出会えるかな。";
+    }
+
+    _saveHistory($userId, $guideText, $pastTexts);
+
+    $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'opening'];
+    if ($isZundamon) {
+        $audioUrl = _generateVoicevoxAudio($guideText);
+        if ($audioUrl) $result['audio_url'] = $audioUrl;
+    }
+    api_success($result);
+}
+
+// --- クロージングモード（セッション終了時の記憶化） ---
+if ($requestMode === 'closing') {
+    $lat = api_param('lat', 0, 'float');
+    $lng = api_param('lng', 0, 'float');
+    $weather = api_param('weather', '');
+    $speciesListRaw = api_param('species', '');
+    $durationMin = api_param('duration_min', 0, 'int');
+    $speciesCount = api_param('species_count', 0, 'int');
+    $highlightSpecies = api_param('highlight_species', '');
+    $silentMinutes = api_param('silent_minutes', 0, 'int');
+
+    $areaName = '';
+    try {
+        require_once ROOT_DIR . '/libs/GeoUtils.php';
+        $geo = GeoUtils::reverseGeocode($lat, $lng);
+        $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
+    } catch (Throwable $e) {}
+
+    $styleInstruction = $isZundamon
+        ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
+        : '親しい友人のような温かい口調で。';
+
+    $silentContext = $silentMinutes > 5
+        ? "今日は静かな時間が{$silentMinutes}分ほどあった。それも自然体験の一部として肯定的に触れて。"
+        : '';
+
+    $prompt = <<<PROMPT
+あなたは自然散策の相棒です。セッションが終わった仲間に、今日の体験を記憶に残す短いメッセージを贈ってください。
+
+{$styleInstruction}
+
+場所: {$areaName}
+季節: {$seasonName}（{$month}月）  時間帯: {$timeOfDay}
+天気: {$weather}
+セッション時間: {$durationMin}分
+検出された種: {$speciesListRaw}（{$speciesCount}種）
+最も印象的な出会い: {$highlightSpecies}
+{$silentContext}
+
+要件:
+- 数字の羅列（「N分でN種」）で終わらない。その日の体験の手触りを伝える
+- 最も印象的な出会いに触れて、その出会いに小さな意味を添える（豆知識1つ）
+- 「今日は〇〇な午後だったね」のように、天気や時間帯の空気感を含める
+- 最後に「次は〇〇してみて」と再訪の伏線を1つ
+- 合計3〜4文、120文字以内
+- 集計レポートではなく、友達との会話の終わりのように
+- 音声読み上げ用なので難しい漢字はひらがなで
+PROMPT;
+
+    $guideText = _callGemini($prompt);
+    if (empty($guideText)) {
+        $guideText = $isZundamon
+            ? "{$durationMin}分のお散歩、お疲れさまなのだ！{$highlightSpecies}との出会いが素敵だったのだ！"
+            : "お疲れさま。{$highlightSpecies}との出会い、よかったね。また来よう。";
+    }
+
+    _saveHistory($userId, $guideText, $pastTexts);
+
+    // today_highlight を保存
+    $highlight = [
+        'date' => date('Y-m-d'),
+        'time' => date('H:i'),
+        'area' => $areaName,
+        'weather' => $weather,
+        'season' => $seasonName,
+        'duration_min' => $durationMin,
+        'species_count' => $speciesCount,
+        'highlight_species' => $highlightSpecies,
+        'species_list' => $speciesListRaw,
+        'closing_message' => mb_substr($guideText, 0, 200),
+        'emotion_tags' => _inferEmotionTags($speciesCount, $durationMin, $silentMinutes),
+    ];
+    _saveTodayHighlight($userId, $highlight);
+
+    $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'closing', 'today_highlight' => $highlight];
+    if ($isZundamon) {
+        $audioUrl = _generateVoicevoxAudio($guideText);
+        if ($audioUrl) $result['audio_url'] = $audioUrl;
+    }
+    api_success($result);
+}
+
+// --- 沈黙モード（何も検出されない時間の価値化） ---
+if ($requestMode === 'silence') {
+    $lat = api_param('lat', 0, 'float');
+    $lng = api_param('lng', 0, 'float');
+    $weather = api_param('weather', '');
+    $silentMin = api_param('silent_min', 5, 'int');
+    $detectedSpecies = api_param('detected_species', '');
+
+    $areaName = '';
+    try {
+        require_once ROOT_DIR . '/libs/GeoUtils.php';
+        $geo = GeoUtils::reverseGeocode($lat, $lng);
+        $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
+    } catch (Throwable $e) {}
+
+    $styleInstruction = $isZundamon
+        ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
+        : '穏やかで詩的な口調で。';
+
+    $silenceAngles = [
+        '今は耳を澄ませる時間。風の音、葉擦れの音、遠くの鳥の声に意識を向けてみて',
+        '静かな時間も自然観察の一部。目を凝らしてみて。足元に小さな発見があるかも',
+        '何もいないように見えて、実はたくさんの生き物がこちらを見ている。気配を感じてみて',
+        '自然のリズムはゆっくり。焦らなくていい。この静けさを楽しんで',
+        '葉っぱの裏を覗いてみて。小さな虫たちの世界が広がっているかも',
+        '深呼吸してみて。この場所の匂いを覚えておこう。季節が変われば匂いも変わる',
+        '鳥たちは警戒すると黙る。少し立ち止まって待ってみると、また歌い始めるかも',
+        '地面をよく見て。小さな足跡や食べ跡があれば、夜の住人がいる証拠',
+    ];
+    $angle = $silenceAngles[array_rand($silenceAngles)];
+
+    $recentTexts = array_slice(array_column($pastTexts, 'text'), -5);
+    $avoidList = !empty($recentTexts)
+        ? "以下は最近話した内容。重複しないで:\n" . implode("\n", array_map(fn($t) => "- {$t}", $recentTexts))
+        : '';
+
+    $prompt = <<<PROMPT
+あなたは自然散策の相棒です。しばらく生き物の検出がない静かな時間が続いています。
+この沈黙を退屈ではなく、価値ある体験として伝えてください。
+
+{$styleInstruction}
+
+場所: {$areaName}
+季節: {$seasonName}  時間帯: {$timeOfDay}
+天気: {$weather}
+静かな時間: {$silentMin}分
+{$detectedSpecies}
+
+ヒント: {$angle}
+
+{$avoidList}
+
+条件:
+- 1〜2文、60文字以内
+- 説教臭くしない。ふっと心が軽くなるような一言
+- 五感（聴覚・嗅覚・触覚）を使った提案を含めて
+- 音声読み上げ用なので難しい漢字はひらがなで
+PROMPT;
+
+    $guideText = _callGemini($prompt);
+    if (empty($guideText)) {
+        $guideText = $isZundamon
+            ? '静かな時間も大切なのだ。耳を澄ませてみるのだ。'
+            : '静かだね。耳を澄ませてみて。遠くで何か鳴いてるかも。';
+    }
+
+    _saveHistory($userId, $guideText, $pastTexts);
+
+    $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'silence'];
+    if ($isZundamon) {
+        $audioUrl = _generateVoicevoxAudio($guideText);
+        if ($audioUrl) $result['audio_url'] = $audioUrl;
+    }
+    api_success($result);
+}
+
 // --- アンビエントモード（定期コメンタリー） ---
 if ($requestMode === 'ambient') {
     $lat = api_param('lat', 0, 'float');
@@ -193,6 +416,7 @@ $sciName = api_param('scientific_name', '');
 $confidence = api_param('confidence', 0.5, 'float');
 $detectionCount = api_param('detection_count', 1, 'int');
 $isFirstToday = api_param('is_first_today', '1') === '1';
+$emotionLens = api_param('emotion_lens', '');
 
 if (empty($name) && empty($sciName)) {
     api_error('name or scientific_name required');
@@ -279,8 +503,17 @@ $talkAngles = [
 ];
 $chosenAngle = $talkAngles[array_rand($talkAngles)];
 
+$emotionInstruction = match($emotionLens) {
+    'wonder' => '驚きや愛着を生む話をして。「え、そうなんだ！」と思わせる内容で。',
+    'quest' => '次を探したくなる話をして。「あっちに行ったら〇〇がいるかも」と冒険心をくすぐって。',
+    'mastery' => '少し賢くなった実感を渡して。観察眼が磨かれるような、見分け方や生態の深い話を。',
+    'memory' => 'この出会いを記憶に残る一瞬にして。「この季節のこの場所で出会えたのは特別」のように。',
+    'contribution' => 'この記録の意味を伝えて。「キミの記録がこの地域の〇〇に役立つ」のように。',
+    default => '',
+};
+
 $prompt = <<<PROMPT
-あなたはドライブ中の人に音声で読み上げる、地域密着型ネイチャーガイドです。
+あなたは自然散策の相棒です。発見を祝福し、世界の見え方をちょっとだけ変える一言を。
 
 {$styleInstruction}
 
@@ -295,6 +528,7 @@ $prompt = <<<PROMPT
 {$avoidList}
 
 今回の話し方: {$chosenAngle}
+{$emotionInstruction}
 
 条件:
 - 2〜3文、80文字以内
@@ -302,8 +536,6 @@ $prompt = <<<PROMPT
 - 「N回目の検出」のような事務的情報は入れない
 - 可能なら過去の観察データや地域の特徴に触れて
 - 音声読み上げ用なので難しい漢字はひらがなで（例: 囀り→さえずり）
-- 学名は読み上げない
-- 聞いて「へぇ」と思える内容に
 - 学名は読み上げないで
 - 聞いて「へぇ」と思える具体的な内容に
 PROMPT;
@@ -328,6 +560,33 @@ if ($isZundamon && !empty($guideText)) {
 }
 
 api_success($result);
+
+function _inferEmotionTags(int $speciesCount, int $durationMin, int $silentMin): array
+{
+    $tags = [];
+    if ($speciesCount >= 5) $tags[] = 'wonder';
+    if ($speciesCount === 0) $tags[] = 'stillness';
+    if ($silentMin > 10) $tags[] = 'contemplative';
+    if ($durationMin >= 30) $tags[] = 'immersive';
+    if ($speciesCount >= 1 && $speciesCount <= 3) $tags[] = 'focused';
+    if ($durationMin < 15) $tags[] = 'brief';
+    if (empty($tags)) $tags[] = 'gentle';
+    return $tags;
+}
+
+function _saveTodayHighlight(string $userId, array $highlight): void
+{
+    $dir = DATA_DIR . 'today_highlights';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    $file = "{$dir}/{$userId}.json";
+    $existing = [];
+    if (file_exists($file)) {
+        $existing = json_decode(file_get_contents($file), true) ?: [];
+    }
+    $existing[] = $highlight;
+    if (count($existing) > 100) $existing = array_slice($existing, -100);
+    file_put_contents($file, json_encode($existing, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+}
 
 function _getNearbyObservations(float $lat, float $lng, float $radiusKm): string
 {
