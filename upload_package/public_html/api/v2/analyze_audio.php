@@ -167,11 +167,11 @@ if (!empty($result['detections'])) {
     }
 }
 
-// --- Archive low-confidence detections for citizen ID ---
-if ($archiveMode && !empty($result['detections']) && !$audioPath) {
+// --- Archive detections for citizen ID (sound archive) ---
+if ($archiveMode && !empty($result['detections'])) {
     $topConf = $result['detections'][0]['confidence'] ?? 0;
     if ($topConf >= 0.05) {
-        $archiveResult = _saveToArchive($file, $detectedMime, $lat, $lng, $gpsAccuracy, $sourceMode, $result['detections']);
+        $archiveResult = _saveToArchive($file, $detectedMime, $lat, $lng, $gpsAccuracy, $sourceMode, $result['detections'], $audioPath);
         if ($archiveResult) {
             $result['archived'] = true;
             $result['archive_id'] = $archiveResult['id'];
@@ -215,27 +215,34 @@ function _saveAudioEvidence(array $file, string $mime): ?string
 /**
  * 低信頼度検出の音声をサウンドアーカイブに保存
  */
-function _saveToArchive(array $file, string $mime, float $lat, float $lng, float $accuracy, string $sourceMode, array $detections): ?array
+function _saveToArchive(array $file, string $mime, float $lat, float $lng, float $accuracy, string $sourceMode, array $detections, ?string $existingAudioPath = null): ?array
 {
-    $yearMonth = date('Y-m');
-    $dir = PUBLIC_DIR . "/uploads/audio/archive/{$yearMonth}";
-    if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
-    }
-
-    $ext = _audioExtension($mime);
     $id = 'sa_' . bin2hex(random_bytes(8));
-    $filename = $id . $ext;
-    $destPath = "{$dir}/{$filename}";
 
-    if (!move_uploaded_file($file['tmp_name'], $destPath)) {
-        if (!copy($file['tmp_name'], $destPath)) {
-            return null;
+    if ($existingAudioPath) {
+        $audioRelPath = $existingAudioPath;
+        $fullPath = PUBLIC_DIR . '/' . $existingAudioPath;
+        $hash = file_exists($fullPath) ? hash_file('sha256', $fullPath) : null;
+    } else {
+        $yearMonth = date('Y-m');
+        $dir = PUBLIC_DIR . "/uploads/audio/archive/{$yearMonth}";
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
         }
-    }
 
-    $audioRelPath = "uploads/audio/archive/{$yearMonth}/{$filename}";
-    $hash = file_exists($destPath) ? hash_file('sha256', $destPath) : null;
+        $ext = _audioExtension($mime);
+        $filename = $id . $ext;
+        $destPath = "{$dir}/{$filename}";
+
+        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+            if (!copy($file['tmp_name'], $destPath)) {
+                return null;
+            }
+        }
+
+        $audioRelPath = "uploads/audio/archive/{$yearMonth}/{$filename}";
+        $hash = file_exists($destPath) ? hash_file('sha256', $destPath) : null;
+    }
 
     $areaName = '';
     try {
