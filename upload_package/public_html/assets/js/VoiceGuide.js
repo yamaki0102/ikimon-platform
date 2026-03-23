@@ -1,23 +1,30 @@
 /**
  * VoiceGuide — 音声ネイチャーガイド
  *
- * 5モード:
- *   - 'standard': Web Speech API (ブラウザ内蔵TTS)
- *   - 'bluetooth': VOICEVOX経由のメディア再生 (Bluetooth優先・中立話者)
- *   - 'mochiko': VOICEVOX もち子さん音声
- *   - 'ryusei': VOICEVOX 青山龍星音声
- *   - 'zundamon': VOICEVOX ずんだもん音声 (キャラ口調)
+ * 出力経路 (output):
+ *   - 'bluetooth': VOICEVOX Audio → Bluetooth/車載に乗る
+ *   - 'speaker':   Web Speech API (端末スピーカー)
  *
- * Bluetooth スピーカー対応。キュー管理で重複防止。
+ * 話者 (speaker):
+ *   - 'auto':     中立寄り話者を自動選択
+ *   - 'mochiko':  もち子さん
+ *   - 'ryusei':   青山龍星
+ *   - 'zundamon': ずんだもん (キャラ口調)
+ *
+ * キュー管理で重複防止。
  */
 var VoiceGuide = (function() {
     var enabled = false;
-    var voiceMode = 'bluetooth';  // 'standard' | 'bluetooth' | 'zundamon'
+    var output = 'bluetooth';   // 'bluetooth' | 'speaker'
+    var speaker = 'auto';       // 'auto' | 'mochiko' | 'ryusei' | 'zundamon'
     var voice = null;
     var queue = [];
     var speaking = false;
     var currentAudio = null;
     var onFinishCallback = null;
+
+    var VALID_OUTPUTS = ['bluetooth', 'speaker'];
+    var VALID_SPEAKERS = ['auto', 'mochiko', 'ryusei', 'zundamon'];
 
     function init() {
         if ('speechSynthesis' in window) {
@@ -42,33 +49,68 @@ var VoiceGuide = (function() {
         try { localStorage.setItem('ikimon_voice_guide', on ? '1' : '0'); } catch(e) {}
     }
 
-    var VALID_MODES = ['standard', 'bluetooth', 'mochiko', 'ryusei', 'zundamon'];
-    function setVoiceMode(mode) {
-        if (VALID_MODES.indexOf(mode) >= 0) {
-            voiceMode = mode;
-        } else {
-            voiceMode = 'bluetooth';
-        }
-        try { localStorage.setItem('ikimon_voice_mode', voiceMode); } catch(e) {}
+    function setOutput(o) {
+        output = (VALID_OUTPUTS.indexOf(o) >= 0) ? o : 'bluetooth';
+        try { localStorage.setItem('ikimon_voice_output', output); } catch(e) {}
     }
 
-    function getVoiceMode() { return voiceMode; }
+    function setSpeaker(s) {
+        speaker = (VALID_SPEAKERS.indexOf(s) >= 0) ? s : 'auto';
+        try { localStorage.setItem('ikimon_voice_speaker', speaker); } catch(e) {}
+    }
+
+    function getOutput() { return output; }
+    function getSpeaker() { return speaker; }
     function isEnabled() { return enabled; }
+
+    // 後方互換: API に渡す voice_mode を組み立てる
+    function getVoiceMode() {
+        if (output === 'speaker') return 'standard';
+        return speaker;  // 'auto' | 'mochiko' | 'ryusei' | 'zundamon'
+    }
+
+    // 後方互換: 旧 setVoiceMode を新2軸に変換
+    function setVoiceMode(mode) {
+        if (mode === 'standard') {
+            setOutput('speaker');
+        } else if (mode === 'bluetooth') {
+            setOutput('bluetooth');
+            setSpeaker('auto');
+        } else if (VALID_SPEAKERS.indexOf(mode) >= 0) {
+            setOutput('bluetooth');
+            setSpeaker(mode);
+        }
+    }
 
     function loadSetting() {
         try {
             if (localStorage.getItem('ikimon_voice_guide') === '1') enabled = true;
-            var migrated = localStorage.getItem('ikimon_voice_mode_bt_migrated');
-            var m = localStorage.getItem('ikimon_voice_mode');
-            if (migrated !== '1' && (!m || m === 'standard')) {
-                voiceMode = 'bluetooth';
-                localStorage.setItem('ikimon_voice_mode', voiceMode);
-                localStorage.setItem('ikimon_voice_mode_bt_migrated', '1');
+
+            // 新形式があればそちらを優先
+            var savedOutput = localStorage.getItem('ikimon_voice_output');
+            var savedSpeaker = localStorage.getItem('ikimon_voice_speaker');
+            if (savedOutput || savedSpeaker) {
+                if (VALID_OUTPUTS.indexOf(savedOutput) >= 0) output = savedOutput;
+                if (VALID_SPEAKERS.indexOf(savedSpeaker) >= 0) speaker = savedSpeaker;
                 return;
             }
-            if (VALID_MODES.indexOf(m) >= 0) {
-                voiceMode = m;
+
+            // 旧形式からの移行
+            var m = localStorage.getItem('ikimon_voice_mode');
+            if (m === 'standard') {
+                output = 'speaker'; speaker = 'auto';
+            } else if (m === 'zundamon') {
+                output = 'bluetooth'; speaker = 'zundamon';
+            } else if (m === 'mochiko') {
+                output = 'bluetooth'; speaker = 'mochiko';
+            } else if (m === 'ryusei') {
+                output = 'bluetooth'; speaker = 'ryusei';
+            } else {
+                output = 'bluetooth'; speaker = 'auto';
             }
+            // 新形式で保存し直す
+            localStorage.setItem('ikimon_voice_output', output);
+            localStorage.setItem('ikimon_voice_speaker', speaker);
         } catch(e) {}
     }
 
@@ -131,8 +173,6 @@ var VoiceGuide = (function() {
         }
         utter.onend = finish;
         utter.onerror = finish;
-        // TTS watchdog: onend が飛ばないモバイルブラウザ対策
-        // 日本語80文字 ≈ 8秒。余裕を持って15秒でフォールバック
         _ttsWatchdog = setTimeout(function() {
             if (!done) {
                 speechSynthesis.cancel();
@@ -154,7 +194,6 @@ var VoiceGuide = (function() {
         currentAudio.onended = finish;
         currentAudio.onerror = finish;
         currentAudio.play().then(function() {
-            // 再生開始成功 → duration + 2秒後にフォールバック終了
             var dur = currentAudio && currentAudio.duration ? currentAudio.duration * 1000 + 2000 : 15000;
             _audioTimeout = setTimeout(finish, dur);
         }).catch(finish);
@@ -163,8 +202,12 @@ var VoiceGuide = (function() {
     return {
         init: init,
         setEnabled: setEnabled,
-        setVoiceMode: setVoiceMode,
+        setOutput: setOutput,
+        setSpeaker: setSpeaker,
+        getOutput: getOutput,
+        getSpeaker: getSpeaker,
         getVoiceMode: getVoiceMode,
+        setVoiceMode: setVoiceMode,
         isEnabled: isEnabled,
         loadSetting: loadSetting,
         announce: announce,
@@ -180,254 +223,3 @@ if (document.readyState === 'loading') {
 } else {
     VoiceGuide.init(); VoiceGuide.loadSetting();
 }
-
-/**
- * GuideOrchestrator — セッション全体の感情の流れを管理
- *
- * 感情レンズ: wonder / quest / mastery / memory / contribution
- * 選択ロジック: 固定ローテーションではなく、文脈に応じて最適なレンズを選ぶ
- * 沈黙管理: 段階的に深まる（5分→穏やか / 15分→五感 / 25分→詩的）
- * Opening: GPS取得を待ってから発火
- */
-var GuideOrchestrator = (function() {
-    var SILENCE_INTERVALS = [
-        { minMs: 5 * 60 * 1000,  depthLabel: 'gentle' },
-        { minMs: 10 * 60 * 1000, depthLabel: 'sensory' },
-        { minMs: 8 * 60 * 1000,  depthLabel: 'poetic' },
-    ];
-
-    var session = {
-        active: false,
-        startTime: 0,
-        detectionCount: 0,
-        lastDetectionTime: 0,
-        lastSilenceTime: 0,
-        silenceCount: 0,
-        species: [],
-        speciesDetCounts: {},
-        lat: 0,
-        lng: 0,
-        weather: '',
-        temperature: '',
-        highlightSpecies: '',
-        highlightConfidence: 0,
-        totalSilentMin: 0,
-        openingSent: false,
-        gpsReady: false,
-    };
-
-    var silenceTimer = null;
-    var openingWaitTimer = null;
-
-    function startSession(opts) {
-        session.active = true;
-        session.startTime = Date.now();
-        session.detectionCount = 0;
-        session.lastDetectionTime = Date.now();
-        session.lastSilenceTime = 0;
-        session.silenceCount = 0;
-        session.species = [];
-        session.speciesDetCounts = {};
-        session.lat = opts.lat || 0;
-        session.lng = opts.lng || 0;
-        session.weather = opts.weather || '';
-        session.temperature = opts.temperature || '';
-        session.highlightSpecies = '';
-        session.highlightConfidence = 0;
-        session.totalSilentMin = 0;
-        session.openingSent = false;
-        session.gpsReady = (session.lat !== 0 && session.lng !== 0);
-
-        _startSilenceWatch();
-
-        if (session.gpsReady) {
-            _fetchOpening();
-        } else {
-            openingWaitTimer = setInterval(function() {
-                if (session.lat !== 0 && session.lng !== 0) {
-                    clearInterval(openingWaitTimer);
-                    openingWaitTimer = null;
-                    if (!session.openingSent) _fetchOpening();
-                }
-            }, 1000);
-            setTimeout(function() {
-                if (openingWaitTimer) { clearInterval(openingWaitTimer); openingWaitTimer = null; }
-                if (!session.openingSent) _fetchOpening();
-            }, 15000);
-        }
-    }
-
-    function endSession() {
-        if (!session.active) return;
-        session.active = false;
-        if (openingWaitTimer) { clearInterval(openingWaitTimer); openingWaitTimer = null; }
-        _stopSilenceWatch();
-        _fetchClosing();
-    }
-
-    function onDetection(det) {
-        if (!session.active) return;
-        session.detectionCount++;
-        session.lastDetectionTime = Date.now();
-        var name = det.japanese_name || det.name;
-        var key = det.scientific_name || name;
-        session.speciesDetCounts[key] = (session.speciesDetCounts[key] || 0) + 1;
-        if (session.species.indexOf(name) === -1) session.species.push(name);
-        if ((det.confidence || 0) > session.highlightConfidence) {
-            session.highlightSpecies = name;
-            session.highlightConfidence = det.confidence || 0;
-        }
-    }
-
-    function getCurrentLens(det) {
-        var name = det ? (det.japanese_name || det.name) : '';
-        var key = det ? (det.scientific_name || name) : '';
-        var conf = det ? (det.confidence || 0) : 0;
-        var thisSpeciesCount = session.speciesDetCounts[key] || 0;
-        var isNewToUser = det ? !!det._isNewToUser : false;
-        var isNewInSession = thisSpeciesCount <= 1;
-        var elapsed = Math.floor((Date.now() - session.startTime) / 60000);
-
-        // Life List に未登録の種 → 必ず wonder（本当の「新しい出会い」）
-        if (isNewToUser && conf >= 0.5) return 'wonder';
-
-        // セッション初検出 → wonder
-        if (session.detectionCount <= 1) return 'wonder';
-
-        // 同種の再検出3回以上 → mastery（見分け方や生態の深い話）
-        if (thisSpeciesCount >= 3) return 'mastery';
-
-        // セッション後半（20分以降） → memory に傾ける
-        if (elapsed >= 20) {
-            return (session.detectionCount % 2 === 0) ? 'memory' : 'quest';
-        }
-
-        // 3種以上見つかったら contribution
-        if (session.species.length >= 3 && session.detectionCount % 3 === 0) return 'contribution';
-
-        // セッション内で初めての種（Life Listには既存） → quest（次を探す動機）
-        if (isNewInSession) return 'quest';
-
-        // 通常: wonder と quest を交互
-        return (session.detectionCount % 2 === 0) ? 'quest' : 'wonder';
-    }
-
-    function getSessionState() {
-        return {
-            detectionCount: session.detectionCount,
-            speciesCount: session.species.length,
-            species: session.species.slice(),
-            elapsedMin: Math.floor((Date.now() - session.startTime) / 60000),
-            highlightSpecies: session.highlightSpecies,
-            silentMin: session.totalSilentMin,
-        };
-    }
-
-    function updatePosition(lat, lng) {
-        session.lat = lat;
-        session.lng = lng;
-    }
-
-    function _voiceResult(json) {
-        if (!json || !json.success || !json.data) return;
-        var d = json.data;
-        if (d.audio_url) VoiceGuide.announceAudio(d.audio_url);
-        else if (d.guide_text) VoiceGuide.announce(d.guide_text);
-    }
-
-    function _fetchOpening() {
-        session.openingSent = true;
-        if (!VoiceGuide.isEnabled()) return;
-        var params = new URLSearchParams();
-        params.set('mode', 'opening');
-        params.set('lat', session.lat);
-        params.set('lng', session.lng);
-        params.set('weather', session.weather);
-        params.set('temperature', session.temperature);
-        params.set('voice_mode', VoiceGuide.getVoiceMode());
-
-        fetch('/api/v2/voice_guide.php?' + params.toString())
-            .then(function(r) { return r.ok ? r.json() : null; })
-            .then(_voiceResult)
-            .catch(function() {});
-    }
-
-    function _fetchClosing() {
-        if (!VoiceGuide.isEnabled()) return;
-        var state = getSessionState();
-        var params = new URLSearchParams();
-        params.set('mode', 'closing');
-        params.set('lat', session.lat);
-        params.set('lng', session.lng);
-        params.set('weather', session.weather);
-        params.set('species', session.species.join(','));
-        params.set('species_count', state.speciesCount);
-        params.set('duration_min', state.elapsedMin);
-        params.set('highlight_species', session.highlightSpecies || (session.species[0] || ''));
-        params.set('silent_minutes', session.totalSilentMin);
-        params.set('voice_mode', VoiceGuide.getVoiceMode());
-
-        fetch('/api/v2/voice_guide.php?' + params.toString())
-            .then(function(r) { return r.ok ? r.json() : null; })
-            .then(_voiceResult)
-            .catch(function() {});
-    }
-
-    function _fetchSilence() {
-        if (!VoiceGuide.isEnabled() || !session.active) return;
-        if (VoiceGuide.isSpeaking()) return;
-
-        var sinceLastDet = Math.floor((Date.now() - session.lastDetectionTime) / 60000);
-        session.totalSilentMin = sinceLastDet;
-
-        // 沈黙の深さ段階
-        var depth = 'gentle';
-        if (session.silenceCount >= 3) depth = 'poetic';
-        else if (session.silenceCount >= 1) depth = 'sensory';
-
-        var params = new URLSearchParams();
-        params.set('mode', 'silence');
-        params.set('lat', session.lat);
-        params.set('lng', session.lng);
-        params.set('weather', session.weather);
-        params.set('silent_min', sinceLastDet);
-        params.set('silence_depth', depth);
-        params.set('detected_species', session.species.length > 0 ? 'これまでに' + session.species.join('、') + 'を検出' : '');
-        params.set('voice_mode', VoiceGuide.getVoiceMode());
-
-        fetch('/api/v2/voice_guide.php?' + params.toString())
-            .then(function(r) { return r.ok ? r.json() : null; })
-            .then(_voiceResult)
-            .catch(function() {});
-
-        session.silenceCount++;
-        session.lastSilenceTime = Date.now();
-    }
-
-    function _startSilenceWatch() {
-        _stopSilenceWatch();
-        silenceTimer = setInterval(function() {
-            if (!session.active) return;
-            var sinceLast = Date.now() - session.lastDetectionTime;
-            var sinceSilence = session.lastSilenceTime ? Date.now() - session.lastSilenceTime : Infinity;
-            // 最初の沈黙は5分後、以降は間隔を広げる（5分→8分→10分）
-            var threshold = SILENCE_INTERVALS[Math.min(session.silenceCount, SILENCE_INTERVALS.length - 1)].minMs;
-            if (sinceLast >= threshold && sinceSilence >= threshold) {
-                _fetchSilence();
-            }
-        }, 60000);
-    }
-
-    function _stopSilenceWatch() {
-        if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null; }
-    }
-
-    return {
-        startSession: startSession,
-        endSession: endSession,
-        onDetection: onDetection,
-        getCurrentLens: getCurrentLens,
-        getSessionState: getSessionState,
-        updatePosition: updatePosition,
-    };
-})();
