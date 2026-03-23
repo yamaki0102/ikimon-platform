@@ -160,7 +160,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <script defer src="/js/HapticEngine.js"></script>
 <script defer src="/js/MotionEngine.js"></script>
 <script defer src="/js/OfflineManager.js?v=2.2"></script>
-<script defer src="/assets/js/VoiceGuide.js?v=4"></script>
+<script defer src="/assets/js/VoiceGuide.js?v=5"></script>
 <script defer src="/assets/js/analytics.js"></script>
 
 <!-- Critical FOUC Prevention (CSS遅延の保険) -->
@@ -172,7 +172,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 
 <!-- Design System v2 CSS Stack -->
 <link rel="stylesheet" href="/assets/css/tokens.css?v=2.2">
-<link rel="stylesheet" href="/assets/css/style.css?v=2.2">
+<link rel="stylesheet" href="/assets/css/style.css?v=2.3">
 <link rel="stylesheet" href="/assets/css/skeleton.css?v=2.2">
 <link rel="stylesheet" href="/assets/css/input.css?v=2.2">
 
