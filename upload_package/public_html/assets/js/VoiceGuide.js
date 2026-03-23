@@ -1,10 +1,12 @@
 /**
  * VoiceGuide — 音声ネイチャーガイド
  *
- * 3モード:
+ * 5モード:
  *   - 'standard': Web Speech API (ブラウザ内蔵TTS)
- *   - 'bluetooth': VOICEVOX経由のメディア再生 (Bluetooth優先)
- *   - 'zundamon': VOICEVOX ずんだもん音声 (サーバー生成)
+ *   - 'bluetooth': VOICEVOX経由のメディア再生 (Bluetooth優先・中立話者)
+ *   - 'mochiko': VOICEVOX もち子さん音声
+ *   - 'ryusei': VOICEVOX 青山龍星音声
+ *   - 'zundamon': VOICEVOX ずんだもん音声 (キャラ口調)
  *
  * Bluetooth スピーカー対応。キュー管理で重複防止。
  */
@@ -40,8 +42,9 @@ var VoiceGuide = (function() {
         try { localStorage.setItem('ikimon_voice_guide', on ? '1' : '0'); } catch(e) {}
     }
 
+    var VALID_MODES = ['standard', 'bluetooth', 'mochiko', 'ryusei', 'zundamon'];
     function setVoiceMode(mode) {
-        if (mode === 'zundamon' || mode === 'bluetooth' || mode === 'standard') {
+        if (VALID_MODES.indexOf(mode) >= 0) {
             voiceMode = mode;
         } else {
             voiceMode = 'bluetooth';
@@ -63,7 +66,7 @@ var VoiceGuide = (function() {
                 localStorage.setItem('ikimon_voice_mode_bt_migrated', '1');
                 return;
             }
-            if (m === 'standard' || m === 'bluetooth' || m === 'zundamon') {
+            if (VALID_MODES.indexOf(m) >= 0) {
                 voiceMode = m;
             }
         } catch(e) {}
