@@ -132,8 +132,12 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             </div>
             <div id="vg-mode-sel" class="flex gap-2 px-1" style="display:none">
                 <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-mode-btn active"
-                        data-vmode="standard" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
-                    📱 スマホ標準
+                        data-vmode="bluetooth" style="border-color:#3b82f6;background:rgba(59,130,246,0.1);color:#93c5fd">
+                    📶 Bluetooth優先
+                </button>
+                <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
+                        data-vmode="standard" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                    📱 端末読み上げ
                 </button>
                 <button type="button" class="flex-1 py-2 rounded-lg text-xs font-bold border transition vg-mode-btn"
                         data-vmode="zundamon" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
@@ -1997,7 +2001,7 @@ function selectVgMode(mode) {
         b.style.color = active ? '#93c5fd' : '#9ca3af';
     });
     // プレビュー再生（選択確認）
-    if (mode === 'zundamon') {
+    if (mode === 'bluetooth' || mode === 'zundamon') {
         new Audio('/assets/audio/zundamon_preview.wav').play().catch(function(){});
     } else {
         if ('speechSynthesis' in window) {

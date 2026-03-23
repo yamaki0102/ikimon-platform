@@ -1,15 +1,16 @@
 /**
  * VoiceGuide — 音声ネイチャーガイド
  *
- * 2モード:
+ * 3モード:
  *   - 'standard': Web Speech API (ブラウザ内蔵TTS)
+ *   - 'bluetooth': VOICEVOX経由のメディア再生 (Bluetooth優先)
  *   - 'zundamon': VOICEVOX ずんだもん音声 (サーバー生成)
  *
  * Bluetooth スピーカー対応。キュー管理で重複防止。
  */
 var VoiceGuide = (function() {
     var enabled = false;
-    var voiceMode = 'standard';  // 'standard' | 'zundamon'
+    var voiceMode = 'bluetooth';  // 'standard' | 'bluetooth' | 'zundamon'
     var voice = null;
     var queue = [];
     var speaking = false;
@@ -40,7 +41,11 @@ var VoiceGuide = (function() {
     }
 
     function setVoiceMode(mode) {
-        voiceMode = (mode === 'zundamon') ? 'zundamon' : 'standard';
+        if (mode === 'zundamon' || mode === 'bluetooth' || mode === 'standard') {
+            voiceMode = mode;
+        } else {
+            voiceMode = 'bluetooth';
+        }
         try { localStorage.setItem('ikimon_voice_mode', voiceMode); } catch(e) {}
     }
 
@@ -50,8 +55,17 @@ var VoiceGuide = (function() {
     function loadSetting() {
         try {
             if (localStorage.getItem('ikimon_voice_guide') === '1') enabled = true;
+            var migrated = localStorage.getItem('ikimon_voice_mode_bt_migrated');
             var m = localStorage.getItem('ikimon_voice_mode');
-            if (m === 'zundamon') voiceMode = 'zundamon';
+            if (migrated !== '1' && (!m || m === 'standard')) {
+                voiceMode = 'bluetooth';
+                localStorage.setItem('ikimon_voice_mode', voiceMode);
+                localStorage.setItem('ikimon_voice_mode_bt_migrated', '1');
+                return;
+            }
+            if (m === 'standard' || m === 'bluetooth' || m === 'zundamon') {
+                voiceMode = m;
+            }
         } catch(e) {}
     }
 
