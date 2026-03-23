@@ -55,14 +55,18 @@ var VoiceGuide = (function() {
         } catch(e) {}
     }
 
+    var MAX_QUEUE = 4;
+
     function announce(text) {
         if (!enabled || !text) return;
+        if (queue.length >= MAX_QUEUE) queue.splice(0, queue.length - MAX_QUEUE + 1);
         queue.push({ type: 'tts', text: text });
         if (!speaking) _processQueue();
     }
 
     function announceAudio(audioUrl) {
         if (!enabled || !audioUrl) return;
+        if (queue.length >= MAX_QUEUE) queue.splice(0, queue.length - MAX_QUEUE + 1);
         queue.push({ type: 'audio', url: audioUrl });
         if (!speaking) _processQueue();
     }
@@ -70,6 +74,8 @@ var VoiceGuide = (function() {
     function stop() {
         queue = [];
         speaking = false;
+        if (_ttsWatchdog) { clearTimeout(_ttsWatchdog); _ttsWatchdog = null; }
+        if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
         if ('speechSynthesis' in window) speechSynthesis.cancel();
         if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     }
@@ -91,6 +97,7 @@ var VoiceGuide = (function() {
         }
     }
 
+    var _ttsWatchdog = null;
     function _speak(text) {
         if (!('speechSynthesis' in window)) { _processQueue(); return; }
         var utter = new SpeechSynthesisUtterance(text);
@@ -99,8 +106,22 @@ var VoiceGuide = (function() {
         utter.rate = 1.0;
         utter.pitch = 1.0;
         utter.volume = 1.0;
-        utter.onend = function() { _processQueue(); };
-        utter.onerror = function() { _processQueue(); };
+        var done = false;
+        function finish() {
+            if (done) return; done = true;
+            if (_ttsWatchdog) { clearTimeout(_ttsWatchdog); _ttsWatchdog = null; }
+            _processQueue();
+        }
+        utter.onend = finish;
+        utter.onerror = finish;
+        // TTS watchdog: onend が飛ばないモバイルブラウザ対策
+        // 日本語80文字 ≈ 8秒。余裕を持って15秒でフォールバック
+        _ttsWatchdog = setTimeout(function() {
+            if (!done) {
+                speechSynthesis.cancel();
+                finish();
+            }
+        }, 15000);
         speechSynthesis.speak(utter);
     }
 
