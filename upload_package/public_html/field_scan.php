@@ -390,6 +390,9 @@ async function startScan() {
     S.sentEventCount = 0;
     S.batchTimer = null;
     S.serverSessionId = null;
+    S.audioEmptyStreak = 0;
+    S._audioResuming = false;
+    S._lastEnvPos = null;
     updateCounts();
 
     // 30秒ごとに増分送信
@@ -1092,11 +1095,12 @@ function setupAudioRecorder() {
 
 function startAudioCycle() {
     if (!S.active || !S.recorder) return;
-    if (S.analyzing) { S.recTimer = setTimeout(startAudioCycle, 1000); return; }
+    if (S.analyzing || S._audioResuming) { S.recTimer = setTimeout(startAudioCycle, 1000); return; }
     setScanListenState('listening');
     var audioMs = getAdaptiveAudioMs();
-    // 録音開始前に AudioContext を resume（suspend中なら）
     var doRecord = function() {
+        S._audioResuming = false;
+        if (!S.active) return;
         try {
             S.chunks = [];
             S.recorder.start();
@@ -1106,7 +1110,11 @@ function startAudioCycle() {
         } catch(e) { S.recTimer = setTimeout(startAudioCycle, audioMs); }
     };
     if (S.audioCtx && S.audioCtx.state === 'suspended') {
-        S.audioCtx.resume().then(doRecord);
+        S._audioResuming = true;
+        S.audioCtx.resume().then(doRecord).catch(function(e) {
+            dbg('AudioCtx resume ERR: ' + e.message);
+            doRecord();
+        });
     } else {
         doRecord();
     }
