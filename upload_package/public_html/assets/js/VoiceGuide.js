@@ -11,6 +11,10 @@
  *   - 'ryusei':   青山龍星
  *   - 'zundamon': ずんだもん (キャラ口調)
  *
+ * Bluetooth/車載対策:
+ *   - Audio要素を使い回し（毎回newしない）で出力先を維持
+ *   - A2DPキープアライブで車載BTの休止を防止
+ *
  * キュー管理で重複防止。
  */
 var VoiceGuide = (function() {
@@ -26,11 +30,52 @@ var VoiceGuide = (function() {
     var VALID_OUTPUTS = ['bluetooth', 'speaker'];
     var VALID_SPEAKERS = ['auto', 'mochiko', 'ryusei', 'zundamon'];
 
+    // --- A2DP キープアライブ ---
+    // 車載Bluetoothは無音が続くとA2DPを休止し、次の再生がスマホスピーカーに
+    // フォールバックする。極小音量の無音ループで接続を維持する。
+    var _keepAliveAudio = null;
+    var _keepAliveInterval = null;
+    // 0.1秒の無音WAV (PCM 8kHz mono 16bit)
+    var SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+
+    function _startKeepAlive() {
+        if (_keepAliveAudio) return;
+        try {
+            _keepAliveAudio = new Audio(SILENT_WAV);
+            _keepAliveAudio.loop = true;
+            _keepAliveAudio.volume = 0.01;
+            _keepAliveAudio.play().catch(function() {});
+            // iOSなどでloopが効かない場合のフォールバック
+            _keepAliveInterval = setInterval(function() {
+                if (_keepAliveAudio && _keepAliveAudio.paused) {
+                    _keepAliveAudio.play().catch(function() {});
+                }
+            }, 5000);
+        } catch(e) {}
+    }
+
+    function _stopKeepAlive() {
+        if (_keepAliveInterval) { clearInterval(_keepAliveInterval); _keepAliveInterval = null; }
+        if (_keepAliveAudio) { _keepAliveAudio.pause(); _keepAliveAudio = null; }
+    }
+
+    // --- 永続Audio要素（使い回し用）---
+    var _audioEl = null;
+
+    function _getAudioEl() {
+        if (!_audioEl) {
+            _audioEl = new Audio();
+            _audioEl.crossOrigin = 'anonymous';
+        }
+        return _audioEl;
+    }
+
     function init() {
         if ('speechSynthesis' in window) {
             _selectJaVoice();
             speechSynthesis.onvoiceschanged = _selectJaVoice;
         }
+        _getAudioEl();
     }
 
     function _selectJaVoice() {
@@ -45,12 +90,22 @@ var VoiceGuide = (function() {
 
     function setEnabled(on) {
         enabled = !!on;
-        if (!on) stop();
+        if (on && output === 'bluetooth') {
+            _startKeepAlive();
+        } else {
+            stop();
+            _stopKeepAlive();
+        }
         try { localStorage.setItem('ikimon_voice_guide', on ? '1' : '0'); } catch(e) {}
     }
 
     function setOutput(o) {
         output = (VALID_OUTPUTS.indexOf(o) >= 0) ? o : 'bluetooth';
+        if (enabled && output === 'bluetooth') {
+            _startKeepAlive();
+        } else {
+            _stopKeepAlive();
+        }
         try { localStorage.setItem('ikimon_voice_output', output); } catch(e) {}
     }
 
@@ -63,13 +118,11 @@ var VoiceGuide = (function() {
     function getSpeaker() { return speaker; }
     function isEnabled() { return enabled; }
 
-    // 後方互換: API に渡す voice_mode を組み立てる
     function getVoiceMode() {
         if (output === 'speaker') return 'standard';
-        return speaker;  // 'auto' | 'mochiko' | 'ryusei' | 'zundamon'
+        return speaker;
     }
 
-    // 後方互換: 旧 setVoiceMode を新2軸に変換
     function setVoiceMode(mode) {
         if (mode === 'standard') {
             setOutput('speaker');
@@ -86,31 +139,32 @@ var VoiceGuide = (function() {
         try {
             if (localStorage.getItem('ikimon_voice_guide') === '1') enabled = true;
 
-            // 新形式があればそちらを優先
             var savedOutput = localStorage.getItem('ikimon_voice_output');
             var savedSpeaker = localStorage.getItem('ikimon_voice_speaker');
             if (savedOutput || savedSpeaker) {
                 if (VALID_OUTPUTS.indexOf(savedOutput) >= 0) output = savedOutput;
                 if (VALID_SPEAKERS.indexOf(savedSpeaker) >= 0) speaker = savedSpeaker;
-                return;
+            } else {
+                var m = localStorage.getItem('ikimon_voice_mode');
+                if (m === 'standard') {
+                    output = 'speaker'; speaker = 'auto';
+                } else if (m === 'zundamon') {
+                    output = 'bluetooth'; speaker = 'zundamon';
+                } else if (m === 'mochiko') {
+                    output = 'bluetooth'; speaker = 'mochiko';
+                } else if (m === 'ryusei') {
+                    output = 'bluetooth'; speaker = 'ryusei';
+                } else {
+                    output = 'bluetooth'; speaker = 'auto';
+                }
+                localStorage.setItem('ikimon_voice_output', output);
+                localStorage.setItem('ikimon_voice_speaker', speaker);
             }
 
-            // 旧形式からの移行
-            var m = localStorage.getItem('ikimon_voice_mode');
-            if (m === 'standard') {
-                output = 'speaker'; speaker = 'auto';
-            } else if (m === 'zundamon') {
-                output = 'bluetooth'; speaker = 'zundamon';
-            } else if (m === 'mochiko') {
-                output = 'bluetooth'; speaker = 'mochiko';
-            } else if (m === 'ryusei') {
-                output = 'bluetooth'; speaker = 'ryusei';
-            } else {
-                output = 'bluetooth'; speaker = 'auto';
+            // 設定復元後、bluetooth有効ならキープアライブ開始
+            if (enabled && output === 'bluetooth') {
+                _startKeepAlive();
             }
-            // 新形式で保存し直す
-            localStorage.setItem('ikimon_voice_output', output);
-            localStorage.setItem('ikimon_voice_speaker', speaker);
         } catch(e) {}
     }
 
@@ -142,7 +196,8 @@ var VoiceGuide = (function() {
         if (_ttsWatchdog) { clearTimeout(_ttsWatchdog); _ttsWatchdog = null; }
         if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
         if ('speechSynthesis' in window) speechSynthesis.cancel();
-        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+        if (_audioEl) { _audioEl.pause(); _audioEl.removeAttribute('src'); _audioEl.load(); }
+        currentAudio = null;
     }
 
     function onFinish(fn) { onFinishCallback = fn; }
@@ -190,25 +245,30 @@ var VoiceGuide = (function() {
 
     var _audioTimeout = null;
     function _playAudio(url) {
-        currentAudio = new Audio(url);
-        currentAudio.crossOrigin = 'anonymous';
+        var audio = _getAudioEl();
+        audio.pause();
+        audio.volume = 1.0;
         var done = false;
         function finish() {
             if (done) return; done = true;
             if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
-            currentAudio = null; _processQueue();
+            audio.removeEventListener('ended', finish);
+            audio.removeEventListener('error', onError);
+            currentAudio = null;
+            _processQueue();
         }
-        currentAudio.onended = finish;
-        currentAudio.onerror = finish;
-        currentAudio.onpause = function() { setTimeout(finish, 500); };
-        currentAudio.play().then(function() {
-            // iOS: duration が NaN の場合があるので最大15秒でフォールバック
-            var dur = currentAudio && isFinite(currentAudio.duration)
-                ? currentAudio.duration * 1000 + 2000
+        function onError() { finish(); }
+        audio.addEventListener('ended', finish);
+        audio.addEventListener('error', onError);
+        currentAudio = audio;
+        audio.src = url;
+        audio.load();
+        audio.play().then(function() {
+            var dur = audio.duration && isFinite(audio.duration)
+                ? audio.duration * 1000 + 2000
                 : 15000;
             _audioTimeout = setTimeout(finish, dur);
         }).catch(finish);
-        // 絶対フォールバック: 何があっても15秒で解放
         setTimeout(function() { if (!done) finish(); }, 15000);
     }
 
