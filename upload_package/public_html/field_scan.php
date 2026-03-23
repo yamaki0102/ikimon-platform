@@ -271,7 +271,7 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
     </div>
 
     <!-- 下半分: 地図 + タブ -->
-    <div id="bottom-panel" style="position:absolute;bottom:0;left:0;right:0;height:45%;background:#000">
+    <div id="bottom-panel" style="position:absolute;bottom:0;left:0;right:0;height:45%;background:#000;z-index:1">
         <div id="tab-bar" style="display:flex;gap:4px;padding:4px 8px;background:#000;overflow-x:auto">
             <button class="tab-btn active" data-tab="map" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.15);color:#fff;border:none;white-space:nowrap">🗺️ マップ</button>
             <button class="tab-btn" data-tab="log" style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,0.05);color:#666;border:none;white-space:nowrap;position:relative">📋 ログ <span id="log-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#ef4444;color:#fff;font-size:9px;border-radius:999px;padding:0 4px;min-width:14px;text-align:center"></span></button>
@@ -459,6 +459,8 @@ function applyDriveLayout() {
     if (banner) { banner.style.bottom = 'auto'; banner.style.top = '50%'; banner.style.transform = 'translate(-50%,-50%)'; banner.style.fontSize = '120%'; }
     var active = document.getElementById('scan-active');
     if (active) active.style.background = '#000';
+    var bp = document.getElementById('bottom-panel');
+    if (bp) bp.style.display = 'none';
     // 停止ボタンをトップバーから引き抜いて画面下部中央に独立配置（レイヤー干渉回避）
     var stopBtn = document.getElementById('btn-stop');
     if (stopBtn) {
