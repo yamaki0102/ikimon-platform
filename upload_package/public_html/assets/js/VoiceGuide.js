@@ -130,6 +130,12 @@ var VoiceGuide = (function() {
         if (!speaking) _processQueue();
     }
 
+    function playPreview(audioUrl) {
+        if (!audioUrl) return;
+        stop();
+        _playAudio(audioUrl);
+    }
+
     function stop() {
         queue = [];
         speaking = false;
@@ -182,26 +188,45 @@ var VoiceGuide = (function() {
         speechSynthesis.speak(utter);
     }
 
+    var _audioCtx = null;
+    var _audioSource = null;
     var _audioTimeout = null;
+
+    function _getAudioCtx() {
+        if (!_audioCtx) {
+            _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (_audioCtx.state === 'suspended') _audioCtx.resume();
+        return _audioCtx;
+    }
+
     function _playAudio(url) {
-        currentAudio = new Audio(url);
         var done = false;
         function finish() {
             if (done) return; done = true;
             if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
-            currentAudio = null; _processQueue();
+            _audioSource = null; currentAudio = null; _processQueue();
         }
-        currentAudio.onended = finish;
-        currentAudio.onerror = finish;
-        currentAudio.play().then(function() {
-            var dur = currentAudio && currentAudio.duration ? currentAudio.duration * 1000 + 2000 : 15000;
-            _audioTimeout = setTimeout(finish, dur);
+
+        var ctx = _getAudioCtx();
+        fetch(url).then(function(r) { return r.arrayBuffer(); }).then(function(buf) {
+            return ctx.decodeAudioData(buf);
+        }).then(function(decoded) {
+            if (done) return;
+            _audioSource = ctx.createBufferSource();
+            _audioSource.buffer = decoded;
+            _audioSource.connect(ctx.destination);
+            _audioSource.onended = finish;
+            _audioSource.start(0);
+            currentAudio = { pause: function() { try { _audioSource.stop(); } catch(e) {} } };
+            _audioTimeout = setTimeout(finish, decoded.duration * 1000 + 2000);
         }).catch(finish);
     }
 
     return {
         init: init,
         setEnabled: setEnabled,
+        playPreview: playPreview,
         setOutput: setOutput,
         setSpeaker: setSpeaker,
         getOutput: getOutput,
