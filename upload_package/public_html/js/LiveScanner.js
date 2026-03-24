@@ -459,40 +459,49 @@ class LiveScanner {
         this.onAudioState('analyzing');
 
         try {
-            const last = this.routePoints.length > 0 ? this.routePoints[this.routePoints.length - 1] : null;
-            const fd = new FormData();
-            fd.append('audio', blob, 'snippet' + (this._mime.includes('mp4') ? '.mp4' : '.webm'));
-            fd.append('lat', last ? last.lat : 35.0);
-            fd.append('lng', last ? last.lng : 139.0);
-            fd.append('source_mode', 'field_scan');
-            this.dataUsage += blob.size;
-
             this.audioScanCount++;
-            this.onLog('🎤 #' + this.audioScanCount + ' 送信中...');
 
-            const resp = await fetch('/api/v2/analyze_audio.php', { method: 'POST', body: fd });
-            if (!resp.ok) return;
-            const text = await resp.text();
-            this.dataUsage += text.length;
-            const json = JSON.parse(text);
+            // ============================================================
+            // BirdNET (CC BY-NC-SA 4.0) は不採用。
+            // Perch v2 (Apache 2.0) への移行が完了するまで、
+            // 音声種同定は無効。録音データは音響指数計算に使用する。
+            // ============================================================
 
-            const threshold = 0.40;
-            if (json.success && json.data?.detections?.length > 0) {
-                const filtered = json.data.detections.filter(d => d.confidence >= threshold);
-                filtered.forEach(d => {
-                    const name = d.japanese_name || d.common_name || d.scientific_name;
-                    this._addDetection(name, d.scientific_name, d.confidence, 'audio', 'bird', '');
-                });
-                this._audioEmptyStreak = filtered.length > 0 ? 0 : this._audioEmptyStreak + 1;
-                if (filtered.length > 0) {
-                    this.onAudioState('detected');
-                    setTimeout(() => this.onAudioState('listening'), 2000);
+            // TODO: Perch v2 サーバーサイドAPIが準備できたら以下を有効化
+            // const resp = await fetch('/api/v2/analyze_audio_perch.php', { method: 'POST', body: fd });
+
+            // 音響指数の簡易計算（RMS レベル = 環境音の指標）
+            if (this._analyser) {
+                const data = new Uint8Array(this._analyser.frequencyBinCount);
+                this._analyser.getByteFrequencyData(data);
+
+                // 2-8kHz 帯域（鳥の鳴き声帯域）のエネルギー
+                const sr = this._audioCtx.sampleRate;
+                const binSize = sr / this._analyser.fftSize;
+                const birdLo = Math.floor(2000 / binSize);
+                const birdHi = Math.min(Math.ceil(8000 / binSize), data.length - 1);
+                let birdEnergy = 0;
+                for (let i = birdLo; i <= birdHi; i++) birdEnergy += data[i];
+                birdEnergy /= (birdHi - birdLo + 1);
+
+                // 低周波帯域（人工音）のエネルギー
+                const lowHi = Math.min(Math.ceil(1000 / binSize), data.length - 1);
+                let lowEnergy = 0;
+                for (let i = 0; i <= lowHi; i++) lowEnergy += data[i];
+                lowEnergy /= (lowHi + 1);
+
+                // 簡易NDSI: (生物音 - 人工音) / (生物音 + 人工音)
+                const ndsi = (birdEnergy + lowEnergy) > 0
+                    ? (birdEnergy - lowEnergy) / (birdEnergy + lowEnergy) : 0;
+
+                this._latestNdsi = ndsi;
+                this._latestBirdEnergy = birdEnergy;
+
+                if (this.audioScanCount % 10 === 0) {
+                    this.onLog(`🎵 音響: NDSI=${ndsi.toFixed(2)} 鳥帯域=${birdEnergy.toFixed(0)} (Perch v2移行待ち)`);
                 }
-                this.onLog('🎤 ' + json.data.detections.length + '件 (表示' + filtered.length + ')');
-            } else {
-                this._audioEmptyStreak++;
-                this.onLog('🎤 検出なし');
             }
+
         } catch (e) {
             this.onLog('🎤 ERR: ' + e.message);
         } finally {
