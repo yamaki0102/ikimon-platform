@@ -40,7 +40,7 @@ Codex レビュー + 戦略文書 (`bioscan_ikimon_100y_archive_strategy_2026-03
 | **音声データの長期保存戦略** | 🟡中 | ハッシュのみ保存。生WAVの保存方針なし |
 | **BioScan → ikimon.life の同期** | 🔴高 | `SYNC_ENABLED = false` のまま |
 | **BioScan の種レベル同定** | 🔴高 | Gemini Nano が科レベル止まり |
-| **BioScan のオフライン音声同定** | 🟡中 | 現行 AudioScanner がサーバー依存 → Perch v2 (Apache 2.0) で解決 |
+| **BioScan のオフライン音声同定** | 🟡中 | 現行 AudioScanner がサーバー依存 → BirdNET V3 (ONNX) + Perch v2 (TFLite) デュアル構成で解決 |
 
 ---
 
@@ -159,24 +159,88 @@ Codex レビュー + 戦略文書 (`bioscan_ikimon_100y_archive_strategy_2026-03
   - 検出種リスト + 証拠写真
   - 共有リンク生成（SNS投稿用）
 
-### Phase 4: Perch v2 オンデバイス化 + Fusion
+### Phase 4: デュアル音声エンジン + Fusion
 
-**目標**: 完全オフライン対応 + マルチモーダル融合
+**目標**: BirdNET V3 + Perch v2 のデュアル構成で完全オフライン対応 + マルチモーダル融合
 
-#### 4-1. Perch v2 TFLite オンデバイス
+#### 背景: BirdNET V3.0 ライセンス変更（2025-2026）
+
+BirdNET+ V3.0 が **CC BY-SA 4.0** でリリースされ、商用利用が可能になった。
+これにより、Codex レビュー時点（2026-03-24）の「BirdNET 不採用」判断を覆す。
+
+| エンジン | ライセンス | 形式 | 種数 | モデルサイズ |
+|---------|-----------|------|------|------------|
+| BirdNET+ V3.0 | CC BY-SA 4.0 | PyTorch → **ONNX FP16** | ~6,500+ | ~50MB |
+| Perch v2 | Apache 2.0 | TFLite | ~14,000+ | ~80MB |
+
+**なぜデュアルか（100年アーカイブ視点）**:
+1. **合意 = Evidence Tier 自動昇格**: 2エンジンが同一種を検出 → Tier 1 → 1.5 に自動昇格
+2. **不一致 = フラグ**: 片方のみ検出 → コミュニティ検証に回す判断材料
+3. **ベンダーロックイン回避**: モデルAが廃止されてもモデルBの記録が残る
+4. **種カバレッジ補完**: BirdNET ~6,500 + Perch ~14,000。Perchが拾ってBirdNETが落とすレア種もカバー
+5. **独立した2モデルの合意は単独判定より遥かに強い証拠**
+
+#### 4-1. BirdNET V3 ONNX オンデバイス
+- **ファイル**: `ikimon-bioscan/app/src/main/java/life/ikimon/bioscan/ai/BirdNetV3Engine.kt`（新規）
+- **内容**: BirdNET+ V3.0 ONNX FP16 モデルで鳥音声同定
+- **ランタイム**: ONNX Runtime Mobile for Android（XNNPACK CPU / NNAPI GPU・NPU）
+- **帰属表示**: CC BY-SA 4.0 に従い、about ページ + アプリ内に帰属表示
+- **注意**: CC BY-SA の ShareAlike 条件 — モデルをファインチューニングした場合、派生物も同一ライセンスで公開義務
+
+#### 4-2. Perch v2 TFLite オンデバイス
 - **ファイル**: `ikimon-bioscan/app/src/main/java/life/ikimon/bioscan/ai/PerchEngine.kt`（新規）
-- **内容**: Perch v2 Lite TFLite モデルでオンデバイス鳥音声同定
+- **内容**: Perch v2 TFLite モデルでオンデバイス鳥音声同定
 - **AudioScanner 変更**: サーバー呼び出しをローカル推論に切替
 
-#### 4-2. Sensory Fusion Engine
+#### 4-3. Dual Audio Fusion Engine
 - **ファイル**: `ikimon-bioscan/app/src/main/java/life/ikimon/bioscan/ai/FusionEngine.kt`（新規）
-- **内容**: TFLite種名 × Perch v2種名 × Nano環境 × センサーデータ → 最終判定
+- **内容**: TFLite種名 × **BirdNET V3種名** × **Perch v2種名** × Nano環境 × センサーデータ → 最終判定
+- **音声判定ロジック**:
+  ```
+  両者合意（同一種） → fusedConfidence = max(bn, perch) + 0.1 bonus, consensus: "agree"
+  片方のみ検出       → fusedConfidence = detected_engine * 0.9, consensus: "single"
+  両者不一致（別種） → fusedConfidence = max * 0.7, consensus: "disagree", 両候補を記録
+  ```
 - **既存対応**: `PassiveObservationEngine.php` の `HABITAT_BOOST` / `SEASON_BOOST` と同じ考え方をデバイス側でも
+- **Evidence Tier 連動**: `EvidenceTierPromoter.php` に `consensus: "agree"` 時の自動昇格ルールを追加
 
-#### 4-3. Expert Review Queue + グルーピング
+#### 4-4. Detection スキーマ拡張（デュアル対応）
+- **ファイル**: `ikimon-bioscan/app/src/main/java/life/ikimon/bioscan/data/Detection.kt`
+- **追加フィールド**:
+  ```json
+  {
+    "type": "audio",
+    "taxon": "Zosterops japonicus",
+    "vernacularName": "メジロ",
+    "engines": {
+      "birdnet_v3": { "confidence": 0.82, "model": "v3.0-preview3" },
+      "perch_v2":   { "confidence": 0.76, "model": "perch-v2.1" }
+    },
+    "consensus": "agree",
+    "fusedConfidence": 0.89,
+    "evidenceTier": 1.5
+  }
+  ```
+- **重要**: 両エンジンの生スコアを必ず両方記録。将来モデル更新時の過去データ再評価に必須
+
+#### 4-5. Expert Review Queue + グルーピング
 - **BioScan側**: 同一セッション内の LOW confidence × HIGH quality をグループ化
 - **サーバー側**: `expert_review_queue.php`（新規）で Expert 向けUI
 - **既存**: 同定センター (`id_center.php`) に Expert Review タブ追加
+- **デュアル活用**: `consensus: "disagree"` の検出を優先的にExpert Queueへ
+
+#### 端末リソース試算
+
+| コンポーネント | サイズ | ランタイム |
+|--------------|--------|-----------|
+| BirdNET V3 (ONNX FP16) | ~50MB | ONNX Runtime Mobile |
+| Perch v2 (TFLite) | ~80MB | TensorFlow Lite |
+| TFLite 画像同定 | ~30MB | TensorFlow Lite |
+| Gemini Nano (環境分析) | 端末内蔵 | Google AI Edge |
+| **合計** | **~160MB** | — |
+
+Pixel 10 Pro（256GB/12GB RAM）で余裕。モデルは初回起動時DL（APKサイズ制限150MB回避）。
+2エンジン並列推論: 音声3秒チャンク × 各200-400ms。60秒間隔スキャンで1時間あたり合計~48秒の推論時間。バッテリー影響軽微。
 
 ### Phase 5: 3Dデジタルツイン（集合知）
 
@@ -234,9 +298,10 @@ ikimon.life の `CLAUDE.md` に以下を追記:
 | ファイル | 操作 | Phase |
 |---------|------|-------|
 | `ai/TFLiteEngine.kt` | 新規 | 1 |
-| `ai/PerchEngine.kt` | 新規 | 4 |
+| `ai/BirdNetV3Engine.kt` | 新規（ONNX Runtime） | 4 |
+| `ai/PerchEngine.kt` | 新規（TFLite） | 4 |
 | `ai/GeminiNanoEngine.kt` | 改修（環境分析専任） | 1 |
-| `ai/FusionEngine.kt` | 新規 | 4 |
+| `ai/FusionEngine.kt` | 新規（デュアル音声 + 画像 + 環境融合） | 4 |
 | `data/Detection.kt` | 改修（taxonRank等追加） | 1 |
 | `data/SyncManager.kt` | 改修（SYNC有効化） | 1 |
 | `scanner/BioScanEngine.kt` | 改修（加速度計+Fusion統合） | 1,4 |
@@ -272,21 +337,29 @@ ikimon.life の `CLAUDE.md` に以下を追記:
 
 ## 著作権・法務リスクと対応方針
 
-### ✅ Perch v2 ライセンス問題 → Google Perch v2 で解決
+### ✅ 音声同定ライセンス → デュアルエンジン構成で解決
 
-Perch v2 は CC BY-NC-SA 4.0（非商用）で Business プランと抵触するため、**採用しない**。
+#### BirdNET+ V3.0（2025-2026 ライセンス変更）
+- **ライセンス**: **CC BY-SA 4.0**（商用利用可能 — v2.x の CC BY-NC-SA 4.0 から変更）
+- **種数**: ~6,500+ 種
+- **形式**: PyTorch → ONNX FP16 変換でオンデバイス実行
+- **ランタイム**: ONNX Runtime Mobile for Android
+- **帰属表示**: CC BY-SA 4.0 に従い、about ページ + アプリ内に帰属表示
+- **ShareAlike 注意**: モデルをファインチューニングした派生物は同一ライセンスで公開義務
+- **出典**: [birdnet-team/birdnet-V3.0-dev](https://github.com/birdnet-team/birdnet-V3.0-dev)
 
-**代替: Google Perch v2**
+#### Google Perch v2
 - **ライセンス**: Apache 2.0（商用利用可能）
-- **種数**: 14,000+ 種（Perch v2 の 6,522 種を大幅に上回る）
+- **種数**: 14,000+ 種（BirdNET の ~6,500 種を大幅に上回る）
 - **訓練データ**: Xeno-canto 全録音（15,000時間+）→ 日本の野鳥もカバー
 - **形式**: TensorFlow SavedModel → TFLite 変換でオンデバイス実行可能
 - **出典**: Google DeepMind / google-research/perch (GitHub)
-- **論文**: Scientific Reports に掲載済み（Perch v2 より高精度との比較あり）
+- **論文**: Scientific Reports に掲載済み
 - **帰属表示**: Apache 2.0 の NOTICE に従い、論文引用を about ページに掲載
 
-**設計変更**:
-- `PerchEngine.kt` → `PerchEngine.kt` にリネーム
+#### デュアル構成の設計判断
+- **BirdNET V3 + Perch v2 を両方採用**: 合意による Evidence Tier 自動昇格 + ベンダーロックイン回避
+- `BirdNetV3Engine.kt`（ONNX Runtime）+ `PerchEngine.kt`（TFLite）の並列推論
 - `AudioScanner.kt` のサーバー呼び出し（ikimon.life analyze_audio.php）を完全廃止
 - 全ての音声同定がオンデバイスで完結 → 完全オフライン対応
 - ikimon.life サーバー側の `analyze_audio.php` は非推奨化（Web版 field_scan 用に残すか検討）
@@ -342,7 +415,7 @@ TNFD 自体にはデータ品質基準がない。「市民科学データで TN
 | 「GPS で行動追跡している」 | 初回同意 + 設定でGPS精度の切替（高精度/低精度/OFF） |
 | 「音声で盗聴している」 | 初回同意 + VAD + 「環境音のみ分析」の明示 |
 | 「100年保存と言いながら消える」 | GBIF 提供でプラットフォーム非依存。about ページで保存戦略を公開 |
-| 「Perch v2 を無断商用利用」 | 商用ライセンス取得 or Community版限定。帰属表示を徹底 |
+| 「BirdNET/Perch を無断商用利用」 | BirdNET V3: CC BY-SA 4.0 帰属表示 + ShareAlike。Perch v2: Apache 2.0 帰属表示。両方 about ページで明記 |
 
 ---
 
@@ -350,7 +423,7 @@ TNFD 自体にはデータ品質基準がない。「市民科学データで TN
 
 | Phase | 検証 |
 |-------|------|
-| 0 | ~~BirdNET ライセンス~~ → 不要。Perch v2 (Apache 2.0) に全面移行 |
+| 0 | ~~BirdNET ライセンス~~ → ✅ BirdNET V3.0 が CC BY-SA 4.0 に変更。Perch v2 (Apache 2.0) とデュアル採用 |
 | 0 | TFLite モデル候補のライセンス確認 |
 | 1 | TFLite 種同定精度テスト（テストデータセット） |
 | 1 | ikimon.life ローカルサーバーへの BioScan 実同期 |
