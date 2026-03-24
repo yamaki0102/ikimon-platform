@@ -506,6 +506,13 @@ if (!$currentUser) {
                 <div style="font-size:12px;color:#a7f3d0;text-align:center;" x-text="reportData?.natureScore?.message || ''"></div>
             </div>
 
+            <!-- No species message -->
+            <div x-show="!reportData?.species?.length" style="background:rgba(255,255,255,0.06);border-radius:12px;padding:20px;margin-bottom:16px;text-align:center;">
+                <div style="font-size:32px;margin-bottom:8px;">🌱</div>
+                <div style="font-size:13px;color:#cbd5e1;font-weight:700;">今回は検出なし</div>
+                <div style="font-size:11px;color:#64748b;margin-top:4px;">でも、歩いた記録はたんけんマップに残っています。<br>GPS軌跡と環境データは100年アーカイブに保存されました。</div>
+            </div>
+
             <!-- Species Gallery (horizontal scroll) -->
             <div style="margin-bottom:16px;" x-show="reportData?.species?.length > 0">
                 <h3 style="font-size:13px;font-weight:700;color:#cbd5e1;margin:0 0 8px;">出会った生きもの</h3>
@@ -835,7 +842,19 @@ if (!$currentUser) {
                         this.liveScanner = null;
                     }
 
-                    if (result) {
+                    // Even if no result (e.g. scanner failed), show basic report
+                    if (!result) {
+                        result = {
+                            duration: this.sessionElapsed,
+                            distance: this.sessionDistance,
+                            speciesCount: 0,
+                            species: [],
+                            recap: null,
+                            envHistory: [],
+                        };
+                    }
+
+                    {
                         // Fetch NatureScore
                         let natureScore = null;
                         try {
@@ -869,6 +888,16 @@ if (!$currentUser) {
                         // Show report
                         this.showReport = true;
                     }
+                },
+
+                // Handle permission errors gracefully
+                async _handlePermissionError(type) {
+                    const messages = {
+                        camera: 'カメラの使用が許可されていません。設定から許可してください。',
+                        audio: '音声の使用が許可されていません。あるくモード（音声検出）を使うには許可が必要です。',
+                        gps: '位置情報の使用が許可されていません。マップ機能が制限されます。',
+                    };
+                    console.warn('[Permission]', type, messages[type]);
                 },
 
                 addDetection(detection) {
