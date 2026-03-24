@@ -461,14 +461,42 @@ class LiveScanner {
         try {
             this.audioScanCount++;
 
-            // ============================================================
-            // BirdNET (CC BY-NC-SA 4.0) は不採用。
-            // Perch v2 (Apache 2.0) への移行が完了するまで、
-            // 音声種同定は無効。録音データは音響指数計算に使用する。
-            // ============================================================
+            // Perch v2 (Apache 2.0) — BirdNET (CC BY-NC-SA) の代替
+            const last = this.routePoints.length > 0 ? this.routePoints[this.routePoints.length - 1] : null;
+            const fd = new FormData();
+            fd.append('audio', blob, 'snippet' + (this._mime.includes('mp4') ? '.mp4' : '.webm'));
+            fd.append('lat', last ? last.lat : 35.0);
+            fd.append('lng', last ? last.lng : 139.0);
+            this.dataUsage += blob.size;
 
-            // TODO: Perch v2 サーバーサイドAPIが準備できたら以下を有効化
-            // const resp = await fetch('/api/v2/analyze_audio_perch.php', { method: 'POST', body: fd });
+            try {
+                const resp = await fetch('/api/v2/analyze_audio_perch.php', { method: 'POST', body: fd });
+                if (resp.ok) {
+                    const json = await resp.json();
+                    this.dataUsage += JSON.stringify(json).length;
+                    const threshold = 0.10;
+                    if (json.success && json.data?.detections?.length > 0) {
+                        const filtered = json.data.detections.filter(d => d.confidence >= threshold);
+                        filtered.forEach(d => {
+                            const name = d.japanese_name || d.common_name || d.scientific_name;
+                            this._addDetection(name, d.scientific_name, d.confidence, 'audio', 'bird', '');
+                        });
+                        this._audioEmptyStreak = filtered.length > 0 ? 0 : this._audioEmptyStreak + 1;
+                        if (filtered.length > 0) {
+                            this.onAudioState('detected');
+                            setTimeout(() => this.onAudioState('listening'), 2000);
+                        }
+                        this.onLog('🎤 Perch v2: ' + (json.data.detections.length) + '件');
+                    } else {
+                        this._audioEmptyStreak++;
+                        if (json.data?.status === 'service_unavailable') {
+                            this.onLog('🎤 Perch v2 未起動（音響指数のみ記録中）');
+                        }
+                    }
+                }
+            } catch (perchErr) {
+                // Perch v2 サービス未起動時は音響指数のみ計算（下のブロック）
+            }
 
             // 音響指数の簡易計算（RMS レベル = 環境音の指標）
             if (this._analyser) {
