@@ -78,11 +78,17 @@ Claude Code + Codex による健全な衝突を経て合意に至った設計判
 
 | 技術 | ライセンス | 商用利用 | 判断 |
 |------|-----------|---------|------|
-| BirdNET | CC BY-NC-SA 4.0 | ❌ | **不採用** |
-| Google Perch v2 | Apache 2.0 | ✅ | **採用** |
+| BirdNET v2.x | CC BY-NC-SA 4.0 | ❌ | ~~不採用~~ (旧判断) |
+| **BirdNET+ V3.0** | **CC BY-SA 4.0** | ✅ | **採用（2026-03-25 判断変更）** — デュアルエンジン構成 |
+| Google Perch v2 | Apache 2.0 | ✅ | **採用** — デュアルエンジン構成 |
 | iNaturalist CV (full) | 非公開 | - | 利用不可 |
 | Google iNat TFLite | Apache 2.0 (想定) | ✅ | 第一候補 |
 | OpenSoundscape | MIT | ✅ | 補助的に検討 |
+
+> **2026-03-25 追記**: BirdNET+ V3.0 が CC BY-SA 4.0 でリリースされ、商用利用が可能になった。
+> Perch v2 (Apache 2.0) との**デュアル音声エンジン構成**を採用。
+> 2エンジン合意で Evidence Tier 自動昇格（1→1.5）、ベンダーロックイン回避、種カバレッジ補完を実現。
+> 詳細: `bioscan_implementation_roadmap.md` Phase 4 参照。
 
 ---
 
