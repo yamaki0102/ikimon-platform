@@ -21,7 +21,7 @@ if (!$currentUser) {
 
 <head>
     <?php
-    $meta_title = "たんけんマップ";
+    $meta_title = "いきものセンサー";
     include __DIR__ . '/components/meta.php';
     ?>
     <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
@@ -281,7 +281,7 @@ if (!$currentUser) {
             <i data-lucide="chevron-left" style="width:16px;height:16px;"></i>
             プロフィール
         </a>
-        <span class="top-bar-title" x-text="sessionActive ? (modeLabels[currentMovementMode] || 'センサー ON') : 'さんぽ'"></span>
+        <span class="top-bar-title" x-text="sessionActive ? (modeLabels[currentMovementMode] || 'センサー ON') : 'いきものセンサー'"></span>
         <div style="width:60px;display:flex;justify-content:flex-end;">
             <span x-show="sessionActive" x-cloak class="text-xs font-mono font-bold" style="color:#10b981;" x-text="formatElapsed(sessionElapsed)"></span>
         </div>
