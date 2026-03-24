@@ -277,11 +277,8 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                     <a href="events.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
                         <i data-lucide="calendar" class="w-3.5 h-3.5"></i> 観察会
                     </a>
-                    <a href="walk.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-100 text-xs font-bold hover:bg-emerald-500/30 transition">
-                        <i data-lucide="footprints" class="w-3.5 h-3.5"></i> ウォーク
-                    </a>
-                    <a href="field_scan.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-100 text-xs font-bold hover:bg-blue-500/30 transition">
-                        <i data-lucide="radar" class="w-3.5 h-3.5"></i> ライブスキャン
+                    <a href="field_research.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-100 text-xs font-bold hover:bg-emerald-500/30 transition">
+                        <i data-lucide="footprints" class="w-3.5 h-3.5"></i> さんぽ
                     </a>
 
                 </div>
@@ -794,9 +791,9 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                                 <h2 class="text-lg font-black text-white">散歩で野鳥調査</h2>
                             </div>
                             <p class="text-sm text-emerald-200/80 leading-relaxed mb-4">いつもの散歩道を歩くだけ。スマホがポケットの中で鳥の声をAIが自動判定。歩いた時間と出会った鳥を記録します。</p>
-                            <a href="walk.php" class="inline-flex items-center gap-2 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 text-sm font-bold rounded-full px-5 py-2.5 transition active:scale-95 shadow-lg shadow-emerald-400/20">
+                            <a href="field_research.php?mode=walk" class="inline-flex items-center gap-2 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 text-sm font-bold rounded-full px-5 py-2.5 transition active:scale-95 shadow-lg shadow-emerald-400/20">
                                 <i data-lucide="footprints" class="w-4 h-4"></i>
-                                ウォークを始める
+                                さんぽを始める
                             </a>
                         </div>
                     </div>
@@ -874,7 +871,7 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                             </div>
                             <p class="text-sm text-blue-200/80 leading-relaxed mb-4">スマホのカメラを周りにかざすだけ。植物・昆虫・鳥 ― 映ったものをAIがリアルタイムで判定して、自動で記録します。</p>
                             <div class="flex gap-2">
-                                <a href="field_scan.php" class="inline-flex items-center gap-2 bg-blue-400 hover:bg-blue-300 text-blue-950 text-sm font-bold rounded-full px-5 py-2.5 transition active:scale-95 shadow-lg shadow-blue-400/20">
+                                <a href="field_research.php?mode=scan" class="inline-flex items-center gap-2 bg-blue-400 hover:bg-blue-300 text-blue-950 text-sm font-bold rounded-full px-5 py-2.5 transition active:scale-95 shadow-lg shadow-blue-400/20">
                                     <i data-lucide="radar" class="w-4 h-4"></i>
                                     スキャン開始
                                 </a>

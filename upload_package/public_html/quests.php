@@ -436,8 +436,8 @@ $bgGradients = [
             </div>
             <h3 class="text-base font-black text-gray-900 mb-2">フィールドシグナルを受信しよう</h3>
             <p class="text-xs text-gray-600 mb-4">ライブスキャンで周囲を探索すると、<br>科学的に重要な発見がシグナルとして届きます</p>
-            <a href="field_scan.php" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-6 py-3 text-sm transition">
-                ライブスキャンを始める
+            <a href="/field_research.php" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-6 py-3 text-sm transition">
+                さんぽを始める
             </a>
         </div>
     </section>
