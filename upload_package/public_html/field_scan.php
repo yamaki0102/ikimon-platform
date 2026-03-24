@@ -625,12 +625,15 @@ async function startScan() {
             unlock.volume = 0;
             speechSynthesis.speak(unlock);
         }
-        // 初回ガイド取得（GPS取得前なのでデフォルト座標、すぐGPS更新で上書きされる）
         S._ambientCount = 0;
         S._lastVoiceTime = 0;
         S._vgMode = vgMode;
+        S._prefetchedAmbient = null;
+        // 即座にTTSでオープニング発話（API応答を待たない）
+        var modeLabel = S.mode === 'car' ? 'ドライブ' : S.mode === 'bike' ? 'サイクリング' : 'フィールドスキャン';
+        VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
+        // 並行してAPIからリッチなオープニングを取得→再生
         _fetchAmbientNow();
-        // 以降はGPS更新・カメラキャプチャ時にトリガー（setTimeoutはスリープで凍結されるため使わない）
     } else {
         dbg('🔇 OFF');
     }
@@ -1368,12 +1371,16 @@ function addDetection(name, sci, conf, source, category, note) {
         var isFirstDet = cnt === 1;
         // 発話中・再生中はスキップ（キュー詰まり防止）
         try { if (VoiceGuide.isSpeaking()) return; } catch(e) {}
-        // 前回の発話から20秒以内はスキップ（アンビエントに譲る）
+        // 前回の発話から15秒以内はスキップ
         var sinceLast = Date.now() - (S._lastDetVoiceTime || 0);
-        if (sinceLast < 20000 && !isFirstDet) return;
+        if (sinceLast < 15000 && !isFirstDet) return;
         if (isFirstDet || cnt % 3 === 0) {
             S._lastDetVoiceTime = Date.now();
             S._lastVoiceTime = Date.now();
+            // 初回検出は即座にTTSで名前を伝え、詳細ガイドを並行取得
+            if (isFirstDet) {
+                VoiceGuide.announce(name + '、見つけたよ！');
+            }
             _fetchVoiceGuide(name, sci, conf, cnt, isFirstDet);
         }
     }
@@ -2080,36 +2087,77 @@ async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
     } catch(e) { dbg('🔊 detGuide ERR: ' + e.message); }
 }
 
-// アンビエントコメンタリー — GPS更新トリガー方式（setTimeoutはスリープで凍結されるため不使用）
-// GPS更新(handleGpsPosition)やカメラキャプチャ時にtryAmbient()を呼ぶ
+// アンビエントコメンタリー — GPS更新トリガー方式
+// プリフェッチ: 再生中に次のアンビエントを先読みし、間隔を体感ゼロに近づける
 function tryAmbient() {
     if (!S.active || !VoiceGuide.isEnabled()) return;
     if (S._ambientFetching) return;
     var since = Date.now() - (S._lastVoiceTime || 0);
     var isBusy = false;
     try { isBusy = VoiceGuide.isSpeaking(); } catch(e) {}
+
+    // 再生中でも15秒経過したらプリフェッチ開始
+    if (isBusy && since >= 15000 && !S._prefetchedAmbient && !S._prefetching) {
+        _prefetchAmbient();
+        return;
+    }
     if (isBusy && since < 35000) return;
     if (isBusy) { try { VoiceGuide.stop(); } catch(e) {} dbg('🔊 speaking強制リセット'); }
-    if (since < 25000) return;
+    if (since < 20000) return;
+
+    // プリフェッチ済みデータがあれば即再生
+    if (S._prefetchedAmbient) {
+        var pf = S._prefetchedAmbient;
+        S._prefetchedAmbient = null;
+        S._lastVoiceTime = Date.now();
+        var vs = document.getElementById('drive-voice-status');
+        if (vs) vs.textContent = '🔊 ' + (pf.guide_text || '').substring(0, 20) + '...';
+        if (pf.audio_url) VoiceGuide.announceAudio(pf.audio_url);
+        else if (pf.guide_text) VoiceGuide.announce(pf.guide_text);
+        dbg('🔊 prefetch再生');
+        return;
+    }
     _fetchAmbientNow();
+}
+
+function _buildAmbientParams() {
+    var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length-1] : null;
+    var names = Object.keys(S.speciesMap).slice(0, 5).join(',');
+    var min = Math.floor((Date.now() - S.startTime) / 60000);
+    var p = new URLSearchParams();
+    p.set('mode', 'ambient');
+    p.set('lat', last ? last.lat : 34.7);
+    p.set('lng', last ? last.lng : 137.7);
+    p.set('detected_species', names);
+    p.set('elapsed_min', min);
+    p.set('voice_mode', VoiceGuide.getVoiceMode());
+    p.set('transport_mode', S.mode || 'walk');
+    p.set('session_count', S._ambientCount || 0);
+    S._ambientCount = (S._ambientCount || 0) + 1;
+    return p;
+}
+
+async function _prefetchAmbient() {
+    S._prefetching = true;
+    try {
+        var p = _buildAmbientParams();
+        dbg('🔊 prefetch #' + S._ambientCount);
+        var r = await fetch('/api/v2/voice_guide.php?' + p.toString());
+        if (r.ok) {
+            var j = await r.json();
+            if (j.success && j.data) {
+                S._prefetchedAmbient = j.data;
+                dbg('🔊 prefetch OK');
+            }
+        }
+    } catch(e) { dbg('🔊 prefetch ERR: ' + e.message); }
+    S._prefetching = false;
 }
 
 async function _fetchAmbientNow() {
     S._ambientFetching = true;
     try {
-        var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length-1] : null;
-        var names = Object.keys(S.speciesMap).slice(0, 5).join(',');
-        var min = Math.floor((Date.now() - S.startTime) / 60000);
-        var p = new URLSearchParams();
-        p.set('mode', 'ambient');
-        p.set('lat', last ? last.lat : 34.7);
-        p.set('lng', last ? last.lng : 137.7);
-        p.set('detected_species', names);
-        p.set('elapsed_min', min);
-        p.set('voice_mode', VoiceGuide.getVoiceMode());
-        p.set('transport_mode', S.mode || 'walk');
-        p.set('session_count', S._ambientCount || 0);
-        S._ambientCount = (S._ambientCount || 0) + 1;
+        var p = _buildAmbientParams();
         dbg('🔊 API #' + S._ambientCount);
         var vs = document.getElementById('drive-voice-status');
         if (vs) vs.textContent = '🔊 ガイド取得中...';
