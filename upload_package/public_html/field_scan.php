@@ -2086,12 +2086,11 @@ function tryAmbient() {
     if (!S.active || !VoiceGuide.isEnabled()) return;
     if (S._ambientFetching) return;
     var since = Date.now() - (S._lastVoiceTime || 0);
-    // speakingでも20秒経ったら強制リセット（AudioContextのonended未発火対策）
     var isBusy = false;
     try { isBusy = VoiceGuide.isSpeaking(); } catch(e) {}
-    if (isBusy && since < 20000) return;
+    if (isBusy && since < 35000) return;
     if (isBusy) { try { VoiceGuide.stop(); } catch(e) {} dbg('🔊 speaking強制リセット'); }
-    if (since < 20000) return;
+    if (since < 25000) return;
     _fetchAmbientNow();
 }
 

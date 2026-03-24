@@ -195,6 +195,7 @@ var VoiceGuide = (function() {
         speaking = false;
         if (_ttsWatchdog) { clearTimeout(_ttsWatchdog); _ttsWatchdog = null; }
         if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
+        if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
         if ('speechSynthesis' in window) speechSynthesis.cancel();
         if (_audioEl) { _audioEl.pause(); _audioEl.removeAttribute('src'); _audioEl.load(); }
         currentAudio = null;
@@ -244,32 +245,42 @@ var VoiceGuide = (function() {
     }
 
     var _audioTimeout = null;
+    var _audioFallback = null;
     function _playAudio(url) {
         var audio = _getAudioEl();
         audio.pause();
         audio.volume = 1.0;
         var done = false;
+        if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
+        if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
         function finish() {
             if (done) return; done = true;
             if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
+            if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
             audio.removeEventListener('ended', finish);
             audio.removeEventListener('error', onError);
+            audio.removeEventListener('loadedmetadata', onMeta);
             currentAudio = null;
             _processQueue();
         }
         function onError() { finish(); }
+        function onMeta() {
+            if (done) return;
+            if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
+            if (audio.duration && isFinite(audio.duration)) {
+                var safeDur = audio.duration * 1000 + 3000;
+                if (_audioTimeout) clearTimeout(_audioTimeout);
+                _audioTimeout = setTimeout(finish, safeDur);
+            }
+        }
         audio.addEventListener('ended', finish);
         audio.addEventListener('error', onError);
+        audio.addEventListener('loadedmetadata', onMeta);
         currentAudio = audio;
         audio.src = url;
         audio.load();
-        audio.play().then(function() {
-            var dur = audio.duration && isFinite(audio.duration)
-                ? audio.duration * 1000 + 2000
-                : 15000;
-            _audioTimeout = setTimeout(finish, dur);
-        }).catch(finish);
-        setTimeout(function() { if (!done) finish(); }, 15000);
+        _audioFallback = setTimeout(function() { if (!done) finish(); }, 30000);
+        audio.play().catch(finish);
     }
 
     return {
