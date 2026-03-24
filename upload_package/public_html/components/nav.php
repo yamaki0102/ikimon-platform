@@ -827,6 +827,17 @@ function nav_avatar(string $avatar): string {
                 </div>
                 <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-text-faint)] flex-shrink-0"></i>
             </a>
+
+            <a href="/bioscan.php" class="record-sheet__option" @click="open = false">
+                <div class="record-sheet__icon" style="background: #0d2818;">
+                    <i data-lucide="microscope" class="w-6 h-6" style="color: #10b981;"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-[var(--color-text)]"><?php echo __('nav.record_bioscan'); ?></p>
+                    <p class="text-xs text-[var(--color-text-muted)]"><?php echo __('nav.record_bioscan_desc'); ?></p>
+                </div>
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-900 text-emerald-400 flex-shrink-0">App</span>
+            </a>
         </div>
 
         <!-- Cancel -->

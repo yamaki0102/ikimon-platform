@@ -33,6 +33,8 @@ return [
         'record_walk_desc' => '歩きながら自動で生き物検出',
         'record_scan' => 'ライブスキャン',
         'record_scan_desc' => 'カメラでリアルタイム検出',
+        'record_bioscan' => 'BioScan',
+        'record_bioscan_desc' => 'AI生物スキャナー（Androidアプリ）',
         'record_cancel' => 'キャンセル',
         'site_dashboard' => 'サイトダッシュボード',
         'ranking_board' => 'ランキング',
