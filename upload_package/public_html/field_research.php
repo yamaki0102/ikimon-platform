@@ -161,6 +161,112 @@ if (!$currentUser) {
             .stats-panel { top: 52px; left: 8px; padding: 8px 10px; }
             .stats-panel .stat-value { font-size: 0.95rem; }
         }
+
+        /* ── Site Guide Toast ── */
+        .site-guide-toast {
+            position: absolute; bottom: max(100px, calc(env(safe-area-inset-bottom, 16px) + 88px));
+            left: 50%; transform: translateX(-50%); z-index: 25;
+            max-width: 360px; width: calc(100% - 32px);
+            animation: sgt-slide-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .sgt-inner {
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(16,185,129,0.2); border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(16,185,129,0.08);
+            padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .sgt-inner:active { transform: scale(0.97); }
+        .sgt-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(16,185,129,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .sgt-title { font-size: 13px; font-weight: 700; color: #1e293b; }
+        .sgt-sub { font-size: 11px; color: #64748b; margin-top: 1px; }
+        .sgt-text { flex: 1; min-width: 0; }
+        @keyframes sgt-slide-up { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+        /* ── Site Guide Panel ── */
+        .site-guide-panel {
+            position: absolute; top: 0; right: 0; z-index: 30;
+            width: min(400px, 100%); height: 100vh; height: 100dvh;
+            background: #fff;
+            box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-direction: column;
+        }
+        .site-guide-panel.open { transform: translateX(0); }
+
+        .sgp-header {
+            padding: 16px 16px 12px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 12px; flex-shrink: 0;
+            background: linear-gradient(135deg, rgba(16,185,129,0.04), rgba(59,130,246,0.04));
+        }
+        .sgp-close { position: absolute; top: 12px; right: 12px; background: none; border: none; cursor: pointer; padding: 4px; border-radius: 8px; color: #94a3b8; }
+        .sgp-close:hover { background: #f1f5f9; color: #475569; }
+        .sgp-title { font-size: 17px; font-weight: 800; color: #1e293b; margin: 0; padding-right: 32px; }
+        .sgp-subtitle { font-size: 12px; color: #64748b; margin: 4px 0 0; }
+
+        .sgp-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; }
+        .sgp-section { padding: 16px; border-bottom: 1px solid #f1f5f9; }
+        .sgp-section-title { font-size: 13px; font-weight: 700; color: #1e293b; margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
+
+        .sgp-welcome p { font-size: 13px; line-height: 1.7; color: #475569; margin: 0; }
+
+        .sgp-highlights { display: flex; flex-direction: column; gap: 6px; }
+        .sgp-highlight-item { font-size: 12px; color: #475569; padding: 6px 10px; background: rgba(16,185,129,0.06); border-radius: 8px; border-left: 3px solid #10b981; }
+
+        .sgp-season { background: linear-gradient(135deg, rgba(251,191,36,0.06), rgba(245,158,11,0.06)); }
+        .sgp-season-desc { font-size: 12.5px; line-height: 1.6; color: #475569; margin: 0; }
+
+        .sgp-routes { display: flex; flex-direction: column; gap: 8px; }
+        .sgp-route-card { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; }
+        .sgp-route-name { font-size: 13px; font-weight: 700; color: #1e293b; }
+        .sgp-route-meta { display: flex; gap: 8px; margin-top: 4px; font-size: 11px; color: #94a3b8; }
+        .sgp-route-diff { background: #dcfce7; color: #16a34a; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+        .sgp-route-desc { font-size: 12px; color: #64748b; margin: 6px 0 0; line-height: 1.5; }
+
+        /* POI Cards */
+        .sgp-pois { display: flex; flex-direction: column; gap: 6px; }
+        .sgp-poi-card { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color 0.15s; }
+        .sgp-poi-card:hover { border-color: #10b981; }
+        .sgp-poi-card.expanded { border-color: #10b981; }
+        .sgp-poi-header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+        .sgp-poi-emoji { font-size: 22px; flex-shrink: 0; }
+        .sgp-poi-titles { flex: 1; min-width: 0; }
+        .sgp-poi-name { font-size: 13px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px; }
+        .sgp-poi-badge { font-size: 10px; font-weight: 700; background: #fef3c7; color: #d97706; padding: 1px 6px; border-radius: 4px; }
+        .sgp-poi-short { font-size: 11.5px; color: #64748b; margin-top: 2px; line-height: 1.4; }
+        .sgp-poi-chevron { transition: transform 0.2s; }
+        .sgp-poi-card.expanded .sgp-poi-chevron { transform: rotate(180deg); }
+
+        .sgp-poi-detail { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sgp-poi-card.expanded .sgp-poi-detail { max-height: 800px; }
+        .sgp-poi-long { padding: 0 12px 8px; }
+        .sgp-poi-long p { font-size: 12.5px; line-height: 1.7; color: #475569; margin: 0 0 8px; }
+        .sgp-poi-tips { padding: 8px 12px; background: rgba(59,130,246,0.04); margin: 0 8px 8px; border-radius: 8px; }
+        .sgp-poi-tips strong { font-size: 12px; color: #1e293b; }
+        .sgp-tip { font-size: 11.5px; color: #64748b; margin-top: 4px; padding-left: 8px; border-left: 2px solid rgba(59,130,246,0.2); }
+        .sgp-poi-season { font-size: 11.5px; color: #64748b; padding: 4px 12px 8px; }
+        .sgp-poi-trivia { font-size: 11.5px; color: #7c3aed; background: rgba(124,58,237,0.04); padding: 8px 12px; margin: 0 8px 12px; border-radius: 8px; line-height: 1.5; }
+
+        /* Read/Unread state */
+        .sgp-poi-read { opacity: 0.65; }
+        .sgp-poi-read:hover, .sgp-poi-read.expanded { opacity: 1; }
+        .sgp-poi-new { background: #dbeafe; color: #2563eb; }
+        .sgp-poi-unread { border-left: 3px solid #10b981; }
+
+        /* Story */
+        .sgp-story-body p { font-size: 12.5px; line-height: 1.7; color: #475569; margin: 0 0 10px; }
+        .sgp-story { background: linear-gradient(135deg, rgba(16,185,129,0.03), rgba(34,197,94,0.03)); }
+
+        /* Practical Info */
+        .sgp-link { display: inline-block; font-size: 12px; color: #10b981; font-weight: 600; text-decoration: none; margin-bottom: 6px; }
+        .sgp-link:hover { text-decoration: underline; }
+        .sgp-info-row { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+        .sgp-notes { margin: 8px 0 0; padding-left: 18px; }
+        .sgp-notes li { font-size: 11.5px; color: #64748b; margin-bottom: 3px; line-height: 1.5; }
+
+        /* Guide button in bottom bar */
+        .btn-guide { background: #10b981; color: #fff; }
+        .btn-guide.inactive { background: #fff; color: #64748b; border: 1px solid rgba(0,0,0,0.08); }
     </style>
 </head>
 
@@ -175,8 +281,10 @@ if (!$currentUser) {
             <i data-lucide="chevron-left" style="width:16px;height:16px;"></i>
             プロフィール
         </a>
-        <span class="top-bar-title">たんけんマップ</span>
-        <div style="width:60px;"></div>
+        <span class="top-bar-title" x-text="sessionActive ? (scanMode === 'scan' ? 'スキャン中' : scanMode === 'quiet' ? 'さんぽ中（静か）' : 'さんぽ中') : 'さんぽ'"></span>
+        <div style="width:60px;display:flex;justify-content:flex-end;">
+            <span x-show="sessionActive" x-cloak class="text-xs font-mono font-bold" :class="scanMode === 'scan' ? 'text-blue-500' : 'text-emerald-500'" x-text="formatElapsed(sessionElapsed)"></span>
+        </div>
     </div>
 
     <!-- Map -->
@@ -239,11 +347,93 @@ if (!$currentUser) {
         </div>
     </div>
 
-    <!-- Bottom Action Bar -->
-    <div class="bottom-bar glass">
+    <!-- Mode Selection Overlay (before session start) -->
+    <div x-show="!sessionActive && showModeSelect" x-cloak
+         class="mode-overlay" style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
+        <div class="glass" style="padding:16px;border-radius:18px;">
+            <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:12px;text-align:center;">さんぽモード</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+                <button @click="scanMode='walk'" class="mode-card"
+                    :style="scanMode==='walk' ? 'background:rgba(16,185,129,0.12);border:2px solid #10b981' : 'background:rgba(0,0,0,0.03);border:2px solid transparent'"
+                    style="border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;">
+                    <div style="font-size:24px;">🚶</div>
+                    <div style="font-size:11px;font-weight:700;margin-top:4px;" :style="scanMode==='walk' ? 'color:#10b981' : 'color:#64748b'">あるく</div>
+                    <div style="font-size:9px;color:#94a3b8;margin-top:2px;">🎤📍</div>
+                </button>
+                <button @click="scanMode='scan'" class="mode-card"
+                    :style="scanMode==='scan' ? 'background:rgba(59,130,246,0.12);border:2px solid #3b82f6' : 'background:rgba(0,0,0,0.03);border:2px solid transparent'"
+                    style="border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;">
+                    <div style="font-size:24px;">📷</div>
+                    <div style="font-size:11px;font-weight:700;margin-top:4px;" :style="scanMode==='scan' ? 'color:#3b82f6' : 'color:#64748b'">スキャン</div>
+                    <div style="font-size:9px;color:#94a3b8;margin-top:2px;">📷🎤📍</div>
+                </button>
+                <button @click="scanMode='quiet'" class="mode-card"
+                    :style="scanMode==='quiet' ? 'background:rgba(148,163,184,0.12);border:2px solid #94a3b8' : 'background:rgba(0,0,0,0.03);border:2px solid transparent'"
+                    style="border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;">
+                    <div style="font-size:24px;">🔇</div>
+                    <div style="font-size:11px;font-weight:700;margin-top:4px;" :style="scanMode==='quiet' ? 'color:#64748b' : 'color:#64748b'">静か</div>
+                    <div style="font-size:9px;color:#94a3b8;margin-top:2px;">📍</div>
+                </button>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;text-align:center;margin-bottom:10px;" x-text="scanMode==='walk' ? 'ポケットに入れてOK。鳥の声を自動検出します' : scanMode==='scan' ? 'カメラで生き物を自動検出 + 音声検出' : 'GPSだけ記録。バッテリー長持ち'"></div>
+            <button @click="startSession()" style="width:100%;padding:14px;border-radius:14px;border:none;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.15s;"
+                :style="scanMode==='scan' ? 'background:#3b82f6;color:#fff' : scanMode==='walk' ? 'background:#10b981;color:#fff' : 'background:#94a3b8;color:#fff'">
+                🌿 さんぽ開始
+            </button>
+        </div>
+    </div>
+
+    <!-- Session Active HUD (bottom) -->
+    <div x-show="sessionActive" x-cloak
+         style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
+        <div class="glass" style="padding:10px 16px;border-radius:16px;">
+            <!-- Detection notification card -->
+            <div x-show="latestDetection" x-cloak x-transition
+                 style="margin-bottom:8px;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;"
+                 :style="'background:' + (latestDetection?.source === 'audio' ? 'rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2)' : 'rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2)')">
+                <span style="font-size:20px;" x-text="latestDetection?.emoji || '🐦'"></span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="latestDetection?.label || ''"></div>
+                    <div style="font-size:10px;color:#94a3b8;" x-text="latestDetection?.reason || ''"></div>
+                </div>
+                <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;"
+                    :style="'background:' + (latestDetection?.confidence === 'high' ? '#dcfce7;color:#16a34a' : latestDetection?.confidence === 'medium' ? '#fef9c3;color:#ca8a04' : '#f1f5f9;color:#64748b')"
+                    x-text="latestDetection?.confidence === 'high' ? '高' : latestDetection?.confidence === 'medium' ? '中' : '低'"></span>
+            </div>
+            <!-- Stats row -->
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="text-align:center;">
+                        <div style="font-size:18px;font-weight:900;color:#1e293b;" x-text="sessionSpeciesCount">0</div>
+                        <div style="font-size:9px;color:#94a3b8;">種</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="formatDistance(sessionDistance)">0 m</div>
+                        <div style="font-size:9px;color:#94a3b8;">距離</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="formatElapsed(sessionElapsed)">00:00</div>
+                        <div style="font-size:9px;color:#94a3b8;">時間</div>
+                    </div>
+                </div>
+                <button @click="stopSession()" style="padding:8px 16px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+                    終了
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Action Bar (when no session) -->
+    <div class="bottom-bar glass" x-show="!sessionActive && !showModeSelect" x-cloak>
         <!-- Locate -->
         <button class="action-btn btn-locate" @click="flyToCurrentLocation()">
             <i data-lucide="locate" style="width:20px;height:20px;"></i>
+        </button>
+
+        <!-- Start Walk -->
+        <button class="action-btn" style="background:#10b981;color:#fff;width:auto;border-radius:28px;padding:0 20px;height:56px;" @click="showModeSelect = true">
+            <i data-lucide="footprints" style="width:20px;height:20px;"></i>
+            <span>さんぽ</span>
         </button>
 
         <!-- Observe -->
@@ -252,6 +442,12 @@ if (!$currentUser) {
             <i data-lucide="camera" style="width:20px;height:20px;"></i>
             <span>投稿</span>
         </a>
+
+        <!-- Guide -->
+        <button class="action-btn btn-guide" :class="{ inactive: !hasGuide }" @click="toggleGuide()" x-show="hasGuide" x-cloak>
+            <i data-lucide="book-open" style="width:20px;height:20px;"></i>
+            <span>ガイド</span>
+        </button>
     </div>
 
     <!-- Scripts -->
@@ -259,6 +455,7 @@ if (!$currentUser) {
     <script src="js/OfflineMapManager.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="js/FieldRecorder.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="js/ExplorationMap.js" nonce="<?= CspNonce::attr() ?>"></script>
+    <script src="js/SiteGuide.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         function explorationApp() {
             return {
@@ -276,11 +473,26 @@ if (!$currentUser) {
                 loading: false,
                 layerFlags: { fog: true, trails: true, observations: true },
                 gpsAccuracy: null,
+                hasGuide: false,
+
+                // Session state
+                sessionActive: false,
+                showModeSelect: !!new URLSearchParams(window.location.search).get('mode'),
+                scanMode: new URLSearchParams(window.location.search).get('mode') || 'walk',
+                sessionStartTime: null,
+                sessionElapsed: 0,
+                sessionDistance: 0,
+                sessionSpeciesCount: 0,
+                sessionDetections: [],
+                latestDetection: null,
+                _sessionTimer: null,
+                _detectionFadeTimer: null,
 
                 // Refs
                 map: null,
                 explorationMap: null,
                 recorder: null,
+                siteGuide: null,
                 wakeLock: null,
                 _prevPosition: null,
 
@@ -321,6 +533,13 @@ if (!$currentUser) {
                     if (typeof StepCounter !== 'undefined' && StepCounter.isSupported()) {
                         window._stepCounter = new StepCounter();
                     }
+
+                    // Init SiteGuide
+                    this.siteGuide = new SiteGuide(this.map, {
+                        onEnterSite: (siteId, guide) => { this.hasGuide = true; },
+                        onLeaveSite: () => { this.hasGuide = false; },
+                    });
+                    window._siteGuide = this.siteGuide;
 
                     // Auto-start passive GPS tracking
                     this._startPassiveTracking();
@@ -389,7 +608,77 @@ if (!$currentUser) {
                             lng: pos.coords.longitude,
                             timestamp: pos.timestamp
                         };
+
+                        // Check for site guide
+                        if (this.siteGuide) {
+                            this.siteGuide.checkPosition(pos.coords.latitude, pos.coords.longitude);
+                        }
                     };
+                },
+
+                // ── Session Management ──
+
+                startSession() {
+                    this.sessionActive = true;
+                    this.showModeSelect = false;
+                    this.sessionStartTime = Date.now();
+                    this.sessionElapsed = 0;
+                    this.sessionDistance = 0;
+                    this.sessionSpeciesCount = 0;
+                    this.sessionDetections = [];
+                    this.latestDetection = null;
+                    this._sessionDistanceAtStart = this.recorder?.totalDistance || 0;
+
+                    // Start elapsed timer
+                    this._sessionTimer = setInterval(() => {
+                        this.sessionElapsed = Math.floor((Date.now() - this.sessionStartTime) / 1000);
+                        // Update distance from recorder
+                        this.sessionDistance = (this.recorder?.totalDistance || 0) - this._sessionDistanceAtStart;
+                    }, 1000);
+
+                    // TODO Sprint 1-2: Start audio detection (walk/scan mode)
+                    // TODO Sprint 1-3: Start camera detection (scan mode only)
+                    console.log(`[Session] Started in ${this.scanMode} mode`);
+                },
+
+                async stopSession() {
+                    this.sessionActive = false;
+                    if (this._sessionTimer) { clearInterval(this._sessionTimer); this._sessionTimer = null; }
+
+                    const sessionData = {
+                        mode: this.scanMode,
+                        duration_sec: this.sessionElapsed,
+                        distance_m: Math.round(this.sessionDistance),
+                        species_count: this.sessionSpeciesCount,
+                        detections: this.sessionDetections,
+                    };
+
+                    console.log('[Session] Stopped:', sessionData);
+
+                    // Navigate to result page (Sprint 2 will build this)
+                    // For now, show a simple summary
+                    const msg = `🌿 さんぽ完了！\n${this.formatElapsed(this.sessionElapsed)} · ${this.formatDistance(this.sessionDistance)} · ${this.sessionSpeciesCount}種`;
+                    alert(msg);
+
+                    // TODO Sprint 2: Navigate to session result page
+                    // window.location.href = `session_result.php?...`;
+                },
+
+                addDetection(detection) {
+                    this.sessionDetections.push(detection);
+                    const uniqueLabels = new Set(this.sessionDetections.map(d => d.label));
+                    this.sessionSpeciesCount = uniqueLabels.size;
+                    this.latestDetection = detection;
+
+                    // Auto-fade detection card after 5 seconds
+                    if (this._detectionFadeTimer) clearTimeout(this._detectionFadeTimer);
+                    this._detectionFadeTimer = setTimeout(() => { this.latestDetection = null; }, 5000);
+                },
+
+                formatElapsed(sec) {
+                    const m = Math.floor(sec / 60);
+                    const s = sec % 60;
+                    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
                 },
 
                 // ── Actions ──
@@ -402,6 +691,10 @@ if (!$currentUser) {
                 toggleLayer(layer) {
                     this.layerFlags[layer] = !this.layerFlags[layer];
                     this.explorationMap.setLayer(layer, this.layerFlags[layer]);
+                },
+
+                toggleGuide() {
+                    if (this.siteGuide) this.siteGuide.toggle();
                 },
 
                 flyToCurrentLocation() {
