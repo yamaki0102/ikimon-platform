@@ -442,6 +442,20 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                 <?php include __DIR__ . '/components/regional_completion.php'; ?>
             </div>
 
+            <!-- さんぽ CTA -->
+            <?php if ($currentUser): ?>
+            <div class="mb-4 rounded-2xl overflow-hidden border border-emerald-200 dark:border-emerald-800" style="background:linear-gradient(135deg,rgba(16,185,129,0.06),rgba(34,197,94,0.03));">
+                <a href="field_research.php" class="flex items-center gap-4 px-4 py-3" style="text-decoration:none;">
+                    <div class="text-3xl flex-shrink-0">🌿</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-[var(--color-text)]">今日のさんぽを始めよう</p>
+                        <p class="text-xs text-[var(--color-text-muted)]">歩くだけで生き物を自動記録。あなたの散歩が100年アーカイブに。</p>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-5 h-5 text-emerald-500 flex-shrink-0"></i>
+                </a>
+            </div>
+            <?php endif; ?>
+
             <!-- Feed Grid: 観察投稿が主役 -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style="gap:var(--phi-lg)">
                 <?php foreach ((!empty($feedManual) ? $feedManual : $latest_obs) as $obs):

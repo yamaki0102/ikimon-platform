@@ -113,15 +113,37 @@ class LiveScanner {
         // Battery
         this._monitorBattery();
 
-        // Camera + Audio
+        // Camera + Audio (with graceful fallback)
         if (enableCamera || enableAudio) {
             try {
                 const constraints = {};
                 if (enableCamera) constraints.video = { facingMode: 'environment', width: { ideal: 640 } };
                 if (enableAudio) constraints.audio = true;
 
-                this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-                this.onLog('メディアストリーム取得OK');
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (mediaErr) {
+                    // If both failed, try camera only
+                    if (enableCamera && enableAudio) {
+                        this.onLog('カメラ+音声失敗。カメラのみで再試行: ' + mediaErr.message);
+                        try {
+                            this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 640 } } });
+                            enableAudio = false; // Disable audio for this session
+                        } catch (camErr) {
+                            // Camera also failed, try audio only
+                            this.onLog('カメラも失敗。音声のみで再試行: ' + camErr.message);
+                            try {
+                                this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                                enableCamera = false;
+                            } catch (audioErr) {
+                                throw audioErr; // Both failed completely
+                            }
+                        }
+                    } else {
+                        throw mediaErr;
+                    }
+                }
+                this.onLog('メディアストリーム取得OK' + (!enableAudio ? '（音声なし）' : '') + (!enableCamera ? '（カメラなし）' : ''));
 
                 // Video element for camera capture
                 if (enableCamera && videoElement) {

@@ -689,6 +689,46 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                         </div>
                     </div>
 
+                    <!-- 100年アーカイブ貢献 -->
+                    <div class="glass-card p-6 rounded-2xl border-border">
+                        <h4 class="text-sm font-black text-text mb-4 flex items-center gap-2">🌍 あなたの貢献</h4>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-muted font-bold">📅 アーカイブ登録</span>
+                                <span class="text-sm font-black text-text"><?php
+                                    $firstObs = null;
+                                    foreach ($observations as $o) {
+                                        $d = $o['created_at'] ?? $o['observed_at'] ?? '';
+                                        if (!$firstObs || $d < $firstObs) $firstObs = $d;
+                                    }
+                                    echo $firstObs ? date('Y年n月', strtotime($firstObs)) . '〜' : '未記録';
+                                ?></span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-muted font-bold">📊 総記録数</span>
+                                <span class="text-sm font-black text-text"><?= count($observations) ?> 件</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-muted font-bold">🏆 Evidence Tier 2+</span>
+                                <span class="text-sm font-black text-text"><?php
+                                    $tier2plus = 0;
+                                    foreach ($observations as $o) {
+                                        $grade = $o['data_quality'] ?? 'D';
+                                        if (in_array($grade, ['A', 'B'])) $tier2plus++;
+                                    }
+                                    echo $tier2plus . ' 件';
+                                ?></span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-muted font-bold">🐦 ユニーク種</span>
+                                <span class="text-sm font-black text-text"><?= count($lifeList) ?> 種</span>
+                            </div>
+                        </div>
+                        <a href="century_archive.php" class="block mt-4 text-center text-xs font-bold" style="color:#10b981;">
+                            100年アーカイブについて →
+                        </a>
+                    </div>
+
                     <!-- Quick Links -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <a href="wellness.php" class="glass-card p-5 rounded-2xl border-border flex items-center gap-4 hover:border-primary/40 transition group">
