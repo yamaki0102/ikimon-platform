@@ -806,24 +806,13 @@ function nav_avatar(string $avatar): string {
                 <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-text-faint)] flex-shrink-0"></i>
             </a>
 
-            <a href="/walk.php" class="record-sheet__option" @click="open = false">
+            <a href="/field_research.php" class="record-sheet__option" @click="open = false">
                 <div class="record-sheet__icon" style="background: var(--color-success-surface, #dcfce7);">
                     <i data-lucide="footprints" class="w-6 h-6" style="color: var(--color-success, #16a34a);"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-[var(--color-text)]"><?php echo __('nav.record_walk'); ?></p>
-                    <p class="text-xs text-[var(--color-text-muted)]"><?php echo __('nav.record_walk_desc'); ?></p>
-                </div>
-                <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-text-faint)] flex-shrink-0"></i>
-            </a>
-
-            <a href="/field_scan.php" class="record-sheet__option" @click="open = false">
-                <div class="record-sheet__icon" style="background: var(--color-warning-surface, #fef3c7);">
-                    <i data-lucide="scan-search" class="w-6 h-6" style="color: var(--color-warning, #d97706);"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-[var(--color-text)]"><?php echo __('nav.record_scan'); ?></p>
-                    <p class="text-xs text-[var(--color-text-muted)]"><?php echo __('nav.record_scan_desc'); ?></p>
+                    <p class="text-sm font-bold text-[var(--color-text)]">さんぽ</p>
+                    <p class="text-xs text-[var(--color-text-muted)]">歩く・スキャン・たんけんマップ</p>
                 </div>
                 <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-text-faint)] flex-shrink-0"></i>
             </a>
