@@ -400,6 +400,8 @@ if (!$currentUser) {
                     :style="'background:' + (latestDetection?.confidence === 'high' ? '#dcfce7;color:#16a34a' : latestDetection?.confidence === 'medium' ? '#fef9c3;color:#ca8a04' : '#f1f5f9;color:#64748b')"
                     x-text="latestDetection?.confidence === 'high' ? '高' : latestDetection?.confidence === 'medium' ? '中' : '低'"></span>
             </div>
+            <!-- Environment label -->
+            <div x-show="envLabel" x-cloak style="font-size:10px;color:#64748b;margin-bottom:6px;text-align:center;" x-text="'🌿 ' + envLabel"></div>
             <!-- Stats row -->
             <div style="display:flex;align-items:center;justify-content:space-between;">
                 <div style="display:flex;align-items:center;gap:12px;">
@@ -566,13 +568,19 @@ if (!$currentUser) {
             </div>
 
             <!-- Actions -->
-            <div style="display:flex;gap:10px;">
-                <button @click="showReport=false" style="flex:1;padding:14px;border-radius:12px;border:none;background:rgba(255,255,255,0.1);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
-                    🗺️ マップに戻る
-                </button>
-                <button @click="showReport=false;showModeSelect=true" style="flex:1;padding:14px;border-radius:12px;border:none;background:#10b981;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
-                    🔄 もう一回
-                </button>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <a :href="'post.php?return=field_research.php&from=walk_report'"
+                   style="display:block;text-align:center;padding:14px;border-radius:12px;border:1px solid rgba(251,191,36,0.3);background:rgba(251,191,36,0.1);color:#fbbf24;font-size:14px;font-weight:700;text-decoration:none;">
+                    📸 ベスト写真を投稿する
+                </a>
+                <div style="display:flex;gap:8px;">
+                    <button @click="showReport=false" style="flex:1;padding:14px;border-radius:12px;border:none;background:rgba(255,255,255,0.1);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+                        🗺️ マップに戻る
+                    </button>
+                    <button @click="showReport=false;showModeSelect=true" style="flex:1;padding:14px;border-radius:12px;border:none;background:#10b981;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+                        🔄 もう一回
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -634,6 +642,7 @@ if (!$currentUser) {
                 latestDetection: null,
                 _sessionTimer: null,
                 _detectionFadeTimer: null,
+                envLabel: '',
 
                 // Refs
                 map: null,
@@ -792,7 +801,10 @@ if (!$currentUser) {
 
                     this.liveScanner = new LiveScanner({
                         onDetection: (det) => this.addDetection(det),
-                        onEnvUpdate: (env) => { /* TODO: display env badge */ },
+                        onEnvUpdate: (env) => {
+                            const parts = [env.habitat, env.vegetation, env.canopy_cover].filter(Boolean);
+                            this.envLabel = parts.join(' · ') || '';
+                        },
                         onLog: (msg) => console.log('[LiveScanner]', msg),
                         onGpsUpdate: (pos) => {
                             this.gpsAccuracy = Math.round(pos.accuracy);
