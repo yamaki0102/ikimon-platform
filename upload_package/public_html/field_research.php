@@ -450,12 +450,27 @@ if (!$currentUser) {
         </button>
     </div>
 
+    <!-- Camera video (hidden, used by LiveScanner for frame capture) -->
+    <video id="scan-cam" playsinline muted autoplay style="display:none;"></video>
+    <canvas id="scan-canvas" style="display:none;"></canvas>
+
+    <!-- Camera preview overlay (scan mode) -->
+    <div x-show="sessionActive && scanMode === 'scan'" x-cloak
+         style="position:absolute;top:46px;left:0;right:0;bottom:160px;z-index:10;background:#000;">
+        <video id="scan-preview" playsinline muted autoplay
+               style="width:100%;height:100%;object-fit:cover;"></video>
+        <button @click="scanMode='walk'" style="position:absolute;top:12px;left:12px;z-index:15;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">
+            🗺️ マップに戻る
+        </button>
+    </div>
+
     <!-- Scripts -->
     <script src="js/StepCounter.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="js/OfflineMapManager.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="js/FieldRecorder.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="js/ExplorationMap.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="js/SiteGuide.js" nonce="<?= CspNonce::attr() ?>"></script>
+    <script src="js/LiveScanner.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         function explorationApp() {
             return {
@@ -493,6 +508,7 @@ if (!$currentUser) {
                 explorationMap: null,
                 recorder: null,
                 siteGuide: null,
+                liveScanner: null,
                 wakeLock: null,
                 _prevPosition: null,
 
@@ -627,17 +643,41 @@ if (!$currentUser) {
                     this.sessionSpeciesCount = 0;
                     this.sessionDetections = [];
                     this.latestDetection = null;
-                    this._sessionDistanceAtStart = this.recorder?.totalDistance || 0;
 
-                    // Start elapsed timer
+                    // Timer
                     this._sessionTimer = setInterval(() => {
-                        this.sessionElapsed = Math.floor((Date.now() - this.sessionStartTime) / 1000);
-                        // Update distance from recorder
-                        this.sessionDistance = (this.recorder?.totalDistance || 0) - this._sessionDistanceAtStart;
+                        if (!this.liveScanner) return;
+                        this.sessionElapsed = this.liveScanner.getElapsed();
+                        this.sessionDistance = this.liveScanner.getDistance();
+                        this.sessionSpeciesCount = this.liveScanner.getSpeciesCount();
                     }, 1000);
 
-                    // TODO Sprint 1-2: Start audio detection (walk/scan mode)
-                    // TODO Sprint 1-3: Start camera detection (scan mode only)
+                    // LiveScanner
+                    const enableCamera = this.scanMode === 'scan';
+                    const enableAudio = this.scanMode !== 'quiet';
+                    const videoEl = enableCamera ? document.getElementById('scan-preview') : document.getElementById('scan-cam');
+                    const canvasEl = document.getElementById('scan-canvas');
+
+                    this.liveScanner = new LiveScanner({
+                        onDetection: (det) => this.addDetection(det),
+                        onEnvUpdate: (env) => { /* TODO: display env badge */ },
+                        onLog: (msg) => console.log('[LiveScanner]', msg),
+                        onGpsUpdate: (pos) => {
+                            this.gpsAccuracy = Math.round(pos.accuracy);
+                            if (pos.accuracy <= 50 && this.explorationMap) {
+                                this.explorationMap.addExploredPoint(pos.lat, pos.lng, null);
+                            }
+                        },
+                    });
+
+                    this.liveScanner.start({
+                        mode: this.scanMode === 'scan' ? 'walk' : this.scanMode,
+                        enableCamera,
+                        enableAudio,
+                        videoElement: videoEl,
+                        canvasElement: canvasEl,
+                    });
+
                     console.log(`[Session] Started in ${this.scanMode} mode`);
                 },
 
@@ -645,23 +685,22 @@ if (!$currentUser) {
                     this.sessionActive = false;
                     if (this._sessionTimer) { clearInterval(this._sessionTimer); this._sessionTimer = null; }
 
-                    const sessionData = {
-                        mode: this.scanMode,
-                        duration_sec: this.sessionElapsed,
-                        distance_m: Math.round(this.sessionDistance),
-                        species_count: this.sessionSpeciesCount,
-                        detections: this.sessionDetections,
-                    };
+                    let result = null;
+                    if (this.liveScanner) {
+                        result = await this.liveScanner.stop();
+                        this.liveScanner = null;
+                    }
 
-                    console.log('[Session] Stopped:', sessionData);
-
-                    // Navigate to result page (Sprint 2 will build this)
-                    // For now, show a simple summary
-                    const msg = `🌿 さんぽ完了！\n${this.formatElapsed(this.sessionElapsed)} · ${this.formatDistance(this.sessionDistance)} · ${this.sessionSpeciesCount}種`;
-                    alert(msg);
-
-                    // TODO Sprint 2: Navigate to session result page
-                    // window.location.href = `session_result.php?...`;
+                    // Show result (Sprint 2 will build full result page)
+                    if (result) {
+                        const recap = result.recap;
+                        const msg = [
+                            `🌿 さんぽ完了！`,
+                            `${this.formatElapsed(result.duration)} · ${this.formatDistance(result.distance)} · ${result.speciesCount}種`,
+                            recap?.narrative ? `\n${recap.narrative.substring(0, 100)}...` : '',
+                        ].join('\n');
+                        alert(msg);
+                    }
                 },
 
                 addDetection(detection) {
@@ -669,6 +708,14 @@ if (!$currentUser) {
                     const uniqueLabels = new Set(this.sessionDetections.map(d => d.label));
                     this.sessionSpeciesCount = uniqueLabels.size;
                     this.latestDetection = detection;
+
+                    // Add marker on map
+                    if (this.liveScanner?.lastGpsPos && this.map) {
+                        const pos = this.liveScanner.lastGpsPos;
+                        new maplibregl.Marker({ color: detection.source === 'audio' ? '#fbbf24' : '#60a5fa', scale: 0.5 })
+                            .setLngLat([pos.lng, pos.lat])
+                            .addTo(this.map);
+                    }
 
                     // Auto-fade detection card after 5 seconds
                     if (this._detectionFadeTimer) clearTimeout(this._detectionFadeTimer);
