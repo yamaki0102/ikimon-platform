@@ -12,6 +12,19 @@
 
 市民参加型生物多様性プラットフォーム。30by30・TNFD LEAP 対応。
 
+## 哲学
+
+> **「2026年に記録しなかったデータは二度と取り戻せない」**
+
+ikimon.life は「写真投稿サイト」ではなく **100年生態系アーカイブ**。
+すべての設計判断はこの問いで決まる:
+- この機能は記録を増やすか？
+- この機能は参加者を増やすか？
+- この機能は記録を豊かにするか？
+- 記録に貢献しない機能は、今は敵。
+
+詳細: `docs/strategy/bioscan_100y_archive_strategy.md`
+
 ## プロジェクト概要
 
 | 項目 | 値 |
@@ -188,6 +201,15 @@ SSH接続: r1522484@www1070.onamae.ne.jp -p 8022
 | Phase 14B | 投稿体験強化 (post.php, 同定ブリッジ) | ✅ |
 | Phase 15A | My Field Activity Log (Dynamic Sessions & Free Roam) | ✅ |
 | **Phase 15B** | **Gamification & Personalization** | 🔲 進行中 |
+| **Phase 16** | **100年アーカイブ基盤 + BioScan統合** | 🔲 計画済 |
+
+### Phase 16: 100年アーカイブ基盤（計画概要）
+- BioScan 連携: TFLite種同定 + Perch v2鳥音声 + 環境センサー → タイムカプセル生成
+- 環境センサースキーマ構造化（EnvironmentSchema.php）
+- プロフィール「あなたの貢献」可視化（TNFD採用・GBIF提供数）
+- iNaturalist OAuth連携インポート
+- 100年アーカイブ説明ページ（century_archive.php）
+- 詳細: `docs/strategy/bioscan_implementation_roadmap.md`
 
 ## セキュリティ実装状況
 
