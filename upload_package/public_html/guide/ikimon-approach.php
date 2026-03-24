@@ -787,8 +787,8 @@ Auth::init();
                     <a href="/post.php" class="cta-gradient text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg">
                         <i data-lucide="camera" class="w-5 h-5"></i>まず1枚、撮ってみる
                     </a>
-                    <a href="/walk.php" class="bg-white text-text font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors border border-border">
-                        <i data-lucide="footprints" class="w-5 h-5"></i>散歩ついでに記録する
+                    <a href="/field_research.php" class="bg-white text-text font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors border border-border">
+                        <i data-lucide="footprints" class="w-5 h-5"></i>さんぽで記録する
                     </a>
                 </div>
             </div>

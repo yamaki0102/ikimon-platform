@@ -323,9 +323,9 @@ function rlLabel($rl)
                     <div class="zukan-empty__icon">📖</div>
                     <div class="zukan-empty__text">まだ出会いがありません。散歩に出かけよう!</div>
                     <div style="margin-top: var(--zukan-space-md);">
-                        <a href="walk.php" class="zukan-promo__btn zukan-promo__btn--primary" style="display:inline-flex;">
+                        <a href="/field_research.php" class="zukan-promo__btn zukan-promo__btn--primary" style="display:inline-flex;">
                             <i data-lucide="footprints" style="width:16px;height:16px;"></i>
-                            ウォークに出かける
+                            さんぽに出かける
                         </a>
                     </div>
                 </div>

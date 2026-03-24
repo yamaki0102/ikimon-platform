@@ -193,7 +193,7 @@ $missions = [
             <?php else: ?>
             <div class="text-center py-3">
                 <p class="text-sm text-blue-200 mb-3">ライブスキャンで地域の生態系データに貢献しよう</p>
-                <a href="field_scan.php" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-full px-4 py-2 transition">
+                <a href="/field_research.php" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-full px-4 py-2 transition">
                     <i data-lucide="scan" class="w-4 h-4"></i>
                     スキャンを始める
                 </a>

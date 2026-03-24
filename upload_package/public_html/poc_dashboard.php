@@ -299,13 +299,13 @@ $pageTitle = 'PoC Dashboard — 観察のOS';
             <i data-lucide="search" class="w-4 h-4"></i>
             同定ワークベンチ
         </a>
-        <a href="walk.php" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+        <a href="/field_research.php" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
             <i data-lucide="footprints" class="w-4 h-4"></i>
-            ウォーク開始
+            さんぽ開始
         </a>
-        <a href="field_scan.php" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+        <a href="/field_research.php" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
             <i data-lucide="radar" class="w-4 h-4"></i>
-            ライブスキャン
+            スキャン
         </a>
     </div>
 
