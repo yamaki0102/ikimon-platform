@@ -227,6 +227,8 @@ class PassiveObservationEngine
             'device' => $sessionMeta['device'] ?? null,
             'import_source' => 'passive_observation',
             'environment_snapshot' => $detection['environment_snapshot'] ?? null,
+            'speed_kmh' => $detection['speed_kmh'] ?? null,
+            'ai_version' => $detection['ai_version'] ?? null,
             'created_at' => date('Y-m-d H:i:s'),
         ];
     }

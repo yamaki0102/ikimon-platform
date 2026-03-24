@@ -106,6 +106,8 @@ foreach ($events as $i => $event) {
         'photo_ref'          => $event['photo_ref'] ?? null,
         'environment_snapshot' => $event['environment_snapshot'] ?? null,
         'frame_ref'          => $event['frame_ref'] ?? null,
+        'speed_kmh'          => isset($event['speed_kmh']) ? (float) $event['speed_kmh'] : null,
+        'ai_version'         => $event['ai_version'] ?? null,
     ];
 }
 
@@ -164,6 +166,9 @@ try {
         'session_mode'            => $sessionMeta['scan_mode'] ?? $scanMode,
         'complete_checklist_flag' => (int) ($sessionMeta['complete_checklist'] ?? 0),
         'target_taxa_scope'       => $sessionMeta['target_taxa_scope'] ?? null,
+        'movement_mode'           => $sessionMeta['movement_mode'] ?? null,
+        'movement_mode_log'       => $sessionMeta['movement_mode_log'] ?? null,
+        'route_hash'              => $sessionMeta['route_hash'] ?? null,
     ]);
 } catch (Exception $e) {
     error_log('[passive_event] Session event creation error: ' . $e->getMessage());
@@ -268,6 +273,8 @@ foreach ($result['observations'] as $obs) {
                 'detection_model'     => $obs['detection_model'] ?? null,
                 'original_observation_id' => $obs['id'] ?? null,
                 'occurrence_status'   => 'present',
+                'speed_kmh'           => $obs['speed_kmh'] ?? null,
+                'ai_version'          => $obs['ai_version'] ?? null,
             ]);
             $savedCount++;
         } catch (Exception $e) {
