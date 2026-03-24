@@ -375,8 +375,9 @@ if (!$currentUser) {
                 </div>
             </div>
             <div style="font-size:10px;color:#94a3b8;">速度に合わせてカメラ・音声を自動調整します</div>
-            <div style="font-size:9px;color:#475569;text-align:center;padding:4px;">
-                Powered by BirdNET (CC BY-SA 4.0) &amp; Perch v2 (Apache 2.0)
+            <div style="font-size:9px;color:#475569;text-align:center;padding:4px;line-height:1.6;">
+                音声: VOICEVOX（ずんだもん/もち子さん/青山龍星）<br>
+                検出: BirdNET (CC BY-SA 4.0) &amp; Perch v2 (Apache 2.0)
             </div>
         </div>
     </div>
@@ -670,8 +671,8 @@ if (!$currentUser) {
                 speakers: [
                     { id: 'auto', label: 'Auto', emoji: '🤖' },
                     { id: 'zundamon', label: 'ずんだもん', emoji: '🟢' },
-                    { id: 'mochiko', label: 'もち子', emoji: '🌸' },
-                    { id: 'ryusei', label: '龍星', emoji: '🐉' },
+                    { id: 'mochiko', label: '女性', emoji: '🌸' },
+                    { id: 'ryusei', label: '男性', emoji: '🐉' },
                 ],
                 modeLabels: { stationary: '静止中', walk: 'さんぽ中', bike: '自転車中', drive: 'ドライブ中' },
 
