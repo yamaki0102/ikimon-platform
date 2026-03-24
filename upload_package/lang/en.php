@@ -32,6 +32,8 @@ return [
         'record_walk_desc' => 'Auto-detect wildlife while walking',
         'record_scan' => 'Live Scan',
         'record_scan_desc' => 'Real-time detection with camera',
+        'record_bioscan' => 'BioScan',
+        'record_bioscan_desc' => 'AI Bio Scanner (Android App)',
         'record_cancel' => 'Cancel',
         'site_dashboard' => 'Site Dashboard',
         'ranking_board' => 'Ranking',
