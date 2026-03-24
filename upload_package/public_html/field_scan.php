@@ -337,6 +337,32 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
             <h2 class="text-2xl font-black mb-2">スキャン完了！</h2>
             <p id="done-summary" class="text-blue-200 text-sm"></p>
         </div>
+        <!-- レポート生成進捗 -->
+        <div id="recap-progress" class="bg-white/10 rounded-2xl p-5 mb-6">
+            <div class="flex items-center gap-3 mb-3">
+                <div id="recap-spinner" class="w-5 h-5 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full" style="animation:spin 1s linear infinite"></div>
+                <span class="text-sm font-bold text-emerald-300">レポート生成中...</span>
+            </div>
+            <div class="space-y-2">
+                <div id="recap-step-data" class="flex items-center gap-2 text-xs text-gray-400">
+                    <span id="recap-icon-data" class="w-4 text-center">⏳</span>
+                    <span>検出データ集計</span>
+                </div>
+                <div id="recap-step-species" class="flex items-center gap-2 text-xs text-gray-400">
+                    <span id="recap-icon-species" class="w-4 text-center">⏳</span>
+                    <span>種の図鑑情報を照合</span>
+                </div>
+                <div id="recap-step-area" class="flex items-center gap-2 text-xs text-gray-400">
+                    <span id="recap-icon-area" class="w-4 text-center">⏳</span>
+                    <span>エリアの生物多様性を分析</span>
+                </div>
+                <div id="recap-step-ai" class="flex items-center gap-2 text-xs text-gray-400">
+                    <span id="recap-icon-ai" class="w-4 text-center">⏳</span>
+                    <span>AIがストーリーを生成</span>
+                </div>
+            </div>
+        </div>
+        <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
         <div id="done-quests" class="space-y-3 mb-8" style="display:none">
             <div class="flex items-center gap-2 mb-4">
                 <i data-lucide="notebook-pen" class="w-5 h-5 text-emerald-400"></i>
@@ -927,11 +953,27 @@ async function retryScanPending() {
     } catch(e) {}
 }
 
+function _recapStep(step, done) {
+    var el = document.getElementById('recap-icon-' + step);
+    if (el) el.textContent = done ? '✅' : '🔄';
+    var row = document.getElementById('recap-step-' + step);
+    if (row) row.style.color = done ? '#86efac' : '#60a5fa';
+}
+function _recapDone() {
+    var pg = document.getElementById('recap-progress');
+    if (pg) pg.style.display = 'none';
+}
+
 async function fetchScanRecap(speciesList, durationSec) {
-    if (speciesList.length === 0) return;
+    if (speciesList.length === 0) { _recapDone(); return; }
     try {
+        _recapStep('data', true);
+        _recapStep('species', false);
         var last = S.routePoints.length > 0 ? S.routePoints[S.routePoints.length - 1] : null;
         var envWeather = (S.envHistory && S.envHistory.length > 0 && S.envHistory[0].weather) ? S.envHistory[0].weather : null;
+        _recapStep('species', true);
+        _recapStep('area', false);
+        setTimeout(function() { _recapStep('area', true); _recapStep('ai', false); }, 800);
         var resp = await fetch('/api/v2/session_recap.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -946,8 +988,10 @@ async function fetchScanRecap(speciesList, durationSec) {
                 weather: envWeather,
             })
         });
-        if (!resp.ok) return;
+        if (!resp.ok) { _recapDone(); return; }
         var json = await resp.json();
+        _recapStep('ai', true);
+        _recapDone();
         if (!json.success || !json.data) return;
         var d = json.data;
 
@@ -1003,7 +1047,7 @@ async function fetchScanRecap(speciesList, durationSec) {
             if (bp.badges_earned && bp.badges_earned.length > 0) html += '<div class="flex flex-wrap gap-2 justify-center">' + bp.badges_earned.map(function(b) { return '<span class="text-xs px-3 py-1 bg-amber-600/30 text-amber-300 rounded-full font-bold">' + (b.name||b) + '</span>'; }).join('') + '</div>';
             if (html) { document.getElementById('scan-recap-badges-content').innerHTML = html; document.getElementById('scan-recap-badges').classList.remove('hidden'); }
         }
-    } catch(e) { console.warn('Scan recap error:', e); }
+    } catch(e) { console.warn('Scan recap error:', e); _recapDone(); }
 }
 
 function renderScanQuests(quests) {
