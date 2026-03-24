@@ -72,7 +72,7 @@ function _dualEngineClassify(string $audioPath, string $mimeType, string $fileNa
     $ch_birdnet = curl_init();
     $birdnetFile = new CURLFile($audioPath, $mimeType, $fileName);
     curl_setopt_array($ch_birdnet, [
-        CURLOPT_URL            => 'http://127.0.0.1:8100/analyze',
+        CURLOPT_URL            => 'http://127.0.0.1:8101/analyze',
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => ['audio' => $birdnetFile, 'lat' => $lat, 'lng' => $lng, 'min_conf' => $minConf],
         CURLOPT_RETURNTRANSFER => true,
