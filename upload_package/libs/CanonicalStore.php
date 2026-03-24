@@ -22,6 +22,7 @@ class CanonicalStore
 {
     private static ?PDO $pdo = null;
     private static bool $vernacularChecked = false;
+    private static bool $sensorColumnsChecked = false;
 
     // ─── Connection ─────────────────────────────────────────────
 
@@ -48,6 +49,25 @@ class CanonicalStore
         }
     }
 
+    private static function ensureSensorColumns(PDO $pdo): void
+    {
+        if (self::$sensorColumnsChecked) return;
+        self::$sensorColumnsChecked = true;
+        $additions = [
+            "ALTER TABLE events ADD COLUMN movement_mode TEXT",
+            "ALTER TABLE events ADD COLUMN movement_mode_log TEXT",
+            "ALTER TABLE events ADD COLUMN route_hash TEXT",
+            "ALTER TABLE occurrences ADD COLUMN speed_kmh REAL",
+            "ALTER TABLE occurrences ADD COLUMN ai_version TEXT",
+        ];
+        foreach ($additions as $sql) {
+            try { $pdo->exec($sql); } catch (\Throwable $e) { /* already exists */ }
+        }
+        try {
+            $pdo->exec("CREATE INDEX IF NOT EXISTS idx_events_route ON events(route_hash)");
+        } catch (\Throwable $e) {}
+    }
+
     // ─── Layer 1: Events ────────────────────────────────────────
 
     /**
@@ -57,11 +77,17 @@ class CanonicalStore
     {
         $eventId = $data['event_id'] ?? self::uuid();
         $pdo = self::getPDO();
+        self::ensureSensorColumns($pdo);
 
         // sampling_effort を JSON 文字列に変換
         $effort = $data['sampling_effort'] ?? null;
         if (is_array($effort)) {
             $effort = json_encode($effort, JSON_UNESCAPED_UNICODE);
+        }
+
+        $movementModeLog = $data['movement_mode_log'] ?? null;
+        if (is_array($movementModeLog)) {
+            $movementModeLog = json_encode($movementModeLog, JSON_UNESCAPED_UNICODE);
         }
 
         $stmt = $pdo->prepare("
@@ -71,34 +97,39 @@ class CanonicalStore
                 coordinate_uncertainty_m, uncertainty_type,
                 sampling_protocol, sampling_effort, capture_device,
                 recorded_by, site_id,
-                session_mode, complete_checklist_flag, target_taxa_scope
+                session_mode, complete_checklist_flag, target_taxa_scope,
+                movement_mode, movement_mode_log, route_hash
             ) VALUES (
                 :event_id, :parent_event_id, :event_date,
                 :lat, :lng, :datum,
                 :uncertainty, :uncertainty_type,
                 :protocol, :effort, :device,
                 :recorded_by, :site_id,
-                :session_mode, :checklist_flag, :taxa_scope
+                :session_mode, :checklist_flag, :taxa_scope,
+                :movement_mode, :movement_mode_log, :route_hash
             )
         ");
 
         $stmt->execute([
-            ':event_id'         => $eventId,
-            ':parent_event_id'  => $data['parent_event_id'] ?? null,
-            ':event_date'       => $data['event_date'] ?? date('c'),
-            ':lat'              => $data['decimal_latitude'] ?? null,
-            ':lng'              => $data['decimal_longitude'] ?? null,
-            ':datum'            => $data['geodetic_datum'] ?? 'EPSG:4326',
-            ':uncertainty'      => $data['coordinate_uncertainty_m'] ?? null,
-            ':uncertainty_type' => $data['uncertainty_type'] ?? 'device_default',
-            ':protocol'         => $data['sampling_protocol'] ?? null,
-            ':effort'           => $effort,
-            ':device'           => $data['capture_device'] ?? null,
-            ':recorded_by'      => $data['recorded_by'] ?? null,
-            ':site_id'          => $data['site_id'] ?? null,
-            ':session_mode'     => $data['session_mode'] ?? null,
-            ':checklist_flag'   => $data['complete_checklist_flag'] ?? 0,
-            ':taxa_scope'       => $data['target_taxa_scope'] ?? null,
+            ':event_id'           => $eventId,
+            ':parent_event_id'    => $data['parent_event_id'] ?? null,
+            ':event_date'         => $data['event_date'] ?? date('c'),
+            ':lat'                => $data['decimal_latitude'] ?? null,
+            ':lng'                => $data['decimal_longitude'] ?? null,
+            ':datum'              => $data['geodetic_datum'] ?? 'EPSG:4326',
+            ':uncertainty'        => $data['coordinate_uncertainty_m'] ?? null,
+            ':uncertainty_type'   => $data['uncertainty_type'] ?? 'device_default',
+            ':protocol'           => $data['sampling_protocol'] ?? null,
+            ':effort'             => $effort,
+            ':device'             => $data['capture_device'] ?? null,
+            ':recorded_by'        => $data['recorded_by'] ?? null,
+            ':site_id'            => $data['site_id'] ?? null,
+            ':session_mode'       => $data['session_mode'] ?? null,
+            ':checklist_flag'     => $data['complete_checklist_flag'] ?? 0,
+            ':taxa_scope'         => $data['target_taxa_scope'] ?? null,
+            ':movement_mode'      => $data['movement_mode'] ?? null,
+            ':movement_mode_log'  => $movementModeLog,
+            ':route_hash'         => $data['route_hash'] ?? null,
         ]);
 
         return $eventId;
@@ -131,6 +162,7 @@ class CanonicalStore
             : null;
 
         self::ensureVernacularColumn($pdo);
+        self::ensureSensorColumns($pdo);
 
         $stmt = $pdo->prepare("
             INSERT INTO occurrences (
@@ -140,7 +172,7 @@ class CanonicalStore
                 data_quality, observation_source, original_observation_id,
                 detection_confidence, adjusted_confidence, confidence_context,
                 detection_model, detection_model_hash,
-                occurrence_status
+                occurrence_status, speed_kmh, ai_version
             ) VALUES (
                 :occ_id, :event_id, :sci_name, :vern_name, :rank,
                 :taxon_version, :basis, :count,
@@ -148,7 +180,7 @@ class CanonicalStore
                 :quality, :source, :orig_id,
                 :det_conf, :adj_conf, :conf_ctx,
                 :det_model, :det_hash,
-                :occ_status
+                :occ_status, :speed_kmh, :ai_version
             )
         ");
 
@@ -173,6 +205,8 @@ class CanonicalStore
             ':det_model'     => $data['detection_model'] ?? null,
             ':det_hash'      => $data['detection_model_hash'] ?? null,
             ':occ_status'    => $data['occurrence_status'] ?? 'present',
+            ':speed_kmh'     => $data['speed_kmh'] ?? null,
+            ':ai_version'    => $data['ai_version'] ?? null,
         ]);
 
         return $occId;

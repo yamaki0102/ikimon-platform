@@ -33,12 +33,14 @@ $isZundamonStyle = ($voiceMode === 'zundamon');
 $useVoicevoxAudio = ($voiceMode !== 'standard');
 
 $transportMode = api_param('transport_mode', 'walk');
-if (!in_array($transportMode, ['walk', 'bike', 'car'], true)) {
+if (!in_array($transportMode, ['walk', 'bike', 'car', 'drive', 'stationary'], true)) {
     $transportMode = 'walk';
 }
+if ($transportMode === 'drive') $transportMode = 'car';
 $transportLabel = match($transportMode) {
     'car' => '車',
     'bike' => '自転車',
+    'stationary' => '静止',
     default => '徒歩',
 };
 
@@ -180,12 +182,17 @@ if ($requestMode === 'opening') {
 {$nearbyContext}
 
 要件:
-- その場所の空気感・季節感を2文で描写（例: 風、光、音、匂い）
+- その場所の空気感・季節感を2〜3文で描写（例: 風、光、音、匂い）
 - 過去の観察データがあれば「この辺りでは以前〇〇が観察されてるよ」と1文
+- この場所の自然の特徴や季節ならではの見どころを1〜2文
 - 最後に「何に出会えるかな」的な期待感を1文
-- 合計3〜4文、100文字以内
+- 合計4〜6文、150〜250文字。情景描写を豊かに
 - 百科事典的な説明はしない。五感に訴える情景描写を
 - 音声読み上げ用なので難しい漢字はひらがなで
+
+表現ルール:
+- 「珍しい」「レアな」等の希少性を煽る表現禁止
+- 植物は「ある」「生えている」「咲いている」、動物は「いる」「見つけた」と使い分ける
 PROMPT;
 
     $guideText = _callGemini($prompt);
@@ -275,9 +282,13 @@ if ($requestMode === 'closing') {
 - 最も印象的な出会いに触れて、その出会いに小さな意味を添える（豆知識1つ）
 - 数字の羅列（「N分でN種」）で終わらない。その日の体験の手触りを伝える
 - 最後に「次は〇〇してみて」と具体的な再訪の伏線を1つ（時間帯・季節・場所を変える提案）
-- 合計3〜4文、120文字以内
+- 合計4〜6文、150〜250文字。体験の余韻を豊かに
 - 集計レポートではなく、散歩から帰る友達に贈る最後の一言として
 - 音声読み上げ用なので難しい漢字はひらがなで
+
+表現ルール:
+- 「珍しい」「レアな」等の希少性を煽る表現禁止
+- 植物は「ある」「生えている」「咲いている」、動物は「いる」「見つけた」と使い分ける
 PROMPT;
 
     $guideText = _callGemini($prompt);
@@ -384,10 +395,15 @@ if ($requestMode === 'silence') {
 {$avoidList}
 
 条件:
-- 1〜2文、60文字以内
+- 2〜4文、100〜150文字。周囲の自然環境について語りかける
 - 説教臭くしない。ふっと心が軽くなるような一言
 - 五感（聴覚・嗅覚・触覚）を使った提案を含めて
+- この場所の環境や季節の特徴について、ちょっとした知識を1つ添える
 - 音声読み上げ用なので難しい漢字はひらがなで
+
+表現ルール:
+- 「珍しい」「レアな」等の希少性を煽る表現禁止
+- 植物は「ある」「生えている」、動物は「いる」と使い分ける
 PROMPT;
 
     $guideText = _callGemini($prompt);
@@ -505,13 +521,17 @@ if ($requestMode === 'ambient') {
 {$avoidList}
 
 条件:
-- 2〜3文、80文字以内
+- 3〜5文、150〜200文字。散歩を楽しませる解説を豊かに。沈黙より長い解説の方が良い
 - リスナーは{$transportLabel}で移動中。{$transportLabel}の体験に合った話し方で（徒歩なら「足元」「立ち止まって」、車なら「窓の外」「この道沿い」、自転車なら「風を感じながら」など）
 - 「キミが今見ている景色」と結びつけて話す（抽象論ではなく「この場所では…」「今の季節は…」）
 - ネイチャーポジティブ・生物多様性・30by30などの概念は、直接名前を出すより体験を通じて感じさせる
 - 難しい漢字はひらがなで（例: 囀り→さえずり、蝶→チョウ）
 - 学名は使わないで
 - 聞いて「へぇ」「そうなんだ」と思える内容に
+
+表現ルール:
+- 「珍しい」「レアな」「初めて」等の希少性を煽る表現禁止
+- 植物は「ある」「生えている」「咲いている」、動物は「いる」「見つけた」と使い分ける
 PROMPT;
 
     $guideText = _callGemini($prompt);
@@ -677,7 +697,7 @@ $prompt = <<<PROMPT
 {$emotionInstruction}
 
 条件:
-- 2〜3文、80文字以内
+- 3〜5文、150〜200文字。豆知識や生態の解説を豊かに。沈黙より長い解説の方が良い
 - リスナーは{$transportLabel}で移動中。{$transportLabel}の体験に合った話し方で
 - 上記の「生態系データ」「共起種」「地域特徴」「季節情報」を根拠にして話す。根拠のない話は作らない
 - 「今回の話し方」に従って、{$areaName}に密着した具体的で面白い話をして
@@ -685,6 +705,12 @@ $prompt = <<<PROMPT
 - 音声読み上げ用なので難しい漢字はひらがなで（例: 囀り→さえずり）
 - 学名は読み上げないで
 - 聞いて「へぇ」と思える具体的な内容に
+
+表現ルール（厳守）:
+- 「珍しい」「初めて」「レアな」「貴重な発見」等の希少性を煽る表現は禁止。地域の人にとって普通の種を珍しいと言わない
+- 「記録できました」「見つけました」等、発見と記録の事実を伝える表現を使う
+- 植物に「いる」「いました」は使わない。植物は「ある」「生えている」「咲いている」「見られる」を使う
+- 動物には「いる」「見つけた」、植物には「ある」「咲いている」を正しく使い分ける
 PROMPT;
 
 $guideText = _callGemini($prompt);
@@ -692,7 +718,7 @@ $guideText = _callGemini($prompt);
 if (empty($guideText)) {
     $guideText = $isZundamonStyle
         ? "{$displayName}を見つけたのだ！"
-        : "{$displayName}がいますよ。";
+        : "{$displayName}を見つけました。";
 }
 
 _saveHistory($userId, $guideText, $pastTexts);
@@ -889,7 +915,7 @@ function _callGemini(string $prompt): string
         'contents' => [['parts' => [['text' => $prompt]]]],
         'generationConfig' => [
             'temperature' => 1.0,
-            'maxOutputTokens' => 150,
+            'maxOutputTokens' => 512,
             'topP' => 0.95,
         ],
     ];
@@ -913,9 +939,30 @@ function _callGemini(string $prompt): string
         $data = json_decode($response, true);
         $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
         $text = trim($text);
-        return trim($text, '"\'');
+        $text = trim($text, '"\'');
+        $text = _trimIncomplete($text);
+        return $text;
     }
     return '';
+}
+
+function _trimIncomplete(string $text): string
+{
+    $text = trim($text);
+    if ($text === '') return '';
+    $lastChar = mb_substr($text, -1);
+    if (preg_match('/[。！？!?」）】]/', $lastChar)) return $text;
+    $lastPeriod = false;
+    foreach (['。', '！', '？', '!', '?'] as $p) {
+        $pos = mb_strrpos($text, $p);
+        if ($pos !== false && ($lastPeriod === false || $pos > $lastPeriod)) {
+            $lastPeriod = $pos;
+        }
+    }
+    if ($lastPeriod !== false && $lastPeriod > 0) {
+        return mb_substr($text, 0, $lastPeriod + 1);
+    }
+    return $text;
 }
 
 function _pickVoicevoxSpeakerId(array $preferredNames): int

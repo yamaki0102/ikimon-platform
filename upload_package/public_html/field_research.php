@@ -281,9 +281,9 @@ if (!$currentUser) {
             <i data-lucide="chevron-left" style="width:16px;height:16px;"></i>
             プロフィール
         </a>
-        <span class="top-bar-title" x-text="sessionActive ? (scanMode === 'scan' ? 'スキャン中' : scanMode === 'quiet' ? 'さんぽ中（静か）' : 'さんぽ中') : 'さんぽ'"></span>
+        <span class="top-bar-title" x-text="sessionActive ? (modeLabels[currentMovementMode] || 'センサー ON') : 'さんぽ'"></span>
         <div style="width:60px;display:flex;justify-content:flex-end;">
-            <span x-show="sessionActive" x-cloak class="text-xs font-mono font-bold" :class="scanMode === 'scan' ? 'text-blue-500' : 'text-emerald-500'" x-text="formatElapsed(sessionElapsed)"></span>
+            <span x-show="sessionActive" x-cloak class="text-xs font-mono font-bold" style="color:#10b981;" x-text="formatElapsed(sessionElapsed)"></span>
         </div>
     </div>
 
@@ -347,46 +347,62 @@ if (!$currentUser) {
         </div>
     </div>
 
-    <!-- Mode Selection Overlay (before session start) -->
+    <!-- Sensor Start Panel (single button) -->
     <div x-show="!sessionActive && showModeSelect" x-cloak
-         class="mode-overlay" style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
-        <div class="glass" style="padding:16px;border-radius:18px;">
-            <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:12px;text-align:center;">さんぽモード</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
-                <button @click="scanMode='walk'" class="mode-card"
-                    :style="scanMode==='walk' ? 'background:rgba(16,185,129,0.12);border:2px solid #10b981' : 'background:rgba(0,0,0,0.03);border:2px solid transparent'"
-                    style="border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;">
-                    <div style="font-size:24px;">🚶</div>
-                    <div style="font-size:11px;font-weight:700;margin-top:4px;" :style="scanMode==='walk' ? 'color:#10b981' : 'color:#64748b'">あるく</div>
-                    <div style="font-size:9px;color:#94a3b8;margin-top:2px;">🎤📍</div>
+         style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
+        <div style="background:rgba(15,23,42,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:16px;border-radius:18px;text-align:center;border:1px solid rgba(255,255,255,0.08);">
+            <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;">
+                <button @click="startSensor()" style="flex:1;padding:14px;border-radius:14px;border:none;background:#10b981;color:#fff;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                    <span style="font-size:20px;">📡</span> いきものセンサー ON
                 </button>
-                <button @click="scanMode='scan'" class="mode-card"
-                    :style="scanMode==='scan' ? 'background:rgba(59,130,246,0.12);border:2px solid #3b82f6' : 'background:rgba(0,0,0,0.03);border:2px solid transparent'"
-                    style="border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;">
-                    <div style="font-size:24px;">📷</div>
-                    <div style="font-size:11px;font-weight:700;margin-top:4px;" :style="scanMode==='scan' ? 'color:#3b82f6' : 'color:#64748b'">スキャン</div>
-                    <div style="font-size:9px;color:#94a3b8;margin-top:2px;">📷🎤📍</div>
-                </button>
-                <button @click="scanMode='quiet'" class="mode-card"
-                    :style="scanMode==='quiet' ? 'background:rgba(148,163,184,0.12);border:2px solid #94a3b8' : 'background:rgba(0,0,0,0.03);border:2px solid transparent'"
-                    style="border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;">
-                    <div style="font-size:24px;">🔇</div>
-                    <div style="font-size:11px;font-weight:700;margin-top:4px;" :style="scanMode==='quiet' ? 'color:#64748b' : 'color:#64748b'">静か</div>
-                    <div style="font-size:9px;color:#94a3b8;margin-top:2px;">📍</div>
+                <button @click="showSpeakerSelect = !showSpeakerSelect"
+                        style="padding:8px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#cbd5e1;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;white-space:nowrap;">
+                    <span style="font-size:18px;" x-text="speakerEmoji"></span>
+                    <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || 'Auto'" style="font-size:9px;"></span>
                 </button>
             </div>
-            <div style="font-size:10px;color:#94a3b8;text-align:center;margin-bottom:10px;" x-text="scanMode==='walk' ? 'ポケットに入れてOK。鳥の声を自動検出します' : scanMode==='scan' ? 'カメラで生き物を自動検出 + 音声検出' : 'GPSだけ記録。バッテリー長持ち'"></div>
-            <button @click="startSession()" style="width:100%;padding:14px;border-radius:14px;border:none;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.15s;"
-                :style="scanMode==='scan' ? 'background:#3b82f6;color:#fff' : scanMode==='walk' ? 'background:#10b981;color:#fff' : 'background:#94a3b8;color:#fff'">
-                🌿 さんぽ開始
-            </button>
+            <div x-show="showSpeakerSelect" x-cloak style="margin-bottom:10px;">
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;">🔊 ガイド音声を選択</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <template x-for="sp in speakers" :key="sp.id">
+                        <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setSpeaker(sp.id)"
+                                :style="selectedSpeaker === sp.id ? 'background:rgba(16,185,129,0.2);color:#10b981;border-color:#10b981;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
+                                style="padding:10px 8px;border-radius:12px;border:1.5px solid;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                            <span x-text="sp.emoji" style="font-size:18px;"></span>
+                            <span x-text="sp.label" style="font-weight:500;"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;">速度に合わせてカメラ・音声を自動調整します</div>
+            <div style="font-size:9px;color:#475569;text-align:center;padding:4px;">
+                Powered by BirdNET (CC BY-SA 4.0) &amp; Perch v2 (Apache 2.0)
+            </div>
         </div>
     </div>
 
-    <!-- Session Active HUD (bottom) -->
-    <div x-show="sessionActive" x-cloak
+    <!-- Drive Mode HUD (full screen overlay) -->
+    <div x-show="sessionActive && currentMovementMode === 'drive'" x-cloak
+         style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="font-size:48px;margin-bottom:16px;">📡</div>
+        <div style="color:#10b981;font-size:14px;font-weight:600;margin-bottom:24px;">記録中</div>
+        <div style="color:#e2e8f0;font-size:32px;font-weight:900;" x-text="sessionSpeciesCount + '種'"></div>
+        <div style="color:#94a3b8;font-size:14px;margin-top:8px;" x-text="(sessionDistance / 1000).toFixed(1) + 'km'"></div>
+        <button @click="stopSensor()"
+                style="margin-top:48px;width:64px;height:64px;border-radius:50%;background:#ef4444;border:none;color:#fff;font-size:24px;cursor:pointer;">
+            ■
+        </button>
+    </div>
+
+    <!-- Session Active HUD (bottom, hidden in drive mode) -->
+    <div x-show="sessionActive && currentMovementMode !== 'drive'" x-cloak
          style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
         <div class="glass" style="padding:10px 16px;border-radius:16px;">
+            <!-- Movement mode badge -->
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;">
+                <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:6px;background:rgba(16,185,129,0.12);color:#10b981;"
+                      x-text="modeLabels[currentMovementMode] || 'さんぽ中'"></span>
+            </div>
             <!-- Detection notification card -->
             <div x-show="latestDetection" x-cloak x-transition
                  style="margin-bottom:8px;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;"
@@ -418,24 +434,24 @@ if (!$currentUser) {
                         <div style="font-size:9px;color:#94a3b8;">時間</div>
                     </div>
                 </div>
-                <button @click="stopSession()" style="padding:8px 16px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+                <button @click="stopSensor()" style="padding:8px 16px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
                     終了
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Bottom Action Bar (when no session) -->
+    <!-- Bottom Action Bar (when no session and sensor panel hidden) -->
     <div class="bottom-bar glass" x-show="!sessionActive && !showModeSelect" x-cloak>
         <!-- Locate -->
         <button class="action-btn btn-locate" @click="flyToCurrentLocation()">
             <i data-lucide="locate" style="width:20px;height:20px;"></i>
         </button>
 
-        <!-- Start Walk -->
+        <!-- Start Sensor -->
         <button class="action-btn" style="background:#10b981;color:#fff;width:auto;border-radius:28px;padding:0 20px;height:56px;" @click="showModeSelect = true">
-            <i data-lucide="footprints" style="width:20px;height:20px;"></i>
-            <span>さんぽ</span>
+            <i data-lucide="radio" style="width:20px;height:20px;"></i>
+            <span>センサー</span>
         </button>
 
         <!-- Observe -->
@@ -584,7 +600,7 @@ if (!$currentUser) {
                     <button @click="showReport=false" style="flex:1;padding:14px;border-radius:12px;border:none;background:rgba(255,255,255,0.1);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
                         🗺️ マップに戻る
                     </button>
-                    <button @click="showReport=false;showModeSelect=true" style="flex:1;padding:14px;border-radius:12px;border:none;background:#10b981;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+                    <button @click="showReport=false;startSensor()" style="flex:1;padding:14px;border-radius:12px;border:none;background:#10b981;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
                         🔄 もう一回
                     </button>
                 </div>
@@ -596,14 +612,11 @@ if (!$currentUser) {
     <video id="scan-cam" playsinline muted autoplay style="display:none;"></video>
     <canvas id="scan-canvas" style="display:none;"></canvas>
 
-    <!-- Camera preview overlay (scan mode) -->
-    <div x-show="sessionActive && scanMode === 'scan'" x-cloak
+    <!-- Camera preview overlay (stationary mode with camera active) -->
+    <div x-show="sessionActive && currentMovementMode === 'stationary'" x-cloak
          style="position:absolute;top:46px;left:0;right:0;bottom:160px;z-index:10;background:#000;">
         <video id="scan-preview" playsinline muted autoplay
                style="width:100%;height:100%;object-fit:cover;"></video>
-        <button @click="scanMode='walk'" style="position:absolute;top:12px;left:12px;z-index:15;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">
-            🗺️ マップに戻る
-        </button>
     </div>
 
     <!-- Scripts -->
@@ -639,8 +652,8 @@ if (!$currentUser) {
 
                 // Session state
                 sessionActive: false,
-                showModeSelect: !!new URLSearchParams(window.location.search).get('mode'),
-                scanMode: new URLSearchParams(window.location.search).get('mode') || 'walk',
+                showModeSelect: true,
+                currentMovementMode: 'walk',
                 sessionStartTime: null,
                 sessionElapsed: 0,
                 sessionDistance: 0,
@@ -650,6 +663,22 @@ if (!$currentUser) {
                 _sessionTimer: null,
                 _detectionFadeTimer: null,
                 envLabel: '',
+
+                // Speaker selection
+                showSpeakerSelect: false,
+                selectedSpeaker: localStorage.getItem('ikimon_speaker') || 'auto',
+                speakers: [
+                    { id: 'auto', label: 'Auto', emoji: '🤖' },
+                    { id: 'zundamon', label: 'ずんだもん', emoji: '🟢' },
+                    { id: 'mochiko', label: 'もち子', emoji: '🌸' },
+                    { id: 'ryusei', label: '龍星', emoji: '🐉' },
+                ],
+                modeLabels: { stationary: '静止中', walk: 'さんぽ中', bike: '自転車中', drive: 'ドライブ中' },
+
+                get speakerEmoji() {
+                    const sp = this.speakers.find(s => s.id === this.selectedSpeaker);
+                    return sp ? sp.emoji : '🤖';
+                },
 
                 // Refs
                 map: null,
@@ -782,7 +811,7 @@ if (!$currentUser) {
 
                 // ── Session Management ──
 
-                startSession() {
+                startSensor() {
                     this.sessionActive = true;
                     this.showModeSelect = false;
                     this.sessionStartTime = Date.now();
@@ -791,6 +820,7 @@ if (!$currentUser) {
                     this.sessionSpeciesCount = 0;
                     this.sessionDetections = [];
                     this.latestDetection = null;
+                    this.currentMovementMode = 'walk';
 
                     // Timer
                     this._sessionTimer = setInterval(() => {
@@ -800,10 +830,8 @@ if (!$currentUser) {
                         this.sessionSpeciesCount = this.liveScanner.getSpeciesCount();
                     }, 1000);
 
-                    // LiveScanner
-                    const enableCamera = this.scanMode === 'scan';
-                    const enableAudio = this.scanMode !== 'quiet';
-                    const videoEl = enableCamera ? document.getElementById('scan-preview') : document.getElementById('scan-cam');
+                    // LiveScanner with speed-adaptive mode
+                    const videoEl = document.getElementById('scan-cam');
                     const canvasEl = document.getElementById('scan-canvas');
 
                     this.liveScanner = new LiveScanner({
@@ -812,6 +840,10 @@ if (!$currentUser) {
                             const parts = [env.habitat, env.vegetation, env.canopy_cover].filter(Boolean);
                             this.envLabel = parts.join(' · ') || '';
                         },
+                        onMovementModeChange: (mode) => {
+                            this.currentMovementMode = mode;
+                            console.log('[Sensor] Movement mode:', mode);
+                        },
                         onLog: (msg) => console.log('[LiveScanner]', msg),
                         onGpsUpdate: (pos) => {
                             this.gpsAccuracy = Math.round(pos.accuracy);
@@ -819,20 +851,20 @@ if (!$currentUser) {
                                 this.explorationMap.addExploredPoint(pos.lat, pos.lng, null);
                             }
                         },
+                        speaker: this.selectedSpeaker,
                     });
 
                     this.liveScanner.start({
-                        mode: this.scanMode === 'scan' ? 'walk' : this.scanMode,
-                        enableCamera,
-                        enableAudio,
+                        enableCamera: true,
+                        enableAudio: true,
                         videoElement: videoEl,
                         canvasElement: canvasEl,
                     });
 
-                    console.log(`[Session] Started in ${this.scanMode} mode`);
+                    console.log(`[Sensor] Started (speaker: ${this.selectedSpeaker})`);
                 },
 
-                async stopSession() {
+                async stopSensor() {
                     this.sessionActive = false;
                     if (this._sessionTimer) { clearInterval(this._sessionTimer); this._sessionTimer = null; }
 

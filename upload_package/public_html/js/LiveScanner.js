@@ -7,14 +7,14 @@
  * 機能:
  *  - カメラキャプチャ → Gemini AI 種同定 (scan_classify.php)
  *  - 音声録音 → BirdNET AI 鳥音声同定 (analyze_audio.php)
- *  - GPS追跡
+ *  - GPS追跡 + 自動速度検出（stationary/walk/bike/drive）
  *  - 環境スキャン (scan_classify.php?env=1)
  *  - 検出バッチ送信 (passive_event.php)
  *  - セッション終了サマリー (scan_summary.php + session_recap.php)
  *
  * 使い方:
- *   const scanner = new LiveScanner({ onDetection, onEnvUpdate, onLog });
- *   await scanner.start({ mode: 'walk', enableCamera: true, enableAudio: true });
+ *   const scanner = new LiveScanner({ onDetection, onEnvUpdate, onLog, onMovementModeChange });
+ *   await scanner.start({ enableCamera: true, enableAudio: true });
  *   scanner.stop(); // → Promise<SessionResult>
  */
 
@@ -25,6 +25,7 @@ class LiveScanner {
         this.onLog = opts.onLog || ((msg) => console.log('[LiveScanner]', msg));
         this.onGpsUpdate = opts.onGpsUpdate || (() => {});
         this.onAudioState = opts.onAudioState || (() => {});
+        this.onMovementModeChange = opts.onMovementModeChange || (() => {});
 
         this._reset();
     }
@@ -54,6 +55,12 @@ class LiveScanner {
         this.currentSpeed = 0;
         this.lastGpsPos = null;
 
+        // Movement detection
+        this.movementMode = 'walk';
+        this._movementModeHistory = [];
+        this._stationarySince = 0;
+        this._movementModeLog = [];
+
         // Detections
         this.speciesMap = {};
         this.detectionLog = [];
@@ -72,6 +79,7 @@ class LiveScanner {
         this._analyzing = false;
         this._audioEmptyStreak = 0;
         this._audioResuming = false;
+        this._audioEnabled = true;
 
         // Environment
         this.envHistory = [];
@@ -93,15 +101,15 @@ class LiveScanner {
 
     // ========== START ==========
 
-    async start({ mode = 'walk', enableCamera = true, enableAudio = true, powerSave = false, videoElement = null, canvasElement = null } = {}) {
+    async start({ mode, enableCamera = true, enableAudio = true, powerSave = false, videoElement = null, canvasElement = null } = {}) {
         this._reset();
         this.active = true;
-        this.mode = mode;
+        this._audioEnabled = enableAudio;
         this.startTime = Date.now();
         this.sessionId = 'ls_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
         this._powerSaveMode = powerSave;
 
-        this.onLog('セッション開始: ' + mode);
+        this.onLog('セッション開始: auto-detect');
 
         // Batch timer (30秒毎に送信)
         this._batchTimer = setInterval(() => this._flushEvents(false), 30000);
@@ -129,6 +137,7 @@ class LiveScanner {
                         try {
                             this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 640 } } });
                             enableAudio = false; // Disable audio for this session
+                            this._audioEnabled = false;
                         } catch (camErr) {
                             // Camera also failed, try audio only
                             this.onLog('カメラも失敗。音声のみで再試行: ' + camErr.message);
@@ -160,12 +169,12 @@ class LiveScanner {
                 // Start camera capture
                 if (enableCamera) {
                     this._scheduleCapture();
-                    this._envTimer = setInterval(() => this._envScan(), this._isWifi ? 10000 : 30000);
+                    this._envTimer = setInterval(() => this._envScan(), this._getEnvScanMs());
                     setTimeout(() => this._envScan(), 3000);
                 }
 
                 // Start audio
-                if (enableAudio && mode !== 'car') {
+                if (enableAudio) {
                     this._setupAudio();
                 }
             } catch (e) {
@@ -208,7 +217,7 @@ class LiveScanner {
 
         return {
             sessionId: this._serverSessionId || this.sessionId,
-            mode: this.mode,
+            mode: this.movementMode,
             duration,
             distance,
             speciesCount,
@@ -223,6 +232,7 @@ class LiveScanner {
             routePoints: this.routePoints,
             recap,
             dataUsage: this.dataUsage,
+            movementModeLog: this._movementModeLog,
         };
     }
 
@@ -249,6 +259,9 @@ class LiveScanner {
         }
         this.lastGpsPos = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc };
         this.onGpsUpdate(this.lastGpsPos);
+
+        // Movement mode detection
+        this._detectMovementMode(this.currentSpeed);
 
         // Still detection → polling
         if (this.currentSpeed < 0.3) {
@@ -284,15 +297,112 @@ class LiveScanner {
         this._startGps();
     }
 
+    // ========== MOVEMENT DETECTION ==========
+
+    _detectMovementMode(speedMs) {
+        const speedKmh = speedMs * 3.6;
+
+        let detected;
+        if (speedKmh >= 20) {
+            detected = 'drive';
+            this._stationarySince = 0;
+        } else if (speedKmh >= 6) {
+            detected = 'bike';
+            this._stationarySince = 0;
+        } else if (speedKmh > 0) {
+            detected = 'walk';
+            this._stationarySince = 0;
+        } else {
+            // 0 km/h — check for stationary threshold
+            if (!this._stationarySince) this._stationarySince = Date.now();
+            if (Date.now() - this._stationarySince >= 180000) {
+                detected = 'stationary';
+            } else {
+                detected = this.movementMode === 'stationary' ? 'stationary' : 'walk';
+            }
+        }
+
+        // Hysteresis: require 3 consecutive same readings
+        this._movementModeHistory.push(detected);
+        if (this._movementModeHistory.length > 3) {
+            this._movementModeHistory.shift();
+        }
+
+        if (this._movementModeHistory.length >= 3) {
+            const allSame = this._movementModeHistory.every(m => m === this._movementModeHistory[0]);
+            if (allSame && this._movementModeHistory[0] !== this.movementMode) {
+                const prev = this.movementMode;
+                const next = this._movementModeHistory[0];
+                this.movementMode = next;
+                this.mode = next === 'drive' ? 'car' : next === 'stationary' ? 'walk' : next;
+                this._onMovementModeChange(prev, next);
+            }
+        }
+    }
+
+    _onMovementModeChange(prev, next) {
+        const SENSOR_CONFIG = {
+            stationary: { captureMs: 12000, audio: true, envMs: 30000 },
+            walk:       { captureMs: 2000,  audio: true, envMs: 10000 },
+            bike:       { captureMs: 3000,  audio: true, envMs: 15000 },
+            drive:      { captureMs: 5000,  audio: false, envMs: 30000 },
+        };
+
+        const config = SENSOR_CONFIG[next] || SENSOR_CONFIG.walk;
+
+        this.onLog(`移動モード変更: ${prev} → ${next}`);
+
+        // Log the transition
+        this._movementModeLog.push({ mode: next, ts: Date.now() });
+
+        // Reconfigure env scan interval
+        if (this._envTimer) {
+            clearInterval(this._envTimer);
+            this._envTimer = setInterval(() => this._envScan(), config.envMs);
+        }
+
+        // Handle audio on/off for drive mode
+        if (prev !== 'drive' && next === 'drive') {
+            this._stopAudioRecording();
+        } else if (prev === 'drive' && next !== 'drive' && this._audioEnabled) {
+            this._restartAudioRecording();
+        }
+
+        // Fire callback
+        this.onMovementModeChange({ prev, next, timestamp: Date.now() });
+    }
+
+    _getEnvScanMs() {
+        const ENV_INTERVALS = { stationary: 30000, walk: 10000, bike: 15000, drive: 30000 };
+        return ENV_INTERVALS[this.movementMode] || 10000;
+    }
+
+    _stopAudioRecording() {
+        try {
+            if (this._recorder && this._recorder.state === 'recording') {
+                this._recorder.stop();
+            }
+        } catch (e) {}
+        if (this._recTimer) { clearTimeout(this._recTimer); this._recTimer = null; }
+        this.onLog('音声録音停止（driveモード）');
+        this.onAudioState('off');
+    }
+
+    _restartAudioRecording() {
+        if (!this._recorder || !this.stream) {
+            this._setupAudio();
+        } else {
+            this._startAudioCycle();
+        }
+        this.onLog('音声録音再開');
+    }
+
     // ========== CAMERA ==========
 
     _getAdaptiveCaptureMs() {
-        let base = this.mode === 'car' ? 5000 : this.mode === 'bike' ? 3000 : 2000;
+        const INTERVALS = { stationary: 12000, walk: 2000, bike: 3000, drive: 5000 };
+        let base = INTERVALS[this.movementMode] || 2000;
         if (this._powerSaveMode) base *= 2;
-        if (this.mode === 'walk') {
-            if (this.currentSpeed < 0.3) base = Math.max(base, 12000);
-            else if (this.currentSpeed > 2.0) base = Math.min(base, 1500);
-        }
         return base;
     }
 
@@ -424,6 +534,7 @@ class LiveScanner {
 
     _startAudioCycle() {
         if (!this.active || !this._recorder) return;
+        if (this.movementMode === 'drive') return;
         if (this._analyzing || this._audioResuming) {
             this._recTimer = setTimeout(() => this._startAudioCycle(), 1000);
             return;
@@ -434,6 +545,7 @@ class LiveScanner {
         const doRecord = () => {
             this._audioResuming = false;
             if (!this.active) return;
+            if (this.movementMode === 'drive') return;
             try {
                 this._chunks = [];
                 this._recorder.start();
@@ -535,7 +647,7 @@ class LiveScanner {
         } finally {
             this._analyzing = false;
             this.onAudioState('listening');
-            if (this.active) {
+            if (this.active && this.movementMode !== 'drive') {
                 const waitMs = this._getAdaptiveAudioMs() - 3000;
                 this._recTimer = setTimeout(() => this._startAudioCycle(), Math.max(0, waitMs));
             }
@@ -588,6 +700,8 @@ class LiveScanner {
             lat: last?.lat ?? null, lng: last?.lng ?? null,
             timestamp: new Date().toISOString(),
             model: source === 'audio' ? 'birdnet-v2.4' : 'gemini-vision',
+            speed_kmh: Math.round((this.currentSpeed || 0) * 3.6 * 10) / 10,
+            ai_version: '2026-03',
         };
         if (this.envHistory.length > 0) {
             evt.environment_snapshot = this.envHistory[0];
@@ -611,6 +725,9 @@ class LiveScanner {
                 scan_mode: 'live-scan',
                 session_id_client: this.sessionId,
                 is_incremental: !isFinal,
+                movement_mode: this.movementMode,
+                movement_mode_log: this._movementModeLog,
+                route_hash: this._computeRouteHash(),
             }
         };
         if (isFinal) {
@@ -749,6 +866,21 @@ class LiveScanner {
             total += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
         return Math.round(total);
+    }
+
+    _computeRouteHash() {
+        if (this.routePoints.length < 5) return null;
+        const step = Math.max(1, Math.floor(this.routePoints.length / 20));
+        const simplified = this.routePoints
+            .filter((_, i) => i % step === 0)
+            .map(p => p.lat.toFixed(3) + ',' + p.lng.toFixed(3))
+            .join(';');
+        let hash = 0x811c9dc5;
+        for (let i = 0; i < simplified.length; i++) {
+            hash ^= simplified.charCodeAt(i);
+            hash = (hash * 0x01000193) >>> 0;
+        }
+        return hash.toString(16);
     }
 
     getElapsed() {
