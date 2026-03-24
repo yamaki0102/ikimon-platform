@@ -450,6 +450,133 @@ if (!$currentUser) {
         </button>
     </div>
 
+    <!-- ===== 散歩レポート (Session Result Overlay) ===== -->
+    <div x-show="showReport" x-cloak
+         style="position:fixed;inset:0;z-index:50;background:linear-gradient(135deg,#0f172a,#1e1b4b);color:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+        <div style="max-width:440px;margin:0 auto;padding:24px 16px 100px;">
+            <!-- Header -->
+            <div style="text-align:center;margin-bottom:24px;">
+                <div style="font-size:48px;margin-bottom:8px;">🌿</div>
+                <h2 style="font-size:22px;font-weight:900;margin:0;">今日のさんぽ</h2>
+                <p style="font-size:13px;color:#94a3b8;margin:4px 0 0;" x-text="reportData?.locationName || ''"></p>
+            </div>
+
+            <!-- Main Stats Card -->
+            <div style="background:rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:16px;">
+                <div style="display:flex;justify-content:space-around;text-align:center;">
+                    <div>
+                        <div style="font-size:11px;color:#94a3b8;">🚶 時間</div>
+                        <div style="font-size:20px;font-weight:900;" x-text="formatElapsed(reportData?.duration || 0)"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:#94a3b8;">📍 距離</div>
+                        <div style="font-size:20px;font-weight:900;" x-text="formatDistance(reportData?.distance || 0)"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:#94a3b8;">🐦 種数</div>
+                        <div style="font-size:20px;font-weight:900;" x-text="reportData?.speciesCount || 0"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nature Score -->
+            <div style="background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(34,197,94,0.08));border:1px solid rgba(16,185,129,0.2);border-radius:16px;padding:16px;margin-bottom:16px;"
+                 x-show="reportData?.natureScore">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <span style="font-size:12px;font-weight:700;color:#6ee7b7;">🌿 自然浴スコア</span>
+                    <span style="font-size:24px;font-weight:900;color:#4ade80;" x-text="reportData?.natureScore?.score || '-'"></span>
+                    <span style="font-size:11px;color:#6ee7b7;">/10</span>
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:8px;">
+                        <div style="font-size:9px;color:#94a3b8;">多様性</div>
+                        <div style="font-size:14px;font-weight:700;" x-text="reportData?.natureScore?.breakdown?.diversity || '-'"></div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:8px;">
+                        <div style="font-size:9px;color:#94a3b8;">音風景</div>
+                        <div style="font-size:14px;font-weight:700;" x-text="reportData?.natureScore?.breakdown?.soundscape || '-'"></div>
+                    </div>
+                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:8px;">
+                        <div style="font-size:9px;color:#94a3b8;">環境</div>
+                        <div style="font-size:14px;font-weight:700;" x-text="reportData?.natureScore?.breakdown?.environment || '-'"></div>
+                    </div>
+                </div>
+                <div style="font-size:12px;color:#a7f3d0;text-align:center;" x-text="reportData?.natureScore?.message || ''"></div>
+            </div>
+
+            <!-- Species Gallery (horizontal scroll) -->
+            <div style="margin-bottom:16px;" x-show="reportData?.species?.length > 0">
+                <h3 style="font-size:13px;font-weight:700;color:#cbd5e1;margin:0 0 8px;">出会った生きもの</h3>
+                <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;">
+                    <template x-for="sp in (reportData?.species || [])" :key="sp.name">
+                        <div style="min-width:140px;max-width:160px;background:rgba(255,255,255,0.06);border-radius:12px;padding:10px;flex-shrink:0;">
+                            <div style="font-size:13px;font-weight:800;" :style="'color:' + (sp.confidence >= 0.7 ? '#4ade80' : sp.confidence >= 0.4 ? '#fbbf24' : '#9ca3af')" x-text="sp.name"></div>
+                            <div style="font-size:10px;color:#64748b;margin-top:2px;" x-text="sp.source === 'audio' ? '🎤 音声' : '📷 カメラ'"></div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:2px;" x-text="sp.note || sp.category || ''"></div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- AI Narrative -->
+            <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:16px;"
+                 x-show="reportData?.recap?.narrative">
+                <div style="font-size:12px;line-height:1.7;color:#d1d5db;" x-text="reportData?.recap?.narrative || ''"></div>
+                <div style="font-size:9px;color:#4b5563;margin-top:6px;">🤖 AI要約</div>
+            </div>
+
+            <!-- Contribution -->
+            <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:16px;"
+                 x-show="reportData?.recap?.contribution?.length > 0">
+                <h3 style="font-size:13px;font-weight:700;color:#cbd5e1;margin:0 0 8px;">あなたの貢献</h3>
+                <template x-for="c in (reportData?.recap?.contribution || [])" :key="c.text">
+                    <div style="display:flex;align-items:start;gap:6px;margin-bottom:4px;font-size:12px;">
+                        <span x-text="c.icon"></span>
+                        <span style="color:#93c5fd;" x-text="c.text"></span>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Weekly Summary -->
+            <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:16px;"
+                 x-show="weeklyStats.sessions > 0">
+                <h3 style="font-size:13px;font-weight:700;color:#cbd5e1;margin:0 0 8px;">📊 今週の記録</h3>
+                <div style="display:flex;gap:16px;font-size:13px;color:#e2e8f0;">
+                    <span x-text="weeklyStats.sessions + '回'"></span>
+                    <span x-text="weeklyStats.species + '種'"></span>
+                    <span x-text="formatDistance(weeklyStats.distance)"></span>
+                </div>
+                <div style="font-size:11px;color:#f59e0b;margin-top:4px;" x-show="weeklyStats.streak > 1"
+                     x-text="'🔥 ' + weeklyStats.streak + '日連続さんぽ中!'"></div>
+            </div>
+
+            <!-- Badges -->
+            <div style="margin-bottom:16px;" x-show="reportData?.recap?.rank_progress?.badges_earned?.length > 0">
+                <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
+                    <template x-for="b in (reportData?.recap?.rank_progress?.badges_earned || [])" :key="b.name || b">
+                        <span style="font-size:11px;padding:4px 10px;background:rgba(251,191,36,0.15);color:#fbbf24;border-radius:8px;font-weight:700;" x-text="b.name || b"></span>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Data note -->
+            <div style="display:flex;align-items:start;gap:6px;background:rgba(59,130,246,0.08);border-radius:10px;padding:10px 12px;margin-bottom:24px;">
+                <span style="font-size:12px;">💾</span>
+                <span style="font-size:11px;color:#93c5fd;">データは100年アーカイブに保存され、生物多様性レポートに活用されます</span>
+            </div>
+
+            <!-- Actions -->
+            <div style="display:flex;gap:10px;">
+                <button @click="showReport=false" style="flex:1;padding:14px;border-radius:12px;border:none;background:rgba(255,255,255,0.1);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+                    🗺️ マップに戻る
+                </button>
+                <button @click="showReport=false;showModeSelect=true" style="flex:1;padding:14px;border-radius:12px;border:none;background:#10b981;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+                    🔄 もう一回
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Camera video (hidden, used by LiveScanner for frame capture) -->
     <video id="scan-cam" playsinline muted autoplay style="display:none;"></video>
     <canvas id="scan-canvas" style="display:none;"></canvas>
@@ -489,6 +616,11 @@ if (!$currentUser) {
                 layerFlags: { fog: true, trails: true, observations: true },
                 gpsAccuracy: null,
                 hasGuide: false,
+
+                // Report state
+                showReport: false,
+                reportData: null,
+                weeklyStats: { sessions: 0, species: 0, distance: 0, streak: 0 },
 
                 // Session state
                 sessionActive: false,
@@ -691,15 +823,39 @@ if (!$currentUser) {
                         this.liveScanner = null;
                     }
 
-                    // Show result (Sprint 2 will build full result page)
                     if (result) {
-                        const recap = result.recap;
-                        const msg = [
-                            `🌿 さんぽ完了！`,
-                            `${this.formatElapsed(result.duration)} · ${this.formatDistance(result.distance)} · ${result.speciesCount}種`,
-                            recap?.narrative ? `\n${recap.narrative.substring(0, 100)}...` : '',
-                        ].join('\n');
-                        alert(msg);
+                        // Fetch NatureScore
+                        let natureScore = null;
+                        try {
+                            const nsResp = await fetch('/api/v2/nature_score.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    species_count: result.speciesCount,
+                                    duration_sec: result.duration,
+                                    distance_m: result.distance,
+                                    area_type: result.envHistory?.[0]?.habitat || 'unknown',
+                                })
+                            });
+                            if (nsResp.ok) {
+                                const nsJson = await nsResp.json();
+                                if (nsJson.success) natureScore = nsJson.data;
+                            }
+                        } catch (e) {}
+
+                        // Build report data
+                        this.reportData = {
+                            ...result,
+                            natureScore,
+                            locationName: new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' }),
+                        };
+
+                        // Save weekly stats
+                        this._saveWeeklySession(result);
+                        this._loadWeeklyStats();
+
+                        // Show report
+                        this.showReport = true;
                     }
                 },
 
@@ -726,6 +882,63 @@ if (!$currentUser) {
                     const m = Math.floor(sec / 60);
                     const s = sec % 60;
                     return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                },
+
+                // ── Weekly Stats ──
+
+                _saveWeeklySession(result) {
+                    try {
+                        const key = 'ikimon_weekly_sessions';
+                        const sessions = JSON.parse(localStorage.getItem(key) || '[]');
+                        sessions.push({
+                            date: new Date().toISOString().slice(0, 10),
+                            species: result.speciesCount,
+                            distance: result.distance,
+                            duration: result.duration,
+                        });
+                        // Keep only last 7 days
+                        const cutoff = new Date();
+                        cutoff.setDate(cutoff.getDate() - 7);
+                        const cutoffStr = cutoff.toISOString().slice(0, 10);
+                        const filtered = sessions.filter(s => s.date >= cutoffStr);
+                        localStorage.setItem(key, JSON.stringify(filtered));
+                    } catch (e) {}
+                },
+
+                _loadWeeklyStats() {
+                    try {
+                        const key = 'ikimon_weekly_sessions';
+                        const sessions = JSON.parse(localStorage.getItem(key) || '[]');
+                        const cutoff = new Date();
+                        cutoff.setDate(cutoff.getDate() - 7);
+                        const cutoffStr = cutoff.toISOString().slice(0, 10);
+                        const recent = sessions.filter(s => s.date >= cutoffStr);
+
+                        this.weeklyStats = {
+                            sessions: recent.length,
+                            species: recent.reduce((sum, s) => sum + (s.species || 0), 0),
+                            distance: recent.reduce((sum, s) => sum + (s.distance || 0), 0),
+                            streak: this._calcStreak(recent),
+                        };
+                    } catch (e) {
+                        this.weeklyStats = { sessions: 0, species: 0, distance: 0, streak: 0 };
+                    }
+                },
+
+                _calcStreak(sessions) {
+                    const dates = [...new Set(sessions.map(s => s.date))].sort().reverse();
+                    if (dates.length === 0) return 0;
+                    let streak = 1;
+                    const today = new Date().toISOString().slice(0, 10);
+                    if (dates[0] !== today) return 0;
+                    for (let i = 1; i < dates.length; i++) {
+                        const prev = new Date(dates[i - 1]);
+                        const curr = new Date(dates[i]);
+                        const diff = (prev - curr) / 86400000;
+                        if (diff === 1) streak++;
+                        else break;
+                    }
+                    return streak;
                 },
 
                 // ── Actions ──
