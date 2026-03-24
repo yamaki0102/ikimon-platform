@@ -77,6 +77,57 @@ function _saveHistory(string $userId, string $text, array &$pastTexts): void
         json_encode($pastTexts, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 }
 
+// --- エリア情報モード（軽量：Gemini不使用、周辺観察データのみ） ---
+if ($requestMode === 'area_info') {
+    $lat = api_param('lat', 0, 'float');
+    $lng = api_param('lng', 0, 'float');
+
+    $areaName = '';
+    try {
+        require_once ROOT_DIR . '/libs/GeoUtils.php';
+        $geo = GeoUtils::reverseGeocode($lat, $lng);
+        $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
+    } catch (Throwable $e) {}
+
+    $nearbySpecies = [];
+    $totalObs = 0;
+    try {
+        $allObs = DataStore::fetchAll('observations');
+        $R = 6371;
+        foreach ($allObs as $obs) {
+            $oLat = (float)($obs['location']['lat'] ?? $obs['lat'] ?? 0);
+            $oLng = (float)($obs['location']['lng'] ?? $obs['lng'] ?? 0);
+            if ($oLat == 0 && $oLng == 0) continue;
+            $dLat = deg2rad($oLat - $lat);
+            $dLng = deg2rad($oLng - $lng);
+            $a = sin($dLat/2)**2 + cos(deg2rad($lat)) * cos(deg2rad($oLat)) * sin($dLng/2)**2;
+            $dist = $R * 2 * atan2(sqrt($a), sqrt(1 - $a));
+            if ($dist <= 3.0) {
+                $totalObs++;
+                $name = $obs['taxon']['name'] ?? $obs['species_name'] ?? '';
+                if ($name) {
+                    $key = $name;
+                    if (!isset($nearbySpecies[$key])) {
+                        $nearbySpecies[$key] = ['name' => $name, 'count' => 0];
+                    }
+                    $nearbySpecies[$key]['count']++;
+                }
+            }
+        }
+    } catch (Throwable $e) {}
+
+    uasort($nearbySpecies, fn($a, $b) => $b['count'] - $a['count']);
+    $topSpecies = array_map(fn($s) => $s['name'], array_slice(array_values($nearbySpecies), 0, 10));
+
+    api_success([
+        'area_name' => $areaName,
+        'species_count' => count($nearbySpecies),
+        'total_observations' => $totalObs,
+        'top_species' => $topSpecies,
+        'season' => $seasonName,
+    ]);
+}
+
 // --- オープニングモード（セッション開始時の情景描写） ---
 if ($requestMode === 'opening') {
     $lat = api_param('lat', 0, 'float');
@@ -405,6 +456,9 @@ if ($requestMode === 'ambient') {
         '日本の文化と自然の関わり。俳句の季語に虫の名前が入っている理由、七十二候の細やかさ——昔の日本人は自然をもっと近くに感じていた',
         '生き物の名前の由来を1つ。「なぜそう呼ばれるのか」を知ると、次に見たとき見方が変わる',
         'この時間帯に活動する生き物がいる理由。昼と夜で住人が入れ替わる「シフト交代」の話',
+        'この地域の植生タイプ（落葉広葉樹林、常緑樹、水田地帯、河川敷など）を伝えて。「こういう環境だから〇〇が棲める」という地域と生き物のつながりを短く',
+        '観察投稿を増やすとこの地域のデータがどう充実するか。「この辺りの記録が増えると、季節ごとの変化が見えてくる」「10件の記録があればこの場所の生物多様性スコアが計算できる」のように、手の届く次の一歩を',
+        'この地域で過去に観察された種のデータに基づいて「ここには〇〇もいるはず。見つけたら写真を撮って投稿してみて。この地域の新記録になるかも」のように、具体的なクエストを出して',
     ];
     $topic = $topicPool[array_rand($topicPool)];
 
@@ -587,6 +641,9 @@ $talkAngles = [
     '身近なのに知られてない事実。「毎日見てるけど実は…」的な驚き',
     '「〇〇を見つけたらラッキー」「△△がいたら環境が良い証拠」のような観察の楽しみ方',
     'この{$seasonName}に見逃しがちだけど注目すべき自然現象やイベント',
+    'この観察を投稿すると何につながるか。「この1件の記録で、この地域に〇〇がいる証拠になる」「写真付きで投稿すると、専門家が種を同定してくれるかも」のように、次のアクションを促して',
+    'この生き物を写真に撮って投稿したら、他の観察者や専門家がどう反応するか。「この地域で〇〇の記録は貴重」「同定されると図鑑データに反映される」のように、記録する意味を具体的に',
+    'この地域の植生や環境タイプ（里山・河川敷・都市緑地など）の特徴を短く伝えて。「こういう環境だから〇〇がいる」という地域と生き物のつながりを',
 ];
 $chosenAngle = $talkAngles[array_rand($talkAngles)];
 

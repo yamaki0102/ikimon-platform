@@ -648,6 +648,8 @@ function handleGpsPosition(pos) {
         if (S.routePoints.length === 1) {
             initMap(pos.coords.latitude, pos.coords.longitude);
             dbg('7. GPS+マップ初期化 (精度' + Math.round(acc) + 'm)');
+            // エリア情報を先読み（即時発話用）
+            if (VoiceGuide.isEnabled()) _fetchAreaInfo(pos.coords.latitude, pos.coords.longitude);
         }
         if (!document.hidden) updateMapRoute();
     }
@@ -1377,9 +1379,18 @@ function addDetection(name, sci, conf, source, category, note) {
         if (isFirstDet || cnt % 3 === 0) {
             S._lastDetVoiceTime = Date.now();
             S._lastVoiceTime = Date.now();
-            // 初回検出は即座にTTSで名前を伝え、詳細ガイドを並行取得
+            // 初回検出は即座にTTSで名前+エリア文脈を伝え、詳細ガイドを並行取得
             if (isFirstDet) {
-                VoiceGuide.announce(name + '、見つけたよ！');
+                var quickMsg = name + '、見つけたよ！';
+                if (S._areaInfo && S._areaInfo.top_species) {
+                    var isKnown = S._areaInfo.top_species.indexOf(name) >= 0;
+                    if (isKnown) {
+                        quickMsg += 'この辺りではおなじみの種だね。';
+                    } else {
+                        quickMsg += 'この辺りでは珍しいかも。記録しておこう！';
+                    }
+                }
+                VoiceGuide.announce(quickMsg);
             }
             _fetchVoiceGuide(name, sci, conf, cnt, isFirstDet);
         }
@@ -2056,6 +2067,31 @@ function selectVgSpeaker(s) {
     if (previewMap[s]) {
         VoiceGuide.playPreview('/assets/audio/' + previewMap[s] + '_preview.wav');
     }
+}
+
+async function _fetchAreaInfo(lat, lng) {
+    try {
+        var p = new URLSearchParams();
+        p.set('mode', 'area_info');
+        p.set('lat', lat);
+        p.set('lng', lng);
+        var r = await fetch('/api/v2/voice_guide.php?' + p.toString());
+        if (!r.ok) return;
+        var j = await r.json();
+        if (j.success && j.data) {
+            S._areaInfo = j.data;
+            dbg('🗺️ area: ' + j.data.area_name + ' ' + j.data.species_count + '種 ' + j.data.total_observations + '件');
+            // エリア情報が取れたらオープニングに続けて発話
+            if (j.data.species_count > 0) {
+                var intro = j.data.area_name + '周辺では、これまでに' + j.data.species_count + '種が観察されてるよ。';
+                if (j.data.top_species && j.data.top_species.length > 0) {
+                    intro += j.data.top_species.slice(0, 3).join('、') + 'なんかが見つかってる。';
+                }
+                intro += 'キミも新しい発見、記録していこう！';
+                VoiceGuide.announce(intro);
+            }
+        }
+    } catch(e) { dbg('🗺️ area ERR: ' + e.message); }
 }
 
 async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
