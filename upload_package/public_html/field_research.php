@@ -665,7 +665,7 @@ if (!$currentUser) {
                 envLabel: '',
 
                 // Speaker selection
-                showSpeakerSelect: false,
+                showSpeakerSelect: true,
                 selectedSpeaker: localStorage.getItem('ikimon_speaker') || 'auto',
                 speakers: [
                     { id: 'auto', label: 'Auto', emoji: '🤖' },
