@@ -67,26 +67,18 @@ curl_close($ch);
 
 if ($response === false || $httpCode !== 200) {
     // Perch v2 サービスが未起動 or エラー
-    json_response([
-        'success' => true,
-        'data' => [
-            'detections' => [],
-            'engine' => 'perch_v2',
-            'status' => 'service_unavailable',
-            'message' => 'Perch v2 サービスに接続できません。音声種同定は一時的に利用不可です。',
-        ]
+    api_success([
+        'detections' => [],
+        'engine' => 'perch_v2',
+        'status' => 'service_unavailable',
+        'message' => 'Perch v2 サービスに接続できません。音声種同定は一時的に利用不可です。',
     ]);
-    exit;
 }
 
 $result = json_decode($response, true);
 
 if (!$result || !isset($result['results'])) {
-    json_response([
-        'success' => true,
-        'data' => ['detections' => [], 'engine' => 'perch_v2']
-    ]);
-    exit;
+    api_success(['detections' => [], 'engine' => 'perch_v2']);
 }
 
 // Perch v2 の出力を ikimon.life 形式に変換
@@ -110,11 +102,8 @@ usort($detections, function ($a, $b) {
 });
 $detections = array_slice($detections, 0, 5);
 
-json_response([
-    'success' => true,
-    'data' => [
-        'detections' => $detections,
-        'engine' => 'perch_v2',
-        'segments_analyzed' => count($result['results']),
-    ]
+api_success([
+    'detections' => $detections,
+    'engine' => 'perch_v2',
+    'segments_analyzed' => count($result['results']),
 ]);

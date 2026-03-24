@@ -20,7 +20,7 @@
 require_once __DIR__ . '/bootstrap.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    json_response(['success' => false, 'error' => 'POST required'], 405);
+    api_success(['success' => false, 'error' => 'POST required'], 405);
 }
 
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -88,16 +88,13 @@ foreach ($messages as [$threshold, $msg]) {
     }
 }
 
-json_response([
-    'success' => true,
-    'data' => [
-        'score' => $totalScore,
-        'breakdown' => [
-            'diversity'   => round($diversityScore, 1),
-            'soundscape'  => round($soundscapeScore, 1),
-            'environment' => round($environmentScore, 1),
-        ],
-        'message' => $message,
-        'species_rate_per_30min' => round($speciesRate, 1),
-    ]
+api_success([
+    'score' => $totalScore,
+    'breakdown' => [
+        'diversity'   => round($diversityScore, 1),
+        'soundscape'  => round($soundscapeScore, 1),
+        'environment' => round($environmentScore, 1),
+    ],
+    'message' => $message,
+    'species_rate_per_30min' => round($speciesRate, 1),
 ]);
