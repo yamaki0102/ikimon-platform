@@ -842,12 +842,51 @@ if (!$currentUser) {
                         this.sessionSpeciesCount = this.liveScanner.getSpeciesCount();
                     }, 1000);
 
-                    // Landscape history ambient drain (every 60s)
-                    this._ambientDrainTimer = setInterval(() => {
-                        if (window.VoiceGuide && VoiceGuide.drainAmbientQueue && !VoiceGuide.isSpeaking()) {
+                    // Ambient voice guide — periodic nature commentary (every 45s)
+                    this._ambientGuideCount = 0;
+                    this._ambientTimer = setInterval(async () => {
+                        if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
+                        if (VoiceGuide.isSpeaking()) return;
+
+                        // First drain any queued landscape history
+                        if (VoiceGuide.drainAmbientQueue) {
                             VoiceGuide.drainAmbientQueue();
+                            if (VoiceGuide.isSpeaking()) return;
                         }
-                    }, 60000);
+
+                        // Then fetch fresh ambient content
+                        const gpsPos = this.liveScanner?.lastGpsPos;
+                        if (!gpsPos) return;
+
+                        const detected = this.sessionDetections.map(d => d.japanese_name || d.label).filter(Boolean);
+                        const uniqueDetected = [...new Set(detected)].slice(0, 10).join(',');
+
+                        try {
+                            const params = new URLSearchParams({
+                                mode: 'ambient',
+                                lat: gpsPos.lat,
+                                lng: gpsPos.lng,
+                                detected_species: uniqueDetected,
+                                voice_mode: VoiceGuide.getVoiceMode(),
+                                transport_mode: this.currentMovementMode || 'walk',
+                                elapsed_min: Math.round((this.sessionElapsed || 0) / 60),
+                                session_count: this._ambientGuideCount,
+                            });
+                            const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
+                            if (!resp.ok) return;
+                            const json = await resp.json();
+                            if (json.success && json.data) {
+                                this._ambientGuideCount++;
+                                if (json.data.audio_url) {
+                                    VoiceGuide.announceAudio(json.data.audio_url);
+                                } else if (json.data.guide_text) {
+                                    VoiceGuide.announce(json.data.guide_text);
+                                }
+                            }
+                        } catch(e) {
+                            console.log('[Ambient] Error:', e.message);
+                        }
+                    }, 45000);
 
                     // LiveScanner with speed-adaptive mode
                     const videoEl = document.getElementById('scan-cam');
@@ -895,7 +934,7 @@ if (!$currentUser) {
                 async stopSensor() {
                     this.sessionActive = false;
                     if (this._sessionTimer) { clearInterval(this._sessionTimer); this._sessionTimer = null; }
-                    if (this._ambientDrainTimer) { clearInterval(this._ambientDrainTimer); this._ambientDrainTimer = null; }
+                    if (this._ambientTimer) { clearInterval(this._ambientTimer); this._ambientTimer = null; }
 
                     if (window.VoiceGuide) {
                         VoiceGuide.stop();
@@ -980,7 +1019,7 @@ if (!$currentUser) {
                             .addTo(this.map);
                     }
 
-                    // Voice guide narration
+                    // Voice guide narration — smart pacing
                     if (window.VoiceGuide && VoiceGuide.isEnabled()) {
                         const jaName = detection.japanese_name || detection.label || '';
                         const key = detection.label || '';
@@ -988,21 +1027,31 @@ if (!$currentUser) {
                         this._detCountToday[key] = (this._detCountToday[key] || 0) + 1;
                         const isFirst = this._detCountToday[key] === 1;
 
-                        if (VoiceGuide.getVoiceMode() === 'standard') {
-                            VoiceGuide.announce(jaName + 'を検出しました');
-                        }
+                        // Cooldown: skip voice if last announcement was < 20s ago
+                        const now = Date.now();
+                        this._lastVoiceTime = this._lastVoiceTime || 0;
+                        const elapsed = now - this._lastVoiceTime;
 
-                        this._fetchVoiceGuide(jaName, detection.scientific_name, detection.confidence_raw || 0.5, this._detCountToday[key], isFirst)
-                            .then(res => {
-                                if (!res) return;
-                                if (res.delivery_hint && VoiceGuide.announceWithHint) {
-                                    VoiceGuide.announceWithHint(res);
-                                } else if (res.audio_url) {
-                                    VoiceGuide.announceAudio(res.audio_url);
-                                } else if (res.guide_text) {
-                                    VoiceGuide.announce(res.guide_text);
-                                }
-                            });
+                        if (elapsed < 20000 && !isFirst) {
+                            // Too soon & not a new species — skip voice, just log
+                            console.log('[Voice] Skipped (cooldown):', jaName);
+                        } else if (!isFirst && this._detCountToday[key] > 3) {
+                            // Same species detected many times — skip voice
+                            console.log('[Voice] Skipped (repeated):', jaName, this._detCountToday[key]);
+                        } else {
+                            this._lastVoiceTime = now;
+                            this._fetchVoiceGuide(jaName, detection.scientific_name, detection.confidence_raw || 0.5, this._detCountToday[key], isFirst)
+                                .then(res => {
+                                    if (!res) return;
+                                    if (res.delivery_hint && VoiceGuide.announceWithHint) {
+                                        VoiceGuide.announceWithHint(res);
+                                    } else if (res.audio_url) {
+                                        VoiceGuide.announceAudio(res.audio_url);
+                                    } else if (res.guide_text) {
+                                        VoiceGuide.announce(res.guide_text);
+                                    }
+                                });
+                        }
                     }
 
                     // Auto-fade detection card after 5 seconds
