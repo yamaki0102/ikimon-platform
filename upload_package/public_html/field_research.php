@@ -11,6 +11,23 @@ require_once ROOT_DIR . '/libs/Auth.php';
 Auth::init();
 $currentUser = Auth::user();
 
+$siteMode = false;
+$siteData = null;
+$siteGeoJSON = null;
+$requestedSiteId = $_GET['site'] ?? '';
+if ($requestedSiteId) {
+    require_once ROOT_DIR . '/libs/SiteManager.php';
+    $siteData = SiteManager::load($requestedSiteId);
+    if ($siteData) {
+        $siteMode = true;
+        $siteGeoJSON = SiteManager::getGeoJSON($requestedSiteId);
+        if (!$currentUser) {
+            Auth::initGuest();
+            $currentUser = Auth::user();
+        }
+    }
+}
+
 if (!$currentUser) {
     header('Location: login.php?redirect=' . urlencode($_SERVER['REQUEST_URI']));
     exit;
@@ -268,6 +285,15 @@ if (!$currentUser) {
         .btn-guide { background: #10b981; color: #fff; }
         .btn-guide.inactive { background: #fff; color: #64748b; border: 1px solid rgba(0,0,0,0.08); }
     </style>
+    <?php if ($siteMode && $siteGeoJSON): ?>
+    <script>
+        window.__siteMode = true;
+        window.__siteId = <?= json_encode($requestedSiteId, JSON_HEX_TAG) ?>;
+        window.__siteName = <?= json_encode($siteData['name'] ?? '', JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) ?>;
+        window.__siteGeoJSON = <?= json_encode($siteGeoJSON, JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) ?>;
+        window.__siteCenter = <?= json_encode($siteData['center'] ?? null, JSON_HEX_TAG) ?>;
+    </script>
+    <?php endif; ?>
 </head>
 
 <body x-data="explorationApp()" x-init="init()">
@@ -277,11 +303,18 @@ if (!$currentUser) {
 
     <!-- Top Bar -->
     <div class="top-bar">
+        <?php if ($siteMode): ?>
+        <a href="/site_dashboard.php?site=<?= htmlspecialchars($requestedSiteId, ENT_QUOTES, 'UTF-8') ?>">
+            <i data-lucide="chevron-left" style="width:16px;height:16px;"></i>
+            <?= htmlspecialchars(mb_strimwidth($siteData['name'] ?? '', 0, 12, '…'), ENT_QUOTES, 'UTF-8') ?>
+        </a>
+        <?php else: ?>
         <a href="profile.php">
             <i data-lucide="chevron-left" style="width:16px;height:16px;"></i>
             プロフィール
         </a>
-        <span class="top-bar-title" x-text="sessionActive ? (modeLabels[currentMovementMode] || 'センサー ON') : 'いきものセンサー'"></span>
+        <?php endif; ?>
+        <span class="top-bar-title" x-text="sessionActive ? (modeLabels[currentMovementMode] || 'センサー ON') : (window.__siteName || 'いきものセンサー')"></span>
         <div style="width:60px;display:flex;justify-content:flex-end;">
             <span x-show="sessionActive" x-cloak class="text-xs font-mono font-bold" style="color:#10b981;" x-text="formatElapsed(sessionElapsed)"></span>
         </div>
@@ -755,8 +788,43 @@ if (!$currentUser) {
                         zoom: 14
                     });
 
-                    // Fly to current location
-                    if (navigator.geolocation) {
+                    // Site-limited mode: fit to site boundary
+                    if (window.__siteMode && window.__siteGeoJSON) {
+                        this.map.on('load', () => {
+                            try {
+                                this.map.addSource('site-boundary', {
+                                    type: 'geojson',
+                                    data: window.__siteGeoJSON
+                                });
+                                this.map.addLayer({
+                                    id: 'site-boundary-fill',
+                                    type: 'fill',
+                                    source: 'site-boundary',
+                                    paint: { 'fill-color': '#10b981', 'fill-opacity': 0.06 }
+                                });
+                                this.map.addLayer({
+                                    id: 'site-boundary-line',
+                                    type: 'line',
+                                    source: 'site-boundary',
+                                    paint: { 'line-color': '#10b981', 'line-width': 2, 'line-dasharray': [3, 2] }
+                                });
+                                const bounds = new maplibregl.LngLatBounds();
+                                const addCoords = (coords) => {
+                                    if (Array.isArray(coords[0]) && Array.isArray(coords[0][0])) {
+                                        coords.forEach(c => addCoords(c));
+                                    } else if (Array.isArray(coords[0])) {
+                                        coords.forEach(c => bounds.extend(c));
+                                    } else {
+                                        bounds.extend(coords);
+                                    }
+                                };
+                                const geom = window.__siteGeoJSON.geometry || window.__siteGeoJSON.features?.[0]?.geometry;
+                                if (geom) addCoords(geom.coordinates);
+                                this.map.fitBounds(bounds, { padding: 40, maxZoom: 17, duration: 1000 });
+                            } catch(e) { console.warn('Site boundary error:', e); }
+                        });
+                    } else if (navigator.geolocation) {
+                        // Fly to current location (default behavior)
                         navigator.geolocation.getCurrentPosition(pos => {
                             this.map.flyTo({
                                 center: [pos.coords.longitude, pos.coords.latitude],

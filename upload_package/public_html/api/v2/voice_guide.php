@@ -30,34 +30,67 @@ if (!in_array($voiceMode, ['standard', 'auto', 'mochiko', 'ryusei', 'zundamon'],
     $voiceMode = 'auto';
 }
 $isZundamonStyle = ($voiceMode === 'zundamon');
-$useVoicevoxAudio = ($voiceMode !== 'standard');
+
+$guideLang = api_param('lang', 'ja');
+if (!preg_match('/^[a-z]{2}(-[A-Z]{2})?$/', $guideLang)) $guideLang = 'ja';
+$isJapanese = ($guideLang === 'ja');
+
+$useVoicevoxAudio = ($voiceMode !== 'standard') && $isJapanese;
+if (!$isJapanese) {
+    $isZundamonStyle = false;
+}
 
 $transportMode = api_param('transport_mode', 'walk');
 if (!in_array($transportMode, ['walk', 'bike', 'car', 'drive', 'stationary'], true)) {
     $transportMode = 'walk';
 }
 if ($transportMode === 'drive') $transportMode = 'car';
-$transportLabel = match($transportMode) {
+$transportLabel = $isJapanese ? match($transportMode) {
     'car' => '車',
     'bike' => '自転車',
     'stationary' => '静止',
     default => '徒歩',
+} : match($transportMode) {
+    'car' => 'car',
+    'bike' => 'bicycle',
+    'stationary' => 'stationary',
+    default => 'walking',
 };
 
 $month = (int)date('n');
 $hour = (int)date('G');
-$seasonName = match(true) {
+$seasonName = $isJapanese ? match(true) {
     $month >= 3 && $month <= 5 => '春',
     $month >= 6 && $month <= 8 => '夏',
     $month >= 9 && $month <= 11 => '秋',
     default => '冬',
+} : match(true) {
+    $month >= 3 && $month <= 5 => 'spring',
+    $month >= 6 && $month <= 8 => 'summer',
+    $month >= 9 && $month <= 11 => 'autumn',
+    default => 'winter',
 };
-$timeOfDay = match(true) {
+$timeOfDay = $isJapanese ? match(true) {
     $hour >= 5 && $hour < 10 => '朝',
     $hour >= 10 && $hour < 16 => '日中',
     $hour >= 16 && $hour < 19 => '夕方',
     default => '夜',
+} : match(true) {
+    $hour >= 5 && $hour < 10 => 'morning',
+    $hour >= 10 && $hour < 16 => 'daytime',
+    $hour >= 16 && $hour < 19 => 'evening',
+    default => 'night',
 };
+
+$langInstruction = '';
+if (!$isJapanese) {
+    $langName = match($guideLang) {
+        'en' => 'English', 'zh' => 'Chinese (Simplified)', 'ko' => 'Korean',
+        'es' => 'Spanish', 'fr' => 'French', 'pt' => 'Portuguese', 'de' => 'German',
+        default => $guideLang,
+    };
+    $langInstruction = "IMPORTANT: Respond ENTIRELY in {$langName}. Translate all Japanese content (landscape history, conservation stories, species names) into {$langName} naturally. Do not include any Japanese text in your response.";
+}
 
 // --- 過去発話の記憶（ユーザーごとに直近30件を保持） ---
 $user = Auth::user();
@@ -78,6 +111,40 @@ function _saveHistory(string $userId, string $text, array &$pastTexts): void
     if (!is_dir($dir)) mkdir($dir, 0755, true);
     file_put_contents(DATA_DIR . "voice_guide_history/{$userId}.json",
         json_encode($pastTexts, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+}
+
+function _getConservationStoryContext(float $lat, float $lng): string
+{
+    if ($lat == 0 && $lng == 0) return '';
+    try {
+        require_once ROOT_DIR . '/libs/SiteManager.php';
+        foreach (SiteManager::listAll() as $s) {
+            if (SiteManager::isPointInSite($lat, $lng, $s['id'])) {
+                $guideFile = DATA_DIR . "sites/{$s['id']}/guide.json";
+                if (!file_exists($guideFile)) break;
+                $gd = json_decode(file_get_contents($guideFile), true);
+                $cs = $gd['conservation_story'] ?? null;
+                if (!$cs) break;
+                $parts = ["【このサイトの保全ストーリー（事実を語って。感動を押し付けない）】"];
+                if (!empty($cs['milestones'])) {
+                    foreach (array_slice(array_reverse($cs['milestones']), 0, 3) as $m) {
+                        $parts[] = "- {$m['year']}年: {$m['title']} — {$m['description']}";
+                    }
+                }
+                if (!empty($cs['key_people'])) {
+                    $p = $cs['key_people'][0];
+                    $parts[] = "立役者: {$p['role']} — {$p['contribution']}";
+                }
+                if (!empty($cs['ongoing_activities'])) {
+                    $acts = array_column(array_slice($cs['ongoing_activities'], 0, 2), 'title');
+                    $parts[] = "現在の活動: " . implode('、', $acts);
+                }
+                $parts[] = "→ 検出種との関連がありそうなら自然に織り込んで。なければ無理に触れなくてOK。";
+                return implode("\n", $parts);
+            }
+        }
+    } catch (Throwable $e) {}
+    return '';
 }
 
 // --- エリア情報モード（軽量：Gemini不使用、周辺観察データのみ） ---
@@ -178,9 +245,12 @@ if ($requestMode === 'opening') {
         } catch (Throwable $e) {}
     }
 
+    $openingConservation = _getConservationStoryContext($lat, $lng);
+
     $prompt = <<<PROMPT
 あなたは自然散策の相棒です。これからフィールドに出る人に、その場所の空気感を伝える短い挨拶を生成してください。
 
+{$langInstruction}
 {$styleInstruction}
 
 場所: {$areaName}（緯度{$lat}、経度{$lng}）
@@ -194,10 +264,12 @@ if ($requestMode === 'opening') {
 {$nearbyContext}
 
 {$openingLandscape}
+{$openingConservation}
 
 要件:
 - その場所の空気感・季節感を2〜3文で描写（例: 風、光、音、匂い）
 - 景観史の情報があれば「昔ここは〇〇だった。だから今でも△△がいる」のように1-2文で自然に織り込む
+- 保全ストーリーがあれば「この場所は〇〇年の歴史がある」のように1文で自然に触れる
 - 過去の観察データがあれば「この辺りでは以前〇〇が観察されてるよ」と1文
 - この場所の自然の特徴や季節ならではの見どころを1〜2文
 - 最後に「何に出会えるかな」的な期待感を1文
@@ -219,7 +291,13 @@ PROMPT;
 
     _saveHistory($userId, $guideText, $pastTexts);
 
-    $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'opening'];
+    $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'opening', 'lang' => $guideLang];
+    if (!$isJapanese) {
+        $result['tts_locale'] = match($guideLang) {
+            'en' => 'en-US', 'zh' => 'zh-CN', 'ko' => 'ko-KR', 'es' => 'es-ES',
+            'fr' => 'fr-FR', 'pt' => 'pt-BR', 'de' => 'de-DE', default => $guideLang,
+        };
+    }
     if ($useVoicevoxAudio) {
         $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
         if ($audioUrl) $result['audio_url'] = $audioUrl;
@@ -289,9 +367,12 @@ if ($requestMode === 'closing') {
         } catch (Throwable $e) {}
     }
 
+    $closingConservation = _getConservationStoryContext($lat, $lng);
+
     $prompt = <<<PROMPT
 あなたは自然散策の相棒です。セッションが終わった仲間に、今日の体験を記憶に残す短いメッセージを贈ってください。
 
+{$langInstruction}
 {$styleInstruction}
 
 場所: {$areaName}
@@ -303,11 +384,13 @@ if ($requestMode === 'closing') {
 {$silentContext}
 {$memoryContext}
 {$closingLandscape}
+{$closingConservation}
 
 要件:
 - 「今日は{$weatherFeeling}{$timeFeeling}…」のように、天気と時間帯の空気感から始める
 - 最も印象的な出会いに触れて、その出会いに小さな意味を添える（豆知識1つ）
 - 景観史の情報があれば「今日歩いた場所は、昔は〇〇だった。キミのデータがその変化を記録している」のように1-2文添える
+- 保全ストーリーがあれば「この場所を守ってきた人たちの努力と、キミの今日の記録がつながっている」のように1文添える
 - 数字の羅列（「N分でN種」）で終わらない。その日の体験の手触りを伝える
 - 最後に「次は〇〇してみて」と具体的な再訪の伏線を1つ（時間帯・季節・場所を変える提案）
 - 合計4〜8文、200〜400文字。体験の余韻を豊かに。じっくり語ってOK
@@ -351,7 +434,13 @@ PROMPT;
     ];
     _saveTodayHighlight($userId, $highlight);
 
-    $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'closing', 'today_highlight' => $highlight];
+    $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'closing', 'lang' => $guideLang, 'today_highlight' => $highlight];
+    if (!$isJapanese) {
+        $result['tts_locale'] = match($guideLang) {
+            'en' => 'en-US', 'zh' => 'zh-CN', 'ko' => 'ko-KR', 'es' => 'es-ES',
+            'fr' => 'fr-FR', 'pt' => 'pt-BR', 'de' => 'de-DE', default => $guideLang,
+        };
+    }
     if ($useVoicevoxAudio) {
         $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
         if ($audioUrl) $result['audio_url'] = $audioUrl;
@@ -515,11 +604,17 @@ if ($requestMode === 'ambient') {
         } catch (Throwable $e) {}
     }
     if (!empty($ambientLandscape)) {
-        // 景観史トピックを3回追加して選ばれやすくする（全体の約12%→30%に）
         $landscapeTopic = 'この場所の景観の歴史と生き物の関係を語って。下記の景観史情報を使って。';
         $topicPool[] = $landscapeTopic;
         $topicPool[] = $landscapeTopic;
         $topicPool[] = $landscapeTopic;
+    }
+
+    $ambientConservation = _getConservationStoryContext($lat, $lng);
+    if (!empty($ambientConservation)) {
+        $conservationTopic = 'この場所の保全ストーリー（歴史・人・活動）を語って。下記の情報を使って。';
+        $topicPool[] = $conservationTopic;
+        $topicPool[] = $conservationTopic;
     }
 
     $topic = $topicPool[array_rand($topicPool)];
@@ -552,6 +647,7 @@ if ($requestMode === 'ambient') {
 あなたは自然散策の相棒です。検出の合間に、今この場所にいることの意味を感じられる話をしてください。
 教科書の解説ではなく、「キミの今の体験」と自然のしくみをつなげる語りを。
 
+{$langInstruction}
 {$styleInstruction}
 
 地域: {$areaName}（緯度{$lat}、経度{$lng}付近）
@@ -562,6 +658,7 @@ if ($requestMode === 'ambient') {
 {$speciesContext}
 {$nearbySpeciesContext}
 {$ambientLandscape}
+{$ambientConservation}
 {$depthInstruction}
 
 今回のテーマ: {$topic}
@@ -596,7 +693,13 @@ PROMPT;
 
     _saveHistory($userId, $guideText, $pastTexts);
 
-    $result = ['guide_text' => $guideText, 'audio_url' => null];
+    $result = ['guide_text' => $guideText, 'audio_url' => null, 'lang' => $guideLang];
+    if (!$isJapanese) {
+        $result['tts_locale'] = match($guideLang) {
+            'en' => 'en-US', 'zh' => 'zh-CN', 'ko' => 'ko-KR', 'es' => 'es-ES',
+            'fr' => 'fr-FR', 'pt' => 'pt-BR', 'de' => 'de-DE', default => $guideLang,
+        };
+    }
     if ($useVoicevoxAudio) {
         $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
         if ($audioUrl) $result['audio_url'] = $audioUrl;
@@ -683,6 +786,9 @@ if ($lat && $lng) {
     }
 }
 
+// サイトの保全ストーリー（conservation_story）の注入
+$conservationContext = _getConservationStoryContext($lat, $lng);
+
 // 分類カテゴリ名かどうか判定（常緑広葉樹、落葉高木 etc → 具体種を教えるモード）
 $isCategoryName = preg_match('/^(常緑|落葉|針葉|広葉|低木|高木|草本|つる性|シダ|イネ科|キク科)/', $name);
 $nearbyContext = '';
@@ -741,6 +847,7 @@ $prompt = <<<PROMPT
 あなたは散歩中に聴く自然番組のパーソナリティです。検出された生き物をきっかけに、この場所や季節にまつわる面白い話を自然に展開してください。
 「〇〇を見つけました！」という報告型ではなく、「あ、〇〇だ。この鳥がいるってことは…」のように、発見を話のフックにして、聞いていて楽しい語りを。
 
+{$langInstruction}
 {$styleInstruction}
 
 検出された生き物: {$displayName}
@@ -755,6 +862,7 @@ $prompt = <<<PROMPT
 {$regionalContext}
 {$phenologyContext}
 {$landscapeContext}
+{$conservationContext}
 {$nearbyInstruction}
 
 {$avoidList}
@@ -790,10 +898,26 @@ if (empty($guideText)) {
 
 _saveHistory($userId, $guideText, $pastTexts);
 
-$result = ['guide_text' => $guideText, 'audio_url' => null];
+$result = ['guide_text' => $guideText, 'audio_url' => null, 'lang' => $guideLang];
+if (!$isJapanese) {
+    $ttsLocale = match($guideLang) {
+        'en' => 'en-US',
+        'zh' => 'zh-CN',
+        'ko' => 'ko-KR',
+        'es' => 'es-ES',
+        'fr' => 'fr-FR',
+        'pt' => 'pt-BR',
+        'de' => 'de-DE',
+        default => $guideLang,
+    };
+    $result['tts_locale'] = $ttsLocale;
+}
 if (!empty($landscapeContext)) {
     $result['delivery_hint'] = $landscapeDeliveryHint;
     $result['has_landscape_history'] = true;
+}
+if (!empty($conservationContext)) {
+    $result['has_conservation_story'] = true;
 }
 
 if ($useVoicevoxAudio && !empty($guideText)) {

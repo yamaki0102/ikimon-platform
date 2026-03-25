@@ -4,7 +4,7 @@
  * SEO: /guide/ikimon-approach.php
  */
 $meta_title = 'ikimon のアプローチ — 100年後の生態系のために';
-$meta_description = 'GBIFデータの80%以上が市民科学由来、iNaturalist2億件。世界中で市民の記録が科学と政策を動かしている。ikimonの設計思想と、その背景にある世界的潮流をエビデンスで解説。';
+$meta_description = '日本は世界36の生物多様性ホットスポットの1つ。固有種3,200種以上。GBIFデータの80%が市民科学由来。ikimonの設計思想、ネイチャーツーリズムとの連携、そして地域創生への道をエビデンスで解説。';
 $meta_image = 'https://ikimon.life/assets/img/ogp-default.png';
 $meta_canonical = 'https://ikimon.life/guide/ikimon-approach.php';
 
@@ -126,13 +126,16 @@ Auth::init();
             "name": "ikimon.life"
         },
         "datePublished": "2026-03-21",
-        "dateModified": "2026-03-22",
+        "dateModified": "2026-03-26",
         "about": [
             { "@type": "Thing", "name": "市民科学" },
             { "@type": "Thing", "name": "生物多様性モニタリング" },
             { "@type": "Thing", "name": "受動検出AI" },
             { "@type": "Thing", "name": "GBIF" },
-            { "@type": "Thing", "name": "30by30" }
+            { "@type": "Thing", "name": "30by30" },
+            { "@type": "Thing", "name": "ネイチャーツーリズム" },
+            { "@type": "Thing", "name": "固有種" },
+            { "@type": "Thing", "name": "地域創生" }
         ],
         "description": "GBIFデータの80%以上が市民科学由来。世界中で市民の記録が科学と政策を動かしている。ikimonの設計思想と世界的潮流をエビデンスで解説。"
     },
@@ -230,7 +233,12 @@ Auth::init();
     <!-- Key Numbers -->
     <section class="px-6 -mt-4 relative z-10">
         <div class="max-w-3xl mx-auto">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div class="evidence-card text-center">
+                    <p class="stat-number text-2xl md:text-3xl font-black">3,200+</p>
+                    <p class="text-xs text-muted mt-1">日本の固有種</p>
+                    <p class="text-[10px] text-faint mt-0.5">世界36ホットスポット</p>
+                </div>
                 <div class="evidence-card text-center">
                     <p class="stat-number text-2xl md:text-3xl font-black">80%+</p>
                     <p class="text-xs text-muted mt-1">GBIF データの市民科学比率</p>
@@ -242,14 +250,14 @@ Auth::init();
                     <p class="text-[10px] text-faint mt-0.5">330万人が参加</p>
                 </div>
                 <div class="evidence-card text-center">
-                    <p class="stat-number text-2xl md:text-3xl font-black">485</p>
+                    <p class="stat-number text-2xl md:text-3xl font-black">529</p>
                     <p class="text-xs text-muted mt-1">自然共生サイト認定</p>
-                    <p class="text-[10px] text-faint mt-0.5">日本 2026年1月</p>
+                    <p class="text-[10px] text-faint mt-0.5">日本 2025年</p>
                 </div>
                 <div class="evidence-card text-center">
-                    <p class="stat-number text-2xl md:text-3xl font-black">51%</p>
-                    <p class="text-xs text-muted mt-1">GBF 指標の市民参加率</p>
-                    <p class="text-[10px] text-faint mt-0.5">365指標中</p>
+                    <p class="stat-number text-2xl md:text-3xl font-black">62.5%</p>
+                    <p class="text-xs text-muted mt-1">訪日客の自然体験率</p>
+                    <p class="text-[10px] text-faint mt-0.5">買い物より高い</p>
                 </div>
             </div>
         </div>
@@ -282,11 +290,17 @@ Auth::init();
                     <a href="#data-trust" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
                         <span class="text-xs text-emerald-600 font-bold">06</span> データの信頼性
                     </a>
+                    <a href="#japan-biodiversity" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
+                        <span class="text-xs text-rose-600 font-bold">07</span> 日本の生物多様性 — 世界が注目する理由
+                    </a>
+                    <a href="#nature-tourism" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
+                        <span class="text-xs text-violet-600 font-bold">08</span> ネイチャーツーリズムと地域創生
+                    </a>
                     <a href="#references" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-gray-500 font-bold">07</span> 参考文献
+                        <span class="text-xs text-gray-500 font-bold">09</span> 参考文献
                     </a>
                     <a href="#action" class="toc-link text-sm text-muted py-1 flex items-center gap-2">
-                        <span class="text-xs text-amber-600 font-bold">08</span> キミができること
+                        <span class="text-xs text-amber-600 font-bold">10</span> キミができること
                     </a>
                 </div>
             </div>
@@ -707,7 +721,231 @@ Auth::init();
         </div>
     </section>
 
-    <!-- Section 7: 参考文献 -->
+    <!-- Section 7: 日本の生物多様性 — 世界が注目する理由 -->
+    <section id="japan-biodiversity" class="py-8 px-6 section-anchor">
+        <div class="max-w-3xl mx-auto">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
+                    <i data-lucide="mountain-snow" class="w-5 h-5 text-rose-600"></i>
+                </div>
+                <h2 class="text-xl font-black">日本の生物多様性 — 世界が注目する理由</h2>
+            </div>
+
+            <div class="blockquote-accent mb-6" style="border-left-color: #e11d48;">
+                <p class="text-[15px] text-text leading-relaxed font-medium">
+                    日本は世界に36しかない「生物多様性ホットスポット」の1つ。<br>
+                    地球の陸地面積のわずか2.4%に、全生物種の43%以上が集中するエリアに選ばれている。
+                </p>
+            </div>
+
+            <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
+                <i data-lucide="dna" class="w-4 h-4 text-rose-500"></i>
+                知られていない「固有種大国」
+            </h3>
+            <p class="text-[15px] text-muted leading-relaxed mt-3 mb-4">
+                日本列島には9万種以上の生物が確認されており、そのうち3,200種以上が日本にしかいない「固有種」です。
+                特に驚くべきは各分類群の固有率。
+            </p>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <div class="evidence-card text-center" style="border-left-color: #e11d48;">
+                    <p class="text-2xl font-black" style="color: #e11d48;">~88%</p>
+                    <p class="text-xs text-muted mt-1">両生類の固有率</p>
+                    <p class="text-[10px] text-faint">オオサンショウウオなど</p>
+                </div>
+                <div class="evidence-card text-center" style="border-left-color: #e11d48;">
+                    <p class="text-2xl font-black" style="color: #e11d48;">~60%</p>
+                    <p class="text-xs text-muted mt-1">爬虫類の固有率</p>
+                    <p class="text-[10px] text-faint">トカラハブなど</p>
+                </div>
+                <div class="evidence-card text-center" style="border-left-color: #e11d48;">
+                    <p class="text-2xl font-black" style="color: #e11d48;">~40%</p>
+                    <p class="text-xs text-muted mt-1">哺乳類の固有率</p>
+                    <p class="text-[10px] text-faint">ニホンカモシカなど</p>
+                </div>
+                <div class="evidence-card text-center" style="border-left-color: #e11d48;">
+                    <p class="text-2xl font-black" style="color: #e11d48;">~40%</p>
+                    <p class="text-xs text-muted mt-1">維管束植物の固有率</p>
+                    <p class="text-[10px] text-faint">屋久杉など</p>
+                </div>
+            </div>
+
+            <p class="text-[15px] text-muted leading-relaxed mb-4">
+                亜寒帯の北海道から亜熱帯の沖縄まで、3,000km以上の南北に伸びる列島。
+                モンスーン気候による豊かな降水。急峻な山岳と深い海溝。
+                島嶼という地理的隔離が進化を加速させ、世界でもまれに見る固有種の宝庫を生み出しました。
+            </p>
+
+            <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
+                <i data-lucide="map-pin" class="w-4 h-4 text-rose-500"></i>
+                地域ごとに異なる「もう一つの日本」
+            </h3>
+            <p class="text-[15px] text-muted leading-relaxed mt-3 mb-4">
+                外国人観光客の多くは東京・京都・大阪の「ゴールデンルート」を巡ります。
+                しかし日本の真の魅力は、各地域に固有の自然が息づいていること。
+                奄美大島のアマミノクロウサギ、屋久島の屋久杉の原始林、北海道のシマフクロウ ——
+                どれもその土地でしか出会えない生き物です。
+            </p>
+            <p class="text-[15px] text-muted leading-relaxed mb-4">
+                ikimon は、こうした地域固有の自然を可視化します。
+                「この町にはどんな生き物がいるか」「この公園では何が見つかるか」——
+                地元の人ですら知らなかった自然の価値を、データとして照らし出す。
+                それは地域のシビックプライド（郷土への誇り）を育て、外から来た人に「また来たい」と思わせる力になります。
+            </p>
+
+            <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
+                <i data-lucide="timer" class="w-4 h-4 text-rose-500"></i>
+                いま記録しなければ失われるもの
+            </h3>
+            <p class="text-[15px] text-muted leading-relaxed mt-3 mb-6">
+                日本は世界的な固有種の宝庫であると同時に、その多くが危機に瀕しています。
+                環境省のレッドリストには3,700種以上が掲載され、気候変動と開発によって生態系は年単位で変化しています。
+                2026年に記録しなかったデータは、二度と取り戻せない。
+                だからこそ、市民の「日常の記録」が科学的にかけがえのない価値を持つのです。
+            </p>
+        </div>
+    </section>
+
+    <!-- Section 8: ネイチャーツーリズムと地域創生 -->
+    <section id="nature-tourism" class="py-8 px-6 bg-surface section-anchor">
+        <div class="max-w-3xl mx-auto">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+                    <i data-lucide="compass" class="w-5 h-5 text-violet-600"></i>
+                </div>
+                <h2 class="text-xl font-black">ネイチャーツーリズムと地域創生</h2>
+            </div>
+
+            <div class="blockquote-accent mb-6" style="border-left-color: #7c3aed;">
+                <p class="text-[15px] text-text leading-relaxed font-medium">
+                    観光庁は2026年度予算を前年比2.4倍の1,383億円に拡大し、<br>
+                    「自然」「文化」「アクティビティ」を組み合わせたアドベンチャーツーリズムを国策として推進している。
+                </p>
+            </div>
+
+            <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
+                <i data-lucide="plane" class="w-4 h-4 text-violet-500"></i>
+                3,687万人が求める「体験」
+            </h3>
+            <p class="text-[15px] text-muted leading-relaxed mt-3 mb-4">
+                2024年、訪日外国人は過去最高の3,687万人を記録し、消費額は8兆1,395億円に達しました。
+                注目すべきは、彼らが最も実施した活動。
+                「自然観光」の実施率は62.5%で、買い物（53.1%）や歴史建造物（51.6%）を上回っています。
+            </p>
+            <p class="text-[15px] text-muted leading-relaxed mb-4">
+                世界の旅行者は「モノ消費」から「コト消費」へ、さらに「自己変容」へとシフトしています。
+                買い物袋を抱えて帰る旅から、自分自身が変わる旅へ。
+                グローバルのアドベンチャーツーリズム市場は2026年に約995億米ドル（約15兆円）規模に達する見込みです。
+            </p>
+
+            <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
+                <i data-lucide="heart-handshake" class="w-4 h-4 text-violet-500"></i>
+                日本をもっと好きになる体験
+            </h3>
+            <p class="text-[15px] text-muted leading-relaxed mt-3 mb-4">
+                フランスのワイナリーツアーが「テロワール（土地の個性）」を伝えるように、
+                日本の自然体験は「その土地でしか出会えない生き物と、それを守ってきた人々の物語」を伝えることができます。
+            </p>
+            <p class="text-[15px] text-muted leading-relaxed mb-4">
+                浜松で40年かけて工場の更地を生態系に変えた経営者がいること。
+                その敷地が環境省の「自然共生サイト」に認定されたこと。
+                そこで子どもたちが毎日自然の中で学んでいること ——
+                こうした物語は、外国人観光客にとって日本の「おもてなし」の本質を体感する機会になります。
+            </p>
+            <p class="text-[15px] text-muted leading-relaxed mb-4">
+                ikimon の音声ガイドは、散歩しながらこうした物語をリアルタイムで届けます。
+                日本語で入力された地域の歴史と保全ストーリーを、AIが英語や中国語に自動翻訳して語る。
+                鳥の声を聞きながら「この鳥がいるのは、ここの環境を守ってきた人がいるから」と知る ——
+                それは寺社仏閣の観光では得られない、深い日本理解につながります。
+            </p>
+
+            <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
+                <i data-lucide="building-2" class="w-4 h-4 text-violet-500"></i>
+                地域創生の新しいかたち
+            </h3>
+            <p class="text-[15px] text-muted leading-relaxed mt-3 mb-4">
+                生物多様性と地域創生は、一見すると別の話に見えます。
+                しかし、自然を知ることは地域を知ること。
+                「うちの町にはこんな生き物がいるんだ」という発見は、住民のシビックプライドを育てます。
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="feature-card">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+                            <i data-lucide="map" class="w-4 h-4 text-violet-600"></i>
+                        </div>
+                        <h4 class="font-black text-sm">自然共生サイト 529か所</h4>
+                    </div>
+                    <p class="text-xs text-muted leading-relaxed">
+                        環境省の「30by30」目標のもと、里山・企業林・寺社林など民間管理地も保全エリアとして認定。
+                        2025年の地域生物多様性増進法施行で制度化が加速。
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+                            <i data-lucide="users" class="w-4 h-4 text-violet-600"></i>
+                        </div>
+                        <h4 class="font-black text-sm">観光客がデータ貢献者に</h4>
+                    </div>
+                    <p class="text-xs text-muted leading-relaxed">
+                        海外ではExodus Travels × iNaturalistが「ツアー客の観察記録を科学に活用」するモデルを実証。
+                        eBirdのデータ活用でコロンビアのバードウォッチング観光は10年で40倍成長。
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+                            <i data-lucide="recycle" class="w-4 h-4 text-violet-600"></i>
+                        </div>
+                        <h4 class="font-black text-sm">正のフィードバックループ</h4>
+                    </div>
+                    <p class="text-xs text-muted leading-relaxed">
+                        観光客が自然を楽しむ → データが蓄積 → 地域の生態系価値が可視化 → 保全投資が進む → 自然が維持 → 観光客が来る。
+                        この循環が、補助金に頼らない持続可能な地域創生モデルを生む。
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+                            <i data-lucide="briefcase" class="w-4 h-4 text-violet-600"></i>
+                        </div>
+                        <h4 class="font-black text-sm">TNFD — 企業にとっての意味</h4>
+                    </div>
+                    <p class="text-xs text-muted leading-relaxed">
+                        自然関連情報開示（TNFD）の早期開示企業は世界320社。うち日本企業が80社で最多国。
+                        企業の「自然への依存・影響」の把握に、市民の観察データが科学的根拠になる。
+                    </p>
+                </div>
+            </div>
+
+            <h3 class="text-base font-black text-text pt-4 flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4 text-violet-500"></i>
+                「体験の時代」における日本の強み
+            </h3>
+            <p class="text-[15px] text-muted leading-relaxed mt-3 mb-4">
+                日本は世界有数の固有種大国であり、かつ安全で清潔で交通網が発達した国です。
+                北海道のシマフクロウも、屋久島の原始林も、都市部の身近な公園の生態系も ——
+                すべてが「この場所でしか出会えない自然」という唯一無二のコンテンツになります。
+            </p>
+            <p class="text-[15px] text-muted leading-relaxed mb-4">
+                テーマパークのアトラクションは世界中で同じものを体験できます。
+                しかし、浜松市の里山で聞くシジュウカラの声は、そこでしか聞けない。
+                奄美大島の夜の森でアマミノクロウサギに出会う体験は、世界のどこにも代替がない。
+                この「代替不可能な体験」こそが、これからの観光の最大の競争力です。
+            </p>
+            <p class="text-[15px] text-muted leading-relaxed mb-6">
+                ikimon は、この強みをデジタルで増幅します。
+                AI音声ガイドが「その場所・その季節・その生き物」に最適化された物語を語り、
+                地域の歴史と保全の努力を多言語で世界に届ける。
+                観光客の「楽しかった」を、地域の「誇り」と科学の「データ」に変換する ——
+                それが、ikimon が目指す地域創生のかたちです。
+            </p>
+        </div>
+    </section>
+
+    <!-- Section 9: 参考文献 -->
     <section id="references" class="py-8 px-6 bg-surface section-anchor">
         <div class="max-w-3xl mx-auto">
             <div class="flex items-center gap-3 mb-6">
@@ -721,7 +959,11 @@ Auth::init();
                 このページで引用したデータの出典です。すべて公開されている論文・公的資料です。
             </p>
 
-            <div class="space-y-3">
+            <h3 class="text-sm font-bold text-text mb-3 flex items-center gap-2">
+                <i data-lucide="leaf" class="w-3.5 h-3.5 text-emerald-500"></i>
+                市民科学・生物多様性モニタリング
+            </h3>
+            <div class="space-y-3 mb-6">
                 <div class="bg-white rounded-xl p-4 border border-gray-100">
                     <p class="text-sm font-bold text-text">GBIF — Citizen Science</p>
                     <p class="text-xs text-muted mt-1">市民科学データが GBIF ネットワーク全体に占める割合と、研究利用の統計</p>
@@ -768,6 +1010,75 @@ Auth::init();
                     <p class="text-sm font-bold text-text">Japan NBSAP 2023-2030</p>
                     <p class="text-xs text-muted mt-1">生物多様性条約（CBD）に基づく日本の国家戦略・行動計画</p>
                     <a href="https://www.cbd.int/doc/nbsap/NBSAPJapan2023-2030-Flier-English.pdf" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">cbd.int</a>
+                </div>
+            </div>
+
+            <h3 class="text-sm font-bold text-text mb-3 flex items-center gap-2">
+                <i data-lucide="mountain-snow" class="w-3.5 h-3.5 text-rose-500"></i>
+                日本の生物多様性・固有種
+            </h3>
+            <div class="space-y-3 mb-6">
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">CEPF — Japan Biodiversity Hotspot</p>
+                    <p class="text-xs text-muted mt-1">日本が世界36の生物多様性ホットスポットの1つに選定された根拠と固有種データ</p>
+                    <a href="https://www.cepf.net/our-work/biodiversity-hotspots/japan" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">cepf.net</a>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">国立科学博物館 — 日本の固有種リスト</p>
+                    <p class="text-xs text-muted mt-1">「生物多様性ホットスポットの多様性解明と保全」プロジェクトによる日本固有種の網羅的リスト</p>
+                    <a href="https://www.kahaku.go.jp/research/activities/project/hotspot_japan/endemic_list/" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">kahaku.go.jp</a>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">環境省 — 日本の生物多様性概況</p>
+                    <p class="text-xs text-muted mt-1">日本列島の生物相の概要と固有種の確認種数</p>
+                    <a href="https://www.biodic.go.jp/biodiversity/activity/policy/map/map09/index.html" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">biodic.go.jp</a>
+                </div>
+            </div>
+
+            <h3 class="text-sm font-bold text-text mb-3 flex items-center gap-2">
+                <i data-lucide="compass" class="w-3.5 h-3.5 text-violet-500"></i>
+                ネイチャーツーリズム・インバウンド
+            </h3>
+            <div class="space-y-3 mb-6">
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">観光庁 — アドベンチャーツーリズムの推進</p>
+                    <p class="text-xs text-muted mt-1">「自然」「文化」「アクティビティ」を組み合わせた体験型観光の政策概要</p>
+                    <a href="https://www.mlit.go.jp/kankocho/seisaku_seido/kihonkeikaku/inbound_kaifuku/shohikakudai/adventure.html" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">mlit.go.jp</a>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">観光庁 — 令和8年度予算決定概要</p>
+                    <p class="text-xs text-muted mt-1">2026年度の観光施策予算1,383億円（前年比2.4倍）の内訳と重点施策</p>
+                    <a href="https://www.mlit.go.jp/kankocho/content/001975073.pdf" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">mlit.go.jp (PDF)</a>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">JNTO — 訪日外客統計 2024年</p>
+                    <p class="text-xs text-muted mt-1">2024年の訪日外国人旅行者数3,687万人（過去最高）と国別内訳</p>
+                    <a href="https://www.jnto.go.jp/statistics/data/visitors-statistics/" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">jnto.go.jp</a>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">じゃらん研究センター — 訪日外国人の観光体験</p>
+                    <p class="text-xs text-muted mt-1">「自然観光」の実施率62.5%。買い物や歴史建造物を上回る訪日外国人の自然体験需要</p>
+                    <a href="https://jrc.jalan.net/surveys/inbound_tourist_activity/" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">jrc.jalan.net</a>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">Fortune Business Insights — Adventure Tourism Market</p>
+                    <p class="text-xs text-muted mt-1">グローバルのアドベンチャーツーリズム市場規模（2026年: 約995億米ドル）と成長予測</p>
+                    <a href="https://www.fortunebusinessinsights.com/adventure-tourism-market-107924" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">fortunebusinessinsights.com</a>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">Exodus Travels × iNaturalist — Citizen Science Tourism Partnership</p>
+                    <p class="text-xs text-muted mt-1">世界初の旅行会社×市民科学プラットフォーム連携。ツアー客の観察記録を生物多様性DBに活用</p>
+                    <a href="https://www.adventuretravelnews.com/exodus-adventure-travels-announces-partnership-with-inaturalist-to-extend-its-citizen-science-program" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">adventuretravelnews.com</a>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">Birdwatching tourism is booming — UC Santa Cruz</p>
+                    <p class="text-xs text-muted mt-1">eBirdデータ活用によりコロンビアのバードウォッチング観光が10年で40倍成長した調査研究</p>
+                    <a href="https://news.ucsc.edu/2025/08/birdwatching-tourism-is-booming-some-countries-are-benefiting-while-others-are-left-behind/" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">news.ucsc.edu</a>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-bold text-text">PwC Japan — TNFD最終提言 v1.0 解説</p>
+                    <p class="text-xs text-muted mt-1">自然関連財務情報開示タスクフォースの最終提言。日本企業80社が早期開示を宣言（世界最多）</p>
+                    <a href="https://www.pwc.com/jp/ja/knowledge/column/sustainability/tnfd-framework01.html" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block">pwc.com/jp</a>
                 </div>
             </div>
         </div>
