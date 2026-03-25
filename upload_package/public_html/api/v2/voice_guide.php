@@ -71,8 +71,9 @@ if (file_exists($historyFile)) {
 
 function _saveHistory(string $userId, string $text, array &$pastTexts): void
 {
-    $pastTexts[] = ['text' => mb_substr($text, 0, 80), 'at' => date('c')];
-    if (count($pastTexts) > 30) $pastTexts = array_slice($pastTexts, -30);
+    // 保存テキスト長を160文字に拡大（重複回避の精度向上）
+    $pastTexts[] = ['text' => mb_substr($text, 0, 160), 'at' => date('c')];
+    if (count($pastTexts) > 50) $pastTexts = array_slice($pastTexts, -50);
     $dir = DATA_DIR . 'voice_guide_history';
     if (!is_dir($dir)) mkdir($dir, 0755, true);
     file_put_contents(DATA_DIR . "voice_guide_history/{$userId}.json",
@@ -503,7 +504,7 @@ if ($requestMode === 'ambient') {
         'この地域で過去に観察された種のデータに基づいて「ここには〇〇もいるはず。次に来た時に探してみて」のように、次回の楽しみを提案して',
     ];
 
-    // 景観史テーマをトピックプールに追加
+    // 景観史テーマをトピックプールに追加（データがある場合は重み3倍で優先選択）
     $ambientLandscape = '';
     if ($lat && $lng) {
         try {
@@ -514,7 +515,11 @@ if ($requestMode === 'ambient') {
         } catch (Throwable $e) {}
     }
     if (!empty($ambientLandscape)) {
-        $topicPool[] = 'この場所の景観の歴史と生き物の関係を語って。下記の景観史情報を使って。';
+        // 景観史トピックを3回追加して選ばれやすくする（全体の約12%→30%に）
+        $landscapeTopic = 'この場所の景観の歴史と生き物の関係を語って。下記の景観史情報を使って。';
+        $topicPool[] = $landscapeTopic;
+        $topicPool[] = $landscapeTopic;
+        $topicPool[] = $landscapeTopic;
     }
 
     $topic = $topicPool[array_rand($topicPool)];
@@ -537,10 +542,10 @@ if ($requestMode === 'ambient') {
         default => 'マニアックな深い話を。進化の歴史、生態系の仕組み、保全の課題など踏み込んだ内容で。',
     };
 
-    // 過去発話の要約（直近10件）をプロンプトに注入
-    $recentTexts = array_slice(array_column($pastTexts, 'text'), -10);
+    // 過去発話の要約（直近15件）をプロンプトに注入（重複回避精度向上）
+    $recentTexts = array_slice(array_column($pastTexts, 'text'), -15);
     $avoidList = !empty($recentTexts)
-        ? "以下は最近話した内容です。これらと重複しない、全く別の話題にしてください:\n" . implode("\n", array_map(fn($t) => "- {$t}", $recentTexts))
+        ? "以下は最近話したテーマ・フレーズです。これらと同じ話題・言い回し・キーワードは絶対に使わないでください:\n" . implode("\n", array_map(fn($t) => "- {$t}", $recentTexts))
         : '';
 
     $prompt = <<<PROMPT
@@ -689,9 +694,9 @@ $styleInstruction = $isZundamonStyle
     ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」を使い、元気で親しみやすい感じ。一人称は「ずんだもん」。'
     : '優しいネイチャーガイドの口調で話してください。「〜ですよ」「〜なんです」など親しみやすく。';
 
-$recentTexts = array_slice(array_column($pastTexts, 'text'), -10);
+$recentTexts = array_slice(array_column($pastTexts, 'text'), -15);
 $avoidList = !empty($recentTexts)
-    ? "以下は最近話した内容です。これらと全く別の話題・切り口にしてください:\n" . implode("\n", array_map(fn($t) => "- {$t}", $recentTexts))
+    ? "以下は最近話したテーマ・フレーズです。これらと同じ話題・言い回し・キーワードは絶対に使わないでください:\n" . implode("\n", array_map(fn($t) => "- {$t}", $recentTexts))
     : '';
 
 $categoryInstruction = $isCategoryName
