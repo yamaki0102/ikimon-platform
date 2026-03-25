@@ -301,7 +301,7 @@ $pageTitle = 'PoC Dashboard — 観察のOS';
         </a>
         <a href="/field_research.php" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
             <i data-lucide="footprints" class="w-4 h-4"></i>
-            さんぽ開始
+            いきものサーチ開始
         </a>
         <a href="/field_research.php" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
             <i data-lucide="radar" class="w-4 h-4"></i>

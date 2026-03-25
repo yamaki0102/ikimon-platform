@@ -788,7 +788,7 @@ Auth::init();
                         <i data-lucide="camera" class="w-5 h-5"></i>まず1枚、撮ってみる
                     </a>
                     <a href="/field_research.php" class="bg-white text-text font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors border border-border">
-                        <i data-lucide="footprints" class="w-5 h-5"></i>さんぽで記録する
+                        <i data-lucide="search" class="w-5 h-5"></i>いきものサーチで記録する
                     </a>
                 </div>
             </div>

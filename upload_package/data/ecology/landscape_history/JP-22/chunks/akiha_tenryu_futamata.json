@@ -1,0 +1,51 @@
+{
+  "id": "akiha_tenryu_futamata",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.8600,
+    "lng": 137.7900,
+    "radius_km": 5.0,
+    "place_names": ["秋葉山", "天竜二俣", "天竜区"],
+    "place_names_en": ["Mount Akiha", "Tenryu-Futamata", "Tenryu Ward"]
+  },
+  "period": {
+    "label": "古代〜現代",
+    "year_from": 700,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "佐久間町史・天竜区の自然",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "秋葉山周辺は古くから信仰の山として森が守られてきた。天竜材で知られるスギ・ヒノキの人工林が広がる",
+    "land_use_change": "天然林(古代) → 信仰林+薪炭林(中世) → スギ・ヒノキ人工林(近代) → 放置林(現代)",
+    "ecological_impact": "人工林の暗い林床では下草が育たず生物多様性が低い。間伐放棄で光が入らない。一方、社寺林は数百年の老齢木が残り、猛禽類の営巣地として重要",
+    "biodiversity_link": "オオタカやサシバが見られるのは、天竜区の山林がまだ十分な面積の連続した森を維持しているから。森が分断されると猛禽類は真っ先に消える"
+  },
+  "narrative_layers": [
+    {
+      "theme": "sacred_forest",
+      "title": "信仰が守った森",
+      "narrative": "秋葉山は火防の神様を祀る山。神域だから木を切らない。それが結果的に、天然林を数百年間守った。日本各地の社寺林がそうで、人間の信仰が意図せず生態系を保全してきた。生物多様性のホットスポットが神社の裏山というケース、実は多い"
+    },
+    {
+      "theme": "plantation_ecology",
+      "title": "スギ林のジレンマ",
+      "narrative": "天竜材は高品質な木材として知られたけど、今は外国産材に押されて山は放置されている。間伐されないスギ林は暗くて、林床にほとんど何も生えない。緑の砂漠と呼ばれることもある。でも間伐して光を入れると、驚くほど早く下草が戻り、昆虫が増え、鳥が来る"
+    },
+    {
+      "theme": "forest_connectivity",
+      "title": "つながる森、途切れる森",
+      "narrative": "オオタカが営巣するには数百ヘクタールの連続した森が要る。天竜区の山はまだその条件を満たしている。でも道路や開発で森が分断されると、動物たちの行動圏が切り刻まれる。森の面積だけじゃなく、つながりが生態系を左右する"
+    }
+  ],
+  "tags": {
+    "habitats": ["mountain_forest", "plantation", "sacred_grove", "riparian"],
+    "taxa_triggers": ["Accipiter gentilis", "Butastur indicus", "Cervus nippon", "Ursus thibetanus"],
+    "common_name_triggers": ["オオタカ", "サシバ", "シカ", "ニホンジカ", "クマ", "ツキノワグマ", "キツツキ", "フクロウ"],
+    "themes": ["sacred_forest", "plantation_management", "forest_fragmentation"]
+  }
+}

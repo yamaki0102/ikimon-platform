@@ -278,7 +278,7 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                         <i data-lucide="calendar" class="w-3.5 h-3.5"></i> 観察会
                     </a>
                     <a href="field_research.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-100 text-xs font-bold hover:bg-emerald-500/30 transition">
-                        <i data-lucide="footprints" class="w-3.5 h-3.5"></i> さんぽ
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i> いきものサーチ
                     </a>
 
                 </div>
@@ -445,8 +445,8 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                 <a href="field_research.php" class="flex items-center gap-4 px-4 py-3" style="text-decoration:none;">
                     <div class="text-3xl flex-shrink-0">🌿</div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-bold text-[var(--color-text)]">今日のさんぽを始めよう</p>
-                        <p class="text-xs text-[var(--color-text-muted)]">歩くだけで生き物を自動記録。あなたの散歩が100年アーカイブに。</p>
+                        <p class="text-sm font-bold text-[var(--color-text)]">今日のいきものサーチを始めよう</p>
+                        <p class="text-xs text-[var(--color-text-muted)]">歩いて、見つけて、自動記録。あなたの発見が100年アーカイブに。</p>
                     </div>
                     <i data-lucide="chevron-right" class="w-5 h-5 text-emerald-500 flex-shrink-0"></i>
                 </a>
@@ -787,13 +787,13 @@ $latestScans = DataStore::getLatest('observations', 5, function ($item) {
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-2">
-                                <span class="text-2xl">🚶</span>
-                                <h2 class="text-lg font-black text-white">散歩で野鳥調査</h2>
+                                <span class="text-2xl">🔍</span>
+                                <h2 class="text-lg font-black text-white">いきものサーチ</h2>
                             </div>
-                            <p class="text-sm text-emerald-200/80 leading-relaxed mb-4">いつもの散歩道を歩くだけ。スマホがポケットの中で鳥の声をAIが自動判定。歩いた時間と出会った鳥を記録します。</p>
+                            <p class="text-sm text-emerald-200/80 leading-relaxed mb-4">いつもの道を歩くだけ。スマホがポケットの中で鳥の声をAIが自動判定。カメラをかざせば植物も昆虫も。</p>
                             <a href="field_research.php?mode=walk" class="inline-flex items-center gap-2 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 text-sm font-bold rounded-full px-5 py-2.5 transition active:scale-95 shadow-lg shadow-emerald-400/20">
-                                <i data-lucide="footprints" class="w-4 h-4"></i>
-                                さんぽを始める
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                                いきものサーチを始める
                             </a>
                         </div>
                     </div>

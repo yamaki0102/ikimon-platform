@@ -811,7 +811,7 @@ function nav_avatar(string $avatar): string {
                     <i data-lucide="footprints" class="w-6 h-6" style="color: var(--color-success, #16a34a);"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-[var(--color-text)]">さんぽ</p>
+                    <p class="text-sm font-bold text-[var(--color-text)]">いきものサーチ</p>
                     <p class="text-xs text-[var(--color-text-muted)]">歩く・スキャン・たんけんマップ</p>
                 </div>
                 <i data-lucide="chevron-right" class="w-5 h-5 text-[var(--color-text-faint)] flex-shrink-0"></i>

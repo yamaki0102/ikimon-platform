@@ -120,7 +120,7 @@ $meta_title = "100年アーカイブ | ikimon.life";
         <!-- CTA -->
         <div class="text-center space-y-4">
             <a href="field_research.php" class="inline-block px-8 py-4 rounded-2xl font-bold text-white text-base" style="background:#10b981;">
-                🌿 さんぽを始める
+                🔍 いきものサーチを始める
             </a>
             <div class="text-xs text-[var(--color-text-muted)]">写真1枚からでも参加できます</div>
 
