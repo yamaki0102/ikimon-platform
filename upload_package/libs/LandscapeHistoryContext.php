@@ -68,6 +68,22 @@ class LandscapeHistoryContext
         return ['delivery_hint' => $hint];
     }
 
+    // 都道府県名 → JP-XX コードのフォールバックマップ（GeoUtils が名前を返す場合の保険）
+    private const PREF_NAME_TO_CODE = [
+        '北海道' => 'JP-01', '青森県' => 'JP-02', '岩手県' => 'JP-03', '宮城県' => 'JP-04',
+        '秋田県' => 'JP-05', '山形県' => 'JP-06', '福島県' => 'JP-07', '茨城県' => 'JP-08',
+        '栃木県' => 'JP-09', '群馬県' => 'JP-10', '埼玉県' => 'JP-11', '千葉県' => 'JP-12',
+        '東京都' => 'JP-13', '神奈川県' => 'JP-14', '新潟県' => 'JP-15', '富山県' => 'JP-16',
+        '石川県' => 'JP-17', '福井県' => 'JP-18', '山梨県' => 'JP-19', '長野県' => 'JP-20',
+        '岐阜県' => 'JP-21', '静岡県' => 'JP-22', '愛知県' => 'JP-23', '三重県' => 'JP-24',
+        '滋賀県' => 'JP-25', '京都府' => 'JP-26', '大阪府' => 'JP-27', '兵庫県' => 'JP-28',
+        '奈良県' => 'JP-29', '和歌山県' => 'JP-30', '鳥取県' => 'JP-31', '島根県' => 'JP-32',
+        '岡山県' => 'JP-33', '広島県' => 'JP-34', '山口県' => 'JP-35', '徳島県' => 'JP-36',
+        '香川県' => 'JP-37', '愛媛県' => 'JP-38', '高知県' => 'JP-39', '福岡県' => 'JP-40',
+        '佐賀県' => 'JP-41', '長崎県' => 'JP-42', '熊本県' => 'JP-43', '大分県' => 'JP-44',
+        '宮崎県' => 'JP-45', '鹿児島県' => 'JP-46', '沖縄県' => 'JP-47',
+    ];
+
     private static function resolveRegionCode(float $lat, float $lng): string
     {
         static $cache = [];
@@ -78,6 +94,13 @@ class LandscapeHistoryContext
             require_once ROOT_DIR . '/libs/GeoUtils.php';
             $geo = GeoUtils::reverseGeocode($lat, $lng);
             $code = $geo['prefecture'] ?? '';
+
+            // GeoUtilsがJP-XX形式で返す場合はそのまま使用
+            // 都道府県名（日本語）で返ってきた場合はマップ変換
+            if (!empty($code) && !str_starts_with($code, 'JP-')) {
+                $code = self::PREF_NAME_TO_CODE[$code] ?? $code;
+            }
+
             if (empty($code) && !empty($geo['country'])) {
                 $code = $geo['country'];
             }

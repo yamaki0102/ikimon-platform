@@ -356,6 +356,20 @@ if (!$currentUser) {
     <div x-show="!sessionActive && showModeSelect" x-cloak
          style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
         <div style="background:rgba(15,23,42,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:16px;border-radius:18px;text-align:center;border:1px solid rgba(255,255,255,0.08);">
+            <!-- 移動手段セレクター -->
+            <div style="margin-bottom:12px;">
+                <div style="font-size:10px;color:#64748b;margin-bottom:6px;letter-spacing:0.05em;">移動手段を選択</div>
+                <div style="display:flex;gap:6px;">
+                    <template x-for="tm in transportModes" :key="tm.id">
+                        <button @click="manualTransportMode = tm.id; localStorage.setItem('ikimon_transport', tm.id)"
+                                :style="manualTransportMode === tm.id ? 'background:rgba(16,185,129,0.2);color:#10b981;border-color:#10b981;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
+                                style="flex:1;padding:8px 4px;border-radius:10px;border:1.5px solid;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                            <span x-text="tm.emoji" style="font-size:20px;pointer-events:none;"></span>
+                            <span x-text="tm.label" style="font-size:10px;font-weight:700;pointer-events:none;"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
             <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;">
                 <button @click="startSensor()" style="flex:1;padding:14px;border-radius:14px;border:none;background:#10b981;color:#fff;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
                     <span style="font-size:20px;">📡</span> いきものセンサー ON
@@ -388,26 +402,47 @@ if (!$currentUser) {
     </div>
 
     <!-- Drive Mode HUD (full screen overlay) -->
-    <div x-show="sessionActive && currentMovementMode === 'drive'" x-cloak
+    <div x-show="sessionActive && (currentMovementMode === 'drive' || manualTransportMode === 'car')" x-cloak
          style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <div style="font-size:48px;margin-bottom:16px;">📡</div>
-        <div style="color:#10b981;font-size:14px;font-weight:600;margin-bottom:24px;">記録中</div>
+        <div style="font-size:48px;margin-bottom:8px;">📡</div>
+        <div style="color:#10b981;font-size:13px;font-weight:600;margin-bottom:20px;">🚗 ドライブ記録中</div>
         <div style="color:#e2e8f0;font-size:32px;font-weight:900;" x-text="sessionSpeciesCount + '種'"></div>
-        <div style="color:#94a3b8;font-size:14px;margin-top:8px;" x-text="(sessionDistance / 1000).toFixed(1) + 'km'"></div>
+        <div style="color:#94a3b8;font-size:14px;margin-top:8px;" x-text="(sessionDistance / 1000).toFixed(1) + 'km · ' + formatElapsed(sessionElapsed)"></div>
+        <!-- 移動手段切り替え（走行中でも変更可） -->
+        <div style="display:flex;gap:8px;margin-top:24px;">
+            <template x-for="tm in transportModes" :key="tm.id">
+                <button @click="setTransportMode(tm.id)"
+                        :style="manualTransportMode === tm.id ? 'background:rgba(16,185,129,0.3);border-color:#10b981;color:#10b981;' : 'background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.15);color:#94a3b8;'"
+                        style="padding:8px 14px;border-radius:10px;border:1.5px solid;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;">
+                    <span x-text="tm.emoji" style="pointer-events:none;"></span>
+                    <span x-text="tm.label" style="pointer-events:none;"></span>
+                </button>
+            </template>
+        </div>
         <button @click="stopSensor()"
-                style="margin-top:48px;width:64px;height:64px;border-radius:50%;background:#ef4444;border:none;color:#fff;font-size:24px;cursor:pointer;">
+                style="margin-top:32px;width:64px;height:64px;border-radius:50%;background:#ef4444;border:none;color:#fff;font-size:24px;cursor:pointer;">
             ■
         </button>
     </div>
 
-    <!-- Session Active HUD (bottom, hidden in drive mode) -->
-    <div x-show="sessionActive && currentMovementMode !== 'drive'" x-cloak
+    <!-- Session Active HUD (bottom, hidden in drive/car mode) -->
+    <div x-show="sessionActive && currentMovementMode !== 'drive' && manualTransportMode !== 'car'" x-cloak
          style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
         <div class="glass" style="padding:10px 16px;border-radius:16px;">
-            <!-- Movement mode badge -->
-            <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;">
+            <!-- Movement mode + transport switcher -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                 <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:6px;background:rgba(16,185,129,0.12);color:#10b981;"
                       x-text="modeLabels[currentMovementMode] || 'サーチ中'"></span>
+                <div style="display:flex;gap:4px;">
+                    <template x-for="tm in transportModes" :key="tm.id">
+                        <button @click="setTransportMode(tm.id)"
+                                :style="manualTransportMode === tm.id ? 'background:rgba(16,185,129,0.2);color:#10b981;border-color:#10b981;' : 'background:rgba(255,255,255,0.04);color:#64748b;border-color:rgba(255,255,255,0.08);'"
+                                style="padding:3px 7px;border-radius:6px;border:1px solid;cursor:pointer;font-size:12px;"
+                                :title="tm.label">
+                            <span x-text="tm.emoji" style="pointer-events:none;"></span>
+                        </button>
+                    </template>
+                </div>
             </div>
             <!-- Detection notification card -->
             <div x-show="latestDetection" x-cloak x-transition
@@ -681,7 +716,15 @@ if (!$currentUser) {
                     { id: 'mochiko', label: '女性', emoji: '🌸' },
                     { id: 'ryusei', label: '男性', emoji: '🐉' },
                 ],
-                modeLabels: { stationary: '静止中', walk: 'サーチ中', bike: 'サーチ中（自転車）', drive: 'サーチ中（車）' },
+                modeLabels: { stationary: '静止中', walk: 'サーチ中', bike: 'サーチ中（自転車）', drive: 'サーチ中（車）', car: 'サーチ中（車）' },
+
+                // 移動手段: ユーザーが手動選択した場合はそちらを優先
+                manualTransportMode: localStorage.getItem('ikimon_transport') || 'walk',
+                transportModes: [
+                    { id: 'walk',  label: '徒歩', emoji: '🚶' },
+                    { id: 'bike',  label: '自転車', emoji: '🚲' },
+                    { id: 'car',   label: '車', emoji: '🚗' },
+                ],
 
                 get speakerEmoji() {
                     const sp = this.speakers.find(s => s.id === this.selectedSpeaker);
@@ -823,6 +866,15 @@ if (!$currentUser) {
 
                 // ── Session Management ──
 
+                setTransportMode(mode) {
+                    this.manualTransportMode = mode;
+                    localStorage.setItem('ikimon_transport', mode);
+                    // 車モード切り替え時はLiveScannerにも伝達
+                    if (this.liveScanner) {
+                        this.currentMovementMode = mode === 'car' ? 'drive' : mode;
+                    }
+                },
+
                 startSensor() {
                     this.sessionActive = true;
                     this.showModeSelect = false;
@@ -832,7 +884,9 @@ if (!$currentUser) {
                     this.sessionSpeciesCount = 0;
                     this.sessionDetections = [];
                     this.latestDetection = null;
-                    this.currentMovementMode = 'walk';
+                    this._quickStartDone = false;
+                    // 手動選択した移動手段を初期モードとして設定
+                    this.currentMovementMode = this.manualTransportMode === 'car' ? 'drive' : (this.manualTransportMode || 'walk');
 
                     // Timer
                     this._sessionTimer = setInterval(() => {
@@ -861,6 +915,9 @@ if (!$currentUser) {
                         const detected = this.sessionDetections.map(d => d.japanese_name || d.label).filter(Boolean);
                         const uniqueDetected = [...new Set(detected)].slice(0, 10).join(',');
 
+                        // 移動手段: 手動設定 > GPS自動検出
+                        const transportMode = this.manualTransportMode || (this.currentMovementMode === 'drive' ? 'car' : this.currentMovementMode) || 'walk';
+
                         try {
                             const params = new URLSearchParams({
                                 mode: 'ambient',
@@ -868,7 +925,7 @@ if (!$currentUser) {
                                 lng: gpsPos.lng,
                                 detected_species: uniqueDetected,
                                 voice_mode: VoiceGuide.getVoiceMode(),
-                                transport_mode: this.currentMovementMode || 'walk',
+                                transport_mode: transportMode,
                                 elapsed_min: Math.round((this.sessionElapsed || 0) / 60),
                                 session_count: this._ambientGuideCount,
                             });
@@ -876,6 +933,8 @@ if (!$currentUser) {
                             if (!resp.ok) return;
                             const json = await resp.json();
                             if (json.success && json.data) {
+                                // フェッチ後に再チェック（フェッチ中に他の音声が開始していれば追加しない）
+                                if (VoiceGuide.isSpeaking()) return;
                                 this._ambientGuideCount++;
                                 if (json.data.audio_url) {
                                     VoiceGuide.announceAudio(json.data.audio_url);
@@ -899,14 +958,21 @@ if (!$currentUser) {
                             this.envLabel = parts.join(' · ') || '';
                         },
                         onMovementModeChange: (mode) => {
+                            // 車を手動選択している場合はオート検出で上書きしない
+                            if (this.manualTransportMode === 'car') return;
                             this.currentMovementMode = mode;
-                            console.log('[Sensor] Movement mode:', mode);
+                            console.log('[Sensor] Movement mode auto:', mode);
                         },
                         onLog: (msg) => console.log('[LiveScanner]', msg),
                         onGpsUpdate: (pos) => {
                             this.gpsAccuracy = Math.round(pos.accuracy);
                             if (pos.accuracy <= 50 && this.explorationMap) {
                                 this.explorationMap.addExploredPoint(pos.lat, pos.lng, null);
+                            }
+                            // GPS取得後すぐに場所のトリビアを読み上げ（初回1回だけ）
+                            if (!this._quickStartDone && pos.accuracy <= 100 && window.VoiceGuide && VoiceGuide.isEnabled()) {
+                                this._quickStartDone = true;
+                                this._fetchOpeningGuide(pos.lat, pos.lng);
                             }
                         },
                         speaker: this.selectedSpeaker,
@@ -1059,6 +1125,32 @@ if (!$currentUser) {
                     this._detectionFadeTimer = setTimeout(() => { this.latestDetection = null; }, 5000);
                 },
 
+                // GPS取得後即時に場所のトリビアを取得（起動高速化）
+                async _fetchOpeningGuide(lat, lng) {
+                    if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
+                    try {
+                        const transportMode = this.manualTransportMode || 'walk';
+                        const params = new URLSearchParams({
+                            mode: 'opening',
+                            lat, lng,
+                            voice_mode: VoiceGuide.getVoiceMode(),
+                            transport_mode: transportMode,
+                        });
+                        const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
+                        if (!resp.ok) return;
+                        const json = await resp.json();
+                        if (json.success && json.data) {
+                            if (json.data.audio_url) {
+                                VoiceGuide.announceAudio(json.data.audio_url);
+                            } else if (json.data.guide_text) {
+                                VoiceGuide.announce(json.data.guide_text);
+                            }
+                        }
+                    } catch(e) {
+                        console.log('[Opening] Error:', e.message);
+                    }
+                },
+
                 async _fetchVoiceGuide(name, sciName, confidence, count, isFirst) {
                     const cacheKey = (name || '') + '|' + (sciName || '');
 
@@ -1082,6 +1174,8 @@ if (!$currentUser) {
                         params.set('detection_count', count || 1);
                         params.set('is_first_today', isFirst ? '1' : '0');
                         params.set('voice_mode', window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'standard');
+                        const transportMode = this.manualTransportMode || (this.currentMovementMode === 'drive' ? 'car' : this.currentMovementMode) || 'walk';
+                        params.set('transport_mode', transportMode);
                         const gpsPos = this.liveScanner?.lastGpsPos || {};
                         if (gpsPos.lat) params.set('lat', gpsPos.lat);
                         if (gpsPos.lng) params.set('lng', gpsPos.lng);

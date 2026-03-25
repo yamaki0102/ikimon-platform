@@ -172,16 +172,26 @@ var VoiceGuide = (function() {
 
     function announce(text) {
         if (!enabled || !text) return;
+        // 既に再生中かつキューが溜まっている場合は古いものを捨てて追加
         if (queue.length >= MAX_QUEUE) queue.splice(0, queue.length - MAX_QUEUE + 1);
         queue.push({ type: 'tts', text: text });
-        if (!speaking) _processQueue();
+        // speaking フラグを再確認してから処理（非同期コールバック後の状態変化に対応）
+        if (!speaking) {
+            speaking = true;
+            var item = queue.shift();
+            _speak(item.text);
+        }
     }
 
     function announceAudio(audioUrl) {
         if (!enabled || !audioUrl) return;
         if (queue.length >= MAX_QUEUE) queue.splice(0, queue.length - MAX_QUEUE + 1);
         queue.push({ type: 'audio', url: audioUrl });
-        if (!speaking) _processQueue();
+        if (!speaking) {
+            speaking = true;
+            var item = queue.shift();
+            _playAudio(item.url);
+        }
     }
 
     function playPreview(audioUrl) {
@@ -253,6 +263,7 @@ var VoiceGuide = (function() {
         speaking = true;
         var item = queue.shift();
         if (item.type === 'audio') {
+            // _playAudio内でspeaking=falseにしてから_processQueueを再帰呼出し
             _playAudio(item.url);
         } else {
             _speak(item.text);
@@ -287,21 +298,31 @@ var VoiceGuide = (function() {
 
     var _audioTimeout = null;
     var _audioFallback = null;
+    // 再生中のfinishコールバック識別子（複数登録防止）
+    var _activeFinishId = 0;
     function _playAudio(url) {
         var audio = _getAudioEl();
+        // 前のリスナーが残らないよう強制クリア
         audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
         audio.volume = 1.0;
         var done = false;
+        var myFinishId = ++_activeFinishId;
         if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
         if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
         function finish() {
-            if (done) return; done = true;
+            if (done) return;
+            // 別のfinishが既に実行済みなら（並走防止）無視
+            if (myFinishId !== _activeFinishId && !done) { done = true; return; }
+            done = true;
             if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
             if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
             audio.removeEventListener('ended', finish);
             audio.removeEventListener('error', onError);
             audio.removeEventListener('loadedmetadata', onMeta);
             currentAudio = null;
+            speaking = false;
             _processQueue();
         }
         function onError() { finish(); }
