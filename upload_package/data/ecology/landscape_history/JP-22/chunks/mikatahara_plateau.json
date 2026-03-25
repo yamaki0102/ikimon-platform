@@ -1,0 +1,51 @@
+{
+  "id": "mikatahara_plateau",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.7800,
+    "lng": 137.7200,
+    "radius_km": 3.0,
+    "place_names": ["三方原", "初生", "都田"],
+    "place_names_en": ["Mikatahara Plateau", "Hatsuo", "Miyakoda"]
+  },
+  "period": {
+    "label": "戦国時代〜現代",
+    "year_from": 1572,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "浜松市史・都田風土記",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "三方原は天竜川が作った洪積台地で、かつては広大なススキの原野が広がっていた。水はけが良すぎて水田に不向き",
+    "land_use_change": "ススキ原野 → 軍馬牧場(戦国) → 茶畑・ミカン畑(明治〜昭和) → 住宅地・工業団地(平成)",
+    "ecological_impact": "草原性の昆虫類（バッタ・チョウ類）が激減。かつてはキジやヒバリの楽園だった台地上から、草原が消えつつある",
+    "biodiversity_link": "三方原に残る茶畑の畝間や農道脇の草地は、草原性の昆虫にとって最後の避難場所。キジの声が聞こえるのは、こうした半自然草地が残っているから"
+  },
+  "narrative_layers": [
+    {
+      "theme": "grassland",
+      "title": "消えゆくススキの原",
+      "narrative": "三方原の戦いの舞台になったこの台地は、戦国時代にはススキの大草原だった。草原は森より地味だけど、独自の生態系を持っている。バッタ、キリギリス、ヒバリ、キジ。草原がなければ生きられない種がたくさんいた。今、日本の草原は絶滅危惧の生態系そのものになっている"
+    },
+    {
+      "theme": "tea_plantation",
+      "title": "茶畑という半自然環境",
+      "narrative": "明治以降、三方原の草原は茶畑に変わった。水田にできない痩せた台地が、逆にお茶の栽培に適していた。茶畑は森でも草原でもない独特の環境で、畝の間の地面にはクモやゴミムシが棲む。農薬を減らした茶畑は、意外と生き物の宝庫になる"
+    },
+    {
+      "theme": "urban_sprawl",
+      "title": "台地を飲み込む街",
+      "narrative": "平成以降、三方原台地は急速に住宅地と工業団地に変わった。茶畑すら減っている。でも住宅地の庭木や公園の植栽は、スズメやムクドリにとっての新しい生息地になった。生態系は完全には消えない。形を変えて、都市の隙間に潜り込む"
+    }
+  ],
+  "tags": {
+    "habitats": ["grassland", "plateau", "tea_plantation", "urban"],
+    "taxa_triggers": ["Phasianus colchicus", "Alauda arvensis", "Orthoptera", "Papilio"],
+    "common_name_triggers": ["キジ", "ヒバリ", "バッタ", "チョウ", "モンシロチョウ", "スズメ", "ムクドリ", "クモ"],
+    "themes": ["grassland_loss", "agriculture", "urban_sprawl"]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "id": "hamamatsu_castle_green",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.7103,
+    "lng": 137.7269,
+    "radius_km": 1.5,
+    "place_names": ["浜松城公園", "中区", "元城町"],
+    "place_names_en": ["Hamamatsu Castle Park", "Naka Ward", "Motoshiro-cho"]
+  },
+  "period": {
+    "label": "戦国時代〜現代",
+    "year_from": 1570,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "浜松市史・浜松中心街の今昔",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "浜松城は家康が築いた城で、周囲には堀と武家屋敷の庭園が広がっていた。城下には用水路網が張り巡らされていた",
+    "land_use_change": "城郭・武家屋敷 → 公園・官庁街(明治) → 空襲で焼失(1945) → 公園再整備(昭和〜平成)",
+    "ecological_impact": "城址の老木と堀の水辺が都市の緑のコアとして機能。空襲後に植えられた木々が70年以上経って大木になり、都市鳥類の重要な営巣地に",
+    "biodiversity_link": "浜松城公園でシジュウカラやメジロが多いのは、戦後植林から70年以上経った樹木が十分な樹洞と果実を提供しているため"
+  },
+  "narrative_layers": [
+    {
+      "theme": "urban_forest_succession",
+      "title": "焼け野原から70年の森",
+      "narrative": "1945年、浜松は空襲で焼け野原になった。城の周りも例外じゃない。戦後すぐに植えられた苗木が、今では立派な大木になっている。70年以上の歳月が、幹に樹洞を作り、枝に果実をつけ、根元にキノコを生やした。シジュウカラが巣を作れるのは、その歳月の蓄積のおかげ"
+    },
+    {
+      "theme": "castle_moat_ecology",
+      "title": "お堀は400年の水辺",
+      "narrative": "浜松城のお堀は戦国時代から水をたたえている。400年以上の歴史を持つ都市の水辺。周りの用水路が暗渠になったり埋められたりする中で、お堀だけが残った。カワセミが時々現れるのは、この古い水辺が都市の中で水生昆虫を支えているから"
+    },
+    {
+      "theme": "urban_island_biogeography",
+      "title": "都市の中の緑の島",
+      "narrative": "生態学に島の理論がある。海に浮かぶ島が小さいほど生物種は少ない。都市の公園も同じ。浜松城公園はビルに囲まれた緑の島で、ここにいる生き物は、この島の広さと周辺の緑地とのつながりに制限されている。鳥たちは公園の木々を飛び石にして、都市を渡っている"
+    }
+  ],
+  "tags": {
+    "habitats": ["urban_park", "castle_ruins", "moat", "urban_forest"],
+    "taxa_triggers": ["Parus minor", "Zosterops japonicus", "Alcedo atthis", "Dendrocopos kizuki"],
+    "common_name_triggers": ["シジュウカラ", "メジロ", "カワセミ", "コゲラ", "ヒヨドリ", "ムクドリ", "エナガ"],
+    "themes": ["urban_forest", "war_recovery", "island_biogeography"]
+  }
+}

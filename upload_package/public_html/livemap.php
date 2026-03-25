@@ -110,7 +110,7 @@ $currentUser = Auth::user();
             <span class="text-sm text-green-400 font-bold" id="my-contrib">地図を育てよう</span>
         </div>
         <div class="flex gap-3 justify-center">
-            <a href="/field_research.php" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold transition text-center">🎧 さんぽ</a>
+            <a href="/field_research.php" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold transition text-center">🔍 いきものサーチ</a>
             <a href="/field_research.php" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-bold transition text-center">📡 スキャン</a>
             <a href="post.php" class="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 rounded-xl text-sm font-bold transition text-center">📷 投稿</a>
         </div>

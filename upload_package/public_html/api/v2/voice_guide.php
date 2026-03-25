@@ -166,6 +166,17 @@ if ($requestMode === 'opening') {
     $weatherNote = $weather ? "天気: {$weather}" : '';
     $tempNote = $temperature ? "気温: {$temperature}" : '';
 
+    // 景観史コンテキスト
+    $openingLandscape = '';
+    if ($lat && $lng) {
+        try {
+            require_once ROOT_DIR . '/libs/LandscapeHistoryContext.php';
+            $openingLandscape = LandscapeHistoryContext::getPromptContext(
+                $lat, $lng, null, null, 'opening', $userId
+            );
+        } catch (Throwable $e) {}
+    }
+
     $prompt = <<<PROMPT
 あなたは自然散策の相棒です。これからフィールドに出る人に、その場所の空気感を伝える短い挨拶を生成してください。
 
@@ -181,12 +192,15 @@ if ($requestMode === 'opening') {
 過去の観察データ:
 {$nearbyContext}
 
+{$openingLandscape}
+
 要件:
 - その場所の空気感・季節感を2〜3文で描写（例: 風、光、音、匂い）
+- 景観史の情報があれば「昔ここは〇〇だった。だから今でも△△がいる」のように1-2文で自然に織り込む
 - 過去の観察データがあれば「この辺りでは以前〇〇が観察されてるよ」と1文
 - この場所の自然の特徴や季節ならではの見どころを1〜2文
 - 最後に「何に出会えるかな」的な期待感を1文
-- 合計4〜6文、150〜250文字。情景描写を豊かに
+- 合計4〜8文、200〜400文字。情景描写を豊かに。じっくり語ってOK
 - 百科事典的な説明はしない。五感に訴える情景描写を
 - 音声読み上げ用なので難しい漢字はひらがなで
 
@@ -263,6 +277,17 @@ if ($requestMode === 'closing') {
         default => '',
     };
 
+    // 景観史コンテキスト（closing用）
+    $closingLandscape = '';
+    if ($lat && $lng) {
+        try {
+            require_once ROOT_DIR . '/libs/LandscapeHistoryContext.php';
+            $closingLandscape = LandscapeHistoryContext::getPromptContext(
+                $lat, $lng, $highlightSpecies ?: null, null, 'closing', $userId
+            );
+        } catch (Throwable $e) {}
+    }
+
     $prompt = <<<PROMPT
 あなたは自然散策の相棒です。セッションが終わった仲間に、今日の体験を記憶に残す短いメッセージを贈ってください。
 
@@ -276,13 +301,15 @@ if ($requestMode === 'closing') {
 最も印象的な出会い: {$highlightSpecies}
 {$silentContext}
 {$memoryContext}
+{$closingLandscape}
 
 要件:
 - 「今日は{$weatherFeeling}{$timeFeeling}…」のように、天気と時間帯の空気感から始める
 - 最も印象的な出会いに触れて、その出会いに小さな意味を添える（豆知識1つ）
+- 景観史の情報があれば「今日歩いた場所は、昔は〇〇だった。キミのデータがその変化を記録している」のように1-2文添える
 - 数字の羅列（「N分でN種」）で終わらない。その日の体験の手触りを伝える
 - 最後に「次は〇〇してみて」と具体的な再訪の伏線を1つ（時間帯・季節・場所を変える提案）
-- 合計4〜6文、150〜250文字。体験の余韻を豊かに
+- 合計4〜8文、200〜400文字。体験の余韻を豊かに。じっくり語ってOK
 - 集計レポートではなく、散歩から帰る友達に贈る最後の一言として
 - 音声読み上げ用なので難しい漢字はひらがなで
 
@@ -475,6 +502,21 @@ if ($requestMode === 'ambient') {
         'この地域の植生タイプ（落葉広葉樹林、常緑樹、水田地帯、河川敷など）を伝えて。「こういう環境だから〇〇が棲める」という地域と生き物のつながりを短く',
         'この地域で過去に観察された種のデータに基づいて「ここには〇〇もいるはず。次に来た時に探してみて」のように、次回の楽しみを提案して',
     ];
+
+    // 景観史テーマをトピックプールに追加
+    $ambientLandscape = '';
+    if ($lat && $lng) {
+        try {
+            require_once ROOT_DIR . '/libs/LandscapeHistoryContext.php';
+            $ambientLandscape = LandscapeHistoryContext::getPromptContext(
+                $lat, $lng, null, null, 'ambient', $userId
+            );
+        } catch (Throwable $e) {}
+    }
+    if (!empty($ambientLandscape)) {
+        $topicPool[] = 'この場所の景観の歴史と生き物の関係を語って。下記の景観史情報を使って。';
+    }
+
     $topic = $topicPool[array_rand($topicPool)];
 
     $speciesContext = $detectedSpecies
@@ -514,6 +556,7 @@ if ($requestMode === 'ambient') {
 経過時間: {$elapsedMin}分
 {$speciesContext}
 {$nearbySpeciesContext}
+{$ambientLandscape}
 {$depthInstruction}
 
 今回のテーマ: {$topic}
@@ -521,7 +564,7 @@ if ($requestMode === 'ambient') {
 {$avoidList}
 
 条件:
-- 3〜5文、150〜200文字。散歩を楽しませる解説を豊かに。沈黙より長い解説の方が良い
+- 3〜8文、150〜500文字。散歩を楽しませる解説を豊かに。沈黙より長い解説の方が良い。景観史テーマの場合はじっくり語ってOK
 - リスナーは{$transportLabel}で移動中。{$transportLabel}の体験に合った話し方で（徒歩なら「足元」「立ち止まって」、車なら「窓の外」「この道沿い」、自転車なら「風を感じながら」など）
 - 「キミが今見ている景色」と結びつけて話す（抽象論ではなく「この場所では…」「今の季節は…」）
 - ネイチャーポジティブ・生物多様性・30by30などの概念は、直接名前を出すより体験を通じて感じさせる
@@ -619,6 +662,22 @@ $phenologyContext = _getSeasonalPhenology($month);
 // 共起種データの注入
 $coOccurrenceContext = _getCoOccurrence($sciName ?: $name, $displayName);
 
+// 景観史コンテキストの注入
+$landscapeContext = '';
+$landscapeDeliveryHint = 'immediate';
+if ($lat && $lng) {
+    try {
+        require_once ROOT_DIR . '/libs/LandscapeHistoryContext.php';
+        $landscapeContext = LandscapeHistoryContext::getPromptContext(
+            $lat, $lng, $displayName, $sciName, 'detection', $userId
+        );
+        $meta = LandscapeHistoryContext::getDeliveryMetadata($lat, $lng, $displayName, 'detection');
+        if ($meta) $landscapeDeliveryHint = $meta['delivery_hint'];
+    } catch (Throwable $e) {
+        // non-critical
+    }
+}
+
 // 分類カテゴリ名かどうか判定（常緑広葉樹、落葉高木 etc → 具体種を教えるモード）
 $isCategoryName = preg_match('/^(常緑|落葉|針葉|広葉|低木|高木|草本|つる性|シダ|イネ科|キク科)/', $name);
 $nearbyContext = '';
@@ -689,6 +748,7 @@ $prompt = <<<PROMPT
 {$coOccurrenceContext}
 {$regionalContext}
 {$phenologyContext}
+{$landscapeContext}
 {$nearbyInstruction}
 
 {$avoidList}
@@ -697,7 +757,7 @@ $prompt = <<<PROMPT
 {$emotionInstruction}
 
 条件:
-- 3〜5文、150〜200文字。豆知識や生態の解説を豊かに。沈黙より長い解説の方が良い
+- 3〜6文、150〜400文字。豆知識や生態の解説を豊かに。沈黙より長い解説の方が良い。景観史の情報がある場合はじっくり語ってOK
 - リスナーは{$transportLabel}で移動中。{$transportLabel}の体験に合った話し方で
 - 上記の「生態系データ」「共起種」「地域特徴」「季節情報」を根拠にして話す。根拠のない話は作らない
 - 「今回の話し方」に従って、{$areaName}に密着した具体的で面白い話をして
@@ -724,6 +784,10 @@ if (empty($guideText)) {
 _saveHistory($userId, $guideText, $pastTexts);
 
 $result = ['guide_text' => $guideText, 'audio_url' => null];
+if (!empty($landscapeContext)) {
+    $result['delivery_hint'] = $landscapeDeliveryHint;
+    $result['has_landscape_history'] = true;
+}
 
 if ($useVoicevoxAudio && !empty($guideText)) {
     $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);

@@ -1,0 +1,33 @@
+{
+  "region_code": "JP-22",
+  "region_name": "静岡県",
+  "region_name_en": "Shizuoka Prefecture",
+  "locale": "ja",
+  "updated_at": "2026-03-25",
+  "chunks": [
+    "sanaru_wetland",
+    "tenryu_river_floodplain",
+    "hamanako_brackish",
+    "mikatahara_plateau",
+    "hamamatsu_castle_green",
+    "enshu_coast_dunes",
+    "akiha_tenryu_futamata",
+    "hamakita_satoyama",
+    "magome_river_urban",
+    "inasa_lake_garden",
+    "hamamatsu_station_area"
+  ],
+  "coverage": {
+    "description": "浜松市を中心とした遠州地域の景観史。7つの主要エリアをカバー",
+    "areas": [
+      "佐鳴湖周辺",
+      "天竜川流域",
+      "浜名湖",
+      "三方原台地",
+      "浜松城公園・市街地",
+      "遠州灘海岸",
+      "秋葉山〜天竜二俣",
+      "浜北里山"
+    ]
+  }
+}

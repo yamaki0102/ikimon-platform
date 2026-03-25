@@ -1,0 +1,51 @@
+{
+  "id": "magome_river_urban",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.7080,
+    "lng": 137.7350,
+    "radius_km": 2.0,
+    "place_names": ["馬込川", "中区", "南区"],
+    "place_names_en": ["Magome River", "Naka Ward", "Minami Ward"]
+  },
+  "period": {
+    "label": "江戸時代〜現代",
+    "year_from": 1600,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "浜松市史・浜松中心街の今昔",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "馬込川は城下町の排水路として整備された都市河川。かつては両岸に柳並木と洗い場があった",
+    "land_use_change": "自然河川 → 城下排水路(江戸) → コンクリート護岸(昭和) → 一部親水整備(平成)",
+    "ecological_impact": "コンクリート護岸化で水際の植生と底生生物が激減。近年の親水化工事で一部区間に自然護岸が復活し、魚類が戻り始めている",
+    "biodiversity_link": "馬込川でカルガモやコイが見られるのは、都市河川としての水量が保たれているから。護岸の隙間に根付いた草が、わずかな生息地を提供している"
+  },
+  "narrative_layers": [
+    {
+      "theme": "urban_river",
+      "title": "コンクリートの川に棲むもの",
+      "narrative": "馬込川の護岸はほとんどコンクリート。でもコンクリートの隙間から草が生え、その根元に虫が棲み、それを食べる鳥が来る。生き物は人間が想像するより遥かにしたたかで、コンクリートの都市河川にさえ食い込んでくる"
+    },
+    {
+      "theme": "water_history",
+      "title": "城下町の水の記憶",
+      "narrative": "この川は400年前から浜松の街の水を集めている。城下町の生活用水から始まって、今は都市の雨水排水路。でも水が流れ続ける限り、そこは生き物にとって移動路になる。カワセミは川沿いを飛んで都市を横断できる。川は生き物のための道路でもある"
+    },
+    {
+      "theme": "restoration_ecology",
+      "title": "自然を取り戻す実験",
+      "narrative": "近年、一部の区間でコンクリート護岸を剥がして自然護岸に戻す実験が始まっている。石を積み、水辺に草を植える。すると驚くほど早く生き物が戻ってくる。ヤゴが棲み、小魚が増え、カワセミが来る。破壊は速いけど、回復も案外速い"
+    }
+  ],
+  "tags": {
+    "habitats": ["urban_river", "concrete_channel", "waterside"],
+    "taxa_triggers": ["Anas zonorhyncha", "Cyprinus carpio", "Alcedo atthis", "Motacilla alba"],
+    "common_name_triggers": ["カルガモ", "コイ", "カワセミ", "ハクセキレイ", "カメ", "サギ"],
+    "themes": ["urban_river", "restoration", "water_corridor"]
+  }
+}

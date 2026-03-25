@@ -203,6 +203,47 @@ var VoiceGuide = (function() {
 
     function onFinish(fn) { onFinishCallback = fn; }
 
+    var _ambientQueue = [];
+
+    function announceWithHint(response) {
+        if (!enabled || !response) return;
+        var hint = response.delivery_hint || 'immediate';
+        var text = response.guide_text;
+        var audioUrl = response.audio_url;
+
+        if (hint === 'ambient_slot') {
+            _ambientQueue.push({ text: text, audioUrl: audioUrl });
+            return;
+        }
+
+        if (hint === 'next_slot') {
+            if (speaking) {
+                if (audioUrl) {
+                    queue.push({ type: 'audio', url: audioUrl });
+                } else if (text) {
+                    queue.push({ type: 'tts', text: text });
+                }
+                return;
+            }
+        }
+
+        if (audioUrl) {
+            announceAudio(audioUrl);
+        } else if (text) {
+            announce(text);
+        }
+    }
+
+    function drainAmbientQueue() {
+        if (_ambientQueue.length === 0) return;
+        var item = _ambientQueue.shift();
+        if (item.audioUrl) {
+            announceAudio(item.audioUrl);
+        } else if (item.text) {
+            announce(item.text);
+        }
+    }
+
     function _processQueue() {
         if (queue.length === 0) {
             speaking = false;
@@ -297,6 +338,8 @@ var VoiceGuide = (function() {
         loadSetting: loadSetting,
         announce: announce,
         announceAudio: announceAudio,
+        announceWithHint: announceWithHint,
+        drainAmbientQueue: drainAmbientQueue,
         onFinish: onFinish,
         isSpeaking: function() { return speaking; },
         stop: stop

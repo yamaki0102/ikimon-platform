@@ -325,7 +325,7 @@ function rlLabel($rl)
                     <div style="margin-top: var(--zukan-space-md);">
                         <a href="/field_research.php" class="zukan-promo__btn zukan-promo__btn--primary" style="display:inline-flex;">
                             <i data-lucide="footprints" style="width:16px;height:16px;"></i>
-                            さんぽに出かける
+                            いきものサーチに出かける
                         </a>
                     </div>
                 </div>

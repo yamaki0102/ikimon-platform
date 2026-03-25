@@ -407,7 +407,7 @@ if (!$currentUser) {
             <!-- Movement mode badge -->
             <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;">
                 <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:6px;background:rgba(16,185,129,0.12);color:#10b981;"
-                      x-text="modeLabels[currentMovementMode] || 'さんぽ中'"></span>
+                      x-text="modeLabels[currentMovementMode] || 'サーチ中'"></span>
             </div>
             <!-- Detection notification card -->
             <div x-show="latestDetection" x-cloak x-transition
@@ -481,7 +481,7 @@ if (!$currentUser) {
             <!-- Header -->
             <div style="text-align:center;margin-bottom:24px;">
                 <div style="font-size:48px;margin-bottom:8px;">🌿</div>
-                <h2 style="font-size:22px;font-weight:900;margin:0;">今日のさんぽ</h2>
+                <h2 style="font-size:22px;font-weight:900;margin:0;">今日のいきものサーチ</h2>
                 <p style="font-size:13px;color:#94a3b8;margin:4px 0 0;" x-text="reportData?.locationName || ''"></p>
             </div>
 
@@ -578,7 +578,7 @@ if (!$currentUser) {
                     <span x-text="formatDistance(weeklyStats.distance)"></span>
                 </div>
                 <div style="font-size:11px;color:#f59e0b;margin-top:4px;" x-show="weeklyStats.streak > 1"
-                     x-text="'🔥 ' + weeklyStats.streak + '日連続さんぽ中!'"></div>
+                     x-text="'🔥 ' + weeklyStats.streak + '日連続サーチ中!'"></div>
             </div>
 
             <!-- Badges -->
@@ -681,7 +681,7 @@ if (!$currentUser) {
                     { id: 'mochiko', label: '女性', emoji: '🌸' },
                     { id: 'ryusei', label: '男性', emoji: '🐉' },
                 ],
-                modeLabels: { stationary: '静止中', walk: 'さんぽ中', bike: '自転車中', drive: 'ドライブ中' },
+                modeLabels: { stationary: '静止中', walk: 'サーチ中', bike: 'サーチ中（自転車）', drive: 'サーチ中（車）' },
 
                 get speakerEmoji() {
                     const sp = this.speakers.find(s => s.id === this.selectedSpeaker);
@@ -842,6 +842,13 @@ if (!$currentUser) {
                         this.sessionSpeciesCount = this.liveScanner.getSpeciesCount();
                     }, 1000);
 
+                    // Landscape history ambient drain (every 60s)
+                    this._ambientDrainTimer = setInterval(() => {
+                        if (window.VoiceGuide && VoiceGuide.drainAmbientQueue && !VoiceGuide.isSpeaking()) {
+                            VoiceGuide.drainAmbientQueue();
+                        }
+                    }, 60000);
+
                     // LiveScanner with speed-adaptive mode
                     const videoEl = document.getElementById('scan-cam');
                     const canvasEl = document.getElementById('scan-canvas');
@@ -888,6 +895,7 @@ if (!$currentUser) {
                 async stopSensor() {
                     this.sessionActive = false;
                     if (this._sessionTimer) { clearInterval(this._sessionTimer); this._sessionTimer = null; }
+                    if (this._ambientDrainTimer) { clearInterval(this._ambientDrainTimer); this._ambientDrainTimer = null; }
 
                     if (window.VoiceGuide) {
                         VoiceGuide.stop();
@@ -987,7 +995,9 @@ if (!$currentUser) {
                         this._fetchVoiceGuide(jaName, detection.scientific_name, detection.confidence_raw || 0.5, this._detCountToday[key], isFirst)
                             .then(res => {
                                 if (!res) return;
-                                if (res.audio_url) {
+                                if (res.delivery_hint && VoiceGuide.announceWithHint) {
+                                    VoiceGuide.announceWithHint(res);
+                                } else if (res.audio_url) {
                                     VoiceGuide.announceAudio(res.audio_url);
                                 } else if (res.guide_text) {
                                     VoiceGuide.announce(res.guide_text);
