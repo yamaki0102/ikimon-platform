@@ -627,6 +627,7 @@ if (!$currentUser) {
     <script src="js/ExplorationMap.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="js/SiteGuide.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="js/LiveScanner.js" nonce="<?= CspNonce::attr() ?>"></script>
+    <script src="assets/js/VoiceGuide.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         function explorationApp() {
             return {
@@ -862,12 +863,25 @@ if (!$currentUser) {
                         canvasElement: canvasEl,
                     });
 
+                    // Enable VoiceGuide
+                    if (window.VoiceGuide) {
+                        VoiceGuide.setSpeaker(this.selectedSpeaker);
+                        VoiceGuide.setEnabled(true);
+                        // Unlock audio on user gesture (mobile browsers)
+                        VoiceGuide.announce('');
+                    }
+
                     console.log(`[Sensor] Started (speaker: ${this.selectedSpeaker})`);
                 },
 
                 async stopSensor() {
                     this.sessionActive = false;
                     if (this._sessionTimer) { clearInterval(this._sessionTimer); this._sessionTimer = null; }
+
+                    if (window.VoiceGuide) {
+                        VoiceGuide.stop();
+                        VoiceGuide.setEnabled(false);
+                    }
 
                     let result = null;
                     if (this.liveScanner) {
@@ -947,9 +961,51 @@ if (!$currentUser) {
                             .addTo(this.map);
                     }
 
+                    // Voice guide narration
+                    if (window.VoiceGuide && VoiceGuide.isEnabled()) {
+                        const jaName = detection.japanese_name || detection.label || '';
+                        const key = detection.label || '';
+                        this._detCountToday = this._detCountToday || {};
+                        this._detCountToday[key] = (this._detCountToday[key] || 0) + 1;
+                        const isFirst = this._detCountToday[key] === 1;
+
+                        if (VoiceGuide.getVoiceMode() === 'standard') {
+                            VoiceGuide.announce(jaName + 'を検出しました');
+                        }
+
+                        this._fetchVoiceGuide(jaName, detection.scientific_name, detection.confidence_raw || 0.5, this._detCountToday[key], isFirst)
+                            .then(res => {
+                                if (!res) return;
+                                if (res.audio_url) {
+                                    VoiceGuide.announceAudio(res.audio_url);
+                                } else if (res.guide_text) {
+                                    VoiceGuide.announce(res.guide_text);
+                                }
+                            });
+                    }
+
                     // Auto-fade detection card after 5 seconds
                     if (this._detectionFadeTimer) clearTimeout(this._detectionFadeTimer);
                     this._detectionFadeTimer = setTimeout(() => { this.latestDetection = null; }, 5000);
+                },
+
+                async _fetchVoiceGuide(name, sciName, confidence, count, isFirst) {
+                    try {
+                        const params = new URLSearchParams();
+                        params.set('name', name || '');
+                        params.set('scientific_name', sciName || '');
+                        params.set('confidence', confidence);
+                        params.set('detection_count', count || 1);
+                        params.set('is_first_today', isFirst ? '1' : '0');
+                        params.set('voice_mode', window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'standard');
+                        const gpsPos = this.liveScanner?.lastGpsPos || {};
+                        if (gpsPos.lat) params.set('lat', gpsPos.lat);
+                        if (gpsPos.lng) params.set('lng', gpsPos.lng);
+                        const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
+                        if (!resp.ok) return null;
+                        const json = await resp.json();
+                        return json.success ? json.data : null;
+                    } catch (e) { return null; }
                 },
 
                 formatElapsed(sec) {
