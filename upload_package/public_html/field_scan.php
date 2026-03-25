@@ -468,13 +468,21 @@ function showScreen(name) {
 }
 
 // ===== Start =====
+var _dbgLogBuf = {}, _dbgLogTimer = null;
 function dbg(msg) {
     var el = document.getElementById('debug-status');
     if (el) el.innerHTML = msg + '<br>' + (el.innerHTML || '').split('<br>').slice(0, 8).join('<br>');
     console.log('[scan] ' + msg);
-    // サーバーにログ送信（音声ガイドデバッグ用）
     if (msg.indexOf('🔊') >= 0 || msg.indexOf('🔇') >= 0 || msg.indexOf('ERR') >= 0) {
-        navigator.sendBeacon('/api/v2/client_log.php', JSON.stringify({msg: msg, ts: Date.now(), ua: navigator.userAgent.substring(0,80)}));
+        _dbgLogBuf[msg] = (_dbgLogBuf[msg] || 0) + 1;
+        if (!_dbgLogTimer) {
+            _dbgLogTimer = setTimeout(function() {
+                var entries = Object.entries(_dbgLogBuf);
+                _dbgLogBuf = {}; _dbgLogTimer = null;
+                var lines = entries.map(function(e) { return e[1] > 1 ? e[0] + ' (x' + e[1] + ')' : e[0]; });
+                try { navigator.sendBeacon('/api/v2/client_log.php', JSON.stringify({msg: lines.join(' | '), ua: navigator.userAgent.substring(0,80)})); } catch(ex) {}
+            }, 5000);
+        }
     }
 }
 

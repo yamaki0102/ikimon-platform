@@ -313,6 +313,11 @@ if (!$currentUser) {
             <span class="stat-value" x-text="gpsAccuracy ? gpsAccuracy + ' m' : '--'" style="font-size:0.85rem;"></span>
             <span class="stat-label">GPS</span>
         </div>
+        <div class="stat-row" style="margin-top:2px;">
+            <div class="gps-dot" :class="isOnline ? 'good' : 'off'" style="margin-right:4px;"></div>
+            <span class="stat-value" x-text="isOnline ? 'OK' : 'OFF'" style="font-size:0.85rem;" :style="isOnline ? '' : 'color:#ef4444'"></span>
+            <span class="stat-label">通信</span>
+        </div>
     </div>
 
     <!-- Period Filter (desktop: top, mobile: bottom) -->
@@ -646,6 +651,7 @@ if (!$currentUser) {
                 layerFlags: { fog: true, trails: true, observations: true },
                 gpsAccuracy: null,
                 hasGuide: false,
+                isOnline: navigator.onLine,
 
                 // Report state
                 showReport: false,
@@ -693,6 +699,10 @@ if (!$currentUser) {
 
                 init() {
                     lucide.createIcons();
+
+                    // Connectivity monitoring
+                    window.addEventListener('online', () => { this.isOnline = true; });
+                    window.addEventListener('offline', () => { this.isOnline = false; });
 
                     // Init map
                     this.map = new maplibregl.Map({
@@ -871,6 +881,7 @@ if (!$currentUser) {
                         VoiceGuide.announce('');
                     }
 
+                    this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
                     console.log(`[Sensor] Started (speaker: ${this.selectedSpeaker})`);
                 },
 
@@ -990,6 +1001,20 @@ if (!$currentUser) {
                 },
 
                 async _fetchVoiceGuide(name, sciName, confidence, count, isFirst) {
+                    const cacheKey = (name || '') + '|' + (sciName || '');
+
+                    // Try IndexedDB cache first (for repeated detections / offline)
+                    const cached = await this._getVoiceCache(cacheKey);
+                    if (cached && !navigator.onLine) {
+                        this._sendLog('🔊 cache-hit (offline): ' + name);
+                        return cached;
+                    }
+
+                    if (!navigator.onLine) {
+                        this._sendLog('🔊 offline-fallback TTS: ' + name);
+                        return { guide_text: name + 'を検出しました', audio_url: null };
+                    }
+
                     try {
                         const params = new URLSearchParams();
                         params.set('name', name || '');
@@ -1002,10 +1027,66 @@ if (!$currentUser) {
                         if (gpsPos.lat) params.set('lat', gpsPos.lat);
                         if (gpsPos.lng) params.set('lng', gpsPos.lng);
                         const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
-                        if (!resp.ok) return null;
+                        if (!resp.ok) {
+                            this._sendLog('🔊 API ' + resp.status);
+                            return cached || { guide_text: name + 'を検出しました', audio_url: null };
+                        }
                         const json = await resp.json();
-                        return json.success ? json.data : null;
-                    } catch (e) { return null; }
+                        if (json.success && json.data) {
+                            await this._putVoiceCache(cacheKey, json.data);
+                            return json.data;
+                        }
+                        return null;
+                    } catch (e) {
+                        this._sendLog('🔊 fetch ERR: ' + (e.message || 'network'));
+                        return cached || { guide_text: name + 'を検出しました', audio_url: null };
+                    }
+                },
+
+                // --- IndexedDB voice guide cache ---
+                _voiceCacheDb: null,
+                async _openVoiceCacheDb() {
+                    if (this._voiceCacheDb) return this._voiceCacheDb;
+                    if (!window.idb) return null;
+                    this._voiceCacheDb = await idb.openDB('ikimon-voice-cache', 1, {
+                        upgrade(db) { db.createObjectStore('guides'); },
+                    });
+                    return this._voiceCacheDb;
+                },
+                async _getVoiceCache(key) {
+                    try {
+                        const db = await this._openVoiceCacheDb();
+                        if (!db) return null;
+                        return await db.get('guides', key);
+                    } catch { return null; }
+                },
+                async _putVoiceCache(key, data) {
+                    try {
+                        const db = await this._openVoiceCacheDb();
+                        if (!db) return;
+                        await db.put('guides', data, key);
+                    } catch {}
+                },
+
+                // --- Aggregated client logging ---
+                _logBuffer: {},
+                _logFlushTimer: null,
+                _sendLog(msg) {
+                    this._logBuffer[msg] = (this._logBuffer[msg] || 0) + 1;
+                    if (!this._logFlushTimer) {
+                        this._logFlushTimer = setTimeout(() => {
+                            const entries = Object.entries(this._logBuffer);
+                            this._logBuffer = {};
+                            this._logFlushTimer = null;
+                            const lines = entries.map(([m, c]) => c > 1 ? m + ' (x' + c + ')' : m);
+                            try {
+                                navigator.sendBeacon('/api/v2/client_log.php', JSON.stringify({
+                                    msg: lines.join(' | '),
+                                    ua: navigator.userAgent.substring(0, 80)
+                                }));
+                            } catch {}
+                        }, 5000);
+                    }
                 },
 
                 formatElapsed(sec) {
