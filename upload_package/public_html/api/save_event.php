@@ -104,9 +104,24 @@ $eventCode = trim($input['event_code'] ?? '');
 // Grant ID
 $grantId = trim($input['grant_id'] ?? '');
 
+// Event type (bioblitz, tourism_bioblitz, survey, etc.)
+$eventType = trim($input['event_type'] ?? 'bioblitz');
+$validTypes = ['bioblitz', 'tourism_bioblitz', 'survey', 'workshop', 'custom'];
+if (!in_array($eventType, $validTypes, true)) $eventType = 'bioblitz';
+
+// Guest participation (tourism_bioblitz defaults to true)
+$guestAllowed = (bool)($input['guest_allowed'] ?? ($eventType === 'tourism_bioblitz'));
+
+// Difficulty level
+$difficulty = trim($input['difficulty'] ?? 'beginner');
+if (!in_array($difficulty, ['beginner', 'intermediate', 'advanced'], true)) $difficulty = 'beginner';
+
 $event = [
     'id'                  => $eventId ?: uniqid('evt_'),
     'event_code'          => $eventCode,
+    'event_type'          => $eventType,
+    'guest_allowed'       => $guestAllowed,
+    'difficulty'          => $difficulty,
     'title'               => $title,
     'memo'                => mb_substr(trim($input['memo'] ?? ''), 0, 1000), // Fixed limit to 1000
     'event_date'          => $eventDate,

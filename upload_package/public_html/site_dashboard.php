@@ -53,6 +53,16 @@ if ($siteId) {
     }
 }
 
+$guideData = null;
+$conservationStory = null;
+if ($siteId) {
+    $guideFile = DATA_DIR . "sites/{$siteId}/guide.json";
+    if (file_exists($guideFile)) {
+        $guideData = json_decode(file_get_contents($guideFile), true);
+        $conservationStory = $guideData['conservation_story'] ?? null;
+    }
+}
+
 $meta_title = $site ? $site['name'] . ' ダッシュボード' : 'サイトダッシュボード';
 
 // Rank color mapping
@@ -1023,6 +1033,111 @@ if ($stats) {
                         </div>
                         <p class="text-gray-500 mt-3" style="font-size: var(--text-xs);">出典: 環境省レッドリスト / 静岡県レッドデータブック2020</p>
                     </div>
+                <?php endif; ?>
+
+                <!-- ⑫.5 Conservation Story (Site History & People) -->
+                <?php if ($conservationStory): ?>
+                <div class="glass-card p-5 md:p-6 mb-6 border-l-4 border-amber-500">
+                    <h2 class="text-xs font-bold tracking-[0.15em] text-gray-400 uppercase mb-5 flex items-center gap-2">
+                        <i data-lucide="scroll-text" class="w-4 h-4 text-amber-500"></i>
+                        Conservation Story
+                    </h2>
+
+                    <!-- Milestones Timeline -->
+                    <?php if (!empty($conservationStory['milestones'])): ?>
+                    <div class="mb-6">
+                        <h3 class="text-sm font-bold text-[#1a2e1f]/70 mb-3 flex items-center gap-2">
+                            <i data-lucide="milestone" class="w-3.5 h-3.5"></i> あゆみ
+                        </h3>
+                        <div class="relative pl-6 border-l-2 border-amber-200 space-y-4">
+                            <?php
+                            $milestones = $conservationStory['milestones'];
+                            usort($milestones, fn($a, $b) => $a['year'] <=> $b['year']);
+                            foreach ($milestones as $ms):
+                                $sigColor = match($ms['significance'] ?? 'local') {
+                                    'national' => 'bg-emerald-500',
+                                    'regional' => 'bg-sky-500',
+                                    default => 'bg-amber-400',
+                                };
+                            ?>
+                            <div class="relative">
+                                <div class="absolute -left-[1.85rem] top-1 w-3 h-3 rounded-full <?= $sigColor ?> border-2 border-white shadow-sm"></div>
+                                <div class="text-xs">
+                                    <span class="font-black text-[#1a2e1f] tabular-nums"><?= (int)$ms['year'] ?></span>
+                                    <span class="font-bold text-[#1a2e1f]/80 ml-2"><?= htmlspecialchars($ms['title'], ENT_QUOTES, 'UTF-8') ?></span>
+                                    <p class="text-gray-500 mt-0.5 leading-relaxed"><?= htmlspecialchars($ms['description'], ENT_QUOTES, 'UTF-8') ?></p>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="flex gap-3 mt-3 text-[10px] text-gray-400 pl-6">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> 国レベル</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500 inline-block"></span> 地域</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> 拠点</span>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- Key People -->
+                    <?php if (!empty($conservationStory['key_people'])): ?>
+                    <div class="mb-6">
+                        <h3 class="text-sm font-bold text-[#1a2e1f]/70 mb-3 flex items-center gap-2">
+                            <i data-lucide="users" class="w-3.5 h-3.5"></i> キーパーソン
+                        </h3>
+                        <div class="space-y-3">
+                            <?php foreach ($conservationStory['key_people'] as $person): ?>
+                            <div class="flex gap-3 items-start bg-amber-50/50 rounded-xl p-3 border border-amber-100/50">
+                                <div class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                    <i data-lucide="user" class="w-4 h-4 text-amber-600"></i>
+                                </div>
+                                <div class="text-xs">
+                                    <?php if (!empty($person['name'])): ?>
+                                    <p class="font-bold text-[#1a2e1f]"><?= htmlspecialchars($person['name'], ENT_QUOTES, 'UTF-8') ?></p>
+                                    <?php endif; ?>
+                                    <p class="text-amber-700 font-medium"><?= htmlspecialchars($person['role'], ENT_QUOTES, 'UTF-8') ?></p>
+                                    <p class="text-gray-500 mt-1 leading-relaxed"><?= htmlspecialchars($person['contribution'], ENT_QUOTES, 'UTF-8') ?></p>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- Ongoing Activities -->
+                    <?php if (!empty($conservationStory['ongoing_activities'])): ?>
+                    <div>
+                        <h3 class="text-sm font-bold text-[#1a2e1f]/70 mb-3 flex items-center gap-2">
+                            <i data-lucide="activity" class="w-3.5 h-3.5"></i> 活動中の取り組み
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <?php foreach ($conservationStory['ongoing_activities'] as $act):
+                                $freqLabel = match($act['frequency'] ?? '') {
+                                    'daily' => '毎日',
+                                    'weekly' => '毎週',
+                                    'monthly' => '毎月',
+                                    'year-round' => '通年',
+                                    default => $act['frequency'] ?? '',
+                                };
+                                $freqColor = match($act['frequency'] ?? '') {
+                                    'daily' => 'bg-emerald-100 text-emerald-700',
+                                    'monthly' => 'bg-sky-100 text-sky-700',
+                                    default => 'bg-gray-100 text-gray-600',
+                                };
+                            ?>
+                            <div class="rounded-xl border border-gray-100 p-3 bg-white/60">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-xs font-bold text-[#1a2e1f]/80"><?= htmlspecialchars($act['title'], ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?php if ($freqLabel): ?>
+                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full <?= $freqColor ?> font-medium"><?= $freqLabel ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                <p class="text-[11px] text-gray-500 leading-relaxed"><?= htmlspecialchars($act['description'], ENT_QUOTES, 'UTF-8') ?></p>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
                 <?php endif; ?>
 
                 <!-- ⑬ Context and references -->
