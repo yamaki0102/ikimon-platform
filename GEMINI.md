@@ -61,9 +61,14 @@ $sm->load($siteId);
 - `$_ikimon_root` = 旧来の変数 (一部テストスクリプトで使用)
 
 ## デプロイ
-- **方式**: SCP (SSH port 8022) で RS Plan へ同期。詳細は `/deploy` ワークフロー参照
-- **接続**: `r1522484@www1070.onamae.ne.jp:8022` / Key: `~/.ssh/production.pem`
+- **方式**: `bash deploy.sh [commit message]` — git commit + push + VPS deploy を一括実行
+- **VPS**: `ssh -i ~/Downloads/ikimon.pem root@162.43.44.131`
+- **旧RS Plan**: DNS切替済み（使わない）
 - **除外**: `.git`, `.vscode`, `tests/`, `debug_*.php`, `test_*.php`
+
+### ⚠️ 絶対ルール: デプロイ時の git commit
+**全てのデプロイ作業において、変更は必ず git commit + push すること。**
+SCP直送やファイル編集だけで終わらせない。`bash deploy.sh` を使えば自動的に git にも記録される。
 
 ### ⚠️ サーバーディレクトリ構造（罠あり）
 ```
