@@ -82,25 +82,27 @@ if (is_array($context) || $geoContextLine) {
 }
 
 $prompt = <<<PROMPT
-写真の生物を全て列挙。植物・動物・菌類が対象。人間・人工物・地面・空は除外。
-確信度低くてもOK。植栽・街路樹も含む。映っている生物は全て記録する。
+写真にはっきり写っている生物を列挙してください。植物・動物・菌類が対象。人間・人工物・地面・空・背景のぼかしは除外。
 
-命名ルール（具体的に）:
-- 種がわかれば和名（例: ソメイヨシノ、スズメ）
+厳守ルール:
+- 確信度0.5未満の生物は絶対に含めない
+- 写真がぼやけている・小さすぎて判別不能な場合は[]を返す
+- 実際に写真に写っているものだけを答える（推測・想像は禁止）
+- 1枚の写真から通常5種以上は検出されない。多すぎる場合は確信度の高いものに絞る
+
+命名ルール:
+- 種がわかれば和名（例: ソメイヨシノ、スズメ、カラス）
 - 科や属まで（例: イネ科の草本、キク科の多年草）
-- 形態レベルでもOK（例: 常緑広葉樹、落葉高木、つる性植物、ロゼット型草本）
-- 「草」「木」の1語だけは禁止。「常緑広葉樹」「落葉低木」等は歓迎
-
-noteフィールド = 初めて見た人が「へぇ！」と思う豆知識1文。例:
-- 動物: 「水辺のハンター、ホバリングからダイブで魚を捕る」「日本最小のキツツキ」
-- 植物種: 「春に最初に咲く桜の代表品種」「秋に紅葉する落葉樹の代表格」
-- 植生レベル: 「森の骨格を作り夏に日陰を提供する」「土壌を固定し崖崩れを防ぐ」
+- 形態レベル可（例: 常緑広葉樹、落葉高木）
+- 「草」「木」の1語のみは禁止
 {$contextBlock}
+noteフィールド = 初めて見た人が「へぇ！」と思う豆知識1文（実際に写真に写っている生物についてのみ）。
+
 higher_group = 鳥類/植物/昆虫/哺乳類/爬虫類/両生類/魚類/クモ類/菌類/コケ・地衣類/その他 の中から1つ。
 
-JSON配列のみ出力:
-[{"name":"和名","scientific_name":"学名","confidence":0.0-1.0,"category":"plant/bird/insect/mammal/fungus/other","higher_group":"鳥類など","family":"科名(不明なら空)","genus":"属名(不明なら空)","note":"へぇポイント1文"}]
-生物なしなら[]。
+JSON配列のみ出力（余計なテキスト禁止）:
+[{"name":"和名","scientific_name":"学名","confidence":0.5-1.0,"category":"plant/bird/insect/mammal/fungus/other","higher_group":"鳥類など","family":"科名(不明なら空)","genus":"属名(不明なら空)","note":"豆知識1文"}]
+生物が写っていない・判別できない場合は[]。
 PROMPT;
 
 $model = 'gemini-2.0-flash';
@@ -147,10 +149,19 @@ if (!is_array($suggestions)) {
     $suggestions = [];
 }
 
+// 信頼度フィルタ（0.45未満を除外）+ 最大8件に制限
+$suggestions = array_filter($suggestions, function($s) {
+    return ($s['confidence'] ?? 0) >= 0.45;
+});
+$suggestions = array_values($suggestions);
+
 // confidence でソート
 usort($suggestions, function($a, $b) {
     return ($b['confidence'] ?? 0) <=> ($a['confidence'] ?? 0);
 });
+
+// 上位8件のみ
+$suggestions = array_slice($suggestions, 0, 8);
 
 api_success([
     'suggestions' => $suggestions,

@@ -438,8 +438,15 @@ class LiveScanner {
             const last = this.routePoints.length > 0 ? this.routePoints[this.routePoints.length - 1] : null;
             if (last) { fd.append('lat', last.lat); fd.append('lng', last.lng); }
 
-            if (this.envHistory.length > 0) {
-                fd.append('context', JSON.stringify({ environment: this.envHistory[0] }));
+            const ctxData = {};
+            if (this.envHistory.length > 0) ctxData.environment = this.envHistory[0];
+            if (this.detectionLog.length > 0) {
+                ctxData.recent_detections = this.detectionLog.slice(-8).map(d => ({
+                    name: d.name, confidence: d.conf
+                }));
+            }
+            if (Object.keys(ctxData).length > 0) {
+                fd.append('context', JSON.stringify(ctxData));
             }
 
             const resp = await fetch('/api/v2/scan_classify.php', { method: 'POST', body: fd });
@@ -449,10 +456,11 @@ class LiveScanner {
             const json = JSON.parse(text);
 
             if (json.success && json.data?.suggestions?.length > 0) {
-                json.data.suggestions.forEach(sug => {
-                    this._addDetection(sug.name, sug.scientific_name || '', sug.confidence || 0.5, 'visual', sug.category || '', sug.note || '');
+                const valid = json.data.suggestions.filter(sug => (sug.confidence ?? 0) >= 0.45);
+                valid.forEach(sug => {
+                    this._addDetection(sug.name, sug.scientific_name || '', sug.confidence, 'visual', sug.category || '', sug.note || '');
                 });
-                this.onLog('📷 ' + json.data.suggestions.length + '件検出');
+                if (valid.length > 0) this.onLog('📷 ' + valid.length + '件検出 (全' + json.data.suggestions.length + '件中)');
             }
         } catch (e) {
             this.onLog('📷 ERR: ' + e.message);
@@ -479,7 +487,7 @@ class LiveScanner {
             const last = this.routePoints.length > 0 ? this.routePoints[this.routePoints.length - 1] : null;
             if (last) { fd.append('lat', last.lat); fd.append('lng', last.lng); }
 
-            const resp = await fetch('/api/v2/scan_classify.php', { method: 'POST', body: fd });
+            const resp = await fetch('/api/v2/env_scan.php', { method: 'POST', body: fd });
             if (!resp.ok) return;
             const json = await resp.json();
             if (json.success && json.data?.environment) {
