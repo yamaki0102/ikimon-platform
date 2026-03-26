@@ -1206,12 +1206,15 @@ if (!$currentUser) {
                         this._detCountToday[key] = (this._detCountToday[key] || 0) + 1;
                         const isFirst = this._detCountToday[key] === 1;
 
-                        // Cooldown: skip voice if last announcement was < 20s ago
+                        // Cooldown: skip voice if still speaking or last announcement was < 25s ago
                         const now = Date.now();
                         this._lastVoiceTime = this._lastVoiceTime || 0;
                         const elapsed = now - this._lastVoiceTime;
+                        const isBusy = VoiceGuide.isSpeaking();
 
-                        if (elapsed < 20000 && !isFirst) {
+                        if (isBusy && !isFirst) {
+                            console.log('[Voice] Skipped (busy):', jaName);
+                        } else if (elapsed < 25000 && !isFirst) {
                             // Too soon & not a new species — skip voice, just log
                             console.log('[Voice] Skipped (cooldown):', jaName);
                         } else if (!isFirst && this._detCountToday[key] > 3) {
