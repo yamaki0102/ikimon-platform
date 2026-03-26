@@ -11,10 +11,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-/**
- * バックグラウンドアップロード Worker。
- * Wi-Fi 接続時に EventBuffer のJSON を passive_event.php に送信する。
- */
 class UploadWorker(
     context: Context,
     params: WorkerParameters,
@@ -44,33 +40,35 @@ class UploadWorker(
             val json = file.readText()
             val body = json.toRequestBody("application/json".toMediaType())
 
+            Log.i(TAG, "Uploading: ${file.name} (${json.length} bytes)")
+
             val request = Request.Builder()
                 .url(API_URL)
                 .post(body)
-                .addHeader("User-Agent", "ikimon-pocket/0.1.0")
-                // TODO: Add auth cookie/token
+                .addHeader("User-Agent", "ikimon-pocket/0.6.0-experimental")
+                .addHeader("X-BioScan-Version", "0.6.0-experimental")
+                .addHeader("X-Device", android.os.Build.MODEL)
                 .build()
 
             val response = client.newCall(request).execute()
+            val responseBody = response.body?.string()
 
             if (response.isSuccessful) {
-                Log.i(TAG, "Upload successful: ${response.code}")
-                // アップロード成功 → ファイル削除
+                Log.i(TAG, "Upload OK: ${response.code} — $responseBody")
                 file.delete()
                 Result.success()
             } else {
-                Log.w(TAG, "Upload failed: ${response.code} ${response.body?.string()}")
+                Log.w(TAG, "Upload failed: ${response.code} — $responseBody")
                 if (response.code in 400..499) {
-                    // クライアントエラー → リトライしない
-                    file.delete()
+                    // ログは残すがリトライしない（デバッグ用にファイルも残す）
+                    Log.e(TAG, "Client error — file kept for debug: ${file.name}")
                     Result.failure()
                 } else {
-                    // サーバーエラー → リトライ
                     Result.retry()
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Upload exception", e)
+            Log.e(TAG, "Upload exception: ${e.message}", e)
             Result.retry()
         }
     }

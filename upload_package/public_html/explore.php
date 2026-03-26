@@ -13,176 +13,293 @@ Auth::init();
     $meta_title = "みつける";
     include __DIR__ . '/components/meta.php';
     ?>
-    <!-- MapLibre GL JS -->
-    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <style>
-        [x-cloak] {
-            display: none !important;
+        [x-cloak] { display: none !important; }
+
+        /* MD3 Surface Tones */
+        .surface-container { background: #f3f6f4; }
+        .surface-container-high { background: #eef1ef; }
+        .surface-dim { background: #d9dcd9; }
+
+        /* MD3 Search Bar */
+        .md3-search {
+            background: #eef1ef;
+            border: none;
+            border-radius: 28px;
+            transition: background 200ms ease, box-shadow 200ms ease;
+        }
+        .md3-search:focus-within {
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
         }
 
-        .responsive-grid {
+        /* MD3 Filter Chip */
+        .md3-chip {
+            border-radius: 8px;
+            border: 1px solid #c4c7c5;
+            background: transparent;
+            padding: 6px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            color: #1f1f1f;
+            transition: all 150ms ease;
+            cursor: pointer;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .md3-chip:hover { background: rgba(16,185,129,0.04); }
+        .md3-chip.active {
+            background: rgba(16,185,129,0.12);
+            border-color: transparent;
+            color: #065f46;
+        }
+        .md3-chip.active i { color: #059669; }
+
+        /* MD3 Card */
+        .md3-card {
+            border-radius: 16px;
+            overflow: hidden;
+            background: #fff;
+            transition: box-shadow 200ms ease, transform 200ms ease;
+            position: relative;
+        }
+        .md3-card:hover {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.06);
+            transform: translateY(-1px);
+        }
+        .md3-card img {
+            transition: transform 400ms cubic-bezier(0.2, 0, 0, 1);
+        }
+        .md3-card:hover img { transform: scale(1.03); }
+
+        /* Grid */
+        .obs-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            /* Mobile: Fixed 2 cols */
-            gap: 1rem;
+            gap: 12px;
+        }
+        @media (min-width: 640px) {
+            .obs-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        }
+        @media (min-width: 1024px) {
+            .obs-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
         }
 
-        @media (min-width: 768px) {
-            .responsive-grid {
-                /* PC: Variable (Kahen) layout - fits as many as possible */
-                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-                gap: 1.5rem;
-            }
+        /* MD3 State Layer */
+        .state-layer {
+            position: absolute; inset: 0;
+            background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.55) 100%);
+            pointer-events: none;
+        }
+
+        /* Skeleton */
+        @keyframes md3-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .md3-skeleton {
+            background: linear-gradient(90deg, #eef1ef 25%, #e2e5e3 37%, #eef1ef 63%);
+            background-size: 200% 100%;
+            animation: md3-shimmer 1.5s ease-in-out infinite;
+        }
+
+        /* Scrollbar hide */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* MD3 Outlined Button */
+        .md3-btn-outlined {
+            border: 1px solid #c4c7c5;
+            border-radius: 20px;
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #10b981;
+            background: transparent;
+            transition: all 150ms ease;
+            cursor: pointer;
+        }
+        .md3-btn-outlined:hover { background: rgba(16,185,129,0.04); }
+
+        /* MD3 Filled Button */
+        .md3-btn-filled {
+            border: none;
+            border-radius: 20px;
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #fff;
+            background: #10b981;
+            transition: all 150ms ease;
+            cursor: pointer;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .md3-btn-filled:hover { background: #059669; box-shadow: 0 1px 3px rgba(16,185,129,0.3); }
+        .md3-btn-filled:active { transform: scale(0.98); }
+
+        /* Badge */
+        .md3-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            backdrop-filter: blur(8px);
+        }
+
+        /* Status dot */
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(255,255,255,0.8);
+            position: absolute;
+            top: 10px; right: 10px;
         }
     </style>
 </head>
 
-<body class="js-loading pt-14 bg-base text-text font-body pb-20 md:pb-0">
+<body class="js-loading pt-14 bg-white text-text font-body pb-20 md:pb-0">
     <?php include('components/nav.php'); ?>
     <script nonce="<?= CspNonce::attr() ?>">
         document.body.classList.remove('js-loading');
     </script>
 
-    <main class="w-full min-h-screen bg-base pb-24 md:pb-0" x-data="explorer()">
+    <main class="w-full min-h-screen pb-24 md:pb-0" x-data="explorer()">
 
-        <!-- Header Spacer -->
-        <div class="h-14"></div>
+        <!-- Spacer for fixed nav -->
+        <div class="h-6"></div>
 
-        <!-- Header / Search Area -->
-        <div x-data="{ headerVisible: true }"
-            @header-visibility.window="headerVisible = $event.detail"
-            :class="headerVisible ? 'top-14' : 'top-0'"
-            class="sticky z-30 bg-base/95 backdrop-blur-md border-b border-border pt-4 pb-4 px-4 shadow-sm transition-[top] duration-300 ease-out">
-            <div class="w-full max-w-7xl mx-auto flex flex-col md:flex-row md:items-center gap-4">
+        <!-- MD3 Top Section -->
+        <div class="sticky top-14 z-30 bg-white/95 backdrop-blur-lg pb-3 transition-all duration-200">
 
-                <!-- Title & Mobile Map Button -->
-                <div class="flex items-center justify-between md:justify-start gap-4 shrink-0">
-                    <div>
-                        <h2 class="text-2xl font-black font-heading">みつける</h2>
-                        <p class="text-xs text-muted mt-1">最近の観察や、まだ名前が育ちそうな記録を探す場所</p>
-                    </div>
-                    <a href="map.php?tab=heatmap" class="md:hidden btn-secondary !py-2 !px-4 !rounded-full flex items-center gap-2 text-xs font-bold">
-                        <i data-lucide="flame" class="w-4 h-4"></i> 活動経路マップ
-                    </a>
-                </div>
-
-                <!-- Search Bar -->
-                <div class="relative w-full md:flex-1 md:max-w-xl">
-                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"></i>
+            <!-- Search Bar (Google-style) -->
+            <div class="max-w-3xl mx-auto px-4 pt-4 pb-2">
+                <div class="md3-search flex items-center px-4 py-3">
+                    <i data-lucide="search" class="w-5 h-5 text-gray-500 shrink-0"></i>
                     <input type="text" x-model="query" @input.debounce.500ms="load(true)"
-                        placeholder="種名で検索..."
-                        class="w-full bg-surface border border-border rounded-full py-2.5 pl-10 pr-4 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition text-text placeholder-muted">
-                </div>
-
-                <!-- Filter Chips -->
-                <div class="relative shrink-0">
-                    <div class="flex gap-2 overflow-x-auto scrollbar-hide pr-6" role="tablist" aria-label="分類フィルタ">
-                        <button @click="filter='all'; load(true)" role="tab" :aria-selected="filter === 'all'" :class="filter === 'all' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition">すべて</button>
-                        <button @click="filter='birds'; load(true)" role="tab" :aria-selected="filter === 'birds'" :class="filter === 'birds' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="bird" class="w-3 h-3"></i> 鳥類</button>
-                        <button @click="filter='insects'; load(true)" role="tab" :aria-selected="filter === 'insects'" :class="filter === 'insects' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="bug" class="w-3 h-3"></i> 昆虫</button>
-                        <button @click="filter='plants'; load(true)" role="tab" :aria-selected="filter === 'plants'" :class="filter === 'plants' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="flower" class="w-3 h-3"></i> 植物</button>
-                        <button @click="filter='fungi'; load(true)" role="tab" :aria-selected="filter === 'fungi'" :class="filter === 'fungi' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🍄 菌類</button>
-                        <button @click="filter='mammals'; load(true)" role="tab" :aria-selected="filter === 'mammals'" :class="filter === 'mammals' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🐾 哺乳類</button>
-                        <button @click="filter='herps'; load(true)" role="tab" :aria-selected="filter === 'herps'" :class="filter === 'herps' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🐸 両生爬虫類</button>
-                    </div>
-                    <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-10 md:hidden" style="background:linear-gradient(to right,transparent,#fff)"></div>
-                </div>
-
-                <div class="flex items-center gap-2 shrink-0 md:ml-auto">
-                    <button @click="toggleImported()" :class="includeImported ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="hidden md:inline-flex px-4 py-2 rounded-full border border-border text-xs font-bold items-center gap-2 transition">
-                        <i data-lucide="archive" class="w-4 h-4"></i>
-                        <span x-text="includeImported ? '調査記録を含む' : '通常の投稿のみ'"></span>
-                    </button>
-                    <a href="map.php?tab=heatmap" class="hidden md:flex btn-secondary !py-2 !px-4 !rounded-full items-center gap-2 text-xs font-bold">
-                        <i data-lucide="flame" class="w-4 h-4"></i>
-                        活動経路マップ
+                        placeholder="いきものを検索"
+                        class="flex-1 bg-transparent border-none outline-none ml-3 text-base text-gray-900 placeholder-gray-500">
+                    <a href="map.php?tab=heatmap" class="shrink-0 ml-2 p-1.5 rounded-full hover:bg-black/5 transition" title="活動経路マップ">
+                        <i data-lucide="map" class="w-5 h-5 text-gray-600"></i>
                     </a>
                 </div>
             </div>
 
-            <div class="w-full max-w-7xl mx-auto mt-3 flex gap-2 overflow-x-auto scrollbar-hide">
-                <button @click="toggleImported()" :class="includeImported ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="md:hidden px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">
-                    <i data-lucide="archive" class="w-3 h-3"></i>
-                    <span x-text="includeImported ? '調査記録を含む' : '通常の投稿のみ'"></span>
-                </button>
-                <button @click="aiFilter='all'; load(true)" :class="aiFilter === 'all' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition">
-                    AI条件なし
-                </button>
-                <button @click="aiFilter='hint'; load(true)" :class="aiFilter === 'hint' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">
-                    <i data-lucide="sparkles" class="w-3 h-3"></i> AIヒントあり
-                </button>
-                <button @click="aiFilter='multi'; load(true)" :class="aiFilter === 'multi' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">
-                    <i data-lucide="git-branch" class="w-3 h-3"></i> AI複数候補
-                </button>
+            <!-- Filter Chips (MD3 horizontal scroll) -->
+            <div class="max-w-5xl mx-auto px-4">
+                <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1" role="tablist" aria-label="分類フィルタ">
+                    <button @click="filter='all'; load(true)" role="tab" :aria-selected="filter === 'all'"
+                        class="md3-chip" :class="filter === 'all' && 'active'">すべて</button>
+                    <button @click="filter='birds'; load(true)" role="tab" :aria-selected="filter === 'birds'"
+                        class="md3-chip" :class="filter === 'birds' && 'active'">
+                        <i data-lucide="bird" class="w-4 h-4"></i> 鳥類</button>
+                    <button @click="filter='insects'; load(true)" role="tab" :aria-selected="filter === 'insects'"
+                        class="md3-chip" :class="filter === 'insects' && 'active'">
+                        <i data-lucide="bug" class="w-4 h-4"></i> 昆虫</button>
+                    <button @click="filter='plants'; load(true)" role="tab" :aria-selected="filter === 'plants'"
+                        class="md3-chip" :class="filter === 'plants' && 'active'">
+                        <i data-lucide="flower" class="w-4 h-4"></i> 植物</button>
+                    <button @click="filter='fungi'; load(true)" role="tab" :aria-selected="filter === 'fungi'"
+                        class="md3-chip" :class="filter === 'fungi' && 'active'">🍄 菌類</button>
+                    <button @click="filter='mammals'; load(true)" role="tab" :aria-selected="filter === 'mammals'"
+                        class="md3-chip" :class="filter === 'mammals' && 'active'">🐾 哺乳類</button>
+                    <button @click="filter='herps'; load(true)" role="tab" :aria-selected="filter === 'herps'"
+                        class="md3-chip" :class="filter === 'herps' && 'active'">🐸 両生爬虫</button>
+
+                    <div class="w-px h-6 bg-gray-200 self-center mx-1 shrink-0"></div>
+
+                    <button @click="aiFilter= aiFilter==='hint' ? 'all' : 'hint'; load(true)"
+                        class="md3-chip" :class="aiFilter === 'hint' && 'active'">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> AIヒント</button>
+                    <button @click="aiFilter= aiFilter==='multi' ? 'all' : 'multi'; load(true)"
+                        class="md3-chip" :class="aiFilter === 'multi' && 'active'">
+                        <i data-lucide="git-branch" class="w-4 h-4"></i> 複数候補</button>
+                    <button @click="toggleImported()"
+                        class="md3-chip" :class="includeImported && 'active'">
+                        <i data-lucide="archive" class="w-4 h-4"></i> 調査記録</button>
+                </div>
             </div>
         </div>
 
+        <div class="max-w-5xl mx-auto px-4 pt-2">
 
-
-        <div class="w-full max-w-7xl mx-auto px-4 py-4">
-            <!-- Regional Completion Meter (Full) -->
-            <div class="mb-6" x-data="regionalCompletion('full')">
+            <!-- Regional Completion -->
+            <div class="mb-4" x-data="regionalCompletion('full')">
                 <?php include __DIR__ . '/components/regional_completion.php'; ?>
             </div>
 
-            <!-- Loading State (Skeleton) -->
-            <div x-show="loading && items.length === 0" class="responsive-grid pb-12">
-                <template x-for="i in 6">
-                    <div class="aspect-[4/5] rounded-2xl bg-surface border border-border overflow-hidden relative animate-pulse">
-                        <div class="w-full h-full bg-surface"></div>
-                        <div class="absolute bottom-3 left-3 right-3">
-                            <div class="h-4 bg-border rounded w-2/3 mb-2"></div>
-                            <div class="h-3 bg-border rounded w-1/2"></div>
-                        </div>
+            <!-- Skeleton Loading -->
+            <div x-show="loading && items.length === 0" class="obs-grid pb-12">
+                <template x-for="i in 8">
+                    <div class="md3-card aspect-[4/5]">
+                        <div class="w-full h-full md3-skeleton"></div>
                     </div>
                 </template>
             </div>
 
-            <!-- Grid -->
-            <div class="responsive-grid pb-12" x-show="items.length > 0">
+            <!-- Observation Grid -->
+            <div class="obs-grid pb-12" x-show="items.length > 0">
                 <template x-for="obs in items" :key="obs.id">
-                    <a :href="'observation_detail.php?id=' + obs.id" class="block aspect-[4/5] rounded-2xl bg-surface border border-border overflow-hidden relative group">
-                        <img :src="obs.photos[0]" :alt="obs.taxon ? obs.taxon.name : '観察写真'" class="w-full h-full object-cover group-hover:scale-110 transition duration-500 loading-skeleton" loading="lazy">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60"></div>
-                        <div x-show="shouldShowAiHint(obs)" class="absolute top-3 left-3 right-8">
-                            <div class="inline-flex max-w-full items-center gap-1.5 rounded-full bg-black/45 text-white border border-white/20 px-2.5 py-1 backdrop-blur-sm">
-                                <span class="text-[10px] font-black text-primary-foreground/90 flex-shrink-0">AI</span>
-                                <span class="text-[10px] font-bold truncate" x-text="aiHintTitle(obs)"></span>
+                    <a :href="'observation_detail.php?id=' + obs.id" class="md3-card block aspect-[4/5]">
+                        <img :src="obs.photos[0]"
+                            :alt="obs.taxon ? obs.taxon.name : '観察写真'"
+                            class="w-full h-full object-cover" loading="lazy">
+                        <div class="state-layer"></div>
+
+                        <!-- AI Badge -->
+                        <div x-show="shouldShowAiHint(obs)" class="absolute top-2.5 left-2.5">
+                            <div class="md3-badge bg-black/40 text-white/95">
+                                <span class="text-emerald-300 font-black" style="font-size:10px">AI</span>
+                                <span class="truncate max-w-[120px]" x-text="aiHintTitle(obs)"></span>
                             </div>
                         </div>
-                        <div class="absolute bottom-3 left-3 right-3 text-white">
-                            <div class="flex items-center gap-1.5">
-                                <p class="text-xs font-bold leading-tight truncate" x-text="obs.taxon ? obs.taxon.name : '未同定'"></p>
-                                <span x-show="obs.individual_count" class="text-[9px] font-bold text-white/80 bg-white/20 px-1.5 py-0.5 rounded-full flex-shrink-0" x-text="'×' + obs.individual_count"></span>
-                            </div>
-                            <p x-show="aiHintMeta(obs)" class="text-[10px] text-white/80 mt-1 truncate" x-text="aiHintMeta(obs)"></p>
-                            <div class="flex items-center gap-1 mt-1 opacity-70">
-                                <i data-lucide="map-pin" class="w-3 h-3"></i>
-                                <span class="text-[10px] truncate" x-text="obs.municipality || (obs.location ? obs.location.name : '')"></span>
-                            </div>
-                        </div>
+
                         <!-- Status Dot -->
-                        <div class="absolute top-2 right-2 w-2 h-2 rounded-full shadow-lg border border-black/20" :class="getStatusColorClass(obs.status)"></div>
+                        <div class="status-dot" :class="getStatusColorClass(obs.status)"></div>
+
+                        <!-- Info Overlay -->
+                        <div class="absolute bottom-0 left-0 right-0 p-3 text-white">
+                            <div class="flex items-center gap-1.5">
+                                <p class="text-sm font-semibold leading-snug truncate" x-text="obs.taxon ? obs.taxon.name : '未同定'"></p>
+                                <span x-show="obs.individual_count"
+                                    class="text-[10px] font-semibold text-white/80 bg-white/20 px-1.5 py-0.5 rounded shrink-0"
+                                    x-text="'×' + obs.individual_count"></span>
+                            </div>
+                            <p x-show="aiHintMeta(obs)" class="text-[11px] text-white/70 mt-0.5 truncate" x-text="aiHintMeta(obs)"></p>
+                            <div class="flex items-center gap-1 mt-1 text-white/60">
+                                <i data-lucide="map-pin" class="w-3 h-3"></i>
+                                <span class="text-[11px] truncate" x-text="obs.municipality || (obs.location ? obs.location.name : '')"></span>
+                            </div>
+                        </div>
                     </a>
                 </template>
             </div>
 
-            <!-- Empty State -->
-            <div x-show="items.length === 0 && !loading" class="text-center py-16 text-muted">
-                <div class="text-5xl mb-4">🌱</div>
-                <p class="text-lg font-bold text-muted mb-2">まだ観察がないよ</p>
-                <p class="text-sm text-muted mb-4">この地域で最初の発見者になろう！</p>
-                <a href="post.php" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-primary to-secondary text-white font-bold text-sm shadow-lg shadow-primary-glow/20 active:scale-95 transition">
-                    <i data-lucide="camera" class="w-4 h-4"></i> 最初の観察を投稿する
+            <!-- Empty State (MD3) -->
+            <div x-show="items.length === 0 && !loading" class="flex flex-col items-center justify-center py-20 text-center">
+                <div class="w-16 h-16 rounded-full surface-container flex items-center justify-center mb-5">
+                    <i data-lucide="search" class="w-7 h-7 text-gray-400"></i>
+                </div>
+                <p class="text-lg font-medium text-gray-800 mb-1">観察が見つかりません</p>
+                <p class="text-sm text-gray-500 mb-6">この地域で最初の記録を残しませんか？</p>
+                <a href="post.php" class="md3-btn-filled">
+                    <i data-lucide="camera" class="w-4 h-4"></i> 観察を投稿する
                 </a>
             </div>
 
-            <!-- Load More -->
-            <div x-show="hasMore" class="py-4 text-center">
-                <button @click="load()" class="px-6 py-2 rounded-full border border-border text-xs font-bold text-text-secondary hover:bg-surface transition" :disabled="loading">
+            <!-- Load More (MD3) -->
+            <div x-show="hasMore && items.length > 0" class="py-6 text-center">
+                <button @click="load()" class="md3-btn-outlined" :disabled="loading">
                     <span x-show="!loading">もっと見る</span>
-                    <span x-show="loading">読み込み中...</span>
+                    <span x-show="loading" class="inline-flex items-center gap-2">
+                        <svg class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" opacity="0.3"/><path d="M12 2a10 10 0 019.95 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        読み込み中
+                    </span>
                 </button>
             </div>
         </div>
@@ -247,14 +364,13 @@ Auth::init();
                 },
 
                 getStatusColorClass(status) {
-                    if (status === 'Research Grade') return 'bg-primary';
-                    if (status === 'Suggested') return 'bg-warning';
-                    return 'bg-muted';
+                    if (status === 'Research Grade') return 'bg-emerald-500';
+                    if (status === 'Suggested') return 'bg-amber-500';
+                    return 'bg-gray-400';
                 },
 
                 shouldShowAiHint(obs) {
-                    const hint = this.aiHintTitle(obs);
-                    return hint !== '';
+                    return this.aiHintTitle(obs) !== '';
                 },
 
                 aiHintTitle(obs) {

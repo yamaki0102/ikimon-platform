@@ -2,21 +2,20 @@ package life.ikimon.data
 
 import org.json.JSONObject
 
-/**
- * 検出イベントのデータモデル（iOS/Android 共通フォーマット）
- * サーバーの passive_event.php / scan_detection.php に送信する形式。
- */
 data class DetectionEvent(
-    val type: String,              // "audio" | "visual" | "sensor"
-    val taxonName: String,         // 種名（和名）
-    val scientificName: String,    // 学名
-    val confidence: Float,         // 0.0 - 1.0
+    val type: String,              // "audio" | "visual" | "sensor" | "soundscape"
+    val taxonName: String,
+    val scientificName: String,
+    val confidence: Float,
     val lat: Double?,
     val lng: Double?,
-    val timestamp: Long,           // Unix ms
-    val model: String,             // 使用モデル名
+    val timestamp: Long,
+    val model: String,
     val audioSnippetHash: String? = null,
     val photoRef: String? = null,
+    val environmentSnapshot: EnvironmentSnapshot? = null,
+    val speedKmh: Float? = null,
+    val aiVersion: String = "v0.5.1",
 ) {
     fun toJSON(): JSONObject = JSONObject().apply {
         put("type", type)
@@ -30,5 +29,8 @@ data class DetectionEvent(
         put("model", model)
         audioSnippetHash?.let { put("audio_snippet_hash", it) }
         photoRef?.let { put("photo_ref", it) }
+        environmentSnapshot?.let { put("environment_snapshot", it.toJSON()) }
+        speedKmh?.let { put("speed_kmh", it.toDouble()) }
+        put("ai_version", aiVersion)
     }
 }

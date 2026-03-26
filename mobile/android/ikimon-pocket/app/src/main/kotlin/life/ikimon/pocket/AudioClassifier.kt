@@ -12,20 +12,11 @@ import java.nio.ByteOrder
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 
-/**
- * 音声分類器（BirdNET Lite ベース）
- *
- * 環境音の短い断片（5秒）を録音し、
- * TFLite モデルで鳥声・虫声を分類する。
- *
- * 初期バージョン: BirdNET Lite (TFLite)
- * 将来: Gemini Nano on-device audio
- */
 class AudioClassifier(private val context: Context) {
 
     companion object {
         private const val TAG = "AudioClassifier"
-        private const val SAMPLE_RATE = 48000
+        const val SAMPLE_RATE = 48000
         private const val MODEL_FILE = "birdnet_lite.tflite"
         private const val LABELS_FILE = "birdnet_labels.txt"
         private const val MIN_CONFIDENCE = 0.3f
@@ -48,36 +39,37 @@ class AudioClassifier(private val context: Context) {
             Log.i(TAG, "Model loaded: ${labels.size} species")
         } catch (e: Exception) {
             Log.w(TAG, "Model not loaded (expected in dev): ${e.message}")
-            // モデルがない場合はダミーモードで動作
         }
     }
 
     /**
-     * 指定時間（ms）だけ環境音を録音し、分類する。
-     * コールバックで結果を返す。
+     * 録音 → 分類 + 生の音声データも返す（サウンドスケープ分析用）
      */
-    fun classifyAmbientAudio(durationMs: Long, callback: (List<ClassificationResult>) -> Unit) {
+    fun classifyAmbientAudioWithRaw(
+        durationMs: Long,
+        callback: (List<ClassificationResult>, FloatArray?) -> Unit
+    ) {
         Thread {
             try {
                 val audioData = recordAudio(durationMs)
                 if (audioData == null) {
-                    callback(emptyList())
+                    callback(emptyList(), null)
                     return@Thread
                 }
 
                 val results = classify(audioData)
-                callback(results)
+                callback(results, audioData)
             } catch (e: Exception) {
                 Log.e(TAG, "Classification failed", e)
-                callback(emptyList())
+                callback(emptyList(), null)
             }
         }.start()
     }
 
-    /**
-     * 短時間の音声を録音する。
-     * プライバシー: 録音データは推論後に破棄（保存しない）。
-     */
+    fun classifyAmbientAudio(durationMs: Long, callback: (List<ClassificationResult>) -> Unit) {
+        classifyAmbientAudioWithRaw(durationMs) { results, _ -> callback(results) }
+    }
+
     private fun recordAudio(durationMs: Long): FloatArray? {
         val bufferSize = AudioRecord.getMinBufferSize(
             SAMPLE_RATE,
@@ -126,14 +118,9 @@ class AudioClassifier(private val context: Context) {
         return if (readTotal > SAMPLE_RATE) audioData.copyOf(readTotal) else null
     }
 
-    /**
-     * TFLite モデルで分類を実行する。
-     */
     private fun classify(audioData: FloatArray): List<ClassificationResult> {
         val interp = interpreter ?: return dummyClassify()
 
-        // BirdNET expects 48kHz mono, 3 seconds chunks
-        // Pad or trim to expected input size
         val inputShape = interp.getInputTensor(0).shape()
         val expectedLength = inputShape.last()
         val input = if (audioData.size >= expectedLength) {
@@ -142,7 +129,6 @@ class AudioClassifier(private val context: Context) {
             FloatArray(expectedLength).also { audioData.copyInto(it) }
         }
 
-        // Run inference
         val inputBuffer = ByteBuffer.allocateDirect(expectedLength * 4).apply {
             order(ByteOrder.nativeOrder())
             for (sample in input) putFloat(sample)
@@ -155,7 +141,6 @@ class AudioClassifier(private val context: Context) {
 
         interp.run(inputBuffer, output)
 
-        // Map to results
         return output[0].mapIndexed { index, confidence ->
             if (confidence >= MIN_CONFIDENCE && index < labels.size) {
                 val parts = labels[index].split("_", limit = 2)
@@ -171,17 +156,16 @@ class AudioClassifier(private val context: Context) {
         .take(5)
     }
 
-    /**
-     * モデルがない場合のダミー分類（開発用）。
-     */
     private fun dummyClassify(): List<ClassificationResult> {
         val dummySpecies = listOf(
             ClassificationResult("シジュウカラ", "Parus minor", 0.85f),
             ClassificationResult("ヒヨドリ", "Hypsipetes amaurotis", 0.72f),
             ClassificationResult("メジロ", "Zosterops japonicus", 0.65f),
+            ClassificationResult("ウグイス", "Horornis diphone", 0.78f),
+            ClassificationResult("スズメ", "Passer montanus", 0.60f),
+            ClassificationResult("ハシブトガラス", "Corvus macrorhynchos", 0.55f),
         )
-        // ランダムに0-2種返す
-        return dummySpecies.shuffled().take((0..2).random())
+        return dummySpecies.shuffled().take((0..3).random())
     }
 
     private fun loadModelFile(filename: String): MappedByteBuffer {

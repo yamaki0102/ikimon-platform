@@ -11,8 +11,8 @@ android {
         applicationId = "life.ikimon.pocket"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 6
+        versionName = "0.6.0-experimental"
     }
 
     buildFeatures {
@@ -21,6 +21,12 @@ android {
 
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
+    }
+
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
@@ -56,4 +62,11 @@ dependencies {
 
     // WorkManager (Background Sync)
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    // ML Kit Image Labeling (視覚検出)
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+
+    // Lifecycle Service (CameraX in Service)
+    implementation("androidx.lifecycle:lifecycle-service:2.8.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
 }
