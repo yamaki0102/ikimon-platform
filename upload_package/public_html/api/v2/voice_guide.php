@@ -25,19 +25,22 @@ if (!api_rate_limit('voice_guide', 30, 60)) {
 }
 
 $requestMode = api_param('mode', 'detection');
-$voiceMode = api_param('voice_mode', 'auto');
-if (!in_array($voiceMode, ['standard', 'auto', 'mochiko', 'ryusei', 'zundamon'], true)) {
-    $voiceMode = 'auto';
+$voiceMode = api_param('voice_mode', 'gemini-bright');
+$validModes = ['standard', 'auto', 'mochiko', 'ryusei', 'zundamon', 'gemini-bright', 'gemini-calm'];
+if (!in_array($voiceMode, $validModes, true)) {
+    $voiceMode = 'gemini-bright';
 }
 $isZundamonStyle = ($voiceMode === 'zundamon');
+$isGeminiTTS = str_starts_with($voiceMode, 'gemini-');
 
 $guideLang = api_param('lang', 'ja');
 if (!preg_match('/^[a-z]{2}(-[A-Z]{2})?$/', $guideLang)) $guideLang = 'ja';
 $isJapanese = ($guideLang === 'ja');
 
-$useVoicevoxAudio = ($voiceMode !== 'standard') && $isJapanese;
+$useVoicevoxAudio = in_array($voiceMode, ['auto', 'mochiko', 'ryusei', 'zundamon'], true) && $isJapanese;
 if (!$isJapanese) {
     $isZundamonStyle = false;
+    if (!$isGeminiTTS) $isGeminiTTS = true;
 }
 
 $transportMode = api_param('transport_mode', 'walk');
@@ -298,10 +301,8 @@ PROMPT;
             'fr' => 'fr-FR', 'pt' => 'pt-BR', 'de' => 'de-DE', default => $guideLang,
         };
     }
-    if ($useVoicevoxAudio) {
-        $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
-        if ($audioUrl) $result['audio_url'] = $audioUrl;
-    }
+    $audioUrl = _generateAudio($guideText, $voiceMode, $guideLang, $useVoicevoxAudio, $isGeminiTTS);
+    if ($audioUrl) $result['audio_url'] = $audioUrl;
     api_success($result);
 }
 
@@ -441,10 +442,8 @@ PROMPT;
             'fr' => 'fr-FR', 'pt' => 'pt-BR', 'de' => 'de-DE', default => $guideLang,
         };
     }
-    if ($useVoicevoxAudio) {
-        $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
-        if ($audioUrl) $result['audio_url'] = $audioUrl;
-    }
+    $audioUrl = _generateAudio($guideText, $voiceMode, $guideLang, $useVoicevoxAudio, $isGeminiTTS);
+    if ($audioUrl) $result['audio_url'] = $audioUrl;
     api_success($result);
 }
 
@@ -538,10 +537,8 @@ PROMPT;
     _saveHistory($userId, $guideText, $pastTexts);
 
     $result = ['guide_text' => $guideText, 'audio_url' => null, 'mode' => 'silence'];
-    if ($useVoicevoxAudio) {
-        $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
-        if ($audioUrl) $result['audio_url'] = $audioUrl;
-    }
+    $audioUrl = _generateAudio($guideText, $voiceMode, $guideLang, $useVoicevoxAudio, $isGeminiTTS);
+    if ($audioUrl) $result['audio_url'] = $audioUrl;
     api_success($result);
 }
 
@@ -700,10 +697,8 @@ PROMPT;
             'fr' => 'fr-FR', 'pt' => 'pt-BR', 'de' => 'de-DE', default => $guideLang,
         };
     }
-    if ($useVoicevoxAudio) {
-        $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
-        if ($audioUrl) $result['audio_url'] = $audioUrl;
-    }
+    $audioUrl = _generateAudio($guideText, $voiceMode, $guideLang, $useVoicevoxAudio, $isGeminiTTS);
+    if ($audioUrl) $result['audio_url'] = $audioUrl;
     api_success($result);
 }
 
@@ -871,7 +866,8 @@ $prompt = <<<PROMPT
 {$emotionInstruction}
 
 条件:
-- 3〜6文、150〜400文字。散歩中に聴くラジオ番組のように楽しく。景観史の情報がある場合はじっくり語ってOK
+- 4〜8文、200〜500文字。散歩中に聴く自然番組のパーソナリティのように楽しくじっくり語って。短く切り上げず、リスナーが「もっと聞きたい」と思える密度で
+- 景観史の情報がある場合は特にたっぷり語ってOK。話の流れで自然に盛り込んで
 - 冒頭で「〇〇を検出しました」「〇〇を見つけました」のような報告は絶対にしない。種名は話の流れの中で自然に出して
 - リスナーは{$transportLabel}で移動中。{$transportLabel}の体験に合った話し方で
 - 上記の「生態系データ」「共起種」「地域特徴」「季節情報」を根拠にして話す。根拠のない話は作らない
@@ -880,6 +876,12 @@ $prompt = <<<PROMPT
 - 音声読み上げ用なので難しい漢字はひらがなで（例: 囀り→さえずり）
 - 学名は読み上げないで
 - 聞いて「へぇ」と思える具体的な内容に
+
+語りのルール（厳守）:
+- 話の前半と後半で異なる角度から語ること。例: 前半で生態の話→後半で地域の文化や歴史につなげる。一本調子にしない
+- 文と文のつながりを意識して。「実はね」「で、面白いのが」「それでね」「ちなみに」など、会話の接続詞で自然につないで
+- 同じ単語・フレーズの繰り返しを避けること。特に「〜なんです」「〜ですよ」が連続しないよう、語尾を変化させて（「〜でね」「〜なの」「〜だよ」「〜してるんだって」等）
+- ガイドらしく、リスナーに語りかけるトーンで。「ほら、あそこに見える？」「知ってた？」のような問いかけを織り交ぜて
 
 表現ルール（厳守）:
 - 「珍しい」「初めて」「レアな」「貴重な発見」等の希少性を煽る表現は禁止。地域の人にとって普通の種を珍しいと言わない
@@ -920,11 +922,9 @@ if (!empty($conservationContext)) {
     $result['has_conservation_story'] = true;
 }
 
-if ($useVoicevoxAudio && !empty($guideText)) {
-    $audioUrl = _generateVoicevoxAudio($guideText, $voiceMode);
-    if ($audioUrl) {
-        $result['audio_url'] = $audioUrl;
-    }
+$audioUrl = _generateAudio($guideText, $voiceMode, $guideLang, $useVoicevoxAudio, $isGeminiTTS);
+if ($audioUrl) {
+    $result['audio_url'] = $audioUrl;
 }
 
 api_success($result);
@@ -1101,6 +1101,28 @@ function _getNearbyObservations(float $lat, float $lng, float $radiusKm): string
     }
 }
 
+function _generateAudio(string $text, string $voiceMode, string $lang, bool $useVoicevox, bool $useGemini): ?string
+{
+    if (empty($text)) return null;
+    if ($useGemini) {
+        $url = _generateGeminiAudio($text, $voiceMode, $lang);
+        if ($url) return $url;
+    }
+    if ($useVoicevox) {
+        $url = _generateVoicevoxAudio($text, $voiceMode);
+        if ($url) return $url;
+        if (defined('GEMINI_API_KEY') && GEMINI_API_KEY) {
+            $geminiVoice = match($voiceMode) {
+                'zundamon', 'mochiko' => 'gemini-bright',
+                'ryusei' => 'gemini-calm',
+                default => 'gemini-bright',
+            };
+            return _generateGeminiAudio($text, $geminiVoice, $lang);
+        }
+    }
+    return null;
+}
+
 function _callGemini(string $prompt): string
 {
     $apiKey = defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '';
@@ -1110,7 +1132,7 @@ function _callGemini(string $prompt): string
         'contents' => [['parts' => [['text' => $prompt]]]],
         'generationConfig' => [
             'temperature' => 1.0,
-            'maxOutputTokens' => 512,
+            'maxOutputTokens' => 1024,
             'topP' => 0.95,
         ],
     ];
@@ -1122,7 +1144,7 @@ function _callGemini(string $prompt): string
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_POSTFIELDS => json_encode($payload),
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 8,
+        CURLOPT_TIMEOUT => 12,
         CURLOPT_CONNECTTIMEOUT => 3,
     ]);
 
@@ -1215,6 +1237,17 @@ function _resolveVoicevoxSpeakerId(string $voiceMode): int
 
 function _generateVoicevoxAudio(string $text, string $voiceMode = 'zundamon'): ?string
 {
+    $maxChars = 250;
+    if (mb_strlen($text) > $maxChars) {
+        $truncated = mb_substr($text, 0, $maxChars);
+        $lastPeriod = mb_strrpos($truncated, '。');
+        if ($lastPeriod !== false && $lastPeriod > $maxChars * 0.5) {
+            $text = mb_substr($truncated, 0, $lastPeriod + 1);
+        } else {
+            $text = $truncated;
+        }
+    }
+
     $voicevoxHost = 'http://127.0.0.1:50021';
     $speakerId = _resolveVoicevoxSpeakerId($voiceMode);
 
@@ -1239,7 +1272,7 @@ function _generateVoicevoxAudio(string $text, string $voiceMode = 'zundamon'): ?
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_POSTFIELDS => $queryJson,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 10,
+        CURLOPT_TIMEOUT => 30,
         CURLOPT_CONNECTTIMEOUT => 1,
     ]);
     $wavData = curl_exec($ch);
@@ -1257,4 +1290,86 @@ function _generateVoicevoxAudio(string $text, string $voiceMode = 'zundamon'): ?
     file_put_contents($path, $wavData);
 
     return "/uploads/audio/voice/{$yearMonth}/{$filename}";
+}
+
+function _resolveGeminiVoice(string $voiceMode, string $lang = 'ja'): string
+{
+    return match ($voiceMode) {
+        'gemini-bright'  => 'Zephyr',
+        'gemini-calm'    => 'Orus',
+        default          => ($lang === 'ja') ? 'Zephyr' : 'Kore',
+    };
+}
+
+function _generateGeminiAudio(string $text, string $voiceMode = 'gemini-bright', string $lang = 'ja'): ?string
+{
+    $apiKey = defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '';
+    if (!$apiKey || !$text) return null;
+
+    $voiceName = _resolveGeminiVoice($voiceMode, $lang);
+
+    $payload = [
+        'contents' => [['parts' => [['text' => $text]]]],
+        'generationConfig' => [
+            'responseModalities' => ['AUDIO'],
+            'speechConfig' => [
+                'voiceConfig' => [
+                    'prebuiltVoiceConfig' => [
+                        'voiceName' => $voiceName,
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $model = 'gemini-2.5-flash-preview-tts';
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}",
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_CONNECTTIMEOUT => 5,
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200 || !$response) return null;
+
+    $data = json_decode($response, true);
+    $audioPart = $data['candidates'][0]['content']['parts'][0]['inlineData'] ?? null;
+    if (!$audioPart || empty($audioPart['data'])) return null;
+
+    $pcmData = base64_decode($audioPart['data']);
+    if (!$pcmData) return null;
+
+    $wavData = _pcmToWav($pcmData, 24000, 16, 1);
+
+    $yearMonth = date('Y-m');
+    $dir = PUBLIC_DIR . "/uploads/audio/voice/{$yearMonth}";
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    $filename = 'vg_' . bin2hex(random_bytes(6)) . '.wav';
+    file_put_contents("{$dir}/{$filename}", $wavData);
+
+    return "/uploads/audio/voice/{$yearMonth}/{$filename}";
+}
+
+function _pcmToWav(string $pcmData, int $sampleRate = 24000, int $bitsPerSample = 16, int $channels = 1): string
+{
+    $dataSize = strlen($pcmData);
+    $byteRate = $sampleRate * $channels * ($bitsPerSample / 8);
+    $blockAlign = $channels * ($bitsPerSample / 8);
+
+    $header = pack('A4V', 'RIFF', 36 + $dataSize);
+    $header .= pack('A4', 'WAVE');
+    $header .= pack('A4V', 'fmt ', 16);
+    $header .= pack('vvVVvv', 1, $channels, $sampleRate, $byteRate, $blockAlign, $bitsPerSample);
+    $header .= pack('A4V', 'data', $dataSize);
+
+    return $header . $pcmData;
 }

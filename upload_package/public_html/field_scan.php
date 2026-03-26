@@ -161,15 +161,11 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                 <div class="text-[10px] text-gray-500 px-1 mb-1">話者</div>
                 <div class="flex flex-wrap gap-2 px-1">
                     <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn active"
-                            data-speaker="auto" style="border-color:#8b5cf6;background:rgba(139,92,246,0.1);color:#c4b5fd">
-                        🎙️ 自動
-                    </button>
-                    <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
-                            data-speaker="mochiko" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                            data-speaker="gemini-bright" style="border-color:#8b5cf6;background:rgba(139,92,246,0.1);color:#c4b5fd">
                         👩 女性
                     </button>
                     <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
-                            data-speaker="ryusei" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                            data-speaker="gemini-calm" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
                         👨 男性
                     </button>
                     <button type="button" class="flex-1 min-w-[28%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
@@ -177,7 +173,7 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                         🟢 ずんだもん
                     </button>
                 </div>
-                <div class="text-[9px] text-gray-600 text-right px-1 mt-2">音声: <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noopener" class="underline">VOICEVOX</a></div>
+                <div class="text-[9px] text-gray-600 text-right px-1 mt-2">音声: Gemini TTS / <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noopener" class="underline">VOICEVOX</a></div>
             </div>
         </div>
 
@@ -224,6 +220,13 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
 
     <!-- 停止ボタン（トップバー外に配置 — モバイルのタップ判定問題を回避） -->
     <button id="btn-stop" style="position:absolute;top:8px;left:12px;padding:8px;border-radius:50%;background:rgba(255,0,0,0.6);z-index:9999;color:#fff;border:none;font-size:16px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">✕</button>
+    <!-- スキャン中の声変更ボタン -->
+    <button id="btn-voice-switch" onclick="document.getElementById('voice-switch-popup').style.display=document.getElementById('voice-switch-popup').style.display==='none'?'flex':'none'" style="position:absolute;top:8px;left:56px;padding:6px 10px;border-radius:999px;background:rgba(139,92,246,0.6);z-index:9999;color:#fff;border:none;font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;backdrop-filter:blur(8px)">🔊 <span id="voice-switch-label">女性</span></button>
+    <div id="voice-switch-popup" style="display:none;position:absolute;top:44px;left:56px;z-index:9999;flex-direction:column;gap:4px;background:rgba(0,0,0,0.9);backdrop-filter:blur(12px);border-radius:12px;padding:8px;border:1px solid rgba(255,255,255,0.1);min-width:140px">
+        <button class="vs-opt" data-vs="gemini-bright" style="padding:8px 12px;border-radius:8px;border:none;background:rgba(139,92,246,0.3);color:#c4b5fd;font-size:12px;font-weight:bold;text-align:left;cursor:pointer">👩 女性</button>
+        <button class="vs-opt" data-vs="gemini-calm" style="padding:8px 12px;border-radius:8px;border:none;background:rgba(255,255,255,0.05);color:#9ca3af;font-size:12px;font-weight:bold;text-align:left;cursor:pointer">👨 男性</button>
+        <button class="vs-opt" data-vs="zundamon" style="padding:8px 12px;border-radius:8px;border:none;background:rgba(255,255,255,0.05);color:#9ca3af;font-size:12px;font-weight:bold;text-align:left;cursor:pointer">🟢 ずんだもん</button>
+    </div>
 
     <!-- トップバー -->
     <div style="position:absolute;top:0;left:0;right:0;z-index:10;padding:8px 12px;background:linear-gradient(to bottom,rgba(0,0,0,0.7),transparent);display:flex;align-items:center;justify-content:space-between;padding-top:max(env(safe-area-inset-top),8px)">
@@ -2063,6 +2066,29 @@ var _stopBtn = document.getElementById('btn-stop');
 _stopBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); stopScan(); });
 _stopBtn.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); stopScan(); }, {passive: false});
 
+// --- Voice switch during scan ---
+var _voiceSwitchLabels = {'gemini-bright':'女性','gemini-calm':'男性','zundamon':'ずんだもん','auto':'自動','mochiko':'もち子','ryusei':'龍星'};
+function _updateVoiceSwitchUI() {
+    var cur = VoiceGuide.getSpeaker();
+    var lbl = document.getElementById('voice-switch-label');
+    if (lbl) lbl.textContent = _voiceSwitchLabels[cur] || cur;
+    document.querySelectorAll('.vs-opt').forEach(function(b) {
+        var active = b.getAttribute('data-vs') === cur;
+        b.style.background = active ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.05)';
+        b.style.color = active ? '#c4b5fd' : '#9ca3af';
+    });
+}
+document.querySelectorAll('.vs-opt').forEach(function(b) {
+    b.addEventListener('click', function() {
+        var s = this.getAttribute('data-vs');
+        VoiceGuide.setVoiceMode(s);
+        document.getElementById('voice-switch-popup').style.display = 'none';
+        _updateVoiceSwitchUI();
+        selectVgSpeaker(s);
+    });
+});
+_updateVoiceSwitchUI();
+
 // ページ読込時に未送信データを自動再送
 retryScanPending();
 
@@ -2116,7 +2142,7 @@ function selectVgOutput(o) {
     });
 }
 function selectVgSpeaker(s) {
-    VoiceGuide.setSpeaker(s);
+    VoiceGuide.setVoiceMode(s);
     document.querySelectorAll('.vg-speaker-btn').forEach(function(b) {
         var on = b.dataset.speaker === s;
         b.classList.toggle('active', on);
@@ -2124,6 +2150,7 @@ function selectVgSpeaker(s) {
         b.style.background = on ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.05)';
         b.style.color = on ? '#c4b5fd' : '#9ca3af';
     });
+    _updateVoiceSwitchUI();
     var previewMap = { auto: 'auto', mochiko: 'mochiko', ryusei: 'ryusei', zundamon: 'zundamon' };
     if (previewMap[s]) {
         VoiceGuide.playPreview('/assets/audio/' + previewMap[s] + '_preview.wav');
@@ -2279,6 +2306,10 @@ document.addEventListener('DOMContentLoaded', function() {
         vgToggle.addEventListener('change', function() {
             try { VoiceGuide.setEnabled(this.checked); } catch(e) {}
             if (vgSettings) vgSettings.style.display = this.checked ? 'block' : 'none';
+            if (this.checked) {
+                selectVgOutput(VoiceGuide.getOutput());
+                selectVgSpeaker(VoiceGuide.getSpeaker());
+            }
         });
     }
     document.querySelectorAll('.vg-output-btn').forEach(function(btn) {

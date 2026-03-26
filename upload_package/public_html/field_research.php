@@ -417,7 +417,7 @@ if (!$currentUser) {
                 <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;">🔊 ガイド音声を選択</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                     <template x-for="sp in speakers" :key="sp.id">
-                        <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setSpeaker(sp.id)"
+                        <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
                                 :style="selectedSpeaker === sp.id ? 'background:rgba(16,185,129,0.2);color:#10b981;border-color:#10b981;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
                                 style="padding:10px 8px;border-radius:12px;border:1.5px solid;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
                             <span x-text="sp.emoji" style="font-size:18px;"></span>
@@ -426,9 +426,9 @@ if (!$currentUser) {
                     </template>
                 </div>
             </div>
-            <div style="font-size:10px;color:#94a3b8;">速度に合わせてカメラ・音声を自動調整します</div>
+            <div style="font-size:10px;color:#94a3b8;">移動手段に合わせたガイドをお届けします</div>
             <div style="font-size:9px;color:#475569;text-align:center;padding:4px;line-height:1.6;">
-                音声: VOICEVOX（ずんだもん/もち子さん/青山龍星）<br>
+                音声: Gemini TTS / VOICEVOX（ずんだもん）<br>
                 検出: BirdNET (CC BY-SA 4.0) &amp; Perch v2 (Apache 2.0)
             </div>
         </div>
@@ -508,9 +508,27 @@ if (!$currentUser) {
                         <div style="font-size:9px;color:#94a3b8;">時間</div>
                     </div>
                 </div>
-                <button @click="stopSensor()" style="padding:8px 16px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
-                    終了
-                </button>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="position:relative;">
+                        <button @click="showVoiceSwitch = !showVoiceSwitch"
+                                style="padding:8px 10px;border-radius:10px;border:1px solid rgba(139,92,246,0.3);background:rgba(139,92,246,0.15);color:#c4b5fd;font-size:11px;cursor:pointer;white-space:nowrap;">
+                            🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
+                        </button>
+                        <div x-show="showVoiceSwitch" x-cloak @click.outside="showVoiceSwitch=false"
+                             style="position:absolute;bottom:100%;right:0;margin-bottom:8px;background:rgba(15,23,42,0.95);backdrop-filter:blur(12px);border-radius:12px;padding:8px;border:1px solid rgba(255,255,255,0.1);min-width:140px;z-index:50;">
+                            <template x-for="sp in speakers" :key="sp.id">
+                                <button @click="selectedSpeaker=sp.id; showVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
+                                        :style="selectedSpeaker===sp.id ? 'background:rgba(139,92,246,0.3);color:#c4b5fd;' : 'background:rgba(255,255,255,0.05);color:#94a3b8;'"
+                                        style="display:block;width:100%;padding:8px 12px;border-radius:8px;border:none;font-size:12px;font-weight:bold;text-align:left;cursor:pointer;margin-bottom:4px;">
+                                    <span x-text="sp.emoji + ' ' + sp.label"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <button @click="stopSensor()" style="padding:8px 16px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+                        終了
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -742,12 +760,12 @@ if (!$currentUser) {
 
                 // Speaker selection
                 showSpeakerSelect: true,
-                selectedSpeaker: localStorage.getItem('ikimon_speaker') || 'auto',
+                showVoiceSwitch: false,
+                selectedSpeaker: localStorage.getItem('ikimon_voice_speaker') || localStorage.getItem('ikimon_speaker') || 'gemini-bright',
                 speakers: [
-                    { id: 'auto', label: 'Auto', emoji: '🤖' },
+                    { id: 'gemini-bright', label: '女性', emoji: '👩' },
+                    { id: 'gemini-calm', label: '男性', emoji: '👨' },
                     { id: 'zundamon', label: 'ずんだもん', emoji: '🟢' },
-                    { id: 'mochiko', label: '女性', emoji: '🌸' },
-                    { id: 'ryusei', label: '男性', emoji: '🐉' },
                 ],
                 modeLabels: { stationary: '静止中', walk: 'サーチ中', bike: 'サーチ中（自転車）', drive: 'サーチ中（車）', car: 'サーチ中（車）' },
 
@@ -1055,7 +1073,7 @@ if (!$currentUser) {
 
                     // Enable VoiceGuide
                     if (window.VoiceGuide) {
-                        VoiceGuide.setSpeaker(this.selectedSpeaker);
+                        VoiceGuide.setVoiceMode(this.selectedSpeaker);
                         VoiceGuide.setEnabled(true);
                         // Unlock audio on user gesture (mobile browsers)
                         VoiceGuide.announce('');
