@@ -1290,10 +1290,28 @@ function _generateDialogueAudio(string $text, string $voiceMode): ?string
     $yearMonth = date('Y-m');
     $dir = PUBLIC_DIR . "/uploads/audio/voice/{$yearMonth}";
     if (!is_dir($dir)) mkdir($dir, 0755, true);
-    $filename = 'vg_duo_' . bin2hex(random_bytes(6)) . '.wav';
-    file_put_contents("{$dir}/{$filename}", $combined);
+    $wavName = 'vg_duo_' . bin2hex(random_bytes(6)) . '.wav';
+    $wavPath = "{$dir}/{$wavName}";
+    file_put_contents($wavPath, $combined);
 
-    return "/uploads/audio/voice/{$yearMonth}/{$filename}";
+    $mp3Path = _wavToMp3($wavPath);
+    if ($mp3Path) {
+        $mp3Name = basename($mp3Path);
+        return "/uploads/audio/voice/{$yearMonth}/{$mp3Name}";
+    }
+    return "/uploads/audio/voice/{$yearMonth}/{$wavName}";
+}
+
+function _wavToMp3(string $wavPath): ?string
+{
+    $mp3Path = preg_replace('/\.wav$/', '.mp3', $wavPath);
+    $cmd = 'ffmpeg -y -i ' . escapeshellarg($wavPath) . ' -codec:a libmp3lame -b:a 64k -ar 24000 ' . escapeshellarg($mp3Path) . ' 2>/dev/null';
+    exec($cmd, $out, $ret);
+    if ($ret === 0 && file_exists($mp3Path) && filesize($mp3Path) > 100) {
+        @unlink($wavPath);
+        return $mp3Path;
+    }
+    return null;
 }
 
 function _callGemini(string $prompt): string
@@ -1475,11 +1493,13 @@ function _generateVoicevoxAudio(string $text, string $voiceMode = 'zundamon'): ?
     $dir = PUBLIC_DIR . "/uploads/audio/voice/{$yearMonth}";
     if (!is_dir($dir)) mkdir($dir, 0755, true);
 
-    $filename = 'vg_' . bin2hex(random_bytes(6)) . '.wav';
-    $path = "{$dir}/{$filename}";
-    file_put_contents($path, $wavData);
+    $wavName = 'vg_' . bin2hex(random_bytes(6)) . '.wav';
+    $wavPath = "{$dir}/{$wavName}";
+    file_put_contents($wavPath, $wavData);
 
-    return "/uploads/audio/voice/{$yearMonth}/{$filename}";
+    $mp3Path = _wavToMp3($wavPath);
+    if ($mp3Path) return "/uploads/audio/voice/{$yearMonth}/" . basename($mp3Path);
+    return "/uploads/audio/voice/{$yearMonth}/{$wavName}";
 }
 
 function _resolveGeminiVoice(string $voiceMode, string $lang = 'ja'): string
@@ -1543,10 +1563,13 @@ function _generateGeminiAudio(string $text, string $voiceMode = 'gemini-bright',
     $dir = PUBLIC_DIR . "/uploads/audio/voice/{$yearMonth}";
     if (!is_dir($dir)) mkdir($dir, 0755, true);
 
-    $filename = 'vg_' . bin2hex(random_bytes(6)) . '.wav';
-    file_put_contents("{$dir}/{$filename}", $wavData);
+    $wavName = 'vg_' . bin2hex(random_bytes(6)) . '.wav';
+    $wavPath = "{$dir}/{$wavName}";
+    file_put_contents($wavPath, $wavData);
 
-    return "/uploads/audio/voice/{$yearMonth}/{$filename}";
+    $mp3Path = _wavToMp3($wavPath);
+    if ($mp3Path) return "/uploads/audio/voice/{$yearMonth}/" . basename($mp3Path);
+    return "/uploads/audio/voice/{$yearMonth}/{$wavName}";
 }
 
 function _pcmToWav(string $pcmData, int $sampleRate = 24000, int $bitsPerSample = 16, int $channels = 1): string
