@@ -1,0 +1,42 @@
+{
+  "id": "demo_nursery_hamakita",
+  "name": "はまきた里山苗木園",
+  "type": "local_business",
+  "active": false,
+  "location": {
+    "lat": 34.7900,
+    "lng": 137.7800,
+    "radius_km": 3.0,
+    "address": "浜松市浜名区赤佐町 xxx"
+  },
+  "narrative_templates": [
+    {
+      "mood": "explore",
+      "context_tags": ["satoyama", "deciduous_forest", "stream"],
+      "template": "里山の雑木林が減ってる話をしたけど、{sponsor_name}はまさにその再生をやってる場所。クヌギやコナラの苗木を育てて、里山の植林活動に使ってもらってる。ホタルが戻ってくる水辺を作るには、まず木を植えるところからなんだよね",
+      "cta_subtle": "苗木を見に行ってみて"
+    },
+    {
+      "mood": "culture",
+      "context_tags": ["satoyama", "paddy_field"],
+      "template": "浜北の里山って、何百年も人が手を入れてきた半自然環境なんだけど、{sponsor_name}はその伝統を受け継いでいる数少ない場所。昔は薪炭林の管理が里山を維持してたけど、今はそれを苗木生産という形で続けてる。形は変わっても、人と森の関係は続いてる",
+      "cta_subtle": "里山の今を見に行ってみて"
+    }
+  ],
+  "frequency_cap": {
+    "per_user_days": 14,
+    "per_session_max": 1
+  },
+  "scheduling": {
+    "start_date": "2026-04-01",
+    "end_date": "2026-12-31",
+    "days_of_week": [0, 6],
+    "hours": { "from": 9, "to": 17 }
+  },
+  "budget": {
+    "monthly_impressions_cap": 200,
+    "current_month_impressions": 0
+  },
+  "created_at": "2026-03-27",
+  "updated_at": "2026-03-27"
+}

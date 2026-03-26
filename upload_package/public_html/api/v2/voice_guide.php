@@ -388,6 +388,21 @@ if ($requestMode === 'closing') {
 
     $closingConservation = _getConservationStoryContext($lat, $lng);
 
+    $nativeAdContext = '';
+    if ($lat && $lng) {
+        try {
+            require_once ROOT_DIR . '/libs/NativeAdManager.php';
+            $habitatTags = [];
+            if (!empty($closingLandscape)) {
+                foreach (['lake', 'river', 'wetland', 'satoyama', 'urban_park', 'coastal', 'mountain_forest'] as $tag) {
+                    if (stripos($closingLandscape, $tag) !== false) $habitatTags[] = $tag;
+                }
+            }
+            $ad = NativeAdManager::getAdForClosing($lat, $lng, $guideMood, $userId, $habitatTags);
+            $nativeAdContext = NativeAdManager::formatForPrompt($ad);
+        } catch (Throwable $e) {}
+    }
+
     $prompt = <<<PROMPT
 あなたはドライブ/散歩から帰ってきた友達に語りかけるパーソナリティです。今日の体験を記憶に残す、心に響くメッセージを贈ってください。
 
@@ -404,6 +419,7 @@ if ($requestMode === 'closing') {
 {$memoryContext}
 {$closingLandscape}
 {$closingConservation}
+{$nativeAdContext}
 
 要件:
 - 天気と時間帯の空気感から始める。「{$weatherFeeling}」の雰囲気を活かして

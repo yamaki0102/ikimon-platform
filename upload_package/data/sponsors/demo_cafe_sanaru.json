@@ -1,0 +1,48 @@
+{
+  "id": "demo_cafe_sanaru",
+  "name": "湖畔のカフェ・さなる",
+  "type": "local_business",
+  "active": false,
+  "location": {
+    "lat": 34.6958,
+    "lng": 137.6989,
+    "radius_km": 2.0,
+    "address": "浜松市中央区入野町 xxx-xx"
+  },
+  "narrative_templates": [
+    {
+      "mood": "culture",
+      "context_tags": ["lake", "waterside", "wetland"],
+      "template": "佐鳴湖の水質が改善されてきた話をしたけど、その湖畔に{sponsor_name}っていうカフェがあってね。地元の農家から直接仕入れた食材を使ってる。散歩の帰りに湖を眺めながらコーヒーを飲むと、今日歩いた場所の空気をもう少し味わえるかも",
+      "cta_subtle": "帰りに寄ってみて"
+    },
+    {
+      "mood": "explore",
+      "context_tags": ["lake", "waterside"],
+      "template": "佐鳴湖の生態系を支えているのは水辺の植生だけじゃなくて、湖畔の人間の営みもなんだよね。{sponsor_name}は地元食材にこだわっていて、地産地消が結果的に周辺農地の維持につながっている。食べることと生態系は、実はつながってる",
+      "cta_subtle": "地元の味を体験してみて"
+    },
+    {
+      "mood": "any",
+      "context_tags": [],
+      "template": "散歩のあとって、ちょっと一息つきたくなるよね。湖畔の{sponsor_name}は、この辺りを歩いた人がふらっと立ち寄れる場所。窓から佐鳴湖が見えるから、今日出会った生き物を思い出しながらのんびりできるよ",
+      "cta_subtle": "散歩帰りにどうぞ"
+    }
+  ],
+  "frequency_cap": {
+    "per_user_days": 7,
+    "per_session_max": 1
+  },
+  "scheduling": {
+    "start_date": "2026-04-01",
+    "end_date": "2026-12-31",
+    "days_of_week": [0, 1, 2, 3, 4, 5, 6],
+    "hours": { "from": 8, "to": 20 }
+  },
+  "budget": {
+    "monthly_impressions_cap": 500,
+    "current_month_impressions": 0
+  },
+  "created_at": "2026-03-27",
+  "updated_at": "2026-03-27"
+}
