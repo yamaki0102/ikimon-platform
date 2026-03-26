@@ -42,7 +42,7 @@ if ($file['size'] > 5 * 1024 * 1024) {
 
 $lat = (float)($_POST['lat'] ?? 35.0);
 $lng = (float)($_POST['lng'] ?? 139.0);
-$minConf = 0.1;
+$minConf = 0.3;
 
 $merged = _dualEngineClassify($file['tmp_name'], $file['type'] ?: 'audio/webm', $file['name'] ?: 'audio.webm', $lat, $lng, $minConf);
 
@@ -150,7 +150,7 @@ function _parsePerchResponse(?string $body, int $httpCode): array
     foreach ($result['results'] as $segment) {
         foreach ($segment['predictions'] ?? [] as $pred) {
             $conf = (float)($pred['confidence'] ?? 0);
-            if ($conf < 0.1) continue;
+            if ($conf < 0.3) continue;
 
             $sciName = $pred['species'] ?? '';
             $commonName = $pred['common_name'] ?? $sciName;
@@ -197,7 +197,7 @@ function _parseBirdnetResponse(?string $body, int $httpCode): array
     $detections = [];
     foreach ($rawDetections as $det) {
         $conf = (float)($det['confidence'] ?? 0);
-        if ($conf < 0.1) continue;
+        if ($conf < 0.3) continue;
 
         $sciName = $det['scientific_name'] ?? $det['species'] ?? '';
         $commonName = $det['common_name'] ?? $sciName;
@@ -228,7 +228,7 @@ function _parseBirdnetResponse(?string $body, int $httpCode): array
 // Merge results from both engines
 // ---------------------------------------------------------------------------
 
-function _mergeResults(array $perchResults, array $birdnetResults, float $minConf = 0.1): array
+function _mergeResults(array $perchResults, array $birdnetResults, float $minConf = 0.3): array
 {
     $perchBySci   = [];
     foreach ($perchResults as $d) {
