@@ -404,6 +404,108 @@ if (!$currentUser) {
                     </template>
                 </div>
             </div>
+            <!-- 目的地（任意） -->
+            <div style="margin-bottom:16px;">
+                <div style="font-size:12px;color:#5f6368;margin-bottom:8px;font-weight:500;">どこへ行く？（任意）</div>
+                <!-- 登録済み場所のクイック選択 -->
+                <div x-show="savedPlaces.length > 0" style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px;padding-bottom:2px;" class="no-scrollbar">
+                    <button @click="destination = null; destinationName = ''"
+                            :style="!destination ? 'background:rgba(5,150,105,0.12);color:#065f46;border-color:#059669;' : 'background:#f0f4f2;color:#5f6368;border-color:transparent;'"
+                            style="padding:8px 14px;border-radius:9999px;border:1.5px solid;cursor:pointer;font-size:12px;font-weight:500;white-space:nowrap;transition:all 250ms cubic-bezier(0.2,0,0,1);">
+                        なし
+                    </button>
+                    <template x-for="sp in savedPlaces" :key="sp.id">
+                        <button @click="selectSavedPlace(sp)"
+                                :style="destination && destination.lat === sp.lat && destination.lng === sp.lng ? 'background:rgba(5,150,105,0.12);color:#065f46;border-color:#059669;' : 'background:#f0f4f2;color:#5f6368;border-color:transparent;'"
+                                style="padding:8px 14px;border-radius:9999px;border:1.5px solid;cursor:pointer;font-size:12px;font-weight:500;white-space:nowrap;transition:all 250ms cubic-bezier(0.2,0,0,1);display:flex;align-items:center;gap:4px;">
+                            <span x-text="sp.icon" style="pointer-events:none;"></span>
+                            <span x-text="sp.name" style="pointer-events:none;"></span>
+                        </button>
+                    </template>
+                </div>
+                <!-- 手動入力 or 場所登録 -->
+                <div style="display:flex;gap:6px;">
+                    <div style="flex:1;position:relative;">
+                        <input type="text" x-model="destinationName" @input.debounce.500ms="searchDestination()"
+                            placeholder="場所を入力..."
+                            style="width:100%;padding:10px 14px;border-radius:14px;border:1px solid #e5e7eb;background:#f9fafb;font-size:13px;outline:none;transition:border-color 200ms;"
+                            @focus="$el.style.borderColor='#059669'" @blur="$el.style.borderColor='#e5e7eb'">
+                        <!-- 検索候補（簡易：将来 Places API 連携） -->
+                        <div x-show="destSuggestions.length > 0" x-cloak @click.outside="destSuggestions = []"
+                            style="position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#fff;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:50;max-height:200px;overflow-y:auto;">
+                            <template x-for="sug in destSuggestions" :key="sug.name">
+                                <button @click="setDestination(sug); destSuggestions = []"
+                                    style="display:block;width:100%;padding:12px 14px;text-align:left;border:none;background:none;cursor:pointer;font-size:13px;color:#1a1a1a;border-bottom:1px solid #f3f4f6;"
+                                    @mouseenter="$el.style.background='#f0fdf4'" @mouseleave="$el.style.background='none'">
+                                    <span x-text="sug.icon + ' ' + sug.name"></span>
+                                    <span x-show="sug.distance_km" style="font-size:11px;color:#9ca3af;margin-left:8px;" x-text="sug.distance_km.toFixed(1) + 'km'"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <button @click="showPlaceManager = !showPlaceManager"
+                        style="padding:10px;border-radius:14px;border:1px solid #e5e7eb;background:#f9fafb;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 200ms;"
+                        title="場所を管理">
+                        <i data-lucide="bookmark" style="width:18px;height:18px;color:#5f6368;pointer-events:none;"></i>
+                    </button>
+                </div>
+                <!-- 選択中の目的地表示 -->
+                <div x-show="destination" x-cloak style="margin-top:8px;display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:11px;color:#059669;font-weight:500;" x-text="'→ ' + destinationName"></span>
+                    <button @click="destination = null; destinationName = ''" style="background:none;border:none;cursor:pointer;padding:2px;">
+                        <i data-lucide="x" style="width:14px;height:14px;color:#9ca3af;pointer-events:none;"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- 場所管理パネル -->
+            <div x-show="showPlaceManager" x-cloak style="margin-bottom:14px;background:#f9fafb;border-radius:16px;padding:14px;">
+                <div style="font-size:12px;font-weight:600;color:#1a1a1a;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+                    <span>よく行く場所</span>
+                    <button @click="showPlaceManager = false" style="background:none;border:none;cursor:pointer;padding:2px;">
+                        <i data-lucide="x" style="width:16px;height:16px;color:#9ca3af;pointer-events:none;"></i>
+                    </button>
+                </div>
+                <!-- 登録済みリスト -->
+                <div x-show="savedPlaces.length > 0" style="margin-bottom:10px;">
+                    <template x-for="sp in savedPlaces" :key="sp.id">
+                        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0;">
+                            <span x-text="sp.icon" style="font-size:18px;"></span>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-size:13px;font-weight:500;color:#1a1a1a;truncate;" x-text="sp.name"></div>
+                                <div style="font-size:10px;color:#9ca3af;" x-text="sp.label || ''"></div>
+                            </div>
+                            <button @click="deleteSavedPlace(sp.id)"
+                                style="background:none;border:none;cursor:pointer;padding:4px;border-radius:8px;"
+                                @mouseenter="$el.style.background='#fee2e2'" @mouseleave="$el.style.background='none'">
+                                <i data-lucide="trash-2" style="width:14px;height:14px;color:#9ca3af;pointer-events:none;"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+                <!-- 新規登録 -->
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <select x-model="newPlaceIcon" style="padding:8px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;font-size:16px;width:50px;">
+                        <option value="🏠">🏠</option>
+                        <option value="🏢">🏢</option>
+                        <option value="🏫">🏫</option>
+                        <option value="🏥">🏥</option>
+                        <option value="🛒">🛒</option>
+                        <option value="⛩️">⛩️</option>
+                        <option value="🌳">🌳</option>
+                        <option value="🏖️">🏖️</option>
+                        <option value="📍">📍</option>
+                    </select>
+                    <input type="text" x-model="newPlaceName" placeholder="名前（自宅、会社…）"
+                        style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;font-size:13px;outline:none;">
+                    <button @click="addCurrentLocationAsPlace()"
+                        :disabled="!newPlaceName.trim()"
+                        :style="newPlaceName.trim() ? 'background:#059669;color:#fff;' : 'background:#e5e7eb;color:#9ca3af;'"
+                        style="padding:8px 14px;border-radius:10px;border:none;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                        現在地で登録
+                    </button>
+                </div>
+                <div style="font-size:10px;color:#9ca3af;margin-top:6px;">今いる場所を登録します（最大20件）</div>
+            </div>
             <!-- ドライブ設定（車モード時） -->
             <div x-show="manualTransportMode === 'car'" x-cloak style="margin-bottom:14px;">
                 <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">ドライブ時間</div>
@@ -829,6 +931,17 @@ if (!$currentUser) {
                 _detectionFadeTimer: null,
                 envLabel: '',
 
+                // Destination
+                destination: null,
+                destinationName: '',
+                savedPlaces: [],
+                destSuggestions: [],
+                showPlaceManager: false,
+                newPlaceName: '',
+                newPlaceIcon: '📍',
+                _currentLat: null,
+                _currentLng: null,
+
                 // Speaker selection
                 showSpeakerSelect: true,
                 showVoiceSwitch: false,
@@ -869,6 +982,7 @@ if (!$currentUser) {
 
                 init() {
                     lucide.createIcons();
+                    this.loadSavedPlaces();
 
                     // Connectivity monitoring
                     window.addEventListener('online', () => { this.isOnline = true; });
@@ -920,6 +1034,8 @@ if (!$currentUser) {
                     } else if (navigator.geolocation) {
                         // Fly to current location (default behavior)
                         navigator.geolocation.getCurrentPosition(pos => {
+                            this._currentLat = pos.coords.latitude;
+                            this._currentLng = pos.coords.longitude;
                             this.map.flyTo({
                                 center: [pos.coords.longitude, pos.coords.latitude],
                                 zoom: 15, duration: 1500
@@ -1050,6 +1166,23 @@ if (!$currentUser) {
                     // 手動選択した移動手段を初期モードとして設定
                     this.currentMovementMode = this.manualTransportMode === 'car' ? 'drive' : (this.manualTransportMode || 'walk');
 
+                    // 目的地をセッションストレージに保存（voice_guide が参照）
+                    if (this.destination) {
+                        sessionStorage.setItem('ikimon_destination', JSON.stringify(this.destination));
+                        sessionStorage.setItem('ikimon_destination_name', this.destinationName);
+                        // 使用回数カウント
+                        if (this.destination.id) {
+                            fetch('api/v2/saved_places.php', {
+                                method: 'POST',
+                                headers: {'Content-Type':'application/json'},
+                                body: JSON.stringify({action:'use', place_id: this.destination.id})
+                            }).catch(() => {});
+                        }
+                    } else {
+                        sessionStorage.removeItem('ikimon_destination');
+                        sessionStorage.removeItem('ikimon_destination_name');
+                    }
+
                     // Timer
                     this._sessionTimer = setInterval(() => {
                         if (!this.liveScanner) return;
@@ -1110,6 +1243,7 @@ if (!$currentUser) {
                                 drive_total_min: this._driveTotalMin || 0,
                                 guide_mood: this.guideMood || 'relax',
                             });
+                            this._appendDestParams(params);
                             const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
                             if (!resp.ok) return;
                             const json = await resp.json();
@@ -1340,6 +1474,7 @@ if (!$currentUser) {
                             voice_mode: VoiceGuide.getVoiceMode(),
                             transport_mode: transportMode,
                         });
+                        this._appendDestParams(params);
                         const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
                         if (!resp.ok) return;
                         const json = await resp.json();
@@ -1386,6 +1521,7 @@ if (!$currentUser) {
                         if (gpsPos.lat) params.set('lat', gpsPos.lat);
                         if (gpsPos.lng) params.set('lng', gpsPos.lng);
                         params.set('guide_mood', this.guideMood || 'relax');
+                        this._appendDestParams(params);
                         const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
                         if (!resp.ok) {
                             this._sendLog('🔊 API ' + resp.status);
@@ -1447,6 +1583,88 @@ if (!$currentUser) {
                             } catch {}
                         }, 5000);
                     }
+                },
+
+                _appendDestParams(params) {
+                    const dest = this.destination || JSON.parse(sessionStorage.getItem('ikimon_destination') || 'null');
+                    const destName = this.destinationName || sessionStorage.getItem('ikimon_destination_name') || '';
+                    if (dest && dest.lat && dest.lng && destName) {
+                        params.set('dest_lat', dest.lat);
+                        params.set('dest_lng', dest.lng);
+                        params.set('dest_name', destName);
+                    }
+                },
+
+                // ── Destination & Saved Places ──
+
+                async loadSavedPlaces() {
+                    try {
+                        const res = await fetch('api/v2/saved_places.php');
+                        const result = await res.json();
+                        if (result.success) {
+                            this.savedPlaces = (result.data || []).sort((a, b) => (b.use_count || 0) - (a.use_count || 0));
+                        }
+                    } catch (e) {}
+                },
+
+                selectSavedPlace(sp) {
+                    this.destination = { lat: sp.lat, lng: sp.lng, id: sp.id };
+                    this.destinationName = sp.icon + ' ' + sp.name;
+                },
+
+                setDestination(sug) {
+                    this.destination = { lat: sug.lat, lng: sug.lng, id: sug.id || null };
+                    this.destinationName = sug.name;
+                },
+
+                searchDestination() {
+                    const q = this.destinationName.trim();
+                    if (!q || q.length < 2) { this.destSuggestions = []; return; }
+                    const results = this.savedPlaces
+                        .filter(sp => sp.name.includes(q))
+                        .map(sp => ({
+                            name: sp.name, lat: sp.lat, lng: sp.lng, id: sp.id,
+                            icon: sp.icon, distance_km: null,
+                        }));
+                    this.destSuggestions = results;
+                },
+
+                async addCurrentLocationAsPlace() {
+                    const name = this.newPlaceName.trim();
+                    if (!name) return;
+                    const lat = this._currentLat;
+                    const lng = this._currentLng;
+                    if (!lat || !lng) { alert('GPS位置を取得中です。少し待ってから再試行してください。'); return; }
+                    try {
+                        const res = await fetch('api/v2/saved_places.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'add', name, lat, lng, icon: this.newPlaceIcon }),
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                            this.savedPlaces.push(result.place);
+                            this.newPlaceName = '';
+                            this.newPlaceIcon = '📍';
+                        }
+                    } catch (e) {}
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                async deleteSavedPlace(placeId) {
+                    try {
+                        await fetch('api/v2/saved_places.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'delete', place_id: placeId }),
+                        });
+                        this.savedPlaces = this.savedPlaces.filter(sp => sp.id !== placeId);
+                        if (this.destination && this.destination.id === placeId) {
+                            this.destination = null;
+                            this.destinationName = '';
+                        }
+                    } catch (e) {}
+                    this.$nextTick(() => lucide.createIcons());
                 },
 
                 formatElapsed(sec) {

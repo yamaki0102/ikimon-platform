@@ -50,6 +50,10 @@ if (!in_array($transportMode, ['walk', 'bike', 'car', 'drive', 'stationary'], tr
 }
 $guideMood = api_param('guide_mood', 'relax');
 if (!in_array($guideMood, ['explore', 'culture', 'relax'], true)) $guideMood = 'relax';
+$destLat = (float)api_param('dest_lat', '0');
+$destLng = (float)api_param('dest_lng', '0');
+$destName = api_param('dest_name', '');
+$hasDestination = ($destLat != 0 && $destLng != 0 && !empty($destName));
 $moodInstruction = match($guideMood) {
     'explore' => '自然・生態系・生き物の話を中心に。環境の読み方、種の見分け方、生態系のつながりを深く。',
     'culture' => '地域の歴史・文化・暮らし・人の営みを中心に。生き物はきっかけとして、話は文化へ広げて。地名の由来、食文化、農業、街の成り立ちなど。',
@@ -261,6 +265,7 @@ if ($requestMode === 'opening') {
     }
 
     $openingConservation = _getConservationStoryContext($lat, $lng);
+    $destinationContext = $hasDestination ? "目的地: {$destName}（この方面へ向かっている。道中で見える自然や、目的地付近の生態系に触れてもOK）" : '';
 
     $prompt = <<<PROMPT
 あなたは自然散策の相棒です。これからフィールドに出る人に、その場所の空気感を伝える短い挨拶を生成してください。
@@ -274,6 +279,7 @@ if ($requestMode === 'opening') {
 {$tempNote}
 この付近の過去の観察記録: {$pastSpeciesCount}種
 {$memoryContext}
+{$destinationContext}
 
 過去の観察データ:
 {$nearbyContext}
@@ -398,7 +404,9 @@ if ($requestMode === 'closing') {
                     if (stripos($closingLandscape, $tag) !== false) $habitatTags[] = $tag;
                 }
             }
-            $ad = NativeAdManager::getAdForClosing($lat, $lng, $guideMood, $userId, $habitatTags);
+            $adLat = $hasDestination ? $destLat : $lat;
+            $adLng = $hasDestination ? $destLng : $lng;
+            $ad = NativeAdManager::getAdForClosing($adLat, $adLng, $guideMood, $userId, $habitatTags);
             $nativeAdContext = NativeAdManager::formatForPrompt($ad);
         } catch (Throwable $e) {}
     }
