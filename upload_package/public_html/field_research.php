@@ -445,18 +445,36 @@ if (!$currentUser) {
                     <span style="font-size:18px;">📡</span> センサーを開始
                 </button>
                 <button @click="showSpeakerSelect = !showSpeakerSelect"
-                        style="padding:12px 16px;border-radius:24px;border:1px solid #e5e7eb;background:#f0f4f2;color:#5f6368;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;transition:all 250ms cubic-bezier(0.2,0,0,1);">
+                        style="padding:12px 16px;border-radius:24px;border:1px solid #e5e7eb;background:#f0f4f2;color:#5f6368;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;white-space:nowrap;transition:all 250ms cubic-bezier(0.2,0,0,1);">
                     <span style="font-size:18px;" x-text="speakerEmoji"></span>
-                    <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || 'Auto'" style="font-size:10px;font-weight:500;"></span>
+                    <span x-text="selectedSpeaker.startsWith('duo-') ? '掛け合い' : '解説'" style="font-size:9px;font-weight:600;color:#059669;"></span>
+                    <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || 'Auto'" style="font-size:9px;font-weight:500;"></span>
                 </button>
             </div>
             <div x-show="showSpeakerSelect" x-cloak style="margin-bottom:12px;">
-                <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">ガイド音声</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <template x-for="sp in speakers" :key="sp.id">
+                <!-- 一人で解説 -->
+                <div style="font-size:12px;color:#1a1a1a;margin-bottom:8px;font-weight:600;display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:14px;">🎧</span> 一人で解説
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+                    <template x-for="sp in speakers.filter(s => !s.id.startsWith('duo-'))" :key="sp.id">
                         <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                :style="selectedSpeaker === sp.id ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
-                                style="padding:14px 8px;border-radius:20px;border:1.5px solid;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 250ms cubic-bezier(0.2,0,0,1);">
+                                :style="selectedSpeaker === sp.id ? 'background:rgba(5,150,105,0.12);color:#065f46;border-color:#059669;' : 'background:#f0f4f2;color:#5f6368;border-color:transparent;'"
+                                style="padding:14px 8px;border-radius:20px;border:1.5px solid;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 250ms cubic-bezier(0.2,0,0,1);">
+                            <span x-text="sp.emoji" style="font-size:20px;"></span>
+                            <span x-text="sp.label" style="font-weight:500;font-size:11px;"></span>
+                        </button>
+                    </template>
+                </div>
+                <!-- 二人で掛け合い -->
+                <div style="font-size:12px;color:#1a1a1a;margin-bottom:8px;font-weight:600;display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:14px;">🎙️</span> 二人で掛け合い
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <template x-for="sp in speakers.filter(s => s.id.startsWith('duo-'))" :key="sp.id">
+                        <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
+                                :style="selectedSpeaker === sp.id ? 'background:rgba(5,150,105,0.12);color:#065f46;border-color:#059669;' : 'background:#f0f4f2;color:#5f6368;border-color:transparent;'"
+                                style="padding:14px 8px;border-radius:20px;border:1.5px solid;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 250ms cubic-bezier(0.2,0,0,1);">
                             <span x-text="sp.emoji" style="font-size:18px;"></span>
                             <span x-text="sp.label" style="font-weight:500;"></span>
                         </button>
