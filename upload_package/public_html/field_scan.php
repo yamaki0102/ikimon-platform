@@ -689,10 +689,14 @@ async function startScan() {
         S._lastVoiceTime = 0;
         S._vgMode = vgMode;
         S._prefetchedAmbient = null;
-        // 即座にTTSでオープニング発話（API応答を待たない）
-        var modeLabel = S.mode === 'car' ? 'ドライブ' : S.mode === 'bike' ? 'サイクリング' : 'フィールドスキャン';
-        VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
-        // 並行してAPIからリッチなオープニングを取得→再生
+        // VOICEVOX/duo モードではAPIからの音声ガイドのみ（ブラウザTTSとの声の不一致を防止）
+        // speaker (Gemini TTS) モードのみ即座にTTSで繋ぎ
+        var isVoicevoxMode = ['zundamon','mochiko','ryusei','auto'].indexOf(vgMode) >= 0 || vgMode.indexOf('duo-') === 0;
+        if (!isVoicevoxMode) {
+            var modeLabel = S.mode === 'car' ? 'ドライブ' : S.mode === 'bike' ? 'サイクリング' : 'フィールドスキャン';
+            VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
+        }
+        // APIからリッチなオープニングを取得→再生
         _fetchAmbientNow();
     } else {
         dbg('🔇 OFF');
@@ -1457,8 +1461,10 @@ function addDetection(name, sci, conf, source, category, note) {
         if (isFirstDet || cnt % 3 === 0) {
             S._lastDetVoiceTime = Date.now();
             S._lastVoiceTime = Date.now();
-            // 初回検出は即座にTTSで名前+エリア文脈を伝え、詳細ガイドを並行取得
-            if (isFirstDet) {
+            // 初回検出は即座にTTSで名前を伝え（VOICEVOX/duoモードではスキップ — 声の不一致防止）
+            var _vgm = VoiceGuide.getVoiceMode();
+            var _isVoxMode = ['zundamon','mochiko','ryusei','auto'].indexOf(_vgm) >= 0 || _vgm.indexOf('duo-') === 0;
+            if (isFirstDet && !_isVoxMode) {
                 var quickMsg = name + '、見つけたよ！';
                 if (S._areaInfo && S._areaInfo.top_species) {
                     var isKnown = S._areaInfo.top_species.indexOf(name) >= 0;
@@ -2165,7 +2171,7 @@ function selectVgSpeaker(s) {
         b.style.color = on ? '#c4b5fd' : '#9ca3af';
     });
     _updateVoiceSwitchUI();
-    var previewMap = { auto: 'auto', mochiko: 'mochiko', ryusei: 'ryusei', zundamon: 'zundamon' };
+    var previewMap = { auto: 'auto', mochiko: 'mochiko', ryusei: 'ryusei', zundamon: 'zundamon', 'duo-zundamon-mochiko': 'duo_zundamon_mochiko', 'duo-zundamon-ryusei': 'duo_zundamon_ryusei' };
     if (previewMap[s]) {
         VoiceGuide.playPreview('/assets/audio/' + previewMap[s] + '_preview.wav');
     }
