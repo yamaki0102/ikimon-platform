@@ -27,6 +27,66 @@
       "url": "https://www.pref.shizuoka.jp/kankyou/ka-070/wild/red/",
       "license": "government_open_data",
       "redistribution": true
+    },
+    {
+      "id": "hamamatsu_city_history",
+      "name": "浜松市史（通史編・自然編）",
+      "license": "educational_use",
+      "redistribution": false,
+      "notes": "浜松市立図書館・ADEAC経由。テキスト要約のみ使用"
+    },
+    {
+      "id": "hamamatsu_env_report",
+      "name": "浜松市環境白書",
+      "url": "https://www.city.hamamatsu.shizuoka.jp/kankyo/",
+      "license": "government_open_data",
+      "redistribution": true,
+      "notes": "年次環境報告。外来種・水質・気候データ"
+    },
+    {
+      "id": "jma_hamamatsu",
+      "name": "気象庁 浜松気象台データ",
+      "url": "https://www.data.jma.go.jp/",
+      "license": "government_open_data",
+      "redistribution": true,
+      "notes": "気温・降水量の長期統計データ"
+    },
+    {
+      "id": "shizuoka_invasive",
+      "name": "静岡県外来種リスト",
+      "url": "https://www.pref.shizuoka.jp/kankyou/",
+      "license": "government_open_data",
+      "redistribution": true
+    },
+    {
+      "id": "mlit_tenryu",
+      "name": "国交省 天竜川水系河川整備計画",
+      "url": "https://www.cbr.mlit.go.jp/hamamatsu/",
+      "license": "government_open_data",
+      "redistribution": true,
+      "notes": "河川工学・治水・土砂動態データ"
+    },
+    {
+      "id": "hamamatsu_green_plan",
+      "name": "浜松市みどりの基本計画",
+      "url": "https://www.city.hamamatsu.shizuoka.jp/koen/",
+      "license": "government_open_data",
+      "redistribution": true
+    },
+    {
+      "id": "enshu_coast_plan",
+      "name": "遠州灘海岸保全基本計画",
+      "license": "government_open_data",
+      "redistribution": true,
+      "notes": "海岸侵食対策・砂丘保全データ"
+    },
+    {
+      "id": "shizuoka_biodiversity",
+      "name": "静岡県生物多様性地域戦略",
+      "url": "https://www.pref.shizuoka.jp/kankyou/",
+      "license": "government_open_data",
+      "redistribution": true,
+      "notes": "県全体の生物多様性保全戦略"
     }
   ]
 }

@@ -6,6 +6,7 @@ require_once __DIR__ . '/../config/config.php';
 class LandscapeHistoryContext
 {
     private const SEARCH_RADIUS_KM = 3.0;
+    private const SCALE_THRESHOLD_KM = 10.0;
     private const DATA_DIR_REL = '/ecology/landscape_history';
     private const EARTH_RADIUS_KM = 6371.0;
 
@@ -25,22 +26,61 @@ class LandscapeHistoryContext
         $regionCode = self::resolveRegionCode($lat, $lng);
         if (empty($regionCode)) return '';
 
-        $chunks = self::findNearbyChunks($lat, $lng, $regionCode);
-        if (empty($chunks)) return '';
+        $allChunks = self::findNearbyChunks($lat, $lng, $regionCode);
+        if (empty($allChunks)) return '';
 
-        $scored = [];
-        foreach ($chunks as $chunk) {
-            $score = self::scoreChunk($chunk, $lat, $lng, $speciesName, $scientificName, $userId);
-            $scored[] = ['chunk' => $chunk, 'score' => $score];
+        $localChunks = [];
+        $scaleChunks = [];
+        foreach ($allChunks as $chunk) {
+            $radius = (float)($chunk['location']['radius_km'] ?? self::SEARCH_RADIUS_KM);
+            if ($radius > self::SCALE_THRESHOLD_KM) {
+                $scaleChunks[] = $chunk;
+            } else {
+                $localChunks[] = $chunk;
+            }
         }
-        usort($scored, fn($a, $b) => $b['score'] <=> $a['score']);
 
-        $best = $scored[0];
-        if ($best['score'] <= 0) return '';
+        $localContext = '';
+        if (!empty($localChunks)) {
+            $scored = [];
+            foreach ($localChunks as $chunk) {
+                $score = self::scoreChunk($chunk, $lat, $lng, $speciesName, $scientificName, $userId);
+                $scored[] = ['chunk' => $chunk, 'score' => $score];
+            }
+            usort($scored, fn($a, $b) => $b['score'] <=> $a['score']);
+            $best = $scored[0];
+            if ($best['score'] > 0) {
+                $layer = self::selectNarrativeLayer($best['chunk'], $speciesName, $userId);
+                $localContext = self::formatForMode($best['chunk'], $layer, $mode);
+            }
+        }
 
-        $layer = self::selectNarrativeLayer($best['chunk'], $speciesName, $userId);
+        if ($mode === 'detection') {
+            return $localContext;
+        }
 
-        return self::formatForMode($best['chunk'], $layer, $mode);
+        $scaleContext = '';
+        if (!empty($scaleChunks) && in_array($mode, ['opening', 'closing', 'ambient'], true)) {
+            if ($mode === 'ambient' && !empty($localContext)) {
+                return $localContext;
+            }
+            $scored = [];
+            foreach ($scaleChunks as $chunk) {
+                $score = self::scoreScaleChunk($chunk, $speciesName, $scientificName, $userId);
+                $scored[] = ['chunk' => $chunk, 'score' => $score];
+            }
+            usort($scored, fn($a, $b) => $b['score'] <=> $a['score']);
+            $best = $scored[0];
+            if ($best['score'] > 0) {
+                $layer = self::selectNarrativeLayer($best['chunk'], $speciesName, $userId);
+                $scaleContext = self::formatScaleContext($best['chunk'], $layer, $mode);
+            }
+        }
+
+        if (!empty($localContext) && !empty($scaleContext)) {
+            return $localContext . "\n\n" . $scaleContext;
+        }
+        return $localContext ?: $scaleContext;
     }
 
     public static function getDeliveryMetadata(
@@ -191,15 +231,15 @@ class LandscapeHistoryContext
 
         $history = self::loadUserNarrativeHistory($userId);
         $chunkId = $chunk['id'] ?? '';
-        $usedThemes = $history[$chunkId] ?? [];
+        $usedKeys = $history['_used_keys'] ?? [];
         $layers = $chunk['narrative_layers'] ?? [];
 
         if (empty($layers)) return 0.5;
 
         $unusedCount = 0;
-        foreach ($layers as $layer) {
-            $theme = $layer['theme'] ?? '';
-            if (!in_array($theme, $usedThemes, true)) {
+        foreach ($layers as $i => $layer) {
+            $key = $chunkId . ':' . $i;
+            if (!in_array($key, $usedKeys, true)) {
                 $unusedCount++;
             }
         }
@@ -217,23 +257,54 @@ class LandscapeHistoryContext
 
         $history = self::loadUserNarrativeHistory($userId);
         $chunkId = $chunk['id'] ?? '';
-        $usedThemes = $history[$chunkId] ?? [];
+        $usedKeys = $history['_used_keys'] ?? [];
+        $recentTitles = $history['_recent_titles'] ?? [];
 
         $month = (int)date('n');
         $seasonBonus = match(true) {
-            $month >= 3 && $month <= 5 => ['migration', 'spring_ecology', 'insect_ecology'],
-            $month >= 6 && $month <= 8 => ['wetland_ecology', 'water_management', 'river_ecology'],
-            $month >= 9 && $month <= 11 => ['forest_ecology', 'harvest', 'grassland'],
-            default => ['winter_ecology', 'urban_wildlife'],
+            $month >= 3 && $month <= 5 => [
+                'migration', 'spring_ecology', 'insect_ecology',
+                'seasonal_phenology', 'mikan_agroecology', 'archaeology_deep',
+                'garden_escape', 'satoyama_cycle', 'firefly_indicator',
+                'nocturnal_spring', 'sensory_spring',
+            ],
+            $month >= 6 && $month <= 8 => [
+                'wetland_ecology', 'water_management', 'river_ecology',
+                'climate_record', 'water_quality_data', 'water_quality_comparison',
+                'invasive_species', 'sea_turtle', 'nutrient_dynamics',
+                'hot_spring_ecology', 'citizen_science_30year',
+                'nocturnal_summer', 'sensory_summer', 'festival_nature',
+            ],
+            $month >= 9 && $month <= 11 => [
+                'forest_ecology', 'harvest', 'grassland',
+                'forestry_history', 'sacred_ecology_deep', 'sacred_forest',
+                'food_culture_ecology', 'industrial_ecology', 'evergreen_broadleaf',
+                'quantitative_satoyama', 'depopulation_rewilding',
+                'nocturnal_autumn', 'sensory_autumn',
+            ],
+            default => [
+                'winter_ecology', 'urban_wildlife',
+                'migratory_birds', 'urban_adaptation', 'light_pollution',
+                'geological_event', 'geology_deep', 'limestone_geology',
+                'dam_impact_quantitative', 'quantitative_portrait',
+                'serow_territory', 'deep_south_alps',
+                'nocturnal_winter', 'weather_ecology',
+            ],
         };
 
         $candidates = [];
         foreach ($layers as $i => $layer) {
             $theme = $layer['theme'] ?? '';
+            $title = $layer['title'] ?? '';
+            $key = $chunkId . ':' . $i;
             $score = 1.0;
 
-            if (in_array($theme, $usedThemes, true)) {
-                $score *= 0.3;
+            if (in_array($key, $usedKeys, true)) {
+                $score *= 0.05;
+            }
+
+            if (!empty($title) && in_array($title, $recentTitles, true)) {
+                $score *= 0.1;
             }
 
             if (in_array($theme, $seasonBonus, true)) {
@@ -249,7 +320,11 @@ class LandscapeHistoryContext
         $topCandidates = array_filter($candidates, fn($c) => $c['score'] >= $topScore * 0.9);
         $selected = $topCandidates[array_rand($topCandidates)];
 
-        self::recordNarrativeUsage($userId, $chunkId, $selected['layer']['theme'] ?? '');
+        self::recordNarrativeUsage(
+            $userId, $chunkId,
+            $selected['index'],
+            $selected['layer']['title'] ?? ''
+        );
 
         return $selected['layer'];
     }
@@ -290,6 +365,8 @@ class LandscapeHistoryContext
         $parts[] = "→ この歴史を「だから今ここにこの種がいる」という形で検出種と結びつけて。";
         $parts[] = "→ 城や神社の観光解説はしない。土地と水と生き物の関係を語って。";
         $parts[] = "→ 長めに語ってOK（300-400文字）。散歩中に聞くポッドキャストのような語り口で。";
+        $parts[] = "→ 専門用語は必ず噛み砕いて。例:「汽水域」→「海の水と川の水が混じる場所」、「エコトーン」→「二つの環境の境目」、「富栄養化」→「栄養が多すぎて藻だらけになること」。聞いてる人が生態学を知らない前提で話して。";
+        $parts[] = "→ 必ず話を完結させて。途中で切れるのは絶対ダメ。最後の文は句点で終わること。";
 
         return implode("\n", $parts);
     }
@@ -305,6 +382,7 @@ class LandscapeHistoryContext
         if ($link) $parts[] = $link;
         $parts[] = "→ 2-3文で自然に織り込んで。歴史の授業にしない。";
         $parts[] = "→ 「昔ここは〇〇だった。だから今でも△△がいる」の形で。";
+        $parts[] = "→ 専門用語は使わず、誰でもわかる言葉で。";
 
         return implode("\n", $parts);
     }
@@ -325,6 +403,8 @@ class LandscapeHistoryContext
         $parts[] = "→ 400-500文字でじっくり語ってOK。リスナーが「へぇ」「そうなんだ」と思える密度で。";
         $parts[] = "→ 城跡・寺社の解説は絶対にしない。土地利用の変化→生態系への影響の視点のみ。";
         $parts[] = "→ 今この季節・天気だからこそ感じられるポイントがあれば添えて。";
+        $parts[] = "→ 専門用語は必ず噛み砕いて言い換えて。中学生でもわかる言葉で。";
+        $parts[] = "→ 必ず話を完結させて。途中で切れるのは絶対ダメ。最後の文は句点で終わること。";
 
         return implode("\n", $parts);
     }
@@ -340,7 +420,51 @@ class LandscapeHistoryContext
         if ($before) $parts[] = "この場所のかつての姿: {$before}";
         $parts[] = "→ 「今日歩いた場所は、昔は〇〇だった。キミのデータがその変化を記録している」のように。";
         $parts[] = "→ 1-2文で簡潔に。余韻を残す形で。";
+        $parts[] = "→ 専門用語は使わず、誰でもわかる言葉で。";
 
+        return implode("\n", $parts);
+    }
+
+    private static function scoreScaleChunk(
+        array $chunk,
+        ?string $speciesName,
+        ?string $scientificName,
+        string $userId
+    ): float {
+        $speciesScore = self::scoreBySpecies($chunk, $speciesName, $scientificName);
+        $noveltyScore = self::scoreNovelty($chunk, $userId);
+        return ($speciesScore * 0.3) + ($noveltyScore * 0.7);
+    }
+
+    private static function formatScaleContext(array $chunk, ?array $layer, string $mode): string
+    {
+        $narrative = $layer['narrative'] ?? '';
+        $title = $layer['title'] ?? '';
+        $placeName = $chunk['location']['place_names'][0] ?? '';
+
+        if ($mode === 'opening') {
+            $parts = ["【広域の視点（この場所を大きなスケールで捉えて、1-2文で自然に添えて）】"];
+            if ($title) $parts[] = $title;
+            if ($narrative) $parts[] = mb_substr($narrative, 0, 200);
+            $parts[] = "→ ローカルな話の導入として、世界や地域の中での位置づけを軽く触れる程度。主役はローカルな話。";
+            $parts[] = "→ 専門用語は使わない。「フライウェイ」→「渡り鳥が毎年飛ぶルート」のように。";
+            return implode("\n", $parts);
+        }
+
+        if ($mode === 'closing') {
+            $parts = ["【広域の視点（今日の記録を大きな文脈に位置づけて、1文で締めて）】"];
+            if ($title) $parts[] = $title;
+            if ($narrative) $parts[] = mb_substr($narrative, 0, 150);
+            $parts[] = "→ 「キミの記録は〇〇という大きな流れの一部」という形で余韻を残して。";
+            $parts[] = "→ 専門用語は使わない。";
+            return implode("\n", $parts);
+        }
+
+        $parts = ["【広域の景観史（ポッドキャスト的にじっくり語ってOK）】"];
+        if ($title) $parts[] = "テーマ: {$title}";
+        if ($narrative) $parts[] = $narrative;
+        $parts[] = "→ この地域の特徴を、広い視野から語って。";
+        $parts[] = "→ 専門用語は噛み砕いて。中学生でもわかる言葉で。";
         return implode("\n", $parts);
     }
 
@@ -392,9 +516,13 @@ class LandscapeHistoryContext
         return $data ?: [];
     }
 
-    private static function recordNarrativeUsage(string $userId, string $chunkId, string $theme): void
-    {
-        if (empty($userId) || empty($theme)) return;
+    private static function recordNarrativeUsage(
+        string $userId,
+        string $chunkId,
+        int $layerIndex,
+        string $title
+    ): void {
+        if (empty($userId)) return;
 
         $safeUserId = preg_replace('/[^a-zA-Z0-9_\-]/', '', $userId);
         $dir = DATA_DIR . '/voice_guide_history';
@@ -406,18 +534,32 @@ class LandscapeHistoryContext
             $history = json_decode(file_get_contents($path), true) ?: [];
         }
 
-        if (!isset($history[$chunkId])) {
-            $history[$chunkId] = [];
+        $key = $chunkId . ':' . $layerIndex;
+
+        if (!isset($history['_used_keys'])) {
+            $history['_used_keys'] = [];
+        }
+        $history['_used_keys'] = array_values(array_filter(
+            $history['_used_keys'],
+            fn($k) => $k !== $key
+        ));
+        $history['_used_keys'][] = $key;
+        if (count($history['_used_keys']) > 200) {
+            $history['_used_keys'] = array_slice($history['_used_keys'], -200);
         }
 
-        $history[$chunkId] = array_values(array_filter(
-            $history[$chunkId],
-            fn($t) => $t !== $theme
-        ));
-        $history[$chunkId][] = $theme;
-
-        if (count($history[$chunkId]) > 20) {
-            $history[$chunkId] = array_slice($history[$chunkId], -20);
+        if (!empty($title)) {
+            if (!isset($history['_recent_titles'])) {
+                $history['_recent_titles'] = [];
+            }
+            $history['_recent_titles'] = array_values(array_filter(
+                $history['_recent_titles'],
+                fn($t) => $t !== $title
+            ));
+            $history['_recent_titles'][] = $title;
+            if (count($history['_recent_titles']) > 100) {
+                $history['_recent_titles'] = array_slice($history['_recent_titles'], -100);
+            }
         }
 
         file_put_contents($path, json_encode($history, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));

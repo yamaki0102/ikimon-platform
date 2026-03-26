@@ -40,12 +40,32 @@
       "theme": "urban_sprawl",
       "title": "台地を飲み込む街",
       "narrative": "平成以降、三方原台地は急速に住宅地と工業団地に変わった。茶畑すら減っている。でも住宅地の庭木や公園の植栽は、スズメやムクドリにとっての新しい生息地になった。生態系は完全には消えない。形を変えて、都市の隙間に潜り込む"
+    },
+    {
+      "theme": "industrial_ecology",
+      "title": "楽器が生まれた台地",
+      "narrative": "浜松が世界的な楽器産業の街になったのは偶然じゃない。天竜川上流の良質なスギ・ヒノキ材、三方原台地の乾燥した気候が木材の乾燥に向いていた。ヤマハも河合もここで生まれた。ピアノの響板に使われる木は、山で何十年も育った木。楽器産業は森林資源の上に成り立っていた。今でもこの台地の気候が、楽器の品質管理に影響している"
+    },
+    {
+      "theme": "climate_record",
+      "title": "41.1℃の記録が語ること",
+      "narrative": "2020年8月17日、浜松で41.1℃を記録した。日本の観測史上最高気温タイ記録。フェーン現象で南アルプスを越えた熱風が台地に吹き下ろし、コンクリートの蓄熱が拍車をかけた。この極端な暑さは、昆虫の活動時間を変え、鳥の行動パターンを変え、植物のストレスを増やす。100年前の三方原とは、生き物たちが経験している世界がまるで違う"
+    },
+    {
+      "theme": "nocturnal_autumn",
+      "title": "台地の秋夜、虫の音の交響曲",
+      "narrative": "秋の三方原台地、残された草地からエンマコオロギのリリリという声が聞こえる。カネタタキの金属的なチンチン。ツヅレサセコオロギの細い声。それぞれが違う音程で鳴き分けている。昔は台地全体がこの音に包まれていたはず。今は住宅地の間の空き地から、かろうじて聞こえる。虫の音が減ることは、草地の消失を耳で知るということ"
+    },
+    {
+      "theme": "reptile_amphibian",
+      "title": "茶畑に棲む小さな竜",
+      "narrative": "三方原の茶畑の畝間をカナヘビが走る。茶畑は日当たりが良く、昆虫も多いからカナヘビにとって理想的な狩猟場。ニホントカゲも石垣や茶畑の縁に棲む。これらの小さな爬虫類は害虫を食べる天然の農薬。農家は知らないかもしれないけど、トカゲが棲める茶畑は、生態系が健全に機能している証拠"
     }
   ],
   "tags": {
     "habitats": ["grassland", "plateau", "tea_plantation", "urban"],
-    "taxa_triggers": ["Phasianus colchicus", "Alauda arvensis", "Orthoptera", "Papilio"],
-    "common_name_triggers": ["キジ", "ヒバリ", "バッタ", "チョウ", "モンシロチョウ", "スズメ", "ムクドリ", "クモ"],
-    "themes": ["grassland_loss", "agriculture", "urban_sprawl"]
+    "taxa_triggers": ["Phasianus colchicus", "Alauda arvensis", "Orthoptera", "Papilio", "Takydromus tachydromoides"],
+    "common_name_triggers": ["キジ", "ヒバリ", "バッタ", "チョウ", "モンシロチョウ", "スズメ", "ムクドリ", "クモ", "セミ", "アブラゼミ", "エンマコオロギ", "カネタタキ", "カナヘビ"],
+    "themes": ["grassland_loss", "agriculture", "urban_sprawl", "industrial_ecology", "climate_change"]
   }
 }

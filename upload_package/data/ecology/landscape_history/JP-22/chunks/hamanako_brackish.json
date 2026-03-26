@@ -40,12 +40,32 @@
       "theme": "migratory_birds",
       "title": "渡り鳥が選ぶ汽水域",
       "narrative": "浜名湖に毎冬やってくるカモやシギの群れは、この湖が汽水であることに依存している。汽水域は淡水にも海水にもない独特の底生生物を育てる。渡り鳥たちは数千キロの旅の中継地として、こういう汽水域を頼っている。浜名湖が汽水であり続ける限り、この鳥たちはここに来る"
+    },
+    {
+      "theme": "food_culture_ecology",
+      "title": "うなぎが繋ぐ湖と食卓",
+      "narrative": "浜名湖のうなぎ養殖は、江戸時代に天然うなぎを生け簀で育てたのが始まり。温暖な気候と汽水の豊富なプランクトンがうなぎの成長を助けた。うなぎパイ、うな重、白焼き。浜松の食文化はこの湖の生態系の上に乗っている。でもニホンウナギは今、絶滅危惧種。食文化を守ることと種を守ることが、同じ問題になっている"
+    },
+    {
+      "theme": "invasive_species",
+      "title": "招かれざる客たち",
+      "narrative": "浜名湖にはブラックバスやブルーギルが入り込んでいる。釣り用に放流された外来魚が、在来の小魚を食い尽くす。アカミミガメも増えている。外来種は一度定着すると排除がほぼ不可能。浜名湖の本来の生態系を知るには、まず何が本来の住人で、何が後から来た侵入者かを見分ける目が要る"
+    },
+    {
+      "theme": "sensory_autumn",
+      "title": "浜名湖の五感、秋の夕暮れ",
+      "narrative": "秋の浜名湖は夕暮れが特別。汽水の匂い、潮と淡水が混じった独特の生臭さ。それは浜名湖が生きている証拠。波がない水面に反射する夕日がオレンジ色で、カモの群れが黒いシルエットになる。遠くで漁船のエンジン音。手を水につけると、海水ほどしょっぱくない。この微妙な塩分が、浜名湖の生物多様性の源"
+    },
+    {
+      "theme": "nocturnal_winter",
+      "title": "浜名湖の冬夜、渡り鳥の眠り",
+      "narrative": "冬の夜、浜名湖の水面でカモたちが眠っている。片足で立ち、くちばしを背中の羽に埋めて。水面は陸より暖かく、キツネやタヌキが近づけない天然の安全地帯。数千キロを飛んできた渡り鳥が、この汽水域を選んで眠る。浜名湖が静かな冬の夜に提供しているのは、地球規模の渡りを支える休息所"
     }
   ],
   "tags": {
     "habitats": ["brackish_water", "tidal_flat", "coastal", "lake"],
-    "taxa_triggers": ["Anguilla japonica", "Anas", "Calidris", "Charadrius", "Tringa"],
-    "common_name_triggers": ["ウナギ", "カモ", "シギ", "チドリ", "コサギ", "カワウ", "ミサゴ", "カニ"],
-    "themes": ["geological_event", "aquaculture", "migratory_birds"]
+    "taxa_triggers": ["Anguilla japonica", "Anas", "Calidris", "Charadrius", "Tringa", "Micropterus salmoides", "Lepomis macrochirus", "Trachemys scripta"],
+    "common_name_triggers": ["ウナギ", "カモ", "シギ", "チドリ", "コサギ", "カワウ", "ミサゴ", "カニ", "ブラックバス", "ブルーギル", "アカミミガメ", "タヌキ", "キツネ"],
+    "themes": ["geological_event", "aquaculture", "migratory_birds", "food_culture", "invasive_species"]
   }
 }

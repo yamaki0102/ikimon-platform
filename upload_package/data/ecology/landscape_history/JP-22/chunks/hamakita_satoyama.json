@@ -40,12 +40,32 @@
       "theme": "jomon_connection",
       "title": "縄文人と同じ風景の断片",
       "narrative": "浜北では縄文人の遺跡が出ている。彼らが見ていた風景は今とまったく違うけど、クヌギの林と水辺というセットは、数千年前から続く要素かもしれない。カブトムシがクヌギの樹液に集まる光景を、縄文人も見ていた可能性がある"
+    },
+    {
+      "theme": "quantitative_satoyama",
+      "title": "数字で見る里山の変容",
+      "narrative": "1960年代、浜北の里山は面積の約60%がクヌギ・コナラの雑木林だった。2020年代にはそれが20%以下に減った。管理放棄された林は常緑のシイやカシに置き換わり、暗い林床にカブトムシの好む腐葉土は作られない。ホタルの個体数も1990年代の10分の1以下と推定される。数字が示す里山の静かな危機"
+    },
+    {
+      "theme": "archaeology_deep",
+      "title": "浜北人の5000年",
+      "narrative": "1960年、浜北で縄文時代の人骨が発見された。約18000年前の「浜北人」。この人たちはナウマンゾウやオオツノジカと同じ時代を生きていた。海面は今より100m以上低く、浜名湖は存在せず、遠州灘の海岸線ははるか南にあった。同じ場所に立っているのに、見える風景がまったく違う。地球のタイムスケールで見れば、今の景色も一瞬の姿にすぎない"
+    },
+    {
+      "theme": "sensory_summer",
+      "title": "里山の夏夜、五感が開く",
+      "narrative": "夏の里山に夜がくると、視覚が後退して他の感覚が前に出る。腐葉土の甘い匂い、クヌギの樹液の発酵臭。カブトムシが樹液を争うガサガサという音。ホタルの光は音がない。無音の光が水面を漂う。足元の土は昼の熱を放出して温かい。里山の夜は、五感を全部使わないともったいない"
+    },
+    {
+      "theme": "reptile_amphibian",
+      "title": "水田のカエルとヘビの攻防",
+      "narrative": "水田はカエルの楽園。田植え後の水面でアマガエルが鳴き、オタマジャクシが泳ぐ。でもそのカエルを狙ってアオダイショウが畦道を滑る。カエルを食べたヘビは、やがてサシバの餌になる。水田を中心にした食物連鎖が、里山の生態系ピラミッドを支えている。田んぼは米を作る場所であると同時に、命のネットワークの交差点"
     }
   ],
   "tags": {
     "habitats": ["satoyama", "deciduous_forest", "paddy_field", "stream"],
-    "taxa_triggers": ["Luciola cruciata", "Trypoxylus dichotomus", "Hyla japonica", "Rana"],
-    "common_name_triggers": ["ホタル", "ゲンジボタル", "カブトムシ", "クワガタ", "カエル", "アマガエル", "トカゲ", "メダカ"],
-    "themes": ["satoyama", "firefly_ecology", "traditional_management"]
+    "taxa_triggers": ["Luciola cruciata", "Trypoxylus dichotomus", "Hyla japonica", "Rana", "Elaphe climacophora", "Hynobius"],
+    "common_name_triggers": ["ホタル", "ゲンジボタル", "カブトムシ", "クワガタ", "カエル", "アマガエル", "トカゲ", "メダカ", "ナウマンゾウ", "オオツノジカ", "アオダイショウ", "オタマジャクシ", "サンショウウオ"],
+    "themes": ["satoyama", "firefly_ecology", "traditional_management", "quantitative", "archaeology"]
   }
 }

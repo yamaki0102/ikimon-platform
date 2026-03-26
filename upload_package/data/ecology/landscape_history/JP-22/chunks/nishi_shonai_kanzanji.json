@@ -1,0 +1,66 @@
+{
+  "id": "nishi_shonai_kanzanji",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.7500,
+    "lng": 137.5200,
+    "radius_km": 3.0,
+    "place_names": ["舘山寺", "庄内半島", "浜名湖西岸", "フラワーパーク"],
+    "place_names_en": ["Kanzanji", "Shonai Peninsula", "West Shore of Lake Hamana", "Flower Park"]
+  },
+  "period": {
+    "label": "平安時代〜現代",
+    "year_from": 810,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "浜松市史・浜名湖西岸の自然と文化",
+    "license": "educational_use",
+    "access_date": "2026-03-27"
+  },
+  "content": {
+    "landscape_before": "庄内半島は浜名湖に突き出た小さな半島で、常緑広葉樹の照葉樹林に覆われていた。舘山寺は平安時代に弘法大師が開いたと伝わる古刹",
+    "land_use_change": "照葉樹林(古代) → 寺社林+薪炭林(中世) → みかん畑(近代) → 温泉観光地(昭和〜) → フラワーパーク開園(1970)",
+    "ecological_impact": "観光開発で海岸線が一部コンクリート化されたが、半島の尾根筋には照葉樹林が残存。フラワーパークの園芸種が周辺に逸出し、在来種との交雑リスクも",
+    "biodiversity_link": "舘山寺周辺で照葉樹林の鳥（ヤマガラ、エナガ等）が見られるのは、半島という地形が開発の手を免れた小さな森を守ったから"
+  },
+  "narrative_layers": [
+    {
+      "theme": "evergreen_broadleaf",
+      "title": "照葉樹林の最前線",
+      "narrative": "庄内半島の森はシイやタブノキの照葉樹林。常緑の葉が年中暗い林床を作る。この暗さが特定の植物だけを選別する。照葉樹林は日本の暖温帯の原生植生だけど、人間が薪炭林として利用してきた歴史が長い。手つかずの照葉樹林はもうほとんど残っていない。半島の尾根筋のわずかな林が、かつての浜名湖岸の姿を伝えている"
+    },
+    {
+      "theme": "hot_spring_ecology",
+      "title": "温泉と生態系の意外な接点",
+      "narrative": "舘山寺温泉の源泉は地下深くから湧く。温泉の排水が浜名湖に流れ込む場所では、わずかに水温が高い。その微妙な温度差がプランクトンの分布を変え、小魚の集まり方を変える。温泉街のネオンが夜の昆虫を集め、それを食べるコウモリが飛ぶ。温泉地の生態系は、地熱と人間活動の二重の影響を受けている"
+    },
+    {
+      "theme": "garden_escape",
+      "title": "花壇から逃げ出した花たち",
+      "narrative": "フラワーパークには世界中から集めた園芸植物がある。でも種子は風に飛び、鳥が実を運ぶ。園芸種が周辺の自然に逸出して、在来種と交雑する。ナガミヒナゲシやオオキンケイギクのように、美しい花が生態系の侵略者になることがある。花壇と自然の境界線は、人間が思うほど明確じゃない"
+    },
+    {
+      "theme": "peninsula_biogeography",
+      "title": "半島は小さな島",
+      "narrative": "庄内半島は三方を水に囲まれている。生態学的には、島に近い環境。陸地との接続部が細いから、動物の行き来が制限される。半島の先端にいる生き物は、事実上の島の生物と同じ制約を受けている。この小さな半島が独自の生態系を持てるかどうかは、接続部の幅と質にかかっている"
+    },
+    {
+      "theme": "nocturnal_summer",
+      "title": "舘山寺の夏夜、花火と生態系",
+      "narrative": "舘山寺温泉の花火大会は夏の風物詩。でも花火の爆音は半径数キロの野生動物にストレスを与える。営巣中の水鳥は一時的に逃避し、コウモリの超音波ナビゲーションも撹乱される。翌朝には花火の残骸が水面に浮く。人間の祝祭と野生動物の迷惑、この折り合いのつけ方が次の課題"
+    },
+    {
+      "theme": "reptile_amphibian",
+      "title": "温泉地のアオダイショウ、暖かい石垣の住人",
+      "narrative": "舘山寺温泉の石垣には、温泉の余熱で温められた石を好んでアオダイショウが棲みついている。爬虫類は変温動物だから、温かい場所を探す本能がある。温泉の排熱が意図せず爬虫類の好適環境を作っている。石垣のアオダイショウはヤモリやネズミを食べ、温泉地の害獣を自然に抑制している"
+    }
+  ],
+  "tags": {
+    "habitats": ["evergreen_forest", "peninsula", "hot_spring", "botanical_garden", "lakeside"],
+    "taxa_triggers": ["Sittiparus varius", "Aegithalos caudatus", "Castanopsis", "Machilus thunbergii"],
+    "common_name_triggers": ["ヤマガラ", "エナガ", "シイ", "タブノキ", "コウモリ", "オオキンケイギク", "ナガミヒナゲシ", "アオダイショウ", "ヤモリ"],
+    "themes": ["evergreen_forest", "hot_spring_ecology", "garden_escape", "peninsula_biogeography", "nocturnal", "reptile"]
+  }
+}

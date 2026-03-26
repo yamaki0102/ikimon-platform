@@ -3,7 +3,7 @@
   "region_name": "静岡県",
   "region_name_en": "Shizuoka Prefecture",
   "locale": "ja",
-  "updated_at": "2026-03-25",
+  "updated_at": "2026-03-27",
   "chunks": [
     "sanaru_wetland",
     "tenryu_river_floodplain",
@@ -15,10 +15,17 @@
     "hamakita_satoyama",
     "magome_river_urban",
     "inasa_lake_garden",
-    "hamamatsu_station_area"
+    "hamamatsu_station_area",
+    "inasa_iinoya",
+    "misakubo_sakuma",
+    "nishi_shonai_kanzanji",
+    "kosai_shinjo_border",
+    "scale_shizuoka_prefecture",
+    "scale_chubu_tokaido",
+    "scale_global_flyway"
   ],
   "coverage": {
-    "description": "浜松市を中心とした遠州地域の景観史。7つの主要エリアをカバー",
+    "description": "浜松市を中心とした遠州地域の景観史。18チャンク・ローカルから世界スケールまで15エリアをカバー",
     "areas": [
       "佐鳴湖周辺",
       "天竜川流域",
@@ -27,7 +34,14 @@
       "浜松城公園・市街地",
       "遠州灘海岸",
       "秋葉山〜天竜二俣",
-      "浜北里山"
+      "浜北里山",
+      "引佐・井伊谷",
+      "水窪・佐久間（南アルプス深南部）",
+      "庄内半島・舘山寺",
+      "湖西市・今切口",
+      "静岡県広域（東西生物相交差）",
+      "中部地方・東海道（都市ベルトと河川回廊）",
+      "世界スケール（フライウェイ・黒潮・環太平洋）"
     ]
   }
 }

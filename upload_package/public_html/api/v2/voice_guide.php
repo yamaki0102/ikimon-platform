@@ -118,7 +118,7 @@ function _saveHistory(string $userId, string $text, array &$pastTexts): void
     // 保存テキスト長を160文字に拡大（重複回避の精度向上）
     $pastTexts[] = ['text' => mb_substr($text, 0, 160), 'at' => date('c')];
     if (count($pastTexts) > 50) $pastTexts = array_slice($pastTexts, -50);
-    $dir = DATA_DIR . 'voice_guide_history';
+    $dir = DATA_DIR . '/voice_guide_history';
     if (!is_dir($dir)) mkdir($dir, 0755, true);
     file_put_contents(DATA_DIR . "voice_guide_history/{$userId}.json",
         json_encode($pastTexts, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
@@ -291,6 +291,8 @@ if ($requestMode === 'opening') {
 - 合計4〜8文、200〜400文字。情景描写を豊かに。じっくり語ってOK
 - 百科事典的な説明はしない。五感に訴える情景描写を
 - 音声読み上げ用なので難しい漢字はひらがなで
+- 専門用語は使わない。誰でもわかる言葉で
+- 話は必ず完結させて。途中で切れるのは絶対ダメ
 
 表現ルール:
 - 「珍しい」「レアな」等の希少性を煽る表現禁止
@@ -411,6 +413,8 @@ if ($requestMode === 'closing') {
 - 「キミが今日記録したデータは、この場所の自然の変化を追う手がかりになる」というニュアンスをさりげなく
 - 合計4〜6文、200〜300文字
 - 音声読み上げ用なので難しい漢字はひらがなで
+- 専門用語は使わない。誰でもわかる言葉で
+- 話は必ず完結させて。途中で切れるのは絶対ダメ
 
 表現ルール:
 - 「珍しい」「レアな」等の希少性を煽る表現禁止
@@ -534,6 +538,8 @@ if ($requestMode === 'silence') {
 - 五感（聴覚・嗅覚・触覚）を使った提案を含めて
 - この場所の環境や季節の特徴について、ちょっとした知識を1つ添える
 - 音声読み上げ用なので難しい漢字はひらがなで
+- 専門用語は使わない。誰でもわかる言葉で
+- 話は必ず完結させて。途中で切れるのは絶対ダメ
 
 表現ルール:
 - 「珍しい」「レアな」等の希少性を煽る表現禁止
@@ -706,6 +712,8 @@ if ($requestMode === 'ambient') {
 - リスナーは{$transportLabel}で移動中。車なら「窓の外」「この道沿い」、徒歩なら「足元」「立ち止まって」
 - 自然の話だけで完結させず、人の暮らし・地域の文化・歴史と結びつけて
 - 難しい漢字はひらがなで。学名は使わない
+- 専門用語は必ず言い換えて。聞いてる人が専門家じゃない前提で
+- 話は必ず完結させて。途中で切れるのは絶対ダメ。最後は句点で終わること
 - 最後の一文に余韻を残す
 
 表現ルール:
@@ -915,6 +923,8 @@ $prompt = <<<PROMPT
 - 上記のデータを根拠にするが、百科事典的に並べない。1つの面白い切り口に絞って掘り下げる
 - 音声読み上げ用なので難しい漢字はひらがなで（例: 囀り→さえずり）
 - 学名は読み上げないで
+- 専門用語は必ず言い換えて。例:「汽水域」→「海の水と川の水が混じる場所」、「エコトーン」→「二つの環境の境目」、「富栄養化」→「栄養が多すぎて藻だらけになること」。聞いてる人が専門家じゃない前提で
+- 話は必ず完結させて。途中で切れるのは絶対ダメ。最後は句点で終わること
 
 語りのルール（厳守）:
 - 1つのエピソードを語る。複数の話題を詰め込まない
@@ -1345,7 +1355,7 @@ function _callGemini(string $prompt): string
         'contents' => [['parts' => [['text' => $prompt]]]],
         'generationConfig' => [
             'temperature' => 1.0,
-            'maxOutputTokens' => 1024,
+            'maxOutputTokens' => 2048,
             'topP' => 0.95,
         ],
     ];
@@ -1357,7 +1367,7 @@ function _callGemini(string $prompt): string
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_POSTFIELDS => json_encode($payload),
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 12,
+        CURLOPT_TIMEOUT => 20,
         CURLOPT_CONNECTTIMEOUT => 3,
     ]);
 
@@ -1450,7 +1460,7 @@ function _resolveVoicevoxSpeakerId(string $voiceMode): int
 
 function _generateVoicevoxAudio(string $text, string $voiceMode = 'zundamon'): ?string
 {
-    $maxChars = 250;
+    $maxChars = 400;
     if (mb_strlen($text) > $maxChars) {
         $truncated = mb_substr($text, 0, $maxChars);
         $lastPeriod = mb_strrpos($truncated, '。');

@@ -40,12 +40,32 @@
       "theme": "eutrophication",
       "title": "栄養が多すぎる水",
       "narrative": "富栄養化とは、水に栄養が多すぎる状態。人間にとっての栄養過多がメタボなら、湖のメタボが富栄養化。藻が異常繁殖して酸素を奪い、魚が窒息する。でも適度な栄養は生態系を支える。問題は量のバランス"
+    },
+    {
+      "theme": "citizen_science_30year",
+      "title": "30年の記録が持つ重み",
+      "narrative": "月に一度、同じ場所で水を採って測る。30年間、一度も途切れずに。このデータが佐鳴湖の水質改善を証明した。1回の測定は些細でも、30年分のデータは学術論文に匹敵する価値を持つ。継続こそが市民科学の最大の武器。ikimonの記録も10年、20年と積み重なれば、科学的に比類のない価値を持つ"
+    },
+    {
+      "theme": "nutrient_dynamics",
+      "title": "見えない循環、窒素とリンの物語",
+      "narrative": "佐鳴湖を汚したのは目に見えない物質、窒素とリン。洗剤や食べ残しに含まれる栄養塩が湖に流れ込み、藻を異常繁殖させた。自然の湖では、この栄養塩を水草が吸収し、底泥の微生物が分解する循環がある。コンクリート護岸はこの自浄作用を奪った。見えない化学物質の循環が、目に見える景色を左右している"
+    },
+    {
+      "theme": "sensory_summer",
+      "title": "佐鳴湖西岸の感覚地図",
+      "narrative": "梅雨明けの佐鳴湖西岸を歩くと、水面からの湿った空気が肌にまとわりつく。アオコが発生している場所は独特の生臭い匂いがする。これは藍藻が出す化学物質の匂い。水質が改善された場所では匂いが薄い。鼻が水質の違いを教えてくれる。遊歩道の木陰に入ると2-3度涼しくなり、セミの声が頭上で反響する"
+    },
+    {
+      "theme": "weather_ecology",
+      "title": "ゲリラ豪雨と湖の栄養塩",
+      "narrative": "近年増えているゲリラ豪雨は、佐鳴湖に短時間で大量の雨水を送り込む。道路の油、庭の肥料、犬の排泄物。普段は下水に流れるものが、排水能力を超えて湖に直接流入する。一回の豪雨で数週間分の栄養塩が湖に入る。気候変動が水質改善の努力を帳消しにするリスク。30年の市民科学が記録してきた改善トレンドと、気象の暴力の綱引き"
     }
   ],
   "tags": {
     "habitats": ["lake", "urban_waterfront", "eutrophic"],
     "taxa_triggers": ["Podiceps ruficollis", "Anas platyrhynchos", "Phalacrocorax carbo"],
     "common_name_triggers": ["カイツブリ", "マガモ", "カワウ", "コサギ", "バン", "アオサギ", "カモ"],
-    "themes": ["water_quality", "eutrophication", "citizen_science"]
+    "themes": ["water_quality", "eutrophication", "citizen_science", "long_term_monitoring", "nutrient_cycling", "sensory", "weather"]
   }
 }

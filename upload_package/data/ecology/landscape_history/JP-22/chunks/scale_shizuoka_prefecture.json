@@ -1,0 +1,56 @@
+{
+  "id": "scale_shizuoka_prefecture",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.9756,
+    "lng": 138.3828,
+    "radius_km": 80.0,
+    "place_names": ["静岡県", "浜松市", "静岡市", "富士山", "伊豆半島", "駿河湾"],
+    "place_names_en": ["Shizuoka Prefecture", "Hamamatsu", "Shizuoka City", "Mt. Fuji", "Izu Peninsula", "Suruga Bay"]
+  },
+  "period": {
+    "label": "地質時代〜現代",
+    "year_from": -5000000,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "静岡県生物多様性地域戦略・静岡県の自然",
+    "license": "government_open_data",
+    "access_date": "2026-03-27"
+  },
+  "content": {
+    "landscape_before": "静岡県は南アルプス3000m級から駿河湾の深海2500mまでの標高差5500mを持つ。フォッサマグナの西縁に位置し、東西の動植物相が交差する日本有数の生物多様性ホットスポット",
+    "land_use_change": "県西部(遠州)は乾燥台地と大河川、県中部(駿河)は扇状地と茶畑、県東部(伊豆)は火山性地形と温暖海洋性気候という三つの顔を持つ",
+    "ecological_impact": "浜松は県内最大の都市でありながら、天竜川流域を通じて3000m級の山岳から太平洋の海岸線まで一つの市域に含む、生態系の縮図のような都市",
+    "biodiversity_link": "浜松で見られる生き物の多くは、静岡県の東西交差点としての地理的位置に由来する。東日本の種と西日本の種が混じり合う移行帯のど真ん中にいる"
+  },
+  "narrative_layers": [
+    {
+      "theme": "east_west_boundary",
+      "title": "東と西が出会う場所",
+      "narrative": "日本の生物相は東と西で違う。西日本型のクマゼミと東日本型のミンミンゼミ。その境界線がちょうど静岡県を通っている。浜松ではクマゼミが優勢だけど、少し東の静岡市ではミンミンゼミが増える。キミが浜松で聞くセミの声は、日本列島の東西分布の境界線上の音。ここにいること自体が、生物地理学的に特別な場所にいるということ"
+    },
+    {
+      "theme": "altitude_gradient",
+      "title": "海抜0mから3000mの縮図",
+      "narrative": "浜松市は面積が広い。天竜区の山は標高1000mを超え、遠州灘の海岸は海抜ゼロ。この標高差が、亜高山帯のブナ林から海浜のハマヒルガオまで、本来なら北海道から沖縄まで移動しないと見られない植生帯を一つの市内に収めている。浜松は日本の生態系の縮図"
+    },
+    {
+      "theme": "suruga_bay_deep",
+      "title": "駿河湾の深さが静岡を特別にする",
+      "narrative": "静岡県の東には日本一深い駿河湾がある。最深2500m。この深海から湧き上がる栄養塩が沿岸の漁業を支え、桜エビやシラスの豊漁につながる。浜松の遠州灘は駿河湾の西端。黒潮の分流が暖かい海水を運び、アカウミガメが北限近くまで産卵に来られる理由は、この暖流にある"
+    },
+    {
+      "theme": "fossa_magna",
+      "title": "フォッサマグナ、列島の裂け目",
+      "narrative": "静岡県はフォッサマグナの西縁に位置する。日本列島が東西に裂けた痕跡。この地質境界線が火山活動、温泉、地震の多さをもたらし、同時に多様な地形と土壌を作った。浜松の地質が多様なのは、この列島規模のテクトニクスの結果。中央構造線が天竜川に沿って走り、その両側で岩の種類が違う。生き物の分布は、この見えない地質の線に従っている"
+    }
+  ],
+  "tags": {
+    "habitats": ["prefecture_scale", "mountain_to_coast", "transition_zone"],
+    "taxa_triggers": ["Cryptotympana facialis", "Hyalessa maculaticollis", "Caretta caretta"],
+    "common_name_triggers": ["クマゼミ", "ミンミンゼミ", "アカウミガメ", "桜エビ", "シラス", "ブナ"],
+    "themes": ["biogeography", "altitude_gradient", "fossa_magna", "east_west_boundary"]
+  }
+}

@@ -40,12 +40,32 @@
       "theme": "urban_wildlife",
       "title": "都市に残る古い水脈",
       "narrative": "住宅地の間を流れる小さな水路は、江戸時代の灌漑用水路の名残かもしれない。カワセミやコサギがいるのは、こういう忘れられた水辺が都市の中に点在しているから。人間が忘れても、鳥は覚えている"
+    },
+    {
+      "theme": "invasive_species",
+      "title": "湖を侵食する外来種",
+      "narrative": "佐鳴湖にはミシシッピアカミミガメが大量に棲みついている。ペットとして輸入されたカメが逃げ出し、在来のニホンイシガメを圧倒した。日向ぼっこする石の上はアカミミガメだらけ。外来種問題は、人間の無責任な行動のツケが生態系に回った結果。一匹のペットが、湖の未来を変える"
+    },
+    {
+      "theme": "water_quality_data",
+      "title": "数字が語る湖の30年",
+      "narrative": "1990年代、佐鳴湖のCOD（化学的酸素要求量）は全国ワーストの11mg/L以上。2020年代には6mg/L台まで改善した。数字だけ見ると地味だけど、この差が生き物の世界では天と地の差になる。溶存酸素が増え、水生昆虫が戻り、それを食べる魚が増えた。環境回復は数字で語れる"
+    },
+    {
+      "theme": "nocturnal_summer",
+      "title": "佐鳴湖の夏夜、カエルの大合唱",
+      "narrative": "夏の夜、佐鳴湖畔に立つとカエルの合唱が始まる。トノサマガエルの太い声、アマガエルの高い声。それぞれ違う周波数で鳴くから混信しない。この合唱は雌への求愛。水質が良い場所ほどカエルが多く、合唱も厚みが増す。カエルの声の豊かさは、その水辺の健康度のバロメーター"
+    },
+    {
+      "theme": "reptile_amphibian",
+      "title": "湖畔の爬虫両生類図鑑",
+      "narrative": "佐鳴湖の石垣にはニホントカゲが日光浴している。メタリックブルーの尾を持つ幼体は特に美しい。水辺ではシマヘビが泳ぎ、カエルを狙う。ヘビは多くの人に嫌われるけど、生態系ではカエルの個体数を調整する大事な捕食者。ヘビがいなくなれば、カエルが増えすぎて昆虫が減り、バランスが崩れる"
     }
   ],
   "tags": {
     "habitats": ["wetland", "waterside", "urban"],
-    "taxa_triggers": ["Odonata", "Nannophya pygmaea", "Alcedo atthis", "Egretta garzetta", "Ardea cinerea"],
-    "common_name_triggers": ["トンボ", "カワセミ", "コサギ", "サギ", "カモ", "アオサギ", "ハッチョウトンボ"],
-    "themes": ["wetland_loss", "urbanization", "water_management"]
+    "taxa_triggers": ["Odonata", "Nannophya pygmaea", "Alcedo atthis", "Egretta garzetta", "Ardea cinerea", "Trachemys scripta", "Mauremys japonica", "Pelophylax nigromaculatus", "Elaphe quadrivirgata", "Plestiodon japonicus"],
+    "common_name_triggers": ["トンボ", "カワセミ", "コサギ", "サギ", "カモ", "アオサギ", "ハッチョウトンボ", "アカミミガメ", "ニホンイシガメ", "トノサマガエル", "シマヘビ", "ニホントカゲ"],
+    "themes": ["wetland_loss", "urbanization", "water_management", "invasive_species", "water_quality_monitoring"]
   }
 }

@@ -40,12 +40,32 @@
       "theme": "green_stepping_stones",
       "title": "緑の飛び石",
       "narrative": "駅前広場の小さな植え込み、街路樹の並木、マンションの植栽。一つひとつは小さいけど、鳥にとってはコンクリートの海を渡る飛び石になる。メジロやシジュウカラが都市の中を移動できるのは、こういう小さな緑が点々と続いているから"
+    },
+    {
+      "theme": "light_pollution",
+      "title": "光が変える夜の生態系",
+      "narrative": "浜松駅前のムクドリは街灯の光を利用している。でも光害の影響はそれだけじゃない。街灯に引き寄せられる夜の蛾は、本来なら花の受粉を助けていたはず。夜間の人工光は渡り鳥の航路を狂わせ、昆虫の繁殖行動を乱す。人間には便利な光が、夜行性の生き物にとっては生存を脅かすノイズになっている"
+    },
+    {
+      "theme": "industrial_legacy",
+      "title": "ものづくりの街と自然",
+      "narrative": "浜松駅の周りには、かつて楽器工場や繊維工場が並んでいた。工場が移転・閉鎖した跡地が再開発され、ショッピングモールやマンションになった。でも工場時代の大きな樹木が残っていることがある。街路樹より太い、不思議に立派な木。それは産業の記憶を根に刻んだ、都市の生き証人かもしれない"
+    },
+    {
+      "theme": "nocturnal_summer",
+      "title": "駅前の夏夜、蛾の大行進",
+      "narrative": "夏の夜、浜松駅前のコンビニの光に無数の蛾が集まる。蛾は本来、月の光を頼りに飛ぶ。人工光はその本能を狂わせる。光に集まった蛾をアブラコウモリが捕食し、残りは朝になるとスズメの朝食になる。駅前の光は、意図せず食物連鎖の舞台装置になっている"
+    },
+    {
+      "theme": "festival_nature",
+      "title": "浜松まつりと自然のリズム",
+      "narrative": "5月の浜松まつりでは中田島砂丘で凧揚げが行われる。この時期は遠州灘からの強い南風「遠州のからっ風」が吹く季節。風はただの気象現象じゃない。渡り鳥の移動を助け、海浜植物の種子を飛ばし、砂丘の形を変える。凧を揚げる風と、生き物が利用する風は、同じ風"
     }
   ],
   "tags": {
     "habitats": ["urban_core", "street_trees", "built_up"],
     "taxa_triggers": ["Spodiopsar cineraceus", "Passer montanus", "Columba livia"],
-    "common_name_triggers": ["ムクドリ", "スズメ", "ハト", "ドバト", "カラス", "ハシブトガラス", "ツバメ"],
-    "themes": ["urban_adaptation", "heat_island", "green_infrastructure"]
+    "common_name_triggers": ["ムクドリ", "スズメ", "ハト", "ドバト", "カラス", "ハシブトガラス", "ツバメ", "蛾", "ガ", "コウモリ", "アブラコウモリ"],
+    "themes": ["urban_adaptation", "heat_island", "green_infrastructure", "light_pollution", "industrial_heritage", "nocturnal", "festival"]
   }
 }

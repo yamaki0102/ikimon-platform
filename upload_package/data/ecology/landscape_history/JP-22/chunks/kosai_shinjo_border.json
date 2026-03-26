@@ -1,0 +1,56 @@
+{
+  "id": "kosai_shinjo_border",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.6900,
+    "lng": 137.5000,
+    "radius_km": 5.0,
+    "place_names": ["湖西市", "新居", "新居関所", "鷲津", "浜名湖今切口"],
+    "place_names_en": ["Kosai City", "Arai", "Arai Barrier", "Washizu", "Hamana Lake Imagiri"]
+  },
+  "period": {
+    "label": "室町時代〜現代",
+    "year_from": 1498,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "湖西市史・新居関所と浜名湖今切口",
+    "license": "educational_use",
+    "access_date": "2026-03-27"
+  },
+  "content": {
+    "landscape_before": "浜名湖と太平洋の境界「今切口」は1498年の地震で生まれた。新居関所は東海道の要衝で、旅人はここで渡船に乗り換えた",
+    "land_use_change": "砂州(古代) → 地震で決壊(1498) → 関所設置(江戸) → 鉄道開通(明治) → 国道・新幹線(昭和) → 住宅地化(平成)",
+    "ecological_impact": "今切口は浜名湖と太平洋の水の出入り口。潮汐で栄養塩と生物が行き来する。この狭い水路が浜名湖の汽水環境を維持している生命線",
+    "biodiversity_link": "今切口周辺で多様な魚類が見られるのは、海と湖の境界が生物の出入り口として機能しているから。境界こそが多様性のホットスポット"
+  },
+  "narrative_layers": [
+    {
+      "theme": "ecotone_boundary",
+      "title": "境界が生む多様性",
+      "narrative": "生態学にエコトーンという概念がある。森と草原の境界、海と川の境界。境界には両方の環境の生き物が集まるから、多様性が最も高くなる。今切口はその典型。海水魚と淡水魚が交錯し、干潟にはカニやゴカイが密集し、それを食べるシギ・チドリが群がる。浜松の生物多様性を理解するには、この境界を知ることが欠かせない"
+    },
+    {
+      "theme": "tokaido_ecology",
+      "title": "東海道が見た生態系の変遷",
+      "narrative": "江戸時代の旅人が東海道を歩いた時、新居周辺の景色は今と全く違った。浜名湖は今より広く、周囲は松林と湿地。広重の浮世絵に描かれた舞阪の海岸線は、現在より100m以上海側にあった。東海道は生態系の記録でもある。宿場町の記録には、当時の魚や鳥の記述が残っている"
+    },
+    {
+      "theme": "tidal_dynamics",
+      "title": "潮が動かす湖の命",
+      "narrative": "今切口を通じて1日2回、潮が浜名湖に出入りする。この潮の動きが酸素を運び、栄養塩を循環させ、プランクトンを攪拌する。もし今切口が閉じたら、浜名湖は数年で酸欠の閉鎖湖になる。幅わずか200mの水路が、70km\u00b2の湖の生態系全体を支えている。小さなボトルネックが巨大なシステムを左右する"
+    },
+    {
+      "theme": "cross_border_wildlife",
+      "title": "行政区を超える生き物たち",
+      "narrative": "カワセミは湖西市と浜松市の境界を気にしない。渡り鳥は国境すら超える。でも環境保全は行政区ごとに行われる。浜松市が水質を改善しても、上流の市が汚せば意味がない。生態系は行政区画を無視して連続しているのに、人間の管理は分断されている。この矛盾を超えるには、流域全体で考える視点が要る"
+    }
+  ],
+  "tags": {
+    "habitats": ["estuary", "tidal_flat", "barrier", "coastal", "lake_outlet"],
+    "taxa_triggers": ["Calidris", "Charadrius", "Uca", "Mugil cephalus", "Lateolabrax japonicus"],
+    "common_name_triggers": ["シギ", "チドリ", "カニ", "ボラ", "スズキ", "ゴカイ", "ハゼ", "カワセミ"],
+    "themes": ["ecotone", "tokaido_history", "tidal_dynamics", "cross_border"]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": "scale_chubu_tokaido",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 35.0000,
+    "lng": 137.0000,
+    "radius_km": 150.0,
+    "place_names": ["中部地方", "東海道", "太平洋ベルト", "名古屋", "浜松", "静岡"],
+    "place_names_en": ["Chubu Region", "Tokaido", "Pacific Belt", "Nagoya", "Hamamatsu", "Shizuoka"]
+  },
+  "period": {
+    "label": "更新世〜現代",
+    "year_from": -100000,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "中部地方の自然環境概観・東海道の生態地理",
+    "license": "educational_use",
+    "access_date": "2026-03-27"
+  },
+  "content": {
+    "landscape_before": "中部地方は日本アルプスを脊梁に、日本海側と太平洋側で全く異なる気候・生態系を持つ。浜松は太平洋側の温暖乾燥地帯の西端に位置する",
+    "land_use_change": "東海道は古代から人と物が行き交い、沿道の生態系を変えてきた。工業化で太平洋ベルトが形成され、自然は都市と農地の隙間に追いやられた",
+    "ecological_impact": "名古屋〜浜松〜静岡の都市連担が生態系を分断。しかし天竜川・大井川・木曽川の大河川が南アルプスと海を結ぶ生態回廊として機能し続けている",
+    "biodiversity_link": "浜松の天竜川は中部地方で最も長い生態回廊の一つ。山のクマタカと海のウミガメを一本の川が結んでいる"
+  },
+  "narrative_layers": [
+    {
+      "theme": "pacific_climate_zone",
+      "title": "太平洋側気候がつくる浜松の個性",
+      "narrative": "浜松は太平洋側気候の典型地。冬に晴れて乾燥し、夏に湿度が高い。日本海側の豪雪地帯とは真逆。この気候が、冬でも常緑の照葉樹林を育て、渡り鳥の越冬地を作り、農業の種類を決めた。お茶もみかんも温暖乾燥の産物。同じ中部でも、日本海側の富山や新潟とは生態系がまるで違う。山脈一つ隔てただけで、生き物の顔ぶれが入れ替わる"
+    },
+    {
+      "theme": "river_corridor_network",
+      "title": "大河川ネットワーク、山と海をつなぐ血管",
+      "narrative": "中部地方には天竜川、大井川、木曽川、長良川、揖斐川という大河川がある。これらは全て山から海への生態回廊。アユは海で生まれて川を遡り、サケは逆。鳥は川沿いに低地を移動する。浜松の天竜川は、この大河川ネットワークの一本。中部地方の生態系は、この河川ネットワークで空間的につながっている"
+    },
+    {
+      "theme": "urban_corridor_gap",
+      "title": "太平洋ベルトの生態系断裂",
+      "narrative": "名古屋から静岡まで、東海道新幹線沿いに都市と工場が連なる。この太平洋ベルトは経済の大動脈だけど、生態系にとっては巨大な壁。北の山と南の海の間を、コンクリートの帯が遮っている。浜松の生き物が名古屋の生き物と遺伝的に交流するには、この帯を越えなければならない。都市間の緑地ネットワークが、分断された個体群をつなぐ鍵"
+    },
+    {
+      "theme": "tokaido_history_ecology",
+      "title": "東海道500年の生態影響",
+      "narrative": "東海道は1600年から日本で最も人が行き来した道。人の移動は生き物の移動も伴う。馬の飼料に混じった種子が道沿いに広がり、旅人の食べ残しがカラスを呼び、宿場町の灯りが虫を集めた。500年の人の往来が、東海道沿いの生態系を独特なものにした。浜松はその最も活発な結節点の一つだった"
+    }
+  ],
+  "tags": {
+    "habitats": ["regional_scale", "river_corridor", "urban_belt", "pacific_coast"],
+    "taxa_triggers": ["Plecoglossus altivelis", "Oncorhynchus masou", "Accipiter gentilis"],
+    "common_name_triggers": ["アユ", "サツキマス", "カラス", "オオタカ"],
+    "themes": ["pacific_climate", "river_network", "urban_fragmentation", "tokaido_history"]
+  }
+}

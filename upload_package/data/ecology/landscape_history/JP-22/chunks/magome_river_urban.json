@@ -40,12 +40,32 @@
       "theme": "restoration_ecology",
       "title": "自然を取り戻す実験",
       "narrative": "近年、一部の区間でコンクリート護岸を剥がして自然護岸に戻す実験が始まっている。石を積み、水辺に草を植える。すると驚くほど早く生き物が戻ってくる。ヤゴが棲み、小魚が増え、カワセミが来る。破壊は速いけど、回復も案外速い"
+    },
+    {
+      "theme": "water_quality_comparison",
+      "title": "護岸を変えたら何が変わったか",
+      "narrative": "コンクリート護岸の区間と自然護岸に戻した区間を比べると差は歴然。自然護岸では水生昆虫の種数が3倍、魚類の密度が2倍以上に増えた。石の隙間がエビやカニの隠れ家になり、草の根が水を浄化する。護岸の素材を変えるだけで、川の生物多様性がこれほど変わる。都市の自然再生は、意外とシンプルなところから始められる"
+    },
+    {
+      "theme": "urban_wildlife_corridor",
+      "title": "川は都市のグリーンベルト",
+      "narrative": "馬込川は浜松の市街地を南北に貫く。カワセミが川沿いを飛べば、わずか数キロで城公園から海まで行ける。川は生き物にとっての高速道路。都市の中で分断された緑地をつなぐ、見えないネットワーク。川を汚すことは、この生態系のネットワークを断ち切ること"
+    },
+    {
+      "theme": "nocturnal_summer",
+      "title": "夜の川、アオダイショウの狩り",
+      "narrative": "夏の夜、馬込川の護岸の隙間からアオダイショウが這い出る。水辺に集まるカエルやネズミを狙う。日本最大級の無毒ヘビだけど、都市の川にも棲んでいる。人間のほとんどは気づかない。夜の都市河川は、人間が見ていない時間に驚くほど多くの動物が活動している"
+    },
+    {
+      "theme": "pollinator_aquatic",
+      "title": "見えない主役、水生昆虫と受粉者",
+      "narrative": "馬込川の自然護岸区間では、トビケラの幼虫が石の裏に網を張っている。トビケラの幼虫は水中のプランクトンを漉し取る浄化装置。護岸の草地ではハナアブが花粉を運ぶ。受粉者がいなければ実がならず、実がなければ鳥が来ない。見えない小さな虫たちが、都市の生態系ピラミッドの土台を支えている"
     }
   ],
   "tags": {
     "habitats": ["urban_river", "concrete_channel", "waterside"],
-    "taxa_triggers": ["Anas zonorhyncha", "Cyprinus carpio", "Alcedo atthis", "Motacilla alba"],
-    "common_name_triggers": ["カルガモ", "コイ", "カワセミ", "ハクセキレイ", "カメ", "サギ"],
-    "themes": ["urban_river", "restoration", "water_corridor"]
+    "taxa_triggers": ["Anas zonorhyncha", "Cyprinus carpio", "Alcedo atthis", "Motacilla alba", "Elaphe climacophora", "Trichoptera"],
+    "common_name_triggers": ["カルガモ", "コイ", "カワセミ", "ハクセキレイ", "カメ", "サギ", "アオダイショウ", "トビケラ", "ハナアブ"],
+    "themes": ["urban_river", "restoration", "water_corridor", "water_quality_comparison", "wildlife_corridor"]
   }
 }

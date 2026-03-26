@@ -40,12 +40,32 @@
       "theme": "riparian_forest",
       "title": "堤防が作った新しい森",
       "narrative": "堤防ができて氾濫が止まると、河畔に安定した林が育った。ヤナギやハンノキの林。皮肉なことに、この人工的に安定した河畔林がオオタカの営巣地になっている。人間が川を制御した結果、予想外の生態系が生まれた"
+    },
+    {
+      "theme": "geology_deep",
+      "title": "中央構造線と砂の旅",
+      "narrative": "天竜川は日本最大の地質境界線、中央構造線をまたいで流れている。南アルプスの硬い岩と、その南側の柔らかい岩。川が削る岩の種類で、河原の石の色や形が変わる。上流では角張った花崗岩、中流では丸い砂岩。石を見れば地質がわかる。天竜川の河原は、日本列島の成り立ちの教科書みたいなもの"
+    },
+    {
+      "theme": "dam_impact_quantitative",
+      "title": "ダムが変えた川の数字",
+      "narrative": "佐久間ダム完成前、天竜川は年間約400万m³の土砂を海に運んでいた。ダム完成後、それが激減した。河床が下がり、橋脚が露出し、砂利採取業も衰退した。アユの産卵適地は推定で半分以下に。数字にすると、ダムの影響が人間の感覚を超えるスケールで生態系を変えたことが見えてくる"
+    },
+    {
+      "theme": "weather_ecology",
+      "title": "台風が更新する川の生態系",
+      "narrative": "台風のあと、天竜川の河原は一変する。石が転がり、砂利が堆積し、植生がリセットされる。破壊的に見えるけど、これが河原固有の植物に必要な環境更新。カワラノギクは撹乱された砂利地でしか芽生えない。台風は河原にとっての農家の鋤。自然の撹乱が、特定の生き物にとっての命綱になっている"
+    },
+    {
+      "theme": "sensory_summer",
+      "title": "天竜川の五感",
+      "narrative": "天竜川の河原に立つと、水の轟音が体を包む。足元の砂利は乾いた部分がカチカチ、水際はしっとり冷たい。川風が汗を飛ばし、石の匂いと水の匂いが混じる。ヤナギの細い葉が指先を撫でる。この感覚の層の中に、鳥の声が点々と浮かぶ。セキレイの尾の上下動、トビの旋回。川辺の体験は、全身で受け取るもの"
     }
   ],
   "tags": {
     "habitats": ["river", "floodplain", "riparian_forest", "gravel_bar"],
     "taxa_triggers": ["Charadrius placidus", "Motacilla", "Accipiter gentilis", "Plecoglossus altivelis"],
-    "common_name_triggers": ["イカルチドリ", "セキレイ", "ハクセキレイ", "オオタカ", "アユ", "カワラノギク", "トビ", "ミサゴ"],
-    "themes": ["river_management", "dam_impact", "sediment_ecology"]
+    "common_name_triggers": ["イカルチドリ", "セキレイ", "ハクセキレイ", "オオタカ", "アユ", "カワラノギク", "トビ", "ミサゴ", "ヤマメ", "カジカ"],
+    "themes": ["river_management", "dam_impact", "sediment_ecology", "geology", "quantitative_impact", "weather", "sensory"]
   }
 }

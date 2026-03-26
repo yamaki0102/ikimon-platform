@@ -40,12 +40,32 @@
       "theme": "forest_connectivity",
       "title": "つながる森、途切れる森",
       "narrative": "オオタカが営巣するには数百ヘクタールの連続した森が要る。天竜区の山はまだその条件を満たしている。でも道路や開発で森が分断されると、動物たちの行動圏が切り刻まれる。森の面積だけじゃなく、つながりが生態系を左右する"
+    },
+    {
+      "theme": "forestry_history",
+      "title": "天竜材が世界に渡った道",
+      "narrative": "天竜のスギとヒノキは江戸時代から銘木として知られた。山で伐った木は天竜川の流れに乗せて下流の浜松へ。この筏流しが浜松の木材産業を育て、やがてヤマハのオルガン、河合のピアノにつながった。天竜の森と浜松の産業は、川で結ばれている。楽器の音色の出発点は、この山の土壌と水にある"
+    },
+    {
+      "theme": "sacred_ecology_deep",
+      "title": "火防の神が守った生物多様性",
+      "narrative": "秋葉神社の御神体は火の神。火事を恐れる人々が山の木を切らず、落ち葉を掃かなかった。その結果、厚い腐植層ができて土壌生物が豊かになり、巨木が育ち、キツツキが穴を開け、フクロウがその穴で営巣する。信仰→保護→腐植→巨木→樹洞→猛禽という連鎖。人間の信仰が生態系の食物連鎖の頂点を支えている"
+    },
+    {
+      "theme": "nocturnal_autumn",
+      "title": "山の夜、シカの声が谷を渡る",
+      "narrative": "秋の夜、天竜区の山からシカの甲高い鳴き声が聞こえる。繁殖期の雄ジカの警戒と求愛。声は谷間に反響して、実際より近くにいるように聞こえる。フクロウの低い声がそれに重なる。山の夜は昼より音が遠くまで届く。気温の逆転層が音を閉じ込めるから。山の夜に耳を澄ますと、森の広さと深さが音でわかる"
+    },
+    {
+      "theme": "weather_ecology",
+      "title": "林業と台風の100年戦争",
+      "narrative": "天竜のスギ人工林にとって台風は最大の脅威。根が浅い密植林は風に弱い。間伐が遅れた林は特に倒れやすい。でも天然林では台風による倒木がギャップを作り、光が差し込んで次の世代の木が育つ。台風は天然林にとっては世代交代のトリガー、人工林にとっては壊滅の原因。同じ風が、森の種類で全く違う意味を持つ"
     }
   ],
   "tags": {
     "habitats": ["mountain_forest", "plantation", "sacred_grove", "riparian"],
     "taxa_triggers": ["Accipiter gentilis", "Butastur indicus", "Cervus nippon", "Ursus thibetanus"],
-    "common_name_triggers": ["オオタカ", "サシバ", "シカ", "ニホンジカ", "クマ", "ツキノワグマ", "キツツキ", "フクロウ"],
-    "themes": ["sacred_forest", "plantation_management", "forest_fragmentation"]
+    "common_name_triggers": ["オオタカ", "サシバ", "シカ", "ニホンジカ", "クマ", "ツキノワグマ", "キツツキ", "フクロウ", "アオゲラ"],
+    "themes": ["sacred_forest", "plantation_management", "forest_fragmentation", "forestry_industry", "sacred_ecology", "nocturnal", "weather"]
   }
 }
