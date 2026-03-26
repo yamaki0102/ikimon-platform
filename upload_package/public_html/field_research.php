@@ -50,76 +50,75 @@ if (!$currentUser) {
         body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Google Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         #map { width: 100%; height: 100%; }
 
-        /* ── MD3 Glass Panel ── */
+        /* ── M3 Expressive Glass Panel ── */
         .glass {
-            background: rgba(255,255,255,0.92);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(255,255,255,0.94);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
             border: none;
-            border-radius: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+            border-radius: 28px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.04);
         }
 
-        /* ── MD3 Top App Bar ── */
+        /* ── M3 Expressive Top App Bar ── */
         .top-bar {
             position: absolute; top: 0; left: 0; right: 0; z-index: 20;
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
             border-bottom: none;
-            padding: 12px 16px;
+            padding: 14px 20px;
             display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
         }
-        .top-bar a { color: #1e293b; text-decoration: none; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+        .top-bar a { color: #1a1a1a; text-decoration: none; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
         .top-bar a i { color: #10b981; }
-        .top-bar-title { font-size: 16px; font-weight: 600; color: #1e293b; letter-spacing: -0.01em; }
+        .top-bar-title { font-size: 18px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.02em; }
 
-        /* ── MD3 Stats Panel ── */
+        /* ── M3 Expressive Stats Panel ── */
         .stats-panel {
-            position: absolute; top: 58px; left: 12px; z-index: 15;
-            padding: 12px 16px;
-            display: flex; flex-direction: column; gap: 3px;
+            position: absolute; top: 60px; left: 12px; z-index: 15;
+            padding: 14px 18px;
+            display: flex; flex-direction: column; gap: 4px;
             min-width: 130px;
         }
         .stats-panel .stat-row { display: flex; align-items: baseline; gap: 6px; }
-        .stats-panel .stat-value { font-family: 'Google Sans', 'SF Mono', monospace; font-size: 1.05rem; font-weight: 600; color: #1e293b; }
+        .stats-panel .stat-value { font-family: 'Google Sans', system-ui, monospace; font-size: 1.1rem; font-weight: 600; color: #1a1a1a; }
         .stats-panel .stat-label { font-size: 0.65rem; color: #9ca3af; font-weight: 500; letter-spacing: 0.03em; }
-        .stats-panel .stat-value.highlight { color: #10b981; }
+        .stats-panel .stat-value.highlight { color: #059669; }
 
-        /* ── MD3 Period Filter ── */
+        /* ── M3 Expressive Period Filter ── */
         .period-bar {
-            position: absolute; top: 58px; left: 162px; z-index: 15;
+            position: absolute; top: 60px; left: 164px; z-index: 15;
             padding: 4px;
-            display: flex; gap: 2px;
+            display: flex; gap: 4px;
         }
         .period-btn {
-            border: none; background: none; padding: 6px 12px; border-radius: 20px;
-            font-size: 12px; font-weight: 500; color: #5f6368; cursor: pointer;
-            transition: all 150ms ease;
+            border: none; background: none; padding: 8px 14px; border-radius: 9999px;
+            font-size: 13px; font-weight: 500; color: #5f6368; cursor: pointer;
+            transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
         }
-        .period-btn:hover { background: rgba(16,185,129,0.06); }
-        .period-btn.active { background: #10b981; color: #fff; box-shadow: 0 1px 3px rgba(16,185,129,0.3); }
+        .period-btn:hover { background: rgba(16,185,129,0.08); }
+        .period-btn.active { background: #059669; color: #fff; box-shadow: 0 2px 8px rgba(5,150,105,0.25); }
 
-        /* ── MD3 Bottom Action Bar ── */
+        /* ── M3 Expressive Bottom Action Bar ── */
         .bottom-bar {
             position: absolute; bottom: max(24px, env(safe-area-inset-bottom, 16px)); left: 50%; transform: translateX(-50%); z-index: 20;
             display: flex; gap: 12px; align-items: center;
             padding: 8px 12px;
         }
         .action-btn {
-            width: 56px; height: 56px; border-radius: 16px; border: none;
+            width: 56px; height: 56px; border-radius: 28px; border: none;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             font-size: 0.7rem; font-weight: 500; cursor: pointer;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.08);
-            transition: all 150ms ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.06);
+            transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
             text-decoration: none;
         }
-        .action-btn:active { transform: scale(0.95); }
+        .action-btn:active { transform: scale(0.92); }
         .action-btn i { margin-bottom: 2px; }
 
         .btn-observe { background: #f59e0b; color: #fff; }
-        .btn-locate { background: #fff; color: #10b981; width: 44px; height: 44px; border-radius: 12px; }
+        .btn-locate { background: #fff; color: #059669; width: 48px; height: 48px; border-radius: 24px; }
 
         /* ── GPS Status ── */
         .gps-dot {
@@ -132,51 +131,52 @@ if (!$currentUser) {
         .gps-dot.off  { background: #d1d5db; animation: none; }
         @keyframes gps-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-        /* ── MD3 Layer Toggle ── */
+        /* ── M3 Expressive Layer Toggle ── */
         .layer-btn {
-            position: absolute; top: 58px; right: 12px; z-index: 15;
-            width: 40px; height: 40px;
+            position: absolute; top: 60px; right: 12px; z-index: 15;
+            width: 48px; height: 48px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; padding: 0;
+            border-radius: 24px;
         }
 
         .layer-sheet {
-            position: absolute; top: 102px; right: 12px; z-index: 15;
-            padding: 12px 16px; min-width: 210px;
+            position: absolute; top: 114px; right: 12px; z-index: 15;
+            padding: 16px 20px; min-width: 220px;
         }
-        .layer-sheet h4 { margin: 0 0 10px; font-size: 11px; color: #9ca3af; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+        .layer-sheet h4 { margin: 0 0 12px; font-size: 12px; color: #9ca3af; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
         .layer-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.04);
-            font-size: 14px; font-weight: 500; color: #1e293b; cursor: pointer;
+            display: flex; align-items: center; gap: 14px;
+            padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.04);
+            font-size: 14px; font-weight: 500; color: #1a1a1a; cursor: pointer;
         }
         .layer-item:last-child { border-bottom: none; }
         .layer-toggle {
-            width: 40px; height: 22px; border-radius: 11px; border: none;
-            position: relative; cursor: pointer; transition: background 200ms ease;
+            width: 44px; height: 24px; border-radius: 12px; border: none;
+            position: relative; cursor: pointer; transition: background 250ms cubic-bezier(0.2, 0, 0, 1);
         }
-        .layer-toggle.on { background: #10b981; }
+        .layer-toggle.on { background: #059669; }
         .layer-toggle.off { background: #d1d5db; }
         .layer-toggle::after {
-            content: ''; position: absolute; top: 2px; width: 18px; height: 18px;
-            border-radius: 50%; background: #fff; transition: left 200ms cubic-bezier(0.2, 0, 0, 1);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            content: ''; position: absolute; top: 2px; width: 20px; height: 20px;
+            border-radius: 50%; background: #fff; transition: left 250ms cubic-bezier(0.2, 0, 0, 1);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
         }
-        .layer-toggle.on::after { left: 20px; }
+        .layer-toggle.on::after { left: 22px; }
         .layer-toggle.off::after { left: 2px; }
 
-        /* MD3 Loading indicator */
+        /* M3 Expressive Loading indicator */
         .loading-bar {
-            position: absolute; top: 48px; left: 0; right: 0; height: 3px; z-index: 30;
-            background: linear-gradient(90deg, transparent, #10b981, transparent);
-            animation: loading-slide 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            position: absolute; top: 52px; left: 0; right: 0; height: 3px; z-index: 30;
+            background: linear-gradient(90deg, transparent, #059669, transparent);
+            animation: loading-slide 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
         @keyframes loading-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
         /* Mobile adjustments */
         @media (max-width: 640px) {
             .period-bar { top: auto; bottom: max(90px, calc(env(safe-area-inset-bottom, 16px) + 72px)); left: 50%; transform: translateX(-50%); }
-            .stats-panel { top: 54px; left: 8px; padding: 10px 12px; }
+            .stats-panel { top: 56px; left: 8px; padding: 12px 14px; }
             .stats-panel .stat-value { font-size: 0.95rem; }
         }
 
@@ -389,17 +389,17 @@ if (!$currentUser) {
     <!-- Sensor Start Panel (single button) -->
     <div x-show="!sessionActive && showModeSelect" x-cloak
          style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
-        <div style="background:rgba(255,255,255,0.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:20px;border-radius:24px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.1),0 0 0 1px rgba(0,0,0,0.04);">
+        <div style="background:rgba(255,255,255,0.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);padding:22px;border-radius:32px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.08),0 12px 40px rgba(0,0,0,0.04);">
             <!-- 移動手段セレクター -->
-            <div style="margin-bottom:16px;">
-                <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">移動手段</div>
+            <div style="margin-bottom:18px;">
+                <div style="font-size:12px;color:#5f6368;margin-bottom:10px;font-weight:500;">移動手段</div>
                 <div style="display:flex;gap:8px;">
                     <template x-for="tm in transportModes" :key="tm.id">
                         <button @click="manualTransportMode = tm.id; localStorage.setItem('ikimon_transport', tm.id)"
-                                :style="manualTransportMode === tm.id ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
-                                style="flex:1;padding:10px 4px;border-radius:12px;border:1.5px solid;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all 150ms ease;">
-                            <span x-text="tm.emoji" style="font-size:22px;pointer-events:none;"></span>
-                            <span x-text="tm.label" style="font-size:11px;font-weight:500;pointer-events:none;"></span>
+                                :style="manualTransportMode === tm.id ? 'background:rgba(5,150,105,0.12);color:#065f46;border-color:#059669;box-shadow:0 0 0 1px rgba(5,150,105,0.2);' : 'background:#f0f4f2;color:#5f6368;border-color:transparent;'"
+                                style="flex:1;padding:12px 4px;border-radius:20px;border:1.5px solid;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;transition:all 250ms cubic-bezier(0.2,0,0,1);">
+                            <span x-text="tm.emoji" style="font-size:24px;pointer-events:none;"></span>
+                            <span x-text="tm.label" style="font-size:12px;font-weight:500;pointer-events:none;"></span>
                         </button>
                     </template>
                 </div>
@@ -411,7 +411,7 @@ if (!$currentUser) {
                     <template x-for="dt in [{min:15,label:'15分'},{min:30,label:'30分'},{min:60,label:'1時間'},{min:0,label:'指定なし'}]" :key="dt.min">
                         <button @click="driveDurationMin = dt.min; localStorage.setItem('ikimon_drive_duration', dt.min)"
                                 :style="driveDurationMin === dt.min ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
-                                style="flex:1;padding:8px 4px;border-radius:20px;border:1.5px solid;cursor:pointer;font-size:12px;font-weight:500;transition:all 150ms ease;">
+                                style="flex:1;padding:8px 4px;border-radius:9999px;border:1.5px solid;cursor:pointer;font-size:13px;font-weight:500;transition:all 250ms cubic-bezier(0.2,0,0,1);">
                             <span x-text="dt.label"></span>
                         </button>
                     </template>
@@ -434,18 +434,18 @@ if (!$currentUser) {
                     <template x-for="gm in [{id:'explore',label:'🌳 自然探索'},{id:'culture',label:'🏯 歴史文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
                         <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
                                 :style="guideMood === gm.id ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
-                                style="flex:1;padding:8px 4px;border-radius:20px;border:1.5px solid;cursor:pointer;font-size:11px;font-weight:500;transition:all 150ms ease;">
+                                style="flex:1;padding:8px 4px;border-radius:9999px;border:1.5px solid;cursor:pointer;font-size:12px;font-weight:500;transition:all 250ms cubic-bezier(0.2,0,0,1);">
                             <span x-text="gm.label"></span>
                         </button>
                     </template>
                 </div>
             </div>
             <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px;">
-                <button @click="startSensor()" style="flex:1;padding:16px;border-radius:24px;border:none;background:#10b981;color:#fff;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 1px 3px rgba(16,185,129,0.3);transition:all 150ms ease;">
+                <button @click="startSensor()" style="flex:1;padding:18px;border-radius:9999px;border:none;background:#059669;color:#fff;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 2px 8px rgba(5,150,105,0.3),0 6px 20px rgba(5,150,105,0.15);transition:all 250ms cubic-bezier(0.2,0,0,1);letter-spacing:-0.01em;">
                     <span style="font-size:18px;">📡</span> センサーを開始
                 </button>
                 <button @click="showSpeakerSelect = !showSpeakerSelect"
-                        style="padding:10px 14px;border-radius:16px;border:1px solid #e5e7eb;background:#f9fafb;color:#5f6368;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;white-space:nowrap;transition:all 150ms ease;">
+                        style="padding:12px 16px;border-radius:24px;border:1px solid #e5e7eb;background:#f0f4f2;color:#5f6368;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:nowrap;transition:all 250ms cubic-bezier(0.2,0,0,1);">
                     <span style="font-size:18px;" x-text="speakerEmoji"></span>
                     <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || 'Auto'" style="font-size:10px;font-weight:500;"></span>
                 </button>
@@ -456,7 +456,7 @@ if (!$currentUser) {
                     <template x-for="sp in speakers" :key="sp.id">
                         <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
                                 :style="selectedSpeaker === sp.id ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
-                                style="padding:12px 8px;border-radius:12px;border:1.5px solid;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 150ms ease;">
+                                style="padding:14px 8px;border-radius:20px;border:1.5px solid;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 250ms cubic-bezier(0.2,0,0,1);">
                             <span x-text="sp.emoji" style="font-size:18px;"></span>
                             <span x-text="sp.label" style="font-weight:500;"></span>
                         </button>
