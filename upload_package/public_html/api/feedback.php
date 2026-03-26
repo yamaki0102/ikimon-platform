@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $category = $body['category'] ?? '';
     $description = trim($body['description'] ?? '');
 
-    if (!in_array($category, ['bug', 'improvement', 'other'], true)) {
+    if (!in_array($category, ['bug', 'improvement', 'question', 'deletion', 'other'], true)) {
         respond(false, 'カテゴリが不正です');
     }
     if ($description === '' || mb_strlen($description) > 2000) {
@@ -43,12 +43,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = Auth::user();
     $id = 'fb_' . time() . '_' . bin2hex(random_bytes(3));
 
+    $email = trim($body['email'] ?? '');
+    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $email = '';
+    }
+
     $record = [
         'id'         => $id,
         'url'        => mb_substr($body['url'] ?? '', 0, 500),
         'page_title' => mb_substr($body['page_title'] ?? '', 0, 200),
         'category'   => $category,
         'description'=> $description,
+        'email'      => $email,
         'user_id'    => $user['id'] ?? null,
         'user_name'  => $user['display_name'] ?? 'ゲスト',
         'user_agent' => mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
@@ -95,8 +101,8 @@ respond(false, 'Invalid method');
 
 // ── メール通知 ──
 function sendNotification(array $r): void {
-    $icons  = ['bug' => '🐛', 'improvement' => '💡', 'other' => '💬'];
-    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'other' => 'その他'];
+    $icons  = ['bug' => '🐛', 'improvement' => '💡', 'question' => '❓', 'deletion' => '🗑️', 'other' => '💬'];
+    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'question' => '質問', 'deletion' => 'データ削除', 'other' => 'その他'];
 
     $icon  = $icons[$r['category']]  ?? '💬';
     $label = $labels[$r['category']] ?? 'その他';
@@ -113,6 +119,7 @@ function sendNotification(array $r): void {
         "カテゴリ : {$icon} {$label}",
         "内容     : {$r['description']}",
         "ページ   : {$r['url']}",
+        "メール   : " . ($r['email'] ?: '未入力'),
         "ユーザー : {$r['user_name']}",
         "日時     : {$r['created_at']}",
     ]);
@@ -138,8 +145,8 @@ function rebuildSummary() {
 
     usort($all, fn($a, $b) => strcmp($b['created_at'], $a['created_at']));
 
-    $icons = ['bug' => "\xF0\x9F\x90\x9B", 'improvement' => "\xF0\x9F\x92\xA1", 'other' => "\xF0\x9F\x92\xAC"];
-    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'other' => 'その他'];
+    $icons = ['bug' => "\xF0\x9F\x90\x9B", 'improvement' => "\xF0\x9F\x92\xA1", 'question' => "\xE2\x9D\x93", 'deletion' => "\xF0\x9F\x97\x91", 'other' => "\xF0\x9F\x92\xAC"];
+    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'question' => '質問', 'deletion' => 'データ削除', 'other' => 'その他'];
 
     $open = array_filter($all, fn($r) => ($r['status'] ?? 'open') === 'open');
     $done = array_filter($all, fn($r) => ($r['status'] ?? 'open') !== 'open');

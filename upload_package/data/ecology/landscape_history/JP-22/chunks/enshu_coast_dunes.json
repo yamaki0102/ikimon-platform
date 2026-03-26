@@ -1,0 +1,51 @@
+{
+  "id": "enshu_coast_dunes",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.6500,
+    "lng": 137.7500,
+    "radius_km": 3.0,
+    "place_names": ["遠州灘", "中田島砂丘", "南区"],
+    "place_names_en": ["Enshu Coast", "Nakatajima Sand Dunes", "Minami Ward"]
+  },
+  "period": {
+    "label": "古代〜現代",
+    "year_from": 500,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "浜松市史・遠州灘の自然",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "遠州灘沿いには天竜川が運んだ砂でできた広大な砂丘と海岸松林が続いていた。中田島砂丘はその代表",
+    "land_use_change": "砂丘・海岸松林 → 防風林(江戸〜明治) → 海岸侵食進行(昭和〜) → 養浜工事(平成〜)",
+    "ecological_impact": "ダムによる土砂供給減少で砂丘が縮小。海岸松林はマツクイムシで壊滅的被害。アカウミガメの産卵地も砂浜面積の減少で危機的",
+    "biodiversity_link": "中田島砂丘でアカウミガメが産卵を続けているのは、まだわずかに残る自然海浜があるから。砂浜の面積がウミガメの未来を決める"
+  },
+  "narrative_layers": [
+    {
+      "theme": "sand_supply",
+      "title": "砂が来なくなった浜",
+      "narrative": "遠州灘の砂丘は天竜川が山から運んだ砂で作られた。何万年もかけて。でも上流にダムができて砂の供給が止まった。波は砂を削り続けるのに、新しい砂が来ない。砂丘は年々痩せている。ここに棲む海浜植物や砂地の昆虫は、文字通り足元が消えていく危機にある"
+    },
+    {
+      "theme": "sea_turtle",
+      "title": "ウミガメが選ぶ浜",
+      "narrative": "アカウミガメは産卵に来る浜を選ぶ。砂の粒の大きさ、浜の傾斜、光の少なさ。中田島砂丘はその条件を満たす数少ない浜の一つ。でも砂浜が狭くなれば、ウミガメは別の場所を探す。数百万年の歴史を持つウミガメの営みが、ここ数十年のダム建設の影響を受けている"
+    },
+    {
+      "theme": "coastal_pine",
+      "title": "松林が消えた理由",
+      "narrative": "遠州灘の海岸松林は、江戸時代に人が植えた防風林だった。天然の森ではない。でも300年の歳月が松林に独自の生態系を育てた。マツクイムシがその松林を壊滅させた。松が枯れた跡地に何が生えてくるか、それが今この海岸の次の生態系を決める"
+    }
+  ],
+  "tags": {
+    "habitats": ["coastal", "sand_dune", "pine_forest", "beach"],
+    "taxa_triggers": ["Caretta caretta", "Calidris alba", "Charadrius alexandrinus"],
+    "common_name_triggers": ["ウミガメ", "アカウミガメ", "シロチドリ", "ハマヒルガオ", "マツ", "トビ", "ハマボウフウ"],
+    "themes": ["coastal_erosion", "sea_turtle", "dam_impact"]
+  }
+}

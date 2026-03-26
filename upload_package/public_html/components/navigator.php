@@ -12,7 +12,7 @@
             <h3 id="navigator-title" class="font-black text-base flex items-center gap-2">
                 <i data-lucide="compass" class="text-[var(--color-primary)] w-5 h-5"></i> Bio-Navigator
             </h3>
-            <button @click="open = false" class="p-1.5 hover:bg-white/10 rounded-full transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <button @click="open = false" class="p-2 min-w-11 min-h-11 flex items-center justify-center hover:bg-white/10 rounded-full transition" aria-label="閉じる"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
 
         <!-- Content Area -->
@@ -117,8 +117,8 @@
             async loadData() {
                 try {
                     const [navRes, taxRes] = await Promise.all([
-                        fetch('data/navigator_data.json?v=' + Date.now()),
-                        fetch('data/navigator_taxonomy.json?v=' + Date.now()).catch(() => null)
+                        fetch('assets/data/navigator_data.json?v=' + Date.now()),
+                        fetch('assets/data/navigator_taxonomy.json?v=' + Date.now()).catch(() => null)
                     ]);
                     
                     this.data = await navRes.json();

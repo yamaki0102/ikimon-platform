@@ -1,0 +1,35 @@
+[
+    {
+        "date": "2026-03-23",
+        "time": "22:05",
+        "area": "千代田区",
+        "weather": "sunny",
+        "season": "春",
+        "duration_min": 30,
+        "species_count": 2,
+        "highlight_species": "メジロ",
+        "species_list": "シジュウカラ,メジロ",
+        "closing_message": "お疲れさま。メジロとの出会い、よかったね。また来よう。",
+        "emotion_tags": [
+            "immersive",
+            "focused"
+        ]
+    },
+    {
+        "date": "2026-03-23",
+        "time": "22:11",
+        "area": "千代田区",
+        "weather": "曇り",
+        "season": "春",
+        "duration_min": 45,
+        "species_count": 3,
+        "highlight_species": "ウグイス",
+        "species_list": "シジュウカラ,メジロ,ウグイス",
+        "closing_message": "雲に覆われた穏やかな一日だったね。ウグイスとの出会い、覚えておこう。次は少し早い時間に来てみて。違う顔ぶれに会えるかも。",
+        "emotion_tags": [
+            "contemplative",
+            "immersive",
+            "focused"
+        ]
+    }
+]

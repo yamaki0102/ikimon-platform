@@ -1,0 +1,51 @@
+{
+  "id": "hamamatsu_station_area",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.7037,
+    "lng": 137.7348,
+    "radius_km": 1.0,
+    "place_names": ["浜松駅", "アクトタワー", "砂山町"],
+    "place_names_en": ["Hamamatsu Station", "Act Tower", "Sunayama-cho"]
+  },
+  "period": {
+    "label": "明治〜現代",
+    "year_from": 1889,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "浜松中心街の今昔",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "浜松駅周辺は明治以前は砂地と農地。鉄道開通で市街化が進み、戦後の再開発で高度に都市化",
+    "land_use_change": "砂地・農地 → 鉄道駅(1889) → 空襲で焼失(1945) → 再開発(昭和〜平成) → 高層ビル群(平成〜)",
+    "ecological_impact": "完全な都市化で地表面のほぼ全てが被覆。しかしビルの植栽、街路樹、駅前広場の緑地がスズメ・ムクドリの集団ねぐらに",
+    "biodiversity_link": "浜松駅前でムクドリの大群が見られるのは、街路樹が安全なねぐらを提供し、周辺の公園・農地が餌場として機能しているから"
+  },
+  "narrative_layers": [
+    {
+      "theme": "urban_adaptation",
+      "title": "都市を使いこなす鳥",
+      "narrative": "ムクドリの夕方の大群は都市の風物詩。なぜ都市に集まるか。人間の作った街灯が天敵のフクロウを遠ざけ、ビルの熱が冬の寒さを和らげ、街路樹がまとまったねぐらを提供する。ムクドリは人間が嫌いなんじゃなくて、むしろ人間の街をうまく利用している"
+    },
+    {
+      "theme": "heat_island",
+      "title": "ヒートアイランドの生態学",
+      "narrative": "コンクリートとアスファルトで覆われた駅前は、周辺より数度気温が高い。このヒートアイランド効果は鳥にとっては冬の暖房みたいなもの。一方で夏は暑すぎて、地面近くの昆虫は棲みにくくなる。都市の温度は、生き物の分布を目に見えない形で左右している"
+    },
+    {
+      "theme": "green_stepping_stones",
+      "title": "緑の飛び石",
+      "narrative": "駅前広場の小さな植え込み、街路樹の並木、マンションの植栽。一つひとつは小さいけど、鳥にとってはコンクリートの海を渡る飛び石になる。メジロやシジュウカラが都市の中を移動できるのは、こういう小さな緑が点々と続いているから"
+    }
+  ],
+  "tags": {
+    "habitats": ["urban_core", "street_trees", "built_up"],
+    "taxa_triggers": ["Spodiopsar cineraceus", "Passer montanus", "Columba livia"],
+    "common_name_triggers": ["ムクドリ", "スズメ", "ハト", "ドバト", "カラス", "ハシブトガラス", "ツバメ"],
+    "themes": ["urban_adaptation", "heat_island", "green_infrastructure"]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "id": "tenryu_river_floodplain",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.7500,
+    "lng": 137.7800,
+    "radius_km": 3.0,
+    "place_names": ["天竜川", "天竜区", "東区"],
+    "place_names_en": ["Tenryu River", "Tenryu Ward", "Higashi Ward"]
+  },
+  "period": {
+    "label": "古代〜現代",
+    "year_from": 700,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "浜松市史・天竜川流域の自然",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "天竜川はかつて自由に蛇行し、広大な氾濫原と河畔林を形成していた。砂利の河原にはカワラノギクなどの河原固有植物が群生",
+    "land_use_change": "自然河川 → 堤防建設(江戸〜明治) → 河川敷公園化(昭和) → ダム建設で土砂供給減少",
+    "ecological_impact": "河原固有の植物群落が縮小。アユの産卵場が減少。一方で堤防沿いの河畔林はオオタカなど猛禽類の営巣地として機能",
+    "biodiversity_link": "天竜川の河原に残る砂利地は、数百年前から続く河川生態系の最後の断片。ここで見られるイカルチドリやセキレイは、河原という環境に特化した種"
+  },
+  "narrative_layers": [
+    {
+      "theme": "river_ecology",
+      "title": "暴れ川が育てた命",
+      "narrative": "天竜川は昔、暴れ天竜と呼ばれた。毎年のように氾濫して、周辺の地形を作り替えた。でもその氾濫こそが、砂利の河原を更新し続けて、河原にしか生きられない植物や鳥の居場所を作っていた。治水でおとなしくなった川は、皮肉にも河原の生態系を追い詰めている"
+    },
+    {
+      "theme": "sediment_ecology",
+      "title": "砂がなくなった川",
+      "narrative": "上流のダムが砂利を止めている。天竜川の河原は年々痩せている。アユが産卵する砂利底も減った。川の生態系は水だけじゃなく、砂利や石という固体の流れにも依存していた。それに気づいたのは、ダムを作ってからずいぶん経ってのことだった"
+    },
+    {
+      "theme": "riparian_forest",
+      "title": "堤防が作った新しい森",
+      "narrative": "堤防ができて氾濫が止まると、河畔に安定した林が育った。ヤナギやハンノキの林。皮肉なことに、この人工的に安定した河畔林がオオタカの営巣地になっている。人間が川を制御した結果、予想外の生態系が生まれた"
+    }
+  ],
+  "tags": {
+    "habitats": ["river", "floodplain", "riparian_forest", "gravel_bar"],
+    "taxa_triggers": ["Charadrius placidus", "Motacilla", "Accipiter gentilis", "Plecoglossus altivelis"],
+    "common_name_triggers": ["イカルチドリ", "セキレイ", "ハクセキレイ", "オオタカ", "アユ", "カワラノギク", "トビ", "ミサゴ"],
+    "themes": ["river_management", "dam_impact", "sediment_ecology"]
+  }
+}
