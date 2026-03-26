@@ -12,6 +12,11 @@ function uploader() {
         lat: '34.7108',
         lng: '137.7261',
         cultivation: 'wild',
+        organism_origin: 'wild',
+        managed_context_type: '',
+        managed_site_id: '',
+        managed_site_name: '',
+        managed_context_note: '',
         life_stage: 'unknown',
         taxon_name: '',
         taxon_slug: '',
@@ -54,6 +59,10 @@ function uploader() {
         submitting: false,
         progress: 0,
         success: false,
+        aiReady: false,
+        aiPending: false,
+        aiSummary: '',
+        aiPollTimer: null,
         map: null,
         marker: null,
         isLoggedIn: config.isLoggedIn ?? false,
@@ -62,9 +71,15 @@ function uploader() {
         guestPostLimit: config.guestPostLimit ?? 3,
         csrfToken: config.csrfToken ?? '',
         survey_id: config.survey_id ?? null,
+        showDetails: false,
         biome: 'unknown',
+        biomeAutoSelected: false,
+        biomeAutoReason: '',
         substrate_tags: [],
         evidence_tags: [],
+        individual_count: null,
+        record_mode: 'standard',
+        canSurveyorOfficialPost: config.canSurveyorOfficialPost ?? false,
 
         async loadHistory() {
             if (!this.isLoggedIn) {
@@ -79,6 +94,10 @@ function uploader() {
                     this.lat = d.lat;
                     this.lng = d.lng;
                     this.cultivation = d.cultivation;
+                    this.organism_origin = d.organism_origin || this.organism_origin;
+                    this.managed_context_type = d.managed_context?.type || '';
+                    this.managed_site_id = d.managed_context?.site_id || '';
+                    this.managed_site_name = d.managed_context?.site_name || '';
                     if (this.map && this.marker) {
                         this.map.flyTo([this.lat, this.lng], 16);
                         this.marker.setLatLng([this.lat, this.lng]);
@@ -137,6 +156,7 @@ function uploader() {
                     const d = JSON.parse(draft);
                     if (d.note) this.note = d.note;
                     if (d.cultivation) this.cultivation = d.cultivation;
+                    if (d.organism_origin) this.organism_origin = d.organism_origin;
                 } catch (e) { }
             }
 
@@ -155,6 +175,10 @@ function uploader() {
             // Auto-Save Draft
             this.$watch('note', val => this.saveDraft());
             this.$watch('cultivation', val => this.saveDraft());
+            this.$watch('organism_origin', val => this.saveDraft());
+            this.$watch('cultivation', () => this.autoSelectBiome());
+            this.$watch('managed_context_type', () => this.autoSelectBiome());
+            this.$watch('locationName', () => this.autoSelectBiome());
 
             // Soft Validation Triggers
             this.$watch('taxon_slug', () => this.triggerValidation());
@@ -170,7 +194,36 @@ function uploader() {
                 });
             }
 
-            // Map Init is triggered from handleFiles() when first photo is added
+            // 調査員公式記録は写真なしでもフォームを開ける
+            if (this.canSurveyorOfficialPost && this.record_mode === 'surveyor_official' && !this.map) {
+                this.$nextTick(() => {
+                    setTimeout(() => this.initMapNow(), 200);
+                });
+            }
+        },
+
+        get canOpenForm() {
+            return this.photos.length > 0 || (this.canSurveyorOfficialPost && this.record_mode === 'surveyor_official');
+        },
+
+        get canSubmit() {
+            if (!this.canOpenForm) return false;
+            if (this.record_mode !== 'surveyor_official') {
+                return this.photos.length > 0;
+            }
+
+            const hasLocation = !!this.lat && !!this.lng;
+            const hasSubstance = this.photos.length > 0 || this.taxon_name.trim().length > 0 || this.note.trim().length > 0;
+            return hasLocation && hasSubstance;
+        },
+
+        ensureFormReady() {
+            if (!this.map) {
+                this.$nextTick(() => {
+                    setTimeout(() => this.initMapNow(), 200);
+                });
+            }
+            this.showDetails = true;
         },
 
         initMapNow() {
@@ -259,6 +312,7 @@ function uploader() {
                 this.marker.setLatLng([this.lat, this.lng]);
             }
             if (navigator.vibrate) navigator.vibrate(30);
+            this.autoSelectBiome();
         },
 
         resetForm() {
@@ -273,13 +327,30 @@ function uploader() {
             this.license = 'CC-BY';
             this.life_stage = 'unknown';
             this.cultivation = 'wild';
+            this.organism_origin = 'wild';
+            this.managed_context_type = '';
+            this.managed_site_id = '';
+            this.managed_site_name = '';
+            this.managed_context_note = '';
             this.biome = 'unknown';
             this.substrate_tags = [];
             this.evidence_tags = [];
+            this.individual_count = null;
+            this.record_mode = 'standard';
+            this.showDetails = false;
             this.submitting = false;
             this.success = false;
             this.progress = 0;
             this.lastObservationId = null;
+            this.aiReady = false;
+            this.aiPending = false;
+            this.aiSummary = '';
+            this.biomeAutoSelected = false;
+            this.biomeAutoReason = '';
+            if (this.aiPollTimer) {
+                clearTimeout(this.aiPollTimer);
+                this.aiPollTimer = null;
+            }
             this.event_id = null;
             this.event_name = '';
             const now = new Date();
@@ -295,6 +366,7 @@ function uploader() {
             localStorage.setItem('draft_obs', JSON.stringify({
                 note: this.note,
                 cultivation: this.cultivation,
+                organism_origin: this.organism_origin,
                 timestamp: Date.now()
             }));
         },
@@ -330,6 +402,7 @@ function uploader() {
                     if (typeof EXIF !== 'undefined') {
                         this._processExif(file, this.photos.length);
                     }
+                    this.autoSelectBiome();
                 };
                 reader.readAsDataURL(file);
             });
@@ -392,7 +465,8 @@ function uploader() {
             // Analytics: 投稿送信イベント
             if (window.ikimonAnalytics) ikimonAnalytics.track('post_submit', {
                 photo_count: this.photos.length,
-                has_taxon: !!this.taxon_name
+                has_taxon: !!this.taxon_name,
+                record_mode: this.record_mode
             });
 
             const formData = new FormData();
@@ -402,6 +476,11 @@ function uploader() {
             formData.append('lng', this.lng);
             formData.append('csrf_token', this.csrfToken);
             formData.append('cultivation', this.cultivation);
+            formData.append('organism_origin', this.organism_origin);
+            if (this.managed_context_type) formData.append('managed_context_type', this.managed_context_type);
+            if (this.managed_site_id) formData.append('managed_site_id', this.managed_site_id);
+            if (this.managed_site_name) formData.append('managed_site_name', this.managed_site_name);
+            if (this.managed_context_note) formData.append('managed_context_note', this.managed_context_note);
             formData.append('life_stage', this.life_stage);
             formData.append('taxon_name', this.taxon_name);
             formData.append('taxon_slug', this.taxon_slug);
@@ -415,8 +494,12 @@ function uploader() {
             if (this.survey_id) formData.append('survey_id', this.survey_id);
             if (this.activeSessionId) formData.append('session_id', this.activeSessionId);
             if (this.biome && this.biome !== 'unknown') formData.append('biome', this.biome);
+            if (this.biomeAutoSelected) formData.append('biome_auto_selected', '1');
+            if (this.biomeAutoReason) formData.append('biome_auto_reason', this.biomeAutoReason);
             if (this.substrate_tags.length > 0) formData.append('substrate_tags', JSON.stringify(this.substrate_tags));
             if (this.evidence_tags.length > 0) formData.append('evidence_tags', JSON.stringify(this.evidence_tags));
+            if (this.individual_count !== null && this.individual_count !== '') formData.append('individual_count', this.individual_count);
+            formData.append('record_mode', this.record_mode);
 
             // NP: Send GPS coordinate accuracy for DwC coordinateUncertaintyInMeters
             if (this.gpsAccuracy !== null) formData.append('coordinate_accuracy', Math.round(this.gpsAccuracy));
@@ -463,6 +546,9 @@ function uploader() {
 
                 if (result.success) {
                     this.lastObservationId = result.id;
+                    this.aiReady = !!result.ai_assessment_ready;
+                    this.aiPending = !!result.ai_assessment_pending && !this.aiReady;
+                    this.aiSummary = result.ai_assessment_summary || '';
 
                     // Dispatch Gamification Event if present
                     if (result.gamification_events && result.gamification_events.length > 0) {
@@ -476,6 +562,9 @@ function uploader() {
                         obs_id: result.id
                     });
                     this.completeSubmission();
+                    if (this.aiPending && this.lastObservationId) {
+                        this.scheduleAiStatusPoll();
+                    }
                 } else {
                     console.error('Submission Failed:', result);
                     alert('ごめん、ちょっとうまくいかなかった 🙇\n' + (result.message || result.error || 'もう一度試してみてね'));
@@ -520,6 +609,84 @@ function uploader() {
             this.$nextTick(() => lucide.createIcons());
         },
 
+        scheduleAiStatusPoll(delay = 1200) {
+            if (!this.lastObservationId) return;
+            if (this.aiPollTimer) clearTimeout(this.aiPollTimer);
+            this.aiPollTimer = setTimeout(() => this.pollAiStatus(8), delay);
+        },
+
+        async pollAiStatus(remaining = 8) {
+            if (!this.lastObservationId || remaining <= 0) {
+                this.aiPending = false;
+                return;
+            }
+            try {
+                const res = await fetch('api/get_observation_ai_status.php?id=' + encodeURIComponent(this.lastObservationId), {
+                    cache: 'no-store'
+                });
+                const data = await res.json();
+                if (data.success && data.ready) {
+                    this.aiReady = true;
+                    this.aiPending = false;
+                    this.aiSummary = data.summary || '';
+                    this.$nextTick(() => lucide.createIcons());
+                    return;
+                }
+            } catch (e) {
+                console.warn('AI status poll failed', e);
+            }
+            if (remaining > 1) {
+                if (this.aiPollTimer) clearTimeout(this.aiPollTimer);
+                this.aiPollTimer = setTimeout(() => this.pollAiStatus(remaining - 1), 1200);
+                return;
+            }
+            this.aiPending = false;
+        },
+
+        autoSelectBiome() {
+            if (this.biome && this.biome !== 'unknown' && !this.biomeAutoSelected) return;
+
+            const managed = (this.managed_context_type || '').toLowerCase();
+            const location = (this.locationName || this.addressQuery || '').toLowerCase();
+            let next = 'unknown';
+            let reason = '';
+
+            if (managed === 'aquarium') {
+                next = 'wetland';
+                reason = '施設文脈から水辺寄りとして自動選択';
+            } else if (['botanical_garden', 'zoo', 'aviary', 'park_planting', 'school_biotope', 'private_collection'].includes(managed)) {
+                next = 'urban';
+                reason = '施設文脈から都市・公園寄りとして自動選択';
+            } else if (managed === 'conservation_center') {
+                next = 'forest';
+                reason = '施設文脈から森林寄りとして自動選択';
+            } else if (this.cultivation === 'cultivated') {
+                next = 'urban';
+                reason = '植栽・飼育のため都市・公園寄りとして自動選択';
+            } else if (/[海浜湾港干潟]/.test(location)) {
+                next = 'coastal';
+                reason = '場所名から海岸・干潟を自動選択';
+            } else if (/[池沼沢川河湖湿]/.test(location)) {
+                next = 'wetland';
+                reason = '場所名から湿地・水辺を自動選択';
+            } else if (/[田畑果樹農]/.test(location)) {
+                next = 'farmland';
+                reason = '場所名から農地・里山を自動選択';
+            } else if (/[森林山神社寺]/.test(location)) {
+                next = 'forest';
+                reason = '場所名から森林を自動選択';
+            } else if (location) {
+                next = 'urban';
+                reason = '場所名から都市・公園寄りとして自動選択';
+            }
+
+            this.biomeAutoSelected = next !== 'unknown';
+            this.biomeAutoReason = this.biomeAutoSelected ? reason : '';
+            if (this.biomeAutoSelected) {
+                this.biome = next;
+            }
+        },
+
         async searchTaxon() {
             const q = this.taxon_name.trim();
             if (q.length < 1) {
@@ -551,6 +718,18 @@ function uploader() {
             this.taxon_thumbnail = s.thumbnail_url || '';
             this.showSuggestions = false;
             if (navigator.vibrate) navigator.vibrate(30);
+        },
+
+        originLabel(origin) {
+            return {
+                wild: '野生',
+                cultivated: '栽培個体',
+                captive: '飼育個体',
+                released: '放された個体',
+                escaped: '逸出個体',
+                naturalized: '野外定着',
+                uncertain: '判断保留',
+            }[origin] || '未設定';
         },
 
         toggleSubstrate(tagId) {

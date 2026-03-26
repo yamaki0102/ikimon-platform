@@ -1,25 +1,14 @@
 <?php
 
 /**
- * B2B Demo Page — 愛管HQダッシュボード 読み取り専用デモ
+ * B2B Demo Page — 企業向けデモ入口
  * 
- * site_dashboard.php のデモモードへリダイレクト。
- * 実際のダッシュボード画面を読み取り専用で体験可能。
+ * showcase.php へリダイレクト。
+ * まずは企業向けデモの全体像を見せ、その後に詳細ダッシュボードへ進ませる。
  */
 require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../libs/SiteManager.php';
-
-// デモ用サイトID — activeなサイトの最初を使用
-$demoSiteId = null;
-$sites = SiteManager::listAll(true); // activeOnly = true
-if (!empty($sites)) {
-    $demoSiteId = $sites[0]['id'];
-}
-
-if ($demoSiteId) {
-    header('Location: ../site_dashboard.php?site=' . urlencode($demoSiteId) . '&demo=1');
-    exit;
-}
+header('Location: ../site_dashboard.php?site=ikan_hq&demo=1');
+exit;
 
 // フォールバック: サイトデータがない場合
 ?>

@@ -18,6 +18,8 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/SiteManager.php';
+require_once __DIR__ . '/../libs/CorporateAccess.php';
+require_once __DIR__ . '/../libs/CorporateManager.php';
 
 Auth::init();
 $currentUser = Auth::user();
@@ -32,10 +34,27 @@ if (!$currentUser) {
 $editSiteId = $_GET['site'] ?? '';
 $editSite = null;
 $editGeojson = null;
+$manageableCorporations = $currentUser ? CorporateAccess::getManageableCorporations($currentUser) : [];
+$selectedCorpId = trim((string)($_GET['corp'] ?? ''));
 if ($editSiteId) {
     $editSite = SiteManager::load($editSiteId);
     $editGeojson = SiteManager::getGeoJSON($editSiteId);
+    if ($editSite && !CorporateAccess::canEditSite($editSiteId, $currentUser)) {
+        http_response_code(403);
+        exit('Access Denied.');
+    }
+    $selectedCorpId = (string)($editSite['owner_org_id'] ?? '');
+} else {
+    if (empty($manageableCorporations)) {
+        http_response_code(403);
+        exit('サイトを作成できる団体ワークスペースがありません。');
+    }
+    $validCorpIds = array_map(static fn(array $corp): string => (string)($corp['id'] ?? ''), $manageableCorporations);
+    if (!in_array($selectedCorpId, $validCorpIds, true)) {
+        $selectedCorpId = (string)($manageableCorporations[0]['id'] ?? '');
+    }
 }
+$selectedCorporation = $selectedCorpId !== '' ? CorporateManager::get($selectedCorpId) : null;
 
 $meta_title = $editSite ? $editSite['name'] . ' を編集' : '新しいサイトを作成';
 ?>
@@ -255,6 +274,22 @@ $meta_title = $editSite ? $editSite['name'] . ' を編集' : '新しいサイト
                     </h2>
 
                     <div class="space-y-3">
+                        <?php if (!$editSite): ?>
+                        <div>
+                            <label class="text-xs text-gray-400 mb-1 block">保存先ワークスペース <span class="text-red-400">*</span></label>
+                            <select x-model="ownerOrgId" class="form-input">
+                                <?php foreach ($manageableCorporations as $corporation): ?>
+                                    <option value="<?= htmlspecialchars((string)($corporation['id'] ?? '')) ?>"><?= htmlspecialchars((string)($corporation['settings']['workspace_label'] ?? $corporation['name'] ?? '')) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="mt-1 text-[11px] text-gray-500">どの団体ワークスペースの拠点として保存するかを選びます。</p>
+                        </div>
+                        <?php else: ?>
+                        <div>
+                            <label class="text-xs text-gray-400 mb-1 block">保存先ワークスペース</label>
+                            <div class="form-input opacity-80 pointer-events-none"><?= htmlspecialchars((string)($selectedCorporation['settings']['workspace_label'] ?? $selectedCorporation['name'] ?? '未設定')) ?></div>
+                        </div>
+                        <?php endif; ?>
                         <div>
                             <label class="text-xs text-gray-400 mb-1 block">サイトID <span class="text-red-400">*</span></label>
                             <input type="text" x-model="siteId" class="form-input"
@@ -335,8 +370,10 @@ $meta_title = $editSite ? $editSite['name'] . ' を編集' : '新しいサイト
                     hasPolygon: false,
                     polygonCount: 0,
                     editMode: <?php echo $editSite ? 'true' : 'false'; ?>,
+                    csrfToken: document.querySelector('meta[name="csrf-token"]')?.content || '',
 
                     // Form fields
+                    ownerOrgId: '<?php echo htmlspecialchars($selectedCorpId); ?>',
                     siteId: '<?php echo htmlspecialchars($editSiteId); ?>',
                     siteName: '<?php echo htmlspecialchars($editSite['name'] ?? ''); ?>',
                     siteDescription: '<?php echo htmlspecialchars($editSite['description'] ?? ''); ?>',
@@ -492,6 +529,11 @@ $meta_title = $editSite ? $editSite['name'] . ' を編集' : '新しいサイト
                             this.step = 1;
                             return;
                         }
+                        if (!this.ownerOrgId) {
+                            alert('保存先ワークスペースを選択してください');
+                            this.step = 2;
+                            return;
+                        }
 
                         // Merge into single geometry
                         let geometry;
@@ -511,9 +553,11 @@ $meta_title = $editSite ? $editSite['name'] . ' を編集' : '新しいサイト
                             const res = await fetch('api/save_site.php', {
                                 method: 'POST',
                                 headers: {
-                                    'Content-Type': 'application/json'
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-Token': this.csrfToken
                                 },
                                 body: JSON.stringify({
+                                    owner_org_id: this.ownerOrgId,
                                     site_id: this.siteId,
                                     name: this.siteName,
                                     description: this.siteDescription,

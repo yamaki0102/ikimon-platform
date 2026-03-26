@@ -8,7 +8,9 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
+require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../../libs/CorporateSites.php';
+require_once __DIR__ . '/../../libs/BioUtils.php';
 
 // Get site ID
 $siteId = $_GET['site_id'] ?? 'ikimon_forest';
@@ -17,6 +19,13 @@ $siteDef = CorporateSites::SITES[$siteId] ?? null;
 if (!$siteDef) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['success' => false, 'message' => 'Site not found'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+    exit;
+}
+
+$corporation = CorporatePlanGate::resolveCorporationForSite((string)$siteId);
+if ($corporation && !CorporatePlanGate::canUseAdvancedOutputs($corporation)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Community ワークスペースでは TNFD 参考レポートを出力できません。Public プランで有効になります。'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -65,7 +74,7 @@ foreach ($siteObs as $obs) {
     }
     
     // Research Grade check
-    if (($obs['status'] ?? '') === 'Research Grade') {
+    if (BioUtils::isResearchGradeLike($obs['status'] ?? ($obs['quality_grade'] ?? ''))) {
         $researchGradeCount++;
     }
 }
@@ -84,7 +93,7 @@ $reportDate = date('Y年m月d日');
 $reportPeriod = date('Y年1月') . ' - ' . date('Y年n月');
 $reportActions = [
     '観測のない季節や分類群がないかを確認し、追加観測の優先順位を決める。',
-    '研究グレード比率を上げるため、写真・位置・日時・同定コメントの運用を揃える。',
+    '研究利用可以上の比率を上げるため、写真・位置・日時・同定コメントの運用を揃える。',
     '重要種が確認された場合は、現場計画との照合と専門家レビューを検討する。',
 ];
 $referenceLinks = [
@@ -329,7 +338,7 @@ $referenceLinks = [
             <div class="reference-index-details">
                 <h3>モニタリング参考インデックス (β)</h3>
                 <p>
-                    これは種の多様性、データ品質（Research Grade率）、希少種シグナルを束ねた社内向けの参考値です。<br>
+                    これは種の多様性、データ品質（研究利用可以上率）、希少種シグナルを束ねた社内向けの参考値です。<br>
                     認証可否、法令適合、自然価値そのものを単独で示すものではありません。
                 </p>
             </div>

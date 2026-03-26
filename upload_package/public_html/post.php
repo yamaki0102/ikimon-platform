@@ -3,6 +3,8 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/CSRF.php';
 require_once __DIR__ . '/../libs/SurveyManager.php';
+require_once __DIR__ . '/../libs/Asset.php';
+require_once __DIR__ . '/../libs/SurveyorManager.php';
 
 // Guest Access Allowed — ゲストは3件まで投稿可能
 Auth::init();
@@ -18,6 +20,8 @@ $isLoggedIn = Auth::isLoggedIn();
 $isGuest = !$isLoggedIn;
 $guestPostCount = 0;
 $canPost = true;
+$currentUser = Auth::user();
+$canSurveyorOfficialPost = SurveyorManager::isApproved($currentUser);
 
 // Return URL after posting (e.g., from field_research.php)
 $returnUrl = isset($_GET['return']) ? htmlspecialchars($_GET['return'], ENT_QUOTES, 'UTF-8') : '';
@@ -49,10 +53,9 @@ if ($isGuest) {
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" rel="stylesheet" />
     <!-- Offline Manager -->
-    <script src="js/ToastManager.js"></script>
-    <script src="js/OfflineManager.js?v=2.1"></script>
-    <script src="js/ai-assist.js?v=2.0"></script>
-    <script src="js/gamification-modal.js?v=1.0"></script>
+    <script src="<?= htmlspecialchars(Asset::versioned('/js/ToastManager.js')) ?>"></script>
+    <script src="<?= htmlspecialchars(Asset::versioned('/js/OfflineManager.js')) ?>"></script>
+    <script src="<?= htmlspecialchars(Asset::versioned('/js/gamification-modal.js')) ?>"></script>
 </head>
 
 <body class="js-loading bg-base text-text font-body">
@@ -102,6 +105,32 @@ if ($isGuest) {
             </template>
 
             <form @submit.prevent="submit" class="space-y-8">
+                <?php if ($canSurveyorOfficialPost): ?>
+                <div class="rounded-3xl border border-sky-200 bg-sky-50/80 px-4 py-4">
+                    <div class="flex items-start gap-3">
+                        <div class="w-11 h-11 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                            <i data-lucide="badge-check" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-black text-sky-900">調査員モードが有効です</p>
+                            <p class="text-xs text-sky-900/70 mt-1 leading-relaxed">
+                                写真つきの通常記録に加えて、現地確認だけで公式記録を残せます。写真がない場合は、種名とメモをできるだけ具体的に残してください。
+                            </p>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <button type="button" @click="record_mode = 'standard'" class="px-3 py-2 rounded-xl text-xs font-bold border transition"
+                                    :class="record_mode === 'standard' ? 'bg-primary text-white border-primary' : 'bg-white text-text border-sky-200'">
+                                    通常記録
+                                </button>
+                                <button type="button" @click="record_mode = 'surveyor_official'" class="px-3 py-2 rounded-xl text-xs font-bold border transition"
+                                    :class="record_mode === 'surveyor_official' ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-sky-800 border-sky-200'">
+                                    調査員公式記録
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <!-- Photo Upload Area -->
                 <div class="relative">
                     <!-- 📷 EXIF Detection Toast -->
@@ -125,8 +154,8 @@ if ($isGuest) {
                     <div class="border-2 border-dashed border-border rounded-3xl p-6 text-center transition bg-surface hover:bg-white/5">
                         <div x-show="photos.length === 0">
                             <i data-lucide="camera" class="w-10 h-10 mx-auto mb-3 text-primary"></i>
-                            <p class="text-sm font-bold mb-1 text-text">生き物を撮影・選択</p>
-                            <p class="text-xs text-muted mb-5">📸 撮るだけでOK！名前は後からでも大丈夫</p>
+                            <p class="text-sm font-bold mb-1 text-text" x-text="record_mode === 'surveyor_official' ? '写真がなくても公式記録を残せます' : '生き物を撮影・選択'"></p>
+                            <p class="text-xs text-muted mb-5" x-text="record_mode === 'surveyor_official' ? '📋 現地確認のみならこのまま下のフォームへ。写真があれば付けると再利用しやすくなります' : '📸 撮るだけでOK！名前は後からでも大丈夫'"></p>
                             <div class="flex flex-col gap-3">
                                 <button type="button" @click="$refs.cameraInput.click()"
                                     class="w-full flex items-center justify-center gap-3 px-6 py-5 rounded-2xl bg-primary text-white font-bold text-base active:scale-[0.97] transition shadow-lg shadow-primary/20">
@@ -144,6 +173,15 @@ if ($isGuest) {
                                         <span class="block text-[13px] font-normal text-muted">保存済みの写真をアップロード</span>
                                     </div>
                                 </button>
+                                <template x-if="record_mode === 'surveyor_official'">
+                                    <button type="button" @click="ensureFormReady()" class="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-sky-50 text-sky-800 font-bold text-base active:scale-[0.97] transition border-2 border-sky-200 hover:border-sky-400">
+                                        <i data-lucide="clipboard-check" class="w-6 h-6 text-sky-600"></i>
+                                        <div class="text-left">
+                                            <span class="block">📝 写真なしで公式記録する</span>
+                                            <span class="block text-[13px] font-normal text-sky-700/70">位置・日時・種名・メモを残します</span>
+                                        </div>
+                                    </button>
+                                </template>
                             </div>
                         </div>
 
@@ -182,124 +220,32 @@ if ($isGuest) {
                     </div>
                 </div>
 
-                <!-- 🤖 AI Assist Section -->
+                <!-- 投稿後AIメモの案内 -->
                 <div x-show="photos.length > 0" x-transition class="mt-4">
-                    <!-- Ask AI Button -->
-                    <div x-show="!AiAssist.asked && !AiAssist.loading">
-                        <button type="button"
-                            @click="AiAssist.ask(photos)"
-                            :disabled="!navigator.onLine"
-                            class="w-full py-3 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-bold text-sm flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed">
-                            <i data-lucide="sparkles" class="w-4 h-4"></i>
-                            <span x-text="navigator.onLine ? 'AIにきいてみる' : '📵 オフラインのため利用不可'"></span>
-                        </button>
-                        <p class="text-center text-[10px] text-muted mt-1.5">写真から生き物の種類をAIが推定します（参考情報）</p>
-                    </div>
-
-                    <!-- Loading State -->
-                    <div x-show="AiAssist.loading" class="text-center py-6">
-                        <div class="inline-flex items-center gap-3 bg-surface border border-border rounded-2xl px-5 py-3">
-                            <div class="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                            <span class="text-sm font-bold text-text">AIが分析中...</span>
-                        </div>
-                        <p class="text-[10px] text-muted mt-2">通常10秒以内に結果が出ます</p>
-                    </div>
-
-                    <!-- Error State -->
-                    <div x-show="AiAssist.error" x-transition class="bg-danger/10 border border-danger/30 rounded-2xl px-4 py-3 text-center shadow-sm">
-                        <p class="text-xs font-bold text-danger opacity-90 flex items-start justify-center gap-1.5 text-left leading-relaxed">
-                            <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 translate-y-0.5"></i>
-                            <span x-text="AiAssist.error"></span>
+                    <div class="bg-surface border border-border rounded-2xl px-4 py-3 text-center">
+                        <p class="text-sm font-bold text-text flex items-center justify-center gap-2">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-primary"></i>
+                            投稿後に観察のヒントが自動で追加されます
                         </p>
-                        <button type="button" @click="AiAssist.ask(photos)" class="text-[11px] text-primary font-bold mt-2.5 bg-surface px-4 py-1.5 rounded-full border border-primary/20 hover:bg-primary/10 transition active:scale-95 shadow-sm">🔄 もう一度試す</button>
-                    </div>
-
-                    <!-- Suggestion Cards -->
-                    <div x-show="AiAssist.asked && AiAssist.suggestions.length > 0" x-transition class="space-y-2">
-                        <p class="text-[10px] font-black text-faint uppercase tracking-widest px-2 flex items-center gap-1">
-                            <i data-lucide="sparkles" class="w-3 h-3 text-primary"></i>
-                            AIの提案（参考情報）
-                        </p>
-                        <template x-for="(s, i) in AiAssist.suggestions" :key="i">
-                            <button type="button"
-                                @click="AiAssist.applySuggestion(s, $data); showDetails = true;"
-                                class="w-full text-left bg-surface hover:bg-primary/5 border border-border hover:border-primary/30 rounded-2xl px-4 py-3 transition active:scale-[0.98] flex items-center gap-3">
-                                <span class="text-2xl" x-text="s.emoji"></span>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-bold text-text truncate" x-text="s.label"></p>
-                                    <p class="text-[10px] text-muted truncate" x-text="s.reason"></p>
-                                    <p x-show="s.examples" class="text-[10px] text-primary/70 truncate" x-text="s.examples ? '💡 ' + s.examples + ' など' : ''"></p>
-                                </div>
-                                <span class="text-[9px] font-bold px-2 py-1 rounded-full whitespace-nowrap"
-                                    :class="AiAssist.confidenceColor(s.confidence)"
-                                    x-text="AiAssist.confidenceLabel(s.confidence)"></span>
-                            </button>
-                            <template x-if="s.caution">
-                                <div class="mt-1 ml-12 text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded flex items-start gap-1">
-                                    <span class="shrink-0">⚠️</span>
-                                    <span x-text="s.caution"></span>
-                                </div>
-                            </template>
-                        </template>
-                        <p class="text-center text-[10px] text-muted px-4">
-                            💡 タップで名前欄にコピーできます。
-                            <span class="font-bold">最終的な種名はあなたが決めてください。</span>
-                        </p>
-                        <p x-show="AiAssist.processingMs" class="text-center text-[9px] text-faint">
-                            ⚡ <span x-text="(AiAssist.processingMs / 1000).toFixed(1)"></span>秒で分析
+                        <p class="text-[10px] text-muted mt-1.5 leading-relaxed">
+                            いまはそのまま投稿してOKです。写真・場所・季節をもとに、観察詳細ページへ AIメモがあとから付きます。
                         </p>
                     </div>
-
-                    <!-- No Suggestions -->
-                    <div x-show="AiAssist.asked && AiAssist.suggestions.length === 0 && !AiAssist.error" x-transition
-                        class="bg-surface border border-border rounded-2xl px-4 py-3 text-center">
-                        <p class="text-sm font-bold text-muted">🔬 生き物を特定できませんでした</p>
-                        <p class="text-[10px] text-faint mt-1">別の角度の写真で試すと結果が変わるかもしれません</p>
-                    </div>
-
-                    <!-- Environment Auto-fill Card -->
-                    <div x-show="AiAssist.asked && AiAssist.environment && !AiAssist.error" x-transition class="mt-3">
-                        <div x-show="!AiAssist.environmentApplied"
-                            class="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/60 rounded-2xl px-4 py-3">
-                            <div class="flex items-center justify-between mb-2">
-                                <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-1">
-                                    <i data-lucide="scan-eye" class="w-3 h-3"></i>
-                                    環境をAIが推定
-                                </p>
-                            </div>
-                            <div class="flex flex-wrap gap-1.5 mb-3">
-                                <template x-if="AiAssist.environment.biome && AiAssist.environment.biome !== 'unknown'">
-                                    <span class="text-[10px] font-bold bg-white/80 text-emerald-800 px-2 py-1 rounded-lg border border-emerald-200/50" x-text="AiAssist.biomeLabel(AiAssist.environment.biome)"></span>
-                                </template>
-                                <template x-if="AiAssist.environment.cultivation === 'cultivated'">
-                                    <span class="text-[10px] font-bold bg-white/80 text-purple-700 px-2 py-1 rounded-lg border border-purple-200/50" x-text="AiAssist.cultivationLabel(AiAssist.environment.cultivation)"></span>
-                                </template>
-                                <template x-if="AiAssist.environment.life_stage && AiAssist.environment.life_stage !== 'unknown'">
-                                    <span class="text-[10px] font-bold bg-white/80 text-blue-700 px-2 py-1 rounded-lg border border-blue-200/50" x-text="AiAssist.lifeStageLabel(AiAssist.environment.life_stage)"></span>
-                                </template>
-                                <template x-for="tag in (AiAssist.environment.substrate_tags || [])" :key="tag">
-                                    <span class="text-[10px] font-bold bg-white/80 text-amber-800 px-2 py-1 rounded-lg border border-amber-200/50" x-text="AiAssist.substrateLabel(tag)"></span>
-                                </template>
-                            </div>
-                            <button type="button" @click="AiAssist.applyEnvironment($data); showDetails = true; $nextTick(() => lucide.createIcons())"
-                                class="w-full py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20 active:scale-95 transition">
-                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-                                この環境情報を反映する
-                            </button>
-                            <p class="text-center text-[9px] text-emerald-600/70 mt-1.5">詳細画面で確認・修正できます</p>
-                        </div>
-                        <div x-show="AiAssist.environmentApplied" x-transition
-                            class="bg-emerald-50 border border-emerald-200/40 rounded-2xl px-4 py-2.5 text-center">
-                            <p class="text-[11px] font-bold text-emerald-700 flex items-center justify-center gap-1">
-                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
-                                環境情報を反映しました
-                            </p>
-                        </div>
-                    </div>
+                </div>
+                <div x-show="photos.length > 0 || (canSurveyorOfficialPost && record_mode === 'surveyor_official')" x-transition class="mt-4">
+                    <button type="submit" :disabled="submitting || !canSubmit"
+                        class="w-full py-4 rounded-2xl bg-gradient-to-r from-primary to-accent text-white font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:shadow-none active:scale-95">
+                        <i data-lucide="send" x-show="!submitting" class="w-5 h-5"></i>
+                        <span x-show="!submitting">
+                            <span x-text="record_mode === 'surveyor_official' ? '公式記録を残す' : '足跡を残す'"></span>
+                            <span x-show="photos.length > 0" class="ml-1 text-sm opacity-80" x-text="'(' + photos.length + '枚)'"></span>
+                        </span>
+                        <span x-show="submitting" class="flex items-center gap-2"><span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>送信中...</span>
+                    </button>
                 </div>
 
                 <!-- Form Fields (Slide In) -->
-                <div class="space-y-6" x-show="photos.length > 0" x-transition x-ref="formFields">
+                <div class="space-y-6" x-show="canOpenForm" x-transition x-ref="formFields">
 
                     <!-- 📍 Location (Essential - always visible) -->
                     <div>
@@ -395,6 +341,64 @@ if ($isGuest) {
                         </div>
 
 
+                    </div>
+
+                    <!-- Quick Context Inputs -->
+                    <div class="space-y-4">
+                        <div class="rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3">
+                            <p class="text-sm font-bold text-text flex items-center gap-2">
+                                <i data-lucide="sparkles" class="w-4 h-4 text-primary"></i>
+                                環境や状態は、自動で入りつつあとから直せます
+                            </p>
+                            <p class="text-[10px] text-muted mt-1.5 leading-relaxed">
+                                自動で選ばれた項目には「自動選択」がつきます。違っていたら投稿後に直せますし、ほかの人から提案が入ることもあります。
+                            </p>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center gap-2 mb-2 px-2">
+                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest">環境</label>
+                                <span x-show="biomeAutoSelected" class="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">自動選択</span>
+                            </div>
+                            <div class="relative">
+                                <select x-model="biome" @change="biomeAutoSelected = false; biomeAutoReason = ''" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 text-xs font-bold text-text focus:outline-none focus:border-primary appearance-none">
+                                    <option value="unknown">不明 / わからない</option>
+                                    <option value="forest">🌲 森林 (Forest)</option>
+                                    <option value="grassland">🍃 草地・河川敷 (Grassland)</option>
+                                    <option value="wetland">💧 湿地・水辺 (Wetland)</option>
+                                    <option value="coastal">🌊 海岸・干潟 (Coastal)</option>
+                                    <option value="urban">🏢 都市・公園 (Urban)</option>
+                                    <option value="farmland">🌾 農地・里山 (Farmland)</option>
+                                </select>
+                                <div class="absolute right-4 top-3.5 text-muted pointer-events-none">
+                                    <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-faint px-2 mt-1.5" x-show="biomeAutoSelected && biomeAutoReason" x-text="'✨ ' + biomeAutoReason + '。投稿後でも直せるし、ほかの人から提案も入ります'"></p>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center gap-2 mb-2 px-2">
+                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest">個体数</label>
+                                <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">任意・参考値</span>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="opt in [
+                                    {value: 1, label: '1'},
+                                    {value: 3, label: '2〜5'},
+                                    {value: 8, label: '6〜10'},
+                                    {value: 30, label: '11〜50'},
+                                    {value: 51, label: '50+'}
+                                ]">
+                                    <button type="button" @click="individual_count = (individual_count === opt.value) ? null : opt.value"
+                                        class="px-4 py-2 rounded-xl border transition text-xs font-bold"
+                                        :class="individual_count === opt.value ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20' : 'border-border bg-surface text-muted hover:border-primary/30'">
+                                        <span x-text="opt.label"></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <p class="text-[10px] text-faint px-2 mt-1.5">📊 正確でなくてOK。あとで他の人が訂正しやすい参考値として残せます</p>
+                        </div>
                     </div>
 
                     <!-- Optional Details (Collapsible) -->
@@ -594,22 +598,68 @@ if ($isGuest) {
                                     </div>
                                 </div>
 
-                                <!-- Biome Selection (Moved) -->
                                 <div>
-                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">環境（バイオーム）</label>
+                                    <div class="flex items-center gap-2 mb-2 px-2">
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest">個体の由来</label>
+                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">施設内でも野生はありえる</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <template x-for="opt in [
+                                            {value: 'wild', label: '野生', icon: 'trees', tone: 'primary'},
+                                            {value: 'cultivated', label: '栽培個体', icon: 'flower-2', tone: 'secondary'},
+                                            {value: 'captive', label: '飼育個体', icon: 'fence', tone: 'secondary'},
+                                            {value: 'released', label: '放された個体', icon: 'bird', tone: 'warning'},
+                                            {value: 'escaped', label: '逸出個体', icon: 'move-up-right', tone: 'warning'},
+                                            {value: 'naturalized', label: '野外定着', icon: 'sprout', tone: 'primary'},
+                                            {value: 'uncertain', label: '判断保留', icon: 'help-circle', tone: 'muted'}
+                                        ]">
+                                            <label class="cursor-pointer">
+                                                <input type="radio" :value="opt.value" x-model="organism_origin" class="hidden peer">
+                                                <div class="text-center py-3 rounded-2xl border border-border bg-surface transition text-xs font-bold text-muted peer-checked:text-white"
+                                                    :class="{
+                                                        'peer-checked:bg-primary peer-checked:border-primary': opt.tone === 'primary',
+                                                        'peer-checked:bg-secondary peer-checked:border-secondary': opt.tone === 'secondary',
+                                                        'peer-checked:bg-warning peer-checked:border-warning': opt.tone === 'warning',
+                                                        'peer-checked:bg-muted peer-checked:border-muted': opt.tone === 'muted'
+                                                    }">
+                                                    <i :data-lucide="opt.icon" class="w-4 h-4 mx-auto mb-1"></i>
+                                                    <span x-text="opt.label"></span>
+                                                </div>
+                                            </label>
+                                        </template>
+                                    </div>
+                                    <p class="text-[10px] text-faint px-2 mt-1.5">🌿 植物園の雑草は wild、展示個体は cultivated / captive と分けて残せます</p>
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2 px-2">
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest">施設文脈</label>
+                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">100年後の来歴用</span>
+                                    </div>
                                     <div class="relative">
-                                        <select x-model="biome" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 text-xs font-bold text-text focus:outline-none focus:border-primary appearance-none">
-                                            <option value="unknown">不明 / わからない</option>
-                                            <option value="forest">🌲 森林 (Forest)</option>
-                                            <option value="grassland">🍃 草地・河川敷 (Grassland)</option>
-                                            <option value="wetland">💧 湿地・水辺 (Wetland)</option>
-                                            <option value="coastal">🌊 海岸・干潟 (Coastal)</option>
-                                            <option value="urban">🏢 都市・公園 (Urban)</option>
-                                            <option value="farmland">🌾 農地・里山 (Farmland)</option>
+                                        <select x-model="managed_context_type" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 text-xs font-bold text-text focus:outline-none focus:border-primary appearance-none">
+                                            <option value="">施設なし / ふつうの野外観察</option>
+                                            <option value="botanical_garden">🌺 植物園</option>
+                                            <option value="zoo">🦁 動物園</option>
+                                            <option value="aquarium">🐟 水族館</option>
+                                            <option value="aviary">🕊️ 花鳥園・鳥類園</option>
+                                            <option value="conservation_center">🧬 保全施設・研究飼育</option>
+                                            <option value="park_planting">🌳 公園植栽</option>
+                                            <option value="school_biotope">🏫 学校ビオトープ</option>
+                                            <option value="private_collection">🏠 私設コレクション</option>
+                                            <option value="other">🏷️ その他</option>
                                         </select>
                                         <div class="absolute right-4 top-3.5 text-muted pointer-events-none">
                                             <i data-lucide="chevron-down" class="w-4 h-4"></i>
                                         </div>
+                                    </div>
+                                    <div class="mt-2 space-y-2" x-show="managed_context_type" x-transition>
+                                        <input type="text" x-model="managed_site_name"
+                                            placeholder="施設名（例: 浜松市動物園、○○植物園）"
+                                            class="w-full bg-surface border border-border rounded-2xl px-4 py-3 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-sm text-text">
+                                        <textarea x-model="managed_context_note"
+                                            placeholder="展示温室、放飼場、植栽エリアなど補足があれば"
+                                            class="w-full bg-surface border border-border rounded-2xl px-4 py-3 h-20 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-text placeholder-faint font-medium"></textarea>
                                     </div>
                                 </div>
 
@@ -741,12 +791,15 @@ if ($isGuest) {
             </form>
         </main>
 
-        <!-- Fixed Bottom Action Bar (hidden until photo added) -->
-        <div x-show="photos.length > 0" x-transition class="fixed bottom-0 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] p-4 bg-gradient-to-t from-base via-base to-transparent z-40 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
-            <button @click="submit" :disabled="submitting || photos.length === 0"
+        <!-- Fixed Bottom Action Bar -->
+        <div x-show="canOpenForm" x-transition class="fixed bottom-0 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] p-4 bg-gradient-to-t from-base via-base to-transparent z-40 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+            <button @click="submit" :disabled="submitting || !canSubmit"
                 class="w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:shadow-none active:scale-95">
                 <i data-lucide="send" x-show="!submitting" class="w-5 h-5"></i>
-                <span x-show="!submitting">足跡を残す<span x-show="photos.length > 0" class="ml-1 text-sm opacity-80" x-text="'(' + photos.length + '枚)'"></span></span>
+                <span x-show="!submitting">
+                    <span x-text="record_mode === 'surveyor_official' ? '公式記録を残す' : '足跡を残す'"></span>
+                    <span x-show="photos.length > 0" class="ml-1 text-sm opacity-80" x-text="'(' + photos.length + '枚)'"></span>
+                </span>
                 <span x-show="submitting" class="flex items-center gap-2"><span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>送信中...</span>
             </button>
         </div>
@@ -778,47 +831,46 @@ if ($isGuest) {
                 </div>
                 <h3 class="text-2xl font-black text-text mb-1">記録された！ 🐾</h3>
                 <p class="text-sm text-muted mb-2">キミの気づきが、この場所の生態地図に足あとを刻んだよ</p>
+                <p class="text-[11px] text-faint mb-4" x-show="!aiReady && !aiPending">観察のヒントは観察詳細に追記されます。うまく絞れないときは、他の人からの訂正や追加同定も入りやすくなります。</p>
+                <div x-show="aiPending" class="bg-surface border border-border rounded-2xl p-4 mb-4 max-w-sm mx-auto">
+                    <p class="text-sm font-bold text-text mb-1">🪄 観察のヒントを準備中</p>
+                    <p class="text-xs text-muted leading-relaxed">投稿はもう完了しています。数秒で属・科レベルのヒントが付くことが多いです。</p>
+                </div>
+                <div x-show="aiReady" class="bg-primary-surface border border-primary-glow rounded-2xl p-4 mb-4 max-w-sm mx-auto">
+                    <p class="text-sm text-primary font-bold mb-1">✨ 観察のヒントもついたよ</p>
+                    <p class="text-xs text-primary/80 leading-relaxed" x-text="aiSummary || '観察詳細を開くと、いま見えている手がかりをすぐ確認できます。'"></p>
+                </div>
 
-                <!-- 未同定時の安心メッセージ（要素3: 投稿→同定ブリッジ） -->
-                <template x-if="!taxon_slug">
-                    <div class="bg-warning-surface border border-warning/20 rounded-2xl p-4 mb-6 max-w-xs mx-auto">
-                        <p class="text-sm text-warning font-bold mb-1">🤔 名前が分からなくても大丈夫！</p>
-                        <p class="text-xs text-warning/80 leading-relaxed">
-                            図鑑で調べてみたり、詳しい人が教えてくれることも。<br>
-                            まずは「見つけた！」が一番大切だよ。
-                        </p>
+                <div class="rounded-2xl border border-border bg-surface p-4 mb-6 max-w-sm mx-auto text-left">
+                    <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-2">この記録が次に育つこと</p>
+                    <div class="space-y-2 text-xs text-text">
+                        <div class="flex items-start gap-2">
+                            <span class="mt-0.5">1.</span>
+                            <p>観察詳細に、AIのヒントや同定の流れがまとまります</p>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="mt-0.5">2.</span>
+                            <p>ほかの人の同定や訂正が入ると、記録が安定していきます</p>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="mt-0.5">3.</span>
+                            <p>細部写真やメモを足すと、もっと下の分類群まで進みやすくなります</p>
+                        </div>
                     </div>
-                </template>
-
-                <!-- 同定済み時の成功メッセージ -->
-                <template x-if="taxon_slug">
-                    <div class="bg-primary-surface border border-primary-glow rounded-2xl p-4 mb-6 max-w-xs mx-auto">
-                        <p class="text-sm text-primary font-bold mb-1">✅ <span x-text="taxon_name"></span> を記録！</p>
-                        <p class="text-xs text-primary/80 leading-relaxed">
-                            この地域の生態地図がまた一歩完成に近づいたよ。
-                        </p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <span class="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">訂正歓迎</span>
+                        <span class="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-700">あとから追記OK</span>
+                        <span x-show="!taxon_slug" class="inline-flex items-center rounded-full bg-warning/10 px-3 py-1 text-[11px] font-bold text-warning">名前はまだ育ちます</span>
+                        <span x-show="taxon_slug" class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">いまの名前を起点に育てられます</span>
                     </div>
-                </template>
+                </div>
 
-                <!-- 同定ブリッジ CTA -->
                 <div class="space-y-3 max-w-xs mx-auto">
-                    <!-- 未同定: ID Wizardへ直行（要素3: ブリッジの核心） -->
-                    <a x-show="!taxon_slug" :href="'id_wizard.php?from_observation=' + lastObservationId"
-                        class="block w-full py-4 rounded-full bg-gradient-to-r from-warning to-orange-400 text-white font-black text-center shadow-lg shadow-warning/20 active:scale-95 transition flex items-center justify-center gap-2">
-                        <i data-lucide="sparkles" class="w-5 h-5"></i>
-                        🔍 この生き物を調べてみる
-                    </a>
-                    <!-- 未同定: スキップ選択肢 -->
-                    <p x-show="!taxon_slug" class="text-[11px] text-faint text-center">
-                        あとからでもOK！誰かが気づいてくれるかも 🤝
-                    </p>
-                    <!-- 同定済み: 観察詳細へ -->
-                    <a x-show="taxon_slug" :href="'observation_detail.php?id=' + lastObservationId"
+                    <a :href="'observation_detail.php?id=' + lastObservationId"
                         class="block w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-black text-center shadow-lg shadow-primary/20 active:scale-95 transition flex items-center justify-center gap-2">
                         <i data-lucide="eye" class="w-5 h-5"></i>
                         観察の詳細を見る
                     </a>
-                    <!-- Species Page Link (if taxon identified) -->
                     <a x-show="taxon_slug" :href="'species/' + encodeURIComponent(taxon_slug)"
                         class="block w-full py-3 rounded-full bg-surface border border-border text-text font-bold text-center text-sm hover:bg-white/5 transition flex items-center justify-center gap-2">
                         📖 <span x-text="taxon_name"></span> の図鑑を見る
@@ -850,12 +902,12 @@ if ($isGuest) {
             guestPostCount: <?php echo $guestPostCount; ?>,
             guestPostLimit: <?php echo Auth::GUEST_POST_LIMIT; ?>,
             csrfToken: '<?php echo $csrfToken; ?>',
-            survey_id: '<?php echo $activeSurvey ? $activeSurvey['id'] : ''; ?>'
+            survey_id: '<?php echo $activeSurvey ? $activeSurvey['id'] : ''; ?>',
+            canSurveyorOfficialPost: <?php echo $canSurveyorOfficialPost ? 'true' : 'false'; ?>
         };
     </script>
-    <script src="js/exif-mini.js?v=1.0"></script>
-    <script src="js/ai-assist.js?v=2.0"></script>
-    <script src="js/post-uploader.js?v=2.4"></script>
+    <script src="<?= htmlspecialchars(Asset::versioned('/js/exif-mini.js')) ?>"></script>
+    <script src="<?= htmlspecialchars(Asset::versioned('/js/post-uploader.js')) ?>"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>

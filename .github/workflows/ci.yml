@@ -25,6 +25,9 @@ jobs:
       - name: Run PHP Lint
         run: php tools/lint.php
 
+      - name: Check marketing copy snapshot
+        run: php tools/check_marketing_copy.php
+
   test:
     name: PHPUnit Tests
     runs-on: ubuntu-latest

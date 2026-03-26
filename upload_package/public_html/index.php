@@ -5,6 +5,8 @@ require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/BioUtils.php';
 require_once __DIR__ . '/../libs/PrivacyFilter.php';
 require_once __DIR__ . '/../libs/FollowManager.php';
+require_once __DIR__ . '/../libs/HabitEngine.php';
+require_once __DIR__ . '/../libs/SurveyorManager.php';
 
 Auth::init();
 $currentUser = Auth::user();
@@ -23,7 +25,7 @@ $latest_obs = DataStore::getLatest('observations', 6, function ($item) use ($fil
     if (!preg_match('/^uploads\//', $photo)) return false;
 
     if ($filter === 'unidentified') {
-        return empty($item['taxon']['id']);
+        return !BioUtils::hasResolvedTaxon($item);
     }
     if ($filter === 'mine') {
         return isset($item['user_id']) && isset($currentUser['id']) && $item['user_id'] === $currentUser['id'];
@@ -34,8 +36,10 @@ $latest_obs = DataStore::getLatest('observations', 6, function ($item) use ($fil
     return true;
 });
 
-// Stats for hero
-$allObs = DataStore::fetchAll('observations');
+// Stats for hero (企業サイトデータを除外)
+$allObs = array_filter(DataStore::fetchAll('observations'), function ($o) {
+    return empty($o['site_id']);
+});
 $totalObs = count($allObs);
 $uniqueSpecies = count(array_unique(array_filter(array_map(function ($o) {
     $name = $o['taxon']['name'] ?? '';
@@ -43,6 +47,19 @@ $uniqueSpecies = count(array_unique(array_filter(array_map(function ($o) {
     return $o['taxon']['key'] ?? $o['taxon']['scientific_name'] ?? $name;
 }, $allObs))));
 unset($allObs);
+
+$todayState = $currentUser ? HabitEngine::getTodayState($currentUser['id']) : HabitEngine::getTodayState(null);
+$todayLabels = $todayState['labels'];
+$streakData = $todayState['streak'];
+$todayTypes = $todayState['today_types'];
+$todayHabitComplete = !empty($todayState['today_complete']);
+$todayRemaining = $todayState['remaining'];
+$todayReflectionPreview = HabitEngine::previewNote($todayState['reflection_note'] ?? '');
+$latestReflectionPreview = HabitEngine::previewNote($todayState['latest_reflection']['note'] ?? '');
+$todayCtas = $todayState['cta_options'];
+$allPublicSurveyors = SurveyorManager::listPublicSurveyors();
+$featuredSurveyors = array_slice($allPublicSurveyors, 0, 3);
+$publicSurveyorCount = count($allPublicSurveyors);
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -71,7 +88,7 @@ unset($allObs);
                 "@type": "Organization",
                 "name": "ikimon Project",
                 "url": "https://ikimon.life/",
-                "logo": "https://ikimon.life/static/icons/icon-512.png"
+                "logo": "https://ikimon.life/assets/img/icon-512.png"
             }
         }
     </script>
@@ -202,9 +219,100 @@ unset($allObs);
                     <a href="ikimon_walk.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
                         <i data-lucide="footprints" class="w-3.5 h-3.5"></i> さんぽ
                     </a>
+                    <a href="guide/nature-positive.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                        <i data-lucide="leaf" class="w-3.5 h-3.5"></i> ネイチャーポジティブ
+                    </a>
                 </div>
             </div>
         </section>
+
+        <?php if ($currentUser): ?>
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-top:var(--phi-lg);margin-bottom:var(--phi-xl)">
+            <div id="today-habit-card-home" class="rounded-3xl border p-5 md:p-6 <?= $todayHabitComplete ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200' ?>">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div class="min-w-0">
+                        <div class="text-token-xs font-black tracking-widest <?= $todayHabitComplete ? 'text-emerald-700' : 'text-amber-700' ?>">TODAY</div>
+                        <h2 class="text-xl font-black text-text mt-1"><?= htmlspecialchars($todayState['title'] ?? '今日は1つだけでいい。継続を積もう') ?></h2>
+                        <p class="text-sm mt-2 <?= $todayHabitComplete ? 'text-emerald-900/80' : 'text-amber-950/80' ?>">
+                            <?= htmlspecialchars($todayState['message'] ?? '') ?>
+                        </p>
+                    </div>
+                    <div class="shrink-0 rounded-2xl bg-white/70 px-4 py-3 border border-white/80">
+                        <div class="text-2xl"><?= $todayHabitComplete ? '🌿' : '🔥' ?></div>
+                        <div class="text-sm font-black text-text"><?= (int)($streakData['current_streak'] ?? 0) ?>日連続</div>
+                        <div class="text-token-xs text-muted">自然との接続</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <?php foreach ($todayLabels as $type => $label): ?>
+                    <?php $isDone = in_array($type, $todayTypes, true); ?>
+                    <span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold <?= $isDone ? 'bg-white text-emerald-700 border border-emerald-300' : 'bg-white/70 text-gray-500 border border-white/80' ?>">
+                        <span><?= $isDone ? '✓' : '・' ?></span><?= htmlspecialchars($label) ?>
+                    </span>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-5">
+                    <?php foreach ($todayCtas as $type => $cta): ?>
+                        <?php if (($cta['type'] ?? 'link') === 'button'): ?>
+                        <button type="button" data-habit-cta="<?= htmlspecialchars($type) ?>" data-reflection-toggle class="rounded-2xl bg-white p-4 border border-white/80 hover:border-border-strong transition text-left">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="<?= htmlspecialchars($cta['icon']) ?>" class="w-5 h-5 <?= htmlspecialchars($cta['icon_class'] ?? 'text-primary') ?>"></i>
+                                <div>
+                                    <div class="text-sm font-black text-text"><?= htmlspecialchars($cta['label']) ?></div>
+                                    <div class="text-token-xs text-muted"><?= htmlspecialchars($cta['detail'] ?? '') ?></div>
+                                </div>
+                            </div>
+                        </button>
+                        <?php else: ?>
+                        <a href="<?= htmlspecialchars($cta['href'] ?? '#') ?>" data-habit-cta="<?= htmlspecialchars($type) ?>" class="rounded-2xl bg-white p-4 border border-white/80 hover:border-border-strong transition">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="<?= htmlspecialchars($cta['icon']) ?>" class="w-5 h-5 <?= htmlspecialchars($cta['icon_class'] ?? 'text-primary') ?>"></i>
+                                <div>
+                                    <div class="text-sm font-black text-text"><?= htmlspecialchars($cta['label']) ?></div>
+                                    <div class="text-token-xs text-muted"><?= htmlspecialchars($cta['detail'] ?? '') ?></div>
+                                </div>
+                            </div>
+                        </a>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </div>
+
+                <?php if ($todayReflectionPreview !== ''): ?>
+                <div class="mt-4 rounded-2xl bg-white/80 border border-white/80 p-4">
+                    <div class="text-token-xs font-black tracking-widest text-emerald-700">TODAY NOTE</div>
+                    <p class="text-sm text-text mt-1"><?= htmlspecialchars($todayReflectionPreview) ?></p>
+                </div>
+                <?php elseif ($latestReflectionPreview !== ''): ?>
+                <p class="mt-4 text-token-xs text-muted">前回の1分メモ: <?= htmlspecialchars($latestReflectionPreview) ?></p>
+                <?php endif; ?>
+
+                <div class="mt-4 rounded-2xl bg-white/80 border border-white/80 p-4 hidden" data-reflection-panel>
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-token-xs font-black tracking-widest text-amber-700">1 MINUTE NOTE</div>
+                            <p class="text-sm text-text mt-1">今日は何を見たか、何に気づいたかを一言だけ残す。</p>
+                        </div>
+                        <button type="button" data-reflection-cancel class="text-xs font-bold text-muted hover:text-text transition">閉じる</button>
+                    </div>
+                    <textarea data-reflection-note maxlength="120" rows="3" class="mt-3 w-full rounded-2xl border border-border bg-white px-4 py-3 text-sm text-text focus:outline-none focus:border-border-strong resize-none" placeholder="例: 風が冷たくてもスズメは元気だった"></textarea>
+                    <div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <p class="text-token-xs text-muted" data-reflection-status>外に出られない日でも、自然との接続は残せる。</p>
+                        <button type="button" data-reflection-submit class="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-black text-white hover:bg-amber-600 transition">
+                            <i data-lucide="pen-square" class="w-4 h-4"></i> 保存して継続に加える
+                        </button>
+                    </div>
+                </div>
+
+                <?php if (!$todayHabitComplete && !empty($todayRemaining)): ?>
+                <p class="mt-4 text-token-xs text-amber-700">
+                    残り: <?= htmlspecialchars(implode(' / ', array_map(fn($type) => $todayLabels[$type] ?? $type, $todayRemaining))) ?>
+                </p>
+                <?php endif; ?>
+            </div>
+        </section>
+        <?php endif; ?>
 
         <!-- Daily Quest & Survey Panel → moved to dashboard.php -->
 
@@ -320,7 +428,7 @@ unset($allObs);
                 <?php foreach ($latest_obs as $obs):
                     $obsCounts = DataStore::getCounts('observations', $obs['id']);
                     $obsLikes = $obsCounts['likes'] ?? 0;
-                    $obsComments = $obsCounts['comments'] ?? 0;
+                    $obsComments = count($obs['identifications'] ?? []);
                 ?>
                     <article x-data="{
                         stepped: false,
@@ -328,6 +436,7 @@ unset($allObs);
                         scale: 1,
                         lastTap: 0,
                         _tapTimer: null,
+                        menuOpen: false,
 
                         step(e) {
                             this.stepped = !this.stepped;
@@ -343,19 +452,29 @@ unset($allObs);
                         doubleTap(e) {
                             const now = Date.now();
                             if (now - this.lastTap < 300) {
-                                // ダブルタップ: いいね
                                 clearTimeout(this._tapTimer);
                                 this._tapTimer = null;
                                 if (!this.stepped) { this.step(e); }
                             } else {
-                                // シングルタップ: 300ms 後に詳細ページへ
                                 this._tapTimer = setTimeout(() => {
                                     window.location.href = 'observation_detail.php?id=<?php echo urlencode($obs['id']); ?>';
                                 }, 300);
                             }
                             this.lastTap = now;
+                        },
+
+                        async shareObs() {
+                            this.menuOpen = false;
+                            const url = location.origin + '/observation_detail.php?id=<?php echo urlencode($obs['id']); ?>';
+                            if (navigator.share) {
+                                try { await navigator.share({ title: '<?php echo htmlspecialchars($obs['taxon']['name'] ?? '観察記録', ENT_QUOTES); ?>', url }); } catch {}
+                            } else {
+                                await navigator.clipboard.writeText(url);
+                                if (Alpine.store('toast')) Alpine.store('toast').success('コピー', 'リンクをコピーしました');
+                            }
                         }
                      }"
+                     @click.outside="menuOpen = false"
                         class="feed-card feed-card--animated rounded-2xl overflow-hidden transition bg-elevated border border-border shadow-sm">
                         <!-- Feed Header -->
                         <div class="px-4 py-3 flex items-center justify-between">
@@ -370,9 +489,22 @@ unset($allObs);
                                     <p class="text-token-xs text-muted"><?php echo BioUtils::timeAgo($obs['observed_at']); ?> ・ <?php echo htmlspecialchars($obs['municipality'] ?? $obs['location']['name'] ?? ''); ?></p>
                                 </div>
                             </div>
-                            <button class="p-2 transition rounded-full text-faint hover:bg-surface">
-                                <i data-lucide="more-horizontal" class="w-4 h-4"></i>
-                            </button>
+                            <div class="relative">
+                                <button @click.stop="menuOpen = !menuOpen" class="p-2 transition rounded-full text-faint hover:bg-surface">
+                                    <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+                                </button>
+                                <div x-show="menuOpen" x-transition.opacity.duration.150ms
+                                    class="absolute right-0 top-full mt-1 w-44 bg-elevated rounded-xl shadow-lg border border-border z-30 py-1 overflow-hidden">
+                                    <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>"
+                                        class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-text hover:bg-surface transition">
+                                        <i data-lucide="eye" class="w-4 h-4 text-faint"></i>詳細を見る
+                                    </a>
+                                    <button @click="shareObs()"
+                                        class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-text hover:bg-surface transition text-left">
+                                        <i data-lucide="share-2" class="w-4 h-4 text-faint"></i>シェアする
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Photo -->
@@ -391,37 +523,45 @@ unset($allObs);
                                 <span class="text-8xl drop-shadow-2xl opacity-90">👣</span>
                             </div>
 
-                            <?php if (isset($obs['taxon']['id'])): ?>
+                            <?php if (BioUtils::hasResolvedTaxon($obs)): ?>
                                 <?php
-                                $feedSlug = $obs['taxon']['slug'] ?? null;
+                                $feedTaxon = is_array($obs['taxon'] ?? null) ? $obs['taxon'] : [];
+                                $feedDisplayName = $feedTaxon['name'] ?? ($obs['community_taxon']['name'] ?? '同定あり');
+                                $feedSlug = $feedTaxon['slug'] ?? ($obs['community_taxon']['slug'] ?? null);
                                 $feedSpeciesUrl = $feedSlug
                                     ? 'species/' . urlencode($feedSlug)
-                                    : 'species.php?taxon=' . urlencode($obs['taxon']['name']);
+                                    : 'species.php?taxon=' . urlencode($feedDisplayName);
                                 ?>
                                 <a href="<?php echo htmlspecialchars($feedSpeciesUrl); ?>"
                                     class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md flex items-center gap-2 border border-white/20 hover:bg-black/70 transition z-10">
                                     <i data-lucide="check-circle-2" class="w-3 h-3 text-green-400"></i>
-                                    <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($obs['taxon']['name']); ?></span>
+                                    <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($feedDisplayName); ?></span>
+                                    <?php if (!empty($obs['individual_count'])): ?>
+                                        <span class="text-[10px] font-bold text-white/80 bg-white/15 px-1.5 py-0.5 rounded-full">&times;<?php echo (int)$obs['individual_count']; ?></span>
+                                    <?php endif; ?>
                                 </a>
                             <?php else: ?>
-                                <div class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-2 border border-white/10">
-                                    <i data-lucide="help-circle" class="w-3 h-3 text-white/50"></i>
-                                    <span class="text-xs text-white/60"><?php echo __('home.identifying'); ?></span>
+                                <div class="absolute bottom-3 left-3 flex items-center gap-1.5">
+                                    <div class="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-2 border border-white/10">
+                                        <i data-lucide="help-circle" class="w-3 h-3 text-white/50"></i>
+                                        <span class="text-xs text-white/60"><?php echo __('home.identifying'); ?></span>
+                                    </div>
+                                    <?php if (!empty($obs['individual_count'])): ?>
+                                        <span class="px-2 py-1 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-bold text-white/70 border border-white/10">&times;<?php echo (int)$obs['individual_count']; ?></span>
+                                    <?php endif; ?>
                                 </div>
                             <?php endif; ?>
                         </div>
 
                         <!-- Actions -->
-                        <div class="px-4 py-3 pb-0 flex items-center gap-4">
-                            <button @click="step($event)" class="flex items-center gap-1.5 group active:scale-90 transition-transform">
+                        <div class="px-4 py-2 pb-0 flex items-center gap-1">
+                            <button @click="step($event)" class="flex items-center gap-1.5 group active:scale-90 transition-transform py-1.5 px-2 -ml-2 rounded-lg hover:bg-surface">
                                 <span class="text-xl transition duration-300" :class="stepped ? 'opacity-100' : 'opacity-40 group-hover:opacity-70'">👣</span>
                                 <span class="text-xs font-bold text-secondary" x-show="count > 0" x-text="count"></span>
                             </button>
-                            <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="flex items-center gap-1.5 group active:scale-90 transition-transform">
-                                <i data-lucide="tag" class="w-5 h-5 transition text-faint group-hover:text-secondary"></i>
-                                <?php if ($obsComments > 0): ?>
-                                    <span class="text-xs font-bold text-secondary"><?php echo (int)$obsComments; ?></span>
-                                <?php endif; ?>
+                            <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="flex items-center gap-1.5 group active:scale-90 transition-transform py-1.5 px-2 rounded-lg hover:bg-surface" title="同定・コメント">
+                                <i data-lucide="message-circle" class="w-5 h-5 transition pointer-events-none <?php echo $obsComments > 0 ? 'text-secondary' : 'text-faint group-hover:text-secondary'; ?>"></i>
+                                <span class="text-xs font-bold <?php echo $obsComments > 0 ? 'text-secondary' : 'text-faint'; ?>"><?php echo (int)$obsComments; ?></span>
                             </a>
                             <div class="flex-1"></div>
                         </div>
@@ -464,17 +604,21 @@ unset($allObs);
 
         <!-- ==================== 数字で見る ikimon ==================== -->
         <?php
-        $allObs = DataStore::fetchAll('observations');
+        $allObs = array_filter(DataStore::fetchAll('observations'), function ($o) {
+            return empty($o['site_id']);
+        });
         $totalObservations = count($allObs);
         $speciesSet = [];
         $rgCount = 0;
+        $userSet = [];
         foreach ($allObs as $o) {
             if (!empty($o['taxon']['name'])) $speciesSet[$o['taxon']['name']] = true;
-            if (($o['status'] ?? '') === 'Research Grade') $rgCount++;
+            if (BioUtils::isResearchGradeLike($o['status'] ?? ($o['quality_grade'] ?? ''))) $rgCount++;
+            if (!empty($o['user_id'])) $userSet[$o['user_id']] = true;
         }
         $totalSpecies = count($speciesSet);
         $rgRate = $totalObservations > 0 ? round($rgCount / $totalObservations * 100) : 0;
-        $totalUsers = count(DataStore::fetchAll('users'));
+        $totalUsers = count($userSet);
         ?>
         <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)">
             <div class="bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-3xl" style="padding:var(--phi-xl) var(--phi-lg)">
@@ -490,7 +634,7 @@ unset($allObs);
                     </div>
                     <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                         <p class="font-black" style="font-size:var(--text-xl);color:#92400e"><?= $rgRate ?>%</p>
-                        <p class="text-token-xs text-muted mt-1">Research Grade</p>
+                        <p class="text-token-xs text-muted mt-1">安定してきた記録</p>
                     </div>
                     <div class="flex flex-col items-center text-center bg-white/60 rounded-xl border border-primary/10" style="padding:var(--phi-md) var(--phi-sm)">
                         <p class="font-black" style="font-size:var(--text-xl);color:#0369a1"><?= number_format($totalUsers) ?></p>
@@ -500,11 +644,61 @@ unset($allObs);
             </div>
         </section>
 
+        <?php if (!empty($featuredSurveyors)): ?>
+        <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-xl)">
+            <div class="rounded-3xl border border-sky-200 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_50%,#ecfeff_100%)]" style="padding:var(--phi-xl) var(--phi-lg)">
+                <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4" style="margin-bottom:var(--phi-md)">
+                    <div>
+                        <p class="text-token-xs font-black tracking-widest text-sky-700">SURVEYORS</p>
+                        <h2 class="font-black text-text" style="font-size:var(--text-lg)">調査員に頼める記録がある</h2>
+                        <p class="text-token-sm text-muted mt-2">面談や経歴確認を経た調査員だけを公開。調査したい現場と、調査できる人をつなぎます。</p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <a href="surveyors.php" class="inline-flex items-center gap-2 text-sm font-bold text-sky-700 hover:text-sky-800">
+                            調査員一覧を見る
+                            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </a>
+                        <a href="request_survey.php" class="inline-flex items-center gap-2 text-sm font-bold text-emerald-700 hover:text-emerald-800">
+                            調査を依頼する
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <?php foreach ($featuredSurveyors as $surveyor): ?>
+                        <a href="surveyor_profile.php?id=<?= urlencode($surveyor['id']) ?>" class="block rounded-2xl border border-white bg-white/90 hover:shadow-lg transition" style="padding:var(--phi-md)">
+                            <div class="flex items-start gap-3">
+                                <img src="<?= htmlspecialchars($surveyor['avatar']) ?>" alt="<?= htmlspecialchars($surveyor['name']) ?>のアバター" class="w-14 h-14 rounded-2xl object-cover border border-sky-100">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <p class="font-black text-text"><?= htmlspecialchars($surveyor['name']) ?></p>
+                                        <span class="text-[10px] font-black text-sky-700 bg-sky-50 border border-sky-100 rounded-full px-2 py-0.5">認定調査員</span>
+                                    </div>
+                                    <p class="text-xs text-muted mt-1"><?= htmlspecialchars($surveyor['headline'] ?: '現地の観察記録を支える調査員') ?></p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mt-4">
+                                <div class="rounded-xl bg-sky-50 px-3 py-3 text-center">
+                                    <div class="text-lg font-black text-sky-700"><?= number_format($surveyor['official_record_count']) ?></div>
+                                    <div class="text-[10px] text-muted">公式記録</div>
+                                </div>
+                                <div class="rounded-xl bg-emerald-50 px-3 py-3 text-center">
+                                    <div class="text-lg font-black text-emerald-700"><?= number_format($surveyor['species_count']) ?></div>
+                                    <div class="text-[10px] text-muted">確認種</div>
+                                </div>
+                            </div>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </section>
+        <?php endif; ?>
+
         <!-- B2B/G Section (Rich) -->
         <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-bottom:var(--phi-2xl)">
             <div class="bg-gradient-to-br from-slate-50 to-blue-50 border border-slate-200 rounded-3xl" style="padding:var(--phi-xl) var(--phi-lg)">
-                <h2 class="font-black text-text text-center" style="font-size:var(--text-lg);margin-bottom:var(--phi-sm)">🏢 導入をご検討の方へ</h2>
-                <p class="text-token-sm text-muted text-center" style="margin-bottom:var(--phi-lg)">ikimonは企業CSR・自治体の生物多様性政策にも活用されています</p>
+                <h2 class="font-black text-text text-center" style="font-size:var(--text-lg);margin-bottom:var(--phi-sm)">🏢 組織で使いたい方へ</h2>
+                <p class="text-token-sm text-muted text-center" style="margin-bottom:var(--phi-lg)">ikimonは、会社や地域で自然の記録を続けて残し、見返しやすくするためにも使えます</p>
                 <div class="grid grid-cols-1 md:grid-cols-2" style="gap:var(--phi-sm)">
                     <a href="for-business.php" class="bg-white rounded-2xl border border-slate-100 hover:shadow-lg hover:border-blue-200 transition group" style="padding:var(--phi-md)">
                         <div class="flex items-center mb-3" style="gap:var(--phi-sm)">
@@ -512,14 +706,14 @@ unset($allObs);
                                 <i data-lucide="building-2" class="w-5 h-5 text-blue-600"></i>
                             </div>
                             <div>
-                                <p class="font-black text-text" style="font-size:var(--text-base)">企業の方</p>
-                                <p class="text-token-xs text-muted">CSR / ESG / TNFD 対応</p>
+                                <p class="font-black text-text" style="font-size:var(--text-base)">企業・団体の方</p>
+                                <p class="text-token-xs text-muted">敷地の自然アーカイブ / 社内参加 / 健康づくり</p>
                             </div>
                         </div>
                         <ul class="space-y-1.5 text-xs text-muted">
-                            <li class="flex items-start gap-1.5"><span class="text-blue-700 mt-0.5">✓</span> 自社エリアの生物多様性レポート生成</li>
-                            <li class="flex items-start gap-1.5"><span class="text-blue-700 mt-0.5">✓</span> 社員参加型の観察会でCSR×チームビルディング</li>
-                            <li class="flex items-start gap-1.5"><span class="text-blue-700 mt-0.5">✓</span> 健康経営としての散歩プログラム</li>
+                            <li class="flex items-start gap-1.5"><span class="text-blue-700 mt-0.5">✓</span> 敷地や周辺で見つかった生きものを記録として残せる</li>
+                            <li class="flex items-start gap-1.5"><span class="text-blue-700 mt-0.5">✓</span> 社員参加の観察会や季節のふり返りに使える</li>
+                            <li class="flex items-start gap-1.5"><span class="text-blue-700 mt-0.5">✓</span> 散歩や自然観察を、社内の健康づくりにもつなげやすい</li>
                         </ul>
                         <div class="mt-3 text-xs font-bold text-blue-600 group-hover:text-blue-700 flex items-center gap-1 transition">
                             詳しく見る <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
@@ -532,14 +726,14 @@ unset($allObs);
                                 <i data-lucide="landmark" class="w-5 h-5 text-emerald-600"></i>
                             </div>
                             <div>
-                                <p class="font-black text-text" style="font-size:var(--text-base)">自治体・教育機関の方</p>
-                                <p class="text-token-xs text-muted">30by30 / 関係人口 / 環境教育</p>
+                                <p class="font-black text-text" style="font-size:var(--text-base)">自治体・学校の方</p>
+                                <p class="text-token-xs text-muted">地域の記録 / 学校連携 / 自然との接点づくり</p>
                             </div>
                         </div>
                         <ul class="space-y-1.5 text-xs text-muted">
-                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 市民参加で広域モニタリング → コスト削減</li>
-                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 「自然が豊かな地域」のエビデンス → 移住促進</li>
-                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 環境教育プログラムとして学校連携</li>
+                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 地域の自然を、市民参加で少しずつアーカイブできる</li>
+                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 季節の変化や、その土地らしい記録を見返しやすい</li>
+                            <li class="flex items-start gap-1.5"><span class="text-emerald-500 mt-0.5">✓</span> 学校や観察会とつなげて、自然に親しむ入口を作りやすい</li>
                         </ul>
                         <div class="mt-3 text-xs font-bold text-emerald-600 group-hover:text-emerald-700 flex items-center gap-1 transition">
                             詳しく見る <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
@@ -631,6 +825,89 @@ unset($allObs);
             window.addEventListener('online', () => {
                 window.offlineManager.sync();
             });
+
+            <?php if ($currentUser): ?>
+            if (window.ikimonAnalytics) {
+                window.ikimonAnalytics.track('today_card_view', {
+                    completed: <?= $todayHabitComplete ? 'true' : 'false' ?>,
+                    location: 'home',
+                    types: <?= json_encode(array_values($todayTypes), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>
+                });
+            }
+
+            document.querySelectorAll('[data-habit-cta]').forEach((el) => {
+                el.addEventListener('click', () => {
+                    if (window.ikimonAnalytics) {
+                        window.ikimonAnalytics.track('today_card_cta', {
+                            location: 'home',
+                            target: el.getAttribute('data-habit-cta')
+                        });
+                    }
+                });
+            });
+
+            const habitCard = document.getElementById('today-habit-card-home');
+            const reflectionPanel = habitCard?.querySelector('[data-reflection-panel]');
+            const reflectionToggle = habitCard?.querySelector('[data-reflection-toggle]');
+            const reflectionCancel = habitCard?.querySelector('[data-reflection-cancel]');
+            const reflectionSubmit = habitCard?.querySelector('[data-reflection-submit]');
+            const reflectionNote = habitCard?.querySelector('[data-reflection-note]');
+            const reflectionStatus = habitCard?.querySelector('[data-reflection-status]');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+            reflectionToggle?.addEventListener('click', () => {
+                reflectionPanel?.classList.remove('hidden');
+                reflectionNote?.focus();
+            });
+
+            reflectionCancel?.addEventListener('click', () => {
+                reflectionPanel?.classList.add('hidden');
+            });
+
+            reflectionSubmit?.addEventListener('click', async () => {
+                const note = reflectionNote?.value?.trim() || '';
+                if (!note) {
+                    if (reflectionStatus) reflectionStatus.textContent = 'ひとことだけ書いてください。';
+                    reflectionNote?.focus();
+                    return;
+                }
+
+                reflectionSubmit.disabled = true;
+                if (reflectionStatus) reflectionStatus.textContent = '保存中...';
+
+                try {
+                    const response = await fetch('api/log_reflection.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: JSON.stringify({
+                            note,
+                            source: 'home'
+                        })
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || '保存に失敗しました');
+                    }
+
+                    if (window.ikimonAnalytics) {
+                        window.ikimonAnalytics.track('reflection_habit_qualified', {
+                            location: 'home',
+                            note_length: note.length
+                        });
+                    }
+
+                    if (reflectionStatus) reflectionStatus.textContent = '保存した。今日の継続に加えた。';
+                    window.setTimeout(() => window.location.reload(), 450);
+                } catch (error) {
+                    if (reflectionStatus) reflectionStatus.textContent = error.message || '保存に失敗しました。';
+                } finally {
+                    reflectionSubmit.disabled = false;
+                }
+            });
+            <?php endif; ?>
         });
     </script>
     <script src="js/ToastManager.js"></script>

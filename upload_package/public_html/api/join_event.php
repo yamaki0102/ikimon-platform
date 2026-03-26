@@ -16,12 +16,12 @@ require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/Notification.php';
 
 Auth::init();
-if (!Auth::isLoggedIn()) {
-    echo json_encode(['success' => false, 'message' => 'ログインが必要です'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
-    exit;
-}
-
 $user = Auth::user();
+$isGuest = false;
+if (!$user) {
+    Auth::initGuest();
+    $isGuest = true;
+}
 $input = json_decode(file_get_contents('php://input'), true);
 
 $eventId = $input['event_id'] ?? '';
@@ -39,12 +39,15 @@ if (!$event) {
 }
 
 $participants = $event['participants'] ?? [];
-$userId = $user['id'];
+$userId = $isGuest ? Auth::getGuestId() : ($user['id'] ?? '');
+$userName = $isGuest ? 'ゲスト' : ($user['name'] ?? 'ゲスト');
+$userAvatar = $isGuest ? null : ($user['avatar'] ?? null);
 $isParticipant = false;
 $participantIndex = -1;
 
 foreach ($participants as $i => $p) {
-    if (($p['user_id'] ?? '') === $userId) {
+    $participantUserId = is_array($p) ? ($p['user_id'] ?? '') : (string)$p;
+    if ($participantUserId === $userId) {
         $isParticipant = true;
         $participantIndex = $i;
         break;
@@ -72,17 +75,18 @@ if ($action === 'join') {
 
     $participants[] = [
         'user_id' => $userId,
-        'user_name' => $user['name'],
+        'user_name' => $userName,
+        'avatar' => $userAvatar,
         'joined_at' => date('c'),
     ];
 
     // Notify organizer
-    if ($event['organizer_id'] !== $userId) {
+    if (!$isGuest && $event['organizer_id'] !== $userId) {
         Notification::sendAmbient(
             $event['organizer_id'],
             Notification::TYPE_BADGE, // reuse existing type
             '参加者が増えた！',
-            $user['name'] . ' さんが「' . ($event['title'] ?? '') . '」に参加登録しました。',
+            $userName . ' さんが「' . ($event['title'] ?? '') . '」に参加登録しました。',
             'site_dashboard.php?id=' . urlencode($event['site_id'] ?? '')
         );
     }

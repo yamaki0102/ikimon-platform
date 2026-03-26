@@ -4,6 +4,12 @@
  * 2026-02-10
  */
 
+/* ── Global: icons inside buttons must not capture pointer events ── */
+button svg,
+button .lucide {
+    pointer-events: none;
+}
+
 /* ── Base ── */
 body {
     font-family: var(--font-body);
@@ -467,4 +473,110 @@ h6 {
     .desktop-feed {
         max-width: var(--feed-max-width);
     }
+}
+
+/* ── Feedback Widget ── */
+.feedback-widget {
+    position: fixed;
+    bottom: calc(var(--bottom-nav-height, 72px) + var(--safe-bottom, 0px) + 12px);
+    right: 16px;
+    z-index: 45;
+}
+@media (min-width: 768px) {
+    .feedback-widget {
+        bottom: 24px;
+    }
+}
+
+.feedback-trigger {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.feedback-trigger:hover,
+.feedback-trigger.is-active {
+    opacity: 1;
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.feedback-panel {
+    position: absolute;
+    bottom: 52px;
+    right: 0;
+    width: 300px;
+    max-width: calc(100vw - 32px);
+    background: #ffffff;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+
+.feedback-chip {
+    padding: 6px 12px;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.feedback-chip:hover {
+    border-color: var(--color-primary);
+    color: var(--color-text);
+}
+.feedback-chip.is-selected {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.feedback-textarea {
+    width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    resize: none;
+    background: var(--color-base);
+    color: var(--color-text);
+    margin-bottom: 4px;
+    transition: border-color 0.15s;
+}
+.feedback-textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.feedback-submit {
+    width: 100%;
+    padding: 10px;
+    border-radius: 12px;
+    background: var(--color-primary);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s;
+}
+.feedback-submit:hover:not(:disabled) {
+    opacity: 0.9;
 }

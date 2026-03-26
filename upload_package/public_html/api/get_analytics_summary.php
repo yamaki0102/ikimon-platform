@@ -44,6 +44,15 @@ $dailyCounts = [];
 $uniqueSessions = [];
 $funnelOrder = ['post_start', 'photo_added', 'post_submit', 'post_success'];
 $funnelCounts = array_fill_keys($funnelOrder, 0);
+$todayCardViews = 0;
+$todayCardCompletedViews = 0;
+$todayCardCtas = [];
+$habitQualified = [
+    'post' => 0,
+    'walk' => 0,
+    'identification' => 0,
+    'reflection' => 0,
+];
 
 if (is_dir($analyticsDir)) {
     $date = new DateTime($from);
@@ -85,6 +94,31 @@ if (is_dir($analyticsDir)) {
                     if (isset($funnelCounts[$eventName])) {
                         $funnelCounts[$eventName]++;
                     }
+
+                    if ($eventName === 'today_card_view') {
+                        $todayCardViews++;
+                        if (!empty($ev['data']['completed'])) {
+                            $todayCardCompletedViews++;
+                        }
+                    }
+
+                    if ($eventName === 'today_card_cta') {
+                        $target = $ev['data']['target'] ?? 'unknown';
+                        $todayCardCtas[$target] = ($todayCardCtas[$target] ?? 0) + 1;
+                    }
+
+                    if ($eventName === 'walk_habit_qualified') {
+                        $habitQualified['walk']++;
+                    }
+                    if ($eventName === 'identification_habit_qualified') {
+                        $habitQualified['identification']++;
+                    }
+                    if ($eventName === 'reflection_habit_qualified') {
+                        $habitQualified['reflection']++;
+                    }
+                    if ($eventName === 'post_success') {
+                        $habitQualified['post']++;
+                    }
                 }
             }
         }
@@ -125,6 +159,12 @@ $response = [
         'daily' => $dailyCounts,
         'funnel' => [
             'steps' => $funnelSteps
+        ],
+        'habit' => [
+            'today_card_views' => $todayCardViews,
+            'today_card_completed_views' => $todayCardCompletedViews,
+            'today_card_ctas' => $todayCardCtas,
+            'qualified' => $habitQualified,
         ]
     ]
 ];

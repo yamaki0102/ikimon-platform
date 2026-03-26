@@ -54,7 +54,12 @@ $allowedEvents = [
     'bridge_click',
     'onboarding_step',
     'id_attempt',
-    'notification_open'
+    'notification_open',
+    'today_card_view',
+    'today_card_cta',
+    'walk_habit_qualified',
+    'identification_habit_qualified',
+    'reflection_habit_qualified'
 ];
 
 $added = 0;
@@ -86,6 +91,6 @@ if (count($existing) > 10000) {
     $existing = array_slice($existing, -10000);
 }
 
-file_put_contents($file, json_encode($existing, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG));
+file_put_contents($file, json_encode($existing, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG), LOCK_EX);
 
 echo json_encode(['success' => true, 'added' => $added], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

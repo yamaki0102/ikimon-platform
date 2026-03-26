@@ -10,6 +10,7 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/SiteManager.php';
 require_once __DIR__ . '/../libs/RedListManager.php';
+require_once __DIR__ . '/../libs/BioUtils.php';
 
 ob_start();
 
@@ -35,8 +36,7 @@ $rgCount = 0;
 foreach ($siteObs as $obs) {
     $name = $obs['taxon']['name'] ?? ($obs['species_name'] ?? '不明');
     $speciesSet[$name] = true;
-    $status = $obs['quality_grade'] ?? ($obs['status'] ?? '');
-    if (in_array($status, ['Research Grade', '研究用'])) $rgCount++;
+    if (BioUtils::isResearchGradeObservation($obs)) $rgCount++;
 }
 
 $totalObs = count($siteObs);

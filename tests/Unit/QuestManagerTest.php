@@ -5,12 +5,17 @@ use PHPUnit\Framework\TestCase;
 class QuestManagerTest extends TestCase
 {
     private string $obsFile;
+    private string $tracksDir;
 
     protected function setUp(): void
     {
         $this->obsFile = DATA_DIR . '/observations.json';
+        $this->tracksDir = DATA_DIR . '/tracks';
         if (file_exists($this->obsFile)) {
             unlink($this->obsFile);
+        }
+        if (is_dir($this->tracksDir)) {
+            $this->removeDir($this->tracksDir);
         }
     }
 
@@ -18,6 +23,9 @@ class QuestManagerTest extends TestCase
     {
         if (file_exists($this->obsFile)) {
             unlink($this->obsFile);
+        }
+        if (is_dir($this->tracksDir)) {
+            $this->removeDir($this->tracksDir);
         }
     }
 
@@ -32,6 +40,13 @@ class QuestManagerTest extends TestCase
     {
         $quests = QuestManager::getActiveQuests('user_a');
         $this->assertCount(3, $quests);
+    }
+
+    public function testWalkQuestIsAlwaysIncluded(): void
+    {
+        $quests = QuestManager::getActiveQuests('user_walk');
+
+        $this->assertContains('q_walk_light', array_column($quests, 'id'));
     }
 
     public function testDeterministicSelection(): void
@@ -56,5 +71,47 @@ class QuestManagerTest extends TestCase
 
         $percent = QuestManager::checkProgress('u1', 'q_photos_3');
         $this->assertSame(100, $percent);
+    }
+
+    public function testWalkQuestProgressUsesTodayTracks(): void
+    {
+        $userDir = $this->tracksDir . '/u_walk';
+        mkdir($userDir, 0777, true);
+
+        file_put_contents($userDir . '/trk_today.json', json_encode([
+            'session_id' => 'trk_today',
+            'user_id' => 'u_walk',
+            'started_at' => date('Y-m-d') . 'T09:00:00+09:00',
+            'updated_at' => date('c'),
+            'point_count' => 16,
+            'total_distance_m' => 420,
+            'points' => [],
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+
+        $percent = QuestManager::checkProgress('u_walk', 'q_walk_light');
+        $this->assertSame(100, $percent);
+    }
+
+    private function removeDir(string $dir): void
+    {
+        $items = scandir($dir);
+        if ($items === false) {
+            return;
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $path = $dir . '/' . $item;
+            if (is_dir($path)) {
+                $this->removeDir($path);
+            } elseif (file_exists($path)) {
+                unlink($path);
+            }
+        }
+
+        rmdir($dir);
     }
 }

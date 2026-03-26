@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ikimon.life</string>
+    <string name="tracking_channel_name">ライブスキャン</string>
+    <string name="tracking_channel_description">フィールドワーク中の位置記録を継続します。</string>
+    <string name="tracking_notification_title">ikimon ライブスキャン中</string>
+    <string name="tracking_notification_body">セッション %1$s をバックグラウンドで記録しています</string>
+</resources>

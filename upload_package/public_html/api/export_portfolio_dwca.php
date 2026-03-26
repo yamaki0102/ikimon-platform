@@ -37,6 +37,7 @@ $headers = [
     'informationWithheld',
     'habitat',
     'lifeStage',
+    'individualCount',
     'associatedTaxa',
     'associatedReferences',
     'dynamicProperties',
@@ -49,13 +50,13 @@ $observations = DataStore::fetchAll('observations');
 // Define Portfolio Site IDs
 $portfolioSiteIds = array_keys(CorporateSites::SITES);
 
-// Filter observations: must belong to a portfolio site AND be Research Grade/研究用
+// Filter observations: must belong to a portfolio site AND be research-usable.
 $researchGradeObs = array_filter($observations, function ($obs) use ($gate, $portfolioSiteIds) {
     if (empty($obs['site_id']) || !in_array($obs['site_id'], $portfolioSiteIds)) {
         return false;
     }
     
-    $isRG = ($obs['quality_grade'] ?? '') === 'Research Grade' || ($obs['status'] ?? '') === '研究用';
+    $isRG = BioUtils::isResearchGradeObservation($obs);
     if (!$isRG) return false;
 
     if ($gate['tier'] === 'researcher') {
@@ -187,11 +188,12 @@ function buildDwcRow(array $obs, string $domain, array $licenseMap): array
         $establishmentMeans,
         $mediaStr,
         $obs['note'] ?? '',
-        'Research Grade',
+        BioUtils::displayStatus($obs, '研究利用可'),
         $taxonId,
         $informationWithheld,
         $habitat,
         $lifeStage,
+        $obs['individual_count'] ?? '',
         $associatedTaxa,
         $assocRefs,
         $dynamicProperties,

@@ -188,3 +188,13 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 2. **`loading-skeleton`** class on images should be removed after load (explore.php)
 3. **File locking**: `DataStore.php` and most libs use `LOCK_EX`; any new `file_put_contents` must include the `LOCK_EX` flag
 4. **Session GC** on shared hosting — custom timeout via `session.gc_maxlifetime`
+
+## Response Convention
+
+- タスク完了時の `次の進化` は **原則3つ以上** 出すこと
+- `次の進化` は
+  - すぐやる価値があるもの
+  - 中期的に効くもの
+  - 10x 改善につながるもの
+  を最低1つずつ含めるのを基本とする
+- 単なる思いつきではなく、**今回の変更と連続した実行可能な提案** にすること

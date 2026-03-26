@@ -103,6 +103,30 @@ $eventCode = trim($input['event_code'] ?? '');
 
 // Grant ID
 $grantId = trim($input['grant_id'] ?? '');
+$siteId = trim((string)($input['site_id'] ?? ($input['location']['site_id'] ?? ($existing['site_id'] ?? ''))));
+$enableBingo = array_key_exists('enable_bingo', $input)
+    ? !empty($input['enable_bingo'])
+    : (bool)($existing['enable_bingo'] ?? false);
+$enableLeaderboard = array_key_exists('enable_leaderboard', $input)
+    ? !empty($input['enable_leaderboard'])
+    : (bool)($existing['enable_leaderboard'] ?? true);
+$eventType = trim((string)($input['event_type'] ?? ($existing['event_type'] ?? 'open')));
+if (!in_array($eventType, ['open', 'invite'], true)) {
+    $eventType = 'open';
+}
+$coverImage = trim((string)($input['cover_image'] ?? ($existing['cover_image'] ?? '')));
+$bingoSpecies = [];
+if (!empty($input['bingo_species']) && is_array($input['bingo_species'])) {
+    foreach ($input['bingo_species'] as $species) {
+        $species = trim((string)$species);
+        if ($species !== '' && !in_array($species, $bingoSpecies, true)) {
+            $bingoSpecies[] = $species;
+        }
+    }
+} elseif (!empty($existing['bingo_species']) && is_array($existing['bingo_species'])) {
+    $bingoSpecies = array_values($existing['bingo_species']);
+}
+$bingoTemplateId = trim((string)($input['bingo_template_id'] ?? ($existing['bingo_template_id'] ?? '')));
 
 $event = [
     'id'                  => $eventId ?: uniqid('evt_'),
@@ -114,7 +138,7 @@ $event = [
     'end_time'            => $endTime,
     'location'            => [
         'type'      => $locationType,
-        'site_id'   => ($locationType === 'site') ? trim($input['location']['site_id'] ?? '') : null,
+        'site_id'   => $siteId !== '' ? $siteId : (($locationType === 'site') ? trim($input['location']['site_id'] ?? '') : null),
         'lat'       => $lat,
         'lng'       => $lng,
         'radius_m'  => $radiusM,
@@ -128,9 +152,17 @@ $event = [
     'precautions'         => mb_substr(trim($input['precautions'] ?? ''), 0, 1000), // Fixed limit to 1000
     'target_species'      => $targetSpecies,
     'grant_id'            => $grantId,
+    'site_id'             => $siteId !== '' ? $siteId : null,
+    'enable_bingo'        => $enableBingo,
+    'bingo_species'       => $bingoSpecies,
+    'bingo_template_id'   => $bingoTemplateId !== '' ? $bingoTemplateId : null,
+    'enable_leaderboard'  => $enableLeaderboard,
+    'event_type'          => $eventType,
+    'cover_image'         => $coverImage !== '' ? $coverImage : null,
     'organizer_id'        => $user['id'],
     'organizer_name'      => $user['name'],
     'linked_observations' => $isEdit ? ($existing['linked_observations'] ?? []) : [],
+    'participants'        => $isEdit ? ($existing['participants'] ?? []) : [],
     'status'              => 'open',
     'created_at'          => $isEdit ? ($existing['created_at'] ?? date('c')) : date('c'),
     'updated_at'          => date('c'),
@@ -142,7 +174,7 @@ if ($isEdit) {
     $editHistory = $existing['edit_history'];
 
     $changedFields = [];
-    $trackFields = ['title', 'event_date', 'start_time', 'end_time', 'memo', 'meeting_point', 'parking_info', 'rain_policy', 'precautions', 'event_code', 'grant_id'];
+    $trackFields = ['title', 'event_date', 'start_time', 'end_time', 'memo', 'meeting_point', 'parking_info', 'rain_policy', 'precautions', 'event_code', 'grant_id', 'site_id', 'enable_bingo', 'enable_leaderboard', 'event_type', 'cover_image', 'bingo_template_id'];
     foreach ($trackFields as $f) {
         $oldVal = trim($existing[$f] ?? '');
         $newVal = trim($event[$f] ?? '');
