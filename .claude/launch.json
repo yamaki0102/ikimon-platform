@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ikimon-dev",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["-S", "localhost:8899", "-t", "upload_package/public_html"],
+      "port": 8899
+    }
+  ]
+}
