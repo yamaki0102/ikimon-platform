@@ -48,6 +48,13 @@ $transportMode = api_param('transport_mode', 'walk');
 if (!in_array($transportMode, ['walk', 'bike', 'car', 'drive', 'stationary'], true)) {
     $transportMode = 'walk';
 }
+$guideMood = api_param('guide_mood', 'relax');
+if (!in_array($guideMood, ['explore', 'culture', 'relax'], true)) $guideMood = 'relax';
+$moodInstruction = match($guideMood) {
+    'explore' => '自然・生態系・生き物の話を中心に。環境の読み方、種の見分け方、生態系のつながりを深く。',
+    'culture' => '地域の歴史・文化・暮らし・人の営みを中心に。生き物はきっかけとして、話は文化へ広げて。地名の由来、食文化、農業、街の成り立ちなど。',
+    default => '自然も文化もバランスよく。生き物の話から自然に文化・歴史・暮らしへ横展開して。',
+};
 if ($transportMode === 'drive') $transportMode = 'car';
 $transportLabel = $isJapanese ? match($transportMode) {
     'car' => '車',
@@ -688,6 +695,7 @@ if ($requestMode === 'ambient') {
 {$depthInstruction}
 {$pacingInstruction}
 
+ガイドの方向性: {$moodInstruction}
 今回のテーマ: {$topic}
 
 {$avoidList}
@@ -895,6 +903,7 @@ $prompt = <<<PROMPT
 
 {$avoidList}
 
+ガイドの方向性: {$moodInstruction}
 今回の話し方: {$chosenAngle}
 {$emotionInstruction}
 
