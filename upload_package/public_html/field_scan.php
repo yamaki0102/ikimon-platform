@@ -2225,9 +2225,9 @@ function tryAmbient() {
         _prefetchAmbient();
         return;
     }
-    if (isBusy && since < 35000) return;
+    if (isBusy && since < 60000) return;
     if (isBusy) { try { VoiceGuide.stop(); } catch(e) {} dbg('🔊 speaking強制リセット'); }
-    if (since < 20000) return;
+    if (since < 25000) return;
 
     // プリフェッチ済みデータがあれば即再生
     if (S._prefetchedAmbient) {

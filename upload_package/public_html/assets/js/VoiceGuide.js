@@ -28,7 +28,7 @@ var VoiceGuide = (function() {
     var onFinishCallback = null;
 
     var VALID_OUTPUTS = ['bluetooth', 'speaker'];
-    var VALID_SPEAKERS = ['auto', 'mochiko', 'ryusei', 'zundamon'];
+    var VALID_SPEAKERS = ['auto', 'mochiko', 'ryusei', 'zundamon', 'gemini-bright', 'gemini-calm'];
 
     // --- A2DP キープアライブ ---
     // 車載Bluetoothは無音が続くとA2DPを休止し、次の再生がスマホスピーカーに
@@ -119,7 +119,6 @@ var VoiceGuide = (function() {
     function isEnabled() { return enabled; }
 
     function getVoiceMode() {
-        if (output === 'speaker') return 'standard';
         return speaker;
     }
 
@@ -204,10 +203,13 @@ var VoiceGuide = (function() {
         queue = [];
         speaking = false;
         if (_ttsWatchdog) { clearTimeout(_ttsWatchdog); _ttsWatchdog = null; }
-        if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
-        if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
         if ('speechSynthesis' in window) speechSynthesis.cancel();
-        if (_audioEl) { _audioEl.pause(); _audioEl.removeAttribute('src'); _audioEl.load(); }
+        if (_audioEl) {
+            _cleanupAudioListeners(_audioEl);
+            _audioEl.pause();
+            _audioEl.removeAttribute('src');
+            _audioEl.load();
+        }
         currentAudio = null;
     }
 
@@ -292,56 +294,61 @@ var VoiceGuide = (function() {
                 speechSynthesis.cancel();
                 finish();
             }
-        }, 15000);
+        }, 25000);
         speechSynthesis.speak(utter);
     }
 
     var _audioTimeout = null;
     var _audioFallback = null;
-    // 再生中のfinishコールバック識別子（複数登録防止）
-    var _activeFinishId = 0;
+    var _currentOnEnded = null;
+    var _currentOnError = null;
+    var _currentOnMeta = null;
+
+    function _cleanupAudioListeners(audio) {
+        if (_currentOnEnded) { audio.removeEventListener('ended', _currentOnEnded); _currentOnEnded = null; }
+        if (_currentOnError) { audio.removeEventListener('error', _currentOnError); _currentOnError = null; }
+        if (_currentOnMeta) { audio.removeEventListener('loadedmetadata', _currentOnMeta); _currentOnMeta = null; }
+        if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
+        if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
+    }
+
     function _playAudio(url) {
         var audio = _getAudioEl();
-        // 前のリスナーが残らないよう強制クリア
+        _cleanupAudioListeners(audio);
         audio.pause();
         audio.removeAttribute('src');
         audio.load();
         audio.volume = 1.0;
         var done = false;
-        var myFinishId = ++_activeFinishId;
-        if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
-        if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
+
         function finish() {
             if (done) return;
-            // 別のfinishが既に実行済みなら（並走防止）無視
-            if (myFinishId !== _activeFinishId && !done) { done = true; return; }
             done = true;
-            if (_audioTimeout) { clearTimeout(_audioTimeout); _audioTimeout = null; }
-            if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
-            audio.removeEventListener('ended', finish);
-            audio.removeEventListener('error', onError);
-            audio.removeEventListener('loadedmetadata', onMeta);
+            _cleanupAudioListeners(audio);
             currentAudio = null;
             speaking = false;
             _processQueue();
         }
-        function onError() { finish(); }
-        function onMeta() {
+
+        _currentOnError = function() { finish(); };
+        _currentOnEnded = function() { finish(); };
+        _currentOnMeta = function() {
             if (done) return;
             if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
             if (audio.duration && isFinite(audio.duration)) {
-                var safeDur = audio.duration * 1000 + 3000;
+                var safeDur = audio.duration * 1000 + 5000;
                 if (_audioTimeout) clearTimeout(_audioTimeout);
                 _audioTimeout = setTimeout(finish, safeDur);
             }
-        }
-        audio.addEventListener('ended', finish);
-        audio.addEventListener('error', onError);
-        audio.addEventListener('loadedmetadata', onMeta);
+        };
+
+        audio.addEventListener('ended', _currentOnEnded);
+        audio.addEventListener('error', _currentOnError);
+        audio.addEventListener('loadedmetadata', _currentOnMeta);
         currentAudio = audio;
         audio.src = url;
         audio.load();
-        _audioFallback = setTimeout(function() { if (!done) finish(); }, 30000);
+        _audioFallback = setTimeout(function() { if (!done) finish(); }, 35000);
         audio.play().catch(finish);
     }
 
