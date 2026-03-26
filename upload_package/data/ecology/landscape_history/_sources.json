@@ -1,0 +1,32 @@
+{
+  "sources": [
+    {
+      "id": "adeac_hamamatsu",
+      "name": "浜松市文化遺産デジタルアーカイブ",
+      "url": "https://adeac.jp/hamamatsu-city-museum/",
+      "license": "educational_use",
+      "redistribution": false,
+      "notes": "テキスト要約のみ使用。原文の再配布は不可"
+    },
+    {
+      "id": "wikipedia_ja",
+      "name": "Wikipedia 日本語版",
+      "license": "CC-BY-SA-4.0",
+      "redistribution": true
+    },
+    {
+      "id": "env_ministry_redlist",
+      "name": "環境省レッドリスト",
+      "url": "https://www.env.go.jp/nature/kisho/hozen/redlist/",
+      "license": "government_open_data",
+      "redistribution": true
+    },
+    {
+      "id": "shizuoka_reddata",
+      "name": "静岡県レッドデータブック",
+      "url": "https://www.pref.shizuoka.jp/kankyou/ka-070/wild/red/",
+      "license": "government_open_data",
+      "redistribution": true
+    }
+  ]
+}

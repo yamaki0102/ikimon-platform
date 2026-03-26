@@ -290,7 +290,7 @@ $meta_title = 'Freetext レビューキュー';
 </head>
 
 <body>
-    <?php include __DIR__ . '/components/header.php'; ?>
+    <?php include __DIR__ . '/components/nav.php'; ?>
 
     <div class="review-container">
         <div class="review-header">

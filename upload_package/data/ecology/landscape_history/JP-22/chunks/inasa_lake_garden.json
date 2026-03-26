@@ -1,0 +1,51 @@
+{
+  "id": "inasa_lake_garden",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.7250,
+    "lng": 137.6800,
+    "radius_km": 2.0,
+    "place_names": ["佐鳴湖西岸", "入野", "大平台"],
+    "place_names_en": ["Lake Sanaru West Shore", "Irino", "Ohiradai"]
+  },
+  "period": {
+    "label": "昭和〜現代",
+    "year_from": 1960,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "佐鳴の風・佐鳴湖水質改善史",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "佐鳴湖は昭和30年代まで水遊びができるほど清浄だった。周辺は農地と住宅が混在",
+    "land_use_change": "農地・散在住宅 → 密集住宅地(昭和40年代〜) → 下水道整備で水質改善途上(平成〜)",
+    "ecological_impact": "急激な宅地化で生活排水が流入し、佐鳴湖は全国ワーストの水質に。富栄養化でアオコが大量発生。水質改善が進み、近年は徐々に水生生物が回復",
+    "biodiversity_link": "佐鳴湖で水鳥の種類が増えているのは、水質改善で餌となる小魚や水生昆虫が回復しつつあるから。水質と生物多様性は直結している"
+  },
+  "narrative_layers": [
+    {
+      "theme": "water_quality",
+      "title": "ワーストからの復活",
+      "narrative": "佐鳴湖はかつて全国ワーストの水質だった。家の排水がそのまま流れ込んで、夏にはアオコで緑色になった。でも下水道の整備と市民の努力で、少しずつ水質が改善している。水がきれいになると、まず小さな生き物が戻り、それを食べる魚が増え、最後に水鳥が来る。回復は食物連鎖の下から始まる"
+    },
+    {
+      "theme": "citizen_science_history",
+      "title": "市民が測り続けた水質",
+      "narrative": "佐鳴湖の水質を30年以上測り続けている市民グループがいる。このデータがなければ、水質の変化も、生き物の回復も、誰も気づかなかったかもしれない。市民がデータを取り続けることの力。ikimonで記録するキミのデータも、同じ系譜にある"
+    },
+    {
+      "theme": "eutrophication",
+      "title": "栄養が多すぎる水",
+      "narrative": "富栄養化とは、水に栄養が多すぎる状態。人間にとっての栄養過多がメタボなら、湖のメタボが富栄養化。藻が異常繁殖して酸素を奪い、魚が窒息する。でも適度な栄養は生態系を支える。問題は量のバランス"
+    }
+  ],
+  "tags": {
+    "habitats": ["lake", "urban_waterfront", "eutrophic"],
+    "taxa_triggers": ["Podiceps ruficollis", "Anas platyrhynchos", "Phalacrocorax carbo"],
+    "common_name_triggers": ["カイツブリ", "マガモ", "カワウ", "コサギ", "バン", "アオサギ", "カモ"],
+    "themes": ["water_quality", "eutrophication", "citizen_science"]
+  }
+}

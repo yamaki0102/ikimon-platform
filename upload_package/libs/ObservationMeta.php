@@ -41,6 +41,20 @@ class ObservationMeta
         return Auth::hasRole('Specialist');
     }
 
+    public static function canDeleteObservation(array $observation, ?array $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        // Only the owner or admin can delete
+        if ((string)($observation['user_id'] ?? '') === (string)($user['id'] ?? '')) {
+            return true;
+        }
+
+        return Auth::hasRole('Admin');
+    }
+
     public static function canReviewMetadataProposals(array $observation, ?array $user): bool
     {
         return self::canEditObservation($observation, $user) || self::canDirectlyModerateMetadata($user);

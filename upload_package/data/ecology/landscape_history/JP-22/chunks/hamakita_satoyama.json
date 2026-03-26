@@ -1,0 +1,51 @@
+{
+  "id": "hamakita_satoyama",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.7900,
+    "lng": 137.7800,
+    "radius_km": 2.5,
+    "place_names": ["浜北区", "赤佐", "宮口"],
+    "place_names_en": ["Hamakita Ward", "Akasa", "Miyaguchi"]
+  },
+  "period": {
+    "label": "縄文時代〜現代",
+    "year_from": -3000,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "浜北市史・浜北の自然と文化",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "浜北地域は縄文時代から人が暮らし、里山的な管理が続いてきた。クヌギ・コナラの雑木林と水田のモザイク景観",
+    "land_use_change": "雑木林・水田(古代〜近世) → 果樹園・苗木生産(近代) → 住宅地(平成〜)",
+    "ecological_impact": "薪炭林の管理放棄で常緑樹が増え、明るい林床を好む植物や昆虫が減少。水田の減少でカエルやホタルの個体数も低下",
+    "biodiversity_link": "浜北でホタルやカブトムシが見られるのは、里山管理が一部で続いていて、クヌギの樹液と水辺のセットが維持されているから"
+  },
+  "narrative_layers": [
+    {
+      "theme": "satoyama_cycle",
+      "title": "人が作った豊かさ",
+      "narrative": "里山は天然の森じゃない。人が木を切り、炭を焼き、落ち葉を集めることで維持されてきた半自然環境。定期的に木を切るから若い木が生え、光が入り、花が咲き、虫が来る。皮肉なことに、人が手を入れなくなった里山は、暗い森に戻って生物多様性が下がる"
+    },
+    {
+      "theme": "firefly_indicator",
+      "title": "ホタルが教える水辺の健康",
+      "narrative": "ホタルの幼虫はきれいな水辺でカワニナを食べて育つ。ホタルがいるということは、水質が良く、カワニナが棲めて、護岸がコンクリートじゃない自然な水辺がまだ残っているということ。ホタルの光は、その水辺の健康診断書みたいなもの"
+    },
+    {
+      "theme": "jomon_connection",
+      "title": "縄文人と同じ風景の断片",
+      "narrative": "浜北では縄文人の遺跡が出ている。彼らが見ていた風景は今とまったく違うけど、クヌギの林と水辺というセットは、数千年前から続く要素かもしれない。カブトムシがクヌギの樹液に集まる光景を、縄文人も見ていた可能性がある"
+    }
+  ],
+  "tags": {
+    "habitats": ["satoyama", "deciduous_forest", "paddy_field", "stream"],
+    "taxa_triggers": ["Luciola cruciata", "Trypoxylus dichotomus", "Hyla japonica", "Rana"],
+    "common_name_triggers": ["ホタル", "ゲンジボタル", "カブトムシ", "クワガタ", "カエル", "アマガエル", "トカゲ", "メダカ"],
+    "themes": ["satoyama", "firefly_ecology", "traditional_management"]
+  }
+}

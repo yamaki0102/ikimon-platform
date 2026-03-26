@@ -403,7 +403,7 @@ $meta_robots = 'noindex, nofollow, noarchive';
         // --- 5. DATA LOGIC ---
         // --- 5. DATA LOGIC (Static-First V2) ---
         async function fetchData() {
-            const STATIC_URL = 'data/reference_data.json';
+            const STATIC_URL = 'assets/data/reference_data.json';
             const CACHE_KEY = 'ikimon_radar_data_v2';
 
             console.log("📡 Bio-Radar: Initializing...");

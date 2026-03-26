@@ -1,0 +1,51 @@
+{
+  "id": "hamanako_brackish",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.7500,
+    "lng": 137.5800,
+    "radius_km": 4.0,
+    "place_names": ["浜名湖", "弁天島", "舞阪", "雄踏"],
+    "place_names_en": ["Lake Hamana", "Bentenjima", "Maisaka", "Yuto"]
+  },
+  "period": {
+    "label": "室町時代〜現代",
+    "year_from": 1498,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "舞阪町史・浜名湖の変遷",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "浜名湖はもともと淡水湖だった。1498年の明応地震で砂州が決壊し、海水が流入して汽水湖に変わった",
+    "land_use_change": "淡水湖 → 汽水湖(1498地震) → 養殖業(江戸〜昭和) → レジャー・住宅開発(平成)",
+    "ecological_impact": "汽水化により海水魚と淡水魚が共存する独特の生態系が成立。ウナギ・クルマエビの養殖が栄えた。近年は干潟の埋立てで底生生物が減少",
+    "biodiversity_link": "浜名湖で今も多様な水鳥が見られるのは、淡水と海水が混じる汽水環境が魚類と底生生物を豊富に供給しているため"
+  },
+  "narrative_layers": [
+    {
+      "theme": "geological_event",
+      "title": "地震が変えた生態系",
+      "narrative": "1498年、明応地震。大津波が浜名湖と太平洋を隔てていた砂州をぶち抜いた。一夜にして淡水湖が汽水湖に変わった。淡水に棲んでいた生き物は壊滅的な打撃を受けたはず。でも数百年かけて、海と湖の境界という独特の環境に適応した新しい生態系ができた。災害は破壊だけじゃなく、新しい生態系の出発点にもなる"
+    },
+    {
+      "theme": "aquaculture_ecology",
+      "title": "養殖が守った環境、壊した環境",
+      "narrative": "浜名湖のウナギ養殖は江戸時代に始まった。養殖のためには水質を保つ必要があるから、結果的に湖の環境も守られた。でも昭和以降、養殖池の拡大が干潟を埋めた。干潟はカニや貝、それを食べる水鳥の命綱。人間の産業が環境を守る面と壊す面、両方を同時に持っていた"
+    },
+    {
+      "theme": "migratory_birds",
+      "title": "渡り鳥が選ぶ汽水域",
+      "narrative": "浜名湖に毎冬やってくるカモやシギの群れは、この湖が汽水であることに依存している。汽水域は淡水にも海水にもない独特の底生生物を育てる。渡り鳥たちは数千キロの旅の中継地として、こういう汽水域を頼っている。浜名湖が汽水であり続ける限り、この鳥たちはここに来る"
+    }
+  ],
+  "tags": {
+    "habitats": ["brackish_water", "tidal_flat", "coastal", "lake"],
+    "taxa_triggers": ["Anguilla japonica", "Anas", "Calidris", "Charadrius", "Tringa"],
+    "common_name_triggers": ["ウナギ", "カモ", "シギ", "チドリ", "コサギ", "カワウ", "ミサゴ", "カニ"],
+    "themes": ["geological_event", "aquaculture", "migratory_birds"]
+  }
+}

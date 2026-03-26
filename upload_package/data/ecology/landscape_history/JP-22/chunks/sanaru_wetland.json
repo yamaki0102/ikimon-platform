@@ -1,0 +1,51 @@
+{
+  "id": "sanaru_wetland",
+  "region_code": "JP-22",
+  "locale": "ja",
+  "location": {
+    "lat": 34.6958,
+    "lng": 137.6989,
+    "radius_km": 2.0,
+    "place_names": ["佐鳴湖", "入野", "富塚"],
+    "place_names_en": ["Lake Sanaru", "Irino", "Tomitsuka"]
+  },
+  "period": {
+    "label": "江戸時代〜現代",
+    "year_from": 1600,
+    "year_to": 2026
+  },
+  "source": {
+    "title": "浜松市史・佐鳴の風",
+    "license": "educational_use",
+    "access_date": "2026-03-25"
+  },
+  "content": {
+    "landscape_before": "佐鳴湖周辺は江戸時代には広大な湿地帯が広がり、葦原とため池が点在していた",
+    "land_use_change": "湿地 → 水田(明治) → 住宅地(昭和後期)",
+    "ecological_impact": "湿地性トンボ類の生息地消失。水鳥の飛来地が縮小。残存する佐鳴湖がかろうじて水辺の生態系を維持",
+    "biodiversity_link": "現在もカワセミ・コサギが見られるのは、佐鳴湖が湿地時代の水辺環境を一部残しているため"
+  },
+  "narrative_layers": [
+    {
+      "theme": "wetland_ecology",
+      "title": "失われた湿地の記憶",
+      "narrative": "江戸時代、この辺りは見渡す限りの葦原だった。ハッチョウトンボという日本最小のトンボがいたはず。体長わずか2センチ。今は湿地の大部分が消えて、このトンボもここでは見られなくなった。でも佐鳴湖の残された水辺が、かろうじて水辺の生態系をつないでいる"
+    },
+    {
+      "theme": "water_management",
+      "title": "水を制した代償",
+      "narrative": "明治政府は湿地を不毛の地とみなして干拓を進めた。水田になり、やがて住宅地になった。治水は成功したけど、湿地に依存していた生き物たちの居場所は消えた。皮肉なことに、今になって湿地の防災機能、洪水を吸収するスポンジとしての役割が見直されている"
+    },
+    {
+      "theme": "urban_wildlife",
+      "title": "都市に残る古い水脈",
+      "narrative": "住宅地の間を流れる小さな水路は、江戸時代の灌漑用水路の名残かもしれない。カワセミやコサギがいるのは、こういう忘れられた水辺が都市の中に点在しているから。人間が忘れても、鳥は覚えている"
+    }
+  ],
+  "tags": {
+    "habitats": ["wetland", "waterside", "urban"],
+    "taxa_triggers": ["Odonata", "Nannophya pygmaea", "Alcedo atthis", "Egretta garzetta", "Ardea cinerea"],
+    "common_name_triggers": ["トンボ", "カワセミ", "コサギ", "サギ", "カモ", "アオサギ", "ハッチョウトンボ"],
+    "themes": ["wetland_loss", "urbanization", "water_management"]
+  }
+}

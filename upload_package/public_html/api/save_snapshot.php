@@ -27,7 +27,7 @@ if (!$data) {
 }
 
 // 2. Define Path
-$savePath = ROOT_DIR . '/data/reference_data.json';
+$savePath = PUBLIC_DIR . '/assets/data/reference_data.json';
 
 // 3. Save File
 if (file_put_contents($savePath, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG))) {
