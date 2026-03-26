@@ -441,8 +441,25 @@ if (!$currentUser) {
         <div style="color:#10b981;font-size:13px;font-weight:600;margin-bottom:20px;">🚗 ドライブ記録中</div>
         <div style="color:#e2e8f0;font-size:32px;font-weight:900;" x-text="sessionSpeciesCount + '種'"></div>
         <div style="color:#94a3b8;font-size:14px;margin-top:8px;" x-text="(sessionDistance / 1000).toFixed(1) + 'km · ' + formatElapsed(sessionElapsed)"></div>
+        <!-- 声変更（ドライブ中） -->
+        <div style="position:relative;margin-top:16px;">
+            <button @click="showDriveVoiceSwitch = !showDriveVoiceSwitch"
+                    style="padding:8px 16px;border-radius:10px;border:1px solid rgba(139,92,246,0.3);background:rgba(139,92,246,0.15);color:#c4b5fd;font-size:13px;cursor:pointer;">
+                🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
+            </button>
+            <div x-show="showDriveVoiceSwitch" x-cloak @click.outside="showDriveVoiceSwitch=false"
+                 style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;background:rgba(30,41,59,0.95);backdrop-filter:blur(12px);border-radius:12px;padding:8px;border:1px solid rgba(255,255,255,0.1);min-width:160px;z-index:50;">
+                <template x-for="sp in speakers" :key="sp.id">
+                    <button @click="selectedSpeaker=sp.id; showDriveVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
+                            :style="selectedSpeaker===sp.id ? 'background:rgba(139,92,246,0.3);color:#c4b5fd;' : 'background:rgba(255,255,255,0.05);color:#94a3b8;'"
+                            style="display:block;width:100%;padding:10px 14px;border-radius:8px;border:none;font-size:13px;font-weight:bold;text-align:left;cursor:pointer;margin-bottom:4px;">
+                        <span x-text="sp.emoji + ' ' + sp.label"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
         <!-- 移動手段切り替え（走行中でも変更可） -->
-        <div style="display:flex;gap:8px;margin-top:24px;">
+        <div style="display:flex;gap:8px;margin-top:16px;">
             <template x-for="tm in transportModes" :key="tm.id">
                 <button @click="setTransportMode(tm.id)"
                         :style="manualTransportMode === tm.id ? 'background:rgba(16,185,129,0.3);border-color:#10b981;color:#10b981;' : 'background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.15);color:#94a3b8;'"
@@ -761,6 +778,7 @@ if (!$currentUser) {
                 // Speaker selection
                 showSpeakerSelect: true,
                 showVoiceSwitch: false,
+                showDriveVoiceSwitch: false,
                 selectedSpeaker: localStorage.getItem('ikimon_voice_speaker') || localStorage.getItem('ikimon_speaker') || 'gemini-bright',
                 speakers: [
                     { id: 'gemini-bright', label: '女性', emoji: '👩' },
@@ -1076,7 +1094,16 @@ if (!$currentUser) {
                         VoiceGuide.setVoiceMode(this.selectedSpeaker);
                         VoiceGuide.setEnabled(true);
                         // Unlock audio on user gesture (mobile browsers)
-                        VoiceGuide.announce('');
+                        if ('speechSynthesis' in window) {
+                            const unlock = new SpeechSynthesisUtterance('');
+                            unlock.volume = 0;
+                            speechSynthesis.speak(unlock);
+                        }
+                        try {
+                            const silentAudio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=');
+                            silentAudio.volume = 0.01;
+                            silentAudio.play().catch(() => {});
+                        } catch(e) {}
                     }
 
                     this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
