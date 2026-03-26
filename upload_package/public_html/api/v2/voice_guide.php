@@ -26,19 +26,19 @@ if (!api_rate_limit('voice_guide', 30, 60)) {
 
 $requestMode = api_param('mode', 'detection');
 $voiceMode = api_param('voice_mode', 'gemini-bright');
-$validModes = ['standard', 'auto', 'mochiko', 'ryusei', 'zundamon', 'gemini-bright', 'gemini-calm', 'duo-zundamon-mochiko', 'duo-zundamon-ryusei'];
+$validModes = ['standard', 'auto', 'mochiko', 'ryusei', 'zundamon', 'gemini-bright', 'gemini-calm', 'gemini-random', 'duo-zundamon-mochiko', 'duo-zundamon-ryusei', 'duo-gemini'];
 if (!in_array($voiceMode, $validModes, true)) {
-    $voiceMode = 'gemini-bright';
+    $voiceMode = 'gemini-random';
 }
 $isDuoVoice = str_starts_with($voiceMode, 'duo-');
-$isZundamonStyle = ($voiceMode === 'zundamon' || $isDuoVoice);
+$isZundamonStyle = ($voiceMode === 'zundamon' || ($isDuoVoice && $voiceMode !== 'duo-gemini'));
 $isGeminiTTS = str_starts_with($voiceMode, 'gemini-');
 
 $guideLang = api_param('lang', 'ja');
 if (!preg_match('/^[a-z]{2}(-[A-Z]{2})?$/', $guideLang)) $guideLang = 'ja';
 $isJapanese = ($guideLang === 'ja');
 
-$useVoicevoxAudio = (in_array($voiceMode, ['auto', 'mochiko', 'ryusei', 'zundamon'], true) || $isDuoVoice) && $isJapanese;
+$useVoicevoxAudio = (in_array($voiceMode, ['auto', 'mochiko', 'ryusei', 'zundamon'], true) || ($isDuoVoice && $voiceMode !== 'duo-gemini')) && $isJapanese;
 if (!$isJapanese) {
     $isZundamonStyle = false;
     if (!$isGeminiTTS) $isGeminiTTS = true;
@@ -1156,8 +1156,14 @@ function _generateAudio(string $text, string $voiceMode, string $lang, bool $use
         if ($url) return $url;
         // Duo failed → fallback to single speaker (strip markers)
         $text = preg_replace('/【[^】]+】\s*/u', '', $text);
-        $useVoicevox = true;
-        $voiceMode = 'zundamon';
+        if ($voiceMode === 'duo-gemini') {
+            $useGemini = true;
+            $useVoicevox = false;
+            $voiceMode = 'gemini-random';
+        } else {
+            $useVoicevox = true;
+            $voiceMode = 'zundamon';
+        }
     }
     if ($useGemini) {
         $url = _generateGeminiAudio($text, $voiceMode, $lang);
@@ -1193,6 +1199,10 @@ function _getDuoSpeakers(string $voiceMode): array
         'duo-zundamon-ryusei' => [
             ['name' => 'ずんだもん', 'marker' => '【ずんだもん】', 'id' => _pickVoicevoxSpeakerId(['ずんだもん'])],
             ['name' => '龍星', 'marker' => '【龍星】', 'id' => _pickVoicevoxSpeakerId(['青山龍星'])],
+        ],
+        'duo-gemini' => [
+            ['name' => 'ナビ', 'marker' => '【ナビ】', 'gemini_voice' => 'Zephyr'],
+            ['name' => 'ガイド', 'marker' => '【ガイド】', 'gemini_voice' => 'Orus'],
         ],
         default => [],
     };
@@ -1233,6 +1243,22 @@ S,
 2人で1つのストーリーを紡ぐこと。ずんだもんが発見して驚き、龍星が渋く解説し、ずんだもんが感動して次の疑問を投げ…という流れ。
 自然→文化→暮らし、のように話題が自然に展開していくように。
 S,
+        'duo-gemini' => <<<'S'
+2人のラジオパーソナリティが掛け合いで話してください。
+【ナビ】知的で好奇心旺盛なメインパーソナリティ（女性）。発見に目を輝かせ、質問を投げかけ、話を広げる。「〜だよね」「〜かも」「〜でしょ？」など親しみやすい話し方。
+【ガイド】博識で穏やかなアシスタント（男性）。ナビの発見や疑問に対して、面白いエピソードや豆知識で答える。「〜なんですよ」「〜ですね」「〜らしいですよ」。
+
+フォーマット（厳守）:
+【ナビ】セリフ
+【ガイド】セリフ
+【ナビ】セリフ
+【ガイド】セリフ
+（最後はどちらでもOK）
+
+3〜5ターン。各ターンは40〜100文字。合計250〜350文字。
+2人で1つのストーリーを紡ぐこと。ナビが話題を振り、ガイドが掘り下げ、ナビがリアクション、ガイドがさらに広げる…という流れ。
+自然→文化→暮らし、のように話題が自然に展開していくように。
+S,
         default => '',
     };
 }
@@ -1269,6 +1295,12 @@ function _generateDialogueAudio(string $text, string $voiceMode): ?string
 
     $turns = _parseDialogueText($text, $speakers);
     if (empty($turns)) return null;
+
+    $isGeminiDuo = ($voiceMode === 'duo-gemini');
+
+    if ($isGeminiDuo) {
+        return _generateGeminiDialogueAudio($turns);
+    }
 
     $voicevoxHost = 'http://127.0.0.1:50021';
     $wavParts = [];
@@ -1539,6 +1571,7 @@ function _resolveGeminiVoice(string $voiceMode, string $lang = 'ja'): string
     return match ($voiceMode) {
         'gemini-bright'  => 'Zephyr',
         'gemini-calm'    => 'Orus',
+        'gemini-random'  => random_int(0, 1) === 0 ? 'Zephyr' : 'Orus',
         default          => ($lang === 'ja') ? 'Zephyr' : 'Kore',
     };
 }
@@ -1591,6 +1624,78 @@ function _generateGeminiAudio(string $text, string $voiceMode = 'gemini-bright',
 
     $wavData = _pcmToWav($pcmData, 24000, 16, 1);
 
+    $yearMonth = date('Y-m');
+    $dir = PUBLIC_DIR . "/uploads/audio/voice/{$yearMonth}";
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    $wavName = 'vg_' . bin2hex(random_bytes(6)) . '.wav';
+    $wavPath = "{$dir}/{$wavName}";
+    file_put_contents($wavPath, $wavData);
+
+    $mp3Path = _wavToMp3($wavPath);
+    if ($mp3Path) return "/uploads/audio/voice/{$yearMonth}/" . basename($mp3Path);
+    return "/uploads/audio/voice/{$yearMonth}/{$wavName}";
+}
+
+function _generateGeminiDialogueAudio(array $turns): ?string
+{
+    $apiKey = defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '';
+    if (!$apiKey || empty($turns)) return null;
+
+    $allPcm = '';
+    $silenceGap = str_repeat("\x00", 24000 * 2 * intval(0.3));
+
+    foreach ($turns as $turn) {
+        $voiceName = $turn['speaker']['gemini_voice'] ?? 'Zephyr';
+        $tText = $turn['text'];
+        if (mb_strlen($tText) > 100) {
+            $tText = mb_substr($tText, 0, 100);
+            $lp = mb_strrpos($tText, '。');
+            if ($lp !== false && $lp > 40) $tText = mb_substr($tText, 0, $lp + 1);
+        }
+
+        $payload = [
+            'contents' => [['parts' => [['text' => $tText]]]],
+            'generationConfig' => [
+                'responseModalities' => ['AUDIO'],
+                'speechConfig' => [
+                    'voiceConfig' => [
+                        'prebuiltVoiceConfig' => ['voiceName' => $voiceName],
+                    ],
+                ],
+            ],
+        ];
+
+        $model = 'gemini-2.5-flash-preview-tts';
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}",
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_CONNECTTIMEOUT => 3,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || !$response) continue;
+        $data = json_decode($response, true);
+        $audioPart = $data['candidates'][0]['content']['parts'][0]['inlineData'] ?? null;
+        if (!$audioPart || empty($audioPart['data'])) continue;
+
+        $pcm = base64_decode($audioPart['data']);
+        if (!$pcm) continue;
+
+        if ($allPcm !== '') $allPcm .= $silenceGap;
+        $allPcm .= $pcm;
+    }
+
+    if ($allPcm === '') return null;
+
+    $wavData = _pcmToWav($allPcm, 24000, 16, 1);
     $yearMonth = date('Y-m');
     $dir = PUBLIC_DIR . "/uploads/audio/voice/{$yearMonth}";
     if (!is_dir($dir)) mkdir($dir, 0755, true);

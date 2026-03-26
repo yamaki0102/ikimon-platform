@@ -28,7 +28,7 @@ var VoiceGuide = (function() {
     var onFinishCallback = null;
 
     var VALID_OUTPUTS = ['bluetooth', 'speaker'];
-    var VALID_SPEAKERS = ['auto', 'mochiko', 'ryusei', 'zundamon', 'gemini-bright', 'gemini-calm', 'duo-zundamon-mochiko', 'duo-zundamon-ryusei'];
+    var VALID_SPEAKERS = ['auto', 'mochiko', 'ryusei', 'zundamon', 'gemini-bright', 'gemini-calm', 'gemini-random', 'duo-zundamon-mochiko', 'duo-zundamon-ryusei', 'duo-gemini'];
 
     // --- A2DP キープアライブ ---
     // 車載Bluetoothは無音が続くとA2DPを休止し、次の再生がスマホスピーカーに

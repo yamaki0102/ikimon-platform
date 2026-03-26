@@ -837,11 +837,11 @@ if (!$currentUser) {
                 guideMood: localStorage.getItem('ikimon_guide_mood') || 'relax',
                 selectedSpeaker: localStorage.getItem('ikimon_voice_speaker') || localStorage.getItem('ikimon_speaker') || 'gemini-bright',
                 speakers: [
-                    { id: 'gemini-bright', label: '女性', emoji: '👩' },
-                    { id: 'gemini-calm', label: '男性', emoji: '👨' },
+                    { id: 'gemini-random', label: 'おまかせ', emoji: '🎲' },
                     { id: 'zundamon', label: 'ずんだもん', emoji: '🟢' },
-                    { id: 'duo-zundamon-mochiko', label: 'ずんだ×もち子', emoji: '🎙️' },
-                    { id: 'duo-zundamon-ryusei', label: 'ずんだ×龍星', emoji: '🎙️' },
+                    { id: 'duo-gemini', label: '男性×女性', emoji: '👫' },
+                    { id: 'duo-zundamon-mochiko', label: 'ずんだ×もち子', emoji: '💚' },
+                    { id: 'duo-zundamon-ryusei', label: 'ずんだ×龍星', emoji: '💙' },
                 ],
                 modeLabels: { stationary: '静止中', walk: 'サーチ中', bike: 'サーチ中（自転車）', drive: 'サーチ中（車）', car: 'サーチ中（車）' },
 
