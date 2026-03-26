@@ -561,6 +561,7 @@ if ($requestMode === 'ambient') {
     $elapsedMin = api_param('elapsed_min', 0, 'int');
     $sessionCount = api_param('session_count', 0, 'int');
     $weather = api_param('weather', '');
+    $driveTotalMin = api_param('drive_total_min', 0, 'int');
 
     $areaName = '';
     try {
@@ -649,6 +650,19 @@ if ($requestMode === 'ambient') {
         default => 'マニアックで深い話を。リスナーはもうベテラン。「キミのデータがこの地域の生態系を記録してる」と伝えて。観察者としての誇りを感じさせる語りを。',
     };
 
+    // ペーシング指示（ドライブ時間指定時）
+    $pacingInstruction = '';
+    if ($driveTotalMin > 0) {
+        $remainingMin = max(0, $driveTotalMin - $elapsedMin);
+        $progress = min(100, round($elapsedMin / $driveTotalMin * 100));
+        $pacingInstruction = match(true) {
+            $progress < 20 => "ドライブ序盤（{$progress}%経過）。これから始まる旅のワクワク感を。この先で出会えそうなものを予告して。",
+            $progress < 50 => "ドライブ中盤（{$progress}%経過）。話を深掘りするタイミング。じっくりとしたエピソードを。",
+            $progress < 80 => "ドライブ後半（{$progress}%経過）。今日見てきたものを振り返りつつ、まだ見ぬ発見への期待を。",
+            default => "もうすぐゴール（残り{$remainingMin}分）。今日の体験をまとめるような、余韻のある語りを。「この景色、覚えておいて」のように。",
+        };
+    }
+
     // 過去発話の要約（直近15件）をプロンプトに注入（重複回避精度向上）
     $recentTexts = array_slice(array_column($pastTexts, 'text'), -15);
     $avoidList = !empty($recentTexts)
@@ -672,6 +686,7 @@ if ($requestMode === 'ambient') {
 {$ambientLandscape}
 {$ambientConservation}
 {$depthInstruction}
+{$pacingInstruction}
 
 今回のテーマ: {$topic}
 

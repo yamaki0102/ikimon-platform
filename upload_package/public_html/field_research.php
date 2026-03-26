@@ -403,6 +403,19 @@ if (!$currentUser) {
                     </template>
                 </div>
             </div>
+            <!-- ドライブ時間（車モード時のペーシング用） -->
+            <div x-show="manualTransportMode === 'car'" x-cloak style="margin-bottom:10px;">
+                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🕐 ドライブ時間（ガイドのペース配分に使います）</div>
+                <div style="display:flex;gap:6px;">
+                    <template x-for="dt in [{min:15,label:'15分'},{min:30,label:'30分'},{min:60,label:'1時間'},{min:0,label:'指定なし'}]" :key="dt.min">
+                        <button @click="driveDurationMin = dt.min; localStorage.setItem('ikimon_drive_duration', dt.min)"
+                                :style="driveDurationMin === dt.min ? 'background:rgba(59,130,246,0.2);color:#60a5fa;border-color:#3b82f6;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
+                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:11px;font-weight:700;">
+                            <span x-text="dt.label"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
             <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;">
                 <button @click="startSensor()" style="flex:1;padding:14px;border-radius:14px;border:none;background:#10b981;color:#fff;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
                     <span style="font-size:20px;">📡</span> いきものセンサー ON
@@ -779,6 +792,7 @@ if (!$currentUser) {
                 showSpeakerSelect: true,
                 showVoiceSwitch: false,
                 showDriveVoiceSwitch: false,
+                driveDurationMin: parseInt(localStorage.getItem('ikimon_drive_duration') || '0'),
                 selectedSpeaker: localStorage.getItem('ikimon_voice_speaker') || localStorage.getItem('ikimon_speaker') || 'gemini-bright',
                 speakers: [
                     { id: 'gemini-bright', label: '女性', emoji: '👩' },
@@ -1002,11 +1016,28 @@ if (!$currentUser) {
                         this.sessionSpeciesCount = this.liveScanner.getSpeciesCount();
                     }, 1000);
 
-                    // Ambient voice guide — periodic nature commentary (every 45s)
+                    // Ambient voice guide — periodic nature commentary
+                    // ドライブ時間指定あり: 時間配分型ペーシング / なし: 45秒固定間隔
                     this._ambientGuideCount = 0;
+                    this._driveTotalMin = this.driveDurationMin || 0;
+                    const ambientIntervalMs = this._driveTotalMin > 0
+                        ? Math.max(30000, Math.min(120000, (this._driveTotalMin * 60000) / Math.max(6, Math.ceil(this._driveTotalMin / 5))))
+                        : 45000;
+                    console.log(`[Ambient] interval: ${Math.round(ambientIntervalMs/1000)}s, driveDuration: ${this._driveTotalMin}min`);
                     this._ambientTimer = setInterval(async () => {
                         if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
                         if (VoiceGuide.isSpeaking()) return;
+
+                        // ドライブ時間超過 → 自動クロージング
+                        if (this._driveTotalMin > 0) {
+                            const elapsedMin = (this.sessionElapsed || 0) / 60;
+                            if (elapsedMin >= this._driveTotalMin - 2 && !this._closingTriggered) {
+                                this._closingTriggered = true;
+                                console.log('[Ambient] Auto-closing triggered');
+                                this.stopSensor();
+                                return;
+                            }
+                        }
 
                         // First drain any queued landscape history
                         if (VoiceGuide.drainAmbientQueue) {
@@ -1034,6 +1065,7 @@ if (!$currentUser) {
                                 transport_mode: transportMode,
                                 elapsed_min: Math.round((this.sessionElapsed || 0) / 60),
                                 session_count: this._ambientGuideCount,
+                                drive_total_min: this._driveTotalMin || 0,
                             });
                             const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
                             if (!resp.ok) return;
