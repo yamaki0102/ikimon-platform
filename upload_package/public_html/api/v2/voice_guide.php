@@ -26,18 +26,19 @@ if (!api_rate_limit('voice_guide', 30, 60)) {
 
 $requestMode = api_param('mode', 'detection');
 $voiceMode = api_param('voice_mode', 'gemini-bright');
-$validModes = ['standard', 'auto', 'mochiko', 'ryusei', 'zundamon', 'gemini-bright', 'gemini-calm'];
+$validModes = ['standard', 'auto', 'mochiko', 'ryusei', 'zundamon', 'gemini-bright', 'gemini-calm', 'duo-zundamon-mochiko', 'duo-zundamon-ryusei'];
 if (!in_array($voiceMode, $validModes, true)) {
     $voiceMode = 'gemini-bright';
 }
-$isZundamonStyle = ($voiceMode === 'zundamon');
+$isDuoVoice = str_starts_with($voiceMode, 'duo-');
+$isZundamonStyle = ($voiceMode === 'zundamon' || $isDuoVoice);
 $isGeminiTTS = str_starts_with($voiceMode, 'gemini-');
 
 $guideLang = api_param('lang', 'ja');
 if (!preg_match('/^[a-z]{2}(-[A-Z]{2})?$/', $guideLang)) $guideLang = 'ja';
 $isJapanese = ($guideLang === 'ja');
 
-$useVoicevoxAudio = in_array($voiceMode, ['auto', 'mochiko', 'ryusei', 'zundamon'], true) && $isJapanese;
+$useVoicevoxAudio = (in_array($voiceMode, ['auto', 'mochiko', 'ryusei', 'zundamon'], true) || $isDuoVoice) && $isJapanese;
 if (!$isJapanese) {
     $isZundamonStyle = false;
     if (!$isGeminiTTS) $isGeminiTTS = true;
@@ -230,9 +231,13 @@ if ($requestMode === 'opening') {
         }
     }
 
-    $styleInstruction = $isZundamonStyle
-        ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
-        : '親しい友人のような口調で。敬語は軽めに。';
+    if ($isDuoVoice) {
+        $styleInstruction = _getDuoStyleInstruction($voiceMode);
+    } else {
+        $styleInstruction = $isZundamonStyle
+            ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
+            : '親しい友人のような口調で。敬語は軽めに。';
+    }
 
     $weatherNote = $weather ? "天気: {$weather}" : '';
     $tempNote = $temperature ? "気温: {$temperature}" : '';
@@ -334,9 +339,13 @@ if ($requestMode === 'closing') {
         $memoryContext = "キミの最近の自然体験:\n" . implode("\n", $memoryLines) . "\n→ 過去の体験と今日をつなげる一言を添えられるなら添えて。";
     }
 
-    $styleInstruction = $isZundamonStyle
-        ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
-        : '親しい友人のような温かい口調で。';
+    if ($isDuoVoice) {
+        $styleInstruction = _getDuoStyleInstruction($voiceMode);
+    } else {
+        $styleInstruction = $isZundamonStyle
+            ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
+            : '親しい友人のような温かい口調で。';
+    }
 
     $silentContext = $silentMinutes > 5
         ? "今日は静かな時間が{$silentMinutes}分ほどあった。それも自然体験の一部として肯定的に触れて。"
@@ -463,9 +472,13 @@ if ($requestMode === 'silence') {
         $areaName = trim(($geo['prefecture'] ?? '') . ' ' . ($geo['municipality'] ?? ''));
     } catch (Throwable $e) {}
 
-    $styleInstruction = $isZundamonStyle
-        ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
-        : '穏やかで詩的な口調で。';
+    if ($isDuoVoice) {
+        $styleInstruction = _getDuoStyleInstruction($voiceMode);
+    } else {
+        $styleInstruction = $isZundamonStyle
+            ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
+            : '穏やかで詩的な口調で。';
+    }
 
     $depthAngles = [
         'gentle' => [
@@ -561,9 +574,13 @@ if ($requestMode === 'ambient') {
     // 付近の過去観察・同定データを取得（半径2km以内）
     $nearbyContext = _getNearbyObservations($lat, $lng, 2.0);
 
-    $styleInstruction = $isZundamonStyle
-        ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
-        : '優しいネイチャーガイドの口調で話してください。';
+    if ($isDuoVoice) {
+        $styleInstruction = _getDuoStyleInstruction($voiceMode);
+    } else {
+        $styleInstruction = $isZundamonStyle
+            ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。'
+            : '優しいネイチャーガイドの口調で話してください。';
+    }
 
     $topicPool = [
         'この地域にいる生き物の「つながり」を1つ教えて。食べる・食べられるだけじゃなく、巣を提供する・花粉を運ぶ・種を撒くみたいな意外な関係で',
@@ -790,9 +807,13 @@ if ($lat && $lng) {
     $nearbyContext = _getNearbyObservations($lat, $lng, 2.0);
 }
 
-$styleInstruction = $isZundamonStyle
-    ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」を使い、元気で親しみやすい感じ。一人称は「ずんだもん」。'
-    : '優しいネイチャーガイドの口調で話してください。「〜ですよ」「〜なんです」など親しみやすく。';
+if ($isDuoVoice) {
+    $styleInstruction = _getDuoStyleInstruction($voiceMode);
+} else {
+    $styleInstruction = $isZundamonStyle
+        ? 'ずんだもんの口調で話してください。語尾は「〜のだ」「〜なのだ」を使い、元気で親しみやすい感じ。一人称は「ずんだもん」。'
+        : '優しいネイチャーガイドの口調で話してください。「〜ですよ」「〜なんです」など親しみやすく。';
+}
 
 $recentTexts = array_slice(array_column($pastTexts, 'text'), -15);
 $avoidList = !empty($recentTexts)
@@ -1098,6 +1119,14 @@ function _getNearbyObservations(float $lat, float $lng, float $radiusKm): string
 function _generateAudio(string $text, string $voiceMode, string $lang, bool $useVoicevox, bool $useGemini): ?string
 {
     if (empty($text)) return null;
+    if (_isDuoMode($voiceMode)) {
+        $url = _generateDialogueAudio($text, $voiceMode);
+        if ($url) return $url;
+        // Duo failed → fallback to single speaker (strip markers)
+        $text = preg_replace('/【[^】]+】\s*/u', '', $text);
+        $useVoicevox = true;
+        $voiceMode = 'zundamon';
+    }
     if ($useGemini) {
         $url = _generateGeminiAudio($text, $voiceMode, $lang);
         if ($url) return $url;
@@ -1115,6 +1144,156 @@ function _generateAudio(string $text, string $voiceMode, string $lang, bool $use
         }
     }
     return null;
+}
+
+function _isDuoMode(string $voiceMode): bool
+{
+    return str_starts_with($voiceMode, 'duo-');
+}
+
+function _getDuoSpeakers(string $voiceMode): array
+{
+    return match ($voiceMode) {
+        'duo-zundamon-mochiko' => [
+            ['name' => 'ずんだもん', 'marker' => '【ずんだもん】', 'id' => _pickVoicevoxSpeakerId(['ずんだもん'])],
+            ['name' => 'もち子', 'marker' => '【もち子】', 'id' => _pickVoicevoxSpeakerId(['もち子さん'])],
+        ],
+        'duo-zundamon-ryusei' => [
+            ['name' => 'ずんだもん', 'marker' => '【ずんだもん】', 'id' => _pickVoicevoxSpeakerId(['ずんだもん'])],
+            ['name' => '龍星', 'marker' => '【龍星】', 'id' => _pickVoicevoxSpeakerId(['青山龍星'])],
+        ],
+        default => [],
+    };
+}
+
+function _getDuoStyleInstruction(string $voiceMode): string
+{
+    return match ($voiceMode) {
+        'duo-zundamon-mochiko' => <<<'S'
+2人のラジオパーソナリティが掛け合いで話してください。
+【ずんだもん】好奇心旺盛なメインパーソナリティ。発見に驚き、質問を投げかけ、話を広げる。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。
+【もち子】博識なアシスタント。ずんだもんの発見や疑問に対して、面白いエピソードや豆知識で答える。丁寧だけど堅くない。「〜なんですよ」「〜なんです」「〜ですよね」。
+
+フォーマット（厳守）:
+【ずんだもん】セリフ
+【もち子】セリフ
+【ずんだもん】セリフ
+【もち子】セリフ
+（最後はどちらでもOK）
+
+3〜5ターン。各ターンは40〜100文字。合計250〜350文字。
+2人で1つのストーリーを紡ぐこと。ずんだもんが話題を振り、もち子が掘り下げ、ずんだもんがリアクション、もち子がさらに広げる…という流れ。
+自然→文化→暮らし、のように話題が自然に展開していくように。
+S,
+        'duo-zundamon-ryusei' => <<<'S'
+2人のラジオパーソナリティが掛け合いで話してください。
+【ずんだもん】好奇心旺盛なメインパーソナリティ。発見に驚き、質問を投げかけ、話を広げる。語尾は「〜のだ」「〜なのだ」。一人称は「ずんだもん」。
+【龍星】渋くてクールな解説者。落ち着いたトーンで深い知識を語る。「〜だな」「〜だろう」「〜ってやつだ」。
+
+フォーマット（厳守）:
+【ずんだもん】セリフ
+【龍星】セリフ
+【ずんだもん】セリフ
+【龍星】セリフ
+（最後はどちらでもOK）
+
+3〜5ターン。各ターンは40〜100文字。合計250〜350文字。
+2人で1つのストーリーを紡ぐこと。ずんだもんが発見して驚き、龍星が渋く解説し、ずんだもんが感動して次の疑問を投げ…という流れ。
+自然→文化→暮らし、のように話題が自然に展開していくように。
+S,
+        default => '',
+    };
+}
+
+function _parseDialogueText(string $text, array $speakers): array
+{
+    $turns = [];
+    $pattern = '/(' . implode('|', array_map(fn($s) => preg_quote($s['marker'], '/'), $speakers)) . ')/u';
+    $parts = preg_split($pattern, $text, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+
+    $currentSpeaker = null;
+    foreach ($parts as $part) {
+        $part = trim($part);
+        if (empty($part)) continue;
+        $matched = false;
+        foreach ($speakers as $sp) {
+            if ($part === $sp['marker']) {
+                $currentSpeaker = $sp;
+                $matched = true;
+                break;
+            }
+        }
+        if (!$matched && $currentSpeaker) {
+            $turns[] = ['speaker' => $currentSpeaker, 'text' => $part];
+        }
+    }
+    return $turns;
+}
+
+function _generateDialogueAudio(string $text, string $voiceMode): ?string
+{
+    $speakers = _getDuoSpeakers($voiceMode);
+    if (empty($speakers)) return null;
+
+    $turns = _parseDialogueText($text, $speakers);
+    if (empty($turns)) return null;
+
+    $voicevoxHost = 'http://127.0.0.1:50021';
+    $wavParts = [];
+    $silenceGap = str_repeat("\x00", 48000 * 2 * 0.3); // 0.3s silence at 48kHz 16bit mono
+
+    foreach ($turns as $turn) {
+        $tText = $turn['text'];
+        if (mb_strlen($tText) > 100) {
+            $tText = mb_substr($tText, 0, 100);
+            $lp = mb_strrpos($tText, '。');
+            if ($lp !== false && $lp > 40) $tText = mb_substr($tText, 0, $lp + 1);
+        }
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $voicevoxHost . '/audio_query?text=' . urlencode($tText) . '&speaker=' . $turn['speaker']['id'],
+            CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5, CURLOPT_CONNECTTIMEOUT => 1,
+        ]);
+        $queryJson = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($httpCode !== 200 || !$queryJson) continue;
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $voicevoxHost . '/synthesis?speaker=' . $turn['speaker']['id'],
+            CURLOPT_POST => true, CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS => $queryJson, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_CONNECTTIMEOUT => 1,
+        ]);
+        $wavData = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($httpCode !== 200 || !$wavData || strlen($wavData) < 100) continue;
+
+        $wavParts[] = $wavData;
+    }
+
+    if (empty($wavParts)) return null;
+
+    // Concatenate WAVs with silence gaps
+    $combined = $wavParts[0];
+    for ($i = 1; $i < count($wavParts); $i++) {
+        $combined .= $silenceGap;
+        $combined .= substr($wavParts[$i], 44); // skip WAV header
+    }
+    // Fix WAV header sizes
+    $dataSize = strlen($combined) - 44;
+    $combined = substr_replace($combined, pack('V', $dataSize + 36), 4, 4);
+    $combined = substr_replace($combined, pack('V', $dataSize), 40, 4);
+
+    $yearMonth = date('Y-m');
+    $dir = PUBLIC_DIR . "/uploads/audio/voice/{$yearMonth}";
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    $filename = 'vg_duo_' . bin2hex(random_bytes(6)) . '.wav';
+    file_put_contents("{$dir}/{$filename}", $combined);
+
+    return "/uploads/audio/voice/{$yearMonth}/{$filename}";
 }
 
 function _callGemini(string $prompt): string
