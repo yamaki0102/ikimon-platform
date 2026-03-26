@@ -1,11 +1,8 @@
-const CACHE_NAME = 'ikimon-v11-shell';
-const PHOTO_CACHE = 'ikimon-v11-photos';
+const CACHE_NAME = 'ikimon-v16-shell';
+const PHOTO_CACHE = 'ikimon-v16-photos';
 const ASSETS_TO_CACHE = [
     './',
     'index.php',
-    'post.php',
-    'explore.php',
-    'map.php',
     'login.php',
     'ranking.php',
     'profile.php',
@@ -15,15 +12,15 @@ const ASSETS_TO_CACHE = [
     'id_wizard.php',
     'site_dashboard.php',
     'offline.html',
-    'js/OfflineManager.js?v=2.1',
+    'js/OfflineManager.js',
     'js/ToastManager.js',
     'js/HapticEngine.js',
     'js/SoundManager.js',
     'js/MotionEngine.js',
-    'assets/css/tokens.css?v=2.1',
-    'assets/css/style.css?v=2.1',
-    'assets/css/skeleton.css?v=2.1',
-    'assets/css/input.css?v=2.1',
+    'assets/css/tokens.css',
+    'assets/css/style.css',
+    'assets/css/skeleton.css',
+    'assets/css/input.css',
     'assets/img/icon-192.png',
     'manifest.json'
 ];
@@ -97,6 +94,24 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Post flow should always prefer fresh assets/html to avoid stale UI on mobile
+    if (
+        url.pathname.endsWith('/post.php') || url.pathname === '/post.php' ||
+        url.pathname.endsWith('/explore.php') || url.pathname === '/explore.php' ||
+        url.pathname.endsWith('/map.php') || url.pathname === '/map.php'
+    ) {
+        event.respondWith(
+            fetch(event.request)
+                .then(response => {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                    return response;
+                })
+                .catch(() => caches.match(event.request).then(res => res || caches.match('offline.html')))
+        );
+        return;
+    }
+
     // Navigation requests (HTML) → Network First, Fallback to Cache/Offline
     if (event.request.mode === 'navigate') {
         event.respondWith(
@@ -114,8 +129,8 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // CSS files → Network First (prevents stale style flash)
-    if (url.pathname.endsWith('.css')) {
+    // JS/CSS assets → Network First (prevents stale UI after deploy)
+    if (url.pathname.endsWith('.css') || url.pathname.endsWith('.js')) {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
@@ -123,7 +138,7 @@ self.addEventListener('fetch', (event) => {
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
                     return response;
                 })
-                .catch(() => caches.match(event.request, { ignoreSearch: true }))
+                .catch(() => caches.match(event.request))
         );
         return;
     }

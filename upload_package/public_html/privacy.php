@@ -20,7 +20,7 @@ Auth::init();
     <main class="max-w-3xl mx-auto px-4 pt-24 pb-20 md:pt-28">
 
         <h1 class="text-2xl md:text-3xl font-black tracking-tight text-text mb-2">🔒 プライバシーポリシー</h1>
-        <p class="text-xs text-muted mb-8">最終更新日: 2026年2月20日</p>
+        <p class="text-xs text-muted mb-8">最終更新日: 2026年3月11日</p>
 
         <div class="space-y-8 text-sm text-text leading-relaxed">
 
@@ -55,7 +55,7 @@ Auth::init();
                 <ul class="list-disc list-inside space-y-1 text-muted">
                     <li>サービスの提供・運営・改善</li>
                     <li>コミュニティによる生物同定の支援</li>
-                    <li>生物多様性データの科学的利用（GBIF等への共有）</li>
+                    <li>観察データの公共的な共有（GBIF 等への連携を含む）</li>
                     <li>不正利用の防止・セキュリティの確保</li>
                     <li>利用状況の分析・統計の作成</li>
                 </ul>
@@ -72,7 +72,7 @@ Auth::init();
 
             <section>
                 <h2 class="text-lg font-black text-text mb-3">4. EXIF データの取り扱い</h2>
-                <p>写真に含まれる EXIF データ（撮影日時、GPS 座標、カメラ機種等）は、データ品質の検証に利用します。EXIF に含まれる GPS 座標と投稿時の位置情報を照合し、データの信頼性を評価します。</p>
+                <p>写真に含まれる EXIF データ（撮影日時、GPS 座標、カメラ機種等）は、記録内容の確認に利用します。EXIF に含まれる GPS 座標と投稿時の位置情報を照合し、記録の整合性を見直すための参考にします。</p>
                 <p class="mt-2">公開写真からは EXIF の GPS 情報は除去されます。</p>
             </section>
 
@@ -80,7 +80,7 @@ Auth::init();
                 <h2 class="text-lg font-black text-text mb-3">5. データの第三者提供</h2>
                 <p>以下の場合に限り、収集したデータを第三者に提供します。</p>
                 <ul class="list-disc list-inside space-y-1 text-muted mt-2">
-                    <li><strong class="text-text">GBIF への共有</strong>: CC0 または CC BY ライセンスの研究グレードデータのみ</li>
+                    <li><strong class="text-text">GBIF への共有</strong>: CC0 または CC BY ライセンスで、研究利用可または種レベル研究用に整理されたデータのみ</li>
                     <li><strong class="text-text">API 経由の提供</strong>: 有料プラン契約者に対し、投稿者が選択したライセンスの範囲内で</li>
                     <li><strong class="text-text">法的要請</strong>: 法令に基づく開示要請があった場合</li>
                 </ul>
@@ -119,12 +119,12 @@ Auth::init();
         <div class="flex flex-wrap gap-3 mt-10 pt-6 border-t border-border">
             <a href="terms.php" class="text-xs font-bold text-primary hover:underline">📜 利用規約</a>
             <a href="faq.php" class="text-xs font-bold text-primary hover:underline">❓ よくある質問</a>
-            <a href="pricing.php" class="text-xs font-bold text-primary hover:underline">💰 料金プラン</a>
+            <a href="for-business/#pricing" class="text-xs font-bold text-primary hover:underline">💰 料金プラン</a>
         </div>
 
     </main>
 
-    <?php include __DIR__ . '/components/footer_nav.php'; ?>
+    <?php include __DIR__ . '/components/footer.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
     </script>

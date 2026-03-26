@@ -22,7 +22,23 @@ _*
 *.tmp
 tmp_*.php
 tmp_*.html
+tmp_*.sh
 tmp_ai_review/
+ikimon_cookie*.txt
+ikimon_post*.html
+
+# === Embeddings / large data ===
+upload_package/data/embeddings/
+upload_package/data/system/
+
+# === APK binary ===
+upload_package/public_html/assets/apk/
+
+# === Android build artifacts ===
+android-shell/.gradle/
+android-shell/app/build/
+android-shell/build/
+android-shell/local.properties
 
 # === Data (user-generated, server-specific) ===
 upload_package/data/redlists/scraped_production_master.csv
@@ -59,6 +75,7 @@ upload_package/data/sites/
 upload_package/data/analytics/
 upload_package/data/rate_limits/
 upload_package/data/sessions/
+upload_package/data/affiliate/
 upload_package/data/*.json
 upload_package/data/*.db
 upload_package/data/*.sqlite3

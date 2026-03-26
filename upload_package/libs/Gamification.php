@@ -9,6 +9,7 @@ require_once __DIR__ . '/ObserverRank.php';
 require_once __DIR__ . '/QuestManager.php';
 require_once __DIR__ . '/EventLog.php';
 require_once __DIR__ . '/StreakTracker.php';
+require_once __DIR__ . '/BioUtils.php';
 
 class Gamification
 {
@@ -58,7 +59,7 @@ class Gamification
             if (($obs['user_id'] ?? '') === $userId) {
                 $postCount++;
                 $obsStatus = $obs['quality_grade'] ?? ($obs['status'] ?? '');
-                if (in_array($obsStatus, ['Research Grade', '研究用'])) {
+                if (BioUtils::isResearchGradeLike($obsStatus)) {
                     $rgCount++;
                 }
 
@@ -225,7 +226,7 @@ class Gamification
             $user['observer_rank_level'] = $newLevel;
 
             // === Quest Progress Check ===
-            $activeQuests = QuestManager::getActiveQuests();
+            $activeQuests = QuestManager::getActiveQuests($userId);
             $questLog = $user['quest_log'] ?? [];
             $today = date('Y-m-d');
             $questScoreAdded = 0;

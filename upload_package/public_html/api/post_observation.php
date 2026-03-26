@@ -1,11 +1,22 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
+$requestStartedAt = microtime(true);
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/RateLimiter.php';
 require_once __DIR__ . '/../../libs/SurveyManager.php';
 require_once __DIR__ . '/../../libs/StreakTracker.php';
+require_once __DIR__ . '/../../libs/Taxonomy.php';
+require_once __DIR__ . '/../../libs/ObservationRecalcQueue.php';
+require_once __DIR__ . '/../../libs/ManagedSiteRegistry.php';
+require_once __DIR__ . '/../../libs/AiAssessmentQueue.php';
+require_once __DIR__ . '/../../libs/EmbeddingQueue.php';
+require_once __DIR__ . '/../../libs/AsyncJobMetrics.php';
+require_once __DIR__ . '/../../libs/Auth.php';
+require_once __DIR__ . '/../../libs/Gamification.php';
+require_once __DIR__ . '/../../libs/GeoUtils.php';
+require_once __DIR__ . '/../../libs/SurveyorManager.php';
 
 // FB-12: Apply post-specific rate limiting (10 posts / 5 min)
 RateLimiter::check();
@@ -191,6 +202,32 @@ function respond($success, $message, $data = [])
     exit;
 }
 
+function respondAndContinue($success, $message, $data = []): void
+{
+    $payload = json_encode(array_merge(['success' => $success, 'message' => $message], $data), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+    if ($payload === false) {
+        $payload = '{"success":false,"message":"response_encode_failed"}';
+    }
+
+    ignore_user_abort(true);
+    if (function_exists('session_write_close')) {
+        @session_write_close();
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    header('Connection: close');
+    header('Content-Length: ' . strlen($payload));
+    echo $payload;
+
+    while (ob_get_level() > 0) {
+        @ob_end_flush();
+    }
+    @flush();
+    if (function_exists('fastcgi_finish_request')) {
+        @fastcgi_finish_request();
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     respond(false, 'Invalid request method');
 }
@@ -206,8 +243,23 @@ $observed_at = $_POST['observed_at'] ?? '';
 $lat = $_POST['lat'] ?? '';
 $lng = $_POST['lng'] ?? '';
 $cultivation = $_POST['cultivation'] ?? 'wild';
+$organismOrigin = $_POST['organism_origin'] ?? '';
 $biome = $_POST['biome'] ?? 'unknown'; // Phase 17
 $note = $_POST['note'] ?? '';
+$managedContext = ManagedSiteRegistry::normalizeObservationContext([
+    'cultivation' => $cultivation,
+    'organism_origin' => $organismOrigin,
+    'managed_context_type' => $_POST['managed_context_type'] ?? null,
+    'managed_site_id' => $_POST['managed_site_id'] ?? null,
+    'managed_site_name' => $_POST['managed_site_name'] ?? null,
+    'managed_context_note' => $_POST['managed_context_note'] ?? null,
+]);
+$organismOrigin = $managedContext['organism_origin'];
+$recordMode = trim((string)($_POST['record_mode'] ?? 'standard'));
+$allowedRecordModes = ['standard', 'surveyor_official'];
+if (!in_array($recordMode, $allowedRecordModes, true)) {
+    $recordMode = 'standard';
+}
 
 // 100-Year Archive Fusion: Substrate/Terrain Tags
 $substrateTags = [];
@@ -229,6 +281,21 @@ if (!empty($_POST['evidence_tags'])) {
     }
 }
 
+// Individual Count (abundance reference indicator)
+$individualCount = null;
+if (isset($_POST['individual_count']) && $_POST['individual_count'] !== '') {
+    $raw = (int)$_POST['individual_count'];
+    if ($raw >= 1 && $raw <= 9999) {
+        $individualCount = $raw;
+    }
+}
+
+Auth::init();
+$currentUser = Auth::user();
+$isSurveyorOfficial = $recordMode === 'surveyor_official' && SurveyorManager::isApproved($currentUser);
+if ($recordMode === 'surveyor_official' && !$isSurveyorOfficial) {
+    respond(false, '調査員として承認されたアカウントのみ公式記録を作成できます。');
+}
 
 // Generate UUID v4 for observation (GBIF/DwC-A compatible persistent identifier)
 $bytes = random_bytes(16);
@@ -236,14 +303,14 @@ $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40); // version 4
 $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80); // variant RFC 4122
 $id = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
 $observation_dir = PUBLIC_DIR . '/uploads/photos/' . $id;
-if (!mkdir($observation_dir, 0777, true)) {
-    respond(false, 'フォルダの作成に失敗しました');
-}
 
 $photos = [];
 $exifData = null; // FB-15: First photo's EXIF data
 
 if (!empty($_FILES['photos'])) {
+    if (!is_dir($observation_dir) && !mkdir($observation_dir, 0777, true)) {
+        respond(false, 'フォルダの作成に失敗しました');
+    }
     $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     $maxFileSize = 10 * 1024 * 1024; // 10MB per file
     $useFinfo = class_exists('finfo');
@@ -295,11 +362,7 @@ if (!empty($_FILES['photos'])) {
             }
         }
     }
-}
-
-if (empty($photos)) {
-    // Clean up empty directory
-    @rmdir($observation_dir);
+} elseif ($recordMode !== 'surveyor_official') {
     respond(false, '写真がアップロードされていません');
 }
 
@@ -320,8 +383,10 @@ if ((empty($lat) || empty($lng)) && $exifLat !== null && $exifLng !== null) {
 
 if (empty($lat) || empty($lng)) {
     // Clean up
-    foreach (glob($observation_dir . '/*') as $file) unlink($file);
-    @rmdir($observation_dir);
+    if (is_dir($observation_dir)) {
+        foreach (glob($observation_dir . '/*') as $file) unlink($file);
+        @rmdir($observation_dir);
+    }
     respond(false, '位置情報が必要です（GPSを有効にするか、位置情報付きの写真をアップロードしてください）');
 }
 
@@ -330,8 +395,10 @@ require_once __DIR__ . '/../../libs/GeoUtils.php';
 $coordCheck = GeoUtils::validateCoordinates((float)$lat, (float)$lng);
 if (!$coordCheck['valid']) {
     // Clean up
-    foreach (glob($observation_dir . '/*') as $file) unlink($file);
-    @rmdir($observation_dir);
+    if (is_dir($observation_dir)) {
+        foreach (glob($observation_dir . '/*') as $file) unlink($file);
+        @rmdir($observation_dir);
+    }
 
     $reasons = [
         'out_of_range' => '座標が有効範囲外です',
@@ -340,11 +407,6 @@ if (!$coordCheck['valid']) {
     ];
     respond(false, $reasons[$coordCheck['reason']] ?? '無効な座標です');
 }
-
-// Prepare observation data
-require_once __DIR__ . '/../../libs/Auth.php';
-require_once __DIR__ . '/../../libs/Gamification.php';
-require_once __DIR__ . '/../../libs/GeoUtils.php';
 
 // Reverse geocode: lat/lng → country, prefecture, municipality
 $geo = GeoUtils::reverseGeocode((float)$lat, (float)$lng);
@@ -356,7 +418,12 @@ if (!BiomeManager::isValid($biome)) {
     $biome = 'unknown';
 }
 
-$currentUser = Auth::user();
+$biomeAutoSelected = !empty($_POST['biome_auto_selected']) && $_POST['biome_auto_selected'] === '1';
+$biomeAutoReason = mb_substr(trim((string)($_POST['biome_auto_reason'] ?? '')), 0, 160);
+
+if ($isSurveyorOfficial && empty($photos) && trim((string)($_POST['taxon_name'] ?? '')) === '' && trim($note) === '') {
+    respond(false, '写真なしの公式記録では、少なくとも種名かメモを入力してください。');
+}
 
 
 // ゲスト投稿対応: ログイン済みならユーザーID、ゲストならセッション管理されたゲストID
@@ -390,6 +457,8 @@ $observation = [
     'prefecture' => $geo['prefecture'],
     'municipality' => $geo['municipality'],
     'cultivation' => $cultivation,
+    'organism_origin' => $organismOrigin,
+    'managed_context' => $managedContext['managed_context'],
     'life_stage' => $_POST['life_stage'] ?? 'unknown',
     'note' => $note,
     'photos' => $photos,
@@ -402,9 +471,19 @@ $observation = [
     'updated_at' => date('Y-m-d H:i:s'),
     'identifications' => [],
     'taxon' => null,
+    'record_mode' => $isSurveyorOfficial ? 'surveyor_official' : 'standard',
+    'official_record' => $isSurveyorOfficial,
     'biome' => $biome, // Phase 17
+    'biome_meta' => [
+        'auto_selected' => $biomeAutoSelected,
+        'source' => $biomeAutoSelected ? 'post_auto' : 'manual',
+        'reason' => $biomeAutoSelected ? $biomeAutoReason : '',
+        'updated_at' => date('c'),
+    ],
     'substrate_tags' => $substrateTags ?: null, // 100-Year Archive Fusion
     'evidence_tags' => $evidenceTags ?: null, // Phase C M7: Data Quality
+    'individual_count' => $individualCount, // Abundance reference indicator (DwC: individualCount)
+    'archive_track' => ManagedSiteRegistry::isWildLike($organismOrigin) ? 'wild_occurrence' : 'managed_collection',
     // Phase A3: CC License (default CC BY — optimal for GBIF sharing)
     'license' => in_array($_POST['license'] ?? '', ['CC0', 'CC-BY', 'CC-BY-NC']) ? $_POST['license'] : 'CC-BY',
     // Phase A2: Data Quality Flags (auto-computed, recalculated on ID changes)
@@ -414,13 +493,21 @@ $observation = [
         'has_date'     => !empty($observed_at),
         'is_organism'  => true, // Default true; future: AI validation
         'has_id'       => false, // Updated below if initial ID provided
-        'is_wild'      => ($cultivation !== 'cultivated'),
+        'is_wild'      => ManagedSiteRegistry::isWildLike($organismOrigin),
         'is_recent'    => (strtotime($observed_at ?: 'now') > strtotime('-1 year')),
         'ecological_verified' => !empty($_POST['ecological_verified']), // Phase 4 Validation
     ],
     // NP: GPS coordinate accuracy in meters (for DwC coordinateUncertaintyInMeters)
     'coordinate_accuracy' => !empty($_POST['coordinate_accuracy']) ? (int)$_POST['coordinate_accuracy'] : null,
 ];
+
+if ($isSurveyorOfficial) {
+    $observation['official_source'] = [
+        'type' => 'surveyor',
+        'user_id' => $userId,
+        'status' => SurveyorManager::getStatus($currentUser),
+    ];
+}
 
 // FB-15: Store EXIF GPS as metadata if available (for data quality)
 if ($exifLat !== null && $exifLng !== null) {
@@ -452,72 +539,63 @@ if (!empty($_POST['ai_hint'])) {
     }
 }
 
+if (AiObservationAssessment::isConfigured()) {
+    $observation['ai_assessment_status'] = 'queued';
+}
+
 // Initial Identification (if provided)
 if (!empty($_POST['taxon_name'])) {
-    $taxonSlug = trim($_POST['taxon_slug'] ?? '');
-    $scientificName = '';
-    $gbifKey = null;
-    $taxonRank = $_POST['taxon_rank'] ?? 'species';
-    $taxonSource = $_POST['taxon_source'] ?? 'local';
-    $inatTaxonId = !empty($_POST['inat_taxon_id']) ? (int)$_POST['inat_taxon_id'] : null;
-    $taxonThumbnail = $_POST['taxon_thumbnail'] ?? null;
-
-    // Resolve scientific name + GBIF key from taxon_resolver
-    if ($taxonSlug) {
-        $resolverFile = DATA_DIR . '/taxon_resolver.json';
-        if (file_exists($resolverFile)) {
-            $resolver = json_decode(file_get_contents($resolverFile), true);
-            $taxonData = $resolver['taxa'][$taxonSlug] ?? null;
-            if ($taxonData) {
-                $scientificName = $taxonData['accepted_name'] ?? '';
-                $gbifKey = $taxonData['gbif_key'] ?? null;
-                $taxonSource = 'local';
-            }
-        }
-    }
-
-    // フリーテキスト同定: slug/resolverにヒットしなかった場合
-    // ユーザー入力をそのまま受け入れ、source: 'freetext' で保存
-    if (!$scientificName && !$taxonSlug) {
-        $taxonSource = 'freetext';
-    }
+    $resolvedTaxon = Taxonomy::resolveFromInput([
+        'taxon_name' => $_POST['taxon_name'] ?? '',
+        'taxon_slug' => $_POST['taxon_slug'] ?? '',
+        'taxon_rank' => $_POST['taxon_rank'] ?? 'species',
+        'taxon_source' => $_POST['taxon_source'] ?? 'local',
+        'inat_taxon_id' => $_POST['inat_taxon_id'] ?? null,
+        'taxon_key' => $_POST['taxon_key'] ?? ($_POST['gbif_key'] ?? null),
+    ]);
 
     $initial_id = [
         'id' => bin2hex(random_bytes(4)),
         'user_id' => $userId,
         'user_name' => $currentUser['name'] ?? 'Guest',
         'user_avatar' => $currentUser['avatar'] ?? 'https://i.pravatar.cc/150?u=' . $userId,
-        'taxon_name' => $_POST['taxon_name'],
-        'taxon_slug' => $taxonSlug,
-        'scientific_name' => $scientificName,
+        'taxon_id' => $resolvedTaxon['taxon_id'],
+        'taxon_provider' => $resolvedTaxon['provider'],
+        'taxon_provider_id' => $resolvedTaxon['provider_id'],
+        'taxon_key' => $resolvedTaxon['key'],
+        'taxon_name' => $resolvedTaxon['name'],
+        'taxon_slug' => $resolvedTaxon['slug'],
+        'scientific_name' => $resolvedTaxon['scientific_name'],
+        'taxon_rank' => $resolvedTaxon['rank'],
+        'lineage' => $resolvedTaxon['lineage'],
+        'lineage_ids' => $resolvedTaxon['lineage_ids'],
+        'ancestry' => $resolvedTaxon['ancestry'],
+        'ancestry_ids' => $resolvedTaxon['ancestry_ids'],
+        'full_path_ids' => $resolvedTaxon['full_path_ids'],
+        'taxonomy_version' => $resolvedTaxon['taxonomy_version'],
         'confidence' => 'menot', // "Probably"
         'life_stage' => $_POST['life_stage'] ?? 'unknown',
         'note' => '',
         'created_at' => date('Y-m-d H:i:s'),
-        'weight' => 1.0
+        'weight' => 1.0,
+        'weight_snapshot' => 1.0,
+        'taxon' => Taxonomy::toObservationTaxon($resolvedTaxon),
     ];
     $observation['identifications'][] = $initial_id;
     // Update primary taxon immediately (expanded structure)
-    $observation['taxon'] = [
-        'id' => $gbifKey,
-        'name' => $_POST['taxon_name'],
-        'scientific_name' => $scientificName,
-        'slug' => $taxonSlug,
-        'rank' => $taxonRank,
-        'inat_taxon_id' => $inatTaxonId,
-        'source' => $taxonSource,
-        'thumbnail_url' => $taxonThumbnail,
-    ];
-    $observation['status'] = 'Needs ID'; // Keep as Needs ID until confirmed by others
+    $observation['taxon'] = Taxonomy::toObservationTaxon($resolvedTaxon);
+    $observation['status'] = '要同定';
     $observation['quality_flags']['has_id'] = true;
+    $observation['quality_flags']['has_lineage_conflict'] = false;
 }
 
 // Mark as user-generated content (protected from seed cleanup)
 $observation['import_source'] = 'user_post';
 
-// Save to DataStore (use append for partitioned storage)
-$timestamp = strtotime($observation['observed_at']) ?: time();
-if (DataStore::append('observations', $observation, $timestamp)) {
+// Save to DataStore (partition by creation month, not observed_at)
+if (DataStore::append('observations', $observation)) {
+    ObservationRecalcQueue::enqueue($id, 'observation_created');
+    $aiPlan = AiAssessmentQueue::planForObservation($observation, 'observation_created');
     // ゲスト投稿カウント更新
     if ($isGuestPost) {
         Auth::incrementGuestPostCount($id);
@@ -576,15 +654,41 @@ if (DataStore::append('observations', $observation, $timestamp)) {
     if (!empty($exifData['date'])) {
         $responseData['exif_date'] = $exifData['date'];
     }
+    $embeddingPlanned = EmbeddingQueue::shouldQueueObservation($observation);
+
+    if ($aiPlan !== null) {
+        AiAssessmentQueue::enqueue($id, (string)$aiPlan['reason'], $aiPlan);
+    }
+    if ($embeddingPlanned) {
+        EmbeddingQueue::enqueue($id, 'observation_created');
+        DataStore::upsert('observations', [
+            'id' => $id,
+            'embedding_status' => 'queued',
+            'embedding_updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    $responseData['ai_assessment_ready'] = false;
+    $responseData['ai_assessment_pending'] = $aiPlan !== null;
+    $responseData['embedding_pending'] = $embeddingPlanned;
 
     // Add Gamification Events to response
     if (!empty($gamificationEvents)) {
         $responseData['gamification_events'] = $gamificationEvents;
     }
 
-    StreakTracker::recordActivity($userId);
+    StreakTracker::recordActivity($userId, 'post');
+    AsyncJobMetrics::recordPostRequest([
+        'observation_id' => $id,
+        'duration_ms' => (int)round((microtime(true) - $requestStartedAt) * 1000),
+        'ai_planned' => $aiPlan !== null,
+        'embedding_planned' => $embeddingPlanned,
+        'ai_queue' => AiAssessmentQueue::snapshot(),
+        'embedding_queue' => EmbeddingQueue::snapshot(),
+    ]);
 
-    respond(true, 'Observation posted successfully', $responseData);
+    respondAndContinue(true, 'Observation posted successfully', $responseData);
+    exit;
 } else {
     respond(false, 'データの保存に失敗しました');
 }

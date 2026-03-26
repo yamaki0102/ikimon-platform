@@ -18,6 +18,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Auth.php';
+require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../../libs/CorporateSites.php';
 require_once __DIR__ . '/../../libs/RedList.php';
 require_once __DIR__ . '/../../libs/Invasive.php';
@@ -38,6 +39,13 @@ $site = CorporateSites::get($siteId);
 if (!$site) {
     http_response_code(404);
     echo json_encode(['error' => true, 'message' => 'Site not found'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$corporation = CorporatePlanGate::resolveCorporationForSite((string)$siteId);
+if ($corporation && !CorporatePlanGate::canUseAdvancedOutputs($corporation)) {
+    http_response_code(403);
+    echo json_encode(['error' => true, 'message' => 'Community ワークスペースでは観測サマリーを出力できません。Public プランで有効になります。'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     exit;
 }
 
@@ -517,7 +525,7 @@ $reportDate = date('Y年m月d日');
             </div>
             <div class="kpi-card success">
                 <div class="value"><?php echo $researchGradeRate; ?>%</div>
-                <div class="label">研究用グレード率</div>
+                <div class="label">研究利用可以上率</div>
             </div>
             <div class="kpi-card">
                 <div class="value"><?php echo $totalObservers; ?></div>
@@ -548,7 +556,7 @@ $reportDate = date('Y年m月d日');
             <div class="grade-bar">
                 <?php
                 $colors = ['A' => '#16a34a', 'B' => '#eab308', 'C' => '#f97316', 'D' => '#9ca3af'];
-                $labels = ['A' => '研究用', 'B' => '要同定', 'C' => 'カジュアル', 'D' => '情報不足'];
+                $labels = ['A' => '研究利用可', 'B' => '要同定', 'C' => 'カジュアル', 'D' => '情報不足'];
                 foreach ($gradeDistribution as $g => $count):
                     $pct = $totalObs > 0 ? ($count / $totalObs) * 100 : 0;
                     if ($pct < 1 && $count > 0) $pct = 1;
@@ -688,7 +696,7 @@ $reportDate = date('Y年m月d日');
                 <ul style="margin: 1rem 0 1rem 1.5rem;">
                     <li><strong>データ収集方法</strong>: 写真付き観察記録（スマートフォンGPS位置情報付き）</li>
                     <li><strong>同定方法</strong>: コミュニティによる相互検証（WE-Consensus アルゴリズム）</li>
-                    <li><strong>品質基準</strong>: 2人以上の同意（同意率2/3以上）で「研究用グレード」に到達</li>
+                    <li><strong>品質基準</strong>: 2人以上の同意（同意率2/3以上）で、分類の深さに応じて「研究利用可」または「種レベル研究用」に到達</li>
                     <li><strong>データ形式</strong>: Darwin Core Archive (DwC-A) 準拠、GBIF互換</li>
                     <li><strong>分類体系</strong>: GBIF Backbone Taxonomy に準拠</li>
                 </ul>

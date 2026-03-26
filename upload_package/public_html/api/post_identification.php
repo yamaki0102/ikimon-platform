@@ -32,6 +32,9 @@ require_once __DIR__ . '/../../libs/DataQuality.php';
 require_once __DIR__ . '/../../libs/RateLimiter.php';
 require_once __DIR__ . '/../../libs/TrustLevel.php';
 require_once __DIR__ . '/../../libs/CSRF.php';
+require_once __DIR__ . '/../../libs/StreakTracker.php';
+require_once __DIR__ . '/../../libs/Taxonomy.php';
+require_once __DIR__ . '/../../libs/ObservationRecalcQueue.php';
 
 Auth::init();
 CSRF::validateRequest();
@@ -72,12 +75,12 @@ if (!in_array($evidenceType, $validEvidenceTypes)) {
 $evidenceDetails = array_slice($data['evidence_details'] ?? [], 0, 5);
 $notes = mb_substr(trim($data['note'] ?? $data['notes'] ?? ''), 0, 500);
 
-// Confidence — accepted for backward compatibility but NOT used in quality assessment
-// (v2: all votes are equal weight regardless of confidence)
+// Confidence — accepted for backward compatibility but not used in vote weighting
 $confidence = $data['confidence'] ?? null;
 
-// Trust weight — stored for analytics only, NOT used in consensus calculation
+// Snapshot weight at submission time so later trust changes do not rewrite history.
 $trustWeight = TrustLevel::getWeight($currentUser['id']);
+$resolvedTaxon = Taxonomy::resolveFromInput($data);
 
 // Create identification entry
 $id_entry = [
@@ -85,21 +88,22 @@ $id_entry = [
     'user_id'         => $currentUser['id'],
     'user_name'       => $currentUser['name'],
     'user_avatar'     => $currentUser['avatar'] ?? '',
-    'taxon_key'       => $data['taxon_key'] ?? '',
-    'taxon_name'      => $data['taxon_name'] ?? '',
-    'taxon_slug'      => $data['taxon_slug'] ?? '',
-    'scientific_name' => $data['scientific_name'] ?? '',
+    'taxon_key'       => $resolvedTaxon['key'],
+    'taxon_name'      => $resolvedTaxon['name'],
+    'taxon_slug'      => $resolvedTaxon['slug'],
+    'scientific_name' => $resolvedTaxon['scientific_name'],
     'confidence'      => $confidence,
     'life_stage'      => $data['life_stage'] ?? 'unknown',
-    'taxon_rank'      => $lineageData['rank'] ?? ($data['taxon_rank'] ?? 'species'),
-    'lineage'         => [
-        'kingdom' => $lineageData['kingdom'] ?? null,
-        'phylum'  => $lineageData['phylum'] ?? null,
-        'class'   => $lineageData['class'] ?? null,
-        'order'   => $lineageData['order'] ?? null,
-        'family'  => $lineageData['family'] ?? null,
-        'genus'   => $lineageData['genus'] ?? null,
-    ],
+    'taxon_rank'      => $resolvedTaxon['rank'],
+    'lineage'         => $resolvedTaxon['lineage'],
+    'lineage_ids'     => $resolvedTaxon['lineage_ids'],
+    'ancestry'        => $resolvedTaxon['ancestry'],
+    'ancestry_ids'    => $resolvedTaxon['ancestry_ids'],
+    'full_path_ids'   => $resolvedTaxon['full_path_ids'],
+    'taxon_id'        => $resolvedTaxon['taxon_id'],
+    'taxon_provider'  => $resolvedTaxon['provider'],
+    'taxon_provider_id' => $resolvedTaxon['provider_id'],
+    'taxonomy_version' => $resolvedTaxon['taxonomy_version'],
     'evidence' => [
         'type'    => $evidenceType,
         'details' => $evidenceDetails,
@@ -108,7 +112,9 @@ $id_entry = [
     'note'           => $notes,
     'created_at'     => date('Y-m-d H:i:s'),
     'weight'         => $trustWeight,
+    'weight_snapshot'=> $trustWeight,
     'trust_weight'   => $trustWeight,
+    'taxon'          => Taxonomy::toObservationTaxon($resolvedTaxon),
 ];
 
 // Add to observation — replace existing identification from same user (1 per user)
@@ -137,23 +143,23 @@ $obs['quality_flags']['has_id'] = !empty($obs['identifications']);
 $obs['updated_at'] = date('Y-m-d H:i:s');
 
 if (DataStore::upsert('observations', $obs)) {
+    ObservationRecalcQueue::enqueue($obs['id'], 'identification_saved');
     // Send Notification if not owner
     if (($obs['user_id'] ?? '') !== $currentUser['id']) {
         Notification::sendAmbient(
             $obs['user_id'],
             Notification::TYPE_IDENTIFICATION,
             '名前がついた 🏷️',
-            $currentUser['name'] . ' さんが「' . ($data['taxon_name'] ?? '') . '」と教えてくれました。',
+            $currentUser['name'] . ' さんが「' . ($resolvedTaxon['name'] ?? '') . '」と教えてくれました。',
             'observation_detail.php?id=' . $obs['id']
         );
 
-        // Research Grade (研究用) 到達通知
-        if ($oldStatus !== '研究用' && $obs['status'] === '研究用') {
+        if (!BioUtils::isResearchGradeLike($oldStatus) && BioUtils::isResearchGradeLike($obs['status'] ?? '')) {
             Notification::sendAmbient(
                 $obs['user_id'],
                 Notification::TYPE_IDENTIFICATION,
                 'みんなの知恵が集まった',
-                'あなたの記録がコミュニティの力で「研究用」に到達しました。',
+                'あなたの記録がコミュニティの力で「' . ($obs['status'] ?? '研究利用可') . '」に到達しました。',
                 'observation_detail.php?id=' . $obs['id']
             );
         }
@@ -162,6 +168,7 @@ if (DataStore::upsert('observations', $obs)) {
     // Sync Gamification Stats
     require_once __DIR__ . '/../../libs/Gamification.php';
     Gamification::syncUserStats($currentUser['id']);
+    StreakTracker::recordActivity($currentUser['id'], 'identification');
 
     echo json_encode([
         'success'        => true,

@@ -142,10 +142,10 @@ $meta_title = '名前を提案する';
                     <template x-for="item in results" :key="item.key">
                         <button @click.prevent="select(item)" class="w-full text-left p-4 hover:bg-surface border-b border-border last:border-0 transition">
                             <p class="font-bold flex items-center justify-between">
-                                <span x-text="item.canonicalName"></span>
+                                <span x-text="item.canonicalName || item.ja_name || item.scientificName || item.scientific_name"></span>
                                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-surface font-normal uppercase" x-text="item.rank"></span>
                             </p>
-                            <p class="text-xs text-muted italic" x-text="item.scientificName"></p>
+                            <p class="text-xs text-muted italic" x-text="item.scientificName || item.scientific_name"></p>
                         </button>
                     </template>
                 </div>
@@ -159,8 +159,8 @@ $meta_title = '名前を提案する';
                 </p>
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-xl font-bold" x-text="selected ? selected.canonicalName : ''"></h3>
-                        <p class="text-sm text-muted italic" x-text="selected ? selected.scientificName : ''"></p>
+                        <h3 class="text-xl font-bold" x-text="selected ? (selected.canonicalName || selected.ja_name || selected.scientificName || selected.scientific_name) : ''"></h3>
+                        <p class="text-sm text-muted italic" x-text="selected ? (selected.scientificName || selected.scientific_name) : ''"></p>
                     </div>
                     <button @click.prevent="selected = null; query = ''" class="p-2 hover:bg-red-500/20 rounded-full transition">
                         <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i>
@@ -272,7 +272,8 @@ $meta_title = '名前を提案する';
                     }
                     try {
                         const res = await fetch(`api/search_taxon.php?q=${encodeURIComponent(this.query)}`);
-                        this.results = await res.json();
+                        const data = await res.json();
+                        this.results = data.results || [];
                     } catch (e) {
                         console.error(e);
                     }
@@ -281,7 +282,7 @@ $meta_title = '名前を提案する';
                 select(item) {
                     this.selected = item;
                     this.results = [];
-                    this.query = item.canonicalName;
+                    this.query = item.canonicalName || item.ja_name || item.scientificName || item.scientific_name;
                 },
 
                 swipe() {
@@ -305,12 +306,17 @@ $meta_title = '名前を提案する';
                             },
                             body: JSON.stringify({
                                 observation_id: '<?php echo $id; ?>',
-                                taxon_key: this.selected.key,
-                                taxon_name: this.selected.canonicalName,
-                                scientific_name: this.selected.scientificName,
+                                taxon_key: this.selected.key || this.selected.gbif_key || null,
+                                taxon_name: this.selected.canonicalName || this.selected.ja_name || this.selected.scientificName || this.selected.scientific_name,
+                                scientific_name: this.selected.scientificName || this.selected.scientific_name,
                                 confidence: this.confidence,
                                 life_stage: this.life_stage, // Add life_stage
-                                note: this.note
+                                note: this.note,
+                                taxon_rank: this.selected.rank || 'species',
+                                taxon_slug: this.selected.slug || '',
+                                inat_taxon_id: this.selected.inat_taxon_id || null,
+                                lineage: this.selected.lineage || {},
+                                lineage_ids: this.selected.lineage_ids || {}
                             })
                         });
                         const result = await res.json();

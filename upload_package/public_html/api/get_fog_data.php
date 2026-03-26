@@ -171,6 +171,10 @@ foreach ($allObs as $obs) {
     if ($lat === 0.0 && $lng === 0.0) continue;
     if ($userId && ($obs['user_id'] ?? '') !== $userId) continue;
 
+    $createdAt = (string)($obs['created_at'] ?? '');
+    $createdYear = $createdAt !== '' ? (int)substr($createdAt, 0, 4) : 0;
+    if ($createdYear < 2026) continue;
+
     // Period filter
     $obsDate = strtotime($obs['observed_at'] ?? $obs['created_at'] ?? '');
     if ($periodStart && $obsDate && $obsDate < $periodStart) continue;

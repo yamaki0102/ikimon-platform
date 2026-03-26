@@ -3,7 +3,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/QuestManager.php';
-require_once __DIR__ . '/../libs/StreakTracker.php';
+require_once __DIR__ . '/../libs/HabitEngine.php';
 require_once __DIR__ . '/../libs/BioUtils.php';
 require_once __DIR__ . '/../libs/Services/UserStatsService.php';
 require_once __DIR__ . '/../libs/Services/LibraryService.php';
@@ -35,7 +35,8 @@ if ($currentUser) {
     $userStats['rank']          = $currentUser['observer_rank']['rank']['name_ja'] ?? UserStatsService::calculateRank($userStats['score']);
     $userStats['territory']     = UserStatsService::getTerritoryArea($currentUser['id']);
     $userStats['observer_rank'] = $currentUser['observer_rank'] ?? null;
-    $streakData                 = StreakTracker::getStreak($currentUser['id']);
+    $todayState                 = HabitEngine::getTodayState($currentUser['id']);
+    $streakData                 = $todayState['streak'];
 }
 
 // Observer Rank data
@@ -47,8 +48,17 @@ $orsRankColor  = $_ors ? ($_ors['rank']['color']   ?? '#8bc34a') : '#8bc34a';
 $orsRankName   = $_ors ? ($_ors['rank']['name_ja'] ?? '見習い')  : '見習い';
 
 // Daily Quest
-$activeQuests = QuestManager::getActiveQuests();
+$activeQuests = QuestManager::getActiveQuests($currentUser['id'] ?? null);
 $dailyTargets = $activeQuests;
+$todayLabels = $todayState['labels'] ?? HabitEngine::getLabels();
+$todayTypes = $todayState['today_types'] ?? [];
+$todayHabitComplete = !empty($todayState['today_complete']);
+$todayTitle = $todayState['title'] ?? '今日の継続を積もう';
+$todayMessage = $todayState['message'] ?? '';
+$todayRemaining = $todayState['remaining'] ?? [];
+$todayReflectionPreview = HabitEngine::previewNote($todayState['reflection_note'] ?? '');
+$latestReflectionPreview = HabitEngine::previewNote($todayState['latest_reflection']['note'] ?? '');
+$todayCtas = $todayState['cta_options'] ?? HabitEngine::getCtaOptions($todayTypes);
 
 // Category tiles
 $missions = [
@@ -119,7 +129,85 @@ $missions = [
         </section>
         <?php endif; ?>
 
-        <!-- 2. Quick Actions -->
+        <!-- 2. Today Habit -->
+        <?php if ($currentUser): ?>
+        <section id="today-habit-card" class="rounded-2xl border p-4 <?= $todayHabitComplete ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200' ?>">
+            <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <div class="text-token-xs font-black tracking-wide <?= $todayHabitComplete ? 'text-emerald-700' : 'text-amber-700' ?>">TODAY</div>
+                    <h2 class="text-base font-black <?= $todayHabitComplete ? 'text-emerald-950' : 'text-amber-950' ?>"><?= $todayTitle ?></h2>
+                    <p class="text-xs mt-1 <?= $todayHabitComplete ? 'text-emerald-800/80' : 'text-amber-900/80' ?>"><?= $todayMessage ?></p>
+                </div>
+                <div class="shrink-0 text-right">
+                    <div class="text-2xl"><?= $todayHabitComplete ? '🌿' : '🔥' ?></div>
+                    <div class="text-token-xs font-bold <?= $todayHabitComplete ? 'text-emerald-700' : 'text-amber-700' ?>">
+                        <?= (int)($streakData['current_streak'] ?? 0) ?>日連続
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 flex flex-wrap gap-2">
+                <?php foreach ($todayLabels as $type => $label): ?>
+                    <?php $isDone = in_array($type, $todayTypes, true); ?>
+                    <span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold <?= $isDone ? 'bg-white text-emerald-700 border border-emerald-300' : 'bg-white/70 text-gray-500 border border-white/80' ?>">
+                        <span><?= $isDone ? '✓' : '・' ?></span><?= htmlspecialchars($label) ?>
+                    </span>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                <?php foreach ($todayCtas as $type => $cta): ?>
+                    <?php if (($cta['type'] ?? 'link') === 'button'): ?>
+                    <button type="button" data-habit-cta="<?= htmlspecialchars($type) ?>" data-reflection-toggle class="rounded-xl bg-white px-3 py-3 text-center border border-white/80 hover:border-border-strong transition">
+                        <i data-lucide="<?= htmlspecialchars($cta['icon']) ?>" class="w-5 h-5 mx-auto mb-1 <?= htmlspecialchars($cta['icon_class'] ?? 'text-primary') ?>"></i>
+                        <div class="text-xs font-bold text-text"><?= htmlspecialchars($cta['label']) ?></div>
+                        <div class="text-[10px] text-muted mt-0.5"><?= htmlspecialchars($cta['detail'] ?? '') ?></div>
+                    </button>
+                    <?php else: ?>
+                    <a href="<?= htmlspecialchars($cta['href'] ?? '#') ?>" data-habit-cta="<?= htmlspecialchars($type) ?>" class="rounded-xl bg-white px-3 py-3 text-center border border-white/80 hover:border-border-strong transition">
+                        <i data-lucide="<?= htmlspecialchars($cta['icon']) ?>" class="w-5 h-5 mx-auto mb-1 <?= htmlspecialchars($cta['icon_class'] ?? 'text-primary') ?>"></i>
+                        <div class="text-xs font-bold text-text"><?= htmlspecialchars($cta['label']) ?></div>
+                        <div class="text-[10px] text-muted mt-0.5"><?= htmlspecialchars($cta['detail'] ?? '') ?></div>
+                    </a>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
+
+            <?php if ($todayReflectionPreview !== ''): ?>
+            <div class="mt-4 rounded-xl bg-white/80 border border-white/80 px-4 py-3">
+                <div class="text-[10px] font-black tracking-widest text-emerald-700">TODAY NOTE</div>
+                <p class="text-sm text-text mt-1"><?= htmlspecialchars($todayReflectionPreview) ?></p>
+            </div>
+            <?php elseif ($latestReflectionPreview !== ''): ?>
+            <p class="mt-4 text-token-xs text-muted">前回の1分メモ: <?= htmlspecialchars($latestReflectionPreview) ?></p>
+            <?php endif; ?>
+
+            <div class="mt-4 rounded-xl bg-white/80 border border-white/80 p-4 hidden" data-reflection-panel>
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <div class="text-xs font-black text-amber-700">1分メモ</div>
+                        <p class="text-[11px] text-muted mt-1">今日は何を見たか、何に気づいたかを一言だけ残す。</p>
+                    </div>
+                    <button type="button" data-reflection-cancel class="text-[11px] font-bold text-muted hover:text-text transition">閉じる</button>
+                </div>
+                <textarea data-reflection-note maxlength="120" rows="3" class="mt-3 w-full rounded-xl border border-border bg-white px-3 py-3 text-sm text-text focus:outline-none focus:border-border-strong resize-none" placeholder="例: 雨上がりで鳥の声が増えていた"></textarea>
+                <div class="mt-3 flex items-center justify-between gap-3">
+                    <p class="text-[11px] text-muted" data-reflection-status>雨の日でも継続は切らさない。</p>
+                    <button type="button" data-reflection-submit class="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-xs font-black text-white hover:bg-amber-600 transition">
+                        <i data-lucide="pen-square" class="w-4 h-4"></i> 保存して継続に加える
+                    </button>
+                </div>
+            </div>
+
+            <?php if (!$todayHabitComplete && !empty($todayRemaining)): ?>
+            <p class="mt-3 text-token-xs text-amber-700">
+                今日は <?= htmlspecialchars(implode(' / ', array_map(fn($type) => $todayLabels[$type] ?? $type, $todayRemaining))) ?> のどれかで継続成立。
+            </p>
+            <?php endif; ?>
+        </section>
+        <?php endif; ?>
+
+        <!-- 3. Quick Actions -->
         <section class="grid grid-cols-3 gap-3">
             <a href="post.php"
                class="flex flex-col items-center gap-2 bg-primary text-white rounded-2xl py-4 px-3 text-center shadow-sm active:scale-95 transition">
@@ -138,7 +226,7 @@ $missions = [
             </a>
         </section>
 
-        <!-- 3. Daily Quest -->
+        <!-- 4. Daily Quest -->
         <?php if (!empty($dailyTargets)): ?>
         <section>
             <div class="flex items-center justify-between mb-3">
@@ -165,7 +253,7 @@ $missions = [
         </section>
         <?php endif; ?>
 
-        <!-- 4. Category Exploration -->
+        <!-- 5. Category Exploration -->
         <section>
             <h2 class="text-base font-black text-text mb-3">カテゴリ探索</h2>
             <div class="grid grid-cols-2 gap-3">
@@ -200,7 +288,7 @@ $missions = [
             </div>
         </section>
 
-        <!-- 5. Recent Observations -->
+        <!-- 6. Recent Observations -->
         <?php if (!empty($latest_obs)): ?>
         <section>
             <div class="flex items-center justify-between mb-3">
@@ -236,7 +324,7 @@ $missions = [
         </section>
         <?php endif; ?>
 
-        <!-- 6. Library Stats -->
+        <!-- 7. Library Stats -->
         <section class="bg-elevated border border-border rounded-2xl p-4">
             <div class="flex items-center gap-2 mb-3">
                 <i data-lucide="book-open" class="w-4 h-4 text-amber-600"></i>
@@ -267,6 +355,101 @@ $missions = [
     </main>
 
     <?php include __DIR__ . '/components/badge_notification.php'; ?>
+    <?php if ($currentUser): ?>
+    <script nonce="<?= CspNonce::attr() ?>">
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.ikimonAnalytics) {
+                window.ikimonAnalytics.track('today_card_view', {
+                    completed: <?= $todayHabitComplete ? 'true' : 'false' ?>,
+                    location: 'dashboard',
+                    types: <?= json_encode(array_values($todayTypes), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>
+                });
+            }
+
+            var card = document.getElementById('today-habit-card');
+            var reflectionPanel = card ? card.querySelector('[data-reflection-panel]') : null;
+            var reflectionToggle = card ? card.querySelector('[data-reflection-toggle]') : null;
+            var reflectionCancel = card ? card.querySelector('[data-reflection-cancel]') : null;
+            var reflectionSubmit = card ? card.querySelector('[data-reflection-submit]') : null;
+            var reflectionNote = card ? card.querySelector('[data-reflection-note]') : null;
+            var reflectionStatus = card ? card.querySelector('[data-reflection-status]') : null;
+            var csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+            document.querySelectorAll('[data-habit-cta]').forEach(function (el) {
+                el.addEventListener('click', function () {
+                    if (window.ikimonAnalytics) {
+                        window.ikimonAnalytics.track('today_card_cta', {
+                            location: 'dashboard',
+                            target: el.getAttribute('data-habit-cta')
+                        });
+                    }
+                });
+            });
+
+            if (reflectionToggle && reflectionPanel) {
+                reflectionToggle.addEventListener('click', function () {
+                    reflectionPanel.classList.remove('hidden');
+                    reflectionNote?.focus();
+                });
+            }
+
+            if (reflectionCancel && reflectionPanel) {
+                reflectionCancel.addEventListener('click', function () {
+                    reflectionPanel.classList.add('hidden');
+                });
+            }
+
+            if (reflectionSubmit && reflectionNote) {
+                reflectionSubmit.addEventListener('click', async function () {
+                    var note = reflectionNote.value.trim();
+                    if (!note) {
+                        if (reflectionStatus) reflectionStatus.textContent = 'ひとことだけ書いてください。';
+                        reflectionNote.focus();
+                        return;
+                    }
+
+                    reflectionSubmit.disabled = true;
+                    if (reflectionStatus) reflectionStatus.textContent = '保存中...';
+
+                    try {
+                        var response = await fetch('api/log_reflection.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': csrfToken
+                            },
+                            body: JSON.stringify({
+                                note: note,
+                                source: 'dashboard'
+                            })
+                        });
+
+                        var result = await response.json();
+                        if (!response.ok || !result.success) {
+                            throw new Error(result.message || '保存に失敗しました');
+                        }
+
+                        if (window.ikimonAnalytics) {
+                            window.ikimonAnalytics.track('reflection_habit_qualified', {
+                                location: 'dashboard',
+                                note_length: note.length
+                            });
+                        }
+
+                        if (reflectionStatus) reflectionStatus.textContent = '保存した。今日の継続に加えた。';
+                        window.setTimeout(function () {
+                            window.location.reload();
+                        }, 450);
+                    } catch (error) {
+                        if (reflectionStatus) reflectionStatus.textContent = error.message || '保存に失敗しました。';
+                    } finally {
+                        reflectionSubmit.disabled = false;
+                    }
+                });
+            }
+        });
+    </script>
+    <?php endif; ?>
 </body>
 
 </html>

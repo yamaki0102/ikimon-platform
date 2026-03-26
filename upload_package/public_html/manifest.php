@@ -1,0 +1,85 @@
+<?php
+
+require_once __DIR__ . '/../config/config.php';
+header('Content-Type: application/manifest+json; charset=UTF-8');
+header('Cache-Control: no-cache, no-store, must-revalidate');
+
+$manifest = [
+    'name' => 'ikimon.life - いきもの図鑑',
+    'short_name' => 'ikimon',
+    'id' => '/?source=pwa',
+    'start_url' => '/index.php',
+    'scope' => '/',
+    'display' => 'standalone',
+    'prefer_related_applications' => false,
+    'background_color' => '#ffffff',
+    'theme_color' => '#10b981',
+    'description' => '身近な生き物を発見・記録・図鑑化。市民参加型の生物多様性プラットフォーム。',
+    'lang' => 'ja',
+    'dir' => 'ltr',
+    'categories' => ['education', 'lifestyle', 'social'],
+    'icons' => [
+        [
+            'src' => "/assets/img/pwa-icon-192.png",
+            'sizes' => '192x192',
+            'type' => 'image/png',
+            'purpose' => 'any',
+        ],
+        [
+            'src' => "/assets/img/pwa-icon-512.png",
+            'sizes' => '512x512',
+            'type' => 'image/png',
+            'purpose' => 'any',
+        ],
+        [
+            'src' => "/assets/img/pwa-icon-192-maskable.png",
+            'sizes' => '192x192',
+            'type' => 'image/png',
+            'purpose' => 'maskable',
+        ],
+        [
+            'src' => "/assets/img/pwa-icon-512-maskable.png",
+            'sizes' => '512x512',
+            'type' => 'image/png',
+            'purpose' => 'maskable',
+        ],
+    ],
+    'shortcuts' => [
+        [
+            'name' => '観察を投稿',
+            'short_name' => '投稿',
+            'url' => '/post.php',
+            'icons' => [
+                [
+                    'src' => "/assets/img/pwa-icon-192.png",
+                    'sizes' => '192x192',
+                ],
+            ],
+        ],
+        [
+            'name' => '図鑑を見る',
+            'short_name' => '図鑑',
+            'url' => '/zukan.php',
+            'icons' => [
+                [
+                    'src' => "/assets/img/pwa-icon-192.png",
+                    'sizes' => '192x192',
+                ],
+            ],
+        ],
+        [
+            'name' => 'コンパス',
+            'short_name' => 'コンパス',
+            'url' => '/compass.php',
+            'icons' => [
+                [
+                    'src' => "/assets/img/pwa-icon-192.png",
+                    'sizes' => '192x192',
+                ],
+            ],
+        ],
+    ],
+    'orientation' => 'portrait-primary',
+];
+
+echo json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);

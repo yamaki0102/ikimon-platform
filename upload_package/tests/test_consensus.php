@@ -14,7 +14,7 @@ $tests = [];
 $ST_CASUAL = 'Casual';
 $ST_NEEDS  = '未同定';
 $ST_PROP   = '要同定';
-$ST_RG     = '研究用';
+$ST_RG     = '種レベル研究用';
 
 function make_obs(array $overrides = []): array
 {

@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once ROOT_DIR . '/libs/Auth.php';
 require_once ROOT_DIR . '/libs/MyFieldManager.php';
 require_once ROOT_DIR . '/libs/CSRF.php';
+require_once ROOT_DIR . '/libs/StreakTracker.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -132,7 +133,20 @@ if ($stepCount !== null) {
     $existing['step_count'] = $stepCount;
 }
 
-file_put_contents($trackFile, json_encode($existing, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG));
+file_put_contents($trackFile, json_encode($existing, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG), LOCK_EX);
+
+$qualifiesForHabit = $existing['total_distance_m'] >= 300
+    || (($existing['step_count'] ?? 0) >= 400)
+    || $existing['point_count'] >= 12;
+
+if ($qualifiesForHabit) {
+    StreakTracker::recordActivity($user['id'], 'walk', null, [
+        'session_id' => $sessionId,
+        'distance_m' => $existing['total_distance_m'],
+        'point_count' => $existing['point_count'],
+        'step_count' => $existing['step_count'] ?? null,
+    ]);
+}
 
 echo json_encode([
     'success'        => true,
@@ -140,6 +154,7 @@ echo json_encode([
     'total_points'   => $existing['point_count'],
     'total_distance' => $existing['total_distance_m'],
     'step_count'     => $existing['step_count'] ?? null,
+    'habit_qualified' => $qualifiesForHabit,
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 
 /**

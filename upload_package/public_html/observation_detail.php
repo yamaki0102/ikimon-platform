@@ -10,8 +10,63 @@ require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/DataQuality.php';
 require_once __DIR__ . '/../libs/TrustLevel.php';
 require_once __DIR__ . '/../libs/OmoikaneSearchEngine.php';
+require_once __DIR__ . '/../libs/ObservationMeta.php';
+require_once __DIR__ . '/../libs/AffiliateManager.php';
 Auth::init();
 $currentUser = Auth::user();
+
+function containsJapaneseText(string $text): bool
+{
+    return preg_match('/[\p{Hiragana}\p{Katakana}\p{Han}]/u', $text) === 1;
+}
+
+function normalizeAiDisplayText($value, ?string $fallback = null): ?string
+{
+    if (!is_string($value)) {
+        return $fallback;
+    }
+
+    $text = trim(preg_replace('/\s+/u', ' ', $value));
+    if ($text === '') {
+        return $fallback;
+    }
+
+    $parts = preg_split('/(?<=[。！？\n])/u', $text) ?: [];
+    $japaneseParts = [];
+    foreach ($parts as $part) {
+        $part = trim($part);
+        if ($part !== '' && containsJapaneseText($part)) {
+            $japaneseParts[] = $part;
+        }
+    }
+
+    if (!empty($japaneseParts)) {
+        return trim(implode(' ', $japaneseParts));
+    }
+
+    if (containsJapaneseText($text)) {
+        return $text;
+    }
+
+    return $fallback;
+}
+
+function normalizeAiDisplayList($value): array
+{
+    if (!is_array($value)) {
+        return [];
+    }
+
+    $normalized = [];
+    foreach ($value as $item) {
+        $text = normalizeAiDisplayText($item);
+        if ($text !== null) {
+            $normalized[] = $text;
+        }
+    }
+
+    return array_values(array_unique($normalized));
+}
 
 // Get Observation
 $id = $_GET['id'] ?? '';
@@ -53,23 +108,93 @@ if ($scientific_name) {
 
 // Build species page link
 $speciesLink = null;
-if ($taxon_slug) {
-    $speciesLink = 'species/' . urlencode($taxon_slug);
-} elseif ($species_name) {
-    $speciesLink = 'species.php?taxon=' . urlencode($species_name);
+if ($species_name) {
+    $speciesLink = '/species.php?jp=' . urlencode($species_name);
+} elseif ($taxon_slug) {
+    $speciesLink = '/species/' . urlencode($taxon_slug);
 }
 
 // Determine Status Badge Color (Mapping Legacy)
-$status = $obs['quality_grade'] ?? ($obs['status'] ?? '未同定');
+$status = $obs['status'] ?? ($obs['quality_grade'] ?? '未同定');
 $statusMap = [
     '調査中' => '未同定',
     'ていあん' => '要同定',
     'はかせ認定' => '研究用',
-    'Research Grade' => '研究用',
+    'Research Grade' => (($obs['quality_detail'] ?? '') === 'species_supported' ? '種レベル研究用' : '研究利用可'),
     'Needs ID' => '要同定',
+    '研究用' => '種レベル研究用',
 ];
 $status = $statusMap[$status] ?? $status;
 $statusColor = BioUtils::getStatusColor($status);
+$managedContext = is_array($obs['managed_context'] ?? null) ? $obs['managed_context'] : [];
+$managedContextType = (string)($managedContext['type'] ?? '');
+$managedContextLabelMap = [
+    'botanical_garden' => '植物園',
+    'zoo' => '動物園',
+    'aquarium' => '水族館',
+    'aviary' => '花鳥園・鳥類園',
+    'conservation_center' => '保全施設・研究飼育',
+    'park_planting' => '公園植栽',
+    'school_biotope' => '学校ビオトープ',
+    'private_collection' => '私設コレクション',
+    'other' => 'その他の施設',
+];
+$organismOrigin = (string)($obs['organism_origin'] ?? ((($obs['cultivation'] ?? 'wild') === 'cultivated') ? 'cultivated' : 'wild'));
+$organismOriginLabelMap = [
+    'wild' => '野生',
+    'cultivated' => '栽培個体',
+    'captive' => '飼育個体',
+    'released' => '放された個体',
+    'escaped' => '逸出個体',
+    'naturalized' => '野外定着',
+    'uncertain' => '判断保留',
+];
+$aiConfidenceLabelMap = [
+    'high' => 'かなり確信',
+    'medium' => 'たぶん',
+    'low' => '慎重',
+];
+$latestAiAssessment = null;
+foreach (array_reverse($obs['ai_assessments'] ?? []) as $assessment) {
+    if (($assessment['kind'] ?? '') === 'machine_assessment') {
+        $latestAiAssessment = $assessment;
+        break;
+    }
+}
+$latestAiFallback = is_array($latestAiAssessment) && (($latestAiAssessment['model'] ?? '') === 'system-fallback');
+if ($latestAiAssessment) {
+    $latestAiAssessment['simple_summary'] = normalizeAiDisplayText(
+        $latestAiAssessment['simple_summary'] ?? null,
+        '写真から読み取れる範囲では、まだ安全に言えるところまでで止めています。'
+    );
+    $latestAiAssessment['summary'] = normalizeAiDisplayText($latestAiAssessment['summary'] ?? null);
+    $latestAiAssessment['why_not_more_specific'] = normalizeAiDisplayText($latestAiAssessment['why_not_more_specific'] ?? null);
+    $latestAiAssessment['geographic_context'] = normalizeAiDisplayText($latestAiAssessment['geographic_context'] ?? null);
+    $latestAiAssessment['seasonal_context'] = normalizeAiDisplayText($latestAiAssessment['seasonal_context'] ?? null);
+    $latestAiAssessment['cautionary_note'] = normalizeAiDisplayText($latestAiAssessment['cautionary_note'] ?? null);
+    $latestAiAssessment['observer_boost'] = normalizeAiDisplayText($latestAiAssessment['observer_boost'] ?? null);
+    $latestAiAssessment['next_step'] = normalizeAiDisplayText(
+        $latestAiAssessment['next_step'] ?? null,
+        '別角度の写真や、体色・模様がわかる写真があると次に絞りやすくなります。'
+    );
+    $latestAiAssessment['diagnostic_features_seen'] = normalizeAiDisplayList($latestAiAssessment['diagnostic_features_seen'] ?? []);
+    $latestAiAssessment['missing_evidence'] = normalizeAiDisplayList($latestAiAssessment['missing_evidence'] ?? []);
+}
+$trustGuidance = BioUtils::buildTrustGuidance($obs);
+$trustProgress = BioUtils::buildTrustProgress($obs);
+$canEditObservation = ObservationMeta::canEditObservation($obs, $currentUser);
+$canSuggestObservationMeta = $currentUser && !$canEditObservation;
+$canReviewObservationMeta = ObservationMeta::canReviewMetadataProposals($obs, $currentUser);
+$metadataProposals = array_values(array_filter($obs['metadata_proposals'] ?? [], fn($proposal) => is_array($proposal)));
+$pendingMetadataProposals = array_values(array_filter($metadataProposals, fn($proposal) => ($proposal['status'] ?? 'pending') === 'pending'));
+$pendingMetadataProposalSummaries = [];
+foreach ($pendingMetadataProposals as $proposal) {
+    $pendingMetadataProposalSummaries[(string)($proposal['id'] ?? '')] = ObservationMeta::getProposalSupportSummary($proposal, $obs);
+}
+$metadataHistory = array_values(array_filter(
+    array_reverse(array_values(array_filter($obs['edit_log'] ?? [], fn($entry) => is_array($entry)))),
+    fn($entry) => in_array((string)($entry['type'] ?? ''), ['direct_edit', 'metadata_proposal_accepted', 'metadata_proposal_rejected'], true)
+));
 
 // Obscure location
 $location = BioUtils::getObscuredLocation($obs['lat'], $obs['lng'], null); // Ignoring RedList for simple MVP logic here or fetch logic
@@ -179,6 +304,51 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 alert('エラーが発生しました: ' + (data.message || 'Unknown error'));
             }
         } catch(e) { alert('通信エラー'); }
+    },
+    async reviewMetadataProposal(proposalId, action) {
+        const labels = { accept: '採用', reject: '却下' };
+        if(!confirm('この提案を' + (labels[action] || action) + 'しますか？')) return;
+        const _csrf = (document.cookie.match(/(?:^|;\\s*)ikimon_csrf=([a-f0-9]{64})/)||[])[1]||'';
+        try {
+            const res = await fetch('/api/review_observation_metadata.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
+                body: JSON.stringify({
+                    observation_id: '<?php echo htmlspecialchars($id, ENT_QUOTES); ?>',
+                    proposal_id: proposalId,
+                    action: action
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = window.location.pathname + window.location.search + '&_t=' + Date.now();
+            } else {
+                alert('エラー: ' + (data.message || '処理できませんでした'));
+            }
+        } catch (e) {
+            alert('通信エラー');
+        }
+    },
+    async supportMetadataProposal(proposalId) {
+        const _csrf = (document.cookie.match(/(?:^|;\\s*)ikimon_csrf=([a-f0-9]{64})/)||[])[1]||'';
+        try {
+            const res = await fetch('/api/support_observation_metadata.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Csrf-Token': _csrf },
+                body: JSON.stringify({
+                    observation_id: '<?php echo htmlspecialchars($id, ENT_QUOTES); ?>',
+                    proposal_id: proposalId
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = window.location.pathname + window.location.search + '&_t=' + Date.now();
+            } else {
+                alert('エラー: ' + (data.message || '処理できませんでした'));
+            }
+        } catch (e) {
+            alert('通信エラー');
+        }
     }
 ">
     <?php include('components/nav.php'); ?>
@@ -307,6 +477,203 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     </p>
                 </div>
 
+                <?php if ($managedContextType !== '' || !empty($managedContext['site_name']) || $organismOrigin !== ''): ?>
+                    <section class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
+                        <div class="flex items-center justify-between gap-3 mb-3">
+                            <div>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest">記録文脈</p>
+                                <h3 class="text-sm font-bold text-text mt-1">施設由来と野生性</h3>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-1 rounded-full <?php echo ($obs['archive_track'] ?? 'wild_occurrence') === 'managed_collection' ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'; ?>">
+                                <?php echo ($obs['archive_track'] ?? 'wild_occurrence') === 'managed_collection' ? '施設資料' : '野外記録'; ?>
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            <div class="rounded-xl bg-base/60 border border-border p-3">
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">個体の由来</p>
+                                <p class="font-bold text-text"><?php echo htmlspecialchars($organismOriginLabelMap[$organismOrigin] ?? $organismOrigin); ?></p>
+                            </div>
+                            <div class="rounded-xl bg-base/60 border border-border p-3">
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">施設文脈</p>
+                                <p class="font-bold text-text"><?php echo htmlspecialchars($managedContextLabelMap[$managedContextType] ?? ($managedContextType !== '' ? $managedContextType : 'なし')); ?></p>
+                                <?php if (!empty($managedContext['site_name'])): ?>
+                                    <p class="text-xs text-muted mt-1"><?php echo htmlspecialchars($managedContext['site_name']); ?></p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php if (!empty($managedContext['note'])): ?>
+                            <p class="mt-3 text-sm text-muted leading-relaxed"><?php echo htmlspecialchars($managedContext['note']); ?></p>
+                        <?php endif; ?>
+                        <p class="mt-3 text-[11px] text-faint">施設の中でも野生個体は野生として分けて保存します。100年後に来歴をたどれるよう、施設文脈は野外分布とは別に残します。</p>
+                    </section>
+                <?php endif; ?>
+
+                <?php if ($latestAiAssessment || (($obs['ai_assessment_status'] ?? '') === 'pending')): ?>
+                    <section class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest">観察のヒント</p>
+                                <h3 class="text-sm font-bold text-text mt-1">いっしょに絞るためのメモ</h3>
+                            </div>
+                            <?php if ($latestAiAssessment): ?>
+                                <?php if ($latestAiFallback): ?>
+                                    <span class="text-[10px] font-bold px-2 py-1 rounded-full bg-warning/10 text-warning">まだ絞れていません</span>
+                                <?php else: ?>
+                                    <span class="text-[10px] font-bold px-2 py-1 rounded-full bg-primary/10 text-primary">
+                                        <?php echo htmlspecialchars($aiConfidenceLabelMap[$latestAiAssessment['confidence_band'] ?? 'low'] ?? ($latestAiAssessment['confidence_band'] ?? 'low')); ?>
+                                    </span>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span class="text-[10px] font-bold px-2 py-1 rounded-full bg-warning/10 text-warning">解析待ち</span>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($latestAiAssessment): ?>
+                            <?php if ($latestAiFallback): ?>
+                                <div class="rounded-2xl bg-warning/5 border border-warning/20 p-4 mb-3">
+                                    <p class="text-[10px] font-black text-warning uppercase tracking-widest mb-1">AIだけではまだ絞れていません</p>
+                                    <p class="text-sm text-text leading-relaxed">
+                                        <?php echo htmlspecialchars($latestAiAssessment['simple_summary'] ?? '写真だけではまだ方向を絞りきれていません。'); ?>
+                                    </p>
+                                    <p class="text-[11px] text-muted mt-2">別の人からの同定や、見分けに効く写真が入ると進みやすい状態です。</p>
+                                </div>
+                            <?php endif; ?>
+                            <?php $recommended = $latestAiAssessment['recommended_taxon'] ?? null; ?>
+                            <?php
+                                $aiHints = array_values(array_filter([
+                                    !empty($latestAiAssessment['geographic_context']) ? '場所: ' . $latestAiAssessment['geographic_context'] : null,
+                                    !empty($latestAiAssessment['seasonal_context']) ? '季節: ' . $latestAiAssessment['seasonal_context'] : null,
+                                ]));
+                            ?>
+                            <?php if ($recommended && !$latestAiFallback): ?>
+                                <?php
+                                    $rankLabelMap = [
+                                        'kingdom' => '界',
+                                        'phylum' => '門',
+                                        'class' => '綱',
+                                        'order' => '目',
+                                        'family' => '科',
+                                        'genus' => '属',
+                                        'species' => '種',
+                                    ];
+                                    $recommendedRank = strtolower((string)($recommended['rank'] ?? 'unknown'));
+                                    $recommendedRankLabel = $rankLabelMap[$recommendedRank] ?? ($recommended['rank'] ?? 'unknown');
+                                ?>
+                                <div class="rounded-2xl bg-primary/5 border border-primary/20 p-4 mb-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-[10px] font-black text-primary uppercase tracking-widest mb-1">いまはここまで絞れそう</p>
+                                            <p class="text-lg font-black text-text leading-tight">
+                                                <?php echo htmlspecialchars($recommended['name'] ?? '未確定'); ?>
+                                            </p>
+                                            <p class="text-sm text-muted mt-1"><?php echo htmlspecialchars($recommendedRankLabel); ?>まではかなり近そうです</p>
+                                            <?php
+                                                $bestSpecificTaxon = is_array($latestAiAssessment['best_specific_taxon'] ?? null) ? $latestAiAssessment['best_specific_taxon'] : null;
+                                                $hasNarrowerHypothesis = $bestSpecificTaxon && (($bestSpecificTaxon['id'] ?? null) !== ($recommended['id'] ?? null));
+                                            ?>
+                                            <?php if ($hasNarrowerHypothesis): ?>
+                                                <p class="text-[12px] text-muted mt-2">
+                                                    候補の中では <?php echo htmlspecialchars(($bestSpecificTaxon['name'] ?? '未確定') . ' (' . ($bestSpecificTaxon['rank'] ?? 'unknown') . ')'); ?> がいちばん近そうです
+                                                </p>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="shrink-0 flex flex-col items-end gap-2">
+                                            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white border border-primary/20 text-primary">
+                                                <?php echo htmlspecialchars($recommendedRankLabel); ?>まで
+                                            </span>
+                                            <?php if (!empty($latestAiAssessment['photo_count_used'])): ?>
+                                                <span class="text-[11px] font-bold px-2 py-1 rounded-full bg-white border border-border text-faint">
+                                                    <?php echo (int)$latestAiAssessment['photo_count_used']; ?>枚参照
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($latestAiAssessment['simple_summary'])): ?>
+                                        <p class="text-sm text-text leading-relaxed mt-3"><?php echo nl2br(htmlspecialchars($latestAiAssessment['simple_summary'])); ?></p>
+                                    <?php elseif (!empty($latestAiAssessment['summary'])): ?>
+                                        <p class="text-sm text-text leading-relaxed mt-3"><?php echo nl2br(htmlspecialchars($latestAiAssessment['summary'])); ?></p>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                            <div class="space-y-3 text-sm">
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <?php if (!empty($latestAiAssessment['diagnostic_features_seen'])): ?>
+                                        <div class="rounded-xl border border-border bg-base/40 p-3">
+                                            <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">写真から拾えている手がかり</p>
+                                            <p class="text-text leading-relaxed"><?php echo htmlspecialchars(implode(' / ', $latestAiAssessment['diagnostic_features_seen'])); ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($latestAiAssessment['why_not_more_specific'])): ?>
+                                        <div class="rounded-xl border border-border bg-base/40 p-3">
+                                            <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">ここで止めておく理由</p>
+                                            <p class="text-muted leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['why_not_more_specific']); ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if (!empty($aiHints)): ?>
+                                    <div class="rounded-xl border border-border bg-primary/5 p-3">
+                                        <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-2">場所と季節のヒント</p>
+                                        <div class="flex flex-wrap gap-2">
+                                            <?php foreach ($aiHints as $aiHint): ?>
+                                                <span class="inline-flex items-center rounded-full bg-white border border-border px-3 py-1 text-xs text-muted">
+                                                    <?php echo htmlspecialchars($aiHint); ?>
+                                                </span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($latestAiAssessment['cautionary_note'])): ?>
+                                    <p class="text-xs text-warning leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['cautionary_note']); ?></p>
+                                <?php endif; ?>
+                                <?php if (!empty($latestAiAssessment['observer_boost'])): ?>
+                                    <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2">
+                                        <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">この観察ですでに助かるところ</p>
+                                        <p class="text-emerald-800 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['observer_boost']); ?></p>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($latestAiAssessment['next_step'])): ?>
+                                    <div class="rounded-xl bg-sky-50 border border-sky-200 px-3 py-2">
+                                        <p class="text-[10px] font-black text-sky-700 uppercase tracking-widest mb-1">次にあると絞りやすいもの</p>
+                                        <p class="text-sky-800 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['next_step']); ?></p>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($latestAiAssessment['similar_taxa_to_compare']) || !empty($latestAiAssessment['missing_evidence'])): ?>
+                                    <div class="rounded-xl border border-border bg-base/30 px-3 py-3 space-y-3">
+                                        <?php if (!empty($latestAiAssessment['similar_taxa_to_compare'])): ?>
+                                            <div>
+                                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">見分け候補</p>
+                                                <div class="flex flex-wrap gap-2">
+                                                    <?php foreach ($latestAiAssessment['similar_taxa_to_compare'] as $candidateName): ?>
+                                                        <?php $candidateUrl = 'explore.php?q=' . urlencode((string)$candidateName); ?>
+                                                        <a href="<?php echo htmlspecialchars($candidateUrl); ?>" class="inline-flex items-center rounded-full bg-white border border-border px-3 py-1 text-xs text-text hover:border-primary/40 hover:text-primary transition">
+                                                            <?php echo htmlspecialchars((string)$candidateName); ?>
+                                                        </a>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                                <p class="text-[11px] text-muted mt-2">タップすると、その候補に近い記録を探せます。</p>
+                                                <?php if (!empty($latestAiAssessment['missing_evidence'])): ?>
+                                                    <p class="text-[11px] text-muted mt-1">
+                                                        違いが出やすいポイント:
+                                                        <?php echo htmlspecialchars(implode(' / ', array_slice($latestAiAssessment['missing_evidence'], 0, 2))); ?>
+                                                    </p>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($latestAiAssessment['missing_evidence'])): ?>
+                                            <div>
+                                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">あるともっと絞りやすい情報</p>
+                                                <p class="text-text leading-relaxed"><?php echo htmlspecialchars(implode(' / ', $latestAiAssessment['missing_evidence'])); ?></p>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            <p class="mt-3 text-[11px] text-faint">このメモは、観察を次につなぐための参考情報です。コミュニティ同定の票には入りません。</p>
+                        <?php else: ?>
+                            <p class="text-sm text-muted leading-relaxed">投稿後の参考メモを準備中です。完了すると、写真から拾えている手がかりや、次にあると絞りやすい情報がここに表示されます。</p>
+                        <?php endif; ?>
+                    </section>
+                <?php endif; ?>
+
                 <!-- License -->
                 <div class="text-xs text-muted mt-4 px-2">
                     <div class="p-3 rounded-lg bg-surface border border-border flex items-center gap-3">
@@ -359,6 +726,37 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
             <!-- RIGHT COLUMN: Info & Activity (LG: 5 cols - ~42%) -->
             <div class="lg:col-span-5 flex flex-col gap-8">
+
+                <?php if (!empty($trustGuidance['steps']) && ($trustGuidance['status'] ?? '') !== '種レベル研究用'): ?>
+                    <div class="rounded-2xl border border-primary/15 bg-primary/5 p-4 shadow-sm">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-[10px] font-black text-faint uppercase tracking-widest">この記録を育てる</p>
+                                <p class="text-sm font-bold text-text mt-1"><?php echo htmlspecialchars($trustGuidance['headline']); ?></p>
+                            </div>
+                            <span class="text-xl leading-none">🌱</span>
+                        </div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <?php foreach (array_slice($trustGuidance['steps'], 0, 2) as $step): ?>
+                                <span class="inline-flex items-center rounded-full bg-white border border-primary/15 px-3 py-1 text-xs text-text">
+                                    <?php echo htmlspecialchars($step); ?>
+                                </span>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <button @click="idModalOpen = true"
+                                class="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-white shadow-sm shadow-primary/20 transition hover:bg-primary-dark active:scale-95">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                                名前を提案する
+                            </button>
+                            <a href="#id-list-container"
+                                class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-text border border-border transition hover:border-primary/30 hover:text-primary">
+                                <i data-lucide="messages-square" class="w-3.5 h-3.5"></i>
+                                みんなの推測を見る
+                            </a>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <!-- 1. Taxonomy & Identification Header -->
                 <div class="bg-surface rounded-2xl p-6 border border-border shadow-lg relative overflow-hidden">
@@ -436,7 +834,34 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 植栽・飼育
                             </span>
                         <?php endif; ?>
+                        <?php
+                        $iCount = $obs['individual_count'] ?? null;
+                        if ($iCount !== null):
+                            $countLabels = [1 => '1', 3 => '2〜5', 8 => '6〜10', 30 => '11〜50', 51 => '50+'];
+                            $countLabel = $countLabels[$iCount] ?? $iCount;
+                        ?>
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-token-xs font-bold bg-blue-500/10 text-blue-600 border border-blue-500/20" title="周辺で確認された個体数（参考値）">
+                                <i data-lucide="hash" class="w-3 h-3"></i>
+                                <?php echo htmlspecialchars($countLabel); ?> 個体
+                            </span>
+                        <?php endif; ?>
                     </div>
+
+                    <?php if ($canEditObservation || $canSuggestObservationMeta): ?>
+                        <div class="mb-6 flex flex-wrap gap-2">
+                            <a href="/edit_observation.php?id=<?php echo urlencode($id); ?>"
+                                class="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-xs font-bold text-text transition hover:border-primary/30 hover:text-primary">
+                                <i data-lucide="<?php echo $canEditObservation ? 'pencil' : 'sparkles'; ?>" class="w-3.5 h-3.5"></i>
+                                <?php echo $canEditObservation ? '観察データを編集' : '環境や状態を提案'; ?>
+                            </a>
+                            <?php if (!empty($pendingMetadataProposals)): ?>
+                                <span class="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-xs font-bold text-primary">
+                                    <i data-lucide="messages-square" class="w-3.5 h-3.5"></i>
+                                    構造化提案 <?php echo count($pendingMetadataProposals); ?>件
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
 
                     <!-- Core Attributes -->
                     <div class="grid grid-cols-2 gap-4 mb-6">
@@ -466,7 +891,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         <?php $agreementRate = round(($obs['consensus']['agreement_rate'] ?? 0) * 100); ?>
                         <div class="mb-6 flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
                             <span class="text-2xl flex-shrink-0">
-                                <?php echo $obs['status'] === '研究用' ? '🏆' : '🔍'; ?>
+                                <?php echo in_array(($obs['status'] ?? ''), ['研究用', '種レベル研究用', '研究利用可'], true) ? '🏆' : '🔍'; ?>
                             </span>
                             <div class="flex-1 min-w-0">
                                 <div class="text-sm font-bold text-text">
@@ -476,16 +901,230 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                     <?php endif; ?>
                                 </div>
                                 <div class="text-xs text-muted mt-0.5">
-                                    <?php if ($obs['status'] === '研究用'): ?>
+                                    <?php if (in_array(($obs['status'] ?? ''), ['研究用', '種レベル研究用', '研究利用可'], true)): ?>
                                         コミュニティの合意が得られた記録です
                                     <?php else: ?>
                                         みんなの意見を聞いて、種名を特定しよう
                                     <?php endif; ?>
                                 </div>
                             </div>
-                            <span class="flex-shrink-0 <?php echo $obs['status'] === '研究用' ? 'text-green-600 bg-green-500/10 border-green-500/20' : 'text-orange-500 bg-orange-500/10 border-orange-500/20'; ?> text-token-xs font-bold px-2 py-1 rounded-full border">
+                            <span class="flex-shrink-0 <?php echo in_array(($obs['status'] ?? ''), ['研究用', '種レベル研究用', '研究利用可'], true) ? 'text-green-600 bg-green-500/10 border-green-500/20' : 'text-orange-500 bg-orange-500/10 border-orange-500/20'; ?> text-token-xs font-bold px-2 py-1 rounded-full border">
                                 <?php echo htmlspecialchars($obs['status']); ?>
                             </span>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($trustGuidance['steps'])): ?>
+                        <div class="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4">
+                            <div class="flex items-start gap-3">
+                                <span class="text-2xl leading-none">🧭</span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-sky-900"><?php echo htmlspecialchars($trustGuidance['headline']); ?></p>
+                                    <p class="text-xs text-sky-800/80 mt-1 leading-relaxed"><?php echo htmlspecialchars($trustGuidance['body']); ?></p>
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        <?php foreach ($trustGuidance['steps'] as $step): ?>
+                                            <span class="inline-flex items-center rounded-full bg-white border border-sky-200 px-3 py-1 text-xs text-sky-900">
+                                                <?php echo htmlspecialchars($step); ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($trustProgress)): ?>
+                        <div class="mb-6 rounded-xl border border-violet-200 bg-violet-50 p-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-violet-900"><?php echo htmlspecialchars((string)($trustProgress['headline'] ?? '信頼済みへの進み具合')); ?></p>
+                                    <p class="text-xs text-violet-900/75 mt-1 leading-relaxed"><?php echo htmlspecialchars((string)($trustProgress['next_label'] ?? '')); ?></p>
+                                </div>
+                                <span class="inline-flex items-center rounded-full bg-white border border-violet-200 px-3 py-1 text-xs font-black text-violet-700">
+                                    <?php echo (int)($trustProgress['progress'] ?? 0); ?>%
+                                </span>
+                            </div>
+                            <div class="mt-3 h-2 rounded-full bg-white/80 overflow-hidden">
+                                <div class="h-full rounded-full bg-gradient-to-r from-violet-500 via-primary to-emerald-500" style="width: <?php echo (int)($trustProgress['progress'] ?? 0); ?>%"></div>
+                            </div>
+                            <div class="mt-3 grid grid-cols-2 gap-2">
+                                <?php foreach (($trustProgress['checkpoints'] ?? []) as $checkpoint): ?>
+                                    <div class="rounded-2xl border px-3 py-2 <?php echo !empty($checkpoint['complete']) ? 'border-emerald-200 bg-white text-emerald-900' : 'border-violet-100 bg-white/80 text-violet-900'; ?>">
+                                        <div class="text-[11px] font-bold flex items-center gap-1.5">
+                                            <span><?php echo !empty($checkpoint['complete']) ? '✓' : '・'; ?></span>
+                                            <?php echo htmlspecialchars((string)($checkpoint['label'] ?? '')); ?>
+                                        </div>
+                                        <div class="mt-1 text-[10px] opacity-75"><?php echo htmlspecialchars((string)($checkpoint['detail'] ?? '')); ?></div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($pendingMetadataProposals)): ?>
+                        <div class="mb-6 rounded-xl border border-primary/15 bg-primary/5 p-4">
+                            <div class="flex items-start gap-3">
+                                <span class="text-2xl leading-none">🧩</span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-text">構造化情報の提案があります</p>
+                                    <p class="text-xs text-muted mt-1 leading-relaxed">環境やライフステージなどについて、ほかの人からの提案が入っています。原本は保ったまま、意味づけだけを育てるための仕組みです。</p>
+                                    <div class="mt-3 space-y-2">
+                                        <?php foreach (array_slice($pendingMetadataProposals, 0, 3) as $proposal): ?>
+                                            <?php
+                                            $fieldLabels = [
+                                                'biome' => '環境',
+                                                'organism_origin' => '由来',
+                                                'life_stage' => '状態',
+                                                'individual_count' => '個体数',
+                                                'managed_context_type' => '施設区分',
+                                                'managed_site_name' => '施設名',
+                                                'managed_context_note' => '施設メモ',
+                                            ];
+                                            $proposalId = (string)($proposal['id'] ?? '');
+                                            $supportSummary = $pendingMetadataProposalSummaries[$proposalId] ?? null;
+                                            $canSupportProposal = $currentUser
+                                                && (string)($proposal['actor_id'] ?? '') !== (string)($currentUser['id'] ?? '');
+                                            ?>
+                                            <div class="rounded-2xl border border-border bg-white px-3 py-2">
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <div class="min-w-0">
+                                                        <div class="text-xs font-bold text-text"><?php echo htmlspecialchars((string)($proposal['actor_name'] ?? '匿名')); ?></div>
+                                                        <?php if (!empty($proposal['note'])): ?>
+                                                            <div class="mt-1 text-[11px] text-muted leading-relaxed"><?php echo htmlspecialchars((string)$proposal['note']); ?></div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <?php if ($canReviewObservationMeta): ?>
+                                                        <div class="flex flex-wrap justify-end gap-1.5">
+                                                            <button type="button"
+                                                                @click="reviewMetadataProposal('<?php echo htmlspecialchars($proposalId, ENT_QUOTES); ?>', 'accept')"
+                                                                class="inline-flex items-center rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-primary-dark">
+                                                                採用
+                                                            </button>
+                                                            <button type="button"
+                                                                @click="reviewMetadataProposal('<?php echo htmlspecialchars($proposalId, ENT_QUOTES); ?>', 'reject')"
+                                                                class="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-danger/30 hover:text-danger">
+                                                                却下
+                                                            </button>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="mt-1 text-[11px] text-muted leading-relaxed">
+                                                    <?php
+                                                    $parts = [];
+                                                    foreach (($proposal['changes'] ?? []) as $field => $change) {
+                                                        $label = $fieldLabels[$field] ?? $field;
+                                                        $parts[] = $label . ' → ' . (($change['to'] ?? '') === '' ? '未設定' : (string)($change['to'] ?? ''));
+                                                    }
+                                                    echo htmlspecialchars(implode(' / ', $parts));
+                                                    ?>
+                                                </div>
+                                                <?php if ($supportSummary): ?>
+                                                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                                                        <span class="inline-flex items-center rounded-full bg-primary/5 px-2.5 py-1 text-[11px] font-bold text-primary">
+                                                            賛成 <?php echo (int)($supportSummary['support_count'] ?? 0); ?>件
+                                                        </span>
+                                                        <?php if (!empty($supportSummary['is_stale'])): ?>
+                                                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 border border-amber-200">
+                                                                放置観察のため、支持が集まると自動採用
+                                                            </span>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($supportSummary['is_stale']) && empty($supportSummary['eligible_for_auto_accept'])): ?>
+                                                            <span class="text-[11px] text-muted">
+                                                                あと<?php echo max(1, (int)($supportSummary['needed_people'] ?? 0)); ?>人の支持で進みやすくなります
+                                                            </span>
+                                                        <?php endif; ?>
+                                                        <?php if ($canSupportProposal): ?>
+                                                            <button type="button"
+                                                                @click="supportMetadataProposal('<?php echo htmlspecialchars($proposalId, ENT_QUOTES); ?>')"
+                                                                class="inline-flex items-center rounded-full border border-primary/20 px-2.5 py-1 text-[11px] font-bold text-primary transition hover:bg-primary/5">
+                                                                賛成する
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($metadataHistory)): ?>
+                        <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                            <div class="flex items-start gap-3">
+                                <span class="text-2xl leading-none">🪴</span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-emerald-900">この情報はこう育ちました</p>
+                                    <p class="text-xs text-emerald-800/80 mt-1 leading-relaxed">環境や状態の情報は、投稿者とコミュニティの手で少しずつ育っていきます。最近の更新だけを表示しています。</p>
+                                    <div class="mt-3 space-y-2">
+                                        <?php foreach (array_slice($metadataHistory, 0, 3) as $history): ?>
+                                            <?php
+                                            $type = (string)($history['type'] ?? '');
+                                            $label = match ($type) {
+                                                'direct_edit' => '投稿者または管理側が更新',
+                                                'metadata_proposal_accepted' => 'コミュニティ提案を採用',
+                                                'metadata_proposal_rejected' => 'コミュニティ提案を見送り',
+                                                default => '更新',
+                                            };
+                                            $reasonLabel = match ($type) {
+                                                'metadata_proposal_accepted' => (($history['note'] ?? '') === 'community_support_auto_accept') ? '支持が集まったため採用' : '妥当と判断して採用',
+                                                'metadata_proposal_rejected' => !empty($history['note']) ? '理由つきで見送り' : '写真だけでは判断保留',
+                                                'direct_edit' => '投稿者または管理側が見直し',
+                                                default => '更新理由あり',
+                                            };
+                                            $changes = [];
+                                            foreach (($history['changes'] ?? []) as $field => $change) {
+                                                $fieldMap = [
+                                                    'biome' => '環境',
+                                                    'organism_origin' => '由来',
+                                                    'life_stage' => '状態',
+                                                    'individual_count' => '個体数',
+                                                    'managed_context_type' => '施設区分',
+                                                    'managed_site_name' => '施設名',
+                                                    'managed_context_note' => '施設メモ',
+                                                ];
+                                                $changes[] = ($fieldMap[$field] ?? $field) . ' → ' . (($change['to'] ?? '') === '' ? '未設定' : (string)($change['to'] ?? ''));
+                                            }
+                                            if ($changes === [] && !empty($history['after']) && !empty($history['before'])) {
+                                                foreach (['biome' => '環境', 'organism_origin' => '由来', 'life_stage' => '状態', 'individual_count' => '個体数'] as $field => $fieldLabel) {
+                                                    $before = $history['before'][$field] ?? null;
+                                                    $after = $history['after'][$field] ?? null;
+                                                    if ($before !== $after) {
+                                                        $changes[] = $fieldLabel . ' → ' . (($after ?? '') === '' ? '未設定' : (string)$after);
+                                                    }
+                                                }
+                                            }
+                                            ?>
+                                            <div class="rounded-2xl border border-emerald-200/70 bg-white px-3 py-2">
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <div class="min-w-0">
+                                                        <div class="text-xs font-bold text-emerald-900"><?php echo htmlspecialchars($label); ?></div>
+                                                        <div class="mt-1 text-[11px] text-muted">
+                                                            <?php echo htmlspecialchars((string)($history['actor_name'] ?? 'community')); ?>
+                                                            ・
+                                                            <?php echo htmlspecialchars(date('Y.m.d', strtotime((string)($history['at'] ?? 'now')))); ?>
+                                                        </div>
+                                                    </div>
+                                                    <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100/70 px-2 py-1 text-[10px] font-bold text-emerald-800">
+                                                        <?php echo htmlspecialchars($reasonLabel); ?>
+                                                    </span>
+                                                </div>
+                                                <?php if (!empty($changes)): ?>
+                                                    <div class="mt-1 text-[11px] text-muted leading-relaxed">
+                                                        <?php echo htmlspecialchars(implode(' / ', $changes)); ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($history['note'])): ?>
+                                                    <div class="mt-1 text-[11px] text-emerald-900/80 leading-relaxed">
+                                                        <?php echo htmlspecialchars((string)$history['note']); ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     <?php endif; ?>
 
@@ -563,12 +1202,6 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <span class="text-base">🤔</span>
                             名前を提案する
                         </button>
-                        <?php if (!$species_name): ?>
-                            <a href="id_wizard.php?from_observation=<?php echo urlencode($id); ?>"
-                                class="py-3 px-4 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary font-bold text-sm transition flex items-center justify-center gap-2 border border-secondary/20 active:scale-[0.98]">
-                                <i data-lucide="compass" class="w-4 h-4"></i>
-                            </a>
-                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -731,6 +1364,20 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
+
+                    <?php
+                    // ── Affiliate Books ──
+                    $taxonForAffiliate = [
+                        'slug'            => $obs['taxon']['slug'] ?? '',
+                        'scientific_name' => $obs['taxon']['scientific_name'] ?? '',
+                        'lineage'         => $obs['taxon']['lineage'] ?? [],
+                    ];
+                    $affiliateContext = 'observation';
+                    $affiliateBooks = AffiliateManager::getBooks($taxonForAffiliate, $affiliateContext);
+                    if (!empty($affiliateBooks)):
+                    ?>
+                        <?php include __DIR__ . '/components/affiliate_books.php'; ?>
+                    <?php endif; ?>
                 </div>
 
             </div> <!-- End Right Column -->
@@ -745,6 +1392,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             taxonSlug: '',
             taxonSciName: '',
             taxonGbifKey: null,
+            taxonLineage: {},
+            taxonLineageIds: {},
             suggestions: [],
             showSugg: false,
             note: '',
@@ -768,6 +1417,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 this.taxonQuery = s.jp_name || s.sci_name;
                 this.taxonSlug = s.slug;
                 this.taxonSciName = s.sci_name;
+                this.taxonGbifKey = s.gbif_key || s.key || null;
+                this.taxonLineage = s.lineage || {};
+                this.taxonLineageIds = s.lineage_ids || {};
                 this.showSugg = false;
                 if (navigator.vibrate) navigator.vibrate(30);
             },
@@ -785,6 +1437,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             taxon_name: this.taxonQuery,
                             taxon_slug: this.taxonSlug,
                             scientific_name: this.taxonSciName,
+                            lineage: this.taxonLineage || {},
+                            lineage_ids: this.taxonLineageIds || {},
                             confidence: this.selectedConfidence,
                             life_stage: this.lifeStage,
                             note: this.note
@@ -893,6 +1547,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 taxonSlug: '',
                 taxonSciName: '',
                 taxonGbifKey: null,
+                taxonLineage: {},
+                taxonLineageIds: {},
                 suggestions: [],
                 showSugg: false,
                 submitting: false,
@@ -919,6 +1575,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     this.taxonQuery = s.jp_name || s.sci_name;
                     this.taxonSlug = s.slug;
                     this.taxonSciName = s.sci_name;
+                    this.taxonGbifKey = s.gbif_key || s.key || null;
+                    this.taxonLineage = s.lineage || {};
+                    this.taxonLineageIds = s.lineage_ids || {};
                     this.showSugg = false;
                     if (navigator.vibrate) navigator.vibrate(30);
                     // Instant Gratification: Auto-submit upon accurate taxonomic selection
@@ -944,6 +1603,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 taxon_name: this.taxonQuery,
                                 taxon_slug: this.taxonSlug,
                                 scientific_name: this.taxonSciName,
+                                lineage: this.taxonLineage || {},
+                                lineage_ids: this.taxonLineageIds || {},
                                 confidence: 'sure',
                                 life_stage: 'unknown',
                                 note: ''

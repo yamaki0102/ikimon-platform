@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../libs/Cache.php';
 // Params
 $taxonGroup = $_GET['taxon'] ?? 'all';
 $year = $_GET['year'] ?? 'all';
+$minCreatedYear = 2026;
 
 // Cache Key
 $cacheKey = "heatmap_{$taxonGroup}_{$year}";
@@ -35,6 +36,10 @@ foreach ($allObs as $obs) {
     $lat = $obs['lat'] ?? $obs['location']['lat'] ?? null;
     $lng = $obs['lng'] ?? $obs['location']['lng'] ?? $obs['location']['lon'] ?? null;
     if ($lat === null || $lng === null) continue;
+
+    $createdAt = (string)($obs['created_at'] ?? '');
+    $createdYear = $createdAt !== '' ? (int)substr($createdAt, 0, 4) : 0;
+    if ($createdYear < $minCreatedYear) continue;
 
     // 2. Year Filter
     if ($year !== 'all') {

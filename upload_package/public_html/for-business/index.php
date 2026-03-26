@@ -1,997 +1,805 @@
 <?php
-
-/**
- * B2B Landing Page — ikimon for Business
- * 
- * セルフサービスファネルの入口。
- * LP → デモ → 料金 → 申込 の動線。
- */
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/CspNonce.php';
- 
+require_once __DIR__ . '/../../libs/Auth.php';
+require_once __DIR__ . '/../../libs/BrandMessaging.php';
+
+Auth::init();
 CspNonce::sendHeader();
+
+$isLoggedIn = Auth::isLoggedIn();
+$freeCtaHref = $isLoggedIn ? '../post.php' : '../login.php?redirect=post.php';
+$freeCtaLabel = $isLoggedIn ? '無料のまま使ってみる' : '無料で始める';
+$workspaceCtaHref = $isLoggedIn ? 'create.php' : '../login.php?redirect=for-business/create.php';
+$workspaceCtaLabel = $isLoggedIn ? '無料で団体ページを作る' : 'ログインして無料で作る';
+$publicCtaHref = 'apply.php';
+$regionalMessaging = BrandMessaging::regionalRevitalization();
+
+$meta_title = 'ikimon for Business — 学校・企業・施設の自然観察記録';
+$meta_description = $regionalMessaging['business_meta_description'];
+$meta_canonical = rtrim(BASE_URL, '/') . '/for-business/';
+$meta_image = rtrim(BASE_URL, '/') . '/assets/img/ogp_default.png';
+
+$features = [
+    ['icon' => 'map-pin', 'title' => 'スポットと観察会の管理', 'body' => '観察エリアをスポットとして登録し、観察会の開催・参加受付・記録の集約を団体ページでまとめて管理できます。'],
+    ['icon' => 'users', 'title' => '参加者との記録共有', 'body' => 'QRコードやリンクから参加者が観察会に参加。投稿した記録は自動的に団体の記録として集まります。'],
+    ['icon' => 'file-down', 'title' => '種一覧とレポートの出力', 'body' => '発見種の全リスト、CSV、証跡レポートなど、調査・報告に使う出力はPublicで利用できます。条件に当てはまる自治体には無償提供します。'],
+];
+
+$personas = [
+    ['label' => '学校・教育機関', 'icon' => 'graduation-cap',
+     'title' => '理科の授業や校外観察に',
+     'body' => '授業で観察会をやっても、写真や記録がそれぞれの手元に残るだけで終わりがち。ikimon はクラス・学年を横断して記録が集まり、次の授業でも見返せる仕組みを目指しています。',
+     'plan' => 'Community → 必要時 Public', 'cta' => '団体ページを作る', 'href' => $workspaceCtaHref, 'tone' => 'tone-edu'],
+    ['label' => '消滅可能性自治体・地域団体', 'icon' => 'map',
+     'title' => '記録の土台が必要な地域に',
+     'body' => '人口減少が進む地域ほど、自然の記録が担当者依存になりやすい。ikimon はまず無料で土台を作り、条件に当てはまる自治体には出力機能も含めて無償で届ける方針です。',
+     'plan' => 'Community / 条件により Public 相当も無償', 'cta' => '運営方針を見る', 'href' => '#support-model', 'tone' => 'tone-park'],
+    ['label' => '企業・CSR / ESG', 'icon' => 'building-2',
+     'title' => '自然共生活動の記録と報告に',
+     'body' => '活動の記録を残しつつ、報告や開示にも耐える形で使いたい。企業や大規模自治体向けのPublicを有料にすることで、無料提供の土台ごと継続できる設計にしています。',
+     'plan' => 'Public', 'cta' => 'Publicを相談する', 'href' => $publicCtaHref, 'tone' => 'tone-corp'],
+];
+
+$outcomes = [
+    ['title' => '個人参加者はアカウント取得から', 'body' => 'Personalプランで投稿・同定・イベント参加ができます。参加者への事前準備の負担はありません。', 'icon' => 'user'],
+    ['title' => '団体運営はCommunityで完結', 'body' => '法人格不要。団体ページ・スポット登録・観察会の開催・メンバー管理まで無料で使えます。', 'icon' => 'layout-dashboard'],
+    ['title' => '出力が必要な時だけPublicへ', 'body' => '種の全リスト、CSV、証跡レポートなどの出力機能は、有料のPublicプランにまとめています。', 'icon' => 'file-down'],
+    ['title' => '消滅可能性自治体には無償提供', 'body' => $regionalMessaging['support_policies'][0]['body'], 'icon' => 'heart-handshake'],
+    ['title' => '担当者が変わっても記録は残る', 'body' => '団体ページ単位で記録が蓄積されるため、人の入れ替わりに関係なく活動履歴が継続します。', 'icon' => 'archive'],
+];
+
+$plans = [
+    ['name' => 'Personal', 'price' => '¥0', 'suffix' => '', 'headline' => '個人で観察・同定する', 'desc' => '投稿・同定・図鑑・イベント参加まで無料。', 'features' => ['観察記録の投稿・編集', 'AI同定ヒントと図鑑', 'イベントへの参加'], 'note' => '申込み不要。ずっと無料。', 'cta' => $freeCtaLabel, 'href' => $freeCtaHref, 'variant' => 'free'],
+    ['name' => 'Community', 'price' => '¥0', 'suffix' => '', 'headline' => '団体ページを作って運営する', 'desc' => '法人格なしで作成可。観察会の開催まで無料。', 'features' => ['団体ページ・スポット登録・観察会開催', 'メンバー招待・QR参加・ランキング', '観察数・参加人数・発見種数の概要'], 'note' => '学校・地域団体・企業の部署単位でもここから始められます。', 'cta' => $workspaceCtaLabel, 'href' => $workspaceCtaHref, 'variant' => 'community'],
+    ['name' => 'Public', 'price' => '¥39,800', 'suffix' => '/ 月', 'headline' => '調査・報告用の出力を使う', 'desc' => $regionalMessaging['public_plan']['description'], 'features' => ['種の全リストと要配慮種の詳細', 'CSV / 証跡JSON / 各種レポート出力', '継続運用サポート'], 'note' => $regionalMessaging['public_plan']['note'], 'cta' => 'Publicを相談する', 'href' => $publicCtaHref, 'variant' => 'public'],
+];
+
+$supportPolicies = $regionalMessaging['support_policies'];
 ?>
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ikimon for Business | 生物多様性モニタリングで現状把握と改善判断を支援</title>
-    <meta name="description" content="ikimonは市民科学で生物多様性データを収集し、企業の環境活動を把握しやすい参考レポートに整理。TNFDやCSR報告の準備に使える入力資料を提供します。">
-    <meta property="og:title" content="ikimon for Business">
-    <meta property="og:description" content="観察するだけで、環境活動の現状把握と改善判断に使える入力資料がまとまるプラットフォーム">
-    <meta property="og:type" content="website">
-    <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-    <style>
+    <?php include __DIR__ . '/../components/meta.php'; ?>
+    <style nonce="<?= CspNonce::attr() ?>">
+        /* ── tokens ── */
         :root {
-            --primary: #10b981;
-            --primary-dark: #065f46;
-            --primary-light: #d1fae5;
-            --accent: #3b82f6;
-            --accent-dark: #1e40af;
-            --text: #1a1a2e;
-            --text-secondary: #4b5563;
-            --muted: #9ca3af;
-            --bg: #ffffff;
+            --ink: #111827;
+            --muted: #6b7280;
+            --line: #e5e7eb;
+            --green: #059669;
+            --green-light: #d1fae5;
+            --green-dark: #064e3b;
             --surface: #f9fafb;
-            --border: #e5e7eb;
-            --gradient-hero: linear-gradient(135deg, #065f46 0%, #10b981 50%, #3b82f6 100%);
+            --white: #ffffff;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+            --radius-sm: 12px;
+            --radius-md: 16px;
+            --radius-lg: 20px;
         }
+        * { box-sizing: border-box; margin: 0; }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        body { background: var(--white); color: var(--ink); }
+        a { color: inherit; text-decoration: none; }
 
-        body {
-            font-family: 'Noto Sans JP', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            font-size: 16px;
-            line-height: 1.8;
-            overflow-x: hidden;
-        }
+        /* ── layout ── */
+        .lp-container { width: min(1140px, 100% - 24px); margin: 0 auto; }
 
-        /* ===== UTILITY ===== */
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 14px;
-            border-radius: 99px;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-
-        .badge-green {
-            background: var(--primary-light);
-            color: var(--primary-dark);
-        }
-
-        .section {
-            padding: 80px 0;
-        }
-
-        .section-title {
-            font-size: 28px;
-            font-weight: 900;
-            margin-bottom: 12px;
-        }
-
-        .section-sub {
-            font-size: 16px;
-            color: var(--text-secondary);
-            max-width: 600px;
-        }
-
-        .section-center {
-            text-align: center;
-        }
-
-        .section-center .section-sub {
-            margin: 0 auto;
-        }
-
-        /* ===== LP NAV ===== */
-        .lp-nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-            background: rgba(255, 255, 255, 0.92);
+        /* ── header ── */
+        .lp-header {
+            position: sticky; top: 0; z-index: 50;
+            background: rgba(255,255,255,.95);
             backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border);
-            transition: transform 0.3s;
+            border-bottom: 1px solid var(--line);
+        }
+        .lp-header-inner {
+            min-height: 60px;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .lp-brand { display: inline-flex; align-items: center; gap: 8px; }
+        .lp-brand img { transition: transform .3s ease; }
+        .lp-brand:hover img { transform: scale(1.05); }
+        .lp-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+        .lp-brand-text .lp-brand-name { font-size: 15px; font-weight: 900; letter-spacing: -.03em; color: var(--ink); font-family: var(--font-heading); }
+        .lp-brand-text .lp-brand-sub { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+        /* nav */
+        .lp-nav {
+            display: none; align-items: center; gap: 24px;
+            font-size: 13px; font-weight: 600; color: var(--muted);
+        }
+        .lp-nav a:hover { color: var(--ink); }
+
+        /* hamburger */
+        .lp-hamburger {
+            display: flex; align-items: center; justify-content: center;
+            width: 44px; height: 44px; border: none; background: none;
+            cursor: pointer; color: var(--ink);
+        }
+        .lp-hamburger svg { pointer-events: none; }
+
+        /* mobile nav overlay */
+        .lp-mobile-nav {
+            display: none;
+            position: fixed; top: 60px; left: 0; right: 0; bottom: 0;
+            z-index: 45;
+            background: rgba(255,255,255,.98);
+            backdrop-filter: blur(12px);
+            padding: 20px;
+        }
+        .lp-mobile-nav.is-open { display: flex; flex-direction: column; gap: 6px; }
+        .lp-mobile-nav a {
+            display: flex; align-items: center; gap: 10px;
+            padding: 14px 16px; border-radius: var(--radius-sm);
+            font-size: 15px; font-weight: 600; color: var(--ink);
+            background: var(--surface); border: 1px solid var(--line);
+        }
+        .lp-mobile-nav a:active { background: #f3f4f6; }
+        .lp-mobile-nav .lp-mobile-cta {
+            margin-top: 6px; justify-content: center;
+            background: var(--green-dark); color: #fff; border-color: transparent;
         }
 
-        .lp-nav .inner {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 60px;
+        /* ── buttons ── */
+        .lp-btn-primary, .lp-btn-secondary, .lp-btn-ghost, .lp-nav-cta {
+            display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+            min-height: 44px; padding: 0 20px; border-radius: 999px;
+            font-size: 14px; font-weight: 700; border: none; cursor: pointer;
+            transition: opacity .15s ease, transform .15s ease;
         }
-
-        .lp-nav .logo {
-            font-size: 20px;
-            font-weight: 900;
-            color: var(--primary);
-            text-decoration: none;
+        .lp-btn-primary:hover, .lp-nav-cta:hover { opacity: .88; transform: translateY(-1px); }
+        .lp-btn-secondary:hover { background: #f3f4f6; }
+        .lp-btn-primary, .lp-nav-cta {
+            background: var(--green-dark); color: #fff;
         }
-
-        .lp-nav .logo sup {
-            font-size: 10px;
-            color: var(--accent);
-            font-weight: 700;
-            vertical-align: super;
+        .lp-btn-secondary {
+            background: var(--white); color: var(--ink);
+            border: 1.5px solid var(--line);
         }
+        .lp-btn-ghost { background: transparent; color: var(--muted); min-height: 40px; padding: 0 12px; }
 
-        .lp-nav-links {
-            display: flex;
-            align-items: center;
-            gap: 20px;
+        /* ── hero ── */
+        .hero { padding: 48px 0 0; }
+        .hero-row {
+            display: flex; flex-direction: column; gap: 40px;
         }
-
-        .lp-nav-links a {
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: color 0.2s;
+        .hero-copy { flex: 1; min-width: 0; padding-bottom: 48px; }
+        .pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border-radius: 999px;
+            background: var(--green-light); color: var(--green-dark);
+            font-size: 12px; font-weight: 700; letter-spacing: .06em;
         }
-
-        .lp-nav-links a:hover {
-            color: var(--primary);
+        .hero-copy h1 {
+            margin: 16px 0 14px;
+            font-family: var(--font-heading);
+            font-size: clamp(30px, 5vw, 52px);
+            line-height: 1.1;
+            letter-spacing: -.03em;
         }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 24px;
-            border-radius: 8px;
+        .hero-copy h1 em {
+            font-style: normal;
+            color: var(--green);
+        }
+        .hero-lead {
+            font-size: 16px; line-height: 1.85; color: var(--muted);
+        }
+        .hero-actions {
+            display: flex; flex-direction: column; gap: 10px;
+            margin-top: 28px;
+        }
+        .hero-actions .lp-btn-primary,
+        .hero-actions .lp-btn-secondary { width: 100%; }
+        .hero-note {
+            margin-top: 20px;
+            display: flex; flex-wrap: wrap; gap: 16px;
+        }
+        .hero-note-item {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 13px; color: var(--muted);
+        }
+        .hero-note-item i { color: var(--green); flex-shrink: 0; }
+        .hero-support {
+            margin-top: 18px;
+            padding: 16px 18px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(6,95,70,.08), rgba(16,185,129,.14));
+            border: 1px solid rgba(16,185,129,.22);
+        }
+        .hero-support strong {
+            display: block;
             font-size: 14px;
-            font-weight: 700;
-            text-decoration: none;
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
+            font-weight: 800;
+            color: var(--green-dark);
         }
-
-        .btn-primary-lp {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary-lp:hover {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-
-        .btn-outline {
-            background: transparent;
-            color: var(--primary);
-            border: 2px solid var(--primary);
-        }
-
-        .btn-outline:hover {
-            background: var(--primary-light);
-        }
-
-        .btn-accent {
-            background: var(--accent);
-            color: white;
-        }
-
-        .btn-accent:hover {
-            background: var(--accent-dark);
-            transform: translateY(-1px);
-        }
-
-        .btn-lg {
-            padding: 14px 32px;
-            font-size: 16px;
-            border-radius: 10px;
-        }
-
-        .btn-icon {
-            font-size: 18px;
-        }
-
-        /* ===== HERO ===== */
-        .hero {
-            padding: 120px 0 80px;
-            background: var(--gradient-hero);
-            color: white;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 600px;
-            height: 600px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.05);
-            animation: float 8s ease-in-out infinite;
-        }
-
-        .hero::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            right: 0;
-            height: 80px;
-            background: linear-gradient(to top, white, transparent);
-        }
-
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translate(0, 0) scale(1);
-            }
-
-            50% {
-                transform: translate(-30px, 30px) scale(1.05);
-            }
-        }
-
-        @keyframes fadeUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .fade-up {
-            opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-        }
-
-        .fade-up.is-visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .hero .container {
-            position: relative;
-            z-index: 1;
-        }
-
-        .hero h1 {
-            font-size: 36px;
-            font-weight: 900;
-            line-height: 1.3;
-            margin-bottom: 16px;
-            max-width: 620px;
-        }
-
-        .hero .lead {
-            font-size: 17px;
-            opacity: 0.9;
-            max-width: 540px;
-            margin-bottom: 28px;
+        .hero-support p {
+            margin-top: 6px;
+            font-size: 13px;
             line-height: 1.8;
-        }
-
-        .hero-cta {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .hero-stats {
-            display: flex;
-            gap: 32px;
-            margin-top: 40px;
-            flex-wrap: wrap;
-        }
-
-        .hero-stat {
-            text-align: center;
-        }
-
-        .hero-stat .num {
-            font-size: 32px;
-            font-weight: 900;
-            display: block;
-        }
-
-        .hero-stat .label {
-            font-size: 11px;
-            opacity: 0.8;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 26px;
-            }
-
-            .hero {
-                padding: 100px 0 60px;
-            }
-
-            .hero-stats {
-                gap: 24px;
-            }
-
-            .hero-stat .num {
-                font-size: 24px;
-            }
-
-            .lp-nav-links a.hide-mobile {
-                display: none;
-            }
-        }
-
-        /* ===== 3 STEPS ===== */
-        .steps-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            margin-top: 40px;
-        }
-
-        .step-card {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 28px 24px;
-            text-align: center;
-            position: relative;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .step-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 12px 32px rgba(16, 185, 129, 0.15);
-            border-color: var(--primary);
-        }
-
-        .step-num {
-            position: absolute;
-            top: -14px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: var(--primary);
-            color: white;
-            font-size: 13px;
-            font-weight: 900;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .step-icon {
-            font-size: 36px;
-            margin: 8px 0 12px;
-        }
-
-        .step-card h3 {
-            font-size: 16px;
-            font-weight: 900;
-            margin-bottom: 6px;
-        }
-
-        .step-card p {
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-
-        @media (max-width: 768px) {
-            .steps-grid {
-                grid-template-columns: 1fr;
-                max-width: 400px;
-                margin-left: auto;
-                margin-right: auto;
-            }
-        }
-
-        /* ===== REPORT GALLERY ===== */
-        .report-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin-top: 32px;
-        }
-
-        .report-card {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.2s;
-        }
-
-        .report-card:hover {
-            border-color: var(--primary);
-            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
-            transform: translateY(-4px);
-        }
-
-        .report-icon {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-
-        .report-card h3 {
-            font-size: 14px;
-            font-weight: 700;
-        }
-
-        .report-card p {
-            font-size: 12px;
-            color: var(--muted);
-            margin-top: 4px;
-        }
-
-        .report-card .tag {
-            display: inline-block;
-            background: var(--surface);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 700;
-            color: var(--primary-dark);
-            margin-top: 8px;
-        }
-
-        @media (max-width: 768px) {
-            .report-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        /* ===== USE CASES ===== */
-        .use-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            margin-top: 32px;
-        }
-
-        .use-card {
-            display: flex;
-            gap: 14px;
-            align-items: flex-start;
-            padding: 20px;
-            background: var(--surface);
-            border-radius: 10px;
-            border: 1px solid var(--border);
-        }
-
-        .use-icon {
-            font-size: 24px;
-            flex-shrink: 0;
-        }
-
-        .use-card h3 {
-            font-size: 14px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .use-card p {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-
-        @media (max-width: 768px) {
-            .use-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* ===== COMPARISON ===== */
-        .compare-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 32px;
-            font-size: 14px;
-        }
-
-        .compare-table th {
-            padding: 12px 16px;
-            text-align: left;
-            font-weight: 900;
-            font-size: 16px;
-            border-bottom: 3px solid var(--primary);
-        }
-
-        .compare-table td {
-            padding: 10px 16px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .compare-table .feature-name {
-            font-weight: 700;
-            font-size: 13px;
-        }
-
-        .compare-table .check {
-            color: var(--primary);
-            font-weight: 900;
-            font-size: 16px;
-        }
-
-        .compare-table .cross {
             color: var(--muted);
         }
 
-        .price-row td {
-            padding: 16px;
-            font-size: 20px;
-            font-weight: 900;
+        /* hero visual */
+        .hero-visual {
+            display: none;
+            flex: 0 0 460px; max-width: 460px;
+            align-self: flex-end;
+        }
+        .hero-browser {
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
+            border: 1px solid var(--line);
             border-bottom: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,.1);
+        }
+        .hero-browser-bar {
+            height: 36px;
+            background: #f1f3f0;
+            border-bottom: 1px solid var(--line);
+            display: flex; align-items: center; padding: 0 14px; gap: 7px;
+        }
+        .hero-browser-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+        }
+        .hero-browser-dot:nth-child(1) { background: #ff5f57; }
+        .hero-browser-dot:nth-child(2) { background: #febc2e; }
+        .hero-browser-dot:nth-child(3) { background: #28c840; }
+        .hero-browser-iframe {
+            display: block; width: 100%;
+            height: 340px; border: none;
+            pointer-events: none;
         }
 
-        .price-row .price-label {
-            font-size: 12px;
-            font-weight: 400;
-            color: var(--muted);
-            display: block;
+        /* ── section ── */
+        .section { padding: 64px 0; }
+        .section-tinted { background: var(--surface); }
+        .section-label {
+            display: inline-block; padding: 5px 10px; border-radius: 6px;
+            background: var(--green-light); color: var(--green-dark);
+            font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+        }
+        .section-head { margin-bottom: 32px; }
+        .section-head h2 {
+            margin: 12px 0 0;
+            font-family: var(--font-heading);
+            font-size: clamp(24px, 4vw, 40px);
+            line-height: 1.15;
+            letter-spacing: -.03em;
+        }
+        .section-head p {
+            margin: 12px 0 0; font-size: 15px; line-height: 1.8; color: var(--muted);
+            max-width: 580px;
         }
 
-        /* ===== SOCIAL PROOF ===== */
-        .proof-bar {
+        /* ── cards ── */
+        .card {
+            border-radius: var(--radius-md);
+            background: var(--white);
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow-sm);
+        }
+        .section-tinted .card { background: var(--white); }
+
+        /* grids — mobile: 1 col */
+        .grid-3, .grid-2 { display: grid; gap: 16px; }
+
+        /* ── problems ── */
+        .problem-card { padding: 24px; }
+        .icon-wrap {
+            width: 44px; height: 44px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 10px;
+            background: var(--green-light); color: var(--green-dark);
+        }
+        .problem-card h3 { margin: 16px 0 0; font-size: 16px; font-weight: 700; line-height: 1.4; }
+        .problem-card p { margin: 8px 0 0; font-size: 14px; line-height: 1.8; color: var(--muted); }
+
+        /* ── personas ── */
+        .persona-card { padding: 0; overflow: hidden; }
+        .persona-head {
+            padding: 20px 22px;
             background: var(--surface);
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-            padding: 24px 0;
-            text-align: center;
+            border-bottom: 1px solid var(--line);
         }
-
-        .proof-bar .inner {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 40px;
-            flex-wrap: wrap;
+        .tone-corp { background: var(--surface); }
+        .tone-park { background: var(--surface); }
+        .persona-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 10px; border-radius: 999px;
+            background: var(--white); border: 1px solid var(--line);
+            font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted);
         }
-
-        .proof-item {
-            font-size: 12px;
-            color: var(--muted);
-            font-weight: 700;
+        .persona-head h3 { margin: 12px 0 0; font-size: 16px; font-weight: 700; line-height: 1.45; }
+        .persona-body { padding: 20px 22px; }
+        .persona-block {
+            padding: 14px 16px; border-radius: 10px;
+            background: var(--surface); border: 1px solid var(--line);
         }
+        .persona-block + .persona-block { margin-top: 10px; }
+        .persona-block.dark {
+            background: var(--green-dark);
+            color: #fff; border-color: transparent;
+        }
+        .persona-block small { display: block; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+        .persona-block p { margin: 6px 0 0; font-size: 14px; line-height: 1.75; }
+        .persona-block.dark small { color: rgba(255,255,255,.6); }
+        .persona-block.dark p { color: rgba(255,255,255,.9); }
+        .persona-foot {
+            display: flex; flex-direction: column; gap: 12px;
+            margin-top: 18px; padding-top: 18px;
+            border-top: 1px solid var(--line);
+        }
+        .persona-foot-meta { display: flex; align-items: center; gap: 8px; }
+        .persona-foot-meta strong { font-size: 11px; color: var(--muted); font-weight: 600; }
+        .persona-foot-meta span { font-size: 13px; font-weight: 700; color: var(--green-dark); }
+        .persona-foot .lp-btn-primary { width: 100%; }
 
-        .proof-item strong {
-            color: var(--text);
+        /* ── outcomes ── */
+        .outcome-wrap { display: grid; gap: 16px; }
+        .card.summary-card {
+            padding: 28px;
+            background: var(--green-dark);
+            color: #fff;
+            border-color: transparent;
+            box-shadow: var(--shadow-md);
+        }
+        .summary-card h3 { margin: 16px 0 0; font-size: 18px; font-weight: 700; line-height: 1.4; }
+        .summary-points { margin-top: 20px; display: grid; gap: 8px; }
+        .summary-points div {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 12px 14px; border-radius: 10px;
+            background: rgba(255,255,255,.1);
+            color: rgba(255,255,255,.9);
+            font-size: 14px; line-height: 1.65;
+        }
+        .summary-points div::before {
+            content: ''; width: 6px; height: 6px;
+            border-radius: 50%; background: #6ee7b7;
+            flex-shrink: 0; margin-top: 7px;
+        }
+        .outcome-card { padding: 22px; }
+        .outcome-top { display: flex; align-items: flex-start; gap: 14px; }
+        .outcome-badge {
+            width: 40px; height: 40px; flex-shrink: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 10px;
+            background: var(--green-light); color: var(--green-dark);
+        }
+        .outcome-card small { display: block; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--green); }
+        .outcome-card h3 { margin: 4px 0 0; font-size: 16px; font-weight: 700; line-height: 1.3; }
+        .outcome-card p { margin: 10px 0 0; font-size: 14px; line-height: 1.75; color: var(--muted); }
+
+        /* ── plans ── */
+        .plan-card { padding: 24px; display: flex; flex-direction: column; }
+        .plan-community {
+            border-color: var(--green);
+            box-shadow: 0 0 0 1px var(--green), var(--shadow-md);
+        }
+        .plan-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .plan-pill, .plan-reco {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+        }
+        .plan-free .plan-pill { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
+        .plan-community .plan-pill { background: var(--green-light); color: var(--green-dark); }
+        .plan-public .plan-pill { background: #f3f4f6; color: var(--ink); border: 1px solid var(--line); }
+        .plan-reco { background: var(--green-dark); color: #fff; }
+        .price {
+            margin-top: 20px;
+            font-family: var(--font-heading);
+            font-size: 34px; font-weight: 800;
+            letter-spacing: -.03em; line-height: 1;
+        }
+        .price span { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: normal; }
+        .plan-card h3 { margin: 12px 0 0; font-size: 16px; font-weight: 700; line-height: 1.3; }
+        .plan-card > p { margin: 6px 0 0; font-size: 14px; line-height: 1.7; color: var(--muted); }
+        .plan-card ul { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 9px; }
+        .plan-card li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.7; color: var(--muted); }
+        .plan-note {
+            margin-top: 16px; padding: 12px 14px; border-radius: 10px;
+            background: var(--surface); border: 1px solid var(--line);
+            font-size: 13px; line-height: 1.7; color: var(--muted);
+        }
+        .plan-community .plan-note { background: var(--green-light); color: var(--green-dark); border-color: transparent; }
+        .plan-card .lp-btn-primary, .plan-card .lp-btn-secondary { width: 100%; margin-top: auto; padding-top: 16px; }
+        .plan-card .lp-btn-primary { margin-top: 20px; padding-top: 0; }
+        .plan-card .lp-btn-secondary { margin-top: 20px; padding-top: 0; }
+
+        /* ── support model ── */
+        .policy-card { padding: 24px; }
+        .policy-card h3 { font-size: 17px; font-weight: 800; line-height: 1.45; }
+        .policy-card p { margin-top: 10px; font-size: 14px; line-height: 1.8; color: var(--muted); }
+        .policy-banner {
+            margin-top: 18px;
+            padding: 18px 20px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(6,95,70,.96), rgba(16,185,129,.92));
+            color: #fff;
+            box-shadow: var(--shadow-md);
+        }
+        .policy-banner strong {
+            display: block;
+            font-size: 16px;
+            font-weight: 800;
+            line-height: 1.5;
+        }
+        .policy-banner p {
+            margin-top: 8px;
             font-size: 14px;
+            line-height: 1.8;
+            color: rgba(255,255,255,.82);
         }
 
-        /* ===== CTA SECTION ===== */
-        .cta-section {
-            background: var(--gradient-hero);
-            color: white;
-            padding: 64px 0;
-            text-align: center;
+        /* ── divider ── */
+        .section-divider {
+            height: 1px; background: var(--line);
+            margin: 0;
         }
 
-        .cta-section h2 {
-            font-size: 28px;
-            font-weight: 900;
-            margin-bottom: 12px;
-        }
+        /* ── faq ── */
+        .faq-card { padding: 22px; }
+        .faq-card strong { display: block; font-size: 15px; font-weight: 700; line-height: 1.5; }
+        .faq-card p { margin: 8px 0 0; font-size: 14px; line-height: 1.8; color: var(--muted); }
 
-        .cta-section p {
-            font-size: 15px;
-            opacity: 0.9;
-            margin-bottom: 24px;
+        /* ── closing ── */
+        .closing {
+            margin-top: 24px; padding: 36px 28px;
+            border-radius: var(--radius-lg);
+            background: var(--green-dark);
+            color: #fff;
+            box-shadow: var(--shadow-md);
         }
+        .closing h2 {
+            font-family: var(--font-heading);
+            font-size: clamp(22px, 4vw, 38px);
+            line-height: 1.15; letter-spacing: -.03em;
+        }
+        .closing p { margin: 12px 0 0; font-size: 15px; line-height: 1.8; color: rgba(255,255,255,.75); max-width: 560px; }
+        .closing-actions {
+            display: flex; flex-direction: column; gap: 10px;
+            margin-top: 24px;
+        }
+        .closing-actions .lp-btn-primary,
+        .closing-actions .lp-btn-secondary { width: 100%; }
+        .closing-actions .lp-btn-primary { background: #fff; color: var(--green-dark); }
+        .closing-actions .lp-btn-secondary { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.2); }
 
-        .cta-buttons {
+        /* ── mobile sticky CTA ── */
+        .mobile-cta-bar {
             display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
+            position: fixed; bottom: 0; left: 0; right: 0;
+            z-index: 50;
+            padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+            background: rgba(255,255,255,.97);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid var(--line);
+            box-shadow: 0 -2px 12px rgba(0,0,0,.06);
+            gap: 8px;
+        }
+        .mobile-cta-bar .lp-btn-primary { flex: 1; min-height: 44px; font-size: 14px; }
+        .mobile-cta-bar .lp-btn-secondary { min-height: 44px; font-size: 13px; padding: 0 16px; }
+
+        /* spacer so content isn't hidden behind mobile CTA */
+        .mobile-cta-spacer { height: 72px; }
+
+        /* ═══════════════════════════════════
+           TABLET (640px+)
+           ═══════════════════════════════════ */
+        @media (min-width: 640px) {
+            .lp-container { width: min(1140px, 100% - 32px); }
+            .lp-header-inner { min-height: 64px; }
+
+            .hero { padding: 56px 0 0; }
+            .hero-copy h1 { font-size: clamp(34px, 4.5vw, 52px); }
+            .hero-actions { flex-direction: row; }
+            .hero-actions .lp-btn-primary,
+            .hero-actions .lp-btn-secondary { width: auto; }
+
+            .section { padding: 72px 0; }
+            .grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+            .persona-foot { flex-direction: row; align-items: center; justify-content: space-between; }
+            .persona-foot .lp-btn-primary { width: auto; }
+
+            .closing { padding: 40px; }
+            .closing-actions { flex-direction: row; }
+            .closing-actions .lp-btn-primary,
+            .closing-actions .lp-btn-secondary { width: auto; }
         }
 
-        /* ===== LP FOOTER ===== */
-        .lp-footer {
-            padding: 32px 0;
-            text-align: center;
-            font-size: 12px;
-            color: var(--muted);
-            border-top: 1px solid var(--border);
+        /* ═══════════════════════════════════
+           SMALL DESKTOP (860px+)
+           ═══════════════════════════════════ */
+        @media (min-width: 860px) {
+            .lp-nav { display: flex; }
+            .lp-hamburger { display: none; }
+            .mobile-cta-bar { display: none; }
+            .mobile-cta-spacer { display: none; }
+
+            .lp-header-inner { min-height: 68px; }
+            .hero-row { flex-direction: row; align-items: flex-end; gap: 48px; }
+            .hero-visual { display: flex; flex-direction: column; }
+            .grid-3 { grid-template-columns: repeat(3, 1fr); }
+            .outcome-wrap { grid-template-columns: 320px minmax(0, 1fr); }
         }
 
-        .lp-footer a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            margin: 0 8px;
-        }
-
-        .lp-footer a:hover {
-            color: var(--primary);
+        /* ═══════════════════════════════════
+           FULL DESKTOP (1080px+)
+           ═══════════════════════════════════ */
+        @media (min-width: 1080px) {
+            .hero { padding: 56px 0 80px; }
+            .section { padding: 80px 0; }
+            .plan-card { padding: 28px; }
+            .outcome-wrap { grid-template-columns: 360px minmax(0, 1fr); gap: 20px; }
         }
     </style>
 </head>
+<body class="js-loading bg-base text-text font-body">
+    <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
 
-<body>
-    <!-- Navigation -->
-    <nav class="lp-nav">
-        <div class="inner">
-            <a href="index.php" class="logo">ikimon<sup>Business</sup></a>
-            <div class="lp-nav-links">
-                <a href="../index.php" class="hide-mobile" style="font-size:12px; opacity:0.6;">← ikimon 一般サイトへ</a>
-                <a href="#how" class="hide-mobile">仕組み</a>
-                <a href="#reports" class="hide-mobile">レポート</a>
-                <a href="pricing.php" class="hide-mobile">料金</a>
-                <a href="demo.php" class="btn btn-outline" style="padding: 6px 16px; font-size: 12px;">デモを体験</a>
-                <a href="apply.php" class="btn btn-primary-lp" style="padding: 6px 16px; font-size: 12px;">導入する</a>
-            </div>
+    <!-- ── header ── -->
+    <header class="lp-header">
+        <div class="lp-container lp-header-inner">
+            <a href="../" class="lp-brand">
+                <img src="/assets/img/icon-192.png" alt="ikimon" style="width:32px;height:32px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.15)">
+                <span class="lp-brand-text">
+                    <span class="lp-brand-name">ikimon</span>
+                    <span class="lp-brand-sub">for Business</span>
+                </span>
+            </a>
+            <nav class="lp-nav">
+                <a href="#problems">できること</a>
+                <a href="#personas">使われ方</a>
+                <a href="#outcomes">プラン設計</a>
+                <a href="#plans">料金</a>
+                <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-nav-cta">団体ページを作る</a>
+            </nav>
+            <button class="lp-hamburger" aria-label="メニュー" onclick="document.getElementById('mobileNav').classList.toggle('is-open'); this.setAttribute('aria-expanded', document.getElementById('mobileNav').classList.contains('is-open'))">
+                <i data-lucide="menu" class="h-5 w-5"></i>
+            </button>
         </div>
+    </header>
+
+    <!-- mobile nav -->
+    <nav id="mobileNav" class="lp-mobile-nav" onclick="if(event.target.tagName==='A'){this.classList.remove('is-open')}">
+        <a href="#problems"><i data-lucide="list" class="h-4 w-4"></i>できること</a>
+        <a href="#personas"><i data-lucide="users" class="h-4 w-4"></i>使われ方</a>
+        <a href="#outcomes"><i data-lucide="layers" class="h-4 w-4"></i>プラン設計</a>
+        <a href="#plans"><i data-lucide="credit-card" class="h-4 w-4"></i>料金</a>
+        <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-mobile-cta"><i data-lucide="sparkles" class="h-4 w-4"></i>団体ページを作る</a>
     </nav>
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="container">
-            <span class="badge badge-green">🌿 TNFD / 30x30 の参考入力を整理</span>
-            <h1 style="margin-top: 12px;">観察するだけで、<br>環境投資が"見える"ようになる</h1>
-            <p class="lead">
-                社員が身近な生き物を記録するだけで、<br>
-                生物多様性データが蓄積され、<br>
-                現状把握と次の打ち手が読める参考レポートを作れます。
-            </p>
-            <div class="hero-cta">
-                <a href="demo.php" class="btn btn-lg" style="background: white; color: var(--primary-dark);">🎯 無料デモを体験する</a>
-                <a href="../api/generate_report.php?site_id=ikan_hq&from=2000-01-01" target="_blank" rel="noopener noreferrer" class="btn btn-lg btn-outline" style="color: white; border-color: rgba(255,255,255,0.5);">📄 実際のレポートを見る</a>
-            </div>
-            <div class="hero-stats">
-                <?php
-                // Dynamic stats from real platform data
-                $omoikaneCount = 0;
-                $omoikanePath = __DIR__ . '/../../data/library/omoikane.sqlite3';
-                if (file_exists($omoikanePath)) {
-                    try {
-                        $odb = new SQLite3($omoikanePath);
-                        $omoikaneCount = (int)$odb->querySingle("SELECT COUNT(*) FROM species WHERE distillation_status = 'distilled'");
-                        $odb->close();
-                    } catch (Exception $e) {
-                    }
-                }
-                $reportCount = count(glob(__DIR__ . '/../api/generate_*.php'));
-                ?>
-                <div class="hero-stat">
-                    <span class="num"><?php echo number_format($omoikaneCount); ?></span>
-                    <span class="label">分析済み科学文献</span>
-                </div>
-                <div class="hero-stat">
-                    <span class="num"><?php echo $reportCount; ?></span>
-                    <span class="label">レポートテンプレート</span>
-                </div>
-                <div class="hero-stat">
-                    <span class="num">TNFD</span>
-                    <span class="label">LEAP整理の参考</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- How It Works -->
-    <section class="section" id="how">
-        <div class="container section-center">
-            <span class="badge badge-green">HOW IT WORKS</span>
-            <h2 class="section-title" style="margin-top: 8px;">3ステップでデータ資産に変わる</h2>
-            <p class="section-sub">特別な知識は不要。スマートフォンで写真を撮るだけで、専門レポートが自動で仕上がります。</p>
-
-            <div class="steps-grid">
-                <div class="step-card">
-                    <div class="step-num">1</div>
-                    <div class="step-icon">📱</div>
-                    <h3>観察する</h3>
-                    <p>社員がスマホで身近な生き物を撮影・記録。<br>アプリ感覚で簡単操作。</p>
-                </div>
-                <div class="step-card">
-                    <div class="step-num">2</div>
-                    <div class="step-icon">🔬</div>
-                    <h3>市民科学で検証</h3>
-                    <p>コミュニティの相互検証で<br>データの信頼性が確保されます。</p>
-                </div>
-                <div class="step-card">
-                    <div class="step-num">3</div>
-                    <div class="step-icon">📊</div>
-                    <h3>レポート自動生成</h3>
-                    <p>参考インデックスや自然関連開示の<br>入力資料をワンクリックで整理できます。</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Report Gallery -->
-    <section class="section" id="reports" style="background: var(--surface);">
-        <div class="container section-center">
-            <span class="badge badge-green">REPORT TEMPLATES</span>
-            <h2 class="section-title" style="margin-top: 8px;">6種のプロフェッショナルレポート</h2>
-            <p class="section-sub">目的に応じて最適なレポートをワンクリック生成。PDF保存・印刷にも対応。</p>
-
-            <div class="report-grid">
-                <div class="report-card">
-                    <div class="report-icon">📊</div>
-                    <h3>サイト生物多様性レポート</h3>
-                    <p>種一覧、参考インデックス、レッドリスト照合をまとめた基本レポート</p>
-                    <span class="tag">全プラン</span>
-                </div>
-                <div class="report-card">
-                    <div class="report-icon">📋</div>
-                    <h3>TNFD LEAPレポート</h3>
-                    <p>TNFD LEAPで整理しやすい観測ベースの参考レポート</p>
-                    <span class="tag">全プラン</span>
-                </div>
-                <div class="report-card">
-                    <div class="report-icon">📝</div>
-                    <h3>活動報告書</h3>
-                    <p>観察活動の時系列実績、月次推移、イベント記録</p>
-                    <span class="tag">Business</span>
-                </div>
-                <div class="report-card">
-                    <div class="report-icon">🌱</div>
-                    <h3>サステナビリティレポート</h3>
-                    <p>SDGsマッピング、環境パフォーマンス指標、CSR添付資料</p>
-                    <span class="tag">Business</span>
-                </div>
-                <div class="report-card">
-                    <div class="report-icon">🎯</div>
-                    <h3>エグゼクティブサマリー</h3>
-                    <p>A4 1ページ。経営層向けKPI要約</p>
-                    <span class="tag">Business</span>
-                </div>
-                <div class="report-card">
-                    <div class="report-icon">📸</div>
-                    <h3>写真ダイジェスト</h3>
-                    <p>観察写真ギャラリー。社内報告やイベント振り返りに</p>
-                    <span class="tag">Business</span>
-                </div>
-            </div>
-
-            <div style="text-align: center; margin-top: 32px;">
-                <a href="../api/generate_report.php?site_id=ikan_hq&from=2000-01-01" target="_blank" rel="noopener noreferrer" class="btn btn-lg btn-primary-lp">📋 実際のレポートを見る →</a>
-                <p style="font-size: 12px; color: var(--muted); margin-top: 8px;">愛管株式会社様の実データから自動生成されたレポート</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Use Cases -->
-    <section class="section">
-        <div class="container">
-            <div class="section-center">
-                <span class="badge badge-green">USE CASES</span>
-                <h2 class="section-title" style="margin-top: 8px;">こんなシーンで活用できます</h2>
-            </div>
-
-            <div class="use-grid">
-                <div class="use-card">
-                    <span class="use-icon">🏢</span>
-                    <div>
-                        <h3>CSR/ESG報告書の添付資料</h3>
-                        <p>定量的な生物多様性データをサステナビリティレポートに添付。エビデンスベースの情報開示を実現。</p>
+    <main>
+        <!-- ── hero ── -->
+        <section class="hero">
+            <div class="lp-container">
+                <div class="hero-row">
+                    <div class="hero-copy">
+                        <div class="pill"><i data-lucide="flask-conical" class="h-3 w-3"></i>β版 · 学校・企業・施設向け</div>
+                        <h1>観察記録を、<em>チームで続ける。</em></h1>
+                        <p class="hero-lead">学校の授業でも、企業の環境活動でも、施設の定期観察会でも。記録がバラバラになって後から使えない、という問題を解決するために作っています。現在β版として公開中で、一緒に使ってみてくれる団体を探しています。</p>
+                        <div class="hero-support">
+                            <strong>消滅可能性自治体には、Public相当の出力機能まで含めて無償提供します。</strong>
+                            <p>若年女性減少率80%以上を目安に、最も記録基盤が必要な地域へ優先して届ける方針です。<?= htmlspecialchars($regionalMessaging['support_model_summary']) ?></p>
+                        </div>
+                        <div class="hero-actions">
+                            <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-btn-primary"><i data-lucide="sparkles" class="h-4 w-4"></i><?= htmlspecialchars($workspaceCtaLabel) ?></a>
+                            <a href="../site_dashboard.php?site=ikan_hq&demo=1" class="lp-btn-secondary"><i data-lucide="monitor-play" class="h-4 w-4"></i>デモを見る</a>
+                        </div>
+                        <div class="hero-note">
+                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i>申込み不要</span>
+                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i>法人格なしで作成可</span>
+                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i>有料プランはPublicのみ</span>
+                            <span class="hero-note-item"><i data-lucide="check" class="h-3 w-3"></i>消滅可能性自治体は無償対象</span>
+                        </div>
                     </div>
-                </div>
-                <div class="use-card">
-                    <span class="use-icon">📋</span>
-                    <div>
-                        <h3>TNFD開示対応</h3>
-                        <p>LEAPの観点で見直しやすい入力資料を整理。開示判断そのものは社内レビューと併用します。</p>
-                    </div>
-                </div>
-                <div class="use-card">
-                    <span class="use-icon">💰</span>
-                    <div>
-                        <h3>助成制度の活動報告</h3>
-                        <p>環境保全活動の成果を定量化。活動報告書や成果レポートの作成工数を大幅削減。</p>
-                    </div>
-                </div>
-                <div class="use-card">
-                    <span class="use-icon">👥</span>
-                    <div>
-                        <h3>社内報告・株主向け報告</h3>
-                        <p>エグゼクティブサマリー1枚で「この活動の成果」を伝える。写真ダイジェストで社内報にも。</p>
-                    </div>
-                </div>
-                <div class="use-card">
-                    <span class="use-icon">🌱</span>
-                    <div>
-                        <h3>環境教育プログラム</h3>
-                        <p>社員参加型の観察会を定期開催。チームビルディングと環境教育を両立。</p>
-                    </div>
-                </div>
-                <div class="use-card">
-                    <span class="use-icon">📈</span>
-                    <div>
-                        <h3>中長期モニタリング</h3>
-                        <p>参考インデックスと月次推移で観測の厚みを追跡。データの蓄積が改善判断の土台になる。</p>
+                    <div class="hero-visual">
+                        <div class="hero-browser">
+                            <div class="hero-browser-bar">
+                                <span class="hero-browser-dot"></span>
+                                <span class="hero-browser-dot"></span>
+                                <span class="hero-browser-dot"></span>
+                            </div>
+                            <iframe class="hero-browser-iframe" src="../site_dashboard.php?site=ikan_hq&demo=1" loading="lazy" title="ikimon デモ"></iframe>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
+        <div class="section-divider"></div>
 
-    <!-- Social Proof -->
-    <div class="proof-bar">
-        <div class="inner">
-            <div class="proof-item">🌿 <strong>TNFD LEAP</strong> の参考入力を整理</div>
-            <div class="proof-item">📊 <strong>参考インデックス</strong> で観測の厚みを要約</div>
-            <div class="proof-item">🔬 <strong>Darwin Core</strong> 国際標準準拠</div>
-            <div class="proof-item">🇯🇵 <strong>静岡県</strong> 浜松発</div>
-        </div>
+        <!-- ── features ── -->
+        <section class="section section-tinted" id="problems">
+            <div class="lp-container">
+                <div class="section-head">
+                    <span class="section-label">できること</span>
+                    <h2>観察記録の収集から、報告書の出力まで</h2>
+                </div>
+                <div class="grid-3">
+                    <?php foreach ($features as $feature): ?>
+                        <article class="card problem-card">
+                            <div class="icon-wrap"><i data-lucide="<?= htmlspecialchars($feature['icon']) ?>" class="h-5 w-5"></i></div>
+                            <h3><?= htmlspecialchars($feature['title']) ?></h3>
+                            <p><?= htmlspecialchars($feature['body']) ?></p>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── personas ── -->
+        <section class="section" id="personas">
+            <div class="lp-container">
+                <div class="section-head">
+                    <span class="section-label">使われ方</span>
+                    <h2>どんな団体を想定しているか</h2>
+                </div>
+                <div class="grid-3">
+                    <?php foreach ($personas as $persona): ?>
+                        <article class="card persona-card">
+                            <div class="persona-head">
+                                <span class="persona-tag"><i data-lucide="<?= htmlspecialchars($persona['icon']) ?>" class="h-4 w-4"></i><?= htmlspecialchars($persona['label']) ?></span>
+                                <h3><?= htmlspecialchars($persona['title']) ?></h3>
+                            </div>
+                            <div class="persona-body">
+                                <p style="font-size:14px; line-height:1.8; color:var(--muted)"><?= htmlspecialchars($persona['body']) ?></p>
+                                <div class="persona-foot">
+                                    <div class="persona-foot-meta">
+                                        <strong>プラン:</strong>
+                                        <span><?= htmlspecialchars($persona['plan']) ?></span>
+                                    </div>
+                                    <a href="<?= htmlspecialchars($persona['href']) ?>" class="lp-btn-primary"><?= htmlspecialchars($persona['cta']) ?></a>
+                                </div>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── outcomes ── -->
+        <section class="section section-tinted" id="outcomes">
+            <div class="lp-container">
+                <div class="section-head">
+                    <span class="section-label">仕様</span>
+                    <h2>プランの設計について</h2>
+                </div>
+                <div class="outcome-wrap">
+                    <article class="card summary-card">
+                        <div class="pill" style="background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.25)">概要</div>
+                        <h3>個人も団体も、参加・運営まで無料。<br>大規模運用の出力だけを有料に。</h3>
+                        <div class="summary-points">
+                            <div>個人参加者はPersonalプランで無料</div>
+                            <div>団体ページと観察会はCommunityで無料</div>
+                            <div>種の全リストとレポート出力はPublicプラン</div>
+                            <div>消滅可能性自治体はPublic相当も無償提供</div>
+                            <div>担当者が変わっても記録はページに残る</div>
+                        </div>
+                    </article>
+                    <div class="grid-2">
+                        <?php foreach ($outcomes as $outcome): ?>
+                            <article class="card outcome-card">
+                                <div class="outcome-top">
+                                    <div class="outcome-badge"><i data-lucide="<?= htmlspecialchars($outcome['icon']) ?>" class="h-5 w-5"></i></div>
+                                    <div>
+                                        <h3><?= htmlspecialchars($outcome['title']) ?></h3>
+                                    </div>
+                                </div>
+                                <p><?= htmlspecialchars($outcome['body']) ?></p>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── pricing ── -->
+        <section class="section" id="plans">
+            <div class="lp-container">
+                <div class="section-head">
+                    <span class="section-label">料金</span>
+                    <h2>3つのプラン</h2>
+                    <p>有料プランはPublicのみです。個人参加と団体運営は無料で始められ、条件に当てはまる自治体には Public 相当も無償で提供します。</p>
+                </div>
+                <div class="grid-3">
+                    <?php foreach ($plans as $plan): ?>
+                        <article class="card plan-card plan-<?= htmlspecialchars($plan['variant']) ?>">
+                            <div class="plan-head">
+                                <span class="plan-pill"><?= htmlspecialchars($plan['name']) ?></span>
+                                <?php if ($plan['name'] === 'Personal'): ?>
+                                    <span class="plan-reco">まずここから</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="price"><?= htmlspecialchars($plan['price']) ?> <span><?= htmlspecialchars($plan['suffix']) ?></span></div>
+                            <h3><?= htmlspecialchars($plan['headline']) ?></h3>
+                            <p><?= htmlspecialchars($plan['desc']) ?></p>
+                            <ul>
+                                <?php foreach ($plan['features'] as $feature): ?>
+                                    <li><i data-lucide="check" class="mt-[2px] h-4 w-4 shrink-0 text-primary"></i><span><?= htmlspecialchars($feature) ?></span></li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <div class="plan-note"><?= htmlspecialchars($plan['note']) ?></div>
+                            <a href="<?= htmlspecialchars($plan['href']) ?>" class="<?= $plan['name'] === 'Community' ? 'lp-btn-primary' : 'lp-btn-secondary' ?>"><?= htmlspecialchars($plan['cta']) ?></a>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </section>
+
+        <section class="section section-tinted" id="support-model">
+            <div class="lp-container">
+                <div class="section-head">
+                    <span class="section-label">運営方針</span>
+                    <h2>なぜこの料金設計なのか</h2>
+                    <p>無料を入口だけの餌にしたくないので、誰から課金し、誰に無償で届けるかを先に決めています。</p>
+                </div>
+                <div class="grid-3">
+                    <?php foreach ($supportPolicies as $policy): ?>
+                        <article class="card policy-card">
+                            <h3><?= htmlspecialchars($policy['title']) ?></h3>
+                            <p><?= htmlspecialchars($policy['body']) ?></p>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+                <div class="policy-banner">
+                    <strong>Public の収益で、地域の無料運営と無償自治体支援を支える。</strong>
+                    <p>これが ikimon の現行運営モデルです。料金表だけでなく、誰のための無料かまで含めて一貫させています。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── faq ── -->
+        <section class="section">
+            <div class="lp-container">
+                <div class="section-head">
+                    <span class="section-label">Q&A</span>
+                    <h2>よくある質問</h2>
+                </div>
+                <div class="grid-3">
+                    <article class="card faq-card">
+                        <strong>無料でどこまで使えますか？</strong>
+                        <p>個人の投稿・同定・イベント参加に加え、団体ページの作成、スポット登録、観察会の開催、参加人数・発見種数の概要確認まで無料です。</p>
+                    </article>
+                    <article class="card faq-card">
+                        <strong>有料プランはPublicだけですか？</strong>
+                        <p>はい。PersonalとCommunityは無料で、有料プランはPublicのみです。種の全リスト、CSV、レポート出力など、調査・報告に使う出力機能をまとめています。</p>
+                    </article>
+                    <article class="card faq-card">
+                        <strong>消滅可能性自治体は無償になりますか？</strong>
+                        <p>はい。<?= htmlspecialchars($regionalMessaging['support_policies'][0]['body']) ?> まずは相談してください。</p>
+                    </article>
+                    <article class="card faq-card">
+                        <strong>法人格がなくても使えますか？</strong>
+                        <p>Communityプランは法人格不要で作成できます。学校のクラス、地域のグループ、企業の部署など、任意の団体単位でページを作れます。</p>
+                    </article>
+                    <article class="card faq-card">
+                        <strong>なぜ無料で提供できるのですか？</strong>
+                        <p><?= htmlspecialchars($regionalMessaging['support_policies'][1]['body']) ?></p>
+                    </article>
+                </div>
+
+                <!-- closing CTA -->
+                <div class="closing">
+                    <h2>β版を一緒に試してみませんか。</h2>
+                    <p>現在プロトタイプを公開中です。Community は申込み不要・無料。企業や大規模自治体は Public で継続運用を支え、必要な地域には無償で届ける形を育てています。</p>
+                    <div class="closing-actions">
+                        <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-btn-primary"><i data-lucide="sparkles" class="h-4 w-4"></i><?= htmlspecialchars($workspaceCtaLabel) ?></a>
+                        <a href="<?= htmlspecialchars($publicCtaHref) ?>" class="lp-btn-secondary"><i data-lucide="messages-square" class="h-4 w-4"></i>Publicを相談</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- mobile sticky CTA -->
+    <div class="mobile-cta-bar">
+        <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-btn-primary"><i data-lucide="sparkles" class="h-4 w-4"></i>無料で作る</a>
+        <a href="../site_dashboard.php?site=ikan_hq&demo=1" class="lp-btn-secondary"><i data-lucide="monitor-play" class="h-4 w-4"></i>デモ</a>
     </div>
+    <div class="mobile-cta-spacer"></div>
 
-    <!-- Pricing Preview -->
-    <section class="section" id="pricing">
-        <div class="container section-center">
-            <span class="badge badge-green">PRICING</span>
-            <h2 class="section-title" style="margin-top: 8px;">シンプルな2プラン</h2>
-            <p class="section-sub">環境予算300万円の企業なら、その16%以下。データ資産の蓄積で費用対効果は年々向上します。</p>
-
-            <table class="compare-table" style="max-width: 700px; margin: 32px auto 0;">
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th>Community</th>
-                        <th>Business</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="feature-name">サイト数</td>
-                        <td>1サイト</td>
-                        <td>無制限</td>
-                    </tr>
-                    <tr>
-                        <td class="feature-name">観察記録の投稿・閲覧</td>
-                        <td class="check">✓</td>
-                        <td class="check">✓</td>
-                    </tr>
-                    <tr>
-                        <td class="feature-name">種数・投稿数の確認</td>
-                        <td class="check">✓</td>
-                        <td class="check">✓</td>
-                    </tr>
-                    <tr>
-                        <td class="feature-name">参考インデックス</td>
-                        <td class="cross">—</td>
-                        <td class="check">✓</td>
-                    </tr>
-                    <tr>
-                        <td class="feature-name">サイトレポート</td>
-                        <td class="cross">—</td>
-                        <td class="check">✓</td>
-                    </tr>
-                    <tr>
-                        <td class="feature-name">TNFD LEAPレポート</td>
-                        <td class="cross">—</td>
-                        <td class="check">✓</td>
-                    </tr>
-                    <tr>
-                        <td class="feature-name">活動報告書</td>
-                        <td class="cross">—</td>
-                        <td class="check">✓</td>
-                    </tr>
-                    <tr>
-                        <td class="feature-name">CSR / エグゼクティブ</td>
-                        <td class="cross">—</td>
-                        <td class="check">✓</td>
-                    </tr>
-                    <tr>
-                        <td class="feature-name">企業ダッシュボード</td>
-                        <td class="cross">—</td>
-                        <td class="check">✓</td>
-                    </tr>
-                    <tr class="price-row">
-                        <td></td>
-                        <td>¥0<span class="price-label">永年無料</span></td>
-                        <td>¥498,000<span class="price-label">年額（税別）</span></td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div style="margin-top: 24px;">
-                <a href="pricing.php" class="btn btn-primary-lp btn-lg">📋 詳しい料金比較を見る →</a>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA -->
-    <section class="cta-section">
-        <div class="container">
-            <h2>まずは無料デモで体験してください</h2>
-            <p>サンプルデータで全レポートを閲覧できます。導入は最短5分。</p>
-            <div class="cta-buttons">
-                <a href="demo.php" class="btn btn-lg" style="background: white; color: var(--primary-dark);">🎯 無料デモを体験する</a>
-                <a href="apply.php" class="btn btn-lg btn-outline" style="color: white; border-color: rgba(255,255,255,0.5);">📝 導入の申込み</a>
-            </div>
-        </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="lp-footer">
-        <div class="container">
-            <p style="margin-bottom: 8px;">
-                <a href="../index.php">ikimon ホーム</a>
-                <a href="../about.php">私たちについて</a>
-                <a href="../terms.php">利用規約</a>
-                <a href="../privacy.php">プライバシーポリシー</a>
-                <a href="mailto:contact@ikimon.life">お問い合わせ</a>
-            </p>
-            <p>&copy; <?php echo date('Y'); ?> ikimon Project. Based in Hamamatsu, Japan.</p>
-        </div>
-    </footer>
-    <script nonce="<?= CspNonce::attr() ?>">
-        // Intersection Observer for fade-up animations
-        (function() {
-            var els = document.querySelectorAll('.step-card, .report-card, .use-card, .section-title, .section-sub');
-            els.forEach(function(el) {
-                el.classList.add('fade-up');
-            });
-            var observer = new IntersectionObserver(function(entries) {
-                entries.forEach(function(entry) {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('is-visible');
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, {
-                threshold: 0.1,
-                rootMargin: '0px 0px -40px 0px'
-            });
-            els.forEach(function(el) {
-                observer.observe(el);
-            });
-        })();
-
-        // Staggered animation for grid items
-        document.querySelectorAll('.steps-grid, .report-grid, .use-grid').forEach(function(grid) {
-            var items = grid.children;
-            for (var i = 0; i < items.length; i++) {
-                items[i].style.transitionDelay = (i * 0.1) + 's';
-            }
-        });
-
-        // Navbar hide on scroll down
-        var lastScroll = 0;
-        var nav = document.querySelector('.lp-nav');
-        window.addEventListener('scroll', function() {
-            var curr = window.scrollY;
-            if (curr > lastScroll && curr > 100) {
-                nav.style.transform = 'translateY(-100%)';
-            } else {
-                nav.style.transform = 'translateY(0)';
-            }
-            lastScroll = curr;
-        });
-    </script>
+    <?php include __DIR__ . '/../components/footer.php'; ?>
 </body>
-
 </html>
