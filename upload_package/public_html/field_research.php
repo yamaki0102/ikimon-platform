@@ -403,15 +403,38 @@ if (!$currentUser) {
                     </template>
                 </div>
             </div>
-            <!-- ドライブ時間（車モード時のペーシング用） -->
+            <!-- ドライブ設定（車モード時） -->
             <div x-show="manualTransportMode === 'car'" x-cloak style="margin-bottom:10px;">
-                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🕐 ドライブ時間（ガイドのペース配分に使います）</div>
-                <div style="display:flex;gap:6px;">
+                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🕐 ドライブ時間</div>
+                <div style="display:flex;gap:6px;margin-bottom:10px;">
                     <template x-for="dt in [{min:15,label:'15分'},{min:30,label:'30分'},{min:60,label:'1時間'},{min:0,label:'指定なし'}]" :key="dt.min">
                         <button @click="driveDurationMin = dt.min; localStorage.setItem('ikimon_drive_duration', dt.min)"
                                 :style="driveDurationMin === dt.min ? 'background:rgba(59,130,246,0.2);color:#60a5fa;border-color:#3b82f6;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
                                 style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:11px;font-weight:700;">
                             <span x-text="dt.label"></span>
+                        </button>
+                    </template>
+                </div>
+                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🎭 今日のガイドは？</div>
+                <div style="display:flex;gap:6px;">
+                    <template x-for="gm in [{id:'explore',label:'🌳 自然探索',desc:'生き物・植物の話中心'},{id:'culture',label:'🏯 歴史文化',desc:'地域の歴史・文化・暮らし'},{id:'relax',label:'🎧 おまかせ',desc:'自然も文化もバランスよく'}]" :key="gm.id">
+                        <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
+                                :style="guideMood === gm.id ? 'background:rgba(168,85,247,0.2);color:#c084fc;border-color:#a855f7;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
+                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:10px;font-weight:700;text-align:center;">
+                            <span x-text="gm.label" style="display:block;"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+            <!-- 徒歩/自転車用ガイド雰囲気 -->
+            <div x-show="manualTransportMode !== 'car'" x-cloak style="margin-bottom:10px;">
+                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🎭 ガイドの雰囲気</div>
+                <div style="display:flex;gap:6px;">
+                    <template x-for="gm in [{id:'explore',label:'🌳 自然探索'},{id:'culture',label:'🏯 歴史文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
+                        <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
+                                :style="guideMood === gm.id ? 'background:rgba(168,85,247,0.2);color:#c084fc;border-color:#a855f7;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
+                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:10px;font-weight:700;">
+                            <span x-text="gm.label"></span>
                         </button>
                     </template>
                 </div>
@@ -793,6 +816,7 @@ if (!$currentUser) {
                 showVoiceSwitch: false,
                 showDriveVoiceSwitch: false,
                 driveDurationMin: parseInt(localStorage.getItem('ikimon_drive_duration') || '0'),
+                guideMood: localStorage.getItem('ikimon_guide_mood') || 'relax',
                 selectedSpeaker: localStorage.getItem('ikimon_voice_speaker') || localStorage.getItem('ikimon_speaker') || 'gemini-bright',
                 speakers: [
                     { id: 'gemini-bright', label: '女性', emoji: '👩' },
@@ -1066,6 +1090,7 @@ if (!$currentUser) {
                                 elapsed_min: Math.round((this.sessionElapsed || 0) / 60),
                                 session_count: this._ambientGuideCount,
                                 drive_total_min: this._driveTotalMin || 0,
+                                guide_mood: this.guideMood || 'relax',
                             });
                             const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
                             if (!resp.ok) return;
@@ -1337,6 +1362,7 @@ if (!$currentUser) {
                         const gpsPos = this.liveScanner?.lastGpsPos || {};
                         if (gpsPos.lat) params.set('lat', gpsPos.lat);
                         if (gpsPos.lng) params.set('lng', gpsPos.lng);
+                        params.set('guide_mood', this.guideMood || 'relax');
                         const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
                         if (!resp.ok) {
                             this._sendLog('🔊 API ' + resp.status);
