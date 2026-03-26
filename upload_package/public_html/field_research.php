@@ -47,79 +47,81 @@ if (!$currentUser) {
 
     <style>
         *, *::before, *::after { box-sizing: border-box; }
-        body, html { height: 100%; margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Google Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         #map { width: 100%; height: 100%; }
 
-        /* ── Glass Panel ── */
+        /* ── MD3 Glass Panel ── */
         .glass {
-            background: rgba(255,255,255,0.88);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 14px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
         }
 
-        /* ── Top Bar ── */
+        /* ── MD3 Top App Bar ── */
         .top-bar {
             position: absolute; top: 0; left: 0; right: 0; z-index: 20;
-            background: rgba(255,255,255,0.92);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(0,0,0,0.06);
-            padding: 10px 16px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: none;
+            padding: 12px 16px;
             display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
         }
-        .top-bar a { color: #10b981; text-decoration: none; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
-        .top-bar-title { font-size: 15px; font-weight: 800; color: #1e293b; }
+        .top-bar a { color: #1e293b; text-decoration: none; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+        .top-bar a i { color: #10b981; }
+        .top-bar-title { font-size: 16px; font-weight: 600; color: #1e293b; letter-spacing: -0.01em; }
 
-        /* ── Stats Panel (top-left) ── */
+        /* ── MD3 Stats Panel ── */
         .stats-panel {
-            position: absolute; top: 56px; left: 12px; z-index: 15;
-            padding: 10px 14px;
-            display: flex; flex-direction: column; gap: 2px;
+            position: absolute; top: 58px; left: 12px; z-index: 15;
+            padding: 12px 16px;
+            display: flex; flex-direction: column; gap: 3px;
             min-width: 130px;
         }
         .stats-panel .stat-row { display: flex; align-items: baseline; gap: 6px; }
-        .stats-panel .stat-value { font-family: 'SF Mono', monospace; font-size: 1.1rem; font-weight: 800; color: #1e293b; }
-        .stats-panel .stat-label { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stats-panel .stat-value { font-family: 'Google Sans', 'SF Mono', monospace; font-size: 1.05rem; font-weight: 600; color: #1e293b; }
+        .stats-panel .stat-label { font-size: 0.65rem; color: #9ca3af; font-weight: 500; letter-spacing: 0.03em; }
         .stats-panel .stat-value.highlight { color: #10b981; }
 
-        /* ── Period Filter (below stats) ── */
+        /* ── MD3 Period Filter ── */
         .period-bar {
-            position: absolute; top: 56px; left: 160px; z-index: 15;
-            padding: 6px;
+            position: absolute; top: 58px; left: 162px; z-index: 15;
+            padding: 4px;
             display: flex; gap: 2px;
         }
         .period-btn {
-            border: none; background: none; padding: 5px 10px; border-radius: 8px;
-            font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer;
-            transition: all 0.15s;
+            border: none; background: none; padding: 6px 12px; border-radius: 20px;
+            font-size: 12px; font-weight: 500; color: #5f6368; cursor: pointer;
+            transition: all 150ms ease;
         }
-        .period-btn:hover { background: rgba(16,185,129,0.1); }
-        .period-btn.active { background: #10b981; color: #fff; }
+        .period-btn:hover { background: rgba(16,185,129,0.06); }
+        .period-btn.active { background: #10b981; color: #fff; box-shadow: 0 1px 3px rgba(16,185,129,0.3); }
 
-        /* ── Bottom Action Bar ── */
+        /* ── MD3 Bottom Action Bar ── */
         .bottom-bar {
             position: absolute; bottom: max(24px, env(safe-area-inset-bottom, 16px)); left: 50%; transform: translateX(-50%); z-index: 20;
             display: flex; gap: 12px; align-items: center;
             padding: 8px 12px;
         }
         .action-btn {
-            width: 56px; height: 56px; border-radius: 50%; border: none;
+            width: 56px; height: 56px; border-radius: 16px; border: none;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 0.7rem; font-weight: 700; cursor: pointer;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
-            transition: all 0.15s;
+            font-size: 0.7rem; font-weight: 500; cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.08);
+            transition: all 150ms ease;
             text-decoration: none;
         }
-        .action-btn:active { transform: scale(0.93); }
+        .action-btn:active { transform: scale(0.95); }
         .action-btn i { margin-bottom: 2px; }
 
         .btn-observe { background: #f59e0b; color: #fff; }
-        .btn-locate { background: #fff; color: #3b82f6; border: 1px solid rgba(0,0,0,0.08); width: 44px; height: 44px; }
+        .btn-locate { background: #fff; color: #10b981; width: 44px; height: 44px; border-radius: 12px; }
 
-        /* ── GPS Status Indicator ── */
+        /* ── GPS Status ── */
         .gps-dot {
             width: 8px; height: 8px; border-radius: 50%;
             animation: gps-pulse 2s ease-in-out infinite;
@@ -130,52 +132,51 @@ if (!$currentUser) {
         .gps-dot.off  { background: #d1d5db; animation: none; }
         @keyframes gps-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-        /* ── Layer Toggle Button ── */
+        /* ── MD3 Layer Toggle ── */
         .layer-btn {
-            position: absolute; top: 56px; right: 12px; z-index: 15;
+            position: absolute; top: 58px; right: 12px; z-index: 15;
             width: 40px; height: 40px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; padding: 0;
         }
 
-        /* ── Layer Sheet ── */
         .layer-sheet {
-            position: absolute; top: 100px; right: 12px; z-index: 15;
-            padding: 12px 16px; min-width: 200px;
+            position: absolute; top: 102px; right: 12px; z-index: 15;
+            padding: 12px 16px; min-width: 210px;
         }
-        .layer-sheet h4 { margin: 0 0 8px; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        .layer-sheet h4 { margin: 0 0 10px; font-size: 11px; color: #9ca3af; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
         .layer-item {
-            display: flex; align-items: center; gap: 10px;
-            padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.04);
-            font-size: 13px; font-weight: 600; color: #1e293b; cursor: pointer;
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.04);
+            font-size: 14px; font-weight: 500; color: #1e293b; cursor: pointer;
         }
         .layer-item:last-child { border-bottom: none; }
         .layer-toggle {
-            width: 36px; height: 20px; border-radius: 10px; border: none;
-            position: relative; cursor: pointer; transition: background 0.2s;
+            width: 40px; height: 22px; border-radius: 11px; border: none;
+            position: relative; cursor: pointer; transition: background 200ms ease;
         }
         .layer-toggle.on { background: #10b981; }
         .layer-toggle.off { background: #d1d5db; }
         .layer-toggle::after {
-            content: ''; position: absolute; top: 2px; width: 16px; height: 16px;
-            border-radius: 50%; background: #fff; transition: left 0.2s;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            content: ''; position: absolute; top: 2px; width: 18px; height: 18px;
+            border-radius: 50%; background: #fff; transition: left 200ms cubic-bezier(0.2, 0, 0, 1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
         }
-        .layer-toggle.on::after { left: 18px; }
+        .layer-toggle.on::after { left: 20px; }
         .layer-toggle.off::after { left: 2px; }
 
-        /* Loading indicator */
+        /* MD3 Loading indicator */
         .loading-bar {
-            position: absolute; top: 46px; left: 0; right: 0; height: 3px; z-index: 30;
+            position: absolute; top: 48px; left: 0; right: 0; height: 3px; z-index: 30;
             background: linear-gradient(90deg, transparent, #10b981, transparent);
-            animation: loading-slide 1s ease-in-out infinite;
+            animation: loading-slide 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
         @keyframes loading-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
         /* Mobile adjustments */
         @media (max-width: 640px) {
             .period-bar { top: auto; bottom: max(90px, calc(env(safe-area-inset-bottom, 16px) + 72px)); left: 50%; transform: translateX(-50%); }
-            .stats-panel { top: 52px; left: 8px; padding: 8px 10px; }
+            .stats-panel { top: 54px; left: 8px; padding: 10px 12px; }
             .stats-panel .stat-value { font-size: 0.95rem; }
         }
 
@@ -388,84 +389,83 @@ if (!$currentUser) {
     <!-- Sensor Start Panel (single button) -->
     <div x-show="!sessionActive && showModeSelect" x-cloak
          style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
-        <div style="background:rgba(15,23,42,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:16px;border-radius:18px;text-align:center;border:1px solid rgba(255,255,255,0.08);">
+        <div style="background:rgba(255,255,255,0.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:20px;border-radius:24px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.1),0 0 0 1px rgba(0,0,0,0.04);">
             <!-- 移動手段セレクター -->
-            <div style="margin-bottom:12px;">
-                <div style="font-size:10px;color:#64748b;margin-bottom:6px;letter-spacing:0.05em;">移動手段を選択</div>
-                <div style="display:flex;gap:6px;">
+            <div style="margin-bottom:16px;">
+                <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">移動手段</div>
+                <div style="display:flex;gap:8px;">
                     <template x-for="tm in transportModes" :key="tm.id">
                         <button @click="manualTransportMode = tm.id; localStorage.setItem('ikimon_transport', tm.id)"
-                                :style="manualTransportMode === tm.id ? 'background:rgba(16,185,129,0.2);color:#10b981;border-color:#10b981;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
-                                style="flex:1;padding:8px 4px;border-radius:10px;border:1.5px solid;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
-                            <span x-text="tm.emoji" style="font-size:20px;pointer-events:none;"></span>
-                            <span x-text="tm.label" style="font-size:10px;font-weight:700;pointer-events:none;"></span>
+                                :style="manualTransportMode === tm.id ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
+                                style="flex:1;padding:10px 4px;border-radius:12px;border:1.5px solid;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all 150ms ease;">
+                            <span x-text="tm.emoji" style="font-size:22px;pointer-events:none;"></span>
+                            <span x-text="tm.label" style="font-size:11px;font-weight:500;pointer-events:none;"></span>
                         </button>
                     </template>
                 </div>
             </div>
             <!-- ドライブ設定（車モード時） -->
-            <div x-show="manualTransportMode === 'car'" x-cloak style="margin-bottom:10px;">
-                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🕐 ドライブ時間</div>
-                <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <div x-show="manualTransportMode === 'car'" x-cloak style="margin-bottom:14px;">
+                <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">ドライブ時間</div>
+                <div style="display:flex;gap:6px;margin-bottom:14px;">
                     <template x-for="dt in [{min:15,label:'15分'},{min:30,label:'30分'},{min:60,label:'1時間'},{min:0,label:'指定なし'}]" :key="dt.min">
                         <button @click="driveDurationMin = dt.min; localStorage.setItem('ikimon_drive_duration', dt.min)"
-                                :style="driveDurationMin === dt.min ? 'background:rgba(59,130,246,0.2);color:#60a5fa;border-color:#3b82f6;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
-                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:11px;font-weight:700;">
+                                :style="driveDurationMin === dt.min ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
+                                style="flex:1;padding:8px 4px;border-radius:20px;border:1.5px solid;cursor:pointer;font-size:12px;font-weight:500;transition:all 150ms ease;">
                             <span x-text="dt.label"></span>
                         </button>
                     </template>
                 </div>
-                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🎭 今日のガイドは？</div>
+                <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">ガイドの雰囲気</div>
                 <div style="display:flex;gap:6px;">
                     <template x-for="gm in [{id:'explore',label:'🌳 自然探索',desc:'生き物・植物の話中心'},{id:'culture',label:'🏯 歴史文化',desc:'地域の歴史・文化・暮らし'},{id:'relax',label:'🎧 おまかせ',desc:'自然も文化もバランスよく'}]" :key="gm.id">
                         <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
-                                :style="guideMood === gm.id ? 'background:rgba(168,85,247,0.2);color:#c084fc;border-color:#a855f7;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
-                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:10px;font-weight:700;text-align:center;">
+                                :style="guideMood === gm.id ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
+                                style="flex:1;padding:8px 4px;border-radius:20px;border:1.5px solid;cursor:pointer;font-size:11px;font-weight:500;text-align:center;transition:all 150ms ease;">
                             <span x-text="gm.label" style="display:block;"></span>
                         </button>
                     </template>
                 </div>
             </div>
             <!-- 徒歩/自転車用ガイド雰囲気 -->
-            <div x-show="manualTransportMode !== 'car'" x-cloak style="margin-bottom:10px;">
-                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🎭 ガイドの雰囲気</div>
+            <div x-show="manualTransportMode !== 'car'" x-cloak style="margin-bottom:14px;">
+                <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">ガイドの雰囲気</div>
                 <div style="display:flex;gap:6px;">
                     <template x-for="gm in [{id:'explore',label:'🌳 自然探索'},{id:'culture',label:'🏯 歴史文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
                         <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
-                                :style="guideMood === gm.id ? 'background:rgba(168,85,247,0.2);color:#c084fc;border-color:#a855f7;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
-                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:10px;font-weight:700;">
+                                :style="guideMood === gm.id ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
+                                style="flex:1;padding:8px 4px;border-radius:20px;border:1.5px solid;cursor:pointer;font-size:11px;font-weight:500;transition:all 150ms ease;">
                             <span x-text="gm.label"></span>
                         </button>
                     </template>
                 </div>
             </div>
-            <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;">
-                <button @click="startSensor()" style="flex:1;padding:14px;border-radius:14px;border:none;background:#10b981;color:#fff;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-                    <span style="font-size:20px;">📡</span> いきものセンサー ON
+            <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px;">
+                <button @click="startSensor()" style="flex:1;padding:16px;border-radius:24px;border:none;background:#10b981;color:#fff;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 1px 3px rgba(16,185,129,0.3);transition:all 150ms ease;">
+                    <span style="font-size:18px;">📡</span> センサーを開始
                 </button>
                 <button @click="showSpeakerSelect = !showSpeakerSelect"
-                        style="padding:8px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#cbd5e1;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;white-space:nowrap;">
+                        style="padding:10px 14px;border-radius:16px;border:1px solid #e5e7eb;background:#f9fafb;color:#5f6368;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;white-space:nowrap;transition:all 150ms ease;">
                     <span style="font-size:18px;" x-text="speakerEmoji"></span>
-                    <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || 'Auto'" style="font-size:9px;"></span>
+                    <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || 'Auto'" style="font-size:10px;font-weight:500;"></span>
                 </button>
             </div>
-            <div x-show="showSpeakerSelect" x-cloak style="margin-bottom:10px;">
-                <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;">🔊 ガイド音声を選択</div>
+            <div x-show="showSpeakerSelect" x-cloak style="margin-bottom:12px;">
+                <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">ガイド音声</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                     <template x-for="sp in speakers" :key="sp.id">
                         <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                :style="selectedSpeaker === sp.id ? 'background:rgba(16,185,129,0.2);color:#10b981;border-color:#10b981;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
-                                style="padding:10px 8px;border-radius:12px;border:1.5px solid;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                                :style="selectedSpeaker === sp.id ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
+                                style="padding:12px 8px;border-radius:12px;border:1.5px solid;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 150ms ease;">
                             <span x-text="sp.emoji" style="font-size:18px;"></span>
                             <span x-text="sp.label" style="font-weight:500;"></span>
                         </button>
                     </template>
                 </div>
             </div>
-            <div style="font-size:10px;color:#94a3b8;">移動手段に合わせたガイドをお届けします</div>
-            <div style="font-size:9px;color:#475569;text-align:center;padding:4px;line-height:1.6;">
-                音声: Gemini TTS / VOICEVOX（ずんだもん）<br>
-                検出: BirdNET (CC BY-SA 4.0) &amp; Perch v2 (Apache 2.0)
+            <div style="font-size:11px;color:#9ca3af;font-weight:400;">移動手段に合わせたガイドをお届け</div>
+            <div style="font-size:10px;color:#bdc1c6;text-align:center;padding:4px 0 0;line-height:1.5;">
+                BirdNET (CC BY-SA 4.0) · Perch v2 (Apache 2.0)
             </div>
         </div>
     </div>
