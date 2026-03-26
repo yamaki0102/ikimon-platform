@@ -90,6 +90,7 @@ $validEvents = [];
 foreach ($events as $i => $event) {
     if (empty($event['type']) || empty($event['taxon_name'])) continue;
     if (!in_array($event['type'], ['audio', 'visual', 'sensor'], true)) continue;
+    if ((float)($event['confidence'] ?? 0) < 0.20) continue;
 
     $validEvents[] = [
         'type'               => $event['type'],
