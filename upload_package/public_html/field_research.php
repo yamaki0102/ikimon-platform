@@ -1102,7 +1102,9 @@ if (!$currentUser) {
                                 if (json.data.audio_url) {
                                     VoiceGuide.announceAudio(json.data.audio_url);
                                 } else if (json.data.guide_text) {
-                                    VoiceGuide.announce(json.data.guide_text);
+                                    const _vm = VoiceGuide.getVoiceMode();
+                                    const _bt = ['zundamon','mochiko','ryusei','auto'].includes(_vm) || _vm.startsWith('duo-');
+                                    if (!_bt) VoiceGuide.announce(json.data.guide_text);
                                 }
                             }
                         } catch(e) {
@@ -1292,11 +1294,12 @@ if (!$currentUser) {
                             this._fetchVoiceGuide(jaName, detection.scientific_name, detection.confidence_raw || 0.5, this._detCountToday[key], isFirst)
                                 .then(res => {
                                     if (!res) return;
-                                    if (res.delivery_hint && VoiceGuide.announceWithHint) {
-                                        VoiceGuide.announceWithHint(res);
-                                    } else if (res.audio_url) {
+                                    // BT安全: audio_urlがある場合のみ再生。ない場合はブラウザTTS(スマホスピーカー)に行かず沈黙
+                                    const _vgm = VoiceGuide.getVoiceMode();
+                                    const _btMode = ['zundamon','mochiko','ryusei','auto'].includes(_vgm) || _vgm.startsWith('duo-');
+                                    if (res.audio_url) {
                                         VoiceGuide.announceAudio(res.audio_url);
-                                    } else if (res.guide_text) {
+                                    } else if (res.guide_text && !_btMode) {
                                         VoiceGuide.announce(res.guide_text);
                                     }
                                 });
@@ -1326,7 +1329,9 @@ if (!$currentUser) {
                             if (json.data.audio_url) {
                                 VoiceGuide.announceAudio(json.data.audio_url);
                             } else if (json.data.guide_text) {
-                                VoiceGuide.announce(json.data.guide_text);
+                                const _vm = VoiceGuide.getVoiceMode();
+                                const _bt = ['zundamon','mochiko','ryusei','auto'].includes(_vm) || _vm.startsWith('duo-');
+                                if (!_bt) VoiceGuide.announce(json.data.guide_text);
                             }
                         }
                     } catch(e) {

@@ -2224,8 +2224,12 @@ async function _fetchVoiceGuide(name, sci, conf, count, isFirst) {
                 if (vs) vs.textContent = '🔊 ' + (j.data.guide_text || name).substring(0, 20) + '...';
                 VoiceGuide.announceAudio(j.data.audio_url);
             } else if (j.data.guide_text) {
-                if (vs) vs.textContent = '🔊 ' + j.data.guide_text.substring(0, 20) + '...';
-                VoiceGuide.announce(j.data.guide_text);
+                var _vm = VoiceGuide.getVoiceMode();
+                var _bt = ['zundamon','mochiko','ryusei','auto'].indexOf(_vm) >= 0 || _vm.indexOf('duo-') === 0;
+                if (!_bt) {
+                    if (vs) vs.textContent = '🔊 ' + j.data.guide_text.substring(0, 20) + '...';
+                    VoiceGuide.announce(j.data.guide_text);
+                }
             }
         }
     } catch(e) { dbg('🔊 detGuide ERR: ' + e.message); }
@@ -2257,7 +2261,7 @@ function tryAmbient() {
         var vs = document.getElementById('drive-voice-status');
         if (vs) vs.textContent = '🔊 ' + (pf.guide_text || '').substring(0, 20) + '...';
         if (pf.audio_url) VoiceGuide.announceAudio(pf.audio_url);
-        else if (pf.guide_text) VoiceGuide.announce(pf.guide_text);
+        else if (pf.guide_text) { var _vm2=VoiceGuide.getVoiceMode(); if(['zundamon','mochiko','ryusei','auto'].indexOf(_vm2)<0&&_vm2.indexOf('duo-')!==0) VoiceGuide.announce(pf.guide_text); }
         dbg('🔊 prefetch再生');
         return;
     }
@@ -2312,7 +2316,7 @@ async function _fetchAmbientNow() {
             S._lastVoiceTime = Date.now();
             if (vs) vs.textContent = '🔊 ' + (j.data.guide_text || '').substring(0, 20) + '...';
             if (j.data.audio_url) VoiceGuide.announceAudio(j.data.audio_url);
-            else if (j.data.guide_text) VoiceGuide.announce(j.data.guide_text);
+            else if (j.data.guide_text) { var _vm3=VoiceGuide.getVoiceMode(); if(['zundamon','mochiko','ryusei','auto'].indexOf(_vm3)<0&&_vm3.indexOf('duo-')!==0) VoiceGuide.announce(j.data.guide_text); }
         }
     } catch(e) { dbg('🔊 ambient ERR: ' + e.message); }
     S._ambientFetching = false;
