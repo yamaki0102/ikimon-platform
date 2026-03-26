@@ -173,6 +173,17 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
                         🟢 ずんだもん
                     </button>
                 </div>
+                <div class="text-[10px] text-gray-500 px-1 mb-1 mt-2">🎙️ 掛け合い</div>
+                <div class="flex flex-wrap gap-2 px-1">
+                    <button type="button" class="flex-1 min-w-[40%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
+                            data-speaker="duo-zundamon-mochiko" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                        🟢×🩷 ずんだもん＆もち子
+                    </button>
+                    <button type="button" class="flex-1 min-w-[40%] py-2 rounded-lg text-xs font-bold border transition vg-speaker-btn"
+                            data-speaker="duo-zundamon-ryusei" style="border-color:transparent;background:rgba(255,255,255,0.05);color:#9ca3af">
+                        🟢×🔵 ずんだもん＆龍星
+                    </button>
+                </div>
                 <div class="text-[9px] text-gray-600 text-right px-1 mt-2">音声: Gemini TTS / <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noopener" class="underline">VOICEVOX</a></div>
             </div>
         </div>
@@ -226,6 +237,9 @@ if (!$currentUser) { header('Location: login.php?redirect=field_scan.php'); exit
         <button class="vs-opt" data-vs="gemini-bright" style="padding:8px 12px;border-radius:8px;border:none;background:rgba(139,92,246,0.3);color:#c4b5fd;font-size:12px;font-weight:bold;text-align:left;cursor:pointer">👩 女性</button>
         <button class="vs-opt" data-vs="gemini-calm" style="padding:8px 12px;border-radius:8px;border:none;background:rgba(255,255,255,0.05);color:#9ca3af;font-size:12px;font-weight:bold;text-align:left;cursor:pointer">👨 男性</button>
         <button class="vs-opt" data-vs="zundamon" style="padding:8px 12px;border-radius:8px;border:none;background:rgba(255,255,255,0.05);color:#9ca3af;font-size:12px;font-weight:bold;text-align:left;cursor:pointer">🟢 ずんだもん</button>
+        <div style="border-top:1px solid rgba(255,255,255,0.1);margin:4px 0"></div>
+        <button class="vs-opt" data-vs="duo-zundamon-mochiko" style="padding:8px 12px;border-radius:8px;border:none;background:rgba(255,255,255,0.05);color:#9ca3af;font-size:12px;font-weight:bold;text-align:left;cursor:pointer">🎙️ ずんだもん＆もち子</button>
+        <button class="vs-opt" data-vs="duo-zundamon-ryusei" style="padding:8px 12px;border-radius:8px;border:none;background:rgba(255,255,255,0.05);color:#9ca3af;font-size:12px;font-weight:bold;text-align:left;cursor:pointer">🎙️ ずんだもん＆龍星</button>
     </div>
 
     <!-- トップバー -->
@@ -2067,7 +2081,7 @@ _stopBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropa
 _stopBtn.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); stopScan(); }, {passive: false});
 
 // --- Voice switch during scan ---
-var _voiceSwitchLabels = {'gemini-bright':'女性','gemini-calm':'男性','zundamon':'ずんだもん','auto':'自動','mochiko':'もち子','ryusei':'龍星'};
+var _voiceSwitchLabels = {'gemini-bright':'女性','gemini-calm':'男性','zundamon':'ずんだもん','auto':'自動','mochiko':'もち子','ryusei':'龍星','duo-zundamon-mochiko':'ずんだ×もち子','duo-zundamon-ryusei':'ずんだ×龍星'};
 function _updateVoiceSwitchUI() {
     var cur = VoiceGuide.getSpeaker();
     var lbl = document.getElementById('voice-switch-label');
