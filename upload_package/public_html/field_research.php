@@ -1108,6 +1108,14 @@ if (!$currentUser) {
                         } catch(e) {}
                     }
 
+                    // Opening announcement (VOICEVOX/duo以外のみブラウザTTSで繋ぎ)
+                    const _vgm = VoiceGuide.getVoiceMode();
+                    const _isVoxMode = ['zundamon','mochiko','ryusei','auto'].includes(_vgm) || _vgm.startsWith('duo-');
+                    if (!_isVoxMode) {
+                        const modeLabel = this.manualTransportMode === 'car' ? 'ドライブ' : this.manualTransportMode === 'bike' ? 'サイクリング' : 'フィールドサーチ';
+                        VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
+                    }
+
                     this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
                     console.log(`[Sensor] Started (speaker: ${this.selectedSpeaker})`);
                 },
