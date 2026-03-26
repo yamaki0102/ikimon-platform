@@ -208,7 +208,10 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         <i data-lucide="book-open" class="w-3.5 h-3.5"></i> 図鑑
                     </a>
                     <a href="explore.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
-                        <i data-lucide="map" class="w-3.5 h-3.5"></i> 探索マップ
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i> いきものサーチ
+                    </a>
+                    <a href="field_research.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-400/20 border border-emerald-400/30 text-emerald-200 text-xs font-bold hover:bg-emerald-400/30 transition">
+                        <i data-lucide="scan" class="w-3.5 h-3.5"></i> AIスキャン
                     </a>
                     <a href="compass.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
                         <i data-lucide="trophy" class="w-3.5 h-3.5"></i> コンパス
@@ -216,8 +219,8 @@ $publicSurveyorCount = count($allPublicSurveyors);
                     <a href="events.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
                         <i data-lucide="calendar" class="w-3.5 h-3.5"></i> 観察会
                     </a>
-                    <a href="ikimon_walk.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
-                        <i data-lucide="footprints" class="w-3.5 h-3.5"></i> さんぽ
+                    <a href="wellness.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
+                        <i data-lucide="footprints" class="w-3.5 h-3.5"></i> ウェルネス
                     </a>
                     <a href="guide/nature-positive.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/20 transition">
                         <i data-lucide="leaf" class="w-3.5 h-3.5"></i> ネイチャーポジティブ
@@ -327,29 +330,30 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         <!-- Step 1 -->
                         <div class="flex flex-col items-center text-center">
                             <div class="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-lg shadow-primary-glow/20">
-                                <i data-lucide="camera" class="w-8 h-8 text-white"></i>
+                                <i data-lucide="scan" class="w-8 h-8 text-white"></i>
                             </div>
                             <div class="text-token-xs font-black text-primary uppercase tracking-widest mb-1">STEP 1</div>
-                            <h3 class="text-base font-black text-text mb-1">📸 写真を撮る</h3>
-                            <p class="text-sm text-muted leading-relaxed">見つけた生き物の写真を撮りましょう。<br>名前がわからなくても大丈夫です。</p>
+                            <h3 class="text-base font-black text-text mb-1">🔬 AIスキャンで発見</h3>
+                            <p class="text-sm text-muted leading-relaxed">歩きながらカメラをかざすだけ。<br>AIが生き物を自動認識します。</p>
+                            <a href="field_research.php" class="mt-3 text-xs font-bold text-primary hover:underline">試してみる →</a>
                         </div>
                         <!-- Step 2 -->
                         <div class="flex flex-col items-center text-center">
                             <div class="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4 shadow-lg shadow-secondary/20">
-                                <i data-lucide="search" class="w-8 h-8 text-white"></i>
+                                <i data-lucide="camera" class="w-8 h-8 text-white"></i>
                             </div>
                             <div class="text-token-xs font-black text-secondary uppercase tracking-widest mb-1">STEP 2</div>
-                            <h3 class="text-base font-black text-text mb-1">🔍 調べてみる</h3>
-                            <p class="text-sm text-muted leading-relaxed">図鑑やガイドで名前を調べましょう。<br>困ったらみんなが教えてくれます。</p>
+                            <h3 class="text-base font-black text-text mb-1">📸 写真で記録する</h3>
+                            <p class="text-sm text-muted leading-relaxed">気になった生き物を写真投稿。<br>名前がわからなくても大丈夫。</p>
                         </div>
                         <!-- Step 3 -->
                         <div class="flex flex-col items-center text-center">
                             <div class="w-16 h-16 rounded-2xl bg-accent flex items-center justify-center mb-4 shadow-lg shadow-accent/20">
-                                <i data-lucide="map" class="w-8 h-8 text-white"></i>
+                                <i data-lucide="search" class="w-8 h-8 text-white"></i>
                             </div>
                             <div class="text-token-xs font-black text-accent uppercase tracking-widest mb-1">STEP 3</div>
-                            <h3 class="text-base font-black text-text mb-1">🗺️ 地図に残す</h3>
-                            <p class="text-sm text-muted leading-relaxed">あなたの記録が地域のデータに。<br>みんなで生きもの地図を作りましょう。</p>
+                            <h3 class="text-base font-black text-text mb-1">🔍 みんなで同定・共有</h3>
+                            <p class="text-sm text-muted leading-relaxed">コミュニティが名前を教えてくれる。<br>記録が地域の生態系データになる。</p>
                         </div>
                     </div>
 
@@ -377,10 +381,14 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         </div>
                     </div>
 
-                    <div class="text-center" style="margin-top:var(--phi-xl)">
-                        <a href="post.php" class="btn-primary text-base px-8 py-3.5 inline-flex items-center gap-2 shadow-lg shadow-primary-glow/20">
-                            <i data-lucide="camera" class="w-5 h-5"></i>
-                            さっそく始めてみる
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-3" style="margin-top:var(--phi-xl)">
+                        <a href="field_research.php" class="btn-primary text-base px-8 py-3.5 inline-flex items-center gap-2 shadow-lg shadow-primary-glow/20">
+                            <i data-lucide="scan" class="w-5 h-5"></i>
+                            AIスキャンを試す
+                        </a>
+                        <a href="explore.php" class="btn-secondary text-base px-8 py-3.5 inline-flex items-center gap-2">
+                            <i data-lucide="search" class="w-5 h-5"></i>
+                            いきものサーチ
                         </a>
                     </div>
                 </div>

@@ -103,7 +103,7 @@ JSON配列のみ出力:
 生物なしなら[]。
 PROMPT;
 
-$model = 'gemini-3.1-flash-lite-preview';
+$model = 'gemini-2.0-flash';
 $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . GEMINI_API_KEY;
 
 $payload = [

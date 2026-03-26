@@ -794,7 +794,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
             </div>
 
             <div class="msg-signature">
-                <img src="assets/img/yamaki.jpg" alt="八巻 毅" class="msg-signature-photo">
+                <img src="assets/img/yamaki.webp" alt="八巻 毅" class="msg-signature-photo">
                 <div>
                     <p class="msg-signature-name">八巻 毅</p>
                     <p class="msg-signature-title">IKIMON株式会社 代表</p>
@@ -815,9 +815,13 @@ $meta_description = $regionalMessaging['about_meta_description'];
             </p>
 
             <div class="msg-cta-buttons">
-                <a href="<?= htmlspecialchars($ctaHref) ?>" class="btn-primary">
-                    <i data-lucide="camera" class="w-4 h-4"></i>
-                    <?= htmlspecialchars($ctaLabel) ?>
+                <a href="field_research.php" class="btn-primary">
+                    <i data-lucide="scan" class="w-4 h-4"></i>
+                    AIスキャンで始める
+                </a>
+                <a href="explore.php" class="btn-secondary">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                    いきものサーチ
                 </a>
                 <a href="for-business/" class="btn-secondary">
                     <i data-lucide="building-2" class="w-4 h-4"></i>
