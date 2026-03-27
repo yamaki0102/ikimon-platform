@@ -47,157 +47,238 @@ if (!$currentUser) {
 
     <style>
         *, *::before, *::after { box-sizing: border-box; }
-        body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Google Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        body, html { height: 100%; margin: 0; overflow: hidden; font-family: var(--font-body); }
         #map { width: 100%; height: 100%; }
 
-        /* ── M3 Expressive Glass Panel ── */
+        /* ── M3 Glass Panel ── */
         .glass {
-            background: rgba(255,255,255,0.94);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background: var(--glass-surface-heavy);
+            backdrop-filter: blur(var(--glass-blur));
+            -webkit-backdrop-filter: blur(var(--glass-blur));
             border: none;
-            border-radius: 28px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.04);
+            border-radius: var(--md-sys-shape-corner-extra-large);
+            box-shadow: var(--md-sys-elevation-1);
         }
 
-        /* ── M3 Expressive Top App Bar ── */
+        /* ── M3 Top App Bar ── */
         .top-bar {
             position: absolute; top: 0; left: 0; right: 0; z-index: 20;
-            background: rgba(255,255,255,0.96);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border-bottom: none;
-            padding: 14px 20px;
+            background: var(--glass-surface-heavy);
+            backdrop-filter: blur(var(--glass-blur));
+            -webkit-backdrop-filter: blur(var(--glass-blur));
+            padding: var(--space-3) var(--space-5);
+            padding-top: calc(var(--safe-top) + var(--space-3));
             display: flex; align-items: center; justify-content: space-between;
         }
-        .top-bar a { color: #1a1a1a; text-decoration: none; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
-        .top-bar a i { color: #10b981; }
-        .top-bar-title { font-size: 18px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.02em; }
+        .top-bar a { color: var(--md-sys-color-on-surface); text-decoration: none; font-size: var(--md-sys-typescale-body-medium-size); font-weight: 500; display: flex; align-items: center; gap: var(--space-2); }
+        .top-bar a i { color: var(--md-sys-color-primary); }
+        .top-bar-title { font-size: var(--md-sys-typescale-title-medium-size); font-weight: 600; color: var(--md-sys-color-on-surface); letter-spacing: -0.02em; }
 
-        /* ── M3 Expressive Stats Panel ── */
+        /* ── M3 Stats Panel ── */
         .stats-panel {
-            position: absolute; top: 60px; left: 12px; z-index: 15;
-            padding: 14px 18px;
-            display: flex; flex-direction: column; gap: 4px;
+            position: absolute; top: calc(var(--safe-top) + 56px); left: var(--space-3); z-index: 15;
+            padding: var(--space-3) var(--space-4);
+            display: flex; flex-direction: column; gap: var(--space-1);
             min-width: 130px;
         }
         .stats-panel .stat-row { display: flex; align-items: baseline; gap: 6px; }
-        .stats-panel .stat-value { font-family: 'Google Sans', system-ui, monospace; font-size: 1.1rem; font-weight: 600; color: #1a1a1a; }
-        .stats-panel .stat-label { font-size: 0.65rem; color: #9ca3af; font-weight: 500; letter-spacing: 0.03em; }
-        .stats-panel .stat-value.highlight { color: #059669; }
+        .stats-panel .stat-value { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 600; color: var(--md-sys-color-on-surface); }
+        .stats-panel .stat-label { font-size: var(--md-sys-typescale-label-small-size); color: var(--color-text-faint); font-weight: 500; letter-spacing: var(--tracking-wide); }
+        .stats-panel .stat-value.highlight { color: var(--color-primary-dark); }
 
-        /* ── M3 Expressive Period Filter ── */
+        /* ── M3 Period Filter ── */
         .period-bar {
-            position: absolute; top: 60px; left: 164px; z-index: 15;
-            padding: 4px;
-            display: flex; gap: 4px;
+            position: absolute; top: calc(var(--safe-top) + 56px); left: 164px; z-index: 15;
+            padding: var(--space-1);
+            display: flex; gap: var(--space-1);
         }
         .period-btn {
-            border: none; background: none; padding: 8px 14px; border-radius: 9999px;
-            font-size: 13px; font-weight: 500; color: #5f6368; cursor: pointer;
-            transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
+            border: none; background: none; padding: var(--space-2) var(--space-3); border-radius: var(--md-sys-shape-corner-full);
+            font-size: var(--md-sys-typescale-body-medium-size); font-weight: 500; color: var(--md-sys-color-on-surface-variant); cursor: pointer;
+            transition: all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
         }
-        .period-btn:hover { background: rgba(16,185,129,0.08); }
-        .period-btn.active { background: #059669; color: #fff; box-shadow: 0 2px 8px rgba(5,150,105,0.25); }
+        .period-btn:hover { background: var(--color-primary-surface); }
+        .period-btn.active { background: var(--color-primary-dark); color: var(--md-sys-color-on-primary); box-shadow: var(--shadow-primary-sm); }
 
-        /* ── M3 Expressive Bottom Action Bar ── */
+        /* ── M3 Bottom Action Bar ── */
         .bottom-bar {
-            position: absolute; bottom: max(24px, env(safe-area-inset-bottom, 16px)); left: 50%; transform: translateX(-50%); z-index: 20;
-            display: flex; gap: 12px; align-items: center;
-            padding: 8px 12px;
+            position: absolute; bottom: max(var(--space-6), calc(var(--safe-bottom) + var(--space-4))); left: 50%; transform: translateX(-50%); z-index: 20;
+            display: flex; gap: var(--space-3); align-items: center;
+            padding: var(--space-2) var(--space-3);
         }
         .action-btn {
-            width: 56px; height: 56px; border-radius: 28px; border: none;
+            width: var(--touch-fab); height: var(--touch-fab); border-radius: calc(var(--touch-fab) / 2); border: none;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 0.7rem; font-weight: 500; cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.06);
-            transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
+            font-size: var(--md-sys-typescale-label-small-size); font-weight: 500; cursor: pointer;
+            box-shadow: var(--md-sys-elevation-1);
+            transition: all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
             text-decoration: none;
         }
         .action-btn:active { transform: scale(0.92); }
         .action-btn i { margin-bottom: 2px; }
-
-        .btn-observe { background: #f59e0b; color: #fff; }
-        .btn-locate { background: #fff; color: #059669; width: 48px; height: 48px; border-radius: 24px; }
+        .btn-observe { background: var(--md-sys-color-tertiary); color: var(--md-sys-color-on-tertiary); }
+        .btn-locate { background: var(--md-sys-color-surface-bright); color: var(--color-primary-dark); width: var(--touch-comfortable); height: var(--touch-comfortable); border-radius: calc(var(--touch-comfortable) / 2); }
 
         /* ── GPS Status ── */
-        .gps-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            animation: gps-pulse 2s ease-in-out infinite;
-        }
-        .gps-dot.good { background: #22c55e; }
-        .gps-dot.fair { background: #f59e0b; }
-        .gps-dot.poor { background: #ef4444; }
-        .gps-dot.off  { background: #d1d5db; animation: none; }
+        .gps-dot { width: 8px; height: 8px; border-radius: 50%; animation: gps-pulse 2s ease-in-out infinite; }
+        .gps-dot.good { background: var(--md-sys-color-primary); }
+        .gps-dot.fair { background: var(--md-sys-color-tertiary); }
+        .gps-dot.poor { background: var(--md-sys-color-error); }
+        .gps-dot.off  { background: var(--md-sys-color-surface-dim); animation: none; }
         @keyframes gps-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-        /* ── M3 Expressive Layer Toggle ── */
+        /* ── M3 Layer Toggle ── */
         .layer-btn {
-            position: absolute; top: 60px; right: 12px; z-index: 15;
-            width: 48px; height: 48px;
+            position: absolute; top: calc(var(--safe-top) + 56px); right: var(--space-3); z-index: 15;
+            width: var(--touch-comfortable); height: var(--touch-comfortable);
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; padding: 0;
-            border-radius: 24px;
+            border-radius: calc(var(--touch-comfortable) / 2);
         }
-
         .layer-sheet {
-            position: absolute; top: 114px; right: 12px; z-index: 15;
-            padding: 16px 20px; min-width: 220px;
+            position: absolute; top: calc(var(--safe-top) + 110px); right: var(--space-3); z-index: 15;
+            padding: var(--space-4) var(--space-5); min-width: 220px;
         }
-        .layer-sheet h4 { margin: 0 0 12px; font-size: 12px; color: #9ca3af; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+        .layer-sheet h4 { margin: 0 0 var(--space-3); font-size: var(--md-sys-typescale-label-medium-size); color: var(--color-text-faint); font-weight: 600; letter-spacing: var(--tracking-wide); text-transform: uppercase; }
         .layer-item {
-            display: flex; align-items: center; gap: 14px;
-            padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.04);
-            font-size: 14px; font-weight: 500; color: #1a1a1a; cursor: pointer;
+            display: flex; align-items: center; gap: var(--space-3);
+            padding: var(--space-3) 0; border-bottom: 1px solid var(--md-sys-color-outline-variant);
+            font-size: var(--md-sys-typescale-body-medium-size); font-weight: 500; color: var(--md-sys-color-on-surface); cursor: pointer;
         }
         .layer-item:last-child { border-bottom: none; }
         .layer-toggle {
             width: 44px; height: 24px; border-radius: 12px; border: none;
-            position: relative; cursor: pointer; transition: background 250ms cubic-bezier(0.2, 0, 0, 1);
+            position: relative; cursor: pointer; transition: background var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-standard);
         }
-        .layer-toggle.on { background: #059669; }
-        .layer-toggle.off { background: #d1d5db; }
+        .layer-toggle.on { background: var(--color-primary-dark); }
+        .layer-toggle.off { background: var(--md-sys-color-surface-dim); }
         .layer-toggle::after {
             content: ''; position: absolute; top: 2px; width: 20px; height: 20px;
-            border-radius: 50%; background: #fff; transition: left 250ms cubic-bezier(0.2, 0, 0, 1);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            border-radius: 50%; background: #fff; transition: left var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-standard);
+            box-shadow: var(--md-sys-elevation-1);
         }
         .layer-toggle.on::after { left: 22px; }
         .layer-toggle.off::after { left: 2px; }
 
-        /* M3 Expressive Loading indicator */
+        /* ── M3 Loading ── */
         .loading-bar {
-            position: absolute; top: 52px; left: 0; right: 0; height: 3px; z-index: 30;
-            background: linear-gradient(90deg, transparent, #059669, transparent);
+            position: absolute; top: calc(var(--safe-top) + 48px); left: 0; right: 0; height: 3px; z-index: 30;
+            background: linear-gradient(90deg, transparent, var(--color-primary-dark), transparent);
             animation: loading-slide 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
         @keyframes loading-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
-        /* Mobile adjustments */
+        /* ── M3 Sensor Bottom Sheet ── */
+        .sensor-sheet {
+            position: absolute; bottom: max(var(--space-4), var(--safe-bottom)); left: 50%; transform: translateX(-50%); z-index: 25;
+            width: calc(100% - var(--space-8)); max-width: 400px;
+        }
+        .sensor-sheet-inner {
+            background: var(--glass-surface-heavy);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--md-sys-elevation-2);
+            overflow: hidden;
+            transition: max-height var(--md-sys-motion-duration-medium4) var(--md-sys-motion-easing-emphasized-decelerate);
+        }
+        .sensor-sheet .drag-handle {
+            width: 32px; height: 4px; border-radius: 2px; background: var(--md-sys-color-outline);
+            margin: var(--space-2) auto var(--space-3);
+        }
+        .sheet-section { padding: 0 var(--space-5); margin-bottom: var(--space-4); }
+        .sheet-section:last-child { margin-bottom: var(--space-5); }
+        .sheet-label { font-size: var(--md-sys-typescale-label-medium-size); color: var(--md-sys-color-on-surface-variant); font-weight: 500; margin-bottom: var(--space-2); }
+
+        /* ── M3 Segmented Button ── */
+        .m3-segmented {
+            display: flex; border-radius: var(--md-sys-shape-corner-full); background: var(--md-sys-color-surface-container); padding: var(--space-1); gap: var(--space-1);
+        }
+        .m3-segmented button {
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 10px var(--space-1); border-radius: var(--md-sys-shape-corner-full); border: none;
+            font-size: var(--md-sys-typescale-label-large-size); font-weight: 600; cursor: pointer;
+            transition: all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+            background: transparent; color: var(--md-sys-color-on-surface-variant);
+        }
+        .m3-segmented button.active {
+            background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container);
+            box-shadow: var(--md-sys-elevation-1);
+        }
+        .m3-segmented button span { pointer-events: none; }
+
+        /* ── M3 Chip Group ── */
+        .m3-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+        .m3-chips::-webkit-scrollbar { display: none; }
+        .m3-chip {
+            padding: var(--space-2) var(--space-3); border-radius: var(--md-sys-shape-corner-full); border: 1.5px solid var(--md-sys-color-outline-variant);
+            background: var(--md-sys-color-surface-container-low); color: var(--md-sys-color-on-surface-variant);
+            font-size: var(--md-sys-typescale-label-medium-size); font-weight: 500; cursor: pointer; white-space: nowrap;
+            transition: all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+        }
+        .m3-chip.active {
+            background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container);
+            border-color: var(--md-sys-color-primary);
+        }
+
+        /* ── M3 Switch ── */
+        .m3-switch {
+            width: 100%; padding: 10px var(--space-4); border-radius: var(--md-sys-shape-corner-full); border: 1.5px solid var(--md-sys-color-outline-variant);
+            background: var(--md-sys-color-surface-container-low); color: var(--color-text-faint);
+            font-size: var(--md-sys-typescale-body-medium-size); font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+        }
+        .m3-switch.active {
+            background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container);
+            border-color: var(--md-sys-color-primary);
+        }
+
+        /* ── M3 Extended FAB ── */
+        .m3-fab-extended {
+            width: 100%; padding: var(--space-4); border-radius: var(--md-sys-shape-corner-full); border: none;
+            background: var(--color-primary-dark); color: var(--md-sys-color-on-primary);
+            font-size: var(--md-sys-typescale-title-medium-size); font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+            box-shadow: var(--shadow-primary); letter-spacing: -0.01em;
+            transition: all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+        }
+        .m3-fab-extended:active { transform: scale(0.97); }
+
+        /* ── Mobile ── */
         @media (max-width: 640px) {
-            .period-bar { top: auto; bottom: max(90px, calc(env(safe-area-inset-bottom, 16px) + 72px)); left: 50%; transform: translateX(-50%); }
-            .stats-panel { top: 56px; left: 8px; padding: 12px 14px; }
+            .top-bar { padding: var(--space-3) var(--space-4); padding-top: calc(var(--safe-top) + var(--space-3)); }
+            .stats-panel { top: calc(var(--safe-top) + 52px); left: var(--space-2); padding: var(--space-3); min-width: 110px; }
             .stats-panel .stat-value { font-size: 0.95rem; }
+            .period-bar { position: fixed; top: auto; bottom: max(88px, calc(var(--safe-bottom) + 72px)); left: 50%; transform: translateX(-50%); }
+            .layer-btn { top: calc(var(--safe-top) + 52px); }
+            .layer-sheet { top: calc(var(--safe-top) + 104px); }
+            .sensor-sheet { width: calc(100% - var(--space-4)); max-width: none; }
+            .bottom-bar { bottom: max(var(--space-4), calc(var(--safe-bottom) + var(--space-2))); }
+        }
+        @media (max-width: 380px) {
+            .stats-panel { min-width: 90px; padding: var(--space-2); }
+            .stats-panel .stat-value { font-size: 0.85rem; }
+            .period-btn { padding: 6px 10px; font-size: var(--md-sys-typescale-label-small-size); }
         }
 
         /* ── Site Guide Toast ── */
         .site-guide-toast {
-            position: absolute; bottom: max(100px, calc(env(safe-area-inset-bottom, 16px) + 88px));
+            position: absolute; bottom: max(100px, calc(var(--safe-bottom) + 88px));
             left: 50%; transform: translateX(-50%); z-index: 25;
-            max-width: 360px; width: calc(100% - 32px);
-            animation: sgt-slide-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 360px; width: calc(100% - var(--space-8));
+            animation: sgt-slide-up 0.4s var(--md-sys-motion-spring-bouncy);
         }
         .sgt-inner {
-            background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(16,185,129,0.2); border-radius: 14px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(16,185,129,0.08);
-            padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer;
-            transition: transform 0.15s;
+            background: var(--glass-surface-heavy); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+            border: 1px solid var(--color-primary-glow); border-radius: var(--md-sys-shape-corner-medium);
+            box-shadow: var(--md-sys-elevation-2);
+            padding: var(--space-3); display: flex; align-items: center; gap: 10px; cursor: pointer;
+            transition: transform var(--duration-fast);
         }
         .sgt-inner:active { transform: scale(0.97); }
-        .sgt-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(16,185,129,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .sgt-title { font-size: 13px; font-weight: 700; color: #1e293b; }
-        .sgt-sub { font-size: 11px; color: #64748b; margin-top: 1px; }
+        .sgt-icon { width: 36px; height: 36px; border-radius: var(--md-sys-shape-corner-small); background: var(--color-primary-surface); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .sgt-title { font-size: var(--md-sys-typescale-body-medium-size); font-weight: 700; color: var(--md-sys-color-on-surface); }
+        .sgt-sub { font-size: var(--md-sys-typescale-label-small-size); color: var(--color-text-muted); margin-top: 1px; }
         .sgt-text { flex: 1; min-width: 0; }
         @keyframes sgt-slide-up { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
@@ -205,86 +286,72 @@ if (!$currentUser) {
         .site-guide-panel {
             position: absolute; top: 0; right: 0; z-index: 30;
             width: min(400px, 100%); height: 100vh; height: 100dvh;
-            background: #fff;
-            box-shadow: -4px 0 24px rgba(0,0,0,0.12);
-            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--md-sys-color-surface-bright);
+            box-shadow: var(--md-sys-elevation-3);
+            transform: translateX(100%); transition: transform var(--duration-normal) var(--ease-default);
             flex-direction: column;
         }
         .site-guide-panel.open { transform: translateX(0); }
-
         .sgp-header {
-            padding: 16px 16px 12px; border-bottom: 1px solid #f1f5f9;
-            display: flex; align-items: flex-start; gap: 12px; flex-shrink: 0;
-            background: linear-gradient(135deg, rgba(16,185,129,0.04), rgba(59,130,246,0.04));
+            padding: var(--space-4) var(--space-4) var(--space-3); border-bottom: 1px solid var(--md-sys-color-outline-variant);
+            display: flex; align-items: flex-start; gap: var(--space-3); flex-shrink: 0;
+            background: linear-gradient(135deg, var(--color-primary-surface), var(--color-secondary-surface));
         }
-        .sgp-close { position: absolute; top: 12px; right: 12px; background: none; border: none; cursor: pointer; padding: 4px; border-radius: 8px; color: #94a3b8; }
-        .sgp-close:hover { background: #f1f5f9; color: #475569; }
-        .sgp-title { font-size: 17px; font-weight: 800; color: #1e293b; margin: 0; padding-right: 32px; }
-        .sgp-subtitle { font-size: 12px; color: #64748b; margin: 4px 0 0; }
-
+        .sgp-close { position: absolute; top: var(--space-3); right: var(--space-3); background: none; border: none; cursor: pointer; padding: var(--space-1); border-radius: var(--md-sys-shape-corner-small); color: var(--color-text-faint); }
+        .sgp-close:hover { background: var(--md-sys-color-surface-container-low); color: var(--md-sys-color-on-surface-variant); }
+        .sgp-title { font-size: var(--md-sys-typescale-title-small-size); font-weight: 800; color: var(--md-sys-color-on-surface); margin: 0; padding-right: var(--space-8); }
+        .sgp-subtitle { font-size: var(--md-sys-typescale-body-small-size); color: var(--color-text-muted); margin: var(--space-1) 0 0; }
         .sgp-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; }
-        .sgp-section { padding: 16px; border-bottom: 1px solid #f1f5f9; }
-        .sgp-section-title { font-size: 13px; font-weight: 700; color: #1e293b; margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
-
-        .sgp-welcome p { font-size: 13px; line-height: 1.7; color: #475569; margin: 0; }
-
+        .sgp-section { padding: var(--space-4); border-bottom: 1px solid var(--md-sys-color-outline-variant); }
+        .sgp-section-title { font-size: var(--md-sys-typescale-body-medium-size); font-weight: 700; color: var(--md-sys-color-on-surface); margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
+        .sgp-welcome p { font-size: var(--md-sys-typescale-body-medium-size); line-height: 1.7; color: var(--md-sys-color-on-surface-variant); margin: 0; }
         .sgp-highlights { display: flex; flex-direction: column; gap: 6px; }
-        .sgp-highlight-item { font-size: 12px; color: #475569; padding: 6px 10px; background: rgba(16,185,129,0.06); border-radius: 8px; border-left: 3px solid #10b981; }
-
-        .sgp-season { background: linear-gradient(135deg, rgba(251,191,36,0.06), rgba(245,158,11,0.06)); }
-        .sgp-season-desc { font-size: 12.5px; line-height: 1.6; color: #475569; margin: 0; }
-
-        .sgp-routes { display: flex; flex-direction: column; gap: 8px; }
-        .sgp-route-card { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; }
-        .sgp-route-name { font-size: 13px; font-weight: 700; color: #1e293b; }
-        .sgp-route-meta { display: flex; gap: 8px; margin-top: 4px; font-size: 11px; color: #94a3b8; }
-        .sgp-route-diff { background: #dcfce7; color: #16a34a; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
-        .sgp-route-desc { font-size: 12px; color: #64748b; margin: 6px 0 0; line-height: 1.5; }
-
-        /* POI Cards */
+        .sgp-highlight-item { font-size: var(--md-sys-typescale-body-small-size); color: var(--md-sys-color-on-surface-variant); padding: 6px 10px; background: var(--color-primary-surface); border-radius: var(--md-sys-shape-corner-small); border-left: 3px solid var(--md-sys-color-primary); }
+        .sgp-season { background: linear-gradient(135deg, var(--color-accent-surface), rgba(245,158,11,0.06)); }
+        .sgp-season-desc { font-size: var(--md-sys-typescale-body-small-size); line-height: 1.6; color: var(--md-sys-color-on-surface-variant); margin: 0; }
+        .sgp-routes { display: flex; flex-direction: column; gap: var(--space-2); }
+        .sgp-route-card { padding: 10px var(--space-3); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-corner-medium); }
+        .sgp-route-name { font-size: var(--md-sys-typescale-body-medium-size); font-weight: 700; color: var(--md-sys-color-on-surface); }
+        .sgp-route-meta { display: flex; gap: var(--space-2); margin-top: var(--space-1); font-size: var(--md-sys-typescale-label-small-size); color: var(--color-text-faint); }
+        .sgp-route-diff { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); padding: 1px 6px; border-radius: var(--md-sys-shape-corner-extra-small); font-weight: 600; }
+        .sgp-route-desc { font-size: var(--md-sys-typescale-body-small-size); color: var(--color-text-muted); margin: 6px 0 0; line-height: 1.5; }
         .sgp-pois { display: flex; flex-direction: column; gap: 6px; }
-        .sgp-poi-card { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color 0.15s; }
-        .sgp-poi-card:hover { border-color: #10b981; }
-        .sgp-poi-card.expanded { border-color: #10b981; }
-        .sgp-poi-header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+        .sgp-poi-card { border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-corner-medium); overflow: hidden; cursor: pointer; transition: border-color var(--duration-fast); }
+        .sgp-poi-card:hover, .sgp-poi-card.expanded { border-color: var(--md-sys-color-primary); }
+        .sgp-poi-header { display: flex; align-items: center; gap: 10px; padding: 10px var(--space-3); }
         .sgp-poi-emoji { font-size: 22px; flex-shrink: 0; }
         .sgp-poi-titles { flex: 1; min-width: 0; }
-        .sgp-poi-name { font-size: 13px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px; }
-        .sgp-poi-badge { font-size: 10px; font-weight: 700; background: #fef3c7; color: #d97706; padding: 1px 6px; border-radius: 4px; }
-        .sgp-poi-short { font-size: 11.5px; color: #64748b; margin-top: 2px; line-height: 1.4; }
-        .sgp-poi-chevron { transition: transform 0.2s; }
+        .sgp-poi-name { font-size: var(--md-sys-typescale-body-medium-size); font-weight: 700; color: var(--md-sys-color-on-surface); display: flex; align-items: center; gap: 6px; }
+        .sgp-poi-badge { font-size: var(--md-sys-typescale-label-small-size); font-weight: 700; background: var(--md-sys-color-tertiary-container); color: var(--md-sys-color-on-tertiary-container); padding: 1px 6px; border-radius: var(--md-sys-shape-corner-extra-small); }
+        .sgp-poi-short { font-size: var(--md-sys-typescale-label-medium-size); color: var(--color-text-muted); margin-top: 2px; line-height: 1.4; }
+        .sgp-poi-chevron { transition: transform var(--duration-fast); }
         .sgp-poi-card.expanded .sgp-poi-chevron { transform: rotate(180deg); }
-
-        .sgp-poi-detail { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sgp-poi-detail { max-height: 0; overflow: hidden; transition: max-height var(--duration-normal) var(--ease-default); }
         .sgp-poi-card.expanded .sgp-poi-detail { max-height: 800px; }
-        .sgp-poi-long { padding: 0 12px 8px; }
-        .sgp-poi-long p { font-size: 12.5px; line-height: 1.7; color: #475569; margin: 0 0 8px; }
-        .sgp-poi-tips { padding: 8px 12px; background: rgba(59,130,246,0.04); margin: 0 8px 8px; border-radius: 8px; }
-        .sgp-poi-tips strong { font-size: 12px; color: #1e293b; }
-        .sgp-tip { font-size: 11.5px; color: #64748b; margin-top: 4px; padding-left: 8px; border-left: 2px solid rgba(59,130,246,0.2); }
-        .sgp-poi-season { font-size: 11.5px; color: #64748b; padding: 4px 12px 8px; }
-        .sgp-poi-trivia { font-size: 11.5px; color: #7c3aed; background: rgba(124,58,237,0.04); padding: 8px 12px; margin: 0 8px 12px; border-radius: 8px; line-height: 1.5; }
-
-        /* Read/Unread state */
+        .sgp-poi-long { padding: 0 var(--space-3) var(--space-2); }
+        .sgp-poi-long p { font-size: var(--md-sys-typescale-body-small-size); line-height: 1.7; color: var(--md-sys-color-on-surface-variant); margin: 0 0 var(--space-2); }
+        .sgp-poi-tips { padding: var(--space-2) var(--space-3); background: var(--color-secondary-surface); margin: 0 var(--space-2) var(--space-2); border-radius: var(--md-sys-shape-corner-small); }
+        .sgp-poi-tips strong { font-size: var(--md-sys-typescale-body-small-size); color: var(--md-sys-color-on-surface); }
+        .sgp-tip { font-size: var(--md-sys-typescale-label-medium-size); color: var(--color-text-muted); margin-top: var(--space-1); padding-left: var(--space-2); border-left: 2px solid var(--color-secondary-surface); }
+        .sgp-poi-season { font-size: var(--md-sys-typescale-label-medium-size); color: var(--color-text-muted); padding: var(--space-1) var(--space-3) var(--space-2); }
+        .sgp-poi-trivia { font-size: var(--md-sys-typescale-label-medium-size); color: #7c3aed; background: rgba(124,58,237,0.04); padding: var(--space-2) var(--space-3); margin: 0 var(--space-2) var(--space-3); border-radius: var(--md-sys-shape-corner-small); line-height: 1.5; }
         .sgp-poi-read { opacity: 0.65; }
         .sgp-poi-read:hover, .sgp-poi-read.expanded { opacity: 1; }
-        .sgp-poi-new { background: #dbeafe; color: #2563eb; }
-        .sgp-poi-unread { border-left: 3px solid #10b981; }
-
-        /* Story */
-        .sgp-story-body p { font-size: 12.5px; line-height: 1.7; color: #475569; margin: 0 0 10px; }
-        .sgp-story { background: linear-gradient(135deg, rgba(16,185,129,0.03), rgba(34,197,94,0.03)); }
-
-        /* Practical Info */
-        .sgp-link { display: inline-block; font-size: 12px; color: #10b981; font-weight: 600; text-decoration: none; margin-bottom: 6px; }
+        .sgp-poi-new { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
+        .sgp-poi-unread { border-left: 3px solid var(--md-sys-color-primary); }
+        .sgp-story-body p { font-size: var(--md-sys-typescale-body-small-size); line-height: 1.7; color: var(--md-sys-color-on-surface-variant); margin: 0 0 10px; }
+        .sgp-story { background: linear-gradient(135deg, var(--color-primary-surface), rgba(34,197,94,0.03)); }
+        .sgp-link { display: inline-block; font-size: var(--md-sys-typescale-body-small-size); color: var(--md-sys-color-primary); font-weight: 600; text-decoration: none; margin-bottom: 6px; }
         .sgp-link:hover { text-decoration: underline; }
-        .sgp-info-row { font-size: 12px; color: #64748b; margin-bottom: 4px; }
-        .sgp-notes { margin: 8px 0 0; padding-left: 18px; }
-        .sgp-notes li { font-size: 11.5px; color: #64748b; margin-bottom: 3px; line-height: 1.5; }
+        .sgp-info-row { font-size: var(--md-sys-typescale-body-small-size); color: var(--color-text-muted); margin-bottom: var(--space-1); }
+        .sgp-notes { margin: var(--space-2) 0 0; padding-left: 18px; }
+        .sgp-notes li { font-size: var(--md-sys-typescale-label-medium-size); color: var(--color-text-muted); margin-bottom: 3px; line-height: 1.5; }
+        .btn-guide { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+        .btn-guide.inactive { background: var(--md-sys-color-surface-bright); color: var(--color-text-muted); border: 1px solid var(--md-sys-color-outline-variant); }
 
-        /* Guide button in bottom bar */
-        .btn-guide { background: #10b981; color: #fff; }
-        .btn-guide.inactive { background: #fff; color: #64748b; border: 1px solid rgba(0,0,0,0.08); }
+        /* ── Scrollbar hide utility ── */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
     <?php if ($siteMode && $siteGeoJSON): ?>
     <script>
@@ -386,409 +453,399 @@ if (!$currentUser) {
         </div>
     </div>
 
-    <!-- Sensor Start Panel (single button) -->
-    <div x-show="!sessionActive && showModeSelect" x-cloak
-         style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
-        <div style="background:rgba(255,255,255,0.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);padding:22px;border-radius:32px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.08),0 12px 40px rgba(0,0,0,0.04);">
-            <!-- 移動手段セレクター -->
-            <div style="margin-bottom:18px;">
-                <div style="font-size:12px;color:#5f6368;margin-bottom:10px;font-weight:500;">移動手段</div>
-                <div style="display:flex;gap:8px;">
+    <!-- Sensor Bottom Sheet (Progressive Disclosure) -->
+    <div x-show="!sessionActive && showModeSelect" x-cloak class="sensor-sheet"
+         @touchstart.passive="sheetTouchStart($event)" @touchmove.passive="sheetTouchMove($event)" @touchend="sheetTouchEnd($event)">
+        <div class="sensor-sheet-inner" :style="'max-height:' + (sheetStage === 3 ? '90vh' : sheetStage === 2 ? '380px' : '180px')"
+             style="overflow-y:auto;-webkit-overflow-scrolling:touch;">
+            <!-- Drag Handle -->
+            <div class="drag-handle" @click="sheetStage = sheetStage >= 3 ? 1 : sheetStage + 1" style="cursor:pointer;"></div>
+
+            <!-- Stage 1: Transport + Start (always visible) -->
+            <div class="sheet-section">
+                <div class="m3-segmented">
                     <template x-for="tm in transportModes" :key="tm.id">
                         <button @click="manualTransportMode = tm.id; localStorage.setItem('ikimon_transport', tm.id)"
-                                :style="manualTransportMode === tm.id ? 'background:rgba(5,150,105,0.12);color:#065f46;border-color:#059669;box-shadow:0 0 0 1px rgba(5,150,105,0.2);' : 'background:#f0f4f2;color:#5f6368;border-color:transparent;'"
-                                style="flex:1;padding:12px 4px;border-radius:20px;border:1.5px solid;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;transition:all 250ms cubic-bezier(0.2,0,0,1);">
-                            <span x-text="tm.emoji" style="font-size:24px;pointer-events:none;"></span>
-                            <span x-text="tm.label" style="font-size:12px;font-weight:500;pointer-events:none;"></span>
+                                :class="manualTransportMode === tm.id ? 'active' : ''">
+                            <span x-text="tm.emoji" class="text-lg"></span>
+                            <span x-text="tm.label"></span>
                         </button>
                     </template>
                 </div>
             </div>
-            <!-- 目的地（任意） -->
-            <div style="margin-bottom:16px;">
-                <div style="font-size:12px;color:#5f6368;margin-bottom:8px;font-weight:500;">どこへ行く？（任意）</div>
-                <!-- 登録済み場所のクイック選択 -->
-                <div x-show="savedPlaces.length > 0" style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px;padding-bottom:2px;" class="no-scrollbar">
-                    <button @click="destination = null; destinationName = ''"
-                            :style="!destination ? 'background:rgba(5,150,105,0.12);color:#065f46;border-color:#059669;' : 'background:#f0f4f2;color:#5f6368;border-color:transparent;'"
-                            style="padding:8px 14px;border-radius:9999px;border:1.5px solid;cursor:pointer;font-size:12px;font-weight:500;white-space:nowrap;transition:all 250ms cubic-bezier(0.2,0,0,1);">
-                        なし
-                    </button>
-                    <template x-for="sp in savedPlaces" :key="sp.id">
-                        <button @click="selectSavedPlace(sp)"
-                                :style="destination && destination.lat === sp.lat && destination.lng === sp.lng ? 'background:rgba(5,150,105,0.12);color:#065f46;border-color:#059669;' : 'background:#f0f4f2;color:#5f6368;border-color:transparent;'"
-                                style="padding:8px 14px;border-radius:9999px;border:1.5px solid;cursor:pointer;font-size:12px;font-weight:500;white-space:nowrap;transition:all 250ms cubic-bezier(0.2,0,0,1);display:flex;align-items:center;gap:4px;">
-                            <span x-text="sp.icon" style="pointer-events:none;"></span>
-                            <span x-text="sp.name" style="pointer-events:none;"></span>
+            <div class="sheet-section" style="display:flex;align-items:center;gap:var(--space-3);">
+                <button @click="startSensor()" class="m3-fab-extended" style="flex:1;">
+                    <span class="text-lg">📡</span> センサーを開始
+                </button>
+                <button x-show="guideEnabled" x-cloak @click="sheetStage = 3; showSpeakerSelect = !showSpeakerSelect"
+                        style="padding:var(--space-3);border-radius:var(--md-sys-shape-corner-large);border:1px solid var(--md-sys-color-outline-variant);background:var(--md-sys-color-surface-container-low);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);">
+                    <span class="text-lg" x-text="speakerEmoji"></span>
+                    <span style="font-size:var(--md-sys-typescale-label-small-size);font-weight:600;color:var(--color-primary-dark);"
+                          x-text="speakers.find(s => s.id === selectedSpeaker)?.label || 'Auto'"></span>
+                </button>
+            </div>
+
+            <!-- Stage 2: Destination + Voice Guide (expanded) -->
+            <template x-if="sheetStage >= 2">
+                <div>
+                    <!-- Destination chips -->
+                    <div class="sheet-section">
+                        <div class="sheet-label">📍 どこへ行く？（任意）</div>
+                        <div class="m3-chips no-scrollbar">
+                            <button @click="destination = null; destinationName = ''"
+                                    class="m3-chip" :class="!destination ? 'active' : ''">なし</button>
+                            <template x-for="sp in savedPlaces" :key="sp.id">
+                                <button @click="selectSavedPlace(sp)"
+                                        class="m3-chip" :class="destination && destination.lat === sp.lat && destination.lng === sp.lng ? 'active' : ''">
+                                    <span x-text="sp.icon" class="pointer-events-none"></span>
+                                    <span x-text="sp.name" class="pointer-events-none"></span>
+                                </button>
+                            </template>
+                        </div>
+                        <!-- Selected destination display -->
+                        <div x-show="destination" x-cloak style="margin-top:var(--space-2);display:flex;align-items:center;gap:6px;">
+                            <span style="font-size:var(--md-sys-typescale-label-small-size);color:var(--color-primary-dark);font-weight:500;" x-text="'→ ' + destinationName"></span>
+                            <button @click="destination = null; destinationName = ''" style="background:none;border:none;cursor:pointer;padding:2px;">
+                                <i data-lucide="x" style="width:14px;height:14px;color:var(--color-text-faint);pointer-events:none;"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Voice guide toggle -->
+                    <div class="sheet-section">
+                        <button @click="toggleGuide()" class="m3-switch" :class="guideEnabled ? 'active' : ''">
+                            <span x-text="guideEnabled ? '🔊' : '🔇'"></span>
+                            <span x-text="guideEnabled ? '音声ガイド ON' : '音声ガイド OFF'"></span>
                         </button>
-                    </template>
+                    </div>
                 </div>
-                <!-- 手動入力 or 場所登録 -->
-                <div style="display:flex;gap:6px;">
-                    <div style="flex:1;position:relative;">
-                        <input type="text" x-model="destinationName" @input.debounce.500ms="searchDestination()"
-                            placeholder="場所を入力..."
-                            style="width:100%;padding:10px 14px;border-radius:14px;border:1px solid #e5e7eb;background:#f9fafb;font-size:13px;outline:none;transition:border-color 200ms;"
-                            @focus="$el.style.borderColor='#059669'" @blur="$el.style.borderColor='#e5e7eb'">
-                        <!-- 検索候補（簡易：将来 Places API 連携） -->
-                        <div x-show="destSuggestions.length > 0" x-cloak @click.outside="destSuggestions = []"
-                            style="position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#fff;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:50;max-height:200px;overflow-y:auto;">
-                            <template x-for="sug in destSuggestions" :key="sug.name">
-                                <button @click="setDestination(sug); destSuggestions = []"
-                                    style="display:block;width:100%;padding:12px 14px;text-align:left;border:none;background:none;cursor:pointer;font-size:13px;color:#1a1a1a;border-bottom:1px solid #f3f4f6;"
-                                    @mouseenter="$el.style.background='#f0fdf4'" @mouseleave="$el.style.background='none'">
-                                    <span x-text="sug.icon + ' ' + sug.name"></span>
-                                    <span x-show="sug.distance_km" style="font-size:11px;color:#9ca3af;margin-left:8px;" x-text="sug.distance_km.toFixed(1) + 'km'"></span>
+            </template>
+
+            <!-- Stage 3: Full options (destination input, mood, speakers, drive settings) -->
+            <template x-if="sheetStage >= 3">
+                <div>
+                    <!-- Destination manual input -->
+                    <div class="sheet-section">
+                        <div style="display:flex;gap:6px;">
+                            <div style="flex:1;position:relative;">
+                                <input type="text" x-model="destinationName" @input.debounce.500ms="searchDestination()"
+                                    placeholder="場所を入力..."
+                                    style="width:100%;padding:10px var(--space-3);border-radius:var(--md-sys-shape-corner-medium);border:1px solid var(--md-sys-color-outline-variant);background:var(--md-sys-color-surface-container-low);font-size:var(--md-sys-typescale-body-medium-size);outline:none;transition:border-color var(--md-sys-motion-duration-short4);"
+                                    @focus="$el.style.borderColor='var(--color-primary-dark)'" @blur="$el.style.borderColor=''">
+                                <div x-show="destSuggestions.length > 0" x-cloak @click.outside="destSuggestions = []"
+                                    style="position:absolute;top:100%;left:0;right:0;margin-top:var(--space-1);background:var(--md-sys-color-surface-bright);border-radius:var(--md-sys-shape-corner-medium);box-shadow:var(--md-sys-elevation-2);z-index:50;max-height:200px;overflow-y:auto;">
+                                    <template x-for="sug in destSuggestions" :key="sug.name">
+                                        <button @click="setDestination(sug); destSuggestions = []"
+                                            style="display:block;width:100%;padding:var(--space-3);text-align:left;border:none;background:none;cursor:pointer;font-size:var(--md-sys-typescale-body-medium-size);color:var(--md-sys-color-on-surface);border-bottom:1px solid var(--md-sys-color-outline-variant);">
+                                            <span x-text="sug.icon + ' ' + sug.name"></span>
+                                            <span x-show="sug.distance_km" style="font-size:var(--md-sys-typescale-label-small-size);color:var(--color-text-faint);margin-left:var(--space-2);" x-text="sug.distance_km.toFixed(1) + 'km'"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                            <button @click="showPlaceManager = !showPlaceManager"
+                                style="padding:10px;border-radius:var(--md-sys-shape-corner-medium);border:1px solid var(--md-sys-color-outline-variant);background:var(--md-sys-color-surface-container-low);cursor:pointer;display:flex;align-items:center;justify-content:center;"
+                                title="場所を管理">
+                                <i data-lucide="bookmark" style="width:18px;height:18px;color:var(--md-sys-color-on-surface-variant);pointer-events:none;"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Place manager -->
+                    <div x-show="showPlaceManager" x-cloak class="sheet-section" style="background:var(--md-sys-color-surface-container-low);margin:0 var(--space-4) var(--space-4);border-radius:var(--md-sys-shape-corner-large);padding:var(--space-3);">
+                        <div style="font-size:var(--md-sys-typescale-label-medium-size);font-weight:600;color:var(--md-sys-color-on-surface);margin-bottom:var(--space-2);display:flex;align-items:center;justify-content:space-between;">
+                            <span>よく行く場所</span>
+                            <button @click="showPlaceManager = false" style="background:none;border:none;cursor:pointer;padding:2px;">
+                                <i data-lucide="x" style="width:16px;height:16px;color:var(--color-text-faint);pointer-events:none;"></i>
+                            </button>
+                        </div>
+                        <div x-show="savedPlaces.length > 0" style="margin-bottom:var(--space-2);">
+                            <template x-for="sp in savedPlaces" :key="sp.id">
+                                <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-bottom:1px solid var(--md-sys-color-outline-variant);">
+                                    <span x-text="sp.icon" class="text-lg"></span>
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:500;color:var(--md-sys-color-on-surface);" x-text="sp.name"></div>
+                                        <div style="font-size:var(--md-sys-typescale-label-small-size);color:var(--color-text-faint);" x-text="sp.label || ''"></div>
+                                    </div>
+                                    <button @click="deleteSavedPlace(sp.id)"
+                                        style="background:none;border:none;cursor:pointer;padding:var(--space-1);border-radius:var(--md-sys-shape-corner-small);">
+                                        <i data-lucide="trash-2" style="width:14px;height:14px;color:var(--color-text-faint);pointer-events:none;"></i>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <select x-model="newPlaceIcon" style="padding:var(--space-2);border-radius:var(--md-sys-shape-corner-small);border:1px solid var(--md-sys-color-outline-variant);background:var(--md-sys-color-surface-bright);font-size:16px;width:50px;">
+                                <option value="🏠">🏠</option><option value="🏢">🏢</option><option value="🏫">🏫</option>
+                                <option value="🏥">🏥</option><option value="🛒">🛒</option><option value="⛩️">⛩️</option>
+                                <option value="🌳">🌳</option><option value="🏖️">🏖️</option><option value="📍">📍</option>
+                            </select>
+                            <input type="text" x-model="newPlaceName" placeholder="名前（自宅、会社…）"
+                                style="flex:1;padding:var(--space-2) var(--space-3);border-radius:var(--md-sys-shape-corner-small);border:1px solid var(--md-sys-color-outline-variant);background:var(--md-sys-color-surface-bright);font-size:var(--md-sys-typescale-body-medium-size);outline:none;">
+                            <button @click="addCurrentLocationAsPlace()" :disabled="!newPlaceName.trim()"
+                                :class="newPlaceName.trim() ? 'active' : ''" class="m3-chip" style="font-weight:600;">
+                                現在地で登録
+                            </button>
+                        </div>
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);color:var(--color-text-faint);margin-top:6px;">今いる場所を登録します（最大20件）</div>
+                    </div>
+
+                    <!-- Guide mood -->
+                    <div x-show="guideEnabled" x-cloak class="sheet-section">
+                        <div class="sheet-label">🎭 ガイドの雰囲気</div>
+                        <div class="m3-chips">
+                            <template x-for="gm in [{id:'explore',label:'🌳 自然探索'},{id:'culture',label:'🏯 歴史文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
+                                <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
+                                        class="m3-chip" :class="guideMood === gm.id ? 'active' : ''"
+                                        x-text="gm.label"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Drive settings (car only) -->
+                    <div x-show="manualTransportMode === 'car'" x-cloak class="sheet-section">
+                        <div class="sheet-label">🚗 ドライブ時間</div>
+                        <div class="m3-chips" style="margin-bottom:var(--space-3);">
+                            <template x-for="dt in [{min:15,label:'15分'},{min:30,label:'30分'},{min:60,label:'1時間'},{min:0,label:'指定なし'}]" :key="dt.min">
+                                <button @click="driveDurationMin = dt.min; localStorage.setItem('ikimon_drive_duration', dt.min)"
+                                        class="m3-chip" :class="driveDurationMin === dt.min ? 'active' : ''"
+                                        x-text="dt.label"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Speaker selection -->
+                    <div x-show="showSpeakerSelect && guideEnabled" x-cloak class="sheet-section">
+                        <div class="sheet-label">🎧 一人で解説</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:var(--space-2);margin-bottom:var(--space-3);">
+                            <template x-for="sp in speakers.filter(s => !s.id.startsWith('duo-'))" :key="sp.id">
+                                <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
+                                        class="m3-chip" :class="selectedSpeaker === sp.id ? 'active' : ''"
+                                        style="display:flex;flex-direction:column;align-items:center;gap:var(--space-1);padding:var(--space-3) var(--space-2);">
+                                    <span x-text="sp.emoji" class="text-xl"></span>
+                                    <span x-text="sp.label" style="font-size:var(--md-sys-typescale-label-small-size);font-weight:500;"></span>
+                                </button>
+                            </template>
+                        </div>
+                        <div class="sheet-label">🎙️ 二人で掛け合い</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);">
+                            <template x-for="sp in speakers.filter(s => s.id.startsWith('duo-'))" :key="sp.id">
+                                <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
+                                        class="m3-chip" :class="selectedSpeaker === sp.id ? 'active' : ''"
+                                        style="display:flex;align-items:center;justify-content:center;gap:var(--space-2);padding:var(--space-3);">
+                                    <span x-text="sp.emoji" class="text-lg"></span>
+                                    <span x-text="sp.label" style="font-weight:500;"></span>
                                 </button>
                             </template>
                         </div>
                     </div>
-                    <button @click="showPlaceManager = !showPlaceManager"
-                        style="padding:10px;border-radius:14px;border:1px solid #e5e7eb;background:#f9fafb;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 200ms;"
-                        title="場所を管理">
-                        <i data-lucide="bookmark" style="width:18px;height:18px;color:#5f6368;pointer-events:none;"></i>
-                    </button>
-                </div>
-                <!-- 選択中の目的地表示 -->
-                <div x-show="destination" x-cloak style="margin-top:8px;display:flex;align-items:center;gap:6px;">
-                    <span style="font-size:11px;color:#059669;font-weight:500;" x-text="'→ ' + destinationName"></span>
-                    <button @click="destination = null; destinationName = ''" style="background:none;border:none;cursor:pointer;padding:2px;">
-                        <i data-lucide="x" style="width:14px;height:14px;color:#9ca3af;pointer-events:none;"></i>
-                    </button>
-                </div>
-            </div>
-            <!-- 場所管理パネル -->
-            <div x-show="showPlaceManager" x-cloak style="margin-bottom:14px;background:#f9fafb;border-radius:16px;padding:14px;">
-                <div style="font-size:12px;font-weight:600;color:#1a1a1a;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
-                    <span>よく行く場所</span>
-                    <button @click="showPlaceManager = false" style="background:none;border:none;cursor:pointer;padding:2px;">
-                        <i data-lucide="x" style="width:16px;height:16px;color:#9ca3af;pointer-events:none;"></i>
-                    </button>
-                </div>
-                <!-- 登録済みリスト -->
-                <div x-show="savedPlaces.length > 0" style="margin-bottom:10px;">
-                    <template x-for="sp in savedPlaces" :key="sp.id">
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0;">
-                            <span x-text="sp.icon" style="font-size:18px;"></span>
-                            <div style="flex:1;min-width:0;">
-                                <div style="font-size:13px;font-weight:500;color:#1a1a1a;truncate;" x-text="sp.name"></div>
-                                <div style="font-size:10px;color:#9ca3af;" x-text="sp.label || ''"></div>
-                            </div>
-                            <button @click="deleteSavedPlace(sp.id)"
-                                style="background:none;border:none;cursor:pointer;padding:4px;border-radius:8px;"
-                                @mouseenter="$el.style.background='#fee2e2'" @mouseleave="$el.style.background='none'">
-                                <i data-lucide="trash-2" style="width:14px;height:14px;color:#9ca3af;pointer-events:none;"></i>
-                            </button>
+
+                    <!-- Footer -->
+                    <div style="text-align:center;padding:0 var(--space-5) var(--space-4);">
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);color:var(--color-text-faint);line-height:1.5;">
+                            BirdNET (CC BY-SA 4.0) · Perch v2 (Apache 2.0)
                         </div>
-                    </template>
+                    </div>
                 </div>
-                <!-- 新規登録 -->
-                <div style="display:flex;gap:6px;align-items:center;">
-                    <select x-model="newPlaceIcon" style="padding:8px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;font-size:16px;width:50px;">
-                        <option value="🏠">🏠</option>
-                        <option value="🏢">🏢</option>
-                        <option value="🏫">🏫</option>
-                        <option value="🏥">🏥</option>
-                        <option value="🛒">🛒</option>
-                        <option value="⛩️">⛩️</option>
-                        <option value="🌳">🌳</option>
-                        <option value="🏖️">🏖️</option>
-                        <option value="📍">📍</option>
-                    </select>
-                    <input type="text" x-model="newPlaceName" placeholder="名前（自宅、会社…）"
-                        style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;font-size:13px;outline:none;">
-                    <button @click="addCurrentLocationAsPlace()"
-                        :disabled="!newPlaceName.trim()"
-                        :style="newPlaceName.trim() ? 'background:#059669;color:#fff;' : 'background:#e5e7eb;color:#9ca3af;'"
-                        style="padding:8px 14px;border-radius:10px;border:none;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
-                        現在地で登録
-                    </button>
-                </div>
-                <div style="font-size:10px;color:#9ca3af;margin-top:6px;">今いる場所を登録します（最大20件）</div>
-            </div>
-            <!-- ドライブ設定（車モード時） -->
-            <div x-show="manualTransportMode === 'car'" x-cloak style="margin-bottom:14px;">
-                <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">ドライブ時間</div>
-                <div style="display:flex;gap:6px;margin-bottom:14px;">
-                    <template x-for="dt in [{min:15,label:'15分'},{min:30,label:'30分'},{min:60,label:'1時間'},{min:0,label:'指定なし'}]" :key="dt.min">
-                        <button @click="driveDurationMin = dt.min; localStorage.setItem('ikimon_drive_duration', dt.min)"
-                                :style="driveDurationMin === dt.min ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
-                                style="flex:1;padding:8px 4px;border-radius:9999px;border:1.5px solid;cursor:pointer;font-size:13px;font-weight:500;transition:all 250ms cubic-bezier(0.2,0,0,1);">
-                            <span x-text="dt.label"></span>
-                        </button>
-                    </template>
-                </div>
-                <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">ガイドの雰囲気</div>
-                <div style="display:flex;gap:6px;">
-                    <template x-for="gm in [{id:'explore',label:'🌳 自然探索',desc:'生き物・植物の話中心'},{id:'culture',label:'🏯 歴史文化',desc:'地域の歴史・文化・暮らし'},{id:'relax',label:'🎧 おまかせ',desc:'自然も文化もバランスよく'}]" :key="gm.id">
-                        <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
-                                :style="guideMood === gm.id ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
-                                style="flex:1;padding:8px 4px;border-radius:20px;border:1.5px solid;cursor:pointer;font-size:11px;font-weight:500;text-align:center;transition:all 150ms ease;">
-                            <span x-text="gm.label" style="display:block;"></span>
-                        </button>
-                    </template>
-                </div>
-            </div>
-            <!-- 音声ガイド ON/OFF -->
-            <div style="margin-bottom:14px;">
-                <button @click="toggleGuide()"
-                        :style="guideEnabled ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#9ca3af;border-color:#e5e7eb;'"
-                        style="width:100%;padding:10px 16px;border-radius:9999px;border:1.5px solid;cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 250ms cubic-bezier(0.2,0,0,1);">
-                    <span x-text="guideEnabled ? '🔊' : '🔇'"></span>
-                    <span x-text="guideEnabled ? '音声ガイド ON' : '音声ガイド OFF'"></span>
-                </button>
-            </div>
-            <!-- 徒歩/自転車用ガイド雰囲気 -->
-            <div x-show="guideEnabled && manualTransportMode !== 'car'" x-cloak style="margin-bottom:14px;">
-                <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">ガイドの雰囲気</div>
-                <div style="display:flex;gap:6px;">
-                    <template x-for="gm in [{id:'explore',label:'🌳 自然探索'},{id:'culture',label:'🏯 歴史文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
-                        <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
-                                :style="guideMood === gm.id ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#5f6368;border-color:transparent;'"
-                                style="flex:1;padding:8px 4px;border-radius:9999px;border:1.5px solid;cursor:pointer;font-size:12px;font-weight:500;transition:all 250ms cubic-bezier(0.2,0,0,1);">
-                            <span x-text="gm.label"></span>
-                        </button>
-                    </template>
-                </div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px;">
-                <button @click="startSensor()" style="flex:1;padding:18px;border-radius:9999px;border:none;background:#059669;color:#fff;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 2px 8px rgba(5,150,105,0.3),0 6px 20px rgba(5,150,105,0.15);transition:all 250ms cubic-bezier(0.2,0,0,1);letter-spacing:-0.01em;">
-                    <span style="font-size:18px;">📡</span> センサーを開始
-                </button>
-                <button x-show="guideEnabled" @click="showSpeakerSelect = !showSpeakerSelect"
-                        style="padding:12px 16px;border-radius:24px;border:1px solid #e5e7eb;background:#f0f4f2;color:#5f6368;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;white-space:nowrap;transition:all 250ms cubic-bezier(0.2,0,0,1);">
-                    <span style="font-size:18px;" x-text="speakerEmoji"></span>
-                    <span x-text="selectedSpeaker.startsWith('duo-') ? '掛け合い' : '解説'" style="font-size:9px;font-weight:600;color:#059669;"></span>
-                    <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || 'Auto'" style="font-size:9px;font-weight:500;"></span>
-                </button>
-            </div>
-            <div x-show="showSpeakerSelect" x-cloak style="margin-bottom:12px;">
-                <!-- 一人で解説 -->
-                <div style="font-size:12px;color:#1a1a1a;margin-bottom:8px;font-weight:600;display:flex;align-items:center;gap:6px;">
-                    <span style="font-size:14px;">🎧</span> 一人で解説
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
-                    <template x-for="sp in speakers.filter(s => !s.id.startsWith('duo-'))" :key="sp.id">
-                        <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                :style="selectedSpeaker === sp.id ? 'background:rgba(5,150,105,0.12);color:#065f46;border-color:#059669;' : 'background:#f0f4f2;color:#5f6368;border-color:transparent;'"
-                                style="padding:14px 8px;border-radius:20px;border:1.5px solid;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 250ms cubic-bezier(0.2,0,0,1);">
-                            <span x-text="sp.emoji" style="font-size:20px;"></span>
-                            <span x-text="sp.label" style="font-weight:500;font-size:11px;"></span>
-                        </button>
-                    </template>
-                </div>
-                <!-- 二人で掛け合い -->
-                <div style="font-size:12px;color:#1a1a1a;margin-bottom:8px;font-weight:600;display:flex;align-items:center;gap:6px;">
-                    <span style="font-size:14px;">🎙️</span> 二人で掛け合い
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <template x-for="sp in speakers.filter(s => s.id.startsWith('duo-'))" :key="sp.id">
-                        <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                :style="selectedSpeaker === sp.id ? 'background:rgba(5,150,105,0.12);color:#065f46;border-color:#059669;' : 'background:#f0f4f2;color:#5f6368;border-color:transparent;'"
-                                style="padding:14px 8px;border-radius:20px;border:1.5px solid;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 250ms cubic-bezier(0.2,0,0,1);">
-                            <span x-text="sp.emoji" style="font-size:18px;"></span>
-                            <span x-text="sp.label" style="font-weight:500;"></span>
-                        </button>
-                    </template>
-                </div>
-            </div>
-            <div style="font-size:11px;color:#9ca3af;font-weight:400;">移動手段に合わせたガイドをお届け</div>
-            <div style="font-size:10px;color:#bdc1c6;text-align:center;padding:4px 0 0;line-height:1.5;">
-                BirdNET (CC BY-SA 4.0) · Perch v2 (Apache 2.0)
-            </div>
+            </template>
         </div>
     </div>
 
-    <!-- Drive Mode HUD — M3 Expressive (full screen, hands-free) -->
+    <!-- Drive Mode HUD — M3 Full-screen -->
     <div x-show="sessionActive && (currentMovementMode === 'drive' || manualTransportMode === 'car')" x-cloak
-         style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:var(--md-sys-color-inverse-surface);display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <div style="font-size:48px;margin-bottom:8px;">📡</div>
-        <div style="color:var(--md-sys-color-primary);font-size:13px;font-weight:600;margin-bottom:20px;font-family:var(--font-body);">🚗 ドライブ記録中</div>
+         style="position:fixed;inset:0;z-index:100;background:var(--md-sys-color-inverse-surface);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--safe-top) var(--space-4) var(--safe-bottom);">
+        <div class="text-5xl mb-2">📡</div>
+        <div style="color:var(--md-sys-color-primary);font-size:var(--md-sys-typescale-body-medium-size);font-weight:600;margin-bottom:var(--space-5);">🚗 ドライブ記録中</div>
 
-        <!-- Accumulation Stats -->
-        <div style="display:flex;gap:32px;margin-bottom:24px;">
+        <!-- Stats -->
+        <div style="display:flex;gap:var(--space-8);margin-bottom:var(--space-6);">
             <div style="text-align:center;">
-                <div style="color:var(--md-sys-color-inverse-on-surface);font-size:40px;font-weight:900;font-family:var(--font-heading);" x-text="sessionSpeciesCount">0</div>
-                <div style="color:var(--md-sys-color-inverse-primary);font-size:11px;font-weight:600;letter-spacing:0.05em;">種</div>
+                <div style="color:var(--md-sys-color-inverse-on-surface);font-size:var(--text-2xl);font-weight:900;font-family:var(--font-heading);" x-text="sessionSpeciesCount">0</div>
+                <div style="color:var(--md-sys-color-inverse-primary);font-size:var(--md-sys-typescale-label-small-size);font-weight:600;letter-spacing:var(--tracking-wide);">種</div>
             </div>
             <div style="text-align:center;">
-                <div style="color:var(--md-sys-color-inverse-on-surface);font-size:40px;font-weight:900;font-family:var(--font-heading);" x-text="sessionFamilyCount">0</div>
-                <div style="color:var(--md-sys-color-inverse-primary);font-size:11px;font-weight:600;letter-spacing:0.05em;">科</div>
+                <div style="color:var(--md-sys-color-inverse-on-surface);font-size:var(--text-2xl);font-weight:900;font-family:var(--font-heading);" x-text="sessionFamilyCount">0</div>
+                <div style="color:var(--md-sys-color-inverse-primary);font-size:var(--md-sys-typescale-label-small-size);font-weight:600;letter-spacing:var(--tracking-wide);">科</div>
             </div>
             <div style="text-align:center;">
-                <div style="color:var(--md-sys-color-inverse-on-surface);font-size:40px;font-weight:900;font-family:var(--font-heading);" x-text="Object.keys(sessionHigherGroups).length">0</div>
-                <div style="color:var(--md-sys-color-inverse-primary);font-size:11px;font-weight:600;letter-spacing:0.05em;">分類群</div>
+                <div style="color:var(--md-sys-color-inverse-on-surface);font-size:var(--text-2xl);font-weight:900;font-family:var(--font-heading);" x-text="Object.keys(sessionHigherGroups).length">0</div>
+                <div style="color:var(--md-sys-color-inverse-primary);font-size:var(--md-sys-typescale-label-small-size);font-weight:600;letter-spacing:var(--tracking-wide);">分類群</div>
             </div>
         </div>
 
-        <!-- Data Score + Distance/Time -->
-        <div style="margin-bottom:16px;width:200px;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);">データ蓄積</span>
-                <span style="font-size:12px;font-weight:700;color:var(--md-sys-color-inverse-primary);" x-text="sessionDataScore + ' pt'"></span>
+        <!-- Data progress -->
+        <div style="margin-bottom:var(--space-4);width:200px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-1);">
+                <span style="font-size:var(--md-sys-typescale-label-small-size);font-weight:600;color:rgba(255,255,255,0.5);">データ蓄積</span>
+                <span style="font-size:var(--md-sys-typescale-label-medium-size);font-weight:700;color:var(--md-sys-color-inverse-primary);" x-text="sessionDataScore + ' pt'"></span>
             </div>
             <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:var(--md-sys-shape-corner-full);overflow:hidden;">
-                <div style="height:100%;border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-primary);transition:width 500ms var(--md-sys-motion-easing-emphasized-decelerate);"
+                <div style="height:100%;border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-primary);transition:width var(--md-sys-motion-duration-long2) var(--md-sys-motion-easing-emphasized-decelerate);"
                      :style="'width:' + Math.min(100, sessionDataScore) + '%'"></div>
             </div>
         </div>
-        <div style="color:rgba(255,255,255,0.4);font-size:14px;font-family:var(--font-body);" x-text="(sessionDistance / 1000).toFixed(1) + 'km · ' + formatElapsed(sessionElapsed)"></div>
+        <div style="color:rgba(255,255,255,0.4);font-size:var(--md-sys-typescale-body-medium-size);" x-text="(sessionDistance / 1000).toFixed(1) + 'km · ' + formatElapsed(sessionElapsed)"></div>
 
         <!-- Higher group chips -->
-        <div x-show="Object.keys(sessionHigherGroups).length > 0" x-cloak style="display:flex;flex-wrap:wrap;gap:6px;margin-top:16px;justify-content:center;max-width:300px;">
+        <div x-show="Object.keys(sessionHigherGroups).length > 0" x-cloak style="display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--space-4);justify-content:center;max-width:300px;">
             <template x-for="[group, count] in Object.entries(sessionHigherGroups)" :key="group">
-                <span style="font-size:11px;font-weight:600;padding:4px 12px;border-radius:var(--md-sys-shape-corner-full);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);"
+                <span style="font-size:var(--md-sys-typescale-label-small-size);font-weight:600;padding:var(--space-1) var(--space-3);border-radius:var(--md-sys-shape-corner-full);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);"
                       x-text="group + ' ' + count"></span>
             </template>
         </div>
-        <!-- ガイド切替 + 声変更（ドライブ中）— M3 Expressive -->
-        <div style="display:flex;align-items:center;gap:8px;margin-top:20px;">
+
+        <!-- Guide + voice controls -->
+        <div style="display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-5);">
             <button @click="toggleGuide()"
-                    :style="guideEnabled ? 'border-color:rgba(139,92,246,0.5);background:rgba(139,92,246,0.2);color:#c4b5fd;' : 'border-color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4);'"
-                    style="padding:10px 16px;border-radius:var(--md-sys-shape-corner-full);border:1px solid;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 200ms var(--md-sys-motion-easing-standard);">
+                    :style="guideEnabled ? 'border-color:var(--md-sys-color-tertiary);background:rgba(245,158,11,0.15);color:var(--md-sys-color-inverse-primary);' : 'border-color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4);'"
+                    style="padding:var(--space-2) var(--space-4);border-radius:var(--md-sys-shape-corner-full);border:1px solid;font-size:var(--md-sys-typescale-body-medium-size);font-weight:600;cursor:pointer;min-height:var(--touch-min);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);">
                 <span x-text="guideEnabled ? '🔊 ON' : '🔇 OFF'"></span>
             </button>
         </div>
-        <div style="position:relative;margin-top:10px;" x-show="guideEnabled">
+        <div style="position:relative;margin-top:var(--space-2);" x-show="guideEnabled">
             <button @click="showDriveVoiceSwitch = !showDriveVoiceSwitch"
-                    style="padding:10px 20px;border-radius:var(--md-sys-shape-corner-full);border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 200ms var(--md-sys-motion-easing-standard);">
+                    style="padding:var(--space-2) var(--space-5);border-radius:var(--md-sys-shape-corner-full);border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);font-size:var(--md-sys-typescale-body-medium-size);font-weight:600;cursor:pointer;min-height:var(--touch-min);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);">
                 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.emoji || '🤖'"></span> <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
             </button>
             <div x-show="showDriveVoiceSwitch" x-cloak @click.outside="showDriveVoiceSwitch=false"
-                 style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;background:rgba(30,41,59,0.95);backdrop-filter:blur(12px);border-radius:var(--md-sys-shape-corner-large);padding:8px;border:1px solid rgba(255,255,255,0.1);min-width:160px;z-index:50;">
+                 style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:var(--space-2);background:rgba(30,41,59,0.95);backdrop-filter:blur(var(--glass-blur));border-radius:var(--md-sys-shape-corner-large);padding:var(--space-2);border:1px solid rgba(255,255,255,0.1);min-width:160px;z-index:50;">
                 <template x-for="sp in speakers" :key="sp.id">
                     <button @click="selectedSpeaker=sp.id; showDriveVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                            :style="selectedSpeaker===sp.id ? 'background:rgba(139,92,246,0.3);color:#c4b5fd;' : 'background:rgba(255,255,255,0.05);color:#94a3b8;'"
-                            style="display:block;width:100%;padding:10px 14px;border-radius:8px;border:none;font-size:13px;font-weight:bold;text-align:left;cursor:pointer;margin-bottom:4px;">
+                            :style="selectedSpeaker===sp.id ? 'background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);' : 'background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5);'"
+                            style="display:block;width:100%;padding:var(--space-2) var(--space-3);border-radius:var(--md-sys-shape-corner-medium);border:none;font-size:var(--md-sys-typescale-body-medium-size);font-weight:600;text-align:left;cursor:pointer;margin-bottom:var(--space-1);transition:all var(--duration-fast) var(--ease-default);">
                         <span x-text="sp.emoji + ' ' + sp.label"></span>
                     </button>
                 </template>
             </div>
         </div>
-        <!-- 移動手段切り替え（走行中でも変更可）— M3 Expressive -->
-        <div style="display:flex;gap:10px;margin-top:20px;">
+
+        <!-- Transport mode switcher -->
+        <div style="display:flex;gap:var(--space-2);margin-top:var(--space-5);">
             <template x-for="tm in transportModes" :key="tm.id">
                 <button @click="setTransportMode(tm.id)"
                         :style="manualTransportMode === tm.id ? 'background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);border-color:var(--md-sys-color-primary);' : 'background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.5);'"
-                        style="padding:10px 18px;border-radius:var(--md-sys-shape-corner-full);border:1.5px solid;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;font-family:var(--font-body);transition:all 200ms var(--md-sys-motion-easing-standard);">
-                    <span x-text="tm.emoji" style="pointer-events:none;"></span>
-                    <span x-text="tm.label" style="pointer-events:none;"></span>
+                        style="padding:var(--space-2) var(--space-4);border-radius:var(--md-sys-shape-corner-full);border:1.5px solid;cursor:pointer;display:flex;align-items:center;gap:var(--space-2);font-size:var(--md-sys-typescale-body-medium-size);font-weight:600;min-height:var(--touch-min);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);">
+                    <span x-text="tm.emoji" class="pointer-events-none"></span>
+                    <span x-text="tm.label" class="pointer-events-none"></span>
                 </button>
             </template>
         </div>
+
+        <!-- Stop button -->
         <button @click="stopSensor()"
-                style="margin-top:36px;width:72px;height:72px;border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-error);border:none;color:var(--md-sys-color-on-error);font-size:28px;cursor:pointer;box-shadow:var(--md-sys-elevation-2);transition:all 200ms var(--md-sys-motion-easing-standard);">
+                style="margin-top:var(--space-8);width:72px;height:72px;border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-error);border:none;color:var(--md-sys-color-on-error);font-size:28px;cursor:pointer;box-shadow:var(--md-sys-elevation-2);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);">
             ■
         </button>
     </div>
 
-    <!-- Session Active HUD — M3 Expressive "蓄積が見える" Dashboard -->
+    <!-- Session Active HUD — M3 Compact Dashboard -->
     <div x-show="sessionActive && currentMovementMode !== 'drive' && manualTransportMode !== 'car'" x-cloak
-         style="position:absolute;bottom:max(16px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 24px);max-width:420px;">
+         class="sensor-sheet" style="z-index:25;">
         <div style="background:var(--md-sys-color-surface-container-lowest);border-radius:var(--md-sys-shape-corner-extra-large);box-shadow:var(--md-sys-elevation-2);overflow:hidden;">
 
-            <!-- Top bar: status + transport + stop -->
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 6px;border-bottom:1px solid var(--md-sys-color-outline-variant);">
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 2s infinite;"></span>
-                    <span style="font-family:var(--font-body);font-size:12px;font-weight:600;color:var(--md-sys-color-primary);"
+            <!-- Status bar: mode + time + transport + stop -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4) var(--space-2);border-bottom:1px solid var(--md-sys-color-outline-variant);">
+                <div style="display:flex;align-items:center;gap:var(--space-2);">
+                    <span class="gps-dot good"></span>
+                    <span style="font-size:var(--md-sys-typescale-label-medium-size);font-weight:600;color:var(--md-sys-color-primary);"
                           x-text="modeLabels[currentMovementMode] || 'サーチ中'"></span>
-                    <span style="font-size:11px;color:var(--md-sys-color-on-surface-variant);" x-text="formatElapsed(sessionElapsed)"></span>
+                    <span style="font-size:var(--md-sys-typescale-label-small-size);color:var(--md-sys-color-on-surface-variant);" x-text="formatElapsed(sessionElapsed)"></span>
                 </div>
-                <div style="display:flex;align-items:center;gap:6px;">
+                <div style="display:flex;align-items:center;gap:var(--space-1);">
                     <template x-for="tm in transportModes" :key="tm.id">
-                        <button @click="setTransportMode(tm.id)"
-                                :style="manualTransportMode === tm.id ? 'background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);' : 'background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant);'"
-                                style="width:32px;height:32px;border-radius:var(--md-sys-shape-corner-full);border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 200ms var(--md-sys-motion-easing-standard);">
-                            <span x-text="tm.emoji" style="pointer-events:none;"></span>
+                        <button @click="setTransportMode(tm.id)" class="m3-chip"
+                                :class="manualTransportMode === tm.id ? 'active' : ''"
+                                style="width:var(--touch-min);height:var(--touch-min);padding:0;display:flex;align-items:center;justify-content:center;font-size:var(--md-sys-typescale-body-medium-size);">
+                            <span x-text="tm.emoji" class="pointer-events-none"></span>
                         </button>
                     </template>
-                    <button @click="stopSensor()" style="padding:6px 14px;border-radius:var(--md-sys-shape-corner-full);border:none;background:var(--md-sys-color-error);color:var(--md-sys-color-on-error);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 200ms var(--md-sys-motion-easing-standard);">
+                    <button @click="stopSensor()" style="padding:var(--space-2) var(--space-3);border-radius:var(--md-sys-shape-corner-full);border:none;background:var(--md-sys-color-error);color:var(--md-sys-color-on-error);font-size:var(--md-sys-typescale-label-medium-size);font-weight:600;cursor:pointer;min-height:var(--touch-min);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);">
                         終了
                     </button>
                 </div>
             </div>
 
-            <!-- Detection notification (latest) -->
+            <!-- Detection notification -->
             <div x-show="latestDetection" x-cloak x-transition
-                 style="margin:8px 12px 0;padding:10px 14px;border-radius:var(--md-sys-shape-corner-large);display:flex;align-items:center;gap:12px;"
+                 style="margin:var(--space-2) var(--space-3) 0;padding:var(--space-2) var(--space-3);border-radius:var(--md-sys-shape-corner-large);display:flex;align-items:center;gap:var(--space-3);"
                  :style="'background:' + (latestDetection?.source === 'audio' ? 'var(--md-sys-color-tertiary-container)' : 'var(--md-sys-color-secondary-container)')">
-                <span style="font-size:24px;" x-text="latestDetection?.emoji || '🐦'"></span>
+                <span class="text-2xl" x-text="latestDetection?.emoji || '🐦'"></span>
                 <div style="flex:1;min-width:0;">
-                    <div style="font-size:14px;font-weight:600;color:var(--md-sys-color-on-surface);" x-text="latestDetection?.label || ''"></div>
-                    <div style="font-size:11px;color:var(--md-sys-color-on-surface-variant);margin-top:1px;" x-text="latestDetection?.reason || ''"></div>
+                    <div style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:600;color:var(--md-sys-color-on-surface);" x-text="latestDetection?.label || ''"></div>
+                    <div style="font-size:var(--md-sys-typescale-label-small-size);color:var(--md-sys-color-on-surface-variant);margin-top:1px;" x-text="latestDetection?.reason || ''"></div>
                 </div>
-                <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:var(--md-sys-shape-corner-full);"
-                    :style="'background:' + (latestDetection?.confidence === 'high' ? '#dcfce7;color:#16a34a' : latestDetection?.confidence === 'medium' ? '#fef9c3;color:#ca8a04' : 'var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant)')"
+                <span class="m3-chip" style="padding:2px var(--space-2);font-size:var(--md-sys-typescale-label-small-size);"
+                    :class="latestDetection?.confidence === 'high' ? 'active' : ''"
+                    :style="latestDetection?.confidence === 'medium' ? 'background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container);border-color:var(--md-sys-color-tertiary);' : ''"
                     x-text="latestDetection?.confidence === 'high' ? '高' : latestDetection?.confidence === 'medium' ? '中' : '低'"></span>
             </div>
 
             <!-- Accumulation Dashboard -->
-            <div style="padding:12px 16px 14px;">
-                <!-- Environment label -->
-                <div x-show="envLabel" x-cloak style="font-size:11px;color:var(--md-sys-color-on-surface-variant);margin-bottom:8px;padding:4px 12px;border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-surface-container);display:inline-flex;align-items:center;gap:4px;">
+            <div style="padding:var(--space-3) var(--space-4);">
+                <!-- Environment chip -->
+                <div x-show="envLabel" x-cloak class="m3-chip active" style="display:inline-flex;align-items:center;gap:var(--space-1);margin-bottom:var(--space-2);padding:var(--space-1) var(--space-3);">
                     <span>🌿</span> <span x-text="envLabel"></span>
                 </div>
 
-                <!-- Data Accumulation Progress -->
-                <div style="margin-bottom:10px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-                        <span style="font-size:10px;font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:0.05em;">データ蓄積</span>
-                        <span style="font-size:12px;font-weight:700;color:var(--md-sys-color-primary);" x-text="sessionDataScore + ' pt'"></span>
+                <!-- Data progress -->
+                <div style="margin-bottom:var(--space-2);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-1);">
+                        <span style="font-size:var(--md-sys-typescale-label-small-size);font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:var(--tracking-wide);">データ蓄積</span>
+                        <span style="font-size:var(--md-sys-typescale-label-medium-size);font-weight:700;color:var(--md-sys-color-primary);" x-text="sessionDataScore + ' pt'"></span>
                     </div>
                     <div style="height:6px;background:var(--md-sys-color-surface-container-high);border-radius:var(--md-sys-shape-corner-full);overflow:hidden;">
-                        <div style="height:100%;border-radius:var(--md-sys-shape-corner-full);background:linear-gradient(90deg,var(--md-sys-color-primary),var(--md-sys-color-secondary));transition:width 500ms var(--md-sys-motion-easing-emphasized-decelerate);"
+                        <div style="height:100%;border-radius:var(--md-sys-shape-corner-full);background:linear-gradient(90deg,var(--md-sys-color-primary),var(--md-sys-color-secondary));transition:width var(--md-sys-motion-duration-long2) var(--md-sys-motion-easing-emphasized-decelerate);"
                              :style="'width:' + Math.min(100, sessionDataScore) + '%'"></div>
                     </div>
                 </div>
 
-                <!-- Stats Grid: Species + Families + Distance + Higher Groups -->
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;">
-                    <div style="text-align:center;padding:6px 0;">
-                        <div style="font-size:20px;font-weight:800;color:var(--md-sys-color-on-surface);font-family:var(--font-heading);" x-text="sessionSpeciesCount">0</div>
-                        <div style="font-size:9px;font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:0.05em;">種</div>
+                <!-- Stats Grid -->
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2);text-align:center;">
+                    <div style="padding:var(--space-1) 0;">
+                        <div style="font-size:var(--text-md);font-weight:800;color:var(--md-sys-color-on-surface);font-family:var(--font-heading);" x-text="sessionSpeciesCount">0</div>
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:var(--tracking-wide);">種</div>
                     </div>
-                    <div style="text-align:center;padding:6px 0;">
-                        <div style="font-size:20px;font-weight:800;color:var(--md-sys-color-secondary);font-family:var(--font-heading);" x-text="sessionFamilyCount">0</div>
-                        <div style="font-size:9px;font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:0.05em;">科</div>
+                    <div style="padding:var(--space-1) 0;">
+                        <div style="font-size:var(--text-md);font-weight:800;color:var(--md-sys-color-secondary);font-family:var(--font-heading);" x-text="sessionFamilyCount">0</div>
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:var(--tracking-wide);">科</div>
                     </div>
-                    <div style="text-align:center;padding:6px 0;">
-                        <div style="font-size:14px;font-weight:700;color:var(--md-sys-color-on-surface);font-family:var(--font-heading);" x-text="formatDistance(sessionDistance)">0 m</div>
-                        <div style="font-size:9px;font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:0.05em;">距離</div>
+                    <div style="padding:var(--space-1) 0;">
+                        <div style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;color:var(--md-sys-color-on-surface);font-family:var(--font-heading);" x-text="formatDistance(sessionDistance)">0 m</div>
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:var(--tracking-wide);">距離</div>
                     </div>
-                    <div style="text-align:center;padding:6px 0;">
-                        <div style="font-size:14px;font-weight:700;color:var(--md-sys-color-tertiary);font-family:var(--font-heading);" x-text="Object.keys(sessionHigherGroups).length">0</div>
-                        <div style="font-size:9px;font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:0.05em;">分類群</div>
+                    <div style="padding:var(--space-1) 0;">
+                        <div style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;color:var(--md-sys-color-tertiary);font-family:var(--font-heading);" x-text="Object.keys(sessionHigherGroups).length">0</div>
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:var(--tracking-wide);">分類群</div>
                     </div>
                 </div>
 
-                <!-- Higher Group Chips (when data exists) -->
-                <div x-show="Object.keys(sessionHigherGroups).length > 0" x-cloak
-                     style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
+                <!-- Higher Group Chips -->
+                <div x-show="Object.keys(sessionHigherGroups).length > 0" x-cloak class="m3-chips" style="flex-wrap:wrap;margin-top:var(--space-2);">
                     <template x-for="[group, count] in Object.entries(sessionHigherGroups)" :key="group">
-                        <span style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant);"
+                        <span class="m3-chip" style="font-size:var(--md-sys-typescale-label-small-size);padding:2px var(--space-2);"
                               x-text="group + ' ' + count"></span>
                     </template>
                 </div>
 
-                <!-- Voice switcher + guide toggle (compact) -->
-                <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;position:relative;">
-                    <button @click="toggleGuide()"
-                            :style="guideEnabled ? 'border-color:var(--md-sys-color-primary);background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);' : 'border-color:var(--md-sys-color-outline-variant);background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant);opacity:0.6;'"
-                            style="padding:6px 12px;border-radius:var(--md-sys-shape-corner-full);border:1px solid;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);display:flex;align-items:center;gap:3px;transition:all 200ms var(--md-sys-motion-easing-standard);">
+                <!-- Voice + Guide controls -->
+                <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:var(--space-2);position:relative;">
+                    <button @click="toggleGuide()" class="m3-chip" :class="guideEnabled ? 'active' : ''"
+                            style="display:flex;align-items:center;gap:3px;">
                         <span x-text="guideEnabled ? '🔊' : '🔇'"></span>
                         <span x-text="guideEnabled ? 'ガイドON' : 'ガイドOFF'"></span>
                     </button>
-                    <button @click="showVoiceSwitch = !showVoiceSwitch" x-show="guideEnabled"
-                            style="padding:6px 14px;border-radius:var(--md-sys-shape-corner-full);border:1px solid var(--md-sys-color-outline-variant);background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);display:flex;align-items:center;gap:4px;">
-                        <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.emoji || '🤖'"></span> <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
+                    <button @click="showVoiceSwitch = !showVoiceSwitch" x-show="guideEnabled" class="m3-chip"
+                            style="display:flex;align-items:center;gap:var(--space-1);">
+                        <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.emoji || '🤖'"></span>
+                        <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
                     </button>
+                    <!-- Voice selector popup -->
                     <div x-show="showVoiceSwitch" x-cloak @click.outside="showVoiceSwitch=false"
-                         style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:8px;background:var(--md-sys-color-surface-container-lowest);box-shadow:var(--md-sys-elevation-3);border-radius:var(--md-sys-shape-corner-large);padding:8px;min-width:160px;z-index:50;">
+                         style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:var(--space-2);background:var(--md-sys-color-surface-container-lowest);box-shadow:var(--md-sys-elevation-3);border-radius:var(--md-sys-shape-corner-large);padding:var(--space-2);min-width:160px;z-index:50;">
                         <template x-for="sp in speakers" :key="sp.id">
                             <button @click="selectedSpeaker=sp.id; showVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                    :style="selectedSpeaker===sp.id ? 'background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);' : 'background:transparent;color:var(--md-sys-color-on-surface-variant);'"
-                                    style="display:block;width:100%;padding:10px 14px;border-radius:var(--md-sys-shape-corner-medium);border:none;font-size:12px;font-weight:600;text-align:left;cursor:pointer;margin-bottom:2px;font-family:var(--font-body);transition:all 150ms var(--md-sys-motion-easing-standard);">
+                                    class="m3-chip" :class="selectedSpeaker===sp.id ? 'active' : ''"
+                                    style="display:block;width:100%;text-align:left;margin-bottom:2px;padding:var(--space-2) var(--space-3);">
                                 <span x-text="sp.emoji + ' ' + sp.label"></span>
                             </button>
                         </template>
@@ -806,7 +863,7 @@ if (!$currentUser) {
         </button>
 
         <!-- Start Sensor -->
-        <button class="action-btn" style="background:#10b981;color:#fff;width:auto;border-radius:28px;padding:0 20px;height:56px;" @click="showModeSelect = true">
+        <button class="action-btn" style="background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);width:auto;border-radius:calc(var(--touch-fab) / 2);padding:0 var(--space-5);height:var(--touch-fab);" @click="showModeSelect = true">
             <i data-lucide="radio" style="width:20px;height:20px;"></i>
             <span>センサー</span>
         </button>
@@ -825,139 +882,139 @@ if (!$currentUser) {
         </button>
     </div>
 
-    <!-- ===== 散歩レポート (Session Result Overlay) ===== -->
+    <!-- ===== Session Report Overlay — M3 ===== -->
     <div x-show="showReport" x-cloak
-         style="position:fixed;inset:0;z-index:50;background:linear-gradient(135deg,#0f172a,#1e1b4b);color:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;">
-        <div style="max-width:440px;margin:0 auto;padding:24px 16px 100px;">
+         style="position:fixed;inset:0;z-index:50;background:linear-gradient(135deg,var(--md-sys-color-inverse-surface),#1e1b4b);color:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+        <div style="max-width:440px;margin:0 auto;padding:var(--space-6) var(--space-4) 100px;">
             <!-- Header -->
-            <div style="text-align:center;margin-bottom:24px;">
-                <div style="font-size:48px;margin-bottom:8px;">🌿</div>
-                <h2 style="font-size:22px;font-weight:900;margin:0;">今日のいきものサーチ</h2>
-                <p style="font-size:13px;color:#94a3b8;margin:4px 0 0;" x-text="reportData?.locationName || ''"></p>
+            <div style="text-align:center;margin-bottom:var(--space-6);">
+                <div class="text-5xl mb-2">🌿</div>
+                <h2 style="font-size:var(--md-sys-typescale-title-large-size);font-weight:900;margin:0;">今日のいきものサーチ</h2>
+                <p style="font-size:var(--md-sys-typescale-body-medium-size);color:rgba(255,255,255,0.5);margin:var(--space-1) 0 0;" x-text="reportData?.locationName || ''"></p>
             </div>
 
             <!-- Main Stats Card -->
-            <div style="background:rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:16px;">
+            <div style="background:rgba(255,255,255,0.08);border-radius:var(--md-sys-shape-corner-large);padding:var(--space-5);margin-bottom:var(--space-4);">
                 <div style="display:flex;justify-content:space-around;text-align:center;">
                     <div>
-                        <div style="font-size:11px;color:#94a3b8;">🚶 時間</div>
-                        <div style="font-size:20px;font-weight:900;" x-text="formatElapsed(reportData?.duration || 0)"></div>
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);color:rgba(255,255,255,0.5);">🚶 時間</div>
+                        <div style="font-size:var(--text-md);font-weight:900;" x-text="formatElapsed(reportData?.duration || 0)"></div>
                     </div>
                     <div>
-                        <div style="font-size:11px;color:#94a3b8;">📍 距離</div>
-                        <div style="font-size:20px;font-weight:900;" x-text="formatDistance(reportData?.distance || 0)"></div>
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);color:rgba(255,255,255,0.5);">📍 距離</div>
+                        <div style="font-size:var(--text-md);font-weight:900;" x-text="formatDistance(reportData?.distance || 0)"></div>
                     </div>
                     <div>
-                        <div style="font-size:11px;color:#94a3b8;">🐦 種数</div>
-                        <div style="font-size:20px;font-weight:900;" x-text="reportData?.speciesCount || 0"></div>
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);color:rgba(255,255,255,0.5);">🐦 種数</div>
+                        <div style="font-size:var(--text-md);font-weight:900;" x-text="reportData?.speciesCount || 0"></div>
                     </div>
                 </div>
             </div>
 
             <!-- Nature Score -->
-            <div style="background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(34,197,94,0.08));border:1px solid rgba(16,185,129,0.2);border-radius:16px;padding:16px;margin-bottom:16px;"
+            <div style="background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(34,197,94,0.08));border:1px solid rgba(16,185,129,0.2);border-radius:var(--md-sys-shape-corner-large);padding:var(--space-4);margin-bottom:var(--space-4);"
                  x-show="reportData?.natureScore">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                    <span style="font-size:12px;font-weight:700;color:#6ee7b7;">🌿 自然浴スコア</span>
-                    <span style="font-size:24px;font-weight:900;color:#4ade80;" x-text="reportData?.natureScore?.score || '-'"></span>
-                    <span style="font-size:11px;color:#6ee7b7;">/10</span>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-2);">
+                    <span style="font-size:var(--md-sys-typescale-label-medium-size);font-weight:700;color:var(--md-sys-color-inverse-primary);">🌿 自然浴スコア</span>
+                    <span style="font-size:var(--md-sys-typescale-headline-small-size);font-weight:900;color:var(--md-sys-color-primary-light);" x-text="reportData?.natureScore?.score || '-'"></span>
+                    <span style="font-size:var(--md-sys-typescale-label-small-size);color:var(--md-sys-color-inverse-primary);">/10</span>
                 </div>
-                <div style="display:flex;gap:8px;margin-bottom:8px;">
-                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:8px;">
-                        <div style="font-size:9px;color:#94a3b8;">多様性</div>
-                        <div style="font-size:14px;font-weight:700;" x-text="reportData?.natureScore?.breakdown?.diversity || '-'"></div>
+                <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-2);">
+                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:var(--md-sys-shape-corner-small);">
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);color:rgba(255,255,255,0.5);">多様性</div>
+                        <div style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;" x-text="reportData?.natureScore?.breakdown?.diversity || '-'"></div>
                     </div>
-                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:8px;">
-                        <div style="font-size:9px;color:#94a3b8;">音風景</div>
-                        <div style="font-size:14px;font-weight:700;" x-text="reportData?.natureScore?.breakdown?.soundscape || '-'"></div>
+                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:var(--md-sys-shape-corner-small);">
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);color:rgba(255,255,255,0.5);">音風景</div>
+                        <div style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;" x-text="reportData?.natureScore?.breakdown?.soundscape || '-'"></div>
                     </div>
-                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:8px;">
-                        <div style="font-size:9px;color:#94a3b8;">環境</div>
-                        <div style="font-size:14px;font-weight:700;" x-text="reportData?.natureScore?.breakdown?.environment || '-'"></div>
+                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:var(--md-sys-shape-corner-small);">
+                        <div style="font-size:var(--md-sys-typescale-label-small-size);color:rgba(255,255,255,0.5);">環境</div>
+                        <div style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;" x-text="reportData?.natureScore?.breakdown?.environment || '-'"></div>
                     </div>
                 </div>
-                <div style="font-size:12px;color:#a7f3d0;text-align:center;" x-text="reportData?.natureScore?.message || ''"></div>
+                <div style="font-size:var(--md-sys-typescale-body-small-size);color:var(--md-sys-color-primary-container);text-align:center;" x-text="reportData?.natureScore?.message || ''"></div>
             </div>
 
-            <!-- No species message -->
-            <div x-show="!reportData?.species?.length" style="background:rgba(255,255,255,0.06);border-radius:12px;padding:20px;margin-bottom:16px;text-align:center;">
-                <div style="font-size:32px;margin-bottom:8px;">🌱</div>
-                <div style="font-size:13px;color:#cbd5e1;font-weight:700;">今回は検出なし</div>
-                <div style="font-size:11px;color:#64748b;margin-top:4px;">でも、歩いた記録はたんけんマップに残っています。<br>GPS軌跡と環境データは100年アーカイブに保存されました。</div>
+            <!-- No species -->
+            <div x-show="!reportData?.species?.length" style="background:rgba(255,255,255,0.06);border-radius:var(--md-sys-shape-corner-medium);padding:var(--space-5);margin-bottom:var(--space-4);text-align:center;">
+                <div class="text-3xl mb-2">🌱</div>
+                <div style="font-size:var(--md-sys-typescale-body-medium-size);color:rgba(255,255,255,0.7);font-weight:700;">今回は検出なし</div>
+                <div style="font-size:var(--md-sys-typescale-label-small-size);color:rgba(255,255,255,0.4);margin-top:var(--space-1);">でも、歩いた記録はたんけんマップに残っています。<br>GPS軌跡と環境データは100年アーカイブに保存されました。</div>
             </div>
 
-            <!-- Species Gallery (horizontal scroll) -->
-            <div style="margin-bottom:16px;" x-show="reportData?.species?.length > 0">
-                <h3 style="font-size:13px;font-weight:700;color:#cbd5e1;margin:0 0 8px;">出会った生きもの</h3>
-                <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;">
+            <!-- Species Gallery -->
+            <div style="margin-bottom:var(--space-4);" x-show="reportData?.species?.length > 0">
+                <h3 style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;color:rgba(255,255,255,0.7);margin:0 0 var(--space-2);">出会った生きもの</h3>
+                <div class="no-scrollbar" style="display:flex;gap:var(--space-2);overflow-x:auto;padding-bottom:var(--space-2);-webkit-overflow-scrolling:touch;">
                     <template x-for="sp in (reportData?.species || [])" :key="sp.name">
-                        <div style="min-width:140px;max-width:160px;background:rgba(255,255,255,0.06);border-radius:12px;padding:10px;flex-shrink:0;">
-                            <div style="font-size:13px;font-weight:800;" :style="'color:' + (sp.confidence >= 0.7 ? '#4ade80' : sp.confidence >= 0.4 ? '#fbbf24' : '#9ca3af')" x-text="sp.name"></div>
-                            <div style="font-size:10px;color:#64748b;margin-top:2px;" x-text="sp.source === 'audio' ? '🎤 音声' : '📷 カメラ'"></div>
-                            <div style="font-size:10px;color:#94a3b8;margin-top:2px;" x-text="sp.note || sp.category || ''"></div>
+                        <div style="min-width:140px;max-width:160px;background:rgba(255,255,255,0.06);border-radius:var(--md-sys-shape-corner-medium);padding:var(--space-2) var(--space-3);flex-shrink:0;">
+                            <div style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:800;" :style="'color:' + (sp.confidence >= 0.7 ? 'var(--md-sys-color-primary-light)' : sp.confidence >= 0.4 ? '#fbbf24' : 'rgba(255,255,255,0.4)')" x-text="sp.name"></div>
+                            <div style="font-size:var(--md-sys-typescale-label-small-size);color:rgba(255,255,255,0.4);margin-top:2px;" x-text="sp.source === 'audio' ? '🎤 音声' : '📷 カメラ'"></div>
+                            <div style="font-size:var(--md-sys-typescale-label-small-size);color:rgba(255,255,255,0.3);margin-top:2px;" x-text="sp.note || sp.category || ''"></div>
                         </div>
                     </template>
                 </div>
             </div>
 
             <!-- AI Narrative -->
-            <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:16px;"
+            <div style="background:rgba(255,255,255,0.06);border-radius:var(--md-sys-shape-corner-medium);padding:var(--space-3);margin-bottom:var(--space-4);"
                  x-show="reportData?.recap?.narrative">
-                <div style="font-size:12px;line-height:1.7;color:#d1d5db;" x-text="reportData?.recap?.narrative || ''"></div>
-                <div style="font-size:9px;color:#4b5563;margin-top:6px;">🤖 AI要約</div>
+                <div style="font-size:var(--md-sys-typescale-body-small-size);line-height:1.7;color:rgba(255,255,255,0.7);" x-text="reportData?.recap?.narrative || ''"></div>
+                <div style="font-size:var(--md-sys-typescale-label-small-size);color:rgba(255,255,255,0.3);margin-top:6px;">🤖 AI要約</div>
             </div>
 
             <!-- Contribution -->
-            <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:16px;"
+            <div style="background:rgba(255,255,255,0.06);border-radius:var(--md-sys-shape-corner-medium);padding:var(--space-3);margin-bottom:var(--space-4);"
                  x-show="reportData?.recap?.contribution?.length > 0">
-                <h3 style="font-size:13px;font-weight:700;color:#cbd5e1;margin:0 0 8px;">あなたの貢献</h3>
+                <h3 style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;color:rgba(255,255,255,0.7);margin:0 0 var(--space-2);">あなたの貢献</h3>
                 <template x-for="c in (reportData?.recap?.contribution || [])" :key="c.text">
-                    <div style="display:flex;align-items:start;gap:6px;margin-bottom:4px;font-size:12px;">
+                    <div style="display:flex;align-items:start;gap:6px;margin-bottom:var(--space-1);font-size:var(--md-sys-typescale-body-small-size);">
                         <span x-text="c.icon"></span>
-                        <span style="color:#93c5fd;" x-text="c.text"></span>
+                        <span style="color:var(--md-sys-color-secondary-container);" x-text="c.text"></span>
                     </div>
                 </template>
             </div>
 
             <!-- Weekly Summary -->
-            <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:16px;"
+            <div style="background:rgba(255,255,255,0.06);border-radius:var(--md-sys-shape-corner-medium);padding:var(--space-3);margin-bottom:var(--space-4);"
                  x-show="weeklyStats.sessions > 0">
-                <h3 style="font-size:13px;font-weight:700;color:#cbd5e1;margin:0 0 8px;">📊 今週の記録</h3>
-                <div style="display:flex;gap:16px;font-size:13px;color:#e2e8f0;">
+                <h3 style="font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;color:rgba(255,255,255,0.7);margin:0 0 var(--space-2);">📊 今週の記録</h3>
+                <div style="display:flex;gap:var(--space-4);font-size:var(--md-sys-typescale-body-medium-size);color:rgba(255,255,255,0.85);">
                     <span x-text="weeklyStats.sessions + '回'"></span>
                     <span x-text="weeklyStats.species + '種'"></span>
                     <span x-text="formatDistance(weeklyStats.distance)"></span>
                 </div>
-                <div style="font-size:11px;color:#f59e0b;margin-top:4px;" x-show="weeklyStats.streak > 1"
+                <div style="font-size:var(--md-sys-typescale-label-small-size);color:var(--md-sys-color-tertiary);margin-top:var(--space-1);" x-show="weeklyStats.streak > 1"
                      x-text="'🔥 ' + weeklyStats.streak + '日連続サーチ中!'"></div>
             </div>
 
             <!-- Badges -->
-            <div style="margin-bottom:16px;" x-show="reportData?.recap?.rank_progress?.badges_earned?.length > 0">
+            <div style="margin-bottom:var(--space-4);" x-show="reportData?.recap?.rank_progress?.badges_earned?.length > 0">
                 <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
                     <template x-for="b in (reportData?.recap?.rank_progress?.badges_earned || [])" :key="b.name || b">
-                        <span style="font-size:11px;padding:4px 10px;background:rgba(251,191,36,0.15);color:#fbbf24;border-radius:8px;font-weight:700;" x-text="b.name || b"></span>
+                        <span style="font-size:var(--md-sys-typescale-label-small-size);padding:var(--space-1) var(--space-2);background:rgba(245,158,11,0.15);color:var(--md-sys-color-tertiary);border-radius:var(--md-sys-shape-corner-small);font-weight:700;" x-text="b.name || b"></span>
                     </template>
                 </div>
             </div>
 
             <!-- Data note -->
-            <div style="display:flex;align-items:start;gap:6px;background:rgba(59,130,246,0.08);border-radius:10px;padding:10px 12px;margin-bottom:24px;">
-                <span style="font-size:12px;">💾</span>
-                <span style="font-size:11px;color:#93c5fd;">データは100年アーカイブに保存され、生物多様性レポートに活用されます</span>
+            <div style="display:flex;align-items:start;gap:6px;background:rgba(14,165,233,0.08);border-radius:var(--md-sys-shape-corner-small);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-6);">
+                <span style="font-size:var(--md-sys-typescale-body-small-size);">💾</span>
+                <span style="font-size:var(--md-sys-typescale-label-small-size);color:var(--md-sys-color-secondary-container);">データは100年アーカイブに保存され、生物多様性レポートに活用されます</span>
             </div>
 
-            <!-- Actions -->
-            <div style="display:flex;flex-direction:column;gap:8px;">
+            <!-- Actions — M3 Button patterns -->
+            <div style="display:flex;flex-direction:column;gap:var(--space-2);padding-bottom:var(--safe-bottom);">
                 <a :href="'post.php?return=field_research.php&from=walk_report'"
-                   style="display:block;text-align:center;padding:14px;border-radius:12px;border:1px solid rgba(251,191,36,0.3);background:rgba(251,191,36,0.1);color:#fbbf24;font-size:14px;font-weight:700;text-decoration:none;">
+                   style="display:block;text-align:center;padding:var(--space-3);border-radius:var(--md-sys-shape-corner-medium);border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.1);color:var(--md-sys-color-tertiary);font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;text-decoration:none;min-height:var(--touch-comfortable);">
                     📸 ベスト写真を投稿する
                 </a>
-                <div style="display:flex;gap:8px;">
-                    <button @click="showReport=false" style="flex:1;padding:14px;border-radius:12px;border:none;background:rgba(255,255,255,0.1);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+                <div style="display:flex;gap:var(--space-2);">
+                    <button @click="showReport=false" style="flex:1;padding:var(--space-3);border-radius:var(--md-sys-shape-corner-medium);border:none;background:rgba(255,255,255,0.1);color:#fff;font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;cursor:pointer;min-height:var(--touch-comfortable);">
                         🗺️ マップに戻る
                     </button>
-                    <button @click="showReport=false;startSensor()" style="flex:1;padding:14px;border-radius:12px;border:none;background:#10b981;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">
+                    <button @click="showReport=false;startSensor()" style="flex:1;padding:var(--space-3);border-radius:var(--md-sys-shape-corner-medium);border:none;background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);font-size:var(--md-sys-typescale-body-medium-size);font-weight:700;cursor:pointer;min-height:var(--touch-comfortable);">
                         🔄 もう一回
                     </button>
                 </div>
@@ -1012,6 +1069,9 @@ if (!$currentUser) {
                 // Session state
                 sessionActive: false,
                 showModeSelect: true,
+                sheetStage: 2,
+                _sheetTouchStartY: 0,
+                _sheetTouchStartStage: 1,
                 currentMovementMode: 'walk',
                 sessionStartTime: null,
                 sessionElapsed: 0,
@@ -1066,6 +1126,18 @@ if (!$currentUser) {
                 get speakerEmoji() {
                     const sp = this.speakers.find(s => s.id === this.selectedSpeaker);
                     return sp ? sp.emoji : '🤖';
+                },
+
+                sheetTouchStart(e) {
+                    this._sheetTouchStartY = e.touches[0].clientY;
+                    this._sheetTouchStartStage = this.sheetStage;
+                },
+                sheetTouchMove(e) {},
+                sheetTouchEnd(e) {
+                    const dy = this._sheetTouchStartY - e.changedTouches[0].clientY;
+                    if (Math.abs(dy) < 30) return;
+                    if (dy > 0) { this.sheetStage = Math.min(3, this._sheetTouchStartStage + 1); }
+                    else { this.sheetStage = Math.max(1, this._sheetTouchStartStage - 1); }
                 },
 
                 toggleGuide() {
