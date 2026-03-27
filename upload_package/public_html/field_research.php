@@ -671,6 +671,10 @@ if (!$currentUser) {
                 <div style="color:var(--md-sys-color-inverse-on-surface);font-size:var(--text-2xl);font-weight:900;font-family:var(--font-heading);" x-text="Object.keys(sessionHigherGroups).length">0</div>
                 <div style="color:var(--md-sys-color-inverse-primary);font-size:var(--md-sys-typescale-label-small-size);font-weight:600;letter-spacing:var(--tracking-wide);">分類群</div>
             </div>
+            <div style="text-align:center;">
+                <div style="color:var(--md-sys-color-tertiary);font-size:var(--text-2xl);font-weight:900;font-family:var(--font-heading);" x-text="envObservations">0</div>
+                <div style="color:var(--md-sys-color-inverse-primary);font-size:var(--md-sys-typescale-label-small-size);font-weight:600;letter-spacing:var(--tracking-wide);">🌿環境</div>
+            </div>
         </div>
 
         <!-- Data progress -->
@@ -714,6 +718,30 @@ if (!$currentUser) {
                             :style="selectedSpeaker===sp.id ? 'background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);' : 'background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5);'"
                             style="display:block;width:100%;padding:var(--space-2) var(--space-3);border-radius:var(--md-sys-shape-corner-medium);border:none;font-size:var(--md-sys-typescale-body-medium-size);font-weight:600;text-align:left;cursor:pointer;margin-bottom:var(--space-1);transition:all var(--duration-fast) var(--ease-default);">
                         <span x-text="sp.emoji + ' ' + sp.label"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- BGM (car mode) -->
+        <div style="display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-3);position:relative;">
+            <button @click="toggleBgm()"
+                    :style="bgmEnabled ? 'border-color:var(--md-sys-color-secondary);background:rgba(100,180,100,0.15);color:var(--md-sys-color-inverse-primary);' : 'border-color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4);'"
+                    style="padding:var(--space-2) var(--space-4);border-radius:var(--md-sys-shape-corner-full);border:1px solid;font-size:var(--md-sys-typescale-body-medium-size);font-weight:600;cursor:pointer;min-height:var(--touch-min);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);">
+                <span x-text="bgmEnabled ? '🎵 BGM ON' : '🎵 BGM OFF'"></span>
+            </button>
+            <button x-show="bgmEnabled" @click="showBgmSelect = !showBgmSelect"
+                    style="padding:var(--space-2) var(--space-4);border-radius:var(--md-sys-shape-corner-full);border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);font-size:var(--md-sys-typescale-body-medium-size);font-weight:600;cursor:pointer;min-height:var(--touch-min);">
+                <span x-text="bgmTracks.find(t=>t.id===bgmTrack)?.emoji || '🎵'"></span>
+                <span x-text="bgmTracks.find(t=>t.id===bgmTrack)?.label || 'BGM'"></span>
+            </button>
+            <div x-show="showBgmSelect" x-cloak @click.outside="showBgmSelect=false"
+                 style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:var(--space-2);background:rgba(30,41,59,0.95);backdrop-filter:blur(var(--glass-blur));border-radius:var(--md-sys-shape-corner-large);padding:var(--space-2);border:1px solid rgba(255,255,255,0.1);min-width:160px;z-index:50;">
+                <template x-for="bt in bgmTracks" :key="bt.id">
+                    <button @click="setBgmTrack(bt.id); showBgmSelect=false"
+                            :style="bgmTrack===bt.id ? 'background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);' : 'background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5);'"
+                            style="display:block;width:100%;padding:var(--space-2) var(--space-3);border-radius:var(--md-sys-shape-corner-medium);border:none;font-size:var(--md-sys-typescale-body-medium-size);font-weight:600;text-align:left;cursor:pointer;margin-bottom:var(--space-1);transition:all var(--duration-fast) var(--ease-default);">
+                        <span x-text="bt.emoji + ' ' + bt.label"></span>
                     </button>
                 </template>
             </div>
@@ -783,8 +811,10 @@ if (!$currentUser) {
             <!-- Accumulation Dashboard -->
             <div style="padding:var(--space-3) var(--space-4);">
                 <!-- Environment chip -->
-                <div x-show="envLabel" x-cloak class="m3-chip active" style="display:inline-flex;align-items:center;gap:var(--space-1);margin-bottom:var(--space-2);padding:var(--space-1) var(--space-3);">
-                    <span>🌿</span> <span x-text="envLabel"></span>
+                <div x-show="envObservations > 0" x-cloak class="m3-chip active" style="display:inline-flex;align-items:center;gap:var(--space-1);margin-bottom:var(--space-2);padding:var(--space-1) var(--space-3);">
+                    <span>🌿</span>
+                    <span x-text="envLabel || '環境スキャン中'"></span>
+                    <span x-show="envObservations > 0" style="font-size:var(--md-sys-typescale-label-small-size);opacity:0.7;margin-left:2px;" x-text="envObservations + '件'"></span>
                 </div>
 
                 <!-- Data progress -->
@@ -1042,6 +1072,104 @@ if (!$currentUser) {
     <script src="js/LiveScanner.js?v=27c" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="assets/js/VoiceGuide.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script nonce="<?= CspNonce::attr() ?>">
+    // ========== BGM ENGINE ==========
+    class BgmEngine {
+        constructor() {
+            this._ctx = null;
+            this._masterGain = null;
+            this._nodes = [];
+            this._duckTimer = null;
+            this._ducked = false;
+        }
+        _init() {
+            if (this._ctx) return;
+            this._ctx = new (window.AudioContext || window.webkitAudioContext)();
+            this._masterGain = this._ctx.createGain();
+            this._masterGain.gain.value = 0;
+            this._masterGain.connect(this._ctx.destination);
+        }
+        play(track) {
+            this._init();
+            this._stopNodes();
+            const ctx = this._ctx, dest = this._masterGain;
+            if (track === 'forest') {
+                const noise = this._pinkNoise(ctx);
+                const lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 700;
+                noise.connect(lpf); lpf.connect(dest); noise.start();
+                this._nodes.push(noise);
+            } else if (track === 'stream') {
+                const noise = this._whiteNoise(ctx);
+                const bpf = ctx.createBiquadFilter(); bpf.type = 'bandpass'; bpf.frequency.value = 1800; bpf.Q.value = 1.2;
+                const lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 4500;
+                noise.connect(bpf); bpf.connect(lpf); lpf.connect(dest); noise.start();
+                this._nodes.push(noise);
+            } else if (track === 'healing') {
+                [261.63, 329.63, 392.00, 523.25].forEach((f, i) => {
+                    const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = f;
+                    const g = ctx.createGain(); g.gain.value = 0.22 / (i + 1);
+                    osc.connect(g); g.connect(dest); osc.start();
+                    this._nodes.push(osc);
+                });
+            } else if (track === 'night') {
+                [55, 110, 165].forEach((f, i) => {
+                    const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = f;
+                    const g = ctx.createGain(); g.gain.value = 0.12 / (i + 1);
+                    osc.connect(g); g.connect(dest); osc.start();
+                    this._nodes.push(osc);
+                });
+            }
+            this._masterGain.gain.setTargetAtTime(0.14, ctx.currentTime, 1.2);
+            if (this._duckTimer) clearInterval(this._duckTimer);
+            this._ducked = false;
+            this._duckTimer = setInterval(() => {
+                if (!window.VoiceGuide) return;
+                const sp = VoiceGuide.isSpeaking();
+                if (sp && !this._ducked) {
+                    this._ducked = true;
+                    this._masterGain.gain.setTargetAtTime(0.02, ctx.currentTime, 0.4);
+                } else if (!sp && this._ducked) {
+                    this._ducked = false;
+                    this._masterGain.gain.setTargetAtTime(0.14, ctx.currentTime, 1.0);
+                }
+            }, 400);
+        }
+        stop() {
+            if (this._duckTimer) { clearInterval(this._duckTimer); this._duckTimer = null; }
+            if (this._masterGain && this._ctx) {
+                this._masterGain.gain.setTargetAtTime(0, this._ctx.currentTime, 0.7);
+            }
+            setTimeout(() => this._stopNodes(), 1500);
+        }
+        _stopNodes() {
+            this._nodes.forEach(n => { try { n.stop(); } catch(e) {} });
+            this._nodes = [];
+            this._ducked = false;
+        }
+        _pinkNoise(ctx) {
+            const len = ctx.sampleRate * 4;
+            const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+            const d = buf.getChannelData(0);
+            let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+            for (let i = 0; i < len; i++) {
+                const w = Math.random() * 2 - 1;
+                b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759;
+                b2=0.96900*b2+w*0.1538520; b3=0.86650*b3+w*0.3104856;
+                b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+                d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11; b6=w*0.115926;
+            }
+            const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true; return s;
+        }
+        _whiteNoise(ctx) {
+            const len = ctx.sampleRate * 2;
+            const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+            const d = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+            const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true; return s;
+        }
+    }
+    window._bgmEngine = new BgmEngine();
+    </script>
+    <script nonce="<?= CspNonce::attr() ?>">
         function explorationApp() {
             return {
                 // State
@@ -1086,6 +1214,18 @@ if (!$currentUser) {
                 _sessionTimer: null,
                 _detectionFadeTimer: null,
                 envLabel: '',
+                envObservations: 0,
+
+                // BGM (car mode)
+                bgmEnabled: localStorage.getItem('ikimon_bgm') !== 'false',
+                bgmTrack: localStorage.getItem('ikimon_bgm_track') || 'forest',
+                showBgmSelect: false,
+                bgmTracks: [
+                    { id: 'forest', label: '森の静寂', emoji: '🌿' },
+                    { id: 'stream', label: 'せせらぎ', emoji: '🌊' },
+                    { id: 'healing', label: '癒しの音', emoji: '🎵' },
+                    { id: 'night', label: '夜の森', emoji: '🌙' },
+                ],
 
                 // Destination
                 destination: null,
@@ -1330,9 +1470,32 @@ if (!$currentUser) {
                 setTransportMode(mode) {
                     this.manualTransportMode = mode;
                     localStorage.setItem('ikimon_transport', mode);
-                    // 車モード切り替え時はLiveScannerにも伝達
                     if (this.liveScanner) {
                         this.currentMovementMode = mode === 'car' ? 'drive' : mode;
+                    }
+                    // 車モード以外に切り替えたらBGM停止
+                    if (mode !== 'car' && window._bgmEngine) window._bgmEngine.stop();
+                    // 車モードに切り替えてBGM ONなら開始
+                    if (mode === 'car' && this.bgmEnabled && this.sessionActive && window._bgmEngine) {
+                        window._bgmEngine.play(this.bgmTrack);
+                    }
+                },
+
+                toggleBgm() {
+                    this.bgmEnabled = !this.bgmEnabled;
+                    localStorage.setItem('ikimon_bgm', this.bgmEnabled ? 'true' : 'false');
+                    if (this.bgmEnabled && this.sessionActive && this.manualTransportMode === 'car' && window._bgmEngine) {
+                        window._bgmEngine.play(this.bgmTrack);
+                    } else if (!this.bgmEnabled && window._bgmEngine) {
+                        window._bgmEngine.stop();
+                    }
+                },
+
+                setBgmTrack(trackId) {
+                    this.bgmTrack = trackId;
+                    localStorage.setItem('ikimon_bgm_track', trackId);
+                    if (this.bgmEnabled && this.sessionActive && this.manualTransportMode === 'car' && window._bgmEngine) {
+                        window._bgmEngine.play(trackId);
                     }
                 },
 
@@ -1346,6 +1509,7 @@ if (!$currentUser) {
                     this.sessionFamilyCount = 0;
                     this.sessionHigherGroups = {};
                     this.sessionEnvTags = [];
+                    this.envObservations = 0;
                     this.sessionDataScore = 0;
                     this.sessionDetections = [];
                     this.latestDetection = null;
@@ -1413,6 +1577,8 @@ if (!$currentUser) {
 
                         const detected = this.sessionDetections.map(d => d.japanese_name || d.label).filter(Boolean);
                         const uniqueDetected = [...new Set(detected)].slice(0, 10).join(',');
+                        const recentEnv = (this.liveScanner?.envHistory || []).slice(0, 3);
+                        const envContext = recentEnv.map(e => [e.habitat, e.vegetation].filter(Boolean).join('/')).filter(Boolean).join('、');
 
                         // 移動手段: 手動設定 > GPS自動検出
                         const transportMode = this.manualTransportMode || (this.currentMovementMode === 'drive' ? 'car' : this.currentMovementMode) || 'walk';
@@ -1429,6 +1595,7 @@ if (!$currentUser) {
                                 session_count: this._ambientGuideCount,
                                 drive_total_min: this._driveTotalMin || 0,
                                 guide_mood: this.guideMood || 'relax',
+                                env_context: envContext,
                             });
                             this._appendDestParams(params);
                             const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
@@ -1460,6 +1627,13 @@ if (!$currentUser) {
                         onEnvUpdate: (env) => {
                             const parts = [env.habitat, env.vegetation, env.canopy_cover].filter(Boolean);
                             this.envLabel = parts.join(' · ') || '';
+                            this.envObservations++;
+                            const tag = env.habitat || env.description || '';
+                            if (tag && !this.sessionEnvTags.includes(tag)) {
+                                this.sessionEnvTags.push(tag);
+                            }
+                            const photoCount = this.sessionDetections.filter(d => d.source === 'visual').length;
+                            this.sessionDataScore = this.sessionSpeciesCount * 3 + this.sessionFamilyCount * 5 + this.sessionEnvTags.length * 2 + Math.floor(this.sessionDistance / 100) + photoCount;
                         },
                         onMovementModeChange: (mode) => {
                             // 車を手動選択している場合はオート検出で上書きしない
@@ -1518,6 +1692,11 @@ if (!$currentUser) {
 
                     this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
                     console.log(`[Sensor] Started (speaker: ${this.selectedSpeaker})`);
+
+                    // BGM: 車モードでBGM ON の場合は開始
+                    if ((this.manualTransportMode === 'car') && this.bgmEnabled && window._bgmEngine) {
+                        window._bgmEngine.play(this.bgmTrack);
+                    }
                 },
 
                 async stopSensor() {
@@ -1529,6 +1708,7 @@ if (!$currentUser) {
                         VoiceGuide.stop();
                         VoiceGuide.setEnabled(false);
                     }
+                    if (window._bgmEngine) window._bgmEngine.stop();
 
                     let result = null;
                     if (this.liveScanner) {

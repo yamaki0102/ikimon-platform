@@ -599,6 +599,7 @@ if ($requestMode === 'ambient') {
     $sessionCount = api_param('session_count', 0, 'int');
     $weather = api_param('weather', '');
     $driveTotalMin = api_param('drive_total_min', 0, 'int');
+    $envContext = api_param('env_context', '');
 
     $areaName = '';
     try {
@@ -667,7 +668,18 @@ if ($requestMode === 'ambient') {
         $topicPool[] = $conservationTopic;
     }
 
-    $topic = $topicPool[array_rand($topicPool)];
+    // セッション内でトピックを重複なく循環（ユーザー×日付でシードを変えてセッション間の単調さを防ぐ）
+    $daySeed = (int)(crc32($userId . date('Ymd')) & 0x7FFFFFFF);
+    $shuffleOrder = range(0, count($topicPool) - 1);
+    // Fisher-Yates shuffle using daySeed as PRNG seed
+    $prng = $daySeed;
+    for ($si = count($shuffleOrder) - 1; $si > 0; $si--) {
+        $prng = ($prng * 1664525 + 1013904223) & 0x7FFFFFFF;
+        $sj = $prng % ($si + 1);
+        [$shuffleOrder[$si], $shuffleOrder[$sj]] = [$shuffleOrder[$sj], $shuffleOrder[$si]];
+    }
+    $topicIndex = $shuffleOrder[$sessionCount % count($topicPool)];
+    $topic = $topicPool[$topicIndex];
 
     $speciesContext = $detectedSpecies
         ? "今日検出された種: {$detectedSpecies}。この種に関連づけて話を展開して。"
@@ -678,6 +690,7 @@ if ($requestMode === 'ambient') {
         : 'この地域で出会えそうな生き物について話して。';
 
     $weatherContext = $weather ? "現在の天気: {$weather}" : '';
+    $envInstruction = $envContext ? "【環境センサー情報】今いる場所の環境: {$envContext}。この環境の特徴（植生・地形・生息環境）を話に自然に織り込んで。" : '';
 
     // 深さの段階: セッション内の発話回数で進化 + 自己効力感
     $depthInstruction = match(true) {
@@ -700,10 +713,10 @@ if ($requestMode === 'ambient') {
         };
     }
 
-    // 過去発話の要約（直近15件）をプロンプトに注入（重複回避精度向上）
-    $recentTexts = array_slice(array_column($pastTexts, 'text'), -15);
+    // 過去発話の要約（直近20件）をプロンプトに注入（重複回避精度向上）
+    $recentTexts = array_slice(array_column($pastTexts, 'text'), -20);
     $avoidList = !empty($recentTexts)
-        ? "以下は最近話したテーマ・フレーズです。これらと同じ話題・言い回し・キーワードは絶対に使わないでください:\n" . implode("\n", array_map(fn($t) => "- {$t}", $recentTexts))
+        ? "【厳守】以下は最近話したテーマ・フレーズです。同じ話題・言い回し・キーワードを一切使わないでください。全く別の角度から話してください:\n" . implode("\n", array_map(fn($t) => "- {$t}", $recentTexts))
         : '';
 
     $prompt = <<<PROMPT
@@ -718,6 +731,7 @@ if ($requestMode === 'ambient') {
 季節: {$seasonName}（{$month}月）  時間帯: {$timeOfDay}
 {$weatherContext}
 経過時間: {$elapsedMin}分
+{$envInstruction}
 {$speciesContext}
 {$nearbySpeciesContext}
 {$ambientLandscape}
