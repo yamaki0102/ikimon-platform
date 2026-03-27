@@ -394,14 +394,14 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             <!-- LEFT COLUMN: Visuals (LG: 7 cols - ~58%) -->
             <div class="lg:col-span-7 space-y-6">
                 <!-- Main Photo Carousel -->
-                <div class="relative bg-black rounded-2xl overflow-hidden shadow-2xl border border-border group aspect-[4/3] flex items-center justify-center"
+                <div class="relative bg-black overflow-hidden border border-border group aspect-[4/3] flex items-center justify-center" style="border-radius:var(--md-sys-shape-corner-extra-large);box-shadow:var(--md-sys-elevation-3)"
                     @click="lightbox = true"
                     @touchstart="touchStart = $event.changedTouches[0].screenX"
                     @touchend="touchEnd = $event.changedTouches[0].screenX; let diff = touchStart - touchEnd; if(Math.abs(diff) > 50) { photoActive = diff > 0 ? (photoActive + 1) % <?php echo max(1, count($obs['photos'] ?? [])); ?> : (photoActive - 1 + <?php echo max(1, count($obs['photos'] ?? [])); ?>) % <?php echo max(1, count($obs['photos'] ?? [])); ?>; }">
                     <?php if (!empty($obs['photos'])): ?>
                         <?php foreach ($obs['photos'] as $idx => $photo): ?>
                             <img src="<?php echo htmlspecialchars($photo); ?>"
-                                class="absolute inset-0 w-full h-full object-contain transition-all duration-500"
+                                class="absolute inset-0 w-full h-full object-contain" style="transition:all var(--md-sys-motion-duration-long2) var(--md-sys-motion-easing-emphasized)"
                                 :class="photoActive === <?php echo $idx; ?> ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'"
                                 alt="観察写真 <?php echo $idx + 1; ?>" loading="<?php echo $idx === 0 ? 'eager' : 'lazy'; ?>">
                         <?php endforeach; ?>
@@ -457,7 +457,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                 <!-- Owner Narrative -->
                 <?php $observerName = $obs['user_display_name'] ?? $obs['user_name'] ?? $obs['user']['display_name'] ?? $obs['user']['name'] ?? BioUtils::getUserName($obs['user_id']); ?>
-                <div class="mt-4 bg-surface rounded-2xl border border-border p-4 shadow-sm">
+                <div class="mt-4 p-4" style="background:var(--md-sys-color-surface-container-low);border-radius:var(--md-sys-shape-corner-extra-large);box-shadow:var(--md-sys-elevation-1);border:1px solid var(--md-sys-color-outline-variant)">
                     <div class="flex items-center gap-3 mb-3">
                         <img src="<?php echo htmlspecialchars($obs['user_avatar'] ?? 'https://i.pravatar.cc/150?u=' . $obs['user_id']); ?>"
                             alt="<?php echo htmlspecialchars($observerName ?? 'ユーザー'); ?>のアバター"
@@ -478,7 +478,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 </div>
 
                 <?php if ($managedContextType !== '' || !empty($managedContext['site_name']) || $organismOrigin !== ''): ?>
-                    <section class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
+                    <section class="p-4" style="background:var(--md-sys-color-surface-container-low);border-radius:var(--md-sys-shape-corner-extra-large);box-shadow:var(--md-sys-elevation-1);border:1px solid var(--md-sys-color-outline-variant)">
                         <div class="flex items-center justify-between gap-3 mb-3">
                             <div>
                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest">記録文脈</p>
@@ -509,7 +509,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <?php endif; ?>
 
                 <?php if ($latestAiAssessment || (($obs['ai_assessment_status'] ?? '') === 'pending')): ?>
-                    <section class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
+                    <section class="p-4" style="background:var(--md-sys-color-surface-container-low);border-radius:var(--md-sys-shape-corner-extra-large);box-shadow:var(--md-sys-elevation-1);border:1px solid var(--md-sys-color-outline-variant)">
                         <div class="flex items-start justify-between gap-3 mb-3">
                             <div>
                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest">観察のヒント</p>
@@ -625,15 +625,15 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                     <p class="text-xs text-warning leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['cautionary_note']); ?></p>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['observer_boost'])): ?>
-                                    <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2">
-                                        <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">この観察ですでに助かるところ</p>
-                                        <p class="text-emerald-800 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['observer_boost']); ?></p>
+                                    <div class="px-3 py-2" style="border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-primary-container);border:1px solid rgba(16,185,129,0.2)">
+                                        <p class="text-[10px] font-black uppercase tracking-widest mb-1" style="color:var(--md-sys-color-on-primary-container)">この観察ですでに助かるところ</p>
+                                        <p style="color:var(--md-sys-color-on-primary-container)" class="leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['observer_boost']); ?></p>
                                     </div>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['next_step'])): ?>
-                                    <div class="rounded-xl bg-sky-50 border border-sky-200 px-3 py-2">
-                                        <p class="text-[10px] font-black text-sky-700 uppercase tracking-widest mb-1">次にあると絞りやすいもの</p>
-                                        <p class="text-sky-800 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['next_step']); ?></p>
+                                    <div class="px-3 py-2" style="border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-secondary-container);border:1px solid rgba(14,165,233,0.2)">
+                                        <p class="text-[10px] font-black uppercase tracking-widest mb-1" style="color:var(--md-sys-color-on-secondary-container)">次にあると絞りやすいもの</p>
+                                        <p style="color:var(--md-sys-color-on-secondary-container)" class="leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['next_step']); ?></p>
                                     </div>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['similar_taxa_to_compare']) || !empty($latestAiAssessment['missing_evidence'])): ?>
@@ -676,7 +676,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                 <!-- License -->
                 <div class="text-xs text-muted mt-4 px-2">
-                    <div class="p-3 rounded-lg bg-surface border border-border flex items-center gap-3">
+                    <div class="p-3 flex items-center gap-3" style="border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container-low);border:1px solid var(--md-sys-color-outline-variant)">
                         <i data-lucide="creative-commons" class="w-4 h-4 text-faint"></i>
                         <div>
                             <span class="font-bold text-faint">CC BY-NC 4.0</span>
@@ -728,10 +728,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             <div class="lg:col-span-5 flex flex-col gap-8">
 
                 <?php if (!empty($trustGuidance['steps']) && ($trustGuidance['status'] ?? '') !== '種レベル研究用'): ?>
-                    <div class="rounded-2xl border border-primary/15 bg-primary/5 p-4 shadow-sm">
+                    <div class="p-4" style="background:var(--md-sys-color-primary-container);border-radius:var(--md-sys-shape-corner-extra-large);box-shadow:var(--md-sys-elevation-1);border:1px solid rgba(16,185,129,0.15)">
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <p class="text-[10px] font-black text-faint uppercase tracking-widest">この記録を育てる</p>
+                                <p class="text-[10px] font-black uppercase tracking-widest" style="color:var(--md-sys-color-on-primary-container)">この記録を育てる</p>
                                 <p class="text-sm font-bold text-text mt-1"><?php echo htmlspecialchars($trustGuidance['headline']); ?></p>
                             </div>
                             <span class="text-xl leading-none">🌱</span>
@@ -745,12 +745,12 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         </div>
                         <div class="mt-4 flex flex-wrap gap-2">
                             <button @click="idModalOpen = true"
-                                class="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-white shadow-sm shadow-primary/20 transition hover:bg-primary-dark active:scale-95">
+                                class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white active:scale-95" style="border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-primary);box-shadow:var(--md-sys-elevation-1);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)">
                                 <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
                                 名前を提案する
                             </button>
                             <a href="#id-list-container"
-                                class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-text border border-border transition hover:border-primary/30 hover:text-primary">
+                                class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-text" style="border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-surface-container-lowest);border:1px solid var(--md-sys-color-outline);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)">
                                 <i data-lucide="messages-square" class="w-3.5 h-3.5"></i>
                                 みんなの推測を見る
                             </a>
@@ -759,7 +759,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <?php endif; ?>
 
                 <!-- 1. Taxonomy & Identification Header -->
-                <div class="bg-surface rounded-2xl p-6 border border-border shadow-lg relative overflow-hidden">
+                <div class="p-6 relative overflow-hidden" style="background:var(--md-sys-color-surface-container-lowest);border-radius:var(--md-sys-shape-corner-extra-large);box-shadow:var(--md-sys-elevation-2);border:1px solid var(--md-sys-color-outline-variant)">
                     <div class="absolute top-0 right-0 p-4 opacity-10">
                         <i data-lucide="dna" class="w-32 h-32 text-primary"></i>
                     </div>
@@ -866,7 +866,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <!-- Core Attributes -->
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-muted">
+                            <div class="w-10 h-10 flex items-center justify-center text-muted" style="border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-surface-container)">
                                 <i data-lucide="map-pin" class="w-5 h-5"></i>
                             </div>
                             <div>
@@ -875,7 +875,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-muted">
+                            <div class="w-10 h-10 flex items-center justify-center text-muted" style="border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-surface-container)">
                                 <i data-lucide="calendar" class="w-5 h-5"></i>
                             </div>
                             <div>
@@ -908,22 +908,22 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                     <?php endif; ?>
                                 </div>
                             </div>
-                            <span class="flex-shrink-0 <?php echo in_array(($obs['status'] ?? ''), ['研究用', '種レベル研究用', '研究利用可'], true) ? 'text-green-600 bg-green-500/10 border-green-500/20' : 'text-orange-500 bg-orange-500/10 border-orange-500/20'; ?> text-token-xs font-bold px-2 py-1 rounded-full border">
+                            <span class="flex-shrink-0 <?php echo in_array(($obs['status'] ?? ''), ['研究用', '種レベル研究用', '研究利用可'], true) ? 'text-primary bg-primary/10 border-primary/20' : 'text-[var(--md-sys-color-tertiary)] bg-[var(--md-sys-color-tertiary-container)] border-[rgba(245,158,11,0.2)]'; ?> text-token-xs font-bold px-2 py-1 rounded-full border">
                                 <?php echo htmlspecialchars($obs['status']); ?>
                             </span>
                         </div>
                     <?php endif; ?>
 
                     <?php if (!empty($trustGuidance['steps'])): ?>
-                        <div class="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4">
+                        <div class="mb-6 p-4" style="background:var(--md-sys-color-secondary-container);border-radius:var(--md-sys-shape-corner-large);border:1px solid rgba(14,165,233,0.2)">
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl leading-none">🧭</span>
                                 <div class="min-w-0">
-                                    <p class="text-sm font-bold text-sky-900"><?php echo htmlspecialchars($trustGuidance['headline']); ?></p>
-                                    <p class="text-xs text-sky-800/80 mt-1 leading-relaxed"><?php echo htmlspecialchars($trustGuidance['body']); ?></p>
+                                    <p class="text-sm font-bold text-[var(--md-sys-color-on-secondary-container)]"><?php echo htmlspecialchars($trustGuidance['headline']); ?></p>
+                                    <p class="text-xs text-[var(--md-sys-color-on-secondary-container)] mt-1 leading-relaxed"><?php echo htmlspecialchars($trustGuidance['body']); ?></p>
                                     <div class="mt-3 flex flex-wrap gap-2">
                                         <?php foreach ($trustGuidance['steps'] as $step): ?>
-                                            <span class="inline-flex items-center rounded-full bg-white border border-sky-200 px-3 py-1 text-xs text-sky-900">
+                                            <span class="inline-flex items-center rounded-full bg-white border border-[rgba(14,165,233,0.2)] px-3 py-1 text-xs text-[var(--md-sys-color-on-secondary-container)]">
                                                 <?php echo htmlspecialchars($step); ?>
                                             </span>
                                         <?php endforeach; ?>
@@ -934,22 +934,22 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <?php endif; ?>
 
                     <?php if (!empty($trustProgress)): ?>
-                        <div class="mb-6 rounded-xl border border-violet-200 bg-violet-50 p-4">
+                        <div class="mb-6 p-4" style="background:var(--md-sys-color-tertiary-container);border-radius:var(--md-sys-shape-corner-large);border:1px solid rgba(245,158,11,0.2)">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <p class="text-sm font-bold text-violet-900"><?php echo htmlspecialchars((string)($trustProgress['headline'] ?? '信頼済みへの進み具合')); ?></p>
-                                    <p class="text-xs text-violet-900/75 mt-1 leading-relaxed"><?php echo htmlspecialchars((string)($trustProgress['next_label'] ?? '')); ?></p>
+                                    <p class="text-sm font-bold text-[var(--md-sys-color-on-tertiary-container)]"><?php echo htmlspecialchars((string)($trustProgress['headline'] ?? '信頼済みへの進み具合')); ?></p>
+                                    <p class="text-xs text-[var(--md-sys-color-on-tertiary-container)]/75 mt-1 leading-relaxed"><?php echo htmlspecialchars((string)($trustProgress['next_label'] ?? '')); ?></p>
                                 </div>
-                                <span class="inline-flex items-center rounded-full bg-white border border-violet-200 px-3 py-1 text-xs font-black text-violet-700">
+                                <span class="inline-flex items-center rounded-full bg-white border border-[rgba(245,158,11,0.2)] px-3 py-1 text-xs font-black text-[var(--md-sys-color-tertiary)]">
                                     <?php echo (int)($trustProgress['progress'] ?? 0); ?>%
                                 </span>
                             </div>
                             <div class="mt-3 h-2 rounded-full bg-white/80 overflow-hidden">
-                                <div class="h-full rounded-full bg-gradient-to-r from-violet-500 via-primary to-emerald-500" style="width: <?php echo (int)($trustProgress['progress'] ?? 0); ?>%"></div>
+                                <div class="h-full rounded-full bg-gradient-to-r from-[var(--md-sys-color-tertiary)] via-[var(--md-sys-color-primary)] to-[var(--md-sys-color-primary)]" style="width: <?php echo (int)($trustProgress['progress'] ?? 0); ?>%"></div>
                             </div>
                             <div class="mt-3 grid grid-cols-2 gap-2">
                                 <?php foreach (($trustProgress['checkpoints'] ?? []) as $checkpoint): ?>
-                                    <div class="rounded-2xl border px-3 py-2 <?php echo !empty($checkpoint['complete']) ? 'border-emerald-200 bg-white text-emerald-900' : 'border-violet-100 bg-white/80 text-violet-900'; ?>">
+                                    <div class="rounded-2xl border px-3 py-2 <?php echo !empty($checkpoint['complete']) ? 'border-[rgba(16,185,129,0.2)] bg-white text-[var(--md-sys-color-on-primary-container)]' : 'border-[rgba(245,158,11,0.1)] bg-white/80 text-[var(--md-sys-color-on-tertiary-container)]'; ?>">
                                         <div class="text-[11px] font-bold flex items-center gap-1.5">
                                             <span><?php echo !empty($checkpoint['complete']) ? '✓' : '・'; ?></span>
                                             <?php echo htmlspecialchars((string)($checkpoint['label'] ?? '')); ?>
@@ -1051,12 +1051,12 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <?php endif; ?>
 
                     <?php if (!empty($metadataHistory)): ?>
-                        <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                        <div class="mb-6 p-4" style="background:var(--md-sys-color-primary-container);border-radius:var(--md-sys-shape-corner-large);border:1px solid rgba(16,185,129,0.2)">
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl leading-none">🪴</span>
                                 <div class="min-w-0">
-                                    <p class="text-sm font-bold text-emerald-900">この情報はこう育ちました</p>
-                                    <p class="text-xs text-emerald-800/80 mt-1 leading-relaxed">環境や状態の情報は、投稿者とコミュニティの手で少しずつ育っていきます。最近の更新だけを表示しています。</p>
+                                    <p class="text-sm font-bold text-[var(--md-sys-color-on-primary-container)]">この情報はこう育ちました</p>
+                                    <p class="text-xs text-[var(--md-sys-color-on-primary-container)] mt-1 leading-relaxed">環境や状態の情報は、投稿者とコミュニティの手で少しずつ育っていきます。最近の更新だけを表示しています。</p>
                                     <div class="mt-3 space-y-2">
                                         <?php foreach (array_slice($metadataHistory, 0, 3) as $history): ?>
                                             <?php
@@ -1096,17 +1096,17 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                 }
                                             }
                                             ?>
-                                            <div class="rounded-2xl border border-emerald-200/70 bg-white px-3 py-2">
+                                            <div class="rounded-2xl border border-[rgba(16,185,129,0.2)]/70 bg-white px-3 py-2">
                                                 <div class="flex items-start justify-between gap-3">
                                                     <div class="min-w-0">
-                                                        <div class="text-xs font-bold text-emerald-900"><?php echo htmlspecialchars($label); ?></div>
+                                                        <div class="text-xs font-bold text-[var(--md-sys-color-on-primary-container)]"><?php echo htmlspecialchars($label); ?></div>
                                                         <div class="mt-1 text-[11px] text-muted">
                                                             <?php echo htmlspecialchars((string)($history['actor_name'] ?? 'community')); ?>
                                                             ・
                                                             <?php echo htmlspecialchars(date('Y.m.d', strtotime((string)($history['at'] ?? 'now')))); ?>
                                                         </div>
                                                     </div>
-                                                    <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100/70 px-2 py-1 text-[10px] font-bold text-emerald-800">
+                                                    <span class="inline-flex items-center rounded-full border border-[rgba(16,185,129,0.2)] bg-[var(--md-sys-color-primary-container)] px-2 py-1 text-[10px] font-bold text-[var(--md-sys-color-on-primary-container)]">
                                                         <?php echo htmlspecialchars($reasonLabel); ?>
                                                     </span>
                                                 </div>
@@ -1116,7 +1116,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                     </div>
                                                 <?php endif; ?>
                                                 <?php if (!empty($history['note'])): ?>
-                                                    <div class="mt-1 text-[11px] text-emerald-900/80 leading-relaxed">
+                                                    <div class="mt-1 text-[11px] text-[var(--md-sys-color-on-primary-container)]/80 leading-relaxed">
                                                         <?php echo htmlspecialchars((string)$history['note']); ?>
                                                     </div>
                                                 <?php endif; ?>
@@ -1130,39 +1130,39 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                     <!-- Status badge when no consensus yet (unidentified) -->
                     <?php if (!isset($obs['consensus']) || empty($obs['identifications'])): ?>
-                        <div class="mb-6 flex items-center gap-3 p-3 rounded-xl bg-orange-500/5 border border-orange-500/15">
+                        <div class="mb-6 flex items-center gap-3 p-3" style="border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-tertiary-container);border:1px solid rgba(245,158,11,0.15)">
                             <span class="text-2xl flex-shrink-0">🔍</span>
                             <div>
                                 <div class="text-sm font-bold text-text">種名を特定中</div>
                                 <div class="text-xs text-muted mt-0.5">あなたも名前の推測を投稿してみよう！</div>
                             </div>
-                            <span class="ml-auto flex-shrink-0 text-orange-500 bg-orange-500/10 border-orange-500/20 text-token-xs font-bold px-2 py-1 rounded-full border">
+                            <span class="ml-auto flex-shrink-0 text-token-xs font-bold px-2 py-1 border" style="color:var(--md-sys-color-on-tertiary-container);background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.2);border-radius:var(--md-sys-shape-corner-full)">
                                 未同定
                             </span>
                         </div>
                     <?php endif; ?>
 
                     <!-- Map -->
-                    <div id="reborn-map" class="w-full h-40 rounded-xl bg-surface border border-border overflow-hidden relative z-0"></div>
+                    <div id="reborn-map" class="w-full h-40 overflow-hidden relative z-0" style="border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-surface-container);border:1px solid var(--md-sys-color-outline-variant)"></div>
 
                     <!-- Omoikane Insights (New) -->
                     <?php if ($omoikaneTraits): ?>
-                        <div class="mt-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-5 border border-indigo-200 shadow-sm relative overflow-hidden">
+                        <div class="mt-6 p-5 relative overflow-hidden" style="background:var(--md-sys-color-secondary-container);border-radius:var(--md-sys-shape-corner-large);box-shadow:var(--md-sys-elevation-1);border:1px solid rgba(14,165,233,0.2)">
                             <div class="absolute -right-4 -top-4 opacity-[0.03] pointer-events-none">
-                                <span class="material-symbols-outlined text-9xl text-indigo-900">psychiatry</span>
+                                <span class="material-symbols-outlined text-9xl" style="color:var(--md-sys-color-on-secondary-container)">psychiatry</span>
                             </div>
                             <div class="flex items-center gap-2 mb-3 relative z-10">
-                                <span class="material-symbols-outlined text-indigo-600">psychiatry</span>
-                                <h3 class="font-black text-indigo-900 text-sm tracking-wider">オモイカネ インサイト</h3>
+                                <span class="material-symbols-outlined" style="color:var(--md-sys-color-secondary)">psychiatry</span>
+                                <h3 class="font-black text-sm tracking-wider" style="color:var(--md-sys-color-on-secondary-container)">オモイカネ インサイト</h3>
                             </div>
-                            <div class="space-y-3 relative z-10 text-sm text-indigo-900/80">
+                            <div class="space-y-3 relative z-10 text-sm" style="color:var(--md-sys-color-on-secondary-container)">
                                 <?php if (!empty($omoikaneTraits['habitat'])): ?>
                                     <div class="flex items-start gap-2 bg-white/50 rounded-lg p-3">
-                                        <span class="material-symbols-outlined text-indigo-400 text-base shrink-0 mt-0.5">landscape</span>
+                                        <span class="material-symbols-outlined text-[var(--md-sys-color-secondary)] text-base shrink-0 mt-0.5">landscape</span>
                                         <div>
-                                            <div class="text-[10px] font-bold text-indigo-500 mb-0.5 uppercase tracking-widest">文献上の環境</div>
+                                            <div class="text-[10px] font-bold text-[var(--md-sys-color-secondary)] mb-0.5 uppercase tracking-widest">文献上の環境</div>
                                             <div class="font-medium leading-tight mb-1 text-xs"><?php echo htmlspecialchars($omoikaneTraits['habitat']); ?></div>
-                                            <div class="text-[10px] text-indigo-600 bg-indigo-100/50 inline-block px-1.5 py-0.5 rounded">
+                                            <div class="text-[10px] text-[var(--md-sys-color-on-secondary-container)] bg-white/30 inline-block px-1.5 py-0.5 rounded">
                                                 ✨ あなたの報告が新しい生息地の発見につながるかも！
                                             </div>
                                         </div>
@@ -1171,11 +1171,11 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                                 <?php if (!empty($omoikaneTraits['season'])): ?>
                                     <div class="flex items-start gap-2 bg-white/50 rounded-lg p-3">
-                                        <span class="material-symbols-outlined text-indigo-400 text-base shrink-0 mt-0.5">calendar_month</span>
+                                        <span class="material-symbols-outlined text-[var(--md-sys-color-secondary)] text-base shrink-0 mt-0.5">calendar_month</span>
                                         <div>
-                                            <div class="text-[10px] font-bold text-indigo-500 mb-0.5 uppercase tracking-widest">出現時期</div>
+                                            <div class="text-[10px] font-bold text-[var(--md-sys-color-secondary)] mb-0.5 uppercase tracking-widest">出現時期</div>
                                             <div class="font-medium leading-tight mb-1 text-xs"><?php echo htmlspecialchars($omoikaneTraits['season']); ?></div>
-                                            <div class="text-[10px] text-indigo-600 bg-indigo-100/50 inline-block px-1.5 py-0.5 rounded">
+                                            <div class="text-[10px] text-[var(--md-sys-color-on-secondary-container)] bg-white/30 inline-block px-1.5 py-0.5 rounded">
                                                 ⏱️ 季節外れの記録なら、とても貴重なデータになります。
                                             </div>
                                         </div>
@@ -1184,9 +1184,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                                 <?php if (!empty($omoikaneTraits['altitude'])): ?>
                                     <div class="flex items-start gap-2 bg-white/50 rounded-lg p-3">
-                                        <span class="material-symbols-outlined text-indigo-400 text-base shrink-0 mt-0.5">terrain</span>
+                                        <span class="material-symbols-outlined text-[var(--md-sys-color-secondary)] text-base shrink-0 mt-0.5">terrain</span>
                                         <div>
-                                            <div class="text-[10px] font-bold text-indigo-500 mb-0.5 uppercase tracking-widest">標高</div>
+                                            <div class="text-[10px] font-bold text-[var(--md-sys-color-secondary)] mb-0.5 uppercase tracking-widest">標高</div>
                                             <div class="font-medium leading-tight text-xs"><?php echo htmlspecialchars($omoikaneTraits['altitude']); ?></div>
                                         </div>
                                     </div>
@@ -1198,7 +1198,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <!-- Primary Action CTA -->
                     <div class="mt-6 flex gap-2">
                         <button @click="idModalOpen = true"
-                            class="flex-1 py-3 rounded-xl bg-primary-dark hover:bg-primary text-white font-bold text-sm shadow-lg shadow-primary-glow/20 transition flex items-center justify-center gap-2 active:scale-[0.98]">
+                            class="flex-1 py-3 text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98]" style="border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-primary);box-shadow:var(--md-sys-elevation-2);transition:all var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-standard)">
                             <span class="text-base">🤔</span>
                             名前を提案する
                         </button>
@@ -1209,8 +1209,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <div class="space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="font-black text-base text-text flex items-center gap-2">
-                            <span class="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                                <i data-lucide="users" class="w-4 h-4 text-primary"></i>
+                            <span class="w-8 h-8 flex items-center justify-center" style="border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-primary-container)">
+                                <i data-lucide="users" class="w-4 h-4" style="color:var(--md-sys-color-on-primary-container)"></i>
                             </span>
                             みんなの推測ノート
                             <?php if (count($obs['identifications'] ?? []) > 0): ?>
@@ -1218,7 +1218,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <?php endif; ?>
                         </h3>
                         <button @click="idModalOpen = true"
-                            class="flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition border border-primary/20 active:scale-95">
+                            class="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 active:scale-95" style="color:var(--md-sys-color-primary);background:var(--md-sys-color-primary-container);border-radius:var(--md-sys-shape-corner-full);border:1px solid rgba(16,185,129,0.2);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                             投稿する
                         </button>
@@ -1227,12 +1227,12 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <!-- Cards -->
                     <div id="id-list-container" class="space-y-3">
                         <?php if (empty($obs['identifications'])): ?>
-                            <div class="text-center py-12 bg-surface rounded-2xl border border-border border-dashed">
+                            <div class="text-center py-12 border-dashed" style="background:var(--md-sys-color-surface-container-low);border-radius:var(--md-sys-shape-corner-extra-large);border:2px dashed var(--md-sys-color-outline-variant)">
                                 <div class="text-5xl mb-4">🌱</div>
                                 <p class="text-sm font-bold text-text mb-1">まだ推測コメントはありません</p>
                                 <p class="text-xs text-muted mb-4">知っていることを気軽に書いてみよう。<br>小さなヒントも投稿者の助けになるよ！</p>
                                 <button @click="idModalOpen = true"
-                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition border border-primary/20">
+                                    class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold" style="color:var(--md-sys-color-primary);background:var(--md-sys-color-primary-container);border-radius:var(--md-sys-shape-corner-full);border:1px solid rgba(16,185,129,0.2);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)">
                                     <i data-lucide="zap" class="w-3.5 h-3.5"></i>
                                     名前を提案してみる
                                 </button>
@@ -1248,7 +1248,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 $rankInfo = TrustLevel::getRankInfo($trustLevel);
                                 ?>
                                 <!-- Identification Card (Social Feed Style) -->
-                                <div class="bg-surface rounded-2xl border border-border p-4 shadow-sm hover:shadow-md transition-shadow"
+                                <div class="p-4" style="background:var(--md-sys-color-surface-container-low);border-radius:var(--md-sys-shape-corner-extra-large);box-shadow:var(--md-sys-elevation-1);border:1px solid var(--md-sys-color-outline-variant);transition:box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)"
                                     x-data="inlineTaxonSelector('<?php echo htmlspecialchars($id); ?>')">
 
                                     <!-- Card Header: Avatar + User Info + Species Badge -->
@@ -1273,7 +1273,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                     </div>
 
                                     <!-- Species Identification Badge (Hero) -->
-                                    <div class="mt-3 flex items-start gap-3 p-3 rounded-xl bg-primary/5 border border-primary/15">
+                                    <div class="mt-3 flex items-start gap-3 p-3" style="border-radius:var(--md-sys-shape-corner-large);background:var(--md-sys-color-primary-container);border:1px solid rgba(16,185,129,0.15)">
                                         <i data-lucide="tag" class="w-4 h-4 text-primary mt-0.5 flex-shrink-0"></i>
                                         <div class="flex-1 min-w-0">
                                             <div class="text-base font-black text-primary-dark leading-tight"><?php echo htmlspecialchars($ident['taxon_name']); ?></div>
@@ -1317,12 +1317,12 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                     sci: '<?php echo htmlspecialchars($ident['scientific_name'] ?? '', ENT_QUOTES); ?>'
                                                 };
                                                 agreeModalOpen = true;"
-                                                class="flex items-center gap-1.5 text-xs font-bold text-muted hover:text-primary transition px-3 py-1.5 rounded-full hover:bg-primary/10 border border-transparent hover:border-primary/20 active:scale-95">
+                                                class="flex items-center gap-1.5 text-xs font-bold text-muted hover:text-primary px-3 py-1.5 hover:bg-primary/10 border border-transparent hover:border-primary/20 active:scale-95" style="border-radius:var(--md-sys-shape-corner-full);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)">
                                                 <i data-lucide="sprout" class="w-3.5 h-3.5"></i>
                                                 <span>そうかも！</span>
                                             </button>
                                             <button @click="inlineDispute = !inlineDispute; if(inlineDispute) $nextTick(() => $refs.disputeInput && $refs.disputeInput.focus())"
-                                                class="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-danger transition px-3 py-1.5 rounded-full hover:bg-danger/10 border border-transparent active:scale-95">
+                                                class="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-danger px-3 py-1.5 hover:bg-danger/10 border border-transparent active:scale-95" style="border-radius:var(--md-sys-shape-corner-full);transition:all var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard)">
                                                 <i data-lucide="git-merge" class="w-3.5 h-3.5"></i>
                                                 <span>違うかも</span>
                                             </button>
@@ -1456,7 +1456,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             }
          }">
         <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="idModalOpen = false"></div>
-        <div class="bg-surface w-full max-w-2xl rounded-2xl border border-border shadow-2xl relative z-10 p-6">
+        <div class="w-full max-w-2xl relative z-10 p-6" style="background:var(--md-sys-color-surface-container-lowest);border-radius:var(--md-sys-shape-corner-extra-large);box-shadow:var(--md-sys-elevation-3);border:1px solid var(--md-sys-color-outline-variant)">
             <h2 class="text-xl font-bold text-text mb-4">名前を提案する</h2>
 
             <!-- AI Navigator Shortcut (Everyone can help!) -->
@@ -1529,7 +1529,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <span x-text="submitting ? '送信中...' : '提案する'"></span>
             </button>
         </div>
-        <button @click="idModalOpen = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
+        <button @click="idModalOpen = false" class="absolute top-4 right-4 text-muted hover:text-text" style="transition:color var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard)">
             <i data-lucide="x" class="w-6 h-6"></i>
         </button>
     </div>
