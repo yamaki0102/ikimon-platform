@@ -252,7 +252,7 @@ try {
 7. 300字以内
 PROMPT;
 
-        $model = 'gemini-2.0-flash-lite';
+        $model = 'gemini-2.5-flash';
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . GEMINI_API_KEY;
         $payload = [
             'contents' => [['parts' => [['text' => $narrativePrompt]]]],

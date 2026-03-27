@@ -105,7 +105,7 @@ JSON配列のみ出力（余計なテキスト禁止）:
 生物が写っていない・判別できない場合は[]。
 PROMPT;
 
-$model = 'gemini-2.0-flash';
+$model = 'gemini-2.5-flash';
 $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . GEMINI_API_KEY;
 
 $payload = [
