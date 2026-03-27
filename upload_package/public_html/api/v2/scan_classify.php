@@ -155,9 +155,9 @@ if (!is_array($suggestions)) {
     $suggestions = [];
 }
 
-// 信頼度フィルタ（0.45未満を除外）+ 最大8件に制限
+// 信頼度フィルタ（0.60未満を除外 — 試験運用: 精度重視）
 $suggestions = array_filter($suggestions, function($s) {
-    return ($s['confidence'] ?? 0) >= 0.45;
+    return ($s['confidence'] ?? 0) >= 0.60;
 });
 $suggestions = array_values($suggestions);
 
@@ -169,8 +169,17 @@ usort($suggestions, function($a, $b) {
 // 上位8件のみ
 $suggestions = array_slice($suggestions, 0, 8);
 
+// confidence_label 付与（データ品質の可視化）
+foreach ($suggestions as &$sug) {
+    $c = $sug['confidence'] ?? 0;
+    $sug['confidence_label'] = $c >= 0.85 ? 'high' : ($c >= 0.70 ? 'moderate' : 'low');
+    $sug['is_experimental'] = true;
+}
+unset($sug);
+
 api_success([
     'suggestions' => $suggestions,
     'count'       => count($suggestions),
     'model'       => $model,
+    'mode'        => 'experimental',
 ]);

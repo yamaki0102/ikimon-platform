@@ -224,6 +224,8 @@ class PassiveObservationEngine
                 'timestamp' => date('c'),
             ]],
             'data_quality' => ($detection['photo_ref'] && $detection['lat']) ? 'B' : 'C',
+            'confidence_label' => $detection['confidence'] >= 0.85 ? 'high' : ($detection['confidence'] >= 0.70 ? 'moderate' : 'low'),
+            'is_experimental' => true,
             'device' => $sessionMeta['device'] ?? null,
             'import_source' => 'passive_observation',
             'environment_snapshot' => $detection['environment_snapshot'] ?? null,
