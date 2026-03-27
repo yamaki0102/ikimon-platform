@@ -426,11 +426,16 @@ class LiveScanner {
             const quality = this._isWifi ? 0.7 : 0.5;
             c.width = Math.min(v.videoWidth, maxW);
             c.height = Math.round(c.width * v.videoHeight / v.videoWidth);
-            c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+            const ctx2d = c.getContext('2d', { willReadFrequently: true });
+            ctx2d.drawImage(v, 0, 0, c.width, c.height);
 
             this.frameScanCount++;
 
             const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', quality));
+            if (!blob || blob.size < 512) {
+                this.onLog('📷 キャプチャスキップ (blob無効: ' + (blob?.size ?? 'null') + 'bytes)');
+                return;
+            }
             this.dataUsage += blob.size;
 
             const fd = new FormData();
@@ -478,9 +483,10 @@ class LiveScanner {
 
             c.width = Math.min(v.videoWidth, 320);
             c.height = Math.round(c.width * v.videoHeight / v.videoWidth);
-            c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+            c.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0, c.width, c.height);
 
             const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.5));
+            if (!blob || blob.size < 512) return;
             const fd = new FormData();
             fd.append('photo', blob, 'env.jpg');
             fd.append('env', '1');

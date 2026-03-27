@@ -77,7 +77,7 @@ if (is_array($context) || $geoContextLine) {
         if ($detStrs) $parts[] = '直近の検出: ' . implode(', ', $detStrs);
     }
     if ($parts) {
-        $contextBlock = "\n\n【スキャン文脈】\n" . implode("\n", $parts) . "\nこの環境と直近の検出結果を参考に、同定の精度を高めてください。既に検出された種が再度映っている場合は同じ名前で統一してください。\n";
+        $contextBlock = "\n\n【スキャン文脈（補助情報のみ）】\n" . implode("\n", $parts) . "\n※この文脈は補助情報です。必ず今の写真に実際に写っているものだけを答えてください。直近の検出種が写っていない場合は含めないでください。\n";
     }
 }
 

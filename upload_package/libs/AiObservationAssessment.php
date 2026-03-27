@@ -5,8 +5,8 @@ require_once __DIR__ . '/Taxonomy.php';
 
 class AiObservationAssessment
 {
-    private const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
-    private const REPAIR_MODEL = 'gemini-3.1-flash-lite-preview';
+    private const DEFAULT_MODEL = 'gemini-2.0-flash';
+    private const REPAIR_MODEL = 'gemini-2.0-flash-lite';
     private const PROMPT_VERSION = 'observation_assessment_v3';
     private const PIPELINE_VERSION = 'memo_fusion_v1';
     private const RANK_ORDER = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'];
@@ -170,12 +170,24 @@ class AiObservationAssessment
     private static function resolvePhotoPaths(array $observation, int $limit = 3): array
     {
         $paths = [];
-        foreach (array_slice($observation['photos'] ?? [], 0, max(1, $limit)) as $relativePath) {
-            if (!is_string($relativePath) || $relativePath === '') {
+        foreach (array_slice($observation['photos'] ?? [], 0, max(1, $limit)) as $photo) {
+            if (is_array($photo)) {
+                $rawPath = (string)($photo['path'] ?? $photo['url'] ?? '');
+            } elseif (is_string($photo)) {
+                $rawPath = $photo;
+            } else {
                 continue;
             }
-            $relativePath = ltrim($relativePath, '/');
-            $fullPath = PUBLIC_DIR . '/' . $relativePath;
+            if ($rawPath === '') {
+                continue;
+            }
+            if (str_starts_with($rawPath, '/') || (strlen($rawPath) > 1 && $rawPath[1] === ':')) {
+                if (is_file($rawPath)) {
+                    $paths[] = $rawPath;
+                }
+                continue;
+            }
+            $fullPath = PUBLIC_DIR . '/' . ltrim($rawPath, '/');
             if (is_file($fullPath)) {
                 $paths[] = $fullPath;
             }
