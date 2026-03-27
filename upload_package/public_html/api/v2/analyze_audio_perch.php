@@ -24,7 +24,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 Auth::init();
 if (!Auth::isLoggedIn()) {
-    api_error('Unauthorized', 401);
+    $authed = false;
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
+    if ($authHeader && preg_match('/^Bearer\s+(.+)$/i', $authHeader, $m)) {
+        require_once ROOT_DIR . '/libs/AuthBridge.php';
+        $result = AuthBridge::loginWithToken($m[1]);
+        if ($result) $authed = true;
+    }
+    if (!$authed) {
+        api_error('Unauthorized', 401);
+    }
 }
 
 if (!api_rate_limit('analyze_audio_perch', 20, 60)) {

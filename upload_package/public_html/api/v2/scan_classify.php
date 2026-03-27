@@ -127,14 +127,20 @@ curl_setopt_array($ch, [
     CURLOPT_POSTFIELDS     => json_encode($payload),
     CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT        => 8,
+    CURLOPT_TIMEOUT        => 15,
+    CURLOPT_CONNECTTIMEOUT => 5,
 ]);
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curlError = curl_error($ch);
 curl_close($ch);
 
+if ($httpCode === 429) {
+    api_error('AI rate limit', 429);
+}
 if ($httpCode !== 200 || !$response) {
-    api_error('AI error', 502);
+    error_log("[scan_classify] Gemini error: HTTP {$httpCode}, curl: {$curlError}");
+    api_error('AI temporarily unavailable', 503);
 }
 
 $result = json_decode($response, true);

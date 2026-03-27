@@ -911,12 +911,27 @@ $emotionInstruction = match($emotionLens) {
     default => '',
 };
 
+$duoFormatReminder = '';
+if ($isDuoVoice) {
+    $speakers = _getDuoSpeakers($voiceMode);
+    $markerExamples = implode("\n", array_map(fn($s) => $s['marker'] . 'セリフ', $speakers));
+    $duoFormatReminder = <<<DUO
+
+★★★ 出力フォーマット最重要 ★★★
+出力は必ず以下の形式で。各行の先頭にスピーカーマーカーを付けること。マーカーなしの行は禁止:
+{$markerExamples}
+
+出力の1行目は必ず「{$speakers[0]['marker']}」で始めること。
+DUO;
+}
+
 $prompt = <<<PROMPT
 あなたはドライブ中・散歩中に聴くポッドキャストのパーソナリティです。生き物の検出をきっかけに、自然・文化・歴史・暮らし・人の営みまで自由に話を広げてください。
 図鑑の解説ではなく、「あ、これ見て…実はここ、昔は…」のように、目の前の景色から連想ゲームのように話を広げる語り口で。
 
 {$langInstruction}
 {$styleInstruction}
+{$duoFormatReminder}
 
 検出された生き物: {$displayName}
 {$areaInstruction}
@@ -1312,12 +1327,29 @@ function _parseDialogueText(string $text, array $speakers): array
     return $turns;
 }
 
+function _inferDialogueTurns(string $text, array $speakers): array
+{
+    $text = preg_replace('/【[^】]+】\s*/u', '', $text);
+    $sentences = preg_split('/(?<=[。！？])\s*/u', trim($text), -1, PREG_SPLIT_NO_EMPTY);
+    $sentences = array_filter($sentences, fn($s) => mb_strlen(trim($s)) >= 5);
+    $sentences = array_values($sentences);
+    if (count($sentences) < 2) return [];
+    $turns = [];
+    foreach ($sentences as $i => $sentence) {
+        $turns[] = ['speaker' => $speakers[$i % count($speakers)], 'text' => trim($sentence)];
+    }
+    return $turns;
+}
+
 function _generateDialogueAudio(string $text, string $voiceMode): ?string
 {
     $speakers = _getDuoSpeakers($voiceMode);
     if (empty($speakers)) return null;
 
     $turns = _parseDialogueText($text, $speakers);
+    if (empty($turns)) {
+        $turns = _inferDialogueTurns($text, $speakers);
+    }
     if (empty($turns)) return null;
 
     $isGeminiDuo = ($voiceMode === 'duo-gemini');

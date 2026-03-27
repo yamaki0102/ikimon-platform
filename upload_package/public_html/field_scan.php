@@ -611,7 +611,7 @@ async function startScan() {
         }
 
         // アダプティブキャプチャ間隔
-        S.baseCaptureMs = S.mode === 'car' ? 5000 : S.mode === 'bike' ? 3000 : 2000;
+        S.baseCaptureMs = S.mode === 'car' ? 10000 : S.mode === 'bike' ? 4000 : 2000;
         S.currentSpeed = 0;
         S.prescreenSkipped = 0;
         scheduleNextCapture();
@@ -1148,6 +1148,7 @@ function escHtml(s) {
 }
 
 // ===== Camera Capture =====
+var _geminiInFlight = false;
 async function captureFrame() {
     if (!S.active) return;
     try {
@@ -1190,6 +1191,10 @@ async function captureFrame() {
             dbg('📷 #' + S.frameScanCount + ' ローカル記録 (' + analysis.reason + ')');
             return;
         }
+        if (_geminiInFlight) {
+            dbg('📷 #' + S.frameScanCount + ' Gemini応答待ち — スキップ');
+            return;
+        }
 
         var blob = await new Promise(function(r) { c.toBlob(r, 'image/jpeg', quality); });
         updateDataUsage(blob.size);
@@ -1215,7 +1220,13 @@ async function captureFrame() {
         }
 
         dbg('📷 #' + S.frameScanCount + ' Gemini送信 (' + (analysis ? analysis.reason : 'no-model') + ')');
-        var resp = await fetch('/api/v2/scan_classify.php', {method:'POST', body:fd});
+        _geminiInFlight = true;
+        var resp;
+        try {
+            resp = await fetch('/api/v2/scan_classify.php', {method:'POST', body:fd});
+        } finally {
+            _geminiInFlight = false;
+        }
         if (!resp.ok) { dbg('📷 HTTP ' + resp.status); return; }
         var respText = await resp.text();
         updateDataUsage(respText.length);
