@@ -5,8 +5,8 @@ require_once __DIR__ . '/Taxonomy.php';
 
 class AiObservationAssessment
 {
-    private const DEFAULT_MODEL = 'gemini-2.0-flash';
-    private const REPAIR_MODEL = 'gemini-2.0-flash-lite';
+    private const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
+    private const REPAIR_MODEL = 'gemini-3.1-flash-lite-preview';
     private const PROMPT_VERSION = 'observation_assessment_v3';
     private const PIPELINE_VERSION = 'memo_fusion_v1';
     private const RANK_ORDER = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'];
