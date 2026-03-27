@@ -53,7 +53,7 @@ class FieldAssistantTools
                 'description' => '今日のBioScanセッションで検出された種一覧を返す',
                 'parameters' => [
                     'type' => 'OBJECT',
-                    'properties' => [],
+                    'properties' => new \stdClass(),
                 ],
             ],
             [
