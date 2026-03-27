@@ -1449,7 +1449,7 @@ if (!$currentUser) {
                         } catch(e) {
                             console.log('[Ambient] Error:', e.message);
                         }
-                    }, 45000);
+                    }, ambientIntervalMs);
 
                     // LiveScanner with speed-adaptive mode
                     const videoEl = document.getElementById('scan-cam');

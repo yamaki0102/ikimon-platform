@@ -962,4 +962,29 @@ class BioUtils
         }
         return implode(" <span class='text-faint'>&rsaquo;</span> ", $parts);
     }
+
+    public static function resolveJaName(string $name): string
+    {
+        if ($name === '') return $name;
+        if (!preg_match('/^[A-Za-z]/', $name)) return $name;
+
+        try {
+            require_once ROOT_DIR . '/libs/OmoikaneSearchEngine.php';
+            $engine = new \OmoikaneSearchEngine();
+
+            $resolved = $engine->resolveByScientificName($name);
+            if ($resolved && !empty($resolved['japanese_name'])) {
+                return $resolved['japanese_name'];
+            }
+
+            $resolved = $engine->resolveByJapaneseName($name);
+            if ($resolved && !empty($resolved['japanese_name'])) {
+                return $resolved['japanese_name'];
+            }
+        } catch (\Throwable $e) {
+            // silent fallback
+        }
+
+        return $name;
+    }
 }
