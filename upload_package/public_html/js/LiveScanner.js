@@ -686,11 +686,14 @@ class LiveScanner {
 
         // Callback
         this.onDetection({
-            label: name, scientificName: sci, confidence: conf >= 0.7 ? 'high' : conf >= 0.4 ? 'medium' : 'low',
-            confidenceScore: conf, source, emoji: source === 'audio' ? '🐦' : '🌿',
+            label: name, japanese_name: name, scientificName: sci,
+            confidence: conf >= 0.7 ? 'high' : conf >= 0.4 ? 'medium' : 'low',
+            confidence_raw: conf, confidenceScore: conf,
+            source, emoji: source === 'audio' ? '🐦' : '🌿',
             reason: source === 'audio' ? `音声 ${Math.round(conf * 100)}%` : `視覚 ${Math.round(conf * 100)}%`,
             isNew, category, note,
         });
+        console.log('[Detection]', name, Math.round(conf * 100) + '%', source, 'total:', Object.keys(this.speciesMap).length);
 
         // Queue for batch send
         this._queueEvent(name, sci, conf, source);

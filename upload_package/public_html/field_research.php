@@ -529,8 +529,17 @@ if (!$currentUser) {
                     </template>
                 </div>
             </div>
+            <!-- 音声ガイド ON/OFF -->
+            <div style="margin-bottom:14px;">
+                <button @click="toggleGuide()"
+                        :style="guideEnabled ? 'background:rgba(16,185,129,0.1);color:#065f46;border-color:#10b981;' : 'background:#f3f6f4;color:#9ca3af;border-color:#e5e7eb;'"
+                        style="width:100%;padding:10px 16px;border-radius:9999px;border:1.5px solid;cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 250ms cubic-bezier(0.2,0,0,1);">
+                    <span x-text="guideEnabled ? '🔊' : '🔇'"></span>
+                    <span x-text="guideEnabled ? '音声ガイド ON' : '音声ガイド OFF'"></span>
+                </button>
+            </div>
             <!-- 徒歩/自転車用ガイド雰囲気 -->
-            <div x-show="manualTransportMode !== 'car'" x-cloak style="margin-bottom:14px;">
+            <div x-show="guideEnabled && manualTransportMode !== 'car'" x-cloak style="margin-bottom:14px;">
                 <div style="font-size:11px;color:#5f6368;margin-bottom:8px;font-weight:500;">ガイドの雰囲気</div>
                 <div style="display:flex;gap:6px;">
                     <template x-for="gm in [{id:'explore',label:'🌳 自然探索'},{id:'culture',label:'🏯 歴史文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
@@ -546,7 +555,7 @@ if (!$currentUser) {
                 <button @click="startSensor()" style="flex:1;padding:18px;border-radius:9999px;border:none;background:#059669;color:#fff;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 2px 8px rgba(5,150,105,0.3),0 6px 20px rgba(5,150,105,0.15);transition:all 250ms cubic-bezier(0.2,0,0,1);letter-spacing:-0.01em;">
                     <span style="font-size:18px;">📡</span> センサーを開始
                 </button>
-                <button @click="showSpeakerSelect = !showSpeakerSelect"
+                <button x-show="guideEnabled" @click="showSpeakerSelect = !showSpeakerSelect"
                         style="padding:12px 16px;border-radius:24px;border:1px solid #e5e7eb;background:#f0f4f2;color:#5f6368;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;white-space:nowrap;transition:all 250ms cubic-bezier(0.2,0,0,1);">
                     <span style="font-size:18px;" x-text="speakerEmoji"></span>
                     <span x-text="selectedSpeaker.startsWith('duo-') ? '掛け合い' : '解説'" style="font-size:9px;font-weight:600;color:#059669;"></span>
@@ -632,11 +641,18 @@ if (!$currentUser) {
                       x-text="group + ' ' + count"></span>
             </template>
         </div>
-        <!-- 声変更（ドライブ中）— M3 Expressive -->
-        <div style="position:relative;margin-top:20px;">
+        <!-- ガイド切替 + 声変更（ドライブ中）— M3 Expressive -->
+        <div style="display:flex;align-items:center;gap:8px;margin-top:20px;">
+            <button @click="toggleGuide()"
+                    :style="guideEnabled ? 'border-color:rgba(139,92,246,0.5);background:rgba(139,92,246,0.2);color:#c4b5fd;' : 'border-color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4);'"
+                    style="padding:10px 16px;border-radius:var(--md-sys-shape-corner-full);border:1px solid;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 200ms var(--md-sys-motion-easing-standard);">
+                <span x-text="guideEnabled ? '🔊 ON' : '🔇 OFF'"></span>
+            </button>
+        </div>
+        <div style="position:relative;margin-top:10px;" x-show="guideEnabled">
             <button @click="showDriveVoiceSwitch = !showDriveVoiceSwitch"
                     style="padding:10px 20px;border-radius:var(--md-sys-shape-corner-full);border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 200ms var(--md-sys-motion-easing-standard);">
-                🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
+                <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.emoji || '🤖'"></span> <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
             </button>
             <div x-show="showDriveVoiceSwitch" x-cloak @click.outside="showDriveVoiceSwitch=false"
                  style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;background:rgba(30,41,59,0.95);backdrop-filter:blur(12px);border-radius:var(--md-sys-shape-corner-large);padding:8px;border:1px solid rgba(255,255,255,0.1);min-width:160px;z-index:50;">
@@ -755,11 +771,17 @@ if (!$currentUser) {
                     </template>
                 </div>
 
-                <!-- Voice switcher (compact) -->
-                <div style="display:flex;align-items:center;justify-content:center;margin-top:8px;position:relative;">
-                    <button @click="showVoiceSwitch = !showVoiceSwitch"
+                <!-- Voice switcher + guide toggle (compact) -->
+                <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;position:relative;">
+                    <button @click="toggleGuide()"
+                            :style="guideEnabled ? 'border-color:var(--md-sys-color-primary);background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);' : 'border-color:var(--md-sys-color-outline-variant);background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant);opacity:0.6;'"
+                            style="padding:6px 12px;border-radius:var(--md-sys-shape-corner-full);border:1px solid;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);display:flex;align-items:center;gap:3px;transition:all 200ms var(--md-sys-motion-easing-standard);">
+                        <span x-text="guideEnabled ? '🔊' : '🔇'"></span>
+                        <span x-text="guideEnabled ? 'ガイドON' : 'ガイドOFF'"></span>
+                    </button>
+                    <button @click="showVoiceSwitch = !showVoiceSwitch" x-show="guideEnabled"
                             style="padding:6px 14px;border-radius:var(--md-sys-shape-corner-full);border:1px solid var(--md-sys-color-outline-variant);background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);display:flex;align-items:center;gap:4px;">
-                        🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
+                        <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.emoji || '🤖'"></span> <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
                     </button>
                     <div x-show="showVoiceSwitch" x-cloak @click.outside="showVoiceSwitch=false"
                          style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:8px;background:var(--md-sys-color-surface-container-lowest);box-shadow:var(--md-sys-elevation-3);border-radius:var(--md-sys-shape-corner-large);padding:8px;min-width:160px;z-index:50;">
@@ -960,7 +982,7 @@ if (!$currentUser) {
     <script src="js/FieldRecorder.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="js/ExplorationMap.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="js/SiteGuide.js" nonce="<?= CspNonce::attr() ?>"></script>
-    <script src="js/LiveScanner.js" nonce="<?= CspNonce::attr() ?>"></script>
+    <script src="js/LiveScanner.js?v=27c" nonce="<?= CspNonce::attr() ?>"></script>
     <script src="assets/js/VoiceGuide.js" nonce="<?= CspNonce::attr() ?>"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         function explorationApp() {
@@ -1017,6 +1039,7 @@ if (!$currentUser) {
                 _currentLng: null,
 
                 // Speaker selection
+                guideEnabled: localStorage.getItem('ikimon_guide_enabled') !== 'false',
                 showSpeakerSelect: true,
                 showVoiceSwitch: false,
                 showDriveVoiceSwitch: false,
@@ -1043,6 +1066,20 @@ if (!$currentUser) {
                 get speakerEmoji() {
                     const sp = this.speakers.find(s => s.id === this.selectedSpeaker);
                     return sp ? sp.emoji : '🤖';
+                },
+
+                toggleGuide() {
+                    this.guideEnabled = !this.guideEnabled;
+                    localStorage.setItem('ikimon_guide_enabled', this.guideEnabled);
+                    if (window.VoiceGuide) {
+                        if (this.guideEnabled) {
+                            VoiceGuide.setVoiceMode(this.selectedSpeaker);
+                            VoiceGuide.setEnabled(true);
+                        } else {
+                            VoiceGuide.stop();
+                            VoiceGuide.setEnabled(false);
+                        }
+                    }
                 },
 
                 // Refs
@@ -1278,7 +1315,7 @@ if (!$currentUser) {
                         : 45000;
                     console.log(`[Ambient] interval: ${Math.round(ambientIntervalMs/1000)}s, driveDuration: ${this._driveTotalMin}min`);
                     this._ambientTimer = setInterval(async () => {
-                        if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
+                        if (!this.guideEnabled || !window.VoiceGuide || !VoiceGuide.isEnabled()) return;
                         if (VoiceGuide.isSpeaking()) return;
 
                         // ドライブ時間超過 → 自動クロージング
@@ -1365,7 +1402,7 @@ if (!$currentUser) {
                                 this.explorationMap.addExploredPoint(pos.lat, pos.lng, null);
                             }
                             // GPS取得後すぐに場所のトリビアを読み上げ（初回1回だけ）
-                            if (!this._quickStartDone && pos.accuracy <= 100 && window.VoiceGuide && VoiceGuide.isEnabled()) {
+                            if (!this._quickStartDone && pos.accuracy <= 100 && this.guideEnabled && window.VoiceGuide && VoiceGuide.isEnabled()) {
                                 this._quickStartDone = true;
                                 this._fetchOpeningGuide(pos.lat, pos.lng);
                             }
@@ -1380,8 +1417,8 @@ if (!$currentUser) {
                         canvasElement: canvasEl,
                     });
 
-                    // Enable VoiceGuide
-                    if (window.VoiceGuide) {
+                    // Enable VoiceGuide (respect user toggle)
+                    if (window.VoiceGuide && this.guideEnabled) {
                         VoiceGuide.setVoiceMode(this.selectedSpeaker);
                         VoiceGuide.setEnabled(true);
                         // Unlock audio on user gesture (mobile browsers)
@@ -1398,11 +1435,13 @@ if (!$currentUser) {
                     }
 
                     // Opening announcement (VOICEVOX/duo以外のみブラウザTTSで繋ぎ)
-                    const _vgm = VoiceGuide.getVoiceMode();
-                    const _isVoxMode = ['zundamon','mochiko','ryusei','auto'].includes(_vgm) || _vgm.startsWith('duo-');
-                    if (!_isVoxMode) {
-                        const modeLabel = this.manualTransportMode === 'car' ? 'ドライブ' : this.manualTransportMode === 'bike' ? 'サイクリング' : 'フィールドサーチ';
-                        VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
+                    if (this.guideEnabled) {
+                        const _vgm = VoiceGuide.getVoiceMode();
+                        const _isVoxMode = ['zundamon','mochiko','ryusei','auto'].includes(_vgm) || _vgm.startsWith('duo-');
+                        if (!_isVoxMode) {
+                            const modeLabel = this.manualTransportMode === 'car' ? 'ドライブ' : this.manualTransportMode === 'bike' ? 'サイクリング' : 'フィールドサーチ';
+                            VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
+                        }
                     }
 
                     this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
@@ -1484,10 +1523,12 @@ if (!$currentUser) {
                 },
 
                 addDetection(detection) {
-                    this.sessionDetections.push(detection);
+                    console.log('[addDetection] IN:', detection.label, 'conf:', detection.confidence_raw, 'src:', detection.source);
+                    this.sessionDetections = [...this.sessionDetections, detection];
                     const uniqueLabels = new Set(this.sessionDetections.map(d => d.label));
                     this.sessionSpeciesCount = uniqueLabels.size;
                     this.latestDetection = detection;
+                    console.log('[addDetection] count:', this.sessionSpeciesCount, 'total:', this.sessionDetections.length);
 
                     // Accumulation tracking: families, higher groups, env tags
                     const families = new Set(this.sessionDetections.map(d => d.family).filter(Boolean));
@@ -1511,7 +1552,7 @@ if (!$currentUser) {
                     }
 
                     // Voice guide narration — smart pacing
-                    if (window.VoiceGuide && VoiceGuide.isEnabled()) {
+                    if (this.guideEnabled && window.VoiceGuide && VoiceGuide.isEnabled()) {
                         const jaName = detection.japanese_name || detection.label || '';
                         const key = detection.label || '';
                         this._detCountToday = this._detCountToday || {};
