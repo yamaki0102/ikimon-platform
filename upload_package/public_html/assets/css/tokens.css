@@ -1,64 +1,121 @@
 /**
- * ikimon.life — Design Tokens v2
- * Extracted from Stitch designs (2026-02-10)
- * Light Theme · Mobile-First (320px+)
+ * ikimon.life — Design Tokens v3
+ * M3 Expressive + Legacy Compatibility
+ * Seed: Emerald #10b981 · Light Theme · Mobile-First (320px+)
  */
 
 :root {
   color-scheme: light only;
 
-  /* ── Brand Colors ── */
-  --color-primary: #10b981;
+  /* ══════════════════════════════════════════
+     M3 Expressive — Color System
+     Seed: #10b981 (Emerald)
+     Generated via Material Color Utilities tonal palette
+     ══════════════════════════════════════════ */
+
+  /* ── M3 Primary ── */
+  --md-sys-color-primary: #10b981;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #a7f3d0;
+  --md-sys-color-on-primary-container: #064e3b;
+  --md-sys-color-inverse-primary: #6ee7b7;
+
+  /* ── M3 Secondary (Teal) ── */
+  --md-sys-color-secondary: #0ea5e9;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #bae6fd;
+  --md-sys-color-on-secondary-container: #0c4a6e;
+
+  /* ── M3 Tertiary (Amber) ── */
+  --md-sys-color-tertiary: #f59e0b;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #fef3c7;
+  --md-sys-color-on-tertiary-container: #78350f;
+
+  /* ── M3 Error ── */
+  --md-sys-color-error: #ef4444;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #fee2e2;
+  --md-sys-color-on-error-container: #7f1d1d;
+
+  /* ── M3 Surface System ── */
+  --md-sys-color-surface: #f8faf9;
+  --md-sys-color-surface-dim: #d9dcd9;
+  --md-sys-color-surface-bright: #ffffff;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f3f6f4;
+  --md-sys-color-surface-container: #eef1ef;
+  --md-sys-color-surface-container-high: #e8ebe9;
+  --md-sys-color-surface-container-highest: #e2e5e3;
+  --md-sys-color-on-surface: #1a2e1f;
+  --md-sys-color-on-surface-variant: #374151;
+  --md-sys-color-inverse-surface: #1a2e1f;
+  --md-sys-color-inverse-on-surface: #f0fdf4;
+
+  /* ── M3 Outline ── */
+  --md-sys-color-outline: rgba(0, 0, 0, 0.12);
+  --md-sys-color-outline-variant: rgba(0, 0, 0, 0.06);
+
+  /* ── M3 State Layers ── */
+  --md-sys-state-hover-opacity: 0.08;
+  --md-sys-state-focus-opacity: 0.12;
+  --md-sys-state-pressed-opacity: 0.12;
+  --md-sys-state-dragged-opacity: 0.16;
+
+  /* ── M3 Elevation (Tonal + Shadow) ── */
+  --md-sys-elevation-0: none;
+  --md-sys-elevation-1: 0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+  --md-sys-elevation-2: 0 4px 16px rgba(0,0,0,0.08);
+  --md-sys-elevation-3: 0 8px 32px rgba(0,0,0,0.12);
+
+  /* ══════════════════════════════════════════
+     Legacy Aliases (後方互換)
+     既存のコードはこちらを参照し続ける
+     ══════════════════════════════════════════ */
+
+  /* ── Brand Colors → M3 ── */
+  --color-primary: var(--md-sys-color-primary);
   --color-primary-dark: #059669;
   --color-primary-light: #34d399;
   --color-primary-surface: rgba(16, 185, 129, 0.08);
   --color-primary-glow: rgba(16, 185, 129, 0.3);
-  --color-primary-focus-ring: rgba(16, 185, 129, 0.12);
+  --color-primary-focus-ring: rgba(16, 185, 129, var(--md-sys-state-focus-opacity));
   --shadow-primary-sm: 0 2px 8px rgba(16, 185, 129, 0.25);
 
-  --color-secondary: #0ea5e9;
-  /* Sky Blue — info, links */
+  --color-secondary: var(--md-sys-color-secondary);
   --color-secondary-surface: rgba(14, 165, 233, 0.08);
 
-  --color-accent: #f59e0b;
-  /* Amber — highlights, quests */
+  --color-accent: var(--md-sys-color-tertiary);
   --color-accent-surface: rgba(245, 158, 11, 0.08);
 
   --color-orange: #f97316;
-  /* Orange — unidentified, alerts */
 
-  /* ── Status Colors ── */
-  --color-success: #10b981;
+  /* ── Status Colors → M3 ── */
+  --color-success: var(--md-sys-color-primary);
   --color-warning: #d97706;
-  /* Darkened from #f59e0b for better readable contrast */
   --color-warning-surface: rgba(245, 158, 11, 0.08);
-  --color-danger: #ef4444;
+  --color-danger: var(--md-sys-color-error);
 
-  /* ── Surface & Background ── */
-  --color-bg-base: #ffffff;
-  --color-bg-surface: #f8faf9;
-  /* Soft Mint */
-  --color-bg-elevated: #ffffff;
+  /* ── Surface → M3 ── */
+  --color-bg-base: var(--md-sys-color-surface-bright);
+  --color-bg-surface: var(--md-sys-color-surface);
+  --color-bg-elevated: var(--md-sys-color-surface-container-lowest);
 
-  /* ── Text ── */
-  --color-text: #1a2e1f;
-  /* Deep Forest */
-  --color-text-secondary: #374151;
-  /* Gray 700 */
+  /* ── Text → M3 ── */
+  --color-text: var(--md-sys-color-on-surface);
+  --color-text-secondary: var(--md-sys-color-on-surface-variant);
   --color-text-muted: #64748b;
-  /* Slate 500 */
   --color-text-faint: #9ca3af;
-  /* Gray 400 */
 
-  /* ── Borders ── */
-  --color-border: rgba(0, 0, 0, 0.06);
-  --color-border-strong: rgba(0, 0, 0, 0.12);
+  /* ── Borders → M3 ── */
+  --color-border: var(--md-sys-color-outline-variant);
+  --color-border-strong: var(--md-sys-color-outline);
 
   /* ── Glass Effects ── */
   --glass-surface: rgba(255, 255, 255, 0.85);
   --glass-surface-heavy: rgba(255, 255, 255, 0.95);
   --glass-blur: 12px;
-  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-border: var(--md-sys-color-outline-variant);
 
   /* ── Badge Pill Overlay (on photos) ── */
   --overlay-dark: rgba(0, 0, 0, 0.6);
@@ -101,17 +158,44 @@
   --touch-comfortable: 48px;
   --touch-fab: 56px;
 
-  /* ── Border Radius ── */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-2xl: 32px;
-  --radius-full: 9999px;
+  /* ── M3 Expressive Shape Tokens ── */
+  --md-sys-shape-corner-none: 0px;
+  --md-sys-shape-corner-extra-small: 4px;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-shape-corner-medium: 12px;
+  --md-sys-shape-corner-large: 16px;
+  --md-sys-shape-corner-extra-large: 28px;
+  --md-sys-shape-corner-full: 9999px;
 
-  /* ── Typography (デジタル庁準拠 + Golden Ratio φ=1.618) ── */
-  --font-heading: 'Montserrat', 'Zen Kaku Gothic New', sans-serif;
-  --font-body: 'Inter', 'Noto Sans JP', sans-serif;
+  /* Legacy Shape Aliases */
+  --radius-sm: var(--md-sys-shape-corner-small);
+  --radius-md: var(--md-sys-shape-corner-medium);
+  --radius-lg: var(--md-sys-shape-corner-large);
+  --radius-xl: var(--md-sys-shape-corner-extra-large);
+  --radius-2xl: 32px;
+  --radius-full: var(--md-sys-shape-corner-full);
+
+  /* ── Typography (M3 Expressive + デジタル庁準拠) ── */
+  --font-display: 'Roboto Flex', 'Noto Sans JP', sans-serif;
+  --font-heading: 'Roboto Flex', 'Noto Sans JP', sans-serif;
+  --font-body: 'Roboto Flex', 'Noto Sans JP', sans-serif;
+
+  /* M3 Type Scale Tokens (15 roles) */
+  --md-sys-typescale-display-large-size: 57px;
+  --md-sys-typescale-display-medium-size: 45px;
+  --md-sys-typescale-display-small-size: 36px;
+  --md-sys-typescale-headline-large-size: 32px;
+  --md-sys-typescale-headline-medium-size: 28px;
+  --md-sys-typescale-headline-small-size: 24px;
+  --md-sys-typescale-title-large-size: 22px;
+  --md-sys-typescale-title-medium-size: 16px;
+  --md-sys-typescale-title-small-size: 14px;
+  --md-sys-typescale-body-large-size: 16px;
+  --md-sys-typescale-body-medium-size: 14px;
+  --md-sys-typescale-body-small-size: 12px;
+  --md-sys-typescale-label-large-size: 14px;
+  --md-sys-typescale-label-medium-size: 12px;
+  --md-sys-typescale-label-small-size: 11px;
 
   /* Modular Scale: base 16px × φⁿ  — clamp(mobile, fluid, desktop) */
   --text-xs: clamp(0.6875rem, 0.65rem + 0.1vw, 0.75rem);
@@ -148,17 +232,37 @@
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
 
-  /* ── Transitions ── */
-  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-bounce: cubic-bezier(0.2, 1, 0.3, 1);
-  --duration-fast: 150ms;
-  --duration-normal: 300ms;
-  --duration-slow: 500ms;
+  /* ── M3 Expressive Motion ── */
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --md-sys-motion-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  /* M3 Expressive spring approximation via linear() — Chrome 113+, Firefox 112+ */
+  --md-sys-motion-spring-bouncy: linear(0, 0.004, 0.016, 0.035, 0.063, 0.098, 0.141, 0.191, 0.25, 0.316, 0.391, 0.473, 0.562, 0.66, 0.765, 0.878, 1, 1.092, 1.149, 1.173, 1.168, 1.139, 1.093, 1.037, 0.979, 0.926, 0.883, 0.854, 0.841, 0.844, 0.861, 0.889, 0.924, 0.962, 1, 1.031, 1.05, 1.056, 1.049, 1.032, 1.01, 0.988, 0.97, 0.96, 0.957, 0.963, 0.975, 0.99, 1.004, 1.014, 1.017, 1.014, 1.006, 0.998, 0.992, 0.99, 0.992, 0.997, 1.002, 1.004, 1.003, 1);
+  --md-sys-motion-duration-short1: 50ms;
+  --md-sys-motion-duration-short2: 100ms;
+  --md-sys-motion-duration-short3: 150ms;
+  --md-sys-motion-duration-short4: 200ms;
+  --md-sys-motion-duration-medium1: 250ms;
+  --md-sys-motion-duration-medium2: 300ms;
+  --md-sys-motion-duration-medium3: 350ms;
+  --md-sys-motion-duration-medium4: 400ms;
+  --md-sys-motion-duration-long1: 450ms;
+  --md-sys-motion-duration-long2: 500ms;
 
-  /* ── Shadows ── */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  /* Legacy Motion Aliases */
+  --ease-default: var(--md-sys-motion-easing-standard);
+  --ease-bounce: var(--md-sys-motion-easing-emphasized-decelerate);
+  --duration-fast: var(--md-sys-motion-duration-short3);
+  --duration-normal: var(--md-sys-motion-duration-medium2);
+  --duration-slow: var(--md-sys-motion-duration-long2);
+
+  /* ── Shadows → M3 Elevation ── */
+  --shadow-sm: var(--md-sys-elevation-1);
+  --shadow-md: var(--md-sys-elevation-2);
+  --shadow-lg: var(--md-sys-elevation-3);
   --shadow-primary: 0 4px 16px rgba(16, 185, 129, 0.3);
   --shadow-fab: 0 4px 20px rgba(16, 185, 129, 0.4);
 }

@@ -84,8 +84,8 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <link rel="dns-prefetch" href="https://unpkg.com">
 <link rel="dns-prefetch" href="https://tile.openstreetmap.jp">
 
-<!-- Fonts (Design System v2: Inter + Montserrat + Noto Sans JP) -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;900&family=Noto+Sans+JP:wght@400;500;700;900&family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<!-- Fonts (Design System v3: Roboto Flex Variable + Noto Sans JP — M3 Expressive) -->
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,100..1000&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
 <!-- Material Symbols (used in dashboard, profile, id_wizard, bento_grid) -->
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 
@@ -120,16 +120,25 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
                     'border-strong': 'var(--color-border-strong)',
                 },
                 fontFamily: {
-                    heading: ['"Montserrat"', '"Zen Kaku Gothic New"', 'sans-serif'],
-                    body: ['"Inter"', '"Noto Sans JP"', 'sans-serif'],
+                    heading: ['"Roboto Flex"', '"Noto Sans JP"', 'sans-serif'],
+                    body: ['"Roboto Flex"', '"Noto Sans JP"', 'sans-serif'],
                 },
                 borderRadius: {
-                    DEFAULT: '1rem',
-                    md: 'var(--radius-md)',
-                    lg: 'var(--radius-lg)',
-                    xl: 'var(--radius-xl)',
-                    full: '9999px',
-                }
+                    'none': 'var(--md-sys-shape-corner-none)',
+                    'xs': 'var(--md-sys-shape-corner-extra-small)',
+                    DEFAULT: 'var(--md-sys-shape-corner-medium)',
+                    'sm': 'var(--md-sys-shape-corner-small)',
+                    'md': 'var(--md-sys-shape-corner-medium)',
+                    'lg': 'var(--md-sys-shape-corner-large)',
+                    'xl': 'var(--md-sys-shape-corner-extra-large)',
+                    'full': 'var(--md-sys-shape-corner-full)',
+                },
+                transitionTimingFunction: {
+                    'md-standard': 'var(--md-sys-motion-easing-standard)',
+                    'md-emphasized': 'var(--md-sys-motion-easing-emphasized)',
+                    'md-decelerate': 'var(--md-sys-motion-easing-emphasized-decelerate)',
+                    'md-spring': 'var(--md-sys-motion-spring-bouncy)',
+                },
             }
         }
     }
