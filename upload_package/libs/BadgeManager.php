@@ -152,6 +152,18 @@ class BadgeManager
                         $awarded = true;
                     }
                     break;
+
+                case 'regional_species_count':
+                    if (isset($context['max_regional_species']) && $context['max_regional_species'] >= $condition['threshold']) {
+                        $awarded = true;
+                    }
+                    break;
+
+                case 'away_region_count':
+                    if (isset($context['away_region_count']) && $context['away_region_count'] >= $condition['threshold']) {
+                        $awarded = true;
+                    }
+                    break;
             }
 
             if ($awarded) {

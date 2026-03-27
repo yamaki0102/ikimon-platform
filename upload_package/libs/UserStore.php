@@ -51,6 +51,10 @@ class UserStore
             'auth_provider' => 'local',
             'oauth_id' => null,
             'avatar' => "https://i.pravatar.cc/150?u={$id}",
+            'birth_year' => null,
+            'gender' => 'unspecified',
+            'home_region' => null,
+            'preferred_language' => 'ja',
             'created_at' => date('Y-m-d H:i:s'),
             'last_login_at' => null,
             'banned' => false
@@ -210,6 +214,10 @@ class UserStore
             'auth_provider' => $profile['provider'],
             'oauth_id' => $profile['id'],
             'avatar' => $profile['avatar_url'] ?: "https://i.pravatar.cc/150?u={$id}",
+            'birth_year' => null,
+            'gender' => 'unspecified',
+            'home_region' => null,
+            'preferred_language' => 'ja',
             'created_at' => date('Y-m-d H:i:s'),
             'last_login_at' => null,
             'banned' => false

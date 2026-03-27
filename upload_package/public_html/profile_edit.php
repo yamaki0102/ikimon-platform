@@ -212,6 +212,69 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                     </div>
                 </div>
 
+                <!-- Demographics (optional) -->
+                <div class="space-y-5">
+                    <h2 class="text-sm font-bold text-muted uppercase tracking-widest mb-2 flex items-center gap-2 border-t border-border pt-8">
+                        <i data-lucide="settings-2" class="w-4 h-4"></i> パーソナライズ設定
+                        <span class="text-token-xs text-faint font-normal normal-case tracking-normal ml-1">（任意）</span>
+                    </h2>
+                    <p class="text-xs text-faint">音声ガイドやおすすめ情報をあなたに合わせて最適化します。</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 ml-1">生まれ年</label>
+                            <select x-model="form.birth_year"
+                                class="w-full bg-surface border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:bg-elevated transition font-bold">
+                                <option value="">未設定</option>
+                                <template x-for="y in birthYearOptions" :key="y">
+                                    <option :value="y" x-text="y + '年'"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 ml-1">性別</label>
+                            <select x-model="form.gender"
+                                class="w-full bg-surface border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:bg-elevated transition font-bold">
+                                <option value="unspecified">未回答</option>
+                                <option value="male">男性</option>
+                                <option value="female">女性</option>
+                                <option value="other">その他</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 ml-1">活動拠点</label>
+                            <select x-model="form.home_region"
+                                class="w-full bg-surface border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:bg-elevated transition font-bold">
+                                <option value="">未設定</option>
+                                <template x-for="r in regionOptions" :key="r.value">
+                                    <option :value="r.value" x-text="r.label"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5 ml-1">ガイド言語</label>
+                            <select x-model="form.preferred_language"
+                                class="w-full bg-surface border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:bg-elevated transition font-bold">
+                                <option value="ja">日本語</option>
+                                <option value="en">English</option>
+                                <option value="zh">中文</option>
+                                <option value="ko">한국어</option>
+                                <option value="fr">Français</option>
+                                <option value="es">Español</option>
+                                <option value="de">Deutsch</option>
+                                <option value="th">ภาษาไทย</option>
+                                <option value="vi">Tiếng Việt</option>
+                                <option value="id">Bahasa Indonesia</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Password Change (Accordion) -->
                 <div class="pt-2">
                     <button type="button" @click="togglePasswordSection()"
@@ -292,9 +355,34 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                 form: {
                     name: <?php echo json_encode($user['name'] ?? '', JSON_HEX_TAG | JSON_UNESCAPED_UNICODE); ?>,
                     bio: <?php echo json_encode($user['bio'] ?? '', JSON_HEX_TAG | JSON_UNESCAPED_UNICODE); ?>,
+                    birth_year: <?php echo json_encode($user['birth_year'] ?? '', JSON_HEX_TAG); ?>,
+                    gender: <?php echo json_encode($user['gender'] ?? 'unspecified', JSON_HEX_TAG); ?>,
+                    home_region: <?php echo json_encode($user['home_region'] ?? '', JSON_HEX_TAG | JSON_UNESCAPED_UNICODE); ?>,
+                    preferred_language: <?php echo json_encode($user['preferred_language'] ?? 'ja', JSON_HEX_TAG); ?>,
                     current_password: '',
                     new_password: '',
                     confirm_password: ''
+                },
+
+                get birthYearOptions() {
+                    const current = new Date().getFullYear();
+                    const years = [];
+                    for (let y = current - 10; y >= 1930; y--) years.push(y);
+                    return years;
+                },
+
+                get regionOptions() {
+                    return [
+                        {value: 'hokkaido', label: '北海道'},
+                        {value: 'tohoku', label: '東北'},
+                        {value: 'kanto', label: '関東'},
+                        {value: 'chubu', label: '中部'},
+                        {value: 'kinki', label: '近畿'},
+                        {value: 'chugoku', label: '中国'},
+                        {value: 'shikoku', label: '四国'},
+                        {value: 'kyushu', label: '九州・沖縄'},
+                        {value: 'overseas', label: '海外'}
+                    ];
                 },
 
                 init() {
@@ -325,6 +413,10 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                     if (this.avatarFile) return true;
                     if (this.form.name !== this.initialForm.name) return true;
                     if (this.form.bio !== this.initialForm.bio) return true;
+                    if (String(this.form.birth_year) !== String(this.initialForm.birth_year)) return true;
+                    if (this.form.gender !== this.initialForm.gender) return true;
+                    if (this.form.home_region !== this.initialForm.home_region) return true;
+                    if (this.form.preferred_language !== this.initialForm.preferred_language) return true;
                     if (this.form.new_password.length > 0) return true;
                     return false;
                 },

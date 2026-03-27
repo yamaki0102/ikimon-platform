@@ -41,6 +41,50 @@ if (isset($input['bio'])) {
     $updateData['bio'] = $bio;
 }
 
+if (isset($input['birth_year'])) {
+    $birthYear = $input['birth_year'];
+    if ($birthYear !== null && $birthYear !== '') {
+        $birthYear = (int) $birthYear;
+        $currentYear = (int) date('Y');
+        if ($birthYear < 1920 || $birthYear > $currentYear) {
+            echo json_encode(['success' => false, 'message' => '生まれ年が正しくありません。'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+            exit;
+        }
+        $updateData['birth_year'] = $birthYear;
+    } else {
+        $updateData['birth_year'] = null;
+    }
+}
+
+if (isset($input['gender'])) {
+    $validGenders = ['male', 'female', 'other', 'unspecified'];
+    $gender = $input['gender'];
+    if (!in_array($gender, $validGenders, true)) {
+        echo json_encode(['success' => false, 'message' => '性別の値が正しくありません。'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+        exit;
+    }
+    $updateData['gender'] = $gender;
+}
+
+if (isset($input['home_region'])) {
+    $homeRegion = trim($input['home_region']);
+    if ($homeRegion === '') {
+        $updateData['home_region'] = null;
+    } else {
+        $updateData['home_region'] = $homeRegion;
+    }
+}
+
+if (isset($input['preferred_language'])) {
+    $validLangs = ['ja', 'en', 'zh', 'ko', 'fr', 'es', 'de', 'th', 'vi', 'id'];
+    $lang = $input['preferred_language'];
+    if (!in_array($lang, $validLangs, true)) {
+        echo json_encode(['success' => false, 'message' => '言語設定が正しくありません。'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+        exit;
+    }
+    $updateData['preferred_language'] = $lang;
+}
+
 // 2. Change Password
 if (!empty($input['new_password'])) {
     $current = $input['current_password'] ?? '';

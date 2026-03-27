@@ -306,5 +306,65 @@
             "type": "streak",
             "threshold": 100
         }
+    },
+    {
+        "id": "regional_contributor",
+        "name": "Regional Contributor",
+        "name_ja": "地域の守り人",
+        "description": "Recorded 5+ species in a single municipality.",
+        "description_ja": "1つの市区町村で5種以上を記録しました。あなたの記録が地域の価値を証明します。",
+        "icon": "🏘️",
+        "condition": {
+            "type": "regional_species_count",
+            "threshold": 5
+        }
+    },
+    {
+        "id": "regional_champion",
+        "name": "Regional Champion",
+        "name_ja": "地域チャンピオン",
+        "description": "Recorded 20+ species in a single municipality.",
+        "description_ja": "1つの市区町村で20種以上を記録。地域の生物多様性マスターです！",
+        "icon": "🏅",
+        "condition": {
+            "type": "regional_species_count",
+            "threshold": 20
+        }
+    },
+    {
+        "id": "regional_legend",
+        "name": "Regional Legend",
+        "name_ja": "地域レジェンド",
+        "description": "Recorded 50+ species in a single municipality.",
+        "description_ja": "1つの市区町村で50種以上を記録。地方創生の星です！",
+        "icon": "⭐",
+        "condition": {
+            "type": "regional_species_count",
+            "threshold": 50
+        }
+    },
+    {
+        "id": "related_population",
+        "name": "関係人口",
+        "name_ja": "関係人口",
+        "description": "Recorded observations in a region outside your home area.",
+        "description_ja": "居住地以外の地域で記録を残しました。あなたはその地域の「関係人口」です！",
+        "icon": "🌏",
+        "condition": {
+            "type": "away_region_count",
+            "threshold": 1
+        }
+    },
+    {
+        "id": "multi_region_explorer",
+        "name": "Multi-Region Explorer",
+        "name_ja": "越境探検家",
+        "description": "Recorded observations in 3+ different regions outside your home area.",
+        "description_ja": "居住地以外の3つ以上の地域で記録。日本の生物多様性をつなぐ架け橋！",
+        "icon": "🗾",
+        "condition": {
+            "type": "away_region_count",
+            "threshold": 3
+        }
     }
 ]

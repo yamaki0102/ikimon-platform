@@ -50,6 +50,8 @@ class Gamification
         }
 
         $uniqueSpecies = [];
+        $regionalSpecies = []; // prefecture => [species => true]
+        $userPrefectures = []; // All prefectures where user recorded
 
         // 2. Iterate Observations
         foreach ($observations as $obs) {
@@ -64,10 +66,23 @@ class Gamification
                 }
 
                 // Track Unique Species
+                $speciesKey = null;
                 if (isset($obs['taxon']['key'])) {
-                    $uniqueSpecies[$obs['taxon']['key']] = true;
+                    $speciesKey = $obs['taxon']['key'];
+                    $uniqueSpecies[$speciesKey] = true;
                 } elseif (isset($obs['taxon']['name'])) {
-                    $uniqueSpecies[$obs['taxon']['name']] = true;
+                    $speciesKey = $obs['taxon']['name'];
+                    $uniqueSpecies[$speciesKey] = true;
+                }
+
+                // Track Regional Species (for 地域貢献バッジ)
+                $pref = $obs['prefecture'] ?? '';
+                if ($pref && $speciesKey) {
+                    if (!isset($regionalSpecies[$pref])) {
+                        $regionalSpecies[$pref] = [];
+                    }
+                    $regionalSpecies[$pref][$speciesKey] = true;
+                    $userPrefectures[$pref] = true;
                 }
 
                 // Check if this obs is inside any of My Fields
@@ -112,6 +127,25 @@ class Gamification
         $trustLevel = TrustLevel::calculate($userId);
         $streakData = StreakTracker::getStreak($userId);
 
+        // Calculate regional stats
+        $maxRegionalSpecies = 0;
+        foreach ($regionalSpecies as $pref => $species) {
+            $count = count($species);
+            if ($count > $maxRegionalSpecies) {
+                $maxRegionalSpecies = $count;
+            }
+        }
+
+        // Calculate away region count (regions outside home_region)
+        $user = DataStore::findById('users', $userId);
+        $homeRegion = $user['home_region'] ?? '';
+        $awayRegionCount = 0;
+        foreach (array_keys($userPrefectures) as $pref) {
+            if ($pref && $pref !== $homeRegion) {
+                $awayRegionCount++;
+            }
+        }
+
         // --- NEW BADGE MANAGER Integration ---
         $context = [
             'post_count' => $postCount,
@@ -124,6 +158,9 @@ class Gamification
             'my_field_total_obs' => count($myFieldUserObsIds),
             'my_field_score' => $myFieldMaxScore,
             'my_field_max_score' => $myFieldMaxScore,
+            'max_regional_species' => $maxRegionalSpecies,
+            'away_region_count' => $awayRegionCount,
+            'regional_species' => $regionalSpecies,
         ];
 
         // Award Badges
@@ -138,7 +175,9 @@ class Gamification
             'streak',
             'my_field_count',
             'my_field_obs_count',
-            'my_field_score'
+            'my_field_score',
+            'regional_species_count',
+            'away_region_count'
         ];
         foreach ($types as $type) {
             $awarded = BadgeManager::checkAndAward($userId, $type, $context);
@@ -172,6 +211,16 @@ class Gamification
             $user['score'] = $score;
             $user['post_count'] = $postCount;
             $user['id_count'] = $idCount;
+            $user['species_count'] = count($uniqueSpecies);
+
+            // Regional stats for profile display
+            $regionSummary = [];
+            foreach ($regionalSpecies as $pref => $species) {
+                $regionSummary[$pref] = count($species);
+            }
+            arsort($regionSummary);
+            $user['regional_stats'] = $regionSummary;
+            $user['away_region_count'] = $awayRegionCount;
             $userBadges = BadgeManager::getUserBadges($userId);
             $user['badges'] = array_column($userBadges, 'id');
 
@@ -368,6 +417,12 @@ class Gamification
                     break;
                 case 'streak':
                     $awarded = $context['current_streak'] >= $threshold;
+                    break;
+                case 'regional_species_count':
+                    $awarded = ($context['max_regional_species'] ?? 0) >= $threshold;
+                    break;
+                case 'away_region_count':
+                    $awarded = ($context['away_region_count'] ?? 0) >= $threshold;
                     break;
             }
 
