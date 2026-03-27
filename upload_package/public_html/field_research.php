@@ -632,14 +632,14 @@ if (!$currentUser) {
                       x-text="group + ' ' + count"></span>
             </template>
         </div>
-        <!-- 声変更（ドライブ中） -->
-        <div style="position:relative;margin-top:16px;">
+        <!-- 声変更（ドライブ中）— M3 Expressive -->
+        <div style="position:relative;margin-top:20px;">
             <button @click="showDriveVoiceSwitch = !showDriveVoiceSwitch"
-                    style="padding:8px 16px;border-radius:10px;border:1px solid rgba(139,92,246,0.3);background:rgba(139,92,246,0.15);color:#c4b5fd;font-size:13px;cursor:pointer;">
+                    style="padding:10px 20px;border-radius:var(--md-sys-shape-corner-full);border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 200ms var(--md-sys-motion-easing-standard);">
                 🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
             </button>
             <div x-show="showDriveVoiceSwitch" x-cloak @click.outside="showDriveVoiceSwitch=false"
-                 style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;background:rgba(30,41,59,0.95);backdrop-filter:blur(12px);border-radius:12px;padding:8px;border:1px solid rgba(255,255,255,0.1);min-width:160px;z-index:50;">
+                 style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;background:rgba(30,41,59,0.95);backdrop-filter:blur(12px);border-radius:var(--md-sys-shape-corner-large);padding:8px;border:1px solid rgba(255,255,255,0.1);min-width:160px;z-index:50;">
                 <template x-for="sp in speakers" :key="sp.id">
                     <button @click="selectedSpeaker=sp.id; showDriveVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
                             :style="selectedSpeaker===sp.id ? 'background:rgba(139,92,246,0.3);color:#c4b5fd;' : 'background:rgba(255,255,255,0.05);color:#94a3b8;'"
@@ -649,19 +649,19 @@ if (!$currentUser) {
                 </template>
             </div>
         </div>
-        <!-- 移動手段切り替え（走行中でも変更可） -->
-        <div style="display:flex;gap:8px;margin-top:16px;">
+        <!-- 移動手段切り替え（走行中でも変更可）— M3 Expressive -->
+        <div style="display:flex;gap:10px;margin-top:20px;">
             <template x-for="tm in transportModes" :key="tm.id">
                 <button @click="setTransportMode(tm.id)"
-                        :style="manualTransportMode === tm.id ? 'background:rgba(16,185,129,0.3);border-color:#10b981;color:#10b981;' : 'background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.15);color:#94a3b8;'"
-                        style="padding:8px 14px;border-radius:10px;border:1.5px solid;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;">
+                        :style="manualTransportMode === tm.id ? 'background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);border-color:var(--md-sys-color-primary);' : 'background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.5);'"
+                        style="padding:10px 18px;border-radius:var(--md-sys-shape-corner-full);border:1.5px solid;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;font-family:var(--font-body);transition:all 200ms var(--md-sys-motion-easing-standard);">
                     <span x-text="tm.emoji" style="pointer-events:none;"></span>
                     <span x-text="tm.label" style="pointer-events:none;"></span>
                 </button>
             </template>
         </div>
         <button @click="stopSensor()"
-                style="margin-top:32px;width:64px;height:64px;border-radius:50%;background:#ef4444;border:none;color:#fff;font-size:24px;cursor:pointer;">
+                style="margin-top:36px;width:72px;height:72px;border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-error);border:none;color:var(--md-sys-color-on-error);font-size:28px;cursor:pointer;box-shadow:var(--md-sys-elevation-2);transition:all 200ms var(--md-sys-motion-easing-standard);">
             ■
         </button>
     </div>
