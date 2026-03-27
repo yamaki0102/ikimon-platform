@@ -590,13 +590,48 @@ if (!$currentUser) {
         </div>
     </div>
 
-    <!-- Drive Mode HUD (full screen overlay) -->
+    <!-- Drive Mode HUD — M3 Expressive (full screen, hands-free) -->
     <div x-show="sessionActive && (currentMovementMode === 'drive' || manualTransportMode === 'car')" x-cloak
-         style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+         style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:var(--md-sys-color-inverse-surface);display:flex;flex-direction:column;align-items:center;justify-content:center;">
         <div style="font-size:48px;margin-bottom:8px;">📡</div>
-        <div style="color:#10b981;font-size:13px;font-weight:600;margin-bottom:20px;">🚗 ドライブ記録中</div>
-        <div style="color:#e2e8f0;font-size:32px;font-weight:900;" x-text="sessionSpeciesCount + '種'"></div>
-        <div style="color:#94a3b8;font-size:14px;margin-top:8px;" x-text="(sessionDistance / 1000).toFixed(1) + 'km · ' + formatElapsed(sessionElapsed)"></div>
+        <div style="color:var(--md-sys-color-primary);font-size:13px;font-weight:600;margin-bottom:20px;font-family:var(--font-body);">🚗 ドライブ記録中</div>
+
+        <!-- Accumulation Stats -->
+        <div style="display:flex;gap:32px;margin-bottom:24px;">
+            <div style="text-align:center;">
+                <div style="color:var(--md-sys-color-inverse-on-surface);font-size:40px;font-weight:900;font-family:var(--font-heading);" x-text="sessionSpeciesCount">0</div>
+                <div style="color:var(--md-sys-color-inverse-primary);font-size:11px;font-weight:600;letter-spacing:0.05em;">種</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="color:var(--md-sys-color-inverse-on-surface);font-size:40px;font-weight:900;font-family:var(--font-heading);" x-text="sessionFamilyCount">0</div>
+                <div style="color:var(--md-sys-color-inverse-primary);font-size:11px;font-weight:600;letter-spacing:0.05em;">科</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="color:var(--md-sys-color-inverse-on-surface);font-size:40px;font-weight:900;font-family:var(--font-heading);" x-text="Object.keys(sessionHigherGroups).length">0</div>
+                <div style="color:var(--md-sys-color-inverse-primary);font-size:11px;font-weight:600;letter-spacing:0.05em;">分類群</div>
+            </div>
+        </div>
+
+        <!-- Data Score + Distance/Time -->
+        <div style="margin-bottom:16px;width:200px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);">データ蓄積</span>
+                <span style="font-size:12px;font-weight:700;color:var(--md-sys-color-inverse-primary);" x-text="sessionDataScore + ' pt'"></span>
+            </div>
+            <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:var(--md-sys-shape-corner-full);overflow:hidden;">
+                <div style="height:100%;border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-primary);transition:width 500ms var(--md-sys-motion-easing-emphasized-decelerate);"
+                     :style="'width:' + Math.min(100, sessionDataScore) + '%'"></div>
+            </div>
+        </div>
+        <div style="color:rgba(255,255,255,0.4);font-size:14px;font-family:var(--font-body);" x-text="(sessionDistance / 1000).toFixed(1) + 'km · ' + formatElapsed(sessionElapsed)"></div>
+
+        <!-- Higher group chips -->
+        <div x-show="Object.keys(sessionHigherGroups).length > 0" x-cloak style="display:flex;flex-wrap:wrap;gap:6px;margin-top:16px;justify-content:center;max-width:300px;">
+            <template x-for="[group, count] in Object.entries(sessionHigherGroups)" :key="group">
+                <span style="font-size:11px;font-weight:600;padding:4px 12px;border-radius:var(--md-sys-shape-corner-full);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);"
+                      x-text="group + ' ' + count"></span>
+            </template>
+        </div>
         <!-- 声変更（ドライブ中） -->
         <div style="position:relative;margin-top:16px;">
             <button @click="showDriveVoiceSwitch = !showDriveVoiceSwitch"
@@ -631,76 +666,111 @@ if (!$currentUser) {
         </button>
     </div>
 
-    <!-- Session Active HUD (bottom, hidden in drive/car mode) -->
+    <!-- Session Active HUD — M3 Expressive "蓄積が見える" Dashboard -->
     <div x-show="sessionActive && currentMovementMode !== 'drive' && manualTransportMode !== 'car'" x-cloak
-         style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
-        <div class="glass" style="padding:10px 16px;border-radius:16px;">
-            <!-- Movement mode + transport switcher -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:6px;background:rgba(16,185,129,0.12);color:#10b981;"
-                      x-text="modeLabels[currentMovementMode] || 'サーチ中'"></span>
-                <div style="display:flex;gap:4px;">
+         style="position:absolute;bottom:max(16px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 24px);max-width:420px;">
+        <div style="background:var(--md-sys-color-surface-container-lowest);border-radius:var(--md-sys-shape-corner-extra-large);box-shadow:var(--md-sys-elevation-2);overflow:hidden;">
+
+            <!-- Top bar: status + transport + stop -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 6px;border-bottom:1px solid var(--md-sys-color-outline-variant);">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 2s infinite;"></span>
+                    <span style="font-family:var(--font-body);font-size:12px;font-weight:600;color:var(--md-sys-color-primary);"
+                          x-text="modeLabels[currentMovementMode] || 'サーチ中'"></span>
+                    <span style="font-size:11px;color:var(--md-sys-color-on-surface-variant);" x-text="formatElapsed(sessionElapsed)"></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
                     <template x-for="tm in transportModes" :key="tm.id">
                         <button @click="setTransportMode(tm.id)"
-                                :style="manualTransportMode === tm.id ? 'background:rgba(16,185,129,0.2);color:#10b981;border-color:#10b981;' : 'background:rgba(255,255,255,0.04);color:#64748b;border-color:rgba(255,255,255,0.08);'"
-                                style="padding:3px 7px;border-radius:6px;border:1px solid;cursor:pointer;font-size:12px;"
-                                :title="tm.label">
+                                :style="manualTransportMode === tm.id ? 'background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);' : 'background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant);'"
+                                style="width:32px;height:32px;border-radius:var(--md-sys-shape-corner-full);border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 200ms var(--md-sys-motion-easing-standard);">
                             <span x-text="tm.emoji" style="pointer-events:none;"></span>
                         </button>
                     </template>
-                </div>
-            </div>
-            <!-- Detection notification card -->
-            <div x-show="latestDetection" x-cloak x-transition
-                 style="margin-bottom:8px;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;"
-                 :style="'background:' + (latestDetection?.source === 'audio' ? 'rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2)' : 'rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2)')">
-                <span style="font-size:20px;" x-text="latestDetection?.emoji || '🐦'"></span>
-                <div style="flex:1;min-width:0;">
-                    <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="latestDetection?.label || ''"></div>
-                    <div style="font-size:10px;color:#94a3b8;" x-text="latestDetection?.reason || ''"></div>
-                </div>
-                <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;"
-                    :style="'background:' + (latestDetection?.confidence === 'high' ? '#dcfce7;color:#16a34a' : latestDetection?.confidence === 'medium' ? '#fef9c3;color:#ca8a04' : '#f1f5f9;color:#64748b')"
-                    x-text="latestDetection?.confidence === 'high' ? '高' : latestDetection?.confidence === 'medium' ? '中' : '低'"></span>
-            </div>
-            <!-- Environment label -->
-            <div x-show="envLabel" x-cloak style="font-size:10px;color:#64748b;margin-bottom:6px;text-align:center;" x-text="'🌿 ' + envLabel"></div>
-            <!-- Stats row -->
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="text-align:center;">
-                        <div style="font-size:18px;font-weight:900;color:#1e293b;" x-text="sessionSpeciesCount">0</div>
-                        <div style="font-size:9px;color:#94a3b8;">種</div>
-                    </div>
-                    <div style="text-align:center;">
-                        <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="formatDistance(sessionDistance)">0 m</div>
-                        <div style="font-size:9px;color:#94a3b8;">距離</div>
-                    </div>
-                    <div style="text-align:center;">
-                        <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="formatElapsed(sessionElapsed)">00:00</div>
-                        <div style="font-size:9px;color:#94a3b8;">時間</div>
-                    </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <div style="position:relative;">
-                        <button @click="showVoiceSwitch = !showVoiceSwitch"
-                                style="padding:8px 10px;border-radius:10px;border:1px solid rgba(139,92,246,0.3);background:rgba(139,92,246,0.15);color:#c4b5fd;font-size:11px;cursor:pointer;white-space:nowrap;">
-                            🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
-                        </button>
-                        <div x-show="showVoiceSwitch" x-cloak @click.outside="showVoiceSwitch=false"
-                             style="position:absolute;bottom:100%;right:0;margin-bottom:8px;background:rgba(15,23,42,0.95);backdrop-filter:blur(12px);border-radius:12px;padding:8px;border:1px solid rgba(255,255,255,0.1);min-width:140px;z-index:50;">
-                            <template x-for="sp in speakers" :key="sp.id">
-                                <button @click="selectedSpeaker=sp.id; showVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                        :style="selectedSpeaker===sp.id ? 'background:rgba(139,92,246,0.3);color:#c4b5fd;' : 'background:rgba(255,255,255,0.05);color:#94a3b8;'"
-                                        style="display:block;width:100%;padding:8px 12px;border-radius:8px;border:none;font-size:12px;font-weight:bold;text-align:left;cursor:pointer;margin-bottom:4px;">
-                                    <span x-text="sp.emoji + ' ' + sp.label"></span>
-                                </button>
-                            </template>
-                        </div>
-                    </div>
-                    <button @click="stopSensor()" style="padding:8px 16px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+                    <button @click="stopSensor()" style="padding:6px 14px;border-radius:var(--md-sys-shape-corner-full);border:none;background:var(--md-sys-color-error);color:var(--md-sys-color-on-error);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all 200ms var(--md-sys-motion-easing-standard);">
                         終了
                     </button>
+                </div>
+            </div>
+
+            <!-- Detection notification (latest) -->
+            <div x-show="latestDetection" x-cloak x-transition
+                 style="margin:8px 12px 0;padding:10px 14px;border-radius:var(--md-sys-shape-corner-large);display:flex;align-items:center;gap:12px;"
+                 :style="'background:' + (latestDetection?.source === 'audio' ? 'var(--md-sys-color-tertiary-container)' : 'var(--md-sys-color-secondary-container)')">
+                <span style="font-size:24px;" x-text="latestDetection?.emoji || '🐦'"></span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:600;color:var(--md-sys-color-on-surface);" x-text="latestDetection?.label || ''"></div>
+                    <div style="font-size:11px;color:var(--md-sys-color-on-surface-variant);margin-top:1px;" x-text="latestDetection?.reason || ''"></div>
+                </div>
+                <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:var(--md-sys-shape-corner-full);"
+                    :style="'background:' + (latestDetection?.confidence === 'high' ? '#dcfce7;color:#16a34a' : latestDetection?.confidence === 'medium' ? '#fef9c3;color:#ca8a04' : 'var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant)')"
+                    x-text="latestDetection?.confidence === 'high' ? '高' : latestDetection?.confidence === 'medium' ? '中' : '低'"></span>
+            </div>
+
+            <!-- Accumulation Dashboard -->
+            <div style="padding:12px 16px 14px;">
+                <!-- Environment label -->
+                <div x-show="envLabel" x-cloak style="font-size:11px;color:var(--md-sys-color-on-surface-variant);margin-bottom:8px;padding:4px 12px;border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-surface-container);display:inline-flex;align-items:center;gap:4px;">
+                    <span>🌿</span> <span x-text="envLabel"></span>
+                </div>
+
+                <!-- Data Accumulation Progress -->
+                <div style="margin-bottom:10px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                        <span style="font-size:10px;font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:0.05em;">データ蓄積</span>
+                        <span style="font-size:12px;font-weight:700;color:var(--md-sys-color-primary);" x-text="sessionDataScore + ' pt'"></span>
+                    </div>
+                    <div style="height:6px;background:var(--md-sys-color-surface-container-high);border-radius:var(--md-sys-shape-corner-full);overflow:hidden;">
+                        <div style="height:100%;border-radius:var(--md-sys-shape-corner-full);background:linear-gradient(90deg,var(--md-sys-color-primary),var(--md-sys-color-secondary));transition:width 500ms var(--md-sys-motion-easing-emphasized-decelerate);"
+                             :style="'width:' + Math.min(100, sessionDataScore) + '%'"></div>
+                    </div>
+                </div>
+
+                <!-- Stats Grid: Species + Families + Distance + Higher Groups -->
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;">
+                    <div style="text-align:center;padding:6px 0;">
+                        <div style="font-size:20px;font-weight:800;color:var(--md-sys-color-on-surface);font-family:var(--font-heading);" x-text="sessionSpeciesCount">0</div>
+                        <div style="font-size:9px;font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:0.05em;">種</div>
+                    </div>
+                    <div style="text-align:center;padding:6px 0;">
+                        <div style="font-size:20px;font-weight:800;color:var(--md-sys-color-secondary);font-family:var(--font-heading);" x-text="sessionFamilyCount">0</div>
+                        <div style="font-size:9px;font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:0.05em;">科</div>
+                    </div>
+                    <div style="text-align:center;padding:6px 0;">
+                        <div style="font-size:14px;font-weight:700;color:var(--md-sys-color-on-surface);font-family:var(--font-heading);" x-text="formatDistance(sessionDistance)">0 m</div>
+                        <div style="font-size:9px;font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:0.05em;">距離</div>
+                    </div>
+                    <div style="text-align:center;padding:6px 0;">
+                        <div style="font-size:14px;font-weight:700;color:var(--md-sys-color-tertiary);font-family:var(--font-heading);" x-text="Object.keys(sessionHigherGroups).length">0</div>
+                        <div style="font-size:9px;font-weight:600;color:var(--md-sys-color-on-surface-variant);letter-spacing:0.05em;">分類群</div>
+                    </div>
+                </div>
+
+                <!-- Higher Group Chips (when data exists) -->
+                <div x-show="Object.keys(sessionHigherGroups).length > 0" x-cloak
+                     style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
+                    <template x-for="[group, count] in Object.entries(sessionHigherGroups)" :key="group">
+                        <span style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:var(--md-sys-shape-corner-full);background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant);"
+                              x-text="group + ' ' + count"></span>
+                    </template>
+                </div>
+
+                <!-- Voice switcher (compact) -->
+                <div style="display:flex;align-items:center;justify-content:center;margin-top:8px;position:relative;">
+                    <button @click="showVoiceSwitch = !showVoiceSwitch"
+                            style="padding:6px 14px;border-radius:var(--md-sys-shape-corner-full);border:1px solid var(--md-sys-color-outline-variant);background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-body);display:flex;align-items:center;gap:4px;">
+                        🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
+                    </button>
+                    <div x-show="showVoiceSwitch" x-cloak @click.outside="showVoiceSwitch=false"
+                         style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:8px;background:var(--md-sys-color-surface-container-lowest);box-shadow:var(--md-sys-elevation-3);border-radius:var(--md-sys-shape-corner-large);padding:8px;min-width:160px;z-index:50;">
+                        <template x-for="sp in speakers" :key="sp.id">
+                            <button @click="selectedSpeaker=sp.id; showVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
+                                    :style="selectedSpeaker===sp.id ? 'background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);' : 'background:transparent;color:var(--md-sys-color-on-surface-variant);'"
+                                    style="display:block;width:100%;padding:10px 14px;border-radius:var(--md-sys-shape-corner-medium);border:none;font-size:12px;font-weight:600;text-align:left;cursor:pointer;margin-bottom:2px;font-family:var(--font-body);transition:all 150ms var(--md-sys-motion-easing-standard);">
+                                <span x-text="sp.emoji + ' ' + sp.label"></span>
+                            </button>
+                        </template>
+                    </div>
                 </div>
             </div>
         </div>
@@ -925,6 +995,10 @@ if (!$currentUser) {
                 sessionElapsed: 0,
                 sessionDistance: 0,
                 sessionSpeciesCount: 0,
+                sessionFamilyCount: 0,
+                sessionHigherGroups: {},
+                sessionEnvTags: [],
+                sessionDataScore: 0,
                 sessionDetections: [],
                 latestDetection: null,
                 _sessionTimer: null,
@@ -1160,6 +1234,10 @@ if (!$currentUser) {
                     this.sessionElapsed = 0;
                     this.sessionDistance = 0;
                     this.sessionSpeciesCount = 0;
+                    this.sessionFamilyCount = 0;
+                    this.sessionHigherGroups = {};
+                    this.sessionEnvTags = [];
+                    this.sessionDataScore = 0;
                     this.sessionDetections = [];
                     this.latestDetection = null;
                     this._quickStartDone = false;
@@ -1410,6 +1488,19 @@ if (!$currentUser) {
                     const uniqueLabels = new Set(this.sessionDetections.map(d => d.label));
                     this.sessionSpeciesCount = uniqueLabels.size;
                     this.latestDetection = detection;
+
+                    // Accumulation tracking: families, higher groups, env tags
+                    const families = new Set(this.sessionDetections.map(d => d.family).filter(Boolean));
+                    this.sessionFamilyCount = families.size;
+                    const groups = {};
+                    this.sessionDetections.forEach(d => {
+                        const g = d.higher_group || d.category || 'other';
+                        groups[g] = (groups[g] || 0) + 1;
+                    });
+                    this.sessionHigherGroups = groups;
+                    // Data score: species×3 + families×5 + env×2 + distance/100 + photos
+                    const photoCount = this.sessionDetections.filter(d => d.photo_ref || d.frame_ref).length;
+                    this.sessionDataScore = this.sessionSpeciesCount * 3 + this.sessionFamilyCount * 5 + this.sessionEnvTags.length * 2 + Math.floor(this.sessionDistance / 100) + photoCount;
 
                     // Add marker on map
                     if (this.liveScanner?.lastGpsPos && this.map) {
