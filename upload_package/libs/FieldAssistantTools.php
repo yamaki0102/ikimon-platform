@@ -19,7 +19,7 @@ class FieldAssistantTools
     {
         $db = new OmoikaneDB();
         $this->searchEngine = new OmoikaneSearchEngine($db);
-        $this->inferenceEnhancer = new OmoikaneInferenceEnhancer($db->getPDO());
+        $this->inferenceEnhancer = new OmoikaneInferenceEnhancer($db);
         $this->redListManager = new RedListManager();
     }
 
