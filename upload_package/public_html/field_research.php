@@ -1911,6 +1911,8 @@ if (!$currentUser) {
             };
         }
     </script>
+    <script src="/assets/js/voice-assistant.js"></script>
+    <?php include __DIR__ . '/components/voice_fab.php'; ?>
 </body>
 
 </html>

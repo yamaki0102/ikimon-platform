@@ -27,6 +27,7 @@ import kotlinx.coroutines.delay
 import life.ikimon.data.DetectionEvent
 import life.ikimon.pocket.PocketService
 import life.ikimon.pocket.VisualDetector
+import life.ikimon.voice.VoiceAssistant
 
 class MainActivity : ComponentActivity() {
 
@@ -34,6 +35,7 @@ class MainActivity : ComponentActivity() {
     private var visualDetector: VisualDetector? = null
     private var visualDetectionLog = mutableListOf<String>()
     private var isVisualRunning = false
+    private var voiceAssistant: VoiceAssistant? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -41,6 +43,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        voiceAssistant = VoiceAssistant(this)
 
         visualDetector = VisualDetector(this)
         visualDetector?.setCallback { result ->
@@ -56,6 +60,7 @@ class MainActivity : ComponentActivity() {
                 model = "mlkit_image_labeling_v1",
             )
             PocketService.sharedEventBuffer.add(event)
+            voiceAssistant?.conversationContext?.addDetection(event)
 
             val logEntry = "${result.category} (${result.rawLabel}) ${(result.confidence * 100).toInt()}%" +
                 (result.detailLabel?.let { " [$it]" } ?: "")
@@ -68,16 +73,23 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             IkimonTheme {
-                BioScanScreen(
-                    onStartScan = { startBioScan() },
-                    onStopScan = { stopBioScan() },
-                    visualDetectionLog = visualDetectionLog,
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    BioScanScreen(
+                        onStartScan = { startBioScan() },
+                        onStopScan = { stopBioScan() },
+                        visualDetectionLog = visualDetectionLog,
+                    )
+                    VoiceFab(
+                        voiceAssistant = voiceAssistant,
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                    )
+                }
             }
         }
     }
 
     override fun onDestroy() {
+        voiceAssistant?.destroy()
         visualDetector?.stop()
         super.onDestroy()
     }
@@ -290,6 +302,111 @@ fun StatRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+fun VoiceFab(voiceAssistant: VoiceAssistant?, modifier: Modifier = Modifier) {
+    if (voiceAssistant == null) return
+
+    var assistantState by remember { mutableStateOf(VoiceAssistant.State.IDLE) }
+    var partialText by remember { mutableStateOf("") }
+    var lastReply by remember { mutableStateOf("") }
+    var showReply by remember { mutableStateOf(false) }
+
+    LaunchedEffect(voiceAssistant) {
+        voiceAssistant.onStateChanged = { assistantState = it }
+        voiceAssistant.onPartialText = { partialText = it }
+        voiceAssistant.onReply = { reply ->
+            lastReply = reply
+            showReply = true
+        }
+        voiceAssistant.onError = { error ->
+            lastReply = error
+            showReply = true
+        }
+    }
+
+    // Auto-hide reply after 8 seconds
+    LaunchedEffect(showReply, lastReply) {
+        if (showReply) {
+            delay(8000)
+            showReply = false
+        }
+    }
+
+    Column(modifier = modifier, horizontalAlignment = Alignment.End) {
+        // Reply bubble
+        if (showReply && lastReply.isNotBlank()) {
+            Card(
+                modifier = Modifier.widthIn(max = 280.dp).padding(bottom = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1B5E20)),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Text(
+                    lastReply,
+                    modifier = Modifier.padding(12.dp),
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+            }
+        }
+
+        // Partial recognition text
+        if (assistantState == VoiceAssistant.State.LISTENING && partialText.isNotBlank()) {
+            Card(
+                modifier = Modifier.widthIn(max = 240.dp).padding(bottom = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Text(
+                    partialText,
+                    modifier = Modifier.padding(8.dp),
+                    fontSize = 12.sp,
+                    color = Color(0xFF5D4037),
+                )
+            }
+        }
+
+        // FAB
+        val fabColor = when (assistantState) {
+            VoiceAssistant.State.IDLE -> Color(0xFF2E7D32)
+            VoiceAssistant.State.LISTENING -> Color(0xFFE53935)
+            VoiceAssistant.State.THINKING -> Color(0xFFFFA726)
+            VoiceAssistant.State.SPEAKING -> Color(0xFF1565C0)
+        }
+        val fabIcon = when (assistantState) {
+            VoiceAssistant.State.IDLE -> "🎤"
+            VoiceAssistant.State.LISTENING -> "⏺"
+            VoiceAssistant.State.THINKING -> "💭"
+            VoiceAssistant.State.SPEAKING -> "🔊"
+        }
+        val fabLabel = when (assistantState) {
+            VoiceAssistant.State.IDLE -> "質問する"
+            VoiceAssistant.State.LISTENING -> "聴いてるよ..."
+            VoiceAssistant.State.THINKING -> "考え中..."
+            VoiceAssistant.State.SPEAKING -> "話し中"
+        }
+
+        FloatingActionButton(
+            onClick = {
+                when (assistantState) {
+                    VoiceAssistant.State.IDLE -> voiceAssistant.startListening()
+                    VoiceAssistant.State.SPEAKING -> voiceAssistant.stopSpeaking()
+                    else -> voiceAssistant.cancel()
+                }
+            },
+            containerColor = fabColor,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier.size(64.dp),
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(fabIcon, fontSize = 22.sp)
+                Text(fabLabel, fontSize = 8.sp, color = Color.White.copy(alpha = 0.9f))
+            }
+        }
     }
 }
 
