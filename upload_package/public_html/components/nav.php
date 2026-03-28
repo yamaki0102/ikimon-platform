@@ -232,6 +232,9 @@ require_once __DIR__ . '/../../libs/Asset.php';
 
                         <!-- その他 -->
                         <div class="border-t border-border mt-1 pt-1">
+                            <a href="/guides.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                                <i data-lucide="book-marked" class="w-4 h-4"></i> 解説ガイド一覧
+                            </a>
                             <a href="/guidelines.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                                 <i data-lucide="book-open" class="w-4 h-4"></i> <?php echo __('nav.guidelines'); ?>
                             </a>
@@ -727,6 +730,9 @@ require_once __DIR__ . '/../../libs/Asset.php';
         <!-- Info / Admin -->
         <div>
             <p class="text-xs font-black uppercase tracking-wider text-[var(--color-faint)] mb-2 px-2">その他</p>
+            <a href="/guides.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+                <i data-lucide="book-marked" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">解説ガイド一覧</span>
+            </a>
             <a href="/about.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="info" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">ikimonについて</span>
             </a>
