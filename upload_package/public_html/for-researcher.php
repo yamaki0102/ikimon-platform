@@ -126,6 +126,34 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
         </div>
     </section>
 
+    <!-- Design Lineage Card -->
+    <section class="py-8 px-6">
+        <div class="max-w-5xl mx-auto">
+            <div class="glass-card p-8 rounded-2xl border border-white/10">
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-teal-500/20 flex items-center justify-center shrink-0">
+                        <i data-lucide="book-open" class="w-5 h-5 text-teal-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold mb-2">設計思想とデータ系統</h3>
+                        <p class="text-sm text-gray-400 leading-relaxed mb-3">
+                            ikimon のデータ設計は Sutherland et al. (2026-03-04) が PNAS で示した生物多様性計測の9提言と整合しています。
+                            スキーマ設計・エビデンス段階・検証フローの詳細は方法論ページに、全体の設計思想は「記録が保全に変わる理由」に掲載しています。
+                        </p>
+                        <div class="flex flex-wrap gap-3">
+                            <a href="methodology.php#academic-alignment" class="inline-flex items-center gap-1 text-sm font-bold text-teal-400 hover:underline">
+                                <i data-lucide="arrow-right" class="w-3 h-3"></i>方法論：学術整合テーブル
+                            </a>
+                            <a href="century_archive.php" class="inline-flex items-center gap-1 text-sm font-bold text-teal-400 hover:underline">
+                                <i data-lucide="arrow-right" class="w-3 h-3"></i>記録が保全に変わる理由
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Data Access Section -->
     <section id="data-access" class="py-16 px-6">
         <div class="max-w-4xl mx-auto">

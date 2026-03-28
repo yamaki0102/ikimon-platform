@@ -608,6 +608,14 @@ $supportPolicies = $regionalMessaging['support_policies'];
                 </div>
             </div>
         </section>
+
+        <!-- trust-band -->
+        <div class="lp-container" style="padding:20px 0">
+            <p style="text-align:center;font-size:13px;font-weight:600;color:var(--muted);line-height:1.8;max-width:640px;margin:0 auto">
+                PNAS 2026 が示した「保全の答えに変わるデータ基盤」の方向と、ikimon の設計は強く整合しています。
+                <a href="../century_archive.php" style="color:var(--green);text-decoration:underline">詳しくは「記録が保全に変わる理由」へ →</a>
+            </p>
+        </div>
         <div class="section-divider"></div>
 
         <!-- ── features ── -->

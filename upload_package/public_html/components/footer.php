@@ -63,6 +63,7 @@ $_fBase = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
                     <a href="<?= $_fBase ?>/guide/nature-positive.php">ネイチャーポジティブガイド</a>
                     <a href="<?= $_fBase ?>/for-business/"><?= __('nav.business') ?></a>
                     <a href="<?= $_fBase ?>/for-researcher.php">データを持ち帰りたい方へ</a>
+                    <a href="<?= $_fBase ?>/century_archive.php">記録が保全に変わる理由</a>
                 </div>
             </div>
 
