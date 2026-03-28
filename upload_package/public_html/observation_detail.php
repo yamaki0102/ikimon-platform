@@ -203,17 +203,69 @@ $location = BioUtils::getObscuredLocation($obs['lat'], $obs['lng'], null); // Ig
 $redlist = $taxon_key ? RedList::check($taxon_key) : null;
 $invasive = ($species_name || $scientific_name) ? Invasive::check($species_name, $scientific_name) : null;
 
-// JSON-LD
-$json_ld = [
-    "@context" => "https://schema.org",
-    "@type" => "Observation",
-    "image" => $obs['photos'][0] ?? '',
-    "name" => $species_name ?? 'Unidentified'
+// --- 和名解決 (SEO/LLMO用) ---
+$jp_display_name = null;
+$family_jp = null;
+$lineage = $obs['taxon']['lineage'] ?? [];
+$taxon_rank = $obs['taxon']['rank'] ?? null;
+
+$family_jp_map = [
+    'Rosaceae' => 'バラ科', 'Fagaceae' => 'ブナ科', 'Pinaceae' => 'マツ科',
+    'Asteraceae' => 'キク科', 'Poaceae' => 'イネ科', 'Fabaceae' => 'マメ科',
+    'Orchidaceae' => 'ラン科', 'Lamiaceae' => 'シソ科', 'Brassicaceae' => 'アブラナ科',
+    'Apiaceae' => 'セリ科', 'Solanaceae' => 'ナス科', 'Ericaceae' => 'ツツジ科',
+    'Ranunculaceae' => 'キンポウゲ科', 'Liliaceae' => 'ユリ科', 'Lauraceae' => 'クスノキ科',
+    'Moraceae' => 'クワ科', 'Salicaceae' => 'ヤナギ科', 'Betulaceae' => 'カバノキ科',
+    'Cupressaceae' => 'ヒノキ科', 'Magnoliaceae' => 'モクレン科',
+    'Ardeidae' => 'サギ科', 'Accipitridae' => 'タカ科', 'Anatidae' => 'カモ科',
+    'Corvidae' => 'カラス科', 'Muscicapidae' => 'ヒタキ科', 'Paridae' => 'シジュウカラ科',
+    'Phasianidae' => 'キジ科', 'Picidae' => 'キツツキ科', 'Strigidae' => 'フクロウ科',
+    'Columbidae' => 'ハト科', 'Motacillidae' => 'セキレイ科', 'Hirundinidae' => 'ツバメ科',
+    'Passeridae' => 'スズメ科', 'Fringillidae' => 'アトリ科', 'Sylviidae' => 'ウグイス科',
+    'Nymphalidae' => 'タテハチョウ科', 'Papilionidae' => 'アゲハチョウ科',
+    'Pieridae' => 'シロチョウ科', 'Lycaenidae' => 'シジミチョウ科',
+    'Cerambycidae' => 'カミキリムシ科', 'Scarabaeidae' => 'コガネムシ科',
+    'Lucanidae' => 'クワガタムシ科', 'Coccinellidae' => 'テントウムシ科',
+    'Libellulidae' => 'トンボ科', 'Acrididae' => 'バッタ科', 'Tettigoniidae' => 'キリギリス科',
+    'Ranidae' => 'アカガエル科', 'Hylidae' => 'アマガエル科', 'Bufonidae' => 'ヒキガエル科',
+    'Lacertidae' => 'カナヘビ科', 'Gekkonidae' => 'ヤモリ科', 'Colubridae' => 'ナミヘビ科',
+    'Cyprinidae' => 'コイ科', 'Salmonidae' => 'サケ科',
 ];
+$family_name = $lineage['family'] ?? null;
+if ($family_name && isset($family_jp_map[$family_name])) {
+    $family_jp = $family_jp_map[$family_name];
+}
+
+if ($species_name && preg_match('/[\p{Hiragana}\p{Katakana}\p{Han}]/u', $species_name)) {
+    $jp_display_name = $species_name;
+} elseif ($family_jp && $scientific_name) {
+    $rank_label = match($taxon_rank) {
+        'genus' => '属',
+        'family' => '科',
+        'order' => '目',
+        'species' => '',
+        default => '',
+    };
+    $jp_display_name = $family_jp . 'の' . ($rank_label ? $rank_label . '(' : '(') . $scientific_name . ')';
+}
+
+$seo_name = $jp_display_name ?: ($species_name ?? '同定提案待ち');
+$obs_date = date('Y年n月j日', strtotime($obs['observed_at'] ?? $obs['created_at']));
+$obs_place = $obs['municipality'] ?? ($obs['prefecture'] ?? '');
+$taxonomy_breadcrumb = implode(' > ', array_filter([
+    $lineage['kingdom'] ?? null,
+    $lineage['phylum'] ?? null,
+    $lineage['class'] ?? null,
+    $lineage['order'] ?? null,
+    $family_jp ? $family_jp . ' (' . $family_name . ')' : ($family_name ?? null),
+]));
 
 // --- OGP Meta ---
-$meta_title = ($species_name ?? '同定提案待ち') . " の観察";
-$meta_description = ($species_name ?? '生き物') . " — " . date('Y.m.d', strtotime($obs['observed_at'])) . " の観察記録 | ikimon.life";
+$meta_title = $seo_name . ($scientific_name && $scientific_name !== $seo_name ? " ($scientific_name)" : '') . " の観察記録" . ($obs_place ? " - $obs_place" : '');
+$meta_description = $obs_date . ($obs_place ? "に{$obs_place}で" : 'に') . "観察された" . $seo_name
+    . ($scientific_name && $scientific_name !== $seo_name ? " ($scientific_name)" : '')
+    . "の記録。" . ($taxonomy_breadcrumb ? "分類: {$taxonomy_breadcrumb}。" : '')
+    . "市民参加型生物多様性プラットフォーム ikimon.life";
 if (!empty($obs['photos'])) {
     $meta_image = (strpos($obs['photos'][0], 'http') === 0) ? $obs['photos'][0] : BASE_URL . '/' . $obs['photos'][0];
 }
@@ -228,26 +280,33 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <!-- JSON-LD Structured Data -->
     <script type="application/ld+json" nonce="<?= CspNonce::attr() ?>">
         <?php
+        $taxonLd = [
+            '@type' => 'Taxon',
+            'name' => $scientific_name ?: ($species_name ?? null),
+            'alternateName' => $jp_display_name ?: ($species_name !== $scientific_name ? $species_name : null),
+            'taxonRank' => $taxon_rank ?: null,
+        ];
+        if ($family_name) $taxonLd['parentTaxon'] = ['@type' => 'Taxon', 'name' => $family_name, 'taxonRank' => 'family'];
+        $taxonLd = array_filter($taxonLd, fn($v) => $v !== null);
+
         $jsonLd = [
             '@context' => 'https://schema.org',
             '@type' => 'Observation',
-            'name' => ($species_name ?? '未同定') . ' の観察',
+            'name' => $seo_name . ' の観察記録',
             'description' => $meta_description,
             'url' => $meta_canonical,
+            'identifier' => $id,
             'dateCreated' => $obs['observed_at'] ?? $obs['created_at'] ?? null,
-            'about' => [
-                '@type' => 'Taxon',
-                'name' => $scientific_name ?: ($species_name ?? null),
-                'alternateName' => $species_name ?? null,
-            ],
+            'about' => $taxonLd,
         ];
-        if (!empty($obs['location']['lat']) && !empty($obs['location']['lng'])) {
-            $jsonLd['spatial'] = [
+        if (!empty($obs['lat']) && !empty($obs['lng'])) {
+            $jsonLd['contentLocation'] = [
                 '@type' => 'Place',
+                'name' => $obs_place ?: null,
                 'geo' => [
                     '@type' => 'GeoCoordinates',
-                    'latitude' => (float) $obs['location']['lat'],
-                    'longitude' => (float) $obs['location']['lng'],
+                    'latitude' => round((float) $obs['lat'], 4),
+                    'longitude' => round((float) $obs['lng'], 4),
                 ]
             ];
         }
@@ -261,6 +320,12 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 'name' => $obs['user']['name'],
             ];
         }
+        $jsonLd['isPartOf'] = [
+            '@type' => 'WebSite',
+            'name' => 'ikimon.life',
+            'url' => 'https://ikimon.life',
+            'description' => '市民参加型生物多様性プラットフォーム',
+        ];
         $jsonLd = array_filter($jsonLd, fn($v) => $v !== null);
         echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG);
         ?>
