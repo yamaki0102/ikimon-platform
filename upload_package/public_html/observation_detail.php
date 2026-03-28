@@ -508,7 +508,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     </section>
                 <?php endif; ?>
 
-                <?php if ($latestAiAssessment || (($obs['ai_assessment_status'] ?? '') === 'pending')): ?>
+                <?php if ($latestAiAssessment || in_array(($obs['ai_assessment_status'] ?? ''), ['pending', 'queued'], true)): ?>
                     <section class="bg-surface rounded-2xl border border-border p-4 shadow-sm">
                         <div class="flex items-start justify-between gap-3 mb-3">
                             <div>
