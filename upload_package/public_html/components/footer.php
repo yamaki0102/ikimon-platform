@@ -60,7 +60,10 @@ $_fBase = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
             <div>
                 <p class="sf-h">Service</p>
                 <div class="sf-links">
+                    <a href="<?= $_fBase ?>/guides.php">解説ガイド一覧</a>
+                    <a href="<?= $_fBase ?>/guide/regional-biodiversity.php">地方創生と生物多様性</a>
                     <a href="<?= $_fBase ?>/guide/nature-positive.php">ネイチャーポジティブガイド</a>
+                    <a href="<?= $_fBase ?>/guide/walking-brain-science.php">お散歩と脳科学</a>
                     <a href="<?= $_fBase ?>/for-business/"><?= __('nav.business') ?></a>
                     <a href="<?= $_fBase ?>/for-researcher.php">データを持ち帰りたい方へ</a>
                     <a href="<?= $_fBase ?>/century_archive.php">記録が保全に変わる理由</a>
