@@ -555,16 +555,72 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                         'genus' => '属',
                                         'species' => '種',
                                     ];
+                                    $rankSuffixMap = [
+                                        'kingdom' => '界',
+                                        'phylum' => '門',
+                                        'class' => '綱',
+                                        'order' => '目',
+                                        'family' => '科',
+                                        'genus' => '属',
+                                        'species' => '',
+                                        'subgenus' => '亜属',
+                                    ];
                                     $recommendedRank = strtolower((string)($recommended['rank'] ?? 'unknown'));
                                     $recommendedRankLabel = $rankLabelMap[$recommendedRank] ?? ($recommended['rank'] ?? 'unknown');
+
+                                    $bestSpecificForDisplay = is_array($latestAiAssessment['best_specific_taxon'] ?? null) ? $latestAiAssessment['best_specific_taxon'] : null;
+                                    $recommendedDisplayName = $recommended['name'] ?? '未確定';
+                                    $recommendedScientific = $recommended['scientific_name'] ?? '';
+
+                                    $isLatinOnly = $recommendedDisplayName !== '' && preg_match('/^[A-Za-z\s\-\.]+$/', $recommendedDisplayName);
+                                    if ($isLatinOnly) {
+                                        if ($bestSpecificForDisplay && !empty($bestSpecificForDisplay['name']) && !preg_match('/^[A-Za-z\s\-\.]+$/', $bestSpecificForDisplay['name'])) {
+                                            $recommendedDisplayName = $bestSpecificForDisplay['name'];
+                                        } else {
+                                            $familyJaMap = [
+                                                'Rosaceae' => 'バラ', 'Fabaceae' => 'マメ', 'Asteraceae' => 'キク',
+                                                'Poaceae' => 'イネ', 'Brassicaceae' => 'アブラナ', 'Lamiaceae' => 'シソ',
+                                                'Apiaceae' => 'セリ', 'Fagaceae' => 'ブナ', 'Pinaceae' => 'マツ',
+                                                'Cupressaceae' => 'ヒノキ', 'Lauraceae' => 'クスノキ', 'Ericaceae' => 'ツツジ',
+                                                'Orchidaceae' => 'ラン', 'Liliaceae' => 'ユリ', 'Iridaceae' => 'アヤメ',
+                                                'Salicaceae' => 'ヤナギ', 'Betulaceae' => 'カバノキ', 'Aceraceae' => 'カエデ',
+                                                'Sapindaceae' => 'ムクロジ', 'Oleaceae' => 'モクセイ',
+                                            ];
+                                            $genusJaMap = [
+                                                'Prunus' => 'サクラ', 'Quercus' => 'コナラ', 'Pinus' => 'マツ',
+                                                'Acer' => 'カエデ', 'Salix' => 'ヤナギ', 'Rosa' => 'バラ',
+                                                'Rhododendron' => 'ツツジ', 'Camellia' => 'ツバキ', 'Magnolia' => 'モクレン',
+                                                'Cornus' => 'ミズキ', 'Viburnum' => 'ガマズミ', 'Hydrangea' => 'アジサイ',
+                                                'Wisteria' => 'フジ', 'Iris' => 'アヤメ', 'Lilium' => 'ユリ',
+                                                'Passer' => 'スズメ', 'Corvus' => 'カラス', 'Turdus' => 'ツグミ',
+                                                'Motacilla' => 'セキレイ', 'Ardea' => 'サギ', 'Anas' => 'カモ',
+                                                'Falco' => 'ハヤブサ', 'Buteo' => 'ノスリ', 'Columba' => 'ハト',
+                                                'Papilio' => 'アゲハ', 'Pieris' => 'シロチョウ', 'Vanessa' => 'タテハ',
+                                                'Lucanus' => 'クワガタ', 'Dynastes' => 'カブトムシ',
+                                            ];
+
+                                            $suffix = $rankSuffixMap[$recommendedRank] ?? '';
+                                            if ($recommendedRank === 'genus' && isset($genusJaMap[$recommendedDisplayName])) {
+                                                $recommendedDisplayName = $genusJaMap[$recommendedDisplayName] . $suffix;
+                                            } elseif ($recommendedRank === 'family') {
+                                                $familyName = $recommended['family'] ?? $recommendedDisplayName;
+                                                if (isset($familyJaMap[$familyName])) {
+                                                    $recommendedDisplayName = $familyJaMap[$familyName] . $suffix;
+                                                }
+                                            }
+                                        }
+                                    }
                                 ?>
                                 <div class="rounded-2xl bg-primary/5 border border-primary/20 p-4 mb-3">
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
                                             <p class="text-[10px] font-black text-primary uppercase tracking-widest mb-1">いまはここまで絞れそう</p>
                                             <p class="text-lg font-black text-text leading-tight">
-                                                <?php echo htmlspecialchars($recommended['name'] ?? '未確定'); ?>
+                                                <?php echo htmlspecialchars($recommendedDisplayName); ?>
                                             </p>
+                                            <?php if ($isLatinOnly || ($recommendedScientific !== '' && $recommendedScientific !== $recommendedDisplayName)): ?>
+                                                <p class="text-xs text-muted italic"><?php echo htmlspecialchars($recommendedScientific); ?></p>
+                                            <?php endif; ?>
                                             <p class="text-sm text-muted mt-1"><?php echo htmlspecialchars($recommendedRankLabel); ?>まではかなり近そうです</p>
                                             <?php
                                                 $bestSpecificTaxon = is_array($latestAiAssessment['best_specific_taxon'] ?? null) ? $latestAiAssessment['best_specific_taxon'] : null;
