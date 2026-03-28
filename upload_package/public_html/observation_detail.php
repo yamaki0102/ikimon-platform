@@ -1512,86 +1512,110 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             }
          }">
         <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="idModalOpen = false"></div>
-        <div class="bg-surface w-full max-w-2xl rounded-2xl border border-border shadow-2xl relative z-10 p-6">
-            <h2 class="text-xl font-bold text-text mb-4">名前を提案する</h2>
-
-            <!-- AI Navigator Shortcut (Everyone can help!) -->
-            <?php if ($currentUser): ?>
-                <div class="mb-6">
-                    <button type="button" @click="$dispatch('open-navigator')" class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-black hover:bg-primary/20 transition group">
-                        <i data-lucide="compass" class="w-4 h-4 group-hover:rotate-45 transition duration-500"></i>
-                        AIナビゲーターで詳しく特定する (β版)
-                    </button>
+        <div class="bg-surface w-full max-w-lg rounded-2xl border border-border shadow-2xl relative z-10 overflow-hidden">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 pt-5 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <i data-lucide="search" class="w-4 h-4 text-primary"></i>
+                    </div>
+                    <h2 class="text-lg font-black text-text">名前を提案する</h2>
                 </div>
-            <?php endif; ?>
+                <button @click="idModalOpen = false" class="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-text hover:bg-surface-alt transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
 
-            <div class="space-y-4" @navigator-result.window="
-                taxonQuery = $event.detail.query; 
-                if($event.detail.life_stage !== 'unknown') lifeStage = $event.detail.life_stage;
-                search(); 
-            ">
+            <div class="px-6 pb-6 space-y-5">
+                <!-- Taxon Search -->
                 <div class="relative">
-                    <label class="block text-xs font-bold text-muted mb-1">種名 (和名または学名)</label>
+                    <label class="block text-xs font-bold text-muted mb-1.5">種名 (和名または学名)</label>
                     <div class="relative">
                         <input type="text" x-model="taxonQuery" @input.debounce.300ms="search()" @keydown.escape="showSugg = false"
-                            class="w-full bg-surface border border-border rounded-lg p-3 text-text focus:outline-none focus:border-primary pr-20"
-                            placeholder="例: ヤマシギ" autocomplete="off">
+                            class="w-full bg-surface border border-border rounded-xl p-3 pl-10 text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary pr-20 transition"
+                            placeholder="例: ヤマシギ、Prunus" autocomplete="off">
+                        <i data-lucide="search" class="w-4 h-4 text-muted absolute left-3 top-3.5 pointer-events-none"></i>
                         <div x-show="taxonSlug" class="absolute right-3 top-3">
-                            <span class="text-token-xs font-bold bg-primary/20 text-primary-light px-2 py-1 rounded-full">✓ 確定</span>
+                            <span class="text-[10px] font-bold bg-primary/20 text-primary px-2 py-1 rounded-full flex items-center gap-1">
+                                <i data-lucide="check" class="w-3 h-3"></i> 確定
+                            </span>
                         </div>
                     </div>
-                    <!-- Suggestions -->
+                    <!-- Suggestions Dropdown -->
                     <div x-show="showSugg && suggestions.length > 0" x-transition @click.away="showSugg = false"
-                        class="absolute left-0 right-0 top-full mt-1 bg-surface border border-border rounded-xl overflow-hidden z-50 shadow-xl max-h-48 overflow-y-auto">
+                        class="absolute left-0 right-0 top-full mt-1 bg-surface border border-border rounded-xl overflow-hidden z-50 shadow-xl max-h-52 overflow-y-auto">
                         <template x-for="(s, i) in suggestions" :key="i">
-                            <button type="button" @click="pick(s)" class="w-full text-left px-4 py-2.5 hover:bg-primary-surface transition border-b border-border last:border-b-0">
+                            <button type="button" @click="pick(s)" class="w-full text-left px-4 py-2.5 hover:bg-primary/5 transition border-b border-border/50 last:border-b-0 flex items-baseline gap-2">
                                 <span class="text-sm font-bold text-text" x-text="s.jp_name"></span>
-                                <span class="text-xs text-muted italic ml-2" x-text="s.sci_name"></span>
+                                <span class="text-xs text-muted italic" x-text="s.sci_name"></span>
                             </button>
                         </template>
                     </div>
                 </div>
-            </div>
 
-            <!-- Life Stage Selector -->
-            <div>
-                <label class="block text-token-xs font-bold text-muted uppercase tracking-widest mb-2">ライフステージ</label>
-                <div class="grid grid-cols-5 gap-1.5">
-                    <template x-for="ls in [
-                            {id: 'adult', label: '成体', emoji: '👑'},
-                            {id: 'juvenile', label: '幼体', emoji: '🌱'},
-                            {id: 'egg', label: '卵等', emoji: '🥚'},
-                            {id: 'trace', label: '痕跡', emoji: '👣'},
-                            {id: 'unknown', label: '不明', emoji: '❓'}
-                        ]" :key="ls.id">
-                        <button type="button" @click="lifeStage = ls.id"
-                            :class="lifeStage === ls.id ? 'bg-primary text-black border-primary' : 'bg-surface border-border text-muted'"
-                            class="flex flex-col items-center py-2 rounded-xl border transition group">
-                            <span class="text-base" x-text="ls.emoji"></span>
-                            <span class="text-token-xs font-bold mt-0.5" x-text="ls.label"></span>
+                <!-- Confidence -->
+                <div>
+                    <label class="block text-xs font-bold text-muted mb-1.5">確信度</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" @click="selectedConfidence = 'sure'"
+                            :class="selectedConfidence === 'sure' ? 'bg-primary/15 border-primary/40 text-primary' : 'bg-surface border-border text-muted hover:border-border-hover'"
+                            class="flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold transition">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                            確信あり
                         </button>
-                    </template>
+                        <button type="button" @click="selectedConfidence = 'likely'"
+                            :class="selectedConfidence === 'likely' ? 'bg-primary/15 border-primary/40 text-primary' : 'bg-surface border-border text-muted hover:border-border-hover'"
+                            class="flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold transition">
+                            <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                            たぶん
+                        </button>
+                        <button type="button" @click="selectedConfidence = 'unsure'"
+                            :class="selectedConfidence === 'unsure' ? 'bg-primary/15 border-primary/40 text-primary' : 'bg-surface border-border text-muted hover:border-border-hover'"
+                            class="flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold transition">
+                            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                            わからない
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <div>
-                <label class="block text-xs font-bold text-muted mb-1">コメント</label>
-                <textarea x-model="note" class="w-full bg-surface border border-border rounded-lg p-3 text-text focus:outline-none focus:border-primary h-24" placeholder="同定の根拠やコメントを入力..."></textarea>
+                <!-- Life Stage -->
+                <div>
+                    <label class="block text-xs font-bold text-muted mb-1.5">ライフステージ</label>
+                    <div class="grid grid-cols-5 gap-1.5">
+                        <template x-for="ls in [
+                                {id: 'adult', label: '成体', emoji: '👑'},
+                                {id: 'juvenile', label: '幼体', emoji: '🌱'},
+                                {id: 'egg', label: '卵等', emoji: '🥚'},
+                                {id: 'trace', label: '痕跡', emoji: '👣'},
+                                {id: 'unknown', label: '不明', emoji: '❓'}
+                            ]" :key="ls.id">
+                            <button type="button" @click="lifeStage = ls.id"
+                                :class="lifeStage === ls.id ? 'bg-primary/15 text-primary border-primary/40' : 'bg-surface border-border text-muted hover:border-border-hover'"
+                                class="flex flex-col items-center py-2 rounded-xl border transition">
+                                <span class="text-base" x-text="ls.emoji"></span>
+                                <span class="text-[10px] font-bold mt-0.5" x-text="ls.label"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Comment -->
+                <div>
+                    <label class="block text-xs font-bold text-muted mb-1.5">コメント <span class="font-normal text-faint">(任意)</span></label>
+                    <textarea x-model="note" rows="3" class="w-full bg-surface border border-border rounded-xl p-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none transition" placeholder="同定の根拠やコメント..."></textarea>
+                </div>
+
+                <!-- Submit -->
+                <button @click="submit()" :disabled="submitting || !taxonQuery.trim()"
+                    class="w-full py-3 rounded-xl bg-primary-dark hover:bg-primary text-white font-bold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[0.98]">
+                    <template x-if="submitting"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i></template>
+                    <span x-text="submitting ? '送信中...' : '提案する'"></span>
+                </button>
             </div>
-            <!-- 確信度 (Hidden) -->
-            <button @click="submit()" :disabled="submitting || !taxonQuery.trim()"
-                class="w-full py-3 rounded-lg bg-primary-dark hover:bg-primary text-white font-bold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                <template x-if="submitting"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i></template>
-                <span x-text="submitting ? '送信中...' : '提案する'"></span>
-            </button>
         </div>
-        <button @click="idModalOpen = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
-            <i data-lucide="x" class="w-6 h-6"></i>
-        </button>
     </div>
 
     <!-- Scripts -->
-    <?php include __DIR__ . '/components/navigator.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
 
