@@ -420,7 +420,7 @@ function uploader() {
             const canvas = document.createElement('canvas');
             let w = img.width;
             let h = img.height;
-            const max = 1280;
+            const max = 2560;
             if (w > max || h > max) {
                 if (w > h) {
                     h = Math.round(h * max / w);
@@ -436,7 +436,7 @@ function uploader() {
             canvas.toBlob(b => {
                 photo.blob = b;
                 photo.compressed = true;
-            }, 'image/webp', 0.8);
+            }, 'image/webp', 0.72);
         },
 
         redirectToLogin() {
