@@ -239,17 +239,16 @@ if ($family_name && isset($family_jp_map[$family_name])) {
 if ($species_name && preg_match('/[\p{Hiragana}\p{Katakana}\p{Han}]/u', $species_name)) {
     $jp_display_name = $species_name;
 } elseif ($family_jp && $scientific_name) {
-    $rank_label = match($taxon_rank) {
-        'genus' => '属',
-        'family' => '科',
-        'order' => '目',
-        'species' => '',
-        default => '',
+    $jp_display_name = match($taxon_rank) {
+        'genus' => $family_jp . ' ' . $scientific_name . '属',
+        'family' => $family_jp,
+        'species' => $family_jp . 'の一種',
+        default => $family_jp . 'の仲間',
     };
-    $jp_display_name = $family_jp . 'の' . ($rank_label ? $rank_label . '(' : '(') . $scientific_name . ')';
 }
 
 $seo_name = $jp_display_name ?: ($species_name ?? '同定提案待ち');
+$seo_sci = ($scientific_name && $scientific_name !== $seo_name) ? $scientific_name : null;
 $obs_date = date('Y年n月j日', strtotime($obs['observed_at'] ?? $obs['created_at']));
 $obs_place = $obs['municipality'] ?? ($obs['prefecture'] ?? '');
 $taxonomy_breadcrumb = implode(' > ', array_filter([
@@ -261,9 +260,9 @@ $taxonomy_breadcrumb = implode(' > ', array_filter([
 ]));
 
 // --- OGP Meta ---
-$meta_title = $seo_name . ($scientific_name && $scientific_name !== $seo_name ? " ($scientific_name)" : '') . " の観察記録" . ($obs_place ? " - $obs_place" : '');
+$meta_title = $seo_name . ($seo_sci ? " ($seo_sci)" : '') . " の観察記録" . ($obs_place ? " - $obs_place" : '');
 $meta_description = $obs_date . ($obs_place ? "に{$obs_place}で" : 'に') . "観察された" . $seo_name
-    . ($scientific_name && $scientific_name !== $seo_name ? " ($scientific_name)" : '')
+    . ($seo_sci ? " ($seo_sci)" : '')
     . "の記録。" . ($taxonomy_breadcrumb ? "分類: {$taxonomy_breadcrumb}。" : '')
     . "市民参加型生物多様性プラットフォーム ikimon.life";
 if (!empty($obs['photos'])) {
