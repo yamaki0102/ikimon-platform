@@ -1,24 +1,75 @@
 <?php
 
 /**
- * EmbeddingStore - JSON file-based vector store for ikimon.life
+ * EmbeddingStore - Vector store for ikimon.life
  *
- * Stores embedding vectors alongside metadata in flat JSON files.
+ * Stores embedding vectors alongside metadata.
  * Supports brute-force cosine similarity search (optimal for < 10K vectors).
  *
- * Storage: data/embeddings/{type}.json
- * Types: observations, photos, papers, taxons, omoikane
+ * Storage backends:
+ *   - JSON:   data/embeddings/{type}.json (default, human-readable)
+ *   - Binary: data/embeddings/{type}.bin  (compact, quantization-aware)
+ *
+ * Types: observations, photos, papers, taxons, omoikane, species
  */
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/VectorPacker.php';
 
 class EmbeddingStore
 {
     private const BASE_DIR = 'embeddings';
-    private const ROUND_PRECISION = 6; // decimal places for vector values
+    private const ROUND_PRECISION = 6; // decimal places for vector values (JSON mode)
+
+    /** Storage backend: 'json' (default) or 'binary' */
+    private static string $backend = 'json';
+
+    /** Quantization format for binary backend */
+    private static string $quantFormat = VectorPacker::FORMAT_FLOAT32;
 
     /** In-memory cache for loaded vector files (per-request) */
     private static array $cache = [];
+
+    /** Pre-computed norms cache: type -> [id -> float] */
+    private static array $normCache = [];
+
+    // ─── Configuration ──────────────────────────────────────────
+
+    /**
+     * Set storage backend and quantization format.
+     *
+     * @param string $backend 'json' or 'binary'
+     * @param string $format  VectorPacker::FORMAT_* (only for binary backend)
+     */
+    public static function configure(string $backend = 'json', string $format = VectorPacker::FORMAT_FLOAT32): void
+    {
+        self::$backend = $backend;
+        self::$quantFormat = $format;
+        self::clearCache();
+    }
+
+    /**
+     * Get storage statistics for capacity planning.
+     *
+     * @return array{count: int, format: string, backend: string,
+     *               bytes_per_vector: int, total_estimated_mb: float}
+     */
+    public static function stats(string $type): array
+    {
+        $count = self::count($type);
+        $dim = 768;
+        $bytesPerVector = self::$backend === 'binary'
+            ? VectorPacker::estimateSize($dim, self::$quantFormat)
+            : $dim * 8; // JSON: ~8 chars per float average
+
+        return [
+            'count' => $count,
+            'format' => self::$backend === 'binary' ? self::$quantFormat : 'json',
+            'backend' => self::$backend,
+            'bytes_per_vector' => $bytesPerVector,
+            'total_estimated_mb' => round($count * $bytesPerVector / 1048576, 2),
+        ];
+    }
 
     // ─── CRUD Operations ────────────────────────────────────────
 
@@ -32,10 +83,16 @@ class EmbeddingStore
         // Round vector values to reduce JSON size
         $rounded = array_map(fn($v) => round($v, self::ROUND_PRECISION), $vector);
 
+        $norm = VectorPacker::norm($rounded);
+
         $store['vectors'][$id] = array_merge([
             'v' => $rounded,
+            'norm' => round($norm, 8),
             'updated_at' => date('c'),
         ], $meta);
+
+        // Invalidate norm cache for this type
+        unset(self::$normCache[$type]);
 
         self::saveStore($type, $store);
     }
@@ -86,6 +143,8 @@ class EmbeddingStore
     /**
      * Search for top-K most similar vectors using cosine similarity.
      * Returns [['id' => string, 'score' => float, ...meta], ...]
+     *
+     * Uses pre-computed norms when available (O(n) dot products only).
      */
     public static function search(array $queryVector, string $type, int $topK = 10, float $minScore = 0.3): array
     {
@@ -95,14 +154,17 @@ class EmbeddingStore
         if (empty($vectors)) return [];
 
         $results = [];
-        $queryNorm = self::norm($queryVector);
+        $queryNorm = VectorPacker::norm($queryVector);
         if ($queryNorm == 0) return [];
 
         foreach ($vectors as $id => $entry) {
             $v = $entry['v'] ?? null;
             if (!is_array($v)) continue;
 
-            $score = self::cosineSimilarityFast($queryVector, $v, $queryNorm);
+            // Use pre-stored norm if available, else compute
+            $storedNorm = $entry['norm'] ?? null;
+
+            $score = self::cosineSimilarityWithNorm($queryVector, $v, $queryNorm, $storedNorm);
             if ($score >= $minScore) {
                 $results[] = [
                     'id' => $id,
@@ -137,14 +199,24 @@ class EmbeddingStore
     // ─── Math ───────────────────────────────────────────────────
 
     /**
-     * Cosine similarity with pre-computed query norm.
+     * Cosine similarity with pre-computed norms for both vectors.
+     * When storedNorm is available, skips b's norm computation entirely.
      */
-    private static function cosineSimilarityFast(array $a, array $b, float $aNorm): float
+    private static function cosineSimilarityWithNorm(array $a, array $b, float $aNorm, ?float $storedNorm = null): float
     {
         $dot = 0.0;
         $bNormSq = 0.0;
         $len = min(count($a), count($b));
 
+        if ($storedNorm !== null && $storedNorm > 0) {
+            // Fast path: only compute dot product
+            for ($i = 0; $i < $len; $i++) {
+                $dot += $a[$i] * $b[$i];
+            }
+            return $dot / ($aNorm * $storedNorm);
+        }
+
+        // Fallback: compute b's norm inline
         for ($i = 0; $i < $len; $i++) {
             $dot += $a[$i] * $b[$i];
             $bNormSq += $b[$i] * $b[$i];
@@ -157,15 +229,11 @@ class EmbeddingStore
     }
 
     /**
-     * Euclidean norm of a vector.
+     * Cosine similarity with pre-computed query norm (legacy compatibility).
      */
-    private static function norm(array $v): float
+    private static function cosineSimilarityFast(array $a, array $b, float $aNorm): float
     {
-        $sum = 0.0;
-        foreach ($v as $val) {
-            $sum += $val * $val;
-        }
-        return sqrt($sum);
+        return self::cosineSimilarityWithNorm($a, $b, $aNorm, null);
     }
 
     // ─── File I/O ───────────────────────────────────────────────
@@ -233,5 +301,76 @@ class EmbeddingStore
     public static function clearCache(): void
     {
         self::$cache = [];
+        self::$normCache = [];
+    }
+
+    // ─── Maintenance ─────────────────────────────────────────────
+
+    /**
+     * Backfill pre-computed norms for all vectors missing them.
+     * Run once after upgrade, then norms are maintained on save().
+     *
+     * @return int Number of vectors updated
+     */
+    public static function backfillNorms(string $type): int
+    {
+        $store = self::loadStore($type);
+        $updated = 0;
+
+        foreach ($store['vectors'] as $id => &$entry) {
+            if (isset($entry['norm'])) continue;
+            $v = $entry['v'] ?? null;
+            if (!is_array($v)) continue;
+
+            $entry['norm'] = round(VectorPacker::norm($v), 8);
+            $updated++;
+        }
+        unset($entry);
+
+        if ($updated > 0) {
+            self::saveStore($type, $store);
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Export store to binary format for migration/testing.
+     *
+     * @return string Path to the binary file
+     */
+    public static function exportBinary(string $type, string $format = VectorPacker::FORMAT_FLOAT16): string
+    {
+        $store = self::loadStore($type);
+        $outPath = DATA_DIR . '/' . self::BASE_DIR . '/' . $type . '.bin';
+
+        $entries = [];
+        foreach ($store['vectors'] as $id => $entry) {
+            $v = $entry['v'] ?? null;
+            if (!is_array($v)) continue;
+
+            $meta = $entry;
+            unset($meta['v']);
+            $entries[] = [
+                'id' => $id,
+                'packed' => base64_encode(VectorPacker::pack($v, $format)),
+                'meta' => $meta,
+            ];
+        }
+
+        $output = [
+            'format' => $format,
+            'dimensions' => 768,
+            'count' => count($entries),
+            'entries' => $entries,
+        ];
+
+        $dir = dirname($outPath);
+        if (!file_exists($dir)) {
+            mkdir($dir, 0777, true);
+        }
+
+        file_put_contents($outPath, json_encode($output, JSON_UNESCAPED_UNICODE), LOCK_EX);
+        return $outPath;
     }
 }
