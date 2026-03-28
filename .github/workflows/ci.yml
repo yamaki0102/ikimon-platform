@@ -46,3 +46,17 @@ jobs:
 
       - name: Run tests
         run: composer test
+
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" || "${{ needs.test.result }}" != "success" ]]; then
+            echo "❌ Quality Gate failed: lint=${{ needs.lint.result }}, test=${{ needs.test.result }}"
+            exit 1
+          fi
+          echo "✅ Quality Gate passed"
