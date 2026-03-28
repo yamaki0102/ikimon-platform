@@ -248,7 +248,7 @@ if ($species_name && preg_match('/[\p{Hiragana}\p{Katakana}\p{Han}]/u', $species
 }
 
 $seo_name = $jp_display_name ?: ($species_name ?? '同定提案待ち');
-$seo_sci = ($scientific_name && $scientific_name !== $seo_name) ? $scientific_name : null;
+$seo_sci = ($scientific_name && $scientific_name !== $seo_name && !str_contains($seo_name, $scientific_name)) ? $scientific_name : null;
 $obs_date = date('Y年n月j日', strtotime($obs['observed_at'] ?? $obs['created_at']));
 $obs_place = $obs['municipality'] ?? ($obs['prefecture'] ?? '');
 $taxonomy_breadcrumb = implode(' > ', array_filter([
