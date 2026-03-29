@@ -426,51 +426,6 @@ $publicSurveyorCount = count($allPublicSurveyors);
                 <?php include __DIR__ . '/components/regional_completion.php'; ?>
             </div>
 
-            <script>
-            document.addEventListener('alpine:init', () => {
-                Alpine.data('feedCard', (obsId, reactions, total, title) => ({
-                    reactions, total, scale: 1, lastTap: 0, _tapTimer: null, menuOpen: false,
-                    async react(type) {
-                        const prev = this.reactions[type].reacted;
-                        this.reactions[type].reacted = !prev;
-                        this.reactions[type].count += prev ? -1 : 1;
-                        this.total += prev ? -1 : 1;
-                        if (!prev) {
-                            if (window.SoundManager) SoundManager.play('light-click');
-                            if (window.HapticEngine) HapticEngine.tick();
-                            this.scale = 1.2;
-                            setTimeout(() => this.scale = 1, 200);
-                        }
-                        try {
-                            const res = await fetch('/api/toggle_like.php', {
-                                method: 'POST',
-                                headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({id: obsId, type})
-                            });
-                            const data = await res.json();
-                            if (data.success) { this.reactions = data.reactions; this.total = data.total; }
-                        } catch (err) {}
-                    },
-                    doubleTap(e) {
-                        const now = Date.now();
-                        if (now - this.lastTap < 300) {
-                            clearTimeout(this._tapTimer); this._tapTimer = null;
-                            if (!this.reactions.like.reacted) this.react('like');
-                        } else {
-                            this._tapTimer = setTimeout(() => { window.location.href = 'observation_detail.php?id=' + encodeURIComponent(obsId); }, 300);
-                        }
-                        this.lastTap = now;
-                    },
-                    async shareObs() {
-                        this.menuOpen = false;
-                        const url = location.origin + '/observation_detail.php?id=' + encodeURIComponent(obsId);
-                        if (navigator.share) { try { await navigator.share({title, url}); } catch {} }
-                        else { await navigator.clipboard.writeText(url); if (Alpine.store('toast')) Alpine.store('toast').success('コピー', 'リンクをコピーしました'); }
-                    }
-                }));
-            });
-            </script>
-
             <!-- Feed Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style="gap:var(--phi-lg)">
                 <?php foreach ($latest_obs as $obs):
@@ -500,11 +455,12 @@ $publicSurveyorCount = count($allPublicSurveyors);
                     $obsComments = count($obs['identifications'] ?? []);
                 ?>
                     <?php
-                        $feedCardObs = htmlspecialchars($obs['id'], ENT_QUOTES);
-                        $feedCardTitle = htmlspecialchars($obs['taxon']['name'] ?? '観察記録', ENT_QUOTES);
-                        $feedCardReactions = json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP);
+                        $feedCardReactionsJson = json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP);
+                        $feedCardObsId = $obs['id'];
+                        $feedCardDetailUrl = 'observation_detail.php?id=' . urlencode($obs['id']);
+                        $feedCardShareTitle = $obs['taxon']['name'] ?? '観察記録';
                     ?>
-                    <article x-data='feedCard(<?php echo json_encode($feedCardObs); ?>, <?php echo $feedCardReactions; ?>, <?php echo (int)$obsTotalReactions; ?>, <?php echo json_encode($feedCardTitle); ?>)'
+                    <article x-data='{ reactions: <?php echo $feedCardReactionsJson; ?>, total: <?php echo (int)$obsTotalReactions; ?>, scale: 1, lastTap: 0, _tapTimer: null, menuOpen: false, react(type) { const p = this.reactions[type].reacted; this.reactions[type].reacted = !p; this.reactions[type].count += p ? -1 : 1; this.total += p ? -1 : 1; if (!p) { this.scale = 1.2; setTimeout(() => this.scale = 1, 200); } fetch("/api/toggle_like.php", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({id: "<?php echo htmlspecialchars($feedCardObsId, ENT_QUOTES); ?>", type: type}) }).then(r => r.json()).then(d => { if (d.success) { this.reactions = d.reactions; this.total = d.total; } }).catch(() => {}); }, doubleTap(e) { const n = Date.now(); if (n - this.lastTap < 300) { clearTimeout(this._tapTimer); this._tapTimer = null; if (!this.reactions.like.reacted) this.react("like"); } else { this._tapTimer = setTimeout(() => { window.location.href = "<?php echo $feedCardDetailUrl; ?>"; }, 300); } this.lastTap = n; }, shareObs() { this.menuOpen = false; const u = location.origin + "/<?php echo $feedCardDetailUrl; ?>"; if (navigator.share) { navigator.share({ title: "<?php echo htmlspecialchars($feedCardShareTitle, ENT_QUOTES); ?>", url: u }).catch(() => {}); } else { navigator.clipboard.writeText(u); if (Alpine.store("toast")) Alpine.store("toast").success("コピー", "リンクをコピーしました"); } } }'
                      @click.outside="menuOpen = false"
                         class="feed-card feed-card--animated rounded-2xl overflow-hidden transition bg-elevated border border-border shadow-sm">
                         <!-- Feed Header -->
