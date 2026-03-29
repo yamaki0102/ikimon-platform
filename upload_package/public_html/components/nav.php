@@ -207,7 +207,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
                             <a href="/events.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                                 <i data-lucide="calendar" class="w-4 h-4"></i> <?php echo __('nav.events'); ?>
                             </a>
-                            <a href="/ikimon_walk.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
+                            <a href="/field_research.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                                 <i data-lucide="footprints" class="w-4 h-4"></i> <?php echo __('nav.my_field'); ?>
                             </a>
                             <a href="/survey.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
@@ -710,7 +710,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
             <a href="/events.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="calendar" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">観察会</span>
             </a>
-            <a href="/ikimon_walk.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+            <a href="/field_research.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="footprints" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">さんぽ記録</span>
             </a>
             <a href="/survey.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">

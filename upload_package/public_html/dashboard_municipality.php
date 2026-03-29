@@ -217,7 +217,7 @@ $_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] ?? '/dashboard_municipality.ph
     </style>
 </head>
 
-<body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body pb-24">
+<body class="js-loading bg-base text-text font-body pb-24">
     <?php include('components/nav.php'); ?>
     <script nonce="<?= CspNonce::attr() ?>">
         document.body.classList.remove('js-loading');

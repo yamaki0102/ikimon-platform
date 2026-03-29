@@ -97,7 +97,7 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                         $badge = Gamification::getBadgeDetails($bKey);
                         if (!$badge) continue;
                     ?>
-                        <div class="w-8 h-8 rounded-full bg-[var(--color-bg-base)] border border-<?php echo $badge['color']; ?> flex items-center justify-center text-xs shadow-lg" title="<?php echo $badge['name']; ?>">
+                        <div class="w-8 h-8 rounded-full bg-base border border-<?php echo $badge['color']; ?> flex items-center justify-center text-xs shadow-lg" title="<?php echo $badge['name']; ?>">
                             <?php echo $badge['icon']; ?>
                         </div>
                     <?php endforeach; ?>
@@ -195,22 +195,22 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                     </div>
                 </div>
                 <!-- Progress Bar -->
-                <div class="relative h-3 rounded-full bg-[var(--color-bg-base)] overflow-hidden mb-5">
+                <div class="relative h-3 rounded-full bg-base overflow-hidden mb-5">
                     <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-1000" style="width: <?php echo $orsProgress; ?>%; background: linear-gradient(90deg, <?php echo $orsRank['color']; ?>, <?php echo $orsRank['color']; ?>cc);">
                         <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
                     </div>
                 </div>
                 <!-- 3-Axis Breakdown -->
                 <div class="grid grid-cols-3 gap-3">
-                    <div class="text-center p-3 rounded-xl bg-[var(--color-bg-base)]">
+                    <div class="text-center p-3 rounded-xl bg-base">
                         <p class="text-lg font-black text-primary"><?php echo number_format($orsAxes['recorder']); ?></p>
                         <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">📝 記録者</p>
                     </div>
-                    <div class="text-center p-3 rounded-xl bg-[var(--color-bg-base)]">
+                    <div class="text-center p-3 rounded-xl bg-base">
                         <p class="text-lg font-black text-secondary"><?php echo number_format($orsAxes['identifier']); ?></p>
                         <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🔬 同定者</p>
                     </div>
-                    <div class="text-center p-3 rounded-xl bg-[var(--color-bg-base)]">
+                    <div class="text-center p-3 rounded-xl bg-base">
                         <p class="text-lg font-black text-accent"><?php echo number_format($orsAxes['fieldwork']); ?></p>
                         <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🥾 フィールドワーク</p>
                     </div>
@@ -279,7 +279,7 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                         <span class="text-xs font-bold text-muted uppercase tracking-wider">今週の自然時間</span>
                         <span class="text-xs font-black" :class="wellnessCurrentWeekMin >= 120 ? 'text-primary' : 'text-text'" x-text="wellnessCurrentWeekMin + ' / 120分'"></span>
                     </div>
-                    <div class="relative h-3 rounded-full bg-[var(--color-bg-base)] overflow-hidden">
+                    <div class="relative h-3 rounded-full bg-base overflow-hidden">
                         <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-1000"
                             :style="'width:' + Math.min(100, (wellnessCurrentWeekMin / 120 * 100)).toFixed(0) + '%; background: linear-gradient(90deg, #66bb6a, #43a047);'">
                             <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
@@ -290,20 +290,20 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
 
                 <!-- 4 Mini Cards -->
                 <div class="grid grid-cols-2 gap-3">
-                    <div class="text-center p-3 rounded-xl bg-[var(--color-bg-base)]">
+                    <div class="text-center p-3 rounded-xl bg-base">
                         <p class="text-lg font-black text-primary" x-text="wellnessCurrentWeekMin + '分'"></p>
                         <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🌳 自然時間</p>
                     </div>
-                    <div class="text-center p-3 rounded-xl bg-[var(--color-bg-base)]">
+                    <div class="text-center p-3 rounded-xl bg-base">
                         <p class="text-lg font-black text-secondary" x-text="(wellness?.physical?.session_count ?? 0) + '回'"></p>
                         <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🥾 セッション</p>
                     </div>
-                    <div class="text-center p-3 rounded-xl bg-[var(--color-bg-base)]">
+                    <div class="text-center p-3 rounded-xl bg-base">
                         <p class="text-lg font-black text-accent" x-text="wellness?.cognitive?.cognitive_engagement ?? 0"></p>
                         <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🧠 認知エンゲージメント</p>
                         <p class="text-muted mt-0.5" style="font-size: 9px;">参考指標</p>
                     </div>
-                    <div class="text-center p-3 rounded-xl bg-[var(--color-bg-base)]">
+                    <div class="text-center p-3 rounded-xl bg-base">
                         <p class="text-lg font-black text-text" x-text="(wellness?.emotional?.lifelist_total ?? 0) + '種'"></p>
                         <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">📋 ライフリスト</p>
                     </div>

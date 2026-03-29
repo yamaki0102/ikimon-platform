@@ -76,6 +76,19 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <!-- Canonical -->
 <link rel="canonical" href="<?php echo htmlspecialchars($canonical); ?>">
 
+<!-- JSON-LD: Organization -->
+<script type="application/ld+json" nonce="<?= CspNonce::attr() ?>">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "ikimon",
+  "url": "https://ikimon.life",
+  "logo": "https://ikimon.life/assets/img/icon-192.png",
+  "description": "市民参加型生物多様性プラットフォーム。自然観察の記録で100年後の生態系アーカイブを作る。",
+  "sameAs": []
+}
+</script>
+
 <!-- Preconnect Hints -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
