@@ -370,7 +370,7 @@ $speciesNarrative = SpeciesNarrative::build([
     </style>
 </head>
 
-<body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-body min-h-screen">
+<body class="bg-base text-text font-body min-h-screen">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
 

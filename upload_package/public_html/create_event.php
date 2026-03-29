@@ -327,7 +327,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
     </style>
 </head>
 
-<body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-sans min-h-screen pb-24 safe-area-inset-bottom"
+<body class="bg-base text-text font-sans min-h-screen pb-24 safe-area-inset-bottom"
     x-data="createEvent()">
 
     <?php include('components/nav.php'); ?>

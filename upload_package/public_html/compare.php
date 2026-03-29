@@ -194,7 +194,7 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
     </style>
 </head>
 
-<body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-body min-h-screen">
+<body class="bg-base text-text font-body min-h-screen">
     <?php include('components/nav.php'); ?>
 
     <main class="max-w-5xl mx-auto px-4 pt-20 pb-32">
@@ -231,7 +231,7 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
                     <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Species A</label>
                     <input type="text" name="a" value="<?php echo htmlspecialchars($_GET['a'] ?? ''); ?>"
                         placeholder="Japanese or scientific name..."
-                        class="w-full px-4 py-2.5 rounded-xl border border-border bg-[var(--color-bg-base)] text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                        class="w-full px-4 py-2.5 rounded-xl border border-border bg-base text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
                 </div>
                 <div class="flex items-center justify-center w-10 h-10 rounded-full bg-accent/10 text-accent font-black text-sm shrink-0 hidden sm:flex">
                     VS
@@ -240,7 +240,7 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
                     <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Species B</label>
                     <input type="text" name="b" value="<?php echo htmlspecialchars($_GET['b'] ?? ''); ?>"
                         placeholder="Japanese or scientific name..."
-                        class="w-full px-4 py-2.5 rounded-xl border border-border bg-[var(--color-bg-base)] text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                        class="w-full px-4 py-2.5 rounded-xl border border-border bg-base text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
                 </div>
                 <button type="submit"
                     class="px-6 py-2.5 rounded-xl bg-accent text-white font-bold text-sm hover:opacity-90 transition shrink-0">
@@ -275,15 +275,15 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
                                 </div>
                             </div>
                             <div class="grid grid-cols-3 gap-2 text-center">
-                                <div class="p-2 rounded-lg bg-[var(--color-bg-base)]">
+                                <div class="p-2 rounded-lg bg-base">
                                     <div class="text-lg font-black text-text"><?php echo $d['obs_count']; ?></div>
                                     <div class="text-[10px] text-muted uppercase font-mono">Observations</div>
                                 </div>
-                                <div class="p-2 rounded-lg bg-[var(--color-bg-base)]">
+                                <div class="p-2 rounded-lg bg-base">
                                     <div class="text-lg font-black text-text"><?php echo $d['specimen_count']; ?></div>
                                     <div class="text-[10px] text-muted uppercase font-mono">Specimens</div>
                                 </div>
-                                <div class="p-2 rounded-lg bg-[var(--color-bg-base)]">
+                                <div class="p-2 rounded-lg bg-base">
                                     <div class="text-lg font-black text-text"><?php echo $d['citation_count']; ?></div>
                                     <div class="text-[10px] text-muted uppercase font-mono">Citations</div>
                                 </div>

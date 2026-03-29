@@ -76,7 +76,7 @@ $meta_title = $corporation ? $workspaceLabel . ' ワークスペース' : '団�
         .chip{display:inline-flex;align-items:center;gap:.45rem;border-radius:999px;padding:.45rem .85rem;font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
     </style>
 </head>
-<body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
+<body class="js-loading bg-base text-text font-body">
 <?php include 'components/nav.php'; ?>
 <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
 <main class="min-h-screen px-4 pb-20 pt-20 md:px-8">

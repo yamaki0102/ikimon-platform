@@ -38,7 +38,7 @@ $meta_title = '名前を提案する';
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
 
-<body class="js-loading bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
+<body class="js-loading bg-base text-text font-body">
     <?php include('components/nav.php'); ?>
     <script nonce="<?= CspNonce::attr() ?>">
         document.body.classList.remove('js-loading');
