@@ -73,7 +73,7 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
 
-<body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-sans min-h-screen pb-24 safe-area-inset-bottom"
+<body class="bg-base text-text font-sans min-h-screen pb-24 safe-area-inset-bottom"
     x-data="eventDashboard()">
 
     <?php include('components/nav.php'); ?>

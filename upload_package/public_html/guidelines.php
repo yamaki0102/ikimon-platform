@@ -13,7 +13,7 @@ Auth::init();
     ?>
 </head>
 
-<body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
+<body class="bg-base text-text font-body">
     <?php include('components/nav.php'); ?>
 
     <main class="max-w-4xl mx-auto px-6 py-20 pb-32">

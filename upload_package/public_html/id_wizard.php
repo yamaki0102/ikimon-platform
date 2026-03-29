@@ -44,7 +44,7 @@ if ($fromObsId) {
     </style>
 </head>
 
-<body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-display min-h-screen flex flex-col">
+<body class="bg-base text-text font-display min-h-screen flex flex-col">
 
     <!-- Header -->
     <header class="p-6 relative z-10">

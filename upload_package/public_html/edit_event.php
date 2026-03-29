@@ -220,7 +220,7 @@ $meta_description = "観察会の情報を編集します。";
     </style>
 </head>
 
-<body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-sans min-h-screen pb-24"
+<body class="bg-base text-text font-sans min-h-screen pb-24"
     x-data="editEvent()">
 
     <?php include('components/nav.php'); ?>
