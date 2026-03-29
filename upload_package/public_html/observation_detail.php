@@ -12,8 +12,10 @@ require_once __DIR__ . '/../libs/TrustLevel.php';
 require_once __DIR__ . '/../libs/OmoikaneSearchEngine.php';
 require_once __DIR__ . '/../libs/ObservationMeta.php';
 require_once __DIR__ . '/../libs/AffiliateManager.php';
+require_once __DIR__ . '/../libs/CSRF.php';
 Auth::init();
 $currentUser = Auth::user();
+$csrfToken = CSRF::generate();
 
 function containsJapaneseText(string $text): bool
 {
@@ -1049,6 +1051,13 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 <i data-lucide="<?php echo $canEditObservation ? 'pencil' : 'sparkles'; ?>" class="w-3.5 h-3.5"></i>
                                 <?php echo $canEditObservation ? '観察データを編集' : '環境や状態を提案'; ?>
                             </a>
+                            <?php if ($canEditObservation): ?>
+                            <button type="button" @click="$dispatch('open-add-photo')"
+                                class="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-xs font-bold text-text transition hover:border-primary/30 hover:text-primary">
+                                <i data-lucide="image-plus" class="w-3.5 h-3.5"></i>
+                                写真を追加
+                            </button>
+                            <?php endif; ?>
                             <?php if (!empty($pendingMetadataProposals)): ?>
                                 <span class="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-xs font-bold text-primary">
                                     <i data-lucide="messages-square" class="w-3.5 h-3.5"></i>
@@ -1885,6 +1894,113 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             }
         });
     </script>
+
+<?php if ($canEditObservation): ?>
+<!-- 写真追加モーダル -->
+<div x-data="addPhotoModal()" @open-add-photo.window="open()" x-show="isOpen" x-cloak
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+    style="display:none">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="close()"></div>
+    <div class="relative w-full max-w-md rounded-3xl bg-surface border border-border shadow-2xl p-6 sm:p-8" @click.stop>
+        <button @click="close()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-base text-muted hover:text-text transition">
+            <i data-lucide="x" class="w-4 h-4" style="pointer-events:none"></i>
+        </button>
+        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-faint">ADD PHOTOS</p>
+        <h2 class="mt-1 text-xl font-black text-text">写真を追加する</h2>
+        <p class="mt-2 text-sm text-muted">1枚から追加できます。最大10枚まで。JPEG・PNG・WebP対応。</p>
+
+        <div class="mt-5">
+            <label class="block w-full cursor-pointer rounded-2xl border-2 border-dashed border-border bg-base hover:border-primary/40 transition p-6 text-center"
+                :class="previews.length > 0 ? 'border-primary/40' : ''">
+                <input type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden"
+                    @change="onFileChange($event)">
+                <template x-if="previews.length === 0">
+                    <div>
+                        <i data-lucide="image-plus" class="w-8 h-8 mx-auto text-muted mb-2" style="pointer-events:none"></i>
+                        <p class="text-sm font-bold text-muted">タップして写真を選択</p>
+                        <p class="text-xs text-faint mt-1">最大10MB/枚</p>
+                    </div>
+                </template>
+                <template x-if="previews.length > 0">
+                    <div class="grid grid-cols-3 gap-2">
+                        <template x-for="(src, i) in previews" :key="i">
+                            <img :src="src" class="aspect-square rounded-xl object-cover w-full border border-border">
+                        </template>
+                    </div>
+                </template>
+            </label>
+        </div>
+
+        <div x-show="error" class="mt-3 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 font-bold" x-text="error"></div>
+        <div x-show="successMsg" class="mt-3 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 font-bold" x-text="successMsg"></div>
+
+        <button @click="upload()" :disabled="files.length === 0 || uploading"
+            class="mt-5 w-full rounded-2xl bg-primary px-6 py-3 text-sm font-black text-white transition hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <i data-lucide="upload" class="w-4 h-4" style="pointer-events:none" x-show="!uploading"></i>
+            <span x-text="uploading ? 'アップロード中...' : '追加する'"></span>
+        </button>
+    </div>
+</div>
+
+<script>
+function addPhotoModal() {
+    return {
+        isOpen: false,
+        files: [],
+        previews: [],
+        uploading: false,
+        error: '',
+        successMsg: '',
+        open() {
+            this.isOpen = true;
+            this.files = [];
+            this.previews = [];
+            this.error = '';
+            this.successMsg = '';
+            this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+        },
+        close() {
+            if (this.successMsg) { location.reload(); return; }
+            this.isOpen = false;
+        },
+        onFileChange(e) {
+            this.files = Array.from(e.target.files);
+            this.previews = [];
+            this.error = '';
+            this.files.forEach(f => {
+                const reader = new FileReader();
+                reader.onload = ev => this.previews.push(ev.target.result);
+                reader.readAsDataURL(f);
+            });
+        },
+        async upload() {
+            if (this.files.length === 0 || this.uploading) return;
+            this.uploading = true;
+            this.error = '';
+            this.successMsg = '';
+            const fd = new FormData();
+            fd.append('obs_id', '<?php echo htmlspecialchars($id, ENT_QUOTES); ?>');
+            fd.append('csrf_token', '<?php echo htmlspecialchars($csrfToken, ENT_QUOTES); ?>');
+            this.files.forEach(f => fd.append('photos[]', f));
+            try {
+                const res = await fetch('/api/add_observation_photo.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    this.successMsg = data.message + ' ページを更新します...';
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    this.error = data.message || 'アップロードに失敗しました。';
+                    this.uploading = false;
+                }
+            } catch {
+                this.error = 'ネットワークエラーが発生しました。';
+                this.uploading = false;
+            }
+        }
+    };
+}
+</script>
+<?php endif; ?>
 </body>
 
 </html>
