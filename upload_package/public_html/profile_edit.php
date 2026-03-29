@@ -212,6 +212,53 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                     </div>
                 </div>
 
+                <!-- Email Management -->
+                <div class="pt-2" x-data="emailManager()">
+                    <button type="button" @click="showEmails = !showEmails"
+                        class="w-full flex items-center justify-between py-3 px-1 group">
+                        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 group-hover:text-gray-600 transition">
+                            <i data-lucide="mail" class="w-4 h-4"></i> メールアドレス
+                        </h2>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform duration-300"
+                            :class="showEmails ? 'rotate-180' : ''"></i>
+                    </button>
+
+                    <div class="overflow-hidden transition-all duration-300" :style="showEmails ? 'max-height:600px;opacity:1' : 'max-height:0;opacity:0'">
+                        <div class="p-5 bg-surface rounded-2xl border border-border space-y-3 mt-2">
+                            <p class="text-xs text-muted font-bold">ログインに使えるメールアドレスを管理できます。</p>
+
+                            <div class="flex items-center gap-2 py-2 px-3 bg-white/60 rounded-xl border border-gray-100" x-show="primaryEmail">
+                                <i data-lucide="shield-check" class="w-4 h-4 text-green-500 flex-shrink-0"></i>
+                                <span class="text-sm font-bold truncate" x-text="primaryEmail"></span>
+                                <span class="text-token-xs text-muted ml-auto flex-shrink-0">メイン</span>
+                            </div>
+
+                            <template x-for="(em, idx) in emails" :key="idx">
+                                <div class="flex items-center gap-2 py-2 px-3 bg-white/60 rounded-xl border border-gray-100">
+                                    <i data-lucide="mail" class="w-4 h-4 text-gray-400 flex-shrink-0"></i>
+                                    <span class="text-sm truncate" x-text="em"></span>
+                                    <button type="button" @click="removeEmail(em)" class="ml-auto text-red-400 hover:text-red-600 transition flex-shrink-0">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </template>
+
+                            <div class="flex gap-2 pt-1">
+                                <input type="email" x-model="newEmail" placeholder="追加するメールアドレス"
+                                    class="flex-1 bg-white/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[var(--color-primary)] transition"
+                                    @keydown.enter.prevent="addEmail()">
+                                <button type="button" @click="addEmail()"
+                                    class="px-4 py-2.5 rounded-xl text-sm font-bold bg-primary/10 text-primary-dark hover:bg-primary/20 transition"
+                                    :disabled="!newEmail || emailLoading">
+                                    追加
+                                </button>
+                            </div>
+                            <p class="text-token-xs text-red-500" x-show="emailError" x-text="emailError"></p>
+                            <p class="text-token-xs text-green-600" x-show="emailSuccess" x-text="emailSuccess"></p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Password Change (Accordion) -->
                 <div class="pt-2">
                     <button type="button" @click="togglePasswordSection()"
@@ -481,6 +528,72 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                             top: 0,
                             behavior: 'smooth'
                         });
+                    }
+                }
+            }
+        }
+
+        function emailManager() {
+            return {
+                showEmails: false,
+                primaryEmail: <?= json_encode($user['email'] ?? '', JSON_HEX_TAG) ?>,
+                emails: <?= json_encode($user['emails'] ?? [], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) ?>,
+                newEmail: '',
+                emailLoading: false,
+                emailError: '',
+                emailSuccess: '',
+
+                getCsrf() {
+                    const m = document.cookie.match(/ikimon_csrf=([a-f0-9]+)/);
+                    return m ? m[1] : (document.querySelector('meta[name="csrf-token"]')?.content || '');
+                },
+
+                async addEmail() {
+                    if (!this.newEmail) return;
+                    this.emailError = '';
+                    this.emailSuccess = '';
+                    this.emailLoading = true;
+                    try {
+                        const res = await fetch('api/manage_emails.php?csrf_token=' + this.getCsrf(), {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': this.getCsrf() },
+                            body: JSON.stringify({ action: 'add', email: this.newEmail })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            this.emails = data.emails;
+                            this.newEmail = '';
+                            this.emailSuccess = 'メールアドレスを追加しました';
+                            setTimeout(() => this.emailSuccess = '', 3000);
+                            this.$nextTick(() => lucide.createIcons());
+                        } else {
+                            this.emailError = data.error;
+                        }
+                    } catch (e) {
+                        this.emailError = '通信エラーが発生しました';
+                    }
+                    this.emailLoading = false;
+                },
+
+                async removeEmail(em) {
+                    this.emailError = '';
+                    this.emailSuccess = '';
+                    try {
+                        const res = await fetch('api/manage_emails.php?csrf_token=' + this.getCsrf(), {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': this.getCsrf() },
+                            body: JSON.stringify({ action: 'remove', email: em })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            this.emails = data.emails;
+                            this.emailSuccess = '削除しました';
+                            setTimeout(() => this.emailSuccess = '', 3000);
+                        } else {
+                            this.emailError = data.error;
+                        }
+                    } catch (e) {
+                        this.emailError = '通信エラーが発生しました';
                     }
                 }
             }

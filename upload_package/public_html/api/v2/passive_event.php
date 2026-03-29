@@ -43,25 +43,53 @@ require_once ROOT_DIR . '/libs/GeoUtils.php';
 require_once ROOT_DIR . '/libs/MeshCode.php';
 require_once ROOT_DIR . '/libs/MeshAggregator.php';
 
-// 認証
-Auth::init();
-if (!Auth::isLoggedIn()) {
-    api_error('Authentication required.', 401);
-}
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     api_error('POST method required.', 405);
 }
 
-// レート制限（パッシブは大量バッチなので緩め）
-if (!api_rate_limit('passive_event', 10, 60)) {
-    api_error('Rate limit exceeded. Max 10 batches per minute.', 429);
+// 認証（セッション OR install_id トークン）
+Auth::init();
+$userId = null;
+$userName = 'Unknown';
+$userAvatar = null;
+
+if (Auth::isLoggedIn()) {
+    $user = Auth::user();
+    $userId = $user['id'] ?? null;
+    $userName = $user['name'] ?? '';
+    $userAvatar = $user['avatar'] ?? null;
+} else {
+    // FieldScanアプリからのinstall_id認証
+    $installId = $_GET['install_id'] ?? null;
+    if ($installId) {
+        require_once ROOT_DIR . '/libs/UserStore.php';
+        $installs = DataStore::get('fieldscan_installs') ?? [];
+        $matched = null;
+        foreach ($installs as $inst) {
+            if (($inst['install_id'] ?? '') === $installId && ($inst['status'] ?? 'active') === 'active') {
+                $matched = $inst;
+                break;
+            }
+        }
+        if ($matched) {
+            $userId = $matched['user_id'];
+            $freshUser = UserStore::findById($userId);
+            if ($freshUser) {
+                $userName = $freshUser['name'] ?? 'Unknown';
+                $userAvatar = $freshUser['avatar'] ?? null;
+            }
+        } else {
+            api_error('Invalid install_id. Register your device at ikimon.life/profile.', 401);
+        }
+    } else {
+        api_error('Authentication required.', 401);
+    }
 }
 
-$user = Auth::user();
-$userId = $user['id'] ?? null;
-$userName = $user['name'] ?? '';
-$userAvatar = $user['avatar'] ?? null;
+if (empty($userId)) {
+    api_error('Authentication required.', 401);
+}
+
 if (empty($userName) || $userName === 'Unknown') {
     require_once ROOT_DIR . '/libs/UserStore.php';
     $freshUser = UserStore::findById($userId);
@@ -71,6 +99,11 @@ if (empty($userName) || $userName === 'Unknown') {
     }
 }
 if (empty($userName)) $userName = 'Unknown';
+
+// レート制限（パッシブは大量バッチなので緩め）
+if (!api_rate_limit('passive_event', 10, 60)) {
+    api_error('Rate limit exceeded. Max 10 batches per minute.', 429);
+}
 $body = api_json_body();
 
 $events = $body['events'] ?? [];
@@ -85,12 +118,17 @@ if (count($events) > 500) {
     api_error('Too many events. Max 500 per batch.', 400);
 }
 
+// ホモサピエンス（撮影者自身）として誤検出される大分類を除外
+const EXCLUDED_HIGHER_GROUPS = ['哺乳類', 'Mammal', '人間', 'Human', 'Person', 'People'];
+
 // イベントバリデーション
 $validEvents = [];
 foreach ($events as $i => $event) {
     if (empty($event['type']) || empty($event['taxon_name'])) continue;
     if (!in_array($event['type'], ['audio', 'visual', 'sensor'], true)) continue;
     if ((float)($event['confidence'] ?? 0) < 0.20) continue;
+    // 哺乳類大分類は除外（ほぼ撮影者本人のホモサピエンス誤検出）
+    if (in_array(trim($event['taxon_name']), EXCLUDED_HIGHER_GROUPS, true)) continue;
 
     $validEvents[] = [
         'type'               => $event['type'],
@@ -109,6 +147,9 @@ foreach ($events as $i => $event) {
         'frame_ref'          => $event['frame_ref'] ?? null,
         'speed_kmh'          => isset($event['speed_kmh']) ? (float) $event['speed_kmh'] : null,
         'ai_version'         => $event['ai_version'] ?? null,
+        'taxonomic_class'    => $event['taxonomic_class'] ?? null,
+        'taxonomic_order'    => $event['taxonomic_order'] ?? null,
+        'taxon_rank'         => $event['taxon_rank'] ?? 'species',
     ];
 }
 

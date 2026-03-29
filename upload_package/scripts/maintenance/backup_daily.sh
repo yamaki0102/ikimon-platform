@@ -5,8 +5,8 @@
 # Backs up data/ directory to ~/backups/ikimon/
 # Keeps last 7 daily backups.
 
-SITE_ROOT="$HOME/public_html/ikimon.life"
-BACKUP_DIR="$HOME/backups/ikimon"
+SITE_ROOT="/var/www/ikimon.life/repo/upload_package"
+BACKUP_DIR="/var/www/ikimon.life/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 KEEP_DAYS=7
 

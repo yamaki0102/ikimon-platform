@@ -25,8 +25,8 @@ class PocketService : Service() {
     companion object {
         private const val TAG = "PocketService"
         private const val NOTIFICATION_ID = 1001
-        private const val AUDIO_INTERVAL_MS = 30_000L  // 30秒ごとに録音
-        private const val AUDIO_DURATION_MS = 5_000L   // 5秒間録音
+        private const val AUDIO_INTERVAL_MS = 15_000L  // 15秒ごとに録音（2倍の頻度）
+        private const val AUDIO_DURATION_MS = 10_000L  // 10秒間録音（BirdNET精度向上）
         private const val GPS_INTERVAL_MS = 10_000L    // 10秒ごとにGPS
 
         fun start(context: Context) {
@@ -111,13 +111,13 @@ class PocketService : Service() {
     }
 
     /**
-     * 5秒間の音声を録音し、BirdNET で分類する
+     * 10秒間の音声を録音し、BirdNET+ V3.0で分類する
      */
     private fun captureAndClassifyAudio() {
         audioClassifier?.classifyAmbientAudio(AUDIO_DURATION_MS) { results ->
             val location = locationTracker?.lastLocation
             for (result in results) {
-                if (result.confidence < 0.5f) continue
+                if (result.confidence < 0.20f) continue
 
                 val event = DetectionEvent(
                     type = "audio",
@@ -127,14 +127,17 @@ class PocketService : Service() {
                     lat = location?.latitude,
                     lng = location?.longitude,
                     timestamp = System.currentTimeMillis(),
-                    model = "birdnet_lite_v1",
+                    model = "birdnet_v3_dp3",
+                    taxonomicClass = result.taxonomicClass,
+                    order = result.order,
                 )
                 eventBuffer.add(event)
 
-                Log.d(TAG, "Detected: ${result.name} (${(result.confidence * 100).toInt()}%)")
+                Log.d(TAG, "Detected: ${result.scientificName} / ${result.name} " +
+                    "(${(result.confidence * 100).toInt()}%) [${result.taxonomicClass}]")
 
                 // 高信頼度の新種検出 → 通知
-                if (result.confidence >= 0.7f && eventBuffer.isNewSpecies(result.name)) {
+                if (result.confidence >= 0.5f && eventBuffer.isNewSpecies(result.name)) {
                     updateNotification("${result.name} を検出! (${(result.confidence * 100).toInt()}%)")
                 }
             }

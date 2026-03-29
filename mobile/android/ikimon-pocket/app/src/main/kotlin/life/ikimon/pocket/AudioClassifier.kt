@@ -5,58 +5,91 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
-import org.tensorflow.lite.Interpreter
-import java.io.FileInputStream
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.nio.MappedByteBuffer
-import java.nio.channels.FileChannel
+import ai.onnxruntime.OnnxTensor
+import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtSession
+import java.nio.FloatBuffer
 
 /**
- * 音声分類器（BirdNET Lite ベース）
+ * 音声分類器（BirdNET+ V3.0 ONNX ベース）
  *
- * 環境音の短い断片（5秒）を録音し、
- * TFLite モデルで鳥声・虫声を分類する。
+ * 環境音を録音し、ONNX Runtime で鳥声・虫声・カエル声を分類する。
+ * BirdNET+ V3.0 DP3: 11,560種、32kHz入力、可変長対応。
  *
- * 初期バージョン: BirdNET Lite (TFLite)
- * 将来: Gemini Nano on-device audio
+ * Pixel 10 Pro (Tensor G5) のNNAPI/GPU delegate でハードウェア加速。
  */
 class AudioClassifier(private val context: Context) {
 
     companion object {
         private const val TAG = "AudioClassifier"
-        private const val SAMPLE_RATE = 48000
-        private const val MODEL_FILE = "birdnet_lite.tflite"
-        private const val LABELS_FILE = "birdnet_labels.txt"
-        private const val MIN_CONFIDENCE = 0.3f
+        private const val SAMPLE_RATE = 32000  // V3.0: 32kHz（V2.4は48kHz）
+        private const val MODEL_FILE = "birdnet_v3.onnx"
+        private const val LABELS_FILE = "birdnet_v3_labels.csv"
+        private const val MIN_CONFIDENCE = 0.15f  // V3.0推奨閾値
+        private const val MAX_RESULTS = 10
     }
 
     data class ClassificationResult(
         val name: String,
         val scientificName: String,
         val confidence: Float,
+        val taxonomicClass: String = "",
+        val order: String = "",
     )
 
-    private var interpreter: Interpreter? = null
-    private var labels: List<String> = emptyList()
+    private var ortEnv: OrtEnvironment? = null
+    private var session: OrtSession? = null
+    private var labels: List<LabelEntry> = emptyList()
+    private var modelLoaded = false
+
+    private data class LabelEntry(
+        val idx: Int,
+        val sciName: String,
+        val comName: String,
+        val taxClass: String,
+        val order: String,
+    )
 
     init {
         try {
-            val model = loadModelFile(MODEL_FILE)
-            interpreter = Interpreter(model)
+            ortEnv = OrtEnvironment.getEnvironment()
+
+            // 541MBモデルをヒープに載せずファイルパスで直接読み込む
+            val modelFile = java.io.File(context.cacheDir, MODEL_FILE)
+            if (!modelFile.exists()) {
+                Log.i(TAG, "Extracting ONNX model to cache (first launch)...")
+                context.assets.open(MODEL_FILE).use { input ->
+                    modelFile.outputStream().use { output -> input.copyTo(output) }
+                }
+            }
+
+            val opts = OrtSession.SessionOptions().apply {
+                setIntraOpNumThreads(4)  // Tensor G5マルチコア活用
+                setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT)
+            }
+            // NNAPIは541MBモデルで不安定なためCPU推論を使用
+            session = ortEnv?.createSession(modelFile.absolutePath, opts)
             labels = loadLabels(LABELS_FILE)
-            Log.i(TAG, "Model loaded: ${labels.size} species")
+            modelLoaded = true
+            Log.i(TAG, "BirdNET+ V3.0 loaded: ${labels.size} species, ONNX Runtime (file-backed)")
         } catch (e: Exception) {
-            Log.w(TAG, "Model not loaded (expected in dev): ${e.message}")
-            // モデルがない場合はダミーモードで動作
+            Log.e(TAG, "Model load failed: ${e.message}", e)
+            modelLoaded = false
         }
     }
 
+    fun isReady(): Boolean = modelLoaded
+
     /**
      * 指定時間（ms）だけ環境音を録音し、分類する。
-     * コールバックで結果を返す。
      */
     fun classifyAmbientAudio(durationMs: Long, callback: (List<ClassificationResult>) -> Unit) {
+        if (!modelLoaded) {
+            Log.w(TAG, "Model not loaded — skipping classification")
+            callback(emptyList())
+            return
+        }
+
         Thread {
             try {
                 val audioData = recordAudio(durationMs)
@@ -75,8 +108,7 @@ class AudioClassifier(private val context: Context) {
     }
 
     /**
-     * 短時間の音声を録音する。
-     * プライバシー: 録音データは推論後に破棄（保存しない）。
+     * 32kHz モノラルで録音。プライバシー: 推論後に破棄。
      */
     private fun recordAudio(durationMs: Long): FloatArray? {
         val bufferSize = AudioRecord.getMinBufferSize(
@@ -86,7 +118,7 @@ class AudioClassifier(private val context: Context) {
         )
 
         if (bufferSize == AudioRecord.ERROR_BAD_VALUE) {
-            Log.e(TAG, "Invalid buffer size")
+            Log.e(TAG, "Invalid buffer size for ${SAMPLE_RATE}Hz")
             return null
         }
 
@@ -127,76 +159,92 @@ class AudioClassifier(private val context: Context) {
     }
 
     /**
-     * TFLite モデルで分類を実行する。
+     * ONNX Runtime で分類実行。V3.0は可変長入力対応。
      */
     private fun classify(audioData: FloatArray): List<ClassificationResult> {
-        val interp = interpreter ?: return dummyClassify()
+        val env = ortEnv ?: return emptyList()
+        val sess = session ?: return emptyList()
 
-        // BirdNET expects 48kHz mono, 3 seconds chunks
-        // Pad or trim to expected input size
-        val inputShape = interp.getInputTensor(0).shape()
-        val expectedLength = inputShape.last()
-        val input = if (audioData.size >= expectedLength) {
-            audioData.copyOf(expectedLength)
-        } else {
-            FloatArray(expectedLength).also { audioData.copyInto(it) }
+        // V3.0: 入力テンソル shape [1, samples] — 可変長
+        val inputShape = longArrayOf(1, audioData.size.toLong())
+        val inputBuffer = FloatBuffer.wrap(audioData)
+        val inputTensor = OnnxTensor.createTensor(env, inputBuffer, inputShape)
+
+        val output = sess.run(mapOf("input" to inputTensor))
+        inputTensor.close()
+
+        // 出力テンソルから確率を取得
+        val outputTensor = output[0].value
+        val probabilities = when (outputTensor) {
+            is Array<*> -> {
+                @Suppress("UNCHECKED_CAST")
+                (outputTensor as Array<FloatArray>)[0]
+            }
+            is FloatArray -> outputTensor
+            else -> {
+                Log.e(TAG, "Unexpected output type: ${outputTensor?.javaClass}")
+                output.close()
+                return emptyList()
+            }
         }
 
-        // Run inference
-        val inputBuffer = ByteBuffer.allocateDirect(expectedLength * 4).apply {
-            order(ByteOrder.nativeOrder())
-            for (sample in input) putFloat(sample)
-            rewind()
+        // 上位N件を抽出（MIN_CONFIDENCE以上）
+        val results = probabilities
+            .mapIndexed { index, confidence ->
+                if (confidence >= MIN_CONFIDENCE && index < labels.size) {
+                    val label = labels[index]
+                    ClassificationResult(
+                        name = label.comName,
+                        scientificName = label.sciName,
+                        confidence = confidence,
+                        taxonomicClass = label.taxClass,
+                        order = label.order,
+                    )
+                } else null
+            }
+            .filterNotNull()
+            .sortedByDescending { it.confidence }
+            .take(MAX_RESULTS)
+
+        output.close()
+
+        if (results.isNotEmpty()) {
+            Log.i(TAG, "Top detection: ${results[0].name} (${results[0].scientificName}) " +
+                "${(results[0].confidence * 100).toInt()}%")
         }
 
-        val outputShape = interp.getOutputTensor(0).shape()
-        val outputSize = outputShape.last()
-        val output = Array(1) { FloatArray(outputSize) }
-
-        interp.run(inputBuffer, output)
-
-        // Map to results
-        return output[0].mapIndexed { index, confidence ->
-            if (confidence >= MIN_CONFIDENCE && index < labels.size) {
-                val parts = labels[index].split("_", limit = 2)
-                ClassificationResult(
-                    name = parts.getOrElse(1) { labels[index] },
-                    scientificName = parts.getOrElse(0) { "" },
-                    confidence = confidence,
-                )
-            } else null
-        }
-        .filterNotNull()
-        .sortedByDescending { it.confidence }
-        .take(5)
+        return results
     }
 
     /**
-     * モデルがない場合のダミー分類（開発用）。
+     * CSVラベル読み込み。形式: idx;id;sci_name;com_name;class;order
      */
-    private fun dummyClassify(): List<ClassificationResult> {
-        val dummySpecies = listOf(
-            ClassificationResult("シジュウカラ", "Parus minor", 0.85f),
-            ClassificationResult("ヒヨドリ", "Hypsipetes amaurotis", 0.72f),
-            ClassificationResult("メジロ", "Zosterops japonicus", 0.65f),
-        )
-        // ランダムに0-2種返す
-        return dummySpecies.shuffled().take((0..2).random())
-    }
-
-    private fun loadModelFile(filename: String): MappedByteBuffer {
-        val fd = context.assets.openFd(filename)
-        val input = FileInputStream(fd.fileDescriptor)
-        val channel = input.channel
-        return channel.map(FileChannel.MapMode.READ_ONLY, fd.startOffset, fd.declaredLength)
-    }
-
-    private fun loadLabels(filename: String): List<String> {
+    private fun loadLabels(filename: String): List<LabelEntry> {
         return try {
-            context.assets.open(filename).bufferedReader().readLines()
+            context.assets.open(filename).bufferedReader().useLines { lines ->
+                lines.drop(1)  // ヘッダースキップ
+                    .mapNotNull { line ->
+                        val parts = line.split(";")
+                        if (parts.size >= 6) {
+                            LabelEntry(
+                                idx = parts[0].toIntOrNull() ?: 0,
+                                sciName = parts[2],
+                                comName = parts[3],
+                                taxClass = parts[4],
+                                order = parts[5],
+                            )
+                        } else null
+                    }
+                    .toList()
+            }
         } catch (e: Exception) {
-            Log.w(TAG, "Labels file not found: $filename")
+            Log.e(TAG, "Labels file not found: $filename")
             emptyList()
         }
+    }
+
+    fun close() {
+        session?.close()
+        ortEnv?.close()
     }
 }

@@ -182,7 +182,7 @@
   - 検出種数を期待種数（Chao1推定 or エリア平均）で割る
   - 12種/推定18種 = 67% → 6.7点
 
-音風景の質（BioScan のみ、Web版は推定値）:
+音風景の質（FieldScan のみ、Web版は推定値）:
   - NDSI（自然音/人工音比）を0-10にマッピング
   - NDSI 0.6 → 7点
 
@@ -191,7 +191,7 @@
   - 森林 → 9点、公園 → 7点、市街地 → 4点
 ```
 
-Web版（Live Scan）でもセンサーなしで推定値を出せる。BioScan があればセンサーで正確な値。
+Web版（Live Scan）でもセンサーなしで推定値を出せる。FieldScan があればセンサーで正確な値。
 
 ---
 
@@ -238,7 +238,7 @@ POST /api/v2/nature_score.php
   "duration_sec": 2700,
   "distance_m": 1200,
   "area_type": "park",         // GPS → GeoContext で自動判定
-  "acoustic_ndsi": 0.6,        // BioScan のみ（Web は null）
+  "acoustic_ndsi": 0.6,        // FieldScan のみ（Web は null）
   "detections": [...]
 }
 
@@ -256,11 +256,11 @@ POST /api/v2/nature_score.php
 
 ---
 
-## BioScan（Android）との関係
+## FieldScan（Android）との関係
 
-BioScan は**この統合版 field_research.php の「ネイティブ版」**。
+FieldScan は**この統合版 field_research.php の「ネイティブ版」**。
 
-| 機能 | Web (field_research.php) | BioScan (Android) |
+| 機能 | Web (field_research.php) | FieldScan (Android) |
 |------|--------------------------|-------------------|
 | GPS追跡 | ✅ | ✅ |
 | Fog of War | ✅（ブラウザ） | ❌（アプリ内マップは後回し） |
@@ -272,8 +272,8 @@ BioScan は**この統合版 field_research.php の「ネイティブ版」**。
 | 自然浴スコア | ✅（推定値） | ✅（センサー実測値） |
 | データ送信先 | passive_event.php | passive_event.php（**同じ**） |
 
-**BioScan のセッション結果もブラウザで見る。** アプリ内に結果ページを作り込む必要はない。
-BioScan セッション終了 → ikimon.life の結果ページURLを開く → 統合された散歩レポートを表示。
+**FieldScan のセッション結果もブラウザで見る。** アプリ内に結果ページを作り込む必要はない。
+FieldScan セッション終了 → ikimon.life の結果ページURLを開く → 統合された散歩レポートを表示。
 
 ---
 
@@ -295,7 +295,7 @@ BioScan セッション終了 → ikimon.life の結果ページURLを開く →
 ### Step 3: nature_score.php API 新規作成
 
 - species_count × area_type × acoustic_ndsi → スコア算出
-- BioScan対応（acoustic_ndsi がある場合はセンサー値を使用）
+- FieldScan対応（acoustic_ndsi がある場合はセンサー値を使用）
 
 ### Step 4: walk.php / field_scan.php を非推奨化
 

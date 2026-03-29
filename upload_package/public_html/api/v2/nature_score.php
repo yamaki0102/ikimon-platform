@@ -10,7 +10,7 @@
  *   duration_sec: int
  *   distance_m: int
  *   area_type: string (forest|park|river|urban|unknown)
- *   acoustic_ndsi: float|null  (BioScan のみ。Web は null)
+ *   acoustic_ndsi: float|null  (FieldScan のみ。Web は null)
  *   detections: array           (optional)
  *
  * Response:
@@ -40,7 +40,7 @@ $diversityScore = min(10, $speciesRate);
 
 // --- 2. 音風景スコア (0-10) ---
 if ($acousticNdsi !== null) {
-    // BioScan: NDSI 実測値 (-1 to 1 → 0 to 10)
+    // FieldScan: NDSI 実測値 (-1 to 1 → 0 to 10)
     $soundscapeScore = min(10, max(0, ($acousticNdsi + 1) * 5));
 } else {
     // Web版: area_type から推定

@@ -17,6 +17,10 @@ data class DetectionEvent(
     val model: String,             // 使用モデル名
     val audioSnippetHash: String? = null,
     val photoRef: String? = null,
+    val taxonomicClass: String? = null,  // "Aves", "Amphibia", "Insecta" 等
+    val order: String? = null,           // "Passeriformes" 等
+    val taxonRank: String = "species",   // species/genus/family/order/class
+    val aiVersion: String = "v0.7.0",
 ) {
     fun toJSON(): JSONObject = JSONObject().apply {
         put("type", type)
@@ -28,7 +32,11 @@ data class DetectionEvent(
         put("timestamp", java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US)
             .format(java.util.Date(timestamp)))
         put("model", model)
+        put("ai_version", aiVersion)
         audioSnippetHash?.let { put("audio_snippet_hash", it) }
         photoRef?.let { put("photo_ref", it) }
+        taxonomicClass?.let { put("taxonomic_class", it) }
+        order?.let { put("taxonomic_order", it) }
+        put("taxon_rank", taxonRank)
     }
 }

@@ -3,13 +3,13 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
 Auth::init();
 
-$meta_title = 'BioScan — AI生物スキャナー | ikimon.life';
+$meta_title = 'FieldScan — AI生物スキャナー | ikimon.life';
 $meta_description = '3つのAIエンジンが視覚・聴覚・環境を同時スキャン。歩くだけで生態系のタイムカプセルを生成する、100年アーカイブのためのAndroidアプリ。';
-$meta_canonical = rtrim(BASE_URL, '/') . '/bioscan';
+$meta_canonical = rtrim(BASE_URL, '/') . '/fieldscan';
 
 $apkVersion = '0.5.1';
 $apkSize = '15MB';
-$apkFile = 'assets/downloads/ikimon-bioscan.apk';
+$apkFile = 'assets/downloads/ikimon-fieldscan.apk';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -28,7 +28,7 @@ $apkFile = 'assets/downloads/ikimon-bioscan.apk';
     <section class="text-center space-y-4 mb-12">
         <div class="text-6xl">🔬</div>
         <h1 class="text-3xl font-black tracking-tight">
-            Bio<span class="text-emerald-400">Scan</span>
+            Field<span class="text-emerald-400">Scan</span>
             <span class="text-xs font-normal text-gray-500 ml-2">v<?= htmlspecialchars($apkVersion) ?></span>
         </h1>
         <p class="text-gray-400 text-sm leading-relaxed max-w-md mx-auto">
@@ -134,7 +134,7 @@ $apkFile = 'assets/downloads/ikimon-bioscan.apk';
         </div>
 
         <a href="<?= htmlspecialchars($apkFile) ?>"
-           download="ikimon-bioscan-v<?= htmlspecialchars($apkVersion) ?>.apk"
+           download="ikimon-fieldscan-v<?= htmlspecialchars($apkVersion) ?>.apk"
            class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold py-4 px-8 rounded-xl text-base transition">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             APK をダウンロード
@@ -239,7 +239,7 @@ $apkFile = 'assets/downloads/ikimon-bioscan.apk';
             <span class="text-lg">⚠️</span>
             <div class="text-xs text-gray-300 space-y-1">
                 <p><strong class="text-amber-300">AI推定について</strong></p>
-                <p>BioScan の同定結果はAIによる推定であり、正確性は保証されません。視覚AI（Gemini Nano）は確信度に応じて分類階級（綱・目・科）で表示し、無理に種レベルまで同定しません。音声AI（デュアルエンジン）は両者合意時のみ高信頼と判定します。</p>
+                <p>FieldScan の同定結果はAIによる推定であり、正確性は保証されません。視覚AI（Gemini Nano）は確信度に応じて分類階級（綱・目・科）で表示し、無理に種レベルまで同定しません。音声AI（デュアルエンジン）は両者合意時のみ高信頼と判定します。</p>
                 <p>正確な同定が必要な場合は、ikimon.life 上で専門家やコミュニティによる確認を経てください。</p>
             </div>
         </div>

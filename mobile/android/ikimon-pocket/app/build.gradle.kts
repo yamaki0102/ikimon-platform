@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -8,19 +9,26 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "life.ikimon.pocket"
+        applicationId = "life.ikimon.fieldscan"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 70001
+        versionName = "0.7.0"
+    }
+
+    // BirdNET V3 ONNXモデル（541MB）はAPKに含めずaab/asset packで配布
+    aaptOptions {
+        noCompress += "onnx"
+        noCompress += "csv"
     }
 
     buildFeatures {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
@@ -40,9 +48,11 @@ dependencies {
     // Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
-    // TensorFlow Lite (BirdNET)
-    implementation("org.tensorflow:tensorflow-lite:2.16.1")
-    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+    // ONNX Runtime (BirdNET+ V3.0)
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
+
+    // Gemini Nano on-device (視覚AI — Prompt API)
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")
 
     // CameraX (Scan Mode)
     implementation("androidx.camera:camera-core:1.3.4")

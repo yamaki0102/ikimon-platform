@@ -81,6 +81,27 @@ if (!$obs) {
 // Increment View Count
 DataStore::increment('observations', $id, 'views');
 
+// Load Reactions
+$_reactDir = DATA_DIR . '/reactions/' . $id;
+$_reactTypes = ['footprint', 'like', 'suteki', 'manabi'];
+$obsReactions = [];
+$obsTotalReactions = 0;
+foreach ($_reactTypes as $_rt) {
+    $_rf = $_reactDir . '/' . $_rt . '.json';
+    $_rl = file_exists($_rf) ? (json_decode(file_get_contents($_rf), true) ?: []) : [];
+    $obsReactions[$_rt] = ['count' => count($_rl), 'reacted' => $currentUser && in_array($currentUser['id'], $_rl)];
+    $obsTotalReactions += count($_rl);
+}
+if ($obsTotalReactions === 0) {
+    $_legacyFile = DATA_DIR . '/likes/' . $id . '.json';
+    if (file_exists($_legacyFile)) {
+        $_ll = json_decode(file_get_contents($_legacyFile), true) ?: [];
+        $obsReactions['footprint']['count'] = count($_ll);
+        $obsReactions['footprint']['reacted'] = $currentUser && in_array($currentUser['id'], $_ll);
+        $obsTotalReactions = count($_ll);
+    }
+}
+
 // Check My Field
 require_once __DIR__ . '/../libs/MyFieldManager.php';
 $myFieldName = null;
@@ -203,17 +224,68 @@ $location = BioUtils::getObscuredLocation($obs['lat'], $obs['lng'], null); // Ig
 $redlist = $taxon_key ? RedList::check($taxon_key) : null;
 $invasive = ($species_name || $scientific_name) ? Invasive::check($species_name, $scientific_name) : null;
 
-// JSON-LD
-$json_ld = [
-    "@context" => "https://schema.org",
-    "@type" => "Observation",
-    "image" => $obs['photos'][0] ?? '',
-    "name" => $species_name ?? 'Unidentified'
+// --- 和名解決 (SEO/LLMO用) ---
+$jp_display_name = null;
+$family_jp = null;
+$lineage = $obs['taxon']['lineage'] ?? [];
+$taxon_rank = $obs['taxon']['rank'] ?? null;
+
+$family_jp_map = [
+    'Rosaceae' => 'バラ科', 'Fagaceae' => 'ブナ科', 'Pinaceae' => 'マツ科',
+    'Asteraceae' => 'キク科', 'Poaceae' => 'イネ科', 'Fabaceae' => 'マメ科',
+    'Orchidaceae' => 'ラン科', 'Lamiaceae' => 'シソ科', 'Brassicaceae' => 'アブラナ科',
+    'Apiaceae' => 'セリ科', 'Solanaceae' => 'ナス科', 'Ericaceae' => 'ツツジ科',
+    'Ranunculaceae' => 'キンポウゲ科', 'Liliaceae' => 'ユリ科', 'Lauraceae' => 'クスノキ科',
+    'Moraceae' => 'クワ科', 'Salicaceae' => 'ヤナギ科', 'Betulaceae' => 'カバノキ科',
+    'Cupressaceae' => 'ヒノキ科', 'Magnoliaceae' => 'モクレン科',
+    'Ardeidae' => 'サギ科', 'Accipitridae' => 'タカ科', 'Anatidae' => 'カモ科',
+    'Corvidae' => 'カラス科', 'Muscicapidae' => 'ヒタキ科', 'Paridae' => 'シジュウカラ科',
+    'Phasianidae' => 'キジ科', 'Picidae' => 'キツツキ科', 'Strigidae' => 'フクロウ科',
+    'Columbidae' => 'ハト科', 'Motacillidae' => 'セキレイ科', 'Hirundinidae' => 'ツバメ科',
+    'Passeridae' => 'スズメ科', 'Fringillidae' => 'アトリ科', 'Sylviidae' => 'ウグイス科',
+    'Nymphalidae' => 'タテハチョウ科', 'Papilionidae' => 'アゲハチョウ科',
+    'Pieridae' => 'シロチョウ科', 'Lycaenidae' => 'シジミチョウ科',
+    'Cerambycidae' => 'カミキリムシ科', 'Scarabaeidae' => 'コガネムシ科',
+    'Lucanidae' => 'クワガタムシ科', 'Coccinellidae' => 'テントウムシ科',
+    'Libellulidae' => 'トンボ科', 'Acrididae' => 'バッタ科', 'Tettigoniidae' => 'キリギリス科',
+    'Ranidae' => 'アカガエル科', 'Hylidae' => 'アマガエル科', 'Bufonidae' => 'ヒキガエル科',
+    'Lacertidae' => 'カナヘビ科', 'Gekkonidae' => 'ヤモリ科', 'Colubridae' => 'ナミヘビ科',
+    'Cyprinidae' => 'コイ科', 'Salmonidae' => 'サケ科',
 ];
+$family_name = $lineage['family'] ?? null;
+if ($family_name && isset($family_jp_map[$family_name])) {
+    $family_jp = $family_jp_map[$family_name];
+}
+
+if ($species_name && preg_match('/[\p{Hiragana}\p{Katakana}\p{Han}]/u', $species_name)) {
+    $jp_display_name = $species_name;
+} elseif ($family_jp && $scientific_name) {
+    $jp_display_name = match($taxon_rank) {
+        'genus' => $family_jp . ' ' . $scientific_name . '属',
+        'family' => $family_jp,
+        'species' => $family_jp . 'の一種',
+        default => $family_jp . 'の仲間',
+    };
+}
+
+$seo_name = $jp_display_name ?: ($species_name ?? '同定提案待ち');
+$seo_sci = ($scientific_name && $scientific_name !== $seo_name && !str_contains($seo_name, $scientific_name)) ? $scientific_name : null;
+$obs_date = date('Y年n月j日', strtotime($obs['observed_at'] ?? $obs['created_at']));
+$obs_place = $obs['municipality'] ?? ($obs['prefecture'] ?? '');
+$taxonomy_breadcrumb = implode(' > ', array_filter([
+    $lineage['kingdom'] ?? null,
+    $lineage['phylum'] ?? null,
+    $lineage['class'] ?? null,
+    $lineage['order'] ?? null,
+    $family_jp ? $family_jp . ' (' . $family_name . ')' : ($family_name ?? null),
+]));
 
 // --- OGP Meta ---
-$meta_title = ($species_name ?? '同定提案待ち') . " の観察";
-$meta_description = ($species_name ?? '生き物') . " — " . date('Y.m.d', strtotime($obs['observed_at'])) . " の観察記録 | ikimon.life";
+$meta_title = $seo_name . ($seo_sci ? " ($seo_sci)" : '') . " の観察記録" . ($obs_place ? " - $obs_place" : '');
+$meta_description = $obs_date . ($obs_place ? "に{$obs_place}で" : 'に') . "観察された" . $seo_name
+    . ($seo_sci ? " ($seo_sci)" : '')
+    . "の記録。" . ($taxonomy_breadcrumb ? "分類: {$taxonomy_breadcrumb}。" : '')
+    . "市民参加型生物多様性プラットフォーム ikimon.life";
 if (!empty($obs['photos'])) {
     $meta_image = (strpos($obs['photos'][0], 'http') === 0) ? $obs['photos'][0] : BASE_URL . '/' . $obs['photos'][0];
 }
@@ -228,26 +300,33 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <!-- JSON-LD Structured Data -->
     <script type="application/ld+json" nonce="<?= CspNonce::attr() ?>">
         <?php
+        $taxonLd = [
+            '@type' => 'Taxon',
+            'name' => $scientific_name ?: ($species_name ?? null),
+            'alternateName' => $jp_display_name ?: ($species_name !== $scientific_name ? $species_name : null),
+            'taxonRank' => $taxon_rank ?: null,
+        ];
+        if ($family_name) $taxonLd['parentTaxon'] = ['@type' => 'Taxon', 'name' => $family_name, 'taxonRank' => 'family'];
+        $taxonLd = array_filter($taxonLd, fn($v) => $v !== null);
+
         $jsonLd = [
             '@context' => 'https://schema.org',
             '@type' => 'Observation',
-            'name' => ($species_name ?? '未同定') . ' の観察',
+            'name' => $seo_name . ' の観察記録',
             'description' => $meta_description,
             'url' => $meta_canonical,
+            'identifier' => $id,
             'dateCreated' => $obs['observed_at'] ?? $obs['created_at'] ?? null,
-            'about' => [
-                '@type' => 'Taxon',
-                'name' => $scientific_name ?: ($species_name ?? null),
-                'alternateName' => $species_name ?? null,
-            ],
+            'about' => $taxonLd,
         ];
-        if (!empty($obs['location']['lat']) && !empty($obs['location']['lng'])) {
-            $jsonLd['spatial'] = [
+        if (!empty($obs['lat']) && !empty($obs['lng'])) {
+            $jsonLd['contentLocation'] = [
                 '@type' => 'Place',
+                'name' => $obs_place ?: null,
                 'geo' => [
                     '@type' => 'GeoCoordinates',
-                    'latitude' => (float) $obs['location']['lat'],
-                    'longitude' => (float) $obs['location']['lng'],
+                    'latitude' => round((float) $obs['lat'], 4),
+                    'longitude' => round((float) $obs['lng'], 4),
                 ]
             ];
         }
@@ -261,6 +340,12 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 'name' => $obs['user']['name'],
             ];
         }
+        $jsonLd['isPartOf'] = [
+            '@type' => 'WebSite',
+            'name' => 'ikimon.life',
+            'url' => 'https://ikimon.life',
+            'description' => '市民参加型生物多様性プラットフォーム',
+        ];
         $jsonLd = array_filter($jsonLd, fn($v) => $v !== null);
         echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG);
         ?>
@@ -692,6 +777,19 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                         <p class="text-sky-800 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['next_step']); ?></p>
                                     </div>
                                 <?php endif; ?>
+                                <?php if (!empty($latestAiAssessment['fun_fact']['body'])): ?>
+                                    <div class="rounded-xl bg-amber-50 border border-amber-200 px-3 py-3">
+                                        <p class="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">ちょっとした豆知識</p>
+                                        <p class="text-amber-900 leading-relaxed text-sm"><?php echo htmlspecialchars($latestAiAssessment['fun_fact']['body']); ?></p>
+                                        <?php if (!empty($latestAiAssessment['fun_fact']['search_keyword'])): ?>
+                                            <a href="https://www.google.com/search?q=<?php echo urlencode($latestAiAssessment['fun_fact']['search_keyword']); ?>" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-2 text-xs text-amber-700 hover:underline">
+                                                <i data-lucide="search" class="w-3 h-3" style="pointer-events:none"></i>
+                                                <?php echo htmlspecialchars($latestAiAssessment['fun_fact']['search_keyword']); ?> を調べる
+                                            </a>
+                                        <?php endif; ?>
+                                        <p class="text-[10px] text-amber-600/60 mt-2">※ <?php echo !empty($latestAiAssessment['fun_fact_grounded']) ? '図鑑データをもとに' : ''; ?>AIが生成した情報です。正確性は各自でご確認ください</p>
+                                    </div>
+                                <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['similar_taxa_to_compare']) || !empty($latestAiAssessment['missing_evidence'])): ?>
                                     <div class="rounded-xl border border-border bg-base/30 px-3 py-3 space-y-3">
                                         <?php if (!empty($latestAiAssessment['similar_taxa_to_compare'])): ?>
@@ -737,6 +835,47 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         <div>
                             <span class="font-bold text-faint">CC BY-NC 4.0</span>
                             <span class="ml-2">撮影者: <?php echo htmlspecialchars($observerName); ?></span>
+                        </div>
+                    </div>
+
+                    <!-- Reactions -->
+                    <div class="mt-3" x-data="{
+                        reactions: <?php echo json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP); ?>,
+                        total: <?php echo (int)$obsTotalReactions; ?>,
+                        emojis: {footprint:'👣', like:'❤️', suteki:'✨', manabi:'🔬'},
+                        labels: {footprint:'足あと', like:'いいね', suteki:'すてき', manabi:'学び'},
+                        async react(type) {
+                            const prev = this.reactions[type].reacted;
+                            this.reactions[type].reacted = !prev;
+                            this.reactions[type].count += prev ? -1 : 1;
+                            this.total += prev ? -1 : 1;
+                            if (!prev && window.SoundManager) SoundManager.play('light-click');
+                            try {
+                                const res = await fetch('/api/toggle_like.php', {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({id: '<?php echo htmlspecialchars($id, ENT_QUOTES); ?>', type})
+                                });
+                                const data = await res.json();
+                                if (data.success) { this.reactions = data.reactions; this.total = data.total; }
+                            } catch (err) {}
+                        }
+                    }">
+                        <div class="flex items-center gap-1 p-1 rounded-xl bg-surface border border-border">
+                            <template x-for="[type, emoji] in Object.entries(emojis)" :key="type">
+                                <button @click="react(type)"
+                                    class="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:bg-elevated active:scale-90"
+                                    :class="reactions[type].reacted ? 'bg-primary/10' : ''">
+                                    <span class="text-lg" x-text="emoji"></span>
+                                    <span class="text-xs font-bold"
+                                        :class="reactions[type].reacted ? 'text-primary' : 'text-muted'"
+                                        x-text="labels[type]"></span>
+                                    <span class="text-xs font-bold ml-0.5"
+                                        :class="reactions[type].reacted ? 'text-primary' : 'text-faint'"
+                                        x-show="reactions[type].count > 0"
+                                        x-text="reactions[type].count"></span>
+                                </button>
+                            </template>
                         </div>
                     </div>
 
@@ -1512,86 +1651,110 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
             }
          }">
         <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="idModalOpen = false"></div>
-        <div class="bg-surface w-full max-w-2xl rounded-2xl border border-border shadow-2xl relative z-10 p-6">
-            <h2 class="text-xl font-bold text-text mb-4">名前を提案する</h2>
-
-            <!-- AI Navigator Shortcut (Everyone can help!) -->
-            <?php if ($currentUser): ?>
-                <div class="mb-6">
-                    <button type="button" @click="$dispatch('open-navigator')" class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-black hover:bg-primary/20 transition group">
-                        <i data-lucide="compass" class="w-4 h-4 group-hover:rotate-45 transition duration-500"></i>
-                        AIナビゲーターで詳しく特定する (β版)
-                    </button>
+        <div class="bg-surface w-full max-w-lg rounded-2xl border border-border shadow-2xl relative z-10 overflow-hidden">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 pt-5 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <i data-lucide="search" class="w-4 h-4 text-primary"></i>
+                    </div>
+                    <h2 class="text-lg font-black text-text">名前を提案する</h2>
                 </div>
-            <?php endif; ?>
+                <button @click="idModalOpen = false" class="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-text hover:bg-surface-alt transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
 
-            <div class="space-y-4" @navigator-result.window="
-                taxonQuery = $event.detail.query; 
-                if($event.detail.life_stage !== 'unknown') lifeStage = $event.detail.life_stage;
-                search(); 
-            ">
+            <div class="px-6 pb-6 space-y-5">
+                <!-- Taxon Search -->
                 <div class="relative">
-                    <label class="block text-xs font-bold text-muted mb-1">種名 (和名または学名)</label>
+                    <label class="block text-xs font-bold text-muted mb-1.5">種名 (和名または学名)</label>
                     <div class="relative">
                         <input type="text" x-model="taxonQuery" @input.debounce.300ms="search()" @keydown.escape="showSugg = false"
-                            class="w-full bg-surface border border-border rounded-lg p-3 text-text focus:outline-none focus:border-primary pr-20"
-                            placeholder="例: ヤマシギ" autocomplete="off">
+                            class="w-full bg-surface border border-border rounded-xl p-3 pl-10 text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary pr-20 transition"
+                            placeholder="例: ヤマシギ、Prunus" autocomplete="off">
+                        <i data-lucide="search" class="w-4 h-4 text-muted absolute left-3 top-3.5 pointer-events-none"></i>
                         <div x-show="taxonSlug" class="absolute right-3 top-3">
-                            <span class="text-token-xs font-bold bg-primary/20 text-primary-light px-2 py-1 rounded-full">✓ 確定</span>
+                            <span class="text-[10px] font-bold bg-primary/20 text-primary px-2 py-1 rounded-full flex items-center gap-1">
+                                <i data-lucide="check" class="w-3 h-3"></i> 確定
+                            </span>
                         </div>
                     </div>
-                    <!-- Suggestions -->
+                    <!-- Suggestions Dropdown -->
                     <div x-show="showSugg && suggestions.length > 0" x-transition @click.away="showSugg = false"
-                        class="absolute left-0 right-0 top-full mt-1 bg-surface border border-border rounded-xl overflow-hidden z-50 shadow-xl max-h-48 overflow-y-auto">
+                        class="absolute left-0 right-0 top-full mt-1 bg-surface border border-border rounded-xl overflow-hidden z-50 shadow-xl max-h-52 overflow-y-auto">
                         <template x-for="(s, i) in suggestions" :key="i">
-                            <button type="button" @click="pick(s)" class="w-full text-left px-4 py-2.5 hover:bg-primary-surface transition border-b border-border last:border-b-0">
+                            <button type="button" @click="pick(s)" class="w-full text-left px-4 py-2.5 hover:bg-primary/5 transition border-b border-border/50 last:border-b-0 flex items-baseline gap-2">
                                 <span class="text-sm font-bold text-text" x-text="s.jp_name"></span>
-                                <span class="text-xs text-muted italic ml-2" x-text="s.sci_name"></span>
+                                <span class="text-xs text-muted italic" x-text="s.sci_name"></span>
                             </button>
                         </template>
                     </div>
                 </div>
-            </div>
 
-            <!-- Life Stage Selector -->
-            <div>
-                <label class="block text-token-xs font-bold text-muted uppercase tracking-widest mb-2">ライフステージ</label>
-                <div class="grid grid-cols-5 gap-1.5">
-                    <template x-for="ls in [
-                            {id: 'adult', label: '成体', emoji: '👑'},
-                            {id: 'juvenile', label: '幼体', emoji: '🌱'},
-                            {id: 'egg', label: '卵等', emoji: '🥚'},
-                            {id: 'trace', label: '痕跡', emoji: '👣'},
-                            {id: 'unknown', label: '不明', emoji: '❓'}
-                        ]" :key="ls.id">
-                        <button type="button" @click="lifeStage = ls.id"
-                            :class="lifeStage === ls.id ? 'bg-primary text-black border-primary' : 'bg-surface border-border text-muted'"
-                            class="flex flex-col items-center py-2 rounded-xl border transition group">
-                            <span class="text-base" x-text="ls.emoji"></span>
-                            <span class="text-token-xs font-bold mt-0.5" x-text="ls.label"></span>
+                <!-- Confidence -->
+                <div>
+                    <label class="block text-xs font-bold text-muted mb-1.5">確信度</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" @click="selectedConfidence = 'sure'"
+                            :class="selectedConfidence === 'sure' ? 'bg-primary/15 border-primary/40 text-primary' : 'bg-surface border-border text-muted hover:border-border-hover'"
+                            class="flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold transition">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                            確信あり
                         </button>
-                    </template>
+                        <button type="button" @click="selectedConfidence = 'likely'"
+                            :class="selectedConfidence === 'likely' ? 'bg-primary/15 border-primary/40 text-primary' : 'bg-surface border-border text-muted hover:border-border-hover'"
+                            class="flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold transition">
+                            <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                            たぶん
+                        </button>
+                        <button type="button" @click="selectedConfidence = 'unsure'"
+                            :class="selectedConfidence === 'unsure' ? 'bg-primary/15 border-primary/40 text-primary' : 'bg-surface border-border text-muted hover:border-border-hover'"
+                            class="flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold transition">
+                            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                            わからない
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <div>
-                <label class="block text-xs font-bold text-muted mb-1">コメント</label>
-                <textarea x-model="note" class="w-full bg-surface border border-border rounded-lg p-3 text-text focus:outline-none focus:border-primary h-24" placeholder="同定の根拠やコメントを入力..."></textarea>
+                <!-- Life Stage -->
+                <div>
+                    <label class="block text-xs font-bold text-muted mb-1.5">ライフステージ</label>
+                    <div class="grid grid-cols-5 gap-1.5">
+                        <template x-for="ls in [
+                                {id: 'adult', label: '成体', emoji: '👑'},
+                                {id: 'juvenile', label: '幼体', emoji: '🌱'},
+                                {id: 'egg', label: '卵等', emoji: '🥚'},
+                                {id: 'trace', label: '痕跡', emoji: '👣'},
+                                {id: 'unknown', label: '不明', emoji: '❓'}
+                            ]" :key="ls.id">
+                            <button type="button" @click="lifeStage = ls.id"
+                                :class="lifeStage === ls.id ? 'bg-primary/15 text-primary border-primary/40' : 'bg-surface border-border text-muted hover:border-border-hover'"
+                                class="flex flex-col items-center py-2 rounded-xl border transition">
+                                <span class="text-base" x-text="ls.emoji"></span>
+                                <span class="text-[10px] font-bold mt-0.5" x-text="ls.label"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Comment -->
+                <div>
+                    <label class="block text-xs font-bold text-muted mb-1.5">コメント <span class="font-normal text-faint">(任意)</span></label>
+                    <textarea x-model="note" rows="3" class="w-full bg-surface border border-border rounded-xl p-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none transition" placeholder="同定の根拠やコメント..."></textarea>
+                </div>
+
+                <!-- Submit -->
+                <button @click="submit()" :disabled="submitting || !taxonQuery.trim()"
+                    class="w-full py-3 rounded-xl bg-primary-dark hover:bg-primary text-white font-bold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[0.98]">
+                    <template x-if="submitting"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i></template>
+                    <span x-text="submitting ? '送信中...' : '提案する'"></span>
+                </button>
             </div>
-            <!-- 確信度 (Hidden) -->
-            <button @click="submit()" :disabled="submitting || !taxonQuery.trim()"
-                class="w-full py-3 rounded-lg bg-primary-dark hover:bg-primary text-white font-bold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                <template x-if="submitting"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i></template>
-                <span x-text="submitting ? '送信中...' : '提案する'"></span>
-            </button>
         </div>
-        <button @click="idModalOpen = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
-            <i data-lucide="x" class="w-6 h-6"></i>
-        </button>
     </div>
 
     <!-- Scripts -->
-    <?php include __DIR__ . '/components/navigator.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();
 

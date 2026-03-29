@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/Taxonomy.php';
+require_once __DIR__ . '/OmoikaneInferenceEnhancer.php';
 
 class AiObservationAssessment
 {
@@ -69,8 +70,19 @@ class AiObservationAssessment
             return null;
         }
 
+        $ragContext = null;
         try {
-            $payload = self::callModel($images, $observation, $profile);
+            $enhancer = new OmoikaneInferenceEnhancer();
+            $taxonName = (string)($observation['taxon']['name'] ?? '');
+            $sciName = (string)($observation['taxon']['scientific_name'] ?? '');
+            $ragContext = ($sciName !== '' ? $enhancer->getCachedFunFact($sciName) : null)
+                       ?? $enhancer->retrieveFunFactContext($taxonName, $sciName);
+        } catch (\Throwable $e) {
+            // RAG failure is non-fatal — proceed with free generation
+        }
+
+        try {
+            $payload = self::callModel($images, $observation, $profile, $ragContext);
         } catch (\Throwable $e) {
             $payload = null;
         }
@@ -121,6 +133,8 @@ class AiObservationAssessment
             'simple_summary' => self::buildSimpleSummary($recommendedTaxon, $bestSpecificTaxon, $payload),
             'text' => self::buildPublicText($payload, $recommendedTaxon, $bestSpecificTaxon),
             'display_ja' => self::buildDisplayJa($recommendedTaxon, $bestSpecificTaxon, $payload),
+            'fun_fact' => $payload['fun_fact'] ?? null,
+            'fun_fact_grounded' => $ragContext !== null,
         ];
     }
 
@@ -225,7 +239,7 @@ class AiObservationAssessment
         ];
     }
 
-    private static function callModel(array $images, array $observation, array $profile): ?array
+    private static function callModel(array $images, array $observation, array $profile, ?string $ragContext = null): ?array
     {
         $model = (string)$profile['model'];
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . GEMINI_API_KEY;
@@ -291,9 +305,35 @@ class AiObservationAssessment
   "references": [],
   "suggestions": [
     {"label": "ツツジ科", "confidence": "high", "reason": "花形と葉のつき方が一致", "emoji": "🌺"}
-  ]
+  ],
+  "fun_fact": {"body": "...", "search_keyword": "..."}
 }
 PROMPT;
+
+        if ($ragContext !== null) {
+            $prompt .= <<<RAG_BLOCK
+
+【図鑑データ（信頼できる情報源）】
+{$ragContext}
+
+fun_fact は上記の図鑑データのみを根拠に生成してください。図鑑データにない情報は書かないでください。
+RAG_BLOCK;
+        } else {
+            $prompt .= <<<FREE_BLOCK
+
+fun_fact はこの生き物について広く知られている面白い角度を1つ生成してください。
+確信がない内容は「〜とも言われています」「〜という説があります」「〜かもしれません」などの語尾を使い、断定しないでください。
+FREE_BLOCK;
+        }
+
+        $prompt .= <<<FACT_RULES
+
+fun_fact の共通ルール:
+- body は120文字以内の日本語
+- 最も意外性・視点転換効果の高い1つの事実を選ぶ
+- 数値・統計・年代は根拠がある場合のみ使う
+- search_keyword: その事実をさらに調べるための日本語キーワード（例: "根粒菌 マメ科"）
+FACT_RULES;
 
         $parts = [['text' => $prompt]];
         foreach ($images as $image) {
@@ -656,6 +696,17 @@ PROMPT;
             ],
         ];
 
+        $base['properties'] += [
+            'fun_fact' => [
+                'type' => 'OBJECT',
+                'properties' => [
+                    'body' => ['type' => 'STRING'],
+                    'search_keyword' => ['type' => 'STRING'],
+                ],
+                'required' => ['body', 'search_keyword'],
+            ],
+        ];
+
         $base['required'] = array_merge($base['required'], [
             'why_not_more_specific',
             'geographic_context',
@@ -666,6 +717,7 @@ PROMPT;
             'similar_taxa_to_compare',
             'missing_evidence',
             'references',
+            'fun_fact',
         ]);
 
         return $base;
@@ -689,6 +741,14 @@ PROMPT;
         $payload['similar_taxa_to_compare'] = self::sanitizePublicList($payload['similar_taxa_to_compare'] ?? [], 4);
         $payload['missing_evidence'] = self::sanitizePublicList($payload['missing_evidence'] ?? [], 4);
         $payload['suggestions'] = is_array($payload['suggestions'] ?? null) ? $payload['suggestions'] : [];
+        if (!empty($payload['fun_fact']['body'])) {
+            $payload['fun_fact'] = [
+                'body' => self::normalizePublicText((string)($payload['fun_fact']['body'] ?? ''), 120),
+                'search_keyword' => self::normalizePublicText((string)($payload['fun_fact']['search_keyword'] ?? ''), 60),
+            ];
+        } else {
+            $payload['fun_fact'] = null;
+        }
         return $payload;
     }
 
