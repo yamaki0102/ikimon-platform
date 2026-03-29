@@ -218,6 +218,7 @@ class PassiveObservationEngine
                 'scientific_name' => $detection['scientific_name'] ?? '',
                 'class' => $detection['taxonomic_class'] ?? null,
                 'order' => $detection['taxonomic_order'] ?? null,
+                'rank' => $detection['taxon_rank'] ?? 'species',
             ],
             'detection_type' => $detection['type'],
             'detection_confidence' => $detection['confidence'],

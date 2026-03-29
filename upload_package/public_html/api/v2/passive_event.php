@@ -149,6 +149,7 @@ foreach ($events as $i => $event) {
         'ai_version'         => $event['ai_version'] ?? null,
         'taxonomic_class'    => $event['taxonomic_class'] ?? null,
         'taxonomic_order'    => $event['taxonomic_order'] ?? null,
+        'taxon_rank'         => $event['taxon_rank'] ?? 'species',
     ];
 }
 
