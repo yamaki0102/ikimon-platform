@@ -6,13 +6,21 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -22,9 +30,7 @@ class MainActivity : ComponentActivity() {
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        // パーミッション結果のハンドリング
-    }
+    ) { _ -> }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,7 +40,9 @@ class MainActivity : ComponentActivity() {
                 HomeScreen(
                     onStartPocket = { startPocketMode() },
                     onStopPocket = { stopPocketMode() },
-                    onRequestPermissions = { requestPermissions() }
+                    onStartFieldScan = { startFieldScan() },
+                    onStopFieldScan = { stopFieldScan() },
+                    onRequestPermissions = { requestPermissions() },
                 )
             }
         }
@@ -45,22 +53,26 @@ class MainActivity : ComponentActivity() {
             arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.CAMERA,
                 Manifest.permission.POST_NOTIFICATIONS,
             )
         )
     }
 
     private fun startPocketMode() {
-        if (!hasRequiredPermissions()) {
-            requestPermissions()
-            return
-        }
+        if (!hasRequiredPermissions()) { requestPermissions(); return }
         PocketService.start(this)
     }
 
-    private fun stopPocketMode() {
-        PocketService.stop(this)
+    private fun stopPocketMode() { PocketService.stop(this) }
+
+    private fun startFieldScan() {
+        if (!hasRequiredPermissions()) { requestPermissions(); return }
+        // Field Scan = Pocket (audio) + カメラは次フェーズ
+        PocketService.start(this)
     }
+
+    private fun stopFieldScan() { PocketService.stop(this) }
 
     private fun hasRequiredPermissions(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -68,104 +80,178 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+enum class ScanMode(val label: String, val emoji: String, val desc: String) {
+    POCKET("ポケット", "🎧", "ポケットに入れて散歩\n音声AIが自動で検出"),
+    FIELD("フィールドスキャン", "🔭", "端末を手に持って探索\n音声 + カメラで記録"),
+}
+
 @Composable
 fun HomeScreen(
     onStartPocket: () -> Unit,
     onStopPocket: () -> Unit,
+    onStartFieldScan: () -> Unit,
+    onStopFieldScan: () -> Unit,
     onRequestPermissions: () -> Unit,
 ) {
-    var isPocketActive by remember { mutableStateOf(false) }
+    var selectedMode by remember { mutableStateOf(ScanMode.POCKET) }
+    var isActive by remember { mutableStateOf(false) }
+
+    val green = Color(0xFF2E7D32)
+    val darkBg = Color(0xFF0D1117)
+    val cardBg = Color(0xFF161B22)
+    val borderColor = Color(0xFF30363D)
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = darkBg,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
             // Header
-            Text("🌿", fontSize = 48.sp)
-            Spacer(modifier = Modifier.height(8.dp))
+            Text("🌿", fontSize = 40.sp)
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 "ikimon BioScan",
-                fontSize = 24.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
+                color = Color.White,
             )
             Text(
-                "歩くだけで、自然が記録される",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "Powered by BirdNET+ V3.0 — 11,560 species",
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                "BirdNET+ V3.0 · 11,560 species",
+                fontSize = 11.sp,
+                color = Color.White.copy(alpha = 0.4f),
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Pocket Mode Button
-            Button(
-                onClick = {
-                    if (isPocketActive) {
-                        onStopPocket()
-                        isPocketActive = false
-                    } else {
-                        onStartPocket()
-                        isPocketActive = true
+            // Mode selector
+            if (!isActive) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    ScanMode.entries.forEach { mode ->
+                        val isSelected = selectedMode == mode
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .then(
+                                    if (isSelected)
+                                        Modifier.border(2.dp, green, RoundedCornerShape(16.dp))
+                                    else
+                                        Modifier.border(1.dp, borderColor, RoundedCornerShape(16.dp))
+                                )
+                                .background(if (isSelected) green.copy(alpha = 0.1f) else cardBg)
+                                .clickable { selectedMode = mode }
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(mode.emoji, fontSize = 28.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    mode.label,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) green else Color.White,
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    mode.desc,
+                                    fontSize = 11.sp,
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 15.sp,
+                                )
+                            }
+                        }
                     }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isPocketActive)
-                        MaterialTheme.colorScheme.error
-                    else
-                        MaterialTheme.colorScheme.primary
-                ),
-                shape = MaterialTheme.shapes.large,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        if (isPocketActive) "🛑 ポケットモード停止" else "🎧 ポケットモード ON",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        if (isPocketActive) "タップで停止" else "スマホをポケットに入れるだけ",
-                        fontSize = 12.sp,
-                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
-            // Info text
-            if (isPocketActive) {
+            // Active state card
+            if (isActive) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("🟢 記録中", fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(4.dp))
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                         Text(
-                            "環境音をモニタリングしています。\nスマホをポケットに入れて散歩を楽しんでください。",
-                            fontSize = 14.sp,
+                            "${selectedMode.emoji} ${selectedMode.label}モード",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "🟢 記録中 — BirdNET+ V3.0",
+                            fontSize = 13.sp,
+                            color = green,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            when (selectedMode) {
+                                ScanMode.POCKET -> "環境音をモニタリングしています\nスマホをポケットに入れて散歩を楽しんでください"
+                                ScanMode.FIELD -> "音声AIで周囲の生物を検出中\nカメラ統合は次回アップデートで追加"
+                            },
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.6f),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 18.sp,
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Start / Stop button
+            Button(
+                onClick = {
+                    if (isActive) {
+                        when (selectedMode) {
+                            ScanMode.POCKET -> onStopPocket()
+                            ScanMode.FIELD -> onStopFieldScan()
+                        }
+                        isActive = false
+                    } else {
+                        when (selectedMode) {
+                            ScanMode.POCKET -> onStartPocket()
+                            ScanMode.FIELD -> onStartFieldScan()
+                        }
+                        isActive = true
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isActive) Color(0xFFD32F2F) else green,
+                ),
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Text(
+                    if (isActive) "⏹ 停止" else "▶ スキャン開始",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -173,16 +259,12 @@ fun HomeScreen(
 @Composable
 fun IkimonTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = dynamicLightColorScheme(),
+        colorScheme = darkColorScheme(
+            primary = Color(0xFF2E7D32),
+            onPrimary = Color.White,
+            background = Color(0xFF0D1117),
+            surface = Color(0xFF161B22),
+        ),
         content = content,
-    )
-}
-
-@Composable
-private fun dynamicLightColorScheme(): ColorScheme {
-    return lightColorScheme(
-        primary = androidx.compose.ui.graphics.Color(0xFF2E7D32),
-        onPrimary = androidx.compose.ui.graphics.Color.White,
-        primaryContainer = androidx.compose.ui.graphics.Color(0xFFE8F5E9),
     )
 }
