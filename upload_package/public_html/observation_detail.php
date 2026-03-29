@@ -81,6 +81,27 @@ if (!$obs) {
 // Increment View Count
 DataStore::increment('observations', $id, 'views');
 
+// Load Reactions
+$_reactDir = DATA_DIR . '/reactions/' . $id;
+$_reactTypes = ['footprint', 'like', 'suteki', 'manabi'];
+$obsReactions = [];
+$obsTotalReactions = 0;
+foreach ($_reactTypes as $_rt) {
+    $_rf = $_reactDir . '/' . $_rt . '.json';
+    $_rl = file_exists($_rf) ? (json_decode(file_get_contents($_rf), true) ?: []) : [];
+    $obsReactions[$_rt] = ['count' => count($_rl), 'reacted' => $currentUser && in_array($currentUser['id'], $_rl)];
+    $obsTotalReactions += count($_rl);
+}
+if ($obsTotalReactions === 0) {
+    $_legacyFile = DATA_DIR . '/likes/' . $id . '.json';
+    if (file_exists($_legacyFile)) {
+        $_ll = json_decode(file_get_contents($_legacyFile), true) ?: [];
+        $obsReactions['footprint']['count'] = count($_ll);
+        $obsReactions['footprint']['reacted'] = $currentUser && in_array($currentUser['id'], $_ll);
+        $obsTotalReactions = count($_ll);
+    }
+}
+
 // Check My Field
 require_once __DIR__ . '/../libs/MyFieldManager.php';
 $myFieldName = null;
@@ -801,6 +822,47 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         <div>
                             <span class="font-bold text-faint">CC BY-NC 4.0</span>
                             <span class="ml-2">撮影者: <?php echo htmlspecialchars($observerName); ?></span>
+                        </div>
+                    </div>
+
+                    <!-- Reactions -->
+                    <div class="mt-3" x-data="{
+                        reactions: <?php echo json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP); ?>,
+                        total: <?php echo (int)$obsTotalReactions; ?>,
+                        emojis: {footprint:'👣', like:'❤️', suteki:'✨', manabi:'🔬'},
+                        labels: {footprint:'足あと', like:'いいね', suteki:'すてき', manabi:'学び'},
+                        async react(type) {
+                            const prev = this.reactions[type].reacted;
+                            this.reactions[type].reacted = !prev;
+                            this.reactions[type].count += prev ? -1 : 1;
+                            this.total += prev ? -1 : 1;
+                            if (!prev && window.SoundManager) SoundManager.play('light-click');
+                            try {
+                                const res = await fetch('/api/toggle_like.php', {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({id: '<?php echo htmlspecialchars($id, ENT_QUOTES); ?>', type})
+                                });
+                                const data = await res.json();
+                                if (data.success) { this.reactions = data.reactions; this.total = data.total; }
+                            } catch (err) {}
+                        }
+                    }">
+                        <div class="flex items-center gap-1 p-1 rounded-xl bg-surface border border-border">
+                            <template x-for="[type, emoji] in Object.entries(emojis)" :key="type">
+                                <button @click="react(type)"
+                                    class="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:bg-elevated active:scale-90"
+                                    :class="reactions[type].reacted ? 'bg-primary/10' : ''">
+                                    <span class="text-lg" x-text="emoji"></span>
+                                    <span class="text-xs font-bold"
+                                        :class="reactions[type].reacted ? 'text-primary' : 'text-muted'"
+                                        x-text="labels[type]"></span>
+                                    <span class="text-xs font-bold ml-0.5"
+                                        :class="reactions[type].reacted ? 'text-primary' : 'text-faint'"
+                                        x-show="reactions[type].count > 0"
+                                        x-text="reactions[type].count"></span>
+                                </button>
+                            </template>
                         </div>
                     </div>
 

@@ -602,11 +602,39 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         </div>
 
                         <!-- Actions -->
-                        <div class="px-4 py-2 pb-0 flex items-center gap-1">
-                            <button @click="step($event)" class="flex items-center gap-1.5 group active:scale-90 transition-transform py-1.5 px-2 -ml-2 rounded-lg hover:bg-surface">
-                                <span class="text-xl transition duration-300" :class="stepped ? 'opacity-100' : 'opacity-40 group-hover:opacity-70'">👣</span>
-                                <span class="text-xs font-bold text-secondary" x-show="count > 0" x-text="count"></span>
-                            </button>
+                        <div class="px-4 py-2 pb-0 flex items-center gap-1 relative">
+                            <div class="relative">
+                                <button @click="pickerOpen = !pickerOpen"
+                                    class="flex items-center gap-1 group active:scale-90 transition-transform py-1.5 px-2 -ml-2 rounded-lg hover:bg-surface">
+                                    <template x-if="activeEmojis.length > 0">
+                                        <span class="flex items-center gap-0.5">
+                                            <template x-for="ae in activeEmojis.slice(0,3)" :key="ae.type">
+                                                <span class="text-base" :class="ae.reacted ? 'opacity-100' : 'opacity-60'" x-text="ae.emoji"></span>
+                                            </template>
+                                            <span class="text-xs font-bold text-secondary ml-1" x-text="total"></span>
+                                        </span>
+                                    </template>
+                                    <template x-if="activeEmojis.length === 0">
+                                        <span class="flex items-center gap-1">
+                                            <i data-lucide="smile-plus" class="w-5 h-5 text-faint group-hover:text-secondary transition pointer-events-none"></i>
+                                        </span>
+                                    </template>
+                                </button>
+                                <div x-show="pickerOpen" x-transition.opacity.duration.150ms
+                                    @click.outside="pickerOpen = false"
+                                    class="absolute bottom-full left-0 mb-2 flex items-center gap-1 bg-elevated rounded-full shadow-lg border border-border px-2 py-1.5 z-30">
+                                    <template x-for="[type, emoji] in Object.entries(emojis)" :key="type">
+                                        <button @click="react(type)"
+                                            class="flex flex-col items-center px-2 py-1 rounded-full transition-all hover:bg-surface active:scale-90"
+                                            :class="reactions[type].reacted ? 'bg-primary/10' : ''">
+                                            <span class="text-xl" x-text="emoji"></span>
+                                            <span class="text-[10px] font-bold mt-0.5"
+                                                :class="reactions[type].reacted ? 'text-primary' : 'text-muted'"
+                                                x-text="reactions[type].count > 0 ? reactions[type].count : ''"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
                             <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="flex items-center gap-1.5 group active:scale-90 transition-transform py-1.5 px-2 rounded-lg hover:bg-surface" title="同定・コメント">
                                 <i data-lucide="message-circle" class="w-5 h-5 transition pointer-events-none <?php echo $obsComments > 0 ? 'text-secondary' : 'text-faint group-hover:text-secondary'; ?>"></i>
                                 <span class="text-xs font-bold <?php echo $obsComments > 0 ? 'text-secondary' : 'text-faint'; ?>"><?php echo (int)$obsComments; ?></span>
