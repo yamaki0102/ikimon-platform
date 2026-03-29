@@ -38,7 +38,7 @@ define('FF_USER_AGENT',    'ikimon.life FunFactBot/1.1 (https://ikimon.life; con
 define('FF_WIKI_API_BASE', 'https://ja.wikipedia.org/w/api.php');
 define('FF_GBIF_API_BASE', 'https://api.gbif.org/v1');
 define('FF_RATE_SLEEP_US', 900_000); // 0.9秒 = 約67req/min (Wikipedia推奨範囲内)
-define('FF_CHECKPOINT',    DATA_DIR . 'library/fun_fact_progress.json');
+define('FF_CHECKPOINT',    rtrim(DATA_DIR, '/') . '/library/fun_fact_progress.json');
 
 // === DB接続 ===
 $db  = new OmoikaneDB();
