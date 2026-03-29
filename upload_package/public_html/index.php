@@ -542,7 +542,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         <!-- Actions: 4 Reaction Buttons -->
                         <div class="px-4 py-2 pb-0 flex items-center gap-0.5">
                             <?php foreach (['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', 'manabi' => '🔬'] as $_rtype => $_remoji): ?>
-                            <button @click="let r=reactions.<?php echo $_rtype; ?>; r.reacted=!r.reacted; r.count+=r.reacted?1:-1; total+=r.reacted?1:-1; if(r.reacted){scale=1.2;setTimeout(()=>scale=1,200)} fetch('/api/toggle_like.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'<?php echo htmlspecialchars($feedCardObsId, ENT_QUOTES); ?>',type:'<?php echo $_rtype; ?>'})})"
+                            <button @click="let r=reactions.<?php echo $_rtype; ?>; r.reacted=!r.reacted; r.count+=r.reacted?1:-1; total+=r.reacted?1:-1; if(r.reacted){scale=1.2;setTimeout(()=>scale=1,200)}; fetch('/api/toggle_like.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'<?php echo htmlspecialchars($feedCardObsId, ENT_QUOTES); ?>',type:'<?php echo $_rtype; ?>'})})"
                                 class="flex items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-all hover:bg-surface active:scale-90"
                                 :class="reactions.<?php echo $_rtype; ?>.reacted ? 'bg-primary/10' : ''">
                                 <span class="text-base" :class="reactions.<?php echo $_rtype; ?>.reacted ? 'opacity-100' : 'opacity-40'"><?php echo $_remoji; ?></span>
