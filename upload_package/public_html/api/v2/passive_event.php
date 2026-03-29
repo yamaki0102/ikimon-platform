@@ -43,25 +43,53 @@ require_once ROOT_DIR . '/libs/GeoUtils.php';
 require_once ROOT_DIR . '/libs/MeshCode.php';
 require_once ROOT_DIR . '/libs/MeshAggregator.php';
 
-// 認証
-Auth::init();
-if (!Auth::isLoggedIn()) {
-    api_error('Authentication required.', 401);
-}
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     api_error('POST method required.', 405);
 }
 
-// レート制限（パッシブは大量バッチなので緩め）
-if (!api_rate_limit('passive_event', 10, 60)) {
-    api_error('Rate limit exceeded. Max 10 batches per minute.', 429);
+// 認証（セッション OR install_id トークン）
+Auth::init();
+$userId = null;
+$userName = 'Unknown';
+$userAvatar = null;
+
+if (Auth::isLoggedIn()) {
+    $user = Auth::user();
+    $userId = $user['id'] ?? null;
+    $userName = $user['name'] ?? '';
+    $userAvatar = $user['avatar'] ?? null;
+} else {
+    // BioScanアプリからのinstall_id認証
+    $installId = $_GET['install_id'] ?? null;
+    if ($installId) {
+        require_once ROOT_DIR . '/libs/UserStore.php';
+        $installs = DataStore::get('bioscan_installs') ?? [];
+        $matched = null;
+        foreach ($installs as $inst) {
+            if (($inst['install_id'] ?? '') === $installId && ($inst['status'] ?? 'active') === 'active') {
+                $matched = $inst;
+                break;
+            }
+        }
+        if ($matched) {
+            $userId = $matched['user_id'];
+            $freshUser = UserStore::findById($userId);
+            if ($freshUser) {
+                $userName = $freshUser['name'] ?? 'Unknown';
+                $userAvatar = $freshUser['avatar'] ?? null;
+            }
+        } else {
+            api_error('Invalid install_id. Register your device at ikimon.life/profile.', 401);
+        }
+    } else {
+        api_error('Authentication required.', 401);
+    }
 }
 
-$user = Auth::user();
-$userId = $user['id'] ?? null;
-$userName = $user['name'] ?? '';
-$userAvatar = $user['avatar'] ?? null;
+if (empty($userId)) {
+    api_error('Authentication required.', 401);
+}
+
 if (empty($userName) || $userName === 'Unknown') {
     require_once ROOT_DIR . '/libs/UserStore.php';
     $freshUser = UserStore::findById($userId);
@@ -71,6 +99,11 @@ if (empty($userName) || $userName === 'Unknown') {
     }
 }
 if (empty($userName)) $userName = 'Unknown';
+
+// レート制限（パッシブは大量バッチなので緩め）
+if (!api_rate_limit('passive_event', 10, 60)) {
+    api_error('Rate limit exceeded. Max 10 batches per minute.', 429);
+}
 $body = api_json_body();
 
 $events = $body['events'] ?? [];
