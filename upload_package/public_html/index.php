@@ -495,8 +495,9 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         </div>
 
                         <!-- Photo -->
-                        <div class="aspect-square w-full bg-surface relative group select-none block overflow-hidden cursor-pointer" onclick="window.location.href='<?php echo htmlspecialchars($feedCardDetailUrl); ?>'">
+                        <div class="aspect-square w-full bg-surface relative group select-none block overflow-hidden">
                             <img src="<?php echo $obs['photos'][0]; ?>" alt="<?php echo htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '観察写真'); ?>" class="w-full h-full object-cover pointer-events-none" loading="lazy" decoding="async" onload="this.parentElement.classList.remove('lazy-img')">
+                            <a href="<?php echo htmlspecialchars($feedCardDetailUrl); ?>" class="absolute inset-0 z-[1] cursor-pointer" aria-label="観察詳細を見る"></a>
 
                             <div x-show="scale > 1"
                                 x-transition:enter="transition ease-out duration-200"
@@ -527,7 +528,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                                     <?php endif; ?>
                                 </a>
                             <?php else: ?>
-                                <div class="absolute bottom-2 left-2 flex items-center gap-1.5">
+                                <div class="absolute bottom-2 left-2 flex items-center gap-1.5 z-10">
                                     <div class="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-2 border border-white/10">
                                         <i data-lucide="help-circle" class="w-3 h-3 text-white/50"></i>
                                         <span class="text-xs text-white/60"><?php echo __('home.identifying'); ?></span>
