@@ -118,12 +118,17 @@ if (count($events) > 500) {
     api_error('Too many events. Max 500 per batch.', 400);
 }
 
+// ホモサピエンス（撮影者自身）として誤検出される大分類を除外
+const EXCLUDED_HIGHER_GROUPS = ['哺乳類', 'Mammal', '人間', 'Human', 'Person', 'People'];
+
 // イベントバリデーション
 $validEvents = [];
 foreach ($events as $i => $event) {
     if (empty($event['type']) || empty($event['taxon_name'])) continue;
     if (!in_array($event['type'], ['audio', 'visual', 'sensor'], true)) continue;
     if ((float)($event['confidence'] ?? 0) < 0.20) continue;
+    // 哺乳類大分類は除外（ほぼ撮影者本人のホモサピエンス誤検出）
+    if (in_array(trim($event['taxon_name']), EXCLUDED_HIGHER_GROUPS, true)) continue;
 
     $validEvents[] = [
         'type'               => $event['type'],
