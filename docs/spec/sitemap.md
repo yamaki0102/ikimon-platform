@@ -1,8 +1,8 @@
 # ikimon.life — サイトマップ（全ページ網羅）
 
-> 更新: 2026-03-04 | ソース: ファイルシステムスキャン（全ディレクトリ対象）
-> ページ数: 79（アクティブ） / 87（リダイレクト・アーカイブ含む） | 削除: 3 | リダイレクト: 5 | アーカイブ: 3
-> APIエンドポイント: 98（うちDEV系: 11、テスト系: 2）
+> 更新: 2026-03-30 | ソース: git log + ファイルシステムスキャン
+> ページ数: 109（アクティブ） / 120（リダイレクト・アーカイブ含む） | 削除: 3 | リダイレクト: 5 | アーカイブ: 3
+> APIエンドポイント: 140+（うちDEV系: 11、テスト系: 2） | v2 API: 40+
 
 ## 凡例
 
@@ -348,13 +348,41 @@
 | POST | `/api_omoikane_search.php` | Omoikane種ナレッジグラフ検索 |
 | GET | `/api_omoikane_status.php` | Omoikaneワーカー稼働状態確認 |
 
-### v2 API（3件）
+### v2 API（40+件）
+
+> Phase 15〜16 で新設した次世代APIレイヤー。旧 `/api/` の後継として整備中。
 
 | メソッド | エンドポイント | 機能 |
 |---------|--------------|------|
 | POST | `/api/v2/30by30_report.php` | 30by30進捗レポート |
 | POST | `/api/v2/bio-index.php` | Bio-Index計算 |
 | POST | `/api/v2/tnfd_leap_report.php` | TNFD LEAPレポート |
+| GET | `/api/v2/ai_classify.php` | AI画像分類（BioScan用） |
+| GET | `/api/v2/analyze_audio.php` | 音声解析（鳥声同定） |
+| GET | `/api/v2/distribution_check.php` | 種の分布確認 |
+| GET | `/api/v2/ecosystem_map.php` | 生態系マップ生成 |
+| GET | `/api/v2/goals.php` | 生物多様性目標管理 |
+| GET | `/api/v2/nature_score.php` | ネイチャースコア算出 |
+| GET | `/api/v2/personal_quest.php` | 個人クエスト状態 |
+| GET | `/api/v2/predict_species.php` | 種出現予測 |
+| GET | `/api/v2/recommendations.php` | 観察スポット推薦 |
+| POST | `/api/v2/scan_classify.php` | スキャン結果分類 |
+| GET | `/api/v2/scan_detection.php` | リアルタイム検出ポーリング |
+| POST | `/api/v2/scan_frame.php` | フレーム画像送信（LiveScan） |
+| GET | `/api/v2/scan_summary.php` | スキャンセッションまとめ |
+| GET | `/api/v2/search.php` | v2統合検索 |
+| GET | `/api/v2/session_recap.php` | セッション振り返りデータ |
+| GET | `/api/v2/site_guide.php` | サイト案内（音声ガイド連携） |
+| POST | `/api/v2/sound_archive_identify.php` | 音声アーカイブ同定 |
+| GET | `/api/v2/sound_archive_list.php` | 音声アーカイブ一覧 |
+| GET | `/api/v2/sound_archive_report.php` | 音声アーカイブレポート |
+| POST | `/api/v2/sound_archive_upload.php` | 音声アーカイブアップロード |
+| GET | `/api/v2/species_card.php` | 種カード（詳細情報カード） |
+| GET | `/api/v2/species_recommendations.php` | 関連種推薦 |
+| GET | `/api/v2/species_search.php` | 種検索（v2） |
+| GET | `/api/v2/species_story.php` | 種ストーリー（AI生成） |
+| POST | `/api/v2/stage_transition.php` | 観察ステージ遷移 |
+| GET | `/api/v2/voice_guide.php` | 音声ガイド取得 |
 
 ---
 
@@ -410,6 +438,126 @@
 | `components/bg_radar.php` | レーダー背景（dashboard.php 刷新で廃止） |
 | `components/dopamine_widgets.php` | ドーパミンウィジェット（dashboard.php 刷新で廃止） |
 | `assets/css/tactical.css` | タクティカルUI CSS（dashboard.php 刷新で廃止） |
+
+---
+
+## 新規追加ページ（2026-03-04 以降）
+
+> 2026-03-04 のサイトマップ作成以降に追加されたページ。上記テーブルへの統合は次回整理時に行う。
+
+### フィールド & スキャン（4件）
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 91 | `/walk.php` | `walk.php` | Walkモード | ikimon_walk.phpのリニューアル版、歩きながら観察記録 | ● | ✅ |
+| 92 | `/scan.php` | `scan.php` | クイックスキャン | カメラから即座に種を特定するクイックスキャン | ○ | ✅ |
+| 93 | `/field_scan.php` | `field_scan.php` | フィールドスキャン | リアルタイム検出フィード、BioScan v0.5連携 | ● | ✅ |
+| 94 | `/bioscan.php` | `bioscan.php` | BioScanポータル | BioScanアプリとWebの統合ポータル | ○ | ✅ |
+
+### 音声 & ライブ（2件）
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 95 | `/sound_archive.php` | `sound_archive.php` | 音声アーカイブ | 鳥声・虫声の録音アーカイブ・同定 | ◐ | ✅ |
+| 96 | `/livemap.php` | `livemap.php` | ライブマップ | リアルタイム観察フィードの地図表示 | ○ | ✅ |
+
+### クエスト & ゲーミフィケーション（1件）
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 97 | `/quests.php` | `quests.php` | クエスト | デイリークエスト・ミッション一覧、バッジ進捗 | ● | ✅ |
+
+### コミュニティ & 招待（2件）
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 98 | `/bioblitz_join.php` | `bioblitz_join.php` | BioBlitz参加 | イベントコードによるBioBlitz参加フォーム | ○ | ✅ |
+| 99 | `/invite.php` | `invite.php` | 招待 | 招待リンク経由のユーザー登録 | ○ | ✅ |
+
+### サーベイヤー（5件）
+
+> 専門家・調査員向けの機能。認証はSurveyorロール。
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 100 | `/surveyors.php` | `surveyors.php` | サーベイヤー一覧 | 認定サーベイヤーのディレクトリ | ○ | ✅ |
+| 101 | `/surveyor_profile.php` | `surveyor_profile.php` | サーベイヤープロフィール | 専門分野・実績・調査記録の公開プロフィール | ○ | ✅ |
+| 102 | `/surveyor_profile_edit.php` | `surveyor_profile_edit.php` | サーベイヤープロフィール編集 | 専門分野・資格・担当地域の編集 | ● | ✅ |
+| 103 | `/surveyor_records.php` | `surveyor_records.php` | サーベイヤー記録 | 調査記録の一覧・管理 | ● | ✅ |
+| 104 | `/request_survey.php` | `request_survey.php` | 調査依頼 | 特定種・エリアへの専門家調査依頼フォーム | ● | ✅ |
+
+### 企業向け機能（法人管理、5件）
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 105 | `/corporate_invite.php` | `corporate_invite.php` | 法人招待 | 法人アカウントへのメンバー招待 | ● | ✅ |
+| 106 | `/corporate_members.php` | `corporate_members.php` | 法人メンバー管理 | 法人メンバーの一覧・ロール管理 | ● | ✅ |
+| 107 | `/corporate_settings.php` | `corporate_settings.php` | 法人設定 | 法人プロフィール・通知設定 | ● | ✅ |
+| 108 | `/for-business/create.php` | `for-business/create.php` | 法人アカウント作成 | セルフサービス法人登録フロー | ○ | ✅ |
+| 109 | `/for-business/status.php` | `for-business/status.php` | 申込ステータス確認 | 法人導入申込の審査状況確認 | ○ | ✅ |
+
+### Androidアプリ連携（3件）
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 110 | `/android-app.php` | `android-app.php` | Androidアプリ紹介 | BioScan Androidアプリのダウンロード・紹介ページ | ○ | ✅ |
+| 111 | `/app_auth_complete.php` | `app_auth_complete.php` | アプリOAuth完了 | アプリからのOAuth認証フロー完了画面 | ○ | ✅ |
+| 112 | `/app_auth_redeem.php` | `app_auth_redeem.php` | アプリ認証引き換え | 認証トークンとアプリセッションを紐付け | ○ | ✅ |
+
+### 特別機能 & アーカイブ（3件）
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 113 | `/century_archive.php` | `century_archive.php` | 100年アーカイブ | 100年生態系アーカイブのコンセプト・貢献可視化（Phase 16） | ○ | 🚧 |
+| 114 | `/methodology.php` | `methodology.php` | BISスコア方法論 | BISスコア計算・TNFD LEAP対応の透明性説明ページ | ○ | ✅ |
+| 115 | `/analytics.php` | `analytics.php` | アナリティクス | サイト全体の生物多様性データアナリティクス | ◐ | ✅ |
+
+### 観察管理（1件）
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 116 | `/edit_observation.php` | `edit_observation.php` | 観察編集 | 投稿済み観察の種名・メモ・メタデータ編集 | ● | ✅ |
+
+### 管理画面（追加、4件）
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 117 | `/admin/business_applications.php` | `admin/business_applications.php` | 法人申込管理 | 法人導入申込の審査・承認・却下 | ● | ✅ |
+| 118 | `/admin/literature_review.php` | `admin/literature_review.php` | 論文蒸留レビュー | Gemini抽出の豆知識・生態データの確認・承認 | ● | 🚧 |
+| 119 | `/admin/queues.php` | `admin/queues.php` | キュー監視 | AI考察・Embedding・論文蒸留の処理キュー状況 | ● | ✅ |
+| 120 | `/admin/surveyors.php` | `admin/surveyors.php` | サーベイヤー管理 | サーベイヤー認定・剥奪・専門分野管理 | ● | ✅ |
+
+### ガイド記事（追加、4件）
+
+| # | ルート | ファイル | ページ名 | 機能概要 | Auth | Status |
+|---|--------|---------|---------|---------|------|--------|
+| 121 | `/guide/ikimon-approach.php` | `guide/ikimon-approach.php` | ikimonアプローチ | ikimon.lifeの100年アーカイブ哲学の解説記事 | ○ | ✅ |
+| 122 | `/guide/japan-biodiversity.php` | `guide/japan-biodiversity.php` | 日本の生物多様性 | 日本の固有種・生態系の多様性解説 | ○ | ✅ |
+| 123 | `/guide/regional-biodiversity.php` | `guide/regional-biodiversity.php` | 地域別生物多様性 | 都道府県別の生物多様性・特徴的な種の解説 | ○ | ✅ |
+| 124 | `/guide/satoyama-initiative.php` | `guide/satoyama-initiative.php` | 里山イニシアチブ | 里山保全・SATOYAMA INITIATIVE解説 | ○ | ✅ |
+
+### 新規APIエンドポイント（主要追加分）
+
+| メソッド | エンドポイント | 機能 |
+|---------|--------------|------|
+| GET | `/api/get_daily_quests.php` | デイリークエスト取得 |
+| GET | `/api/get_event_leaderboard.php` | イベントリーダーボード |
+| GET | `/api/get_growth_log.php` | ユーザー成長ログ |
+| GET | `/api/get_learning_hint.php` | 学習ヒント取得 |
+| GET | `/api/get_observation_ai_status.php` | AI考察ステータス確認 |
+| GET | `/api/get_similar_observations.php` | 類似観察取得 |
+| GET | `/api/get_site_summary.php` | サイトサマリー |
+| GET | `/api/get_today_state.php` | 今日の状態取得 |
+| POST | `/api/log_reflection.php` | 振り返りログ保存 |
+| POST | `/api/propose_observation_metadata.php` | 観察メタデータ提案 |
+| POST | `/api/delete_observation.php` | 観察削除 |
+| POST | `/api/feedback.php` | フィードバック送信 |
+| POST | `/api/generate_30by30_report.php` | 30by30レポート生成 |
+| GET | `/api/android_app_release.php` | Androidアプリリリース情報 |
+| POST | `/api/business/submit_application.php` | 法人申込送信 |
+| POST | `/api/admin/update_surveyor_status.php` | サーベイヤー認定状態更新 |
+| GET/POST | `/api/affiliate/admin.php` | アフィリエイト管理 |
+| POST | `/api/affiliate/click.php` | アフィリエイトクリック記録 |
 
 ### 新規追加ファイル（1件）
 | ファイル | 用途 |
