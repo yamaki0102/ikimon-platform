@@ -19,6 +19,7 @@ data class DetectionEvent(
     val photoRef: String? = null,
     val taxonomicClass: String? = null,  // "Aves", "Amphibia", "Insecta" 等
     val order: String? = null,           // "Passeriformes" 等
+    val taxonRank: String = "species",   // species/genus/family/order/class
     val aiVersion: String = "v0.7.0",
 ) {
     fun toJSON(): JSONObject = JSONObject().apply {
@@ -36,5 +37,6 @@ data class DetectionEvent(
         photoRef?.let { put("photo_ref", it) }
         taxonomicClass?.let { put("taxonomic_class", it) }
         order?.let { put("taxonomic_order", it) }
+        put("taxon_rank", taxonRank)
     }
 }
