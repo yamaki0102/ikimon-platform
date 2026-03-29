@@ -460,7 +460,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         $feedCardDetailUrl = 'observation_detail.php?id=' . urlencode($obs['id']);
                         $feedCardShareTitle = $obs['taxon']['name'] ?? '観察記録';
                     ?>
-                    <article x-data='{ reactions: <?php echo $feedCardReactionsJson; ?>, total: <?php echo (int)$obsTotalReactions; ?>, scale: 1, lastTap: 0, _tapTimer: null, menuOpen: false, react(type) { const p = this.reactions[type].reacted; this.reactions[type].reacted = !p; this.reactions[type].count += p ? -1 : 1; this.total += p ? -1 : 1; if (!p) { this.scale = 1.2; setTimeout(() => this.scale = 1, 200); } fetch("/api/toggle_like.php", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({id: "<?php echo htmlspecialchars($feedCardObsId, ENT_QUOTES); ?>", type: type}) }).then(r => r.json()).then(d => { if (d.success) { this.reactions = d.reactions; this.total = d.total; } }).catch(() => {}); }, doubleTap(e) { const n = Date.now(); if (n - this.lastTap < 300) { clearTimeout(this._tapTimer); this._tapTimer = null; if (!this.reactions.like.reacted) this.react("like"); } else { this._tapTimer = setTimeout(() => { window.location.href = "<?php echo $feedCardDetailUrl; ?>"; }, 300); } this.lastTap = n; }, shareObs() { this.menuOpen = false; const u = location.origin + "/<?php echo $feedCardDetailUrl; ?>"; if (navigator.share) { navigator.share({ title: "<?php echo htmlspecialchars($feedCardShareTitle, ENT_QUOTES); ?>", url: u }).catch(() => {}); } else { navigator.clipboard.writeText(u); if (Alpine.store("toast")) Alpine.store("toast").success("コピー", "リンクをコピーしました"); } } }'
+                    <article x-data='{ reactions: <?php echo $feedCardReactionsJson; ?>, total: <?php echo (int)$obsTotalReactions; ?>, scale: 1, menuOpen: false }'
                      @click.outside="menuOpen = false"
                         class="feed-card feed-card--animated rounded-2xl overflow-hidden transition bg-elevated border border-border shadow-sm">
                         <!-- Feed Header -->
@@ -486,7 +486,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                                         class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-text hover:bg-surface transition">
                                         <i data-lucide="eye" class="w-4 h-4 text-faint"></i>詳細を見る
                                     </a>
-                                    <button @click="shareObs()"
+                                    <button @click="menuOpen=false; let u=location.origin+'/<?php echo $feedCardDetailUrl; ?>'; if(navigator.share){navigator.share({title:'<?php echo htmlspecialchars($feedCardShareTitle, ENT_QUOTES); ?>',url:u}).catch(()=>{})}else{navigator.clipboard.writeText(u)}"
                                         class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-text hover:bg-surface transition text-left">
                                         <i data-lucide="share-2" class="w-4 h-4 text-faint"></i>シェアする
                                     </button>
@@ -495,8 +495,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         </div>
 
                         <!-- Photo -->
-                        <div class="aspect-square w-full bg-surface relative group select-none"
-                            @click="doubleTap($event)">
+                        <a href="<?php echo htmlspecialchars($feedCardDetailUrl); ?>" class="aspect-square w-full bg-surface relative group select-none block">
                             <img src="<?php echo $obs['photos'][0]; ?>" alt="<?php echo htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '観察写真'); ?>" class="w-full h-full object-cover pointer-events-none" loading="lazy" decoding="async" onload="this.parentElement.classList.remove('lazy-img')">
 
                             <div x-show="scale > 1"
@@ -538,12 +537,12 @@ $publicSurveyorCount = count($allPublicSurveyors);
                                     <?php endif; ?>
                                 </div>
                             <?php endif; ?>
-                        </div>
+                        </a>
 
                         <!-- Actions: 4 Reaction Buttons -->
                         <div class="px-4 py-2 pb-0 flex items-center gap-0.5">
                             <?php foreach (['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', 'manabi' => '🔬'] as $_rtype => $_remoji): ?>
-                            <button @click="react('<?php echo $_rtype; ?>')"
+                            <button @click="let r=reactions.<?php echo $_rtype; ?>; r.reacted=!r.reacted; r.count+=r.reacted?1:-1; total+=r.reacted?1:-1; if(r.reacted){scale=1.2;setTimeout(()=>scale=1,200)} fetch('/api/toggle_like.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'<?php echo htmlspecialchars($feedCardObsId, ENT_QUOTES); ?>',type:'<?php echo $_rtype; ?>'})}).then(x=>x.json()).then(d=>{if(d.success){reactions=d.reactions;total=d.total}}).catch(()=>{})"
                                 class="flex items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-all hover:bg-surface active:scale-90"
                                 :class="reactions.<?php echo $_rtype; ?>.reacted ? 'bg-primary/10' : ''">
                                 <span class="text-base" :class="reactions.<?php echo $_rtype; ?>.reacted ? 'opacity-100' : 'opacity-40'"><?php echo $_remoji; ?></span>
