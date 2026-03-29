@@ -22,7 +22,10 @@ class UploadWorker(
 
     companion object {
         private const val TAG = "UploadWorker"
-        private const val API_URL = "https://ikimon.life/api/v2/passive_event.php"
+        private const val API_BASE = "https://ikimon.life/api/v2/passive_event.php"
+        private const val PREFS_NAME = "field_observation_install_identity"
+        private const val PREF_INSTALL_ID = "install_id"
+        private const val APP_VERSION = "0.6.0"
     }
 
     private val client = OkHttpClient.Builder()
@@ -40,33 +43,48 @@ class UploadWorker(
             return Result.failure()
         }
 
+        val installId = applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(PREF_INSTALL_ID, null)
+
+        if (installId == null) {
+            Log.e(TAG, "install_id not found — cannot authenticate")
+            return Result.retry()
+        }
+
+        val apiUrl = "$API_BASE?install_id=$installId"
+
         return try {
             val json = file.readText()
             val body = json.toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
-                .url(API_URL)
+                .url(apiUrl)
                 .post(body)
-                .addHeader("User-Agent", "ikimon-pocket/0.1.0")
-                // TODO: Add auth cookie/token
+                .addHeader("User-Agent", "ikimon-bioscan/$APP_VERSION")
                 .build()
 
             val response = client.newCall(request).execute()
+            val responseBody = response.body?.string()
 
             if (response.isSuccessful) {
                 Log.i(TAG, "Upload successful: ${response.code}")
-                // アップロード成功 → ファイル削除
                 file.delete()
                 Result.success()
             } else {
-                Log.w(TAG, "Upload failed: ${response.code} ${response.body?.string()}")
-                if (response.code in 400..499) {
-                    // クライアントエラー → リトライしない
-                    file.delete()
-                    Result.failure()
-                } else {
-                    // サーバーエラー → リトライ
-                    Result.retry()
+                Log.w(TAG, "Upload failed: ${response.code} $responseBody")
+                when (response.code) {
+                    401 -> {
+                        // 認証エラー → ファイルは消さずリトライ（install_idが未登録の可能性）
+                        Log.w(TAG, "Auth failed — retrying later. Register device at ikimon.life/profile")
+                        Result.retry()
+                    }
+                    in 400..499 -> {
+                        // その他クライアントエラー（400/422等）→ 不正データなので削除
+                        file.delete()
+                        Result.failure()
+                    }
+                    else -> Result.retry()
                 }
             }
         } catch (e: Exception) {

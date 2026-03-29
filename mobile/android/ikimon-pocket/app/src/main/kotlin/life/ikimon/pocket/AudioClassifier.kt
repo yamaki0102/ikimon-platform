@@ -28,7 +28,7 @@ class AudioClassifier(private val context: Context) {
         private const val SAMPLE_RATE = 48000
         private const val MODEL_FILE = "birdnet_lite.tflite"
         private const val LABELS_FILE = "birdnet_labels.txt"
-        private const val MIN_CONFIDENCE = 0.3f
+        private const val MIN_CONFIDENCE = 0.25f  // より多くの候補を取る（サーバー側で再フィルタ）
     }
 
     data class ClassificationResult(
@@ -172,16 +172,11 @@ class AudioClassifier(private val context: Context) {
     }
 
     /**
-     * モデルがない場合のダミー分類（開発用）。
+     * モデル未ロード時は空を返す（偽データを記録しない）。
      */
     private fun dummyClassify(): List<ClassificationResult> {
-        val dummySpecies = listOf(
-            ClassificationResult("シジュウカラ", "Parus minor", 0.85f),
-            ClassificationResult("ヒヨドリ", "Hypsipetes amaurotis", 0.72f),
-            ClassificationResult("メジロ", "Zosterops japonicus", 0.65f),
-        )
-        // ランダムに0-2種返す
-        return dummySpecies.shuffled().take((0..2).random())
+        Log.w(TAG, "BirdNET model not loaded — skipping classification. Place birdnet_lite.tflite in assets/")
+        return emptyList()
     }
 
     private fun loadModelFile(filename: String): MappedByteBuffer {

@@ -25,8 +25,8 @@ class PocketService : Service() {
     companion object {
         private const val TAG = "PocketService"
         private const val NOTIFICATION_ID = 1001
-        private const val AUDIO_INTERVAL_MS = 30_000L  // 30秒ごとに録音
-        private const val AUDIO_DURATION_MS = 5_000L   // 5秒間録音
+        private const val AUDIO_INTERVAL_MS = 15_000L  // 15秒ごとに録音（2倍の頻度）
+        private const val AUDIO_DURATION_MS = 10_000L  // 10秒間録音（BirdNET精度向上）
         private const val GPS_INTERVAL_MS = 10_000L    // 10秒ごとにGPS
 
         fun start(context: Context) {
