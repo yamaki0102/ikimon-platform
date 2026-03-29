@@ -45,6 +45,9 @@ upload_package/data/redlists/scraped_production_master.csv
 upload_package/data/uploads/
 upload_package/data/taxonomy/
 
+# === Dev-only scripts (local use only, not deployed) ===
+upload_package/scripts/dev/
+
 # === Archive (retired debug/migration files) ===
 _archive/
 
