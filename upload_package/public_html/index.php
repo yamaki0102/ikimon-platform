@@ -36,7 +36,7 @@ $latest_obs = DataStore::getLatest('observations', 6, function ($item) use ($fil
     return true;
 });
 
-// Stats for hero (企業サイト・seed・BioScanテストを除外)
+// Stats for hero (企業サイト・seed・FieldScanテストを除外)
 $allObs = array_filter(DataStore::fetchAll('observations'), function ($o) {
     if (!empty($o['site_id'])) return false;
     $uid = $o['user_id'] ?? '';

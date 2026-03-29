@@ -1,9 +1,9 @@
-# ikimon.life + BioScan 開発計画 2026 Q2-Q3
+# ikimon.life + FieldScan 開発計画 2026 Q2-Q3
 
 > **「2026年に記録しなかったデータは二度と取り戻せない」**
 
 作成: 2026-03-24
-参照: bioscan_100y_archive_strategy.md / walk_livescan_unification.md / bioscan_implementation_roadmap.md
+参照: fieldscan_100y_archive_strategy.md / walk_livescan_unification.md / fieldscan_implementation_roadmap.md
 
 ---
 
@@ -14,14 +14,14 @@
  4月          5月          6月          7月          8月          9月
  ├─ Sprint 1 ─┤─ Sprint 2 ─┤─ Sprint 3 ─┤─ Sprint 4 ─┤─ Sprint 5 ─┤─ Sprint 6 ─┤
  │             │             │             │             │             │
- │ ❶ さんぽ統合│ ❷ 散歩レポ │ ❸ BioScan  │ ❹ 環境セン │ ❺ 社会設計 │ ❻ Station  │
+ │ ❶ さんぽ統合│ ❷ 散歩レポ │ ❸ FieldScan  │ ❹ 環境セン │ ❺ 社会設計 │ ❻ Station  │
  │  + 自然浴   │  + 貢献可視 │  基盤修正   │  サー統合   │  + 連携     │  + 調査     │
  │  スコア     │  化         │             │             │             │  プロトコル │
  │             │             │             │             │             │             │
  │ ── Web ──  │ ── Web ──  │ ─ Android ─ │ ─ Android ─ │ ── Web ──  │ ── 両方 ── │
 ```
 
-**原則**: Web（ikimon.life）を先にやる。ユーザーの多い方から。BioScan は「ブラウザでは取れないデータ」に集中。
+**原則**: Web（ikimon.life）を先にやる。ユーザーの多い方から。FieldScan は「ブラウザでは取れないデータ」に集中。
 
 ---
 
@@ -74,11 +74,11 @@
 
 ---
 
-## Sprint 3（6月前半〜後半）: BioScan 基盤修正
+## Sprint 3（6月前半〜後半）: FieldScan 基盤修正
 
-**ゴール**: BioScan のデータが ikimon.life に流れる。種レベル同定が動く。
+**ゴール**: FieldScan のデータが ikimon.life に流れる。種レベル同定が動く。
 
-### Android（ikimon-bioscan）
+### Android（ikimon-fieldscan）
 
 | # | タスク | ファイル | 工数 |
 |---|--------|---------|------|
@@ -86,12 +86,12 @@
 | 3-2 | Detection に taxonRank, confidenceScore, aiModel, environment 追加 | `data/Detection.kt` | S |
 | 3-3 | GeminiNanoEngine プロンプトを環境分析専任に変更 | `ai/GeminiNanoEngine.kt` | S |
 | 3-4 | SYNC_ENABLED = true + passive_event.php への送信テスト | `data/SyncManager.kt` | M |
-| 3-5 | 加速度計スキャン間隔制御（静止10秒/歩行3秒/走行停止） | `scanner/BioScanEngine.kt` | M |
+| 3-5 | 加速度計スキャン間隔制御（静止10秒/歩行3秒/走行停止） | `scanner/FieldScanEngine.kt` | M |
 | 3-6 | APPI同意画面（GPS・音声・GBIF国外転送） | `ui/ConsentScreen.kt`（新規） | M |
 
 ### 検証
 - TFLite モデルで日本の一般的な種（シジュウカラ等）を正しく同定できるか
-- BioScan → ikimon.life ローカルサーバーへの実送信テスト
+- FieldScan → ikimon.life ローカルサーバーへの実送信テスト
 - 加速度計: 静止→歩行→走行でスキャン間隔が変わるか
 - 同意画面のフロー確認
 
@@ -101,7 +101,7 @@
 
 **ゴール**: Pixel 10 Pro のセンサーを全部使う。タイムカプセルが最も豊かになる。
 
-### Android（ikimon-bioscan）
+### Android（ikimon-fieldscan）
 
 | # | タスク | ファイル | 工数 |
 |---|--------|---------|------|
@@ -141,14 +141,14 @@
 | 5-2 | iNaturalist インポートUI（プロフィール設定） | `api/v2/inaturalist_import.php`（新規） | M |
 | 5-3 | タイムカプセル詳細ページ（環境データグラフ+GPS軌跡+種リスト） | 新規ページ | L |
 | 5-4 | タイムカプセル共有リンク生成（SNS投稿用OGP） | 上記ページ | S |
-| 5-5 | 散歩レポートに「BioScanで記録するともっと豊かなデータに」導線 | `SessionReporter.js` | XS |
+| 5-5 | 散歩レポートに「FieldScanで記録するともっと豊かなデータに」導線 | `SessionReporter.js` | XS |
 
-### Android（ikimon-bioscan）
+### Android（ikimon-fieldscan）
 
 | # | タスク | ファイル | 工数 |
 |---|--------|---------|------|
 | 5-6 | Sensory Fusion Engine（TFLite × Perch v2 × Nano × センサー → 最終判定） | `ai/FusionEngine.kt`（新規） | L |
-| 5-7 | セッション終了 → ikimon.life 散歩レポートURLを開く | `ui/BioScanScreen.kt` | S |
+| 5-7 | セッション終了 → ikimon.life 散歩レポートURLを開く | `ui/FieldScanScreen.kt` | S |
 
 ### 検証
 - iNaturalist テストアカウントから観察をインポートできるか
@@ -162,11 +162,11 @@
 
 **ゴール**: 定点観測と科学的調査への対応。研究者との接続。
 
-### Android（ikimon-bioscan）
+### Android（ikimon-fieldscan）
 
 | # | タスク | ファイル | 工数 |
 |---|--------|---------|------|
-| 6-1 | Station Mode 基本（画面OFF + 音響常時監視 + 動体検知トリガー） | `scanner/BioScanEngine.kt` | L |
+| 6-1 | Station Mode 基本（画面OFF + 音響常時監視 + 動体検知トリガー） | `scanner/FieldScanEngine.kt` | L |
 | 6-2 | 夜間モード（Night Sight統合） | `scanner/VisualScanner.kt` | M |
 | 6-3 | ポイントカウントプロトコル（タイマー+距離帯） | `ui/SurveyScreen.kt`（新規） | M |
 
@@ -203,9 +203,9 @@
 ```
 Sprint 1 (さんぽ統合)
   └→ Sprint 2 (散歩レポート) ← Sprint 1 の統合UIが前提
-       └→ Sprint 5-5 (BioScan導線) ← 散歩レポートが前提
+       └→ Sprint 5-5 (FieldScan導線) ← 散歩レポートが前提
 
-Sprint 3 (BioScan基盤)
+Sprint 3 (FieldScan基盤)
   ├→ Sprint 4 (センサー) ← SYNC + TFLite が前提
   │    └→ Sprint 5-6 (Fusion) ← 全AIエンジンが前提
   └→ Sprint 6-1 (Station) ← 基盤が安定していること
@@ -237,8 +237,8 @@ Apache 2.0 で日本の種を十分カバーするモデルが見つからない
 |------|----------------|----------------|----------------|
 | 週間アクティブさんぽユーザー | 基準値測定 | +20% | +50% |
 | セッションあたり平均種数 | 基準値測定 | +30%（AI改善） | +50% |
-| BioScan インストール数 | - | 50 | 200 |
-| BioScan → ikimon.life 同期率 | - | 80%+ | 90%+ |
+| FieldScan インストール数 | - | 50 | 200 |
+| FieldScan → ikimon.life 同期率 | - | 80%+ | 90%+ |
 | 環境センサー付きタイムカプセル比率 | 0% | 10% | 20% |
 | GBIF 提供レコード数 | 0 | 0 | 初回エクスポート |
 | 自然浴スコア平均 | 基準値測定 | 基準値測定 | トレンド確認 |
@@ -250,8 +250,8 @@ Apache 2.0 で日本の種を十分カバーするモデルが見つからない
 - **入口**: 散歩が楽しくなる（ウェルビーイング）・地域を知れる（地方創生）・仲間ができる（コミュニティ）
 - **継続動機**: 自分の記録が社会に使われた実感
 - **結果**: 100年アーカイブが副産物として育つ
-- **優先順位**: Web（多くの人の入口）→ BioScan（豊かなデータの上位層）
-- **BioScan の焦点**: ブラウザでは取れないデータだけ
+- **優先順位**: Web（多くの人の入口）→ FieldScan（豊かなデータの上位層）
+- **FieldScan の焦点**: ブラウザでは取れないデータだけ
 
 ### AIは同定しない。人間が同定する。
 

@@ -33,7 +33,7 @@ import life.ikimon.pocket.PocketService
 class MainActivity : ComponentActivity() {
 
     companion object {
-        const val ACTION_DETECTION = "life.ikimon.bioscan.DETECTION"
+        const val ACTION_DETECTION = "life.ikimon.fieldscan.DETECTION"
     }
 
     private val permissionLauncher = registerForActivityResult(
@@ -187,7 +187,7 @@ fun HomeScreen(
 
             Text("🌿", fontSize = 40.sp)
             Spacer(modifier = Modifier.height(4.dp))
-            Text("ikimon BioScan", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("ikimon FieldScan", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Text("BirdNET+ V3.0 · Gemini Nano v3", fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f))
 
             Spacer(modifier = Modifier.height(32.dp))

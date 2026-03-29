@@ -59,11 +59,11 @@ if (Auth::isLoggedIn()) {
     $userName = $user['name'] ?? '';
     $userAvatar = $user['avatar'] ?? null;
 } else {
-    // BioScanアプリからのinstall_id認証
+    // FieldScanアプリからのinstall_id認証
     $installId = $_GET['install_id'] ?? null;
     if ($installId) {
         require_once ROOT_DIR . '/libs/UserStore.php';
-        $installs = DataStore::get('bioscan_installs') ?? [];
+        $installs = DataStore::get('fieldscan_installs') ?? [];
         $matched = null;
         foreach ($installs as $inst) {
             if (($inst['install_id'] ?? '') === $installId && ($inst['status'] ?? 'active') === 'active') {

@@ -18,7 +18,7 @@
 
     <application
         android:name="life.ikimon.IkimonApp"
-        android:label="ikimon BioScan"
+        android:label="ikimon FieldScan"
         android:icon="@android:drawable/ic_menu_compass"
         android:theme="@style/Theme.IkimonPocket"
         android:supportsRtl="true">

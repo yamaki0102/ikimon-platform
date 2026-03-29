@@ -61,7 +61,7 @@ class UploadWorker(
             val request = Request.Builder()
                 .url(apiUrl)
                 .post(body)
-                .addHeader("User-Agent", "ikimon-bioscan/$APP_VERSION")
+                .addHeader("User-Agent", "ikimon-fieldscan/$APP_VERSION")
                 .build()
 
             val response = client.newCall(request).execute()

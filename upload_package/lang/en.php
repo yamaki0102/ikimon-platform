@@ -29,7 +29,7 @@ return [
         'record_observation_desc' => 'Record wildlife with a photo',
         'record_sensor' => 'Field Observation',
         'record_sensor_desc' => 'Record with environmental sensors',
-        'record_bioscan' => 'BioScan Search',
+        'record_bioscan' => 'FieldScan',
         'record_bioscan_desc' => 'Find wildlife with AI camera',
         'record_cancel' => 'Cancel',
         'my_field' => 'Walk',

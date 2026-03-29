@@ -9,7 +9,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "life.ikimon.bioscan"
+        applicationId = "life.ikimon.fieldscan"
         minSdk = 28
         targetSdk = 35
         versionCode = 70001

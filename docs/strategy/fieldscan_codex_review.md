@@ -1,4 +1,4 @@
-# BioScan v0.2 Codex レビュー結果 — 2026-03-24
+# FieldScan v0.2 Codex レビュー結果 — 2026-03-24
 
 ## 概要
 
@@ -88,7 +88,7 @@ Claude Code + Codex による健全な衝突を経て合意に至った設計判
 > **2026-03-25 追記**: BirdNET+ V3.0 が CC BY-SA 4.0 でリリースされ、商用利用が可能になった。
 > Perch v2 (Apache 2.0) との**デュアル音声エンジン構成**を採用。
 > 2エンジン合意で Evidence Tier 自動昇格（1→1.5）、ベンダーロックイン回避、種カバレッジ補完を実現。
-> 詳細: `bioscan_implementation_roadmap.md` Phase 4 参照。
+> 詳細: `fieldscan_implementation_roadmap.md` Phase 4 参照。
 
 ---
 

@@ -31,7 +31,7 @@ return [
         'record_observation_desc' => '写真で生き物を記録する',
         'record_sensor' => 'いきものセンサー',
         'record_sensor_desc' => '環境センサーで記録する',
-        'record_bioscan' => 'いきものサーチ',
+        'record_bioscan' => 'フィールドスキャン',
         'record_bioscan_desc' => 'AIカメラで生き物を探す',
         'record_cancel' => 'キャンセル',
         'site_dashboard' => 'サイトダッシュボード',
