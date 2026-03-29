@@ -499,7 +499,12 @@ $publicSurveyorCount = count($allPublicSurveyors);
                     }
                     $obsComments = count($obs['identifications'] ?? []);
                 ?>
-                    <article x-data="feedCard('<?php echo htmlspecialchars($obs['id'], ENT_QUOTES); ?>', <?php echo json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_HEX_APOS); ?>, <?php echo (int)$obsTotalReactions; ?>, '<?php echo htmlspecialchars($obs['taxon']['name'] ?? '観察記録', ENT_QUOTES); ?>')"
+                    <?php
+                        $feedCardObs = htmlspecialchars($obs['id'], ENT_QUOTES);
+                        $feedCardTitle = htmlspecialchars($obs['taxon']['name'] ?? '観察記録', ENT_QUOTES);
+                        $feedCardReactions = json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP);
+                    ?>
+                    <article x-data='feedCard(<?php echo json_encode($feedCardObs); ?>, <?php echo $feedCardReactions; ?>, <?php echo (int)$obsTotalReactions; ?>, <?php echo json_encode($feedCardTitle); ?>)'
                      @click.outside="menuOpen = false"
                         class="feed-card feed-card--animated rounded-2xl overflow-hidden transition bg-elevated border border-border shadow-sm">
                         <!-- Feed Header -->
