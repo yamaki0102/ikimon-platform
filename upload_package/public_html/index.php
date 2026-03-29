@@ -454,74 +454,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                     }
                     $obsComments = count($obs['identifications'] ?? []);
                 ?>
-                    <article x-data="{
-                        reactions: <?php echo json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP); ?>,
-                        total: <?php echo (int)$obsTotalReactions; ?>,
-                        pickerOpen: false,
-                        scale: 1,
-                        lastTap: 0,
-                        _tapTimer: null,
-                        menuOpen: false,
-                        emojis: {footprint:'👣', like:'❤️', suteki:'✨', manabi:'🔬'},
-                        labels: {footprint:'足あと', like:'いいね', suteki:'すてき', manabi:'学び'},
-
-                        async react(type) {
-                            this.pickerOpen = false;
-                            const prev = this.reactions[type].reacted;
-                            this.reactions[type].reacted = !prev;
-                            this.reactions[type].count += prev ? -1 : 1;
-                            this.total += prev ? -1 : 1;
-                            if (!prev) {
-                                if (window.SoundManager) SoundManager.play('light-click');
-                                if (window.HapticEngine) HapticEngine.tick();
-                                this.scale = 1.2;
-                                setTimeout(() => this.scale = 1, 200);
-                            }
-                            try {
-                                const res = await fetch('/api/toggle_like.php', {
-                                    method: 'POST',
-                                    headers: {'Content-Type': 'application/json'},
-                                    body: JSON.stringify({id: '<?php echo htmlspecialchars($obs['id'], ENT_QUOTES); ?>', type})
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                    this.reactions = data.reactions;
-                                    this.total = data.total;
-                                }
-                            } catch (err) {}
-                        },
-
-                        get activeEmojis() {
-                            return Object.entries(this.reactions)
-                                .filter(([k,v]) => v.count > 0)
-                                .map(([k,v]) => ({type:k, emoji:this.emojis[k], count:v.count, reacted:v.reacted}));
-                        },
-
-                        doubleTap(e) {
-                            const now = Date.now();
-                            if (now - this.lastTap < 300) {
-                                clearTimeout(this._tapTimer);
-                                this._tapTimer = null;
-                                if (!this.reactions.like.reacted) { this.react('like'); }
-                            } else {
-                                this._tapTimer = setTimeout(() => {
-                                    window.location.href = 'observation_detail.php?id=<?php echo urlencode($obs['id']); ?>';
-                                }, 300);
-                            }
-                            this.lastTap = now;
-                        },
-
-                        async shareObs() {
-                            this.menuOpen = false;
-                            const url = location.origin + '/observation_detail.php?id=<?php echo urlencode($obs['id']); ?>';
-                            if (navigator.share) {
-                                try { await navigator.share({ title: '<?php echo htmlspecialchars($obs['taxon']['name'] ?? '観察記録', ENT_QUOTES); ?>', url }); } catch {}
-                            } else {
-                                await navigator.clipboard.writeText(url);
-                                if (Alpine.store('toast')) Alpine.store('toast').success('コピー', 'リンクをコピーしました');
-                            }
-                        }
-                     }"
+                    <article x-data="feedCard('<?php echo htmlspecialchars($obs['id'], ENT_QUOTES); ?>', <?php echo json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_HEX_APOS); ?>, <?php echo (int)$obsTotalReactions; ?>, '<?php echo htmlspecialchars($obs['taxon']['name'] ?? '観察記録', ENT_QUOTES); ?>')"
                      @click.outside="menuOpen = false"
                         class="feed-card feed-card--animated rounded-2xl overflow-hidden transition bg-elevated border border-border shadow-sm">
                         <!-- Feed Header -->
@@ -568,7 +501,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                                 x-transition:leave-start="opacity-100 scale-150"
                                 x-transition:leave-end="opacity-0 scale-0"
                                 class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                                <span class="text-8xl drop-shadow-2xl opacity-90">❤️</span>
+                                <span class="text-8xl drop-shadow-2xl opacity-90">✨</span>
                             </div>
 
                             <?php if (BioUtils::hasResolvedTaxon($obs)): ?>
@@ -601,40 +534,19 @@ $publicSurveyorCount = count($allPublicSurveyors);
                             <?php endif; ?>
                         </div>
 
-                        <!-- Actions -->
-                        <div class="px-4 py-2 pb-0 flex items-center gap-1 relative">
-                            <div class="relative">
-                                <button @click="pickerOpen = !pickerOpen"
-                                    class="flex items-center gap-1 group active:scale-90 transition-transform py-1.5 px-2 -ml-2 rounded-lg hover:bg-surface">
-                                    <template x-if="activeEmojis.length > 0">
-                                        <span class="flex items-center gap-0.5">
-                                            <template x-for="ae in activeEmojis.slice(0,3)" :key="ae.type">
-                                                <span class="text-base" :class="ae.reacted ? 'opacity-100' : 'opacity-60'" x-text="ae.emoji"></span>
-                                            </template>
-                                            <span class="text-xs font-bold text-secondary ml-1" x-text="total"></span>
-                                        </span>
-                                    </template>
-                                    <template x-if="activeEmojis.length === 0">
-                                        <span class="flex items-center gap-1">
-                                            <i data-lucide="smile-plus" class="w-5 h-5 text-faint group-hover:text-secondary transition pointer-events-none"></i>
-                                        </span>
-                                    </template>
-                                </button>
-                                <div x-show="pickerOpen" x-transition.opacity.duration.150ms
-                                    @click.outside="pickerOpen = false"
-                                    class="absolute bottom-full left-0 mb-2 flex items-center gap-1 bg-elevated rounded-full shadow-lg border border-border px-2 py-1.5 z-30">
-                                    <template x-for="[type, emoji] in Object.entries(emojis)" :key="type">
-                                        <button @click="react(type)"
-                                            class="flex flex-col items-center px-2 py-1 rounded-full transition-all hover:bg-surface active:scale-90"
-                                            :class="reactions[type].reacted ? 'bg-primary/10' : ''">
-                                            <span class="text-xl" x-text="emoji"></span>
-                                            <span class="text-[10px] font-bold mt-0.5"
-                                                :class="reactions[type].reacted ? 'text-primary' : 'text-muted'"
-                                                x-text="reactions[type].count > 0 ? reactions[type].count : ''"></span>
-                                        </button>
-                                    </template>
-                                </div>
-                            </div>
+                        <!-- Actions: 4 Reaction Buttons -->
+                        <div class="px-4 py-2 pb-0 flex items-center gap-0.5">
+                            <?php foreach (['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', 'manabi' => '🔬'] as $_rtype => $_remoji): ?>
+                            <button @click="react('<?php echo $_rtype; ?>')"
+                                class="flex items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-all hover:bg-surface active:scale-90"
+                                :class="reactions.<?php echo $_rtype; ?>.reacted ? 'bg-primary/10' : ''">
+                                <span class="text-base" :class="reactions.<?php echo $_rtype; ?>.reacted ? 'opacity-100' : 'opacity-40'"><?php echo $_remoji; ?></span>
+                                <span class="text-[10px] font-bold"
+                                    :class="reactions.<?php echo $_rtype; ?>.reacted ? 'text-primary' : 'text-faint'"
+                                    x-show="reactions.<?php echo $_rtype; ?>.count > 0"
+                                    x-text="reactions.<?php echo $_rtype; ?>.count"></span>
+                            </button>
+                            <?php endforeach; ?>
                             <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="flex items-center gap-1.5 group active:scale-90 transition-transform py-1.5 px-2 rounded-lg hover:bg-surface" title="同定・コメント">
                                 <i data-lucide="message-circle" class="w-5 h-5 transition pointer-events-none <?php echo $obsComments > 0 ? 'text-secondary' : 'text-faint group-hover:text-secondary'; ?>"></i>
                                 <span class="text-xs font-bold <?php echo $obsComments > 0 ? 'text-secondary' : 'text-faint'; ?>"><?php echo (int)$obsComments; ?></span>
@@ -1005,6 +917,65 @@ $publicSurveyorCount = count($allPublicSurveyors);
         }
     </script>
     <?php include __DIR__ . '/components/badge_notification.php'; ?>
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('feedCard', (obsId, reactions, total, title) => ({
+            reactions: reactions,
+            total: total,
+            scale: 1,
+            lastTap: 0,
+            _tapTimer: null,
+            menuOpen: false,
+            async react(type) {
+                const prev = this.reactions[type].reacted;
+                this.reactions[type].reacted = !prev;
+                this.reactions[type].count += prev ? -1 : 1;
+                this.total += prev ? -1 : 1;
+                if (!prev) {
+                    if (window.SoundManager) SoundManager.play('light-click');
+                    if (window.HapticEngine) HapticEngine.tick();
+                    this.scale = 1.2;
+                    setTimeout(() => this.scale = 1, 200);
+                }
+                try {
+                    const res = await fetch('/api/toggle_like.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({id: obsId, type: type})
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        this.reactions = data.reactions;
+                        this.total = data.total;
+                    }
+                } catch (err) {}
+            },
+            doubleTap(e) {
+                const now = Date.now();
+                if (now - this.lastTap < 300) {
+                    clearTimeout(this._tapTimer);
+                    this._tapTimer = null;
+                    if (!this.reactions.like.reacted) { this.react('like'); }
+                } else {
+                    this._tapTimer = setTimeout(() => {
+                        window.location.href = 'observation_detail.php?id=' + encodeURIComponent(obsId);
+                    }, 300);
+                }
+                this.lastTap = now;
+            },
+            async shareObs() {
+                this.menuOpen = false;
+                const url = location.origin + '/observation_detail.php?id=' + encodeURIComponent(obsId);
+                if (navigator.share) {
+                    try { await navigator.share({ title: title, url: url }); } catch {}
+                } else {
+                    await navigator.clipboard.writeText(url);
+                    if (Alpine.store('toast')) Alpine.store('toast').success('コピー', 'リンクをコピーしました');
+                }
+            }
+        }));
+    });
+    </script>
 </body>
 
 </html>
