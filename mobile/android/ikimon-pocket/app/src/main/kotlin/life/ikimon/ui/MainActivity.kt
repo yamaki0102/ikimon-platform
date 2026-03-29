@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import life.ikimon.pocket.FieldScanService
 import life.ikimon.pocket.PocketService
 
 class MainActivity : ComponentActivity() {
@@ -68,11 +69,10 @@ class MainActivity : ComponentActivity() {
 
     private fun startFieldScan() {
         if (!hasRequiredPermissions()) { requestPermissions(); return }
-        // Field Scan = Pocket (audio) + カメラは次フェーズ
-        PocketService.start(this)
+        FieldScanService.start(this)
     }
 
-    private fun stopFieldScan() { PocketService.stop(this) }
+    private fun stopFieldScan() { FieldScanService.stop(this) }
 
     private fun hasRequiredPermissions(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -205,7 +205,7 @@ fun HomeScreen(
                         Text(
                             when (selectedMode) {
                                 ScanMode.POCKET -> "環境音をモニタリングしています\nスマホをポケットに入れて散歩を楽しんでください"
-                                ScanMode.FIELD -> "音声AIで周囲の生物を検出中\nカメラ統合は次回アップデートで追加"
+                                ScanMode.FIELD -> "🎧 BirdNET+ V3.0 — 11,560種 音声AI\n📷 Gemini Nano v3 — 視覚AI\n🌡️ 環境自動分析"
                             },
                             fontSize = 12.sp,
                             color = Color.White.copy(alpha = 0.6f),

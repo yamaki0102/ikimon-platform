@@ -51,6 +51,9 @@ dependencies {
     // ONNX Runtime (BirdNET+ V3.0)
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
 
+    // Gemini Nano on-device (視覚AI — Prompt API)
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")
+
     // CameraX (Scan Mode)
     implementation("androidx.camera:camera-core:1.3.4")
     implementation("androidx.camera:camera-camera2:1.3.4")
