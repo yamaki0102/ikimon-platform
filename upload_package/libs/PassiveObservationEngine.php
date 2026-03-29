@@ -17,15 +17,18 @@ class PassiveObservationEngine
     const TYPE_SENSOR = 'sensor';     // センサー推定（動き・環境）
 
     /** 信頼度閾値 */
-    const CONFIDENCE_AUTO_RECORD = 0.70;  // 自動記録
-    const CONFIDENCE_SUGGEST = 0.50;      // ユーザー確認待ち
-    const CONFIDENCE_DISCARD = 0.30;      // 破棄
+    const CONFIDENCE_AUTO_RECORD = 0.55;  // 自動記録（大分類対応のため緩和）
+    const CONFIDENCE_SUGGEST = 0.35;      // ユーザー確認待ち
+    const CONFIDENCE_DISCARD = 0.20;      // 破棄（passive_event.phpバリデーションと揃える）
 
     /** 環境ブースト: 既知の生息地にいる場合の信頼度加算 */
     const HABITAT_BOOST = 0.10;
 
     /** 季節ブースト: 活動シーズンと一致する場合 */
     const SEASON_BOOST = 0.05;
+
+    /** 大分類（種レベル未同定）の判定に使う上位分類名 */
+    const HIGHER_GROUPS = ['植物', '鳥類', '哺乳類', '両生類', '爬虫類', '昆虫', '魚類', '菌類', 'Plant', 'Bird', 'Mammal'];
 
     /**
      * パッシブ検出イベントのバッチを処理する。
@@ -46,8 +49,19 @@ class PassiveObservationEngine
 
             if ($result['action'] === 'discard') continue;
 
-            // 同セッション内の同一種は最高信頼度のものだけ保持
-            $speciesKey = $result['taxon_key'] ?? $result['taxon_name'] ?? 'unknown';
+            // 重複排除キー: 種レベル同定済みは taxon_key/name、大分類は位置グリッドを付加
+            $taxonName = $result['taxon_name'] ?? 'unknown';
+            $isHigherGroup = empty($result['scientific_name'])
+                && in_array($taxonName, self::HIGHER_GROUPS, true);
+            if ($isHigherGroup) {
+                // 約55mグリッド（0.0005度）で別地点での同大分類を別記録扱い
+                $gridLat = round(($result['lat'] ?? 0) / 0.0005) * 0.0005;
+                $gridLng = round(($result['lng'] ?? 0) / 0.0005) * 0.0005;
+                $speciesKey = "{$taxonName}_{$gridLat}_{$gridLng}";
+            } else {
+                $speciesKey = $result['taxon_key'] ?? $taxonName;
+            }
+
             if (isset($speciesSeen[$speciesKey])) {
                 if ($result['confidence'] > $speciesSeen[$speciesKey]['confidence']) {
                     $speciesSeen[$speciesKey] = $result;
