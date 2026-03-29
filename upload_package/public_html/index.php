@@ -63,14 +63,14 @@ $todayCtas = $todayState['cta_options'];
 $allPublicSurveyors = SurveyorManager::listPublicSurveyors();
 $featuredSurveyors = array_slice($allPublicSurveyors, 0, 3);
 $publicSurveyorCount = count($allPublicSurveyors);
+$meta_title = 'ikimon — 散歩×生きもの観察で自然を守りながら健康に';
+$meta_description = 'スマホで写真を撮って、名前を調べて、地図に記録。小学生から大人まで、だれでも参加できる生きもの観察プラットフォームです。';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <title>ikimon.life — 散歩×生きもの観察で自然を守りながら健康に</title>
-    <meta name="description" content="スマホで写真を撮って、名前を調べて、地図に記録。小学生から大人まで、だれでも参加できる生きもの観察プラットフォームです。">
 
     <!-- JSON-LD Structured Data -->
     <script type="application/ld+json" nonce="<?= CspNonce::attr() ?>">
