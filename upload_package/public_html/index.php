@@ -415,11 +415,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         <?php echo __('nav.id_center'); ?>
                     </a>
                     <?php if ($currentUser): ?>
-                        <a href="?filter=following" role="tab" aria-selected="<?php echo $filter === 'following' ? 'true' : 'false'; ?>" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap flex items-center gap-1.5 <?php echo $filter === 'following' ? 'bg-accent/10 border border-accent/20' : 'text-muted hover:text-accent hover:bg-accent/5'; ?>" <?php if ($filter === 'following') echo 'style="color:#92400e"'; ?>>
-                            <i data-lucide="users" class="w-4 h-4"></i>
-                            フォロー中
-                        </a>
-                        <a href="?filter=mine" role="tab" aria-selected="<?php echo $filter === 'mine' ? 'true' : 'false'; ?>" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap <?php echo $filter === 'mine' ? 'bg-secondary/10 border border-secondary/20' : 'text-muted hover:text-secondary hover:bg-secondary/5'; ?>" <?php if ($filter === 'mine') echo 'style="color:#0369a1"'; ?>>
+                        <a href="/profile.php" role="tab" aria-selected="false" class="px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap text-muted hover:text-secondary hover:bg-secondary/5">
                             <?php echo __('nav.profile'); ?>
                         </a>
                     <?php endif; ?>

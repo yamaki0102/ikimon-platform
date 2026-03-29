@@ -75,9 +75,11 @@ require_once __DIR__ . '/../../libs/Asset.php';
                     <a href="/id_workbench.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-accent transition"><i data-lucide="microscope" class="w-4 h-4 text-faint"></i> 同定する</a>
                     <a href="/events.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="calendar" class="w-4 h-4 text-faint"></i> 観察会</a>
                     <a href="/survey.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="clipboard-list" class="w-4 h-4 text-faint"></i> みんなで調べる</a>
-                    <a href="/surveyors.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="badge-check" class="w-4 h-4 text-faint"></i> 調査員を探す</a>
-                    <a href="/surveyor_records.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="notebook-tabs" class="w-4 h-4 text-faint"></i> 公式記録</a>
-                    <a href="/request_survey.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="file-search" class="w-4 h-4 text-faint"></i> 調査を依頼</a>
+                    <!-- 調査員機能: 非公開中 (タイミングを見て再公開)
+                    <a href="/surveyors.php" ...> 調査員を探す</a>
+                    <a href="/surveyor_records.php" ...> 公式記録</a>
+                    <a href="/request_survey.php" ...> 調査を依頼</a>
+                    -->
                 </div>
             </div>
 
@@ -183,20 +185,12 @@ require_once __DIR__ . '/../../libs/Asset.php';
                         <a href="/wellness.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
                             <i data-lucide="heart" class="w-4 h-4"></i> ウェルネス
                         </a>
-                        <a href="/surveyors.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                            <i data-lucide="badge-check" class="w-4 h-4"></i> 調査員を探す
-                        </a>
-                        <a href="/surveyor_records.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                            <i data-lucide="notebook-tabs" class="w-4 h-4"></i> 調査員公式記録
-                        </a>
-                        <a href="/request_survey.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text">
-                            <i data-lucide="file-search" class="w-4 h-4"></i> 調査を依頼
-                        </a>
-                        <?php if (!empty($currentUser['surveyor_status']) && $currentUser['surveyor_status'] === 'approved'): ?>
-                            <a href="/surveyor_profile_edit.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-sky-700 hover:bg-sky-50">
-                                <i data-lucide="clipboard-signature" class="w-4 h-4"></i> 調査員プロフィール
-                            </a>
-                        <?php endif; ?>
+                        <!-- 調査員機能: 非公開中 (タイミングを見て再公開)
+                        <a href="/surveyors.php" ...> 調査員を探す</a>
+                        <a href="/surveyor_records.php" ...> 調査員公式記録</a>
+                        <a href="/request_survey.php" ...> 調査を依頼</a>
+                        surveyor_profile_edit.php も同様
+                        -->
                         <a href="/id_workbench.php" class="block px-3 py-2 text-sm font-bold transition flex items-center gap-2 rounded-md text-muted hover:bg-surface hover:text-text md:hidden">
                             <i data-lucide="microscope" class="w-4 h-4"></i> <?php echo __('nav.id_center'); ?>
                         </a>
