@@ -16,14 +16,14 @@
     <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
 
     <application
-        android:name=".IkimonApp"
+        android:name="life.ikimon.IkimonApp"
         android:label="ikimon BioScan"
         android:icon="@android:drawable/ic_menu_compass"
         android:theme="@style/Theme.IkimonPocket"
         android:supportsRtl="true">
 
         <activity
-            android:name=".ui.MainActivity"
+            android:name="life.ikimon.ui.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.IkimonPocket">
             <intent-filter>
@@ -34,7 +34,7 @@
 
         <!-- Pocket Mode Foreground Service -->
         <service
-            android:name=".pocket.PocketService"
+            android:name="life.ikimon.pocket.PocketService"
             android:foregroundServiceType="location|microphone"
             android:exported="false" />
 
