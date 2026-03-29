@@ -8,11 +8,17 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "life.ikimon.pocket"
+        applicationId = "life.ikimon.bioscan"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 6
+        versionName = "0.7.0"
+    }
+
+    // BirdNET V3 ONNXモデル（541MB）はAPKに含めずaab/asset packで配布
+    aaptOptions {
+        noCompress += "onnx"
+        noCompress += "csv"
     }
 
     buildFeatures {
@@ -40,9 +46,8 @@ dependencies {
     // Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
-    // TensorFlow Lite (BirdNET)
-    implementation("org.tensorflow:tensorflow-lite:2.16.1")
-    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+    // ONNX Runtime (BirdNET+ V3.0)
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
 
     // CameraX (Scan Mode)
     implementation("androidx.camera:camera-core:1.3.4")

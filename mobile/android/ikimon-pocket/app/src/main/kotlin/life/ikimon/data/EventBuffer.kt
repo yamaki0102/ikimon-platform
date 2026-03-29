@@ -99,7 +99,7 @@ class EventBuffer {
             put("session", JSONObject().apply {
                 put("duration_sec", (System.currentTimeMillis() - sessionStartTime) / 1000)
                 put("device", android.os.Build.MODEL)
-                put("app_version", "0.1.0")
+                put("app_version", "0.7.0")
             })
         }
     }
