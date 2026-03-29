@@ -113,7 +113,7 @@ $meta_title = __('offline.title');
     </style>
 </head>
 
-<body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
+<body class="bg-base text-text font-body">
     <div class="container">
         <div class="icon">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

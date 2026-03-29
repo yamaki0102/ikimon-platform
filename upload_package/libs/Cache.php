@@ -8,7 +8,7 @@ class Cache
     {
         self::$cacheDir = __DIR__ . '/../data/cache';
         if (!file_exists(self::$cacheDir)) {
-            mkdir(self::$cacheDir, 0777, true);
+            mkdir(self::$cacheDir, 0755, true);
         }
     }
 
