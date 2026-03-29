@@ -210,6 +210,102 @@ class OmoikaneInferenceEnhancer
     }
 
     /**
+     * Retrieve RAG context for fun_fact generation.
+     * Collects ecological, morphological, and distilled knowledge from OmoikaneDB.
+     * Returns a text string (≤500 chars) or null if no data found.
+     */
+    public function retrieveFunFactContext(string $japaneseName, string $scientificName): ?string
+    {
+        $speciesId = null;
+
+        if (!empty($japaneseName)) {
+            $stmt = $this->pdo->prepare("
+                SELECT id FROM species
+                WHERE japanese_name = :name AND distillation_status = 'distilled'
+                LIMIT 1
+            ");
+            $stmt->execute([':name' => $japaneseName]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) $speciesId = $row['id'];
+        }
+
+        if (!$speciesId && !empty($scientificName)) {
+            $stmt = $this->pdo->prepare("
+                SELECT id FROM species WHERE scientific_name = :name LIMIT 1
+            ");
+            $stmt->execute([':name' => $scientificName]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) $speciesId = $row['id'];
+        }
+
+        if (!$speciesId) return null;
+
+        $parts = [];
+
+        $stmt = $this->pdo->prepare("
+            SELECT habitat, season, notes
+            FROM ecological_constraints WHERE species_id = :id LIMIT 1
+        ");
+        $stmt->execute([':id' => $speciesId]);
+        $eco = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($eco) {
+            if (!empty($eco['habitat'])) $parts[] = '生息地: ' . $eco['habitat'];
+            if (!empty($eco['season'])) $parts[] = '活動時期: ' . $eco['season'];
+            if (!empty($eco['notes'])) $parts[] = $eco['notes'];
+        }
+
+        $stmt = $this->pdo->prepare("
+            SELECT morphological_traits, key_differences
+            FROM identification_keys WHERE species_id = :id LIMIT 1
+        ");
+        $stmt->execute([':id' => $speciesId]);
+        $key = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($key) {
+            if (!empty($key['morphological_traits'])) $parts[] = '形態: ' . $key['morphological_traits'];
+            if (!empty($key['key_differences'])) $parts[] = '見分け方: ' . $key['key_differences'];
+        }
+
+        // distilled_knowledge: try by integer species_id and by scientific_name as taxon_key
+        $stmt = $this->pdo->prepare("
+            SELECT content FROM distilled_knowledge
+            WHERE (taxon_key = :id_str OR taxon_key = :sci)
+              AND knowledge_type IN ('ecological_constraint', 'identification_key')
+            LIMIT 3
+        ");
+        $stmt->execute([':id_str' => (string)$speciesId, ':sci' => $scientificName]);
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            if (!empty($row['content'])) $parts[] = $row['content'];
+        }
+
+        if (empty($parts)) return null;
+
+        return mb_substr(implode("\n", $parts), 0, 500);
+    }
+
+    /**
+     * Retrieve a pre-computed fun_fact from distilled_knowledge (Phase 2 cache).
+     * Returns the cached fun_fact body string or null.
+     */
+    public function getCachedFunFact(string $scientificName): ?string
+    {
+        if (empty($scientificName)) return null;
+
+        $stmt = $this->pdo->prepare("SELECT id FROM species WHERE scientific_name = :name LIMIT 1");
+        $stmt->execute([':name' => $scientificName]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return null;
+
+        $stmt = $this->pdo->prepare("
+            SELECT content FROM distilled_knowledge
+            WHERE taxon_key = :id AND knowledge_type = 'fun_fact'
+            ORDER BY created_at DESC LIMIT 1
+        ");
+        $stmt->execute([':id' => (string)$row['id']]);
+        $fact = $stmt->fetch(PDO::FETCH_ASSOC);
+        return ($fact && !empty($fact['content'])) ? $fact['content'] : null;
+    }
+
+    /**
      * Check if species' habitat aligns with the observation biome.
      * Returns ['support' => 0.0-1.0, 'conflict' => 0.0-1.0]
      */
