@@ -829,8 +829,6 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <div class="mt-3" x-data="{
                         reactions: <?php echo json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP); ?>,
                         total: <?php echo (int)$obsTotalReactions; ?>,
-                        emojis: {footprint:'👣', like:'❤️', suteki:'✨', manabi:'🔬'},
-                        labels: {footprint:'足あと', like:'いいね', suteki:'すてき', manabi:'学び'},
                         async react(type) {
                             const prev = this.reactions[type].reacted;
                             this.reactions[type].reacted = !prev;
@@ -849,20 +847,21 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         }
                     }">
                         <div class="flex items-center gap-1 p-1 rounded-xl bg-surface border border-border">
-                            <template x-for="[type, emoji] in Object.entries(emojis)" :key="type">
-                                <button @click="react(type)"
+                            <?php
+                            $detailReactEmojis = ['footprint' => ['👣', '足あと'], 'like' => ['✨', 'いいね'], 'suteki' => ['❤️', 'すてき'], 'manabi' => ['🔬', '学び']];
+                            foreach ($detailReactEmojis as $_rtype => $_rdata): ?>
+                                <button @click="react('<?php echo $_rtype; ?>')"
                                     class="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all hover:bg-elevated active:scale-90"
-                                    :class="reactions[type].reacted ? 'bg-primary/10' : ''">
-                                    <span class="text-lg" x-text="emoji"></span>
+                                    :class="reactions.<?php echo $_rtype; ?>.reacted ? 'bg-primary/10' : ''">
+                                    <span class="text-lg" :class="reactions.<?php echo $_rtype; ?>.reacted ? 'opacity-100' : 'opacity-50'"><?php echo $_rdata[0]; ?></span>
                                     <span class="text-xs font-bold"
-                                        :class="reactions[type].reacted ? 'text-primary' : 'text-muted'"
-                                        x-text="labels[type]"></span>
+                                        :class="reactions.<?php echo $_rtype; ?>.reacted ? 'text-primary' : 'text-muted'"><?php echo $_rdata[1]; ?></span>
                                     <span class="text-xs font-bold ml-0.5"
-                                        :class="reactions[type].reacted ? 'text-primary' : 'text-faint'"
-                                        x-show="reactions[type].count > 0"
-                                        x-text="reactions[type].count"></span>
+                                        :class="reactions.<?php echo $_rtype; ?>.reacted ? 'text-primary' : 'text-faint'"
+                                        x-show="reactions.<?php echo $_rtype; ?>.count > 0"
+                                        x-text="reactions.<?php echo $_rtype; ?>.count"></span>
                                 </button>
-                            </template>
+                            <?php endforeach; ?>
                         </div>
                     </div>
 
