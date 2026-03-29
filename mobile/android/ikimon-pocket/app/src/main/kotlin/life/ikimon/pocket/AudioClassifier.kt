@@ -55,23 +55,31 @@ class AudioClassifier(private val context: Context) {
     init {
         try {
             ortEnv = OrtEnvironment.getEnvironment()
-            val modelBytes = context.assets.open(MODEL_FILE).use { it.readBytes() }
+
+            // 541MBモデルをヒープに載せずファイルパスで直接読み込む
+            val modelFile = java.io.File(context.cacheDir, MODEL_FILE)
+            if (!modelFile.exists()) {
+                Log.i(TAG, "Extracting ONNX model to cache (first launch)...")
+                context.assets.open(MODEL_FILE).use { input ->
+                    modelFile.outputStream().use { output -> input.copyTo(output) }
+                }
+            }
+
             val opts = OrtSession.SessionOptions().apply {
                 setIntraOpNumThreads(4)  // Tensor G5マルチコア活用
                 try {
-                    // Tensor G5 NPU/DSP経由でハードウェア加速
                     addNnapi(EnumSet.of(NNAPIFlags.USE_FP16))
                     Log.i(TAG, "NNAPI delegate enabled (Tensor G5 NPU)")
                 } catch (e: Exception) {
                     Log.w(TAG, "NNAPI not available, using CPU: ${e.message}")
                 }
             }
-            session = ortEnv?.createSession(modelBytes, opts)
+            session = ortEnv?.createSession(modelFile.absolutePath, opts)
             labels = loadLabels(LABELS_FILE)
             modelLoaded = true
-            Log.i(TAG, "BirdNET+ V3.0 loaded: ${labels.size} species, ONNX Runtime")
+            Log.i(TAG, "BirdNET+ V3.0 loaded: ${labels.size} species, ONNX Runtime (file-backed)")
         } catch (e: Exception) {
-            Log.e(TAG, "Model load failed: ${e.message}")
+            Log.e(TAG, "Model load failed: ${e.message}", e)
             modelLoaded = false
         }
     }
