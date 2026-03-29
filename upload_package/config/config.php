@@ -7,10 +7,15 @@
 // Guard against duplicate inclusion (PHP 9: redefining constants is a fatal error)
 if (defined('APP_NAME')) return;
 
+// Load local secrets early (before constants that may be overridden)
+if (file_exists(__DIR__ . '/secret.php')) {
+    require_once __DIR__ . '/secret.php';
+}
+
 // Basic Settings
 define('APP_NAME', 'ikimon');
 define('APP_VERSION', '0.4.0');
-define('NOINDEX_SITE', true);
+define('NOINDEX_SITE', defined('NOINDEX_SITE_OVERRIDE') ? NOINDEX_SITE_OVERRIDE : true);
 
 // Paths
 define('ROOT_DIR', dirname(__DIR__));
@@ -45,11 +50,6 @@ define('BASE_URL', $protocol . '://' . $host);
 // Red List Obscuring Settings
 define('OBSCURE_GRID_CR_EN', 10000); // 10km
 define('OBSCURE_GRID_VU', 1000);    // 1km
-
-// Load local secrets if exists (for Xserver or local dev where getenv is not working)
-if (file_exists(__DIR__ . '/secret.php')) {
-    require_once __DIR__ . '/secret.php';
-}
 
 // AI Settings (fallback to $_SERVER and $_ENV, or constant if defined in secret.php)
 $geminiApiKey = defined('GEMINI_API_KEY_SECRET') ? GEMINI_API_KEY_SECRET : (getenv('GEMINI_API_KEY') ?: '');

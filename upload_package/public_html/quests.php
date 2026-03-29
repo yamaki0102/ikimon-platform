@@ -447,7 +447,7 @@ $bgGradients = [
 </main>
 
 <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js" defer></script>
 <script nonce="<?= CspNonce::attr() ?>">
 function goalsPage() {
     return {

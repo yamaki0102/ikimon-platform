@@ -80,7 +80,7 @@ $queue = IdentifierQueue::buildQueue($userId, 5);
     ?>
     <link rel="stylesheet" href="assets/css/tokens.css?v=2026_naturalism">
     <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 </head>
 <body class="bg-[#050505] text-white min-h-screen">
 
