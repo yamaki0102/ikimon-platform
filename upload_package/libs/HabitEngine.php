@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/StreakTracker.php';
+require_once __DIR__ . '/DataStore.php';
 
 class HabitEngine
 {
@@ -33,8 +34,10 @@ class HabitEngine
                 'today_complete' => false,
                 'remaining' => array_keys($labels),
                 'title' => '今日は1つだけでいい。継続を積もう',
-                'message' => '記録、同定、さんぽ、1分メモのどれか1つで今日の継続は成立する。',
+                'message' => '記録、同定、さんぽ、1分メモのどれか1つで今日の継続は成立する。まずは今日の1歩で十分。',
                 'summary_line' => '記録 / 同定 / さんぽ / 1分メモ のどれかで継続成立。',
+                'progress_line' => '続け方は人それぞれ。今日は小さく始めればいい。',
+                'nature_timeline' => null,
                 'reflection_note' => '',
                 'latest_reflection' => null,
                 'cta_options' => self::getCtaOptions([]),
@@ -55,13 +58,13 @@ class HabitEngine
             'today_types' => $todayTypes,
             'today_complete' => $todayComplete,
             'remaining' => $remaining,
-            'title' => $todayComplete ? '今日の継続は達成済み' : '今日は1つだけでいい。継続を積もう',
-            'message' => $todayComplete
-                ? '今日はもう自然との接続ができている。このまま気楽に続ければいい。'
-                : '記録、同定、さんぽ、1分メモのどれか1つで今日の継続は成立する。',
+            'title' => self::buildTitle($todayComplete, $streak),
+            'message' => self::buildMessage($todayComplete, $streak),
             'summary_line' => $todayComplete
                 ? '今日はもう自然との接続ができている。'
                 : '今日は 記録 / 同定 / さんぽ / 1分メモ のどれかで継続成立。',
+            'progress_line' => self::buildProgressLine($streak, $todayComplete),
+            'nature_timeline' => self::getNatureTimeline($userId),
             'reflection_note' => $reflectionNote,
             'latest_reflection' => self::getLatestReflection($userId),
             'cta_options' => self::getCtaOptions($todayTypes),
@@ -175,6 +178,239 @@ class HabitEngine
         }
 
         return strlen($value) > $length ? substr($value, 0, $length) . '...' : $value;
+    }
+
+    private static function buildTitle(bool $todayComplete, array $streak): string
+    {
+        $currentStreak = (int)($streak['current_streak'] ?? 0);
+
+        if ($todayComplete) {
+            if ($currentStreak >= 30) {
+                return '今日の継続は達成済み。積み重ねがちゃんと形になっている';
+            }
+
+            if ($currentStreak >= 7) {
+                return '今日の継続は達成済み。いい流れが続いている';
+            }
+
+            return '今日の継続は達成済み';
+        }
+
+        if ($currentStreak >= 7) {
+            return '今日は1つだけでいい。ここまでの流れをつなごう';
+        }
+
+        return '今日は1つだけでいい。継続を積もう';
+    }
+
+    private static function buildMessage(bool $todayComplete, array $streak): string
+    {
+        $currentStreak = (int)($streak['current_streak'] ?? 0);
+        $longestStreak = (int)($streak['longest_streak'] ?? 0);
+
+        if ($todayComplete) {
+            if ($currentStreak > 0 && $currentStreak === $longestStreak) {
+                return '今日はもう自然とつながれている。しかも今の継続は自己ベストタイ。この調子で、無理なく続ければいい。';
+            }
+
+            if ($currentStreak >= 7) {
+                return '今日はもう自然とつながれている。ここまで続いているのは、ちゃんとキミの力だ。このまま気楽に続ければいい。';
+            }
+
+            return '今日はもう自然とつながれている。小さくても続いていること自体が、もう十分に価値がある。';
+        }
+
+        if ($currentStreak >= 7) {
+            return 'ここまで積み上げてきた流れがある。今日は1つだけで、その流れをやさしくつなげばいい。';
+        }
+
+        return '記録、同定、さんぽ、1分メモのどれか1つで今日の継続は成立する。まずは今日の1歩で十分。';
+    }
+
+    private static function buildProgressLine(array $streak, bool $todayComplete): string
+    {
+        $currentStreak = (int)($streak['current_streak'] ?? 0);
+        $longestStreak = (int)($streak['longest_streak'] ?? 0);
+        $recentActivity = $streak['recent_activity'] ?? [];
+        $activeDays = is_array($recentActivity) ? count($recentActivity) : 0;
+
+        if ($currentStreak > 0 && $currentStreak === $longestStreak) {
+            return '自己ベストタイの ' . $currentStreak . '日連続。この積み重ねは、もう偶然じゃない。';
+        }
+
+        if ($activeDays >= 10) {
+            $prefix = $todayComplete ? 'この30日で' : 'ここ30日で';
+            return $prefix . ' ' . $activeDays . '日つながっている。続ける力は、もうキミの中にある。';
+        }
+
+        if ($currentStreak >= 3) {
+            return $currentStreak . '日続けてきた流れがある。今日の1つも、その延長でいい。';
+        }
+
+        if ($longestStreak >= 3) {
+            return 'これまでに最長 ' . $longestStreak . '日続けられている。積み上げられることは、もう証明済み。';
+        }
+
+        return $todayComplete
+            ? '今日も1つ積めた。小さな継続でも、ちゃんと前に進んでいる。'
+            : '続け方は人それぞれ。今日は小さく始めればいい。';
+    }
+
+    private static function getNatureTimeline(string $userId): ?array
+    {
+        return DataStore::getCached('habit_nature_timeline_' . md5($userId), 600, function () use ($userId) {
+            $allObservations = DataStore::fetchAll('observations');
+            $userObservations = array_values(array_filter($allObservations, function ($observation) use ($userId) {
+                return isset($observation['user_id']) && (string)$observation['user_id'] === (string)$userId;
+            }));
+
+            if (empty($userObservations)) {
+                return null;
+            }
+
+            usort($userObservations, function ($a, $b) {
+                return strcmp(self::extractObservationTimestamp($a), self::extractObservationTimestamp($b));
+            });
+
+            $firstObservation = $userObservations[0];
+            $monthCounts = [];
+            $recentSpecies = [];
+            $seenSpecies = [];
+
+            foreach ($userObservations as $observation) {
+                $timestamp = self::extractObservationTimestamp($observation);
+                if ($timestamp !== '') {
+                    $monthKey = substr($timestamp, 0, 7);
+                    if (preg_match('/^\d{4}-\d{2}$/', $monthKey) === 1) {
+                        $monthCounts[$monthKey] = ($monthCounts[$monthKey] ?? 0) + 1;
+                    }
+                }
+            }
+
+            for ($i = count($userObservations) - 1; $i >= 0; $i--) {
+                $observation = $userObservations[$i];
+                $speciesKey = self::extractSpeciesKey($observation);
+                if ($speciesKey === '' || isset($seenSpecies[$speciesKey])) {
+                    continue;
+                }
+
+                $seenSpecies[$speciesKey] = true;
+                $recentSpecies[] = [
+                    'name' => self::extractSpeciesName($observation),
+                    'date' => self::formatDateLabel(self::extractObservationTimestamp($observation)),
+                ];
+
+                if (count($recentSpecies) >= 3) {
+                    break;
+                }
+            }
+
+            arsort($monthCounts);
+            $bestMonth = array_key_first($monthCounts);
+
+            return [
+                'headline' => '連続日数だけじゃない。キミの自然との関係は、ちゃんと積み上がっている。',
+                'items' => [
+                    [
+                        'label' => 'はじまり',
+                        'value' => self::formatDateLabel(self::extractObservationTimestamp($firstObservation)),
+                        'detail' => '最初の記録を残した日',
+                        'icon' => 'sprout',
+                    ],
+                    [
+                        'label' => 'いちばん動いた月',
+                        'value' => self::formatMonthLabel((string)$bestMonth),
+                        'detail' => ($bestMonth && isset($monthCounts[$bestMonth]))
+                            ? $monthCounts[$bestMonth] . '件の記録を重ねた'
+                            : 'これから見つかる',
+                        'icon' => 'calendar-heart',
+                    ],
+                    [
+                        'label' => '最近見つけた種',
+                        'value' => !empty($recentSpecies)
+                            ? implode(' / ', array_column($recentSpecies, 'name'))
+                            : 'まだこれから',
+                        'detail' => !empty($recentSpecies)
+                            ? implode(' ・ ', array_filter(array_column($recentSpecies, 'date')))
+                            : 'またひとつ見つければ増えていく',
+                        'icon' => 'bird',
+                    ],
+                ],
+            ];
+        });
+    }
+
+    private static function extractObservationTimestamp(array $observation): string
+    {
+        foreach (['observed_at', 'created_at', 'updated_at'] as $field) {
+            $value = trim((string)($observation[$field] ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+
+    private static function extractSpeciesKey(array $observation): string
+    {
+        $taxon = $observation['taxon'] ?? [];
+        if (!is_array($taxon)) {
+            return '';
+        }
+
+        foreach (['key', 'scientific_name', 'name'] as $field) {
+            $value = trim((string)($taxon[$field] ?? ''));
+            if ($value !== '' && $value !== '未同定') {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+
+    private static function extractSpeciesName(array $observation): string
+    {
+        $taxon = $observation['taxon'] ?? [];
+        if (!is_array($taxon)) {
+            return '未同定';
+        }
+
+        $name = trim((string)($taxon['name'] ?? ''));
+        if ($name !== '') {
+            return $name;
+        }
+
+        $scientificName = trim((string)($taxon['scientific_name'] ?? ''));
+        if ($scientificName !== '') {
+            return $scientificName;
+        }
+
+        return '未同定';
+    }
+
+    private static function formatDateLabel(string $timestamp): string
+    {
+        if ($timestamp === '') {
+            return 'これから';
+        }
+
+        try {
+            $date = new DateTimeImmutable($timestamp);
+            return $date->format('Y年n月j日');
+        } catch (Exception $e) {
+            return $timestamp;
+        }
+    }
+
+    private static function formatMonthLabel(string $monthKey): string
+    {
+        if (preg_match('/^\d{4}-\d{2}$/', $monthKey) !== 1) {
+            return 'これから';
+        }
+
+        [$year, $month] = explode('-', $monthKey, 2);
+        return ((int)$year) . '年' . ((int)$month) . '月';
     }
 
     private static function sanitizeReflection(string $note): string
