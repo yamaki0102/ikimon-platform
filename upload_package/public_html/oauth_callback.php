@@ -43,14 +43,16 @@ try {
     if (!$user) {
         // Check if email already exists (account merging)
         if (!empty($profile['email'])) {
-            $existingUser = UserStore::findByEmail($profile['email']);
+            $existingUser = UserStore::findByEmail($profile['email'])
+                ?? UserStore::findBySecondaryEmail($profile['email']);
             if ($existingUser) {
                 // Link OAuth to existing email account
                 $user = UserStore::linkOAuth(
                     $existingUser['id'],
                     $provider,
                     $profile['id'],
-                    $profile['avatar_url'] ?? ''
+                    $profile['avatar_url'] ?? '',
+                    $profile['email']
                 );
             }
         }
