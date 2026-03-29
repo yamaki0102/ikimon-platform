@@ -426,6 +426,51 @@ $publicSurveyorCount = count($allPublicSurveyors);
                 <?php include __DIR__ . '/components/regional_completion.php'; ?>
             </div>
 
+            <script>
+            document.addEventListener('alpine:init', () => {
+                Alpine.data('feedCard', (obsId, reactions, total, title) => ({
+                    reactions, total, scale: 1, lastTap: 0, _tapTimer: null, menuOpen: false,
+                    async react(type) {
+                        const prev = this.reactions[type].reacted;
+                        this.reactions[type].reacted = !prev;
+                        this.reactions[type].count += prev ? -1 : 1;
+                        this.total += prev ? -1 : 1;
+                        if (!prev) {
+                            if (window.SoundManager) SoundManager.play('light-click');
+                            if (window.HapticEngine) HapticEngine.tick();
+                            this.scale = 1.2;
+                            setTimeout(() => this.scale = 1, 200);
+                        }
+                        try {
+                            const res = await fetch('/api/toggle_like.php', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({id: obsId, type})
+                            });
+                            const data = await res.json();
+                            if (data.success) { this.reactions = data.reactions; this.total = data.total; }
+                        } catch (err) {}
+                    },
+                    doubleTap(e) {
+                        const now = Date.now();
+                        if (now - this.lastTap < 300) {
+                            clearTimeout(this._tapTimer); this._tapTimer = null;
+                            if (!this.reactions.like.reacted) this.react('like');
+                        } else {
+                            this._tapTimer = setTimeout(() => { window.location.href = 'observation_detail.php?id=' + encodeURIComponent(obsId); }, 300);
+                        }
+                        this.lastTap = now;
+                    },
+                    async shareObs() {
+                        this.menuOpen = false;
+                        const url = location.origin + '/observation_detail.php?id=' + encodeURIComponent(obsId);
+                        if (navigator.share) { try { await navigator.share({title, url}); } catch {} }
+                        else { await navigator.clipboard.writeText(url); if (Alpine.store('toast')) Alpine.store('toast').success('コピー', 'リンクをコピーしました'); }
+                    }
+                }));
+            });
+            </script>
+
             <!-- Feed Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style="gap:var(--phi-lg)">
                 <?php foreach ($latest_obs as $obs):
@@ -917,65 +962,6 @@ $publicSurveyorCount = count($allPublicSurveyors);
         }
     </script>
     <?php include __DIR__ . '/components/badge_notification.php'; ?>
-    <script>
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('feedCard', (obsId, reactions, total, title) => ({
-            reactions: reactions,
-            total: total,
-            scale: 1,
-            lastTap: 0,
-            _tapTimer: null,
-            menuOpen: false,
-            async react(type) {
-                const prev = this.reactions[type].reacted;
-                this.reactions[type].reacted = !prev;
-                this.reactions[type].count += prev ? -1 : 1;
-                this.total += prev ? -1 : 1;
-                if (!prev) {
-                    if (window.SoundManager) SoundManager.play('light-click');
-                    if (window.HapticEngine) HapticEngine.tick();
-                    this.scale = 1.2;
-                    setTimeout(() => this.scale = 1, 200);
-                }
-                try {
-                    const res = await fetch('/api/toggle_like.php', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({id: obsId, type: type})
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        this.reactions = data.reactions;
-                        this.total = data.total;
-                    }
-                } catch (err) {}
-            },
-            doubleTap(e) {
-                const now = Date.now();
-                if (now - this.lastTap < 300) {
-                    clearTimeout(this._tapTimer);
-                    this._tapTimer = null;
-                    if (!this.reactions.like.reacted) { this.react('like'); }
-                } else {
-                    this._tapTimer = setTimeout(() => {
-                        window.location.href = 'observation_detail.php?id=' + encodeURIComponent(obsId);
-                    }, 300);
-                }
-                this.lastTap = now;
-            },
-            async shareObs() {
-                this.menuOpen = false;
-                const url = location.origin + '/observation_detail.php?id=' + encodeURIComponent(obsId);
-                if (navigator.share) {
-                    try { await navigator.share({ title: title, url: url }); } catch {}
-                } else {
-                    await navigator.clipboard.writeText(url);
-                    if (Alpine.store('toast')) Alpine.store('toast').success('コピー', 'リンクをコピーしました');
-                }
-            }
-        }));
-    });
-    </script>
 </body>
 
 </html>
