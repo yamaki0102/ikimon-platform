@@ -394,6 +394,12 @@ $publicSurveyorCount = count($allPublicSurveyors);
 
         <!-- ==================== FEED SECTION ==================== -->
         <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-top:var(--phi-2xl);margin-bottom:var(--phi-2xl)">
+
+            <!-- Regional Completion Meter (Compact) -->
+            <div class="mb-6" x-data="regionalCompletion('compact')">
+                <?php include __DIR__ . '/components/regional_completion.php'; ?>
+            </div>
+
             <!-- Feed Header & Filter Tabs -->
             <div class="flex flex-col gap-3 mb-6">
                 <div class="flex items-baseline justify-between">
@@ -418,12 +424,6 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         </a>
                     <?php endif; ?>
                 </div>
-            </div>
-
-
-            <!-- Regional Completion Meter (Compact) -->
-            <div class="mb-4" x-data="regionalCompletion('compact')">
-                <?php include __DIR__ . '/components/regional_completion.php'; ?>
             </div>
 
             <!-- Feed Grid -->
@@ -519,7 +519,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                                     : 'species.php?taxon=' . urlencode($feedDisplayName);
                                 ?>
                                 <a href="<?php echo htmlspecialchars($feedSpeciesUrl); ?>"
-                                    class="absolute bottom-3 left-3 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md flex items-center gap-2 border border-white/20 hover:bg-black/70 transition z-10">
+                                    class="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md flex items-center gap-1.5 border border-white/20 hover:bg-black/70 transition z-10 max-w-[calc(100%-3rem)] truncate">
                                     <i data-lucide="check-circle-2" class="w-3 h-3 text-green-400"></i>
                                     <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($feedDisplayName); ?></span>
                                     <?php if (!empty($obs['individual_count'])): ?>
@@ -527,7 +527,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                                     <?php endif; ?>
                                 </a>
                             <?php else: ?>
-                                <div class="absolute bottom-3 left-3 flex items-center gap-1.5">
+                                <div class="absolute bottom-2 left-2 flex items-center gap-1.5">
                                     <div class="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-2 border border-white/10">
                                         <i data-lucide="help-circle" class="w-3 h-3 text-white/50"></i>
                                         <span class="text-xs text-white/60"><?php echo __('home.identifying'); ?></span>
