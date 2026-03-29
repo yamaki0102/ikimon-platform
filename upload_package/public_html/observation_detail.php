@@ -777,6 +777,19 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                         <p class="text-sky-800 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['next_step']); ?></p>
                                     </div>
                                 <?php endif; ?>
+                                <?php if (!empty($latestAiAssessment['fun_fact']['body'])): ?>
+                                    <div class="rounded-xl bg-amber-50 border border-amber-200 px-3 py-3">
+                                        <p class="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">ちょっとした豆知識</p>
+                                        <p class="text-amber-900 leading-relaxed text-sm"><?php echo htmlspecialchars($latestAiAssessment['fun_fact']['body']); ?></p>
+                                        <?php if (!empty($latestAiAssessment['fun_fact']['search_keyword'])): ?>
+                                            <a href="https://www.google.com/search?q=<?php echo urlencode($latestAiAssessment['fun_fact']['search_keyword']); ?>" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-2 text-xs text-amber-700 hover:underline">
+                                                <i data-lucide="search" class="w-3 h-3" style="pointer-events:none"></i>
+                                                <?php echo htmlspecialchars($latestAiAssessment['fun_fact']['search_keyword']); ?> を調べる
+                                            </a>
+                                        <?php endif; ?>
+                                        <p class="text-[10px] text-amber-600/60 mt-2">※ <?php echo !empty($latestAiAssessment['fun_fact_grounded']) ? '図鑑データをもとに' : ''; ?>AIが生成した情報です。正確性は各自でご確認ください</p>
+                                    </div>
+                                <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['similar_taxa_to_compare']) || !empty($latestAiAssessment['missing_evidence'])): ?>
                                     <div class="rounded-xl border border-border bg-base/30 px-3 py-3 space-y-3">
                                         <?php if (!empty($latestAiAssessment['similar_taxa_to_compare'])): ?>
