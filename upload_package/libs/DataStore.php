@@ -46,7 +46,7 @@ class DataStore
         $path = self::$base_path . '/' . $file . '.json';
         $dir = dirname($path);
         if (!file_exists($dir)) {
-            mkdir($dir, 0777, true);
+            mkdir($dir, 0755, true);
         }
 
         $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
@@ -64,7 +64,7 @@ class DataStore
         $file = "{$resource}/{$date}";
         $dir = self::$base_path . '/' . $resource;
 
-        if (!file_exists($dir)) mkdir($dir, 0777, true);
+        if (!file_exists($dir)) mkdir($dir, 0755, true);
 
         $path = self::$base_path . '/' . $file . '.json';
 
@@ -281,7 +281,7 @@ class DataStore
     public static function increment($resource, $id, $field = 'views')
     {
         $dir = self::$base_path . '/counts/' . $resource;
-        if (!file_exists($dir)) mkdir($dir, 0777, true);
+        if (!file_exists($dir)) mkdir($dir, 0755, true);
 
         $file = $dir . '/' . $id . '.json';
         $data = [];

@@ -8,7 +8,7 @@ class Indexer
     {
         self::$indexDir = __DIR__ . '/../data/indexes';
         if (!file_exists(self::$indexDir)) {
-            mkdir(self::$indexDir, 0777, true);
+            mkdir(self::$indexDir, 0755, true);
         }
     }
 
@@ -16,10 +16,16 @@ class Indexer
     {
         self::Init();
         $file = self::$indexDir . '/' . $indexName . '.json';
-        $index = [];
-        if (file_exists($file)) {
-            $index = json_decode(file_get_contents($file), true) ?: [];
+
+        $fp = fopen($file, 'c+');
+        if (!flock($fp, LOCK_EX)) {
+            fclose($fp);
+            return;
         }
+
+        $filesize = filesize($file);
+        $content = $filesize > 0 ? fread($fp, $filesize) : '';
+        $index = json_decode($content, true) ?: [];
 
         if (!isset($index[$key])) {
             $index[$key] = [];
@@ -27,8 +33,14 @@ class Indexer
 
         if (!in_array($value, $index[$key])) {
             $index[$key][] = $value;
-            file_put_contents($file, json_encode($index), LOCK_EX);
+            ftruncate($fp, 0);
+            rewind($fp);
+            fwrite($fp, json_encode($index));
+            fflush($fp);
         }
+
+        flock($fp, LOCK_UN);
+        fclose($fp);
     }
 
     public static function getFromIndex($indexName, $key)
