@@ -225,7 +225,7 @@ class UserStore
      * Stores in oauth_providers array so multiple providers can coexist.
      * Also sets primary auth_provider/oauth_id if not already set.
      */
-    public static function linkOAuth(string $userId, string $provider, string $oauthId, string $avatarUrl = ''): ?array
+    public static function linkOAuth(string $userId, string $provider, string $oauthId, string $avatarUrl = '', string $email = ''): ?array
     {
         $user = self::findById($userId);
         if (!$user) return null;
@@ -258,6 +258,15 @@ class UserStore
 
         if ($avatarUrl) {
             $fields['avatar'] = $avatarUrl;
+        }
+
+        if ($email) {
+            $emails = $user['emails'] ?? [];
+            $primaryEmail = $user['email'] ?? '';
+            if ($email !== $primaryEmail && !in_array($email, $emails, true)) {
+                $emails[] = $email;
+                $fields['emails'] = $emails;
+            }
         }
 
         return self::update($userId, $fields);

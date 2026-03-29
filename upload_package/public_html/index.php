@@ -36,9 +36,12 @@ $latest_obs = DataStore::getLatest('observations', 6, function ($item) use ($fil
     return true;
 });
 
-// Stats for hero (企業サイトデータを除外)
+// Stats for hero (企業サイト・seed・BioScanテストを除外)
 $allObs = array_filter(DataStore::fetchAll('observations'), function ($o) {
-    return empty($o['site_id']);
+    if (!empty($o['site_id'])) return false;
+    $uid = $o['user_id'] ?? '';
+    if (str_starts_with($uid, 'user_69548f9a55') || str_starts_with($uid, 'install_')) return false;
+    return true;
 });
 $totalObs = count($allObs);
 $uniqueSpecies = count(array_unique(array_filter(array_map(function ($o) {
@@ -426,27 +429,64 @@ $publicSurveyorCount = count($allPublicSurveyors);
             <!-- Feed Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style="gap:var(--phi-lg)">
                 <?php foreach ($latest_obs as $obs):
-                    $obsCounts = DataStore::getCounts('observations', $obs['id']);
-                    $obsLikes = $obsCounts['likes'] ?? 0;
+                    $obsReactDir = DATA_DIR . '/reactions/' . $obs['id'];
+                    $obsReactTypes = ['footprint', 'like', 'suteki', 'manabi'];
+                    $obsReactions = [];
+                    $obsTotalReactions = 0;
+                    foreach ($obsReactTypes as $_rt) {
+                        $_rf = $obsReactDir . '/' . $_rt . '.json';
+                        $_rl = file_exists($_rf) ? (json_decode(file_get_contents($_rf), true) ?: []) : [];
+                        $obsReactions[$_rt] = [
+                            'count' => count($_rl),
+                            'reacted' => $currentUser && in_array($currentUser['id'], $_rl),
+                        ];
+                        $obsTotalReactions += count($_rl);
+                    }
+                    // Legacy fallback: likes/ ディレクトリも確認
+                    if ($obsTotalReactions === 0) {
+                        $_legacyFile = DATA_DIR . '/likes/' . $obs['id'] . '.json';
+                        if (file_exists($_legacyFile)) {
+                            $_ll = json_decode(file_get_contents($_legacyFile), true) ?: [];
+                            $obsReactions['footprint']['count'] = count($_ll);
+                            $obsReactions['footprint']['reacted'] = $currentUser && in_array($currentUser['id'], $_ll);
+                            $obsTotalReactions = count($_ll);
+                        }
+                    }
                     $obsComments = count($obs['identifications'] ?? []);
                 ?>
                     <article x-data="{
-                        stepped: false,
-                        count: <?php echo (int)$obsLikes; ?>,
+                        reactions: <?php echo json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP); ?>,
+                        total: <?php echo (int)$obsTotalReactions; ?>,
                         scale: 1,
                         lastTap: 0,
                         _tapTimer: null,
                         menuOpen: false,
+                        emojis: {footprint:'👣', like:'✨', suteki:'❤️', manabi:'🔬'},
+                        labels: {footprint:'足あと', like:'いいね', suteki:'すてき', manabi:'学び'},
 
-                        step(e) {
-                            this.stepped = !this.stepped;
-                            this.count += this.stepped ? 1 : -1;
-                            if (this.stepped) {
+                        async react(type) {
+                            const prev = this.reactions[type].reacted;
+                            this.reactions[type].reacted = !prev;
+                            this.reactions[type].count += prev ? -1 : 1;
+                            this.total += prev ? -1 : 1;
+                            if (!prev) {
                                 if (window.SoundManager) SoundManager.play('light-click');
                                 if (window.HapticEngine) HapticEngine.tick();
+                                this.scale = 1.2;
+                                setTimeout(() => this.scale = 1, 200);
                             }
-                            this.scale = 1.2;
-                            setTimeout(() => this.scale = 1, 200);
+                            try {
+                                const res = await fetch('/api/toggle_like.php', {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({id: '<?php echo htmlspecialchars($obs['id'], ENT_QUOTES); ?>', type})
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                    this.reactions = data.reactions;
+                                    this.total = data.total;
+                                }
+                            } catch (err) {}
                         },
 
                         doubleTap(e) {
@@ -454,7 +494,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                             if (now - this.lastTap < 300) {
                                 clearTimeout(this._tapTimer);
                                 this._tapTimer = null;
-                                if (!this.stepped) { this.step(e); }
+                                if (!this.reactions.like.reacted) { this.react('like'); }
                             } else {
                                 this._tapTimer = setTimeout(() => {
                                     window.location.href = 'observation_detail.php?id=<?php echo urlencode($obs['id']); ?>';
@@ -520,7 +560,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                                 x-transition:leave-start="opacity-100 scale-150"
                                 x-transition:leave-end="opacity-0 scale-0"
                                 class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                                <span class="text-8xl drop-shadow-2xl opacity-90">👣</span>
+                                <span class="text-8xl drop-shadow-2xl opacity-90">❤️</span>
                             </div>
 
                             <?php if (BioUtils::hasResolvedTaxon($obs)): ?>
@@ -554,11 +594,18 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         </div>
 
                         <!-- Actions -->
-                        <div class="px-4 py-2 pb-0 flex items-center gap-1">
-                            <button @click="step($event)" class="flex items-center gap-1.5 group active:scale-90 transition-transform py-1.5 px-2 -ml-2 rounded-lg hover:bg-surface">
-                                <span class="text-xl transition duration-300" :class="stepped ? 'opacity-100' : 'opacity-40 group-hover:opacity-70'">👣</span>
-                                <span class="text-xs font-bold text-secondary" x-show="count > 0" x-text="count"></span>
+                        <div class="px-4 py-2 pb-0 flex items-center gap-0.5 relative">
+                            <?php foreach (['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', 'manabi' => '🔬'] as $_rtype => $_remoji): ?>
+                            <button @click="react('<?php echo $_rtype; ?>')"
+                                class="flex items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-all hover:bg-surface active:scale-90"
+                                :class="reactions.<?php echo $_rtype; ?>.reacted ? 'bg-primary/10' : ''">
+                                <span class="text-base" :class="reactions.<?php echo $_rtype; ?>.reacted ? 'opacity-100' : 'opacity-40 hover:opacity-70'"><?php echo $_remoji; ?></span>
+                                <span class="text-[10px] font-bold"
+                                    :class="reactions.<?php echo $_rtype; ?>.reacted ? 'text-primary' : 'text-faint'"
+                                    x-show="reactions.<?php echo $_rtype; ?>.count > 0"
+                                    x-text="reactions.<?php echo $_rtype; ?>.count"></span>
                             </button>
+                            <?php endforeach; ?>
                             <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="flex items-center gap-1.5 group active:scale-90 transition-transform py-1.5 px-2 rounded-lg hover:bg-surface" title="同定・コメント">
                                 <i data-lucide="message-circle" class="w-5 h-5 transition pointer-events-none <?php echo $obsComments > 0 ? 'text-secondary' : 'text-faint group-hover:text-secondary'; ?>"></i>
                                 <span class="text-xs font-bold <?php echo $obsComments > 0 ? 'text-secondary' : 'text-faint'; ?>"><?php echo (int)$obsComments; ?></span>
@@ -605,16 +652,26 @@ $publicSurveyorCount = count($allPublicSurveyors);
         <!-- ==================== 数字で見る ikimon ==================== -->
         <?php
         $allObs = array_filter(DataStore::fetchAll('observations'), function ($o) {
-            return empty($o['site_id']);
+            if (!empty($o['site_id'])) return false;
+            $uid = $o['user_id'] ?? '';
+            if (str_starts_with($uid, 'user_69548f9a55') || str_starts_with($uid, 'install_')) return false;
+            return true;
         });
         $totalObservations = count($allObs);
         $speciesSet = [];
         $rgCount = 0;
         $userSet = [];
+        $uidMap = [
+            'user_69a01379b962e' => 'nats', 'user_69be85c688371' => 'nats',
+            'user_admin_001' => 'yamaki', 'user_ya_001' => 'yamaki', 'user_69bc926c2eca4' => 'yamaki',
+        ];
         foreach ($allObs as $o) {
             if (!empty($o['taxon']['name'])) $speciesSet[$o['taxon']['name']] = true;
             if (BioUtils::isResearchGradeLike($o['status'] ?? ($o['quality_grade'] ?? ''))) $rgCount++;
-            if (!empty($o['user_id'])) $userSet[$o['user_id']] = true;
+            $uid = $o['user_id'] ?? '';
+            if (!empty($uid) && !str_starts_with($uid, 'guest_')) {
+                $userSet[$uidMap[$uid] ?? $uid] = true;
+            }
         }
         $totalSpecies = count($speciesSet);
         $rgRate = $totalObservations > 0 ? round($rgCount / $totalObservations * 100) : 0;
