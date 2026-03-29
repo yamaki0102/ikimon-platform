@@ -29,7 +29,7 @@ return [
         'record_mode_title' => '記録モードを選択',
         'record_observation' => '観察投稿',
         'record_observation_desc' => '写真で生き物を記録する',
-        'record_sensor' => 'フィールド観察',
+        'record_sensor' => 'いきものセンサー',
         'record_sensor_desc' => '環境センサーで記録する',
         'record_bioscan' => 'いきものサーチ',
         'record_bioscan_desc' => 'AIカメラで生き物を探す',
