@@ -147,6 +147,8 @@ foreach ($events as $i => $event) {
         'frame_ref'          => $event['frame_ref'] ?? null,
         'speed_kmh'          => isset($event['speed_kmh']) ? (float) $event['speed_kmh'] : null,
         'ai_version'         => $event['ai_version'] ?? null,
+        'taxonomic_class'    => $event['taxonomic_class'] ?? null,
+        'taxonomic_order'    => $event['taxonomic_order'] ?? null,
     ];
 }
 

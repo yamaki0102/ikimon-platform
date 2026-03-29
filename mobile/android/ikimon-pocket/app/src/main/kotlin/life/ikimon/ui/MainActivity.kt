@@ -92,7 +92,7 @@ fun HomeScreen(
             Text("🌿", fontSize = 48.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "ikimon pocket",
+                "ikimon BioScan",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
@@ -100,6 +100,11 @@ fun HomeScreen(
                 "歩くだけで、自然が記録される",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Powered by BirdNET+ V3.0 — 11,560 species",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
 
             Spacer(modifier = Modifier.weight(1f))
