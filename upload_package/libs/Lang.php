@@ -23,7 +23,7 @@ class Lang
         }
 
         // Security: Whitelist supported languages
-        if (!in_array(self::$current, ['ja', 'en', 'es', 'pt'])) {
+        if (!in_array(self::$current, ['ja', 'en'])) {
             self::$current = 'ja';
         }
 
