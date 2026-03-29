@@ -495,7 +495,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                         </div>
 
                         <!-- Photo -->
-                        <a href="<?php echo htmlspecialchars($feedCardDetailUrl); ?>" class="aspect-square w-full bg-surface relative group select-none block">
+                        <div class="aspect-square w-full bg-surface relative group select-none block overflow-hidden cursor-pointer" onclick="window.location.href='<?php echo htmlspecialchars($feedCardDetailUrl); ?>'">
                             <img src="<?php echo $obs['photos'][0]; ?>" alt="<?php echo htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '観察写真'); ?>" class="w-full h-full object-cover pointer-events-none" loading="lazy" decoding="async" onload="this.parentElement.classList.remove('lazy-img')">
 
                             <div x-show="scale > 1"
@@ -518,7 +518,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                                     ? 'species/' . urlencode($feedSlug)
                                     : 'species.php?taxon=' . urlencode($feedDisplayName);
                                 ?>
-                                <a href="<?php echo htmlspecialchars($feedSpeciesUrl); ?>"
+                                <a href="<?php echo htmlspecialchars($feedSpeciesUrl); ?>" onclick="event.stopPropagation()"
                                     class="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md flex items-center gap-1.5 border border-white/20 hover:bg-black/70 transition z-10 max-w-[calc(100%-3rem)] truncate">
                                     <i data-lucide="check-circle-2" class="w-3 h-3 text-green-400"></i>
                                     <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($feedDisplayName); ?></span>
@@ -537,7 +537,7 @@ $publicSurveyorCount = count($allPublicSurveyors);
                                     <?php endif; ?>
                                 </div>
                             <?php endif; ?>
-                        </a>
+                        </div>
 
                         <!-- Actions: 4 Reaction Buttons -->
                         <div class="px-4 py-2 pb-0 flex items-center gap-0.5">
