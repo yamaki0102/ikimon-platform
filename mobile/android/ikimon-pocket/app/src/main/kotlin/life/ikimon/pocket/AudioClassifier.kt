@@ -8,9 +8,7 @@ import android.util.Log
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
-import ai.onnxruntime.providers.NNAPIFlags
 import java.nio.FloatBuffer
-import java.util.EnumSet
 
 /**
  * 音声分類器（BirdNET+ V3.0 ONNX ベース）
@@ -67,13 +65,9 @@ class AudioClassifier(private val context: Context) {
 
             val opts = OrtSession.SessionOptions().apply {
                 setIntraOpNumThreads(4)  // Tensor G5マルチコア活用
-                try {
-                    addNnapi(EnumSet.of(NNAPIFlags.USE_FP16))
-                    Log.i(TAG, "NNAPI delegate enabled (Tensor G5 NPU)")
-                } catch (e: Exception) {
-                    Log.w(TAG, "NNAPI not available, using CPU: ${e.message}")
-                }
+                setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT)
             }
+            // NNAPIは541MBモデルで不安定なためCPU推論を使用
             session = ortEnv?.createSession(modelFile.absolutePath, opts)
             labels = loadLabels(LABELS_FILE)
             modelLoaded = true
