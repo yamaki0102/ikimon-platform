@@ -144,43 +144,62 @@ php tools/lint.php       # Full syntax check
 php -S localhost:8899 -t upload_package/public_html  # Dev server
 ```
 
-## Deployment (ikimon固有設定)
+## Deployment
 
-共通デプロイ方針: `~/.codex/AGENTS.md` → Deploy Protocol を参照。
+### Codex のデプロイフロー（必読）
 
-### 接続情報
+**Codex は main に直接 push できない（Protected Branch）。**
+以下のフローに従うこと：
+
+```
+1. codex/<task-name> ブランチで作業・コミット
+2. git push origin codex/<task-name>
+3. PR を作成（タイトル例: [Phase6] feat: xxx の実装）
+4. オーナーが main にマージ
+5. GitHub Actions が自動的に VPS へデプロイ
+```
+
+**Codex がデプロイのために追加でやることは何もない。** PR を作るだけでよい。
+
+### GitHub Actions（自動デプロイ）
 
 | 項目 | 値 |
 |------|-----|
-| SSHエイリアス | `production`（~/.ssh/config に定義済み） |
-| リモートベース | `~/public_html/ikimon.life/` |
+| ワークフロー | `.github/workflows/deploy.yml` |
+| トリガー | `main` への push（PR マージ含む）|
+| デプロイ先 | Xserver VPS `162.43.44.131` |
+| デプロイ方式 | SSH → `/var/www/ikimon.life/deploy.sh`（git pull + PHP-FPM reload）|
 | 本番URL | https://ikimon.life/ |
 
-### リモートディレクトリ構造
+### 本番 VPS ディレクトリ構造
 
 ```
-~/public_html/ikimon.life/        ← サイトルート
-├── config/                        ← Web非公開（config.php等）
-├── libs/                          ← Web非公開（PHPクラス群）
-├── data/                          ← Web非公開（JSONデータストア）
-├── lang/
-├── scripts/
-└── public_html/                   ← ★ 真のWebルート ★
+/var/www/ikimon.life/
+├── deploy.sh                      ← GitHub Actions が叩くスクリプト
+└── repo/                          ← git clone 先（= このリポジトリ）
+    └── upload_package/
+        ├── config/                ← Web非公開（config.php, secret.php）
+        ├── libs/                  ← Web非公開（PHPクラス群）
+        ├── data/                  ← Web非公開（JSONデータストア）★消すな★
+        ├── lang/
+        ├── scripts/
+        └── public_html/           ← ★ 真のWebルート ★
 ```
 
-**Web公開ファイルは必ず `public_html/` 配下にアップロードすること。**
+**Web公開ファイルは必ず `upload_package/public_html/` 配下に置くこと。**
 
-### deploy.json
+### .gitignore 対象（git 経由では本番に届かないファイル）
 
-```json
-{
-    "TargetName": "ikimon.life",
-    "LocalDir": "upload_package",
-    "SshAlias": "production",
-    "RemoteBase": "~/public_html/ikimon.life/",
-    "Url": "https://ikimon.life/"
-}
-```
+| パス | 内容 |
+|------|------|
+| `upload_package/config/secret.php` | OAuth credentials — 絶対に上書きするな |
+| `upload_package/data/` | ユーザーデータ全般 — コードから触るな |
+
+### 旧環境メモ（参照禁止）
+
+過去のドキュメントに `production` SSH エイリアス・`~/public_html/ikimon.life/` パス・
+`SshAlias: production` などの記述が残っている場合、それは**旧お名前RS環境（DNS切替済み・廃止）**の記述。
+現在の本番環境には一切当てはまらない。無視すること。
 
 ## Known Issues to Watch
 
