@@ -27,6 +27,179 @@ Auth::init();
 
             <div class="space-y-8">
 
+                <!-- v0.9.0 -->
+                <article class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.9.0</span>
+                        <time class="text-sm text-gray-500">2026年3月31日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">いきものセンサー — 散歩しながらAIが語りかける</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>いきものセンサー</strong>: 散歩・自転車・ドライブ中にAIが音声でリアルタイムガイド。近くで検出した生き物の生態・保全の話を自動で語りかけます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>散歩レポート</strong>: セッション終了後に「今日の自然浴スコア」「検出した種のサマリー」「移動ルート」を一画面で振り返れるようになりました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>観察詳細にAI豆知識が自動表示</strong>: 生態・生物多様性・保全に関する豆知識をRAGで生成し、観察詳細ページに常時表示するようになりました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>観察に写真を後から追加</strong>: 投稿済みの観察に、追加で写真をアップロードできるようになりました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>Sutherland PNAS 2026 学術裏付けを統合</strong>: 最新の市民科学エビデンスをikimonのアプローチページ・観察詳細・100年アーカイブページに反映しました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>セキュリティ・パフォーマンス・SEO 全体強化</strong>: 通信の安全性強化・ページ読み込み速度の改善・検索エンジン向け構造化データ(JSON-LD)の充実化を行いました</span>
+                        </li>
+                    </ul>
+                </article>
+
+                <!-- v0.8.1 -->
+                <article class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.8.1</span>
+                        <time class="text-sm text-gray-500">2026年3月下旬</time>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">サウンドアーカイブ — 聞いた鳴き声をみんなで同定</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>サウンドアーカイブを公開</strong>: 野外で録音した鳴き声を投稿し、コミュニティが種を同定する新しいプラットフォームです。写真がなくても記録を残せます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>ウォークモードの音声が図鑑と連携</strong>: 散歩中に録音・検出された鳴き声が、マイ図鑑の種ページから再生できるようになりました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>トップページにサウンドアーカイブへの導線を追加</strong>: 未同定の鳴き声が届いていることをホームから確認できます</span>
+                        </li>
+                    </ul>
+                </article>
+
+                <!-- v0.8.0 -->
+                <article class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.8.0</span>
+                        <time class="text-sm text-gray-500">2026年3月中旬</time>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">Androidアプリ(ikimon Pocket) + 世界11,560種の音声AI同定</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>ikimon Pocket Android版を公開</strong>: APKをダウンロードしてインストールできます。カメラ検出・音声同定・ウォークモードをネイティブアプリとして利用可能になりました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>BirdNET V3.0 音声AI: 世界11,560種に対応</strong>: 鳥の鳴き声を端末内で即座に同定します。Pixel端末ではTensor G5 NPUを使ったハードウェア加速で高速処理できます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>Triple AI Engine</strong>: BirdNET V3（音声）+ Gemini Nano（映像）+ 環境センサーの3エンジンを並列で動かし、検出精度を大幅に向上しました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>リアルタイム検出フィード</strong>: アプリ内でスキャン中に検出された種が分類階層バッジ付きでリアルタイム表示されます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>音声ガイド話者を追加 — ずんだもん・もち子さん・青山龍星</strong>: VOICEVOX対応の3話者から選べます。Bluetooth出力にも対応し、スピーカーやイヤホンで自然の中を歩きながら聴けます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>ガイド雰囲気を選択</strong>: 「自然探索」「歴史文化」「おまかせ」から選べるようになりました。移動速度に応じてガイドのペーシングも自動調整されます</span>
+                        </li>
+                    </ul>
+                </article>
+
+                <!-- v0.7.1 -->
+                <article class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.7.1</span>
+                        <time class="text-sm text-gray-500">2026年3月中旬</time>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">AI文脈解析 + 環境データを100年耐久で保存</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>ライブスキャンのAI解析に文脈を注入</strong>: 環境情報（気温・湿度・バイオーム・地面の状態）と過去の検出履歴をAI解析時に参照し、より精度の高い考察を生成できるようになりました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>環境観測データを完全保存</strong>: スキャン中の環境データを100年後も解析できる構造で永続保存します。将来のデジタルツイン・気候変動研究への提供を見越した設計です</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>キーフレーム選択的保存</strong>: スキャン中の全フレームは保存せず、「新種発見」「高信頼度検出」のフレームのみ自動選別して保存します。ストレージを節約しながら重要な瞬間を記録します</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>GeoContext 環境文脈エンジン</strong>: 撮影地点の地形・植生・気候帯から生物分布の可能性を推定し、AI考察の補助証拠として活用するエンジンを導入しました</span>
+                        </li>
+                    </ul>
+                </article>
+
+                <!-- v0.7.0 -->
+                <article class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.7.0</span>
+                        <time class="text-sm text-gray-500">2026年3月上旬</time>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">ライブスキャン・ウォーク・ライブマップ・マイ図鑑・クエスト</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>ライブスキャン</strong>: スマホカメラで映すだけでAIがリアルタイムに生き物を検出します。写真を撮って投稿しなくても、見た生き物を記録できます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>ウォークモード</strong>: 散歩中のルートをGPSで記録しながら、マイクが鳥の鳴き声を自動検出します。リアルタイムマップに鳥の検出ポイントが表示されます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>ライブマップ（ログイン不要）</strong>: アカウント不要でikimonに集まっている観察データを地図で見られます。地域ごとの生物多様性の「今」をリアルタイムで確認できます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>マイ図鑑リニューアル</strong>: 自分が観察・スキャン・音声検出で関わった種だけを集めた個人コレクションになりました。スキャンで撮れたフレーム画像も表示されます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>写真ギャラリー + ピンチズーム + スワイプ</strong>: 観察詳細ページで写真を全画面表示できるようになりました。複数枚の写真をスワイプで切り替え、ピンチで拡大できます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>クエスト専用ページ</strong>: 「どんな生き物を次に見るか」を動機付けるクエストシステムを大幅に再設計しました。ライブスキャンの検出結果からクエストが自動生成されます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>複数リアクション</strong>: 観察に「👣足あと」「❤️いいね」「✨すてき」「🔬学び」の4種類のリアクションを付けられるようになりました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>和名優先表示</strong>: AI・GBIF・BirdNETからの学名・英名を自動で日本語の和名に変換して表示するようになりました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>メソドロジーページを公開</strong>: ikimonのBIS（生物多様性影響スコア）の計算根拠とデータ方針を透明性のあるページで説明しています</span>
+                        </li>
+                    </ul>
+                </article>
+
                 <!-- v0.6.1 -->
                 <article class="relative pl-8 border-l-2 border-emerald-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
@@ -35,15 +208,23 @@ Auth::init();
                         <time class="text-sm text-gray-500">2026年3月30日</time>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">メニューをすっきり整理しました</h2>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">ナビゲーション整理 + AI考察「そうかも！」ワンタップ同定</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
                         <li class="flex items-start gap-2">
                             <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ナビゲーションを簡素化</strong>: よく使う場所に素早くたどり着けるよう、メニュー構成を整理しました</span>
+                            <span><strong>AI考察から「そうかも！」でワンタップ同定</strong>: 観察詳細ページのAI考察に「そうかも！」ボタンを追加。AIの提案をそのまま自分の同定票として送れるようになりました</span>
                         </li>
                         <li class="flex items-start gap-2">
                             <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>マイページへのアクセスを改善</strong>: 自分のプロフィールや記録への導線を分かりやすくしました</span>
+                            <span><strong>AIパーソナライズ種解説</strong>: マイ図鑑の種ページで、自分の出会いコンテキスト（場所・季節・出会い方）に基づいたAI解説が自動生成されます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>ナビゲーションを簡素化</strong>: よく使う場所に素早くたどり着けるよう、メニュー構成を整理。調査員向け機能を非公開にし、フォロー中タブを削除してシンプルにしました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>複数アカウントの重複防止</strong>: Google・X など複数のOAuth手段でログインしても同一ユーザーとして統合されるようになりました</span>
                         </li>
                     </ul>
                 </article>
@@ -411,19 +592,19 @@ Auth::init();
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.2.1</span>
                         <time class="text-sm text-gray-500">2026年3月6日</time>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">セキュリティ & 安定性強化</h2>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">地域達成度マイルストーン + バッジ・スコア強化</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
                         <li class="flex items-start gap-2">
                             <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>セキュリティ強化</strong>: 通信の安全性とログイン周りを改善しました</span>
+                            <span><strong>バッジ・スコアシステムを本格稼働</strong>: 記録数・同定貢献・連続投稿などに応じてバッジを取得できます。プロフィールページで自分の活動履歴を確認できるようになりました</span>
                         </li>
                         <li class="flex items-start gap-2">
                             <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>アクセシビリティ向上</strong>: スクリーンリーダー対応やキーボード操作を改善しました</span>
+                            <span><strong>Googleログイン・Xログインに対応</strong>: ソーシャルログインでかんたんにアカウントを作れるようになりました</span>
                         </li>
                         <li class="flex items-start gap-2">
                             <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>ゲーミフィケーション & パーソナライゼーション</strong>: 体験の没入感と継続性を強化しました</span>
+                            <span><strong>セキュリティ全体強化</strong>: XSS・CSRF対策の徹底、EXIF情報の自動削除、レートリミット設定など基盤の安全性を高めました</span>
                         </li>
                     </ul>
                 </article>
