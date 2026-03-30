@@ -60,6 +60,7 @@ $todayRemaining = $todayState['remaining'];
 $todayReflectionPreview = HabitEngine::previewNote($todayState['reflection_note'] ?? '');
 $latestReflectionPreview = HabitEngine::previewNote($todayState['latest_reflection']['note'] ?? '');
 $todayCtas = $todayState['cta_options'];
+$natureTimeline = $todayState['nature_timeline'] ?? null;
 $allPublicSurveyors = SurveyorManager::listPublicSurveyors();
 $featuredSurveyors = array_slice($allPublicSurveyors, 0, 3);
 $publicSurveyorCount = count($allPublicSurveyors);
@@ -255,6 +256,45 @@ $meta_description = 'スマホで写真を撮って、名前を調べて、地�
                     </span>
                     <?php endforeach; ?>
                 </div>
+
+                <?php if (!empty($todayState['progress_line'])): ?>
+                <div class="mt-4 rounded-2xl bg-white/80 border border-white/80 p-4">
+                    <div class="text-token-xs font-black tracking-widest <?= $todayHabitComplete ? 'text-emerald-700' : 'text-amber-700' ?>">PROGRESS</div>
+                    <p class="text-sm text-text mt-1"><?= htmlspecialchars($todayState['progress_line']) ?></p>
+                </div>
+                <?php endif; ?>
+
+                <?php if (!empty($natureTimeline['items']) && is_array($natureTimeline['items'])): ?>
+                <div class="mt-4 rounded-2xl bg-white/85 border border-white/80 p-4 md:p-5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-token-xs font-black tracking-widest <?= $todayHabitComplete ? 'text-emerald-700' : 'text-amber-700' ?>">MY NATURE STORY</div>
+                            <h3 class="text-base font-black text-text mt-1">自分の自然史</h3>
+                            <?php if (!empty($natureTimeline['headline'])): ?>
+                            <p class="text-sm text-text/80 mt-1"><?= htmlspecialchars($natureTimeline['headline']) ?></p>
+                            <?php endif; ?>
+                        </div>
+                        <div class="shrink-0 rounded-full px-3 py-1 text-token-xs font-bold <?= $todayHabitComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' ?>">
+                            軌跡
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <?php foreach ($natureTimeline['items'] as $item): ?>
+                        <div class="rounded-2xl border border-white/80 bg-white/90 p-4">
+                            <div class="flex items-center gap-2 text-xs font-black tracking-widest <?= $todayHabitComplete ? 'text-emerald-700' : 'text-amber-700' ?>">
+                                <i data-lucide="<?= htmlspecialchars($item['icon'] ?? 'leaf') ?>" class="w-4 h-4"></i>
+                                <?= htmlspecialchars($item['label'] ?? '') ?>
+                            </div>
+                            <div class="text-sm md:text-base font-black text-text mt-2 leading-snug">
+                                <?= htmlspecialchars($item['value'] ?? '') ?>
+                            </div>
+                            <p class="text-token-xs text-muted mt-2"><?= htmlspecialchars($item['detail'] ?? '') ?></p>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-5">
                     <?php foreach ($todayCtas as $type => $cta): ?>
