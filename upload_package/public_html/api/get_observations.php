@@ -14,6 +14,10 @@ $includeImported = isset($_GET['include_imported']) && $_GET['include_imported']
 
 $observations = DataStore::fetchAll('observations');
 
+$observations = array_filter($observations, function ($obs) {
+    return empty($obs['photo_missing']);
+});
+
 if (!$includeImported) {
     $observations = array_filter($observations, function ($obs) {
         $sourceType = strtolower(trim((string)($obs['source_type'] ?? '')));
