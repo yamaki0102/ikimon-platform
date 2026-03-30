@@ -342,7 +342,7 @@ $title = htmlspecialchars($event['title'] ?? '無題の観察会');
         <section class="border-t border-gray-200 pt-6 mt-10 print-break-inside-avoid">
             <p class="text-xs text-center text-gray-400 leading-relaxed">
                 本報告書の基礎データは、市民参加型生物多様性モニタリングシステム「ikimon.life」を用いて収集・集計されています。<br>
-                記録された生物データ（Darwin Core準拠）は、グローバルな自然史データアーカイブ（GBIF等）への連携を通じて、未来の自然保全に繋がります。<br>
+                記録された生物データは、Darwin Core 形式での整理と外部アーカイブ連携を見据えて管理されています。<br>
                 Data Export Generated at <?php echo date('Y-m-d H:i'); ?>
             </p>
         </section>

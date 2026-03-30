@@ -41,51 +41,61 @@ $meta_title = "100年アーカイブ | ikimon.life";
         <div class="text-center mb-12">
             <div class="text-6xl mb-4">🌍</div>
             <h1 class="text-2xl font-black text-[var(--color-text)] mb-3">100年生態系アーカイブ</h1>
-            <p class="text-lg font-bold" style="color:#10b981;">2026年に記録しなかったデータは<br>二度と取り戻せない</p>
+            <p class="text-lg font-bold" style="color:#10b981;">2026年の観察は、<br>100年後の比較基準になる</p>
         </div>
 
         <!-- Philosophy -->
         <div class="bg-[var(--color-surface)] rounded-2xl p-6 mb-6 border border-[var(--color-border)]">
             <h2 class="text-base font-bold text-[var(--color-text)] mb-3">なぜ記録するのか</h2>
             <div class="text-sm text-[var(--color-text-muted)] leading-relaxed space-y-3">
-                <p>今この瞬間の音、光、気温、開花、初鳴き、林床、池のほとり。それらは、今記録しなければ永遠に失われます。</p>
-                <p>100年後の研究者が2026年の生態系を理解しようとしたとき、頼りになるのは<strong class="text-[var(--color-text)]">あなたが今日記録したデータ</strong>です。</p>
-                <p>1枚の写真でも、1回の散歩でも、それは未来への贈り物になります。</p>
+                <p>生態系の変化は、あとから完全には復元できません。いつ、どこで、何を見たかという観察の積み重ねが、未来の比較基準になります。</p>
+                <p>100年後の研究者や地域の担い手が2026年の自然を見返すとき、頼りになるのは<strong class="text-[var(--color-text)]">その時代に残された一次観察</strong>です。</p>
+                <p>1枚の写真、1回の散歩、短いメモでも、長い時間軸では大きな意味を持ちます。</p>
             </div>
         </div>
 
-        <!-- How it works -->
+        <!-- Evidence -->
         <div class="bg-[var(--color-surface)] rounded-2xl p-6 mb-6 border border-[var(--color-border)]">
-            <h2 class="text-base font-bold text-[var(--color-text)] mb-3">データはこう残る</h2>
+            <h2 class="text-base font-bold text-[var(--color-text)] mb-3">ikimon.life が今、強く言えること</h2>
             <div class="space-y-4">
                 <div class="flex items-start gap-3">
                     <span class="text-xl flex-shrink-0">📦</span>
                     <div>
-                        <div class="text-sm font-bold text-[var(--color-text)]">タイムカプセルとして保存</div>
-                        <div class="text-xs text-[var(--color-text-muted)]">種の記録・環境データ・GPS軌跡・音風景をセットで不変保存。更新ではなく追記のみ。</div>
+                        <div class="text-sm font-bold text-[var(--color-text)]">観察を文脈ごと保持する</div>
+                        <div class="text-xs text-[var(--color-text-muted)]">写真、日時、場所、同定、ライセンスなどを分けて持ち、あとから再利用しやすい形で整理します。</div>
                     </div>
                 </div>
                 <div class="flex items-start gap-3">
                     <span class="text-xl flex-shrink-0">🌐</span>
                     <div>
-                        <div class="text-sm font-bold text-[var(--color-text)]">GBIFに世界公開</div>
-                        <div class="text-xs text-[var(--color-text-muted)]">DarwinCore準拠データとしてGBIF（地球規模生物多様性情報機構）に提供。世界中の研究者が利用可能に。</div>
+                        <div class="text-sm font-bold text-[var(--color-text)]">標準化された出力を持つ</div>
+                        <div class="text-xs text-[var(--color-text-muted)]">Darwin Core / DwC-A 形式での出力機能を備え、GBIF 等との連携を見据えた相互運用性を確保します。</div>
                     </div>
                 </div>
                 <div class="flex items-start gap-3">
-                    <span class="text-xl flex-shrink-0">🏢</span>
+                    <span class="text-xl flex-shrink-0">🧭</span>
                     <div>
-                        <div class="text-sm font-bold text-[var(--color-text)]">企業のTNFDレポートに活用</div>
-                        <div class="text-xs text-[var(--color-text-muted)]">あなたの記録が、企業の生物多様性開示（TNFD LEAP）の根拠データとして使われます。</div>
+                        <div class="text-sm font-bold text-[var(--color-text)]">検証の履歴を残す</div>
+                        <div class="text-xs text-[var(--color-text-muted)]">AI評価、コミュニティ同定、レビューや変更履歴を追えるようにし、監査可能な記録に近づけます。</div>
                     </div>
                 </div>
                 <div class="flex items-start gap-3">
                     <span class="text-xl flex-shrink-0">🔒</span>
                     <div>
-                        <div class="text-sm font-bold text-[var(--color-text)]">プラットフォーム非依存</div>
-                        <div class="text-xs text-[var(--color-text-muted)]">ikimon.lifeが将来停止しても、GBIF経由でデータは生き続けます。データの生存がゴールです。</div>
+                        <div class="text-sm font-bold text-[var(--color-text)]">単独依存を避ける方向で設計する</div>
+                        <div class="text-xs text-[var(--color-text-muted)]">一つのアプリだけに閉じず、標準形式で持ち出せることを重視します。永続性は、複数の保存先と運用で支える前提です。</div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- PNAS -->
+        <div class="bg-[var(--color-surface)] rounded-2xl p-6 mb-6 border border-[var(--color-border)]">
+            <h2 class="text-base font-bold text-[var(--color-text)] mb-3">2026年 PNAS 論文との対応</h2>
+            <div class="text-sm text-[var(--color-text-muted)] leading-relaxed space-y-3">
+                <p>Sutherland らが <strong class="text-[var(--color-text)]">2026年3月4日</strong> に PNAS で公開した提言では、生物多様性計測を変えるために「データ統合」「標準化」「較正」「trusted database」「resilience」など9つの変化が必要だと整理されています。</p>
+                <p>ikimon.life は現時点で、<strong class="text-[var(--color-text)]">複数データの統合、Darwin Core を軸にした標準化、検証ログを伴う品質管理、プラットフォーム単独依存を避ける設計</strong>において、この提言と高い整合性があります。</p>
+                <p>一方で、<strong class="text-[var(--color-text)]">地域知識のデータ主権、介入効果を比較できる設計、データ生成者への十分なクレジット</strong>は、今後さらに強化すべき領域です。</p>
             </div>
         </div>
 
@@ -110,23 +120,32 @@ $meta_title = "100年アーカイブ | ikimon.life";
 
         <!-- Your legacy -->
         <div class="bg-[var(--color-surface)] rounded-2xl p-6 mb-6 border border-[var(--color-border)]">
-            <h2 class="text-base font-bold text-[var(--color-text)] mb-3">あなたの名前が残る</h2>
+            <h2 class="text-base font-bold text-[var(--color-text)] mb-3">記録者として残るもの</h2>
             <div class="text-sm text-[var(--color-text-muted)] leading-relaxed space-y-3">
-                <p>100年アーカイブに参加すると、あなたの名前は2026年の地球生態系記録の一部として永久に残ります。</p>
-                <p>いいねは消えます。SNSの投稿は流れます。でも、<strong class="text-[var(--color-text)]">科学データベースに記録された観察は消えません。</strong></p>
+                <p>観察には、記録者、日時、ライセンス、同定の履歴といった情報が結びつきます。誰が、どの条件で残した記録なのかが重要です。</p>
+                <p>SNSの流れやすい投稿とは違い、<strong class="text-[var(--color-text)]">再利用できる形式で整理された観察記録</strong>は、研究、教育、地域アーカイブの土台になれます。</p>
+            </div>
+        </div>
+
+        <!-- Caution -->
+        <div class="bg-amber-50 rounded-2xl p-6 mb-6 border border-amber-200">
+            <h2 class="text-base font-bold text-[var(--color-text)] mb-3">ここで言いすぎないために</h2>
+            <div class="text-sm text-[var(--color-text-muted)] leading-relaxed space-y-3">
+                <p>ikimon.life は、論文が求めるすべてをすでに完成させたとは言いません。特に、地域知識の扱い、介入効果の因果的評価、長期運用の体制は、実装と運用の両面で育て続ける必要があります。</p>
+                <p>それでも、2026年の観察を標準化し、検証可能な形で残し、将来の外部連携に開くという方向性は、今ここで始める価値があります。</p>
             </div>
         </div>
 
         <!-- CTA -->
         <div class="text-center space-y-4">
             <a href="field_research.php" class="inline-block px-8 py-4 rounded-2xl font-bold text-white text-base" style="background:#10b981;">
-                🔍 いきものサーチを始める
+                🔍 観察を記録する
             </a>
-            <div class="text-xs text-[var(--color-text-muted)]">写真1枚からでも参加できます</div>
+            <div class="text-xs text-[var(--color-text-muted)]">写真1枚、短いメモ1つからでも参加できます</div>
 
             <div class="mt-6 pt-6 border-t border-[var(--color-border)]">
                 <a href="bioscan.php" class="inline-flex items-center gap-2 text-sm font-bold" style="color:#10b981;">
-                    📱 BioScan（Android）でもっと豊かなデータを記録する →
+                    📱 BioScan（Android）で、より豊かな観察文脈を残す →
                 </a>
             </div>
         </div>

@@ -49,8 +49,8 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
                 ていねいに持ち帰る
             </h1>
             <p class="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
-                GBIF準拠のオープンデータを、研究・教育・地域アーカイブの用途で持ち帰れます。<br>
-                Darwin Core 形式でのエクスポートにも対応しています。
+                研究・教育・地域アーカイブで再利用しやすい形で、観察データを持ち帰れます。<br>
+                Darwin Core 形式でのエクスポートに対応し、GBIF などとの連携を見据えた構成にしています。
             </p>
             <div class="flex flex-col md:flex-row gap-4 justify-center">
                 <a href="explore.php" class="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4">
@@ -78,7 +78,7 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
                             Darwin Core 準拠
                         </h3>
                         <p class="text-sm text-gray-400">
-                            国際標準のDwC形式でデータを管理。GBIF、iNaturalistとの互換性を確保しています。
+                            国際標準の DwC 形式で出力できます。GBIF などとの相互運用を見据えたデータ整形に対応しています。
                         </p>
                     </div>
                     <div class="glass-card p-6 rounded-2xl border border-white/10">

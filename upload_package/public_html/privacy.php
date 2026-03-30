@@ -55,7 +55,7 @@ Auth::init();
                 <ul class="list-disc list-inside space-y-1 text-muted">
                     <li>サービスの提供・運営・改善</li>
                     <li>コミュニティによる生物同定の支援</li>
-                    <li>観察データの公共的な共有（GBIF 等への連携を含む）</li>
+                    <li>観察データの公共的な共有（GBIF 等への連携準備を含む）</li>
                     <li>不正利用の防止・セキュリティの確保</li>
                     <li>利用状況の分析・統計の作成</li>
                 </ul>
@@ -80,7 +80,7 @@ Auth::init();
                 <h2 class="text-lg font-black text-text mb-3">5. データの第三者提供</h2>
                 <p>以下の場合に限り、収集したデータを第三者に提供します。</p>
                 <ul class="list-disc list-inside space-y-1 text-muted mt-2">
-                    <li><strong class="text-text">GBIF への共有</strong>: CC0 または CC BY ライセンスで、研究利用可または種レベル研究用に整理されたデータのみ</li>
+                    <li><strong class="text-text">GBIF への共有</strong>: 共有対象となる場合は、CC0 または CC BY ライセンスで、研究利用可または種レベル研究用に整理されたデータのみ</li>
                     <li><strong class="text-text">API 経由の提供</strong>: 有料プラン契約者に対し、投稿者が選択したライセンスの範囲内で</li>
                     <li><strong class="text-text">法的要請</strong>: 法令に基づく開示要請があった場合</li>
                 </ul>

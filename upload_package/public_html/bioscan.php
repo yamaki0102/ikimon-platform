@@ -4,7 +4,7 @@ require_once __DIR__ . '/../libs/Auth.php';
 Auth::init();
 
 $meta_title = 'BioScan — AI生物スキャナー | ikimon.life';
-$meta_description = '3つのAIエンジンが視覚・聴覚・環境を同時スキャン。歩くだけで生態系のタイムカプセルを生成する、100年アーカイブのためのAndroidアプリ。';
+$meta_description = '3つのAIエンジンが視覚・聴覚・環境を同時スキャン。歩きながら観察文脈をまとめて残せる、ikimon.life の Android アプリ。';
 $meta_canonical = rtrim(BASE_URL, '/') . '/bioscan';
 
 $apkVersion = '0.5.1';
@@ -34,10 +34,10 @@ $apkFile = 'assets/downloads/ikimon-bioscan.apk';
         <p class="text-gray-400 text-sm leading-relaxed max-w-md mx-auto">
             カメラ・マイク・センサーの3系統AIが<br>
             歩くだけで生態系をまるごとスキャン。<br>
-            <strong class="text-white">100年残る環境タイムカプセルを生成する。</strong>
+            <strong class="text-white">長期的に見返せる観察文脈をまとめて残す。</strong>
         </p>
         <p class="text-[10px] text-gray-600">
-            「2026年に記録しなかったデータは二度と取り戻せない」
+            「2026年の観察は、100年後の比較基準になる」
         </p>
     </section>
 
@@ -92,7 +92,7 @@ $apkFile = 'assets/downloads/ikimon-bioscan.apk';
             <div>
                 <div class="font-bold text-sm">GPS — 高精度空間マッピング</div>
                 <div class="text-xs text-gray-400 mt-1">
-                    全ての検出に位置・高度・速度・方位を自動付与。歩いた軌跡と発見を重ね合わせ、<strong class="text-gray-300">生態系のデジタルツイン</strong>を構築する。
+                    全ての検出に位置・高度・速度・方位を自動付与。歩いた軌跡と発見を重ね合わせ、<strong class="text-gray-300">あとから検証しやすい空間記録</strong>を残します。
                 </div>
             </div>
         </div>
@@ -116,7 +116,7 @@ $apkFile = 'assets/downloads/ikimon-bioscan.apk';
             </div>
             <div class="flex items-center gap-3">
                 <div class="bg-emerald-600 text-white text-xs font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0">4</div>
-                <div class="text-xs text-gray-300"><strong class="text-white">タイムカプセル生成</strong> — セッション終了で、種+環境+軌跡データが ikimon.life に同期</div>
+                <div class="text-xs text-gray-300"><strong class="text-white">観察文脈を保存</strong> — セッション終了で、種+環境+軌跡データが ikimon.life に同期</div>
             </div>
         </div>
     </section>
