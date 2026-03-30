@@ -49,8 +49,8 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
                 ていねいに持ち帰る
             </h1>
             <p class="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
-                GBIF準拠のオープンデータを、研究・教育・地域アーカイブの用途で持ち帰れます。<br>
-                Darwin Core 形式でのエクスポートにも対応しています。
+                研究・教育・地域アーカイブで再利用しやすい形で、観察データを持ち帰れます。<br>
+                Darwin Core 形式でのエクスポートに対応し、GBIF などとの連携を見据えた構成にしています。
             </p>
             <div class="flex flex-col md:flex-row gap-4 justify-center">
                 <a href="explore.php" class="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4">
@@ -78,7 +78,7 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
                             Darwin Core 準拠
                         </h3>
                         <p class="text-sm text-gray-400">
-                            国際標準のDwC形式でデータを管理。GBIF、iNaturalistとの互換性を確保しています。
+                            国際標準の DwC 形式で出力できます。GBIF などとの相互運用を見据えたデータ整形に対応しています。
                         </p>
                     </div>
                     <div class="glass-card p-6 rounded-2xl border border-white/10">
@@ -119,34 +119,6 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
                         <div class="flex justify-between items-center py-3">
                             <span class="text-gray-400">レッドリスト種</span>
                             <span class="text-2xl font-black text-red-400"><?= $researcherRedlistCount ?></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Design Lineage Card -->
-    <section class="py-8 px-6">
-        <div class="max-w-5xl mx-auto">
-            <div class="glass-card p-8 rounded-2xl border border-white/10">
-                <div class="flex items-start gap-4">
-                    <div class="w-10 h-10 rounded-xl bg-teal-500/20 flex items-center justify-center shrink-0">
-                        <i data-lucide="book-open" class="w-5 h-5 text-teal-400"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-bold mb-2">設計思想とデータ系統</h3>
-                        <p class="text-sm text-gray-400 leading-relaxed mb-3">
-                            ikimon のデータ設計は Sutherland et al. (2026-03-04) が PNAS で示した生物多様性計測の9提言と整合しています。
-                            スキーマ設計・エビデンス段階・検証フローの詳細は方法論ページに、全体の設計思想は「記録が保全に変わる理由」に掲載しています。
-                        </p>
-                        <div class="flex flex-wrap gap-3">
-                            <a href="methodology.php#academic-alignment" class="inline-flex items-center gap-1 text-sm font-bold text-teal-400 hover:underline">
-                                <i data-lucide="arrow-right" class="w-3 h-3"></i>方法論：学術整合テーブル
-                            </a>
-                            <a href="century_archive.php" class="inline-flex items-center gap-1 text-sm font-bold text-teal-400 hover:underline">
-                                <i data-lucide="arrow-right" class="w-3 h-3"></i>記録が保全に変わる理由
-                            </a>
                         </div>
                     </div>
                 </div>

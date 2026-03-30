@@ -671,7 +671,7 @@ if (!$currentUser) {
             <div x-show="!reportData?.species?.length" style="background:rgba(255,255,255,0.06);border-radius:12px;padding:20px;margin-bottom:16px;text-align:center;">
                 <div style="font-size:32px;margin-bottom:8px;">🌱</div>
                 <div style="font-size:13px;color:#cbd5e1;font-weight:700;">今回は検出なし</div>
-                <div style="font-size:11px;color:#64748b;margin-top:4px;">でも、歩いた記録はたんけんマップに残っています。<br>GPS軌跡と環境データは100年アーカイブに保存されました。</div>
+                <div style="font-size:11px;color:#64748b;margin-top:4px;">でも、歩いた記録はたんけんマップに残っています。<br>GPS軌跡と環境データは、あとから見返せる形で保存されています。</div>
             </div>
 
             <!-- Species Gallery (horizontal scroll) -->
@@ -732,7 +732,7 @@ if (!$currentUser) {
             <!-- Data note -->
             <div style="display:flex;align-items:start;gap:6px;background:rgba(59,130,246,0.08);border-radius:10px;padding:10px 12px;margin-bottom:24px;">
                 <span style="font-size:12px;">💾</span>
-                <span style="font-size:11px;color:#93c5fd;">データは100年アーカイブに保存され、生物多様性レポートに活用されます</span>
+                <span style="font-size:11px;color:#93c5fd;">データは長期的に見返せる形で保存され、地域の記録やレポート作成の参考に使えます</span>
             </div>
 
             <!-- Actions -->
