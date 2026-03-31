@@ -82,7 +82,11 @@ var VoiceGuide = (function() {
         var audio = _getAudioEl();
         audio.src = SILENT_WAV;
         audio.volume = 0.01;
-        audio.play().then(function() { audio.pause(); audio.removeAttribute('src'); audio.load(); }).catch(function() {});
+        audio.play().then(function() {
+            console.log('[VoiceGuide] Audio unlocked OK');
+        }).catch(function(e) {
+            console.log('[VoiceGuide] Audio unlock FAILED:', e.message);
+        });
     }
 
     function _selectJaVoice() {
@@ -190,6 +194,7 @@ var VoiceGuide = (function() {
     }
 
     function announceAudio(audioUrl) {
+        console.log('[VoiceGuide] announceAudio called, enabled=' + enabled + ', url=' + (audioUrl ? audioUrl.split('/').pop() : 'null'));
         if (!enabled || !audioUrl) return;
         if (queue.length >= MAX_QUEUE) queue.splice(0, queue.length - MAX_QUEUE + 1);
         queue.push({ type: 'audio', url: audioUrl });
@@ -355,8 +360,13 @@ var VoiceGuide = (function() {
         currentAudio = audio;
         audio.src = url;
         audio.load();
-        _audioFallback = setTimeout(function() { if (!done) finish(); }, 35000);
-        audio.play().catch(finish);
+        _audioFallback = setTimeout(function() { if (!done) { console.log('[VoiceGuide] Fallback timeout — finishing'); finish(); } }, 35000);
+        audio.play().then(function() {
+            console.log('[VoiceGuide] Playing audio:', url.split('/').pop());
+        }).catch(function(e) {
+            console.log('[VoiceGuide] Play FAILED:', e.name, e.message);
+            finish();
+        });
     }
 
     return {
