@@ -1096,71 +1096,6 @@ if (!$currentUser) {
                         }
                     }, 15000);
                     this._ambientTimer = setInterval(() => this._fireAmbientGuide(), ambientIntervalMs);
-                },
-
-                async _fireAmbientGuide() {
-                        if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
-                        if (VoiceGuide.isSpeaking()) return;
-
-                        // ドライブ時間超過 → 自動クロージング
-                        if (this._driveTotalMin > 0) {
-                            const elapsedMin = (this.sessionElapsed || 0) / 60;
-                            if (elapsedMin >= this._driveTotalMin - 2 && !this._closingTriggered) {
-                                this._closingTriggered = true;
-                                console.log('[Ambient] Auto-closing triggered');
-                                this.stopSensor();
-                                return;
-                            }
-                        }
-
-                        // First drain any queued landscape history
-                        if (VoiceGuide.drainAmbientQueue) {
-                            VoiceGuide.drainAmbientQueue();
-                            if (VoiceGuide.isSpeaking()) return;
-                        }
-
-                        // Then fetch fresh ambient content
-                        const gpsPos = this.liveScanner?.lastGpsPos;
-                        if (!gpsPos) return;
-
-                        const detected = this.sessionDetections.map(d => d.japanese_name || d.label).filter(Boolean);
-                        const uniqueDetected = [...new Set(detected)].slice(0, 10).join(',');
-
-                        // 移動手段: 手動設定 > GPS自動検出
-                        const transportMode = this.manualTransportMode || (this.currentMovementMode === 'drive' ? 'car' : this.currentMovementMode) || 'walk';
-
-                        try {
-                            const params = new URLSearchParams({
-                                mode: 'ambient',
-                                lat: gpsPos.lat,
-                                lng: gpsPos.lng,
-                                detected_species: uniqueDetected,
-                                voice_mode: VoiceGuide.getVoiceMode(),
-                                transport_mode: transportMode,
-                                elapsed_min: Math.round((this.sessionElapsed || 0) / 60),
-                                session_count: this._ambientGuideCount,
-                                drive_total_min: this._driveTotalMin || 0,
-                                guide_mood: this.guideMood || 'relax',
-                            });
-                            const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
-                            if (!resp.ok) return;
-                            const json = await resp.json();
-                            if (json.success && json.data) {
-                                // フェッチ後に再チェック（フェッチ中に他の音声が開始していれば追加しない）
-                                if (VoiceGuide.isSpeaking()) return;
-                                this._ambientGuideCount++;
-                                if (json.data.audio_url) {
-                                    VoiceGuide.announceAudio(json.data.audio_url);
-                                } else if (json.data.guide_text) {
-                                    const _vm = VoiceGuide.getVoiceMode();
-                                    const _bt = ['zundamon','mochiko','ryusei','auto'].includes(_vm) || _vm.startsWith('duo-');
-                                    if (!_bt) VoiceGuide.announce(json.data.guide_text);
-                                }
-                            }
-                        } catch(e) {
-                            console.log('[Ambient] Error:', e.message);
-                        }
-                },
 
                     // LiveScanner with speed-adaptive mode
                     const videoEl = document.getElementById('scan-cam');
@@ -1291,6 +1226,62 @@ if (!$currentUser) {
 
                         // Show report
                         this.showReport = true;
+                    }
+                },
+
+                async _fireAmbientGuide() {
+                    if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
+                    if (VoiceGuide.isSpeaking()) return;
+
+                    if (this._driveTotalMin > 0) {
+                        const elapsedMin = (this.sessionElapsed || 0) / 60;
+                        if (elapsedMin >= this._driveTotalMin - 2 && !this._closingTriggered) {
+                            this._closingTriggered = true;
+                            this.stopSensor();
+                            return;
+                        }
+                    }
+
+                    if (VoiceGuide.drainAmbientQueue) {
+                        VoiceGuide.drainAmbientQueue();
+                        if (VoiceGuide.isSpeaking()) return;
+                    }
+
+                    const gpsPos = this.liveScanner?.lastGpsPos;
+                    if (!gpsPos) return;
+
+                    const detected = this.sessionDetections.map(d => d.japanese_name || d.label).filter(Boolean);
+                    const uniqueDetected = [...new Set(detected)].slice(0, 10).join(',');
+                    const transportMode = this.manualTransportMode || (this.currentMovementMode === 'drive' ? 'car' : this.currentMovementMode) || 'walk';
+
+                    try {
+                        const params = new URLSearchParams({
+                            mode: 'ambient',
+                            lat: gpsPos.lat, lng: gpsPos.lng,
+                            detected_species: uniqueDetected,
+                            voice_mode: VoiceGuide.getVoiceMode(),
+                            transport_mode: transportMode,
+                            elapsed_min: Math.round((this.sessionElapsed || 0) / 60),
+                            session_count: this._ambientGuideCount,
+                            drive_total_min: this._driveTotalMin || 0,
+                            guide_mood: this.guideMood || 'relax',
+                        });
+                        const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
+                        if (!resp.ok) return;
+                        const json = await resp.json();
+                        if (json.success && json.data) {
+                            if (VoiceGuide.isSpeaking()) return;
+                            this._ambientGuideCount++;
+                            if (json.data.audio_url) {
+                                VoiceGuide.announceAudio(json.data.audio_url);
+                            } else if (json.data.guide_text) {
+                                const _vm = VoiceGuide.getVoiceMode();
+                                const _bt = ['zundamon','mochiko','ryusei','auto'].includes(_vm) || _vm.startsWith('duo-');
+                                if (!_bt) VoiceGuide.announce(json.data.guide_text);
+                            }
+                        }
+                    } catch(e) {
+                        console.log('[Ambient] Error:', e.message);
                     }
                 },
 
