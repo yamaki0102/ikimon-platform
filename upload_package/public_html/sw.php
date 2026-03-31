@@ -61,6 +61,11 @@ self.addEventListener('fetch', (event) => {
 
     if (event.request.method !== 'GET') return;
 
+    // 音声ファイルはSWをバイパス（Rangeリクエスト互換性問題回避）
+    if (url.pathname.includes('/uploads/audio/') || url.pathname.includes('/assets/audio/')) {
+        return;
+    }
+
     if (url.pathname.includes('/api/')) {
         if (url.pathname.includes('taxon_suggest')) {
             event.respondWith(

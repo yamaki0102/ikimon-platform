@@ -1102,14 +1102,14 @@ if (!$currentUser) {
                         ? Math.max(30000, Math.min(120000, (this._driveTotalMin * 60000) / Math.max(6, Math.ceil(this._driveTotalMin / 5))))
                         : 45000;
                     console.log(`[Ambient] interval: ${Math.round(ambientIntervalMs/1000)}s, driveDuration: ${this._driveTotalMin}min`);
-                    // 初回は15秒後に発火（体験の早期スタート）、以降は通常間隔
+                    // 初回は5秒後に発火（体験の早期スタート）、以降は通常間隔
                     this._ambientFirstFired = false;
                     setTimeout(() => {
                         if (this.sessionActive && !this._ambientFirstFired) {
                             this._ambientFirstFired = true;
                             this._fireAmbientGuide();
                         }
-                    }, 15000);
+                    }, 5000);
                     this._ambientTimer = setInterval(() => this._fireAmbientGuide(), ambientIntervalMs);
 
                     // LiveScanner with speed-adaptive mode
