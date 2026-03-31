@@ -884,11 +884,15 @@ if (!$currentUser) {
                 init() {
                     lucide.createIcons();
 
-                    // Migrate legacy 'auto' speaker setting to gemini-bright
+                    // Migrate legacy speaker settings to gemini-bright
                     const _savedSpeaker = localStorage.getItem('ikimon_voice_speaker');
                     if (!_savedSpeaker || _savedSpeaker === 'auto' || _savedSpeaker === 'standard' || _savedSpeaker === 'bluetooth') {
                         localStorage.setItem('ikimon_voice_speaker', 'gemini-bright');
+                        localStorage.setItem('ikimon_voice_output', 'bluetooth');
                         this.selectedSpeaker = 'gemini-bright';
+                        if (window.VoiceGuide) {
+                            VoiceGuide.setVoiceMode('gemini-bright');
+                        }
                     }
 
                     // Connectivity monitoring
