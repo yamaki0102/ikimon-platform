@@ -361,8 +361,6 @@ var VoiceGuide = (function() {
         audio.pause();
         audio.volume = 1.0;
         var done = false;
-        // 実音声再生中はkeepAliveを停止（BT上での2Audio要素競合を防ぐ）
-        _stopKeepAlive();
 
         function finish(shouldFallback) {
             if (done) return;
@@ -370,7 +368,7 @@ var VoiceGuide = (function() {
             _cleanupAudioListeners(audio);
             currentAudio = null;
             speaking = false;
-            // 再生終了後にkeepAliveを再開
+            // 再生終了後にkeepAliveを再開（BTスリープ防止）
             if (enabled && output === 'bluetooth') _startKeepAlive();
             if (shouldFallback && fallbackText) {
                 announce(fallbackText);
@@ -406,6 +404,8 @@ var VoiceGuide = (function() {
             _debugToast('🔊 canplaythrough, calling play()');
             audio.play().then(function() {
                 _debugToast('▶️ Playing: ' + url.split('/').pop());
+                // 実音声再生確定後にkeepAliveを停止（音声自体がBT接続を維持する）
+                _stopKeepAlive();
             }).catch(function(e) {
                 _debugToast('❌ Play FAIL: ' + e.name + ' ' + e.message);
                 finish(true);
@@ -417,6 +417,7 @@ var VoiceGuide = (function() {
                 _debugToast('⚡ Force play (readyState=' + audio.readyState + ')');
                 audio.play().then(function() {
                     _debugToast('▶️ Force playing OK');
+                    _stopKeepAlive();
                 }).catch(function(e) {
                     _debugToast('❌ Force play FAIL: ' + e.name);
                     finish(true);
