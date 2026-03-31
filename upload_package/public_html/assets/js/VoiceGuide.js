@@ -65,7 +65,8 @@ var VoiceGuide = (function() {
     function _getAudioEl() {
         if (!_audioEl) {
             _audioEl = new Audio();
-            _audioEl.crossOrigin = 'anonymous';
+            // crossOrigin不要 — 同一オリジンの音声ファイルなのでCORSは不要
+            // 'anonymous'を設定するとnginxにCORSヘッダーがない静的MP3がブロックされる
         }
         return _audioEl;
     }
