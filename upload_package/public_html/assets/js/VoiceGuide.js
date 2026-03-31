@@ -361,6 +361,8 @@ var VoiceGuide = (function() {
         audio.pause();
         audio.volume = 1.0;
         var done = false;
+        // 実音声再生中はkeepAliveを停止（BT上での2Audio要素競合を防ぐ）
+        _stopKeepAlive();
 
         function finish(shouldFallback) {
             if (done) return;
@@ -368,6 +370,8 @@ var VoiceGuide = (function() {
             _cleanupAudioListeners(audio);
             currentAudio = null;
             speaking = false;
+            // 再生終了後にkeepAliveを再開
+            if (enabled && output === 'bluetooth') _startKeepAlive();
             if (shouldFallback && fallbackText) {
                 announce(fallbackText);
                 return;

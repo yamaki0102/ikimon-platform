@@ -1287,7 +1287,7 @@ if (!$currentUser) {
                             if (json.data.audio_url) {
                                 VoiceGuide.announceAudio(json.data.audio_url, json.data.guide_text || null);
                             } else if (json.data.guide_text) {
-                                VoiceGuide.announce(json.data.guide_text);
+                                VoiceGuide.announce((json.data.guide_text || '').replace(/【[^】]+】\s*/g, ''));
                             }
                         }
                     } catch(e) {
@@ -1349,7 +1349,7 @@ if (!$currentUser) {
                                     if (res.audio_url) {
                                         VoiceGuide.announceAudio(res.audio_url, res.guide_text || null);
                                     } else if (res.guide_text) {
-                                        VoiceGuide.announce(res.guide_text);
+                                        VoiceGuide.announce((res.guide_text || '').replace(/【[^】]+】\s*/g, ''));
                                     }
                                 });
                         }
@@ -1382,7 +1382,7 @@ if (!$currentUser) {
                             if (json.data.audio_url) {
                                 VoiceGuide.announceAudio(json.data.audio_url, json.data.guide_text || null);
                             } else if (json.data.guide_text) {
-                                VoiceGuide.announce(json.data.guide_text);
+                                VoiceGuide.announce((json.data.guide_text || '').replace(/【[^】]+】\s*/g, ''));
                             }
                         }
                     } catch(e) {
