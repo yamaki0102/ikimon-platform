@@ -1165,13 +1165,8 @@ if (!$currentUser) {
                         }
                     }
 
-                    // Opening announcement (VOICEVOX/duo以外のみブラウザTTSで繋ぎ)
-                    const _vgm = VoiceGuide.getVoiceMode();
-                    const _isVoxMode = ['zundamon','mochiko','ryusei','auto'].includes(_vgm) || _vgm.startsWith('duo-');
-                    if (!_isVoxMode) {
-                        const modeLabel = this.manualTransportMode === 'car' ? 'ドライブ' : this.manualTransportMode === 'bike' ? 'サイクリング' : 'フィールドサーチ';
-                        VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
-                    }
+                    const modeLabel = this.manualTransportMode === 'car' ? 'ドライブ' : this.manualTransportMode === 'bike' ? 'サイクリング' : 'フィールドサーチ';
+                    VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
 
                     this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
                     console.log(`[Sensor] Started (speaker: ${this.selectedSpeaker})`);
@@ -1290,7 +1285,7 @@ if (!$currentUser) {
                             if (VoiceGuide.isSpeaking()) return;
                             this._ambientGuideCount++;
                             if (json.data.audio_url) {
-                                VoiceGuide.announceAudio(json.data.audio_url);
+                                VoiceGuide.announceAudio(json.data.audio_url, json.data.guide_text || null);
                             } else if (json.data.guide_text) {
                                 VoiceGuide.announce(json.data.guide_text);
                             }
@@ -1352,7 +1347,7 @@ if (!$currentUser) {
                                 .then(res => {
                                     if (!res) return;
                                     if (res.audio_url) {
-                                        VoiceGuide.announceAudio(res.audio_url);
+                                        VoiceGuide.announceAudio(res.audio_url, res.guide_text || null);
                                     } else if (res.guide_text) {
                                         VoiceGuide.announce(res.guide_text);
                                     }
@@ -1385,7 +1380,7 @@ if (!$currentUser) {
                         if (json.success && json.data) {
                             if(window._vgDebug) window._vgDebug('✅ Opening: audio=' + (json.data.audio_url ? 'YES' : 'NO') + ' text=' + (json.data.guide_text ? json.data.guide_text.length + 'chars' : 'NO'));
                             if (json.data.audio_url) {
-                                VoiceGuide.announceAudio(json.data.audio_url);
+                                VoiceGuide.announceAudio(json.data.audio_url, json.data.guide_text || null);
                             } else if (json.data.guide_text) {
                                 VoiceGuide.announce(json.data.guide_text);
                             }
