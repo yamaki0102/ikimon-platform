@@ -78,6 +78,13 @@ var VoiceGuide = (function() {
         _getAudioEl();
     }
 
+    function unlockAudio() {
+        var audio = _getAudioEl();
+        audio.src = SILENT_WAV;
+        audio.volume = 0.01;
+        audio.play().then(function() { audio.pause(); audio.removeAttribute('src'); audio.load(); }).catch(function() {});
+    }
+
     function _selectJaVoice() {
         var voices = speechSynthesis.getVoices();
         var jaVoices = voices.filter(function(v) { return v.lang.startsWith('ja'); });
@@ -370,7 +377,8 @@ var VoiceGuide = (function() {
         drainAmbientQueue: drainAmbientQueue,
         onFinish: onFinish,
         isSpeaking: function() { return speaking; },
-        stop: stop
+        stop: stop,
+        unlockAudio: unlockAudio
     };
 })();
 

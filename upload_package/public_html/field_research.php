@@ -1150,21 +1150,16 @@ if (!$currentUser) {
                         canvasElement: canvasEl,
                     });
 
-                    // Enable VoiceGuide
+                    // Enable VoiceGuide + unlock audio (must happen in user gesture context)
                     if (window.VoiceGuide) {
                         VoiceGuide.setVoiceMode(this.selectedSpeaker);
                         VoiceGuide.setEnabled(true);
-                        // Unlock audio on user gesture (mobile browsers)
+                        VoiceGuide.unlockAudio();
                         if ('speechSynthesis' in window) {
                             const unlock = new SpeechSynthesisUtterance('');
                             unlock.volume = 0;
                             speechSynthesis.speak(unlock);
                         }
-                        try {
-                            const silentAudio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=');
-                            silentAudio.volume = 0.01;
-                            silentAudio.play().catch(() => {});
-                        } catch(e) {}
                     }
 
                     // Opening announcement (VOICEVOX/duo以外のみブラウザTTSで繋ぎ)
