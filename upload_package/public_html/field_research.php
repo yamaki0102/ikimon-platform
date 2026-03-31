@@ -1087,7 +1087,18 @@ if (!$currentUser) {
                         ? Math.max(30000, Math.min(120000, (this._driveTotalMin * 60000) / Math.max(6, Math.ceil(this._driveTotalMin / 5))))
                         : 45000;
                     console.log(`[Ambient] interval: ${Math.round(ambientIntervalMs/1000)}s, driveDuration: ${this._driveTotalMin}min`);
-                    this._ambientTimer = setInterval(async () => {
+                    // 初回は15秒後に発火（体験の早期スタート）、以降は通常間隔
+                    this._ambientFirstFired = false;
+                    setTimeout(() => {
+                        if (this.sessionActive && !this._ambientFirstFired) {
+                            this._ambientFirstFired = true;
+                            this._fireAmbientGuide();
+                        }
+                    }, 15000);
+                    this._ambientTimer = setInterval(() => this._fireAmbientGuide(), ambientIntervalMs);
+                },
+
+                async _fireAmbientGuide() {
                         if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
                         if (VoiceGuide.isSpeaking()) return;
 
@@ -1149,7 +1160,7 @@ if (!$currentUser) {
                         } catch(e) {
                             console.log('[Ambient] Error:', e.message);
                         }
-                    }, 45000);
+                },
 
                     // LiveScanner with speed-adaptive mode
                     const videoEl = document.getElementById('scan-cam');
@@ -1174,7 +1185,8 @@ if (!$currentUser) {
                                 this.explorationMap.addExploredPoint(pos.lat, pos.lng, null);
                             }
                             // GPS取得後すぐに場所のトリビアを読み上げ（初回1回だけ）
-                            if (!this._quickStartDone && pos.accuracy <= 100 && window.VoiceGuide && VoiceGuide.isEnabled()) {
+                            // accuracy 500m以内なら起動（室内でも動作）、精度が低い場合は位置が大まかになるだけ
+                            if (!this._quickStartDone && pos.accuracy <= 500 && window.VoiceGuide && VoiceGuide.isEnabled()) {
                                 this._quickStartDone = true;
                                 this._fetchOpeningGuide(pos.lat, pos.lng);
                             }
