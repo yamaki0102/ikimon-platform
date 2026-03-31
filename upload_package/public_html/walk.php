@@ -822,7 +822,7 @@ async function sendAudio(blob, passedFreqFilter) {
                         .then(function(res) {
                             if (!res) return;
                             if (res.audio_url) {
-                                VoiceGuide.announceAudio(res.audio_url);
+                                VoiceGuide.announceAudio(res.audio_url, res.guide_text || null);
                             } else if (res.guide_text) {
                                 VoiceGuide.announce(res.guide_text);
                             }

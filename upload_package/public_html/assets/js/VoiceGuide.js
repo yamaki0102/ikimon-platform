@@ -223,15 +223,15 @@ var VoiceGuide = (function() {
         }
     }
 
-    function announceAudio(audioUrl) {
+    function announceAudio(audioUrl, fallbackText) {
         _debugToast('📢 announceAudio en=' + enabled + ' sp=' + speaking + ' q=' + queue.length + ' ' + (audioUrl ? audioUrl.split('/').pop() : 'null'));
         if (!enabled || !audioUrl) return;
         if (queue.length >= MAX_QUEUE) queue.splice(0, queue.length - MAX_QUEUE + 1);
-        queue.push({ type: 'audio', url: audioUrl });
+        queue.push({ type: 'audio', url: audioUrl, fallbackText: fallbackText || null });
         if (!speaking) {
             speaking = true;
             var item = queue.shift();
-            _playAudio(item.url);
+            _playAudio(item.url, item.fallbackText);
         }
     }
 
@@ -273,7 +273,7 @@ var VoiceGuide = (function() {
         if (hint === 'next_slot') {
             if (speaking) {
                 if (audioUrl) {
-                    queue.push({ type: 'audio', url: audioUrl });
+                    queue.push({ type: 'audio', url: audioUrl, fallbackText: text || null });
                 } else if (text) {
                     queue.push({ type: 'tts', text: text });
                 }
@@ -282,7 +282,7 @@ var VoiceGuide = (function() {
         }
 
         if (audioUrl) {
-            announceAudio(audioUrl);
+            announceAudio(audioUrl, text);
         } else if (text) {
             announce(text);
         }
@@ -292,7 +292,7 @@ var VoiceGuide = (function() {
         if (_ambientQueue.length === 0) return;
         var item = _ambientQueue.shift();
         if (item.audioUrl) {
-            announceAudio(item.audioUrl);
+            announceAudio(item.audioUrl, item.text);
         } else if (item.text) {
             announce(item.text);
         }
@@ -308,7 +308,7 @@ var VoiceGuide = (function() {
         var item = queue.shift();
         if (item.type === 'audio') {
             // _playAudio内でspeaking=falseにしてから_processQueueを再帰呼出し
-            _playAudio(item.url);
+            _playAudio(item.url, item.fallbackText);
         } else {
             _speak(item.text);
         }
@@ -354,7 +354,7 @@ var VoiceGuide = (function() {
         if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
     }
 
-    function _playAudio(url) {
+    function _playAudio(url, fallbackText) {
         _debugToast('🎵 _playAudio: ' + url.split('/').pop());
         var audio = _getAudioEl();
         _cleanupAudioListeners(audio);
@@ -362,17 +362,21 @@ var VoiceGuide = (function() {
         audio.volume = 1.0;
         var done = false;
 
-        function finish() {
+        function finish(shouldFallback) {
             if (done) return;
             done = true;
             _cleanupAudioListeners(audio);
             currentAudio = null;
             speaking = false;
+            if (shouldFallback && fallbackText) {
+                announce(fallbackText);
+                return;
+            }
             _processQueue();
         }
 
-        _currentOnError = function(e) { _debugToast('❌ Audio error event'); finish(); };
-        _currentOnEnded = function() { _debugToast('✅ Audio ended'); finish(); };
+        _currentOnError = function() { _debugToast('❌ Audio error event'); finish(true); };
+        _currentOnEnded = function() { _debugToast('✅ Audio ended'); finish(false); };
         _currentOnMeta = function() {
             _debugToast('📊 Meta: dur=' + (audio.duration ? audio.duration.toFixed(1) + 's' : '?'));
             if (done) return;
@@ -380,7 +384,7 @@ var VoiceGuide = (function() {
             if (audio.duration && isFinite(audio.duration)) {
                 var safeDur = audio.duration * 1000 + 5000;
                 if (_audioTimeout) clearTimeout(_audioTimeout);
-                _audioTimeout = setTimeout(finish, safeDur);
+                _audioTimeout = setTimeout(function() { finish(false); }, safeDur);
             }
         };
 
@@ -390,7 +394,7 @@ var VoiceGuide = (function() {
         currentAudio = audio;
         audio.src = url;
         // load()を明示的に呼ばない — ブラウザがsrc設定時に自動ロード
-        _audioFallback = setTimeout(function() { if (!done) { _debugToast('⏰ Fallback timeout 35s'); finish(); } }, 35000);
+        _audioFallback = setTimeout(function() { if (!done) { _debugToast('⏰ Fallback timeout 35s'); finish(true); } }, 35000);
         // canplaythrough待ちしてからplay
         audio.addEventListener('canplaythrough', function onReady() {
             audio.removeEventListener('canplaythrough', onReady);
@@ -400,7 +404,7 @@ var VoiceGuide = (function() {
                 _debugToast('▶️ Playing: ' + url.split('/').pop());
             }).catch(function(e) {
                 _debugToast('❌ Play FAIL: ' + e.name + ' ' + e.message);
-                finish();
+                finish(true);
             });
         }, { once: true });
         // 5秒以内にcanplaythroughが来なかったら強制play
@@ -411,7 +415,7 @@ var VoiceGuide = (function() {
                     _debugToast('▶️ Force playing OK');
                 }).catch(function(e) {
                     _debugToast('❌ Force play FAIL: ' + e.name);
-                    finish();
+                    finish(true);
                 });
             }
         }, 5000);
