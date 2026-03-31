@@ -354,11 +354,10 @@ var VoiceGuide = (function() {
     }
 
     function _playAudio(url) {
+        _debugToast('🎵 _playAudio: ' + url.split('/').pop());
         var audio = _getAudioEl();
         _cleanupAudioListeners(audio);
         audio.pause();
-        audio.removeAttribute('src');
-        audio.load();
         audio.volume = 1.0;
         var done = false;
 
@@ -371,9 +370,10 @@ var VoiceGuide = (function() {
             _processQueue();
         }
 
-        _currentOnError = function() { finish(); };
-        _currentOnEnded = function() { finish(); };
+        _currentOnError = function(e) { _debugToast('❌ Audio error event'); finish(); };
+        _currentOnEnded = function() { _debugToast('✅ Audio ended'); finish(); };
         _currentOnMeta = function() {
+            _debugToast('📊 Meta: dur=' + (audio.duration ? audio.duration.toFixed(1) + 's' : '?'));
             if (done) return;
             if (_audioFallback) { clearTimeout(_audioFallback); _audioFallback = null; }
             if (audio.duration && isFinite(audio.duration)) {
@@ -388,14 +388,32 @@ var VoiceGuide = (function() {
         audio.addEventListener('loadedmetadata', _currentOnMeta);
         currentAudio = audio;
         audio.src = url;
-        audio.load();
-        _audioFallback = setTimeout(function() { if (!done) { console.log('[VoiceGuide] Fallback timeout — finishing'); finish(); } }, 35000);
-        audio.play().then(function() {
-            _debugToast('▶️ Playing: ' + url.split('/').pop());
-        }).catch(function(e) {
-            _debugToast('❌ Play FAIL: ' + e.name + ' ' + e.message);
-            finish();
-        });
+        // load()を明示的に呼ばない — ブラウザがsrc設定時に自動ロード
+        _audioFallback = setTimeout(function() { if (!done) { _debugToast('⏰ Fallback timeout 35s'); finish(); } }, 35000);
+        // canplaythrough待ちしてからplay
+        audio.addEventListener('canplaythrough', function onReady() {
+            audio.removeEventListener('canplaythrough', onReady);
+            if (done) return;
+            _debugToast('🔊 canplaythrough, calling play()');
+            audio.play().then(function() {
+                _debugToast('▶️ Playing: ' + url.split('/').pop());
+            }).catch(function(e) {
+                _debugToast('❌ Play FAIL: ' + e.name + ' ' + e.message);
+                finish();
+            });
+        }, { once: true });
+        // 5秒以内にcanplaythroughが来なかったら強制play
+        setTimeout(function() {
+            if (!done && audio.readyState < 4) {
+                _debugToast('⚡ Force play (readyState=' + audio.readyState + ')');
+                audio.play().then(function() {
+                    _debugToast('▶️ Force playing OK');
+                }).catch(function(e) {
+                    _debugToast('❌ Force play FAIL: ' + e.name);
+                    finish();
+                });
+            }
+        }, 5000);
     }
 
     return {
