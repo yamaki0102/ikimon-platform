@@ -806,13 +806,14 @@ if (!$currentUser) {
     </div>
 
     <!-- Scripts -->
-    <script src="js/StepCounter.js" nonce="<?= CspNonce::attr() ?>"></script>
-    <script src="js/OfflineMapManager.js" nonce="<?= CspNonce::attr() ?>"></script>
-    <script src="js/FieldRecorder.js" nonce="<?= CspNonce::attr() ?>"></script>
-    <script src="js/ExplorationMap.js" nonce="<?= CspNonce::attr() ?>"></script>
-    <script src="js/SiteGuide.js" nonce="<?= CspNonce::attr() ?>"></script>
-    <script src="js/LiveScanner.js" nonce="<?= CspNonce::attr() ?>"></script>
-    <script src="assets/js/VoiceGuide.js" nonce="<?= CspNonce::attr() ?>"></script>
+    <?php $jsBust = filemtime(__FILE__); ?>
+    <script src="js/StepCounter.js?v=<?= $jsBust ?>" nonce="<?= CspNonce::attr() ?>"></script>
+    <script src="js/OfflineMapManager.js?v=<?= $jsBust ?>" nonce="<?= CspNonce::attr() ?>"></script>
+    <script src="js/FieldRecorder.js?v=<?= $jsBust ?>" nonce="<?= CspNonce::attr() ?>"></script>
+    <script src="js/ExplorationMap.js?v=<?= $jsBust ?>" nonce="<?= CspNonce::attr() ?>"></script>
+    <script src="js/SiteGuide.js?v=<?= $jsBust ?>" nonce="<?= CspNonce::attr() ?>"></script>
+    <script src="js/LiveScanner.js?v=<?= $jsBust ?>" nonce="<?= CspNonce::attr() ?>"></script>
+    <script src="assets/js/VoiceGuide.js?v=<?= filemtime(PUBLIC_DIR . '/assets/js/VoiceGuide.js') ?>" nonce="<?= CspNonce::attr() ?>"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         function explorationApp() {
             return {
