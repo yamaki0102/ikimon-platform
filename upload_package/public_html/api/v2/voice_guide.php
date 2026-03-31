@@ -1562,7 +1562,7 @@ function _generateGeminiAudio(string $text, string $voiceMode = 'gemini-bright',
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_POSTFIELDS => json_encode($payload),
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 30,
+        CURLOPT_TIMEOUT => 10,
         CURLOPT_CONNECTTIMEOUT => 5,
     ]);
 

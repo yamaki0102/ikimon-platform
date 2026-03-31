@@ -385,18 +385,18 @@ if (!$currentUser) {
         </div>
     </div>
 
-    <!-- Sensor Start Panel (single button) -->
+    <!-- Sensor Start Panel -->
     <div x-show="!sessionActive && showModeSelect" x-cloak
          style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
-        <div style="background:rgba(15,23,42,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:16px;border-radius:18px;text-align:center;border:1px solid rgba(255,255,255,0.08);">
+        <div class="glass" style="padding:16px;border-radius:18px;">
             <!-- 移動手段セレクター -->
             <div style="margin-bottom:12px;">
-                <div style="font-size:10px;color:#64748b;margin-bottom:6px;letter-spacing:0.05em;">移動手段を選択</div>
+                <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:6px;letter-spacing:0.05em;text-transform:uppercase;">移動手段を選択</div>
                 <div style="display:flex;gap:6px;">
                     <template x-for="tm in transportModes" :key="tm.id">
                         <button @click="manualTransportMode = tm.id; localStorage.setItem('ikimon_transport', tm.id)"
-                                :style="manualTransportMode === tm.id ? 'background:rgba(16,185,129,0.2);color:#10b981;border-color:#10b981;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
-                                style="flex:1;padding:8px 4px;border-radius:10px;border:1.5px solid;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                                :style="manualTransportMode === tm.id ? 'background:#10b981;color:#fff;border-color:#10b981;box-shadow:0 2px 8px rgba(16,185,129,0.3);' : 'background:#fff;color:#475569;border-color:#e2e8f0;'"
+                                style="flex:1;padding:8px 4px;border-radius:10px;border:1.5px solid;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all 0.15s;">
                             <span x-text="tm.emoji" style="font-size:20px;pointer-events:none;"></span>
                             <span x-text="tm.label" style="font-size:10px;font-weight:700;pointer-events:none;"></span>
                         </button>
@@ -405,66 +405,66 @@ if (!$currentUser) {
             </div>
             <!-- ドライブ設定（車モード時） -->
             <div x-show="manualTransportMode === 'car'" x-cloak style="margin-bottom:10px;">
-                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🕐 ドライブ時間</div>
+                <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:6px;">🕐 ドライブ時間</div>
                 <div style="display:flex;gap:6px;margin-bottom:10px;">
                     <template x-for="dt in [{min:15,label:'15分'},{min:30,label:'30分'},{min:60,label:'1時間'},{min:0,label:'指定なし'}]" :key="dt.min">
                         <button @click="driveDurationMin = dt.min; localStorage.setItem('ikimon_drive_duration', dt.min)"
-                                :style="driveDurationMin === dt.min ? 'background:rgba(59,130,246,0.2);color:#60a5fa;border-color:#3b82f6;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
-                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:11px;font-weight:700;">
+                                :style="driveDurationMin === dt.min ? 'background:#3b82f6;color:#fff;border-color:#3b82f6;' : 'background:#fff;color:#475569;border-color:#e2e8f0;'"
+                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:11px;font-weight:700;transition:all 0.15s;">
                             <span x-text="dt.label"></span>
                         </button>
                     </template>
                 </div>
-                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🎭 今日のガイドは？</div>
+                <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:6px;">🎭 ガイドの雰囲気</div>
                 <div style="display:flex;gap:6px;">
-                    <template x-for="gm in [{id:'explore',label:'🌳 自然探索',desc:'生き物・植物の話中心'},{id:'culture',label:'🏯 歴史文化',desc:'地域の歴史・文化・暮らし'},{id:'relax',label:'🎧 おまかせ',desc:'自然も文化もバランスよく'}]" :key="gm.id">
+                    <template x-for="gm in [{id:'explore',label:'🌳 自然'},{id:'culture',label:'🏯 文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
                         <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
-                                :style="guideMood === gm.id ? 'background:rgba(168,85,247,0.2);color:#c084fc;border-color:#a855f7;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
-                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:10px;font-weight:700;text-align:center;">
-                            <span x-text="gm.label" style="display:block;"></span>
+                                :style="guideMood === gm.id ? 'background:#a855f7;color:#fff;border-color:#a855f7;' : 'background:#fff;color:#475569;border-color:#e2e8f0;'"
+                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:10px;font-weight:700;text-align:center;transition:all 0.15s;">
+                            <span x-text="gm.label" style="display:block;pointer-events:none;"></span>
                         </button>
                     </template>
                 </div>
             </div>
             <!-- 徒歩/自転車用ガイド雰囲気 -->
             <div x-show="manualTransportMode !== 'car'" x-cloak style="margin-bottom:10px;">
-                <div style="font-size:10px;color:#64748b;margin-bottom:6px;">🎭 ガイドの雰囲気</div>
+                <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:6px;">🎭 ガイドの雰囲気</div>
                 <div style="display:flex;gap:6px;">
-                    <template x-for="gm in [{id:'explore',label:'🌳 自然探索'},{id:'culture',label:'🏯 歴史文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
+                    <template x-for="gm in [{id:'explore',label:'🌳 自然'},{id:'culture',label:'🏯 文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
                         <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
-                                :style="guideMood === gm.id ? 'background:rgba(168,85,247,0.2);color:#c084fc;border-color:#a855f7;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
-                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:10px;font-weight:700;">
-                            <span x-text="gm.label"></span>
+                                :style="guideMood === gm.id ? 'background:#a855f7;color:#fff;border-color:#a855f7;' : 'background:#fff;color:#475569;border-color:#e2e8f0;'"
+                                style="flex:1;padding:6px 4px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:10px;font-weight:700;transition:all 0.15s;">
+                            <span x-text="gm.label" style="pointer-events:none;"></span>
                         </button>
                     </template>
                 </div>
             </div>
-            <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;">
-                <button @click="startSensor()" style="flex:1;padding:14px;border-radius:14px;border:none;background:#10b981;color:#fff;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-                    <span style="font-size:20px;">📡</span> いきものセンサー ON
+            <!-- STARTボタン + 音声選択 -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <button @click="startSensor()" style="flex:1;padding:14px;border-radius:14px;border:none;background:#10b981;color:#fff;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(16,185,129,0.35);">
+                    <span style="font-size:20px;pointer-events:none;">📡</span> いきものセンサー ON
                 </button>
                 <button @click="showSpeakerSelect = !showSpeakerSelect"
-                        style="padding:8px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#cbd5e1;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;white-space:nowrap;">
-                    <span style="font-size:18px;" x-text="speakerEmoji"></span>
-                    <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || 'Auto'" style="font-size:9px;"></span>
+                        style="padding:8px 12px;border-radius:14px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;min-width:52px;">
+                    <span style="font-size:18px;pointer-events:none;" x-text="speakerEmoji"></span>
+                    <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || '音声'" style="font-size:9px;font-weight:600;pointer-events:none;"></span>
                 </button>
             </div>
+            <!-- 音声選択パネル -->
             <div x-show="showSpeakerSelect" x-cloak style="margin-bottom:10px;">
-                <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;">🔊 ガイド音声を選択</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px;">🔊 ガイド音声を選択</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
                     <template x-for="sp in speakers" :key="sp.id">
                         <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                :style="selectedSpeaker === sp.id ? 'background:rgba(16,185,129,0.2);color:#10b981;border-color:#10b981;' : 'background:rgba(255,255,255,0.04);color:#94a3b8;border-color:rgba(255,255,255,0.08);'"
-                                style="padding:10px 8px;border-radius:12px;border:1.5px solid;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-                            <span x-text="sp.emoji" style="font-size:18px;"></span>
-                            <span x-text="sp.label" style="font-weight:500;"></span>
+                                :style="selectedSpeaker === sp.id ? 'background:#10b981;color:#fff;border-color:#10b981;' : 'background:#fff;color:#475569;border-color:#e2e8f0;'"
+                                style="padding:10px 8px;border-radius:10px;border:1.5px solid;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:600;transition:all 0.15s;">
+                            <span x-text="sp.emoji" style="font-size:16px;pointer-events:none;"></span>
+                            <span x-text="sp.label" style="pointer-events:none;"></span>
                         </button>
                     </template>
                 </div>
             </div>
-            <div style="font-size:10px;color:#94a3b8;">移動手段に合わせたガイドをお届けします</div>
-            <div style="font-size:9px;color:#475569;text-align:center;padding:4px;line-height:1.6;">
-                音声: Gemini TTS / VOICEVOX（ずんだもん）<br>
+            <div style="font-size:10px;color:#94a3b8;text-align:center;line-height:1.6;">
                 検出: BirdNET (CC BY-SA 4.0) &amp; Perch v2 (Apache 2.0)
             </div>
         </div>
@@ -851,6 +851,13 @@ if (!$currentUser) {
 
                 init() {
                     lucide.createIcons();
+
+                    // Migrate legacy 'auto' speaker setting to gemini-bright
+                    const _savedSpeaker = localStorage.getItem('ikimon_voice_speaker');
+                    if (!_savedSpeaker || _savedSpeaker === 'auto' || _savedSpeaker === 'standard' || _savedSpeaker === 'bluetooth') {
+                        localStorage.setItem('ikimon_voice_speaker', 'gemini-bright');
+                        this.selectedSpeaker = 'gemini-bright';
+                    }
 
                     // Connectivity monitoring
                     window.addEventListener('online', () => { this.isOnline = true; });
