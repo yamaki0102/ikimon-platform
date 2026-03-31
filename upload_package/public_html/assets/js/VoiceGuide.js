@@ -78,14 +78,32 @@ var VoiceGuide = (function() {
         _getAudioEl();
     }
 
+    function _debugToast(msg) {
+        console.log('[VG] ' + msg);
+        try {
+            var el = document.getElementById('vg-debug');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'vg-debug';
+                el.style.cssText = 'position:fixed;top:60px;left:8px;right:8px;z-index:9999;font-size:11px;font-family:monospace;color:#fff;background:rgba(0,0,0,0.85);border-radius:12px;padding:8px 12px;max-height:30vh;overflow-y:auto;pointer-events:none;';
+                document.body.appendChild(el);
+            }
+            el.innerHTML = msg + '<br>' + el.innerHTML;
+            if (el.children.length > 15) el.innerHTML = el.innerHTML.split('<br>').slice(0, 15).join('<br>');
+            clearTimeout(el._hideTimer);
+            el._hideTimer = setTimeout(function() { el.style.display = 'none'; }, 60000);
+            el.style.display = 'block';
+        } catch(e) {}
+    }
+
     function unlockAudio() {
         var audio = _getAudioEl();
         audio.src = SILENT_WAV;
         audio.volume = 0.01;
         audio.play().then(function() {
-            console.log('[VoiceGuide] Audio unlocked OK');
+            _debugToast('🔓 Audio unlocked OK');
         }).catch(function(e) {
-            console.log('[VoiceGuide] Audio unlock FAILED:', e.message);
+            _debugToast('❌ Unlock FAIL: ' + e.name);
         });
     }
 
@@ -194,7 +212,7 @@ var VoiceGuide = (function() {
     }
 
     function announceAudio(audioUrl) {
-        console.log('[VoiceGuide] announceAudio called, enabled=' + enabled + ', url=' + (audioUrl ? audioUrl.split('/').pop() : 'null'));
+        _debugToast('📢 announceAudio en=' + enabled + ' sp=' + speaking + ' q=' + queue.length + ' ' + (audioUrl ? audioUrl.split('/').pop() : 'null'));
         if (!enabled || !audioUrl) return;
         if (queue.length >= MAX_QUEUE) queue.splice(0, queue.length - MAX_QUEUE + 1);
         queue.push({ type: 'audio', url: audioUrl });
@@ -362,9 +380,9 @@ var VoiceGuide = (function() {
         audio.load();
         _audioFallback = setTimeout(function() { if (!done) { console.log('[VoiceGuide] Fallback timeout — finishing'); finish(); } }, 35000);
         audio.play().then(function() {
-            console.log('[VoiceGuide] Playing audio:', url.split('/').pop());
+            _debugToast('▶️ Playing: ' + url.split('/').pop());
         }).catch(function(e) {
-            console.log('[VoiceGuide] Play FAILED:', e.name, e.message);
+            _debugToast('❌ Play FAIL: ' + e.name + ' ' + e.message);
             finish();
         });
     }
@@ -388,7 +406,8 @@ var VoiceGuide = (function() {
         onFinish: onFinish,
         isSpeaking: function() { return speaking; },
         stop: stop,
-        unlockAudio: unlockAudio
+        unlockAudio: unlockAudio,
+        _debugToast: _debugToast
     };
 })();
 

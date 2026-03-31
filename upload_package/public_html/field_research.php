@@ -1153,6 +1153,8 @@ if (!$currentUser) {
 
                     // Enable VoiceGuide + unlock audio (must happen in user gesture context)
                     if (window.VoiceGuide) {
+                        window._vgDebug = VoiceGuide._debugToast;
+                        VoiceGuide._debugToast('🚀 startSensor speaker=' + this.selectedSpeaker);
                         VoiceGuide.setVoiceMode(this.selectedSpeaker);
                         VoiceGuide.setEnabled(true);
                         VoiceGuide.unlockAudio();
@@ -1370,29 +1372,37 @@ if (!$currentUser) {
 
                 // GPS取得後即時に場所のトリビアを取得（起動高速化）
                 async _fetchOpeningGuide(lat, lng) {
-                    if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
+                    if (!window.VoiceGuide) { if(VoiceGuide._debugToast) VoiceGuide._debugToast('⚠️ VG not loaded'); return; }
+                    if (!VoiceGuide.isEnabled()) { if(VoiceGuide._debugToast) VoiceGuide._debugToast('⚠️ VG disabled'); return; }
                     try {
+                        const vm = VoiceGuide.getVoiceMode();
+                        if(window._vgDebug) window._vgDebug('🌅 Opening fetch vm=' + vm);
                         const transportMode = this.manualTransportMode || 'walk';
                         const params = new URLSearchParams({
                             mode: 'opening',
                             lat, lng,
-                            voice_mode: VoiceGuide.getVoiceMode(),
+                            voice_mode: vm,
                             transport_mode: transportMode,
                         });
                         const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
-                        if (!resp.ok) return;
+                        if (!resp.ok) { if(window._vgDebug) window._vgDebug('❌ Opening HTTP ' + resp.status); return; }
                         const json = await resp.json();
                         if (json.success && json.data) {
+                            if(window._vgDebug) window._vgDebug('✅ Opening: audio=' + (json.data.audio_url ? 'YES' : 'NO') + ' text=' + (json.data.guide_text ? json.data.guide_text.length + 'chars' : 'NO'));
                             if (json.data.audio_url) {
                                 VoiceGuide.announceAudio(json.data.audio_url);
                             } else if (json.data.guide_text) {
                                 const _vm = VoiceGuide.getVoiceMode();
                                 const _bt = ['zundamon','mochiko','ryusei','auto'].includes(_vm) || _vm.startsWith('duo-');
-                                if (!_bt) VoiceGuide.announce(json.data.guide_text);
+                                if (!_bt) {
+                                    VoiceGuide.announce(json.data.guide_text);
+                                } else {
+                                    if(window._vgDebug) window._vgDebug('🔇 BT mode, no TTS fallback');
+                                }
                             }
                         }
                     } catch(e) {
-                        console.log('[Opening] Error:', e.message);
+                        if(window._vgDebug) window._vgDebug('❌ Opening err: ' + e.message);
                     }
                 },
 
