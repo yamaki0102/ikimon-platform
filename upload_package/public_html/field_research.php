@@ -671,6 +671,15 @@ if (!$currentUser) {
                 </div>
             </div>
 
+            <!-- Loading indicator -->
+            <div x-show="reportLoading" style="text-align:center;padding:20px 0;margin-bottom:16px;">
+                <div style="display:inline-flex;align-items:center;gap:10px;background:#F3EDF7;border-radius:24px;padding:12px 24px;">
+                    <div style="width:20px;height:20px;border:2.5px solid #D0BCFF;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+                    <span style="font-size:13px;font-weight:600;color:#49454F;">レポートを作成中...</span>
+                </div>
+                <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+            </div>
+
             <!-- Nature Score (M3 primary container) -->
             <div style="background:#d1fae5;border-radius:16px;padding:16px;margin-bottom:16px;"
                  x-show="reportData?.natureScore">
@@ -826,6 +835,7 @@ if (!$currentUser) {
 
                 // Report state
                 showReport: false,
+                reportLoading: false,
                 reportData: null,
                 weeklyStats: { sessions: 0, species: 0, distance: 0, streak: 0 },
 
@@ -1179,58 +1189,63 @@ if (!$currentUser) {
                         VoiceGuide.setEnabled(false);
                     }
 
+                    // 即座にレポート画面を表示（データはあとから埋まる）
+                    this.reportData = {
+                        duration: this.sessionElapsed,
+                        distance: this.sessionDistance,
+                        speciesCount: this.sessionSpeciesCount,
+                        species: this.sessionDetections.map(d => ({
+                            name: d.japanese_name || d.label, count: 1,
+                            confidence: d.confidence_raw || 0.5,
+                            source: d.source, category: d.category, note: d.note
+                        })),
+                        recap: null, natureScore: null,
+                        locationName: new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' }),
+                    };
+                    this.reportLoading = true;
+                    this.showReport = true;
+
+                    // バックグラウンドで詳細データを取得
                     let result = null;
                     if (this.liveScanner) {
                         result = await this.liveScanner.stop();
                         this.liveScanner = null;
                     }
 
-                    // Even if no result (e.g. scanner failed), show basic report
-                    if (!result) {
-                        result = {
-                            duration: this.sessionElapsed,
-                            distance: this.sessionDistance,
-                            speciesCount: 0,
-                            species: [],
-                            recap: null,
-                            envHistory: [],
-                        };
-                    }
-
-                    {
-                        // Fetch NatureScore
-                        let natureScore = null;
-                        try {
-                            const nsResp = await fetch('/api/v2/nature_score.php', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    species_count: result.speciesCount,
-                                    duration_sec: result.duration,
-                                    distance_m: result.distance,
-                                    area_type: result.envHistory?.[0]?.habitat || 'unknown',
-                                })
-                            });
-                            if (nsResp.ok) {
-                                const nsJson = await nsResp.json();
-                                if (nsJson.success) natureScore = nsJson.data;
-                            }
-                        } catch (e) {}
-
-                        // Build report data
+                    if (result) {
                         this.reportData = {
+                            ...this.reportData,
                             ...result,
-                            natureScore,
-                            locationName: new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' }),
+                            locationName: this.reportData.locationName,
                         };
-
-                        // Save weekly stats
-                        this._saveWeeklySession(result);
-                        this._loadWeeklyStats();
-
-                        // Show report
-                        this.showReport = true;
                     }
+
+                    // NatureScore + recap を並列取得
+                    const [natureScore] = await Promise.all([
+                        (async () => {
+                            try {
+                                const r = await fetch('/api/v2/nature_score.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        species_count: this.reportData.speciesCount,
+                                        duration_sec: this.reportData.duration,
+                                        distance_m: this.reportData.distance,
+                                        area_type: result?.envHistory?.[0]?.habitat || 'unknown',
+                                    })
+                                });
+                                if (r.ok) { const j = await r.json(); return j.success ? j.data : null; }
+                            } catch (e) {}
+                            return null;
+                        })(),
+                    ]);
+
+                    this.reportData.natureScore = natureScore;
+                    if (result?.recap) this.reportData.recap = result.recap;
+                    this.reportLoading = false;
+
+                    this._saveWeeklySession(this.reportData);
+                    this._loadWeeklyStats();
                 },
 
                 async _fireAmbientGuide() {
