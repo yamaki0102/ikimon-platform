@@ -98,12 +98,16 @@ var VoiceGuide = (function() {
 
     function unlockAudio() {
         var audio = _getAudioEl();
-        audio.src = SILENT_WAV;
+        audio.src = '/assets/audio/silence.mp3';
         audio.volume = 0.01;
         audio.play().then(function() {
             _debugToast('🔓 Audio unlocked OK');
         }).catch(function(e) {
-            _debugToast('❌ Unlock FAIL: ' + e.name);
+            _debugToast('❌ Unlock FAIL: ' + e.name + ' — trying resume');
+            try {
+                var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                ctx.resume().then(function() { _debugToast('🔓 AudioContext resumed'); });
+            } catch(e2) {}
         });
     }
 
