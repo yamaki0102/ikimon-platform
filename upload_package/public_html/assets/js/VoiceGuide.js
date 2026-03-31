@@ -97,18 +97,25 @@ var VoiceGuide = (function() {
     }
 
     function unlockAudio() {
-        var audio = _getAudioEl();
-        audio.src = '/assets/audio/silence.mp3';
-        audio.volume = 0.01;
-        audio.play().then(function() {
-            _debugToast('🔓 Audio unlocked OK');
-        }).catch(function(e) {
-            _debugToast('❌ Unlock FAIL: ' + e.name + ' — trying resume');
-            try {
-                var ctx = new (window.AudioContext || window.webkitAudioContext)();
-                ctx.resume().then(function() { _debugToast('🔓 AudioContext resumed'); });
-            } catch(e2) {}
-        });
+        // _audioElとは別の一時Audioでブラウザのautoplayロックを解除
+        // _audioElを使うとannounceAudioと衝突してAbortErrorになる
+        try {
+            var tmp = new Audio('/assets/audio/silence.mp3');
+            tmp.volume = 0.01;
+            tmp.play().then(function() {
+                _debugToast('🔓 Unlock OK (tmp)');
+                // これでブラウザのautoplayが解除された。_audioElも再生可能になる
+            }).catch(function(e) {
+                _debugToast('❌ Unlock FAIL: ' + e.name);
+            });
+        } catch(e) {
+            _debugToast('❌ Unlock exception: ' + e.message);
+        }
+        // AudioContextも念のためresume
+        try {
+            var ctx = new (window.AudioContext || window.webkitAudioContext)();
+            ctx.resume();
+        } catch(e2) {}
     }
 
     function _selectJaVoice() {
