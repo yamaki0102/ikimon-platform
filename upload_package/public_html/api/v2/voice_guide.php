@@ -1262,7 +1262,7 @@ function _generateDialogueAudio(string $text, string $voiceMode): ?string
 
     $voicevoxHost = 'http://127.0.0.1:50021';
     $wavParts = [];
-    $silenceGap = str_repeat("\x00", 48000 * 2 * 0.3); // 0.3s silence at 48kHz 16bit mono
+    $silenceGap = str_repeat("\x00", intval(24000 * 2 * 0.4)); // 0.4s silence at 24kHz 16bit mono
 
     foreach ($turns as $turn) {
         $tText = $turn['text'];
@@ -1327,7 +1327,7 @@ function _generateDialogueAudio(string $text, string $voiceMode): ?string
 function _wavToMp3(string $wavPath): ?string
 {
     $mp3Path = preg_replace('/\.wav$/', '.mp3', $wavPath);
-    $cmd = 'ffmpeg -y -i ' . escapeshellarg($wavPath) . ' -codec:a libmp3lame -b:a 64k -ar 24000 ' . escapeshellarg($mp3Path) . ' 2>/dev/null';
+    $cmd = 'ffmpeg -y -i ' . escapeshellarg($wavPath) . ' -codec:a libmp3lame -b:a 128k -ar 24000 ' . escapeshellarg($mp3Path) . ' 2>/dev/null';
     exec($cmd, $out, $ret);
     if ($ret === 0 && file_exists($mp3Path) && filesize($mp3Path) > 100) {
         @unlink($wavPath);
