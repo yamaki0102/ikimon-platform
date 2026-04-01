@@ -50,7 +50,8 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
             </h1>
             <p class="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
                 研究・教育・地域アーカイブで再利用しやすい形で、観察データを持ち帰れます。<br>
-                Darwin Core 形式でのエクスポートに対応し、GBIF などとの連携を見据えた構成にしています。
+                Darwin Core 形式でのエクスポートに対応し、GBIF などとの連携を見据えた構成にしています。<br>
+                そのままのデータ活用相談に加え、現場に合わせた改善や共同実証のご相談も歓迎しています。
             </p>
             <div class="flex flex-col md:flex-row gap-4 justify-center">
                 <a href="explore.php" class="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4">
@@ -168,10 +169,10 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
                     <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-purple-500/20 flex items-center justify-center">
                         <i data-lucide="handshake" class="w-6 h-6 text-purple-400"></i>
                     </div>
-                    <h3 class="font-bold mb-2">共同研究</h3>
+                    <h3 class="font-bold mb-2">共同研究・共同実証</h3>
                     <p class="text-sm text-gray-400 mb-4">
-                        データ品質検証やAI開発での<br>
-                        共同研究を歓迎
+                        データ品質検証や活用設計、<br>
+                        機能改善を伴う連携相談も歓迎
                     </p>
                     <span class="text-xs px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 font-bold">
                         連携募集
@@ -184,19 +185,19 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
     <!-- CTA Section -->
     <section class="py-16 px-6">
         <div class="max-w-2xl mx-auto text-center glass-card p-12 rounded-[2rem] border border-purple-500/30">
-            <h2 class="text-3xl font-black mb-4">データ活用のご相談</h2>
+            <h2 class="text-3xl font-black mb-4">データ活用・共同実証のご相談</h2>
             <p class="text-gray-400 mb-8">
                 研究、教育、地域アーカイブづくりなど、<br>
-                市民の記録をどう活かすかの相談を受け付けています。
+                市民の記録をどう活かすかの相談に加え、改善や共同実証のご相談も受け付けています。
             </p>
             <div class="flex flex-col gap-4">
-                <a href="mailto:research@ikimon.life" class="btn-primary flex items-center justify-center gap-2">
+                <a href="contact.php" class="btn-primary flex items-center justify-center gap-2">
                     <i data-lucide="mail"></i>
-                    データ活用のお問い合わせ
+                    データ活用を相談する
                 </a>
                 <a href="id_center.php" class="btn-secondary flex items-center justify-center gap-2">
                     <i data-lucide="microscope"></i>
-                    回答センターで貢献する
+                        回答センターで貢献する
                 </a>
             </div>
         </div>

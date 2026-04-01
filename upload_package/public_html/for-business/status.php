@@ -150,7 +150,7 @@ $canClaimWorkspace = $application
                     <div>
                         <div class="status-pill"><?= htmlspecialchars($statusLabel) ?></div>
                         <h2 style="margin-top:10px;font-size:28px;font-weight:900;"><?= htmlspecialchars($application['company'] ?? '') ?></h2>
-                        <p class="muted"><?= htmlspecialchars($application['site_name'] ?? '') ?> / <?= htmlspecialchars(BusinessApplicationManager::planLabel((string)($application['plan'] ?? ''))) ?> プラン</p>
+                        <p class="muted"><?= htmlspecialchars($application['site_name'] ?? '') ?> / <?= htmlspecialchars($application['inquiry_type_label'] ?? BusinessApplicationManager::inquiryTypeLabel((string)($application['inquiry_type'] ?? 'consultation'))) ?> / <?= htmlspecialchars(BusinessApplicationManager::planLabel((string)($application['plan'] ?? ''))) ?></p>
                     </div>
                     <div style="text-align:right;">
                         <div style="font-size:12px;font-weight:800;color:var(--text-secondary);">受付番号</div>
@@ -165,6 +165,10 @@ $canClaimWorkspace = $application
                     <div style="padding:16px;border-radius:16px;background:var(--surface);">
                         <div style="font-size:12px;font-weight:800;color:var(--text-secondary);">目安日</div>
                         <div style="margin-top:6px;font-weight:800;"><?= htmlspecialchars($application['ops']['next_due_at'] ?? '-') ?></div>
+                    </div>
+                    <div style="padding:16px;border-radius:16px;background:var(--surface);">
+                        <div style="font-size:12px;font-weight:800;color:var(--text-secondary);">一緒に進めたい範囲</div>
+                        <div style="margin-top:6px;font-weight:800;"><?= htmlspecialchars(BusinessApplicationManager::collaborationScopeLabel((string)($application['collaboration_scope'] ?? ''))) ?></div>
                     </div>
                 </div>
                 <?php if ($claimMessage): ?>

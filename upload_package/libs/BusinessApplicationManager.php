@@ -19,6 +19,8 @@ class BusinessApplicationManager
             'status' => 'new',
             'status_label' => self::statusLabel('new'),
             'priority' => self::defaultPriority($payload['plan'] ?? 'public'),
+            'inquiry_type' => self::normalizeInquiryType((string)($payload['inquiry_type'] ?? 'consultation')),
+            'inquiry_type_label' => self::inquiryTypeLabel((string)($payload['inquiry_type'] ?? 'consultation')),
             'company' => trim((string)($payload['company'] ?? '')),
             'contact_name' => trim((string)($payload['contact_name'] ?? '')),
             'department' => trim((string)($payload['department'] ?? '')),
@@ -30,6 +32,7 @@ class BusinessApplicationManager
             'expected_start' => self::normalizeExpectedStart((string)($payload['expected_start'] ?? 'soon')),
             'planned_site_count' => self::normalizeSiteCount((string)($payload['planned_site_count'] ?? '1')),
             'use_mode' => trim((string)($payload['use_mode'] ?? '')),
+            'collaboration_scope' => self::normalizeCollaborationScope((string)($payload['collaboration_scope'] ?? '')),
             'message' => trim((string)($payload['message'] ?? '')),
             'source' => [
                 'page' => trim((string)($payload['source_page'] ?? '/for-business/apply.php')),
@@ -318,6 +321,30 @@ class BusinessApplicationManager
         return $map[$plan] ?? 'まず相談';
     }
 
+    public static function inquiryTypeLabel(string $type): string
+    {
+        $map = [
+            'consultation' => '導入相談',
+            'pilot' => '共同実証',
+            'improvement' => '改善提案',
+        ];
+        $type = self::normalizeInquiryType($type);
+        return $map[$type] ?? $map['consultation'];
+    }
+
+    public static function collaborationScopeLabel(string $value): string
+    {
+        $map = [
+            '' => '未指定',
+            'operations' => '運用設計',
+            'feature' => '機能改善',
+            'data' => 'データ活用',
+            'mixed' => '複合的に相談したい',
+        ];
+        $value = self::normalizeCollaborationScope($value);
+        return $map[$value] ?? $map[''];
+    }
+
     public static function expectedStartLabel(string $value): string
     {
         $map = [
@@ -367,6 +394,13 @@ class BusinessApplicationManager
         };
     }
 
+    private static function normalizeInquiryType(string $type): string
+    {
+        $type = strtolower(trim($type));
+        $allowed = ['consultation', 'pilot', 'improvement'];
+        return in_array($type, $allowed, true) ? $type : 'consultation';
+    }
+
     private static function normalizeExpectedStart(string $value): string
     {
         $value = strtolower(trim($value));
@@ -378,6 +412,13 @@ class BusinessApplicationManager
     {
         $value = trim($value);
         return in_array($value, ['1', '2-5', '6+'], true) ? $value : '1';
+    }
+
+    private static function normalizeCollaborationScope(string $value): string
+    {
+        $value = strtolower(trim($value));
+        $allowed = ['', 'operations', 'feature', 'data', 'mixed'];
+        return in_array($value, $allowed, true) ? $value : '';
     }
 
     private static function normalizeStatus(string $status): string

@@ -10,7 +10,7 @@ CSRF::validateRequest();
 
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
-$required = ['company', 'contact_name', 'email', 'site_name', 'plan'];
+$required = ['company', 'contact_name', 'email', 'site_name', 'inquiry_type'];
 foreach ($required as $field) {
     if (trim((string)($input[$field] ?? '')) === '') {
         http_response_code(422);
@@ -43,9 +43,11 @@ $application = BusinessApplicationManager::create([
     'site_name' => $input['site_name'] ?? '',
     'site_location' => $input['site_location'] ?? '',
     'plan' => $input['plan'] ?? '',
+    'inquiry_type' => $input['inquiry_type'] ?? '',
     'expected_start' => $input['expected_start'] ?? '',
     'planned_site_count' => $input['planned_site_count'] ?? '',
     'use_mode' => $input['use_mode'] ?? '',
+    'collaboration_scope' => $input['collaboration_scope'] ?? '',
     'message' => mb_substr((string)($input['message'] ?? ''), 0, 1500),
     'source_page' => '/for-business/apply.php',
     'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
@@ -57,6 +59,7 @@ echo json_encode([
     'reference' => $application['reference'],
     'status' => $application['status'],
     'status_label' => $application['status_label'],
+    'inquiry_type_label' => $application['inquiry_type_label'] ?? '',
     'next_action' => $application['ops']['next_action'] ?? '初回連絡',
     'next_due_at' => $application['ops']['next_due_at'] ?? '',
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);

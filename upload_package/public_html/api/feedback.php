@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $category = $body['category'] ?? '';
     $description = trim($body['description'] ?? '');
 
-    if (!in_array($category, ['bug', 'improvement', 'question', 'deletion', 'other'], true)) {
+    if (!in_array($category, ['bug', 'improvement', 'question', 'partnership', 'deletion', 'other'], true)) {
         respond(false, 'カテゴリが不正です');
     }
     if ($description === '' || mb_strlen($description) > 2000) {
@@ -101,8 +101,8 @@ respond(false, 'Invalid method');
 
 // ── メール通知 ──
 function sendNotification(array $r): void {
-    $icons  = ['bug' => '🐛', 'improvement' => '💡', 'question' => '❓', 'deletion' => '🗑️', 'other' => '💬'];
-    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'question' => '質問', 'deletion' => 'データ削除', 'other' => 'その他'];
+    $icons  = ['bug' => '🐛', 'improvement' => '💡', 'question' => '❓', 'partnership' => '🤝', 'deletion' => '🗑️', 'other' => '💬'];
+    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'question' => '質問', 'partnership' => '導入・連携', 'deletion' => 'データ削除', 'other' => 'その他'];
 
     $icon  = $icons[$r['category']]  ?? '💬';
     $label = $labels[$r['category']] ?? 'その他';
@@ -145,8 +145,8 @@ function rebuildSummary() {
 
     usort($all, fn($a, $b) => strcmp($b['created_at'], $a['created_at']));
 
-    $icons = ['bug' => "\xF0\x9F\x90\x9B", 'improvement' => "\xF0\x9F\x92\xA1", 'question' => "\xE2\x9D\x93", 'deletion' => "\xF0\x9F\x97\x91", 'other' => "\xF0\x9F\x92\xAC"];
-    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'question' => '質問', 'deletion' => 'データ削除', 'other' => 'その他'];
+    $icons = ['bug' => "\xF0\x9F\x90\x9B", 'improvement' => "\xF0\x9F\x92\xA1", 'question' => "\xE2\x9D\x93", 'partnership' => "\xF0\x9F\xA4\x9D", 'deletion' => "\xF0\x9F\x97\x91", 'other' => "\xF0\x9F\x92\xAC"];
+    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'question' => '質問', 'partnership' => '導入・連携', 'deletion' => 'データ削除', 'other' => 'その他'];
 
     $open = array_filter($all, fn($r) => ($r['status'] ?? 'open') === 'open');
     $done = array_filter($all, fn($r) => ($r['status'] ?? 'open') !== 'open');
