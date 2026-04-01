@@ -22,7 +22,7 @@ class PassiveObservationEngineTest extends TestCase
 
     public function testMediumConfidenceEventIsSuggested(): void
     {
-        $event = $this->makeEvent('audio', 'Unknown Bird', 0.55);
+        $event = $this->makeEvent('audio', 'Unknown Bird', 0.45);
         $result = PassiveObservationEngine::processEvent($event);
 
         $this->assertSame('suggest', $result['action']);

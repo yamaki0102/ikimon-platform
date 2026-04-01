@@ -311,9 +311,11 @@ class PassiveObservationEngine
                 }
             }
 
-            $resolved = $engine->resolveByJapaneseName($name);
-            if ($resolved && !empty($resolved['japanese_name'])) {
-                return $resolved['japanese_name'];
+            if (method_exists($engine, 'resolveByJapaneseName')) {
+                $resolved = $engine->resolveByJapaneseName($name);
+                if ($resolved && !empty($resolved['japanese_name'])) {
+                    return $resolved['japanese_name'];
+                }
             }
         } catch (\Throwable $e) {
             error_log("[PassiveObservationEngine] resolveJapaneseName error: " . $e->getMessage());

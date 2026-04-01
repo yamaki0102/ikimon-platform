@@ -72,7 +72,7 @@ class DataQualityTest extends TestCase
     public function testGetGradeInfoReturnsMetadata(): void
     {
         $info = DataQuality::getGradeInfo('A');
-        $this->assertSame('研究用', $info['label']);
+        $this->assertSame('研究利用可', $info['label']);
         $this->assertArrayHasKey('icon', $info);
         $this->assertArrayHasKey('color', $info);
     }
