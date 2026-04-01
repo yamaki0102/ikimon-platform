@@ -78,7 +78,7 @@ $_fBase = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
                             <span class="sf-link-sub">新機能や改善の履歴</span>
                         </span>
                     </a>
-                    <a href="mailto:contact@ikimon.life">
+                    <a href="<?= $_fBase ?>/contact.php">
                         <span>
                             <span class="sf-link-main"><?= __('nav.contact') ?></span>
                             <span class="sf-link-sub">運営への相談・導入相談・共同実証・取材の窓口</span>

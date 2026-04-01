@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $category = $body['category'] ?? '';
     $description = trim($body['description'] ?? '');
 
-    if (!in_array($category, ['bug', 'improvement', 'question', 'partnership', 'deletion', 'other'], true)) {
+    if (!in_array($category, ['bug', 'improvement', 'question', 'partnership', 'deletion', 'media', 'other'], true)) {
         respond(false, 'カテゴリが不正です');
     }
     if ($description === '' || mb_strlen($description) > 2000) {
@@ -48,19 +48,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = '';
     }
 
+    $name = mb_substr(trim($body['name'] ?? ''), 0, 100);
+    $organization = mb_substr(trim($body['organization'] ?? ''), 0, 200);
+
     $record = [
-        'id'         => $id,
-        'url'        => mb_substr($body['url'] ?? '', 0, 500),
-        'page_title' => mb_substr($body['page_title'] ?? '', 0, 200),
-        'category'   => $category,
-        'description'=> $description,
-        'email'      => $email,
-        'user_id'    => $user['id'] ?? null,
-        'user_name'  => $user['display_name'] ?? 'ゲスト',
-        'user_agent' => mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
-        'viewport'   => mb_substr($body['viewport'] ?? '', 0, 20),
-        'status'     => 'open',
-        'created_at' => date('c'),
+        'id'           => $id,
+        'url'          => mb_substr($body['url'] ?? '', 0, 500),
+        'page_title'   => mb_substr($body['page_title'] ?? '', 0, 200),
+        'category'     => $category,
+        'description'  => $description,
+        'name'         => $name,
+        'organization' => $organization,
+        'email'        => $email,
+        'user_id'      => $user['id'] ?? null,
+        'user_name'    => $user['display_name'] ?? 'ゲスト',
+        'user_agent'   => mb_substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
+        'viewport'     => mb_substr($body['viewport'] ?? '', 0, 20),
+        'status'       => 'open',
+        'created_at'   => date('c'),
     ];
 
     // 保存（月別パーティション）
@@ -101,33 +106,54 @@ respond(false, 'Invalid method');
 
 // ── メール通知 ──
 function sendNotification(array $r): void {
-    $icons  = ['bug' => '🐛', 'improvement' => '💡', 'question' => '❓', 'partnership' => '🤝', 'deletion' => '🗑️', 'other' => '💬'];
-    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'question' => '質問', 'partnership' => '導入・連携', 'deletion' => 'データ削除', 'other' => 'その他'];
+    $icons  = ['bug' => '🐛', 'improvement' => '💡', 'question' => '❓', 'partnership' => '🤝', 'deletion' => '🗑️', 'media' => '📰', 'other' => '💬'];
+    $labels = ['bug' => 'バグ報告', 'improvement' => '要望・提案', 'question' => '質問', 'partnership' => '導入・連携', 'deletion' => 'データ削除', 'media' => '取材・メディア', 'other' => 'その他'];
 
     $icon  = $icons[$r['category']]  ?? '💬';
     $label = $labels[$r['category']] ?? 'その他';
     $to    = 'yamaki0102@gmail.com';
+
     $subject = mb_encode_mimeheader(
         "[ikimon] {$icon} {$label}: " . mb_substr($r['description'], 0, 40),
         'UTF-8', 'B'
     );
 
+    $nameOrg = $r['name'] ?: ($r['user_name'] ?? 'ゲスト');
+    if (!empty($r['organization'])) {
+        $nameOrg .= " / {$r['organization']}";
+    }
+
+    $replyHeader = '';
+    if (!empty($r['email'])) {
+        $replyHeader = "Reply-To: {$r['email']}\r\n";
+    }
+
     $body = implode("\n", [
-        "フィードバックが届きました",
-        str_repeat('-', 40),
-        "ID       : {$r['id']}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "  ikimon お問い合わせ通知",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "",
         "カテゴリ : {$icon} {$label}",
-        "内容     : {$r['description']}",
-        "ページ   : {$r['url']}",
+        "送信者   : {$nameOrg}",
         "メール   : " . ($r['email'] ?: '未入力'),
-        "ユーザー : {$r['user_name']}",
         "日時     : {$r['created_at']}",
+        "ID       : {$r['id']}",
+        "",
+        "─── お問い合わせ内容 ───────────────────────",
+        "",
+        $r['description'],
+        "",
+        "─── メタ情報 ───────────────────────────────",
+        "",
+        "ページ   : {$r['url']}",
+        "ユーザー : {$r['user_name']}",
+        "",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]);
 
-    $headers = implode("\r\n", [
-        'From: ikimon <noreply@ikimon.life>',
-        'Content-Type: text/plain; charset=UTF-8',
-    ]);
+    $headers = "From: ikimon <noreply@ikimon.life>\r\n"
+             . "Content-Type: text/plain; charset=UTF-8\r\n"
+             . $replyHeader;
 
     @mail($to, $subject, $body, $headers);
 }
