@@ -1285,7 +1285,7 @@ if (!$currentUser) {
                             if (VoiceGuide.isSpeaking()) return;
                             this._ambientGuideCount++;
                             if (json.data.audio_url) {
-                                VoiceGuide.announceAudio(json.data.audio_url, json.data.guide_text || null);
+                                VoiceGuide.announceAudio(json.data.audio_url, (json.data.guide_text || '').replace(/【[^】]+】\s*/g, '') || null);
                             } else if (json.data.guide_text) {
                                 VoiceGuide.announce((json.data.guide_text || '').replace(/【[^】]+】\s*/g, ''));
                             }
@@ -1347,7 +1347,7 @@ if (!$currentUser) {
                                 .then(res => {
                                     if (!res) return;
                                     if (res.audio_url) {
-                                        VoiceGuide.announceAudio(res.audio_url, res.guide_text || null);
+                                        VoiceGuide.announceAudio(res.audio_url, (res.guide_text || '').replace(/【[^】]+】\s*/g, '') || null);
                                     } else if (res.guide_text) {
                                         VoiceGuide.announce((res.guide_text || '').replace(/【[^】]+】\s*/g, ''));
                                     }
@@ -1380,7 +1380,7 @@ if (!$currentUser) {
                         if (json.success && json.data) {
                             if(window._vgDebug) window._vgDebug('✅ Opening: audio=' + (json.data.audio_url ? 'YES' : 'NO') + ' text=' + (json.data.guide_text ? json.data.guide_text.length + 'chars' : 'NO'));
                             if (json.data.audio_url) {
-                                VoiceGuide.announceAudio(json.data.audio_url, json.data.guide_text || null);
+                                VoiceGuide.announceAudio(json.data.audio_url, (json.data.guide_text || '').replace(/【[^】]+】\s*/g, '') || null);
                             } else if (json.data.guide_text) {
                                 VoiceGuide.announce((json.data.guide_text || '').replace(/【[^】]+】\s*/g, ''));
                             }

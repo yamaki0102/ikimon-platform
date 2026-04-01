@@ -77,6 +77,11 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Audio voice guide files → SW完全バイパス（Rangeリクエスト/ストリーミングはSWキャッシュと非互換）
+    if (url.pathname.includes('/uploads/audio/')) {
+        return;
+    }
+
     // User-uploaded photos → Cache First (immutable content)
     if (url.pathname.includes('/uploads/photos/')) {
         event.respondWith(
