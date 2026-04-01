@@ -10,9 +10,17 @@
  *   GET /api/export_observations.php?format=csv&site_id=XXX
  */
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
+require_once __DIR__ . '/../../libs/BioUtils.php';
+require_once __DIR__ . '/../../libs/RedList.php';
 
-header('Access-Control-Allow-Origin: *');
+Auth::init();
+if (!Auth::user()) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Authentication required'], JSON_HEX_TAG);
+    exit;
+}
 
 $format = $_GET['format'] ?? 'csv';
 $siteId = $_GET['site_id'] ?? null;
@@ -27,6 +35,21 @@ if ($siteId) {
     });
     $observations = array_values($observations);
 }
+
+// Apply PrivacyFilter: obscure GPS for red-listed species before export
+foreach ($observations as &$obs) {
+    if (isset($obs['taxon']['name'])) {
+        $rl = RedList::check($obs['taxon']['name']);
+        if ($rl) {
+            $obscured = BioUtils::getObscuredLocation($obs['lat'], $obs['lng'], $rl['category']);
+            $obs['lat'] = $obscured['lat'];
+            $obs['lng'] = $obscured['lng'];
+            $obs['gps_accuracy'] = $obscured['radius'];
+            $obs['is_obscured'] = true;
+        }
+    }
+}
+unset($obs);
 
 if ($format === 'dwc') {
     // Darwin Core format

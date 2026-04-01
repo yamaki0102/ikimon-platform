@@ -9,9 +9,17 @@
  */
 
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/CorporatePlanGate.php';
 require_once __DIR__ . '/../../libs/SiteManager.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
+
+Auth::init();
+if (!Auth::user()) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Authentication required'], JSON_HEX_TAG);
+    exit;
+}
 
 $siteId = $_GET['site_id'] ?? '';
 

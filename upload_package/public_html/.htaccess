@@ -31,6 +31,11 @@ ErrorDocument 404 /404.php
     Require local
 </FilesMatch>
 
+# Restrict admin tools to local access only
+<FilesMatch "^admin_ingest\.html$">
+    Require local
+</FilesMatch>
+
 # Clean URL Rewrite Rules
 <IfModule mod_rewrite.c>
     RewriteEngine On
