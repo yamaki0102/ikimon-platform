@@ -1,10 +1,10 @@
 <?php
 
 /**
- * B2B Apply Page — Public プラン相談フォーム
+ * B2B Apply Page — Public プラン / 共同実証 相談フォーム
  * 
  * 無料の Community は別導線でセルフ作成。
- * このページは Public プラン相談用。
+ * このページは Public プランと共同実証の相談用。
  */
 require_once __DIR__ . '/../../config/config.php';
 require_once ROOT_DIR . '/libs/CspNonce.php';
@@ -27,8 +27,8 @@ $freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Public プランの相談 | ikimon for Business</title>
-    <meta name="description" content="<?= htmlspecialchars('ikimon for Business の Public プラン相談フォーム。' . $publicPlanSummary, ENT_QUOTES, 'UTF-8') ?>">
+    <title>導入・共同実証の相談 | ikimon for Business</title>
+    <meta name="description" content="<?= htmlspecialchars('ikimon for Business の導入・共同実証相談フォーム。' . $publicPlanSummary, ENT_QUOTES, 'UTF-8') ?>">
     <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -360,8 +360,8 @@ $freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
     <header class="page-header">
         <div class="container">
             <span class="badge badge-green">📝 APPLY</span>
-            <h1 style="margin-top: 8px;">Public プランの相談</h1>
-            <p>フォーム送信後は受付番号を発行します。運営側で内容を確認し、必要な出力や運用体制に合わせて Public 導入まで進めます。<?= htmlspecialchars($freeMunicipalityPolicy) ?></p>
+            <h1 style="margin-top: 8px;">導入・共同実証の相談</h1>
+            <p>フォーム送信後は受付番号を発行します。導入相談、共同実証、改善提案のいずれでも、内容に応じて次の進め方をご案内します。<?= htmlspecialchars($freeMunicipalityPolicy) ?></p>
         </div>
     </header>
 
@@ -371,7 +371,31 @@ $freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
                 <div class="form-main">
                     <form id="applyForm" method="POST" action="#" onsubmit="return handleSubmit(event)">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                        <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 16px;">企業情報</h3>
+                        <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 16px;">ご相談内容</h3>
+
+                        <div class="field">
+                            <label>ご相談の種類 <span class="req">*必須</span></label>
+                            <select name="inquiry_type" id="inquiryType" required>
+                                <option value="">選択してください</option>
+                                <option value="consultation">導入相談</option>
+                                <option value="pilot">共同実証</option>
+                                <option value="improvement">改善提案</option>
+                            </select>
+                            <p id="inquiryHelp" style="margin-top:8px; font-size:12px; color:var(--muted);">いま考えている進め方に近いものを選んでください。途中で変わっても問題ありません。</p>
+                        </div>
+
+                        <div class="field">
+                            <label>一緒に進めたい範囲</label>
+                            <select name="collaboration_scope" id="collaborationScope">
+                                <option value="">特に決まっていない</option>
+                                <option value="operations">運用設計を相談したい</option>
+                                <option value="feature">機能改善も相談したい</option>
+                                <option value="data">データ活用を相談したい</option>
+                                <option value="mixed">複合的に相談したい</option>
+                            </select>
+                        </div>
+
+                        <h3 style="font-size: 16px; font-weight: 900; margin: 24px 0 16px;">企業情報</h3>
 
                         <div class="field">
                             <label>会社名/団体名 <span class="req">*必須</span></label>
@@ -413,13 +437,12 @@ $freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
                         </div>
 
                         <div class="field">
-                            <label>プラン <span class="req">*必須</span></label>
-                            <select name="plan" required>
-                                <option value="">選択してください</option>
+                            <label>想定している入口</label>
+                            <select name="plan" id="planSelect">
                                 <option value="public">Public（<?= htmlspecialchars($publicPlan['description']) ?> / ¥39,800 / 月）</option>
                                 <option value="consultation">まず相談したい</option>
                             </select>
-                            <p style="margin-top:8px; font-size:12px; color:var(--muted);">個人利用と無料の <strong><?= htmlspecialchars($communityPlan['tag']) ?></strong> 団体ページは申込み不要です。<?= htmlspecialchars($communityPlan['description']) ?></p>
+                            <p id="planHelp" style="margin-top:8px; font-size:12px; color:var(--muted);">個人利用と無料の <strong><?= htmlspecialchars($communityPlan['tag']) ?></strong> 団体ページは申込み不要です。<?= htmlspecialchars($communityPlan['description']) ?></p>
                         </div>
 
                         <div class="field-row">
@@ -454,8 +477,8 @@ $freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
                         </div>
 
                         <div class="field">
-                            <label>備考・ご質問など</label>
-                            <textarea name="message" rows="3" placeholder="複数拠点の記録運用を検討中、学校連携もしたい、など自由にお書きください"></textarea>
+                            <label>備考・ご相談内容</label>
+                            <textarea name="message" rows="4" placeholder="導入で気になっている点、共同実証で確かめたいこと、改善したい運用課題などをご記入ください"></textarea>
                         </div>
 
                         <div class="form-submit">
@@ -479,12 +502,12 @@ $freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
                     </div>
 
                     <div class="sidebar-card">
-                        <h3>🎯 導入の流れ</h3>
+                        <h3>🎯 相談後の流れ</h3>
                         <ul>
                             <li><span class="check">1.</span> 受付番号つきで申込み保存</li>
-                            <li><span class="check">2.</span> 運営側で内容確認・初回連絡</li>
-                            <li><span class="check">3.</span> 拠点境界と初期設定を準備</li>
-                            <li><span class="check">4.</span> 記録ボードを開いて運用開始</li>
+                            <li><span class="check">2.</span> 内容確認と初回連絡</li>
+                            <li><span class="check">3.</span> 導入 / 実証 / 改善の進め方を整理</li>
+                            <li><span class="check">4.</span> 必要に応じて運用開始や検証へ</li>
                         </ul>
                     </div>
 
@@ -509,7 +532,7 @@ $freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
                     <div class="sidebar-card" style="background: var(--primary-light);">
                         <h3 style="color: var(--primary-dark);">💬 ご相談だけでもOK</h3>
                         <p style="font-size: 12px; color: var(--primary-dark);">
-                            「まず話を聞きたい」という方も歓迎。備考欄にその旨ご記入ください。
+                            「まず話を聞きたい」「こういう改善ができるか聞きたい」という段階でも歓迎です。
                         </p>
                     </div>
                 </div>
@@ -518,7 +541,7 @@ $freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
             <div id="successMessage" class="success-message">
                 <p style="font-size: 40px; margin-bottom: 12px;">🎉</p>
                 <h2>ご相談ありがとうございます</h2>
-                <p id="successLead">受付番号を発行しました。1営業日以内に、Public 導入や出力要件の進め方をご案内します。</p>
+                <p id="successLead">受付番号を発行しました。1営業日以内を目安に、内容に合わせた進め方をご案内します。</p>
                 <div style="margin-top: 20px; padding: 16px; border-radius: 12px; background: rgba(255,255,255,0.7);">
                     <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: var(--primary-dark); text-transform: uppercase;">受付番号</div>
                     <div id="successReference" style="font-size: 24px; font-weight: 900; color: var(--primary-dark); margin-top: 6px;">-</div>
@@ -569,7 +592,9 @@ $freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
                     document.getElementById('formArea').style.display = 'none';
                     document.getElementById('successMessage').classList.add('show');
                     document.getElementById('successReference').textContent = result.reference || '-';
-                    document.getElementById('successNext').textContent = (result.status_label || '新規受付') + ' / 次の動き: ' + (result.next_action || '初回連絡');
+                    const inquiryLabel = result.inquiry_type_label ? ' / 相談種別: ' + result.inquiry_type_label : '';
+                    document.getElementById('successLead').textContent = '受付番号を発行しました。' + (result.inquiry_type_label || 'ご相談内容') + 'として受け付け、1営業日以内を目安にご連絡します。';
+                    document.getElementById('successNext').textContent = (result.status_label || '新規受付') + inquiryLabel + ' / 次の動き: ' + (result.next_action || '初回連絡');
                     document.getElementById('statusLink').href = 'status.php?ref=' + encodeURIComponent(result.reference || '');
                 })
                 .catch(function(error) {
@@ -580,6 +605,38 @@ $freeMunicipalityPolicy = $regionalMessaging['support_policies'][0]['body'];
 
             return false;
         }
+
+        (function setupInquiryForm() {
+            const inquiryType = document.getElementById('inquiryType');
+            const planSelect = document.getElementById('planSelect');
+            const inquiryHelp = document.getElementById('inquiryHelp');
+            const planHelp = document.getElementById('planHelp');
+            const collaborationScope = document.getElementById('collaborationScope');
+
+            function sync() {
+                const type = inquiryType.value;
+                if (type === 'pilot') {
+                    inquiryHelp.textContent = '共同実証では、現場で試しながら運用や機能を一緒に詰めていく前提の相談を想定しています。';
+                    planSelect.value = 'consultation';
+                    planHelp.textContent = '共同実証の段階では、まず相談ベースで要件整理するのがおすすめです。無料の Community から始める構成も案内できます。';
+                    if (!collaborationScope.value) collaborationScope.value = 'mixed';
+                } else if (type === 'improvement') {
+                    inquiryHelp.textContent = '改善提案では、既存運用の課題や追加したい機能、より使いやすくしたい点の相談を想定しています。';
+                    planSelect.value = 'consultation';
+                    planHelp.textContent = '改善提案では、いきなり Public を前提にせず、まず相談ベースで現状と課題を整理できます。';
+                    if (!collaborationScope.value) collaborationScope.value = 'feature';
+                } else if (type === 'consultation') {
+                    inquiryHelp.textContent = '導入相談では、まず何に使いたいか、どの単位で始めたいかを確認しながらご案内します。';
+                    planHelp.textContent = 'Public を具体的に検討している場合はそのまま選べます。まだ迷っている場合は「まず相談したい」を選んでください。';
+                } else {
+                    inquiryHelp.textContent = 'いま考えている進め方に近いものを選んでください。途中で変わっても問題ありません。';
+                    planHelp.textContent = '個人利用と無料の Community 団体ページは申込み不要です。必要に応じて Public や相談導線をご案内します。';
+                }
+            }
+
+            inquiryType.addEventListener('change', sync);
+            sync();
+        })();
     </script>
 </body>
 

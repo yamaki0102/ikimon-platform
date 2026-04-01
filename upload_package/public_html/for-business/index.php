@@ -579,7 +579,7 @@ $supportPolicies = $regionalMessaging['support_policies'];
                     <div class="hero-copy">
                         <div class="pill"><i data-lucide="flask-conical" class="h-3 w-3"></i>β版 · 学校・企業・施設向け</div>
                         <h1>観察記録を、<em>チームで続ける。</em></h1>
-                        <p class="hero-lead">学校の授業でも、企業の環境活動でも、施設の定期観察会でも。記録がバラバラになって後から使えない、という問題を解決するために作っています。現在β版として公開中で、一緒に使ってみてくれる団体を探しています。</p>
+                        <p class="hero-lead">学校の授業でも、企業の環境活動でも、施設の定期観察会でも。記録がバラバラになって後から使えない、という問題を解決するために作っています。現在β版として公開中ですが、すでに導入や試行は可能です。現場に合わせた運用設計や改善、共同実証の相談も歓迎しています。</p>
                         <div class="hero-support">
                             <strong>消滅可能性自治体には、Public相当の出力機能まで含めて無償提供します。</strong>
                             <p>若年女性減少率80%以上を目安に、最も記録基盤が必要な地域へ優先して届ける方針です。<?= htmlspecialchars($regionalMessaging['support_model_summary']) ?></p>
@@ -786,15 +786,19 @@ $supportPolicies = $regionalMessaging['support_policies'];
                         <strong>なぜ無料で提供できるのですか？</strong>
                         <p><?= htmlspecialchars($regionalMessaging['support_policies'][1]['body']) ?></p>
                     </article>
+                    <article class="card faq-card">
+                        <strong>機能改善や共同実証の相談はできますか？</strong>
+                        <p>できます。まずはそのまま使い始めたい団体だけでなく、現場の運用に合わせて改善点を整理しながら試したい自治体・研究機関・企業・保全団体からの相談も受け付けています。</p>
+                    </article>
                 </div>
 
                 <!-- closing CTA -->
                 <div class="closing">
-                    <h2>β版を一緒に試してみませんか。</h2>
-                    <p>現在プロトタイプを公開中です。Community は申込み不要・無料。企業や大規模自治体は Public で継続運用を支え、必要な地域には無償で届ける形を育てています。</p>
+                    <h2>導入相談も、共同実証の相談も歓迎しています。</h2>
+                    <p>Community は申込み不要・無料で始められます。まずはそのまま使ってみたい方も、現場に合わせた改善や機能検証を一緒に進めたい方も、相談内容に応じて入口をご案内します。</p>
                     <div class="closing-actions">
                         <a href="<?= htmlspecialchars($workspaceCtaHref) ?>" class="lp-btn-primary"><i data-lucide="sparkles" class="h-4 w-4"></i><?= htmlspecialchars($workspaceCtaLabel) ?></a>
-                        <a href="<?= htmlspecialchars($publicCtaHref) ?>" class="lp-btn-secondary"><i data-lucide="messages-square" class="h-4 w-4"></i>Publicを相談</a>
+                        <a href="<?= htmlspecialchars($publicCtaHref) ?>" class="lp-btn-secondary"><i data-lucide="messages-square" class="h-4 w-4"></i>導入・共同実証を相談</a>
                     </div>
                 </div>
             </div>
