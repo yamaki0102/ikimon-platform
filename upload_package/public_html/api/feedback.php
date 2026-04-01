@@ -74,8 +74,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // SUMMARY.md 自動更新
     rebuildSummary();
 
-    // メール通知
+    // 管理者へ通知
     sendNotification($record);
+
+    // 送信者へ自動返信（メールアドレスがある場合のみ）
+    if ($email !== '') {
+        sendAutoReply($record);
+    }
 
     respond(true, 'フィードバックを送信しました', ['id' => $id]);
 }
@@ -104,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 respond(false, 'Invalid method');
 
-// ── メール通知 ──
+// ── 管理者へのお問い合わせ通知 ──
 function sendNotification(array $r): void {
     $icons  = ['bug' => '🐛', 'improvement' => '💡', 'question' => '❓', 'partnership' => '🤝', 'deletion' => '🗑️', 'media' => '📰', 'other' => '💬'];
     $labels = ['bug' => 'バグ報告', 'improvement' => '要望・提案', 'question' => '質問', 'partnership' => '導入・連携', 'deletion' => 'データ削除', 'media' => '取材・メディア', 'other' => 'その他'];
@@ -158,6 +163,63 @@ function sendNotification(array $r): void {
     @mail($to, $subject, $body, $headers);
 }
 
+// ── 送信者への自動返信 ──
+function sendAutoReply(array $r): void {
+    $icons  = ['bug' => '🐛', 'improvement' => '💡', 'question' => '❓', 'partnership' => '🤝', 'deletion' => '🗑️', 'media' => '📰', 'other' => '💬'];
+    $labels = ['bug' => 'バグ報告', 'improvement' => '要望・提案', 'question' => '質問', 'partnership' => '導入・連携', 'deletion' => 'データ削除', 'media' => '取材・メディア', 'other' => 'その他'];
+
+    $icon  = $icons[$r['category']]  ?? '💬';
+    $label = $labels[$r['category']] ?? 'その他';
+
+    $firstName = $r['name'] ? mb_substr($r['name'], 0, mb_strpos($r['name'] . ' ', ' ')) : 'お客様';
+
+    $subject = mb_encode_mimeheader(
+        '[ikimon] お問い合わせを受け付けました',
+        'UTF-8', 'B'
+    );
+
+    // カテゴリ別の返信メッセージ
+    $categoryNote = match($r['category']) {
+        'partnership' => "導入・連携に関するご相談をいただきありがとうございます。\nご要件を確認のうえ、詳細についてあらためてご連絡いたします。",
+        'media'       => "取材・メディアに関するご依頼をいただきありがとうございます。\n担当者より詳細についてご連絡いたします。",
+        'deletion'    => "データ削除のリクエストをいただきありがとうございます。\n内容を確認のうえ、速やかに対応いたします。",
+        'bug'         => "バグ報告をいただきありがとうございます。\n詳細を確認し、修正に向けて取り組みます。",
+        default       => "お問い合わせいただきありがとうございます。\n内容を確認のうえ、ご返信いたします。",
+    };
+
+    $body = implode("\n", [
+        "{$firstName} 様",
+        "",
+        $categoryNote,
+        "",
+        "通常 1〜3 営業日以内にご返信します。",
+        "しばらくお待ちくださいますよう、よろしくお願いいたします。",
+        "",
+        "─── 受付内容 ───────────────────────────────",
+        "",
+        "受付番号 : {$r['id']}",
+        "カテゴリ : {$icon} {$label}",
+        "受付日時 : " . date('Y年m月d日 H:i', strtotime($r['created_at'])),
+        "",
+        "お問い合わせ内容:",
+        $r['description'],
+        "",
+        "──────────────────────────────────────────",
+        "",
+        "※ このメールは自動送信です。このメールへの返信は受け付けていません。",
+        "   お問い合わせは https://ikimon.life/contact.php からお願いします。",
+        "",
+        "ikimon 運営チーム",
+        "https://ikimon.life",
+    ]);
+
+    $headers = "From: ikimon <noreply@ikimon.life>\r\n"
+             . "Reply-To: noreply@ikimon.life\r\n"
+             . "Content-Type: text/plain; charset=UTF-8\r\n";
+
+    @mail($r['email'], $subject, $body, $headers);
+}
+
 // ── SUMMARY.md 再構築 ──
 function rebuildSummary() {
     $dir = DATA_DIR . '/feedback';
@@ -171,8 +233,8 @@ function rebuildSummary() {
 
     usort($all, fn($a, $b) => strcmp($b['created_at'], $a['created_at']));
 
-    $icons = ['bug' => "\xF0\x9F\x90\x9B", 'improvement' => "\xF0\x9F\x92\xA1", 'question' => "\xE2\x9D\x93", 'partnership' => "\xF0\x9F\xA4\x9D", 'deletion' => "\xF0\x9F\x97\x91", 'other' => "\xF0\x9F\x92\xAC"];
-    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'question' => '質問', 'partnership' => '導入・連携', 'deletion' => 'データ削除', 'other' => 'その他'];
+    $icons  = ['bug' => '🐛', 'improvement' => '💡', 'question' => '❓', 'partnership' => '🤝', 'deletion' => '🗑️', 'media' => '📰', 'other' => '💬'];
+    $labels = ['bug' => 'バグ', 'improvement' => '改善', 'question' => '質問', 'partnership' => '導入・連携', 'deletion' => 'データ削除', 'media' => '取材', 'other' => 'その他'];
 
     $open = array_filter($all, fn($r) => ($r['status'] ?? 'open') === 'open');
     $done = array_filter($all, fn($r) => ($r['status'] ?? 'open') !== 'open');
@@ -195,12 +257,12 @@ function rebuildSummary() {
         foreach ($byPage as $url => $records) {
             $md .= "### {$url} (" . count($records) . "件)\n";
             foreach ($records as $r) {
-                $icon = $icons[$r['category']] ?? '💬';
+                $icon  = $icons[$r['category']]  ?? '💬';
                 $label = $labels[$r['category']] ?? 'その他';
-                $date = date('m/d', strtotime($r['created_at']));
-                $user = $r['user_name'] ?? 'ゲスト';
-                $desc = mb_substr($r['description'], 0, 80);
-                $md .= "- [{$r['id']}] {$icon} {$label}: {$desc} ({$user}, {$date})\n";
+                $date  = date('m/d', strtotime($r['created_at']));
+                $user  = $r['name'] ?: ($r['user_name'] ?? 'ゲスト');
+                $desc  = mb_substr($r['description'], 0, 80);
+                $md   .= "- [{$r['id']}] {$icon} {$label}: {$desc} ({$user}, {$date})\n";
             }
             $md .= "\n";
         }
@@ -211,12 +273,12 @@ function rebuildSummary() {
         $md .= "なし\n";
     } else {
         foreach ($done as $r) {
-            $icon = $icons[$r['category']] ?? '💬';
+            $icon  = $icons[$r['category']]  ?? '💬';
             $label = $labels[$r['category']] ?? 'その他';
-            $date = date('m/d', strtotime($r['created_at']));
-            $url = $r['url'] ?? '';
-            $desc = mb_substr($r['description'], 0, 80);
-            $md .= "- [{$r['id']}] ✅ {$url} {$icon} {$label}: {$desc} ({$date})\n";
+            $date  = date('m/d', strtotime($r['created_at']));
+            $url   = $r['url'] ?? '';
+            $desc  = mb_substr($r['description'], 0, 80);
+            $md   .= "- [{$r['id']}] ✅ {$url} {$icon} {$label}: {$desc} ({$date})\n";
         }
     }
 
