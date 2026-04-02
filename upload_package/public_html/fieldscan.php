@@ -26,73 +26,47 @@ $apkFile = 'assets/downloads/ikimon-fieldscan.apk';
 
     <!-- Hero -->
     <section class="text-center space-y-4 mb-12">
-        <div class="text-6xl">🔬</div>
+        <div class="text-6xl">🌿</div>
         <h1 class="text-3xl font-black tracking-tight">
-            Field<span class="text-emerald-400">Scan</span>
+            フィールドスキャン
             <span class="text-xs font-normal text-gray-500 ml-2">v<?= htmlspecialchars($apkVersion) ?></span>
         </h1>
         <p class="text-gray-400 text-sm leading-relaxed max-w-md mx-auto">
-            カメラ・マイク・センサーの3系統AIが<br>
-            歩くだけで生態系をまるごとスキャン。<br>
-            <strong class="text-white">100年残る環境タイムカプセルを生成する。</strong>
-        </p>
-        <p class="text-[10px] text-gray-600">
-            「2026年に記録しなかったデータは二度と取り戻せない」
+            歩くだけで、その場の生きものと環境を<br>
+            まるごと記録するAndroidアプリ。
         </p>
     </section>
 
-    <!-- AI Architecture -->
+    <!-- What it records -->
     <section class="grid gap-3 mb-10">
-        <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider px-1">3系統 AI エンジン</h2>
+        <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider px-1">1回の散歩で記録されるもの</h2>
 
         <div class="bg-white/5 rounded-2xl p-5 flex items-start gap-4">
-            <span class="text-2xl mt-1">👁</span>
+            <span class="text-2xl mt-1">🎧</span>
             <div>
-                <div class="font-bold text-sm">視覚AI — Gemini Nano</div>
-                <div class="text-xs text-gray-400 mt-1">
-                    Tensor G5 上でオンデバイス推論。2秒間隔の連続スキャンで歩きながら自動検出。環境分析（植生・水辺・都市度）も同時に実行。<strong class="text-gray-300">ネット不要。</strong>
-                </div>
-                <div class="flex gap-2 mt-2">
-                    <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">オンデバイス</span>
-                    <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">オフラインOK</span>
+                <div class="font-bold text-sm">音の記録</div>
+                <div class="text-xs text-gray-400 mt-1 leading-relaxed">
+                    鳥の声・虫の声・環境音。音響指数（ACI/NDSI）で「豊かさ」も数値化。オフラインで動作。
                 </div>
             </div>
         </div>
 
         <div class="bg-white/5 rounded-2xl p-5 flex items-start gap-4">
-            <span class="text-2xl mt-1">👂</span>
+            <span class="text-2xl mt-1">📷</span>
             <div>
-                <div class="font-bold text-sm">聴覚AI — BirdNET V3 + Perch v2 デュアルエンジン</div>
-                <div class="text-xs text-gray-400 mt-1">
-                    2つの独立した音声AIが鳥の声を並列判定。<strong class="text-gray-300">両者が合意すれば信頼度が自動昇格</strong>し、不一致はコミュニティ検証に回る。BirdNET ~6,500種 + Perch ~14,000種で補完。
-                </div>
-                <div class="flex gap-2 mt-2">
-                    <span class="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">BirdNET V3 (CC BY-SA 4.0)</span>
-                    <span class="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">Perch v2 (Apache 2.0)</span>
+                <div class="font-bold text-sm">場所の記録</div>
+                <div class="text-xs text-gray-400 mt-1 leading-relaxed">
+                    カメラが植生・水辺・開放度を自動分析。歩いた軌跡と重ね合わせてその場所の生態を記録する。
                 </div>
             </div>
         </div>
 
         <div class="bg-white/5 rounded-2xl p-5 flex items-start gap-4">
-            <span class="text-2xl mt-1">🌡</span>
+            <span class="text-2xl mt-1">🌡️</span>
             <div>
-                <div class="font-bold text-sm">環境センサー — 気圧・照度・コンパス・加速度</div>
-                <div class="text-xs text-gray-400 mt-1">
-                    60秒毎に環境スナップショットを自動記録。気圧から天気変化、照度から林床/開放地、加速度から歩行/静止を判定し<strong class="text-gray-300">スキャン間隔を自動最適化</strong>。
-                </div>
-                <div class="flex gap-2 mt-2">
-                    <span class="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full">自動記録</span>
-                    <span class="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full">適応型スキャン</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white/5 rounded-2xl p-5 flex items-start gap-4">
-            <span class="text-2xl mt-1">📍</span>
-            <div>
-                <div class="font-bold text-sm">GPS — 高精度空間マッピング</div>
-                <div class="text-xs text-gray-400 mt-1">
-                    全ての検出に位置・高度・速度・方位を自動付与。歩いた軌跡と発見を重ね合わせ、<strong class="text-gray-300">生態系のデジタルツイン</strong>を構築する。
+                <div class="font-bold text-sm">環境の記録</div>
+                <div class="text-xs text-gray-400 mt-1 leading-relaxed">
+                    気圧・照度・標高を60秒ごとに自動スナップショット。種の記録だけでは残せない「その日の環境」を保存する。
                 </div>
             </div>
         </div>
@@ -100,23 +74,19 @@ $apkFile = 'assets/downloads/ikimon-fieldscan.apk';
 
     <!-- How it works -->
     <section class="mb-10">
-        <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider px-1 mb-3">仕組み</h2>
+        <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider px-1 mb-3">使い方</h2>
         <div class="bg-white/5 rounded-2xl p-5 space-y-4">
             <div class="flex items-center gap-3">
                 <div class="bg-emerald-600 text-white text-xs font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0">1</div>
-                <div class="text-xs text-gray-300"><strong class="text-white">スキャン開始</strong> — カメラ・マイク・センサーが同時起動</div>
+                <div class="text-xs text-gray-300"><strong class="text-white">散歩を始める</strong> — タップ1つで全センサーが起動</div>
             </div>
             <div class="flex items-center gap-3">
                 <div class="bg-emerald-600 text-white text-xs font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0">2</div>
-                <div class="text-xs text-gray-300"><strong class="text-white">歩くだけ</strong> — 加速度計がペースを検知し、スキャン頻度を自動調整</div>
+                <div class="text-xs text-gray-300"><strong class="text-white">歩くだけ</strong> — あとは自動。ポケットに入れたままでOK</div>
             </div>
             <div class="flex items-center gap-3">
                 <div class="bg-emerald-600 text-white text-xs font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0">3</div>
-                <div class="text-xs text-gray-300"><strong class="text-white">AI判定</strong> — 視覚・聴覚・環境の3系統が独立して検出。新種発見で触覚フィードバック</div>
-            </div>
-            <div class="flex items-center gap-3">
-                <div class="bg-emerald-600 text-white text-xs font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0">4</div>
-                <div class="text-xs text-gray-300"><strong class="text-white">タイムカプセル生成</strong> — セッション終了で、種+環境+軌跡データが ikimon.life に同期</div>
+                <div class="text-xs text-gray-300"><strong class="text-white">記録を終了する</strong> — 散歩のサマリーと記録データが ikimon.life に同期</div>
             </div>
         </div>
     </section>
@@ -238,9 +208,8 @@ $apkFile = 'assets/downloads/ikimon-fieldscan.apk';
         <div class="flex items-start gap-3">
             <span class="text-lg">⚠️</span>
             <div class="text-xs text-gray-300 space-y-1">
-                <p><strong class="text-amber-300">AI推定について</strong></p>
-                <p>FieldScan の同定結果はAIによる推定であり、正確性は保証されません。視覚AI（Gemini Nano）は確信度に応じて分類階級（綱・目・科）で表示し、無理に種レベルまで同定しません。音声AI（デュアルエンジン）は両者合意時のみ高信頼と判定します。</p>
-                <p>正確な同定が必要な場合は、ikimon.life 上で専門家やコミュニティによる確認を経てください。</p>
+                <p><strong class="text-amber-300">AIによる推定について</strong></p>
+                <p>検出結果はAIによる推定です。正確な同定が必要な場合は、ikimon.life のコミュニティによる確認をご利用ください。</p>
             </div>
         </div>
     </section>
@@ -265,7 +234,7 @@ $apkFile = 'assets/downloads/ikimon-fieldscan.apk';
 
 </main>
 
-<?php include __DIR__ . '/components/bottom_nav.php'; ?>
+<?php include __DIR__ . '/components/nav.php'; ?>
 
 </body>
 </html>

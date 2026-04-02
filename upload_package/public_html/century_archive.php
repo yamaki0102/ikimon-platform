@@ -152,7 +152,7 @@ $meta_title = "100年アーカイブ | ikimon.life";
 
     </main>
 
-    <?php include __DIR__ . '/components/bottom_nav.php'; ?>
+    <?php include __DIR__ . '/components/nav.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     <script>lucide.createIcons();</script>
 </body>

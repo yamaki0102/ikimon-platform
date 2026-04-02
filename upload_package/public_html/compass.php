@@ -1290,7 +1290,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         </div>
     </div>
 
-    <?php include __DIR__ . '/components/bottom_nav.php'; ?>
+    <?php include __DIR__ . '/components/nav.php'; ?>
 
     <script nonce="<?= CspNonce::attr() ?>">
         // Server-rendered initial data (prevents FOUC)
