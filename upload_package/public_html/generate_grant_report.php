@@ -190,7 +190,7 @@ $title = htmlspecialchars($event['title'] ?? '無題の観察会');
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>助成金・事業報告書 - <?php echo $title; ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="/assets/js/tailwind.3.4.17.min.js"></script>
     <style>
         body { font-family: 'Zen Maru Gothic', sans-serif; background-color: #f3f4f6; }
         @media print {
