@@ -18,7 +18,7 @@ CspNonce::sendHeader();
     <title>OMOIKANE 抽出コンソール</title>
     <!-- Alpine.js & Tailwind (Using CDN for quick standalone dashboard) -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <style>
         body {
             background-color: #0f172a;
