@@ -183,7 +183,7 @@ if (!$currentUser) {
     </template>
 </div>
 
-<script>
+<script nonce="<?= CspNonce::attr() ?>">
 function scanMode() {
     return {
         isActive: false,
@@ -335,6 +335,6 @@ function scanMode() {
     };
 }
 </script>
-<script>lucide.createIcons();</script>
+<script nonce="<?= CspNonce::attr() ?>">lucide.createIcons();</script>
 </body>
 </html>
