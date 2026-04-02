@@ -119,32 +119,34 @@ $payload = [
     ],
 ];
 
+$jsonPayload = json_encode($payload);
 $ch = curl_init($url);
 curl_setopt_array($ch, [
     CURLOPT_POST           => true,
-    CURLOPT_POSTFIELDS     => json_encode($payload),
+    CURLOPT_POSTFIELDS     => $jsonPayload,
     CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
     CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_CONNECTTIMEOUT => 3,
     CURLOPT_TIMEOUT        => 8,
 ]);
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curlError = curl_errno($ch);
 curl_close($ch);
 
-if ($httpCode !== 200 || !$response) {
-    api_error('AI error', 502);
-}
+$suggestions = [];
 
-$result = json_decode($response, true);
-$text = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';
-
-// JSON 抽出
-$text = preg_replace('/^```json\s*/', '', trim($text));
-$text = preg_replace('/```$/', '', trim($text));
-$suggestions = json_decode($text, true);
-
-if (!is_array($suggestions)) {
-    $suggestions = [];
+if ($httpCode === 200 && $response) {
+    $result = json_decode($response, true);
+    $text = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';
+    $text = preg_replace('/^```json\s*/', '', trim($text));
+    $text = preg_replace('/```$/', '', trim($text));
+    $parsed = json_decode($text, true);
+    if (is_array($parsed)) {
+        $suggestions = $parsed;
+    }
+} else {
+    error_log("[scan_classify] Gemini failed: HTTP {$httpCode}, curl_errno={$curlError}");
 }
 
 // confidence でソート

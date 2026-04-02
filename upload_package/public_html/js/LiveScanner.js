@@ -30,6 +30,20 @@ class LiveScanner {
         this._reset();
     }
 
+    async _fetchWithTimeout(url, opts, timeoutMs) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+        try {
+            const resp = await fetch(url, { ...opts, signal: ctrl.signal });
+            return resp;
+        } catch (e) {
+            if (e.name === 'AbortError') this.onLog('⏱ タイムアウト');
+            return null;
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
     _reset() {
         this.active = false;
         this.mode = 'walk';
@@ -442,8 +456,12 @@ class LiveScanner {
                 fd.append('context', JSON.stringify({ environment: this.envHistory[0] }));
             }
 
-            const resp = await fetch('/api/v2/scan_classify.php', { method: 'POST', body: fd });
-            if (!resp.ok) return;
+            let resp = await this._fetchWithTimeout('/api/v2/scan_classify.php', { method: 'POST', body: fd }, 10000);
+            if (resp && (resp.status === 502 || resp.status === 503)) {
+                await new Promise(r => setTimeout(r, 1500));
+                resp = await this._fetchWithTimeout('/api/v2/scan_classify.php', { method: 'POST', body: fd }, 10000);
+            }
+            if (!resp || !resp.ok) return;
             const text = await resp.text();
             this.dataUsage += text.length;
             const json = JSON.parse(text);
