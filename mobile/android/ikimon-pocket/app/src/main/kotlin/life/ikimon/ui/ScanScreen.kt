@@ -28,20 +28,24 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
-/**
- * リアルタイム検出フィード — スキャン中に種名がポンポン積み上がるUI
- */
-
 data class DetectionItem(
     val id: String = UUID.randomUUID().toString(),
     val taxonName: String,
     val scientificName: String,
     val confidence: Float,
-    val type: String,  // "audio" | "visual"
+    val type: String,           // "audio" | "visual"
     val taxonomicClass: String = "",
-    val taxonRank: String = "species",  // species/genus/family/order/class
+    val taxonRank: String = "species",
     val timestamp: Long = System.currentTimeMillis(),
     val isFused: Boolean = false,
+    val isFirstInSession: Boolean = false,
+)
+
+data class SessionSummary(
+    val elapsedSeconds: Int,
+    val speciesCount: Int,
+    val distanceMeters: Float = 0f,
+    val recordsAdded: Int = 0,
 )
 
 @Composable
@@ -50,19 +54,18 @@ fun ScanActiveScreen(
     scanMode: String,
     elapsedSeconds: Int,
     speciesCount: Int,
+    distanceMeters: Float = 0f,
     onStop: () -> Unit,
 ) {
     val green = Color(0xFF2E7D32)
     val darkBg = Color(0xFF0D1117)
-    val cardBg = Color(0xFF161B22)
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
-    // 新しい検出が来たら自動スクロール + ハプティック
     LaunchedEffect(detections.size) {
         if (detections.isNotEmpty()) {
             listState.animateScrollToItem(0)
-            triggerHaptic(context, detections.lastOrNull()?.isFused == true)
+            triggerHaptic(context, detections.firstOrNull()?.isFirstInSession == true)
         }
     }
 
@@ -79,7 +82,6 @@ fun ScanActiveScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 録音中パルスアニメーション
                 PulsingDot()
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -87,29 +89,24 @@ fun ScanActiveScreen(
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 14.sp,
                 )
+                if (distanceMeters > 0) {
+                    Text(
+                        "  ·  %.1f km".format(distanceMeters / 1000),
+                        color = Color.White.copy(alpha = 0.35f),
+                        fontSize = 13.sp,
+                    )
+                }
             }
 
             Text(
-                "$speciesCount 種検出",
+                "$speciesCount 種",
                 color = green,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
             )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // AI エンジン状態
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            AiChip("🎧 BirdNET+", true)
-            AiChip("📷 Gemini", scanMode == "field")
-            AiChip("🌡️ ENV", scanMode == "field")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // 検出フィード
         if (detections.isEmpty()) {
@@ -120,10 +117,10 @@ fun ScanActiveScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🔍", fontSize = 32.sp)
+                    Text("🌿", fontSize = 32.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "周囲の生物を探しています...",
+                        if (scanMode == "pocket") "音に耳を澄ませています..." else "自然を感知しています...",
                         color = Color.White.copy(alpha = 0.4f),
                         fontSize = 14.sp,
                     )
@@ -149,16 +146,15 @@ fun ScanActiveScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 停止ボタン
         Button(
             onClick = onStop,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C2128)),
             shape = RoundedCornerShape(16.dp),
         ) {
-            Text("⏹ スキャン停止", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("記録を終了する", fontSize = 16.sp, color = Color.White.copy(alpha = 0.8f))
         }
     }
 }
@@ -167,34 +163,30 @@ fun ScanActiveScreen(
 private fun DetectionCard(detection: DetectionItem) {
     val green = Color(0xFF2E7D32)
     val cardBg = Color(0xFF161B22)
-    val fusedGold = Color(0xFFFFB300)
 
     val borderColor = when {
-        detection.isFused -> fusedGold
-        detection.confidence >= 0.7f -> green
+        detection.confidence >= 0.7f -> green.copy(alpha = 0.6f)
         else -> Color(0xFF30363D)
     }
 
-    val icon = when (detection.type) {
-        "audio" -> "🎧"
-        "visual" -> "📷"
-        else -> "🔬"
+    val classIcon = when (detection.taxonomicClass) {
+        "Aves"      -> "🐦"
+        "Insecta"   -> "🦗"
+        "Amphibia"  -> "🐸"
+        "Mammalia"  -> "🦊"
+        "Reptilia"  -> "🦎"
+        else        -> "🌿"
     }
 
-    val classIcon = when (detection.taxonomicClass) {
-        "Aves" -> "🐦"
-        "Insecta" -> "🦗"
-        "Amphibia" -> "🐸"
-        "Mammalia" -> "🦊"
-        "Reptilia" -> "🦎"
-        else -> "🌿"
-    }
+    val typeIcon = if (detection.type == "visual") "📷" else "🎧"
+
+    val timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault())
+        .format(Date(detection.timestamp))
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
-        border = CardDefaults.outlinedCardBorder().takeIf { false },
     ) {
         Row(
             modifier = Modifier
@@ -202,7 +194,6 @@ private fun DetectionCard(detection: DetectionItem) {
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 分類アイコン
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -215,81 +206,120 @@ private fun DetectionCard(detection: DetectionItem) {
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // 種名 + 分類階層
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         detection.taxonName,
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    // 分類ランクバッジ
-                    val rankLabel = when (detection.taxonRank) {
-                        "species" -> "種"
-                        "genus" -> "属"
-                        "family" -> "科"
-                        "order" -> "目"
-                        "class" -> "綱"
-                        else -> detection.taxonRank
-                    }
-                    val rankColor = when (detection.taxonRank) {
-                        "species" -> green
-                        "genus" -> Color(0xFF66BB6A)
-                        "family" -> Color(0xFF29B6F6)
-                        "order" -> Color(0xFFAB47BC)
-                        else -> Color(0xFF78909C)
-                    }
-                    Text(
-                        rankLabel,
-                        color = rankColor,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(rankColor.copy(alpha = 0.15f))
-                            .padding(horizontal = 4.dp, vertical = 1.dp),
-                    )
-                    if (detection.isFused) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            "FUSED",
-                            color = fusedGold,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(fusedGold.copy(alpha = 0.15f))
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
-                        )
+                    if (detection.isFirstInSession) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("✨", fontSize = 13.sp)
                     }
                 }
-                Text(
-                    detection.scientificName,
-                    color = Color.White.copy(alpha = 0.4f),
-                    fontSize = 11.sp,
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                    maxLines = 1,
-                )
             }
 
-            // 信頼度 + 検出タイプ
+            Spacer(modifier = Modifier.width(8.dp))
+
             Column(horizontalAlignment = Alignment.End) {
+                Text(typeIcon, fontSize = 13.sp)
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    "${(detection.confidence * 100).toInt()}%",
-                    color = borderColor,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    icon,
-                    fontSize = 12.sp,
+                    timeLabel,
+                    color = Color.White.copy(alpha = 0.3f),
+                    fontSize = 11.sp,
                 )
             }
         }
+    }
+}
+
+@Composable
+fun SessionSummaryScreen(
+    summary: SessionSummary,
+    onRestart: () -> Unit,
+    onViewRecords: () -> Unit,
+) {
+    val darkBg = Color(0xFF0D1117)
+    val green = Color(0xFF2E7D32)
+
+    Surface(modifier = Modifier.fillMaxSize(), color = darkBg) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                "おつかれ",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                SummaryStatItem(formatElapsed(summary.elapsedSeconds), "時間")
+                if (summary.distanceMeters > 0f) {
+                    SummaryStatItem("%.1f km".format(summary.distanceMeters / 1000), "距離")
+                }
+                SummaryStatItem("${summary.speciesCount}", "種")
+            }
+
+            if (summary.recordsAdded > 0) {
+                Spacer(modifier = Modifier.height(36.dp))
+                Text(
+                    "この地域の記録  +${summary.recordsAdded}",
+                    color = Color.White.copy(alpha = 0.45f),
+                    fontSize = 13.sp,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(56.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onRestart,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("もう一度", color = Color.White)
+                }
+                Button(
+                    onClick = onViewRecords,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = green),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("記録を見る", color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryStatItem(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(label, fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f))
     }
 }
 
@@ -327,13 +357,13 @@ private fun PulsingDot() {
     )
 }
 
-private fun formatElapsed(seconds: Int): String {
+internal fun formatElapsed(seconds: Int): String {
     val m = seconds / 60
     val s = seconds % 60
     return "%d:%02d".format(m, s)
 }
 
-private fun triggerHaptic(context: Context, isFused: Boolean) {
+private fun triggerHaptic(context: Context, isFirst: Boolean) {
     try {
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val manager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
@@ -344,11 +374,9 @@ private fun triggerHaptic(context: Context, isFused: Boolean) {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val effect = if (isFused) {
-                // マルチモーダル融合 → 強い二重バイブ
+            val effect = if (isFirst) {
                 VibrationEffect.createWaveform(longArrayOf(0, 50, 50, 80), -1)
             } else {
-                // 通常検出 → 軽いタップ
                 VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE)
             }
             vibrator.vibrate(effect)

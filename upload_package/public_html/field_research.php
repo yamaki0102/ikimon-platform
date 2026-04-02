@@ -467,22 +467,6 @@ if (!$currentUser) {
             <div style="background:rgba(109,213,140,0.15);border:1px solid rgba(109,213,140,0.25);border-radius:20px;padding:5px 14px;">
                 <span style="color:#6DD58C;font-size:11px;font-weight:700;">🚗 ドライブ記録中</span>
             </div>
-            <div style="position:relative;">
-                <button @click="showDriveVoiceSwitch = !showDriveVoiceSwitch"
-                        style="padding:6px 14px;border-radius:20px;border:none;background:rgba(208,188,255,0.12);color:#D0BCFF;font-size:12px;font-weight:700;cursor:pointer;">
-                    🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'" style="pointer-events:none;"></span>
-                </button>
-                <div x-show="showDriveVoiceSwitch" x-cloak @click.outside="showDriveVoiceSwitch=false"
-                     style="position:absolute;top:calc(100% + 8px);right:0;background:#2D2B32;border-radius:16px;padding:8px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:170px;z-index:50;">
-                    <template x-for="sp in speakers" :key="sp.id">
-                        <button @click="selectedSpeaker=sp.id; showDriveVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                :style="selectedSpeaker===sp.id ? 'background:rgba(208,188,255,0.2);color:#D0BCFF;font-weight:800;' : 'background:transparent;color:#CAC4D0;font-weight:600;'"
-                                style="display:block;width:100%;padding:10px 14px;border-radius:10px;border:none;font-size:13px;text-align:left;cursor:pointer;transition:background 0.1s;">
-                            <span x-text="sp.emoji + ' ' + sp.label" style="pointer-events:none;"></span>
-                        </button>
-                    </template>
-                </div>
-            </div>
         </div>
 
         <!-- Center: 3-stat dashboard -->
@@ -504,9 +488,9 @@ if (!$currentUser) {
                     <div style="font-size:11px;color:#938F99;font-weight:600;margin-top:6px;">時間</div>
                 </div>
                 <!-- 種数 -->
-                <div style="text-align:center;background:rgba(109,213,140,0.1);border:1px solid rgba(109,213,140,0.2);border-radius:20px;padding:20px 8px;">
-                    <div style="font-size:32px;font-weight:900;color:#6DD58C;line-height:1;" x-text="sessionSpeciesCount"></div>
-                    <div style="font-size:11px;color:#6DD58C;font-weight:600;margin-top:6px;">種</div>
+                <div style="text-align:center;background:rgba(255,255,255,0.06);border-radius:20px;padding:20px 8px;">
+                    <div style="font-size:32px;font-weight:900;color:#E6E1E5;line-height:1;" x-text="sessionSpeciesCount"></div>
+                    <div style="font-size:11px;color:#938F99;font-weight:600;margin-top:6px;">種</div>
                 </div>
                 <!-- 距離 -->
                 <div style="text-align:center;background:rgba(255,255,255,0.06);border-radius:20px;padding:20px 8px;">
@@ -567,9 +551,6 @@ if (!$currentUser) {
                     <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="latestDetection?.label || ''"></div>
                     <div style="font-size:10px;color:#94a3b8;" x-text="latestDetection?.reason || ''"></div>
                 </div>
-                <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;"
-                    :style="'background:' + (latestDetection?.confidence === 'high' ? '#dcfce7;color:#16a34a' : latestDetection?.confidence === 'medium' ? '#fef9c3;color:#ca8a04' : '#f1f5f9;color:#64748b')"
-                    x-text="latestDetection?.confidence === 'high' ? '高' : latestDetection?.confidence === 'medium' ? '中' : '低'"></span>
             </div>
             <!-- Environment label -->
             <div x-show="envLabel" x-cloak style="font-size:10px;color:#64748b;margin-bottom:6px;text-align:center;" x-text="'🌿 ' + envLabel"></div>
@@ -577,35 +558,19 @@ if (!$currentUser) {
             <div style="display:flex;align-items:center;justify-content:space-between;">
                 <div style="display:flex;align-items:center;gap:12px;">
                     <div style="text-align:center;">
-                        <div style="font-size:18px;font-weight:900;color:#1e293b;" x-text="sessionSpeciesCount">0</div>
+                        <div style="font-size:16px;font-weight:900;color:#1e293b;" x-text="sessionSpeciesCount">0</div>
                         <div style="font-size:9px;color:#94a3b8;">種</div>
                     </div>
                     <div style="text-align:center;">
-                        <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="formatDistance(sessionDistance)">0 m</div>
+                        <div style="font-size:16px;font-weight:700;color:#1e293b;" x-text="formatDistance(sessionDistance)">0 m</div>
                         <div style="font-size:9px;color:#94a3b8;">距離</div>
                     </div>
                     <div style="text-align:center;">
-                        <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="formatElapsed(sessionElapsed)">00:00</div>
+                        <div style="font-size:16px;font-weight:700;color:#1e293b;" x-text="formatElapsed(sessionElapsed)">00:00</div>
                         <div style="font-size:9px;color:#94a3b8;">時間</div>
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
-                    <div style="position:relative;">
-                        <button @click="showVoiceSwitch = !showVoiceSwitch"
-                                style="padding:6px 10px;border-radius:20px;border:1.5px solid #e9d5ff;background:#f3e8ff;color:#7c3aed;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all 0.15s;">
-                            🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
-                        </button>
-                        <div x-show="showVoiceSwitch" x-cloak @click.outside="showVoiceSwitch=false"
-                             style="position:absolute;bottom:calc(100% + 8px);right:0;background:#fff;border-radius:16px;padding:8px;border:1px solid #e2e8f0;box-shadow:0 4px 20px rgba(0,0,0,0.12);min-width:150px;z-index:50;">
-                            <template x-for="sp in speakers" :key="sp.id">
-                                <button @click="selectedSpeaker=sp.id; showVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                        :style="selectedSpeaker===sp.id ? 'background:#f3e8ff;color:#7c3aed;font-weight:800;' : 'background:transparent;color:#475569;font-weight:600;'"
-                                        style="display:block;width:100%;padding:8px 12px;border-radius:10px;border:none;font-size:12px;text-align:left;cursor:pointer;transition:background 0.1s;">
-                                    <span x-text="sp.emoji + ' ' + sp.label" style="pointer-events:none;"></span>
-                                </button>
-                            </template>
-                        </div>
-                    </div>
                     <button @click="stopSensor()" style="padding:8px 16px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
                         終了
                     </button>
@@ -634,11 +599,6 @@ if (!$currentUser) {
             <span>投稿</span>
         </a>
 
-        <!-- Guide -->
-        <button class="action-btn btn-guide" :class="{ inactive: !hasGuide }" @click="toggleGuide()" x-show="hasGuide" x-cloak>
-            <i data-lucide="book-open" style="width:20px;height:20px;"></i>
-            <span>ガイド</span>
-        </button>
     </div>
 
     <!-- ===== 散歩レポート (Session Result Overlay — M3 Light Surface) ===== -->
@@ -720,7 +680,7 @@ if (!$currentUser) {
                 <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px 8px;">
                     <template x-for="sp in (reportData?.species || [])" :key="sp.name">
                         <div style="min-width:140px;max-width:160px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
-                            <div style="font-size:13px;font-weight:800;" :style="'color:' + (sp.confidence >= 0.7 ? '#059669' : sp.confidence >= 0.4 ? '#d97706' : '#64748b')" x-text="sp.name"></div>
+                            <div style="font-size:13px;font-weight:800;color:#1C1B1F;" x-text="sp.name"></div>
                             <div style="font-size:10px;color:#49454F;margin-top:4px;" x-text="sp.source === 'audio' ? '🎤 音声' : '📷 カメラ'"></div>
                             <div style="font-size:10px;color:#79747E;margin-top:2px;" x-text="sp.note || sp.category || ''"></div>
                         </div>

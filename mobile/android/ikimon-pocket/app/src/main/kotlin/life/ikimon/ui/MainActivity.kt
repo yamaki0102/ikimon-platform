@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,18 +30,22 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import life.ikimon.pocket.FieldScanService
 import life.ikimon.pocket.PocketService
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MainActivity : ComponentActivity() {
 
     companion object {
         const val ACTION_DETECTION = "life.ikimon.fieldscan.DETECTION"
+        private const val PREFS_NAME = "ikimon_prefs"
+        private const val KEY_LAST_DATE = "last_scan_date"
+        private const val KEY_STREAK = "streak_count"
     }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ -> }
 
-    // リアルタイム検出リスト（UIに反映される）
     private val _detections = mutableStateListOf<DetectionItem>()
     private var _elapsedSeconds = mutableIntStateOf(0)
     private var _timerHandler: android.os.Handler? = null
@@ -49,13 +54,16 @@ class MainActivity : ComponentActivity() {
     private val detectionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             intent ?: return
+            val name = intent.getStringExtra("taxon_name") ?: return
+            val isFirst = _detections.none { it.taxonName == name }
             val item = DetectionItem(
-                taxonName = intent.getStringExtra("taxon_name") ?: return,
+                taxonName = name,
                 scientificName = intent.getStringExtra("scientific_name") ?: "",
                 confidence = intent.getFloatExtra("confidence", 0f),
                 type = intent.getStringExtra("type") ?: "audio",
                 taxonomicClass = intent.getStringExtra("taxonomic_class") ?: "",
                 isFused = intent.getBooleanExtra("is_fused", false),
+                isFirstInSession = isFirst,
             )
             _detections.add(0, item)
         }
@@ -68,39 +76,71 @@ class MainActivity : ComponentActivity() {
             IkimonTheme {
                 var selectedMode by remember { mutableStateOf(ScanMode.POCKET) }
                 var isActive by remember { mutableStateOf(false) }
+                var summary by remember { mutableStateOf<SessionSummary?>(null) }
+                val streak by remember { mutableIntStateOf(readStreak()) }
 
-                if (isActive) {
-                    ScanActiveScreen(
-                        detections = _detections,
-                        scanMode = if (selectedMode == ScanMode.FIELD) "field" else "pocket",
-                        elapsedSeconds = _elapsedSeconds.intValue,
-                        speciesCount = _detections.map { it.scientificName }.distinct().size,
-                        onStop = {
-                            when (selectedMode) {
-                                ScanMode.POCKET -> PocketService.stop(this@MainActivity)
-                                ScanMode.FIELD -> FieldScanService.stop(this@MainActivity)
-                            }
-                            isActive = false
-                            stopTimer()
-                        },
-                    )
-                } else {
-                    HomeScreen(
-                        selectedMode = selectedMode,
-                        onModeSelected = { selectedMode = it },
-                        onStart = {
-                            _detections.clear()
-                            _elapsedSeconds.intValue = 0
-                            when (selectedMode) {
-                                ScanMode.POCKET -> startPocketMode()
-                                ScanMode.FIELD -> startFieldScan()
-                            }
-                            isActive = true
-                            startTimer()
-                        },
-                        onRequestPermissions = { requestPermissions() },
-                        lastSessionCount = _detections.size,
-                    )
+                when {
+                    summary != null -> {
+                        SessionSummaryScreen(
+                            summary = summary!!,
+                            onRestart = {
+                                summary = null
+                                _detections.clear()
+                                _elapsedSeconds.intValue = 0
+                                when (selectedMode) {
+                                    ScanMode.POCKET -> startPocketMode()
+                                    ScanMode.FIELD -> startFieldScan()
+                                }
+                                isActive = true
+                                startTimer()
+                            },
+                            onViewRecords = {
+                                summary = null
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ikimon.life"))
+                                startActivity(intent)
+                            },
+                        )
+                    }
+                    isActive -> {
+                        ScanActiveScreen(
+                            detections = _detections,
+                            scanMode = if (selectedMode == ScanMode.FIELD) "field" else "pocket",
+                            elapsedSeconds = _elapsedSeconds.intValue,
+                            speciesCount = _detections.map { it.taxonName }.distinct().size,
+                            onStop = {
+                                when (selectedMode) {
+                                    ScanMode.POCKET -> PocketService.stop(this@MainActivity)
+                                    ScanMode.FIELD -> FieldScanService.stop(this@MainActivity)
+                                }
+                                isActive = false
+                                stopTimer()
+                                commitStreak()
+                                summary = SessionSummary(
+                                    elapsedSeconds = _elapsedSeconds.intValue,
+                                    speciesCount = _detections.map { it.taxonName }.distinct().size,
+                                    recordsAdded = _detections.map { it.taxonName }.distinct().size,
+                                )
+                            },
+                        )
+                    }
+                    else -> {
+                        HomeScreen(
+                            streak = streak,
+                            selectedMode = selectedMode,
+                            onModeSelected = { selectedMode = it },
+                            onStart = {
+                                _detections.clear()
+                                _elapsedSeconds.intValue = 0
+                                when (selectedMode) {
+                                    ScanMode.POCKET -> startPocketMode()
+                                    ScanMode.FIELD -> startFieldScan()
+                                }
+                                isActive = true
+                                startTimer()
+                            },
+                            onRequestPermissions = { requestPermissions() },
+                        )
+                    }
                 }
             }
         }
@@ -158,20 +198,53 @@ class MainActivity : ComponentActivity() {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
             && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     }
+
+    private fun readStreak(): Int {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val lastDate = prefs.getString(KEY_LAST_DATE, null) ?: return 0
+        val streak = prefs.getInt(KEY_STREAK, 0)
+        val today = todayString()
+        val yesterday = yesterdayString()
+        return if (lastDate == today || lastDate == yesterday) streak else 0
+    }
+
+    private fun commitStreak() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val lastDate = prefs.getString(KEY_LAST_DATE, null)
+        val streak = prefs.getInt(KEY_STREAK, 0)
+        val today = todayString()
+        val yesterday = yesterdayString()
+        val newStreak = when (lastDate) {
+            today -> streak
+            yesterday -> streak + 1
+            else -> 1
+        }
+        prefs.edit()
+            .putString(KEY_LAST_DATE, today)
+            .putInt(KEY_STREAK, newStreak)
+            .apply()
+    }
+
+    private fun todayString(): String =
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+    private fun yesterdayString(): String =
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            .format(Date(System.currentTimeMillis() - 86_400_000L))
 }
 
-enum class ScanMode(val label: String, val emoji: String, val desc: String) {
-    POCKET("ポケット", "🎧", "ポケットに入れて散歩\n音声AIが自動で検出"),
-    FIELD("フィールドスキャン", "🔭", "Triple AI Engine\n音声+視覚+環境分析"),
+enum class ScanMode(val label: String, val desc: String) {
+    POCKET("ポケット", "ポケットに入れて\n歩くだけ"),
+    FIELD("フィールドスキャン", "カメラ+音声で\n環境ごと記録"),
 }
 
 @Composable
 fun HomeScreen(
+    streak: Int,
     selectedMode: ScanMode,
     onModeSelected: (ScanMode) -> Unit,
     onStart: () -> Unit,
     onRequestPermissions: () -> Unit,
-    lastSessionCount: Int,
 ) {
     val green = Color(0xFF2E7D32)
     val darkBg = Color(0xFF0D1117)
@@ -180,19 +253,36 @@ fun HomeScreen(
 
     Surface(modifier = Modifier.fillMaxSize(), color = darkBg) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(20.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(48.dp))
 
-            Text("🌿", fontSize = 40.sp)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("ikimon FieldScan", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Text("BirdNET+ V3.0 · Gemini Nano v3", fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "いきものセンサー",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+                if (streak > 0) {
+                    Text(
+                        "🔥 $streak",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFF8F00),
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // モード選択
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -207,19 +297,26 @@ fun HomeScreen(
                                 if (isSelected) Modifier.border(2.dp, green, RoundedCornerShape(16.dp))
                                 else Modifier.border(1.dp, borderColor, RoundedCornerShape(16.dp))
                             )
-                            .background(if (isSelected) green.copy(alpha = 0.1f) else cardBg)
+                            .background(if (isSelected) green.copy(alpha = 0.08f) else cardBg)
                             .clickable { onModeSelected(mode) }
                             .padding(16.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(mode.emoji, fontSize = 28.sp)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(mode.label, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                                color = if (isSelected) green else Color.White)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(mode.desc, fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f),
-                                textAlign = TextAlign.Center, lineHeight = 15.sp)
+                            Text(
+                                mode.label,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) green else Color.White,
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                mode.desc,
+                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.45f),
+                                textAlign = TextAlign.Center,
+                                lineHeight = 16.sp,
+                            )
                         }
                     }
                 }
@@ -227,14 +324,15 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // スタートボタン
             Button(
                 onClick = onStart,
-                modifier = Modifier.fillMaxWidth().height(64.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = green),
                 shape = RoundedCornerShape(16.dp),
             ) {
-                Text("▶ スキャン開始", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("散歩を始める", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
 
             Spacer(modifier = Modifier.height(24.dp))

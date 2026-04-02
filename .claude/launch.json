@@ -6,6 +6,12 @@
       "runtimeExecutable": "php",
       "runtimeArgs": ["-S", "localhost:8899", "-t", "upload_package/public_html"],
       "port": 8899
+    },
+    {
+      "name": "lp-kan",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["-S", "localhost:8900", "-t", "C:\\Users\\YAMAKI\\Downloads\\i-kan_LP_Proposal"],
+      "port": 8900
     }
   ]
 }

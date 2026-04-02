@@ -881,15 +881,6 @@ require_once __DIR__ . '/../../libs/Asset.php';
                 </div>
             </a>
 
-            <a href="/fieldscan.php" class="flex items-center gap-4 p-4 rounded-xl bg-surface hover:bg-surface-hover transition border border-border" style="text-decoration:none">
-                <div class="w-12 h-12 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="scan-line" class="w-6 h-6 text-violet-600" style="pointer-events:none"></i>
-                </div>
-                <div>
-                    <p class="text-sm font-bold text-text"><?php echo __('nav.record_bioscan'); ?></p>
-                    <p class="text-xs text-muted mt-0.5"><?php echo __('nav.record_bioscan_desc'); ?></p>
-                </div>
-            </a>
         </div>
 
         <!-- Cancel -->
