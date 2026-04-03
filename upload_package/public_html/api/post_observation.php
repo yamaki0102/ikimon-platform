@@ -592,6 +592,20 @@ if (!empty($_POST['taxon_name'])) {
 // Mark as user-generated content (protected from seed cleanup)
 $observation['import_source'] = 'user_post';
 
+// Phase 15B P1: 外来種アラートチェック
+$invasiveAlert = null;
+if (!empty($_POST['taxon_name'])) {
+    require_once __DIR__ . '/../../libs/InvasiveAlertManager.php';
+    $scientificNameForCheck = '';
+    if (!empty($resolvedTaxon['scientific_name'])) {
+        $scientificNameForCheck = (string)$resolvedTaxon['scientific_name'];
+    }
+    $invasiveAlert = InvasiveAlertManager::check(
+        (string)$_POST['taxon_name'],
+        $scientificNameForCheck
+    );
+}
+
 // Save to DataStore (partition by creation month, not observed_at)
 if (DataStore::append('observations', $observation)) {
     ObservationRecalcQueue::enqueue($id, 'observation_created');
@@ -675,6 +689,11 @@ if (DataStore::append('observations', $observation)) {
     // Add Gamification Events to response
     if (!empty($gamificationEvents)) {
         $responseData['gamification_events'] = $gamificationEvents;
+    }
+
+    // Phase 15B P1: 外来種アラートをレスポンスに追加
+    if ($invasiveAlert !== null) {
+        $responseData['invasive_alert'] = $invasiveAlert;
     }
 
     StreakTracker::recordActivity($userId, 'post');

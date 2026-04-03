@@ -157,7 +157,7 @@ if ($isGuest) {
     <script src="<?= htmlspecialchars(Asset::versioned('/js/gamification-modal.js')) ?>"></script>
 </head>
 
-<body class="js-loading bg-base text-text font-body">
+<body class="js-loading font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
 
     <script nonce="<?= CspNonce::attr() ?>">
         document.body.classList.remove('js-loading');
@@ -935,6 +935,37 @@ if ($isGuest) {
                     <p class="text-sm text-primary font-bold mb-1">✨ 観察のヒントもついたよ</p>
                     <p class="text-xs text-primary/80 leading-relaxed" x-text="aiSummary || '観察詳細を開くと、いま見えている手がかりをすぐ確認できます。'"></p>
                 </div>
+
+                <!-- Phase 15B P1: 外来種アラート -->
+                <template x-if="invasiveAlert">
+                    <div class="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 mb-4 max-w-sm mx-auto text-left">
+                        <div class="flex items-start gap-3">
+                            <div class="shrink-0 mt-0.5">
+                                <template x-if="invasiveAlert.risk_level === 'High' || invasiveAlert.risk_level === 'Critical'">
+                                    <span class="text-2xl">⚠️</span>
+                                </template>
+                                <template x-if="invasiveAlert.risk_level === 'Medium'">
+                                    <span class="text-2xl">🔶</span>
+                                </template>
+                                <template x-if="invasiveAlert.risk_level === 'Low'">
+                                    <span class="text-2xl">ℹ️</span>
+                                </template>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-black text-amber-800 uppercase tracking-widest mb-1" x-text="invasiveAlert.category"></p>
+                                <p class="text-sm font-black text-amber-900">
+                                    <span x-text="invasiveAlert.name"></span>
+                                    <span class="text-xs font-normal text-amber-700 ml-1" x-text="'(' + invasiveAlert.scientific_name + ')'"></span>
+                                </p>
+                                <p class="text-xs text-amber-800 leading-relaxed mt-1" x-text="invasiveAlert.description"></p>
+                                <div class="mt-2 rounded-xl bg-amber-100 px-3 py-2">
+                                    <p class="text-xs font-bold text-amber-900">📋 <span x-text="invasiveAlert.action"></span></p>
+                                </div>
+                                <p class="text-[10px] text-amber-600 mt-2 leading-relaxed">発見情報の記録は生態系保全に役立ちます。ご報告ありがとうございます。</p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
 
                 <div class="rounded-2xl border border-border bg-surface p-4 mb-6 max-w-sm mx-auto text-left">
                     <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-2">この記録が次に育つこと</p>
