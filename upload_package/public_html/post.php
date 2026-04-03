@@ -47,6 +47,105 @@ if ($isGuest) {
     $meta_description = "生き物を撮って投稿。GPS自動取得、写真からの日時・位置情報の自動抽出で、最短3タップで観察記録を残せます。";
     include __DIR__ . '/components/meta.php';
     ?>
+    <style>
+        /* M3 Filled TextField */
+        .m3-input {
+            width: 100%; box-sizing: border-box;
+            background: var(--md-surface-variant);
+            border: none;
+            border-bottom: 2px solid var(--md-outline);
+            border-radius: var(--shape-xs) var(--shape-xs) 0 0;
+            padding: 12px 16px;
+            font-size: var(--type-body-md);
+            color: var(--md-on-surface);
+            outline: none;
+            transition: border-color var(--motion-short) var(--motion-std),
+                        background var(--motion-short) var(--motion-std);
+            appearance: none;
+        }
+        .m3-input:focus {
+            border-bottom-color: var(--md-primary);
+            background: var(--md-surface-container);
+        }
+        .m3-input::placeholder { color: var(--md-on-surface-variant); opacity: 0.7; }
+
+        /* M3 Filter Chip (for individual count) */
+        .m3-chip {
+            position: relative; overflow: hidden;
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 16px;
+            border-radius: var(--shape-full);
+            border: 1px solid var(--md-outline);
+            background: transparent;
+            color: var(--md-on-surface-variant);
+            font-size: var(--type-label-lg);
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: background var(--motion-short) var(--motion-std),
+                        color var(--motion-short) var(--motion-std),
+                        border-color var(--motion-short) var(--motion-std);
+        }
+        .m3-chip::before {
+            content: ''; position: absolute; inset: 0;
+            background: currentColor; opacity: 0;
+            border-radius: inherit;
+            transition: opacity var(--motion-short) var(--motion-std);
+            pointer-events: none;
+        }
+        .m3-chip:hover::before { opacity: 0.08; }
+        .m3-chip:active::before { opacity: 0.12; }
+        .m3-chip.selected {
+            background: var(--md-secondary-container);
+            color: var(--md-on-secondary-container);
+            border-color: transparent;
+        }
+
+        /* M3 Filled Button */
+        .m3-btn-filled {
+            position: relative; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%;
+            background: var(--md-primary); color: var(--md-on-primary);
+            border: none; border-radius: var(--shape-full);
+            padding: 16px 24px;
+            font-size: var(--type-label-lg); font-weight: 700;
+            cursor: pointer;
+            transition: box-shadow var(--motion-short) var(--motion-std);
+        }
+        .m3-btn-filled::before {
+            content: ''; position: absolute; inset: 0;
+            background: currentColor; opacity: 0; border-radius: inherit;
+            transition: opacity var(--motion-short) var(--motion-std);
+            pointer-events: none;
+        }
+        .m3-btn-filled:hover { box-shadow: var(--elev-1); }
+        .m3-btn-filled:hover::before { opacity: 0.08; }
+        .m3-btn-filled:active::before { opacity: 0.12; }
+        .m3-btn-filled:disabled { opacity: 0.38; box-shadow: none; cursor: not-allowed; }
+
+        /* M3 Tonal Button */
+        .m3-btn-tonal {
+            position: relative; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%;
+            background: var(--md-secondary-container); color: var(--md-on-secondary-container);
+            border: none; border-radius: var(--shape-full);
+            padding: 14px 24px;
+            font-size: var(--type-label-lg); font-weight: 700;
+            cursor: pointer;
+            transition: box-shadow var(--motion-short) var(--motion-std);
+        }
+        .m3-btn-tonal::before {
+            content: ''; position: absolute; inset: 0;
+            background: currentColor; opacity: 0; border-radius: inherit;
+            transition: opacity var(--motion-short) var(--motion-std);
+            pointer-events: none;
+        }
+        .m3-btn-tonal:hover { box-shadow: var(--elev-1); }
+        .m3-btn-tonal:hover::before { opacity: 0.08; }
+        .m3-btn-tonal:active::before { opacity: 0.12; }
+    </style>
     <!-- EXIF.js for client-side extraction -->
     <!-- EXIF.js: Removed in favor of local js/exif-mini.js -->
     <!-- Leaflet -->
@@ -77,7 +176,7 @@ if ($isGuest) {
 
         <!-- ゲストモードバナー -->
         <template x-if="isGuest">
-            <div class="fixed top-14 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] z-40 bg-accent-surface border-b border-accent/20 px-4 py-2 flex items-center justify-between">
+            <div class="fixed top-14 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] z-40 px-4 py-2 flex items-center justify-between" style="background:var(--md-tertiary-container);border-bottom:1px solid var(--md-outline-variant);">
                 <span class="text-xs text-accent font-bold flex items-center gap-1">
                     <i data-lucide="user" class="w-3 h-3"></i>
                     ゲスト投稿 <span x-text="guestPostCount"></span>/<span x-text="guestPostLimit"></span>件
@@ -92,7 +191,7 @@ if ($isGuest) {
 
             <!-- 観察会連携バナー -->
             <template x-if="event_id">
-                <div class="mb-4 bg-primary-surface border border-primary-glow rounded-2xl px-4 py-3 flex items-center gap-3">
+                <div class="mb-4 flex items-center gap-3 px-4 py-3" style="background:var(--md-primary-container);border-radius:var(--shape-xl);">
                     <span class="text-2xl">📋</span>
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-bold text-primary truncate" x-text="event_name"></p>
@@ -106,7 +205,7 @@ if ($isGuest) {
 
             <form @submit.prevent="submit" class="space-y-8">
                 <?php if ($canSurveyorOfficialPost): ?>
-                <div class="rounded-3xl border border-sky-200 bg-sky-50/80 px-4 py-4">
+                <div class="px-4 py-4" style="background:var(--md-surface-container);border-radius:var(--shape-xl);box-shadow:var(--elev-1);">
                     <div class="flex items-start gap-3">
                         <div class="w-11 h-11 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
                             <i data-lucide="badge-check" class="w-5 h-5"></i>
@@ -157,28 +256,26 @@ if ($isGuest) {
                             <p class="text-sm font-bold mb-1 text-text" x-text="record_mode === 'surveyor_official' ? '写真がなくても公式記録を残せます' : '生き物を撮影・選択'"></p>
                             <p class="text-xs text-muted mb-5" x-text="record_mode === 'surveyor_official' ? '📋 現地確認のみならこのまま下のフォームへ。写真があれば付けると再利用しやすくなります' : '📸 撮るだけでOK！名前は後からでも大丈夫'"></p>
                             <div class="flex flex-col gap-3">
-                                <button type="button" @click="$refs.cameraInput.click()"
-                                    class="w-full flex items-center justify-center gap-3 px-6 py-5 rounded-2xl bg-primary text-white font-bold text-base active:scale-[0.97] transition shadow-lg shadow-primary/20">
-                                    <i data-lucide="camera" class="w-6 h-6"></i>
-                                    <div class="text-left">
-                                        <span class="block">📸 写真を撮る</span>
-                                        <span class="block text-[13px] font-normal text-white/80">カメラロールにも保存されます</span>
+                                <button type="button" @click="$refs.cameraInput.click()" class="m3-btn-filled" style="padding:20px 24px;border-radius:var(--shape-xl);justify-content:flex-start;">
+                                    <i data-lucide="camera" class="w-6 h-6" style="pointer-events:none;flex-shrink:0;"></i>
+                                    <div style="text-align:left;">
+                                        <span style="display:block;">📸 写真を撮る</span>
+                                        <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.8;">カメラロールにも保存されます</span>
                                     </div>
                                 </button>
-                                <button type="button" @click="$refs.galleryInput.click()"
-                                    class="w-full flex items-center justify-center gap-3 px-6 py-5 rounded-2xl bg-white text-text font-bold text-base active:scale-[0.97] transition border-2 border-primary/30 hover:border-primary/60">
-                                    <i data-lucide="image" class="w-6 h-6 text-primary"></i>
-                                    <div class="text-left">
-                                        <span class="block text-text">🖼️ ギャラリーから選ぶ</span>
-                                        <span class="block text-[13px] font-normal text-muted">保存済みの写真をアップロード</span>
+                                <button type="button" @click="$refs.galleryInput.click()" class="m3-btn-tonal" style="padding:18px 24px;border-radius:var(--shape-xl);justify-content:flex-start;">
+                                    <i data-lucide="image" class="w-6 h-6" style="pointer-events:none;flex-shrink:0;"></i>
+                                    <div style="text-align:left;">
+                                        <span style="display:block;">🖼️ ギャラリーから選ぶ</span>
+                                        <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.7;">保存済みの写真をアップロード</span>
                                     </div>
                                 </button>
                                 <template x-if="record_mode === 'surveyor_official'">
-                                    <button type="button" @click="ensureFormReady()" class="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-sky-50 text-sky-800 font-bold text-base active:scale-[0.97] transition border-2 border-sky-200 hover:border-sky-400">
-                                        <i data-lucide="clipboard-check" class="w-6 h-6 text-sky-600"></i>
-                                        <div class="text-left">
-                                            <span class="block">📝 写真なしで公式記録する</span>
-                                            <span class="block text-[13px] font-normal text-sky-700/70">位置・日時・種名・メモを残します</span>
+                                    <button type="button" @click="ensureFormReady()" class="m3-btn-tonal" style="padding:18px 24px;border-radius:var(--shape-xl);justify-content:flex-start;">
+                                        <i data-lucide="clipboard-check" class="w-6 h-6" style="pointer-events:none;flex-shrink:0;"></i>
+                                        <div style="text-align:left;">
+                                            <span style="display:block;">📝 写真なしで公式記録する</span>
+                                            <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.7;">位置・日時・種名・メモを残します</span>
                                         </div>
                                     </button>
                                 </template>
@@ -222,7 +319,7 @@ if ($isGuest) {
 
                 <!-- 投稿後AIメモの案内 -->
                 <div x-show="photos.length > 0" x-transition class="mt-4">
-                    <div class="bg-surface border border-border rounded-2xl px-4 py-3 text-center">
+                    <div class="px-4 py-3 text-center" style="background:var(--md-surface-container);border-radius:var(--shape-xl);">
                         <p class="text-sm font-bold text-text flex items-center justify-center gap-2">
                             <i data-lucide="sparkles" class="w-4 h-4 text-primary"></i>
                             投稿後に観察のヒントが自動で追加されます
@@ -234,7 +331,7 @@ if ($isGuest) {
                 </div>
                 <div x-show="photos.length > 0 || (canSurveyorOfficialPost && record_mode === 'surveyor_official')" x-transition class="mt-4">
                     <button type="submit" :disabled="submitting || !canSubmit"
-                        class="w-full py-4 rounded-2xl bg-gradient-to-r from-primary to-accent text-white font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:shadow-none active:scale-95">
+                        class="m3-btn-filled"
                         <i data-lucide="send" x-show="!submitting" class="w-5 h-5"></i>
                         <span x-show="!submitting">
                             <span x-text="record_mode === 'surveyor_official' ? '公式記録を残す' : '足跡を残す'"></span>
@@ -265,17 +362,17 @@ if ($isGuest) {
                                 @keydown.escape="showAddressSuggestions = false"
                                 placeholder="住所で検索（例: 静岡市駿河区）"
                                 autocomplete="off"
-                                class="w-full bg-surface border border-border rounded-2xl px-4 py-2.5 pl-9 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-sm text-text">
+                                class="m3-input" style="padding-left:44px;">
                             <div class="absolute left-3 top-2.5 text-faint">
                                 <i data-lucide="search" class="w-4 h-4"></i>
                             </div>
                             <!-- Address suggestions dropdown -->
                             <div x-show="showAddressSuggestions && addressResults.length > 0" x-transition
                                 @click.away="showAddressSuggestions = false"
-                                class="absolute left-0 right-0 top-full mt-1 bg-surface border border-border rounded-2xl overflow-hidden z-50 shadow-xl max-h-48 overflow-y-auto">
+                                style="position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--md-surface-container-high);border-radius:var(--shape-md);overflow:hidden;z-index:50;box-shadow:var(--elev-3);max-height:12rem;overflow-y:auto;">
                                 <template x-for="(addr, i) in addressResults" :key="i">
                                     <button type="button" @click="selectAddress(addr)"
-                                        class="w-full text-left px-4 py-3 hover:bg-surface transition border-b border-border last:border-b-0 flex items-center gap-2">
+                                        class="w-full text-left px-4 py-3 flex items-center gap-2 transition" style="border:none;border-bottom:1px solid var(--md-outline-variant);background:transparent;cursor:pointer;font-size:var(--type-body-sm);color:var(--md-on-surface);"
                                         <i data-lucide="map-pin" class="w-3 h-3 text-primary shrink-0"></i>
                                         <span class="text-xs text-text" x-text="addr.display_name"></span>
                                     </button>
@@ -334,7 +431,7 @@ if ($isGuest) {
                             x-transition:leave-start="opacity-100"
                             x-transition:leave-end="opacity-0"
                             class="mt-2 px-2">
-                            <div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center gap-2">
+                            <div class="flex items-center gap-2 px-3 py-2" style="background:var(--md-tertiary-container);border-radius:var(--shape-sm);">
                                 <span class="text-base">⏰</span>
                                 <span x-text="dateWarning" class="text-[11px] text-amber-700 font-medium"></span>
                             </div>
@@ -345,7 +442,7 @@ if ($isGuest) {
 
                     <!-- Quick Context Inputs -->
                     <div class="space-y-4">
-                        <div class="rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3">
+                        <div class="px-4 py-3" style="background:var(--md-primary-container);border-radius:var(--shape-xl);">
                             <p class="text-sm font-bold text-text flex items-center gap-2">
                                 <i data-lucide="sparkles" class="w-4 h-4 text-primary"></i>
                                 環境や状態は、自動で入りつつあとから直せます
@@ -361,7 +458,7 @@ if ($isGuest) {
                                 <span x-show="biomeAutoSelected" class="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">自動選択</span>
                             </div>
                             <div class="relative">
-                                <select x-model="biome" @change="biomeAutoSelected = false; biomeAutoReason = ''" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 text-xs font-bold text-text focus:outline-none focus:border-primary appearance-none">
+                                <select x-model="biome" @change="biomeAutoSelected = false; biomeAutoReason = ''" class="m3-input" style="font-weight:600;">
                                     <option value="unknown">不明 / わからない</option>
                                     <option value="forest">🌲 森林 (Forest)</option>
                                     <option value="grassland">🍃 草地・河川敷 (Grassland)</option>
@@ -391,8 +488,8 @@ if ($isGuest) {
                                     {value: 51, label: '50+'}
                                 ]">
                                     <button type="button" @click="individual_count = (individual_count === opt.value) ? null : opt.value"
-                                        class="px-4 py-2 rounded-xl border transition text-xs font-bold"
-                                        :class="individual_count === opt.value ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20' : 'border-border bg-surface text-muted hover:border-primary/30'">
+                                        class="m3-chip"
+                                        :class="individual_count === opt.value ? 'selected' : ''">
                                         <span x-text="opt.label"></span>
                                     </button>
                                 </template>
@@ -410,10 +507,10 @@ if ($isGuest) {
                                 x-transition:enter="transition ease-out duration-200"
                                 x-transition:enter-start="opacity-0"
                                 x-transition:enter-end="opacity-100">
-                                <div class="bg-white rounded-t-3xl w-full max-w-md shadow-2xl p-6 pb-8 space-y-4"
+                                <div style="background:var(--md-surface-container-high);border-radius:var(--shape-xl) var(--shape-xl) 0 0;width:100%;max-width:28rem;box-shadow:var(--elev-4);padding:1.5rem 1.5rem 2rem;gap:1rem;display:flex;flex-direction:column;"
                                     @click.outside="usePhotoLocation()">
                                     <div class="flex justify-center">
-                                        <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+                                        <div style="width:2.5rem;height:4px;background:var(--md-outline-variant);border-radius:var(--shape-full);"></div>
                                     </div>
                                     <div class="text-center">
                                         <div class="text-3xl mb-2">🗺️</div>
@@ -423,12 +520,10 @@ if ($isGuest) {
                                         </p>
                                     </div>
                                     <div class="space-y-3">
-                                        <button type="button" @click="usePhotoLocation()"
-                                            class="w-full py-3 rounded-2xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/30 active:scale-95 transition">
-                                            <span>📷</span> 撮影場所を使う（写真のGPS）
+                                        <button type="button" @click="usePhotoLocation()" class="m3-btn-filled" style="border-radius:var(--shape-full);">
+                                            <span style="pointer-events:none;">📷</span> 撮影場所を使う（写真のGPS）
                                         </button>
-                                        <button type="button" @click="useDeviceLocation()"
-                                            class="w-full py-3 rounded-2xl bg-surface border border-border text-text font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition">
+                                        <button type="button" @click="useDeviceLocation()" class="m3-btn-tonal" style="border-radius:var(--shape-full);">
                                             <span>📍</span> 現在地を使う（デバイスGPS）
                                         </button>
                                     </div>
@@ -437,7 +532,7 @@ if ($isGuest) {
                             </div>
                         </template>
                         <button type="button" @click="showDetails = !showDetails; if(showDetails && window.ikimonAnalytics) ikimonAnalytics.track('form_expand')"
-                            class="w-full flex items-center justify-center gap-2 py-3.5 bg-surface border border-border rounded-2xl text-sm font-bold text-muted hover:text-text hover:bg-white/5 transition px-4">
+                            class="m3-btn-tonal" style="border-radius:var(--shape-full);padding:14px 24px;"
                             <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="showDetails ? 'rotate-180' : ''"></i>
                             <span x-text="showDetails ? '閉じる' : '名前や詳細を追加する（任意）'"></span>
                         </button>
@@ -446,7 +541,7 @@ if ($isGuest) {
                             <!-- Date (auto-set, editable here) -->
                             <div>
                                 <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">観察日時</label>
-                                <input type="datetime-local" x-model="observed_at" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-text font-bold">
+                                <input type="datetime-local" x-model="observed_at" class="m3-input" style="font-weight:600;">
                                 <p class="text-[10px] text-faint px-2 mt-1">※写真はEXIFから自動設定されます</p>
                             </div>
 
