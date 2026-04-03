@@ -12,7 +12,7 @@ Auth::init();
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
 
-<body class="js-loading pt-14 bg-base text-text font-body">
+<body class="js-loading pt-14 font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">
@@ -720,12 +720,12 @@ Auth::init();
             </div>
 
             <!-- Newsletter signup -->
-            <div class="mt-16 p-8 rounded-2xl bg-white border border-gray-200 shadow-sm text-center">
+            <div class="mt-16 text-center" style="padding:2rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                 <h3 class="text-lg font-bold mb-2">最新情報をお届けします</h3>
                 <p class="text-sm text-gray-500 mb-4">新機能の追加時にメールでお知らせします</p>
                 <div class="flex gap-2 max-w-md mx-auto">
                     <input type="email" placeholder="メールアドレス"
-                        class="flex-1 px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]">
+                        class="flex-1 px-4 py-3 rounded-xl focus:outline-none" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface);">
                     <button class="btn-primary whitespace-nowrap">登録</button>
                 </div>
             </div>
