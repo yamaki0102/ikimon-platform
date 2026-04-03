@@ -32,7 +32,7 @@ $meta_title = "100年アーカイブ | ikimon.life";
     <link rel="stylesheet" href="assets/css/tokens.css?v=2026">
     <link rel="stylesheet" href="assets/css/input.css?v=2026">
 </head>
-<body class="bg-[var(--color-bg)]">
+<body style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <main class="max-w-2xl mx-auto px-4 py-8" style="padding-top:calc(var(--nav-height,56px) + 2rem);padding-bottom:calc(var(--bottom-nav-height,72px) + 4rem)">

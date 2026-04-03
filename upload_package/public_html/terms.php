@@ -14,7 +14,7 @@ Auth::init();
     ?>
 </head>
 
-<body class="bg-base text-text font-body">
+<body class="font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include __DIR__ . '/components/header.php'; ?>
 
     <main class="max-w-3xl mx-auto px-4 pt-24 pb-20 md:pt-28">

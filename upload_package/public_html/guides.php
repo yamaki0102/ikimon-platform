@@ -93,7 +93,7 @@ $guideGroups = [
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
-<body class="bg-[var(--color-bg-base)] text-[var(--color-text)] font-body">
+<body class="font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <main class="pb-32">

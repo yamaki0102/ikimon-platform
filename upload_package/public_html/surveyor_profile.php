@@ -21,7 +21,7 @@ $meta_description = $surveyor['headline'] ?: ($surveyor['summary'] ?: 'ikimon.li
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
-<body class="bg-base text-text font-body pt-14 pb-24 md:pb-0">
+<body class="font-body pt-14 pb-24 md:pb-0" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <main class="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">

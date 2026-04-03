@@ -31,7 +31,7 @@ $meta_title = $corporation ? ((string)($corporation['name'] ?? '団体ワーク�
     <?php include __DIR__ . '/components/meta.php'; ?>
     <style>.panel{background:rgba(255,255,255,.92);border:1px solid rgba(8,47,42,.08);border-radius:28px;box-shadow:0 16px 46px rgba(16,24,40,.06)}</style>
 </head>
-<body class="js-loading bg-base text-text font-body">
+<body class="js-loading font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
 <?php include 'components/nav.php'; ?>
 <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
 <main class="min-h-screen px-4 pb-20 pt-20 md:px-8">
