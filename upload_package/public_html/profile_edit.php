@@ -90,6 +90,8 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
             position: relative;
             z-index: 10;
         }
+
+        [x-cloak] { display: none !important; }
     </style>
 </head>
 
@@ -153,36 +155,34 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                     </div>
                 </div>
 
-                <!-- Crop Modal -->
-                <template x-if="showCropModal">
-                    <div class="crop-modal" @click.self="closeCropper()" x-transition.opacity role="dialog" aria-modal="true" aria-labelledby="crop-modal-title">
-                        <div class="crop-container" @click.stop>
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 id="crop-modal-title" class="text-base font-black flex items-center gap-2">
-                                    <i data-lucide="crop" class="w-5 h-5 text-primary"></i>
-                                    画像をトリミング
-                                </h3>
-                                <button type="button" @click="closeCropper()" class="w-8 h-8 rounded-full hover:bg-surface flex items-center justify-center transition">
-                                    <i data-lucide="x" class="w-5 h-5 text-muted"></i>
-                                </button>
-                            </div>
-                            <div class="crop-canvas-wrap mb-4">
-                                <img x-ref="cropImage" :src="cropSrc" alt="Crop preview">
-                            </div>
-                            <div class="flex gap-3 justify-end">
-                                <button type="button" @click="closeCropper()"
-                                    class="px-5 py-2.5 rounded-xl text-sm font-bold text-muted hover:bg-surface transition">
-                                    キャンセル
-                                </button>
-                                <button type="button" @click="applyCrop()"
-                                    class="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-primary hover:brightness-110 transition shadow-lg shadow-primary/20 flex items-center gap-2">
-                                    <i data-lucide="check" class="w-4 h-4"></i>
-                                    決定
-                                </button>
-                            </div>
+                <!-- Crop Modal (x-show keeps DOM intact so $refs.cropImage is always available for Cropper.js) -->
+                <div class="crop-modal" x-show="showCropModal" x-cloak @click.self="closeCropper()" role="dialog" aria-modal="true" aria-labelledby="crop-modal-title">
+                    <div class="crop-container" @click.stop>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 id="crop-modal-title" class="text-base font-black flex items-center gap-2">
+                                <i data-lucide="crop" class="w-5 h-5 text-primary"></i>
+                                画像をトリミング
+                            </h3>
+                            <button type="button" @click="closeCropper()" class="w-8 h-8 rounded-full hover:bg-surface flex items-center justify-center transition">
+                                <i data-lucide="x" class="w-5 h-5 text-muted"></i>
+                            </button>
+                        </div>
+                        <div class="crop-canvas-wrap mb-4">
+                            <img x-ref="cropImage" :src="cropSrc" alt="Crop preview">
+                        </div>
+                        <div class="flex gap-3 justify-end">
+                            <button type="button" @click="closeCropper()"
+                                class="px-5 py-2.5 rounded-xl text-sm font-bold text-muted hover:bg-surface transition">
+                                キャンセル
+                            </button>
+                            <button type="button" @click="applyCrop()"
+                                class="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-primary hover:brightness-110 transition shadow-lg shadow-primary/20 flex items-center gap-2">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                                決定
+                            </button>
                         </div>
                     </div>
-                </template>
+                </div>
 
                 <!-- Basic Info -->
                 <div class="space-y-5">
@@ -401,14 +401,16 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
 
                 showCropper(dataUrl) {
                     this.cropSrc = dataUrl;
+                    if (this.cropper) {
+                        this.cropper.destroy();
+                        this.cropper = null;
+                    }
                     this.showCropModal = true;
-                    this.$nextTick(() => {
+                    // x-show reveals the DOM element; setTimeout ensures Cropper.js
+                    // initializes after the element is both visible and sized.
+                    setTimeout(() => {
                         const imgEl = this.$refs.cropImage;
                         if (!imgEl) return;
-                        if (this.cropper) {
-                            this.cropper.destroy();
-                            this.cropper = null;
-                        }
                         this.cropper = new Cropper(imgEl, {
                             aspectRatio: 1,
                             viewMode: 1,
@@ -425,7 +427,7 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                             background: false,
                         });
                         lucide.createIcons();
-                    });
+                    }, 50);
                 },
 
                 closeCropper() {
