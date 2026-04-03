@@ -419,43 +419,10 @@ if (!$currentUser) {
                 </div>
             </div>
 
-            <!-- ガイドの雰囲気 (M3 filter chips — same height as transport) -->
-            <div style="font-size:12px;color:#49454F;font-weight:500;margin-bottom:10px;">ガイドの雰囲気</div>
-            <div style="display:flex;gap:8px;margin-bottom:20px;">
-                <template x-for="gm in [{id:'explore',label:'🌳 自然'},{id:'culture',label:'🏯 文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
-                    <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
-                            :style="guideMood === gm.id ? 'background:#E8DEF8;color:#1D192B;border-color:#D0BCFF;' : 'background:transparent;color:#49454F;border-color:#79747E;'"
-                            style="height:40px;flex:1;padding:0 12px;border-radius:8px;border:1px solid;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s;">
-                        <span x-text="gm.label" style="pointer-events:none;"></span>
-                    </button>
-                </template>
-            </div>
-
-            <!-- 音声 + START -->
-            <div style="display:flex;align-items:center;gap:12px;">
-                <button @click="showSpeakerSelect = !showSpeakerSelect"
-                        style="height:48px;padding:0 16px;border-radius:24px;border:1px solid #79747E;background:transparent;color:#49454F;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
-                    <span x-text="speakerEmoji" style="font-size:18px;pointer-events:none;"></span>
-                    <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || '音声'" style="pointer-events:none;"></span>
-                </button>
-                <button @click="startSensor()" style="flex:1;height:56px;border-radius:16px;border:none;background:#10b981;color:#fff;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,0.12),0 4px 12px rgba(16,185,129,0.3);">
-                    📡 スタート
-                </button>
-            </div>
-
-            <!-- Speaker select (M3 menu) -->
-            <div x-show="showSpeakerSelect" x-cloak style="margin-top:12px;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <template x-for="sp in speakers" :key="sp.id">
-                        <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                :style="selectedSpeaker === sp.id ? 'background:#d1fae5;color:#065f46;border-color:#6ee7b7;' : 'background:transparent;color:#49454F;border-color:#79747E;'"
-                                style="height:44px;border-radius:12px;border:1px solid;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:600;transition:all 0.15s;">
-                            <span x-text="sp.emoji" style="font-size:16px;pointer-events:none;"></span>
-                            <span x-text="sp.label" style="pointer-events:none;"></span>
-                        </button>
-                    </template>
-                </div>
-            </div>
+            <!-- START -->
+            <button @click="startSensor()" style="width:100%;height:56px;border-radius:16px;border:none;background:#10b981;color:#fff;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,0.12),0 4px 12px rgba(16,185,129,0.3);">
+                📡 スタート
+            </button>
         </div>
     </div>
 
