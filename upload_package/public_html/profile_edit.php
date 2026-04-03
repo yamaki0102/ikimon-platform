@@ -20,10 +20,10 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
     <style>
         .glass-card {
-            background: var(--glass-surface);
-            backdrop-filter: blur(var(--glass-blur));
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--shadow-sm);
+            background: var(--md-surface-container);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--md-outline-variant);
+            box-shadow: var(--elev-1);
         }
 
         /* Avatar upload specific styles */
@@ -33,8 +33,8 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
 
         .avatar-upload-area:hover,
         .avatar-upload-area.drag-over {
-            border-color: var(--color-primary);
-            background: var(--color-primary-surface);
+            border-color: var(--md-primary);
+            background: var(--md-primary-container);
         }
 
         /* Password section transition */
@@ -63,8 +63,8 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
         }
 
         .crop-container {
-            background: var(--color-elevated, #fff);
-            border-radius: 1.5rem;
+            background: var(--md-surface-container);
+            border-radius: var(--shape-xl);
             padding: 1.5rem;
             max-width: 90vw;
             max-height: 85vh;
@@ -93,7 +93,7 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
     </style>
 </head>
 
-<body class="bg-base text-text font-body selection:bg-primary-surface selection:text-primary-dark pb-20 md:pb-0">
+<body class="font-body pb-20 md:pb-0" style="background:var(--md-surface);color:var(--md-on-surface);" >
     <?php include('components/nav.php'); ?>
 
     <main class="max-w-2xl mx-auto px-4 md:px-6 py-20 md:py-28" x-data="profileEdit()">
@@ -126,12 +126,12 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                     <div class="flex flex-col md:flex-row items-center gap-6">
                         <!-- Preview Circle -->
                         <div class="relative group shrink-0">
-                            <div class="w-28 h-28 rounded-[var(--radius-lg)] overflow-hidden border-4 border-surface shadow-lg bg-surface">
+                            <div class="w-28 h-28 rounded-[var(--radius-lg)] overflow-hidden overflow-hidden" style="border:4px solid var(--md-surface-container-low);box-shadow:var(--elev-2);background:var(--md-surface-container-low);">
                                 <img :src="avatarPreview" :alt="form.name ? form.name + 'のアバター' : 'ユーザーのアバター'" class="w-full h-full object-cover transition duration-500 group-hover:scale-105">
                             </div>
                             <button type="button"
                                 @click="$refs.avatarInput.click()"
-                                class="absolute bottom-0 right-0 w-8 h-8 bg-elevated text-text rounded-full shadow-md flex items-center justify-center border border-border hover:bg-surface hover:scale-110 transition z-10">
+                                class="absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center hover:scale-110 transition z-10" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-2);">
                                 <i data-lucide="camera" class="w-4 h-4"></i>
                             </button>
                         </div>
@@ -194,7 +194,7 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                         <label class="block text-xs font-bold text-gray-500 mb-1.5 ml-1">表示名 <span class="text-red-400">*</span></label>
                         <div class="relative">
                             <input type="text" x-model="form.name"
-                                class="w-full bg-white/50 border border-gray-200 rounded-xl pl-4 pr-10 py-3 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:bg-white transition font-bold"
+                                class="w-full rounded-xl pl-4 pr-10 py-3 text-sm focus:outline-none transition font-bold" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);"
                                 required maxlength="50" placeholder="あなたのニックネーム">
                             <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" x-show="form.name.length > 0">
                                 <i data-lucide="check" class="w-4 h-4 text-green-500" x-show="form.name.length <= 50"></i>
@@ -206,7 +206,7 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                     <div>
                         <label class="block text-xs font-bold text-muted mb-1.5 ml-1">自己紹介</label>
                         <textarea x-model="form.bio" rows="4"
-                            class="w-full bg-surface border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary focus:bg-elevated transition resize-none"
+                            class="w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition resize-none" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);"
                             placeholder="好きな生き物、活動地域、専門分野など..." maxlength="500"></textarea>
                         <p class="text-token-xs text-faint text-right mt-1" x-text="form.bio.length + '/500'"></p>
                     </div>
@@ -224,17 +224,17 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                     </button>
 
                     <div class="overflow-hidden transition-all duration-300" :style="showEmails ? 'max-height:600px;opacity:1' : 'max-height:0;opacity:0'">
-                        <div class="p-5 bg-surface rounded-2xl border border-border space-y-3 mt-2">
+                        <div class="space-y-3 mt-2" style="padding:1.25rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                             <p class="text-xs text-muted font-bold">ログインに使えるメールアドレスを管理できます。</p>
 
-                            <div class="flex items-center gap-2 py-2 px-3 bg-white/60 rounded-xl border border-gray-100" x-show="primaryEmail">
+                            <div class="flex items-center gap-2 py-2 px-3 rounded-xl" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);" x-show="primaryEmail">
                                 <i data-lucide="shield-check" class="w-4 h-4 text-green-500 flex-shrink-0"></i>
                                 <span class="text-sm font-bold truncate" x-text="primaryEmail"></span>
                                 <span class="text-token-xs text-muted ml-auto flex-shrink-0">メイン</span>
                             </div>
 
                             <template x-for="(em, idx) in emails" :key="idx">
-                                <div class="flex items-center gap-2 py-2 px-3 bg-white/60 rounded-xl border border-gray-100">
+                                <div class="flex items-center gap-2 py-2 px-3 rounded-xl" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                                     <i data-lucide="mail" class="w-4 h-4 text-gray-400 flex-shrink-0"></i>
                                     <span class="text-sm truncate" x-text="em"></span>
                                     <button type="button" @click="removeEmail(em)" class="ml-auto text-red-400 hover:text-red-600 transition flex-shrink-0">
@@ -245,7 +245,7 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
 
                             <div class="flex gap-2 pt-1">
                                 <input type="email" x-model="newEmail" placeholder="追加するメールアドレス"
-                                    class="flex-1 bg-white/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[var(--color-primary)] transition"
+                                    class="flex-1 rounded-xl px-4 py-2.5 text-sm focus:outline-none transition" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);"
                                     @keydown.enter.prevent="addEmail()">
                                 <button type="button" @click="addEmail()"
                                     class="px-4 py-2.5 rounded-xl text-sm font-bold bg-primary/10 text-primary-dark hover:bg-primary/20 transition"
@@ -271,13 +271,13 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                     </button>
 
                     <div class="password-section" :class="showPasswordSection ? 'open' : ''">
-                        <div class="p-5 bg-surface rounded-2xl border border-border space-y-4 mt-2">
+                        <div class="space-y-4 mt-2" style="padding:1.25rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                             <p class="text-xs text-muted font-bold mb-2">セキュリティのため、変更時のみ入力してください。</p>
 
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 mb-1.5 ml-1">現在のパスワード</label>
                                 <input type="password" x-model="form.current_password"
-                                    class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[var(--color-primary)] transition"
+                                    class="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none transition" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);"
                                     placeholder="••••••••">
                             </div>
 
@@ -285,13 +285,13 @@ $meta_description = "ikimon.lifeのプロフィール情報を更新します。
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 mb-1.5 ml-1">新しいパスワード</label>
                                     <input type="password" x-model="form.new_password"
-                                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[var(--color-primary)] transition"
+                                        class="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none transition" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);"
                                         placeholder="8文字以上">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 mb-1.5 ml-1">新しいパスワード（確認）</label>
                                     <input type="password" x-model="form.confirm_password"
-                                        class="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[var(--color-primary)] transition"
+                                        class="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none transition" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);"
                                         :class="{'border-red-300 bg-red-50': passwordMismatch, 'border-green-300 bg-green-50': passwordMatch}">
                                 </div>
                             </div>

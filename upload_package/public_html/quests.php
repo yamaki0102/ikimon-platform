@@ -67,10 +67,8 @@ $bgGradients = [
 <html lang="ja">
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <link rel="stylesheet" href="assets/css/tokens.css?v=2026_naturalism">
-    <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
 </head>
-<body class="bg-background text-text">
+<body style="background:var(--md-surface);color:var(--md-on-surface);">
 <?php include __DIR__ . '/components/nav.php'; ?>
 
 <main class="max-w-lg mx-auto px-4 pb-24" style="padding-top:calc(var(--nav-height,56px) + 1.5rem)"
@@ -86,7 +84,7 @@ $bgGradients = [
     </div>
 
     <?php if (!$currentUser): ?>
-    <div class="bg-surface border border-border rounded-2xl p-6 text-center">
+    <div style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);padding:1.5rem;text-align:center;box-shadow:var(--elev-1);">
         <i data-lucide="lock" class="w-8 h-8 text-muted mx-auto mb-3"></i>
         <p class="text-sm text-muted mb-4">ログインするとマイゴールが解放されます</p>
         <a href="login.php?redirect=quests.php" class="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-6 py-3 text-sm transition">ログイン</a>
@@ -238,7 +236,7 @@ $bgGradients = [
                 $currentMs = $progress['current_milestone'];
                 $isComplete = $progress['completed'];
             ?>
-            <div class="bg-surface border border-border rounded-2xl p-4 <?= $isComplete ? 'ring-2 ring-emerald-300' : '' ?>">
+            <div class="<?= $isComplete ? 'ring-2 ring-emerald-300' : '' ?>" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
                 <div class="flex items-center gap-3">
                     <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 <?= $isComplete ? 'bg-emerald-500/20' : 'bg-emerald-500/10 border border-emerald-500/20' ?>">
                         <?php if ($isComplete): ?>
@@ -286,7 +284,7 @@ $bgGradients = [
             <?php endforeach; ?>
         </div>
         <?php else: ?>
-        <div class="bg-surface border border-border rounded-2xl p-6 text-center">
+        <div style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);padding:1.5rem;text-align:center;box-shadow:var(--elev-1);">
             <i data-lucide="plus-circle" class="w-8 h-8 text-muted mx-auto mb-3"></i>
             <p class="text-sm text-muted mb-2">まだゴールを選んでいません</p>
             <p class="text-xs text-muted">下のカタログから、気になるゴールを追加してみよう</p>
@@ -350,7 +348,7 @@ $bgGradients = [
             if (empty($catGoals)) continue;
         ?>
         <details class="mb-3 group">
-            <summary class="flex items-center gap-2 cursor-pointer p-3 bg-surface border border-border rounded-xl hover:bg-gray-50 transition">
+            <summary class="flex items-center gap-2 cursor-pointer p-3 rounded-xl transition" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                 <i data-lucide="<?= $catInfo['icon'] ?>" class="w-4 h-4 text-gray-500"></i>
                 <span class="text-sm font-bold"><?= $catInfo['label'] ?></span>
                 <span class="text-[10px] text-muted ml-auto"><?= count($catGoals) ?>個</span>
@@ -363,7 +361,7 @@ $bgGradients = [
                     $diffLabel = match($diff) { 'easy' => '初級', 'hard' => '上級', default => '中級' };
                     $diffColor = match($diff) { 'easy' => 'text-emerald-600', 'hard' => 'text-red-600', default => 'text-amber-600' };
                 ?>
-                <div class="bg-surface border border-border rounded-xl p-3 flex items-center gap-3">
+                <div class="flex items-center gap-3" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);padding:.75rem;">
                     <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
                         <i data-lucide="<?= htmlspecialchars($g['icon'] ?? 'target', ENT_QUOTES, 'UTF-8') ?>" class="w-4 h-4 text-gray-500"></i>
                     </div>
@@ -396,7 +394,7 @@ $bgGradients = [
             <i data-lucide="lightbulb" class="w-5 h-5 text-blue-600"></i>
             <h2 class="text-base font-black">マイゴールの哲学</h2>
         </div>
-        <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm space-y-4">
+        <div class="space-y-4" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);padding:1.25rem;box-shadow:var(--elev-1);">
             <div class="flex items-start gap-3">
                 <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
                     <i data-lucide="heart" class="w-4 h-4 text-emerald-600"></i>
