@@ -71,6 +71,7 @@ function buildEmailHtml(array $siteReports, int $totalSpecies, int $totalObs, ar
     $week = date('Y年n月j日');
     $currentMonth = (int)date('n');
     $seasonLabel = seasonLabel($currentMonth);
+    $siteCount = count($siteReports);
 
     $siteBlocksHtml = '';
     foreach ($siteReports as $snap) {
@@ -81,11 +82,13 @@ function buildEmailHtml(array $siteReports, int $totalSpecies, int $totalObs, ar
     foreach (array_slice($gained, 0, 8) as $g) {
         $gainedHtml .= '<li><strong>' . e($g['species']) . '</strong> <span class="site-tag">' . e($g['site']) . '</span></li>';
     }
+    $gainedHtml = $gainedHtml ?: '<p class="no-data">先週との差分なし</p>';
 
     $lostHtml = '';
     foreach (array_slice($lost, 0, 8) as $l) {
         $lostHtml .= '<li><strong>' . e($l['species']) . '</strong> <span class="site-tag">' . e($l['site']) . '</span></li>';
     }
+    $lostHtml = $lostHtml ?: '<p class="no-data">先週との差分なし</p>';
 
     return <<<HTML
 <!DOCTYPE html>
@@ -158,7 +161,7 @@ function buildEmailHtml(array $siteReports, int $totalSpecies, int $totalObs, ar
         <div class="label">総観測記録</div>
       </div>
       <div class="stat">
-        <div class="num">{$this_week_sites}</div>
+        <div class="num">{$siteCount}</div>
         <div class="label">監視サイト</div>
       </div>
     </div>
@@ -170,11 +173,11 @@ function buildEmailHtml(array $siteReports, int $totalSpecies, int $totalObs, ar
     <div class="species-lists">
       <div class="species-col">
         <h3>▲ 新たに確認</h3>
-        {$gainedHtml_block}
+        {$gainedHtml}
       </div>
       <div class="species-col lost">
         <h3>▼ 確認されなくなった</h3>
-        {$lostHtml_block}
+        {$lostHtml}
       </div>
     </div>
   </div>
@@ -199,17 +202,7 @@ function buildEmailHtml(array $siteReports, int $totalSpecies, int $totalObs, ar
 </html>
 HTML;
 
-    // Post-processing: fill in computed values
-    $this_week_sites = count($siteReports);
-    return str_replace(
-        ['{$gainedHtml_block}', '{$lostHtml_block}', '{$this_week_sites}'],
-        [
-            $gainedHtml ?: '<p class="no-data">先週との差分なし</p>',
-            $lostHtml   ?: '<p class="no-data">先週との差分なし</p>',
-            (string)$this_week_sites,
-        ],
-        $html
-    );
+    return $html;
 }
 
 function buildSiteBlock(array $snap): string
