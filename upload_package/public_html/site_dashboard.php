@@ -663,14 +663,30 @@ if ($stats) {
                                     <i data-lucide="info" class="w-3.5 h-3.5"></i>
                                 </span>
                             </h2>
+                            <?php
+                            $bisScore = (int)($stats['credit_score'] ?? 0);
+                            $bisGrade = match(true) {
+                                $bisScore >= 90 => ['label' => 'S', 'color' => 'bg-emerald-500 text-white', 'desc' => '記録のまとまりが非常に高い水準。継続的な観察が定着しています。'],
+                                $bisScore >= 75 => ['label' => 'A', 'color' => 'bg-emerald-100 text-emerald-800', 'desc' => '記録の幅・品質ともに安定。重要種や季節変動の把握が進んでいます。'],
+                                $bisScore >= 60 => ['label' => 'B', 'color' => 'bg-sky-100 text-sky-800',     'desc' => '基礎的な記録が蓄積中。観察頻度を上げると次のステップに進めます。'],
+                                $bisScore >= 45 => ['label' => 'C', 'color' => 'bg-amber-100 text-amber-800', 'desc' => '記録はあるものの偏りがあります。対象分類群や季節の幅を広げましょう。'],
+                                default         => ['label' => 'D', 'color' => 'bg-red-100 text-red-800',    'desc' => '記録がまだ少ない状態です。定期的な観察からはじめましょう。'],
+                            };
+                            ?>
                             <div class="flex items-baseline gap-3 mb-3">
-                                <span class="text-5xl md:text-6xl font-black stat-value count-up" data-target="<?php echo $stats['credit_score']; ?>">0</span>
-                                <span class="text-xs px-3 py-1.5 rounded-full font-bold bg-white border border-[#1a2e1f]/10 text-[#1a2e1f]/60 shadow-sm">
-                                    内部で見返すための目安
-                                </span>
+                                <span class="text-5xl md:text-6xl font-black stat-value count-up" data-target="<?php echo $bisScore; ?>">0</span>
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-lg font-black px-2.5 py-0.5 rounded-lg <?php echo $bisGrade['color']; ?>">
+                                        <?php echo $bisGrade['label']; ?>
+                                    </span>
+                                    <span class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#1a2e1f]/40">Grade</span>
+                                </div>
                             </div>
-                            <p class="text-sm text-[#1a2e1f]/70 leading-relaxed">
-                                記録の広がり、重要種シグナル、記録の揃い方、継続性をひとまとめにした内部向けの目安です。
+                            <p class="text-sm text-[#1a2e1f]/80 leading-relaxed font-medium mb-2">
+                                <?php echo $bisGrade['desc']; ?>
+                            </p>
+                            <p class="text-xs text-[#1a2e1f]/50 leading-relaxed">
+                                記録の広がり・重要種シグナル・記録の揃い方・継続性を組み合わせた内部向けの目安 (0–100)。
                                 自然価値そのものや認証可否を示す数値ではなく、どこを見直すと記録が育つかを考えるために使います。
                             </p>
 

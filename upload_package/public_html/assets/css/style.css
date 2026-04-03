@@ -23,6 +23,15 @@ button *,
     pointer-events: none;
 }
 
+/* ── Icon Size Defaults ── */
+/* サイズ指定なしアイコンに20pxデフォルト適用（145個の未指定問題を一括解決） */
+[data-lucide]:not([class*="w-"]),
+.lucide:not([class*="w-"]) {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+}
+
 /* ── Base ── */
 body {
     font-family: var(--font-body);
