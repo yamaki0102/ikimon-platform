@@ -28,7 +28,7 @@ $csrfToken = CSRF::generate();
     </style>
 </head>
 
-<body class="bg-bg text-text min-h-screen">
+<body class="min-h-screen" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <main class="max-w-2xl mx-auto px-4 pt-[calc(var(--nav-height)+var(--safe-top)+1rem)] pb-28"
@@ -77,7 +77,7 @@ $csrfToken = CSRF::generate();
         <!-- Card Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" x-show="!loading">
             <template x-for="item in items" :key="item.id">
-                <div class="sound-card bg-surface rounded-2xl border border-border overflow-hidden">
+                <div class="sound-card rounded-2xl overflow-hidden" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);">
                     <!-- Image (if available) -->
                     <template x-if="item.image_path">
                         <img :src="'/' + item.image_path" class="w-full h-32 object-cover" loading="lazy">
@@ -191,7 +191,7 @@ $csrfToken = CSRF::generate();
                     <div>
                         <label class="text-xs font-bold text-muted block mb-1">カテゴリ</label>
                         <select x-model="uploadForm.category"
-                                class="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-sm">
+                                class="w-full rounded-xl px-4 py-2.5 text-sm" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                             <option value="unknown">不明</option>
                             <option value="bird">鳥</option>
                             <option value="insect">昆虫</option>
@@ -258,10 +258,10 @@ $csrfToken = CSRF::generate();
 
                 <div class="space-y-3">
                     <input x-model="identifyForm.suggested_name" placeholder="和名（例: ウグイス）"
-                           class="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-sm">
+                           class="w-full rounded-xl px-4 py-2.5 text-sm" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
 
                     <select x-model="identifyForm.category"
-                            class="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-sm">
+                            class="w-full rounded-xl px-4 py-2.5 text-sm" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                         <option value="bird">鳥</option>
                         <option value="insect">昆虫</option>
                         <option value="frog">カエル</option>
@@ -271,7 +271,7 @@ $csrfToken = CSRF::generate();
                     </select>
 
                     <select x-model="identifyForm.confidence_self"
-                            class="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-sm">
+                            class="w-full rounded-xl px-4 py-2.5 text-sm" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                         <option value="certain">確信あり</option>
                         <option value="likely">たぶん</option>
                         <option value="guess">推測</option>

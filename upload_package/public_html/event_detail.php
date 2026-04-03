@@ -73,7 +73,7 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
 
-<body class="bg-base text-text font-sans min-h-screen pb-24 safe-area-inset-bottom"
+<body class="font-sans min-h-screen pb-24 safe-area-inset-bottom" style="background:var(--md-surface);color:var(--md-on-surface);"
     x-data="eventDashboard()">
 
     <?php include('components/nav.php'); ?>
@@ -174,7 +174,7 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                 <?php endif; ?>
             </div>
 
-            <div class="mt-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div class="mt-4 p-4" style="border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                 <div class="flex items-center justify-between gap-3">
                     <div>
                         <div class="text-xs font-black tracking-[0.14em] uppercase text-gray-400">Participation</div>
@@ -301,15 +301,15 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
         <!-- ========== LIVE STATS ========== -->
         <div class="px-4 mt-5">
             <div class="grid grid-cols-3 gap-3">
-                <div class="bg-white rounded-xl p-3 text-center shadow-sm border border-gray-100">
+                <div class="rounded-xl p-3 text-center" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                     <div class="text-2xl font-black text-emerald-600" x-text="stats.species_count">0</div>
                     <div class="text-xs text-gray-400 mt-0.5">種</div>
                 </div>
-                <div class="bg-white rounded-xl p-3 text-center shadow-sm border border-gray-100">
+                <div class="rounded-xl p-3 text-center" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                     <div class="text-2xl font-black text-blue-500" x-text="stats.observation_count">0</div>
                     <div class="text-xs text-gray-400 mt-0.5">記録</div>
                 </div>
-                <div class="bg-white rounded-xl p-3 text-center shadow-sm border border-gray-100">
+                <div class="rounded-xl p-3 text-center" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                     <div class="text-2xl font-black text-orange-500" x-text="stats.contributor_count">0</div>
                     <div class="text-xs text-gray-400 mt-0.5">参加者</div>
                 </div>
@@ -372,7 +372,7 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
         </div>
 
         <div x-show="leaderboardEnabled" x-cloak class="px-4 mt-5">
-            <div class="rounded-3xl bg-white border border-gray-100 p-4 shadow-sm">
+            <div class="p-4" style="border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-sm font-bold text-gray-900">🏆 ランキング</h2>
                     <span class="text-[10px] text-gray-400">30秒ごとに更新</span>
@@ -449,7 +449,7 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                 <template x-for="obs in observations" :key="obs.id">
                     <a :href="speciesDetailsAvailable ? ('observation.php?id=' + obs.id) : '#'"
                         @click="if (!speciesDetailsAvailable) { $event.preventDefault(); }"
-                        class="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition">
+                        class="flex items-center gap-3 rounded-xl p-3 transition" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                         <template x-if="obs.photo">
                             <img :src="obs.photo" :alt="obs.taxon_name || '観察写真'" class="size-12 rounded-lg object-cover bg-gray-100" loading="lazy">
                         </template>
