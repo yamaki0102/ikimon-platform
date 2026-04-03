@@ -50,77 +50,7 @@ if (!$currentUser) {
         body, html { height: 100%; margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         #map { width: 100%; height: 100%; }
 
-        /* ═══════════════════════════════════════════════════════
-           M3 DESIGN TOKENS — Emerald Custom Color Scheme
-        ═══════════════════════════════════════════════════════ */
-        :root {
-            /* Color Tokens */
-            --md-primary:                #0a7c5c;
-            --md-on-primary:             #ffffff;
-            --md-primary-container:      #a8f0d0;
-            --md-on-primary-container:   #002117;
-            --md-secondary:              #4a635a;
-            --md-on-secondary:           #ffffff;
-            --md-secondary-container:    #cce8dc;
-            --md-on-secondary-container: #062019;
-            --md-tertiary:               #7e5700;
-            --md-on-tertiary:            #ffffff;
-            --md-tertiary-container:     #ffdea0;
-            --md-on-tertiary-container:  #271900;
-            --md-error:                  #b3261e;
-            --md-on-error:               #ffffff;
-            --md-error-container:        #f9dedc;
-            --md-on-error-container:     #410e0b;
-            --md-surface:                #f5faf7;
-            --md-on-surface:             #181c1a;
-            --md-surface-variant:        #dbe5df;
-            --md-on-surface-variant:     #404944;
-            --md-surface-container-low:  #eff4f1;
-            --md-surface-container:      #e9eee9;
-            --md-surface-container-high: #e4e8e5;
-            --md-outline:                #707974;
-            --md-outline-variant:        #bfc9c2;
-            --md-inverse-surface:        #2d312f;
-            --md-inverse-on-surface:     #eff1ef;
-            --md-inverse-primary:        #8dd4b3;
-            --md-scrim:                  rgba(0,0,0,0.32);
-
-            /* Shape Scale (M3 spec: XS=4, S=8, M=12, L=16, XL=28, Full) */
-            --shape-xs:   4px;
-            --shape-sm:   8px;
-            --shape-md:   12px;
-            --shape-lg:   16px;
-            --shape-xl:   28px;
-            --shape-full: 9999px;
-
-            /* Type Scale (5 roles × 3 sizes) */
-            --type-headline-lg:  32px;
-            --type-headline-md:  28px;
-            --type-headline-sm:  24px;
-            --type-title-lg:     22px;
-            --type-title-md:     16px;
-            --type-title-sm:     14px;
-            --type-body-lg:      16px;
-            --type-body-md:      14px;
-            --type-body-sm:      12px;
-            --type-label-lg:     14px;
-            --type-label-md:     12px;
-            --type-label-sm:     11px;
-
-            /* Motion (M3 standard easing + durations) */
-            --motion-std:    cubic-bezier(0.2, 0, 0, 1);
-            --motion-decel:  cubic-bezier(0, 0, 0, 1);
-            --motion-accel:  cubic-bezier(0.3, 0, 1, 1);
-            --motion-short:  200ms;
-            --motion-medium: 300ms;
-            --motion-long:   450ms;
-
-            /* Elevation (M3 tonal shadow system) */
-            --elev-1: 0px 1px 2px rgba(0,0,0,0.3), 0px 1px 3px 1px rgba(0,0,0,0.15);
-            --elev-2: 0px 1px 2px rgba(0,0,0,0.3), 0px 2px 6px 2px rgba(0,0,0,0.15);
-            --elev-3: 0px 1px 3px rgba(0,0,0,0.3), 0px 4px 8px 3px rgba(0,0,0,0.15);
-            --elev-4: 0px 2px 3px rgba(0,0,0,0.3), 0px 6px 10px 4px rgba(0,0,0,0.15);
-        }
+        /* M3 tokens (--md-*, --shape-*, --type-*, --motion-*, --elev-*) loaded globally via assets/css/tokens.css */
 
         /* ═══════════════════════════════════════════════════════
            STATE LAYERS — M3 interactive state system
