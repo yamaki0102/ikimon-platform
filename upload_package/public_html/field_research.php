@@ -845,11 +845,71 @@ if (!$currentUser) {
     <video id="scan-cam" playsinline muted autoplay style="display:none;"></video>
     <canvas id="scan-canvas" style="display:none;"></canvas>
 
-    <!-- Camera preview overlay (stationary mode with camera active) -->
-    <div x-show="sessionActive && currentMovementMode === 'stationary'" x-cloak
-         style="position:absolute;top:46px;left:0;right:0;bottom:160px;z-index:10;background:#000;">
-        <video id="scan-preview" playsinline muted autoplay
-               style="width:100%;height:100%;object-fit:cover;"></video>
+    <!-- ════════════════════════════════════════════════════
+         CAMERA PiP + スキャン！ UI
+         センサー起動中（ドライブ以外）に常時表示。
+         観察投稿とは別のセンサースキャンとして保存される。
+    ════════════════════════════════════════════════════ -->
+    <div x-show="sessionActive && currentMovementMode !== 'drive' && manualTransportMode !== 'car'" x-cloak
+         style="position:absolute;bottom:calc(max(24px,env(safe-area-inset-bottom,16px)) + 152px);right:16px;z-index:30;display:flex;flex-direction:column;align-items:center;gap:6px;">
+
+        <!-- Camera PiP viewfinder -->
+        <div style="width:112px;height:80px;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,0.25);box-shadow:0 4px 20px rgba(0,0,0,0.5);position:relative;background:#000;flex-shrink:0;">
+            <video id="scan-preview-pip" playsinline muted autoplay
+                   style="width:100%;height:100%;object-fit:cover;"></video>
+            <!-- Scanning overlay -->
+            <div x-show="scanLoading" style="position:absolute;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;">
+                <div style="width:22px;height:22px;border:2.5px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></div>
+            </div>
+            <!-- Shot counter badge -->
+            <div x-show="scanDraftCount > 0" style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.6);border-radius:999px;padding:1px 7px;">
+                <span style="font-size:10px;font-weight:800;color:#8dd4b3;" x-text="scanDraftCount + '枚'"></span>
+            </div>
+        </div>
+
+        <!-- スキャン！ button -->
+        <button @click="triggerScan()" :disabled="scanLoading"
+                style="width:60px;height:60px;border-radius:50%;border:3px solid rgba(255,255,255,0.9);background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.1s,opacity 0.1s;"
+                :style="scanLoading ? 'opacity:0.5;transform:scale(0.95);' : 'opacity:1;'"
+                title="スキャン！">
+            <div style="width:40px;height:40px;border-radius:50%;background:white;pointer-events:none;"></div>
+        </button>
+
+        <!-- Hint text (universal tips, rotates per shot) -->
+        <div style="max-width:112px;text-align:center;">
+            <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.75);text-shadow:0 1px 4px rgba(0,0,0,0.7);line-height:1.3;" x-text="scanHint"></span>
+        </div>
+    </div>
+
+    <!-- Scan result toast (センサースキャン — 観察投稿とは別) -->
+    <div x-show="scanResult" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+         style="position:absolute;top:56px;left:12px;right:12px;z-index:50;pointer-events:none;">
+        <div style="background:rgba(18,18,24,0.96);border-radius:16px;padding:12px 14px;border:1px solid rgba(141,212,179,0.2);box-shadow:0 8px 32px rgba(0,0,0,0.5);pointer-events:auto;max-width:440px;margin:0 auto;">
+            <!-- Header: センサースキャン badge + close -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-size:10px;font-weight:800;letter-spacing:0.8px;color:#8dd4b3;background:rgba(141,212,179,0.12);border:1px solid rgba(141,212,179,0.25);border-radius:999px;padding:2px 8px;">📡 センサースキャン</span>
+                <button @click="scanResult=null" style="background:none;border:none;color:rgba(255,255,255,0.35);cursor:pointer;font-size:18px;line-height:1;padding:0 2px;">×</button>
+            </div>
+            <!-- Photo + primary result -->
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+                <img x-show="scanResult?.photoUrl" :src="scanResult?.photoUrl"
+                     style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid rgba(255,255,255,0.1);" />
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:15px;font-weight:800;color:#e6e1e5;line-height:1.2;" x-text="scanResult?.name || '不明'"></div>
+                    <div style="font-size:11px;color:#938f99;font-style:italic;margin-top:1px;" x-text="scanResult?.scientific || ''"></div>
+                    <div style="font-size:11px;color:#8dd4b3;margin-top:3px;" x-text="scanResult?.confidence ? Math.round(scanResult.confidence*100) + '% 一致' : ''"></div>
+                </div>
+            </div>
+            <!-- Note -->
+            <div x-show="scanResult?.note" style="font-size:11px;color:#a8a4af;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07);" x-text="scanResult.note"></div>
+            <!-- Multi-shot encouragement -->
+            <div x-show="scanDraftCount < 3" style="margin-top:8px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.05);display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;">📷</span>
+                <span style="font-size:11px;color:#c8c4ce;" x-text="scanDraftCount === 1 ? 'あと2枚撮ると同定精度が上がるよ' : 'あと1枚！角度や距離を変えてみて'"></span>
+            </div>
+            <!-- Obs separation notice -->
+            <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:6px;text-align:center;">観察投稿には含まれません・あとから同定できます</div>
+        </div>
     </div>
 
     <!-- Scripts -->
@@ -930,6 +990,23 @@ if (!$currentUser) {
                 get speakerEmoji() {
                     const sp = this.speakers.find(s => s.id === this.selectedSpeaker);
                     return sp ? sp.emoji : '🤖';
+                },
+
+                // Scan (センサースキャン — 観察投稿とは別)
+                scanResult: null,
+                scanLoading: false,
+                scanDraftCount: 0,
+                _scanHints: [
+                    'スキャン！',
+                    '角度を変えて',
+                    '近づいてみて',
+                    '全体を入れて',
+                    '離れてから',
+                    '反対側から',
+                ],
+                get scanHint() {
+                    if (!this.sessionActive) return 'スキャン！';
+                    return this._scanHints[this.scanDraftCount % this._scanHints.length];
                 },
 
                 // Refs
@@ -1198,6 +1275,17 @@ if (!$currentUser) {
                         canvasElement: canvasEl,
                     });
 
+                    // PiP viewfinder: stream を共有 (start() は async なので少し待つ)
+                    this.scanDraftCount = 0;
+                    this.scanResult = null;
+                    setTimeout(() => {
+                        const pip = document.getElementById('scan-preview-pip');
+                        if (pip && this.liveScanner?.stream) {
+                            pip.srcObject = this.liveScanner.stream;
+                            pip.play().catch(() => {});
+                        }
+                    }, 1500);
+
                     // Enable VoiceGuide + unlock audio (must happen in user gesture context)
                     if (window.VoiceGuide) {
                         window._vgDebug = VoiceGuide._debugToast;
@@ -1218,10 +1306,34 @@ if (!$currentUser) {
                     this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
                 },
 
+                // ── スキャン！ (センサースキャン — 観察投稿とは別) ──
+                async triggerScan() {
+                    if (this.scanLoading || !this.liveScanner) return;
+                    this.scanLoading = true;
+                    try {
+                        const result = await this.liveScanner.triggerScan();
+                        if (result) {
+                            this.scanDraftCount++;
+                            this.scanResult = result;
+                            // 8秒後に自動dismiss
+                            clearTimeout(this._scanResultTimer);
+                            this._scanResultTimer = setTimeout(() => {
+                                if (this.scanResult === result) this.scanResult = null;
+                            }, 8000);
+                        }
+                    } finally {
+                        this.scanLoading = false;
+                    }
+                },
+
                 async stopSensor() {
                     this.sessionActive = false;
                     if (this._sessionTimer) { clearInterval(this._sessionTimer); this._sessionTimer = null; }
                     if (this._ambientTimer) { clearInterval(this._ambientTimer); this._ambientTimer = null; }
+                    if (this._scanResultTimer) { clearTimeout(this._scanResultTimer); this._scanResultTimer = null; }
+                    this.scanResult = null;
+                    const pip = document.getElementById('scan-preview-pip');
+                    if (pip) { pip.srcObject = null; }
 
                     if (window.VoiceGuide) {
                         VoiceGuide.stop();
