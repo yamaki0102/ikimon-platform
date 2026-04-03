@@ -71,12 +71,12 @@ $meta_title = $corporation ? $workspaceLabel . ' ワークスペース' : '団�
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
     <style>
-        .panel{background:rgba(255,255,255,.88);border:1px solid rgba(8,47,42,.08);border-radius:28px;box-shadow:0 20px 46px rgba(16,24,40,.06)}
+        .panel{background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);box-shadow:var(--elev-1)}
         .hero{background:linear-gradient(135deg,#0f766e 0%,#10b981 48%,#38bdf8 100%)}
-        .chip{display:inline-flex;align-items:center;gap:.45rem;border-radius:999px;padding:.45rem .85rem;font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
+        .chip{display:inline-flex;align-items:center;gap:.45rem;border-radius:var(--shape-full);padding:.45rem .85rem;font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
     </style>
 </head>
-<body class="js-loading bg-base text-text font-body">
+<body class="js-loading font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
 <?php include 'components/nav.php'; ?>
 <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
 <main class="min-h-screen px-4 pb-20 pt-20 md:px-8">
