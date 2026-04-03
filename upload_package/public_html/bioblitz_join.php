@@ -115,7 +115,7 @@ $meta_title = $event ? htmlspecialchars($event['title'], ENT_QUOTES, 'UTF-8') . 
     </style>
 </head>
 
-<body class="js-loading pb-24 md:pb-0 bg-base text-text font-body">
+<body class="js-loading pb-24 md:pb-0 font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include __DIR__ . '/components/nav.php'; ?>
     <script nonce="<?= \CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
 

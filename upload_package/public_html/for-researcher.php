@@ -31,7 +31,7 @@ $researcherRgRate = $researcherTotalObs > 0 ? round($researcherRgCount / $resear
     <title>データを持ち帰りたい方へ | ikimon</title>
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
-<body class="js-loading pt-14 bg-base text-text font-body">
+<body class="js-loading pt-14 font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>

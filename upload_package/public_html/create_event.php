@@ -39,16 +39,16 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             width: 2.5rem;
             height: 4px;
             border-radius: 2px;
-            background: var(--color-border, #e5e7eb);
+            background: var(--md-outline-variant);
             transition: background 0.3s;
         }
 
         .step-dot.completed {
-            background: var(--color-primary, #10b981);
+            background: var(--md-primary);
         }
 
         .step-dot.current {
-            background: var(--color-primary, #10b981);
+            background: var(--md-primary);
         }
 
         .wizard-container {
@@ -62,7 +62,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             height: 250px;
             border-radius: 1rem;
             overflow: hidden;
-            border: 2px solid var(--color-primary, #10b981);
+            border: 2px solid var(--md-primary);
         }
 
         .meeting-map {
@@ -70,7 +70,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             height: 180px;
             border-radius: 0.75rem;
             overflow: hidden;
-            border: 1.5px solid var(--color-border, #e5e7eb);
+            border: 1.5px solid var(--md-outline-variant);
             margin-top: 0.5rem;
         }
 
@@ -82,7 +82,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             display: block;
             font-size: 0.8rem;
             font-weight: 700;
-            color: var(--color-text-muted, #6b7280);
+            color: var(--md-on-surface-variant);
             margin-bottom: 0.35rem;
         }
 
@@ -91,7 +91,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         .form-field select {
             width: 100%;
             padding: 0.65rem 0.85rem;
-            border: 1.5px solid var(--color-border, #e5e7eb);
+            border: 1.5px solid var(--md-outline-variant);
             border-radius: 0.75rem;
             font-size: 0.95rem;
             background: white;
@@ -102,7 +102,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         .form-field textarea:focus,
         .form-field select:focus {
             outline: none;
-            border-color: var(--color-primary, #10b981);
+            border-color: var(--md-primary);
             box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
         }
 
@@ -115,7 +115,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
 
         .time-row .separator {
             text-align: center;
-            color: var(--color-text-muted);
+            color: var(--md-on-surface-variant);
             font-weight: 700;
         }
 
@@ -130,7 +130,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             display: flex;
             align-items: center;
             gap: 0.3rem;
-            background: var(--color-primary, #10b981);
+            background: var(--md-primary);
             color: white;
             padding: 0.3rem 0.65rem;
             border-radius: 9999px;
@@ -165,13 +165,13 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         }
 
         .btn-back {
-            background: var(--color-bg-surface, #f3f4f6);
-            color: var(--color-text-muted, #6b7280);
+            background: var(--md-surface-container);
+            color: var(--md-on-surface-variant);
         }
 
         .btn-next,
         .btn-create {
-            background: var(--color-primary, #10b981);
+            background: var(--md-primary);
             color: white;
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
@@ -192,7 +192,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             background: white;
             border-radius: 1rem;
             padding: 1.25rem;
-            border: 1.5px solid var(--color-border, #e5e7eb);
+            border: 1.5px solid var(--md-outline-variant);
         }
 
         .summary-row {
@@ -208,7 +208,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         }
 
         .summary-row .label {
-            color: var(--color-text-muted);
+            color: var(--md-on-surface-variant);
             font-size: 0.75rem;
             min-width: 3rem;
         }
@@ -236,7 +236,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         .search-container input {
             width: 100%;
             padding: 0.65rem 0.85rem 0.65rem 2.5rem;
-            border: 1.5px solid var(--color-border, #e5e7eb);
+            border: 1.5px solid var(--md-outline-variant);
             border-radius: 0.75rem;
             font-size: 0.95rem;
             background: white;
@@ -244,7 +244,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
 
         .search-container input:focus {
             outline: none;
-            border-color: var(--color-primary, #10b981);
+            border-color: var(--md-primary);
             box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
         }
 
@@ -253,7 +253,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             left: 0.85rem;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--color-text-faint, #9ca3af);
+            color: var(--md-on-surface-variant);
             pointer-events: none;
         }
 
@@ -263,7 +263,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             left: 0;
             right: 0;
             background: white;
-            border: 1.5px solid var(--color-border, #e5e7eb);
+            border: 1.5px solid var(--md-outline-variant);
             border-radius: 0.75rem;
             margin-top: 0.25rem;
             max-height: 200px;
@@ -276,7 +276,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
             padding: 0.6rem 0.85rem;
             cursor: pointer;
             font-size: 0.85rem;
-            border-bottom: 1px solid var(--color-border, #f3f4f6);
+            border-bottom: 1px solid var(--md-outline-variant);
             transition: background 0.15s;
         }
 
@@ -285,7 +285,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         }
 
         .search-results .result-item:hover {
-            background: var(--color-bg-surface, #f0fdf4);
+            background: var(--md-primary-container);
         }
 
         .success-screen h2 {
@@ -305,7 +305,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         .site-card {
             min-width: 220px;
             border-radius: 1rem;
-            border: 1.5px solid var(--color-border, #e5e7eb);
+            border: 1.5px solid var(--md-outline-variant);
             background: white;
             padding: 0.9rem;
             text-align: left;
@@ -313,7 +313,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         }
 
         .site-card.active {
-            border-color: var(--color-primary, #10b981);
+            border-color: var(--md-primary);
             background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.04));
             box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
         }
@@ -327,7 +327,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
     </style>
 </head>
 
-<body class="bg-base text-text font-sans min-h-screen pb-24 safe-area-inset-bottom"
+<body class="font-sans min-h-screen pb-24 safe-area-inset-bottom" style="background:var(--md-surface);color:var(--md-on-surface);"
     x-data="createEvent()">
 
     <?php include('components/nav.php'); ?>

@@ -85,7 +85,7 @@ $meta_description = "観察会の情報を編集します。";
             font-weight: 700;
             font-size: 0.85rem;
             margin-bottom: 0.35rem;
-            color: var(--color-text-muted, #6b7280);
+            color: var(--md-on-surface-variant);
         }
 
         .form-field input,
@@ -93,7 +93,7 @@ $meta_description = "観察会の情報を編集します。";
         .form-field select {
             width: 100%;
             padding: 0.6rem 0.8rem;
-            border: 1.5px solid var(--color-border, #e5e7eb);
+            border: 1.5px solid var(--md-outline-variant);
             border-radius: 0.75rem;
             font-size: 0.95rem;
             background: white;
@@ -103,7 +103,7 @@ $meta_description = "観察会の情報を編集します。";
         .form-field textarea:focus,
         .form-field select:focus {
             outline: none;
-            border-color: var(--color-primary, #10b981);
+            border-color: var(--md-primary);
             box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
         }
 
@@ -111,14 +111,14 @@ $meta_description = "観察会の情報を編集します。";
             width: 100%;
             height: 200px;
             border-radius: 1rem;
-            border: 2px solid var(--color-primary, #10b981);
+            border: 2px solid var(--md-primary);
             margin-bottom: 0.75rem;
         }
 
         .btn-save {
             width: 100%;
             padding: 0.85rem;
-            background: var(--color-primary, #10b981);
+            background: var(--md-primary);
             color: white;
             font-weight: 800;
             font-size: 1rem;
@@ -152,7 +152,7 @@ $meta_description = "観察会の情報を編集します。";
             left: 0.85rem;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--color-text-faint, #9ca3af);
+            color: var(--md-on-surface-variant);
             pointer-events: none;
         }
 
@@ -162,7 +162,7 @@ $meta_description = "観察会の情報を編集します。";
             left: 0;
             right: 0;
             background: white;
-            border: 1.5px solid var(--color-border, #e5e7eb);
+            border: 1.5px solid var(--md-outline-variant);
             border-radius: 0.75rem;
             margin-top: 0.25rem;
             max-height: 200px;
@@ -198,7 +198,7 @@ $meta_description = "観察会の情報を編集します。";
         .site-card {
             min-width: 220px;
             border-radius: 1rem;
-            border: 1.5px solid var(--color-border, #e5e7eb);
+            border: 1.5px solid var(--md-outline-variant);
             background: white;
             padding: 0.9rem;
             text-align: left;
@@ -206,7 +206,7 @@ $meta_description = "観察会の情報を編集します。";
         }
 
         .site-card.active {
-            border-color: var(--color-primary, #10b981);
+            border-color: var(--md-primary);
             background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.04));
             box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
         }
@@ -220,7 +220,7 @@ $meta_description = "観察会の情報を編集します。";
     </style>
 </head>
 
-<body class="bg-base text-text font-sans min-h-screen pb-24"
+<body class="font-sans min-h-screen pb-24" style="background:var(--md-surface);color:var(--md-on-surface);"
     x-data="editEvent()">
 
     <?php include('components/nav.php'); ?>
