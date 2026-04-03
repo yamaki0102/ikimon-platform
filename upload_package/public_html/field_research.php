@@ -463,8 +463,54 @@ if (!$currentUser) {
         </div>
     </div>
 
+    <!-- センサー初回ガイド (M3 bottom sheet) -->
+    <div x-show="!sessionActive && showSensorIntro" x-cloak
+         style="position:absolute;bottom:0;left:0;right:0;z-index:26;">
+        <div style="background:var(--md-surface);border-radius:var(--shape-xl) var(--shape-xl) 0 0;padding:12px 24px max(24px,env(safe-area-inset-bottom,24px));box-shadow:var(--elev-3);">
+            <div style="width:32px;height:4px;background:var(--md-outline-variant);border-radius:var(--shape-full);margin:0 auto 20px;"></div>
+            <!-- ステップ dots -->
+            <div style="display:flex;justify-content:center;gap:6px;margin-bottom:20px;">
+                <template x-for="i in [1,2,3]" :key="i">
+                    <div :style="i === introStep ? 'width:20px;background:var(--md-primary);' : 'width:8px;background:var(--md-outline-variant);'"
+                         style="height:8px;border-radius:var(--shape-full);transition:all 0.3s;"></div>
+                </template>
+            </div>
+            <!-- ステップ内容 -->
+            <div style="text-align:center;min-height:100px;margin-bottom:20px;">
+                <template x-if="introStep === 1">
+                    <div>
+                        <div style="font-size:36px;margin-bottom:10px;">📡</div>
+                        <div style="font-size:var(--type-title-sm);font-weight:800;color:var(--md-on-surface);margin-bottom:6px;">マイクが生きものを探す</div>
+                        <div style="font-size:var(--type-body-sm);color:var(--md-on-surface-variant);line-height:1.6;">周囲の音声をリアルタイムで解析して<br>鳥・虫・自然音を自動で記録します</div>
+                    </div>
+                </template>
+                <template x-if="introStep === 2">
+                    <div>
+                        <div style="font-size:36px;margin-bottom:10px;">🗺️</div>
+                        <div style="font-size:var(--type-title-sm);font-weight:800;color:var(--md-on-surface);margin-bottom:6px;">歩いた道が地図に残る</div>
+                        <div style="font-size:var(--type-body-sm);color:var(--md-on-surface-variant);line-height:1.6;">移動するほど霧が晴れて<br>あなただけの探索マップが育っていきます</div>
+                    </div>
+                </template>
+                <template x-if="introStep === 3">
+                    <div>
+                        <div style="font-size:36px;margin-bottom:10px;">🔬</div>
+                        <div style="font-size:var(--type-title-sm);font-weight:800;color:var(--md-on-surface);margin-bottom:6px;">データは自動で記録される</div>
+                        <div style="font-size:var(--type-body-sm);color:var(--md-on-surface-variant);line-height:1.6;">検出した生きものは終了時に自動送信。<br>100年後のアーカイブに刻まれます</div>
+                    </div>
+                </template>
+            </div>
+            <!-- ボタン -->
+            <button @click="nextIntroStep()" style="width:100%;height:52px;border-radius:var(--shape-lg);border:none;background:var(--md-primary);color:var(--md-on-primary);font-size:var(--type-body-lg);font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:var(--elev-1);">
+                <span x-text="introStep < 3 ? '次へ →' : '✨ はじめる'"></span>
+            </button>
+            <div style="text-align:center;margin-top:12px;">
+                <button @click="skipIntro()" style="background:none;border:none;color:var(--md-on-surface-variant);font-size:var(--type-label-md);cursor:pointer;padding:4px 8px;">スキップ</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Sensor Start Panel (M3 bottom sheet) -->
-    <div x-show="!sessionActive && showModeSelect" x-cloak
+    <div x-show="!sessionActive && showModeSelect && !showSensorIntro" x-cloak
          style="position:absolute;bottom:0;left:0;right:0;z-index:25;">
         <div style="background:var(--md-surface);border-radius:var(--shape-xl) var(--shape-xl) 0 0;padding:12px 24px max(24px,env(safe-area-inset-bottom,24px));box-shadow:var(--elev-3);">
             <!-- Handle bar -->
@@ -621,7 +667,7 @@ if (!$currentUser) {
     </div>
 
     <!-- Bottom Action Bar (when no session and sensor panel hidden) -->
-    <div class="bottom-bar glass" x-show="!sessionActive && !showModeSelect" x-cloak>
+    <div class="bottom-bar glass" x-show="!sessionActive && !showModeSelect && !showSensorIntro" x-cloak>
         <!-- Locate -->
         <button class="action-btn btn-locate" @click="flyToCurrentLocation()">
             <i data-lucide="locate" style="width:20px;height:20px;"></i>
@@ -856,6 +902,8 @@ if (!$currentUser) {
                 envLabel: '',
 
                 // Speaker selection
+                showSensorIntro: !localStorage.getItem('ikimon_sensor_intro_v1'),
+                introStep: 1,
                 showSpeakerSelect: true,
                 showVoiceSwitch: false,
                 showDriveVoiceSwitch: false,
@@ -1102,7 +1150,6 @@ if (!$currentUser) {
                     const ambientIntervalMs = this._driveTotalMin > 0
                         ? Math.max(30000, Math.min(120000, (this._driveTotalMin * 60000) / Math.max(6, Math.ceil(this._driveTotalMin / 5))))
                         : 45000;
-                    console.log(`[Ambient] interval: ${Math.round(ambientIntervalMs/1000)}s, driveDuration: ${this._driveTotalMin}min`);
                     // 初回は5秒後に発火（体験の早期スタート）、以降は通常間隔
                     this._ambientFirstFired = false;
                     setTimeout(() => {
@@ -1127,9 +1174,8 @@ if (!$currentUser) {
                             // 車を手動選択している場合はオート検出で上書きしない
                             if (this.manualTransportMode === 'car') return;
                             this.currentMovementMode = mode;
-                            console.log('[Sensor] Movement mode auto:', mode);
                         },
-                        onLog: (msg) => console.log('[LiveScanner]', msg),
+                        onLog: () => {},
                         onGpsUpdate: (pos) => {
                             this.gpsAccuracy = Math.round(pos.accuracy);
                             if (pos.accuracy <= 50 && this.explorationMap) {
@@ -1170,7 +1216,6 @@ if (!$currentUser) {
                     VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
 
                     this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
-                    console.log(`[Sensor] Started (speaker: ${this.selectedSpeaker})`);
                 },
 
                 async stopSensor() {
@@ -1291,9 +1336,7 @@ if (!$currentUser) {
                                 VoiceGuide.announce((json.data.guide_text || '').replace(/【[^】]+】\s*/g, ''));
                             }
                         }
-                    } catch(e) {
-                        console.log('[Ambient] Error:', e.message);
-                    }
+                    } catch(e) { /* ignore */ }
                 },
 
                 // Handle permission errors gracefully
@@ -1335,13 +1378,11 @@ if (!$currentUser) {
                         const isBusy = VoiceGuide.isSpeaking();
 
                         if (isBusy && !isFirst) {
-                            console.log('[Voice] Skipped (busy):', jaName);
+                            // skip
                         } else if (elapsed < 25000 && !isFirst) {
-                            // Too soon & not a new species — skip voice, just log
-                            console.log('[Voice] Skipped (cooldown):', jaName);
+                            // skip
                         } else if (!isFirst && this._detCountToday[key] > 3) {
-                            // Same species detected many times — skip voice
-                            console.log('[Voice] Skipped (repeated):', jaName, this._detCountToday[key]);
+                            // skip
                         } else {
                             this._lastVoiceTime = now;
                             this._fetchVoiceGuide(jaName, detection.scientific_name, detection.confidence_raw || 0.5, this._detCountToday[key], isFirst)
@@ -1560,6 +1601,20 @@ if (!$currentUser) {
 
                 toggleGuide() {
                     if (this.siteGuide) this.siteGuide.toggle();
+                },
+
+                nextIntroStep() {
+                    if (this.introStep < 3) {
+                        this.introStep++;
+                    } else {
+                        localStorage.setItem('ikimon_sensor_intro_v1', '1');
+                        this.showSensorIntro = false;
+                    }
+                },
+
+                skipIntro() {
+                    localStorage.setItem('ikimon_sensor_intro_v1', '1');
+                    this.showSensorIntro = false;
                 },
 
                 flyToCurrentLocation() {

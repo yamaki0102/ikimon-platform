@@ -29,7 +29,6 @@ class FieldRecorder {
 
         // Auto-retry pending syncs when connectivity is restored
         window.addEventListener('online', () => {
-            console.log('[FieldRecorder] Online — retrying pending syncs');
             this._retryPendingSync();
         });
 
@@ -93,9 +92,6 @@ class FieldRecorder {
                 window._stepCounter.setSteps(state.steps);
             }
 
-            console.log('[FieldRecorder] State restored — session:', this.sessionId,
-                'points:', this.currentPath.length, 'wasRecording:', state.isRecording);
-
             // Redraw existing path on map once loaded
             if (this.currentPath.length > 0) {
                 const drawPath = () => {
@@ -154,8 +150,6 @@ class FieldRecorder {
         );
 
         this.syncInterval = setInterval(() => this._flushBuffer(), this.FLUSH_INTERVAL);
-
-        console.log('[FieldRecorder] Recording RESUMED, session:', this.sessionId);
     }
 
     // ── Core ─────────────────────────────────────────────────
@@ -174,8 +168,6 @@ class FieldRecorder {
                     }
                 }
             });
-            console.log('[FieldRecorder] DB initialized, session:', this.sessionId);
-
             // Retry any pending syncs from previous sessions
             this._retryPendingSync();
         } catch (err) {
@@ -236,8 +228,6 @@ class FieldRecorder {
 
         // Persist state
         this._saveState();
-
-        console.log('[FieldRecorder] Recording started, session:', this.sessionId);
     }
 
     async stopRecording() {
@@ -261,8 +251,6 @@ class FieldRecorder {
 
         // Clear persisted state
         this._clearState();
-
-        console.log('[FieldRecorder] Recording stopped. Total points:', this.currentPath.length);
     }
 
     async processPosition(pos) {
@@ -357,7 +345,6 @@ class FieldRecorder {
             }
 
             const result = await resp.json();
-            console.log('[FieldRecorder] Synced', result.saved, 'points. Total:', result.total_points);
 
             if (result.habit_qualified && window.ikimonAnalytics) {
                 window.ikimonAnalytics.track('walk_habit_qualified', {
@@ -412,15 +399,10 @@ class FieldRecorder {
                     cleaned++;
                 }
             }
-            if (cleaned > 0) {
-                console.log(`[FieldRecorder] Cleaned ${cleaned} stale pending items`);
-            }
-
             // Re-fetch after cleanup
             const remaining = await this.db.getAll('pending_sync');
             if (remaining.length === 0) return;
 
-            console.log('[FieldRecorder] Retrying', remaining.length, 'pending syncs');
             const debugEl = document.getElementById('debug-info');
             let synced = 0;
 
@@ -438,7 +420,6 @@ class FieldRecorder {
                     if (resp.ok) {
                         await this.db.delete('pending_sync', item.id);
                         synced++;
-                        console.log('[FieldRecorder] Retry sync succeeded for', item.session_id);
                     } else if (resp.status === 401) {
                         // Auth failure — stop retrying until next login
                         console.warn('[FieldRecorder] Auth required, pausing retry');

@@ -80,7 +80,6 @@ var VoiceGuide = (function() {
     }
 
     function _debugToast(msg) {
-        console.log('[VG] ' + msg);
         try {
             var el = document.getElementById('vg-debug');
             if (!el) {

@@ -22,7 +22,7 @@ class LiveScanner {
     constructor(opts = {}) {
         this.onDetection = opts.onDetection || (() => {});
         this.onEnvUpdate = opts.onEnvUpdate || (() => {});
-        this.onLog = opts.onLog || ((msg) => console.log('[LiveScanner]', msg));
+        this.onLog = opts.onLog || (() => {});
         this.onGpsUpdate = opts.onGpsUpdate || (() => {});
         this.onAudioState = opts.onAudioState || (() => {});
         this.onMovementModeChange = opts.onMovementModeChange || (() => {});
