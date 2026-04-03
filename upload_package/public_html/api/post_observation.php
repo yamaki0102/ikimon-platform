@@ -707,6 +707,26 @@ if (DataStore::append('observations', $observation)) {
     ]);
 
     respondAndContinue(true, 'Observation posted successfully', $responseData);
+
+    // Ecological Digital Twin: 気象コンテキスト非同期結合
+    // respondAndContinue後なのでクライアントには遅延なし
+    try {
+        require_once __DIR__ . '/../../libs/WeatherContext.php';
+        $weatherData = WeatherContext::getForObservation(
+            (float)$lat,
+            (float)$lng,
+            $observation['observed_at']
+        );
+        if ($weatherData) {
+            DataStore::upsert('observations', [
+                'id' => $id,
+                'weather_context' => $weatherData,
+            ]);
+        }
+    } catch (Exception $e) {
+        error_log('WeatherContext enrichment failed for ' . $id . ': ' . $e->getMessage());
+    }
+
     exit;
 } else {
     respond(false, 'データの保存に失敗しました');
