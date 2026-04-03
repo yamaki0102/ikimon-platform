@@ -159,6 +159,18 @@ Auth::init();
                 <button @click="aiFilter='multi'; load(true)" class="m3-chip" :class="aiFilter === 'multi' ? 'selected' : ''">
                     <i data-lucide="git-branch" class="w-3 h-3" style="pointer-events:none"></i> AI複数候補
                 </button>
+                <span class="w-px h-5 bg-border shrink-0 mx-1 self-center"></span>
+                <button @click="invasiveFilter='invasive'; load(true)" class="m3-chip" :class="invasiveFilter === 'invasive' ? 'selected' : ''" style="--chip-selected-bg:var(--md-error-container,#ffdad6);--chip-selected-color:var(--md-on-error-container,#410002);">
+                    <i data-lucide="alert-triangle" class="w-3 h-3" style="pointer-events:none"></i> 外来種のみ
+                </button>
+                <button @click="invasiveFilter='native'; load(true)" class="m3-chip" :class="invasiveFilter === 'native' ? 'selected' : ''">
+                    <i data-lucide="leaf" class="w-3 h-3" style="pointer-events:none"></i> 在来種のみ
+                </button>
+                <template x-if="invasiveFilter !== 'all'">
+                    <button @click="invasiveFilter='all'; load(true)" class="m3-chip" style="background:var(--md-surface-container-high,#e8e8e8);">
+                        <i data-lucide="x" class="w-3 h-3" style="pointer-events:none"></i> フィルタ解除
+                    </button>
+                </template>
             </div>
         </div>
 
@@ -238,6 +250,7 @@ Auth::init();
                 query: '',
                 filter: 'all',
                 aiFilter: 'all',
+                invasiveFilter: 'all',
                 includeImported: new URLSearchParams(window.location.search).get('include_imported') === '1',
                 items: [],
                 loading: false,
@@ -271,6 +284,9 @@ Auth::init();
                         }
                         if (this.aiFilter !== 'all') {
                             url += `&ai_filter=${encodeURIComponent(this.aiFilter)}`;
+                        }
+                        if (this.invasiveFilter !== 'all') {
+                            url += `&invasive_filter=${encodeURIComponent(this.invasiveFilter)}`;
                         }
                         if (this.includeImported) {
                             url += `&include_imported=1`;

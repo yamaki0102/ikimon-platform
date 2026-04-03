@@ -165,16 +165,21 @@ if (DataStore::upsert('observations', $obs)) {
         }
     }
 
-    // Sync Gamification Stats
+    // Sync Gamification Stats (Phase 15B P1: gamification_events を収集してレスポンスに含める)
     require_once __DIR__ . '/../../libs/Gamification.php';
-    Gamification::syncUserStats($currentUser['id']);
+    $gamificationEvents = [];
+    Gamification::syncUserStats($currentUser['id'], $gamificationEvents);
     StreakTracker::recordActivity($currentUser['id'], 'identification');
 
-    echo json_encode([
+    $responsePayload = [
         'success'        => true,
         'identification' => $id_entry,
         'new_status'     => $obs['status'],
-    ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+    ];
+    if (!empty($gamificationEvents)) {
+        $responsePayload['gamification_events'] = $gamificationEvents;
+    }
+    echo json_encode($responsePayload, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 } else {
     echo json_encode(['success' => false, 'message' => 'Failed to save data'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
 }
