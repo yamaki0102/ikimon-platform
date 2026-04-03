@@ -26,12 +26,12 @@ Auth::init();
         .cluster-panel {
             position: fixed;
             z-index: 45;
-            background: rgba(255, 255, 255, 0.98);
+            background: var(--md-surface-container);
             display: flex;
             flex-direction: column;
             pointer-events: none;
             opacity: 0;
-            transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+            transition: opacity 0.25s ease, transform 0.35s var(--motion-std, cubic-bezier(0.32, 0.72, 0, 1));
         }
 
         .cluster-panel.is-open {
@@ -44,7 +44,7 @@ Auth::init();
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
-            background: #ffffff;
+            background: var(--md-surface-container);
         }
 
         .cluster-panel .panel-header,
@@ -52,7 +52,7 @@ Auth::init();
             position: sticky;
             top: 0;
             z-index: 4;
-            background: rgba(255, 255, 255, 0.98);
+            background: var(--md-surface-container);
             backdrop-filter: blur(8px);
         }
 
@@ -61,18 +61,18 @@ Auth::init();
             align-items: center;
             gap: 12px;
             padding: 12px 16px;
-            border-bottom: 1px solid var(--color-border);
+            border-bottom: 1px solid var(--md-outline-variant);
             text-decoration: none;
             color: inherit;
             transition: background 0.15s;
         }
 
         .cluster-panel .panel-item:hover {
-            background: var(--color-bg-faint);
+            background: var(--md-surface-container-low);
         }
 
         .cluster-panel .panel-item:active {
-            background: var(--color-bg-faint);
+            background: var(--md-surface-container-low);
         }
 
         /* ===== Mobile: Bottom Sheet ===== */
@@ -81,7 +81,7 @@ Auth::init();
                 left: 0;
                 right: 0;
                 bottom: 0;
-                border-radius: 16px 16px 0 0;
+                border-radius: var(--shape-xl) var(--shape-xl) 0 0;
                 box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.15);
                 max-height: 85vh;
                 transform: translateY(100%);
@@ -119,7 +119,7 @@ Auth::init();
                 bottom: 0;
                 width: 380px;
                 height: calc(100vh - 56px);
-                border-right: 1px solid var(--color-border);
+                border-right: 1px solid var(--md-outline-variant);
                 box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
                 transform: translateX(-100%);
             }
@@ -134,7 +134,7 @@ Auth::init();
 
             .cluster-panel .panel-header {
                 padding: 16px;
-                border-bottom: 1px solid var(--color-border);
+                border-bottom: 1px solid var(--md-outline-variant);
             }
         }
 
@@ -155,12 +155,12 @@ Auth::init();
         .filter-chip {
             flex-shrink: 0;
             padding: 6px 14px;
-            border-radius: 20px;
+            border-radius: var(--shape-full);
             font-size: 13px;
             font-weight: 600;
-            border: 1.5px solid var(--color-border);
-            background: var(--color-surface);
-            color: var(--color-muted);
+            border: 1.5px solid var(--md-outline-variant);
+            background: transparent;
+            color: var(--md-on-surface-variant);
             white-space: nowrap;
             cursor: pointer;
             transition: all 0.15s;
@@ -170,14 +170,14 @@ Auth::init();
         }
 
         .filter-chip:hover {
-            border-color: var(--color-muted);
-            background: var(--color-bg-faint);
+            border-color: var(--md-on-surface-variant);
+            background: var(--md-surface-container-low);
         }
 
         .filter-chip.active {
-            background: var(--color-primary-surface);
-            border-color: var(--color-primary);
-            color: var(--color-primary);
+            background: var(--md-secondary-container);
+            border-color: transparent;
+            color: var(--md-on-secondary-container);
         }
 
         /* ===== Observation Detail View (in panel) ===== */
@@ -193,7 +193,7 @@ Auth::init();
             width: 100%;
             aspect-ratio: 4/3;
             object-fit: cover;
-            background: var(--color-bg-faint);
+            background: var(--md-surface-container-low);
         }
 
         .obs-detail-info {
@@ -218,7 +218,7 @@ Auth::init();
             gap: 12px;
             margin-top: 12px;
             font-size: 0.8rem;
-            color: var(--color-muted);
+            color: var(--md-on-surface-variant);
         }
 
         .obs-detail-meta .meta-item {
@@ -232,9 +232,9 @@ Auth::init();
             position: absolute;
             bottom: 60px;
             right: 0;
-            background: var(--color-surface);
-            border-radius: 12px;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+            background: var(--md-surface-container);
+            border-radius: var(--shape-md);
+            box-shadow: var(--elev-3);
             padding: 8px;
             min-width: 160px;
             z-index: 50;
@@ -245,44 +245,44 @@ Auth::init();
             align-items: center;
             gap: 10px;
             padding: 10px 12px;
-            border-radius: 8px;
+            border-radius: var(--shape-sm);
             cursor: pointer;
             font-size: 13px;
             font-weight: 500;
-            color: var(--color-text);
+            color: var(--md-on-surface);
             transition: background 0.15s;
         }
 
         .layer-option:hover {
-            background: var(--color-bg-faint);
+            background: var(--md-surface-container-low);
         }
 
         .layer-option.active {
-            background: var(--color-primary-surface);
-            color: var(--color-primary);
+            background: var(--md-primary-container);
+            color: var(--md-primary);
         }
 
         /* ===== Tab Navigation ===== */
         .map-tab-bar {
             display: flex;
-            background: var(--color-surface);
-            border-radius: 12px;
+            background: var(--md-surface-container);
+            border-radius: var(--shape-md);
             padding: 3px;
             gap: 2px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            border: 1px solid var(--color-border);
+            box-shadow: var(--elev-1);
+            border: 1px solid var(--md-outline-variant);
         }
 
         .map-tab {
             flex: 1;
             padding: 8px 12px;
-            border-radius: 10px;
+            border-radius: var(--shape-sm);
             font-size: 12px;
             font-weight: 700;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
-            color: var(--color-muted);
+            color: var(--md-on-surface-variant);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -293,28 +293,28 @@ Auth::init();
         }
 
         .map-tab:hover {
-            color: var(--color-text);
-            background: var(--color-bg-faint);
+            color: var(--md-on-surface);
+            background: var(--md-surface-container-low);
         }
 
         .map-tab.active {
-            background: var(--color-primary);
+            background: var(--md-primary);
             color: #fff;
             box-shadow: 0 2px 8px rgba(var(--color-primary-rgb, 16, 185, 129), 0.3);
         }
 
         .map-floating-panel {
-            background: rgba(255, 255, 255, 0.96);
-            border: 1px solid var(--color-border);
-            border-radius: 24px;
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: var(--shape-xl);
             padding: 12px;
-            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+            box-shadow: var(--elev-3);
             backdrop-filter: blur(10px);
         }
 
         @supports not (backdrop-filter: blur(10px)) {
             .map-floating-panel {
-                background: #ffffff;
+                background: var(--md-surface-container);
             }
         }
 
@@ -324,11 +324,11 @@ Auth::init();
             bottom: 100px;
             left: 16px;
             z-index: 10;
-            background: var(--color-surface);
+            background: var(--md-surface-container);
             border-radius: 10px;
             padding: 10px 14px;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-            border: 1px solid var(--color-border);
+            border: 1px solid var(--md-outline-variant);
             font-size: 11px;
         }
 
@@ -346,9 +346,9 @@ Auth::init();
             border-radius: 8px;
             font-size: 12px;
             font-weight: 600;
-            border: 1.5px solid var(--color-border);
-            background: var(--color-surface);
-            color: var(--color-text);
+            border: 1.5px solid var(--md-outline-variant);
+            background: var(--md-surface-container);
+            color: var(--md-on-surface);
             cursor: pointer;
         }
 
@@ -358,13 +358,13 @@ Auth::init();
             align-items: center;
             gap: 10px;
             padding: 10px 14px;
-            border-bottom: 1px solid var(--color-border);
+            border-bottom: 1px solid var(--md-outline-variant);
             cursor: pointer;
             transition: background 0.15s;
         }
 
         .site-list-item:hover {
-            background: var(--color-bg-faint);
+            background: var(--md-surface-container-low);
         }
 
         /* ===== Ghost Markers (Ambient Presence) ===== */
@@ -384,7 +384,7 @@ Auth::init();
     </style>
 </head>
 
-<body class="js-loading bg-base text-text font-body">
+<body class="js-loading font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include('components/nav.php'); ?>
     <script nonce="<?= CspNonce::attr() ?>">
         document.body.classList.remove('js-loading');
@@ -411,7 +411,7 @@ Auth::init();
 
             <!-- Search Bar -->
             <div class="relative z-50">
-                <div class="bg-surface border border-border rounded-2xl flex items-center shadow-lg overflow-hidden relative z-10">
+                <div class="flex items-center overflow-hidden relative z-10" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);box-shadow:var(--elev-2);">
                     <i data-lucide="search" class="ml-4 w-5 h-5 text-muted"></i>
                     <input type="text" x-model="query"
                         @input.debounce.300ms="onInput()"
@@ -425,7 +425,7 @@ Auth::init();
                 <!-- Autocomplete Dropdown -->
                 <div x-show="showSuggestions && suggestions.length > 0"
                     x-transition
-                    class="absolute top-14 left-0 right-0 bg-surface border border-border rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                    class="absolute top-14 left-0 right-0 overflow-hidden max-h-60 overflow-y-auto" style="background:var(--md-surface-container-high);border-radius:var(--shape-md);box-shadow:var(--elev-3);">
                     <template x-for="s in suggestions" :key="s.place_id">
                         <button @click="selectLocation(s)" class="w-full text-left px-4 py-3 hover:bg-bg-faint border-b border-border last:border-0 transition flex items-start gap-3">
                             <i data-lucide="map-pin" class="w-4 h-4 text-muted mt-0.5 shrink-0"></i>
@@ -605,14 +605,14 @@ Auth::init();
         </div>
 
         <!-- My Location FAB -->
-        <button @click="locateMe()" class="absolute bottom-36 md:bottom-32 right-4 z-10 w-12 h-12 rounded-full bg-surface text-text shadow-xl flex items-center justify-center active:scale-90 transition group pointer-events-auto">
+        <button @click="locateMe()" class="absolute bottom-36 md:bottom-32 right-4 z-10 w-12 h-12 rounded-full shadow-xl flex items-center justify-center active:scale-90 transition group pointer-events-auto" style="background:var(--md-surface-container);color:var(--md-on-surface);box-shadow:var(--elev-3);">
             <i data-lucide="crosshair" class="group-hover:rotate-45 transition duration-500"></i>
             <span x-show="locating" class="absolute inset-0 rounded-full border-2 border-primary-light animate-ping"></span>
         </button>
 
         <!-- Layer Switcher FAB -->
         <div class="absolute bottom-24 md:bottom-20 right-4 z-10 pointer-events-auto" @click.outside="showLayerMenu = false">
-            <button @click="showLayerMenu = !showLayerMenu" class="w-10 h-10 rounded-full bg-surface shadow-lg flex items-center justify-center text-muted hover:bg-bg-faint transition active:scale-90">
+            <button @click="showLayerMenu = !showLayerMenu" class="w-10 h-10 rounded-full flex items-center justify-center transition active:scale-90" style="background:var(--md-surface-container);box-shadow:var(--elev-2);color:var(--md-on-surface-variant);">
                 <i data-lucide="layers" class="w-5 h-5"></i>
             </button>
             <div x-show="showLayerMenu" x-transition class="layer-popup" style="display:none;">
@@ -639,7 +639,7 @@ Auth::init();
             style="display: none;"
             class="fixed inset-0 z-[70] flex items-center justify-center px-4 pointer-events-auto bg-black/40 backdrop-blur-sm"
             x-transition.opacity>
-            <div @click.away="showSignModal = false" class="bg-surface border border-border w-full max-w-xs p-6 rounded-2xl shadow-xl relative">
+            <div @click.away="showSignModal = false" class="w-full max-w-xs p-6 relative" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);box-shadow:var(--elev-3);">
                 <h3 class="text-text font-bold text-center mb-6 tracking-widest uppercase text-xs flex items-center justify-center gap-2">
                     <i data-lucide="map-pin" class="w-4 h-4 text-accent"></i> サインを残す
                 </h3>
@@ -696,7 +696,7 @@ Auth::init();
                 x-transition:leave="transition ease-in duration-200"
                 x-transition:leave-start="opacity-100 scale-100 translate-y-0"
                 x-transition:leave-end="opacity-0 scale-95 translate-y-4"
-                class="bg-surface border border-border rounded-3xl p-6 w-full max-w-sm relative text-center shadow-xl">
+                class="p-6 w-full max-w-sm relative text-center" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);box-shadow:var(--elev-3);">
 
                 <div class="w-12 h-12 bg-primary-surface rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
                     <i data-lucide="map-pin" class="w-6 h-6"></i>
