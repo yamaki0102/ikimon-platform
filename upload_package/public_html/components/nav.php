@@ -3,6 +3,12 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/Asset.php';
 ?>
+<a href="#main-content"
+   class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999]
+          focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-full
+          focus:font-bold focus:text-sm focus:shadow-lg">
+    メインコンテンツへスキップ
+</a>
 <nav x-data="{ show: true, lastScroll: 0 }"
     @scroll.window="const current = window.pageYOffset; show = current < lastScroll || current < 50; lastScroll = current"
     x-init="$watch('show', value => $dispatch('header-visibility', value))"
