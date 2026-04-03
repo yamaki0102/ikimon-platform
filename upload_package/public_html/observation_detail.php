@@ -551,9 +551,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 <?php $observerName = $obs['user_display_name'] ?? $obs['user_name'] ?? $obs['user']['display_name'] ?? $obs['user']['name'] ?? BioUtils::getUserName($obs['user_id']); ?>
                 <div class="mt-4" style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
                     <div class="flex items-center gap-3 mb-3">
-                        <img src="<?php echo htmlspecialchars($obs['user_avatar'] ?? 'https://i.pravatar.cc/150?u=' . $obs['user_id']); ?>"
+                        <img src="<?php echo htmlspecialchars($obs['user_avatar'] ?? '/assets/img/default-avatar.svg'); ?>"
                             alt="<?php echo htmlspecialchars($observerName ?? 'ユーザー'); ?>のアバター"
-                            class="w-10 h-10 rounded-full border-2 border-border shadow-sm object-cover flex-shrink-0">
+                            class="w-10 h-10 rounded-full border-2 border-border shadow-sm object-cover flex-shrink-0"
+                            onerror="this.src='/assets/img/default-avatar.svg'">
                         <div>
                             <div class="text-sm font-bold text-text leading-none"><?php echo htmlspecialchars($observerName); ?></div>
                             <div class="text-token-xs text-muted mt-0.5">
@@ -1462,10 +1463,11 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                                     <!-- Card Header: Avatar + User Info + Species Badge -->
                                     <div class="flex items-start gap-3">
-                                        <img src="<?php echo htmlspecialchars($ident['user_avatar'] ?? 'https://i.pravatar.cc/100?u=' . $ident['user_id']); ?>"
+                                        <img src="<?php echo htmlspecialchars($ident['user_avatar'] ?? '/assets/img/default-avatar.svg'); ?>"
                                             alt="<?php echo htmlspecialchars($ident['user_name'] ?? 'ユーザー'); ?>のアバター"
                                             class="w-10 h-10 rounded-full border-2 border-border shadow-sm flex-shrink-0 object-cover"
-                                            loading="lazy">
+                                            loading="lazy"
+                                            onerror="this.src='/assets/img/default-avatar.svg'">
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-1.5 flex-wrap">
                                                 <span class="text-sm font-bold text-text"><?php echo htmlspecialchars($ident['user_name'] ?? 'Unknown'); ?></span>
