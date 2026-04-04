@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.location.*
 import kotlinx.coroutines.*
 import life.ikimon.IkimonApp
+import life.ikimon.api.DiagnosticsUploadCoordinator
 import life.ikimon.data.DetectionEvent
 import life.ikimon.data.EventBuffer
 
@@ -263,10 +264,28 @@ class FieldScanService : Service() {
         Log.d(TAG, "stopMonitoring: sensors stopped ${System.currentTimeMillis() - t0}ms")
 
         val summary = eventBuffer.getSummary()
+        val sessionLog = eventBuffer.persistSessionLog(
+            context = this,
+            sessionId = currentSessionId,
+            mode = "field",
+            metadata = mapOf(
+                "movement_mode" to movementMode,
+                "runtime_label" to runtimeConfig.label,
+                "audio_interval_ms" to runtimeConfig.audioIntervalMs,
+                "audio_duration_ms" to runtimeConfig.audioDurationMs,
+                "vision_interval_ms" to runtimeConfig.visionIntervalMs,
+                "env_interval_ms" to runtimeConfig.envIntervalMs,
+            ),
+        )
         if (summary.totalDetections > 0) {
             showSummaryNotification(summary)
         }
         Log.d(TAG, "stopMonitoring: summary done ${System.currentTimeMillis() - t0}ms detections=${summary.totalDetections}")
+        Log.i(TAG, "stopMonitoring: session log saved ${sessionLog.absolutePath}")
+        if (!officialRecord || sessionIntent == "test") {
+            DiagnosticsUploadCoordinator.enqueueSessionLogUpload(this, sessionLog)
+            Log.i(TAG, "stopMonitoring: diagnostics upload queued ${sessionLog.name}")
+        }
 
         eventBuffer.scheduleUpload(this)
         Log.i(TAG, "stopMonitoring: complete ${System.currentTimeMillis() - t0}ms")

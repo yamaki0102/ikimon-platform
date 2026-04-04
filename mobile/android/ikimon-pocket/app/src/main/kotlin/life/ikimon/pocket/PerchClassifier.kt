@@ -36,6 +36,7 @@ class PerchClassifier(private val context: Context) {
         private const val WINDOW_SAMPLES = SAMPLE_RATE * WINDOW_SEC   // 160,000
         private const val MIN_CONFIDENCE = 0.20f
         private const val MAX_RESULTS = 5
+        private const val SPECIES_OUTPUT_INDEX = 5
     }
 
     data class PerchResult(
@@ -49,7 +50,6 @@ class PerchClassifier(private val context: Context) {
     private var labels: List<LabelEntry> = emptyList()
     private var modelLoaded = false
     @Volatile private var isClosed = false
-
     private data class LabelEntry(
         val sciName: String,
         val comName: String,
@@ -100,11 +100,12 @@ class PerchClassifier(private val context: Context) {
                 addDelegate(flexDelegate)
             }
             interpreter = Interpreter(modelFile, opts)
+            validateSpeciesOutput(interpreter!!)
             labels = loadLabels()
             modelLoaded = true
             Log.i(TAG, "Perch v1 loaded: ${labels.size} species, TFLite + Flex")
-        } catch (e: Exception) {
-            Log.e(TAG, "Perch loadModel failed: ${e.message}")
+        } catch (e: Throwable) {
+            Log.e(TAG, "Perch loadModel failed: ${e::class.simpleName}: ${e.message}")
             modelLoaded = false
         }
     }
@@ -131,13 +132,29 @@ class PerchClassifier(private val context: Context) {
             rewind()
         }
 
-        // 出力テンソル: [1, num_classes]
-        val numClasses = labels.size.takeIf { it > 0 } ?: 10932
-        val outputBuf = Array(1) { FloatArray(numClasses) }
-
         return try {
-            interp.run(inputBuf, outputBuf)
-            val logits = outputBuf[0]
+            val outputTensor = interp.getOutputTensor(SPECIES_OUTPUT_INDEX)
+            val outputShape = outputTensor.shape()
+
+            val logits = when (outputShape.size) {
+                2 -> {
+                    val outputBuf = Array(outputShape[0]) { FloatArray(outputShape[1]) }
+                    val outputs = hashMapOf<Int, Any>(SPECIES_OUTPUT_INDEX to outputBuf)
+                    interp.runForMultipleInputsOutputs(arrayOf(inputBuf), outputs)
+                    outputBuf[0]
+                }
+                3 -> {
+                    val outputBuf = Array(outputShape[0]) { Array(outputShape[1]) { FloatArray(outputShape[2]) } }
+                    val outputs = hashMapOf<Int, Any>(SPECIES_OUTPUT_INDEX to outputBuf)
+                    interp.runForMultipleInputsOutputs(arrayOf(inputBuf), outputs)
+                    val flattened = outputBuf[0].flatMap { it.asList() }.toFloatArray()
+                    flattened
+                }
+                else -> {
+                    Log.e(TAG, "Unsupported Perch output shape: ${outputShape.contentToString()}")
+                    return emptyList()
+                }
+            }
 
             // softmax
             val maxLogit = logits.max()
@@ -161,6 +178,18 @@ class PerchClassifier(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Perch inference failed: ${e.message}")
             emptyList()
+        }
+    }
+
+    private fun validateSpeciesOutput(interpreter: Interpreter) {
+        try {
+            val tensor = interpreter.getOutputTensor(SPECIES_OUTPUT_INDEX)
+            val shape = tensor.shape()
+            if (shape.size != 2 || shape.getOrNull(1) != 10932) {
+                Log.w(TAG, "Unexpected Perch species output: index=$SPECIES_OUTPUT_INDEX name=${tensor.name()} shape=${shape.contentToString()}")
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to validate Perch output tensor: ${e::class.simpleName}: ${e.message}")
         }
     }
 
