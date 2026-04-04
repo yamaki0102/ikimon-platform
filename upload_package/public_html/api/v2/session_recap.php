@@ -18,8 +18,26 @@ require_once ROOT_DIR . '/libs/Auth.php';
 require_once ROOT_DIR . '/libs/DataStore.php';
 
 Auth::init();
-if (!Auth::isLoggedIn()) {
-    api_error('Unauthorized', 401);
+$userId = null;
+
+if (Auth::isLoggedIn()) {
+    $userId = Auth::user()['id'] ?? null;
+} else {
+    // FieldScanアプリからのinstall_id認証
+    $installId = $_GET['install_id'] ?? null;
+    if ($installId) {
+        require_once ROOT_DIR . '/libs/UserStore.php';
+        $installs = DataStore::get('fieldscan_installs') ?? [];
+        foreach ($installs as $inst) {
+            if (($inst['install_id'] ?? '') === $installId && ($inst['status'] ?? 'active') === 'active') {
+                $userId = $inst['user_id'];
+                break;
+            }
+        }
+    }
+    if (!$userId) {
+        api_error('Unauthorized', 401);
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -104,7 +122,7 @@ if ($lat && $lng) {
 
 // --- Contribution metrics (文脈依存8パターン + 地理) ---
 $contribution = [];
-$userId = Auth::user()['id'] ?? '';
+$userId = $userId ?? '';
 $month = date('Y-m');
 $currentMonth = date('n') . '月';
 
