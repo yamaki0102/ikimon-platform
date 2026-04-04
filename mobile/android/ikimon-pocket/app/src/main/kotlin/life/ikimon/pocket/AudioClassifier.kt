@@ -41,6 +41,7 @@ class AudioClassifier(private val context: Context) {
     private var session: OrtSession? = null
     private var labels: List<LabelEntry> = emptyList()
     private var modelLoaded = false
+    @Volatile private var isClosed = false
 
     private data class LabelEntry(
         val idx: Int,
@@ -162,6 +163,7 @@ class AudioClassifier(private val context: Context) {
      * ONNX Runtime で分類実行。V3.0は可変長入力対応。
      */
     private fun classify(audioData: FloatArray): List<ClassificationResult> {
+        if (isClosed) return emptyList()
         val env = ortEnv ?: return emptyList()
         val sess = session ?: return emptyList()
 
@@ -244,6 +246,7 @@ class AudioClassifier(private val context: Context) {
     }
 
     fun close() {
+        isClosed = true
         session?.close()
         ortEnv?.close()
     }

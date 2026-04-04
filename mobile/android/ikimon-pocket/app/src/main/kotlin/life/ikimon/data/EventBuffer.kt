@@ -2,12 +2,11 @@ package life.ikimon.data
 
 import android.content.Context
 import android.util.Log
-import androidx.work.*
-import life.ikimon.api.UploadWorker
+import life.ikimon.api.UploadCoordinator
+import life.ikimon.api.UploadStatusStore
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 /**
  * 検出イベントのローカルバッファ。
@@ -19,6 +18,9 @@ class EventBuffer {
     private val events = mutableListOf<DetectionEvent>()
     private val speciesSeen = mutableSetOf<String>()
     private var sessionStartTime: Long = System.currentTimeMillis()
+    private var sessionIntent: String = "official"
+    private var officialRecord: Boolean = true
+    private var testProfile: String = "field"
 
     // 現在位置（PocketService から更新される）
     private var currentLat: Double? = null
@@ -37,15 +39,29 @@ class EventBuffer {
         currentAlt = alt
     }
 
+    fun setSessionMode(sessionIntent: String, officialRecord: Boolean, testProfile: String = "field") {
+        this.sessionIntent = if (sessionIntent == "test") "test" else "official"
+        this.officialRecord = officialRecord
+        this.testProfile = if (this.sessionIntent == "test") testProfile else "field"
+    }
+
     fun isNewSpecies(name: String): Boolean = !speciesSeen.contains(name)
 
     fun getSummary(): Summary {
-        val duration = (System.currentTimeMillis() - sessionStartTime) / 1000 / 60
+        val durationSec = (System.currentTimeMillis() - sessionStartTime) / 1000
+        val audioCount = events.count { it.type == "audio" }
+        val visualCount = events.count { it.type == "visual" }
         return Summary(
             totalDetections = events.size,
             speciesCount = speciesSeen.size,
             speciesNames = speciesSeen.toList(),
-            durationMinutes = duration.toInt(),
+            durationMinutes = (durationSec / 60).toInt(),
+            durationSeconds = durationSec.toInt(),
+            audioDetections = audioCount,
+            visualDetections = visualCount,
+            sessionIntent = sessionIntent,
+            officialRecord = officialRecord,
+            testProfile = testProfile,
         )
     }
 
@@ -54,6 +70,12 @@ class EventBuffer {
         val speciesCount: Int,
         val speciesNames: List<String>,
         val durationMinutes: Int,
+        val durationSeconds: Int = 0,
+        val audioDetections: Int = 0,
+        val visualDetections: Int = 0,
+        val sessionIntent: String = "official",
+        val officialRecord: Boolean = true,
+        val testProfile: String = "field",
     )
 
     /**
@@ -64,26 +86,15 @@ class EventBuffer {
 
         // JSON ファイルに保存
         val json = toJSON()
-        val dir = File(context.filesDir, "pending_uploads")
+        val dir = UploadCoordinator.pendingDirectory(context)
         dir.mkdirs()
         val file = File(dir, "session_${System.currentTimeMillis()}.json")
         file.writeText(json.toString(2))
 
         Log.i("EventBuffer", "Saved ${events.size} events to ${file.name}")
+        UploadStatusStore.recordQueued(context, file.name, sessionIntent, officialRecord)
 
-        // WorkManager でアップロード
-        val uploadWork = OneTimeWorkRequestBuilder<UploadWorker>()
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .setInputData(workDataOf("file_path" to file.absolutePath))
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
-
-        WorkManager.getInstance(context)
-            .enqueue(uploadWork)
+        UploadCoordinator.enqueueUpload(context, file)
 
         Log.i("EventBuffer", "Upload scheduled via WorkManager")
     }
@@ -99,7 +110,10 @@ class EventBuffer {
             put("session", JSONObject().apply {
                 put("duration_sec", (System.currentTimeMillis() - sessionStartTime) / 1000)
                 put("device", android.os.Build.MODEL)
-                put("app_version", "0.7.0")
+                put("app_version", "0.8.1")
+                put("session_intent", sessionIntent)
+                put("official_record", officialRecord)
+                put("test_profile", testProfile)
             })
         }
     }
