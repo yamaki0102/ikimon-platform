@@ -1258,7 +1258,7 @@ if (!$currentUser) {
                             }
                             // GPS取得後すぐに場所のトリビアを読み上げ（初回1回だけ）
                             // accuracy 500m以内なら起動（室内でも動作）、精度が低い場合は位置が大まかになるだけ
-                            if (!this._quickStartDone && pos.accuracy <= 500 && window.VoiceGuide && VoiceGuide.isEnabled()) {
+                            if (!this._quickStartDone && pos.accuracy <= 500 && window.VoiceGuide && VoiceGuide.isEnabled() && this.manualTransportMode !== 'car') {
                                 this._quickStartDone = true;
                                 this._fetchOpeningGuide(pos.lat, pos.lng);
                             }
@@ -1285,7 +1285,8 @@ if (!$currentUser) {
                     }, 1500);
 
                     // Enable VoiceGuide + unlock audio (must happen in user gesture context)
-                    if (window.VoiceGuide) {
+                    // 車モードは音声ガイド不要のためスキップ
+                    if (window.VoiceGuide && this.manualTransportMode !== 'car') {
                         VoiceGuide.setVoiceMode(this.selectedSpeaker);
                         VoiceGuide.setEnabled(true);
                         VoiceGuide.unlockAudio();
@@ -1294,10 +1295,9 @@ if (!$currentUser) {
                             unlock.volume = 0;
                             speechSynthesis.speak(unlock);
                         }
+                        const modeLabel = this.manualTransportMode === 'bike' ? 'サイクリング' : 'フィールドサーチ';
+                        VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
                     }
-
-                    const modeLabel = this.manualTransportMode === 'car' ? 'ドライブ' : this.manualTransportMode === 'bike' ? 'サイクリング' : 'フィールドサーチ';
-                    VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
 
                     this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
                 },
@@ -1396,9 +1396,6 @@ if (!$currentUser) {
                 },
 
                 async _fireAmbientGuide() {
-                    if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
-                    if (VoiceGuide.isSpeaking()) return;
-
                     if (this._driveTotalMin > 0) {
                         const elapsedMin = (this.sessionElapsed || 0) / 60;
                         if (elapsedMin >= this._driveTotalMin - 2 && !this._closingTriggered) {
@@ -1407,6 +1404,11 @@ if (!$currentUser) {
                             return;
                         }
                     }
+
+                    // 車モードは音声ガイド不要のためAPIコールをスキップ
+                    if (this.manualTransportMode === 'car') return;
+                    if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
+                    if (VoiceGuide.isSpeaking()) return;
 
                     if (VoiceGuide.drainAmbientQueue) {
                         VoiceGuide.drainAmbientQueue();
@@ -1471,8 +1473,8 @@ if (!$currentUser) {
                             .addTo(this.map);
                     }
 
-                    // Voice guide narration — smart pacing
-                    if (window.VoiceGuide && VoiceGuide.isEnabled()) {
+                    // Voice guide narration — smart pacing (車モードはスキップ)
+                    if (window.VoiceGuide && VoiceGuide.isEnabled() && this.manualTransportMode !== 'car') {
                         const jaName = detection.japanese_name || detection.label || '';
                         const key = detection.label || '';
                         this._detCountToday = this._detCountToday || {};
