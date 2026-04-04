@@ -421,12 +421,10 @@ if (!$currentUser) {
         </div>
         <div class="stat-row" style="margin-top:2px;">
             <div class="gps-dot" :class="gpsAccuracy ? (gpsAccuracy <= 10 ? 'good' : gpsAccuracy <= 30 ? 'fair' : 'poor') : 'off'" style="margin-right:4px;"></div>
-            <span class="stat-value" x-text="gpsAccuracy ? gpsAccuracy + ' m' : '--'" style="font-size:var(--type-label-lg);"></span>
             <span class="stat-label">GPS</span>
         </div>
         <div class="stat-row" style="margin-top:2px;">
             <div class="gps-dot" :class="isOnline ? 'good' : 'off'" style="margin-right:4px;"></div>
-            <span class="stat-value" x-text="isOnline ? 'OK' : 'OFF'" style="font-size:var(--type-label-lg);" :style="isOnline ? '' : 'color:var(--md-error)'"></span>
             <span class="stat-label">通信</span>
         </div>
     </div>
@@ -1288,8 +1286,6 @@ if (!$currentUser) {
 
                     // Enable VoiceGuide + unlock audio (must happen in user gesture context)
                     if (window.VoiceGuide) {
-                        window._vgDebug = VoiceGuide._debugToast;
-                        VoiceGuide._debugToast('🚀 startSensor speaker=' + this.selectedSpeaker);
                         VoiceGuide.setVoiceMode(this.selectedSpeaker);
                         VoiceGuide.setEnabled(true);
                         VoiceGuide.unlockAudio();
@@ -1516,11 +1512,10 @@ if (!$currentUser) {
 
                 // GPS取得後即時に場所のトリビアを取得（起動高速化）
                 async _fetchOpeningGuide(lat, lng) {
-                    if (!window.VoiceGuide) { if(VoiceGuide._debugToast) VoiceGuide._debugToast('⚠️ VG not loaded'); return; }
-                    if (!VoiceGuide.isEnabled()) { if(VoiceGuide._debugToast) VoiceGuide._debugToast('⚠️ VG disabled'); return; }
+                    if (!window.VoiceGuide) { return; }
+                    if (!VoiceGuide.isEnabled()) { return; }
                     try {
                         const vm = VoiceGuide.getVoiceMode();
-                        if(window._vgDebug) window._vgDebug('🌅 Opening fetch vm=' + vm);
                         const transportMode = this.manualTransportMode || 'walk';
                         const params = new URLSearchParams({
                             mode: 'opening',
@@ -1529,10 +1524,9 @@ if (!$currentUser) {
                             transport_mode: transportMode,
                         });
                         const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
-                        if (!resp.ok) { if(window._vgDebug) window._vgDebug('❌ Opening HTTP ' + resp.status); return; }
+                        if (!resp.ok) { return; }
                         const json = await resp.json();
                         if (json.success && json.data) {
-                            if(window._vgDebug) window._vgDebug('✅ Opening: audio=' + (json.data.audio_url ? 'YES' : 'NO') + ' text=' + (json.data.guide_text ? json.data.guide_text.length + 'chars' : 'NO'));
                             if (json.data.audio_url) {
                                 VoiceGuide.announceAudio(json.data.audio_url, (json.data.guide_text || '').replace(/【[^】]+】\s*/g, '') || null);
                             } else if (json.data.guide_text) {
@@ -1540,7 +1534,7 @@ if (!$currentUser) {
                             }
                         }
                     } catch(e) {
-                        if(window._vgDebug) window._vgDebug('❌ Opening err: ' + e.message);
+                        // silent
                     }
                 },
 
