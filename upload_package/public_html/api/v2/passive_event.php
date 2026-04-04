@@ -42,6 +42,7 @@ require_once ROOT_DIR . '/libs/CanonicalStore.php';
 require_once ROOT_DIR . '/libs/GeoUtils.php';
 require_once ROOT_DIR . '/libs/MeshCode.php';
 require_once ROOT_DIR . '/libs/MeshAggregator.php';
+require_once ROOT_DIR . '/libs/GeoPlausibility.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     api_error('POST method required.', 405);
@@ -157,6 +158,17 @@ foreach ($events as $i => $event) {
 if (empty($validEvents)) {
     api_error('No valid events after validation.', 400);
 }
+
+// 地理妥当性フィルタ（日本固定: FieldScanは日本向けツール）
+$geoImplausibleCount = 0;
+$validEvents = array_values(array_filter($validEvents, function($ev) use (&$geoImplausibleCount) {
+    $geo = GeoPlausibility::assess($ev, ['country' => 'japan']);
+    if ($geo['status'] === 'implausible') {
+        $geoImplausibleCount++;
+        return false;
+    }
+    return true;
+}));
 
 // パッシブ観察エンジンで処理
 $result = PassiveObservationEngine::processEventBatch($validEvents, $userId, $sessionMeta);
@@ -432,6 +444,7 @@ api_success([
         'filtered_invalid_format'   => $qaFiltered['invalid_format'],
         'filtered_low_confidence'   => $qaFiltered['low_confidence'],
         'filtered_excluded_taxon'   => $qaFiltered['excluded_taxon'],
+        'filtered_geo_implausible'  => $geoImplausibleCount,
         'observations_created'      => $savedCount,
         'session_intent'            => $qaSessionIntent,
         'official_record'           => (bool) $qaOfficialRecord,
