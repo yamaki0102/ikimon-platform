@@ -1,6 +1,6 @@
 <?php
 /**
- * 連理の木の下から — 週次生態レポート送信スクリプト
+ * 連理の木の下で — 週次生態レポート送信スクリプト
  *
  * 全登録サイトのツインスナップショットを集約し、
  * yamaki0102@gmail.com へ HTML メールで送信。
@@ -16,7 +16,7 @@ require_once __DIR__ . '/../libs/WeatherContext.php';
 
 $TO      = 'yamaki0102@gmail.com';
 $FROM    = 'ikimon.life <yamaki0102@gmail.com>';
-$SUBJECT = '連理の木の下から — ' . date('n月j日') . '週の生態レポート';
+$SUBJECT = '連理の木の下で — ' . date('n月j日') . '週の生態レポート';
 
 // --- データ収集 ---
 $sites = SiteManager::listAll();
@@ -96,7 +96,7 @@ function buildEmailHtml(array $siteReports, int $totalSpecies, int $totalObs, ar
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>連理の木の下から</title>
+<title>連理の木の下で</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; background: #0f1a0d; color: #e8f0e5; line-height: 1.7; }
@@ -145,7 +145,7 @@ function buildEmailHtml(array $siteReports, int $totalSpecies, int $totalObs, ar
 <div class="wrapper">
   <div class="header">
     <div class="eyebrow">ikimon.life — Ecological Intelligence</div>
-    <h1>連理の木の下から</h1>
+    <h1>連理の木の下で</h1>
     <div class="date">{$week}週の生態レポート &nbsp;·&nbsp; {$seasonLabel}</div>
   </div>
 
