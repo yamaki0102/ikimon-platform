@@ -54,16 +54,10 @@ class DualAudioClassifier(private val context: Context) {
     ) {
         val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
         scope.launch {
-            // BirdNET と Perch を並列実行
+            // BirdNET と Perch を同一録音データで並列推論
             val birdnetDeferred = async {
                 runCatching {
-                    var birdnetResults: List<AudioClassifier.ClassificationResult> = emptyList()
-                    // BirdNET はコールバック形式なのでチャネルで同期
-                    val channel = kotlinx.coroutines.channels.Channel<List<AudioClassifier.ClassificationResult>>(1)
-                    birdnet.classifyAmbientAudio(durationMs) { results ->
-                        scope.launch { channel.send(results) }
-                    }
-                    channel.receive()
+                    birdnet.classifyData(audioData)
                 }.getOrElse {
                     Log.e(TAG, "BirdNET error: ${it.message}")
                     emptyList()

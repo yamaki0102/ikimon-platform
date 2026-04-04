@@ -131,6 +131,17 @@ class AudioClassifier(private val context: Context) {
     fun isReady(): Boolean = modelLoaded
 
     /**
+     * 既録音データを分類する（DualAudioClassifier 向け — 録音は呼び出し元が担う）。
+     */
+    fun classifyData(audioData: FloatArray): List<ClassificationResult> {
+        if (!modelLoaded) return emptyList()
+        return try { classify(audioData) } catch (e: Exception) {
+            Log.e(TAG, "classifyData failed: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /**
      * 指定時間（ms）だけ環境音を録音し、分類する。
      */
     fun classifyAmbientAudio(durationMs: Long, callback: (List<ClassificationResult>) -> Unit) {
