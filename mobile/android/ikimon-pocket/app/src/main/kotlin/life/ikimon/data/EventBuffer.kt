@@ -78,6 +78,26 @@ class EventBuffer {
         val testProfile: String = "field",
     )
 
+    fun persistSessionLog(
+        context: Context,
+        sessionId: String,
+        mode: String,
+        metadata: Map<String, Any?> = emptyMap(),
+    ): File {
+        val dir = context.getExternalFilesDir("session_logs")
+            ?: File(context.filesDir, "session_logs")
+        dir.mkdirs()
+
+        val logFile = File(dir, "${sessionId}_summary.json")
+        val latestFile = File(dir, "latest_session_summary.json")
+        val payload = toSessionLogJson(sessionId, mode, metadata)
+        val body = payload.toString(2)
+        logFile.writeText(body)
+        latestFile.writeText(body)
+        Log.i("EventBuffer", "Saved session log to ${logFile.absolutePath}")
+        return logFile
+    }
+
     /**
      * バッファの内容をファイルに保存し、WorkManager でアップロードをスケジュール。
      */
@@ -114,6 +134,64 @@ class EventBuffer {
                 put("session_intent", sessionIntent)
                 put("official_record", officialRecord)
                 put("test_profile", testProfile)
+            })
+        }
+    }
+
+    private fun toSessionLogJson(
+        sessionId: String,
+        mode: String,
+        metadata: Map<String, Any?>,
+    ): JSONObject {
+        val summary = getSummary()
+        val topEvents = events
+            .sortedByDescending { it.confidence }
+            .take(10)
+        val engineCounts = linkedMapOf<String, Int>()
+        for (event in events) {
+            engineCounts[event.model] = (engineCounts[event.model] ?: 0) + 1
+        }
+
+        return JSONObject().apply {
+            put("saved_at", System.currentTimeMillis())
+            put("session_id", sessionId)
+            put("mode", mode)
+            put("summary", JSONObject().apply {
+                put("total_detections", summary.totalDetections)
+                put("species_count", summary.speciesCount)
+                put("species_names", JSONArray(summary.speciesNames))
+                put("duration_minutes", summary.durationMinutes)
+                put("duration_seconds", summary.durationSeconds)
+                put("audio_detections", summary.audioDetections)
+                put("visual_detections", summary.visualDetections)
+                put("session_intent", summary.sessionIntent)
+                put("official_record", summary.officialRecord)
+                put("test_profile", summary.testProfile)
+            })
+            put("current_location", JSONObject().apply {
+                put("lat", currentLat)
+                put("lng", currentLng)
+                put("alt", currentAlt)
+            })
+            put("engine_counts", JSONObject(engineCounts as Map<*, *>))
+            put("top_events", JSONArray().apply {
+                topEvents.forEach { event ->
+                    put(JSONObject().apply {
+                        put("type", event.type)
+                        put("taxon_name", event.taxonName)
+                        put("scientific_name", event.scientificName)
+                        put("confidence", event.confidence)
+                        put("model", event.model)
+                        put("timestamp", event.timestamp)
+                        put("birdnet_confidence", event.birdnetConfidence)
+                        put("perch_confidence", event.perchConfidence)
+                        put("gemma_confidence", event.gemmaConfidence)
+                        put("consensus_level", event.consensusLevel)
+                    })
+                }
+            })
+            put("metadata", JSONObject().apply {
+                metadata.forEach { (key, value) -> put(key, value) }
             })
         }
     }
