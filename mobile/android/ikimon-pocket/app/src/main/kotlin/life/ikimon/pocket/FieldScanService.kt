@@ -74,11 +74,11 @@ class FieldScanService : Service() {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
-    // 音声ループ
+    // 音声ループ（録音は10秒ブロッキング → IOスレッドで実行）
     private val audioRunnable = object : Runnable {
         override fun run() {
             if (!isRunning) return
-            captureAndClassifyAudio()
+            scope.launch(Dispatchers.IO) { captureAndClassifyAudio() }
             handler.postDelayed(this, runtimeConfig.audioIntervalMs)
         }
     }
@@ -175,8 +175,11 @@ class FieldScanService : Service() {
         scope.launch {
             val ready = visionClassifier?.initialize() ?: false
             val perchReady = dualAudio?.isPerchReady() ?: false
+            val gemmaReady = dualAudio?.isGemmaReady() ?: false
             val engineLabel = when {
+                ready && perchReady && gemmaReady -> "BirdNET V3 + Perch v2 + Gemma E4B + Gemini Nano v3"
                 ready && perchReady -> "BirdNET V3 + Perch v2 + Gemini Nano v3"
+                ready && gemmaReady -> "BirdNET V3 + Gemma E4B + Gemini Nano v3"
                 ready -> "BirdNET V3 + Gemini Nano v3"
                 perchReady -> "BirdNET V3 + Perch v2"
                 else -> "BirdNET V3"
@@ -216,8 +219,15 @@ class FieldScanService : Service() {
 
     override fun onDestroy() {
         stopMonitoring()
-        dualAudio?.close()
-        visionClassifier?.close()
+        // モデルのclose()はブロッキングの可能性があるためバックグラウンドで実行
+        val audioToClose = dualAudio
+        val visionToClose = visionClassifier
+        dualAudio = null
+        visionClassifier = null
+        CoroutineScope(Dispatchers.IO).launch {
+            audioToClose?.close()
+            visionToClose?.close()
+        }
         scope.cancel()
         super.onDestroy()
     }
@@ -239,27 +249,34 @@ class FieldScanService : Service() {
     }
 
     private fun stopMonitoring() {
+        val t0 = System.currentTimeMillis()
         isRunning = false
+        Log.i(TAG, "stopMonitoring: begin intent=$sessionIntent profile=$testProfile")
+
         handler.removeCallbacks(audioRunnable)
         handler.removeCallbacks(visionRunnable)
         handler.removeCallbacks(envRunnable)
+        Log.d(TAG, "stopMonitoring: handlers cleared ${System.currentTimeMillis() - t0}ms")
+
         locationTracker?.stopTracking()
         sensorCollector?.stop()
+        Log.d(TAG, "stopMonitoring: sensors stopped ${System.currentTimeMillis() - t0}ms")
 
         val summary = eventBuffer.getSummary()
         if (summary.totalDetections > 0) {
             showSummaryNotification(summary)
         }
-        eventBuffer.scheduleUpload(this)
+        Log.d(TAG, "stopMonitoring: summary done ${System.currentTimeMillis() - t0}ms detections=${summary.totalDetections}")
 
-        Log.i(TAG, "Field Scan stopped. intent=$sessionIntent profile=$testProfile detections=${summary.totalDetections}")
+        eventBuffer.scheduleUpload(this)
+        Log.i(TAG, "stopMonitoring: complete ${System.currentTimeMillis() - t0}ms")
     }
 
     /**
-     * デュアル音声AI（BirdNET V3 + Perch v2）
-     * 録音データを保持したままデュアル推論し、音声スニペットを保存する。
+     * トリプル音声AI（BirdNET V3 + Perch v2 + Gemma E4B）
+     * IOスレッドで録音（10秒ブロッキング）→ 推論 → メインスレッドでUI更新。
      */
-    private fun captureAndClassifyAudio() {
+    private suspend fun captureAndClassifyAudio() {
         val dual = dualAudio ?: return
         if (!dual.isReady()) return
 
@@ -273,6 +290,7 @@ class FieldScanService : Service() {
             audioData = audioData,
             durationMs = runtimeConfig.audioDurationMs,
             minConfidence = runtimeConfig.audioMinConfidence,
+            callerScope = scope,
         ) { results ->
             if (results.isEmpty()) return@classifyDual
 
@@ -291,7 +309,10 @@ class FieldScanService : Service() {
                 recentAudioSpecies[result.scientificName] = result.fusedConfidence
 
                 val engineLabel = when {
+                    result.birdnetConfidence != null && result.perchConfidence != null && result.gemmaConfidence != null -> "triple_v3_perch2_gemma"
                     result.birdnetConfidence != null && result.perchConfidence != null -> "dual_v3_perch2"
+                    result.birdnetConfidence != null && result.gemmaConfidence != null -> "dual_v3_gemma"
+                    result.gemmaConfidence != null -> "gemma_e4b"
                     result.perchConfidence != null -> "perch_v2"
                     else -> "birdnet_v3_dp3"
                 }
@@ -310,15 +331,21 @@ class FieldScanService : Service() {
                     audioSnippetId = snippet?.id,
                     birdnetConfidence = result.birdnetConfidence,
                     perchConfidence = result.perchConfidence,
+                    gemmaConfidence = result.gemmaConfidence,
                     consensusLevel = result.consensusLevel.name,
                 )
                 eventBuffer.add(event)
 
-                val consensusTag = if (result.consensusLevel == DualAudioClassifier.ConsensusLevel.DUAL_CONSENSUS) "🔥" else "🎧"
+                val consensusTag = when (result.consensusLevel) {
+                    DualAudioClassifier.ConsensusLevel.TRIPLE_CONSENSUS -> "🔥🔥"
+                    DualAudioClassifier.ConsensusLevel.DUAL_CONSENSUS -> "🔥"
+                    else -> "🎧"
+                }
                 Log.d(TAG, "$consensusTag ${result.scientificName} " +
                     "fused=${(result.fusedConfidence * 100).toInt()}% " +
                     "bn=${result.birdnetConfidence?.let { "${(it*100).toInt()}%" } ?: "-"} " +
-                    "perch=${result.perchConfidence?.let { "${(it*100).toInt()}%" } ?: "-"}")
+                    "perch=${result.perchConfidence?.let { "${(it*100).toInt()}%" } ?: "-"} " +
+                    "gemma=${result.gemmaConfidence?.let { "${(it*100).toInt()}%" } ?: "-"}")
 
                 if (result.fusedConfidence >= 0.5f && eventBuffer.isNewSpecies(result.taxonName)) {
                     val label = "${result.taxonName} (${(result.fusedConfidence * 100).toInt()}%)"

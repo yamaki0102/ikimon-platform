@@ -22,10 +22,11 @@ data class DetectionEvent(
     val order: String? = null,
     val taxonRank: String = "species",
     val aiVersion: String = "v0.8.1",
-    // デュアルエンジン情報
+    // トリプルエンジン情報
     val birdnetConfidence: Float? = null,
     val perchConfidence: Float? = null,
-    val consensusLevel: String? = null,   // "DUAL_CONSENSUS" | "SINGLE_STRONG" | "SINGLE_WEAK"
+    val gemmaConfidence: Float? = null,    // null = Gemma 未使用 or AICore 未対応
+    val consensusLevel: String? = null,   // "TRIPLE_CONSENSUS" | "DUAL_CONSENSUS" | "SINGLE_STRONG" | "SINGLE_WEAK"
 ) {
     fun toJSON(): JSONObject = JSONObject().apply {
         put("type", type)
@@ -46,6 +47,7 @@ data class DetectionEvent(
         put("taxon_rank", taxonRank)
         birdnetConfidence?.let { put("birdnet_confidence", it.toDouble()) }
         perchConfidence?.let { put("perch_confidence", it.toDouble()) }
+        gemmaConfidence?.let { put("gemma_confidence", it.toDouble()) }
         consensusLevel?.let { put("consensus_level", it) }
     }
 }

@@ -51,9 +51,10 @@ dependencies {
     // ONNX Runtime (BirdNET+ V3.0)
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
 
-    // TFLite (Perch v2 Bird Vocalization Classifier)
+    // TFLite (Perch v1 Bird Vocalization Classifier — SELECT_TF_OPS flex delegate)
     implementation("org.tensorflow:tensorflow-lite:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.14.0")
 
     // Gemini Nano on-device (視覚AI — Prompt API)
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")
