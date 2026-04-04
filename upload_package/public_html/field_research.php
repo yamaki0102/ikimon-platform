@@ -47,243 +47,321 @@ if (!$currentUser) {
 
     <style>
         *, *::before, *::after { box-sizing: border-box; }
-        body, html { height: 100%; margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        body, html { height: 100%; margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         #map { width: 100%; height: 100%; }
 
-        /* ── Glass Panel ── */
-        .glass {
-            background: rgba(255,255,255,0.88);
+        /* M3 tokens (--md-*, --shape-*, --type-*, --motion-*, --elev-*) loaded globally via assets/css/tokens.css */
+
+        /* ═══════════════════════════════════════════════════════
+           STATE LAYERS — M3 interactive state system
+           Applied via ::before overlay on all interactive elements
+        ═══════════════════════════════════════════════════════ */
+        .md-interactive { position: relative; overflow: hidden; }
+        .md-interactive::before {
+            content: ''; position: absolute; inset: 0;
+            background: currentColor; opacity: 0; border-radius: inherit;
+            transition: opacity var(--motion-short) var(--motion-std);
+            pointer-events: none;
+        }
+        .md-interactive:hover::before  { opacity: 0.08; }
+        .md-interactive:active::before { opacity: 0.12; }
+        .md-interactive:focus-visible  { outline: 3px solid var(--md-primary); outline-offset: 2px; }
+
+        /* ═══════════════════════════════════════════════════════
+           SURFACE — frosted glass (M3 compatible: tonal surface)
+        ═══════════════════════════════════════════════════════ */
+        .glass, .md-surface {
+            background: rgba(255,255,255,0.92);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 14px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            border-radius: var(--shape-lg);
+            box-shadow: var(--elev-2);
         }
 
-        /* ── Top Bar ── */
+        /* ═══════════════════════════════════════════════════════
+           TOP BAR
+        ═══════════════════════════════════════════════════════ */
         .top-bar {
             position: absolute; top: 0; left: 0; right: 0; z-index: 20;
-            background: rgba(255,255,255,0.92);
+            background: rgba(255,255,255,0.94);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(0,0,0,0.06);
+            border-bottom: 1px solid var(--md-outline-variant);
             padding: 10px 16px;
             display: flex; align-items: center; justify-content: space-between;
         }
-        .top-bar a { color: #10b981; text-decoration: none; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
-        .top-bar-title { font-size: 15px; font-weight: 800; color: #1e293b; }
+        .top-bar a {
+            color: var(--md-primary); text-decoration: none;
+            font-size: var(--type-label-lg); font-weight: 600;
+            display: flex; align-items: center; gap: 4px;
+            padding: 6px 8px; margin: -6px -8px;
+            border-radius: var(--shape-sm);
+            position: relative; overflow: hidden;
+            transition: background var(--motion-short) var(--motion-std);
+        }
+        .top-bar a:hover { background: rgba(10,124,92,0.08); }
+        .top-bar-title { font-size: var(--type-title-md); font-weight: 700; color: var(--md-on-surface); }
 
-        /* ── Stats Panel (top-left) ── */
+        /* ═══════════════════════════════════════════════════════
+           STATS PANEL
+        ═══════════════════════════════════════════════════════ */
         .stats-panel {
             position: absolute; top: 56px; left: 12px; z-index: 15;
-            padding: 10px 14px;
+            padding: 12px 16px;
             display: flex; flex-direction: column; gap: 2px;
             min-width: 130px;
         }
         .stats-panel .stat-row { display: flex; align-items: baseline; gap: 6px; }
-        .stats-panel .stat-value { font-family: 'SF Mono', monospace; font-size: 1.1rem; font-weight: 800; color: #1e293b; }
-        .stats-panel .stat-label { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-        .stats-panel .stat-value.highlight { color: #10b981; }
+        .stats-panel .stat-value {
+            font-size: var(--type-body-lg); font-weight: 700; color: var(--md-on-surface);
+        }
+        .stats-panel .stat-label {
+            font-size: var(--type-label-sm); color: var(--md-on-surface-variant);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .stats-panel .stat-value.highlight { color: var(--md-primary); }
 
-        /* ── Period Filter (below stats) ── */
+        /* ═══════════════════════════════════════════════════════
+           PERIOD FILTER — M3 FilterChip
+        ═══════════════════════════════════════════════════════ */
         .period-bar {
             position: absolute; top: 56px; left: 160px; z-index: 15;
-            padding: 6px;
-            display: flex; gap: 2px;
+            padding: 6px; display: flex; gap: 4px;
         }
         .period-btn {
-            border: none; background: none; padding: 5px 10px; border-radius: 8px;
-            font-size: 11px; font-weight: 700; color: #64748b; cursor: pointer;
-            transition: all 0.15s;
+            border: 1px solid var(--md-outline); background: transparent;
+            padding: 0 12px; height: 32px; border-radius: var(--shape-sm);
+            font-size: var(--type-label-md); font-weight: 500;
+            color: var(--md-on-surface-variant); cursor: pointer;
+            transition: background var(--motion-short) var(--motion-std),
+                        border-color var(--motion-short) var(--motion-std),
+                        color var(--motion-short) var(--motion-std);
+            position: relative; overflow: hidden;
         }
-        .period-btn:hover { background: rgba(16,185,129,0.1); }
-        .period-btn.active { background: #10b981; color: #fff; }
+        .period-btn::before {
+            content: ''; position: absolute; inset: 0;
+            background: currentColor; opacity: 0;
+            transition: opacity var(--motion-short) var(--motion-std);
+            pointer-events: none;
+        }
+        .period-btn:hover::before  { opacity: 0.08; }
+        .period-btn:active::before { opacity: 0.12; }
+        .period-btn.active {
+            background: var(--md-secondary-container);
+            border-color: transparent;
+            color: var(--md-on-secondary-container); font-weight: 700;
+        }
 
-        /* ── Bottom Action Bar ── */
+        /* ═══════════════════════════════════════════════════════
+           BOTTOM ACTION BAR — M3 FAB
+        ═══════════════════════════════════════════════════════ */
         .bottom-bar {
-            position: absolute; bottom: max(24px, env(safe-area-inset-bottom, 16px)); left: 50%; transform: translateX(-50%); z-index: 20;
-            display: flex; gap: 12px; align-items: center;
-            padding: 8px 12px;
+            position: absolute; bottom: max(24px, env(safe-area-inset-bottom, 16px));
+            left: 50%; transform: translateX(-50%); z-index: 20;
+            display: flex; gap: 12px; align-items: center; padding: 8px 12px;
         }
         .action-btn {
-            width: 56px; height: 56px; border-radius: 50%; border: none;
+            width: 56px; height: 56px; border-radius: var(--shape-lg); border: none;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 0.7rem; font-weight: 700; cursor: pointer;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
-            transition: all 0.15s;
-            text-decoration: none;
+            font-size: var(--type-label-sm); font-weight: 700; cursor: pointer;
+            box-shadow: var(--elev-3);
+            transition: box-shadow var(--motion-short) var(--motion-std);
+            text-decoration: none; position: relative; overflow: hidden;
         }
-        .action-btn:active { transform: scale(0.93); }
+        .action-btn::before {
+            content: ''; position: absolute; inset: 0;
+            background: currentColor; opacity: 0; border-radius: inherit;
+            transition: opacity var(--motion-short) var(--motion-std);
+            pointer-events: none;
+        }
+        .action-btn:hover { box-shadow: var(--elev-4); }
+        .action-btn:hover::before  { opacity: 0.08; }
+        .action-btn:active::before { opacity: 0.12; }
         .action-btn i { margin-bottom: 2px; }
+        .btn-observe { background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); }
+        .btn-locate  { background: var(--md-surface-container-low); color: var(--md-primary);
+                       border: 1px solid var(--md-outline-variant); width: 44px; height: 44px; }
 
-        .btn-observe { background: #f59e0b; color: #fff; }
-        .btn-locate { background: #fff; color: #3b82f6; border: 1px solid rgba(0,0,0,0.08); width: 44px; height: 44px; }
-
-        /* ── GPS Status Indicator ── */
+        /* ═══════════════════════════════════════════════════════
+           GPS DOT
+        ═══════════════════════════════════════════════════════ */
         .gps-dot {
-            width: 8px; height: 8px; border-radius: 50%;
+            width: 8px; height: 8px; border-radius: var(--shape-full);
             animation: gps-pulse 2s ease-in-out infinite;
         }
         .gps-dot.good { background: #22c55e; }
         .gps-dot.fair { background: #f59e0b; }
         .gps-dot.poor { background: #ef4444; }
-        .gps-dot.off  { background: #d1d5db; animation: none; }
+        .gps-dot.off  { background: var(--md-outline-variant); animation: none; }
         @keyframes gps-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-        /* ── Layer Toggle Button ── */
+        /* ═══════════════════════════════════════════════════════
+           LAYER PANEL
+        ═══════════════════════════════════════════════════════ */
         .layer-btn {
             position: absolute; top: 56px; right: 12px; z-index: 15;
             width: 40px; height: 40px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; padding: 0;
         }
-
-        /* ── Layer Sheet ── */
         .layer-sheet {
             position: absolute; top: 100px; right: 12px; z-index: 15;
             padding: 12px 16px; min-width: 200px;
         }
-        .layer-sheet h4 { margin: 0 0 8px; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        .layer-sheet h4 {
+            margin: 0 0 8px; font-size: var(--type-label-md);
+            color: var(--md-on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;
+        }
         .layer-item {
             display: flex; align-items: center; gap: 10px;
-            padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.04);
-            font-size: 13px; font-weight: 600; color: #1e293b; cursor: pointer;
+            padding: 8px 0; border-bottom: 1px solid var(--md-outline-variant);
+            font-size: var(--type-body-md); font-weight: 500; color: var(--md-on-surface); cursor: pointer;
+            position: relative; overflow: hidden;
         }
+        .layer-item::before {
+            content: ''; position: absolute; inset: 0;
+            background: var(--md-on-surface); opacity: 0;
+            transition: opacity var(--motion-short) var(--motion-std);
+            pointer-events: none;
+        }
+        .layer-item:hover::before  { opacity: 0.08; }
+        .layer-item:active::before { opacity: 0.12; }
         .layer-item:last-child { border-bottom: none; }
         .layer-toggle {
-            width: 36px; height: 20px; border-radius: 10px; border: none;
-            position: relative; cursor: pointer; transition: background 0.2s;
+            width: 36px; height: 20px; border-radius: var(--shape-full); border: none;
+            position: relative; cursor: pointer;
+            transition: background var(--motion-short) var(--motion-std); flex-shrink: 0;
         }
-        .layer-toggle.on { background: #10b981; }
-        .layer-toggle.off { background: #d1d5db; }
+        .layer-toggle.on  { background: var(--md-primary); }
+        .layer-toggle.off { background: var(--md-outline); }
         .layer-toggle::after {
             content: ''; position: absolute; top: 2px; width: 16px; height: 16px;
-            border-radius: 50%; background: #fff; transition: left 0.2s;
+            border-radius: var(--shape-full); background: #fff;
+            transition: left var(--motion-short) var(--motion-std);
             box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
-        .layer-toggle.on::after { left: 18px; }
+        .layer-toggle.on::after  { left: 18px; }
         .layer-toggle.off::after { left: 2px; }
 
-        /* Loading indicator */
+        /* Loading bar */
         .loading-bar {
             position: absolute; top: 46px; left: 0; right: 0; height: 3px; z-index: 30;
-            background: linear-gradient(90deg, transparent, #10b981, transparent);
+            background: linear-gradient(90deg, transparent, var(--md-primary), transparent);
             animation: loading-slide 1s ease-in-out infinite;
         }
         @keyframes loading-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
-        /* Mobile adjustments */
+        /* Mobile */
         @media (max-width: 640px) {
             .period-bar { top: auto; bottom: max(90px, calc(env(safe-area-inset-bottom, 16px) + 72px)); left: 50%; transform: translateX(-50%); }
             .stats-panel { top: 52px; left: 8px; padding: 8px 10px; }
-            .stats-panel .stat-value { font-size: 0.95rem; }
+            .stats-panel .stat-value { font-size: var(--type-body-md); }
         }
 
-        /* ── Site Guide Toast ── */
+        /* ═══════════════════════════════════════════════════════
+           SITE GUIDE TOAST
+        ═══════════════════════════════════════════════════════ */
         .site-guide-toast {
             position: absolute; bottom: max(100px, calc(env(safe-area-inset-bottom, 16px) + 88px));
             left: 50%; transform: translateX(-50%); z-index: 25;
             max-width: 360px; width: calc(100% - 32px);
-            animation: sgt-slide-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: sgt-slide-up 0.4s var(--motion-decel) both;
         }
         .sgt-inner {
-            background: rgba(255,255,255,0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(16,185,129,0.2); border-radius: 14px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(16,185,129,0.08);
-            padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer;
-            transition: transform 0.15s;
+            background: rgba(255,255,255,0.97); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--md-outline-variant); border-radius: var(--shape-lg);
+            box-shadow: var(--elev-3); padding: 12px 14px;
+            display: flex; align-items: center; gap: 10px; cursor: pointer;
+            transition: box-shadow var(--motion-short) var(--motion-std);
+            position: relative; overflow: hidden;
         }
-        .sgt-inner:active { transform: scale(0.97); }
-        .sgt-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(16,185,129,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .sgt-title { font-size: 13px; font-weight: 700; color: #1e293b; }
-        .sgt-sub { font-size: 11px; color: #64748b; margin-top: 1px; }
-        .sgt-text { flex: 1; min-width: 0; }
+        .sgt-inner::before {
+            content: ''; position: absolute; inset: 0;
+            background: var(--md-on-surface); opacity: 0;
+            transition: opacity var(--motion-short) var(--motion-std); pointer-events: none;
+        }
+        .sgt-inner:hover { box-shadow: var(--elev-4); }
+        .sgt-inner:hover::before  { opacity: 0.04; }
+        .sgt-inner:active::before { opacity: 0.08; }
+        .sgt-icon { width: 36px; height: 36px; border-radius: var(--shape-md); background: var(--md-primary-container); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .sgt-title { font-size: var(--type-body-md); font-weight: 700; color: var(--md-on-surface); }
+        .sgt-sub   { font-size: var(--type-label-sm); color: var(--md-on-surface-variant); margin-top: 1px; }
+        .sgt-text  { flex: 1; min-width: 0; }
         @keyframes sgt-slide-up { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
-        /* ── Site Guide Panel ── */
+        /* ═══════════════════════════════════════════════════════
+           SITE GUIDE PANEL
+        ═══════════════════════════════════════════════════════ */
         .site-guide-panel {
             position: absolute; top: 0; right: 0; z-index: 30;
             width: min(400px, 100%); height: 100vh; height: 100dvh;
-            background: #fff;
+            background: var(--md-surface);
             box-shadow: -4px 0 24px rgba(0,0,0,0.12);
-            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateX(100%);
+            transition: transform var(--motion-medium) var(--motion-decel);
             flex-direction: column;
         }
         .site-guide-panel.open { transform: translateX(0); }
-
         .sgp-header {
-            padding: 16px 16px 12px; border-bottom: 1px solid #f1f5f9;
+            padding: 16px 16px 12px; border-bottom: 1px solid var(--md-surface-container-high);
             display: flex; align-items: flex-start; gap: 12px; flex-shrink: 0;
-            background: linear-gradient(135deg, rgba(16,185,129,0.04), rgba(59,130,246,0.04));
+            background: var(--md-surface-container-low);
         }
-        .sgp-close { position: absolute; top: 12px; right: 12px; background: none; border: none; cursor: pointer; padding: 4px; border-radius: 8px; color: #94a3b8; }
-        .sgp-close:hover { background: #f1f5f9; color: #475569; }
-        .sgp-title { font-size: 17px; font-weight: 800; color: #1e293b; margin: 0; padding-right: 32px; }
-        .sgp-subtitle { font-size: 12px; color: #64748b; margin: 4px 0 0; }
-
+        .sgp-close {
+            position: absolute; top: 12px; right: 12px; background: none; border: none;
+            cursor: pointer; padding: 4px; border-radius: var(--shape-sm); color: var(--md-on-surface-variant);
+            transition: background var(--motion-short) var(--motion-std);
+        }
+        .sgp-close:hover { background: var(--md-surface-variant); color: var(--md-on-surface); }
+        .sgp-title    { font-size: var(--type-title-lg); font-weight: 700; color: var(--md-on-surface); margin: 0; padding-right: 32px; }
+        .sgp-subtitle { font-size: var(--type-label-md); color: var(--md-on-surface-variant); margin: 4px 0 0; }
         .sgp-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; }
-        .sgp-section { padding: 16px; border-bottom: 1px solid #f1f5f9; }
-        .sgp-section-title { font-size: 13px; font-weight: 700; color: #1e293b; margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
-
-        .sgp-welcome p { font-size: 13px; line-height: 1.7; color: #475569; margin: 0; }
-
+        .sgp-section { padding: 16px; border-bottom: 1px solid var(--md-surface-container-high); }
+        .sgp-section-title { font-size: var(--type-label-lg); font-weight: 700; color: var(--md-on-surface); margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
+        .sgp-welcome p { font-size: var(--type-body-sm); line-height: 1.7; color: var(--md-on-surface-variant); margin: 0; }
         .sgp-highlights { display: flex; flex-direction: column; gap: 6px; }
-        .sgp-highlight-item { font-size: 12px; color: #475569; padding: 6px 10px; background: rgba(16,185,129,0.06); border-radius: 8px; border-left: 3px solid #10b981; }
-
-        .sgp-season { background: linear-gradient(135deg, rgba(251,191,36,0.06), rgba(245,158,11,0.06)); }
-        .sgp-season-desc { font-size: 12.5px; line-height: 1.6; color: #475569; margin: 0; }
-
+        .sgp-highlight-item { font-size: var(--type-label-md); padding: 6px 10px; background: var(--md-primary-container); border-radius: var(--shape-sm); border-left: 3px solid var(--md-primary); color: var(--md-on-primary-container); }
+        .sgp-season { background: var(--md-tertiary-container); }
+        .sgp-season-desc { font-size: var(--type-body-sm); line-height: 1.6; color: var(--md-on-tertiary-container); margin: 0; }
         .sgp-routes { display: flex; flex-direction: column; gap: 8px; }
-        .sgp-route-card { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; }
-        .sgp-route-name { font-size: 13px; font-weight: 700; color: #1e293b; }
-        .sgp-route-meta { display: flex; gap: 8px; margin-top: 4px; font-size: 11px; color: #94a3b8; }
-        .sgp-route-diff { background: #dcfce7; color: #16a34a; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
-        .sgp-route-desc { font-size: 12px; color: #64748b; margin: 6px 0 0; line-height: 1.5; }
-
-        /* POI Cards */
+        .sgp-route-card { padding: 10px 12px; border: 1px solid var(--md-outline-variant); border-radius: var(--shape-md); }
+        .sgp-route-name { font-size: var(--type-body-md); font-weight: 700; color: var(--md-on-surface); }
+        .sgp-route-meta { display: flex; gap: 8px; margin-top: 4px; font-size: var(--type-label-sm); color: var(--md-on-surface-variant); }
+        .sgp-route-diff { background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 1px 6px; border-radius: var(--shape-xs); font-weight: 600; }
+        .sgp-route-desc { font-size: var(--type-body-sm); color: var(--md-on-surface-variant); margin: 6px 0 0; line-height: 1.5; }
         .sgp-pois { display: flex; flex-direction: column; gap: 6px; }
-        .sgp-poi-card { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color 0.15s; }
-        .sgp-poi-card:hover { border-color: #10b981; }
-        .sgp-poi-card.expanded { border-color: #10b981; }
+        .sgp-poi-card { border: 1px solid var(--md-outline-variant); border-radius: var(--shape-md); overflow: hidden; cursor: pointer; transition: border-color var(--motion-short) var(--motion-std); }
+        .sgp-poi-card:hover, .sgp-poi-card.expanded { border-color: var(--md-primary); }
         .sgp-poi-header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
         .sgp-poi-emoji { font-size: 22px; flex-shrink: 0; }
         .sgp-poi-titles { flex: 1; min-width: 0; }
-        .sgp-poi-name { font-size: 13px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px; }
-        .sgp-poi-badge { font-size: 10px; font-weight: 700; background: #fef3c7; color: #d97706; padding: 1px 6px; border-radius: 4px; }
-        .sgp-poi-short { font-size: 11.5px; color: #64748b; margin-top: 2px; line-height: 1.4; }
-        .sgp-poi-chevron { transition: transform 0.2s; }
+        .sgp-poi-name { font-size: var(--type-body-md); font-weight: 700; color: var(--md-on-surface); display: flex; align-items: center; gap: 6px; }
+        .sgp-poi-badge { font-size: var(--type-label-sm); font-weight: 700; background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); padding: 1px 6px; border-radius: var(--shape-xs); }
+        .sgp-poi-short { font-size: var(--type-label-md); color: var(--md-on-surface-variant); margin-top: 2px; line-height: 1.4; }
+        .sgp-poi-chevron { transition: transform var(--motion-short) var(--motion-std); }
         .sgp-poi-card.expanded .sgp-poi-chevron { transform: rotate(180deg); }
-
-        .sgp-poi-detail { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sgp-poi-detail { max-height: 0; overflow: hidden; transition: max-height var(--motion-long) var(--motion-std); }
         .sgp-poi-card.expanded .sgp-poi-detail { max-height: 800px; }
         .sgp-poi-long { padding: 0 12px 8px; }
-        .sgp-poi-long p { font-size: 12.5px; line-height: 1.7; color: #475569; margin: 0 0 8px; }
-        .sgp-poi-tips { padding: 8px 12px; background: rgba(59,130,246,0.04); margin: 0 8px 8px; border-radius: 8px; }
-        .sgp-poi-tips strong { font-size: 12px; color: #1e293b; }
-        .sgp-tip { font-size: 11.5px; color: #64748b; margin-top: 4px; padding-left: 8px; border-left: 2px solid rgba(59,130,246,0.2); }
-        .sgp-poi-season { font-size: 11.5px; color: #64748b; padding: 4px 12px 8px; }
-        .sgp-poi-trivia { font-size: 11.5px; color: #7c3aed; background: rgba(124,58,237,0.04); padding: 8px 12px; margin: 0 8px 12px; border-radius: 8px; line-height: 1.5; }
-
-        /* Read/Unread state */
+        .sgp-poi-long p { font-size: var(--type-body-sm); line-height: 1.7; color: var(--md-on-surface-variant); margin: 0 0 8px; }
+        .sgp-poi-tips { padding: 8px 12px; background: var(--md-surface-container); margin: 0 8px 8px; border-radius: var(--shape-sm); }
+        .sgp-poi-tips strong { font-size: var(--type-label-md); color: var(--md-on-surface); }
+        .sgp-tip { font-size: var(--type-label-md); color: var(--md-on-surface-variant); margin-top: 4px; padding-left: 8px; border-left: 2px solid var(--md-outline-variant); }
+        .sgp-poi-season  { font-size: var(--type-label-md); color: var(--md-on-surface-variant); padding: 4px 12px 8px; }
+        .sgp-poi-trivia  { font-size: var(--type-label-md); color: #6750a4; background: rgba(103,80,164,0.06); padding: 8px 12px; margin: 0 8px 12px; border-radius: var(--shape-sm); line-height: 1.5; }
         .sgp-poi-read { opacity: 0.65; }
         .sgp-poi-read:hover, .sgp-poi-read.expanded { opacity: 1; }
-        .sgp-poi-new { background: #dbeafe; color: #2563eb; }
-        .sgp-poi-unread { border-left: 3px solid #10b981; }
-
-        /* Story */
-        .sgp-story-body p { font-size: 12.5px; line-height: 1.7; color: #475569; margin: 0 0 10px; }
-        .sgp-story { background: linear-gradient(135deg, rgba(16,185,129,0.03), rgba(34,197,94,0.03)); }
-
-        /* Practical Info */
-        .sgp-link { display: inline-block; font-size: 12px; color: #10b981; font-weight: 600; text-decoration: none; margin-bottom: 6px; }
+        .sgp-poi-new    { background: #dbeafe; color: #2563eb; }
+        .sgp-poi-unread { border-left: 3px solid var(--md-primary); }
+        .sgp-story-body p { font-size: var(--type-body-sm); line-height: 1.7; color: var(--md-on-surface-variant); margin: 0 0 10px; }
+        .sgp-story { background: var(--md-surface-container-low); }
+        .sgp-link { display: inline-block; font-size: var(--type-body-sm); color: var(--md-primary); font-weight: 600; text-decoration: none; margin-bottom: 6px; }
         .sgp-link:hover { text-decoration: underline; }
-        .sgp-info-row { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+        .sgp-info-row { font-size: var(--type-body-sm); color: var(--md-on-surface-variant); margin-bottom: 4px; }
         .sgp-notes { margin: 8px 0 0; padding-left: 18px; }
-        .sgp-notes li { font-size: 11.5px; color: #64748b; margin-bottom: 3px; line-height: 1.5; }
-
-        /* Guide button in bottom bar */
-        .btn-guide { background: #10b981; color: #fff; }
-        .btn-guide.inactive { background: #fff; color: #64748b; border: 1px solid rgba(0,0,0,0.08); }
+        .sgp-notes li { font-size: var(--type-label-md); color: var(--md-on-surface-variant); margin-bottom: 3px; line-height: 1.5; }
+        .btn-guide { background: var(--md-primary); color: var(--md-on-primary); }
+        .btn-guide.inactive { background: var(--md-surface-container-low); color: var(--md-on-surface-variant); border: 1px solid var(--md-outline-variant); }
     </style>
     <?php if ($siteMode && $siteGeoJSON): ?>
     <script>
@@ -343,12 +421,10 @@ if (!$currentUser) {
         </div>
         <div class="stat-row" style="margin-top:2px;">
             <div class="gps-dot" :class="gpsAccuracy ? (gpsAccuracy <= 10 ? 'good' : gpsAccuracy <= 30 ? 'fair' : 'poor') : 'off'" style="margin-right:4px;"></div>
-            <span class="stat-value" x-text="gpsAccuracy ? gpsAccuracy + ' m' : '--'" style="font-size:0.85rem;"></span>
             <span class="stat-label">GPS</span>
         </div>
         <div class="stat-row" style="margin-top:2px;">
             <div class="gps-dot" :class="isOnline ? 'good' : 'off'" style="margin-right:4px;"></div>
-            <span class="stat-value" x-text="isOnline ? 'OK' : 'OFF'" style="font-size:0.85rem;" :style="isOnline ? '' : 'color:#ef4444'"></span>
             <span class="stat-label">通信</span>
         </div>
     </div>
@@ -385,155 +461,150 @@ if (!$currentUser) {
         </div>
     </div>
 
-    <!-- Sensor Start Panel (M3 bottom sheet) -->
-    <div x-show="!sessionActive && showModeSelect" x-cloak
-         style="position:absolute;bottom:0;left:0;right:0;z-index:25;">
-        <div style="background:#FFFBFE;border-radius:28px 28px 0 0;padding:12px 24px max(24px,env(safe-area-inset-bottom,24px));box-shadow:0 -2px 20px rgba(0,0,0,0.08);">
-            <!-- Handle bar -->
-            <div style="width:32px;height:4px;background:#C4C7C5;border-radius:2px;margin:0 auto 20px;"></div>
+    <!-- センサー初回ガイド (M3 bottom sheet) -->
+    <div x-show="!sessionActive && showSensorIntro" x-cloak
+         style="position:absolute;bottom:0;left:0;right:0;z-index:26;">
+        <div style="background:var(--md-surface);border-radius:var(--shape-xl) var(--shape-xl) 0 0;padding:12px 24px max(24px,env(safe-area-inset-bottom,24px));box-shadow:var(--elev-3);">
+            <div style="width:32px;height:4px;background:var(--md-outline-variant);border-radius:var(--shape-full);margin:0 auto 20px;"></div>
+            <!-- ステップ dots -->
+            <div style="display:flex;justify-content:center;gap:6px;margin-bottom:20px;">
+                <template x-for="i in [1,2,3]" :key="i">
+                    <div :style="i === introStep ? 'width:20px;background:var(--md-primary);' : 'width:8px;background:var(--md-outline-variant);'"
+                         style="height:8px;border-radius:var(--shape-full);transition:all 0.3s;"></div>
+                </template>
+            </div>
+            <!-- ステップ内容 -->
+            <div style="text-align:center;min-height:100px;margin-bottom:20px;">
+                <template x-if="introStep === 1">
+                    <div>
+                        <div style="font-size:36px;margin-bottom:10px;">📡</div>
+                        <div style="font-size:var(--type-title-sm);font-weight:800;color:var(--md-on-surface);margin-bottom:6px;">マイクが生きものを探す</div>
+                        <div style="font-size:var(--type-body-sm);color:var(--md-on-surface-variant);line-height:1.6;">周囲の音声をリアルタイムで解析して<br>鳥・虫・自然音を自動で記録します</div>
+                    </div>
+                </template>
+                <template x-if="introStep === 2">
+                    <div>
+                        <div style="font-size:36px;margin-bottom:10px;">🗺️</div>
+                        <div style="font-size:var(--type-title-sm);font-weight:800;color:var(--md-on-surface);margin-bottom:6px;">歩いた道が地図に残る</div>
+                        <div style="font-size:var(--type-body-sm);color:var(--md-on-surface-variant);line-height:1.6;">移動するほど霧が晴れて<br>あなただけの探索マップが育っていきます</div>
+                    </div>
+                </template>
+                <template x-if="introStep === 3">
+                    <div>
+                        <div style="font-size:36px;margin-bottom:10px;">🔬</div>
+                        <div style="font-size:var(--type-title-sm);font-weight:800;color:var(--md-on-surface);margin-bottom:6px;">データは自動で記録される</div>
+                        <div style="font-size:var(--type-body-sm);color:var(--md-on-surface-variant);line-height:1.6;">検出した生きものは終了時に自動送信。<br>100年後のアーカイブに刻まれます</div>
+                    </div>
+                </template>
+            </div>
+            <!-- ボタン -->
+            <button @click="nextIntroStep()" style="width:100%;height:52px;border-radius:var(--shape-lg);border:none;background:var(--md-primary);color:var(--md-on-primary);font-size:var(--type-body-lg);font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:var(--elev-1);">
+                <span x-text="introStep < 3 ? '次へ →' : '✨ はじめる'"></span>
+            </button>
+            <div style="text-align:center;margin-top:12px;">
+                <button @click="skipIntro()" style="background:none;border:none;color:var(--md-on-surface-variant);font-size:var(--type-label-md);cursor:pointer;padding:4px 8px;">スキップ</button>
+            </div>
+        </div>
+    </div>
 
-            <!-- 移動手段 (M3 filter chips — horizontal) -->
-            <div style="font-size:12px;color:#49454F;font-weight:500;margin-bottom:10px;">移動手段</div>
+    <!-- Sensor Start Panel (M3 bottom sheet) -->
+    <div x-show="!sessionActive && showModeSelect && !showSensorIntro" x-cloak
+         style="position:absolute;bottom:0;left:0;right:0;z-index:25;">
+        <div style="background:var(--md-surface);border-radius:var(--shape-xl) var(--shape-xl) 0 0;padding:12px 24px max(24px,env(safe-area-inset-bottom,24px));box-shadow:var(--elev-3);">
+            <!-- Handle bar -->
+            <div style="width:32px;height:4px;background:var(--md-outline-variant);border-radius:var(--shape-full);margin:0 auto 20px;"></div>
+
+            <!-- 移動手段 (M3 FilterChip) -->
+            <div style="font-size:var(--type-label-md);color:var(--md-on-surface-variant);font-weight:500;margin-bottom:10px;">移動手段</div>
             <div style="display:flex;gap:8px;margin-bottom:16px;">
                 <template x-for="tm in transportModes" :key="tm.id">
                     <button @click="manualTransportMode = tm.id; localStorage.setItem('ikimon_transport', tm.id)"
-                            :style="manualTransportMode === tm.id ? 'background:#d1fae5;color:#065f46;border-color:#6ee7b7;' : 'background:transparent;color:#49454F;border-color:#79747E;'"
-                            style="height:40px;padding:0 16px;border-radius:8px;border:1px solid;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;flex:1;justify-content:center;">
+                            :style="manualTransportMode === tm.id ? 'background:var(--md-secondary-container);color:var(--md-on-secondary-container);border-color:transparent;' : 'background:transparent;color:var(--md-on-surface-variant);border-color:var(--md-outline);'"
+                            style="height:40px;padding:0 16px;border-radius:var(--shape-sm);border:1px solid;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background var(--motion-short) var(--motion-std),border-color var(--motion-short) var(--motion-std);flex:1;justify-content:center;position:relative;overflow:hidden;">
                         <span x-text="tm.emoji" style="font-size:18px;pointer-events:none;"></span>
-                        <span x-text="tm.label" style="font-size:13px;font-weight:600;pointer-events:none;"></span>
+                        <span x-text="tm.label" style="font-size:var(--type-label-lg);font-weight:600;pointer-events:none;"></span>
                     </button>
                 </template>
             </div>
 
             <!-- ドライブ設定 -->
             <div x-show="manualTransportMode === 'car'" x-cloak style="margin-bottom:16px;">
-                <div style="font-size:12px;color:#49454F;font-weight:500;margin-bottom:10px;">ドライブ時間</div>
+                <div style="font-size:var(--type-label-md);color:var(--md-on-surface-variant);font-weight:500;margin-bottom:10px;">ドライブ時間</div>
                 <div style="display:flex;gap:8px;">
                     <template x-for="dt in [{min:15,label:'15分'},{min:30,label:'30分'},{min:60,label:'1h'},{min:0,label:'なし'}]" :key="dt.min">
                         <button @click="driveDurationMin = dt.min; localStorage.setItem('ikimon_drive_duration', dt.min)"
-                                :style="driveDurationMin === dt.min ? 'background:#DBEAFE;color:#1E40AF;border-color:#93C5FD;' : 'background:transparent;color:#49454F;border-color:#79747E;'"
-                                style="height:40px;flex:1;border-radius:8px;border:1px solid;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s;">
+                                :style="driveDurationMin === dt.min ? 'background:var(--md-secondary-container);color:var(--md-on-secondary-container);border-color:transparent;' : 'background:transparent;color:var(--md-on-surface-variant);border-color:var(--md-outline);'"
+                                style="height:40px;flex:1;border-radius:var(--shape-sm);border:1px solid;cursor:pointer;font-size:var(--type-label-lg);font-weight:600;transition:background var(--motion-short) var(--motion-std),border-color var(--motion-short) var(--motion-std);">
                             <span x-text="dt.label" style="pointer-events:none;"></span>
                         </button>
                     </template>
                 </div>
             </div>
 
-            <!-- ガイドの雰囲気 (M3 filter chips — same height as transport) -->
-            <div style="font-size:12px;color:#49454F;font-weight:500;margin-bottom:10px;">ガイドの雰囲気</div>
-            <div style="display:flex;gap:8px;margin-bottom:20px;">
-                <template x-for="gm in [{id:'explore',label:'🌳 自然'},{id:'culture',label:'🏯 文化'},{id:'relax',label:'🎧 おまかせ'}]" :key="gm.id">
-                    <button @click="guideMood = gm.id; localStorage.setItem('ikimon_guide_mood', gm.id)"
-                            :style="guideMood === gm.id ? 'background:#E8DEF8;color:#1D192B;border-color:#D0BCFF;' : 'background:transparent;color:#49454F;border-color:#79747E;'"
-                            style="height:40px;flex:1;padding:0 12px;border-radius:8px;border:1px solid;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s;">
-                        <span x-text="gm.label" style="pointer-events:none;"></span>
-                    </button>
-                </template>
-            </div>
-
-            <!-- 音声 + START -->
-            <div style="display:flex;align-items:center;gap:12px;">
-                <button @click="showSpeakerSelect = !showSpeakerSelect"
-                        style="height:48px;padding:0 16px;border-radius:24px;border:1px solid #79747E;background:transparent;color:#49454F;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
-                    <span x-text="speakerEmoji" style="font-size:18px;pointer-events:none;"></span>
-                    <span x-text="speakers.find(s => s.id === selectedSpeaker)?.label || '音声'" style="pointer-events:none;"></span>
-                </button>
-                <button @click="startSensor()" style="flex:1;height:56px;border-radius:16px;border:none;background:#10b981;color:#fff;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,0.12),0 4px 12px rgba(16,185,129,0.3);">
-                    📡 スタート
-                </button>
-            </div>
-
-            <!-- Speaker select (M3 menu) -->
-            <div x-show="showSpeakerSelect" x-cloak style="margin-top:12px;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <template x-for="sp in speakers" :key="sp.id">
-                        <button @click="selectedSpeaker = sp.id; showSpeakerSelect = false; localStorage.setItem('ikimon_speaker', sp.id); localStorage.setItem('ikimon_voice_speaker', sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                :style="selectedSpeaker === sp.id ? 'background:#d1fae5;color:#065f46;border-color:#6ee7b7;' : 'background:transparent;color:#49454F;border-color:#79747E;'"
-                                style="height:44px;border-radius:12px;border:1px solid;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:600;transition:all 0.15s;">
-                            <span x-text="sp.emoji" style="font-size:16px;pointer-events:none;"></span>
-                            <span x-text="sp.label" style="pointer-events:none;"></span>
-                        </button>
-                    </template>
-                </div>
-            </div>
+            <!-- START — M3 Filled Button (extra large) -->
+            <button @click="startSensor()" style="width:100%;height:56px;border-radius:var(--shape-lg);border:none;background:var(--md-primary);color:var(--md-on-primary);font-size:var(--type-body-lg);font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:var(--elev-1);transition:box-shadow var(--motion-short) var(--motion-std);"
+                    onmouseover="this.style.boxShadow='var(--elev-2)'" onmouseout="this.style.boxShadow='var(--elev-1)'">
+                📡 スタート
+            </button>
         </div>
     </div>
 
     <!-- Drive Mode HUD (full screen — M3 dark theme, dashboard layout) -->
     <div x-show="sessionActive && (currentMovementMode === 'drive' || manualTransportMode === 'car')" x-cloak
          style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#141218;display:flex;flex-direction:column;">
-        <!-- Top bar: status + voice -->
+        <!-- Top bar: status badge -->
         <div style="display:flex;align-items:center;justify-content:space-between;padding:max(20px,calc(env(safe-area-inset-top,16px) + 8px)) 20px 16px;">
-            <div style="background:rgba(109,213,140,0.15);border:1px solid rgba(109,213,140,0.25);border-radius:20px;padding:5px 14px;">
-                <span style="color:#6DD58C;font-size:11px;font-weight:700;">🚗 ドライブ記録中</span>
-            </div>
-            <div style="position:relative;">
-                <button @click="showDriveVoiceSwitch = !showDriveVoiceSwitch"
-                        style="padding:6px 14px;border-radius:20px;border:none;background:rgba(208,188,255,0.12);color:#D0BCFF;font-size:12px;font-weight:700;cursor:pointer;">
-                    🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'" style="pointer-events:none;"></span>
-                </button>
-                <div x-show="showDriveVoiceSwitch" x-cloak @click.outside="showDriveVoiceSwitch=false"
-                     style="position:absolute;top:calc(100% + 8px);right:0;background:#2D2B32;border-radius:16px;padding:8px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:170px;z-index:50;">
-                    <template x-for="sp in speakers" :key="sp.id">
-                        <button @click="selectedSpeaker=sp.id; showDriveVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                :style="selectedSpeaker===sp.id ? 'background:rgba(208,188,255,0.2);color:#D0BCFF;font-weight:800;' : 'background:transparent;color:#CAC4D0;font-weight:600;'"
-                                style="display:block;width:100%;padding:10px 14px;border-radius:10px;border:none;font-size:13px;text-align:left;cursor:pointer;transition:background 0.1s;">
-                            <span x-text="sp.emoji + ' ' + sp.label" style="pointer-events:none;"></span>
-                        </button>
-                    </template>
-                </div>
+            <div style="background:rgba(141,212,179,0.15);border:1px solid rgba(141,212,179,0.25);border-radius:var(--shape-full);padding:5px 14px;">
+                <span style="color:#8dd4b3;font-size:var(--type-label-sm);font-weight:700;letter-spacing:0.3px;">🚗 ドライブ記録中</span>
             </div>
         </div>
 
         <!-- Center: 3-stat dashboard -->
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;">
-            <!-- Detection card (appears when species detected) -->
+            <!-- Detection card -->
             <div x-show="latestDetection" x-cloak x-transition
-                 style="background:rgba(109,213,140,0.1);border:1px solid rgba(109,213,140,0.2);border-radius:16px;padding:10px 16px;margin-bottom:24px;width:100%;max-width:320px;display:flex;align-items:center;gap:10px;">
+                 style="background:rgba(141,212,179,0.1);border:1px solid rgba(141,212,179,0.2);border-radius:var(--shape-lg);padding:10px 16px;margin-bottom:24px;width:100%;max-width:320px;display:flex;align-items:center;gap:10px;">
                 <span style="font-size:24px;" x-text="latestDetection?.emoji || '🐦'"></span>
                 <div style="flex:1;min-width:0;">
-                    <div style="font-size:15px;font-weight:800;color:#E6E1E5;" x-text="latestDetection?.label || ''"></div>
-                    <div style="font-size:10px;color:#938F99;" x-text="latestDetection?.reason || ''"></div>
+                    <div style="font-size:var(--type-title-sm);font-weight:700;color:#e6e1e5;" x-text="latestDetection?.label || ''"></div>
+                    <div style="font-size:var(--type-label-sm);color:#938f99;" x-text="latestDetection?.reason || ''"></div>
                 </div>
             </div>
-            <!-- 3 stats — equal weight, all matter -->
+            <!-- 3 stats — M3 Surface Containers (dark) -->
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;width:100%;max-width:340px;">
-                <!-- 時間 -->
-                <div style="text-align:center;background:rgba(255,255,255,0.06);border-radius:20px;padding:20px 8px;">
-                    <div style="font-size:32px;font-weight:900;color:#E6E1E5;line-height:1;" x-text="formatElapsed(sessionElapsed)"></div>
-                    <div style="font-size:11px;color:#938F99;font-weight:600;margin-top:6px;">時間</div>
+                <div style="text-align:center;background:rgba(255,255,255,0.06);border-radius:var(--shape-xl);padding:20px 8px;">
+                    <div style="font-size:var(--type-headline-md);font-weight:900;color:#e6e1e5;line-height:1;" x-text="formatElapsed(sessionElapsed)"></div>
+                    <div style="font-size:var(--type-label-sm);color:#938f99;font-weight:600;margin-top:6px;">時間</div>
                 </div>
-                <!-- 種数 -->
-                <div style="text-align:center;background:rgba(109,213,140,0.1);border:1px solid rgba(109,213,140,0.2);border-radius:20px;padding:20px 8px;">
-                    <div style="font-size:32px;font-weight:900;color:#6DD58C;line-height:1;" x-text="sessionSpeciesCount"></div>
-                    <div style="font-size:11px;color:#6DD58C;font-weight:600;margin-top:6px;">種</div>
+                <div style="text-align:center;background:rgba(255,255,255,0.06);border-radius:var(--shape-xl);padding:20px 8px;">
+                    <div style="font-size:var(--type-headline-md);font-weight:900;color:#e6e1e5;line-height:1;" x-text="sessionSpeciesCount"></div>
+                    <div style="font-size:var(--type-label-sm);color:#938f99;font-weight:600;margin-top:6px;">種</div>
                 </div>
-                <!-- 距離 -->
-                <div style="text-align:center;background:rgba(255,255,255,0.06);border-radius:20px;padding:20px 8px;">
-                    <div style="font-size:32px;font-weight:900;color:#E6E1E5;line-height:1;" x-text="(sessionDistance / 1000).toFixed(1)"></div>
-                    <div style="font-size:11px;color:#938F99;font-weight:600;margin-top:6px;">km</div>
+                <div style="text-align:center;background:rgba(255,255,255,0.06);border-radius:var(--shape-xl);padding:20px 8px;">
+                    <div style="font-size:var(--type-headline-md);font-weight:900;color:#e6e1e5;line-height:1;" x-text="(sessionDistance / 1000).toFixed(1)"></div>
+                    <div style="font-size:var(--type-label-sm);color:#938f99;font-weight:600;margin-top:6px;">km</div>
                 </div>
             </div>
             <!-- Environment label -->
-            <div x-show="envLabel" x-cloak style="font-size:11px;color:#938F99;margin-top:16px;" x-text="'🌿 ' + envLabel"></div>
+            <div x-show="envLabel" x-cloak style="font-size:var(--type-label-sm);color:#938f99;margin-top:16px;" x-text="'🌿 ' + envLabel"></div>
         </div>
 
         <!-- Bottom: transport switch + stop -->
         <div style="padding:0 20px max(20px,env(safe-area-inset-bottom,20px));display:flex;flex-direction:column;align-items:center;gap:16px;">
-            <!-- Transport mode -->
+            <!-- Transport mode chips (dark) -->
             <div style="display:flex;gap:8px;">
                 <template x-for="tm in transportModes" :key="tm.id">
                     <button @click="setTransportMode(tm.id)"
-                            :style="manualTransportMode === tm.id ? 'background:rgba(109,213,140,0.2);border-color:rgba(109,213,140,0.5);color:#6DD58C;' : 'background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.1);color:#938F99;'"
-                            style="padding:8px 16px;border-radius:12px;border:1.5px solid;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;transition:all 0.15s;">
+                            :style="manualTransportMode === tm.id ? 'background:rgba(141,212,179,0.2);border-color:rgba(141,212,179,0.5);color:#8dd4b3;' : 'background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.1);color:#938f99;'"
+                            style="padding:8px 16px;border-radius:var(--shape-md);border:1.5px solid;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:var(--type-label-lg);font-weight:700;transition:background var(--motion-short) var(--motion-std),border-color var(--motion-short) var(--motion-std);">
                         <span x-text="tm.emoji" style="pointer-events:none;"></span>
                         <span x-text="tm.label" style="pointer-events:none;"></span>
                     </button>
                 </template>
             </div>
-            <!-- Stop -->
+            <!-- Stop — M3 Filled Button (Error) -->
             <button @click="stopSensor()"
-                    style="width:100%;max-width:280px;padding:14px;border-radius:24px;background:#B3261E;border:none;color:#fff;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(179,38,30,0.3);display:flex;align-items:center;justify-content:center;gap:8px;">
+                    style="width:100%;max-width:280px;padding:16px;border-radius:var(--shape-full);background:var(--md-error);border:none;color:var(--md-on-error);font-size:var(--type-title-sm);font-weight:700;cursor:pointer;box-shadow:var(--elev-1);display:flex;align-items:center;justify-content:center;gap:8px;">
                 ■ 終了する
             </button>
         </div>
@@ -542,87 +613,66 @@ if (!$currentUser) {
     <!-- Session Active HUD (bottom, hidden in drive/car mode) -->
     <div x-show="sessionActive && currentMovementMode !== 'drive' && manualTransportMode !== 'car'" x-cloak
          style="position:absolute;bottom:max(24px,env(safe-area-inset-bottom,16px));left:50%;transform:translateX(-50%);z-index:25;width:calc(100% - 32px);max-width:400px;">
-        <div class="glass" style="padding:10px 16px;border-radius:16px;">
-            <!-- Movement mode + transport switcher -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <span style="font-size:10px;font-weight:700;padding:2px 10px;border-radius:6px;background:rgba(16,185,129,0.12);color:#10b981;"
+        <div class="md-surface" style="padding:12px 16px;">
+            <!-- Movement mode chip + transport switcher -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-size:var(--type-label-md);font-weight:700;padding:3px 10px;border-radius:var(--shape-sm);background:var(--md-primary-container);color:var(--md-on-primary-container);"
                       x-text="modeLabels[currentMovementMode] || 'サーチ中'"></span>
                 <div style="display:flex;gap:4px;">
                     <template x-for="tm in transportModes" :key="tm.id">
                         <button @click="setTransportMode(tm.id)"
-                                :style="manualTransportMode === tm.id ? 'background:#10b981;color:#fff;border-color:#10b981;box-shadow:0 1px 4px rgba(16,185,129,0.3);' : 'background:#f1f5f9;color:#64748b;border-color:#e2e8f0;'"
-                                style="padding:4px 8px;border-radius:8px;border:1.5px solid;cursor:pointer;font-size:12px;transition:all 0.15s;"
+                                :style="manualTransportMode === tm.id ? 'background:var(--md-primary);color:var(--md-on-primary);border-color:var(--md-primary);' : 'background:var(--md-surface-container-low);color:var(--md-on-surface-variant);border-color:var(--md-outline-variant);'"
+                                style="padding:4px 10px;border-radius:var(--shape-sm);border:1.5px solid;cursor:pointer;font-size:var(--type-label-md);transition:background var(--motion-short) var(--motion-std),border-color var(--motion-short) var(--motion-std);"
                                 :title="tm.label">
                             <span x-text="tm.emoji" style="pointer-events:none;"></span>
                         </button>
                     </template>
                 </div>
             </div>
-            <!-- Detection notification card -->
+            <!-- Detection card — M3 Surface Container -->
             <div x-show="latestDetection" x-cloak x-transition
-                 style="margin-bottom:8px;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:10px;"
+                 style="margin-bottom:8px;padding:8px 12px;border-radius:var(--shape-md);display:flex;align-items:center;gap:10px;"
                  :style="'background:' + (latestDetection?.source === 'audio' ? 'rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2)' : 'rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2)')">
                 <span style="font-size:20px;" x-text="latestDetection?.emoji || '🐦'"></span>
                 <div style="flex:1;min-width:0;">
-                    <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="latestDetection?.label || ''"></div>
-                    <div style="font-size:10px;color:#94a3b8;" x-text="latestDetection?.reason || ''"></div>
+                    <div style="font-size:var(--type-body-md);font-weight:700;color:var(--md-on-surface);" x-text="latestDetection?.label || ''"></div>
+                    <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);" x-text="latestDetection?.reason || ''"></div>
                 </div>
-                <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;"
-                    :style="'background:' + (latestDetection?.confidence === 'high' ? '#dcfce7;color:#16a34a' : latestDetection?.confidence === 'medium' ? '#fef9c3;color:#ca8a04' : '#f1f5f9;color:#64748b')"
-                    x-text="latestDetection?.confidence === 'high' ? '高' : latestDetection?.confidence === 'medium' ? '中' : '低'"></span>
             </div>
             <!-- Environment label -->
-            <div x-show="envLabel" x-cloak style="font-size:10px;color:#64748b;margin-bottom:6px;text-align:center;" x-text="'🌿 ' + envLabel"></div>
+            <div x-show="envLabel" x-cloak style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);margin-bottom:6px;text-align:center;" x-text="'🌿 ' + envLabel"></div>
             <!-- Stats row -->
             <div style="display:flex;align-items:center;justify-content:space-between;">
-                <div style="display:flex;align-items:center;gap:12px;">
+                <div style="display:flex;align-items:center;gap:16px;">
                     <div style="text-align:center;">
-                        <div style="font-size:18px;font-weight:900;color:#1e293b;" x-text="sessionSpeciesCount">0</div>
-                        <div style="font-size:9px;color:#94a3b8;">種</div>
+                        <div style="font-size:var(--type-title-md);font-weight:900;color:var(--md-on-surface);" x-text="sessionSpeciesCount">0</div>
+                        <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);">種</div>
                     </div>
                     <div style="text-align:center;">
-                        <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="formatDistance(sessionDistance)">0 m</div>
-                        <div style="font-size:9px;color:#94a3b8;">距離</div>
+                        <div style="font-size:var(--type-title-md);font-weight:700;color:var(--md-on-surface);" x-text="formatDistance(sessionDistance)">0 m</div>
+                        <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);">距離</div>
                     </div>
                     <div style="text-align:center;">
-                        <div style="font-size:13px;font-weight:700;color:#1e293b;" x-text="formatElapsed(sessionElapsed)">00:00</div>
-                        <div style="font-size:9px;color:#94a3b8;">時間</div>
+                        <div style="font-size:var(--type-title-md);font-weight:700;color:var(--md-on-surface);" x-text="formatElapsed(sessionElapsed)">00:00</div>
+                        <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);">時間</div>
                     </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <div style="position:relative;">
-                        <button @click="showVoiceSwitch = !showVoiceSwitch"
-                                style="padding:6px 10px;border-radius:20px;border:1.5px solid #e9d5ff;background:#f3e8ff;color:#7c3aed;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all 0.15s;">
-                            🔊 <span x-text="speakers.find(s=>s.id===selectedSpeaker)?.label || '音声'"></span>
-                        </button>
-                        <div x-show="showVoiceSwitch" x-cloak @click.outside="showVoiceSwitch=false"
-                             style="position:absolute;bottom:calc(100% + 8px);right:0;background:#fff;border-radius:16px;padding:8px;border:1px solid #e2e8f0;box-shadow:0 4px 20px rgba(0,0,0,0.12);min-width:150px;z-index:50;">
-                            <template x-for="sp in speakers" :key="sp.id">
-                                <button @click="selectedSpeaker=sp.id; showVoiceSwitch=false; localStorage.setItem('ikimon_voice_speaker',sp.id); if(window.VoiceGuide) VoiceGuide.setVoiceMode(sp.id)"
-                                        :style="selectedSpeaker===sp.id ? 'background:#f3e8ff;color:#7c3aed;font-weight:800;' : 'background:transparent;color:#475569;font-weight:600;'"
-                                        style="display:block;width:100%;padding:8px 12px;border-radius:10px;border:none;font-size:12px;text-align:left;cursor:pointer;transition:background 0.1s;">
-                                    <span x-text="sp.emoji + ' ' + sp.label" style="pointer-events:none;"></span>
-                                </button>
-                            </template>
-                        </div>
-                    </div>
-                    <button @click="stopSensor()" style="padding:8px 16px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
-                        終了
-                    </button>
-                </div>
+                <button @click="stopSensor()" style="padding:8px 20px;border-radius:var(--shape-full);border:none;background:var(--md-error);color:var(--md-on-error);font-size:var(--type-label-lg);font-weight:700;cursor:pointer;">
+                    終了
+                </button>
             </div>
         </div>
     </div>
 
     <!-- Bottom Action Bar (when no session and sensor panel hidden) -->
-    <div class="bottom-bar glass" x-show="!sessionActive && !showModeSelect" x-cloak>
+    <div class="bottom-bar glass" x-show="!sessionActive && !showModeSelect && !showSensorIntro" x-cloak>
         <!-- Locate -->
         <button class="action-btn btn-locate" @click="flyToCurrentLocation()">
             <i data-lucide="locate" style="width:20px;height:20px;"></i>
         </button>
 
-        <!-- Start Sensor -->
-        <button class="action-btn" style="background:#10b981;color:#fff;width:auto;border-radius:28px;padding:0 20px;height:56px;" @click="showModeSelect = true">
+        <!-- Start Sensor — M3 Extended FAB -->
+        <button class="action-btn" style="background:var(--md-primary);color:var(--md-on-primary);width:auto;border-radius:var(--shape-lg);padding:0 20px;height:56px;" @click="showModeSelect = true">
             <i data-lucide="radio" style="width:20px;height:20px;"></i>
             <span>センサー</span>
         </button>
@@ -634,158 +684,153 @@ if (!$currentUser) {
             <span>投稿</span>
         </a>
 
-        <!-- Guide -->
-        <button class="action-btn btn-guide" :class="{ inactive: !hasGuide }" @click="toggleGuide()" x-show="hasGuide" x-cloak>
-            <i data-lucide="book-open" style="width:20px;height:20px;"></i>
-            <span>ガイド</span>
-        </button>
     </div>
 
     <!-- ===== 散歩レポート (Session Result Overlay — M3 Light Surface) ===== -->
     <div x-show="showReport" x-cloak
-         style="position:fixed;inset:0;z-index:50;background:#FFFBFE;color:#1C1B1F;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+         style="position:fixed;inset:0;z-index:50;background:var(--md-surface);color:var(--md-on-surface);overflow-y:auto;-webkit-overflow-scrolling:touch;">
         <div style="max-width:440px;margin:0 auto;padding:0 0 100px;">
             <!-- Hero Header (emerald gradient) -->
-            <div style="background:linear-gradient(135deg,#059669,#10b981,#34d399);padding:32px 16px 28px;text-align:center;border-radius:0 0 28px 28px;">
+            <div style="background:linear-gradient(135deg,#0a7c5c,#0f9b74,#3abf8e);padding:32px 16px 28px;text-align:center;border-radius:0 0 var(--shape-xl) var(--shape-xl);">
                 <div style="font-size:52px;margin-bottom:8px;">🌿</div>
-                <h2 style="font-size:22px;font-weight:900;margin:0;color:#fff;">今日のいきものサーチ</h2>
-                <p style="font-size:13px;color:rgba(255,255,255,0.8);margin:4px 0 0;" x-text="reportData?.locationName || ''"></p>
+                <h2 style="font-size:var(--type-title-lg);font-weight:900;margin:0;color:#fff;">今日のいきものサーチ</h2>
+                <p style="font-size:var(--type-label-lg);color:rgba(255,255,255,0.8);margin:4px 0 0;" x-text="reportData?.locationName || ''"></p>
             </div>
 
             <div style="padding:16px;">
-            <!-- Main Stats Card (M3 elevated surface) -->
-            <div style="background:#fff;border-radius:16px;padding:20px;margin-top:-20px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+            <!-- Main Stats Card — M3 Surface + Elevation 1 -->
+            <div style="background:#fff;border-radius:var(--shape-lg);padding:20px;margin-top:-20px;margin-bottom:16px;box-shadow:var(--elev-2);">
                 <div style="display:flex;justify-content:space-around;text-align:center;">
                     <div>
-                        <div style="font-size:10px;color:#49454F;font-weight:500;">🚶 時間</div>
-                        <div style="font-size:22px;font-weight:900;color:#1C1B1F;" x-text="formatElapsed(reportData?.duration || 0)"></div>
+                        <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);font-weight:500;">🚶 時間</div>
+                        <div style="font-size:var(--type-headline-sm);font-weight:900;color:var(--md-on-surface);" x-text="formatElapsed(reportData?.duration || 0)"></div>
                     </div>
                     <div>
-                        <div style="font-size:10px;color:#49454F;font-weight:500;">📍 距離</div>
-                        <div style="font-size:22px;font-weight:900;color:#1C1B1F;" x-text="formatDistance(reportData?.distance || 0)"></div>
+                        <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);font-weight:500;">📍 距離</div>
+                        <div style="font-size:var(--type-headline-sm);font-weight:900;color:var(--md-on-surface);" x-text="formatDistance(reportData?.distance || 0)"></div>
                     </div>
                     <div>
-                        <div style="font-size:10px;color:#49454F;font-weight:500;">🐦 種数</div>
-                        <div style="font-size:22px;font-weight:900;color:#1C1B1F;" x-text="reportData?.speciesCount || 0"></div>
+                        <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);font-weight:500;">🐦 種数</div>
+                        <div style="font-size:var(--type-headline-sm);font-weight:900;color:var(--md-on-surface);" x-text="reportData?.speciesCount || 0"></div>
                     </div>
                 </div>
             </div>
 
             <!-- Loading indicator -->
             <div x-show="reportLoading" style="text-align:center;padding:20px 0;margin-bottom:16px;">
-                <div style="display:inline-flex;align-items:center;gap:10px;background:#F3EDF7;border-radius:24px;padding:12px 24px;">
-                    <div style="width:20px;height:20px;border:2.5px solid #D0BCFF;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-                    <span style="font-size:13px;font-weight:600;color:#49454F;">レポートを作成中...</span>
+                <div style="display:inline-flex;align-items:center;gap:10px;background:var(--md-surface-container);border-radius:var(--shape-full);padding:12px 24px;">
+                    <div style="width:20px;height:20px;border:2.5px solid var(--md-primary);border-top-color:transparent;border-radius:var(--shape-full);animation:spin 0.8s linear infinite;"></div>
+                    <span style="font-size:var(--type-body-sm);font-weight:600;color:var(--md-on-surface-variant);">レポートを作成中...</span>
                 </div>
                 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
             </div>
 
-            <!-- Nature Score (M3 primary container) -->
-            <div style="background:#d1fae5;border-radius:16px;padding:16px;margin-bottom:16px;"
+            <!-- Nature Score — M3 Primary Container -->
+            <div style="background:var(--md-primary-container);border-radius:var(--shape-lg);padding:16px;margin-bottom:16px;"
                  x-show="reportData?.natureScore">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                    <span style="font-size:12px;font-weight:700;color:#065f46;">🌿 自然浴スコア</span>
+                    <span style="font-size:var(--type-label-md);font-weight:700;color:var(--md-on-primary-container);">🌿 自然浴スコア</span>
                     <div style="display:flex;align-items:baseline;gap:2px;">
-                        <span style="font-size:28px;font-weight:900;color:#059669;" x-text="reportData?.natureScore?.score || '-'"></span>
-                        <span style="font-size:12px;color:#065f46;">/10</span>
+                        <span style="font-size:var(--type-headline-md);font-weight:900;color:var(--md-primary);" x-text="reportData?.natureScore?.score || '-'"></span>
+                        <span style="font-size:var(--type-label-md);color:var(--md-on-primary-container);">/10</span>
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;margin-bottom:8px;">
-                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.6);border-radius:10px;">
-                        <div style="font-size:9px;color:#49454F;">多様性</div>
-                        <div style="font-size:14px;font-weight:800;color:#1C1B1F;" x-text="reportData?.natureScore?.breakdown?.diversity || '-'"></div>
+                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.6);border-radius:var(--shape-md);">
+                        <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);">多様性</div>
+                        <div style="font-size:var(--type-body-md);font-weight:800;color:var(--md-on-surface);" x-text="reportData?.natureScore?.breakdown?.diversity || '-'"></div>
                     </div>
-                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.6);border-radius:10px;">
-                        <div style="font-size:9px;color:#49454F;">音風景</div>
-                        <div style="font-size:14px;font-weight:800;color:#1C1B1F;" x-text="reportData?.natureScore?.breakdown?.soundscape || '-'"></div>
+                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.6);border-radius:var(--shape-md);">
+                        <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);">音風景</div>
+                        <div style="font-size:var(--type-body-md);font-weight:800;color:var(--md-on-surface);" x-text="reportData?.natureScore?.breakdown?.soundscape || '-'"></div>
                     </div>
-                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.6);border-radius:10px;">
-                        <div style="font-size:9px;color:#49454F;">環境</div>
-                        <div style="font-size:14px;font-weight:800;color:#1C1B1F;" x-text="reportData?.natureScore?.breakdown?.environment || '-'"></div>
+                    <div style="flex:1;text-align:center;padding:6px;background:rgba(255,255,255,0.6);border-radius:var(--shape-md);">
+                        <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);">環境</div>
+                        <div style="font-size:var(--type-body-md);font-weight:800;color:var(--md-on-surface);" x-text="reportData?.natureScore?.breakdown?.environment || '-'"></div>
                     </div>
                 </div>
-                <div style="font-size:12px;color:#065f46;text-align:center;" x-text="reportData?.natureScore?.message || ''"></div>
+                <div style="font-size:var(--type-label-md);color:var(--md-on-primary-container);text-align:center;" x-text="reportData?.natureScore?.message || ''"></div>
             </div>
 
-            <!-- No species message -->
-            <div x-show="!reportData?.species?.length" style="background:#F3EDF7;border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">
+            <!-- No species message — M3 Surface Container -->
+            <div x-show="!reportData?.species?.length" style="background:var(--md-surface-container);border-radius:var(--shape-lg);padding:20px;margin-bottom:16px;text-align:center;">
                 <div style="font-size:32px;margin-bottom:8px;">🌱</div>
-                <div style="font-size:13px;color:#1C1B1F;font-weight:700;">今回は検出なし</div>
-                <div style="font-size:11px;color:#49454F;margin-top:4px;">でも、歩いた記録はたんけんマップに残っています。<br>GPS軌跡と環境データは、あとから見返せる形で保存されています。</div>
+                <div style="font-size:var(--type-body-md);color:var(--md-on-surface);font-weight:700;">今回は検出なし</div>
+                <div style="font-size:var(--type-label-md);color:var(--md-on-surface-variant);margin-top:4px;">でも、歩いた記録はたんけんマップに残っています。<br>GPS軌跡と環境データは、あとから見返せる形で保存されています。</div>
             </div>
 
             <!-- Species Gallery (horizontal scroll) -->
             <div style="margin-bottom:16px;" x-show="reportData?.species?.length > 0">
-                <h3 style="font-size:13px;font-weight:700;color:#1C1B1F;margin:0 0 10px;">出会った生きもの</h3>
+                <h3 style="font-size:var(--type-label-lg);font-weight:700;color:var(--md-on-surface);margin:0 0 10px;">出会った生きもの</h3>
                 <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px 8px;">
                     <template x-for="sp in (reportData?.species || [])" :key="sp.name">
-                        <div style="min-width:140px;max-width:160px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
-                            <div style="font-size:13px;font-weight:800;" :style="'color:' + (sp.confidence >= 0.7 ? '#059669' : sp.confidence >= 0.4 ? '#d97706' : '#64748b')" x-text="sp.name"></div>
-                            <div style="font-size:10px;color:#49454F;margin-top:4px;" x-text="sp.source === 'audio' ? '🎤 音声' : '📷 カメラ'"></div>
-                            <div style="font-size:10px;color:#79747E;margin-top:2px;" x-text="sp.note || sp.category || ''"></div>
+                        <div style="min-width:140px;max-width:160px;background:#fff;border:1px solid var(--md-outline-variant);border-radius:var(--shape-lg);padding:12px;flex-shrink:0;box-shadow:var(--elev-1);">
+                            <div style="font-size:var(--type-body-md);font-weight:700;color:var(--md-on-surface);" x-text="sp.name"></div>
+                            <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);margin-top:4px;" x-text="sp.source === 'audio' ? '🎤 音声' : '📷 カメラ'"></div>
+                            <div style="font-size:var(--type-label-sm);color:var(--md-outline);margin-top:2px;" x-text="sp.note || sp.category || ''"></div>
                         </div>
                     </template>
                 </div>
             </div>
 
-            <!-- AI Narrative (M3 surface container) -->
-            <div style="background:#F7F2FA;border-radius:14px;padding:14px;margin-bottom:16px;"
+            <!-- AI Narrative — M3 Surface Container -->
+            <div style="background:var(--md-surface-container);border-radius:var(--shape-lg);padding:16px;margin-bottom:16px;"
                  x-show="reportData?.recap?.narrative">
-                <div style="font-size:12px;line-height:1.7;color:#1C1B1F;" x-text="reportData?.recap?.narrative || ''"></div>
-                <div style="font-size:9px;color:#79747E;margin-top:6px;">🤖 AI要約</div>
+                <div style="font-size:var(--type-body-sm);line-height:1.7;color:var(--md-on-surface);" x-text="reportData?.recap?.narrative || ''"></div>
+                <div style="font-size:var(--type-label-sm);color:var(--md-on-surface-variant);margin-top:6px;">🤖 AI要約</div>
             </div>
 
-            <!-- Contribution -->
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:16px;"
+            <!-- Contribution — M3 Outlined Container -->
+            <div style="background:#fff;border:1px solid var(--md-outline-variant);border-radius:var(--shape-lg);padding:16px;margin-bottom:16px;"
                  x-show="reportData?.recap?.contribution?.length > 0">
-                <h3 style="font-size:13px;font-weight:700;color:#1C1B1F;margin:0 0 8px;">あなたの貢献</h3>
+                <h3 style="font-size:var(--type-label-lg);font-weight:700;color:var(--md-on-surface);margin:0 0 8px;">あなたの貢献</h3>
                 <template x-for="c in (reportData?.recap?.contribution || [])" :key="c.text">
-                    <div style="display:flex;align-items:start;gap:6px;margin-bottom:4px;font-size:12px;">
+                    <div style="display:flex;align-items:start;gap:6px;margin-bottom:4px;font-size:var(--type-body-sm);">
                         <span x-text="c.icon"></span>
-                        <span style="color:#1C1B1F;" x-text="c.text"></span>
+                        <span style="color:var(--md-on-surface);" x-text="c.text"></span>
                     </div>
                 </template>
             </div>
 
-            <!-- Weekly Summary -->
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:16px;"
+            <!-- Weekly Summary — M3 Outlined Container -->
+            <div style="background:#fff;border:1px solid var(--md-outline-variant);border-radius:var(--shape-lg);padding:16px;margin-bottom:16px;"
                  x-show="weeklyStats.sessions > 0">
-                <h3 style="font-size:13px;font-weight:700;color:#1C1B1F;margin:0 0 8px;">📊 今週の記録</h3>
-                <div style="display:flex;gap:16px;font-size:13px;color:#1C1B1F;font-weight:600;">
+                <h3 style="font-size:var(--type-label-lg);font-weight:700;color:var(--md-on-surface);margin:0 0 8px;">📊 今週の記録</h3>
+                <div style="display:flex;gap:16px;font-size:var(--type-body-sm);color:var(--md-on-surface);font-weight:600;">
                     <span x-text="weeklyStats.sessions + '回'"></span>
                     <span x-text="weeklyStats.species + '種'"></span>
                     <span x-text="formatDistance(weeklyStats.distance)"></span>
                 </div>
-                <div style="font-size:11px;color:#d97706;font-weight:700;margin-top:6px;" x-show="weeklyStats.streak > 1"
+                <div style="font-size:var(--type-label-md);color:var(--md-tertiary);font-weight:700;margin-top:6px;" x-show="weeklyStats.streak > 1"
                      x-text="'🔥 ' + weeklyStats.streak + '日連続サーチ中!'"></div>
             </div>
 
-            <!-- Badges (M3 assist chips) -->
+            <!-- Badges — M3 Assist Chips -->
             <div style="margin-bottom:16px;" x-show="reportData?.recap?.rank_progress?.badges_earned?.length > 0">
                 <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
                     <template x-for="b in (reportData?.recap?.rank_progress?.badges_earned || [])" :key="b.name || b">
-                        <span style="font-size:11px;padding:6px 12px;background:#FEF3C7;color:#92400E;border-radius:20px;font-weight:700;border:1px solid #FDE68A;" x-text="b.name || b"></span>
+                        <span style="font-size:var(--type-label-md);padding:6px 12px;background:var(--md-tertiary-container);color:var(--md-on-tertiary-container);border-radius:var(--shape-full);font-weight:700;border:1px solid transparent;" x-text="b.name || b"></span>
                     </template>
                 </div>
             </div>
 
-            <!-- Data note (M3 info container) -->
-            <div style="display:flex;align-items:start;gap:8px;background:#E8DEF8;border-radius:14px;padding:12px 14px;margin-bottom:24px;">
-                <span style="font-size:14px;">💾</span>
-                <span style="font-size:11px;color:#21005D;line-height:1.5;">データは長期的に見返せる形で保存され、地域の記録やレポート作成の参考に使えます</span>
+            <!-- Data note — M3 Secondary Container -->
+            <div style="display:flex;align-items:start;gap:8px;background:var(--md-secondary-container);border-radius:var(--shape-lg);padding:12px 14px;margin-bottom:24px;">
+                <span style="font-size:var(--type-body-md);">💾</span>
+                <span style="font-size:var(--type-label-md);color:var(--md-on-secondary-container);line-height:1.5;">データは長期的に見返せる形で保存され、地域の記録やレポート作成の参考に使えます</span>
             </div>
 
-            <!-- Actions (M3 filled / tonal buttons) -->
+            <!-- Actions — M3 Buttons -->
             <div style="display:flex;flex-direction:column;gap:10px;">
                 <a :href="'post.php?return=field_research.php&from=walk_report'"
-                   style="display:block;text-align:center;padding:14px;border-radius:24px;border:none;background:#FEF3C7;color:#92400E;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                   style="display:block;text-align:center;padding:14px;border-radius:var(--shape-full);border:none;background:var(--md-tertiary-container);color:var(--md-on-tertiary-container);font-size:var(--type-label-lg);font-weight:700;text-decoration:none;box-shadow:var(--elev-1);">
                     📸 ベスト写真を投稿する
                 </a>
                 <div style="display:flex;gap:10px;">
-                    <button @click="showReport=false" style="flex:1;padding:14px;border-radius:24px;border:1.5px solid #CBD5E1;background:#fff;color:#1C1B1F;font-size:14px;font-weight:700;cursor:pointer;">
+                    <button @click="showReport=false" style="flex:1;padding:14px;border-radius:var(--shape-full);border:1.5px solid var(--md-outline);background:transparent;color:var(--md-on-surface);font-size:var(--type-label-lg);font-weight:700;cursor:pointer;">
                         🗺️ マップに戻る
                     </button>
-                    <button @click="showReport=false;startSensor()" style="flex:1;padding:14px;border-radius:24px;border:none;background:#10b981;color:#fff;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(16,185,129,0.3);">
+                    <button @click="showReport=false;startSensor()" style="flex:1;padding:14px;border-radius:var(--shape-full);border:none;background:var(--md-primary);color:var(--md-on-primary);font-size:var(--type-label-lg);font-weight:700;cursor:pointer;box-shadow:var(--elev-1);">
                         🔄 もう一回
                     </button>
                 </div>
@@ -798,11 +843,71 @@ if (!$currentUser) {
     <video id="scan-cam" playsinline muted autoplay style="display:none;"></video>
     <canvas id="scan-canvas" style="display:none;"></canvas>
 
-    <!-- Camera preview overlay (stationary mode with camera active) -->
-    <div x-show="sessionActive && currentMovementMode === 'stationary'" x-cloak
-         style="position:absolute;top:46px;left:0;right:0;bottom:160px;z-index:10;background:#000;">
-        <video id="scan-preview" playsinline muted autoplay
-               style="width:100%;height:100%;object-fit:cover;"></video>
+    <!-- ════════════════════════════════════════════════════
+         CAMERA PiP + スキャン！ UI
+         センサー起動中（ドライブ以外）に常時表示。
+         観察投稿とは別のセンサースキャンとして保存される。
+    ════════════════════════════════════════════════════ -->
+    <div x-show="sessionActive && currentMovementMode !== 'drive' && manualTransportMode !== 'car'" x-cloak
+         style="position:absolute;bottom:calc(max(24px,env(safe-area-inset-bottom,16px)) + 152px);right:16px;z-index:30;display:flex;flex-direction:column;align-items:center;gap:6px;">
+
+        <!-- Camera PiP viewfinder -->
+        <div style="width:112px;height:80px;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,0.25);box-shadow:0 4px 20px rgba(0,0,0,0.5);position:relative;background:#000;flex-shrink:0;">
+            <video id="scan-preview-pip" playsinline muted autoplay
+                   style="width:100%;height:100%;object-fit:cover;"></video>
+            <!-- Scanning overlay -->
+            <div x-show="scanLoading" style="position:absolute;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;">
+                <div style="width:22px;height:22px;border:2.5px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;"></div>
+            </div>
+            <!-- Shot counter badge -->
+            <div x-show="scanDraftCount > 0" style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.6);border-radius:999px;padding:1px 7px;">
+                <span style="font-size:10px;font-weight:800;color:#8dd4b3;" x-text="scanDraftCount + '枚'"></span>
+            </div>
+        </div>
+
+        <!-- スキャン！ button -->
+        <button @click="triggerScan()" :disabled="scanLoading"
+                style="width:60px;height:60px;border-radius:50%;border:3px solid rgba(255,255,255,0.9);background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.1s,opacity 0.1s;"
+                :style="scanLoading ? 'opacity:0.5;transform:scale(0.95);' : 'opacity:1;'"
+                title="スキャン！">
+            <div style="width:40px;height:40px;border-radius:50%;background:white;pointer-events:none;"></div>
+        </button>
+
+        <!-- Hint text (universal tips, rotates per shot) -->
+        <div style="max-width:112px;text-align:center;">
+            <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.75);text-shadow:0 1px 4px rgba(0,0,0,0.7);line-height:1.3;" x-text="scanHint"></span>
+        </div>
+    </div>
+
+    <!-- Scan result toast (センサースキャン — 観察投稿とは別) -->
+    <div x-show="scanResult" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+         style="position:absolute;top:56px;left:12px;right:12px;z-index:50;pointer-events:none;">
+        <div style="background:rgba(18,18,24,0.96);border-radius:16px;padding:12px 14px;border:1px solid rgba(141,212,179,0.2);box-shadow:0 8px 32px rgba(0,0,0,0.5);pointer-events:auto;max-width:440px;margin:0 auto;">
+            <!-- Header: センサースキャン badge + close -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-size:10px;font-weight:800;letter-spacing:0.8px;color:#8dd4b3;background:rgba(141,212,179,0.12);border:1px solid rgba(141,212,179,0.25);border-radius:999px;padding:2px 8px;">📡 センサースキャン</span>
+                <button @click="scanResult=null" style="background:none;border:none;color:rgba(255,255,255,0.35);cursor:pointer;font-size:18px;line-height:1;padding:0 2px;">×</button>
+            </div>
+            <!-- Photo + primary result -->
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+                <img x-show="scanResult?.photoUrl" :src="scanResult?.photoUrl"
+                     style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid rgba(255,255,255,0.1);" />
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:15px;font-weight:800;color:#e6e1e5;line-height:1.2;" x-text="scanResult?.name || '不明'"></div>
+                    <div style="font-size:11px;color:#938f99;font-style:italic;margin-top:1px;" x-text="scanResult?.scientific || ''"></div>
+                    <div style="font-size:11px;color:#8dd4b3;margin-top:3px;" x-text="scanResult?.confidence ? Math.round(scanResult.confidence*100) + '% 一致' : ''"></div>
+                </div>
+            </div>
+            <!-- Note -->
+            <div x-show="scanResult?.note" style="font-size:11px;color:#a8a4af;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07);" x-text="scanResult.note"></div>
+            <!-- Multi-shot encouragement -->
+            <div x-show="scanDraftCount < 3" style="margin-top:8px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.05);display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;">📷</span>
+                <span style="font-size:11px;color:#c8c4ce;" x-text="scanDraftCount === 1 ? 'あと2枚撮ると同定精度が上がるよ' : 'あと1枚！角度や距離を変えてみて'"></span>
+            </div>
+            <!-- Obs separation notice -->
+            <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:6px;text-align:center;">観察投稿には含まれません・あとから同定できます</div>
+        </div>
     </div>
 
     <!-- Scripts -->
@@ -855,6 +960,8 @@ if (!$currentUser) {
                 envLabel: '',
 
                 // Speaker selection
+                showSensorIntro: !localStorage.getItem('ikimon_sensor_intro_v1'),
+                introStep: 1,
                 showSpeakerSelect: true,
                 showVoiceSwitch: false,
                 showDriveVoiceSwitch: false,
@@ -881,6 +988,23 @@ if (!$currentUser) {
                 get speakerEmoji() {
                     const sp = this.speakers.find(s => s.id === this.selectedSpeaker);
                     return sp ? sp.emoji : '🤖';
+                },
+
+                // Scan (センサースキャン — 観察投稿とは別)
+                scanResult: null,
+                scanLoading: false,
+                scanDraftCount: 0,
+                _scanHints: [
+                    'スキャン！',
+                    '角度を変えて',
+                    '近づいてみて',
+                    '全体を入れて',
+                    '離れてから',
+                    '反対側から',
+                ],
+                get scanHint() {
+                    if (!this.sessionActive) return 'スキャン！';
+                    return this._scanHints[this.scanDraftCount % this._scanHints.length];
                 },
 
                 // Refs
@@ -1101,7 +1225,6 @@ if (!$currentUser) {
                     const ambientIntervalMs = this._driveTotalMin > 0
                         ? Math.max(30000, Math.min(120000, (this._driveTotalMin * 60000) / Math.max(6, Math.ceil(this._driveTotalMin / 5))))
                         : 45000;
-                    console.log(`[Ambient] interval: ${Math.round(ambientIntervalMs/1000)}s, driveDuration: ${this._driveTotalMin}min`);
                     // 初回は5秒後に発火（体験の早期スタート）、以降は通常間隔
                     this._ambientFirstFired = false;
                     setTimeout(() => {
@@ -1126,9 +1249,8 @@ if (!$currentUser) {
                             // 車を手動選択している場合はオート検出で上書きしない
                             if (this.manualTransportMode === 'car') return;
                             this.currentMovementMode = mode;
-                            console.log('[Sensor] Movement mode auto:', mode);
                         },
-                        onLog: (msg) => console.log('[LiveScanner]', msg),
+                        onLog: () => {},
                         onGpsUpdate: (pos) => {
                             this.gpsAccuracy = Math.round(pos.accuracy);
                             if (pos.accuracy <= 50 && this.explorationMap) {
@@ -1136,7 +1258,7 @@ if (!$currentUser) {
                             }
                             // GPS取得後すぐに場所のトリビアを読み上げ（初回1回だけ）
                             // accuracy 500m以内なら起動（室内でも動作）、精度が低い場合は位置が大まかになるだけ
-                            if (!this._quickStartDone && pos.accuracy <= 500 && window.VoiceGuide && VoiceGuide.isEnabled()) {
+                            if (!this._quickStartDone && pos.accuracy <= 500 && window.VoiceGuide && VoiceGuide.isEnabled() && this.manualTransportMode !== 'car') {
                                 this._quickStartDone = true;
                                 this._fetchOpeningGuide(pos.lat, pos.lng);
                             }
@@ -1151,10 +1273,20 @@ if (!$currentUser) {
                         canvasElement: canvasEl,
                     });
 
+                    // PiP viewfinder: stream を共有 (start() は async なので少し待つ)
+                    this.scanDraftCount = 0;
+                    this.scanResult = null;
+                    setTimeout(() => {
+                        const pip = document.getElementById('scan-preview-pip');
+                        if (pip && this.liveScanner?.stream) {
+                            pip.srcObject = this.liveScanner.stream;
+                            pip.play().catch(() => {});
+                        }
+                    }, 1500);
+
                     // Enable VoiceGuide + unlock audio (must happen in user gesture context)
-                    if (window.VoiceGuide) {
-                        window._vgDebug = VoiceGuide._debugToast;
-                        VoiceGuide._debugToast('🚀 startSensor speaker=' + this.selectedSpeaker);
+                    // 車モードは音声ガイド不要のためスキップ
+                    if (window.VoiceGuide && this.manualTransportMode !== 'car') {
                         VoiceGuide.setVoiceMode(this.selectedSpeaker);
                         VoiceGuide.setEnabled(true);
                         VoiceGuide.unlockAudio();
@@ -1163,19 +1295,41 @@ if (!$currentUser) {
                             unlock.volume = 0;
                             speechSynthesis.speak(unlock);
                         }
+                        const modeLabel = this.manualTransportMode === 'bike' ? 'サイクリング' : 'フィールドサーチ';
+                        VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
                     }
 
-                    const modeLabel = this.manualTransportMode === 'car' ? 'ドライブ' : this.manualTransportMode === 'bike' ? 'サイクリング' : 'フィールドサーチ';
-                    VoiceGuide.announce(modeLabel + '、スタート！周りの生き物を探していくよ。');
-
                     this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
-                    console.log(`[Sensor] Started (speaker: ${this.selectedSpeaker})`);
+                },
+
+                // ── スキャン！ (センサースキャン — 観察投稿とは別) ──
+                async triggerScan() {
+                    if (this.scanLoading || !this.liveScanner) return;
+                    this.scanLoading = true;
+                    try {
+                        const result = await this.liveScanner.triggerScan();
+                        if (result) {
+                            this.scanDraftCount++;
+                            this.scanResult = result;
+                            // 8秒後に自動dismiss
+                            clearTimeout(this._scanResultTimer);
+                            this._scanResultTimer = setTimeout(() => {
+                                if (this.scanResult === result) this.scanResult = null;
+                            }, 8000);
+                        }
+                    } finally {
+                        this.scanLoading = false;
+                    }
                 },
 
                 async stopSensor() {
                     this.sessionActive = false;
                     if (this._sessionTimer) { clearInterval(this._sessionTimer); this._sessionTimer = null; }
                     if (this._ambientTimer) { clearInterval(this._ambientTimer); this._ambientTimer = null; }
+                    if (this._scanResultTimer) { clearTimeout(this._scanResultTimer); this._scanResultTimer = null; }
+                    this.scanResult = null;
+                    const pip = document.getElementById('scan-preview-pip');
+                    if (pip) { pip.srcObject = null; }
 
                     if (window.VoiceGuide) {
                         VoiceGuide.stop();
@@ -1242,9 +1396,6 @@ if (!$currentUser) {
                 },
 
                 async _fireAmbientGuide() {
-                    if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
-                    if (VoiceGuide.isSpeaking()) return;
-
                     if (this._driveTotalMin > 0) {
                         const elapsedMin = (this.sessionElapsed || 0) / 60;
                         if (elapsedMin >= this._driveTotalMin - 2 && !this._closingTriggered) {
@@ -1253,6 +1404,11 @@ if (!$currentUser) {
                             return;
                         }
                     }
+
+                    // 車モードは音声ガイド不要のためAPIコールをスキップ
+                    if (this.manualTransportMode === 'car') return;
+                    if (!window.VoiceGuide || !VoiceGuide.isEnabled()) return;
+                    if (VoiceGuide.isSpeaking()) return;
 
                     if (VoiceGuide.drainAmbientQueue) {
                         VoiceGuide.drainAmbientQueue();
@@ -1290,9 +1446,7 @@ if (!$currentUser) {
                                 VoiceGuide.announce((json.data.guide_text || '').replace(/【[^】]+】\s*/g, ''));
                             }
                         }
-                    } catch(e) {
-                        console.log('[Ambient] Error:', e.message);
-                    }
+                    } catch(e) { /* ignore */ }
                 },
 
                 // Handle permission errors gracefully
@@ -1319,8 +1473,8 @@ if (!$currentUser) {
                             .addTo(this.map);
                     }
 
-                    // Voice guide narration — smart pacing
-                    if (window.VoiceGuide && VoiceGuide.isEnabled()) {
+                    // Voice guide narration — smart pacing (車モードはスキップ)
+                    if (window.VoiceGuide && VoiceGuide.isEnabled() && this.manualTransportMode !== 'car') {
                         const jaName = detection.japanese_name || detection.label || '';
                         const key = detection.label || '';
                         this._detCountToday = this._detCountToday || {};
@@ -1334,13 +1488,11 @@ if (!$currentUser) {
                         const isBusy = VoiceGuide.isSpeaking();
 
                         if (isBusy && !isFirst) {
-                            console.log('[Voice] Skipped (busy):', jaName);
+                            // skip
                         } else if (elapsed < 25000 && !isFirst) {
-                            // Too soon & not a new species — skip voice, just log
-                            console.log('[Voice] Skipped (cooldown):', jaName);
+                            // skip
                         } else if (!isFirst && this._detCountToday[key] > 3) {
-                            // Same species detected many times — skip voice
-                            console.log('[Voice] Skipped (repeated):', jaName, this._detCountToday[key]);
+                            // skip
                         } else {
                             this._lastVoiceTime = now;
                             this._fetchVoiceGuide(jaName, detection.scientific_name, detection.confidence_raw || 0.5, this._detCountToday[key], isFirst)
@@ -1362,11 +1514,10 @@ if (!$currentUser) {
 
                 // GPS取得後即時に場所のトリビアを取得（起動高速化）
                 async _fetchOpeningGuide(lat, lng) {
-                    if (!window.VoiceGuide) { if(VoiceGuide._debugToast) VoiceGuide._debugToast('⚠️ VG not loaded'); return; }
-                    if (!VoiceGuide.isEnabled()) { if(VoiceGuide._debugToast) VoiceGuide._debugToast('⚠️ VG disabled'); return; }
+                    if (!window.VoiceGuide) { return; }
+                    if (!VoiceGuide.isEnabled()) { return; }
                     try {
                         const vm = VoiceGuide.getVoiceMode();
-                        if(window._vgDebug) window._vgDebug('🌅 Opening fetch vm=' + vm);
                         const transportMode = this.manualTransportMode || 'walk';
                         const params = new URLSearchParams({
                             mode: 'opening',
@@ -1375,10 +1526,9 @@ if (!$currentUser) {
                             transport_mode: transportMode,
                         });
                         const resp = await fetch('/api/v2/voice_guide.php?' + params.toString());
-                        if (!resp.ok) { if(window._vgDebug) window._vgDebug('❌ Opening HTTP ' + resp.status); return; }
+                        if (!resp.ok) { return; }
                         const json = await resp.json();
                         if (json.success && json.data) {
-                            if(window._vgDebug) window._vgDebug('✅ Opening: audio=' + (json.data.audio_url ? 'YES' : 'NO') + ' text=' + (json.data.guide_text ? json.data.guide_text.length + 'chars' : 'NO'));
                             if (json.data.audio_url) {
                                 VoiceGuide.announceAudio(json.data.audio_url, (json.data.guide_text || '').replace(/【[^】]+】\s*/g, '') || null);
                             } else if (json.data.guide_text) {
@@ -1386,7 +1536,7 @@ if (!$currentUser) {
                             }
                         }
                     } catch(e) {
-                        if(window._vgDebug) window._vgDebug('❌ Opening err: ' + e.message);
+                        // silent
                     }
                 },
 
@@ -1559,6 +1709,20 @@ if (!$currentUser) {
 
                 toggleGuide() {
                     if (this.siteGuide) this.siteGuide.toggle();
+                },
+
+                nextIntroStep() {
+                    if (this.introStep < 3) {
+                        this.introStep++;
+                    } else {
+                        localStorage.setItem('ikimon_sensor_intro_v1', '1');
+                        this.showSensorIntro = false;
+                    }
+                },
+
+                skipIntro() {
+                    localStorage.setItem('ikimon_sensor_intro_v1', '1');
+                    this.showSensorIntro = false;
                 },
 
                 flyToCurrentLocation() {

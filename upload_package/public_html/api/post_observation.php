@@ -592,6 +592,20 @@ if (!empty($_POST['taxon_name'])) {
 // Mark as user-generated content (protected from seed cleanup)
 $observation['import_source'] = 'user_post';
 
+// Phase 15B P1: 外来種アラートチェック
+$invasiveAlert = null;
+if (!empty($_POST['taxon_name'])) {
+    require_once __DIR__ . '/../../libs/InvasiveAlertManager.php';
+    $scientificNameForCheck = '';
+    if (!empty($resolvedTaxon['scientific_name'])) {
+        $scientificNameForCheck = (string)$resolvedTaxon['scientific_name'];
+    }
+    $invasiveAlert = InvasiveAlertManager::check(
+        (string)$_POST['taxon_name'],
+        $scientificNameForCheck
+    );
+}
+
 // Save to DataStore (partition by creation month, not observed_at)
 if (DataStore::append('observations', $observation)) {
     ObservationRecalcQueue::enqueue($id, 'observation_created');
@@ -677,6 +691,11 @@ if (DataStore::append('observations', $observation)) {
         $responseData['gamification_events'] = $gamificationEvents;
     }
 
+    // Phase 15B P1: 外来種アラートをレスポンスに追加
+    if ($invasiveAlert !== null) {
+        $responseData['invasive_alert'] = $invasiveAlert;
+    }
+
     StreakTracker::recordActivity($userId, 'post');
     AsyncJobMetrics::recordPostRequest([
         'observation_id' => $id,
@@ -688,6 +707,26 @@ if (DataStore::append('observations', $observation)) {
     ]);
 
     respondAndContinue(true, 'Observation posted successfully', $responseData);
+
+    // Ecological Digital Twin: 気象コンテキスト非同期結合
+    // respondAndContinue後なのでクライアントには遅延なし
+    try {
+        require_once __DIR__ . '/../../libs/WeatherContext.php';
+        $weatherData = WeatherContext::getForObservation(
+            (float)$lat,
+            (float)$lng,
+            $observation['observed_at']
+        );
+        if ($weatherData) {
+            DataStore::upsert('observations', [
+                'id' => $id,
+                'weather_context' => $weatherData,
+            ]);
+        }
+    } catch (Exception $e) {
+        error_log('WeatherContext enrichment failed for ' . $id . ': ' . $e->getMessage());
+    }
+
     exit;
 } else {
     respond(false, 'データの保存に失敗しました');

@@ -51,7 +51,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         /* Philosophy: 1-column flow + section-internal grids for balance */
 
         .compass-hero {
-            background: linear-gradient(135deg, var(--color-bg-base) 0%, var(--color-bg-surface) 100%);
+            background: linear-gradient(135deg, var(--md-surface) 0%, var(--md-surface-container-low) 100%);
             padding: 2rem 1rem 1.5rem;
             text-align: center;
         }
@@ -60,13 +60,13 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             font-family: var(--font-heading);
             font-size: 1.5rem;
             font-weight: 900;
-            color: var(--color-text);
+            color: var(--md-on-surface);
             margin-bottom: 0.5rem;
         }
 
         .compass-hero p {
             font-size: 0.85rem;
-            color: var(--color-text-muted);
+            color: var(--md-on-surface-variant);
             max-width: 480px;
             margin: 0 auto;
         }
@@ -84,21 +84,21 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         .national-stat {
             text-align: center;
             padding: 0.75rem 0.5rem;
-            background: var(--color-bg-elevated);
+            background: var(--md-surface-container);
             border-radius: var(--radius-md);
-            border: 1px solid var(--color-border);
+            border: 1px solid var(--md-outline-variant);
         }
 
         .national-stat .value {
             font-size: 1.5rem;
             font-weight: 900;
-            color: var(--color-primary);
+            color: var(--md-primary);
             font-family: var(--font-heading);
         }
 
         .national-stat .label {
             font-size: 0.65rem;
-            color: var(--color-text-faint);
+            color: var(--md-on-surface-variant);
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
@@ -116,9 +116,9 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             width: 100%;
             padding: 0.75rem 1rem;
             border-radius: var(--radius-md);
-            border: 1.5px solid var(--color-border-strong);
-            background: var(--color-bg-elevated);
-            color: var(--color-text);
+            border: 1.5px solid var(--md-outline);
+            background: var(--md-surface-container);
+            color: var(--md-on-surface);
             font-size: 0.95rem;
             font-weight: 700;
             font-family: var(--font-heading);
@@ -132,7 +132,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
 
         .pref-selector select:focus {
             outline: none;
-            border-color: var(--color-primary);
+            border-color: var(--md-primary);
         }
 
         /* ===== Main content — single column flow ===== */
@@ -152,7 +152,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            color: var(--color-text-faint);
+            color: var(--md-on-surface-variant);
             margin-bottom: 1rem;
             display: flex;
             align-items: center;
@@ -163,14 +163,14 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             content: '';
             flex: 1;
             height: 1px;
-            background: var(--color-border);
+            background: var(--md-outline-variant);
         }
 
         /* Big completion meter */
         .completion-meter {
-            background: var(--color-bg-elevated);
+            background: var(--md-surface-container);
             border-radius: var(--radius-lg);
-            border: 1px solid var(--color-border);
+            border: 1px solid var(--md-outline-variant);
             padding: 1.5rem;
             margin-bottom: 1rem;
         }
@@ -186,18 +186,18 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             font-family: var(--font-heading);
             font-size: 1.25rem;
             font-weight: 900;
-            color: var(--color-text);
+            color: var(--md-on-surface);
         }
 
         .meter-header .species-count {
             font-size: 0.85rem;
             font-weight: 700;
-            color: var(--color-primary);
+            color: var(--md-primary);
         }
 
         .meter-bar-container {
             height: 12px;
-            background: var(--color-bg-base);
+            background: var(--md-surface);
             border-radius: 6px;
             overflow: hidden;
             margin-bottom: 0.75rem;
@@ -206,7 +206,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         .meter-bar {
             height: 100%;
             border-radius: 6px;
-            background: linear-gradient(90deg, var(--color-primary), var(--color-accent, #34d399));
+            background: linear-gradient(90deg, var(--md-primary), var(--color-accent, #34d399));
             transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
@@ -221,12 +221,12 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             align-items: center;
             gap: 0.5rem;
             font-size: 0.8rem;
-            color: var(--color-text-muted);
+            color: var(--md-on-surface-variant);
         }
 
         .meter-stat .num {
             font-weight: 900;
-            color: var(--color-text);
+            color: var(--md-on-surface);
             font-family: var(--font-heading);
         }
 
@@ -239,9 +239,9 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         }
 
         .stat-card {
-            background: var(--color-bg-elevated);
+            background: var(--md-surface-container);
             border-radius: var(--radius-lg);
-            border: 1px solid var(--color-border);
+            border: 1px solid var(--md-outline-variant);
             padding: 1rem;
         }
 
@@ -256,7 +256,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             font-family: var(--font-heading);
             font-size: 0.8rem;
             font-weight: 800;
-            color: var(--color-text);
+            color: var(--md-on-surface);
             display: flex;
             align-items: center;
             gap: 0.35rem;
@@ -275,14 +275,14 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         }
 
         .stat-card-badge.muted {
-            background: var(--color-bg-base);
-            color: var(--color-text-faint);
+            background: var(--md-surface);
+            color: var(--md-on-surface-variant);
         }
 
         /* RedList mini meter */
         .redlist-meter-mini {
             height: 6px;
-            background: var(--color-bg-base);
+            background: var(--md-surface);
             border-radius: 3px;
             overflow: hidden;
             margin-bottom: 0.5rem;
@@ -297,12 +297,12 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
 
         .stat-card-detail {
             font-size: 0.72rem;
-            color: var(--color-text-muted);
+            color: var(--md-on-surface-variant);
             line-height: 1.5;
         }
 
         .stat-card-detail strong {
-            color: var(--color-text);
+            color: var(--md-on-surface);
         }
 
         /* Taxon group chips */
@@ -317,17 +317,17 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             align-items: center;
             gap: 0.35rem;
             padding: 0.35rem 0.65rem;
-            background: var(--color-bg-elevated);
-            border: 1px solid var(--color-border);
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-outline-variant);
             border-radius: 999px;
             font-size: 0.7rem;
             font-weight: 700;
-            color: var(--color-text-muted);
+            color: var(--md-on-surface-variant);
         }
 
         .taxon-chip .count {
             font-weight: 900;
-            color: var(--color-primary);
+            color: var(--md-primary);
         }
 
         /* ===== Activity Grid — neighbors + discoveries side by side ===== */
@@ -354,13 +354,13 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             align-items: center;
             gap: 0.6rem;
             padding: 0.6rem 0.75rem;
-            background: var(--color-bg-elevated);
+            background: var(--md-surface-container);
             border-radius: var(--radius-md);
-            border: 1px solid var(--color-border);
+            border: 1px solid var(--md-outline-variant);
         }
 
         .neighbor-item.current {
-            border-color: var(--color-primary);
+            border-color: var(--md-primary);
             background: rgba(var(--color-primary-rgb, 59, 130, 246), 0.05);
         }
 
@@ -368,14 +368,14 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             flex: 1;
             font-size: 0.8rem;
             font-weight: 700;
-            color: var(--color-text);
+            color: var(--md-on-surface);
             white-space: nowrap;
         }
 
         .neighbor-bar-wrap {
             flex: 2;
             height: 8px;
-            background: var(--color-bg-base);
+            background: var(--md-surface);
             border-radius: 4px;
             overflow: hidden;
         }
@@ -383,7 +383,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         .neighbor-bar-fill {
             height: 100%;
             border-radius: 4px;
-            background: var(--color-primary);
+            background: var(--md-primary);
             opacity: 0.6;
             transition: width 0.8s ease;
         }
@@ -395,7 +395,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         .neighbor-count {
             font-size: 0.72rem;
             font-weight: 800;
-            color: var(--color-text-muted);
+            color: var(--md-on-surface-variant);
             min-width: 45px;
             text-align: right;
         }
@@ -409,7 +409,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             border-radius: var(--radius-md);
             font-size: 0.72rem;
             font-weight: 700;
-            color: var(--color-text);
+            color: var(--md-on-surface);
             text-align: center;
         }
 
@@ -429,7 +429,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             align-items: flex-start;
             gap: 0.6rem;
             padding: 0.6rem 0;
-            border-bottom: 1px solid var(--color-border);
+            border-bottom: 1px solid var(--md-outline-variant);
         }
 
         .discovery-item:last-child {
@@ -440,7 +440,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: var(--color-primary);
+            background: var(--md-primary);
             margin-top: 0.35rem;
             flex-shrink: 0;
         }
@@ -452,18 +452,18 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         .discovery-name {
             font-size: 0.8rem;
             font-weight: 700;
-            color: var(--color-text);
+            color: var(--md-on-surface);
         }
 
         .discovery-sci {
             font-size: 0.68rem;
             font-style: italic;
-            color: var(--color-text-faint);
+            color: var(--md-on-surface-variant);
         }
 
         .discovery-meta {
             font-size: 0.62rem;
-            color: var(--color-text-faint);
+            color: var(--md-on-surface-variant);
             margin-top: 0.1rem;
         }
 
@@ -479,28 +479,28 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             align-items: center;
             gap: 0.5rem;
             padding: 0.5rem 0.6rem;
-            background: var(--color-bg-elevated);
+            background: var(--md-surface-container);
             border-radius: var(--radius-md);
-            border: 1px solid var(--color-border);
+            border: 1px solid var(--md-outline-variant);
             transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .area-user-card:hover {
-            border-color: var(--color-primary);
+            border-color: var(--md-primary);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
         .area-user-rank {
             font-size: 0.7rem;
             font-weight: 900;
-            color: var(--color-text-faint);
+            color: var(--md-on-surface-variant);
             min-width: 1.2rem;
             text-align: center;
             font-family: var(--font-heading);
         }
 
         .area-user-rank.top-3 {
-            color: var(--color-primary);
+            color: var(--md-primary);
             font-size: 0.85rem;
         }
 
@@ -508,7 +508,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--color-primary), #34d399);
+            background: linear-gradient(135deg, var(--md-primary), #34d399);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -533,7 +533,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         .area-user-name {
             font-size: 0.78rem;
             font-weight: 700;
-            color: var(--color-text);
+            color: var(--md-on-surface);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -543,7 +543,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             display: flex;
             gap: 0.6rem;
             font-size: 0.62rem;
-            color: var(--color-text-faint);
+            color: var(--md-on-surface-variant);
             margin-top: 0.1rem;
         }
 
@@ -555,7 +555,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
 
         .area-user-meta .stat strong {
             font-weight: 800;
-            color: var(--color-text-muted);
+            color: var(--md-on-surface-variant);
         }
 
         /* Not-yet-found silhouettes */
@@ -569,15 +569,15 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             display: flex;
             align-items: center;
             gap: 0.35rem;
-            background: var(--color-bg-elevated);
-            border: 1px solid var(--color-border);
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-outline-variant);
             border-radius: var(--radius-md);
             padding: 0.45rem 0.5rem;
             transition: background 0.2s;
         }
 
         .silhouette-card:hover {
-            background: var(--color-bg-base);
+            background: var(--md-surface);
         }
 
         .silhouette-icon {
@@ -591,7 +591,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         .silhouette-name {
             font-size: 0.72rem;
             font-weight: 700;
-            color: var(--color-text-muted);
+            color: var(--md-on-surface-variant);
             flex: 1;
             min-width: 0;
             overflow: hidden;
@@ -678,7 +678,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         .empty-state {
             text-align: center;
             padding: 1.5rem 1rem;
-            color: var(--color-text-faint);
+            color: var(--md-on-surface-variant);
         }
 
         .empty-state .emoji {
@@ -697,7 +697,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             margin: 0 1rem;
             border-radius: var(--radius-md) var(--radius-md) 0 0;
             overflow: hidden;
-            border: 1px solid var(--color-border);
+            border: 1px solid var(--md-outline-variant);
             border-bottom: none;
         }
 
@@ -707,17 +707,17 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             text-align: center;
             font-size: 0.75rem;
             font-weight: 700;
-            color: var(--color-text-faint);
-            background: var(--color-bg-surface);
+            color: var(--md-on-surface-variant);
+            background: var(--md-surface-container-low);
             cursor: pointer;
             border: none;
             transition: all 0.2s;
         }
 
         .scope-tab.active {
-            background: var(--color-bg-base);
-            color: var(--color-text);
-            box-shadow: inset 0 -2px 0 var(--color-primary);
+            background: var(--md-surface);
+            color: var(--md-on-surface);
+            box-shadow: inset 0 -2px 0 var(--md-primary);
         }
 
         .pref-heatmap {
@@ -726,8 +726,8 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             gap: 3px;
             padding: 0.75rem;
             margin: 0 1rem;
-            background: var(--color-bg-surface);
-            border: 1px solid var(--color-border);
+            background: var(--md-surface-container-low);
+            border: 1px solid var(--md-outline-variant);
             border-radius: 0 0 var(--radius-md) var(--radius-md);
         }
 
@@ -743,7 +743,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             cursor: pointer;
             transition: transform 0.15s, box-shadow 0.15s;
             padding: 2px;
-            color: var(--color-text);
+            color: var(--md-on-surface);
             position: relative;
         }
 
@@ -754,7 +754,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         }
 
         .pref-tile.is-selected {
-            outline: 2px solid var(--color-primary);
+            outline: 2px solid var(--md-primary);
             outline-offset: 1px;
             transform: scale(1.1);
             z-index: 1;
@@ -767,7 +767,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
 
         .pref-heatmap-label {
             font-size: 0.65rem;
-            color: var(--color-text-faint);
+            color: var(--md-on-surface-variant);
             text-align: center;
             margin: 0.5rem 0;
         }
@@ -775,8 +775,8 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         /* ===== Municipality Grid ===== */
         .muni-panel {
             margin: 0.75rem 1rem 0;
-            background: var(--color-bg-surface);
-            border: 1px solid var(--color-border);
+            background: var(--md-surface-container-low);
+            border: 1px solid var(--md-outline-variant);
             border-radius: var(--radius-md);
             overflow: hidden;
         }
@@ -785,7 +785,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             padding: 0.6rem 0.75rem;
             font-size: 0.75rem;
             font-weight: 700;
-            border-bottom: 1px solid var(--color-border);
+            border-bottom: 1px solid var(--md-outline-variant);
             display: flex;
             align-items: center;
             gap: 0.4rem;
@@ -813,7 +813,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
         .muni-tile .muni-name {
             font-size: 0.7rem;
             font-weight: 700;
-            color: var(--color-text);
+            color: var(--md-on-surface);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -821,7 +821,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
 
         .muni-tile .muni-stats {
             font-size: 0.55rem;
-            color: var(--color-text-faint);
+            color: var(--md-on-surface-variant);
             margin-top: 2px;
         }
 
@@ -829,7 +829,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             padding: 1rem;
             text-align: center;
             font-size: 0.75rem;
-            color: var(--color-text-faint);
+            color: var(--md-on-surface-variant);
         }
 
         /* ===== Desktop layout ===== */
@@ -999,7 +999,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
     </style>
 </head>
 
-<body class="bg-base" style="padding-bottom: 80px; padding-top: var(--nav-height);">
+<body style="background:var(--md-surface);color:var(--md-on-surface);padding-bottom:80px;padding-top:var(--nav-height);">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <!-- Hero -->
@@ -1051,7 +1051,7 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
             <div class="muni-panel-header">
                 <span>🏘️</span>
                 <span x-text="selectedPrefName + 'の市区町村'"></span>
-                <span x-show="muniLoading" style="margin-left:auto; font-size:0.65rem; color:var(--color-text-faint);">読込中...</span>
+                <span x-show="muniLoading" style="margin-left:auto; font-size:0.65rem; color:var(--md-on-surface-variant);">読込中...</span>
             </div>
             <template x-if="municipalities.length > 0">
                 <div class="muni-grid">
@@ -1096,11 +1096,11 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
                     </div>
                     <div class="meter-stats">
                         <div class="meter-stat">
-                            <i data-lucide="eye" class="w-3.5 h-3.5" style="color: var(--color-primary);"></i>
+                            <i data-lucide="eye" class="w-3.5 h-3.5" style="color: var(--md-primary);"></i>
                             <span><span class="num" x-text="detail.observation_count"></span> 観測</span>
                         </div>
                         <div class="meter-stat">
-                            <i data-lucide="users" class="w-3.5 h-3.5" style="color: var(--color-primary);"></i>
+                            <i data-lucide="users" class="w-3.5 h-3.5" style="color: var(--md-primary);"></i>
                             <span><span class="num" x-text="detail.unique_species"></span> 種</span>
                         </div>
                     </div>
@@ -1284,13 +1284,13 @@ $pageDescription = 'みんなの足あとで日本の生物地図を埋めよう
                 <i data-lucide="camera" class="w-5 h-5"></i>
                 この地域の足あとを残す
             </a>
-            <p style="font-size: 0.7rem; color: var(--color-text-faint); margin-top: 0.75rem;">
+            <p style="font-size: 0.7rem; color: var(--md-on-surface-variant); margin-top: 0.75rem;">
                 あなたの1件が、地図の空白を埋める
             </p>
         </div>
     </div>
 
-    <?php include __DIR__ . '/components/bottom_nav.php'; ?>
+    <?php include __DIR__ . '/components/nav.php'; ?>
 
     <script nonce="<?= CspNonce::attr() ?>">
         // Server-rendered initial data (prevents FOUC)

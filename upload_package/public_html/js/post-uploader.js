@@ -59,6 +59,7 @@ function uploader() {
         submitting: false,
         progress: 0,
         success: false,
+        invasiveAlert: null,
         aiReady: false,
         aiPending: false,
         aiSummary: '',
@@ -342,6 +343,7 @@ function uploader() {
             this.success = false;
             this.progress = 0;
             this.lastObservationId = null;
+            this.invasiveAlert = null;
             this.aiReady = false;
             this.aiPending = false;
             this.aiSummary = '';
@@ -549,6 +551,11 @@ function uploader() {
                     this.aiReady = !!result.ai_assessment_ready;
                     this.aiPending = !!result.ai_assessment_pending && !this.aiReady;
                     this.aiSummary = result.ai_assessment_summary || '';
+
+                    // Phase 15B P1: 外来種アラート
+                    if (result.invasive_alert) {
+                        this.invasiveAlert = result.invasive_alert;
+                    }
 
                     // Dispatch Gamification Event if present
                     if (result.gamification_events && result.gamification_events.length > 0) {

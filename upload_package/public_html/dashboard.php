@@ -75,7 +75,7 @@ $missions = [
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
 
-<body class="js-loading pt-14 bg-base text-text font-body pb-20 md:pb-0">
+<body class="js-loading pt-14 font-body pb-20 md:pb-0" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include __DIR__ . '/components/nav.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">document.body.classList.remove('js-loading');</script>
 
@@ -84,7 +84,7 @@ $missions = [
 
         <!-- 1. User Rank Card -->
         <?php if ($currentUser): ?>
-        <section class="bg-elevated border border-border rounded-2xl p-4">
+        <section style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
             <div class="flex items-center gap-4">
                 <img src="<?= htmlspecialchars($currentUser['avatar']) ?>"
                      alt="<?= htmlspecialchars($currentUser['name'] ?? 'ユーザー') ?>のアバター"
@@ -99,7 +99,7 @@ $missions = [
                     </div>
                     <div class="text-xs text-muted mb-2"><?= htmlspecialchars($orsRankName) ?> · <?= number_format($userStats['score']) ?> pt</div>
                     <div class="flex items-center gap-2">
-                        <div class="flex-1 h-2 bg-border rounded-full overflow-hidden">
+                        <div class="flex-1 h-2 rounded-full overflow-hidden" style="background:var(--md-outline-variant);">
                             <div class="h-full rounded-full transition-all duration-700"
                                  style="width: <?= min(100, round($orsProgress)) ?>%; background: <?= htmlspecialchars($orsRankColor) ?>;"></div>
                         </div>
@@ -113,15 +113,15 @@ $missions = [
 
             <!-- Stats Row -->
             <div class="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-3 text-center">
-                <a href="profile.php" class="hover:bg-primary-surface rounded-xl py-1.5 transition">
+                <a href="profile.php" class="rounded-xl py-1.5 transition" style="--hover-bg:var(--md-primary-container);" onmouseover="this.style.background='var(--md-primary-container)'" onmouseout="this.style.background=''">
                     <div class="text-lg font-black text-text"><?= number_format($userStats['score']) ?></div>
                     <div class="text-token-xs text-faint">スコア</div>
                 </a>
-                <a href="ikimon_walk.php" class="hover:bg-primary-surface rounded-xl py-1.5 transition">
+                <a href="ikimon_walk.php" class="rounded-xl py-1.5 transition" style="--hover-bg:var(--md-primary-container);" onmouseover="this.style.background='var(--md-primary-container)'" onmouseout="this.style.background=''">
                     <div class="text-lg font-black text-text"><?= number_format($userStats['territory'], 1) ?></div>
                     <div class="text-token-xs text-faint">km² 探索</div>
                 </a>
-                <a href="index.php" class="hover:bg-primary-surface rounded-xl py-1.5 transition">
+                <a href="index.php" class="rounded-xl py-1.5 transition" style="--hover-bg:var(--md-primary-container);" onmouseover="this.style.background='var(--md-primary-container)'" onmouseout="this.style.background=''">
                     <div class="text-lg font-black text-text"><?= count($latest_obs ?? []) ?></div>
                     <div class="text-token-xs text-faint">最新記録</div>
                 </a>
@@ -158,13 +158,13 @@ $missions = [
             <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
                 <?php foreach ($todayCtas as $type => $cta): ?>
                     <?php if (($cta['type'] ?? 'link') === 'button'): ?>
-                    <button type="button" data-habit-cta="<?= htmlspecialchars($type) ?>" data-reflection-toggle class="rounded-xl bg-white px-3 py-3 text-center border border-white/80 hover:border-border-strong transition">
+                    <button type="button" data-habit-cta="<?= htmlspecialchars($type) ?>" data-reflection-toggle class="rounded-xl px-3 py-3 text-center transition" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);">
                         <i data-lucide="<?= htmlspecialchars($cta['icon']) ?>" class="w-5 h-5 mx-auto mb-1 <?= htmlspecialchars($cta['icon_class'] ?? 'text-primary') ?>"></i>
                         <div class="text-xs font-bold text-text"><?= htmlspecialchars($cta['label']) ?></div>
                         <div class="text-[10px] text-muted mt-0.5"><?= htmlspecialchars($cta['detail'] ?? '') ?></div>
                     </button>
                     <?php else: ?>
-                    <a href="<?= htmlspecialchars($cta['href'] ?? '#') ?>" data-habit-cta="<?= htmlspecialchars($type) ?>" class="rounded-xl bg-white px-3 py-3 text-center border border-white/80 hover:border-border-strong transition">
+                    <a href="<?= htmlspecialchars($cta['href'] ?? '#') ?>" data-habit-cta="<?= htmlspecialchars($type) ?>" class="rounded-xl px-3 py-3 text-center transition" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);">
                         <i data-lucide="<?= htmlspecialchars($cta['icon']) ?>" class="w-5 h-5 mx-auto mb-1 <?= htmlspecialchars($cta['icon_class'] ?? 'text-primary') ?>"></i>
                         <div class="text-xs font-bold text-text"><?= htmlspecialchars($cta['label']) ?></div>
                         <div class="text-[10px] text-muted mt-0.5"><?= htmlspecialchars($cta['detail'] ?? '') ?></div>
@@ -174,7 +174,7 @@ $missions = [
             </div>
 
             <?php if ($todayReflectionPreview !== ''): ?>
-            <div class="mt-4 rounded-xl bg-white/80 border border-white/80 px-4 py-3">
+            <div class="mt-4 rounded-xl rounded-xl" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant); px-4 py-3">
                 <div class="text-[10px] font-black tracking-widest text-emerald-700">TODAY NOTE</div>
                 <p class="text-sm text-text mt-1"><?= htmlspecialchars($todayReflectionPreview) ?></p>
             </div>
@@ -182,7 +182,7 @@ $missions = [
             <p class="mt-4 text-token-xs text-muted">前回の1分メモ: <?= htmlspecialchars($latestReflectionPreview) ?></p>
             <?php endif; ?>
 
-            <div class="mt-4 rounded-xl bg-white/80 border border-white/80 p-4 hidden" data-reflection-panel>
+            <div class="mt-4 rounded-xl rounded-xl" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant); p-4 hidden" data-reflection-panel>
                 <div class="flex items-center justify-between gap-3">
                     <div>
                         <div class="text-xs font-black text-amber-700">1分メモ</div>
@@ -190,7 +190,7 @@ $missions = [
                     </div>
                     <button type="button" data-reflection-cancel class="text-[11px] font-bold text-muted hover:text-text transition">閉じる</button>
                 </div>
-                <textarea data-reflection-note maxlength="120" rows="3" class="mt-3 w-full rounded-xl border border-border bg-white px-3 py-3 text-sm text-text focus:outline-none focus:border-border-strong resize-none" placeholder="例: 雨上がりで鳥の声が増えていた"></textarea>
+                <textarea data-reflection-note maxlength="120" rows="3" class="mt-3 w-full rounded-xl px-3 py-3 text-sm focus:outline-none resize-none" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);" placeholder="例: 雨上がりで鳥の声が増えていた"></textarea>
                 <div class="mt-3 flex items-center justify-between gap-3">
                     <p class="text-[11px] text-muted" data-reflection-status>雨の日でも継続は切らさない。</p>
                     <button type="button" data-reflection-submit class="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-xs font-black text-white hover:bg-amber-600 transition">
@@ -215,12 +215,12 @@ $missions = [
                 <span class="text-xs font-bold">記録する</span>
             </a>
             <a href="ikimon_walk.php"
-               class="flex flex-col items-center gap-2 bg-elevated border border-border rounded-2xl py-4 px-3 text-center active:scale-95 transition hover:border-border-strong">
+               class="flex flex-col items-center gap-2 rounded-2xl py-4 px-3 text-center active:scale-95 transition" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);">
                 <i data-lucide="footprints" class="w-6 h-6 text-emerald-600"></i>
                 <span class="text-xs font-bold text-text">さんぽ</span>
             </a>
             <a href="explore.php"
-               class="flex flex-col items-center gap-2 bg-elevated border border-border rounded-2xl py-4 px-3 text-center active:scale-95 transition hover:border-border-strong">
+               class="flex flex-col items-center gap-2 rounded-2xl py-4 px-3 text-center active:scale-95 transition" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);">
                 <i data-lucide="map" class="w-6 h-6 text-sky-600"></i>
                 <span class="text-xs font-bold text-text">探索マップ</span>
             </a>
@@ -303,13 +303,13 @@ $missions = [
                     $date      = isset($obs['created_at']) ? date('n/j', strtotime($obs['created_at'])) : '';
                 ?>
                 <a href="observation_detail.php?id=<?= htmlspecialchars($obs['id'] ?? '') ?>"
-                   class="flex items-center gap-3 bg-elevated border border-border rounded-xl p-3 active:scale-[0.98] transition hover:border-border-strong group">
+                   class="flex items-center gap-3 rounded-xl p-3 active:scale-[0.98] transition group" style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);">
                     <?php if ($photoUrl): ?>
                     <img src="<?= htmlspecialchars($photoUrl) ?>"
                          alt="<?= htmlspecialchars($taxonName) ?>"
                          class="w-12 h-12 rounded-lg object-cover shrink-0 bg-border">
                     <?php else: ?>
-                    <div class="w-12 h-12 rounded-lg bg-primary-surface flex items-center justify-center shrink-0">
+                    <div class="w-12 h-12 rounded-lg flex items-center justify-center shrink-0" style="background:var(--md-primary-container);">
                         <i data-lucide="leaf" class="w-6 h-6 text-primary"></i>
                     </div>
                     <?php endif; ?>
@@ -325,7 +325,7 @@ $missions = [
         <?php endif; ?>
 
         <!-- 7. Library Stats -->
-        <section class="bg-elevated border border-border rounded-2xl p-4">
+        <section style="background:var(--md-surface-container);border:1px solid var(--md-outline-variant);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
             <div class="flex items-center gap-2 mb-3">
                 <i data-lucide="book-open" class="w-4 h-4 text-amber-600"></i>
                 <span class="text-sm font-black text-text">文献データベース</span>

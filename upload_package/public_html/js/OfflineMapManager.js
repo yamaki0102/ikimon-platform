@@ -45,7 +45,6 @@ class OfflineMapManager {
             }
         }
 
-        console.log(` Attempting to cache ${tilesToFetch.length} tiles...`);
         alert(`Caching ${tilesToFetch.length} tiles. This may take a while.`);
 
         const cache = await caches.open(this.CACHE_NAME);
@@ -81,7 +80,6 @@ class OfflineMapManager {
             }));
 
             // Updates progress?
-            if (i % 50 === 0) console.log(`Progress: ${i}/${tilesToFetch.length}`);
         }
 
         alert(`Finished!\nCached: ${success}\nFailed: ${fail}`);

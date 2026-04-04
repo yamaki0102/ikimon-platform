@@ -11,16 +11,6 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 const CACHE_NAME = 'ikimon-pwa-shell-v<?= $version ?>';
 const PHOTO_CACHE = 'ikimon-pwa-photos-v<?= $version ?>';
 const ASSETS_TO_CACHE = [
-    './',
-    'index.php',
-    'login.php',
-    'ranking.php',
-    'profile.php',
-    'analytics.php',
-    'zukan.php',
-    'species.php',
-    'id_wizard.php',
-    'site_dashboard.php',
     'offline.html',
     'js/OfflineManager.js',
     'js/ToastManager.js',
@@ -105,11 +95,6 @@ self.addEventListener('fetch', (event) => {
     ) {
         event.respondWith(
             fetch(event.request)
-                .then(response => {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-                    return response;
-                })
                 .catch(() => caches.match(event.request).then(res => res || caches.match('offline.html')))
         );
         return;
@@ -118,11 +103,6 @@ self.addEventListener('fetch', (event) => {
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request)
-                .then(response => {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-                    return response;
-                })
                 .catch(() => caches.match(event.request).then(res => res || caches.match('offline.html')))
         );
         return;

@@ -17,7 +17,7 @@ $meta_description = "お探しのページは見つかりませんでした。";
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
 
-<body class="bg-base text-text font-body min-h-screen flex flex-col">
+<body class="font-body min-h-screen flex flex-col" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <main class="flex-1 flex items-center justify-center px-4 py-20">

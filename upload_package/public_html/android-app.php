@@ -29,7 +29,7 @@ $apkPath = '/assets/apk/' . $apkFileName;
         }
     </style>
 </head>
-<body class="bg-base text-text font-body">
+<body class="font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <main class="pt-24 pb-24 px-4 md:px-6">

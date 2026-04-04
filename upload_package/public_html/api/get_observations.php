@@ -11,6 +11,7 @@ $minCreatedYear = isset($_GET['min_created_year']) ? (int)$_GET['min_created_yea
 $minObservedYear = isset($_GET['min_observed_year']) ? (int)$_GET['min_observed_year'] : null;
 $aiFilter = trim((string)($_GET['ai_filter'] ?? ''));
 $includeImported = isset($_GET['include_imported']) && $_GET['include_imported'] === '1';
+$invasiveFilter = trim((string)($_GET['invasive_filter'] ?? 'all'));
 
 $observations = DataStore::fetchAll('observations');
 
@@ -90,6 +91,12 @@ if (!empty($taxonGroup)) {
 
 if ($aiFilter !== '') {
     $observations = array_filter($observations, fn($obs) => observationMatchesAiFilter($obs, $aiFilter));
+}
+
+// Phase 15B P2: 外来種フィルタ
+if ($invasiveFilter !== 'all') {
+    require_once __DIR__ . '/../../libs/InvasiveAlertManager.php';
+    $observations = array_filter($observations, fn($obs) => observationMatchesInvasiveFilter($obs, $invasiveFilter));
 }
 
 // Exclude test/E2E users and sample images from public feed
@@ -326,6 +333,26 @@ function observationMatchesAiFilter(array $obs, string $aiFilter): bool
         'multi' => count($summary['similar_taxa_to_compare'] ?? []) >= 2
             || in_array(($summary['candidate_disagreement'] ?? ''), ['multiple_candidates', 'cross_rank_consensus', 'same_lineage_divergence'], true),
         default => true,
+    };
+}
+
+// --- Helper: Phase 15B P2 外来種フィルタ判定 ---
+function observationMatchesInvasiveFilter(array $obs, string $invasiveFilter): bool
+{
+    $taxonName      = (string)($obs['taxon']['name'] ?? '');
+    $scientificName = (string)($obs['taxon']['scientific_name'] ?? '');
+
+    if ($taxonName === '' && $scientificName === '') {
+        return $invasiveFilter === 'native';
+    }
+
+    $alert    = InvasiveAlertManager::check($taxonName, $scientificName);
+    $isInvasive = $alert !== null;
+
+    return match (strtolower(trim($invasiveFilter))) {
+        'invasive' => $isInvasive,
+        'native'   => !$isInvasive,
+        default    => true,
     };
 }
 

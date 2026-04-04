@@ -220,4 +220,108 @@ class QuestManager
             'session_count' => $count,
         ];
     }
+
+    /**
+     * Generate scan-triggered quests from a completed LiveScan session.
+     *
+     * @param string $userId
+     * @param array  $summary  Session summary with species_detail
+     * @param array  $meta     Session metadata (session_id, center_lat/lng, etc.)
+     * @return array  Quest candidates to show the user
+     */
+    public static function generateFromScan(string $userId, array $summary, array $meta): array
+    {
+        $speciesDetail = $summary['species_detail'] ?? [];
+        if (empty($speciesDetail)) return [];
+
+        $quests = [];
+        $today = date('Y-m-d');
+        $pastSpecies = self::collectUserSpecies($userId, $today);
+
+        foreach ($speciesDetail as $name => $detail) {
+            if (empty($name)) continue;
+            $key = $detail['scientific_name'] ?: $name;
+            if (isset($pastSpecies[$key])) continue;
+
+            if ($detail['max_confidence'] < 0.4) {
+                $quests[] = [
+                    'id' => 'sq_confirm_' . substr(md5($name . $meta['session_id']), 0, 8),
+                    'type' => 'scan_confirm',
+                    'icon' => 'search',
+                    'title' => "{$name} をもう一度見つけよう",
+                    'description' => "さっき検出された{$name}、もう一度はっきり記録できたら確定だよ",
+                    'target' => ['type' => 'confirm_species', 'taxon_name' => $name, 'count' => 1],
+                    'reward' => 80,
+                    'expires_at' => $today . 'T23:59:59+09:00',
+                    'session_id' => $meta['session_id'],
+                ];
+                if (count($quests) >= 2) break;
+            }
+        }
+
+        $speciesCount = count($speciesDetail);
+        if ($speciesCount >= 3) {
+            $quests[] = [
+                'id' => 'sq_explore_' . substr(md5($meta['session_id']), 0, 8),
+                'type' => 'scan_explore',
+                'icon' => 'compass',
+                'title' => 'もう少し探索してみよう',
+                'description' => "{$speciesCount}種見つけた！あと少し歩いて新しい種を探そう",
+                'target' => ['type' => 'new_species', 'count' => 1],
+                'reward' => 150,
+                'expires_at' => $today . 'T23:59:59+09:00',
+                'session_id' => $meta['session_id'],
+            ];
+        }
+
+        return array_slice($quests, 0, 3);
+    }
+
+    /**
+     * Save scan-generated quests for a user.
+     */
+    public static function saveScanQuests(string $userId, array $quests): void
+    {
+        if (empty($quests)) return;
+
+        $file = 'user_quests/' . $userId;
+        $existing = DataStore::get($file) ?: [];
+        if (!is_array($existing)) $existing = [];
+
+        $today = date('Y-m-d');
+        $existing = array_filter($existing, function ($q) use ($today) {
+            $expires = $q['expires_at'] ?? '';
+            return !empty($expires) && substr($expires, 0, 10) >= $today;
+        });
+
+        foreach ($quests as $q) {
+            $q['created_at'] = date('c');
+            $q['status'] = 'active';
+            $existing[] = $q;
+        }
+
+        DataStore::save($file, array_values($existing));
+    }
+
+    /**
+     * Publish a community signal when a scan quest is generated.
+     * Other users in the area can see "someone found X nearby".
+     */
+    public static function publishCommunitySignal(string $userId, array $quest, float $lat, float $lng): void
+    {
+        if (empty($quest['type']) || $quest['type'] !== 'scan_confirm') return;
+
+        $signal = [
+            'id' => 'sig_' . substr(md5($quest['id'] . $userId), 0, 10),
+            'type' => 'scan_nearby',
+            'quest_type' => $quest['type'],
+            'taxon_name' => $quest['target']['taxon_name'] ?? '',
+            'lat' => round($lat, 3),
+            'lng' => round($lng, 3),
+            'created_at' => date('c'),
+            'expires_at' => $quest['expires_at'] ?? date('c', strtotime('+1 day')),
+        ];
+
+        DataStore::append('community_signals', $signal);
+    }
 }

@@ -158,7 +158,7 @@ $meta_title = $editSite ? $editSite['name'] . ' を編集' : '新しいサイト
     </style>
 </head>
 
-<body class="js-loading bg-base text-text font-body">
+<body class="js-loading font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include('components/nav.php'); ?>
     <script nonce="<?= CspNonce::attr() ?>">
         document.body.classList.remove('js-loading');

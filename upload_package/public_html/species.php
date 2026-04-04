@@ -370,13 +370,13 @@ $speciesNarrative = SpeciesNarrative::build([
     </style>
 </head>
 
-<body class="bg-base text-text font-body min-h-screen">
+<body class="font-body min-h-screen" style="background:var(--md-surface);color:var(--md-on-surface);">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
 
     <!-- Header -->
     <header class="species-header px-5 pb-4 flex items-center justify-between">
-        <a href="javascript:history.back()" class="w-10 h-10 rounded-full flex items-center justify-center transition active:scale-90 bg-surface border border-border text-muted">
+        <a href="javascript:history.back()" class="w-10 h-10 rounded-full flex items-center justify-center transition active:scale-90" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
             <i data-lucide="arrow-left" class="w-5 h-5"></i>
         </a>
         <div class="text-token-xs font-bold uppercase tracking-[.2em] font-mono" style="color: var(--color-text-faint);">SPECIMEN ARCHIVE</div>
@@ -395,7 +395,7 @@ $speciesNarrative = SpeciesNarrative::build([
             </div>
 
             <?php if ($firstPhoto): ?>
-                <div class="mb-4 overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+                <div class="mb-4 overflow-hidden" style="border-radius:var(--shape-xl);border:1px solid var(--md-outline-variant);background:var(--md-surface-container);box-shadow:var(--elev-1);">
                     <img src="<?php echo htmlspecialchars(publicPhotoUrl($firstPhoto)); ?>"
                         alt="<?php echo htmlspecialchars($taxon ?: $scientificName); ?>"
                         class="w-full h-56 object-cover">
@@ -412,19 +412,19 @@ $speciesNarrative = SpeciesNarrative::build([
                         <?php echo htmlspecialchars($firstRl['category']); ?>
                     </span>
                 <?php endif; ?>
-                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-token-xs font-mono bg-surface border border-border text-secondary">
+                <span class="inline-flex items-center gap-1 px-3 py-1.5 text-token-xs font-mono" style="border-radius:var(--shape-full);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                     <i data-lucide="database" class="w-3 h-3"></i>
                     <?php echo $dataCount; ?> records
                 </span>
                 <?php if (!empty($obsLocations)): ?>
-                    <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-token-xs font-mono bg-surface border border-border text-secondary">
+                    <span class="inline-flex items-center gap-1 px-3 py-1.5 text-token-xs font-mono" style="border-radius:var(--shape-full);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                         <i data-lucide="map-pin" class="w-3 h-3"></i>
                         <?php echo count($obsLocations); ?> sightings
                     </span>
                 <?php endif; ?>
                 <?php if ($gbifKey): ?>
                     <a href="https://www.gbif.org/species/<?php echo urlencode($gbifKey); ?>" target="_blank" rel="noopener noreferrer" rel="noopener"
-                        class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-token-xs font-mono transition bg-surface border border-border text-secondary hover:border-secondary/40">
+                        class="inline-flex items-center gap-1 px-3 py-1.5 text-token-xs font-mono transition" style="border-radius:var(--shape-full);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                         <i data-lucide="external-link" class="w-3 h-3"></i>
                         GBIF
                     </a>
@@ -440,7 +440,7 @@ $speciesNarrative = SpeciesNarrative::build([
                 ?>
                 <a href="https://twitter.com/intent/tweet?url=<?php echo urlencode($shareUrl); ?>&text=<?php echo urlencode($shareText); ?>"
                     target="_blank" rel="noopener noreferrer" rel="noopener"
-                    class="w-8 h-8 flex items-center justify-center rounded-full bg-surface border border-border hover:bg-black hover:text-white hover:border-black transition"
+                    class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black hover:text-white hover:border-black transition" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);"
                     title="Xでシェア">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -476,11 +476,11 @@ $speciesNarrative = SpeciesNarrative::build([
                     <i data-lucide="scroll-text" class="w-4 h-4 text-primary"></i>
                     <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-primary"><?php echo htmlspecialchars(__('species.quick_facts_title', 'このページでわかること')); ?></h2>
                 </div>
-                <div class="p-5 rounded-xl border border-border bg-gradient-to-b from-surface to-[var(--color-bg-base)] space-y-3">
+                <div style="padding:1.25rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);" class="space-y-3">
                     <p class="text-sm leading-relaxed text-text-secondary"><?php echo htmlspecialchars($speciesNarrative['intro'] ?? ''); ?></p>
                     <div class="grid gap-3">
                         <?php foreach (($speciesNarrative['blocks'] ?? []) as $block): ?>
-                            <div class="rounded-xl border border-border bg-surface px-4 py-3">
+                            <div style="border-radius:var(--shape-xl);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);padding:.5rem 1rem;">
                                 <div class="flex items-center gap-2 mb-1.5">
                                     <i data-lucide="<?php echo htmlspecialchars($block['icon'] ?? 'info'); ?>" class="w-4 h-4 text-primary"></i>
                                     <div class="text-xs font-bold tracking-wide text-primary"><?php echo htmlspecialchars($block['label'] ?? ''); ?></div>
@@ -507,7 +507,7 @@ $speciesNarrative = SpeciesNarrative::build([
                     <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-primary">DISTILLED KNOWLEDGE</h2>
                     <span class="ml-auto text-token-xs font-mono text-muted bg-primary/10 px-2 py-0.5 rounded-full text-primary border border-primary/20">AI EXTRACTED</span>
                 </div>
-                <div class="p-5 rounded-xl border border-border bg-gradient-to-b from-surface to-[var(--color-bg-base)]">
+                <div style="padding:1.25rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                     <?php $ec = $distilledKnowledge['ecological_constraints']; ?>
 
                     <?php if (!empty($ec['habitat'])): ?>
@@ -515,7 +515,7 @@ $speciesNarrative = SpeciesNarrative::build([
                             <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-2">Habitat Constraints</h3>
                             <div class="flex flex-wrap gap-1.5">
                                 <?php foreach ($ec['habitat'] as $hab): ?>
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border text-sm font-semibold text-text shadow-sm">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold" style="border-radius:var(--shape-sm);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                                         <i data-lucide="trees" class="w-3.5 h-3.5 text-secondary"></i>
                                         <?php echo htmlspecialchars($hab); ?>
                                     </span>
@@ -529,7 +529,7 @@ $speciesNarrative = SpeciesNarrative::build([
                             <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-2">Altitude Range</h3>
                             <div class="flex flex-wrap gap-1.5">
                                 <?php foreach ($ec['altitude_range'] as $alt): ?>
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border text-sm font-semibold text-text shadow-sm">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold" style="border-radius:var(--shape-sm);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                                         <i data-lucide="mountain" class="w-3.5 h-3.5 text-accent"></i>
                                         <?php echo htmlspecialchars($alt); ?>
                                     </span>
@@ -542,7 +542,7 @@ $speciesNarrative = SpeciesNarrative::build([
                         <div class="mb-4 last:mb-0">
                             <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-2">Active Period</h3>
                             <div class="flex flex-wrap gap-2">
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-border text-sm font-semibold text-text shadow-sm">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold" style="border-radius:var(--shape-sm);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                                     <i data-lucide="calendar-range" class="w-3.5 h-3.5 text-warning"></i>
                                     <?php echo htmlspecialchars($ec['active_season']); ?>
                                 </span>
@@ -579,7 +579,7 @@ $speciesNarrative = SpeciesNarrative::build([
                     <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-accent">IDENTIFICATION KEYS</h2>
                     <span class="ml-auto text-token-xs font-mono text-muted bg-accent/10 px-2 py-0.5 rounded-full text-accent border border-accent/20">AI EXTRACTED</span>
                 </div>
-                <div class="p-5 rounded-xl border border-border bg-gradient-to-b from-surface to-[var(--color-bg-base)]">
+                <div style="padding:1.25rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                     <?php $ik = $distilledKnowledge['identification_keys']; ?>
 
                     <?php if (!empty($ik['morphological_traits'])): ?>
@@ -606,7 +606,7 @@ $speciesNarrative = SpeciesNarrative::build([
                             <div class="flex flex-wrap gap-2">
                                 <?php foreach ($ik['similar_species'] as $similar): ?>
                                     <div class="inline-flex items-center gap-0 rounded-lg border border-accent/20 overflow-hidden shadow-sm">
-                                        <a href="/species.php?jp=<?php echo urlencode($similar); ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface text-sm font-semibold text-accent hover:bg-accent hover:text-white transition">
+                                        <a href="/species.php?jp=<?php echo urlencode($similar); ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-accent hover:bg-accent hover:text-white transition" style="background:var(--md-surface-container-low);">
                                             <i data-lucide="link-2" class="w-3.5 h-3.5"></i>
                                             <?php echo htmlspecialchars($similar); ?>
                                         </a>
@@ -648,7 +648,7 @@ $speciesNarrative = SpeciesNarrative::build([
                     <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-warning">PHENOLOGY</h2>
                     <span class="ml-auto text-token-xs font-mono text-muted"><?php echo array_sum($monthCounts); ?> records</span>
                 </div>
-                <div class="p-4 rounded-xl border border-border bg-surface">
+                <div style="padding:1rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                     <div class="flex items-end gap-1 h-16">
                         <?php
                         $monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -733,7 +733,7 @@ $speciesNarrative = SpeciesNarrative::build([
                 <div class="space-y-2">
                     <?php foreach ($specimenRecords as $spec): ?>
                         <a href="https://www.gbif.org/occurrence/<?php echo urlencode($spec['gbif_occurrence_key']); ?>" target="_blank" rel="noopener noreferrer" rel="noopener"
-                            class="block p-4 rounded-xl border border-secondary/20 bg-surface hover:border-secondary/40 transition group">
+                            class="block p-4 rounded-xl border border-secondary/20 hover:border-secondary/40 transition group" style="background:var(--md-surface-container-low);">
                             <div class="flex items-start gap-3">
                                 <div class="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <i data-lucide="landmark" class="w-4 h-4 text-secondary"></i>
@@ -819,7 +819,7 @@ $speciesNarrative = SpeciesNarrative::build([
                         </span>
                     <?php endif; ?>
                 </div>
-                <div id="species-map" class="w-full rounded-2xl overflow-hidden shadow-sm border border-border"></div>
+                <div id="species-map" class="w-full rounded-2xl overflow-hidden" style="border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);"></div>
                 <script nonce="<?= CspNonce::attr() ?>">
                     document.addEventListener('DOMContentLoaded', () => {
                         const obsLocs = <?php echo json_encode($obsLocations); ?>;
@@ -895,7 +895,7 @@ $speciesNarrative = SpeciesNarrative::build([
                     <i data-lucide="history" class="w-4 h-4 text-primary"></i>
                     <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-primary">NOMENCLATURE TIMELINE</h2>
                 </div>
-                <div class="p-5 rounded-xl border border-border bg-surface mb-6 relative overflow-hidden">
+                <div class="mb-6 relative overflow-hidden" style="padding:1.25rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                     <div class="absolute right-0 top-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
                     <div class="relative pl-5 space-y-6 border-l-2 border-primary/20">
                         <?php foreach ($distinctTimeline as $idx => $tItem): ?>
@@ -923,7 +923,7 @@ $speciesNarrative = SpeciesNarrative::build([
 
             <div class="space-y-3">
                 <?php if (empty($citations) && empty($keys)): ?>
-                    <div class="p-6 rounded-xl text-center border border-border bg-surface">
+                    <div style="padding:1.5rem;border-radius:var(--shape-xl);text-align:center;background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
                         <p class="text-sm text-muted">No digitized references found yet.</p>
                     </div>
                 <?php endif; ?>
@@ -965,17 +965,17 @@ $speciesNarrative = SpeciesNarrative::build([
                             <?php if (!empty($cit['data_icons'])): ?>
                                 <div class="flex flex-wrap gap-1.5 pl-11">
                                     <?php if (!empty($cit['data_icons']['size'])): ?>
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs" style="background: var(--color-bg-surface); color: var(--color-text-secondary);">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs" style="background:var(--md-surface-container-low);color:var(--md-on-surface-variant);">
                                             <i data-lucide="ruler" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($cit['data_icons']['size']); ?>
                                         </span>
                                     <?php endif; ?>
                                     <?php if (!empty($cit['data_icons']['season'])): ?>
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs" style="background: var(--color-bg-surface); color: var(--color-text-secondary);">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs" style="background:var(--md-surface-container-low);color:var(--md-on-surface-variant);">
                                             <i data-lucide="calendar" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($cit['data_icons']['season']); ?>
                                         </span>
                                     <?php endif; ?>
                                     <?php if (!empty($cit['data_icons']['distribution'])): ?>
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs bg-surface text-text-secondary border border-border">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-token-xs" style="background:var(--md-surface-container-low);color:var(--md-on-surface-variant);border:1px solid var(--md-outline-variant);">
                                             <i data-lucide="globe" class="w-2.5 h-2.5"></i> <?php echo htmlspecialchars($cit['data_icons']['distribution']); ?>
                                         </span>
                                     <?php endif; ?>
@@ -1004,7 +1004,7 @@ $speciesNarrative = SpeciesNarrative::build([
                             <?php if (!empty($cit['darwin_core']) || !empty($cit['dublin_core'])): ?>
                                 <div class="mt-3 ml-11 flex flex-wrap gap-1.5 pt-2 border-t border-warning/20">
                                     <?php if (!empty($cit['dublin_core']['dc:type'])): ?>
-                                        <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Dublin Core Document Type">
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded-sm text-muted font-mono" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);" title="Dublin Core Document Type">
                                             DC: <?php echo htmlspecialchars($cit['dublin_core']['dc:type']); ?>
                                         </span>
                                     <?php endif; ?>
@@ -1014,7 +1014,7 @@ $speciesNarrative = SpeciesNarrative::build([
                                         </span>
                                     <?php endif; ?>
                                     <?php if (!empty($cit['darwin_core']['dwc:scientificName'])): ?>
-                                        <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Darwin Core Scientific Name">
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded-sm text-muted font-mono" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);" title="Darwin Core Scientific Name">
                                             DwC: <?php echo htmlspecialchars($cit['darwin_core']['dwc:scientificName']); ?>
                                         </span>
                                     <?php endif; ?>
@@ -1107,7 +1107,7 @@ $speciesNarrative = SpeciesNarrative::build([
                                         <?php if (!empty($paper['darwin_core']) || !empty($paper['dublin_core'])): ?>
                                             <div class="mt-3 flex flex-wrap gap-1.5 pt-2 border-t border-border/30">
                                                 <?php if (!empty($paper['dublin_core']['dc:type'])): ?>
-                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Dublin Core Document Type">
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm text-muted font-mono" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);" title="Dublin Core Document Type">
                                                         DC: <?php echo htmlspecialchars($paper['dublin_core']['dc:type']); ?>
                                                     </span>
                                                 <?php endif; ?>
@@ -1117,7 +1117,7 @@ $speciesNarrative = SpeciesNarrative::build([
                                                     </span>
                                                 <?php endif; ?>
                                                 <?php if (!empty($paper['darwin_core']['dwc:scientificName'])): ?>
-                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-surface border border-border text-muted font-mono" title="Darwin Core Scientific Name">
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm text-muted font-mono" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);" title="Darwin Core Scientific Name">
                                                         DwC: <?php echo htmlspecialchars($paper['darwin_core']['dwc:scientificName']); ?>
                                                     </span>
                                                 <?php endif; ?>

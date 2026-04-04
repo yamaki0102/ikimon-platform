@@ -39,6 +39,13 @@ android-shell/.gradle/
 android-shell/app/build/
 android-shell/build/
 android-shell/local.properties
+mobile/android/ikimon-pocket/.gradle/
+mobile/android/ikimon-pocket/app/build/
+mobile/android/ikimon-pocket/local.properties
+
+# === Large ML models ===
+*.onnx
+*.tflite
 
 # === Data (user-generated, server-specific) ===
 upload_package/data/redlists/scraped_production_master.csv
@@ -96,3 +103,4 @@ upload_package/scripts/inspect_photos.php
 /composer.phar
 /.phpunit.cache/
 /tests/fixtures/
+.gstack/

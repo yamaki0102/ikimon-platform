@@ -93,7 +93,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-<link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
 <link rel="dns-prefetch" href="https://unpkg.com">
 <link rel="dns-prefetch" href="https://tile.openstreetmap.jp">
 
@@ -103,7 +103,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 
 <!-- External Libraries -->
-<script src="https://cdn.tailwindcss.com"></script>
+<script src="/assets/js/tailwind.3.4.17.min.js"></script>
 <script nonce="<?= CspNonce::attr() ?>">
     tailwind.config = {
         theme: {
@@ -131,6 +131,28 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
                     'danger-surface': 'var(--color-danger-surface)',
                     border: 'var(--color-border)',
                     'border-strong': 'var(--color-border-strong)',
+                    /* M3 Tokens */
+                    'md-primary': 'var(--md-primary)',
+                    'md-on-primary': 'var(--md-on-primary)',
+                    'md-primary-container': 'var(--md-primary-container)',
+                    'md-secondary': 'var(--md-secondary)',
+                    'md-surface': 'var(--md-surface)',
+                    'md-on-surface': 'var(--md-on-surface)',
+                    'md-surface-variant': 'var(--md-surface-variant)',
+                    'md-on-surface-variant': 'var(--md-on-surface-variant)',
+                    'md-surface-container': 'var(--md-surface-container)',
+                    'md-outline': 'var(--md-outline)',
+                    'md-outline-variant': 'var(--md-outline-variant)',
+                    'md-error': 'var(--md-error)',
+                    'md-tertiary': 'var(--md-tertiary)',
+                    /* Dashboard info palette (デジタル庁7色準拠) */
+                    'viz-blue': '#2563EB',
+                    'viz-green': '#10b981',
+                    'viz-orange': '#f59e0b',
+                    'viz-red': '#ef4444',
+                    'viz-gray': '#64748b',
+                    'viz-cyan': '#06b6d4',
+                    'viz-purple': '#8b5cf6',
                 },
                 fontFamily: {
                     heading: ['"Montserrat"', '"Zen Kaku Gothic New"', 'sans-serif'],

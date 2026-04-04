@@ -212,13 +212,13 @@ $meta_description = ($event['title'] ?? 'イベント') . ' のビンゴカー�
     </style>
 </head>
 
-<body class="bg-base text-text font-body min-h-screen pb-24 safe-area-inset-bottom">
+<body class="font-body min-h-screen pb-24 safe-area-inset-bottom" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include __DIR__ . '/components/nav.php'; ?>
     <div style="height: calc(var(--nav-height, 56px) + var(--safe-top, 0px))"></div>
 
     <main class="bingo-shell" x-data="bingoBoard()">
         <div class="flex items-center gap-3 mb-4">
-            <a href="event_detail.php?id=<?php echo urlencode($eventId); ?>" class="size-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500">
+            <a href="event_detail.php?id=<?php echo urlencode($eventId); ?>" class="size-10 rounded-full flex items-center justify-center" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
             </a>
             <div>
@@ -263,13 +263,13 @@ $meta_description = ($event['title'] ?? 'イベント') . ' のビンゴカー�
                 <a href="post.php?event_id=<?php echo urlencode($eventId); ?>&event_name=<?php echo urlencode($event['title'] ?? ''); ?>" class="block text-center rounded-2xl bg-emerald-500 text-white font-black py-3.5 shadow-lg shadow-emerald-500/20">
                     📸 このイベントで記録する
                 </a>
-                <a href="event_detail.php?id=<?php echo urlencode($eventId); ?>" class="block text-center rounded-2xl bg-white border border-gray-200 text-gray-700 font-black py-3.5">
+                <a href="event_detail.php?id=<?php echo urlencode($eventId); ?>" class="block text-center rounded-2xl font-black py-3.5" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface);">
                     参加ページへ戻る
                 </a>
             </div>
         </section>
 
-        <section class="mt-5 rounded-3xl bg-white border border-gray-100 p-5 shadow-sm">
+        <section class="mt-5" style="border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);padding:1.25rem;box-shadow:var(--elev-1);">
             <h2 class="text-sm font-black text-gray-900 mb-3">遊び方</h2>
             <div class="mb-4">
                 <div class="flex items-center justify-between text-xs font-bold text-gray-500 mb-2">

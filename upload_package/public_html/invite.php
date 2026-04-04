@@ -63,7 +63,7 @@ if ($inviter) {
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
 </head>
-<body class="bg-base text-text font-body min-h-screen">
+<body class="font-body min-h-screen" style="background:var(--md-surface);color:var(--md-on-surface);">
 
 <?php if (!$inviter && $code !== ''): ?>
     <!-- 無効なコード -->

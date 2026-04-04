@@ -22,12 +22,26 @@ class LiveScanner {
     constructor(opts = {}) {
         this.onDetection = opts.onDetection || (() => {});
         this.onEnvUpdate = opts.onEnvUpdate || (() => {});
-        this.onLog = opts.onLog || ((msg) => console.log('[LiveScanner]', msg));
+        this.onLog = opts.onLog || (() => {});
         this.onGpsUpdate = opts.onGpsUpdate || (() => {});
         this.onAudioState = opts.onAudioState || (() => {});
         this.onMovementModeChange = opts.onMovementModeChange || (() => {});
 
         this._reset();
+    }
+
+    async _fetchWithTimeout(url, opts, timeoutMs) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+        try {
+            const resp = await fetch(url, { ...opts, signal: ctrl.signal });
+            return resp;
+        } catch (e) {
+            if (e.name === 'AbortError') this.onLog('⏱ タイムアウト');
+            return null;
+        } finally {
+            clearTimeout(timer);
+        }
     }
 
     _reset() {
@@ -442,8 +456,12 @@ class LiveScanner {
                 fd.append('context', JSON.stringify({ environment: this.envHistory[0] }));
             }
 
-            const resp = await fetch('/api/v2/scan_classify.php', { method: 'POST', body: fd });
-            if (!resp.ok) return;
+            let resp = await this._fetchWithTimeout('/api/v2/scan_classify.php', { method: 'POST', body: fd }, 10000);
+            if (resp && (resp.status === 502 || resp.status === 503)) {
+                await new Promise(r => setTimeout(r, 1500));
+                resp = await this._fetchWithTimeout('/api/v2/scan_classify.php', { method: 'POST', body: fd }, 10000);
+            }
+            if (!resp || !resp.ok) return;
             const text = await resp.text();
             this.dataUsage += text.length;
             const json = JSON.parse(text);
@@ -894,5 +912,93 @@ class LiveScanner {
 
     getDistance() {
         return this._calcDistance(this.routePoints);
+    }
+
+    // ========== MANUAL SCAN (スキャン！) ==========
+
+    /**
+     * ユーザーが「スキャン！」を押したとき呼ぶ。
+     * 1フレームをキャプチャ → Gemini で科/属同定 → センサースキャンとして保存。
+     * 観察投稿とは別データ (scan_drafts) に保存される。
+     *
+     * @returns {{ name, scientific, family, confidence, category, note, photoUrl, draftId }|null}
+     */
+    async triggerScan() {
+        if (!this.active || !this.videoEl || !this.canvasEl) return null;
+        const v = this.videoEl;
+        const c = this.canvasEl;
+        if (!v.videoWidth) return null;
+
+        // High-quality capture for manual scan
+        c.width = Math.min(v.videoWidth, 640);
+        c.height = Math.round(c.width * v.videoHeight / v.videoWidth);
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+
+        const photoUrl = c.toDataURL('image/jpeg', 0.85);
+        const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+        if (!blob) return null;
+
+        // Classify
+        const fd = new FormData();
+        fd.append('photo', blob, 'scan.jpg');
+        const last = this.routePoints.length > 0 ? this.routePoints[this.routePoints.length - 1] : null;
+        if (last) { fd.append('lat', last.lat); fd.append('lng', last.lng); }
+        if (this.envHistory.length > 0) {
+            fd.append('context', JSON.stringify({ environment: this.envHistory[0] }));
+        }
+
+        let suggestions = [];
+        try {
+            const resp = await this._fetchWithTimeout('/api/v2/scan_classify.php', { method: 'POST', body: fd }, 12000);
+            if (resp && resp.ok) {
+                const json = await resp.json();
+                if (json.success && json.data?.suggestions?.length > 0) {
+                    suggestions = json.data.suggestions;
+                    suggestions.forEach(sug => {
+                        this._addDetection(sug.name, sug.scientific_name || '', sug.confidence || 0.5, 'visual', sug.category || '', sug.note || '');
+                    });
+                }
+            }
+        } catch (e) {
+            this.onLog('📷 スキャンERR: ' + e.message);
+        }
+
+        const primary = suggestions[0] || null;
+
+        // Save as sensor scan draft (separate from observations)
+        const draftId = await this._saveScanDraft(blob, suggestions, last);
+
+        return {
+            name: primary?.name || '不明',
+            scientific: primary?.scientific_name || '',
+            family: primary?.family || '',
+            confidence: primary?.confidence || 0,
+            category: primary?.category || '',
+            note: primary?.note || '',
+            photoUrl,
+            draftId,
+        };
+    }
+
+    async _saveScanDraft(blob, suggestions, gpsPoint) {
+        try {
+            const fd = new FormData();
+            fd.append('photo', blob, 'draft.jpg');
+            fd.append('suggestions', JSON.stringify(suggestions.slice(0, 5)));
+            if (gpsPoint) {
+                fd.append('lat', gpsPoint.lat);
+                fd.append('lng', gpsPoint.lng);
+                fd.append('accuracy', gpsPoint.accuracy || 999);
+            }
+            fd.append('session_id', this._serverSessionId || this.sessionId);
+            const resp = await fetch('/api/v2/scan_draft_save.php', {
+                method: 'POST', body: fd, credentials: 'same-origin'
+            });
+            if (!resp.ok) return null;
+            const json = await resp.json();
+            return json.success ? json.data?.draft_id : null;
+        } catch (e) {
+            return null;
+        }
     }
 }

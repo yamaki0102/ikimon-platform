@@ -264,3 +264,94 @@
 .m-phi-xl {
   margin: var(--phi-xl);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Material Design 3 (Material You) Token Layer
+   Emerald Custom Color Scheme — appended 2026-04-03
+   Usage: var(--md-*) throughout all pages
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── M3 Color System — Emerald Scheme ── */
+  --md-primary:                #0a7c5c;   /* Emerald-700: WCAG AA on white */
+  --md-on-primary:             #ffffff;
+  --md-primary-container:      #a8f0d0;   /* Emerald-100 tonal */
+  --md-on-primary-container:   #002117;
+  --md-secondary:              #4a635a;
+  --md-on-secondary:           #ffffff;
+  --md-secondary-container:    #cce8dc;
+  --md-on-secondary-container: #062019;
+  --md-tertiary:               #7e5700;   /* Amber tonal (badges, warnings) */
+  --md-on-tertiary:            #ffffff;
+  --md-tertiary-container:     #ffdea0;
+  --md-on-tertiary-container:  #271900;
+  --md-error:                  #b3261e;
+  --md-on-error:               #ffffff;
+  --md-error-container:        #f9dedc;
+  --md-on-error-container:     #410e0b;
+  --md-surface:                #f5faf7;
+  --md-on-surface:             #181c1a;
+  --md-surface-variant:        #dbe5df;
+  --md-on-surface-variant:     #404944;
+  --md-surface-container-low:  #eff4f1;
+  --md-surface-container:      #e9eee9;
+  --md-surface-container-high: #e4e8e5;
+  --md-outline:                #707974;
+  --md-outline-variant:        #bfc9c2;
+  --md-inverse-surface:        #2d312f;
+  --md-inverse-on-surface:     #eff1ef;
+  --md-inverse-primary:        #8dd4b3;
+  --md-scrim:                  rgba(0, 0, 0, 0.32);
+
+  /* ── M3 Shape Scale (XS=4, S=8, M=12, L=16, XL=28, Full) ── */
+  --shape-xs:   4px;
+  --shape-sm:   8px;
+  --shape-md:   12px;
+  --shape-lg:   16px;
+  --shape-xl:   28px;
+  --shape-full: 9999px;
+
+  /* ── M3 Type Scale (5 roles × 3 sizes) ── */
+  --type-headline-lg:  32px;
+  --type-headline-md:  28px;
+  --type-headline-sm:  24px;
+  --type-title-lg:     22px;
+  --type-title-md:     16px;
+  --type-title-sm:     14px;
+  --type-body-lg:      16px;
+  --type-body-md:      14px;
+  --type-body-sm:      12px;
+  --type-label-lg:     14px;
+  --type-label-md:     12px;
+  --type-label-sm:     11px;
+
+  /* ── M3 Motion (standard easing + duration scale) ── */
+  --motion-std:    cubic-bezier(0.2, 0, 0, 1);
+  --motion-decel:  cubic-bezier(0, 0, 0, 1);
+  --motion-accel:  cubic-bezier(0.3, 0, 1, 1);
+  --motion-short:  200ms;
+  --motion-medium: 300ms;
+  --motion-long:   450ms;
+
+  /* ── M3 Elevation (tonal shadow levels 1–4) ── */
+  --elev-1: 0px 1px 2px rgba(0,0,0,0.3), 0px 1px 3px 1px rgba(0,0,0,0.15);
+  --elev-2: 0px 1px 2px rgba(0,0,0,0.3), 0px 2px 6px 2px rgba(0,0,0,0.15);
+  --elev-3: 0px 1px 3px rgba(0,0,0,0.3), 0px 4px 8px 3px rgba(0,0,0,0.15);
+  --elev-4: 0px 2px 3px rgba(0,0,0,0.3), 0px 6px 10px 4px rgba(0,0,0,0.15);
+
+  /* ── Dashboard Information Palette (デジタル庁7色準拠) ── */
+  /* 多指標ダッシュボード・グラフの色彩に使用 */
+  --viz-blue:   #2563EB;   /* 観察数・定量指標 */
+  --viz-green:  #10b981;   /* BISスコア・生物多様性指標 */
+  --viz-orange: #f59e0b;   /* 外来種・警戒指標 */
+  --viz-red:    #ef4444;   /* 絶滅危惧種・危険シグナル */
+  --viz-gray:   #64748b;   /* 未同定・不確実データ */
+  --viz-cyan:   #06b6d4;   /* 水生生物・水環境 */
+  --viz-purple: #8b5cf6;   /* 植物・特殊分類 */
+
+  /* Surface overlays for charts */
+  --viz-blue-surface:   rgba(37, 99, 235, 0.10);
+  --viz-green-surface:  rgba(16, 185, 129, 0.10);
+  --viz-orange-surface: rgba(245, 158, 11, 0.10);
+  --viz-red-surface:    rgba(239, 68, 68, 0.10);
+  --viz-gray-surface:   rgba(100, 116, 139, 0.10);
+}

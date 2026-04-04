@@ -161,8 +161,8 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
 
         .compare-card {
             border-radius: 16px;
-            border: 1px solid var(--color-border);
-            background: var(--color-surface);
+            border: 1px solid var(--md-outline-variant);
+            background: var(--md-surface-container);
             overflow: hidden;
         }
 
@@ -194,7 +194,7 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
     </style>
 </head>
 
-<body class="bg-base text-text font-body min-h-screen">
+<body class="font-body min-h-screen" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include('components/nav.php'); ?>
 
     <main class="max-w-5xl mx-auto px-4 pt-20 pb-32">
@@ -225,13 +225,13 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
         </header>
 
         <!-- Search Form -->
-        <div class="mb-10 p-5 rounded-2xl border border-border bg-surface">
+        <div class="mb-10" style="padding:1.25rem;border-radius:var(--shape-xl);border:1px solid var(--md-outline-variant);background:var(--md-surface-container);box-shadow:var(--elev-1);">
             <form method="get" class="flex flex-col sm:flex-row items-end gap-3">
                 <div class="flex-1 w-full">
                     <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Species A</label>
                     <input type="text" name="a" value="<?php echo htmlspecialchars($_GET['a'] ?? ''); ?>"
                         placeholder="Japanese or scientific name..."
-                        class="w-full px-4 py-2.5 rounded-xl border border-border bg-base text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                        class="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                 </div>
                 <div class="flex items-center justify-center w-10 h-10 rounded-full bg-accent/10 text-accent font-black text-sm shrink-0 hidden sm:flex">
                     VS
@@ -240,7 +240,7 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
                     <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Species B</label>
                     <input type="text" name="b" value="<?php echo htmlspecialchars($_GET['b'] ?? ''); ?>"
                         placeholder="Japanese or scientific name..."
-                        class="w-full px-4 py-2.5 rounded-xl border border-border bg-base text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent">
+                        class="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                 </div>
                 <button type="submit"
                     class="px-6 py-2.5 rounded-xl bg-accent text-white font-bold text-sm hover:opacity-90 transition shrink-0">
@@ -258,7 +258,7 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
                         <div class="compare-card p-4">
                             <div class="flex items-center gap-3 mb-3">
                                 <?php if ($d['photo']): ?>
-                                    <img src="<?php echo htmlspecialchars($d['photo']); ?>" alt="<?php echo htmlspecialchars($d['name'] ?? '観察写真'); ?>" class="w-12 h-12 rounded-xl object-cover border border-border">
+                                    <img src="<?php echo htmlspecialchars($d['photo']); ?>" alt="<?php echo htmlspecialchars($d['name'] ?? '観察写真'); ?>" class="w-12 h-12 rounded-xl object-cover" style="border:1px solid var(--md-outline-variant);">
                                 <?php else: ?>
                                     <div class="w-12 h-12 rounded-xl bg-border/30 flex items-center justify-center text-muted">
                                         <i data-lucide="image-off" class="w-5 h-5"></i>
@@ -275,15 +275,15 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
                                 </div>
                             </div>
                             <div class="grid grid-cols-3 gap-2 text-center">
-                                <div class="p-2 rounded-lg bg-base">
+                                <div style="padding:.5rem;border-radius:var(--shape-sm);background:var(--md-surface-container-low);">
                                     <div class="text-lg font-black text-text"><?php echo $d['obs_count']; ?></div>
                                     <div class="text-[10px] text-muted uppercase font-mono">Observations</div>
                                 </div>
-                                <div class="p-2 rounded-lg bg-base">
+                                <div style="padding:.5rem;border-radius:var(--shape-sm);background:var(--md-surface-container-low);">
                                     <div class="text-lg font-black text-text"><?php echo $d['specimen_count']; ?></div>
                                     <div class="text-[10px] text-muted uppercase font-mono">Specimens</div>
                                 </div>
-                                <div class="p-2 rounded-lg bg-base">
+                                <div style="padding:.5rem;border-radius:var(--shape-sm);background:var(--md-surface-container-low);">
                                     <div class="text-lg font-black text-text"><?php echo $d['citation_count']; ?></div>
                                     <div class="text-[10px] text-muted uppercase font-mono">Citations</div>
                                 </div>
@@ -332,7 +332,7 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
                                         $isCurr = ($i === $currentMonth);
                                     ?>
                                         <div class="bar <?php echo $isCurr ? 'ring-1 ring-warning/50' : ''; ?>"
-                                            style="height:<?php echo $barH; ?>px;background:<?php echo $count > 0 ? 'var(--color-warning)' : 'var(--color-border)'; ?>;opacity:<?php echo $opacity; ?>;"
+                                            style="height:<?php echo $barH; ?>px;background:<?php echo $count > 0 ? 'var(--color-warning)' : 'var(--md-outline-variant)'; ?>;opacity:<?php echo $opacity; ?>;"
                                             title="<?php echo $monthLabels[$i - 1] . ': ' . $count; ?>"></div>
                                     <?php endfor; ?>
                                 </div>
@@ -474,7 +474,7 @@ $meta_description = 'Compare two species side-by-side: habitat, phenology, ident
                     Enter Japanese or scientific names above. Useful for distinguishing similar species, comparing ecological niches, or tracking conservation status.
                 </p>
                 <div class="text-xs text-muted">
-                    <span class="font-mono bg-surface px-3 py-1.5 rounded-lg border border-border">
+                    <span class="font-mono px-3 py-1.5 rounded-lg" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
                         Example: ?a=ナミアゲハ&b=キアゲハ
                     </span>
                 </div>

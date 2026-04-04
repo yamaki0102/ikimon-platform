@@ -68,7 +68,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
             gap: 20px;
             margin-top: 40px;
             padding-top: 32px;
-            border-top: 1px solid var(--color-border, rgba(0,0,0,0.06));
+            border-top: 1px solid var(--md-outline-variant);
         }
         .msg-signature-photo {
             width: 80px;
@@ -80,12 +80,12 @@ $meta_description = $regionalMessaging['about_meta_description'];
         }
         .msg-signature-name {
             font-weight: 700;
-            color: var(--color-text, #1a2e1f);
+            color: var(--md-on-surface);
             font-size: 1rem;
         }
         .msg-signature-title {
             font-size: 0.8125rem;
-            color: var(--color-text-faint, #9ca3af);
+            color: var(--md-on-surface-variant);
             margin-top: 2px;
         }
 
@@ -98,13 +98,13 @@ $meta_description = $regionalMessaging['about_meta_description'];
             margin: 0 auto;
         }
         .msg-surface {
-            background: var(--color-bg-surface, #f8faf9);
+            background: var(--md-surface-container);
         }
         .msg-section h2 {
             font-family: 'Shippori Mincho', serif;
             font-size: clamp(1.25rem, 2.5vw, 1.625rem);
             font-weight: 600;
-            color: var(--color-text, #1a2e1f);
+            color: var(--md-on-surface);
             margin-bottom: 32px;
             letter-spacing: 0.03em;
             line-height: 1.5;
@@ -112,11 +112,11 @@ $meta_description = $regionalMessaging['about_meta_description'];
 
         /* lead blockquote */
         .msg-lead {
-            border-left: 3px solid var(--color-primary, #10b981);
+            border-left: 3px solid var(--md-primary);
             padding-left: 20px;
             font-family: 'Shippori Mincho', serif;
             font-size: clamp(1.0625rem, 2vw, 1.25rem);
-            color: var(--color-text, #1a2e1f);
+            color: var(--md-on-surface);
             line-height: 1.8;
             margin-bottom: 40px;
         }
@@ -125,16 +125,16 @@ $meta_description = $regionalMessaging['about_meta_description'];
         .msg-body p {
             font-size: 1rem;
             line-height: 2.0;
-            color: var(--color-text-muted, #64748b);
+            color: var(--md-on-surface-variant);
             margin-bottom: 20px;
         }
         .msg-body p strong {
-            color: var(--color-text, #1a2e1f);
+            color: var(--md-on-surface);
         }
 
         /* green accent line */
         .msg-accent {
-            color: var(--color-primary-dark, #059669);
+            color: var(--md-primary);
             font-weight: 600;
             font-size: 1.0625rem;
             line-height: 1.8;
@@ -143,7 +143,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
 
         /* large accent (section closer) */
         .msg-accent-lg {
-            color: var(--color-primary-dark, #059669);
+            color: var(--md-primary);
             font-family: 'Shippori Mincho', serif;
             font-weight: 600;
             font-size: clamp(1.125rem, 2vw, 1.375rem);
@@ -151,7 +151,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
             text-align: center;
             margin: 48px 0 0;
             padding: 32px 0;
-            border-top: 1px solid var(--color-border, rgba(0,0,0,0.06));
+            border-top: 1px solid var(--md-outline-variant);
         }
 
         /* insight blocks */
@@ -165,7 +165,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
             font-family: 'Shippori Mincho', serif;
             font-size: 2rem;
             font-weight: 700;
-            color: var(--color-primary, #10b981);
+            color: var(--md-primary);
             line-height: 1;
             flex-shrink: 0;
             margin-top: 2px;
@@ -176,13 +176,13 @@ $meta_description = $regionalMessaging['about_meta_description'];
         .msg-insight-text {
             font-size: 1rem;
             font-weight: 600;
-            color: var(--color-text, #1a2e1f);
+            color: var(--md-on-surface);
             line-height: 1.6;
             margin-bottom: 8px;
         }
         .msg-cite {
             font-size: 0.8125rem;
-            color: var(--color-text-faint, #9ca3af);
+            color: var(--md-on-surface-variant);
             line-height: 1.6;
         }
 
@@ -191,8 +191,8 @@ $meta_description = $regionalMessaging['about_meta_description'];
             text-align: center;
             padding: 40px 0;
             margin: 32px 0;
-            border-top: 1px solid var(--color-border, rgba(0,0,0,0.06));
-            border-bottom: 1px solid var(--color-border, rgba(0,0,0,0.06));
+            border-top: 1px solid var(--md-outline-variant);
+            border-bottom: 1px solid var(--md-outline-variant);
         }
         .msg-stat-row {
             display: flex;
@@ -204,18 +204,18 @@ $meta_description = $regionalMessaging['about_meta_description'];
             font-family: 'Montserrat', sans-serif;
             font-size: clamp(2.5rem, 6vw, 3.5rem);
             font-weight: 900;
-            color: var(--color-text, #1a2e1f);
+            color: var(--md-on-surface);
             letter-spacing: -0.02em;
             line-height: 1;
         }
         .msg-stat-slash {
             font-size: clamp(1.5rem, 3vw, 2rem);
-            color: var(--color-text-faint, #9ca3af);
+            color: var(--md-on-surface-variant);
             font-weight: 300;
         }
         .msg-stat-sub {
             font-size: clamp(1.25rem, 3vw, 1.75rem);
-            color: var(--color-text-muted, #64748b);
+            color: var(--md-on-surface-variant);
             font-weight: 700;
             font-family: 'Montserrat', sans-serif;
         }
@@ -227,7 +227,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
         }
         .msg-stat-label {
             font-size: 0.8125rem;
-            color: var(--color-text-muted, #64748b);
+            color: var(--md-on-surface-variant);
             letter-spacing: 0.03em;
         }
 
@@ -239,24 +239,24 @@ $meta_description = $regionalMessaging['about_meta_description'];
             margin: 20px 0;
             padding: 20px;
             border-radius: 12px;
-            background: var(--color-bg-surface, #f8faf9);
-            border: 1px solid var(--color-border, rgba(0,0,0,0.06));
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-outline-variant);
         }
         .msg-surface .msg-examples {
-            background: var(--color-bg-base, #ffffff);
+            background: var(--md-surface);
         }
         .msg-example-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             font-size: 0.875rem;
-            color: var(--color-text-muted, #64748b);
+            color: var(--md-on-surface-variant);
             padding: 6px 0;
         }
         .msg-example-item span:last-child {
             font-weight: 700;
             font-family: 'Montserrat', sans-serif;
-            color: var(--color-text, #1a2e1f);
+            color: var(--md-on-surface);
         }
 
         /* plan blocks */
@@ -269,7 +269,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
         .msg-plan-item {
             padding: 20px;
             border-radius: 12px;
-            border: 1px solid var(--color-border, rgba(0,0,0,0.06));
+            border: 1px solid var(--md-outline-variant);
         }
         .msg-plan-item.msg-plan-free {
             background: rgba(16, 185, 129, 0.06);
@@ -286,23 +286,23 @@ $meta_description = $regionalMessaging['about_meta_description'];
             margin-bottom: 8px;
         }
         .msg-plan-free .msg-plan-tag {
-            background: var(--color-primary, #10b981);
+            background: var(--md-primary);
             color: #ffffff;
         }
         .msg-plan-item:not(.msg-plan-free) .msg-plan-tag {
-            background: var(--color-bg-surface, #f8faf9);
-            color: var(--color-text-muted, #64748b);
-            border: 1px solid var(--color-border, rgba(0,0,0,0.06));
+            background: var(--md-surface-container);
+            color: var(--md-on-surface-variant);
+            border: 1px solid var(--md-outline-variant);
         }
         .msg-plan-name {
             font-weight: 700;
-            color: var(--color-text, #1a2e1f);
+            color: var(--md-on-surface);
             font-size: 1rem;
             margin-bottom: 4px;
         }
         .msg-plan-desc {
             font-size: 0.875rem;
-            color: var(--color-text-muted, #64748b);
+            color: var(--md-on-surface-variant);
             line-height: 1.6;
         }
 
@@ -319,7 +319,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
             font-family: 'Shippori Mincho', serif;
             font-size: clamp(1.25rem, 2.5vw, 1.625rem);
             font-weight: 600;
-            color: var(--color-text, #1a2e1f);
+            color: var(--md-on-surface);
             margin-bottom: 32px;
             letter-spacing: 0.03em;
         }
@@ -343,17 +343,17 @@ $meta_description = $regionalMessaging['about_meta_description'];
             align-items: center;
             gap: 8px;
             padding-top: 32px;
-            border-top: 1px solid var(--color-border, rgba(0,0,0,0.06));
+            border-top: 1px solid var(--md-outline-variant);
         }
         .msg-contact-item {
             display: flex;
             align-items: center;
             gap: 8px;
             font-size: 0.875rem;
-            color: var(--color-text-muted, #64748b);
+            color: var(--md-on-surface-variant);
         }
         .msg-contact-item a {
-            color: var(--color-primary-dark, #059669);
+            color: var(--md-primary);
         }
 
         /* guide links (simplified) */
@@ -367,7 +367,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            color: var(--color-text-faint, #9ca3af);
+            color: var(--md-on-surface-variant);
             margin-bottom: 12px;
             display: flex;
             align-items: center;
@@ -383,19 +383,19 @@ $meta_description = $regionalMessaging['about_meta_description'];
             text-decoration: none;
         }
         .msg-guide-link:hover {
-            background: var(--color-bg-surface, #f8faf9);
+            background: var(--md-surface-container);
         }
         .msg-guide-link .msg-guide-title {
             font-size: 0.875rem;
             font-weight: 600;
-            color: var(--color-text, #1a2e1f);
+            color: var(--md-on-surface);
         }
         .msg-guide-link .msg-guide-desc {
             font-size: 0.75rem;
-            color: var(--color-text-faint, #9ca3af);
+            color: var(--md-on-surface-variant);
         }
         .msg-guide-link i {
-            color: var(--color-text-faint, #9ca3af);
+            color: var(--md-on-surface-variant);
             flex-shrink: 0;
         }
 
@@ -418,7 +418,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
         }
     </style>
 </head>
-<body class="js-loading pt-14 bg-base text-text font-body">
+<body class="js-loading pt-14 font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
     <script nonce="<?= CspNonce::attr() ?>">
@@ -703,7 +703,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
                     <span>北海道 歌志内市</span>
                     <span>-86.7%</span>
                 </div>
-                <div class="msg-example-item" style="padding-top: 12px; border-top: 1px solid var(--color-border, rgba(0,0,0,0.06));">
+                <div class="msg-example-item" style="padding-top: 12px; border-top: 1px solid var(--md-outline-variant);">
                     <span>秋田県全体</span>
                     <span>96%が消滅可能性</span>
                 </div>

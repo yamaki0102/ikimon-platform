@@ -4,10 +4,32 @@
  * 2026-02-10
  */
 
-/* ── Global: icons inside buttons must not capture pointer events ── */
-button svg,
-button .lucide {
+/* ── Global: ALL children of interactive elements must not capture pointer events ── */
+/* テキスト・アイコン・spanがevent.targetになってボタンが押せなくなる問題を根絶 */
+button *,
+[role="button"] *,
+.btn *,
+.btn-primary *,
+.btn-secondary *,
+.btn-glow *,
+.btn-ghost *,
+.btn-danger *,
+.filter-pill *,
+.m3-chip *,
+.camera-btn *,
+.fab-primary *,
+.bottom-nav__item *,
+.bottom-nav__center-btn * {
     pointer-events: none;
+}
+
+/* ── Icon Size Defaults ── */
+/* サイズ指定なしアイコンに20pxデフォルト適用（145個の未指定問題を一括解決） */
+[data-lucide]:not([class*="w-"]),
+.lucide:not([class*="w-"]) {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
 }
 
 /* ── Base ── */
@@ -64,7 +86,93 @@ h6 {
     box-shadow: var(--shadow-md);
 }
 
-/* ── Buttons ── */
+/* ── Button System v2 ── */
+/* Base: 全ボタンに必須の共通スタイル */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-full);
+    font-weight: 700;
+    font-size: var(--text-sm);
+    border: none;
+    cursor: pointer;
+    min-height: var(--touch-min);
+    transition: all var(--duration-normal) var(--ease-default);
+    text-decoration: none;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: var(--text-xs);
+    min-height: 36px;
+    gap: var(--space-1);
+}
+
+.btn-lg {
+    padding: 1rem 2rem;
+    font-size: var(--text-base);
+    min-height: var(--touch-comfortable);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--color-primary-dark);
+    border: none;
+    padding: 0.5rem 1rem;
+    min-height: var(--touch-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-default);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-ghost:hover {
+    background: var(--color-primary-surface);
+}
+
+.btn-danger {
+    background: var(--color-danger);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-full);
+    font-weight: 700;
+    font-size: var(--text-sm);
+    border: none;
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+    transition: all var(--duration-normal) var(--ease-default);
+    cursor: pointer;
+    min-height: var(--touch-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+}
+
+/* ── Buttons (legacy — kept for backward compat) ── */
 .btn-primary {
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     color: white;

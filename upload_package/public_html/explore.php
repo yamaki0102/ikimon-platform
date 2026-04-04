@@ -18,24 +18,69 @@ Auth::init();
     <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <style>
-        [x-cloak] {
-            display: none !important;
-        }
+        [x-cloak] { display: none !important; }
 
         .responsive-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            /* Mobile: Fixed 2 cols */
             gap: 1rem;
         }
-
         @media (min-width: 768px) {
             .responsive-grid {
-                /* PC: Variable (Kahen) layout - fits as many as possible */
                 grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
                 gap: 1.5rem;
             }
         }
+
+        /* M3 Filter Chip */
+        .m3-chip {
+            position: relative; overflow: hidden;
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 16px;
+            border-radius: var(--shape-full);
+            border: 1px solid var(--md-outline);
+            background: transparent;
+            color: var(--md-on-surface-variant);
+            font-size: var(--type-label-lg);
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: background var(--motion-short) var(--motion-std),
+                        color var(--motion-short) var(--motion-std),
+                        border-color var(--motion-short) var(--motion-std);
+        }
+        .m3-chip::before {
+            content: ''; position: absolute; inset: 0;
+            background: currentColor; opacity: 0;
+            border-radius: inherit;
+            transition: opacity var(--motion-short) var(--motion-std);
+            pointer-events: none;
+        }
+        .m3-chip:hover::before { opacity: 0.08; }
+        .m3-chip:active::before { opacity: 0.12; }
+        .m3-chip.selected {
+            background: var(--md-secondary-container);
+            color: var(--md-on-secondary-container);
+            border-color: transparent;
+        }
+
+        /* M3 Search Bar */
+        .m3-search {
+            width: 100%;
+            background: var(--md-surface-variant);
+            border: none;
+            border-radius: var(--shape-full);
+            padding: 10px 16px 10px 44px;
+            font-size: var(--type-body-md);
+            color: var(--md-on-surface);
+            outline: none;
+            transition: background var(--motion-short) var(--motion-std);
+        }
+        .m3-search:focus {
+            background: var(--md-surface-container);
+            box-shadow: 0 0 0 2px var(--md-primary);
+        }
+        .m3-search::placeholder { color: var(--md-on-surface-variant); opacity: 0.7; }
     </style>
 </head>
 
@@ -70,52 +115,62 @@ Auth::init();
 
                 <!-- Search Bar -->
                 <div class="relative w-full md:flex-1 md:max-w-xl">
-                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"></i>
+                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style="color:var(--md-on-surface-variant); pointer-events:none;"></i>
                     <input type="text" x-model="query" @input.debounce.500ms="load(true)"
                         placeholder="種名で検索..."
-                        class="w-full bg-surface border border-border rounded-full py-2.5 pl-10 pr-4 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition text-text placeholder-muted">
+                        class="m3-search">
                 </div>
 
                 <!-- Filter Chips -->
                 <div class="relative shrink-0">
                     <div class="flex gap-2 overflow-x-auto scrollbar-hide pr-6" role="tablist" aria-label="分類フィルタ">
-                        <button @click="filter='all'; load(true)" role="tab" :aria-selected="filter === 'all'" :class="filter === 'all' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition">すべて</button>
-                        <button @click="filter='birds'; load(true)" role="tab" :aria-selected="filter === 'birds'" :class="filter === 'birds' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="bird" class="w-3 h-3"></i> 鳥類</button>
-                        <button @click="filter='insects'; load(true)" role="tab" :aria-selected="filter === 'insects'" :class="filter === 'insects' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="bug" class="w-3 h-3"></i> 昆虫</button>
-                        <button @click="filter='plants'; load(true)" role="tab" :aria-selected="filter === 'plants'" :class="filter === 'plants' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1"><i data-lucide="flower" class="w-3 h-3"></i> 植物</button>
-                        <button @click="filter='fungi'; load(true)" role="tab" :aria-selected="filter === 'fungi'" :class="filter === 'fungi' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🍄 菌類</button>
-                        <button @click="filter='mammals'; load(true)" role="tab" :aria-selected="filter === 'mammals'" :class="filter === 'mammals' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🐾 哺乳類</button>
-                        <button @click="filter='herps'; load(true)" role="tab" :aria-selected="filter === 'herps'" :class="filter === 'herps' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">🐸 両生爬虫類</button>
+                        <button @click="filter='all'; load(true)" role="tab" :aria-selected="filter === 'all'" class="m3-chip" :class="filter === 'all' ? 'selected' : ''">すべて</button>
+                        <button @click="filter='birds'; load(true)" role="tab" :aria-selected="filter === 'birds'" class="m3-chip" :class="filter === 'birds' ? 'selected' : ''"><i data-lucide="bird" class="w-3 h-3" style="pointer-events:none"></i> 鳥類</button>
+                        <button @click="filter='insects'; load(true)" role="tab" :aria-selected="filter === 'insects'" class="m3-chip" :class="filter === 'insects' ? 'selected' : ''"><i data-lucide="bug" class="w-3 h-3" style="pointer-events:none"></i> 昆虫</button>
+                        <button @click="filter='plants'; load(true)" role="tab" :aria-selected="filter === 'plants'" class="m3-chip" :class="filter === 'plants' ? 'selected' : ''"><i data-lucide="flower" class="w-3 h-3" style="pointer-events:none"></i> 植物</button>
+                        <button @click="filter='fungi'; load(true)" role="tab" :aria-selected="filter === 'fungi'" class="m3-chip" :class="filter === 'fungi' ? 'selected' : ''">🍄 菌類</button>
+                        <button @click="filter='mammals'; load(true)" role="tab" :aria-selected="filter === 'mammals'" class="m3-chip" :class="filter === 'mammals' ? 'selected' : ''">🐾 哺乳類</button>
+                        <button @click="filter='herps'; load(true)" role="tab" :aria-selected="filter === 'herps'" class="m3-chip" :class="filter === 'herps' ? 'selected' : ''">🐸 両生爬虫類</button>
                     </div>
-                    <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-10 md:hidden" style="background:linear-gradient(to right,transparent,#fff)"></div>
+                    <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-10 md:hidden" style="background:linear-gradient(to right,transparent,var(--md-surface))"></div>
                 </div>
 
                 <div class="flex items-center gap-2 shrink-0 md:ml-auto">
-                    <button @click="toggleImported()" :class="includeImported ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="hidden md:inline-flex px-4 py-2 rounded-full border border-border text-xs font-bold items-center gap-2 transition">
-                        <i data-lucide="archive" class="w-4 h-4"></i>
+                    <button @click="toggleImported()" class="hidden md:inline-flex m3-chip" :class="includeImported ? 'selected' : ''">
+                        <i data-lucide="archive" class="w-4 h-4" style="pointer-events:none"></i>
                         <span x-text="includeImported ? '調査記録を含む' : '通常の投稿のみ'"></span>
                     </button>
-                    <a href="map.php?tab=heatmap" class="hidden md:flex btn-secondary !py-2 !px-4 !rounded-full items-center gap-2 text-xs font-bold">
-                        <i data-lucide="flame" class="w-4 h-4"></i>
+                    <a href="map.php?tab=heatmap" class="hidden md:flex m3-chip" style="text-decoration:none;">
+                        <i data-lucide="flame" class="w-4 h-4" style="pointer-events:none"></i>
                         活動経路マップ
                     </a>
                 </div>
             </div>
 
             <div class="w-full max-w-7xl mx-auto mt-3 flex gap-2 overflow-x-auto scrollbar-hide">
-                <button @click="toggleImported()" :class="includeImported ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="md:hidden px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">
-                    <i data-lucide="archive" class="w-3 h-3"></i>
+                <button @click="toggleImported()" class="md:hidden m3-chip" :class="includeImported ? 'selected' : ''">
+                    <i data-lucide="archive" class="w-3 h-3" style="pointer-events:none"></i>
                     <span x-text="includeImported ? '調査記録を含む' : '通常の投稿のみ'"></span>
                 </button>
-                <button @click="aiFilter='all'; load(true)" :class="aiFilter === 'all' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition">
-                    AI条件なし
+                <button @click="aiFilter='all'; load(true)" class="m3-chip" :class="aiFilter === 'all' ? 'selected' : ''">AI条件なし</button>
+                <button @click="aiFilter='hint'; load(true)" class="m3-chip" :class="aiFilter === 'hint' ? 'selected' : ''">
+                    <i data-lucide="sparkles" class="w-3 h-3" style="pointer-events:none"></i> AIヒントあり
                 </button>
-                <button @click="aiFilter='hint'; load(true)" :class="aiFilter === 'hint' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">
-                    <i data-lucide="sparkles" class="w-3 h-3"></i> AIヒントあり
+                <button @click="aiFilter='multi'; load(true)" class="m3-chip" :class="aiFilter === 'multi' ? 'selected' : ''">
+                    <i data-lucide="git-branch" class="w-3 h-3" style="pointer-events:none"></i> AI複数候補
                 </button>
-                <button @click="aiFilter='multi'; load(true)" :class="aiFilter === 'multi' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-surface text-text-secondary hover:bg-surface'" class="px-4 py-1.5 rounded-full border border-border text-xs font-bold whitespace-nowrap transition flex items-center gap-1">
-                    <i data-lucide="git-branch" class="w-3 h-3"></i> AI複数候補
+                <span class="w-px h-5 bg-border shrink-0 mx-1 self-center"></span>
+                <button @click="invasiveFilter='invasive'; load(true)" class="m3-chip" :class="invasiveFilter === 'invasive' ? 'selected' : ''" style="--chip-selected-bg:var(--md-error-container,#ffdad6);--chip-selected-color:var(--md-on-error-container,#410002);">
+                    <i data-lucide="alert-triangle" class="w-3 h-3" style="pointer-events:none"></i> 外来種のみ
                 </button>
+                <button @click="invasiveFilter='native'; load(true)" class="m3-chip" :class="invasiveFilter === 'native' ? 'selected' : ''">
+                    <i data-lucide="leaf" class="w-3 h-3" style="pointer-events:none"></i> 在来種のみ
+                </button>
+                <template x-if="invasiveFilter !== 'all'">
+                    <button @click="invasiveFilter='all'; load(true)" class="m3-chip" style="background:var(--md-surface-container-high,#e8e8e8);">
+                        <i data-lucide="x" class="w-3 h-3" style="pointer-events:none"></i> フィルタ解除
+                    </button>
+                </template>
             </div>
         </div>
 
@@ -174,14 +229,14 @@ Auth::init();
                 <div class="text-5xl mb-4">🌱</div>
                 <p class="text-lg font-bold text-muted mb-2">まだ観察がないよ</p>
                 <p class="text-sm text-muted mb-4">この地域で最初の発見者になろう！</p>
-                <a href="post.php" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-primary to-secondary text-white font-bold text-sm shadow-lg shadow-primary-glow/20 active:scale-95 transition">
-                    <i data-lucide="camera" class="w-4 h-4"></i> 最初の観察を投稿する
+                <a href="post.php" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:var(--shape-full);background:var(--md-primary);color:var(--md-on-primary);font-weight:700;font-size:var(--type-label-lg);text-decoration:none;box-shadow:var(--elev-1);">
+                    <i data-lucide="camera" class="w-4 h-4" style="pointer-events:none"></i> 最初の観察を投稿する
                 </a>
             </div>
 
             <!-- Load More -->
             <div x-show="hasMore" class="py-4 text-center">
-                <button @click="load()" class="px-6 py-2 rounded-full border border-border text-xs font-bold text-text-secondary hover:bg-surface transition" :disabled="loading">
+                <button @click="load()" class="m3-chip" :disabled="loading">
                     <span x-show="!loading">もっと見る</span>
                     <span x-show="loading">読み込み中...</span>
                 </button>
@@ -195,6 +250,7 @@ Auth::init();
                 query: '',
                 filter: 'all',
                 aiFilter: 'all',
+                invasiveFilter: 'all',
                 includeImported: new URLSearchParams(window.location.search).get('include_imported') === '1',
                 items: [],
                 loading: false,
@@ -228,6 +284,9 @@ Auth::init();
                         }
                         if (this.aiFilter !== 'all') {
                             url += `&ai_filter=${encodeURIComponent(this.aiFilter)}`;
+                        }
+                        if (this.invasiveFilter !== 'all') {
+                            url += `&invasive_filter=${encodeURIComponent(this.invasiveFilter)}`;
                         }
                         if (this.includeImported) {
                             url += `&include_imported=1`;

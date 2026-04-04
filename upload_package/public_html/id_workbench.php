@@ -21,8 +21,6 @@ if (!$currentUser) {
     $meta_title = "ID Workbench — 同定コックピット";
     include __DIR__ . '/components/meta.php';
     ?>
-    <link rel="stylesheet" href="assets/css/tokens.css?v=2026_naturalism">
-    <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
     <style>
         [x-cloak] {
             display: none !important;
@@ -31,9 +29,8 @@ if (!$currentUser) {
         body {
             overflow: auto;
             height: 100vh;
-            background:
-                radial-gradient(circle at top left, rgba(16, 185, 129, 0.08), transparent 28%),
-                linear-gradient(180deg, #f8fcfa 0%, #f4f7f5 100%);
+            background: var(--md-surface);
+            color: var(--md-on-surface);
         }
 
         @media (min-width: 768px) {
@@ -78,60 +75,59 @@ if (!$currentUser) {
         }
 
         .item-selected {
-            outline: 2px solid var(--color-primary);
+            outline: 2px solid var(--md-primary);
             outline-offset: -2px;
         }
 
         .tree-node:hover {
-            background: rgba(16, 185, 129, 0.08);
+            background: var(--md-primary-container);
         }
 
         .shortcut-badge {
             font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
-            font-size: var(--text-xs);
+            font-size: 0.7rem;
             padding: 1px 5px;
-            background: rgba(255, 255, 255, 0.82);
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            border-radius: 3px;
-            color: var(--color-text-muted);
+            background: var(--md-surface-container-low);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: var(--shape-xs);
+            color: var(--md-on-surface-variant);
         }
 
         .workbench-topbar {
-            background: rgba(255, 255, 255, 0.88);
+            background: var(--md-surface-container);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--color-border);
-            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+            border-bottom: 1px solid var(--md-outline-variant);
+            box-shadow: var(--elev-1);
         }
 
         .workbench-panel {
-            background: rgba(255, 255, 255, 0.92);
+            background: var(--md-surface-container);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
         }
 
         .workbench-toolbar {
-            background: rgba(255, 255, 255, 0.82);
-            border-bottom: 1px solid var(--color-border);
+            background: var(--md-surface-container-low);
+            border-bottom: 1px solid var(--md-outline-variant);
         }
 
         .workbench-stage {
-            background:
-                linear-gradient(180deg, rgba(240, 253, 250, 0.92), rgba(255, 255, 255, 0.92));
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+            background: var(--md-surface-container-low);
+            border: 1px solid var(--md-outline-variant);
+            box-shadow: var(--elev-2);
         }
 
         .workbench-photo-button {
-            background: rgba(255, 255, 255, 0.92);
-            border: 1px solid rgba(15, 23, 42, 0.08);
-            color: var(--color-text-muted);
-            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-outline-variant);
+            color: var(--md-on-surface-variant);
+            box-shadow: var(--elev-2);
         }
 
         .workbench-photo-button:hover {
-            color: var(--color-text);
-            background: rgba(255, 255, 255, 0.98);
+            color: var(--md-on-surface);
+            background: var(--md-surface-container-high);
         }
 
         .workbench-hit-button {
@@ -153,9 +149,9 @@ if (!$currentUser) {
         }
 
         .workbench-meta-card {
-            background: rgba(248, 250, 249, 0.92);
-            border: 1px solid rgba(15, 23, 42, 0.06);
-            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+            background: var(--md-surface-container-low);
+            border: 1px solid var(--md-outline-variant);
+            box-shadow: var(--elev-1);
         }
 
         .lightbox-backdrop {
@@ -194,7 +190,7 @@ if (!$currentUser) {
                 inset: 0;
                 z-index: 45;
                 padding-top: 44px;
-                background: rgba(248, 250, 249, 0.98);
+                background: var(--md-surface-container);
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
             }
@@ -242,7 +238,7 @@ if (!$currentUser) {
                 </button>
                 <!-- Help Popup -->
                 <div x-show="showHelp" x-cloak @click.outside="showHelp = false"
-                    class="absolute right-0 top-8 w-64 bg-white/95 border border-black/5 rounded-2xl shadow-2xl p-4 z-50 text-token-xs text-[var(--color-text-muted)] space-y-3">
+                    class="absolute right-0 top-8 w-64 p-4 z-50 text-token-xs space-y-3" style="background:var(--md-surface-container-high);border-radius:var(--shape-xl);box-shadow:var(--elev-3);color:var(--md-on-surface-variant);">
                     <p class="text-[var(--color-text)] font-bold text-xs flex items-center gap-1.5">
                         <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-[var(--color-primary)]"></i>
                         ID Workbench とは？
@@ -278,7 +274,7 @@ if (!$currentUser) {
                 <span x-text="taxonFilter !== 'all' || statusFilter !== 'all' || filterText ? '絞込中' : 'フィルタ'"></span>
             </button>
             <!-- Grid Size (desktop only) -->
-            <div class="hidden md:flex items-center gap-1 bg-white/80 rounded-full p-0.5 border border-black/5 shadow-sm">
+            <div class="hidden md:flex items-center gap-1 p-0.5" style="background:var(--md-surface-container-low);border-radius:var(--shape-full);box-shadow:var(--elev-1);">
                 <button @click="gridCols = Math.max(1, gridCols - 1)" class="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition"><i data-lucide="minus" class="w-3 h-3"></i></button>
                 <span class="text-token-xs font-mono text-[var(--color-text-muted)] w-4 text-center" x-text="gridCols"></span>
                 <button @click="gridCols = Math.min(5, gridCols + 1)" class="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition"><i data-lucide="plus" class="w-3 h-3"></i></button>
@@ -332,7 +328,7 @@ if (!$currentUser) {
                         <i data-lucide="search" class="absolute left-2 top-[7px] w-3 h-3 text-[var(--color-text-faint)]"></i>
                         <input type="text" x-model="filterText" x-ref="filterInput"
                             placeholder="絞り込み..."
-                            class="w-full bg-white border border-black/5 rounded-xl pl-7 pr-3 py-2 text-token-xs focus:outline-none focus:border-[var(--color-primary)] transition placeholder-[var(--color-text-faint)]">
+                            class="w-full pl-7 pr-3 py-2 text-token-xs focus:outline-none transition" style="background:var(--md-surface-variant);border:none;border-bottom:2px solid var(--md-outline);border-radius:var(--shape-xs) var(--shape-xs) 0 0;">
                     </div>
                     <button @click="$dispatch('open-navigator')" class="p-2 rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 transition shrink-0" title="AIナビゲーターで絞り込む">
                         <i data-lucide="compass" class="w-3.5 h-3.5"></i>
@@ -449,7 +445,7 @@ if (!$currentUser) {
             <div class="p-2 border-t border-black/5">
                 <template x-if="!showPresetForm">
                     <button @click="showPresetForm = true; $nextTick(() => $refs.presetInput && $refs.presetInput.focus())"
-                        class="w-full py-2 rounded-xl text-token-xs font-bold bg-white border border-black/5 text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-text)] transition flex items-center justify-center gap-1.5">
+                        class="w-full py-2 text-token-xs font-bold transition flex items-center justify-center gap-1.5" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                         <i data-lucide="plus" class="w-3 h-3"></i> プリセット保存
                     </button>
                 </template>
@@ -459,7 +455,7 @@ if (!$currentUser) {
                             @keydown.escape.prevent="showPresetForm = false; presetNameInput = ''"
                             placeholder="プリセット名..."
                             maxlength="20"
-                            class="flex-1 min-w-0 bg-white border border-black/5 rounded-xl px-2 py-2 text-token-xs text-[var(--color-text)] placeholder-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-primary)] transition">
+                            class="flex-1 min-w-0 px-2 py-2 text-token-xs focus:outline-none transition" style="background:var(--md-surface-variant);border:none;border-bottom:2px solid var(--md-outline);border-radius:var(--shape-xs) var(--shape-xs) 0 0;color:var(--md-on-surface);">
                         <button type="submit" title="保存"
                             class="p-1.5 rounded-md bg-[var(--color-primary)]/20 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/30 transition shrink-0">
                             <i data-lucide="check" class="w-3 h-3"></i>
@@ -474,9 +470,9 @@ if (!$currentUser) {
         </aside>
 
         <!-- CENTER PANEL: Grid -->
-        <main class="flex-1 bg-[var(--color-bg-surface)] flex flex-col relative min-w-0 min-h-0 order-first md:order-none">
+        <main class="flex-1 flex flex-col relative min-w-0 min-h-0 order-first md:order-none" style="background:var(--md-surface);">
             <!-- Mobile Quick Filter Chips (mobile only) -->
-            <div class="md:hidden flex items-center gap-1.5 px-3 py-2 bg-white/90 border-b border-black/5 overflow-x-auto scrollbar-hide shrink-0 backdrop-blur-sm">
+            <div class="md:hidden flex items-center gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide shrink-0 backdrop-blur-sm" style="background:var(--md-surface-container);border-bottom:1px solid var(--md-outline-variant);">
                 <button @click="statusFilter = 'all'; taxonFilter = 'all'"
                     class="flex items-center gap-1 px-2.5 py-1 rounded-full border text-token-xs font-bold whitespace-nowrap transition shrink-0"
                     :class="statusFilter === 'all' && taxonFilter === 'all' ? 'bg-[var(--color-primary)]/10 border-[var(--color-primary)]/20 text-[var(--color-primary-dark)]' : 'bg-white border-black/5 text-[var(--color-text-muted)]'">
@@ -535,14 +531,14 @@ if (!$currentUser) {
 
                 <div x-show="!loading" class="grid gap-3" :class="gridClasses">
                     <template x-for="(item, index) in filteredItems" :key="item.id">
-                        <div class="relative group rounded-[20px] overflow-hidden select-none transition-all duration-150 cursor-pointer bg-white border border-black/5 shadow-sm"
+                        <div class="relative group overflow-hidden select-none transition-all duration-150 cursor-pointer" style="border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);"
                             @click="activateItem(item, index)"
                             :class="{
                                  'item-selected': selectedIds.includes(item.id),
                                  'ring-1 ring-black/5': !selectedIds.includes(item.id) && activeItemId !== item.id,
                                  'ring-2 ring-[var(--color-primary)] shadow-[0_12px_32px_rgba(16,185,129,0.18)] -translate-y-0.5 z-10': activeItemId === item.id,
                              }">
-                            <div class="relative aspect-[4/3] overflow-hidden bg-[var(--color-bg-surface)]">
+                            <div class="relative aspect-[4/3] overflow-hidden" style="background:var(--md-surface-container-low);">
                                 <img :src="currentPhotoSrc(item)"
                                 :alt="displayName(item)"
                                 @dblclick.stop="openQuickID(item, index)"
@@ -708,12 +704,12 @@ if (!$currentUser) {
                             </button>
                             <div class="grid grid-cols-2 gap-1.5">
                                 <button @click="markPass(activeItem.id)"
-                                    class="py-2 rounded-xl border border-black/5 bg-white text-[var(--color-text-muted)] text-token-xs font-bold hover:bg-red-500/10 hover:text-red-500 transition flex items-center justify-center gap-1">
+                                    class="py-2 text-token-xs font-bold hover:bg-red-500/10 hover:text-red-500 transition flex items-center justify-center gap-1" style="border-radius:var(--shape-md);border:1px solid var(--md-outline-variant);background:var(--md-surface-container-low);color:var(--md-on-surface-variant);">
                                     <i data-lucide="x" class="w-3 h-3"></i> パス
                                     <span class="shortcut-badge">X</span>
                                 </button>
                                 <button @click="markLater(activeItem.id)"
-                                    class="py-2 rounded-xl border border-black/5 bg-white text-[var(--color-text-muted)] text-token-xs font-bold hover:bg-blue-500/10 hover:text-blue-500 transition flex items-center justify-center gap-1">
+                                    class="py-2 text-token-xs font-bold hover:bg-blue-500/10 hover:text-blue-500 transition flex items-center justify-center gap-1" style="border-radius:var(--shape-md);border:1px solid var(--md-outline-variant);background:var(--md-surface-container-low);color:var(--md-on-surface-variant);">
                                     <i data-lucide="bookmark" class="w-3 h-3"></i> あとで
                                     <span class="shortcut-badge">B</span>
                                 </button>
@@ -725,11 +721,11 @@ if (!$currentUser) {
                             </a>
                             <div class="grid grid-cols-2 gap-1.5">
                                 <button @click="openPhotoViewer(activeItem, activePhotoIdx)"
-                                    class="py-2 rounded-xl border border-black/5 bg-white text-[var(--color-text-muted)] text-token-xs font-bold hover:bg-black/5 hover:text-[var(--color-text)] transition text-center">
+                                    class="py-2 text-token-xs font-bold transition text-center" style="border-radius:var(--shape-md);border:1px solid var(--md-outline-variant);background:var(--md-surface-container-low);color:var(--md-on-surface-variant);">
                                     大きく見る
                                 </button>
                                 <a :href="'observation_detail.php?id=' + activeItem.id"
-                                    class="block py-2 rounded-xl border border-black/5 bg-white text-[var(--color-text-muted)] text-token-xs font-bold hover:bg-black/5 hover:text-[var(--color-text)] transition text-center">
+                                    class="block py-2 text-token-xs font-bold transition text-center" style="border-radius:var(--shape-md);border:1px solid var(--md-outline-variant);background:var(--md-surface-container-low);color:var(--md-on-surface-variant);">
                                     詳細ページ
                                 </a>
                             </div>
@@ -767,7 +763,7 @@ if (!$currentUser) {
                     </div>
                     <div class="w-full">
                         <p class="text-token-xs text-[var(--color-text-faint)] font-bold uppercase tracking-widest mb-2 text-center">ショートカット</p>
-                        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-token-xs font-mono text-[var(--color-text-muted)] bg-white rounded-2xl border border-black/5 p-3 shadow-sm">
+                        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-token-xs font-mono p-3" style="color:var(--md-on-surface-variant);background:var(--md-surface-container-low);border-radius:var(--shape-xl);box-shadow:var(--elev-1);">
                             <p><span class="shortcut-badge">N</span> 次へ</p>
                             <p><span class="shortcut-badge">P</span> 前へ</p>
                             <p><span class="shortcut-badge">Enter</span> 同定</p>
@@ -783,7 +779,7 @@ if (!$currentUser) {
 
     <!-- Undo Pass Toast -->
     <div x-show="lastPassedId" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-end="opacity-0 translate-y-2"
-        class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white/95 border border-black/5 text-[var(--color-text)] rounded-full px-4 py-2 shadow-2xl text-xs font-bold whitespace-nowrap">
+        class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2 text-xs font-bold whitespace-nowrap" style="background:var(--md-surface-container-high);border-radius:var(--shape-full);box-shadow:var(--elev-4);color:var(--md-on-surface);">
         <span class="text-[var(--color-text-muted)]">パスしました</span>
         <button @click="undoPass()" class="text-[var(--color-primary)] hover:underline flex items-center gap-1">
             <i data-lucide="undo-2" class="w-3 h-3"></i> 元に戻す
@@ -792,7 +788,7 @@ if (!$currentUser) {
 
     <!-- Mobile Bottom Inspector -->
     <div x-show="activeItem && isMobile" x-cloak
-        class="fixed bottom-16 inset-x-0 bg-white/95 backdrop-blur-sm border-t border-black/5 z-30 md:hidden"
+        class="fixed bottom-16 inset-x-0 backdrop-blur-sm z-30 md:hidden" style="background:var(--md-surface-container);border-top:1px solid var(--md-outline-variant);"
         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
         <div class="px-3 py-3 space-y-3">
             <button @click="if(activeItem) openPhotoViewer(activeItem, activePhotoIdx)"
@@ -829,7 +825,7 @@ if (!$currentUser) {
                     <i data-lucide="bookmark" class="w-4 h-4"></i>
                 </button>
                 <button @click="if(activeItem) { markPass(activeItem.id); activeItemId = null; }"
-                    class="p-2 rounded-xl bg-white border border-black/5 text-[var(--color-text-muted)] hover:text-red-500 transition" title="パス">
+                    class="p-2 hover:text-red-500 transition" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);" title="パス">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
                 <button @click="if(activeItem) openQuickID(activeItem, activeItemIndex)"
@@ -837,7 +833,7 @@ if (!$currentUser) {
                     <i data-lucide="zap" class="w-4 h-4"></i>
                 </button>
                 <a :href="activeItem ? 'observation_detail.php?id=' + activeItem.id : '#'"
-                    class="px-3 py-2 rounded-xl bg-white border border-black/5 text-[var(--color-text-muted)] font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-black/5 hover:text-[var(--color-text)] transition">
+                    class="px-3 py-2 font-bold text-xs flex items-center justify-center gap-1.5 transition" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                     <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i> 詳細
                 </a>
             </div>

@@ -82,7 +82,7 @@ function rlLabel($rl)
     <link rel="stylesheet" href="assets/css/zukan.css?v=2.0">
 </head>
 
-<body class="app-body bg-base text-text font-body" x-data="zukanApp()" x-init="init()">
+<body class="app-body font-body" style="background:var(--md-surface);color:var(--md-on-surface);" x-data="zukanApp()" x-init="init()">
 
     <?php include __DIR__ . '/components/nav.php'; ?>
 

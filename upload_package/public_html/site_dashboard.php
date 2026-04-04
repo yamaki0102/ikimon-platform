@@ -179,23 +179,21 @@ if ($stats) {
     <style>
         /* Premium Dashboard Styles - Premium Light Theme (Cyber-Natural Aligned) */
         .glass-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(16, 185, 129, 0.1);
-            border-radius: var(--radius-lg);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-            transition: transform var(--duration-normal), box-shadow var(--duration-normal), border-color var(--duration-normal);
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: var(--shape-xl);
+            box-shadow: var(--elev-1);
+            transition: transform var(--motion-short, 200ms), box-shadow var(--motion-short, 200ms), border-color var(--motion-short, 200ms);
         }
 
         .glass-card:hover {
-            border-color: rgba(16, 185, 129, 0.3);
-            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.1);
+            border-color: var(--md-primary);
+            box-shadow: var(--elev-2);
         }
 
         .glass-card-accent {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(14, 165, 233, 0.05));
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            background: var(--md-primary-container);
+            border: 1px solid var(--md-outline-variant);
         }
 
         /* Animated gradient text - Biodiversity Field Palette */
@@ -216,8 +214,7 @@ if ($stats) {
 
         .score-arc-track {
             fill: none;
-            stroke: #f1f5f9;
-            /* Slate 100 */
+            stroke: var(--md-outline-variant);
             stroke-width: 12;
             stroke-linecap: round;
         }
@@ -307,8 +304,8 @@ if ($stats) {
             bottom: 100%;
             left: 50%;
             transform: translateX(-50%);
-            background: #1a2e1f;
-            color: white;
+            background: var(--md-surface-container-high);
+            color: var(--md-on-surface);
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 10px;
@@ -326,9 +323,9 @@ if ($stats) {
 
         /* TNFD section */
         .tnfd-card {
-            background: linear-gradient(135deg, #f8faf9, #eef2f0);
-            border: 1px solid rgba(16, 185, 129, 0.1);
-            color: #1a2e1f;
+            background: var(--md-surface-container-low);
+            border: 1px solid var(--md-outline-variant);
+            color: var(--md-on-surface);
         }
 
         /* PWA safe-area-inset */
@@ -340,7 +337,7 @@ if ($stats) {
         @media print {
             .glass-card {
                 background: white !important;
-                color: black !important;
+                color: var(--md-on-surface) !important;
                 border: 1px solid #e5e7eb !important;
             }
 
@@ -352,7 +349,7 @@ if ($stats) {
     </style>
 </head>
 
-<body class="js-loading bg-[#f8faf9] text-[#1a2e1f] font-body">
+<body class="js-loading font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
     <?php include('components/nav.php'); ?>
     <script nonce="<?= CspNonce::attr() ?>">
         document.body.classList.remove('js-loading');
@@ -370,7 +367,7 @@ if ($stats) {
                     <p class="text-[#1a2e1f]/60">その場所の自然の記録と参加の積み上がりを見返すための画面です</p>
                 </div>
 
-                <div class="glass-card p-5 md:p-6 bg-white mb-6 border border-emerald-100">
+                <div class="glass-card p-5 md:p-6 mb-6">
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <div class="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 mb-2">Enterprise Demo</div>
@@ -385,7 +382,7 @@ if ($stats) {
                                 <i data-lucide="sparkles" class="w-4 h-4"></i> サービス概要
                             </a>
                             <?php if (Auth::isLoggedIn()): ?>
-                                <a href="corporate_dashboard.php" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100 transition">
+                                <a href="corporate_dashboard.php" class="inline-flex items-center gap-2 px-4 py-2 font-bold transition" style="border-radius:var(--shape-full);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                                     <i data-lucide="building-2"></i> ワークスペース
                                 </a>
                             <?php endif; ?>
@@ -469,33 +466,33 @@ if ($stats) {
                     <div class="flex items-center gap-2 ml-8 md:ml-0 overflow-x-auto pb-2" style="white-space: nowrap; -webkit-overflow-scrolling: touch;">
                         <?php if (Auth::isLoggedIn()): ?>
                             <a href="corporate_dashboard.php?corp=<?php echo urlencode($corpId); ?>"
-                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-slate-700 hover:text-emerald-600 font-bold border border-gray-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                class="text-xs px-4 py-2 font-bold transition flex items-center gap-1.5 no-print" style="border-radius:var(--shape-sm);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                                 <i data-lucide="building-2" class="w-3.5 h-3.5"></i> ワークスペース
                             </a>
                             <a href="corporate_members.php?corp=<?php echo urlencode($corpId); ?>&site=<?php echo urlencode($siteId); ?>"
-                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-slate-700 hover:text-emerald-600 font-bold border border-gray-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                class="text-xs px-4 py-2 font-bold transition flex items-center gap-1.5 no-print" style="border-radius:var(--shape-sm);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                                 <i data-lucide="users" class="w-3.5 h-3.5"></i> メンバー管理
                             </a>
                             <a href="site_editor.php?site=<?php echo urlencode($siteId); ?>"
-                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-gray-600 hover:text-emerald-600 font-bold border border-gray-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                class="text-xs px-4 py-2 font-bold transition flex items-center gap-1.5 no-print" style="border-radius:var(--shape-sm);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i> エリア編集
                             </a>
                             <a href="corporate_settings.php?corp=<?php echo urlencode($corpId); ?>"
-                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-gray-600 hover:text-emerald-600 font-bold border border-gray-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                class="text-xs px-4 py-2 font-bold transition flex items-center gap-1.5 no-print" style="border-radius:var(--shape-sm);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                                 <i data-lucide="settings-2" class="w-3.5 h-3.5"></i> 設定
                             </a>
                         <?php endif; ?>
                         <?php if ($canUseAdvancedOutputs): ?>
                             <a href="api/export_site_csv.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
-                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-emerald-600 font-bold border border-emerald-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                class="text-xs px-4 py-2 font-bold transition flex items-center gap-1.5 no-print" style="border-radius:var(--shape-sm);background:var(--md-primary-container);border:1px solid var(--md-outline-variant);color:var(--md-on-primary-container);">
                                 <i data-lucide="table" class="w-3.5 h-3.5"></i> 生データCSV
                             </a>
                             <button type="button" @click="openPrModal('<?php echo htmlspecialchars($siteId); ?>')"
-                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 shadow-sm transition flex items-center gap-1.5 no-print">
+                                class="text-xs px-4 py-2 font-bold transition flex items-center gap-1.5 no-print" style="border-radius:var(--shape-sm);background:var(--md-primary-container);border:1px solid var(--md-outline-variant);color:var(--md-on-primary-container);">
                                 <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> PR原案作成
                             </button>
                             <a href="api/download_proof_package.php?site_id=<?php echo urlencode($siteId); ?>" target="_blank"
-                                class="text-xs px-4 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 shadow-sm transition flex items-center gap-1.5 no-print" title="観測証跡のJSONパッケージ">
+                                class="text-xs px-4 py-2 font-bold transition flex items-center gap-1.5 no-print" style="border-radius:var(--shape-sm);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);" title="観測証跡のJSONパッケージ">
                                 <i data-lucide="file-json" class="w-3.5 h-3.5"></i> 観測証跡JSON
                             </a>
 
@@ -552,10 +549,10 @@ if ($stats) {
                             <p class="text-sm text-slate-600 mt-1">観測の偏り、更新状況、重要種の照合結果などを確認できます。社外向けの見せ方は公開ショーケースで確認します。</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <a href="for-business/" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-emerald-200 text-emerald-700 font-bold hover:bg-emerald-100 transition">
+                            <a href="for-business/" class="inline-flex items-center gap-2 px-4 py-2 font-bold transition" style="border-radius:var(--shape-full);background:var(--md-primary-container);border:1px solid var(--md-outline-variant);color:var(--md-on-primary-container);">
                                 <i data-lucide="arrow-left" class="w-4 h-4"></i> サービス概要へ戻る
                             </a>
-                            <a href="site_dashboard.php?site=<?php echo urlencode($siteId); ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100 transition">
+                            <a href="site_dashboard.php?site=<?php echo urlencode($siteId); ?>" class="inline-flex items-center gap-2 px-4 py-2 font-bold transition" style="border-radius:var(--shape-full);background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
                                 <i data-lucide="layout-dashboard" class="w-4 h-4"></i> このサイトの本番画面へ
                             </a>
                             <a href="csr_showcase.php?site_id=<?php echo urlencode($siteId); ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition">
@@ -623,7 +620,7 @@ if ($stats) {
                             </h2>
                             <div class="space-y-3">
                                 <?php foreach ($monitoringSummary as $item): ?>
-                                    <div class="rounded-xl bg-white/70 border border-white p-4">
+                                    <div class="p-4" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
                                         <p class="text-xs font-bold text-[#1a2e1f]/55 mb-1"><?php echo htmlspecialchars($item['title']); ?></p>
                                         <p class="text-sm text-[#1a2e1f]/75 leading-relaxed"><?php echo htmlspecialchars($item['body']); ?></p>
                                     </div>
@@ -638,7 +635,7 @@ if ($stats) {
                             <?php if (!empty($recommendedActions)): ?>
                                 <div class="space-y-3">
                                     <?php foreach ($recommendedActions as $index => $action): ?>
-                                        <div class="rounded-xl bg-white/70 border border-white p-4">
+                                        <div class="p-4" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
                                             <div class="flex items-start gap-3">
                                                 <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-black flex items-center justify-center shrink-0" style="font-size: var(--text-xs);"><?php echo $index + 1; ?></span>
                                                 <div>
@@ -666,14 +663,30 @@ if ($stats) {
                                     <i data-lucide="info" class="w-3.5 h-3.5"></i>
                                 </span>
                             </h2>
+                            <?php
+                            $bisScore = (int)($stats['credit_score'] ?? 0);
+                            $bisGrade = match(true) {
+                                $bisScore >= 90 => ['label' => 'S', 'color' => 'bg-emerald-500 text-white', 'desc' => '記録のまとまりが非常に高い水準。継続的な観察が定着しています。'],
+                                $bisScore >= 75 => ['label' => 'A', 'color' => 'bg-emerald-100 text-emerald-800', 'desc' => '記録の幅・品質ともに安定。重要種や季節変動の把握が進んでいます。'],
+                                $bisScore >= 60 => ['label' => 'B', 'color' => 'bg-sky-100 text-sky-800',     'desc' => '基礎的な記録が蓄積中。観察頻度を上げると次のステップに進めます。'],
+                                $bisScore >= 45 => ['label' => 'C', 'color' => 'bg-amber-100 text-amber-800', 'desc' => '記録はあるものの偏りがあります。対象分類群や季節の幅を広げましょう。'],
+                                default         => ['label' => 'D', 'color' => 'bg-red-100 text-red-800',    'desc' => '記録がまだ少ない状態です。定期的な観察からはじめましょう。'],
+                            };
+                            ?>
                             <div class="flex items-baseline gap-3 mb-3">
-                                <span class="text-5xl md:text-6xl font-black stat-value count-up" data-target="<?php echo $stats['credit_score']; ?>">0</span>
-                                <span class="text-xs px-3 py-1.5 rounded-full font-bold bg-white border border-[#1a2e1f]/10 text-[#1a2e1f]/60 shadow-sm">
-                                    内部で見返すための目安
-                                </span>
+                                <span class="text-5xl md:text-6xl font-black stat-value count-up" data-target="<?php echo $bisScore; ?>">0</span>
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-lg font-black px-2.5 py-0.5 rounded-lg <?php echo $bisGrade['color']; ?>">
+                                        <?php echo $bisGrade['label']; ?>
+                                    </span>
+                                    <span class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#1a2e1f]/40">Grade</span>
+                                </div>
                             </div>
-                            <p class="text-sm text-[#1a2e1f]/70 leading-relaxed">
-                                記録の広がり、重要種シグナル、記録の揃い方、継続性をひとまとめにした内部向けの目安です。
+                            <p class="text-sm text-[#1a2e1f]/80 leading-relaxed font-medium mb-2">
+                                <?php echo $bisGrade['desc']; ?>
+                            </p>
+                            <p class="text-xs text-[#1a2e1f]/50 leading-relaxed">
+                                記録の広がり・重要種シグナル・記録の揃い方・継続性を組み合わせた内部向けの目安 (0–100)。
                                 自然価値そのものや認証可否を示す数値ではなく、どこを見直すと記録が育つかを考えるために使います。
                             </p>
 
@@ -872,7 +885,7 @@ if ($stats) {
                                     このサイトで確認された保全重要種は、プラットフォーム全体で確認されている保全重要種（<span class="font-bold"><?php echo $stats['regional_total_redlist']; ?>種</span>）のうち、<strong class="text-emerald-700 text-sm"><?php echo $stats['redlist_count']; ?>種</strong>に相当します。存在記録ベースの比較なので、地域全体への保全寄与を直接定量化するものではなく、観測上のシグナルとしてご覧ください。
                                 </p>
                             </div>
-                            <div class="w-full md:w-64 flex-shrink-0 bg-white/50 rounded-xl p-4 border border-emerald-100">
+                            <div class="w-full md:w-64 flex-shrink-0 p-4" style="background:var(--md-surface-container-low);border-radius:var(--shape-md);border:1px solid var(--md-outline-variant);">
                                 <div class="mb-2 flex justify-between items-end">
                                     <span class="text-xs font-bold text-emerald-800/60">観測シェア</span>
                                     <div class="flex items-baseline gap-0.5">
@@ -1161,7 +1174,7 @@ if ($stats) {
                                     <span class="text-slate-700">30x30は面積・保全施策の目標であり、この画面のスコアとは別概念</span>
                                 </div>
                             </div>
-                            <div class="mt-4 rounded-xl bg-white/60 border border-white px-4 py-3">
+                            <div class="mt-4 px-4 py-3" style="background:var(--md-surface-container-low);border-radius:var(--shape-md);">
                                 <p class="text-slate-800 font-bold mb-2">参考フレームワーク</p>
                                 <ul class="space-y-1.5">
                                     <?php foreach ($referenceLinks as $ref): ?>
@@ -1180,7 +1193,7 @@ if ($stats) {
                 <!-- ⑭ Scientific Integrity Disclaimer (Anti-Greenwashing) -->
                 <div class="mt-8 p-5 md:p-6 bg-gray-50/80 backdrop-blur-sm border border-gray-200/60 rounded-2xl no-print">
                     <div class="flex items-start gap-4">
-                        <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-100">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--md-surface-container-low);box-shadow:var(--elev-1);">
                             <i data-lucide="shield-alert" class="w-5 h-5 text-gray-400"></i>
                         </div>
                         <div>
@@ -1207,7 +1220,7 @@ if ($stats) {
                     x-transition:leave-end="opacity-0">
                     <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="closePrModal()"></div>
                     <div class="relative min-h-screen flex items-center justify-center p-4">
-                        <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden" @click.stop>
+                        <div class="w-full max-w-3xl overflow-hidden" style="background:var(--md-surface-container);border-radius:var(--shape-xl);box-shadow:var(--elev-4);" @click.stop>
                             <div class="p-6 md:p-8">
                                 <div class="flex items-center justify-between mb-6">
                                     <h3 class="text-lg font-black text-[#1a2e1f] flex items-center gap-2">

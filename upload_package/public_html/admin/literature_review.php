@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>文献レビュー | ikimon.life Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/assets/js/tailwind.3.4.17.min.js"></script>
     <script src="https://unpkg.com/lucide@0.477.0"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 </head>

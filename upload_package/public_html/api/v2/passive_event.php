@@ -42,6 +42,7 @@ require_once ROOT_DIR . '/libs/CanonicalStore.php';
 require_once ROOT_DIR . '/libs/GeoUtils.php';
 require_once ROOT_DIR . '/libs/MeshCode.php';
 require_once ROOT_DIR . '/libs/MeshAggregator.php';
+require_once ROOT_DIR . '/libs/GeoPlausibility.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     api_error('POST method required.', 405);
@@ -123,12 +124,13 @@ const EXCLUDED_HIGHER_GROUPS = ['哺乳類', 'Mammal', '人間', 'Human', 'Perso
 
 // イベントバリデーション
 $validEvents = [];
+$qaFiltered = ['invalid_format' => 0, 'low_confidence' => 0, 'excluded_taxon' => 0];
 foreach ($events as $i => $event) {
-    if (empty($event['type']) || empty($event['taxon_name'])) continue;
-    if (!in_array($event['type'], ['audio', 'visual', 'sensor'], true)) continue;
-    if ((float)($event['confidence'] ?? 0) < 0.20) continue;
+    if (empty($event['type']) || empty($event['taxon_name'])) { $qaFiltered['invalid_format']++; continue; }
+    if (!in_array($event['type'], ['audio', 'visual', 'sensor'], true)) { $qaFiltered['invalid_format']++; continue; }
+    if ((float)($event['confidence'] ?? 0) < 0.20) { $qaFiltered['low_confidence']++; continue; }
     // 哺乳類大分類は除外（ほぼ撮影者本人のホモサピエンス誤検出）
-    if (in_array(trim($event['taxon_name']), EXCLUDED_HIGHER_GROUPS, true)) continue;
+    if (in_array(trim($event['taxon_name']), EXCLUDED_HIGHER_GROUPS, true)) { $qaFiltered['excluded_taxon']++; continue; }
 
     $validEvents[] = [
         'type'               => $event['type'],
@@ -156,6 +158,17 @@ foreach ($events as $i => $event) {
 if (empty($validEvents)) {
     api_error('No valid events after validation.', 400);
 }
+
+// 地理妥当性フィルタ（日本固定: FieldScanは日本向けツール）
+$geoImplausibleCount = 0;
+$validEvents = array_values(array_filter($validEvents, function($ev) use (&$geoImplausibleCount) {
+    $geo = GeoPlausibility::assess($ev, ['country' => 'japan']);
+    if ($geo['status'] === 'implausible') {
+        $geoImplausibleCount++;
+        return false;
+    }
+    return true;
+}));
 
 // パッシブ観察エンジンで処理
 $result = PassiveObservationEngine::processEventBatch($validEvents, $userId, $sessionMeta);
@@ -414,6 +427,10 @@ if ($isLiveScan && !empty($result['summary']['species'])) {
     }
 }
 
+$qaSessionIntent  = $sessionMeta['session_intent'] ?? 'official';
+$qaOfficialRecord = $sessionMeta['official_record'] ?? true;
+$qaTestProfile    = $sessionMeta['test_profile'] ?? 'field';
+
 api_success([
     'session_id' => $mergedSessionId,
     'observations_created' => $savedCount,
@@ -421,6 +438,18 @@ api_success([
     'scan_quests' => $scanQuests,
     'quest_shown' => $questShown,
     'is_incremental' => $isIncremental,
+    'qa_summary' => [
+        'events_received'           => count($events),
+        'events_valid'              => count($validEvents),
+        'filtered_invalid_format'   => $qaFiltered['invalid_format'],
+        'filtered_low_confidence'   => $qaFiltered['low_confidence'],
+        'filtered_excluded_taxon'   => $qaFiltered['excluded_taxon'],
+        'filtered_geo_implausible'  => $geoImplausibleCount,
+        'observations_created'      => $savedCount,
+        'session_intent'            => $qaSessionIntent,
+        'official_record'           => (bool) $qaOfficialRecord,
+        'test_profile'              => $qaTestProfile,
+    ],
 ], [
     'events_received' => count($events),
     'events_valid' => count($validEvents),

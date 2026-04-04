@@ -156,6 +156,45 @@ class BioUtils
         require_once __DIR__ . '/Taxonomy.php';
         require_once __DIR__ . '/TrustLevel.php';
 
+        // --- Multi-subject routing ---
+        if (!empty($obs['subjects'])) {
+            $bySubject = [];
+            foreach ($obs['subjects'] as $s) {
+                $bySubject[$s['id']] = [];
+            }
+            foreach ($obs['identifications'] ?? [] as $id) {
+                $sid = $id['subject_id'] ?? 'primary';
+                $bySubject[$sid][] = $id;
+            }
+
+            $primaryStatus = '未同定';
+            foreach ($obs['subjects'] as &$subject) {
+                $sid = $subject['id'];
+                $subjectObs = [
+                    'user_id'         => $obs['user_id'] ?? '',
+                    'observed_at'     => $obs['observed_at'] ?? '',
+                    'lat'             => $obs['lat'] ?? null,
+                    'lng'             => $obs['lng'] ?? null,
+                    'photos'          => $obs['photos'] ?? [],
+                    'disputes'        => $obs['disputes'] ?? [],
+                    'identifications' => $bySubject[$sid] ?? [],
+                ];
+                self::updateConsensus($subjectObs);
+                $subject['taxon']     = $subjectObs['taxon'] ?? null;
+                $subject['status']    = $subjectObs['status'] ?? '未同定';
+                $subject['consensus'] = $subjectObs['consensus'] ?? null;
+
+                if ($sid === 'primary') {
+                    $primaryStatus    = $subject['status'];
+                    $obs['taxon']     = $subject['taxon'];
+                    $obs['consensus'] = $subject['consensus'];
+                    $obs['status']    = $primaryStatus;
+                }
+            }
+            unset($subject);
+            return $primaryStatus;
+        }
+
         // --- Phase 0: No identifications ---
         if (!isset($obs['identifications']) || empty($obs['identifications'])) {
             $obs['status'] = '未同定';
@@ -168,6 +207,7 @@ class BioUtils
                 'algorithm' => 'taxonomy_lca_v2',
                 'updated_at' => date('c'),
             ];
+            $obs['subjects'] = [['id' => 'primary', 'label' => null, 'taxon' => null, 'status' => '未同定']];
             return '未同定';
         }
 
@@ -342,6 +382,8 @@ class BioUtils
             $obs['quality_grade'] = 'Casual';
             $obs['quality_detail'] = 'casual';
         }
+
+        $obs['subjects'] = [['id' => 'primary', 'label' => null, 'taxon' => $obs['taxon'] ?? null, 'status' => $obs['status']]];
 
         return $obs['status'];
     }
