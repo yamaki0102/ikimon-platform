@@ -46,6 +46,7 @@ import life.ikimon.api.InstallIdentityManager
 import life.ikimon.api.UploadStatusSnapshot
 import life.ikimon.api.UploadStatusStore
 import life.ikimon.data.EventBuffer
+import life.ikimon.pocket.AudioSnippetStore
 import life.ikimon.pocket.FieldScanService
 import life.ikimon.pocket.PocketService
 import java.text.SimpleDateFormat
@@ -105,14 +106,44 @@ class MainActivity : ComponentActivity() {
                 var selectedMode by remember { mutableStateOf(ScanMode.POCKET) }
                 var fieldSessionIntent by remember { mutableStateOf(FieldSessionIntent.OFFICIAL) }
                 var fieldTestLevel by remember { mutableStateOf(FieldTestLevel.STANDARD) }
+                var movementMode by remember { mutableStateOf(MovementMode.WALK) }
                 var isActive by remember { mutableStateOf(false) }
+                var showAudioReview by remember { mutableStateOf(false) }
+                var pendingSnippets by remember { mutableStateOf(listOf<AudioSnippetStore.Snippet>()) }
                 val showResultSheet by _showResultSheet
                 val lastSummary by _lastSummary
 
-                if (showResultSheet && lastSummary != null) {
+                LaunchedEffect(showResultSheet) {
+                    if (showResultSheet) {
+                        pendingSnippets = withContext(Dispatchers.IO) {
+                            AudioSnippetStore.listPending(this@MainActivity)
+                        }
+                    }
+                }
+
+                if (showAudioReview) {
+                    AudioReviewScreen(
+                        snippets = pendingSnippets,
+                        onConfirm = { snippet, sci, common ->
+                            pendingSnippets = pendingSnippets.filter { it.id != snippet.id }
+                            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                                AudioSnippetStore.confirm(this@MainActivity, snippet.id)
+                            }
+                        },
+                        onSkip = { snippet ->
+                            pendingSnippets = pendingSnippets.filter { it.id != snippet.id }
+                            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                                AudioSnippetStore.skip(this@MainActivity, snippet.id)
+                            }
+                        },
+                        onDone = { showAudioReview = false },
+                    )
+                } else if (showResultSheet && lastSummary != null) {
                     ScanResultSheet(
                         summary = lastSummary!!,
                         uploadStatus = _uploadStatus.value,
+                        pendingAudioCount = pendingSnippets.size,
+                        onReviewAudio = { showAudioReview = true },
                         onDismiss = {
                             _showResultSheet.value = false
                             _lastSummary.value = null
@@ -158,12 +189,14 @@ class MainActivity : ComponentActivity() {
                         onFieldSessionIntentSelected = { fieldSessionIntent = it },
                         fieldTestLevel = fieldTestLevel,
                         onFieldTestLevelSelected = { fieldTestLevel = it },
+                        movementMode = movementMode,
+                        onMovementModeSelected = { movementMode = it },
                         onStart = {
                             _detections.clear()
                             _elapsedSeconds.intValue = 0
                             when (selectedMode) {
                                 ScanMode.POCKET -> startPocketMode()
-                                ScanMode.FIELD -> startFieldScan(fieldSessionIntent, fieldTestLevel)
+                                ScanMode.FIELD -> startFieldScan(fieldSessionIntent, fieldTestLevel, movementMode)
                             }
                             isActive = true
                             startTimer()
@@ -263,13 +296,14 @@ class MainActivity : ComponentActivity() {
         PocketService.start(this)
     }
 
-    private fun startFieldScan(intent: FieldSessionIntent, testLevel: FieldTestLevel) {
+    private fun startFieldScan(intent: FieldSessionIntent, testLevel: FieldTestLevel, movementMode: MovementMode) {
         if (!hasRequiredPermissions()) { requestPermissions(); return }
         FieldScanService.start(
             context = this,
             sessionIntent = if (intent == FieldSessionIntent.TEST) "test" else "official",
             officialRecord = intent == FieldSessionIntent.OFFICIAL,
             testProfile = if (intent == FieldSessionIntent.TEST) testLevel.profileKey else "field",
+            movementMode = movementMode.key,
         )
     }
 
@@ -313,6 +347,17 @@ enum class FieldTestLevel(
     STRESS("stress", "ストレス", "🔥", "高頻度で回して負荷を見る\n誤検出や再送も出やすい"),
 }
 
+enum class MovementMode(
+    val key: String,
+    val label: String,
+    val emoji: String,
+    val desc: String,
+) {
+    WALK("walk", "歩き", "🚶", "最大ゲイン\n静かな環境向け"),
+    BICYCLE("bicycle", "自転車・バイク", "🚲", "中ゲイン\n移動音を考慮"),
+    VEHICLE("vehicle", "車・電車", "🚗", "標準ゲイン\n車内環境向け"),
+}
+
 @Composable
 fun HomeScreen(
     selectedMode: ScanMode,
@@ -321,6 +366,8 @@ fun HomeScreen(
     onFieldSessionIntentSelected: (FieldSessionIntent) -> Unit,
     fieldTestLevel: FieldTestLevel,
     onFieldTestLevelSelected: (FieldTestLevel) -> Unit,
+    movementMode: MovementMode,
+    onMovementModeSelected: (MovementMode) -> Unit,
     onStart: () -> Unit,
     onRequestPermissions: () -> Unit,
     loginState: AppLoginState,
@@ -460,6 +507,59 @@ fun HomeScreen(
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(level.desc, fontSize = 11.sp, color = Color.White.copy(alpha = 0.58f), lineHeight = 15.sp)
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // 移動手段選択（マイクゲイン制御）
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    "移動手段",
+                    fontSize = 13.sp,
+                    color = Color.White.copy(alpha = 0.75f),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                val moveColor = Color(0xFF64B5F6)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    MovementMode.entries.forEach { mode ->
+                        val isSelected = movementMode == mode
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .then(
+                                    if (isSelected) Modifier.border(2.dp, moveColor, RoundedCornerShape(14.dp))
+                                    else Modifier.border(1.dp, borderColor, RoundedCornerShape(14.dp))
+                                )
+                                .background(if (isSelected) moveColor.copy(alpha = 0.12f) else cardBg)
+                                .clickable { onMovementModeSelected(mode) }
+                                .padding(10.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(mode.emoji, fontSize = 22.sp)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    mode.label,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) moveColor else Color.White.copy(alpha = 0.8f),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 14.sp,
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    mode.desc,
+                                    fontSize = 9.sp,
+                                    color = Color.White.copy(alpha = 0.45f),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 12.sp,
+                                )
                             }
                         }
                     }

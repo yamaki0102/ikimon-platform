@@ -7,6 +7,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -364,6 +365,8 @@ private fun triggerHaptic(context: Context, isFused: Boolean) {
 fun ScanResultSheet(
     summary: EventBuffer.Summary,
     uploadStatus: UploadStatusSnapshot,
+    pendingAudioCount: Int = 0,
+    onReviewAudio: () -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     val darkBg = Color(0xFF0D1117)
@@ -552,6 +555,41 @@ fun ScanResultSheet(
                             modifier = Modifier.padding(top = 4.dp),
                         )
                     }
+                }
+            }
+        }
+
+        if (pendingAudioCount > 0) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onReviewAudio() },
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1F2E)),
+                shape = RoundedCornerShape(20.dp),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("🎙️", fontSize = 28.sp)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "確認待ちの音声",
+                            color = Color(0xFFFFB300),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            "${pendingAudioCount}件 — タップして後同定",
+                            color = Color.White.copy(alpha = 0.65f),
+                            fontSize = 12.sp,
+                        )
+                    }
+                    Text("›", color = Color(0xFFFFB300), fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

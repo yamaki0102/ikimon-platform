@@ -22,11 +22,60 @@ class AudioClassifier(private val context: Context) {
 
     companion object {
         private const val TAG = "AudioClassifier"
-        private const val SAMPLE_RATE = 32000  // V3.0: 32kHz（V2.4は48kHz）
+        const val SAMPLE_RATE = 32000  // V3.0: 32kHz（V2.4は48kHz）
         private const val MODEL_FILE = "birdnet_v3.onnx"
         private const val LABELS_FILE = "birdnet_v3_labels.csv"
         private const val MIN_CONFIDENCE = 0.15f  // V3.0推奨閾値
         private const val MAX_RESULTS = 10
+
+        /**
+         * 静的録音メソッド。DualAudioClassifier から音声データを直接取得するために使う。
+         * gainFactor: 1.0 = そのまま、2.0 = 2倍ゲイン（スキャン中は 2.5〜3.0 推奨）
+         * 移動モードごとの推奨ゲイン: walk=2.5, bicycle=1.5, vehicle=1.0
+         */
+        fun recordAudioStatic(context: Context, durationMs: Long, gainFactor: Float = 2.5f): FloatArray? {
+            val bufferSize = android.media.AudioRecord.getMinBufferSize(
+                SAMPLE_RATE,
+                android.media.AudioFormat.CHANNEL_IN_MONO,
+                android.media.AudioFormat.ENCODING_PCM_FLOAT,
+            )
+            if (bufferSize == android.media.AudioRecord.ERROR_BAD_VALUE) return null
+
+            val recorder = try {
+                android.media.AudioRecord(
+                    android.media.MediaRecorder.AudioSource.MIC,
+                    SAMPLE_RATE,
+                    android.media.AudioFormat.CHANNEL_IN_MONO,
+                    android.media.AudioFormat.ENCODING_PCM_FLOAT,
+                    bufferSize,
+                )
+            } catch (e: SecurityException) { return null }
+
+            if (recorder.state != android.media.AudioRecord.STATE_INITIALIZED) return null
+
+            val totalSamples = (SAMPLE_RATE * durationMs / 1000).toInt()
+            val audioData = FloatArray(totalSamples)
+            var readTotal = 0
+            recorder.startRecording()
+            while (readTotal < totalSamples) {
+                val toRead = minOf(totalSamples - readTotal, bufferSize / 4)
+                val read = recorder.read(audioData, readTotal, toRead, android.media.AudioRecord.READ_BLOCKING)
+                if (read > 0) readTotal += read else break
+            }
+            recorder.stop()
+            recorder.release()
+
+            if (readTotal <= SAMPLE_RATE) return null
+
+            // デジタルゲイン適用 + tanh クリッピング防止
+            val raw = audioData.copyOf(readTotal)
+            if (gainFactor != 1.0f) {
+                for (i in raw.indices) {
+                    raw[i] = Math.tanh((raw[i] * gainFactor).toDouble()).toFloat()
+                }
+            }
+            return raw
+        }
     }
 
     data class ClassificationResult(

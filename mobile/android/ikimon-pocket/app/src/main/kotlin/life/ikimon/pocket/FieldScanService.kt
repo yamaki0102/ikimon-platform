@@ -37,9 +37,25 @@ class FieldScanService : Service() {
         private const val VISION_INTERVAL_MS = 5_000L
         private const val ENV_INTERVAL_MS = 60_000L
         private const val GPS_INTERVAL_MS = 10_000L
+        private const val EXTRA_SESSION_INTENT = "session_intent"
+        private const val EXTRA_OFFICIAL_RECORD = "official_record"
+        private const val EXTRA_TEST_PROFILE = "test_profile"
+        private const val EXTRA_MOVEMENT_MODE = "movement_mode"
 
-        fun start(context: Context) {
-            context.startForegroundService(Intent(context, FieldScanService::class.java))
+        fun start(
+            context: Context,
+            sessionIntent: String = "official",
+            officialRecord: Boolean = true,
+            testProfile: String = "field",
+            movementMode: String = "walk",
+        ) {
+            val intent = Intent(context, FieldScanService::class.java).apply {
+                putExtra(EXTRA_SESSION_INTENT, sessionIntent)
+                putExtra(EXTRA_OFFICIAL_RECORD, officialRecord)
+                putExtra(EXTRA_TEST_PROFILE, testProfile)
+                putExtra(EXTRA_MOVEMENT_MODE, movementMode)
+            }
+            context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {
@@ -47,12 +63,13 @@ class FieldScanService : Service() {
         }
     }
 
-    private var audioClassifier: AudioClassifier? = null
+    private var dualAudio: DualAudioClassifier? = null
     private var visionClassifier: VisionClassifier? = null
     private var locationTracker: LocationTracker? = null
     private var sensorCollector: SensorCollector? = null
     private val eventBuffer = EventBuffer()
     private var isRunning = false
+    private var currentSessionId: String = ""
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -62,7 +79,7 @@ class FieldScanService : Service() {
         override fun run() {
             if (!isRunning) return
             captureAndClassifyAudio()
-            handler.postDelayed(this, AUDIO_INTERVAL_MS)
+            handler.postDelayed(this, runtimeConfig.audioIntervalMs)
         }
     }
 
@@ -71,7 +88,7 @@ class FieldScanService : Service() {
         override fun run() {
             if (!isRunning) return
             scope.launch { captureAndClassifyVision() }
-            handler.postDelayed(this, VISION_INTERVAL_MS)
+            handler.postDelayed(this, runtimeConfig.visionIntervalMs)
         }
     }
 
@@ -80,36 +97,117 @@ class FieldScanService : Service() {
         override fun run() {
             if (!isRunning) return
             scope.launch { analyzeEnvironment() }
-            handler.postDelayed(this, ENV_INTERVAL_MS)
+            handler.postDelayed(this, runtimeConfig.envIntervalMs)
         }
     }
 
     // 最近の音声検出種（マルチモーダル融合用）
     private val recentAudioSpecies = mutableMapOf<String, Float>() // scientificName -> confidence
     private var lastCameraBitmap: Bitmap? = null
+    private var sessionIntent: String = "official"
+    private var officialRecord: Boolean = true
+    private var testProfile: String = "field"
+    private var movementMode: String = "walk"
+    private var runtimeConfig = RuntimeConfig.standard()
 
-    override fun onCreate() {
-        super.onCreate()
-        audioClassifier = AudioClassifier(this)
-        visionClassifier = VisionClassifier(this)
-        locationTracker = LocationTracker(this)
-        sensorCollector = SensorCollector(this)
+    private data class RuntimeConfig(
+        val audioIntervalMs: Long,
+        val audioDurationMs: Long,
+        val visionIntervalMs: Long,
+        val envIntervalMs: Long,
+        val audioMinConfidence: Float,
+        val visualMinConfidence: Float,
+        val micGain: Float,           // デジタルゲイン係数
+        val label: String,
+    ) {
+        companion object {
+            fun quick(): RuntimeConfig = RuntimeConfig(
+                audioIntervalMs = 20_000L,
+                audioDurationMs = 8_000L,
+                visionIntervalMs = 8_000L,
+                envIntervalMs = 75_000L,
+                audioMinConfidence = 0.25f,
+                visualMinConfidence = 0.35f,
+                micGain = 2.0f,
+                label = "クイック"
+            )
 
-        // Gemini Nano初期化（非同期）
-        scope.launch {
-            val ready = visionClassifier?.initialize() ?: false
-            if (ready) {
-                Log.i(TAG, "Triple AI Engine ready: BirdNET+ V3.0 + Gemini Nano v3")
-                updateNotification("🔭 Triple AI — 音声+視覚+環境")
-            } else {
-                Log.w(TAG, "Gemini Nano not available — audio-only mode")
-                updateNotification("🎧 音声AIのみ（Gemini Nano準備中）")
+            fun standard(): RuntimeConfig = RuntimeConfig(
+                audioIntervalMs = AUDIO_INTERVAL_MS,
+                audioDurationMs = AUDIO_DURATION_MS,
+                visionIntervalMs = VISION_INTERVAL_MS,
+                envIntervalMs = ENV_INTERVAL_MS,
+                audioMinConfidence = 0.20f,
+                visualMinConfidence = 0.30f,
+                micGain = 2.5f,
+                label = "標準"
+            )
+
+            fun stress(): RuntimeConfig = RuntimeConfig(
+                audioIntervalMs = 10_000L,
+                audioDurationMs = 10_000L,
+                visionIntervalMs = 3_000L,
+                envIntervalMs = 30_000L,
+                audioMinConfidence = 0.25f,
+                visualMinConfidence = 0.30f,
+                micGain = 2.5f,
+                label = "ストレス"
+            )
+
+            // 移動モード別ゲインテーブル
+            fun micGainForMovement(mode: String): Float = when (mode) {
+                "walk"     -> 2.5f   // 歩き: 高感度
+                "bicycle"  -> 1.8f   // 自転車: 風切り音あるので中程度
+                "vehicle"  -> 1.0f   // 車・電車: 環境ノイズ大、感度下げる
+                else       -> 2.5f
             }
         }
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        dualAudio = DualAudioClassifier(this)
+        visionClassifier = VisionClassifier(this)
+        locationTracker = LocationTracker(this)
+        sensorCollector = SensorCollector(this)
+        currentSessionId = "fs_${System.currentTimeMillis()}"
+
+        scope.launch {
+            val ready = visionClassifier?.initialize() ?: false
+            val perchReady = dualAudio?.isPerchReady() ?: false
+            val engineLabel = when {
+                ready && perchReady -> "BirdNET V3 + Perch v2 + Gemini Nano v3"
+                ready -> "BirdNET V3 + Gemini Nano v3"
+                perchReady -> "BirdNET V3 + Perch v2"
+                else -> "BirdNET V3"
+            }
+            Log.i(TAG, "AI Engine ready: $engineLabel")
+            updateNotification(activeNotificationText())
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIFICATION_ID, createNotification("🔭 フィールドスキャン起動中..."))
+        sessionIntent = intent?.getStringExtra(EXTRA_SESSION_INTENT)?.takeIf { it == "test" } ?: "official"
+        officialRecord = intent?.getBooleanExtra(EXTRA_OFFICIAL_RECORD, true) ?: true
+        testProfile = intent?.getStringExtra(EXTRA_TEST_PROFILE)?.takeIf {
+            it == "quick" || it == "stress"
+        } ?: if (sessionIntent == "test") "standard" else "field"
+        movementMode = intent?.getStringExtra(EXTRA_MOVEMENT_MODE) ?: "walk"
+        runtimeConfig = when (testProfile) {
+            "quick" -> RuntimeConfig.quick()
+            "stress" -> RuntimeConfig.stress()
+            else -> RuntimeConfig.standard()
+        }.let { cfg ->
+            // 移動モード別ゲインを適用（walk以外は調整）
+            if (movementMode != "walk") {
+                cfg.copy(micGain = RuntimeConfig.micGainForMovement(movementMode))
+            } else cfg
+        }
+        eventBuffer.setSessionMode(sessionIntent, officialRecord, testProfile)
+        startForeground(
+            NOTIFICATION_ID,
+            createNotification(if (officialRecord) "🌿 フィールド記録を開始" else "🧪 ${runtimeConfig.label}テストを開始")
+        )
         startMonitoring()
         return START_STICKY
     }
@@ -118,7 +216,7 @@ class FieldScanService : Service() {
 
     override fun onDestroy() {
         stopMonitoring()
-        audioClassifier?.close()
+        dualAudio?.close()
         visionClassifier?.close()
         scope.cancel()
         super.onDestroy()
@@ -126,7 +224,7 @@ class FieldScanService : Service() {
 
     private fun startMonitoring() {
         isRunning = true
-        Log.i(TAG, "Field Scan started — Triple AI Engine")
+        Log.i(TAG, "Field Scan started — intent=$sessionIntent official=$officialRecord profile=$testProfile")
 
         locationTracker?.startTracking(GPS_INTERVAL_MS) { location ->
             eventBuffer.updateLocation(location.latitude, location.longitude, location.altitude)
@@ -154,39 +252,77 @@ class FieldScanService : Service() {
         }
         eventBuffer.scheduleUpload(this)
 
-        Log.i(TAG, "Field Scan stopped. Detections: ${summary.totalDetections}")
+        Log.i(TAG, "Field Scan stopped. intent=$sessionIntent profile=$testProfile detections=${summary.totalDetections}")
     }
 
     /**
-     * 音声AI（BirdNET+ V3.0）
+     * デュアル音声AI（BirdNET V3 + Perch v2）
+     * 録音データを保持したままデュアル推論し、音声スニペットを保存する。
      */
     private fun captureAndClassifyAudio() {
-        audioClassifier?.classifyAmbientAudio(AUDIO_DURATION_MS) { results ->
-            val location = locationTracker?.lastLocation
-            for (result in results) {
-                if (result.confidence < 0.20f) continue
+        val dual = dualAudio ?: return
+        if (!dual.isReady()) return
 
+        // 音声録音（移動モード別ゲイン適用）
+        val audioData = AudioClassifier.recordAudioStatic(this, runtimeConfig.audioDurationMs, runtimeConfig.micGain)
+            ?: return
+
+        val location = locationTracker?.lastLocation
+
+        dual.classifyDual(
+            audioData = audioData,
+            durationMs = runtimeConfig.audioDurationMs,
+            minConfidence = runtimeConfig.audioMinConfidence,
+        ) { results ->
+            if (results.isEmpty()) return@classifyDual
+
+            // 音声スニペットを保存（高信頼度または仮同定候補がある場合）
+            val snippet = AudioSnippetStore.saveSnippet(
+                context = this,
+                sessionId = currentSessionId,
+                audioData = audioData,
+                dualResults = results,
+                lat = location?.latitude,
+                lng = location?.longitude,
+            )
+
+            for (result in results) {
                 // マルチモーダル融合用に記録
-                recentAudioSpecies[result.scientificName] = result.confidence
+                recentAudioSpecies[result.scientificName] = result.fusedConfidence
+
+                val engineLabel = when {
+                    result.birdnetConfidence != null && result.perchConfidence != null -> "dual_v3_perch2"
+                    result.perchConfidence != null -> "perch_v2"
+                    else -> "birdnet_v3_dp3"
+                }
 
                 val event = DetectionEvent(
                     type = "audio",
-                    taxonName = result.name,
+                    taxonName = result.taxonName,
                     scientificName = result.scientificName,
-                    confidence = result.confidence,
+                    confidence = result.fusedConfidence,
                     lat = location?.latitude,
                     lng = location?.longitude,
                     timestamp = System.currentTimeMillis(),
-                    model = "birdnet_v3_dp3",
+                    model = engineLabel,
                     taxonomicClass = result.taxonomicClass,
                     order = result.order,
+                    audioSnippetId = snippet?.id,
+                    birdnetConfidence = result.birdnetConfidence,
+                    perchConfidence = result.perchConfidence,
+                    consensusLevel = result.consensusLevel.name,
                 )
                 eventBuffer.add(event)
 
-                Log.d(TAG, "🎧 ${result.scientificName} (${(result.confidence * 100).toInt()}%)")
+                val consensusTag = if (result.consensusLevel == DualAudioClassifier.ConsensusLevel.DUAL_CONSENSUS) "🔥" else "🎧"
+                Log.d(TAG, "$consensusTag ${result.scientificName} " +
+                    "fused=${(result.fusedConfidence * 100).toInt()}% " +
+                    "bn=${result.birdnetConfidence?.let { "${(it*100).toInt()}%" } ?: "-"} " +
+                    "perch=${result.perchConfidence?.let { "${(it*100).toInt()}%" } ?: "-"}")
 
-                if (result.confidence >= 0.5f && eventBuffer.isNewSpecies(result.name)) {
-                    updateNotification("🎧 ${result.name} (${(result.confidence * 100).toInt()}%)")
+                if (result.fusedConfidence >= 0.5f && eventBuffer.isNewSpecies(result.taxonName)) {
+                    val label = "${result.taxonName} (${(result.fusedConfidence * 100).toInt()}%)"
+                    updateNotification("$consensusTag $label")
                 }
             }
         }
@@ -201,7 +337,7 @@ class FieldScanService : Service() {
         val bitmap = lastCameraBitmap ?: return
         val result = visionClassifier?.classifyFrame(bitmap) ?: return
 
-        if (result.confidence < 0.3f) return
+        if (result.confidence < runtimeConfig.visualMinConfidence) return
 
         val location = locationTracker?.lastLocation
 
@@ -274,10 +410,24 @@ class FieldScanService : Service() {
         manager.notify(NOTIFICATION_ID, createNotification(text))
     }
 
+    private fun activeNotificationText(): String {
+        return if (officialRecord) {
+            "🔭 Triple AI — 音声+視覚+環境"
+        } else {
+            "🧪 ${runtimeConfig.label}テスト — 音声+視覚+環境"
+        }
+    }
+
     private fun showSummaryNotification(summary: EventBuffer.Summary) {
         val notification = NotificationCompat.Builder(this, IkimonApp.CHANNEL_DETECTION)
-            .setContentTitle("🔭 フィールドスキャンレポート")
-            .setContentText("${summary.speciesCount}種を検出 (${summary.durationMinutes}分)")
+            .setContentTitle(if (officialRecord) "🔭 フィールドスキャンレポート" else "🧪 動作チェックレポート")
+            .setContentText(
+                if (officialRecord) {
+                    "${summary.speciesCount}種を検出 (${summary.durationMinutes}分)"
+                } else {
+                    "${runtimeConfig.label}テスト: ${summary.speciesCount}種を検出 (${summary.durationMinutes}分)"
+                }
+            )
             .setStyle(NotificationCompat.BigTextStyle()
                 .bigText(summary.speciesNames.joinToString(", ")))
             .setSmallIcon(android.R.drawable.ic_menu_compass)

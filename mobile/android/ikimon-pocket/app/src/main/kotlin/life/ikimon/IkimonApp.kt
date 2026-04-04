@@ -4,8 +4,9 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import androidx.work.Configuration
 
-class IkimonApp : Application() {
+class IkimonApp : Application(), Configuration.Provider {
     companion object {
         const val CHANNEL_POCKET = "pocket_mode"
         const val CHANNEL_DETECTION = "detection_alert"
@@ -15,6 +16,11 @@ class IkimonApp : Application() {
         super.onCreate()
         createNotificationChannels()
     }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(android.util.Log.INFO)
+            .build()
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
