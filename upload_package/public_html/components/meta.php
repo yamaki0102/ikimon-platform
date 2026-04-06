@@ -224,13 +224,51 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
         });
     }
 
+    const PWA_BANNER_DISMISSED_KEY = 'ikimon-pwa-banner-dismissed';
     let deferredPrompt = null;
+
+    function getPwaBanner() {
+        return document.getElementById('pwa-install-banner');
+    }
+
+    function shouldHidePwaBanner() {
+        const dismissed = (() => {
+            try {
+                return localStorage.getItem(PWA_BANNER_DISMISSED_KEY) === '1';
+            } catch (error) {
+                return false;
+            }
+        })();
+        const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        return dismissed || standalone;
+    }
+
+    function showPwaBanner() {
+        const banner = getPwaBanner();
+        if (banner && !shouldHidePwaBanner()) {
+            banner.style.display = 'flex';
+        }
+    }
+
+    function hidePwaBanner(persist = false) {
+        const banner = getPwaBanner();
+        if (banner) {
+            banner.style.display = 'none';
+        }
+        if (persist) {
+            try {
+                localStorage.setItem(PWA_BANNER_DISMISSED_KEY, '1');
+            } catch (error) {
+                // Ignore storage failures and still hide the banner for this page view.
+            }
+        }
+    }
+
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
         setTimeout(() => {
-            const banner = document.getElementById('pwa-install-banner');
-            if (banner) banner.style.display = 'flex';
+            showPwaBanner();
         }, 30000);
     });
 
@@ -240,15 +278,28 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
         deferredPrompt.userChoice.then(choice => {
             console.log('PWA install:', choice.outcome);
             deferredPrompt = null;
-            const banner = document.getElementById('pwa-install-banner');
-            if (banner) banner.style.display = 'none';
+            hidePwaBanner(choice.outcome !== 'accepted');
         });
     }
 
     function pwaDismiss() {
-        const banner = document.getElementById('pwa-install-banner');
-        if (banner) banner.style.display = 'none';
+        hidePwaBanner(true);
     }
+
+    document.addEventListener('click', (event) => {
+        if (event.target.closest('[data-pwa-dismiss]')) {
+            pwaDismiss();
+            return;
+        }
+        if (event.target.closest('[data-pwa-install]')) {
+            pwaInstall();
+        }
+    });
+
+    window.addEventListener('appinstalled', () => {
+        deferredPrompt = null;
+        hidePwaBanner(true);
+    });
 </script>
 
 <?php include __DIR__ . '/feedback_widget.php'; ?>
