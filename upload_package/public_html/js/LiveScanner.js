@@ -604,18 +604,14 @@ class LiveScanner {
                 if (resp.ok) {
                     const json = await resp.json();
                     this.dataUsage += JSON.stringify(json).length;
-                    const threshold = 0.10;
                     if (json.success && json.data?.detections?.length > 0) {
-                        const filtered = json.data.detections.filter(d => d.confidence >= threshold);
-                        filtered.forEach(d => {
+                        json.data.detections.forEach(d => {
                             const name = d.japanese_name || d.common_name || d.scientific_name;
                             this._addDetection(name, d.scientific_name, d.confidence, 'audio', 'bird', '');
                         });
-                        this._audioEmptyStreak = filtered.length > 0 ? 0 : this._audioEmptyStreak + 1;
-                        if (filtered.length > 0) {
-                            this.onAudioState('detected');
-                            setTimeout(() => this.onAudioState('listening'), 2000);
-                        }
+                        this._audioEmptyStreak = 0;
+                        this.onAudioState('detected');
+                        setTimeout(() => this.onAudioState('listening'), 2000);
                         this.onLog('🎤 Perch v2: ' + (json.data.detections.length) + '件');
                     } else {
                         this._audioEmptyStreak++;
