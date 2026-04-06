@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/AccessGate.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/InviteManager.php';
 require_once __DIR__ . '/../libs/PrivacyFilter.php';
@@ -24,8 +25,7 @@ if ($code !== '') {
 
     if ($inviter) {
         // 招待コードをセッション+クッキーに保存（登録時に使用）
-        $_SESSION['invite_code'] = $code;
-        setcookie('invite_code', $code, time() + 86400 * 7, '/', '', true, true);
+        AccessGate::rememberInviteCode($code);
 
         // 招待者の最新の考察済み観察を3件取得
         $allObs = DataStore::getLatest('observations', 50, function ($item) use ($inviter) {
@@ -98,6 +98,12 @@ if ($inviter) {
                     <span class="text-primary"><?php echo htmlspecialchars($inviter['user_name']); ?></span> さんが
                 </h1>
                 <p class="text-lg font-bold text-text mb-6">自然観察に招待しています</p>
+
+                <div class="mb-6 rounded-2xl border border-border bg-surface px-4 py-3 text-xs text-muted">
+                    招待枠:
+                    <span class="font-black text-text"><?php echo (int)($inviter['remaining_accepts'] ?? 0); ?></span>
+                    / <?php echo (int)($inviter['max_accepts'] ?? 10); ?> 名
+                </div>
 
                 <!-- 3つの価値提案 -->
                 <div class="bg-surface rounded-2xl p-5 mb-6 text-left space-y-4">
@@ -178,12 +184,17 @@ if ($inviter) {
                        class="block w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-black text-center shadow-lg shadow-primary/20 active:scale-95 transition">
                         ホームに行く →
                     </a>
+                <?php elseif (!empty($inviter['is_exhausted'])): ?>
+                    <div class="w-full py-4 rounded-full bg-slate-300 text-slate-700 font-black text-center">
+                        この招待コードは満員です
+                    </div>
+                    <p class="text-[11px] text-faint mt-3">別の招待リンクを受け取ると参加できます</p>
                 <?php else: ?>
                     <a href="login.php?redirect=<?php echo urlencode('post.php'); ?>"
                        class="block w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-black text-center shadow-lg shadow-primary/20 active:scale-95 transition">
                         始めてみる →
                     </a>
-                    <p class="text-[11px] text-faint mt-3">無料で始められます・メールアドレスで登録</p>
+                    <p class="text-[11px] text-faint mt-3">この招待リンクのコードを引き継いで登録できます</p>
                 <?php endif; ?>
             </div>
         </div>

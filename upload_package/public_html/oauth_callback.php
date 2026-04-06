@@ -17,6 +17,8 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/AccessGate.php';
+require_once __DIR__ . '/../libs/InviteManager.php';
 require_once __DIR__ . '/../libs/UserStore.php';
 require_once __DIR__ . '/../libs/OAuthClient.php';
 
@@ -59,7 +61,19 @@ try {
 
         // Still no user → create new
         if (!$user) {
+            if (AccessGate::isInviteOnlyEnabled()) {
+                $inviteValidation = AccessGate::validateInviteCode();
+                if (!$inviteValidation['valid']) {
+                    header('Location: login.php?error=invite_required');
+                    exit;
+                }
+            }
+
             $user = UserStore::createFromOAuth($profile);
+
+            if (!empty($inviteValidation['valid'])) {
+                InviteManager::recordAcceptance((string)$inviteValidation['code'], (string)$user['id'], (string)($user['name'] ?? ''));
+            }
         }
     }
 

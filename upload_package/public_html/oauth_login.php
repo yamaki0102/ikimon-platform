@@ -8,6 +8,7 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/AccessGate.php';
 require_once __DIR__ . '/../libs/OAuthClient.php';
 
 Auth::init();
@@ -22,6 +23,10 @@ if (!in_array($provider, ['google', 'twitter'], true)) {
 if (!isOAuthEnabled($provider)) {
     header('Location: login.php?error=oauth_not_configured');
     exit;
+}
+
+if (!empty($_GET['invite_code'])) {
+    AccessGate::rememberInviteCode((string)$_GET['invite_code']);
 }
 
 try {
