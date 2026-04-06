@@ -14,7 +14,6 @@ class GeoPlausibility
     private const ALIEN_ESTABLISHED = [
         'leiothrix lutea' => '定着外来種として知られる',
         'garrulax canorus' => '定着外来種として知られる',
-        'akepa?'=> '',
         'pycnonotus sinensis' => '外来定着の記録がある',
         'lonchura punctulata' => '移入個体群の記録がある',
         'trachemys scripta elegans' => '定着外来種として広く見られる',

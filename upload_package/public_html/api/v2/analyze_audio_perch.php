@@ -338,8 +338,11 @@ function _mergeResults(array $perchResults, array $birdnetResults, float $minCon
 
     if ($hasEngineConflict) {
         foreach ($merged as &$det) {
-            $det['engine_conflict'] = true;
-            $det['conflict_note'] = $conflictNote;
+            // dual_agree（両エンジン一致）は conflict ではない
+            if (($det['engine'] ?? '') !== 'dual_agree') {
+                $det['engine_conflict'] = true;
+                $det['conflict_note'] = $conflictNote;
+            }
         }
         unset($det);
     }

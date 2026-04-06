@@ -231,6 +231,19 @@ try {
     error_log('[passive_event] Session event creation error: ' . $e->getMessage());
 }
 
+// 逆ジオコーディング（セッション重心で1回だけ実行、全obs共有）
+$sessionGeo = null;
+{
+    $firstObs = $result['observations'][0] ?? [];
+    $geoLat = (float)($firstObs['lat'] ?? $centerLat ?? 0);
+    $geoLng = (float)($firstObs['lng'] ?? $centerLng ?? 0);
+    if ($geoLat != 0 && $geoLng != 0) {
+        $sessionGeo = GeoUtils::reverseGeocode($geoLat, $geoLng);
+    } else {
+        $sessionGeo = ['municipality' => '', 'prefecture' => '', 'country' => ''];
+    }
+}
+
 foreach ($result['observations'] as $obs) {
     // プライバシーフィルタ（保護種チェック）
     if (!empty($obs['taxon']['scientific_name']) && class_exists('PrivacyFilter')) {
@@ -243,17 +256,6 @@ foreach ($result['observations'] as $obs) {
     $obs['user_avatar'] = $userAvatar;
     $obs['observation_source'] = $scanMode;
 
-    // 逆ジオコーディング（セッション重心で1回だけ実行、全obs共有）
-    static $sessionGeo = null;
-    if ($sessionGeo === null) {
-        $geoLat = (float)($obs['lat'] ?? $centerLat ?? 0);
-        $geoLng = (float)($obs['lng'] ?? $centerLng ?? 0);
-        if ($geoLat != 0 && $geoLng != 0) {
-            $sessionGeo = GeoUtils::reverseGeocode($geoLat, $geoLng);
-        } else {
-            $sessionGeo = ['municipality' => '', 'prefecture' => '', 'country' => ''];
-        }
-    }
     if (!empty($sessionGeo['municipality'])) {
         $obs['municipality'] = $sessionGeo['municipality'];
     }
