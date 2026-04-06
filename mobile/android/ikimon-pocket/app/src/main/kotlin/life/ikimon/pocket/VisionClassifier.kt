@@ -142,9 +142,24 @@ Do NOT explain. ONLY JSON."""
         }
     }
 
+    private fun extractJson(text: String): String? {
+        val mdMatch = Regex("```(?:json)?\\s*(\\{[\\s\\S]*?\\})\\s*```").find(text)
+        if (mdMatch != null) return mdMatch.groupValues[1]
+        val start = text.indexOf('{')
+        if (start < 0) return null
+        var depth = 0
+        for (i in start until text.length) {
+            when (text[i]) {
+                '{' -> depth++
+                '}' -> { depth--; if (depth == 0) return text.substring(start, i + 1) }
+            }
+        }
+        return null
+    }
+
     private fun parseSpeciesResponse(text: String): VisionResult? {
         return try {
-            val jsonStr = text.substringAfter("{").substringBeforeLast("}").let { "{$it}" }
+            val jsonStr = extractJson(text) ?: return null
             val json = JSONObject(jsonStr)
             val taxon = json.optString("taxon", json.optString("species", ""))
             if (taxon.isEmpty() || taxon == "null") return null
@@ -168,7 +183,7 @@ Do NOT explain. ONLY JSON."""
 
     private fun parseEnvironmentResponse(text: String): EnvironmentResult? {
         return try {
-            val jsonStr = text.substringAfter("{").substringBeforeLast("}").let { "{$it}" }
+            val jsonStr = extractJson(text) ?: return null
             val json = JSONObject(jsonStr)
             EnvironmentResult(
                 habitat = json.optString("habitat", "unknown"),

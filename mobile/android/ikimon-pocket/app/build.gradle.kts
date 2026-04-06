@@ -12,8 +12,8 @@ android {
         applicationId = "life.ikimon.fieldscan"
         minSdk = 28
         targetSdk = 35
-        versionCode = 70001
-        versionName = "0.7.0"
+        versionCode = 80002
+        versionName = "0.8.1"
     }
 
     // BirdNET V3 ONNXモデル（541MB）はAPKに含めずaab/asset packで配布
@@ -50,6 +50,10 @@ dependencies {
 
     // ONNX Runtime (BirdNET+ V3.0)
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
+
+    // TFLite (Perch v1 Bird Vocalization Classifier — SELECT_TF_OPS flex delegate)
+    implementation("org.tensorflow:tensorflow-lite:2.17.0")
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1")
 
     // Gemini Nano on-device (視覚AI — Prompt API)
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")

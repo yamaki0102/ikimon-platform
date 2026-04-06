@@ -2,12 +2,11 @@ package life.ikimon.data
 
 import android.content.Context
 import android.util.Log
-import androidx.work.*
-import life.ikimon.api.UploadWorker
+import life.ikimon.api.UploadCoordinator
+import life.ikimon.api.UploadStatusStore
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 /**
  * 検出イベントのローカルバッファ。
@@ -19,6 +18,9 @@ class EventBuffer {
     private val events = mutableListOf<DetectionEvent>()
     private val speciesSeen = mutableSetOf<String>()
     private var sessionStartTime: Long = System.currentTimeMillis()
+    private var sessionIntent: String = "official"
+    private var officialRecord: Boolean = true
+    private var testProfile: String = "field"
 
     // 現在位置（PocketService から更新される）
     private var currentLat: Double? = null
@@ -37,15 +39,29 @@ class EventBuffer {
         currentAlt = alt
     }
 
+    fun setSessionMode(sessionIntent: String, officialRecord: Boolean, testProfile: String = "field") {
+        this.sessionIntent = if (sessionIntent == "test") "test" else "official"
+        this.officialRecord = officialRecord
+        this.testProfile = if (this.sessionIntent == "test") testProfile else "field"
+    }
+
     fun isNewSpecies(name: String): Boolean = !speciesSeen.contains(name)
 
     fun getSummary(): Summary {
-        val duration = (System.currentTimeMillis() - sessionStartTime) / 1000 / 60
+        val durationSec = (System.currentTimeMillis() - sessionStartTime) / 1000
+        val audioCount = events.count { it.type == "audio" }
+        val visualCount = events.count { it.type == "visual" }
         return Summary(
             totalDetections = events.size,
             speciesCount = speciesSeen.size,
             speciesNames = speciesSeen.toList(),
-            durationMinutes = duration.toInt(),
+            durationMinutes = (durationSec / 60).toInt(),
+            durationSeconds = durationSec.toInt(),
+            audioDetections = audioCount,
+            visualDetections = visualCount,
+            sessionIntent = sessionIntent,
+            officialRecord = officialRecord,
+            testProfile = testProfile,
         )
     }
 
@@ -54,7 +70,33 @@ class EventBuffer {
         val speciesCount: Int,
         val speciesNames: List<String>,
         val durationMinutes: Int,
+        val durationSeconds: Int = 0,
+        val audioDetections: Int = 0,
+        val visualDetections: Int = 0,
+        val sessionIntent: String = "official",
+        val officialRecord: Boolean = true,
+        val testProfile: String = "field",
     )
+
+    fun persistSessionLog(
+        context: Context,
+        sessionId: String,
+        mode: String,
+        metadata: Map<String, Any?> = emptyMap(),
+    ): File {
+        val dir = context.getExternalFilesDir("session_logs")
+            ?: File(context.filesDir, "session_logs")
+        dir.mkdirs()
+
+        val logFile = File(dir, "${sessionId}_summary.json")
+        val latestFile = File(dir, "latest_session_summary.json")
+        val payload = toSessionLogJson(sessionId, mode, metadata)
+        val body = payload.toString(2)
+        logFile.writeText(body)
+        latestFile.writeText(body)
+        Log.i("EventBuffer", "Saved session log to ${logFile.absolutePath}")
+        return logFile
+    }
 
     /**
      * バッファの内容をファイルに保存し、WorkManager でアップロードをスケジュール。
@@ -64,26 +106,15 @@ class EventBuffer {
 
         // JSON ファイルに保存
         val json = toJSON()
-        val dir = File(context.filesDir, "pending_uploads")
+        val dir = UploadCoordinator.pendingDirectory(context)
         dir.mkdirs()
         val file = File(dir, "session_${System.currentTimeMillis()}.json")
         file.writeText(json.toString(2))
 
         Log.i("EventBuffer", "Saved ${events.size} events to ${file.name}")
+        UploadStatusStore.recordQueued(context, file.name, sessionIntent, officialRecord)
 
-        // WorkManager でアップロード
-        val uploadWork = OneTimeWorkRequestBuilder<UploadWorker>()
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .setInputData(workDataOf("file_path" to file.absolutePath))
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-            .build()
-
-        WorkManager.getInstance(context)
-            .enqueue(uploadWork)
+        UploadCoordinator.enqueueUpload(context, file)
 
         Log.i("EventBuffer", "Upload scheduled via WorkManager")
     }
@@ -99,7 +130,68 @@ class EventBuffer {
             put("session", JSONObject().apply {
                 put("duration_sec", (System.currentTimeMillis() - sessionStartTime) / 1000)
                 put("device", android.os.Build.MODEL)
-                put("app_version", "0.7.0")
+                put("app_version", "0.8.1")
+                put("session_intent", sessionIntent)
+                put("official_record", officialRecord)
+                put("test_profile", testProfile)
+            })
+        }
+    }
+
+    private fun toSessionLogJson(
+        sessionId: String,
+        mode: String,
+        metadata: Map<String, Any?>,
+    ): JSONObject {
+        val summary = getSummary()
+        val topEvents = events
+            .sortedByDescending { it.confidence }
+            .take(10)
+        val engineCounts = linkedMapOf<String, Int>()
+        for (event in events) {
+            engineCounts[event.model] = (engineCounts[event.model] ?: 0) + 1
+        }
+
+        return JSONObject().apply {
+            put("saved_at", System.currentTimeMillis())
+            put("session_id", sessionId)
+            put("mode", mode)
+            put("summary", JSONObject().apply {
+                put("total_detections", summary.totalDetections)
+                put("species_count", summary.speciesCount)
+                put("species_names", JSONArray(summary.speciesNames))
+                put("duration_minutes", summary.durationMinutes)
+                put("duration_seconds", summary.durationSeconds)
+                put("audio_detections", summary.audioDetections)
+                put("visual_detections", summary.visualDetections)
+                put("session_intent", summary.sessionIntent)
+                put("official_record", summary.officialRecord)
+                put("test_profile", summary.testProfile)
+            })
+            put("current_location", JSONObject().apply {
+                put("lat", currentLat)
+                put("lng", currentLng)
+                put("alt", currentAlt)
+            })
+            put("engine_counts", JSONObject(engineCounts as Map<*, *>))
+            put("top_events", JSONArray().apply {
+                topEvents.forEach { event ->
+                    put(JSONObject().apply {
+                        put("type", event.type)
+                        put("taxon_name", event.taxonName)
+                        put("scientific_name", event.scientificName)
+                        put("confidence", event.confidence)
+                        put("model", event.model)
+                        put("timestamp", event.timestamp)
+                        put("birdnet_confidence", event.birdnetConfidence)
+                        put("perch_confidence", event.perchConfidence)
+                        put("gemma_confidence", event.gemmaConfidence)
+                        put("consensus_level", event.consensusLevel)
+                    })
+                }
+            })
+            put("metadata", JSONObject().apply {
+                metadata.forEach { (key, value) -> put(key, value) }
             })
         }
     }

@@ -45,6 +45,7 @@ class PocketService : Service() {
     private var sensorCollector: SensorCollector? = null
     private val eventBuffer = EventBuffer()
     private var isRunning = false
+    private var currentSessionId: String = ""
 
     // 音声録音タイマー
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -61,6 +62,7 @@ class PocketService : Service() {
         audioClassifier = AudioClassifier(this)
         locationTracker = LocationTracker(this)
         sensorCollector = SensorCollector(this)
+        currentSessionId = "pk_${System.currentTimeMillis()}"
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -100,6 +102,15 @@ class PocketService : Service() {
 
         // サマリー通知
         val summary = eventBuffer.getSummary()
+        val sessionLog = eventBuffer.persistSessionLog(
+            context = this,
+            sessionId = currentSessionId,
+            mode = "pocket",
+            metadata = mapOf(
+                "audio_interval_ms" to AUDIO_INTERVAL_MS,
+                "audio_duration_ms" to AUDIO_DURATION_MS,
+            ),
+        )
         if (summary.totalDetections > 0) {
             showSummaryNotification(summary)
         }
@@ -107,6 +118,7 @@ class PocketService : Service() {
         // バッファをサーバーに送信（WorkManager でスケジュール）
         eventBuffer.scheduleUpload(this)
 
+        Log.i(TAG, "Pocket session log saved: ${sessionLog.absolutePath}")
         Log.i(TAG, "Pocket mode stopped. Detections: ${summary.totalDetections}")
     }
 
