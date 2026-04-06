@@ -767,8 +767,8 @@ require_once __DIR__ . '/../../libs/Asset.php';
         <p class="text-xs text-muted">ホーム画面からすぐ起動。フィールドで便利！</p>
     </div>
     <div class="flex gap-2 shrink-0">
-        <button onclick="pwaDismiss()" class="text-xs p-1 text-faint hover:text-text">✕</button>
-        <button onclick="pwaInstall()" class="btn-primary text-xs px-4 py-2">追加</button>
+        <button type="button" data-pwa-dismiss class="text-xs p-1 text-faint hover:text-text">✕</button>
+        <button type="button" data-pwa-install class="btn-primary text-xs px-4 py-2">追加</button>
     </div>
 </div>
 <style>
