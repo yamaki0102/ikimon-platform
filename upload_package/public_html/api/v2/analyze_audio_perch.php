@@ -24,7 +24,24 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 Auth::init();
 if (!Auth::isLoggedIn()) {
-    api_error('Unauthorized', 401);
+    // FieldScan アプリからの install_id 認証
+    $installId = $_GET['install_id'] ?? null;
+    if ($installId) {
+        require_once ROOT_DIR . '/libs/UserStore.php';
+        $installs = DataStore::get('fieldscan_installs') ?? [];
+        $matched = null;
+        foreach ($installs as $inst) {
+            if (($inst['install_id'] ?? '') === $installId && ($inst['status'] ?? 'active') === 'active') {
+                $matched = $inst;
+                break;
+            }
+        }
+        if (!$matched) {
+            api_error('Invalid install_id', 401);
+        }
+    } else {
+        api_error('Unauthorized', 401);
+    }
 }
 
 if (!api_rate_limit('analyze_audio_perch', 20, 60)) {
@@ -251,6 +268,25 @@ function _mergeResults(array $perchResults, array $birdnetResults, float $minCon
     $allKeys = array_unique(array_merge(array_keys($perchBySci), array_keys($birdnetBySci)));
     $merged = [];
 
+    // Detect top-1 conflict between engines (Malerba et al. 2026: 不一致フラグ)
+    $hasEngineConflict = false;
+    $conflictNote = null;
+    if (!empty($perchBySci) && !empty($birdnetBySci)) {
+        $perchTopKey = null; $perchTopConf = -1;
+        foreach ($perchBySci as $k => $d) {
+            if ($d['confidence'] > $perchTopConf) { $perchTopConf = $d['confidence']; $perchTopKey = $k; }
+        }
+        $birdnetTopKey = null; $birdnetTopConf = -1;
+        foreach ($birdnetBySci as $k => $d) {
+            if ($d['confidence'] > $birdnetTopConf) { $birdnetTopConf = $d['confidence']; $birdnetTopKey = $k; }
+        }
+        if ($perchTopKey !== null && $birdnetTopKey !== null && $perchTopKey !== $birdnetTopKey) {
+            $hasEngineConflict = true;
+            $conflictNote = 'Perch:' . ($perchBySci[$perchTopKey]['scientific_name'] ?? $perchTopKey)
+                . ' vs BirdNET:' . ($birdnetBySci[$birdnetTopKey]['scientific_name'] ?? $birdnetTopKey);
+        }
+    }
+
     foreach ($allKeys as $key) {
         $inPerch   = isset($perchBySci[$key]);
         $inBirdnet = isset($birdnetBySci[$key]);
@@ -298,6 +334,14 @@ function _mergeResults(array $perchResults, array $birdnetResults, float $minCon
                 'engines'         => $engines,
             ];
         }
+    }
+
+    if ($hasEngineConflict) {
+        foreach ($merged as &$det) {
+            $det['engine_conflict'] = true;
+            $det['conflict_note'] = $conflictNote;
+        }
+        unset($det);
     }
 
     usort($merged, fn($a, $b) => $b['confidence'] <=> $a['confidence']);

@@ -152,6 +152,8 @@ foreach ($events as $i => $event) {
         'taxonomic_class'    => $event['taxonomic_class'] ?? null,
         'taxonomic_order'    => $event['taxonomic_order'] ?? null,
         'taxon_rank'         => $event['taxon_rank'] ?? 'species',
+        'engine_source'      => $event['engine'] ?? 'unknown',
+        'engine_conflict'    => !empty($event['engine_conflict']),
     ];
 }
 

@@ -144,6 +144,8 @@ class PassiveObservationEngine
             'environment_snapshot' => $event['environment_snapshot'] ?? null,
             'frame_ref' => $event['frame_ref'] ?? null,
             'detection_count' => 1,
+            'engine_source' => $event['engine_source'] ?? 'unknown',
+            'engine_conflict' => $event['engine_conflict'] ?? false,
         ];
     }
 
@@ -192,6 +194,22 @@ class PassiveObservationEngine
                 }
             } catch (\Throwable $e) {
                 // DB アクセス失敗は無視
+            }
+        }
+
+        // RedList ステータスによる希少種バイアス補正 (Malerba et al. 2026: 少数派taxa対応)
+        if ($taxonName !== '') {
+            try {
+                if (!class_exists('RedListManager')) {
+                    require_once ROOT_DIR . '/libs/RedListManager.php';
+                }
+                $rl = new RedListManager();
+                $rlResult = $rl->lookup($taxonName);
+                if ($rlResult && in_array($rlResult['category'] ?? '', ['CR', 'EN', 'VU'], true)) {
+                    $adjusted += 0.05;
+                }
+            } catch (\Throwable $e) {
+                // RedList アクセス失敗は無視
             }
         }
 
@@ -246,6 +264,8 @@ class PassiveObservationEngine
             'environment_snapshot' => $detection['environment_snapshot'] ?? null,
             'speed_kmh' => $detection['speed_kmh'] ?? null,
             'ai_version' => $detection['ai_version'] ?? null,
+            'engine_source' => $detection['engine_source'] ?? 'unknown',
+            'engine_conflict' => $detection['engine_conflict'] ?? false,
             'created_at' => date('Y-m-d H:i:s'),
         ];
     }
