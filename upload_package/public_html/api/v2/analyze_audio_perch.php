@@ -163,11 +163,12 @@ function _parsePerchResponse(?string $body, int $httpCode): array
         return [];
     }
 
+    // 粗いフィルタ: dual-engine merge の boost (+0.1) で閾値到達する候補を残す
     $detections = [];
     foreach ($result['results'] as $segment) {
         foreach ($segment['predictions'] ?? [] as $pred) {
             $conf = (float)($pred['confidence'] ?? 0);
-            if ($conf < 0.3) continue;
+            if ($conf < 0.15) continue;
 
             $sciName = $pred['species'] ?? '';
             $commonName = $pred['common_name'] ?? $sciName;
@@ -211,10 +212,11 @@ function _parseBirdnetResponse(?string $body, int $httpCode): array
         return [];
     }
 
+    // 粗いフィルタ: dual-engine merge の boost (+0.1) で閾値到達する候補を残す
     $detections = [];
     foreach ($rawDetections as $det) {
         $conf = (float)($det['confidence'] ?? 0);
-        if ($conf < 0.3) continue;
+        if ($conf < 0.15) continue;
 
         $sciName = $det['scientific_name'] ?? $det['species'] ?? '';
         $commonName = $det['common_name'] ?? $sciName;
