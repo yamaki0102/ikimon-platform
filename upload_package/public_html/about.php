@@ -435,10 +435,25 @@ $meta_description = $regionalMessaging['about_meta_description'];
         <p class="msg-hero-sub">ikimon.lifeが目指す地域創生のかたち</p>
     </section>
 
+    <!-- TOC -->
+    <nav class="msg-section" style="padding-top:32px;padding-bottom:0;">
+        <div class="msg-section-inner" style="max-width:520px;">
+            <div style="background:var(--md-surface-container);border-radius:16px;padding:24px 28px;">
+                <p style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--md-on-surface-variant);margin-bottom:14px;">目次</p>
+                <ol style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;font-size:0.9375rem;">
+                    <li><a href="#origin" style="color:var(--md-primary);text-decoration:none;">原体験</a></li>
+                    <li><a href="#regional" style="color:var(--md-primary);text-decoration:none;">なぜ、地域創生なのか</a></li>
+                    <li><a href="#disappearing" style="color:var(--md-primary);text-decoration:none;">消滅可能性自治体</a></li>
+                    <li><a href="#sustainability" style="color:var(--md-primary);text-decoration:none;">持続可能なかたち</a></li>
+                </ol>
+            </div>
+        </div>
+    </nav>
+
     <!-- ============================================
          Section 2: 原体験 — 岩内の記憶
          ============================================ -->
-    <section class="msg-section">
+    <section id="origin" class="msg-section" style="scroll-margin-top:80px;">
         <div class="msg-section-inner">
 
             <h2>原体験</h2>
@@ -519,7 +534,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
     <!-- ============================================
          Section 3: なぜ、地域創生なのか
          ============================================ -->
-    <section class="msg-section msg-surface">
+    <section id="regional" class="msg-section msg-surface" style="scroll-margin-top:80px;">
         <div class="msg-section-inner">
 
             <h2>なぜ、地域創生なのか</h2>
@@ -655,7 +670,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
     <!-- ============================================
          Section 4: 消滅可能性自治体
          ============================================ -->
-    <section class="msg-section">
+    <section id="disappearing" class="msg-section" style="scroll-margin-top:80px;">
         <div class="msg-section-inner">
 
             <h2><?= htmlspecialchars($regionalMessaging['disappearing_section_heading']) ?></h2>
@@ -752,7 +767,7 @@ $meta_description = $regionalMessaging['about_meta_description'];
     <!-- ============================================
          Section 5: ビジネスモデル
          ============================================ -->
-    <section class="msg-section msg-surface">
+    <section id="sustainability" class="msg-section msg-surface" style="scroll-margin-top:80px;">
         <div class="msg-section-inner">
 
             <h2>持続可能なかたち</h2>
@@ -866,6 +881,22 @@ $meta_description = $regionalMessaging['about_meta_description'];
             <div style="flex: 1;">
                 <p class="msg-guide-title">ネイチャーポジティブ完全ガイド</p>
                 <p class="msg-guide-desc">お散歩×観察×健康の全体像</p>
+            </div>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
+        <a href="century_archive.php" class="msg-guide-link">
+            <span style="font-size: 1.5rem;">📦</span>
+            <div style="flex: 1;">
+                <p class="msg-guide-title">100年生態系アーカイブ</p>
+                <p class="msg-guide-desc">なぜ記録するのか、2026年の観察が100年後の比較基準に</p>
+            </div>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
+        <a href="methodology.php" class="msg-guide-link">
+            <span style="font-size: 1.5rem;">📊</span>
+            <div style="flex: 1;">
+                <p class="msg-guide-title">データ方針と評価手法</p>
+                <p class="msg-guide-desc">データの取り扱いとモニタリング参考インデックスの透明性</p>
             </div>
             <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </a>
