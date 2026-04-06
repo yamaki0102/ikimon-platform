@@ -13,6 +13,7 @@ require_once __DIR__ . '/UserStore.php';
 class InviteManager
 {
     private const RESOURCE = 'invites';
+    public const DEFAULT_MAX_ACCEPTS = 10;
 
     /**
      * ユーザーの招待コードを取得（なければ生成）
@@ -51,6 +52,7 @@ class InviteManager
             'user_id' => $userId,
             'created_at' => date('Y-m-d H:i:s'),
             'accept_count' => 0,
+            'max_accepts' => self::DEFAULT_MAX_ACCEPTS,
             'accepted_users' => [],
         ];
 
@@ -77,6 +79,9 @@ class InviteManager
                     'user_avatar' => $user['avatar'] ?? '',
                     'code' => $invite['code'],
                     'accept_count' => (int)($invite['accept_count'] ?? 0),
+                    'max_accepts' => self::getMaxAccepts($invite),
+                    'remaining_accepts' => max(0, self::getMaxAccepts($invite) - (int)($invite['accept_count'] ?? 0)),
+                    'is_exhausted' => ((int)($invite['accept_count'] ?? 0)) >= self::getMaxAccepts($invite),
                 ];
             }
         }
@@ -86,13 +91,24 @@ class InviteManager
     /**
      * 招待受け入れを記録
      */
-    public static function recordAcceptance(string $code, string $newUserId, string $newUserName = ''): void
+    public static function recordAcceptance(string $code, string $newUserId, string $newUserName = ''): bool
     {
         $invites = DataStore::get(self::RESOURCE) ?: [];
         foreach ($invites as &$invite) {
             if (strcasecmp($invite['code'] ?? '', $code) === 0) {
+                $accepted = is_array($invite['accepted_users'] ?? null) ? $invite['accepted_users'] : [];
+                foreach ($accepted as $entry) {
+                    if (($entry['user_id'] ?? '') === $newUserId) {
+                        return true;
+                    }
+                }
+
+                $maxAccepts = self::getMaxAccepts($invite);
+                if (((int)($invite['accept_count'] ?? 0)) >= $maxAccepts) {
+                    return false;
+                }
+
                 $invite['accept_count'] = ((int)($invite['accept_count'] ?? 0)) + 1;
-                $accepted = $invite['accepted_users'] ?? [];
                 $accepted[] = [
                     'user_id' => $newUserId,
                     'name' => $newUserName,
@@ -108,6 +124,7 @@ class InviteManager
         }
         unset($invite);
         DataStore::save(self::RESOURCE, $invites);
+        return true;
     }
 
     /**
@@ -121,11 +138,13 @@ class InviteManager
                 return [
                     'code' => $invite['code'],
                     'accept_count' => (int)($invite['accept_count'] ?? 0),
+                    'max_accepts' => self::getMaxAccepts($invite),
+                    'remaining_accepts' => max(0, self::getMaxAccepts($invite) - (int)($invite['accept_count'] ?? 0)),
                     'accepted_users' => $invite['accepted_users'] ?? [],
                 ];
             }
         }
-        return ['code' => '', 'accept_count' => 0, 'accepted_users' => []];
+        return ['code' => '', 'accept_count' => 0, 'max_accepts' => self::DEFAULT_MAX_ACCEPTS, 'remaining_accepts' => 0, 'accepted_users' => []];
     }
 
     /**
@@ -149,5 +168,11 @@ class InviteManager
             $code .= $chars[ord($bytes[$i]) % strlen($chars)];
         }
         return $code;
+    }
+
+    private static function getMaxAccepts(array $invite): int
+    {
+        $maxAccepts = (int)($invite['max_accepts'] ?? self::DEFAULT_MAX_ACCEPTS);
+        return max(1, $maxAccepts);
     }
 }

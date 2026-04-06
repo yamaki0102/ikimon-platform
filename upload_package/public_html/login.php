@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/AccessGate.php';
+require_once __DIR__ . '/../libs/InviteManager.php';
 require_once __DIR__ . '/../libs/UserStore.php';
 require_once __DIR__ . '/../libs/CSRF.php';
 require_once __DIR__ . '/../libs/RateLimiter.php';
@@ -11,6 +13,12 @@ Auth::init();
 $error = null;
 $activeTab = $_POST['action'] ?? ($_GET['tab'] ?? 'login');
 $redirect = $_POST['redirect'] ?? ($_GET['redirect'] ?? 'index.php');
+$inviteOnlyEnabled = AccessGate::isInviteOnlyEnabled();
+$rememberedInviteCode = AccessGate::getRememberedInviteCode();
+$inviteValidation = ['valid' => false, 'code' => $rememberedInviteCode, 'inviter' => null, 'error' => null];
+if ($rememberedInviteCode !== '') {
+    $inviteValidation = AccessGate::validateInviteCode($rememberedInviteCode);
+}
 // Security: Prevent external redirect (no protocol, no //, no backslashes)
 if (preg_match('#^(//)#', $redirect) || strpos($redirect, ':') !== false || strpos($redirect, '\\') !== false) {
     $redirect = 'index.php';
@@ -29,12 +37,18 @@ if (isset($_GET['error'])) {
         'oauth_not_configured' => 'このログイン方法は現在利用できません。',
         'oauth_init_failed' => 'ソーシャルログインの開始に失敗しました。',
         'banned' => 'このアカウントは現在利用できません。',
+        'invite_required' => AccessGate::getInviteOnlyMessage(),
         'oauth' => $_GET['msg'] ?? 'ソーシャルログインに失敗しました。',
     ];
     $error = $oauthErrors[$_GET['error']] ?? 'エラーが発生しました。';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['invite_code'])) {
+        $inviteValidation = AccessGate::validateInviteCode((string)$_POST['invite_code']);
+        $rememberedInviteCode = $inviteValidation['code'];
+    }
+
     // Brute-force protection: 5 attempts per minute per IP
     $rateLimitKey = 'login_form_' . md5($_SERVER['REMOTE_ADDR'] ?? '');
     if (!RateLimiter::check($rateLimitKey, 5, 60)) {
@@ -107,8 +121,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'パスワードが一致しません。';
             } elseif (UserStore::findByEmail($email)) {
                 $error = 'このメールアドレスは既に登録されています。';
+            } elseif ($inviteOnlyEnabled && !$inviteValidation['valid']) {
+                $error = $inviteValidation['error'] ?: AccessGate::getInviteOnlyMessage();
             } else {
                 $user = UserStore::create($name, $email, $password, 'Observer', '観察者');
+                if ($inviteOnlyEnabled && $inviteValidation['valid']) {
+                    InviteManager::recordAcceptance($inviteValidation['code'], (string)$user['id'], (string)($user['name'] ?? ''));
+                }
 
                 // ゲスト投稿データ引き継ぎ
                 $guestData = Auth::migrateGuestData();
@@ -340,6 +359,17 @@ $meta_title = 'ログイン';
             margin-bottom: 1.25rem;
             text-align: center;
         }
+        .m3-banner-info {
+            background: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            border-radius: var(--shape-md);
+            padding: 12px 16px;
+            font-size: var(--type-body-sm);
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            text-align: left;
+            line-height: 1.6;
+        }
     </style>
 </head>
 
@@ -362,6 +392,15 @@ $meta_title = 'ログイン';
             <div class="m3-banner-error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
+        <?php if ($inviteOnlyEnabled): ?>
+            <div class="m3-banner-info">
+                <?php echo htmlspecialchars(AccessGate::getInviteOnlyMessage()); ?>
+                <?php if ($inviteValidation['valid'] && !empty($inviteValidation['inviter']['user_name'])): ?>
+                    <br>招待者: <?php echo htmlspecialchars((string)$inviteValidation['inviter']['user_name']); ?> さん
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
         <div class="tab-bar">
             <a href="?tab=login<?php echo $redirect !== 'index.php' ? '&redirect=' . urlencode($redirect) : ''; ?>" class="tab-item <?php echo $activeTab === 'login' ? 'active' : ''; ?>">ログイン</a>
             <a href="?tab=register<?php echo $redirect !== 'index.php' ? '&redirect=' . urlencode($redirect) : ''; ?>" class="tab-item <?php echo $activeTab === 'register' ? 'active' : ''; ?>">新規登録</a>
@@ -372,6 +411,12 @@ $meta_title = 'ログイン';
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf); ?>">
                 <input type="hidden" name="action" value="register">
                 <input type="hidden" name="redirect" value="<?php echo htmlspecialchars($redirect); ?>">
+                <?php if ($inviteOnlyEnabled): ?>
+                    <div class="m3-field">
+                        <label>招待コード</label>
+                        <input type="text" name="invite_code" value="<?php echo htmlspecialchars($rememberedInviteCode); ?>" placeholder="例: ABCD2345" required>
+                    </div>
+                <?php endif; ?>
                 <div class="m3-field">
                     <label>名前</label>
                     <input type="text" name="name" placeholder="例: 山田 太郎" required autofocus>
@@ -410,7 +455,7 @@ $meta_title = 'ログイン';
         <?php if (isOAuthEnabled('google') || isOAuthEnabled('twitter')): ?>
             <div class="m3-divider"><span>または</span></div>
             <?php if (isOAuthEnabled('google')): ?>
-                <a href="oauth_login.php?provider=google" class="m3-btn-outlined">
+                <a href="oauth_login.php?provider=google<?php echo $rememberedInviteCode !== '' ? '&invite_code=' . urlencode($rememberedInviteCode) : ''; ?>" class="m3-btn-outlined">
                     <svg width="18" height="18" viewBox="0 0 48 48" style="pointer-events:none; flex-shrink:0;">
                         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                         <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -421,7 +466,7 @@ $meta_title = 'ログイン';
                 </a>
             <?php endif; ?>
             <?php if (isOAuthEnabled('twitter')): ?>
-                <a href="oauth_login.php?provider=twitter" class="m3-btn-outlined">
+                <a href="oauth_login.php?provider=twitter<?php echo $rememberedInviteCode !== '' ? '&invite_code=' . urlencode($rememberedInviteCode) : ''; ?>" class="m3-btn-outlined">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="pointer-events:none; flex-shrink:0;">
                         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                     </svg>
