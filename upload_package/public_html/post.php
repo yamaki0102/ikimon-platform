@@ -73,7 +73,8 @@ if ($isGuest) {
         .m3-chip {
             position: relative; overflow: hidden;
             display: inline-flex; align-items: center; gap: 6px;
-            padding: 6px 16px;
+            padding: 10px 18px;
+            min-height: 44px;
             border-radius: var(--shape-full);
             border: 1px solid var(--md-outline);
             background: transparent;
@@ -167,12 +168,20 @@ if ($isGuest) {
 
         <!-- Immersive Header -->
         <header class="fixed top-0 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] h-14 flex items-center justify-between px-4 bg-surface/90 backdrop-blur-xl z-50 border-b border-border">
-            <a href="javascript:history.length > 1 ? history.back() : location.href='index.php'" aria-label="戻る" class="p-2 -ml-2 text-muted hover:text-text transition">
+            <a href="javascript:history.length > 1 ? history.back() : location.href='index.php'" aria-label="戻る" class="p-3 -ml-3 text-muted hover:text-text transition">
                 <i data-lucide="x" class="w-6 h-6"></i>
             </a>
             <h1 class="text-sm font-black tracking-widest uppercase text-text">記録する</h1>
             <div class="w-10"></div>
         </header>
+
+        <!-- オフラインバナー -->
+        <div x-data="{ offline: !navigator.onLine }" @online.window="offline = false" @offline.window="offline = true"
+            x-show="offline" x-transition
+            class="fixed top-14 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] z-40 px-4 py-2 flex items-center gap-2" style="background:var(--md-error-container);border-bottom:1px solid var(--md-outline-variant);">
+            <i data-lucide="wifi-off" class="w-3.5 h-3.5 text-danger"></i>
+            <span class="text-xs font-bold text-danger">オフライン — 入力は端末に保存され、通信回復後に自動送信されます</span>
+        </div>
 
         <!-- ゲストモードバナー -->
         <template x-if="isGuest">
@@ -254,7 +263,8 @@ if ($isGuest) {
                         <div x-show="photos.length === 0">
                             <i data-lucide="camera" class="w-10 h-10 mx-auto mb-3 text-primary"></i>
                             <p class="text-sm font-bold mb-1 text-text" x-text="record_mode === 'surveyor_official' ? '写真がなくても公式記録を残せます' : '生き物を撮影・選択'"></p>
-                            <p class="text-xs text-muted mb-5" x-text="record_mode === 'surveyor_official' ? '📋 現地確認のみならこのまま下のフォームへ。写真があれば付けると再利用しやすくなります' : '📸 撮るだけでOK！名前は後からでも大丈夫'"></p>
+                            <p class="text-xs text-muted mb-2" x-text="record_mode === 'surveyor_official' ? '📋 現地確認のみならこのまま下のフォームへ。写真があれば付けると再利用しやすくなります' : '📸 撮るだけでOK！名前は後からでも大丈夫'"></p>
+                            <p x-show="record_mode !== 'surveyor_official'" class="text-[10px] text-faint mb-4">🌱 スズメもタンポポも、ふだんの記録が地域の生態系データの基盤になります</p>
                             <div class="flex flex-col gap-3">
                                 <button type="button" @click="$refs.cameraInput.click()" class="m3-btn-filled" style="padding:20px 24px;border-radius:var(--shape-xl);justify-content:flex-start;">
                                     <i data-lucide="camera" class="w-6 h-6" style="pointer-events:none;flex-shrink:0;"></i>
@@ -279,6 +289,12 @@ if ($isGuest) {
                                         </div>
                                     </button>
                                 </template>
+                                <template x-if="record_mode !== 'surveyor_official'">
+                                    <button type="button" @click="lightMode = true; ensureFormReady(); showDetails = true" class="w-full text-center py-2 text-xs font-bold text-faint hover:text-primary transition">
+                                        <i data-lucide="pen-line" class="w-3 h-3 inline-block mr-1" style="pointer-events:none;"></i>
+                                        写真なしでメモだけ残す
+                                    </button>
+                                </template>
                             </div>
                         </div>
 
@@ -293,13 +309,31 @@ if ($isGuest) {
                         <!-- Preview Grid -->
                         <div class="grid grid-cols-2 gap-3" x-show="photos.length > 0">
                             <template x-for="(photo, index) in photos" :key="index">
-                                <div class="relative aspect-square rounded-2xl overflow-hidden bg-surface shadow-md">
+                                <div class="relative aspect-square rounded-2xl overflow-hidden bg-surface shadow-md"
+                                    :class="index === 0 ? 'ring-2 ring-primary ring-offset-2' : ''">
                                     <img :src="photo.preview" :alt="'観察写真 ' + (index + 1)" class="w-full h-full object-cover">
-                                    <button @click.prevent="savePhoto(photo, index)" class="absolute top-2 left-2 p-1 bg-black/50 rounded-full hover:bg-primary transition z-30 sm:hidden" title="端末に保存">
-                                        <i data-lucide="download" class="w-3 h-3 text-white"></i>
+                                    <!-- Main photo badge -->
+                                    <div x-show="index === 0" class="absolute bottom-1 left-1 bg-primary text-white text-[9px] font-black px-2 py-0.5 rounded-full z-20">メイン</div>
+                                    <!-- Set as main (tap photo area) -->
+                                    <button x-show="index !== 0" @click.prevent="setMainPhoto(index)"
+                                        class="absolute bottom-1 left-1 bg-black/50 text-white text-[9px] font-bold px-2 py-1 rounded-full z-20 hover:bg-primary transition min-h-[32px]" title="メイン写真にする">
+                                        <i data-lucide="star" class="w-3 h-3 inline-block mr-0.5" style="pointer-events:none;"></i>メインにする
                                     </button>
-                                    <button @click.prevent="removePhoto(index)" class="absolute top-2 right-2 p-1 bg-black/50 rounded-full hover:bg-danger transition z-30">
-                                        <i data-lucide="x" class="w-3 h-3 text-white"></i>
+                                    <!-- Move left -->
+                                    <button x-show="index > 0 && photos.length > 1" @click.prevent="movePhoto(index, index - 1)"
+                                        class="absolute bottom-1 right-12 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center bg-black/50 rounded-full hover:bg-white/30 transition z-20" title="左に移動">
+                                        <i data-lucide="chevron-left" class="w-3.5 h-3.5 text-white" style="pointer-events:none;"></i>
+                                    </button>
+                                    <!-- Move right -->
+                                    <button x-show="index < photos.length - 1 && photos.length > 1" @click.prevent="movePhoto(index, index + 1)"
+                                        class="absolute bottom-1 right-1 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center bg-black/50 rounded-full hover:bg-white/30 transition z-20" title="右に移動">
+                                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-white" style="pointer-events:none;"></i>
+                                    </button>
+                                    <button @click.prevent="savePhoto(photo, index)" class="absolute top-1 left-1 p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center bg-black/50 rounded-full hover:bg-primary transition z-30 sm:hidden" title="端末に保存">
+                                        <i data-lucide="download" class="w-4 h-4 text-white" style="pointer-events:none;"></i>
+                                    </button>
+                                    <button @click.prevent="removePhoto(index)" class="absolute top-1 right-1 p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center bg-black/50 rounded-full hover:bg-danger transition z-30">
+                                        <i data-lucide="x" class="w-4 h-4 text-white" style="pointer-events:none;"></i>
                                     </button>
                                 </div>
                             </template>
@@ -411,6 +445,23 @@ if ($isGuest) {
                                     :class="gpsAccuracy < 20 ? 'bg-primary' : gpsAccuracy < 100 ? 'bg-warning' : 'bg-danger'"></span>
                                 ±<span x-text="Math.round(gpsAccuracy)"></span>m
                             </p>
+                        </div>
+                        <!-- Privacy info + granularity selector -->
+                        <div class="mt-2 px-2">
+                            <div class="flex items-center gap-2 text-[10px] text-faint mb-2">
+                                <i data-lucide="shield" class="w-3 h-3 text-primary"></i>
+                                <span>希少種は自動でさらに粗くなります <a href="faq.php#privacy" class="text-primary underline">詳しく</a></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-[10px] font-black text-faint uppercase tracking-widest whitespace-nowrap">公開範囲</label>
+                                <select x-model="locationGranularity" class="flex-1 text-xs font-bold bg-surface border border-border rounded-xl px-3 py-2 focus:outline-none focus:border-primary appearance-none">
+                                    <option value="exact">📍 詳細（デフォルト）</option>
+                                    <option value="municipality">🏘️ 市区町村レベル</option>
+                                    <option value="prefecture">🗾 都道府県レベル</option>
+                                    <option value="hidden">🔒 位置を非公開</option>
+                                </select>
+                            </div>
+                            <p class="text-[9px] text-faint mt-1 px-0.5" x-show="locationGranularity === 'hidden'">📍 正確な位置はあなたと管理者だけが見られます</p>
                         </div>
                         <!-- Quick info: date auto-set -->
                         <div class="mt-2 px-2 flex items-center gap-2 text-[10px] text-faint">
@@ -656,7 +707,8 @@ if ($isGuest) {
                                                 {id: 'behavior', label: '行動・鳴き声', emoji: '🎵'},
                                                 {id: 'habitat', label: '生息環境', emoji: '🏞️'},
                                                 {id: 'host_plant', label: '食草・寄主', emoji: '🌿'},
-                                                {id: 'expert_id', label: '専門家・図鑑', emoji: '📖'}
+                                                {id: 'expert_id', label: '専門家・図鑑', emoji: '📖'},
+                                                {id: 'intuition', label: 'なんとなく・AI任せ', emoji: '🤖'}
                                             ]">
                                                     <button type="button" @click="toggleEvidence(trait.id)"
                                                         class="px-3 py-2 rounded-xl border transition text-xs font-bold flex items-center gap-1.5"
@@ -668,8 +720,8 @@ if ($isGuest) {
                                             </div>
                                         </div>
                                     </div>
-                                    <div x-show="taxon_name.trim().length > 0 && evidence_tags.length === 0" class="mt-3 text-[10px] font-bold text-danger bg-danger/10 px-3 py-1.5 rounded-lg flex items-center gap-1">
-                                        <i data-lucide="alert-circle" class="w-3 h-3"></i> 名前を入力した場合は、少なくとも1つのエビデンスを選択してください
+                                    <div x-show="taxon_name.trim().length > 0 && evidence_tags.length === 0" class="mt-3 text-[10px] font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                                        <i data-lucide="info" class="w-3 h-3"></i> どれか1つ選んでね。迷ったら「なんとなく・AI任せ」でOK!
                                     </div>
                                 </div>
                                 <!-- Status (野生/植栽) -->
@@ -1000,6 +1052,11 @@ if ($isGuest) {
                     <a x-show="taxon_slug" :href="'species/' + encodeURIComponent(taxon_slug)"
                         class="block w-full py-3 rounded-full bg-surface border border-border text-text font-bold text-center text-sm hover:bg-white/5 transition flex items-center justify-center gap-2">
                         📖 <span x-text="taxon_name"></span> の図鑑を見る
+                    </a>
+                    <a x-show="!taxon_slug" href="id_center.php"
+                        class="block w-full py-3 rounded-full bg-surface border border-primary/30 text-primary font-bold text-sm text-center hover:bg-primary-surface/20 transition flex items-center justify-center gap-2 active:scale-95">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                        みんなに名前を聞いてみる
                     </a>
                     <button @click="resetForm()" class="w-full py-3 rounded-full bg-secondary-surface border border-secondary/20 text-secondary font-bold text-sm hover:bg-secondary-surface/80 transition flex items-center justify-center gap-2 active:scale-95">
                         📸 もう一枚記録する

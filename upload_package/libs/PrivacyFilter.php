@@ -252,6 +252,24 @@ class PrivacyFilter
             return $observation;
         }
 
+        // User-specified location granularity override
+        $granularity = $observation['location_granularity'] ?? 'exact';
+        if ($granularity === 'hidden') {
+            $filtered = $observation;
+            $filtered['latitude'] = null;
+            $filtered['longitude'] = null;
+            $filtered['lat'] = null;
+            $filtered['lng'] = null;
+            $filtered['privacy_layer'] = self::LAYER_AMBIENT;
+            return $filtered;
+        }
+        if ($granularity === 'prefecture') {
+            return self::forAmbient($observation, 10000);
+        }
+        if ($granularity === 'municipality') {
+            return self::forAmbient($observation, 1000);
+        }
+
         // Layer 2: Ambient (default for all public viewers)
         return self::forAmbient($observation, $gridM);
     }

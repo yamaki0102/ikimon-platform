@@ -80,6 +80,8 @@ function uploader() {
         evidence_tags: [],
         individual_count: null,
         record_mode: 'standard',
+        lightMode: false,
+        locationGranularity: 'exact',
         canSurveyorOfficialPost: config.canSurveyorOfficialPost ?? false,
 
         async loadHistory() {
@@ -99,6 +101,9 @@ function uploader() {
                     this.managed_context_type = d.managed_context?.type || '';
                     this.managed_site_id = d.managed_context?.site_id || '';
                     this.managed_site_name = d.managed_context?.site_name || '';
+                    if (d.biome) this.biome = d.biome;
+                    if (d.species_name) this.taxon_name = d.species_name;
+                    if (d.taxon_slug) this.taxon_slug = d.taxon_slug;
                     if (this.map && this.marker) {
                         this.map.flyTo([this.lat, this.lng], 16);
                         this.marker.setLatLng([this.lat, this.lng]);
@@ -150,14 +155,36 @@ function uploader() {
                 );
             }
 
-            // Draft Recovery
+            // Draft Recovery (full-field)
             const draft = localStorage.getItem('draft_obs');
             if (draft) {
                 try {
                     const d = JSON.parse(draft);
-                    if (d.note) this.note = d.note;
-                    if (d.cultivation) this.cultivation = d.cultivation;
-                    if (d.organism_origin) this.organism_origin = d.organism_origin;
+                    if (Date.now() - (d.timestamp || 0) > 24 * 60 * 60 * 1000) {
+                        localStorage.removeItem('draft_obs');
+                    } else {
+                        if (d.note) this.note = d.note;
+                        if (d.cultivation) this.cultivation = d.cultivation;
+                        if (d.organism_origin) this.organism_origin = d.organism_origin;
+                        if (d.taxon_name) this.taxon_name = d.taxon_name;
+                        if (d.taxon_slug) this.taxon_slug = d.taxon_slug;
+                        if (d.taxon_rank) this.taxon_rank = d.taxon_rank;
+                        if (d.taxon_source) this.taxon_source = d.taxon_source;
+                        if (d.taxon_thumbnail) this.taxon_thumbnail = d.taxon_thumbnail;
+                        if (d.biome && d.biome !== 'unknown') this.biome = d.biome;
+                        if (d.life_stage) this.life_stage = d.life_stage;
+                        if (d.license) this.license = d.license;
+                        if (d.individual_count != null) this.individual_count = d.individual_count;
+                        if (d.substrate_tags) this.substrate_tags = d.substrate_tags;
+                        if (d.evidence_tags) this.evidence_tags = d.evidence_tags;
+                        if (d.lat && d.lng) { this.lat = d.lat; this.lng = d.lng; }
+                        if (d.locationName) this.locationName = d.locationName;
+                        if (d.locationSource) this.locationSource = d.locationSource;
+                        if (d.observed_at) this.observed_at = d.observed_at;
+                        if (d.managed_context_type) this.managed_context_type = d.managed_context_type;
+                        if (d.managed_site_name) this.managed_site_name = d.managed_site_name;
+                        if (d.managed_context_note) this.managed_context_note = d.managed_context_note;
+                    }
                 } catch (e) { }
             }
 
@@ -204,18 +231,24 @@ function uploader() {
         },
 
         get canOpenForm() {
-            return this.photos.length > 0 || (this.canSurveyorOfficialPost && this.record_mode === 'surveyor_official');
+            return this.photos.length > 0
+                || this.lightMode
+                || (this.canSurveyorOfficialPost && this.record_mode === 'surveyor_official');
         },
 
         get canSubmit() {
             if (!this.canOpenForm) return false;
-            if (this.record_mode !== 'surveyor_official') {
-                return this.photos.length > 0;
+            if (this.record_mode === 'surveyor_official') {
+                const hasLocation = !!this.lat && !!this.lng;
+                const hasSubstance = this.photos.length > 0 || this.taxon_name.trim().length > 0 || this.note.trim().length > 0;
+                return hasLocation && hasSubstance;
             }
-
-            const hasLocation = !!this.lat && !!this.lng;
-            const hasSubstance = this.photos.length > 0 || this.taxon_name.trim().length > 0 || this.note.trim().length > 0;
-            return hasLocation && hasSubstance;
+            if (this.lightMode) {
+                const hasLocation = !!this.lat && !!this.lng;
+                const hasSubstance = this.taxon_name.trim().length > 0 || this.note.trim().length > 0;
+                return hasLocation && hasSubstance;
+            }
+            return this.photos.length > 0;
         },
 
         ensureFormReady() {
@@ -333,7 +366,7 @@ function uploader() {
             this.managed_site_id = '';
             this.managed_site_name = '';
             this.managed_context_note = '';
-            this.biome = 'unknown';
+            // biome is intentionally preserved for sequential posting at same location
             this.substrate_tags = [];
             this.evidence_tags = [];
             this.individual_count = null;
@@ -365,17 +398,42 @@ function uploader() {
         },
 
         saveDraft() {
-            localStorage.setItem('draft_obs', JSON.stringify({
+            const draft = {
                 note: this.note,
                 cultivation: this.cultivation,
                 organism_origin: this.organism_origin,
+                taxon_name: this.taxon_name,
+                taxon_slug: this.taxon_slug,
+                taxon_rank: this.taxon_rank,
+                taxon_source: this.taxon_source,
+                taxon_thumbnail: this.taxon_thumbnail,
+                biome: this.biome,
+                life_stage: this.life_stage,
+                license: this.license,
+                individual_count: this.individual_count,
+                substrate_tags: this.substrate_tags,
+                evidence_tags: this.evidence_tags,
+                lat: this.lat,
+                lng: this.lng,
+                locationName: this.locationName,
+                locationSource: this.locationSource,
+                observed_at: this.observed_at,
+                managed_context_type: this.managed_context_type,
+                managed_site_name: this.managed_site_name,
+                managed_context_note: this.managed_context_note,
                 timestamp: Date.now()
-            }));
+            };
+            try {
+                localStorage.setItem('draft_obs', JSON.stringify(draft));
+            } catch (e) {
+                console.warn('[Draft] localStorage full, skipping save');
+            }
         },
 
         handleFiles(e) {
+            if (this.photos.length >= 5) return;
             if (navigator.vibrate) navigator.vibrate(50);
-            const files = Array.from(e.target.files);
+            const files = Array.from(e.target.files).slice(0, 5 - this.photos.length);
             files.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
@@ -412,6 +470,20 @@ function uploader() {
 
         removePhoto(index) {
             this.photos.splice(index, 1);
+            if (navigator.vibrate) navigator.vibrate(20);
+        },
+
+        setMainPhoto(index) {
+            if (index <= 0 || index >= this.photos.length) return;
+            const photo = this.photos.splice(index, 1)[0];
+            this.photos.unshift(photo);
+            if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+        },
+
+        movePhoto(from, to) {
+            if (from < 0 || from >= this.photos.length || to < 0 || to >= this.photos.length) return;
+            const photo = this.photos.splice(from, 1)[0];
+            this.photos.splice(to, 0, photo);
             if (navigator.vibrate) navigator.vibrate(20);
         },
 
@@ -502,6 +574,7 @@ function uploader() {
             if (this.evidence_tags.length > 0) formData.append('evidence_tags', JSON.stringify(this.evidence_tags));
             if (this.individual_count !== null && this.individual_count !== '') formData.append('individual_count', this.individual_count);
             formData.append('record_mode', this.record_mode);
+            if (this.locationGranularity !== 'exact') formData.append('location_granularity', this.locationGranularity);
 
             // NP: Send GPS coordinate accuracy for DwC coordinateUncertaintyInMeters
             if (this.gpsAccuracy !== null) formData.append('coordinate_accuracy', Math.round(this.gpsAccuracy));

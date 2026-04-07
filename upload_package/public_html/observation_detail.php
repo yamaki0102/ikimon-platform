@@ -7,6 +7,7 @@ Lang::init();
 require_once __DIR__ . '/../libs/RedList.php';
 require_once __DIR__ . '/../libs/Invasive.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/PrivacyFilter.php';
 require_once __DIR__ . '/../libs/DataQuality.php';
 require_once __DIR__ . '/../libs/TrustLevel.php';
 require_once __DIR__ . '/../libs/OmoikaneSearchEngine.php';
@@ -219,8 +220,15 @@ $metadataHistory = array_values(array_filter(
     fn($entry) => in_array((string)($entry['type'] ?? ''), ['direct_edit', 'metadata_proposal_accepted', 'metadata_proposal_rejected'], true)
 ));
 
+// Privacy-aware display coordinates
+$isOwner = $currentUser && ($currentUser['id'] === ($obs['user_id'] ?? ''));
+$filteredObs = PrivacyFilter::autoFilter($obs);
+$displayLat = (float)($filteredObs['latitude'] ?? $filteredObs['lat'] ?? $obs['lat']);
+$displayLng = (float)($filteredObs['longitude'] ?? $filteredObs['lng'] ?? $obs['lng']);
+$privacyLayer = $filteredObs['privacy_layer'] ?? 'ambient';
+
 // Obscure location
-$location = BioUtils::getObscuredLocation($obs['lat'], $obs['lng'], null); // Ignoring RedList for simple MVP logic here or fetch logic
+$location = BioUtils::getObscuredLocation($displayLat, $displayLng, null);
 
 // Check Red List & Invasive
 $redlist = $taxon_key ? RedList::check($taxon_key) : null;
@@ -332,8 +340,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 'name' => $obs_place ?: null,
                 'geo' => [
                     '@type' => 'GeoCoordinates',
-                    'latitude' => round((float) $obs['lat'], 4),
-                    'longitude' => round((float) $obs['lng'], 4),
+                    'latitude' => round($displayLat, 2),
+                    'longitude' => round($displayLng, 2),
                 ]
             ];
         }
@@ -365,7 +373,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
 <body class="js-loading font-body min-h-screen antialiased" style="background:var(--md-surface);color:var(--md-on-surface);" x-data="{ idModalOpen: false, photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, locationName: '<?php echo htmlspecialchars($obs['municipality'] ?? ($obs['prefecture'] ?? ''), ENT_QUOTES); ?>' }" x-init="
     <?php if (!empty($obs['lat']) && !empty($obs['lng'])): ?>
-    fetch('https://nominatim.openstreetmap.org/reverse?lat=<?php echo floatval($obs['lat']); ?>&lon=<?php echo floatval($obs['lng']); ?>&format=json&accept-language=ja&zoom=10')
+    fetch('https://nominatim.openstreetmap.org/reverse?lat=<?php echo round($displayLat, 2); ?>&lon=<?php echo round($displayLng, 2); ?>&format=json&accept-language=ja&zoom=10')
         .then(r => r.json())
         .then(d => { if (d.address) { const city = d.address.city || d.address.town || d.address.village || d.address.county || ''; const state = d.address.state || ''; locationName = city ? city + (state ? ', ' + state : '') : (state || locationName); } })
         .catch(() => {});
@@ -558,7 +566,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         <div>
                             <div class="text-sm font-bold text-text leading-none"><?php echo htmlspecialchars($observerName); ?></div>
                             <div class="text-token-xs text-muted mt-0.5">
-                                <?php echo date('Y年m月d日', strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now')); ?>
+                                <?php echo date('Y年m月d日 H:i', strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now')); ?>
                                 <?php if (!empty($obs['location']['name'])): ?>
                                     · <?php echo htmlspecialchars($obs['location']['name']); ?>
                                 <?php endif; ?>
@@ -1082,6 +1090,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <div>
                                 <div class="text-token-xs text-muted uppercase tracking-wider">場所</div>
                                 <div class="text-sm font-bold text-text" x-text="locationName">読み込み中...</div>
+                                <?php if ($isOwner && $privacyLayer === 'private'): ?>
+                                    <div class="text-[9px] text-primary flex items-center gap-1 mt-0.5"><i data-lucide="eye" class="w-2.5 h-2.5"></i> あなただけに正確な位置が表示されています</div>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
@@ -1090,7 +1101,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             </div>
                             <div>
                                 <div class="text-token-xs text-muted uppercase tracking-wider">観察日</div>
-                                <div class="text-sm font-bold text-text"><?php echo date('Y.m.d', strtotime($obs['observed_at'])); ?></div>
+                                <div class="text-sm font-bold text-text"><?php echo date('Y.m.d H:i', strtotime($obs['observed_at'])); ?></div>
                             </div>
                         </div>
                     </div>
@@ -1354,6 +1365,48 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                     <!-- Map -->
                     <div id="reborn-map" class="w-full h-40 overflow-hidden relative z-0" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);"></div>
+
+                    <!-- Nearby Timeline -->
+                    <?php if (!empty($displayLat) && !empty($displayLng)): ?>
+                    <div x-data="nearbyTimeline()" x-init="load()" class="mt-4">
+                        <div x-show="records.length > 0" x-transition>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-[10px] font-black text-faint uppercase tracking-widest flex items-center gap-1">
+                                    <i data-lucide="clock" class="w-3 h-3"></i> この場所の記録
+                                </h3>
+                                <span class="text-[9px] text-faint" x-text="records.length + '件'"></span>
+                            </div>
+                            <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
+                                <template x-for="r in records.slice(0, 8)" :key="r.id">
+                                    <a :href="'observation_detail.php?id=' + r.id" class="flex-shrink-0 w-20">
+                                        <div class="w-20 h-20 rounded-xl overflow-hidden bg-surface border border-border">
+                                            <img x-show="r.photo" :src="r.photo" :alt="r.species_name || '観察'" class="w-full h-full object-cover" loading="lazy">
+                                            <div x-show="!r.photo" class="w-full h-full flex items-center justify-center text-faint text-xs">📝</div>
+                                        </div>
+                                        <p class="text-[9px] font-bold text-text truncate mt-1" x-text="r.species_name || '未同定'"></p>
+                                        <p class="text-[8px] text-faint" x-text="r.observed_at ? r.observed_at.slice(0,10) : ''"></p>
+                                    </a>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    <script nonce="<?= CspNonce::attr() ?>">
+                        function nearbyTimeline() {
+                            return {
+                                records: [],
+                                async load() {
+                                    try {
+                                        const res = await fetch('api/get_nearby_timeline.php?lat=<?php echo round($displayLat, 4); ?>&lng=<?php echo round($displayLng, 4); ?>&radius=1000&limit=8');
+                                        const json = await res.json();
+                                        if (json.success) {
+                                            this.records = json.observations.filter(o => o.id !== '<?php echo htmlspecialchars($id); ?>');
+                                        }
+                                    } catch (e) {}
+                                }
+                            };
+                        }
+                    </script>
+                    <?php endif; ?>
 
                     <!-- Omoikane Insights (New) -->
                     <?php if ($omoikaneTraits): ?>
@@ -1886,8 +1939,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
         document.addEventListener('DOMContentLoaded', () => {
             const mapEl = document.getElementById('reborn-map');
             if (mapEl && typeof maplibregl !== 'undefined') {
-                const lat = <?php echo floatval($obs['lat']); ?>;
-                const lng = <?php echo floatval($obs['lng']); ?>;
+                const lat = <?php echo round($displayLat, 4); ?>;
+                const lng = <?php echo round($displayLng, 4); ?>;
                 const map = new maplibregl.Map({
                     container: 'reborn-map',
                     style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json',

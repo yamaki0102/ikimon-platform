@@ -499,6 +499,7 @@ $observation = [
     ],
     // NP: GPS coordinate accuracy in meters (for DwC coordinateUncertaintyInMeters)
     'coordinate_accuracy' => !empty($_POST['coordinate_accuracy']) ? (int)$_POST['coordinate_accuracy'] : null,
+    'location_granularity' => in_array($_POST['location_granularity'] ?? 'exact', ['exact', 'municipality', 'prefecture', 'hidden']) ? ($_POST['location_granularity'] ?? 'exact') : 'exact',
 ];
 
 if ($isSurveyorOfficial) {

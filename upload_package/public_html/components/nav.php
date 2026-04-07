@@ -534,7 +534,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
                 <i data-lucide="camera" class="w-7 h-7"></i>
             </button>
         <?php else: ?>
-            <a href="/login.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
+            <a href="/post.php" class="bottom-nav__center-btn" aria-label="新しい観察を投稿">
                 <i data-lucide="camera" class="w-7 h-7"></i>
             </a>
         <?php endif; ?>
