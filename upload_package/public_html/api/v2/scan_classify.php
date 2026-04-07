@@ -143,16 +143,19 @@ if ($httpCode === 200 && $response) {
     $text = preg_replace('/```$/', '', trim($text));
     $parsed = json_decode($text, true);
     if (is_array($parsed)) {
-        $suggestions = $parsed;
+        $suggestions = array_values(array_filter(array_map(function($item) {
+            if (!is_array($item) || empty($item['name'])) return null;
+            $conf = $item['confidence'] ?? 0;
+            if (!is_numeric($conf)) $conf = 0.5;
+            $item['confidence'] = max(0.0, min(1.0, (float) $conf));
+            return $item;
+        }, $parsed)));
     }
 } else {
-    error_log("[scan_classify] Gemini failed: HTTP {$httpCode}, curl_errno={$curlError}");
+    error_log("[scan_classify] Gemini failed: HTTP {$httpCode}, curl_errno={$curlError}, body=" . substr($response ?: '', 0, 200));
 }
 
-// confidence でソート
-usort($suggestions, function($a, $b) {
-    return ($b['confidence'] ?? 0) <=> ($a['confidence'] ?? 0);
-});
+usort($suggestions, fn($a, $b) => (float)($b['confidence'] ?? 0) <=> (float)($a['confidence'] ?? 0));
 
 api_success([
     'suggestions' => $suggestions,

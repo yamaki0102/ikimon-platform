@@ -57,6 +57,14 @@ if ($file['size'] > 5 * 1024 * 1024) {
     api_error('Audio too large (max 5MB)', 413);
 }
 
+$finfo = finfo_open(FILEINFO_MIME_TYPE);
+$mimeDetected = finfo_file($finfo, $file['tmp_name']);
+finfo_close($finfo);
+$allowedMimes = ['audio/webm', 'audio/mp4', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/mpeg', 'video/webm', 'application/octet-stream'];
+if (!in_array($mimeDetected, $allowedMimes, true)) {
+    api_error('Invalid audio format: ' . $mimeDetected, 415);
+}
+
 $lat = (float)($_POST['lat'] ?? 35.0);
 $lng = (float)($_POST['lng'] ?? 139.0);
 $minConf = 0.3;
@@ -125,8 +133,18 @@ function _dualEngineClassify(string $audioPath, string $mimeType, string $fileNa
     $birdnetResult = _parseBirdnetResponse($birdnetBody, $birdnetHttp);
 
     $enginesUsed = [];
+    $engineErrors = [];
     if (!empty($perchResult))   $enginesUsed[] = 'perch_v2';
     if (!empty($birdnetResult)) $enginesUsed[] = 'birdnet_v3';
+
+    if ($perchErr)   $engineErrors[] = 'perch: ' . $perchErr;
+    if ($birdnetErr) $engineErrors[] = 'birdnet: ' . $birdnetErr;
+    if ($perchHttp !== 200 && $perchHttp !== 0) $engineErrors[] = 'perch_http:' . $perchHttp;
+    if ($birdnetHttp !== 200 && $birdnetHttp !== 0) $engineErrors[] = 'birdnet_http:' . $birdnetHttp;
+
+    if (!empty($engineErrors)) {
+        error_log('[analyze_audio_perch] Engine errors: ' . implode(', ', $engineErrors));
+    }
 
     if (empty($enginesUsed)) {
         $enginesUsed[] = 'none';
@@ -140,11 +158,17 @@ function _dualEngineClassify(string $audioPath, string $mimeType, string $fileNa
         $segmentsAnalyzed = is_array($decoded['results'] ?? null) ? count($decoded['results']) : 0;
     }
 
+    $status = 'ok';
+    if (in_array('none', $enginesUsed, true)) {
+        $status = 'service_unavailable';
+    }
+
     return [
         'detections'        => $merged,
         'engine'            => count($enginesUsed) > 1 ? 'dual' : ($enginesUsed[0] ?? 'none'),
         'engines_used'      => $enginesUsed,
         'segments_analyzed' => $segmentsAnalyzed,
+        'status'            => $status,
     ];
 }
 

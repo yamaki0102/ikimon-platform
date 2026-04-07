@@ -74,26 +74,33 @@ var BioPrescreen = (function() {
     ];
 
     var _bioSet = null;
+    var _bioArr = null;
     function _initBioSet() {
-        _bioSet = BIO_KEYWORDS.map(function(k) { return k.toLowerCase(); });
+        _bioArr = BIO_KEYWORDS.map(function(k) { return k.toLowerCase(); });
+        _bioSet = new Set(_bioArr);
     }
 
     function _isBioClass(className) {
         if (!_bioSet) _initBioSet();
         var cn = className.toLowerCase();
-        for (var i = 0; i < _bioSet.length; i++) {
-            if (cn.indexOf(_bioSet[i]) !== -1) return true;
+        if (_bioSet.has(cn)) return true;
+        for (var i = 0; i < _bioArr.length; i++) {
+            if (cn.indexOf(_bioArr[i]) !== -1) return true;
         }
         return false;
     }
 
+    var _greenCanvas = null;
+    var _greenCtx = null;
     function _greenScore(canvas) {
         var s = 16;
-        var tmp = document.createElement('canvas');
-        tmp.width = s; tmp.height = s;
-        var ctx = tmp.getContext('2d');
-        ctx.drawImage(canvas, 0, 0, s, s);
-        var data = ctx.getImageData(0, 0, s, s).data;
+        if (!_greenCanvas) {
+            _greenCanvas = document.createElement('canvas');
+            _greenCanvas.width = s; _greenCanvas.height = s;
+            _greenCtx = _greenCanvas.getContext('2d');
+        }
+        _greenCtx.drawImage(canvas, 0, 0, s, s);
+        var data = _greenCtx.getImageData(0, 0, s, s).data;
         var gc = 0, total = s * s;
         for (var i = 0; i < data.length; i += 4) {
             var r = data[i], g = data[i+1], b = data[i+2];
@@ -164,7 +171,7 @@ var BioPrescreen = (function() {
 
                 for (var i = 0; i < predictions.length; i++) {
                     var p = predictions[i];
-                    if (_isBioClass(p.className) && p.probability >= 0.05) {
+                    if (_isBioClass(p.className) && p.probability >= 0.10) {
                         bioDetections.push({
                             className: p.className,
                             probability: p.probability,
@@ -236,6 +243,9 @@ var BioPrescreen = (function() {
         destroy: function() {
             if (_model) { _model = null; _available = false; }
             _knownClasses = {};
+            _stats = { total: 0, geminiCalls: 0, localOnly: 0 };
+            _greenCanvas = null;
+            _greenCtx = null;
         }
     };
 })();

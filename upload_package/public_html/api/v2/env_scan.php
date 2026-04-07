@@ -103,12 +103,18 @@ $text = preg_replace('/^```json\s*/', '', trim($text));
 $text = preg_replace('/```$/', '', trim($text));
 
 $env = json_decode($text, true);
-if (!$env) {
-    // パース失敗 → テキストとして返す
-    $env = ['description' => $text, 'raw' => true];
+if (!is_array($env) || empty($env)) {
+    $env = ['description' => mb_substr($text, 0, 200), 'raw' => true];
 }
 
-// 座標を付与
+if (isset($env['canopy_cover'])) {
+    $env['canopy_cover'] = max(0, min(100, (int) $env['canopy_cover']));
+}
+if (isset($env['disturbance'])) {
+    $env['disturbance'] = in_array($env['disturbance'], ['low', 'medium', 'high'], true)
+        ? $env['disturbance'] : 'medium';
+}
+
 $env['lat'] = $lat;
 $env['lng'] = $lng;
 $env['timestamp'] = date('c');

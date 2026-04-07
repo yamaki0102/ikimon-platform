@@ -37,12 +37,32 @@ if (!api_rate_limit('fieldscan_diag_session', 30, 60)) {
 }
 
 $body = api_json_body();
+if (!is_array($body)) {
+    api_error('Invalid request body.', 400);
+}
+
 $sessionId = trim((string)($body['session_id'] ?? ''));
 $mode = trim((string)($body['mode'] ?? ''));
 $summary = $body['summary'] ?? null;
 
 if ($sessionId === '' || $mode === '' || !is_array($summary)) {
     api_error('session_id, mode, and summary are required.', 400);
+}
+
+if (!preg_match('/^[a-zA-Z0-9_\-]{1,64}$/', $sessionId)) {
+    api_error('Invalid session_id format.', 400);
+}
+
+if (!in_array($mode, ['walk', 'live-scan', 'drive', 'stationary', 'bike', 'diagnostic'], true)) {
+    api_error('Invalid mode.', 400);
+}
+
+$clientSavedAt = $body['saved_at'] ?? null;
+if ($clientSavedAt !== null) {
+    $ts = strtotime($clientSavedAt);
+    if ($ts === false || $ts > time() + 300) {
+        $clientSavedAt = null;
+    }
 }
 
 $record = [
@@ -52,11 +72,11 @@ $record = [
     'user_id' => $userId,
     'install_id' => $_GET['install_id'] ?? null,
     'summary' => $summary,
-    'engine_counts' => $body['engine_counts'] ?? [],
-    'top_events' => $body['top_events'] ?? [],
+    'engine_counts' => is_array($body['engine_counts'] ?? null) ? $body['engine_counts'] : [],
+    'top_events' => is_array($body['top_events'] ?? null) ? array_slice($body['top_events'], 0, 50) : [],
     'current_location' => $body['current_location'] ?? null,
-    'metadata' => $body['metadata'] ?? [],
-    'saved_at' => $body['saved_at'] ?? null,
+    'metadata' => is_array($body['metadata'] ?? null) ? $body['metadata'] : [],
+    'saved_at' => $clientSavedAt,
     'created_at' => date('c'),
 ];
 

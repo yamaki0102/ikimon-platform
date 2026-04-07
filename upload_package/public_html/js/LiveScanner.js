@@ -254,6 +254,7 @@ class LiveScanner {
 
     _startGps() {
         if (!navigator.geolocation) return;
+        if (this._watchId !== null) return;
         this._watchId = navigator.geolocation.watchPosition(
             pos => this._handleGps(pos),
             err => this.onLog('GPS ERR: ' + err.message),
@@ -336,13 +337,13 @@ class LiveScanner {
             }
         }
 
-        // Hysteresis: require 3 consecutive same readings
+        // Hysteresis: require 5 consecutive same readings to avoid GPS jitter flapping
         this._movementModeHistory.push(detected);
-        if (this._movementModeHistory.length > 3) {
+        if (this._movementModeHistory.length > 5) {
             this._movementModeHistory.shift();
         }
 
-        if (this._movementModeHistory.length >= 3) {
+        if (this._movementModeHistory.length >= 5) {
             const allSame = this._movementModeHistory.every(m => m === this._movementModeHistory[0]);
             if (allSame && this._movementModeHistory[0] !== this.movementMode) {
                 const prev = this.movementMode;
@@ -493,12 +494,11 @@ class LiveScanner {
             const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.5));
             const fd = new FormData();
             fd.append('photo', blob, 'env.jpg');
-            fd.append('env', '1');
             const last = this.routePoints.length > 0 ? this.routePoints[this.routePoints.length - 1] : null;
             if (last) { fd.append('lat', last.lat); fd.append('lng', last.lng); }
 
-            const resp = await fetch('/api/v2/scan_classify.php', { method: 'POST', body: fd });
-            if (!resp.ok) return;
+            const resp = await this._fetchWithTimeout('/api/v2/env_scan.php', { method: 'POST', body: fd }, 15000);
+            if (!resp || !resp.ok) return;
             const json = await resp.json();
             if (json.success && json.data?.environment) {
                 const env = { ...json.data.environment, timestamp: new Date().toISOString() };
@@ -506,7 +506,9 @@ class LiveScanner {
                 if (this.envHistory.length > 50) this.envHistory.pop();
                 this.onEnvUpdate(env);
             }
-        } catch (e) {}
+        } catch (e) {
+            this.onLog('🌿 env scan ERR: ' + (e.message || 'unknown'));
+        }
     }
 
     // ========== AUDIO ==========
@@ -600,8 +602,12 @@ class LiveScanner {
             this.dataUsage += blob.size;
 
             try {
-                const resp = await fetch('/api/v2/analyze_audio_perch.php', { method: 'POST', body: fd });
-                if (resp.ok) {
+                let resp = await this._fetchWithTimeout('/api/v2/analyze_audio_perch.php', { method: 'POST', body: fd }, 8000);
+                if (resp && (resp.status === 502 || resp.status === 503)) {
+                    await new Promise(r => setTimeout(r, 1500));
+                    resp = await this._fetchWithTimeout('/api/v2/analyze_audio_perch.php', { method: 'POST', body: fd }, 8000);
+                }
+                if (resp && resp.ok) {
                     const json = await resp.json();
                     this.dataUsage += JSON.stringify(json).length;
                     if (json.success && json.data?.detections?.length > 0) {
@@ -621,7 +627,7 @@ class LiveScanner {
                     }
                 }
             } catch (perchErr) {
-                // Perch v2 サービス未起動時は音響指数のみ計算（下のブロック）
+                this.onLog('🎤 Perch v2 接続エラー');
             }
 
             // 音響指数の簡易計算（RMS レベル = 環境音の指標）

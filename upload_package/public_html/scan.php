@@ -227,8 +227,14 @@ function scanMode() {
                 // 位置情報取得
                 this.getLocation();
             } catch (err) {
+                this._startError = err.message;
                 alert('カメラの許可が必要です: ' + err.message);
             }
+        },
+
+        retryStart() {
+            this._startError = null;
+            this.start();
         },
 
         stop() {
@@ -240,9 +246,15 @@ function scanMode() {
                 this.stream.getTracks().forEach(t => t.stop());
                 this.stream = null;
             }
-            // 検出結果をローカルに保存
+            // 検出結果をローカルに保存（quota保護付き）
             this.allDetections.push(...this.detections);
-            localStorage.setItem('ikimon_scan_detections', JSON.stringify(this.allDetections.slice(-50)));
+            try {
+                const data = JSON.stringify(this.allDetections.slice(-50));
+                localStorage.setItem('ikimon_scan_detections', data);
+            } catch (e) {
+                this.allDetections = this.allDetections.slice(-20);
+                try { localStorage.setItem('ikimon_scan_detections', JSON.stringify(this.allDetections)); } catch (e2) {}
+            }
         },
 
         startAutoCapture() {
@@ -306,14 +318,26 @@ function scanMode() {
         },
 
         async switchCamera() {
+            if (this.isProcessing) return;
             this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
-            if (this.stream) {
-                this.stream.getTracks().forEach(t => t.stop());
+            try {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(t => t.stop());
+                }
+                this.stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: this.facingMode },
+                });
+                this.$refs.video.srcObject = this.stream;
+            } catch (err) {
+                console.error('Camera switch failed:', err);
+                this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: this.facingMode },
+                    });
+                    this.$refs.video.srcObject = this.stream;
+                } catch (e) {}
             }
-            this.stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: this.facingMode },
-            });
-            this.$refs.video.srcObject = this.stream;
         },
 
         getLocation() {

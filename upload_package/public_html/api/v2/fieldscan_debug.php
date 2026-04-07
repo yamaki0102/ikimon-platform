@@ -24,9 +24,12 @@ $payload = [
 ];
 
 if ($sessionId !== '') {
+    if (!preg_match('/^[a-zA-Z0-9_\-]{1,64}$/', $sessionId)) {
+        api_error('Invalid session_id format', 400);
+    }
     $debug = ContributionLedger::getSessionDebug($sessionId);
     if ($debug === null) {
-        api_error('Session not found', 404, ['session_id' => $sessionId]);
+        api_error('Session not found', 404);
     }
     $payload['session'] = $debug;
 }

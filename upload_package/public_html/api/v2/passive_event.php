@@ -185,12 +185,19 @@ $clientSessionId = $sessionMeta['session_id_client'] ?? null;
 $existingSessionLog = null;
 $mergedSessionId = $result['session_id'];
 if ($clientSessionId && $isIncremental) {
-    $allSessions = DataStore::fetchAll('passive_sessions');
-    foreach (array_reverse($allSessions) as $s) {
-        if (($s['client_session_id'] ?? '') === $clientSessionId) {
-            $existingSessionLog = $s;
-            $mergedSessionId = $s['session_id'] ?? $mergedSessionId;
-            break;
+    // 全件ロードを避け、パーティションを逆順で探索（最新バッチは直近月にある）
+    $found = false;
+    $partitions = glob(DATA_DIR . 'passive_sessions/????-??.json');
+    rsort($partitions);
+    foreach ($partitions as $partFile) {
+        $sessions = json_decode(file_get_contents($partFile), true) ?: [];
+        foreach (array_reverse($sessions) as $s) {
+            if (($s['client_session_id'] ?? '') === $clientSessionId) {
+                $existingSessionLog = $s;
+                $mergedSessionId = $s['session_id'] ?? $mergedSessionId;
+                $found = true;
+                break 2;
+            }
         }
     }
 }
@@ -200,8 +207,8 @@ $parentEventId = null;
 $savedCount = 0;
 
 try {
-    $lats = array_filter(array_column($result['observations'], 'lat'));
-    $lngs = array_filter(array_column($result['observations'], 'lng'));
+    $lats = array_filter(array_column($result['observations'], 'lat'), fn($v) => $v !== null && $v !== 0.0);
+    $lngs = array_filter(array_column($result['observations'], 'lng'), fn($v) => $v !== null && $v !== 0.0);
     $centerLat = !empty($lats) ? array_sum($lats) / count($lats) : null;
     $centerLng = !empty($lngs) ? array_sum($lngs) / count($lngs) : null;
 
@@ -344,6 +351,17 @@ foreach ($result['observations'] as $obs) {
 
 // 検出ゼロでもセッション event は残す（不在データ = 努力したが見つからなかった記録）
 if ($savedCount === 0 && $parentEventId) {
+    try {
+        CanonicalStore::createOccurrence([
+            'event_id'           => $parentEventId,
+            'basis_of_record'    => 'MachineObservation',
+            'evidence_tier'      => 0,
+            'observation_source' => $scanMode,
+            'occurrence_status'  => 'absent',
+        ]);
+    } catch (Exception $e) {
+        error_log('[passive_event] Absence record error: ' . $e->getMessage());
+    }
     error_log('[passive_event] Zero detections session recorded as absence data: ' . $parentEventId);
 }
 

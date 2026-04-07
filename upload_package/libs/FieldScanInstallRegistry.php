@@ -95,10 +95,11 @@ class FieldScanInstallRegistry
 
     private static function createAnonymousFieldScanUser(array $payload): array
     {
-        $users = DataStore::get('users');
-        $id = uniqid('field_user_');
-        $suffix = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', (string)($payload['install_id'] ?? '')), -4));
-        if ($suffix === '') {
+        $users = DataStore::get('users') ?? [];
+        $id = 'field_user_' . bin2hex(random_bytes(8));
+        $installIdClean = preg_replace('/[^A-Za-z0-9]/', '', (string)($payload['install_id'] ?? ''));
+        $suffix = strtoupper(substr($installIdClean, -4));
+        if (strlen($suffix) < 4) {
             $suffix = strtoupper(substr(bin2hex(random_bytes(2)), 0, 4));
         }
 
@@ -112,7 +113,7 @@ class FieldScanInstallRegistry
             'auth_provider' => 'fieldscan_install',
             'oauth_id' => (string)($payload['install_id'] ?? ''),
             'avatar' => "https://i.pravatar.cc/150?u={$id}",
-            'created_at' => date('Y-m-d H:i:s'),
+            'created_at' => date('c'),
             'last_login_at' => null,
             'banned' => false,
             'is_anonymous' => true,

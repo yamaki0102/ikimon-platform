@@ -48,9 +48,13 @@ if (!api_rate_limit('session_recap', 5, 60)) {
     api_error('Rate limit exceeded', 429);
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
+$rawBody = file_get_contents('php://input');
+$input = json_decode($rawBody, true);
+if ($rawBody !== '' && $input === null) {
+    api_error('Invalid JSON: ' . json_last_error_msg(), 400);
+}
 if (!$input) {
-    api_error('Invalid JSON', 400);
+    api_error('Empty request body', 400);
 }
 
 $species = $input['species'] ?? [];
@@ -129,13 +133,15 @@ $currentMonth = date('n') . '月';
 try {
     $allObs = DataStore::fetchAll('observations');
 
-    // (1) この場所が初スキャンかチェック（500m圏内）
+    // (1) この場所が初スキャンかチェック（500m圏内、緯度補正あり）
     $nearbyObs = [];
     if ($lat && $lng) {
+        $latThresh = 0.0045; // ~500m
+        $lngThresh = 0.0045 / cos(deg2rad($lat)); // 緯度による経度補正
         foreach ($allObs as $o) {
             $oLat = floatval($o['location']['lat'] ?? $o['lat'] ?? 0);
             $oLng = floatval($o['location']['lng'] ?? $o['lng'] ?? 0);
-            if ($oLat && $oLng && abs($oLat - $lat) < 0.005 && abs($oLng - $lng) < 0.005) {
+            if ($oLat && $oLng && abs($oLat - $lat) < $latThresh && abs($oLng - $lng) < $lngThresh) {
                 $nearbyObs[] = $o;
             }
         }
@@ -153,7 +159,8 @@ try {
         if (!empty($dates)) {
             sort($dates);
             $lastDate = end($dates);
-            $daysSince = (time() - strtotime($lastDate)) / 86400;
+            $lastTs = strtotime($lastDate);
+            $daysSince = $lastTs ? (time() - $lastTs) / 86400 : 0;
             if ($daysSince > 14) {
                 $weeks = max(1, round($daysSince / 7));
                 $contribution[] = [

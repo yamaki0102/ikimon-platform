@@ -54,10 +54,10 @@ class PassiveObservationEngine
             $isHigherGroup = empty($result['scientific_name'])
                 && in_array($taxonName, self::HIGHER_GROUPS, true);
             if ($isHigherGroup) {
-                // 約55mグリッド（0.0005度）で別地点での同大分類を別記録扱い
-                $gridLat = round(($result['lat'] ?? 0) / 0.0005) * 0.0005;
-                $gridLng = round(($result['lng'] ?? 0) / 0.0005) * 0.0005;
-                $speciesKey = "{$taxonName}_{$gridLat}_{$gridLng}";
+                // 約55mグリッド — 整数インデックスで浮動小数点の丸め誤差を回避
+                $gridLatIdx = (int) round(($result['lat'] ?? 0) / 0.0005);
+                $gridLngIdx = (int) round(($result['lng'] ?? 0) / 0.0005);
+                $speciesKey = "{$taxonName}_{$gridLatIdx}_{$gridLngIdx}";
             } else {
                 $speciesKey = $result['taxon_key'] ?? $taxonName;
             }
@@ -167,6 +167,7 @@ class PassiveObservationEngine
         $season = self::monthToSeason($month);
 
         // OmoikaneDB から生態制約を照合（利用可能な場合）
+        $boostTotal = 0.0;
         if ($taxonName && class_exists('OmoikaneDB')) {
             try {
                 $db = new OmoikaneDB();
@@ -182,18 +183,16 @@ class PassiveObservationEngine
                 $eco = $stmt->fetch();
 
                 if ($eco) {
-                    // 季節マッチ
                     $seasonStr = $eco['season'] ?? '';
                     if ($seasonStr && stripos($seasonStr, $season) !== false) {
-                        $adjusted += self::SEASON_BOOST;
+                        $boostTotal += self::SEASON_BOOST;
                     }
-                    // 生息地情報があるだけでもブースト（データが存在する種 = 既知種）
                     if (!empty($eco['habitat'])) {
-                        $adjusted += self::HABITAT_BOOST;
+                        $boostTotal += self::HABITAT_BOOST;
                     }
                 }
             } catch (\Throwable $e) {
-                // DB アクセス失敗は無視
+                error_log('[PassiveObservationEngine] OmoikaneDB error for "' . $taxonName . '": ' . $e->getMessage());
             }
         }
 
@@ -206,12 +205,16 @@ class PassiveObservationEngine
                 $rl = new RedListManager();
                 $rlResult = $rl->lookup($taxonName);
                 if ($rlResult && in_array($rlResult['category'] ?? '', ['CR', 'EN', 'VU'], true)) {
-                    $adjusted += 0.05;
+                    $boostTotal += 0.05;
                 }
             } catch (\Throwable $e) {
-                // RedList アクセス失敗は無視
+                error_log('[PassiveObservationEngine] RedList error for "' . $taxonName . '": ' . $e->getMessage());
             }
         }
+
+        // 複合ブースト上限: 元の信頼度の30%または0.15のうち小さい方
+        $maxBoost = min(0.15, $base * 0.30);
+        $adjusted += min($boostTotal, $maxBoost);
 
         return min(1.0, max(0.0, $adjusted));
     }
