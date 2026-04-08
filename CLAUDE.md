@@ -172,11 +172,41 @@ composer test
 
 ## デプロイ
 
+### ワークフロー（必ずPR経由）
+main への直接 push は禁止。**feature branch → PR → admin merge → deploy** の順を守ること。
+
+```bash
+# 1. feature branch を切る（mainから）
+git checkout main && git pull origin main
+git checkout -b feat/description   # feat/ fix/ docs/ chore/ プレフィックス必須
+
+# 2. 変更・コミット
+git add <files>
+git commit -m "type: summary"
+
+# 3. push & PR作成
+git push -u origin feat/description
+gh pr create --base main --title "type: summary" --body "$(cat <<'EOF'
+## Summary
+- 変更内容
+
+## Test plan
+- [ ] PHP syntax check passed
+- [ ] 本番確認
+EOF
+)"
+
+# 4. admin merge（レビュー要件をバイパス）＋ ブランチ削除
+gh pr merge --admin --merge --delete-branch
+
+# 5. 本番デプロイ
+ssh -i ~/Downloads/ikimon.pem root@162.43.44.131 \
+  "cd /var/www/ikimon.life/repo && git pull origin main"
+```
+
 ### 本番 (Xserver VPS) ← 現在のDNS先
 ```
 SSH接続: ssh -i ~/Downloads/ikimon.pem root@162.43.44.131
-方式: git push → SSH deploy.sh (git pull + PHP-FPM reload)
-デプロイ: ssh -i ~/Downloads/ikimon.pem root@162.43.44.131 /var/www/ikimon.life/deploy.sh
 Webルート: /var/www/ikimon.life/repo/upload_package/public_html
 データ: /var/www/ikimon.life/repo/upload_package/data
 ```
