@@ -7,7 +7,7 @@
  * Usage: php scripts/batch_dqa.php
  */
 
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/DataQuality.php';
 

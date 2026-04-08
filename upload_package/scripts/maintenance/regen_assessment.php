@@ -4,7 +4,7 @@
  * Usage: php scripts/regen_assessment.php <observation_id>
  */
 
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 require_once ROOT_DIR . '/libs/DataStore.php';
 require_once ROOT_DIR . '/libs/AiObservationAssessment.php';
 require_once ROOT_DIR . '/libs/AiAssessmentQueue.php';

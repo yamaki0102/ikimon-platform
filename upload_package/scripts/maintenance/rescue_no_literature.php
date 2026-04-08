@@ -11,7 +11,7 @@
  * Usage: php rescue_no_literature.php [--limit=500] [--jp-only]
  */
 
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../libs/ExtractionQueue.php';
 
 date_default_timezone_set('Asia/Tokyo');

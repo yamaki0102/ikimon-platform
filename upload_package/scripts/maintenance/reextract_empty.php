@@ -10,7 +10,7 @@
  * Safe to run: only changes status from 'completed' to 'literature_ready'
  */
 
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../libs/ExtractionQueue.php';
 require_once __DIR__ . '/../libs/OmoikaneDB.php';
 

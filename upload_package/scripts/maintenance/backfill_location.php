@@ -12,7 +12,7 @@
  * @see https://operations.osmfoundation.org/policies/nominatim/
  */
 
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 
 $dryRun = in_array('--dry-run', $argv ?? []);
 $file = DATA_DIR . '/observations.json';

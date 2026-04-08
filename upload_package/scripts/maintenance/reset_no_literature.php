@@ -4,7 +4,7 @@
  * Reset no_literature items back to pending for re-processing
  * with the improved multi-source prefetcher v2.
  */
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 
 $queueFile = DATA_DIR . '/library/extraction_queue.json';
 
