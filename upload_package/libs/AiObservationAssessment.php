@@ -8,7 +8,7 @@ class AiObservationAssessment
 {
     private const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
     private const REPAIR_MODEL = 'gemini-3.1-flash-lite-preview';
-    private const PROMPT_VERSION = 'observation_assessment_v3';
+    private const PROMPT_VERSION = 'observation_assessment_v4';
     private const PIPELINE_VERSION = 'memo_fusion_v1';
     private const RANK_ORDER = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'];
     private const RANK_LABELS = [
@@ -122,6 +122,10 @@ class AiObservationAssessment
             'why_not_more_specific' => self::clip($payload['why_not_more_specific'] ?? ''),
             'diagnostic_features_seen' => self::sanitizeList($payload['diagnostic_features_seen'] ?? [], 4),
             'similar_taxa_to_compare' => self::sanitizeList($payload['similar_taxa_to_compare'] ?? [], 4),
+            'distinguishing_tips' => array_values(array_unique(array_filter(
+                array_map(fn($v) => self::clip((string)$v, 60), array_slice($payload['distinguishing_tips'] ?? [], 0, 4)),
+                fn($v) => $v !== ''
+            ))),
             'missing_evidence' => self::sanitizeList($payload['missing_evidence'] ?? [], 4),
             'geographic_context' => self::clip($payload['geographic_context'] ?? ''),
             'seasonal_context' => self::clip($payload['seasonal_context'] ?? ''),
@@ -281,12 +285,13 @@ class AiObservationAssessment
 4. 地理・季節は「弱い補助証拠」としてのみ使ってください。形態と矛盾する場合は採用しないでください。
 5. 複数枚ある場合は、枚数差分で見えている形質の増減を反映してください。
 6. summary / why_not_more_specific / geographic_context / seasonal_context / observer_boost / next_step は80文字以内、日本語。
-7. diagnostic_features_seen / similar_taxa_to_compare / missing_evidence は各4件以内、短い日本語句。
+7. diagnostic_features_seen / similar_taxa_to_compare / missing_evidence は各4件以内、短い日本語句（36文字以内）。distinguishing_tips は各60文字以内。
 8. species レベルを勧めるのは写真から識別形質が明瞭な場合だけです。迷うなら genus / family を選んでください。
 9. 観察者を萎縮させる表現は禁止です。「不足」「弱い」より「次にこれが見えると絞りやすい」のように前向きに伝えてください。
 10. observer_boost は、観察者の自己効力感を上げる短い一文にしてください。過度に褒めず、何が既に有効な観察かを伝えてください。
 11. next_step は、次に何を撮れば精度が上がるかを具体的に1文で示してください。負担感ではなく「ここまでできれば十分役立つ」に寄せてください。
 12. suggestions は1〜3件で、迷いがあるときは候補を複数返してください。候補同士で共通する階級があるなら、その共通範囲を意識して suggestions を組んでください。
+13. distinguishing_tips は similar_taxa_to_compare に挙げた候補間の具体的な見分けポイントを列挙してください。観察者が実際に確認できる形態・色・模様・サイズ・生育環境などを使い、「Aは〜だが、Bは〜」のように対比を明確にしてください。similar_taxa_to_compare が空の場合は distinguishing_tips も空にしてください。
 
 出力形式:
 {
@@ -301,6 +306,7 @@ class AiObservationAssessment
   "cautionary_note": "...",
   "diagnostic_features_seen": ["...", "..."],
   "similar_taxa_to_compare": ["...", "..."],
+  "distinguishing_tips": ["Aは葉全体が緑色だが、Bは葉や茎が赤紫色", "..."],
   "missing_evidence": ["...", "..."],
   "references": [],
   "suggestions": [

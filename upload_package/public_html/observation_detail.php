@@ -807,9 +807,14 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                         <p class="text-[10px] text-gray-400 mt-2">※ <?php echo !empty($latestAiAssessment['fun_fact_grounded']) ? '図鑑データをもとに' : ''; ?>AIが生成した情報です。正確性は各自でご確認ください</p>
                                     </div>
                                 <?php endif; ?>
-                                <?php if (!empty($latestAiAssessment['similar_taxa_to_compare']) || !empty($latestAiAssessment['missing_evidence'])): ?>
+                                <?php
+                                $hasSimilar = !empty($latestAiAssessment['similar_taxa_to_compare']);
+                                $hasTips    = !empty($latestAiAssessment['distinguishing_tips']);
+                                $hasMissing = !empty($latestAiAssessment['missing_evidence']);
+                                if ($hasSimilar || $hasTips || $hasMissing):
+                                ?>
                                     <div class="space-y-3" style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.75rem;">
-                                        <?php if (!empty($latestAiAssessment['similar_taxa_to_compare'])): ?>
+                                        <?php if ($hasSimilar): ?>
                                             <div>
                                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">紛らわしい種 <span class="font-normal normal-case">（AI参考）</span></p>
                                                 <div class="flex flex-wrap gap-2">
@@ -821,12 +826,36 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                 </div>
                                             </div>
                                         <?php endif; ?>
-                                        <?php if (!empty($latestAiAssessment['missing_evidence'])): ?>
+                                        <?php if ($hasTips): ?>
+                                            <div>
+                                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">見分け方のポイント</p>
+                                                <ul class="mt-1 space-y-1">
+                                                    <?php foreach ($latestAiAssessment['distinguishing_tips'] as $tip): ?>
+                                                        <li class="flex items-start gap-1.5 text-xs text-text leading-snug">
+                                                            <span class="mt-0.5 text-faint shrink-0">·</span>
+                                                            <span><?php echo htmlspecialchars($tip); ?></span>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </div>
+                                        <?php elseif ($hasMissing): ?>
                                             <div>
                                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">見分けるポイント（ここを確認してみよう）</p>
                                                 <div class="flex flex-wrap gap-1.5 mt-1">
                                                     <?php foreach ($latestAiAssessment['missing_evidence'] as $point): ?>
                                                         <span class="inline-flex items-center rounded-md bg-white border border-border px-2 py-0.5 text-xs text-text">
+                                                            <?php echo htmlspecialchars($point); ?>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+                                        <?php if ($hasTips && $hasMissing): ?>
+                                            <div>
+                                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">さらに確認するなら</p>
+                                                <div class="flex flex-wrap gap-1.5 mt-1">
+                                                    <?php foreach ($latestAiAssessment['missing_evidence'] as $point): ?>
+                                                        <span class="inline-flex items-center rounded-md bg-white border border-border px-2 py-0.5 text-xs text-muted">
                                                             <?php echo htmlspecialchars($point); ?>
                                                         </span>
                                                     <?php endforeach; ?>
