@@ -148,9 +148,9 @@ class ObservationSourceHelper
         }
 
         $confLabel = match (true) {
-            $conf >= 0.80 => ['text' => '高確信', 'class' => 'text-green-600'],
-            $conf >= 0.55 => ['text' => '中確信', 'class' => 'text-yellow-600'],
-            $conf >= 0.35 => ['text' => '低確信', 'class' => 'text-orange-500'],
+            $conf >= 0.80 => ['text' => '高確信', 'class' => 'text-primary'],
+            $conf >= 0.55 => ['text' => '中確信', 'class' => 'text-gray-600'],
+            $conf >= 0.35 => ['text' => '低確信', 'class' => 'text-gray-500'],
             default       => ['text' => '参考', 'class' => 'text-gray-400'],
         };
 

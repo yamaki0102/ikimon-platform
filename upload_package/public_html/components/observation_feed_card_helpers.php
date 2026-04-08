@@ -16,7 +16,7 @@ function _sensor_detection_body(?string $speciesName, string $sciName, bool $has
             $html .= '<p class="text-[10px] text-muted italic">' . htmlspecialchars($sciName) . '</p>';
         }
     } else {
-        $color = $src === 'fieldscan' ? 'text-emerald-600' : 'text-violet-600';
+        $color = 'text-primary';
         $html .= '<p class="text-xs ' . $color . ' font-bold">同定中</p>';
     }
 

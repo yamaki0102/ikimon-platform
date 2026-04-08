@@ -134,7 +134,7 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
 
         <!-- センサー検出メイン表示 -->
         <a href="<?php echo htmlspecialchars($_detailUrl); ?>" class="block mx-4 mb-3 rounded-2xl overflow-hidden border"
-            style="background:var(--md-surface-container);border-color:<?php echo $_src === 'ikimon_sensor' ? 'rgba(139,92,246,0.2)' : 'rgba(16,185,129,0.2)'; ?>;">
+            style="background:var(--md-surface-container);border-color:rgba(16,185,129,0.2);">
 
             <?php if ($_hasPhoto): ?>
                 <!-- 写真あり: 横長レイアウト -->
@@ -151,8 +151,8 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
                 <div class="p-4">
                     <div class="flex items-center gap-3 mb-3">
                         <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                            style="background:rgba(139,92,246,0.15);">
-                            <i data-lucide="<?php echo $_detMeta['icon']; ?>" class="w-5 h-5 text-violet-600"></i>
+                            style="background:rgba(16,185,129,0.08);">
+                            <i data-lucide="<?php echo $_detMeta['icon']; ?>" class="w-5 h-5 text-primary"></i>
                         </div>
                         <div class="flex-1">
                             <?php echo _sensor_detection_body($_speciesName, $_sciName, $_hasId, $_detMeta, $_src); ?>
@@ -161,7 +161,7 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
                     <!-- 音声波形イメージ（装飾） -->
                     <div class="flex items-center gap-0.5 h-6 opacity-40">
                         <?php for ($wi = 0; $wi < 32; $wi++): ?>
-                            <div class="flex-1 bg-violet-400 rounded-sm" style="height:<?php echo rand(20, 100); ?>%"></div>
+                            <div class="flex-1 bg-primary rounded-sm" style="height:<?php echo rand(20, 100); ?>%"></div>
                         <?php endfor; ?>
                     </div>
                 </div>

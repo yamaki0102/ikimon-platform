@@ -783,28 +783,28 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                     <p class="text-xs text-warning leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['cautionary_note']); ?></p>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['observer_boost'])): ?>
-                                    <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.5rem 0.75rem;">
-                                        <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">この観察ですでに助かるところ</p>
-                                        <p class="text-emerald-800 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['observer_boost']); ?></p>
+                                    <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.5rem 0.75rem;border-left:3px solid var(--color-primary);">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">この観察ですでに助かるところ</p>
+                                        <p class="text-primary leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['observer_boost']); ?></p>
                                     </div>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['next_step'])): ?>
-                                    <div style="background:var(--md-primary-container);border-radius:var(--shape-md);padding:0.5rem 0.75rem;">
-                                        <p class="text-[10px] font-black text-sky-700 uppercase tracking-widest mb-1">次にあると絞りやすいもの</p>
-                                        <p class="text-sky-800 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['next_step']); ?></p>
+                                    <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.5rem 0.75rem;">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">次にあると絞りやすいもの</p>
+                                        <p class="text-gray-700 leading-relaxed"><?php echo htmlspecialchars($latestAiAssessment['next_step']); ?></p>
                                     </div>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['fun_fact']['body'])): ?>
                                     <div style="background:var(--md-tertiary-container);border-radius:var(--shape-md);padding:0.75rem;">
-                                        <p class="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">ちょっとした豆知識</p>
-                                        <p class="text-amber-900 leading-relaxed text-sm"><?php echo htmlspecialchars($latestAiAssessment['fun_fact']['body']); ?></p>
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ちょっとした豆知識</p>
+                                        <p class="text-gray-700 leading-relaxed text-sm"><?php echo htmlspecialchars($latestAiAssessment['fun_fact']['body']); ?></p>
                                         <?php if (!empty($latestAiAssessment['fun_fact']['search_keyword'])): ?>
-                                            <a href="https://www.google.com/search?q=<?php echo urlencode($latestAiAssessment['fun_fact']['search_keyword']); ?>" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-2 text-xs text-amber-700 hover:underline">
+                                            <a href="https://www.google.com/search?q=<?php echo urlencode($latestAiAssessment['fun_fact']['search_keyword']); ?>" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-2 text-xs text-primary hover:underline">
                                                 <i data-lucide="search" class="w-3 h-3" style="pointer-events:none"></i>
                                                 <?php echo htmlspecialchars($latestAiAssessment['fun_fact']['search_keyword']); ?> を調べる
                                             </a>
                                         <?php endif; ?>
-                                        <p class="text-[10px] text-amber-600/60 mt-2">※ <?php echo !empty($latestAiAssessment['fun_fact_grounded']) ? '図鑑データをもとに' : ''; ?>AIが生成した情報です。正確性は各自でご確認ください</p>
+                                        <p class="text-[10px] text-gray-400 mt-2">※ <?php echo !empty($latestAiAssessment['fun_fact_grounded']) ? '図鑑データをもとに' : ''; ?>AIが生成した情報です。正確性は各自でご確認ください</p>
                                     </div>
                                 <?php endif; ?>
                                 <?php if (!empty($latestAiAssessment['similar_taxa_to_compare']) || !empty($latestAiAssessment['missing_evidence'])): ?>
@@ -1297,7 +1297,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                     <?php endif; ?>
                                 </div>
                             </div>
-                            <span class="flex-shrink-0 <?php echo in_array(($obs['status'] ?? ''), ['研究用', '種レベル研究用', '研究利用可'], true) ? 'text-green-600 bg-green-500/10 border-green-500/20' : 'text-orange-500 bg-orange-500/10 border-orange-500/20'; ?> text-token-xs font-bold px-2 py-1 rounded-full border">
+                            <span class="flex-shrink-0 <?php echo in_array(($obs['status'] ?? ''), ['研究用', '種レベル研究用', '研究利用可'], true) ? 'text-primary bg-primary/10 border-primary/20' : 'text-gray-500 bg-gray-100 border-gray-200'; ?> text-token-xs font-bold px-2 py-1 rounded-full border">
                                 <?php echo htmlspecialchars($obs['status']); ?>
                             </span>
                         </div>
@@ -1308,11 +1308,11 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl leading-none">🧭</span>
                                 <div class="min-w-0">
-                                    <p class="text-sm font-bold text-sky-900"><?php echo htmlspecialchars($trustGuidance['headline']); ?></p>
-                                    <p class="text-xs text-sky-800/80 mt-1 leading-relaxed"><?php echo htmlspecialchars($trustGuidance['body']); ?></p>
+                                    <p class="text-sm font-bold text-gray-900"><?php echo htmlspecialchars($trustGuidance['headline']); ?></p>
+                                    <p class="text-xs text-gray-600 mt-1 leading-relaxed"><?php echo htmlspecialchars($trustGuidance['body']); ?></p>
                                     <div class="mt-3 flex flex-wrap gap-2">
                                         <?php foreach ($trustGuidance['steps'] as $step): ?>
-                                            <span class="inline-flex items-center rounded-full bg-white border border-sky-200 px-3 py-1 text-xs text-sky-900">
+                                            <span class="inline-flex items-center rounded-full bg-white border border-emerald-100 px-3 py-1 text-xs text-gray-700">
                                                 <?php echo htmlspecialchars($step); ?>
                                             </span>
                                         <?php endforeach; ?>
@@ -1326,19 +1326,19 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         <div class="mb-6" style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:1rem;">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <p class="text-sm font-bold text-violet-900"><?php echo htmlspecialchars((string)($trustProgress['headline'] ?? '信頼済みへの進み具合')); ?></p>
-                                    <p class="text-xs text-violet-900/75 mt-1 leading-relaxed"><?php echo htmlspecialchars((string)($trustProgress['next_label'] ?? '')); ?></p>
+                                    <p class="text-sm font-bold text-gray-900"><?php echo htmlspecialchars((string)($trustProgress['headline'] ?? '信頼済みへの進み具合')); ?></p>
+                                    <p class="text-xs text-gray-500 mt-1 leading-relaxed"><?php echo htmlspecialchars((string)($trustProgress['next_label'] ?? '')); ?></p>
                                 </div>
-                                <span class="inline-flex items-center rounded-full bg-white border border-violet-200 px-3 py-1 text-xs font-black text-violet-700">
+                                <span class="inline-flex items-center rounded-full bg-white border border-emerald-100 px-3 py-1 text-xs font-black text-primary">
                                     <?php echo (int)($trustProgress['progress'] ?? 0); ?>%
                                 </span>
                             </div>
                             <div class="mt-3 h-2 rounded-full bg-white/80 overflow-hidden">
-                                <div class="h-full rounded-full bg-gradient-to-r from-violet-500 via-primary to-emerald-500" style="width: <?php echo (int)($trustProgress['progress'] ?? 0); ?>%"></div>
+                                <div class="h-full rounded-full bg-primary" style="width: <?php echo (int)($trustProgress['progress'] ?? 0); ?>%"></div>
                             </div>
                             <div class="mt-3 grid grid-cols-2 gap-2">
                                 <?php foreach (($trustProgress['checkpoints'] ?? []) as $checkpoint): ?>
-                                    <div class="rounded-2xl border px-3 py-2 <?php echo !empty($checkpoint['complete']) ? 'border-emerald-200 bg-white text-emerald-900' : 'border-violet-100 bg-white/80 text-violet-900'; ?>">
+                                    <div class="rounded-2xl border px-3 py-2 <?php echo !empty($checkpoint['complete']) ? 'border-emerald-100 bg-white text-gray-800' : 'border-gray-100 bg-white/80 text-gray-600'; ?>">
                                         <div class="text-[11px] font-bold flex items-center gap-1.5">
                                             <span><?php echo !empty($checkpoint['complete']) ? '✓' : '・'; ?></span>
                                             <?php echo htmlspecialchars((string)($checkpoint['label'] ?? '')); ?>
@@ -1578,22 +1578,22 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
                     <!-- Omoikane Insights (New) -->
                     <?php if ($omoikaneTraits): ?>
-                        <div class="mt-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-5 border border-indigo-200 shadow-sm relative overflow-hidden">
+                        <div class="mt-6 bg-white rounded-xl p-5 border border-emerald-100 shadow-sm relative overflow-hidden">
                             <div class="absolute -right-4 -top-4 opacity-[0.03] pointer-events-none">
-                                <span class="material-symbols-outlined text-9xl text-indigo-900">psychiatry</span>
+                                <span class="material-symbols-outlined text-9xl text-primary">psychiatry</span>
                             </div>
                             <div class="flex items-center gap-2 mb-3 relative z-10">
-                                <span class="material-symbols-outlined text-indigo-600">psychiatry</span>
-                                <h3 class="font-black text-indigo-900 text-sm tracking-wider">オモイカネ インサイト</h3>
+                                <span class="material-symbols-outlined text-primary">psychiatry</span>
+                                <h3 class="font-black text-gray-900 text-sm tracking-wider">オモイカネ インサイト</h3>
                             </div>
-                            <div class="space-y-3 relative z-10 text-sm text-indigo-900/80">
+                            <div class="space-y-3 relative z-10 text-sm text-gray-700">
                                 <?php if (!empty($omoikaneTraits['habitat'])): ?>
-                                    <div class="flex items-start gap-2 bg-white/50 rounded-lg p-3">
-                                        <span class="material-symbols-outlined text-indigo-400 text-base shrink-0 mt-0.5">landscape</span>
+                                    <div class="flex items-start gap-2 rounded-lg p-3" style="background:rgba(16,185,129,0.04)">
+                                        <span class="material-symbols-outlined text-primary text-base shrink-0 mt-0.5">landscape</span>
                                         <div>
-                                            <div class="text-[10px] font-bold text-indigo-500 mb-0.5 uppercase tracking-widest">文献上の環境</div>
+                                            <div class="text-[10px] font-bold text-gray-400 mb-0.5 uppercase tracking-widest">文献上の環境</div>
                                             <div class="font-medium leading-tight mb-1 text-xs"><?php echo htmlspecialchars($omoikaneTraits['habitat']); ?></div>
-                                            <div class="text-[10px] text-indigo-600 bg-indigo-100/50 inline-block px-1.5 py-0.5 rounded">
+                                            <div class="text-[10px] text-gray-500 bg-white/80 border border-emerald-100 inline-block px-1.5 py-0.5 rounded">
                                                 ✨ あなたの報告が新しい生息地の発見につながるかも！
                                             </div>
                                         </div>
@@ -1601,12 +1601,12 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 <?php endif; ?>
 
                                 <?php if (!empty($omoikaneTraits['season'])): ?>
-                                    <div class="flex items-start gap-2 bg-white/50 rounded-lg p-3">
-                                        <span class="material-symbols-outlined text-indigo-400 text-base shrink-0 mt-0.5">calendar_month</span>
+                                    <div class="flex items-start gap-2 rounded-lg p-3" style="background:rgba(16,185,129,0.04)">
+                                        <span class="material-symbols-outlined text-primary text-base shrink-0 mt-0.5">calendar_month</span>
                                         <div>
-                                            <div class="text-[10px] font-bold text-indigo-500 mb-0.5 uppercase tracking-widest">出現時期</div>
+                                            <div class="text-[10px] font-bold text-gray-400 mb-0.5 uppercase tracking-widest">出現時期</div>
                                             <div class="font-medium leading-tight mb-1 text-xs"><?php echo htmlspecialchars($omoikaneTraits['season']); ?></div>
-                                            <div class="text-[10px] text-indigo-600 bg-indigo-100/50 inline-block px-1.5 py-0.5 rounded">
+                                            <div class="text-[10px] text-gray-500 bg-white/80 border border-emerald-100 inline-block px-1.5 py-0.5 rounded">
                                                 ⏱️ 季節外れの記録なら、とても貴重なデータになります。
                                             </div>
                                         </div>
@@ -1614,10 +1614,10 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                 <?php endif; ?>
 
                                 <?php if (!empty($omoikaneTraits['altitude'])): ?>
-                                    <div class="flex items-start gap-2 bg-white/50 rounded-lg p-3">
-                                        <span class="material-symbols-outlined text-indigo-400 text-base shrink-0 mt-0.5">terrain</span>
+                                    <div class="flex items-start gap-2 rounded-lg p-3" style="background:rgba(16,185,129,0.04)">
+                                        <span class="material-symbols-outlined text-primary text-base shrink-0 mt-0.5">terrain</span>
                                         <div>
-                                            <div class="text-[10px] font-bold text-indigo-500 mb-0.5 uppercase tracking-widest">標高</div>
+                                            <div class="text-[10px] font-bold text-gray-400 mb-0.5 uppercase tracking-widest">標高</div>
                                             <div class="font-medium leading-tight text-xs"><?php echo htmlspecialchars($omoikaneTraits['altitude']); ?></div>
                                         </div>
                                     </div>
