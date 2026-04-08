@@ -69,7 +69,7 @@ class ObservationSourceHelper
         return match ($source) {
             'post' => [
                 'label'              => 'フィールドノート',
-                'short_label'        => '投稿',
+                'short_label'        => 'ノート',
                 'icon'               => 'camera',
                 'color_class'        => 'bg-blue-500/15',
                 'text_color_class'   => 'text-blue-700',
@@ -80,7 +80,7 @@ class ObservationSourceHelper
             ],
             'ikimon_sensor' => [
                 'label'              => 'AIレンズ',
-                'short_label'        => 'センサー',
+                'short_label'        => 'AIレンズ',
                 'icon'               => 'radio',
                 'color_class'        => 'bg-violet-500/15',
                 'text_color_class'   => 'text-violet-700',

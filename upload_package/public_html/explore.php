@@ -173,10 +173,10 @@ Auth::init();
                 </template>
                 <span class="w-px h-5 bg-border shrink-0 mx-1 self-center"></span>
                 <button @click="sourceFilter='post'; load(true)" class="m3-chip" :class="sourceFilter === 'post' ? 'selected' : ''">
-                    📷 投稿
+                    📷 ノート
                 </button>
                 <button @click="sourceFilter='ikimon_sensor'; load(true)" class="m3-chip" :class="sourceFilter === 'ikimon_sensor' ? 'selected' : ''">
-                    📡 センサー
+                    📡 AIレンズ
                 </button>
                 <button @click="sourceFilter='fieldscan'; load(true)" class="m3-chip" :class="sourceFilter === 'fieldscan' ? 'selected' : ''">
                     🔬 スキャン
