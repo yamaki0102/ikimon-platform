@@ -762,6 +762,10 @@ PROMPT;
                 'type' => 'ARRAY',
                 'items' => ['type' => 'STRING'],
             ],
+            'distinguishing_tips' => [
+                'type' => 'ARRAY',
+                'items' => ['type' => 'STRING'],
+            ],
             'missing_evidence' => [
                 'type' => 'ARRAY',
                 'items' => ['type' => 'STRING'],
@@ -791,6 +795,7 @@ PROMPT;
             'cautionary_note',
             'diagnostic_features_seen',
             'similar_taxa_to_compare',
+            'distinguishing_tips',
             'missing_evidence',
             'references',
             'fun_fact',
