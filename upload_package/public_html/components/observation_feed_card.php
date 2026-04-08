@@ -271,7 +271,9 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
 
 <?php
 // ── ヘルパー関数群（このファイル内でのみ使用）──
+// foreach内で複数回includeされるため、function_existsガードで再宣言Fatal Errorを防ぐ
 
+if (!function_exists('_sensor_detection_body')):
 function _sensor_detection_body(?string $speciesName, string $sciName, bool $hasId, array $detMeta, string $src): string
 {
     $html = '';
@@ -297,7 +299,9 @@ function _sensor_detection_body(?string $speciesName, string $sciName, bool $has
     }
     return $html;
 }
+endif;
 
+if (!function_exists('_fieldscan_env_summary')):
 function _fieldscan_env_summary(array $obs): string
 {
     $env = $obs['environment_snapshot'] ?? $obs['env_snapshot'] ?? [];
@@ -322,7 +326,9 @@ function _fieldscan_env_summary(array $obs): string
 
     return '<div class="flex flex-wrap gap-1.5 mt-2">' . implode('', $parts) . '</div>';
 }
+endif;
 
+if (!function_exists('_obs_card_menu')):
 function _obs_card_menu(string $obsId, string $detailUrl, string $title, bool $loggedIn): string
 {
     $safeTitle = htmlspecialchars($title, ENT_QUOTES);
@@ -345,7 +351,9 @@ function _obs_card_menu(string $obsId, string $detailUrl, string $title, bool $l
     </div>
 HTML;
 }
+endif;
 
+if (!function_exists('_obs_card_actions')):
 function _obs_card_actions(string $obsId, array $reactTypes, int $comments, string $detailUrl): string
 {
     $html = '<div class="px-4 py-2 pb-0 flex items-center gap-0.5">';
@@ -373,3 +381,4 @@ COMMENT;
 
     return $html;
 }
+endif;

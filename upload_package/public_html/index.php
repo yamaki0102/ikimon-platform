@@ -14,7 +14,7 @@ $currentUser = Auth::user();
 // Fetch Data for Feed with Filters
 $filter = $_GET['filter'] ?? 'all';
 $followedUserIds = ($currentUser && $filter === 'following') ? FollowManager::getFollowedUserIds($currentUser['id']) : [];
-$latest_obs = DataStore::getLatest('observations', 6, function ($item) use ($filter, $currentUser, $followedUserIds) {
+$latest_obs = DataStore::getLatest('observations', 12, function ($item) use ($filter, $currentUser, $followedUserIds) {
     // Exclude test/E2E users, guest users, and broken images
     $userName = $item['user_name'] ?? '';
     if (strpos($userName, 'E2E_') === 0) return false;
