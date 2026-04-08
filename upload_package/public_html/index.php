@@ -258,12 +258,12 @@ $meta_description = '道端の花の名前がわかると、世界の解像度�
 
         <?php if ($currentUser): ?>
         <section class="max-w-5xl mx-auto px-4 md:px-6" style="margin-top:var(--phi-lg);margin-bottom:var(--phi-xl)">
-            <div id="today-habit-card-home" class="p-5 md:p-6" style="border-radius:var(--shape-xl);box-shadow:var(--elev-1);background:<?= $todayHabitComplete ? 'var(--md-primary-container)' : 'var(--md-tertiary-container)' ?>;">
+            <div id="today-habit-card-home" class="p-5 md:p-6" style="border-radius:var(--shape-xl);box-shadow:var(--elev-1);background:var(--md-primary-container);<?= $todayHabitComplete ? 'border-left:4px solid var(--color-primary);' : '' ?>">
                 <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div class="min-w-0">
-                        <div class="text-token-xs font-black tracking-widest <?= $todayHabitComplete ? 'text-emerald-700' : 'text-amber-700' ?>">TODAY</div>
+                        <div class="text-token-xs font-black tracking-widest text-primary">TODAY</div>
                         <h2 class="text-xl font-black text-text mt-1"><?= htmlspecialchars($todayState['title'] ?? '今日は1つだけでいい。継続を積もう') ?></h2>
-                        <p class="text-sm mt-2 <?= $todayHabitComplete ? 'text-emerald-900/80' : 'text-amber-950/80' ?>">
+                        <p class="text-sm mt-2 text-gray-700">
                             <?= htmlspecialchars($todayState['message'] ?? '') ?>
                         </p>
                     </div>
@@ -277,7 +277,7 @@ $meta_description = '道端の花の名前がわかると、世界の解像度�
                 <div class="mt-4 flex flex-wrap gap-2">
                     <?php foreach ($todayLabels as $type => $label): ?>
                     <?php $isDone = in_array($type, $todayTypes, true); ?>
-                    <span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold <?= $isDone ? 'bg-white text-emerald-700 border border-emerald-300' : 'bg-white/70 text-gray-500 border border-white/80' ?>">
+                    <span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold <?= $isDone ? 'bg-white text-primary border border-emerald-200' : 'bg-white/70 text-gray-500 border border-white/80' ?>">
                         <span><?= $isDone ? '✓' : '・' ?></span><?= htmlspecialchars($label) ?>
                     </span>
                     <?php endforeach; ?>
@@ -285,7 +285,7 @@ $meta_description = '道端の花の名前がわかると、世界の解像度�
 
                 <?php if (!empty($todayState['progress_line'])): ?>
                 <div class="mt-4 p-4" style="background:var(--md-surface-container-low);border-radius:var(--shape-xl);">
-                    <div class="text-token-xs font-black tracking-widest <?= $todayHabitComplete ? 'text-emerald-700' : 'text-amber-700' ?>">PROGRESS</div>
+                    <div class="text-token-xs font-black tracking-widest text-primary">PROGRESS</div>
                     <p class="text-sm text-text mt-1"><?= htmlspecialchars($todayState['progress_line']) ?></p>
                 </div>
                 <?php endif; ?>
@@ -294,13 +294,13 @@ $meta_description = '道端の花の名前がわかると、世界の解像度�
                 <div class="mt-4 p-4 md:p-5" style="background:var(--md-surface-container-low);border-radius:var(--shape-xl);">
                     <div class="flex items-start justify-between gap-3">
                         <div>
-                            <div class="text-token-xs font-black tracking-widest <?= $todayHabitComplete ? 'text-emerald-700' : 'text-amber-700' ?>">MY NATURE STORY</div>
+                            <div class="text-token-xs font-black tracking-widest text-primary">MY NATURE STORY</div>
                             <h3 class="text-base font-black text-text mt-1">自分の自然史</h3>
                             <?php if (!empty($natureTimeline['headline'])): ?>
                             <p class="text-sm text-text/80 mt-1"><?= htmlspecialchars($natureTimeline['headline']) ?></p>
                             <?php endif; ?>
                         </div>
-                        <div class="shrink-0 rounded-full px-3 py-1 text-token-xs font-bold <?= $todayHabitComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' ?>">
+                        <div class="shrink-0 rounded-full px-3 py-1 text-token-xs font-bold bg-primary/10 text-primary">
                             軌跡
                         </div>
                     </div>

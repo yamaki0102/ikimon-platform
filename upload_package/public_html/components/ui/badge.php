@@ -17,12 +17,12 @@ $icon   = $badge_icon   ?? '';
 $size   = $badge_size   ?? 'xs';
 
 $classes = match($type) {
-    'redlist'      => 'bg-red-100 text-red-700 border border-red-200',
-    'invasive'     => 'bg-amber-100 text-amber-800 border border-amber-200',
-    'identified'   => 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-    'unidentified' => 'bg-slate-100 text-slate-600 border border-slate-200',
-    'new'          => 'bg-violet-100 text-violet-700 border border-violet-200',
-    default        => $badge_color ?? 'bg-slate-100 text-slate-600 border border-slate-200',
+    'redlist'      => 'bg-emerald-50 text-red-700 border border-red-200',
+    'invasive'     => 'bg-emerald-50 text-amber-700 border border-amber-200',
+    'identified'   => 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+    'unidentified' => 'bg-emerald-50 text-gray-500 border border-gray-200',
+    'new'          => 'bg-emerald-50 text-gray-600 border border-gray-200',
+    default        => $badge_color ?? 'bg-emerald-50 text-gray-500 border border-gray-200',
 };
 
 $textSize = $size === 'sm' ? 'text-xs' : 'text-[11px]';

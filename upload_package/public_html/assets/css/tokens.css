@@ -36,8 +36,8 @@
 
   /* ── Surface & Background ── */
   --color-bg-base: #ffffff;
-  --color-bg-surface: #f8faf9;
-  /* Soft Mint */
+  --color-bg-surface: #f9fffe;
+  /* Whisper Green: ごく淡い緑白、グレーでなく自然の息吹 */
   --color-bg-elevated: #ffffff;
 
   /* ── Text ── */
@@ -274,16 +274,16 @@
   /* ── M3 Color System — Emerald Scheme ── */
   --md-primary:                #0a7c5c;   /* Emerald-700: WCAG AA on white */
   --md-on-primary:             #ffffff;
-  --md-primary-container:      #a8f0d0;   /* Emerald-100 tonal */
-  --md-on-primary-container:   #002117;
+  --md-primary-container:      #ecfdf5;   /* emerald-50: かすかな緑の息吹 */
+  --md-on-primary-container:   #065f46;   /* emerald-800: AA contrast on emerald-50 */
   --md-secondary:              #4a635a;
   --md-on-secondary:           #ffffff;
-  --md-secondary-container:    #cce8dc;
-  --md-on-secondary-container: #062019;
+  --md-secondary-container:    #f0fdf4;   /* emerald-50 lighter: 同一ファミリーに統一 */
+  --md-on-secondary-container: #374151;   /* gray-700: 中立テキスト */
   --md-tertiary:               #7e5700;   /* Amber tonal (badges, warnings) */
   --md-on-tertiary:            #ffffff;
-  --md-tertiary-container:     #ffdea0;
-  --md-on-tertiary-container:  #271900;
+  --md-tertiary-container:     #f0fdf4;   /* emerald-50: 黄背景を廃止 */
+  --md-on-tertiary-container:  #374151;   /* gray-700: 中立テキスト */
   --md-error:                  #b3261e;
   --md-on-error:               #ffffff;
   --md-error-container:        #f9dedc;
@@ -292,9 +292,9 @@
   --md-on-surface:             #181c1a;
   --md-surface-variant:        #dbe5df;
   --md-on-surface-variant:     #404944;
-  --md-surface-container-low:  #eff4f1;
-  --md-surface-container:      #e9eee9;
-  --md-surface-container-high: #e4e8e5;
+  --md-surface-container-low:  #f9fffe;   /* ほぼ白、4%緑ティント */
+  --md-surface-container:      #f0fdf4;   /* emerald-50: 統一コンテナ背景 */
+  --md-surface-container-high: #d1fae5;   /* emerald-100: より強調が必要な場合 */
   --md-outline:                #707974;
   --md-outline-variant:        #bfc9c2;
   --md-inverse-surface:        #2d312f;
