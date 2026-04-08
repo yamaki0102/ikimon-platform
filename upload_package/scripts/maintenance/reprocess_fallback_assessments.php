@@ -23,7 +23,7 @@ fwrite(STDERR, "=== Reprocess Fallback Assessments ===\n");
 fwrite(STDERR, "Mode: " . ($dryRun ? 'DRY RUN' : 'LIVE') . "\n");
 fwrite(STDERR, "Limit: $limit\n\n");
 
-$partitionFiles = glob(DATA_DIR . 'observations/*.json') ?: [];
+$partitionFiles = glob(rtrim(DATA_DIR, '/') . '/observations/*.json') ?: [];
 sort($partitionFiles);
 
 $fallbackObservations = [];
