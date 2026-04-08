@@ -1066,7 +1066,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 </div>
 
                 <?php elseif ($_detailSrc === 'post'): ?>
-                <!-- 観察投稿: 証拠・信頼性バッジ -->
+                <!-- フィールドノート: 証拠・信頼性バッジ -->
                 <div style="background:var(--md-surface-container);border-radius:var(--shape-xl);overflow:hidden;box-shadow:var(--elev-1);">
                     <div class="px-5 py-4 flex items-center gap-3">
                         <div class="w-9 h-9 rounded-full flex items-center justify-center bg-blue-500/15 border border-blue-400/30">
@@ -1074,7 +1074,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                         </div>
                         <div class="flex-1">
                             <p class="text-xs font-black uppercase tracking-widest text-faint">記録方法</p>
-                            <p class="text-sm font-bold text-text">観察投稿</p>
+                            <p class="text-sm font-bold text-text">フィールドノート</p>
                             <p class="text-xs text-muted mt-0.5">あなたが現場で撮影した写真による観察記録です。</p>
                         </div>
                         <?php echo ObservationSourceHelper::renderBadge($_detailSrc, true); ?>

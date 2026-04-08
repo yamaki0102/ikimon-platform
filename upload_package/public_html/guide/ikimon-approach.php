@@ -469,14 +469,14 @@ Auth::init();
             </p>
 
             <div class="grid grid-cols-1 gap-4">
-                <!-- 観察投稿 -->
+                <!-- フィールドノート -->
                 <div class="feature-card">
                     <div class="flex items-start gap-4">
                         <div class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
                             <i data-lucide="camera" class="w-6 h-6 text-emerald-600"></i>
                         </div>
                         <div>
-                            <h3 class="font-black text-base mb-1">観察投稿</h3>
+                            <h3 class="font-black text-base mb-1">フィールドノート</h3>
                             <p class="text-xs text-emerald-600 font-bold mb-2">いちばんカンタン</p>
                             <p class="text-sm text-muted leading-relaxed mb-3">
                                 生き物を見つけたら、スマホで写真を撮って投稿するだけ。撮影した写真から<strong class="text-text">場所（GPS）・日時・方角を自動で読み取る</strong>ので、キミが入力する必要はほとんどありません。

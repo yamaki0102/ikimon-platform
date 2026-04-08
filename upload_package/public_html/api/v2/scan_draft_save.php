@@ -4,7 +4,7 @@
  * API v2: Scan Draft Save — センサースキャン下書き保存
  *
  * センサースキャンの写真・予備同定結果を保存する。
- * 観察投稿 (observations) とは完全に独立したデータ (scan_drafts) に保存される。
+ * フィールドノート (observations) とは完全に独立したデータ (scan_drafts) に保存される。
  * フィード・ランキング・観察数のカウント対象外。
  *
  * POST /api/v2/scan_draft_save.php

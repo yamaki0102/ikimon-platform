@@ -27,19 +27,51 @@ Auth::init();
 
             <div class="space-y-8">
 
+                <!-- v0.10.0 -->
+                <article class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.10.0</span>
+                        <time class="text-sm text-gray-500">2026年4月上旬</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">フィールドスキャン Perch v2 + おすすめ調査エリア</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>おすすめ調査エリア</strong>: GBIF・iNaturalistの広域データとikimonのローカルデータを比較し、発見チャンスが高い場所を地図上に表示。「この5kmにGBIFで200種・iNaturalistで111種の記録があるのに、ikimonではまだ未確認」というエリアを優先的に提案します</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>フィールドスキャン — Perch v2 デュアル音声エンジン搭載</strong>: Google DeepMind の Perch v2（鳥類特化の学術モデル）を BirdNET と並列動作させるデュアル音声エンジンを搭載。2つのAIが合意した検出のみを採用し、精度が大幅に向上しました。Malerba et al. 2026 の学術エビデンスに基づく品質強化も含みます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>フィールドスキャン — スキャン後の結果シート</strong>: セッション終了後に「今回の検出種・確信度・音声クリップ」を一画面でレビューできるようになりました。後から確認してフィールドノートに昇格させることもできます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>AIレンズ 精度向上</strong>: 検出候補の表示閾値を緩和し、これまで見逃していた候補も画面に表示されるようになりました。GeoPlausibilityフィルタにより日本国外の誤検出を自動除去します</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>静岡UXテスト 20項目改善</strong>: 実際の利用シーン（投稿・観察閲覧・センサー起動）でのテストをもとに、画面遷移・ボタン配置・フィードバック表示を改善しました</span>
+                        </li>
+                    </ul>
+                </article>
+
                 <!-- v0.9.0 -->
                 <article class="relative pl-8 border-l-2 border-emerald-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
                     <div class="flex items-center gap-3 mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.9.0</span>
                         <time class="text-sm text-gray-500">2026年3月31日</time>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
                     </div>
-                    <h2 class="text-xl font-bold mb-3 text-gray-900">いきものセンサー — 散歩しながらAIが語りかける</h2>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">AIレンズ — 散歩しながらAIが語りかける</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
                         <li class="flex items-start gap-2">
                             <span class="text-emerald-400 shrink-0">✓</span>
-                            <span><strong>いきものセンサー</strong>: 散歩・自転車・ドライブ中にAIが音声でリアルタイムガイド。近くで検出した生き物の生態・保全の話を自動で語りかけます</span>
+                            <span><strong>AIレンズ</strong>: 散歩・自転車・ドライブ中にAIが音声でリアルタイムガイド。近くで検出した生き物の生態・保全の話を自動で語りかけます</span>
                         </li>
                         <li class="flex items-start gap-2">
                             <span class="text-emerald-400 shrink-0">✓</span>
@@ -700,7 +732,7 @@ Auth::init();
                     <ul class="space-y-2 text-gray-600 text-sm">
                         <li class="flex items-start gap-2">
                             <span class="text-purple-400 shrink-0">✓</span>
-                            <span><strong>観察投稿機能</strong>: 写真から生き物を記録</span>
+                            <span><strong>フィールドノート</strong>: 写真から生き物を記録</span>
                         </li>
                         <li class="flex items-start gap-2">
                             <span class="text-purple-400 shrink-0">✓</span>

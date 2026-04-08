@@ -999,7 +999,7 @@ class LiveScanner {
     /**
      * ユーザーが「スキャン！」を押したとき呼ぶ。
      * 1フレームをキャプチャ → Gemini で科/属同定 → センサースキャンとして保存。
-     * 観察投稿とは別データ (scan_drafts) に保存される。
+     * フィールドノートとは別データ (scan_drafts) に保存される。
      *
      * @returns {{ name, scientific, family, confidence, category, note, photoUrl, draftId }|null}
      */

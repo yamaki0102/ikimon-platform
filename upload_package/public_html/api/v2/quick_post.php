@@ -1,7 +1,7 @@
 <?php
 
 /**
- * API v2: Quick Post — ライブスキャン中の写真を即座に観察投稿
+ * API v2: Quick Post — ライブスキャン中の写真を即座にフィールドノート
  *
  * POST /api/v2/quick_post.php
  *   - photos[]: 1〜3枚のJPEG

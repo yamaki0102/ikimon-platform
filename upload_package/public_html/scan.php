@@ -9,7 +9,7 @@
  *   1. カメラ起動（getUserMedia）
  *   2. シャッターボタンまたは自動キャプチャ
  *   3. api/v2/ai_classify.php に送信
- *   4. 結果表示 → ワンタップで観察投稿
+ *   4. 結果表示 → ワンタップでフィールドノート
  */
 
 require_once __DIR__ . '/../config/config.php';

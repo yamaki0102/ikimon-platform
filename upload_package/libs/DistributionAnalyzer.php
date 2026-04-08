@@ -74,7 +74,7 @@ class DistributionAnalyzer
     }
 
     /**
-     * 観察投稿時に分布異常をチェックし、結果を observation に付加
+     * フィールドノート投稿時に分布異常をチェックし、結果を observation に付加
      *
      * @param array $observation 観察データ
      * @return array|null 分布異常情報 or null

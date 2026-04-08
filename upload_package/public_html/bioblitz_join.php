@@ -244,7 +244,7 @@ $meta_title = $event ? htmlspecialchars($event['title'], ENT_QUOTES, 'UTF-8') . 
                             </button>
                         </form>
                         <p class="text-[11px] text-center text-gray-400 mt-3">
-                            ゲストアカウントが自動作成されます。いきものセンサーでこのエリアを探索できます。
+                            ゲストアカウントが自動作成されます。AIレンズでこのエリアを探索できます。
                         </p>
                     </div>
                 </div>

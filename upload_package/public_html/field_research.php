@@ -38,7 +38,7 @@ if (!$currentUser) {
 
 <head>
     <?php
-    $meta_title = "いきものセンサー";
+    $meta_title = "AIレンズ";
     include __DIR__ . '/components/meta.php';
     ?>
     <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
@@ -392,7 +392,7 @@ if (!$currentUser) {
             プロフィール
         </a>
         <?php endif; ?>
-        <span class="top-bar-title" x-text="sessionActive ? (modeLabels[currentMovementMode] || 'センサー ON') : (window.__siteName || 'いきものセンサー')"></span>
+        <span class="top-bar-title" x-text="sessionActive ? (modeLabels[currentMovementMode] || 'センサー ON') : (window.__siteName || 'AIレンズ')"></span>
         <div style="width:60px;display:flex;justify-content:flex-end;">
             <span x-show="sessionActive" x-cloak class="text-xs font-mono font-bold" style="color:#10b981;" x-text="formatElapsed(sessionElapsed)"></span>
         </div>
@@ -911,7 +911,7 @@ if (!$currentUser) {
     <!-- ════════════════════════════════════════════════════
          CAMERA PiP + スキャン！ UI
          センサー起動中（ドライブ以外）に常時表示。
-         観察投稿とは別のセンサースキャンとして保存される。
+         フィールドノートとは別のセンサースキャンとして保存される。
     ════════════════════════════════════════════════════ -->
     <div x-show="sessionActive && currentMovementMode !== 'drive' && manualTransportMode !== 'car'" x-cloak
          style="position:absolute;bottom:calc(max(24px,env(safe-area-inset-bottom,16px)) + 152px);right:16px;z-index:30;display:flex;flex-direction:column;align-items:center;gap:6px;">
@@ -944,7 +944,7 @@ if (!$currentUser) {
         </div>
     </div>
 
-    <!-- Scan result toast (センサースキャン — 観察投稿とは別) -->
+    <!-- Scan result toast (センサースキャン — フィールドノートとは別) -->
     <div x-show="scanResult" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
          style="position:absolute;top:56px;left:12px;right:12px;z-index:50;pointer-events:none;">
         <div style="background:rgba(18,18,24,0.96);border-radius:16px;padding:12px 14px;border:1px solid rgba(141,212,179,0.2);box-shadow:0 8px 32px rgba(0,0,0,0.5);pointer-events:auto;max-width:440px;margin:0 auto;">
@@ -971,7 +971,7 @@ if (!$currentUser) {
                 <span style="font-size:11px;color:#c8c4ce;" x-text="scanDraftCount === 1 ? 'あと2枚撮ると同定精度が上がるよ' : 'あと1枚！角度や距離を変えてみて'"></span>
             </div>
             <!-- Obs separation notice -->
-            <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:6px;text-align:center;">観察投稿には含まれません・あとから同定できます</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:6px;text-align:center;">フィールドノートには含まれません・あとから同定できます</div>
         </div>
     </div>
 
@@ -1058,7 +1058,7 @@ if (!$currentUser) {
                     return sp ? sp.emoji : '🤖';
                 },
 
-                // Scan (センサースキャン — 観察投稿とは別)
+                // Scan (センサースキャン — フィールドノートとは別)
                 scanResult: null,
                 scanLoading: false,
                 scanDraftCount: 0,
@@ -1371,7 +1371,7 @@ if (!$currentUser) {
                     this._sendLog('🔊 ON mode=' + (window.VoiceGuide ? VoiceGuide.getVoiceMode() : 'none'));
                 },
 
-                // ── スキャン！ (センサースキャン — 観察投稿とは別) ──
+                // ── スキャン！ (センサースキャン — フィールドノートとは別) ──
                 async triggerScan() {
                     if (this.scanLoading || !this.liveScanner) return;
                     this.scanLoading = true;

@@ -5,8 +5,8 @@
  * 観察データのソースを統一的に扱う。
  *
  * 3つのソース:
- *   post         → 観察投稿（ユーザーが能動的に写真撮影・投稿）
- *   ikimon_sensor → いきものセンサー（ブラウザLiveScanner: Gemini Vision + Perch/BirdNET）
+ *   post         → フィールドノート（ユーザーが能動的に写真撮影・投稿）
+ *   ikimon_sensor → AIレンズ（ブラウザLiveScanner: Gemini Vision + Perch/BirdNET）
  *   fieldscan    → フィールドスキャン（Android APK: TFLite + BirdNET + 環境センサー）
  */
 class ObservationSourceHelper
@@ -68,7 +68,7 @@ class ObservationSourceHelper
     {
         return match ($source) {
             'post' => [
-                'label'              => '観察投稿',
+                'label'              => 'フィールドノート',
                 'short_label'        => '投稿',
                 'icon'               => 'camera',
                 'color_class'        => 'bg-blue-500/15',
@@ -79,14 +79,14 @@ class ObservationSourceHelper
                 'evidence_note'      => '写真による目視確認。同定センターでコミュニティレビュー可能。',
             ],
             'ikimon_sensor' => [
-                'label'              => 'いきものセンサー',
+                'label'              => 'AIレンズ',
                 'short_label'        => 'センサー',
                 'icon'               => 'radio',
                 'color_class'        => 'bg-violet-500/15',
                 'text_color_class'   => 'text-violet-700',
                 'border_color_class' => 'border-violet-400/30',
                 'emoji'              => '📡',
-                'description'        => 'いきものセンサー（ブラウザ）がAIで自動検出しました。',
+                'description'        => 'AIレンズ（ブラウザ）がAIで自動検出しました。',
                 'evidence_note'      => 'Gemini Vision（視覚）またはBirdNET + Perch v2（音声）による機械検出。',
             ],
             'fieldscan' => [
@@ -101,7 +101,7 @@ class ObservationSourceHelper
                 'evidence_note'      => 'BirdNET v2.4 + Perch v2 デュアルエンジン音声解析。温度・気圧・照度・音響指数も同時記録。',
             ],
             default => [
-                'label'              => '観察投稿',
+                'label'              => 'フィールドノート',
                 'short_label'        => '投稿',
                 'icon'               => 'leaf',
                 'color_class'        => 'bg-gray-500/15',

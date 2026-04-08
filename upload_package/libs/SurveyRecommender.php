@@ -17,6 +17,7 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/CanonicalStore.php';
+require_once __DIR__ . '/ScanRecommendationEngine.php';
 
 class SurveyRecommender
 {
@@ -43,6 +44,21 @@ class SurveyRecommender
                 'message'  => count($spatialGaps) . '個のグリッドセルがまだ調査されていません',
                 'action'   => 'ウォークまたはライブスキャンで調査',
                 'data'     => $spatialGaps,
+            ];
+        }
+
+        // 1.5. 広域データギャップ: GBIF/iNaturalist vs ローカル
+        $broadGaps = self::findBroadDataGaps($lat, $lng);
+        if (!empty($broadGaps)) {
+            $top = $broadGaps[0];
+            $recommendations[] = [
+                'type'     => 'broad_data_gap',
+                'priority' => 'high',
+                'icon'     => '🌍',
+                'title'    => '広域データベースに未反映の観察チャンス',
+                'message'  => $top['reasons'][0] ?? 'GBIFやiNaturalistのデータとの差分があります',
+                'action'   => 'AIレンズまたはフィールドスキャンで調査',
+                'data'     => $broadGaps,
             ];
         }
 
@@ -83,6 +99,22 @@ class SurveyRecommender
         });
 
         return array_slice($recommendations, 0, 5); // 最大5件
+    }
+
+    /**
+     * 広域データベース(GBIF/iNaturalist)との差分を検出
+     */
+    private static function findBroadDataGaps(?float $lat, ?float $lng): array
+    {
+        if ($lat === null || $lng === null) return [];
+
+        try {
+            $result = ScanRecommendationEngine::recommend($lat, $lng, null, 3);
+            $recs = $result['recommendations'] ?? [];
+            return array_filter($recs, fn($r) => ($r['priority'] ?? '') !== 'low');
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     /**
