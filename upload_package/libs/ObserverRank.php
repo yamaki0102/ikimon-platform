@@ -109,6 +109,10 @@ class ObserverRank
         $fieldworkScore += ($ctx['survey_count'] ?? 0) * ($er['survey_session'] ?? 30);
         $fieldworkScore += (int)(($ctx['survey_distance_km'] ?? 0) * ($er['survey_km'] ?? 10));
 
+        // Mesh discovery (biodiversity map)
+        $fieldworkScore += ($ctx['mesh_first_record_count'] ?? 0) * ($er['mesh_first_record'] ?? 30);
+        $fieldworkScore += ($ctx['mesh_stage_up_count'] ?? 0) * ($er['mesh_stage_up'] ?? 20);
+
         // === Bonus ===
         $br = $rules['bonus'];
         $badgeCount = $ctx['badges_count'] ?? 0;
@@ -391,7 +395,9 @@ class ObserverRank
                 'walk_distance_km' => 5,
                 'field_observation' => 8,
                 'survey_session' => 30,
-                'survey_km' => 10
+                'survey_km' => 10,
+                'mesh_first_record' => 30,
+                'mesh_stage_up' => 20
             ],
             'bonus' => ['badge_earned' => 20],
         ];

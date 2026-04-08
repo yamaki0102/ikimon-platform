@@ -152,6 +152,11 @@ class BadgeManager
                         $awarded = true;
                     }
                     break;
+                case 'mesh_count':
+                    if (isset($context['mesh_count']) && $context['mesh_count'] >= $condition['threshold']) {
+                        $awarded = true;
+                    }
+                    break;
             }
 
             if ($awarded) {

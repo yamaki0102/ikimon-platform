@@ -51,6 +51,13 @@ class MeshAggregator
         $date        = substr($obs['created_at'] ?? date('Y-m-d'), 0, 10);
 
         self::updateCell($mesh3, $bbox3, $higherGroup, $family, $genus, $speciesName, $sciName, $date);
+
+        // BIS スコア再計算（該当メッシュのみ）
+        $updatedCell = self::getAll()[$mesh3] ?? null;
+        if ($updatedCell) {
+            require_once __DIR__ . '/MeshBiodiversityScorer.php';
+            MeshBiodiversityScorer::updateCell($mesh3, $updatedCell);
+        }
     }
 
     /**

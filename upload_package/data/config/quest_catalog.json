@@ -240,6 +240,18 @@
       "reward_per_milestone": 150,
       "difficulty": "medium",
       "tags": ["allrounder", "diversity"]
+    },
+    {
+      "id": "goal_mesh_new_5",
+      "category": "exploration",
+      "icon": "map",
+      "title": "5つの新エリアで記録する",
+      "description": "まだ記録のないエリアを訪れて、いきものマップを育てよう",
+      "target": { "type": "mesh_new", "metric": "first_records", "count": 5 },
+      "milestones": [1, 2, 3, 5],
+      "reward_per_milestone": 120,
+      "difficulty": "easy",
+      "tags": ["exploration", "biodiversity_map"]
     }
   ]
 }

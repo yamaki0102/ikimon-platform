@@ -306,5 +306,41 @@
             "type": "streak",
             "threshold": 100
         }
+    },
+    {
+        "id": "area_discoverer",
+        "name": "Area Discoverer",
+        "name_ja": "エリア発見者",
+        "description": "Recorded observations in your first new area.",
+        "description_ja": "まだ誰も記録していなかったエリアで最初の記録者になりました。",
+        "icon": "map-pin",
+        "condition": {
+            "type": "mesh_count",
+            "threshold": 1
+        }
+    },
+    {
+        "id": "area_explorer",
+        "name": "Field Explorer",
+        "name_ja": "フィールド探検家",
+        "description": "Contributed to 10 different areas on the biodiversity map.",
+        "description_ja": "10か所のエリアで記録を残しました。",
+        "icon": "compass",
+        "condition": {
+            "type": "mesh_count",
+            "threshold": 10
+        }
+    },
+    {
+        "id": "area_naturalist",
+        "name": "Regional Naturalist",
+        "name_ja": "地域のナチュラリスト",
+        "description": "Contributed to 30 different areas on the biodiversity map.",
+        "description_ja": "30か所のエリアで記録を残しました。地域の生物多様性に大きく貢献しています。",
+        "icon": "tree-pine",
+        "condition": {
+            "type": "mesh_count",
+            "threshold": 30
+        }
     }
 ]
