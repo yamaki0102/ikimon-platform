@@ -8,6 +8,7 @@ class AiObservationAssessment
 {
     private const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
     private const REPAIR_MODEL = 'gemini-3.1-flash-lite-preview';
+    private const FALLBACK_MODEL = 'gemini-2.5-flash';
     private const PROMPT_VERSION = 'observation_assessment_v4';
     private const PIPELINE_VERSION = 'memo_fusion_v1';
     private const RANK_ORDER = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'];
@@ -23,21 +24,21 @@ class AiObservationAssessment
     private const LANE_PROFILES = [
         'fast' => [
             'max_images' => 10,
-            'max_dim' => 640,
+            'max_dim' => 768,
             'max_output_tokens' => 480,
-            'timeout' => 16,
+            'timeout' => 20,
         ],
         'batch' => [
             'max_images' => 10,
-            'max_dim' => 640,
+            'max_dim' => 768,
             'max_output_tokens' => 480,
-            'timeout' => 16,
+            'timeout' => 25,
         ],
         'deep' => [
             'max_images' => 10,
-            'max_dim' => 768,
+            'max_dim' => 1024,
             'max_output_tokens' => 720,
-            'timeout' => 20,
+            'timeout' => 30,
         ],
     ];
 
@@ -87,7 +88,12 @@ class AiObservationAssessment
             $payload = null;
         }
         if ($payload === null) {
+            usleep(800_000);
             $payload = self::attemptReliableRetry($observation, $options);
+        }
+        if ($payload === null) {
+            usleep(1_500_000);
+            $payload = self::attemptFallbackModel($images, $observation, $profile, $ragContext);
         }
         if ($payload === null) {
             return self::buildFallbackAssessment($observation, $profile, count($images));
@@ -363,20 +369,38 @@ FACT_RULES;
             ],
         ];
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-            CURLOPT_POSTFIELDS => json_encode($request, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => (int)$profile['timeout'],
-            CURLOPT_CONNECTTIMEOUT => 5,
-        ]);
+        $jsonBody = json_encode($request, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $timeout = (int)$profile['timeout'];
+        $maxRetries = 2;
+        $response = null;
+        $httpCode = 0;
+        $error = '';
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
+        for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
+            if ($attempt > 0) {
+                usleep($attempt * 1_000_000);
+            }
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                CURLOPT_POSTFIELDS => $jsonBody,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => $timeout,
+                CURLOPT_CONNECTTIMEOUT => 5,
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($httpCode === 200 && is_string($response) && $response !== '') {
+                break;
+            }
+            if (!in_array($httpCode, [429, 500, 503], true) && $error === '') {
+                break;
+            }
+        }
 
         if (!is_string($response) || $response === '' || $httpCode !== 200) {
             throw new RuntimeException('AI assessment API failed: HTTP ' . $httpCode . ' ' . $error);
@@ -561,18 +585,36 @@ PROMPT;
         ];
 
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . self::REPAIR_MODEL . ':generateContent?key=' . GEMINI_API_KEY;
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-            CURLOPT_POSTFIELDS => json_encode($request, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => max(8, (int)$profile['timeout']),
-            CURLOPT_CONNECTTIMEOUT => 5,
-        ]);
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        $jsonBody = json_encode($request, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $repairTimeout = max(20, (int)$profile['timeout']);
+        $response = null;
+        $httpCode = 0;
+
+        for ($attempt = 0; $attempt <= 1; $attempt++) {
+            if ($attempt > 0) {
+                usleep(1_500_000);
+            }
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                CURLOPT_POSTFIELDS => $jsonBody,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => $repairTimeout,
+                CURLOPT_CONNECTTIMEOUT => 5,
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode === 200 && is_string($response) && $response !== '') {
+                break;
+            }
+            if (!in_array($httpCode, [429, 500, 503], true)) {
+                break;
+            }
+        }
+
         if (!is_string($response) || $response === '' || $httpCode !== 200) {
             return null;
         }
@@ -614,6 +656,34 @@ PROMPT;
                 'max_output_tokens' => max(480, (int)$retryProfile['max_output_tokens']),
                 'timeout' => max(16, (int)$retryProfile['timeout']),
             ]);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private static function attemptFallbackModel(array $images, array $observation, array $profile, ?string $ragContext): ?array
+    {
+        $fallbackProfile = array_merge($profile, [
+            'model' => self::FALLBACK_MODEL,
+            'lane' => 'deep',
+            'max_dim' => max(1024, (int)($profile['max_dim'] ?? 768)),
+            'max_output_tokens' => max(720, (int)($profile['max_output_tokens'] ?? 480)),
+            'timeout' => 30,
+        ]);
+
+        $fallbackImages = [];
+        foreach (self::resolvePhotoPaths($observation, (int)$fallbackProfile['max_images']) as $photoPath) {
+            $img = self::resizeAndEncode($photoPath, (int)$fallbackProfile['max_dim']);
+            if ($img !== null) {
+                $fallbackImages[] = $img;
+            }
+        }
+        if ($fallbackImages === []) {
+            $fallbackImages = $images;
+        }
+
+        try {
+            return self::callModel($fallbackImages, $observation, $fallbackProfile, $ragContext);
         } catch (\Throwable $e) {
             return null;
         }
