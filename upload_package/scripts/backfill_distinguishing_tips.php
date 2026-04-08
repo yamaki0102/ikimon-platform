@@ -78,8 +78,21 @@ foreach ($targets as $i => $target) {
     $lastIdx = $target['lastIdx'];
     $last    = $target['last'];
 
-    $candidates = $last['similar_taxa_to_compare'];
-    $features   = $last['diagnostic_features_seen'] ?? [];
+    $rawCandidates = $last['similar_taxa_to_compare'];
+    $candidates = array_values(array_filter(array_map(function($c) {
+        if (is_string($c)) return trim($c);
+        if (is_array($c)) return trim((string)($c['label'] ?? $c['name'] ?? $c['taxon_name'] ?? ''));
+        return '';
+    }, $rawCandidates), fn($v) => $v !== ''));
+
+    if (empty($candidates)) continue;
+
+    $rawFeatures = $last['diagnostic_features_seen'] ?? [];
+    $features = array_values(array_filter(array_map(function($f) {
+        if (is_string($f)) return trim($f);
+        if (is_array($f)) return trim((string)($f['label'] ?? $f['feature'] ?? ''));
+        return '';
+    }, $rawFeatures), fn($v) => $v !== ''));
 
     $obsId   = $obs['id'] ?? '?';
     $species = $obs['species_name'] ?? ($obs['taxon']['name'] ?? '不明');
