@@ -5,7 +5,7 @@
  * Resets items stuck in 'processing' state for more than 5 minutes.
  * Uses `claimed_at` (set when worker claims the item) for accurate staleness.
  */
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 
 $queueFile = DATA_DIR . '/library/extraction_queue.json';
 $fp = fopen($queueFile, 'c+');

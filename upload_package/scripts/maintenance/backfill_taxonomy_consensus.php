@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/Taxonomy.php';
 require_once __DIR__ . '/../libs/BioUtils.php';

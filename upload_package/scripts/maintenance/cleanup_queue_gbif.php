@@ -3,7 +3,7 @@
 /**
  * cleanup_fast.php - curl_multi並列でGBIFバリデーション (20並列)
  */
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 
 $queueFile = DATA_DIR . '/library/extraction_queue.json';
 $queue = json_decode(file_get_contents($queueFile), true);

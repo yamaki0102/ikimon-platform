@@ -5,7 +5,7 @@
  * Resets wiped species (completed but no habitat data) back to 'literature_ready'
  * so the extraction daemon can re-process them WITH the safety guards.
  */
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../libs/OmoikaneDB.php';
 
 $queueFile = DATA_DIR . '/library/extraction_queue.json';

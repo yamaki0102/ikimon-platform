@@ -9,7 +9,7 @@
  * Usage: php scripts/clean_seed_data.php [--confirm]
  */
 
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 
 $confirm = in_array('--confirm', $argv);
 

@@ -1,6 +1,6 @@
 <?php
 // clean_garbage_queue.php
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 
 $queueFile = DATA_DIR . '/library/extraction_queue.json';
 $fp = fopen($queueFile, 'c+');

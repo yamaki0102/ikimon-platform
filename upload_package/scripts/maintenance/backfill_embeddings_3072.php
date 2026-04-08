@@ -15,7 +15,7 @@
  *   --limit=N   Only enqueue first N observations (for testing)
  */
 
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/EmbeddingStore.php';
 require_once __DIR__ . '/../libs/EmbeddingQueue.php';

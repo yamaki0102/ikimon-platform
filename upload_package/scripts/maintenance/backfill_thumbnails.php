@@ -9,7 +9,7 @@
  *   --limit=N   処理する観察数を制限（デフォルト: 全件）
  */
 
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../libs/DataStore.php';
 require_once __DIR__ . '/../libs/ThumbnailGenerator.php';
 

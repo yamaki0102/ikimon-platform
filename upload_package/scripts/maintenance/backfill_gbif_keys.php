@@ -8,7 +8,7 @@
  * 
  * Usage: php scripts/backfill_gbif_keys.php [--dry-run] [--limit=N]
  */
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../../config/config.php';
 
 $dryRun = in_array('--dry-run', $argv ?? []);
 $limit = 0;
