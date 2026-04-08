@@ -351,17 +351,76 @@ if ($isGuest) {
                     </div>
                 </div>
 
-                <!-- 投稿後AIメモの案内 -->
+                <!-- AI提案カード (自動トリガー) -->
                 <div x-show="photos.length > 0" x-transition class="mt-4">
-                    <div class="px-4 py-3 text-center" style="background:var(--md-surface-container);border-radius:var(--shape-xl);">
+
+                    <!-- Loading -->
+                    <div x-show="AiAssist && AiAssist.loading" x-transition class="px-4 py-4 text-center" style="background:var(--md-surface-container);border-radius:var(--shape-xl);">
+                        <div class="flex items-center justify-center gap-2">
+                            <span class="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
+                            <span class="text-sm font-bold text-text">AI が写真を分析中...</span>
+                        </div>
+                        <p class="text-[10px] text-muted mt-1">数秒で候補が表示されます</p>
+                    </div>
+
+                    <!-- 提案カード -->
+                    <div x-show="aiSuggestions.length > 0 && !(AiAssist && AiAssist.loading)" x-transition>
+                        <div class="flex items-center gap-2 mb-2 px-1">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-primary"></i>
+                            <span class="text-[10px] font-black text-faint uppercase tracking-widest">AI候補</span>
+                            <span x-show="aiSelectedIndices.length > 0" class="text-[9px] font-bold bg-primary text-white px-2 py-0.5 rounded-full" x-text="aiSelectedIndices.length + '件選択中'"></span>
+                        </div>
+                        <div class="space-y-2">
+                            <template x-for="(sg, idx) in aiSuggestions" :key="idx">
+                                <button type="button" @click="toggleAiSuggestion(idx)"
+                                    class="w-full text-left px-4 py-3 rounded-2xl border-2 transition-all"
+                                    :class="aiSelectedIndices.includes(idx)
+                                        ? 'border-primary bg-primary/10 shadow-sm'
+                                        : 'border-border bg-surface hover:border-primary/30'"
+                                    style="cursor:pointer;">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-2xl flex-shrink-0" x-text="sg.emoji || '🔍'"></span>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-bold text-text" x-text="sg.label"></span>
+                                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                                                    :class="AiAssist.confidenceColor(sg.confidence)"
+                                                    x-text="AiAssist.confidenceLabel(sg.confidence)"></span>
+                                            </div>
+                                            <p class="text-[11px] text-muted mt-0.5 line-clamp-1" x-text="sg.reason"></p>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div x-show="aiSelectedIndices.includes(idx)" class="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                                                <i data-lucide="check" class="w-4 h-4 text-white" style="pointer-events:none;"></i>
+                                            </div>
+                                            <div x-show="!aiSelectedIndices.includes(idx)" class="w-6 h-6 border-2 border-border rounded-full"></div>
+                                        </div>
+                                    </div>
+                                </button>
+                            </template>
+                        </div>
+                        <p class="text-[10px] text-faint mt-2 px-1 text-center">タップで選択・複数OK。選ばずに投稿してもOK</p>
+                    </div>
+
+                    <!-- エラー (非ブロッキング) -->
+                    <div x-show="AiAssist && AiAssist.error && !AiAssist.loading && aiSuggestions.length === 0" x-transition
+                        class="px-4 py-3 text-center" style="background:var(--md-surface-container);border-radius:var(--shape-xl);">
+                        <p class="text-xs text-muted" x-text="AiAssist ? AiAssist.error : ''"></p>
+                        <p class="text-[10px] text-faint mt-1">そのまま投稿できます</p>
+                    </div>
+
+                    <!-- フォールバック -->
+                    <div x-show="!AiAssist || (!AiAssist.loading && !AiAssist.error && aiSuggestions.length === 0 && !aiAutoTriggered)" x-transition
+                        class="px-4 py-3 text-center" style="background:var(--md-surface-container);border-radius:var(--shape-xl);">
                         <p class="text-sm font-bold text-text flex items-center justify-center gap-2">
                             <i data-lucide="sparkles" class="w-4 h-4 text-primary"></i>
                             投稿後に観察のヒントが自動で追加されます
                         </p>
                         <p class="text-[10px] text-muted mt-1.5 leading-relaxed">
-                            いまはそのまま投稿してOKです。写真・場所・季節をもとに、観察詳細ページへ AIメモがあとから付きます。
+                            いまはそのまま投稿してOKです。
                         </p>
                     </div>
+
                 </div>
                 <div x-show="photos.length > 0 || (canSurveyorOfficialPost && record_mode === 'surveyor_official')" x-transition class="mt-4">
                     <button type="submit" :disabled="submitting || !canSubmit"
@@ -1090,6 +1149,7 @@ if ($isGuest) {
         };
     </script>
     <script src="<?= htmlspecialchars(Asset::versioned('/js/exif-mini.js')) ?>"></script>
+    <script src="<?= htmlspecialchars(Asset::versioned('/js/ai-assist.js')) ?>"></script>
     <script src="<?= htmlspecialchars(Asset::versioned('/js/post-uploader.js')) ?>"></script>
     <script nonce="<?= CspNonce::attr() ?>">
         lucide.createIcons();

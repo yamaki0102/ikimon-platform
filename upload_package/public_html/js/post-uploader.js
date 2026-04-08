@@ -83,6 +83,11 @@ function uploader() {
         lightMode: false,
         locationGranularity: 'exact',
         canSurveyorOfficialPost: config.canSurveyorOfficialPost ?? false,
+        aiSuggestions: [],
+        aiSelectedIndices: [],
+        aiEnvironmentApplied: false,
+        aiAutoTriggered: false,
+        _aiDebounceTimer: null,
 
         async loadHistory() {
             if (!this.isLoggedIn) {
@@ -446,8 +451,8 @@ function uploader() {
                     };
                     this.photos.push(photo);
                     this.compressPhoto(photo);
-                    // AI Assist: 写真変更時にリセット
-                    if (window.AiAssist) AiAssist.reset();
+                    // AI Assist: 写真追加で自動トリガー
+                    this._scheduleAiAsk();
                     // Analytics: 写真追加イベント
                     if (window.ikimonAnalytics) ikimonAnalytics.track('photo_added', {
                         count: this.photos.length
@@ -471,6 +476,56 @@ function uploader() {
         removePhoto(index) {
             this.photos.splice(index, 1);
             if (navigator.vibrate) navigator.vibrate(20);
+            if (this.photos.length > 0) {
+                this._scheduleAiAsk();
+            } else {
+                if (window.AiAssist) AiAssist.reset();
+                this.aiSuggestions = [];
+                this.aiSelectedIndices = [];
+                this.aiEnvironmentApplied = false;
+                this.aiAutoTriggered = false;
+            }
+        },
+
+        _scheduleAiAsk() {
+            if (window.AiAssist) AiAssist.reset();
+            this.aiSuggestions = [];
+            this.aiSelectedIndices = [];
+            this.aiEnvironmentApplied = false;
+            this.aiAutoTriggered = false;
+
+            clearTimeout(this._aiDebounceTimer);
+            this._aiDebounceTimer = setTimeout(async () => {
+                if (!window.AiAssist || this.photos.length === 0) return;
+                this.aiAutoTriggered = true;
+                await AiAssist.ask(this.photos);
+                this.aiSuggestions = [...AiAssist.suggestions];
+                if (AiAssist.environment && !this.aiEnvironmentApplied) {
+                    AiAssist.applyEnvironment(this);
+                    this.aiEnvironmentApplied = true;
+                    if (this.biome !== 'unknown') {
+                        this.biomeAutoSelected = true;
+                        this.biomeAutoReason = 'AI写真分析';
+                    }
+                }
+            }, 800);
+        },
+
+        toggleAiSuggestion(idx) {
+            const pos = this.aiSelectedIndices.indexOf(idx);
+            if (pos >= 0) {
+                this.aiSelectedIndices.splice(pos, 1);
+            } else {
+                this.aiSelectedIndices.push(idx);
+            }
+            if (navigator.vibrate) navigator.vibrate(20);
+
+            if (this.aiSelectedIndices.length === 1) {
+                const sg = this.aiSuggestions[this.aiSelectedIndices[0]];
+                this.taxon_name = sg.label;
+                this.searchTaxon();
+                this.showDetails = true;
+            }
         },
 
         setMainPhoto(index) {
@@ -579,11 +634,13 @@ function uploader() {
             // NP: Send GPS coordinate accuracy for DwC coordinateUncertaintyInMeters
             if (this.gpsAccuracy !== null) formData.append('coordinate_accuracy', Math.round(this.gpsAccuracy));
 
-            // AI Assist: 提案データを記録に添付（精度評価ループ用）
+            // AI Assist: 提案データ + 選択情報を添付
             if (window.AiAssist && AiAssist.asked && AiAssist.suggestions.length > 0) {
                 formData.append('ai_hint', JSON.stringify({
                     suggestions: AiAssist.suggestions,
-                    processing_ms: AiAssist.processingMs
+                    processing_ms: AiAssist.processingMs,
+                    selected_indices: this.aiSelectedIndices,
+                    selected_labels: this.aiSelectedIndices.map(i => this.aiSuggestions[i]?.label).filter(Boolean),
                 }));
             }
 

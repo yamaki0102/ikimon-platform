@@ -532,10 +532,21 @@ if (!empty($_POST['ai_hint'])) {
                 'reason' => mb_substr(trim($s['reason'] ?? ''), 0, 200),
             ];
         }
+        $selectedIndices = [];
+        $selectedLabels = [];
+        if (!empty($aiHint['selected_indices']) && is_array($aiHint['selected_indices'])) {
+            $selectedIndices = array_map('intval', array_slice($aiHint['selected_indices'], 0, 5));
+            $selectedLabels = array_map(
+                fn($l) => mb_substr(trim($l), 0, 100),
+                array_slice($aiHint['selected_labels'] ?? [], 0, 5)
+            );
+        }
         $observation['ai_hint'] = [
             'suggestions' => $cleanSuggestions,
             'processing_ms' => (int)($aiHint['processing_ms'] ?? 0),
             'asked_at' => date('Y-m-d H:i:s'),
+            'selected_indices' => $selectedIndices,
+            'selected_labels' => $selectedLabels,
         ];
     }
 }
@@ -675,6 +686,22 @@ if (DataStore::append('observations', $observation)) {
 
     if ($aiPlan !== null) {
         AiAssessmentQueue::enqueue($id, (string)$aiPlan['reason'], $aiPlan);
+    }
+
+    // Multi-subject: AI提案で複数選択された場合、追加subjectを作成
+    $aiHintData = $observation['ai_hint'] ?? [];
+    if (!empty($aiHintData['selected_indices']) && count($aiHintData['selected_indices']) > 1) {
+        require_once __DIR__ . '/../../libs/SubjectHelper.php';
+        SubjectHelper::ensureSubjects($observation);
+        $selLabels = $aiHintData['selected_labels'] ?? [];
+        for ($si = 1; $si < count($aiHintData['selected_indices']); $si++) {
+            $label = $selLabels[$si] ?? '';
+            if ($label !== '') {
+                SubjectHelper::addSubject($observation, $label);
+            }
+        }
+        SubjectHelper::syncPrimaryToLegacy($observation);
+        DataStore::upsert('observations', $observation);
     }
     if ($embeddingPlanned) {
         EmbeddingQueue::enqueue($id, 'observation_created');
