@@ -34,7 +34,7 @@ echo "=== backfill_distinguishing_tips ===\n";
 echo "limit={$limit}  delay={$delay}s  dry-run=" . ($dryRun ? 'YES' : 'no') . "\n\n";
 
 // ── パーティションファイル走査で対象を収集（直接ファイルを読む） ──────────────
-$obsDir = DATA_DIR . 'observations';
+$obsDir = rtrim(DATA_DIR, '/\\') . '/observations';
 $partFiles = glob($obsDir . '/*.json');
 rsort($partFiles);
 
