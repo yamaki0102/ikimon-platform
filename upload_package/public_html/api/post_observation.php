@@ -137,7 +137,6 @@ function stripExifData($filepath)
         return false;
     }
 
-    // If GD extension is not available, skip EXIF stripping but keep the image
     if (!extension_loaded('gd')) {
         return true;
     }
@@ -148,51 +147,56 @@ function stripExifData($filepath)
     }
 
     $mime = $imageInfo['mime'];
+    $origWidth = (int)$imageInfo[0];
+    $origHeight = (int)$imageInfo[1];
 
-    // Create image resource based on type
     switch ($mime) {
         case 'image/jpeg':
             $image = imagecreatefromjpeg($filepath);
-            if ($image) {
-                // Re-save without EXIF (quality 90)
-                imagejpeg($image, $filepath, 90);
-                imagedestroy($image);
-                return true;
-            }
             break;
         case 'image/png':
             $image = imagecreatefrompng($filepath);
-            if ($image) {
-                // Preserve transparency
-                imagesavealpha($image, true);
-                imagepng($image, $filepath, 9);
-                imagedestroy($image);
-                return true;
-            }
             break;
         case 'image/webp':
             $image = imagecreatefromwebp($filepath);
-            if ($image) {
-                imagewebp($image, $filepath, 90);
-                imagedestroy($image);
-                return true;
-            }
             break;
         case 'image/gif':
-            // GIF usually doesn't have EXIF, but re-encode anyway
             $image = imagecreatefromgif($filepath);
-            if ($image) {
-                imagegif($image, $filepath);
-                imagedestroy($image);
-                return true;
-            }
             break;
         default:
-            // Unknown format, keep as is
             return true;
     }
 
-    return false;
+    if (!$image) {
+        return false;
+    }
+
+    $maxDim = 1920;
+    if ($origWidth > $maxDim || $origHeight > $maxDim) {
+        $ratio = min($maxDim / $origWidth, $maxDim / $origHeight);
+        $newWidth = max(1, (int)round($origWidth * $ratio));
+        $newHeight = max(1, (int)round($origHeight * $ratio));
+        $tmp = imagecreatetruecolor($newWidth, $newHeight);
+        imagecopyresampled($tmp, $image, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
+        imagedestroy($image);
+        $image = $tmp;
+        $newW = $newWidth;
+        $newH = $newHeight;
+    } else {
+        $newW = $origWidth;
+        $newH = $origHeight;
+    }
+
+    // Flatten onto white background to remove alpha and enable lossy WebP encoding
+    $flat = imagecreatetruecolor($newW, $newH);
+    $white = imagecolorallocate($flat, 255, 255, 255);
+    imagefill($flat, 0, 0, $white);
+    imagecopy($flat, $image, 0, 0, 0, 0, $newW, $newH);
+    imagedestroy($image);
+
+    imagewebp($flat, $filepath, 82);
+    imagedestroy($flat);
+    return true;
 }
 
 // Simple response helper
@@ -338,23 +342,14 @@ if (!empty($_FILES['photos'])) {
                 continue; // Skip non-image files silently
             }
 
-            $ext = pathinfo($_FILES['photos']['name'][$i], PATHINFO_EXTENSION) ?: 'webp';
-            // Security: Sanitize extension to allowed set only
-            $ext = strtolower($ext);
-            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'])) {
-                $ext = 'webp';
-            }
-            $filename = 'photo_' . $i . '.' . $ext;
+            $filename = 'photo_' . $i . '.webp';
             $target = $observation_dir . '/' . $filename;
 
             if (move_uploaded_file($tmp_name, $target)) {
-                // FB-15: Extract EXIF data from first photo before stripping
                 if ($i === 0) {
                     $exifData = extractExifData($target);
                 }
 
-                // FB-10: Strip EXIF data (including GPS) for privacy protection
-                // Re-encode the image using GD to remove all metadata
                 $stripped = stripExifData($target);
                 if ($stripped) {
                     $photos[] = 'uploads/photos/' . $id . '/' . $filename;
