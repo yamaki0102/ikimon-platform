@@ -25,19 +25,19 @@ class AiObservationAssessment
         'fast' => [
             'max_images' => 10,
             'max_dim' => 512,
-            'max_output_tokens' => 480,
+            'max_output_tokens' => 1024,
             'timeout' => 45,
         ],
         'batch' => [
             'max_images' => 10,
             'max_dim' => 512,
-            'max_output_tokens' => 480,
+            'max_output_tokens' => 1024,
             'timeout' => 50,
         ],
         'deep' => [
             'max_images' => 10,
             'max_dim' => 1024,
-            'max_output_tokens' => 720,
+            'max_output_tokens' => 1536,
             'timeout' => 60,
         ],
     ];
