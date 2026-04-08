@@ -15,7 +15,7 @@
  *   include PUBLIC_DIR . 'components/observation_feed_card.php';
  */
 
-require_once ROOT_DIR . 'libs/ObservationSourceHelper.php';
+require_once LIBS_DIR . '/ObservationSourceHelper.php';
 require_once __DIR__ . '/observation_feed_card_helpers.php';
 
 $_src     = ObservationSourceHelper::getSource($cardObs);
