@@ -39,38 +39,38 @@ window.AiAssist = {
         this.environmentApplied = false;
 
         try {
-            // Use the first photo (primary subject)
-            const photo = photos[0];
+            const formData = new FormData();
+            const maxPhotos = Math.min(photos.length, 3);
 
-            // Extract raw File object — Alpine.js v3 wraps data in Proxy,
-            // which can break URL.createObjectURL on some browsers.
-            let fileObj = photo.file || photo;
-            try {
-                if (typeof Alpine !== 'undefined' && Alpine.raw) {
-                    fileObj = Alpine.raw(fileObj);
-                }
-            } catch (e) { /* ignore unwrap failure */ }
+            for (let i = 0; i < maxPhotos; i++) {
+                const photo = photos[i];
+                let fileObj = photo.file || photo;
+                try {
+                    if (typeof Alpine !== 'undefined' && Alpine.raw) {
+                        fileObj = Alpine.raw(fileObj);
+                    }
+                } catch (e) { /* ignore unwrap failure */ }
 
-            // Resize to 512px on client side (privacy + speed)
-            let blob;
-            try {
-                blob = await this._resizeImage(fileObj, 512);
-            } catch (resizeErr) {
-                console.warn('[AiAssist] Resize failed, trying preview fallback:', resizeErr.message);
-                // Fallback: use the preview data URL if resize fails
-                if (photo.preview) {
-                    blob = await this._dataUrlToBlob(photo.preview);
+                let blob;
+                try {
+                    blob = await this._resizeImage(fileObj, 512);
+                } catch (resizeErr) {
+                    console.warn(`[AiAssist] Resize failed for photo ${i}, trying preview fallback:`, resizeErr.message);
+                    if (photo.preview) {
+                        blob = await this._dataUrlToBlob(photo.preview);
+                    }
+                    if (!blob) continue;
                 }
-                if (!blob) {
-                    throw resizeErr;
-                }
+                formData.append('photos[]', blob, `photo_${i}.jpg`);
             }
 
-            const formData = new FormData();
-            formData.append('photo', blob, 'photo.jpg');
+            if (!formData.has('photos[]')) {
+                this.error = '画像の処理に失敗しました。';
+                return;
+            }
 
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
+            const timeout = setTimeout(() => controller.abort(), 25000);
 
             const response = await fetch('api/ai_suggest.php', {
                 method: 'POST',

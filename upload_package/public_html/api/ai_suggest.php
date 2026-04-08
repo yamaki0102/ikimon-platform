@@ -68,42 +68,56 @@ if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === '') {
     exit;
 }
 
-// ── Validate Photo ──
-if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+// ── Validate Photos (multi-image support, max 3) ──
+$allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+$finfo = new finfo(FILEINFO_MIME_TYPE);
+$resizedImages = [];
+$startTime = hrtime(true);
+
+// Support both 'photos[]' (multi) and legacy 'photo' (single)
+$files = [];
+if (!empty($_FILES['photos']['tmp_name'])) {
+    $count = min(count($_FILES['photos']['tmp_name']), 3);
+    for ($i = 0; $i < $count; $i++) {
+        if ($_FILES['photos']['error'][$i] === UPLOAD_ERR_OK) {
+            $files[] = [
+                'tmp_name' => $_FILES['photos']['tmp_name'][$i],
+                'size' => $_FILES['photos']['size'][$i],
+            ];
+        }
+    }
+} elseif (!empty($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+    $files[] = [
+        'tmp_name' => $_FILES['photo']['tmp_name'],
+        'size' => $_FILES['photo']['size'],
+    ];
+}
+
+if (empty($files)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'no_photo', 'message' => '写真が必要です。']);
     exit;
 }
 
-$allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-$finfo = new finfo(FILEINFO_MIME_TYPE);
-$mimeType = $finfo->file($_FILES['photo']['tmp_name']);
+foreach ($files as $f) {
+    $mimeType = $finfo->file($f['tmp_name']);
+    if (!in_array($mimeType, $allowedTypes, true)) continue;
+    if ($f['size'] > 10 * 1024 * 1024) continue;
 
-if (!in_array($mimeType, $allowedTypes, true)) {
+    $resized = resizeAndStripExif($f['tmp_name'], $mimeType, 512);
+    if ($resized !== false) {
+        $resizedImages[] = $resized;
+    }
+}
+
+if (empty($resizedImages)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'invalid_type', 'message' => 'JPEG, PNG, WebPのみ対応しています。']);
+    echo json_encode(['success' => false, 'error' => 'invalid_photos', 'message' => '有効な画像がありません。']);
     exit;
 }
 
-// Max file size: 10MB
-if ($_FILES['photo']['size'] > 10 * 1024 * 1024) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'file_too_large', 'message' => 'ファイルサイズは10MB以下にしてください。']);
-    exit;
-}
-
-// ── Resize to 512px (privacy + performance) ──
-$startTime = hrtime(true);
-
-$resized = resizeAndStripExif($_FILES['photo']['tmp_name'], $mimeType, 512);
-if ($resized === false) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'resize_failed', 'message' => '画像の処理に失敗しました。']);
-    exit;
-}
-
-// ── Call Gemini Flash API ──
-$result = callGeminiFlash($resized['data'], $resized['mime']);
+// ── Call Gemini Flash API with all images ──
+$result = callGeminiFlash($resizedImages);
 
 $endTime = hrtime(true);
 $processingMs = (int)(($endTime - $startTime) / 1e6);
@@ -244,13 +258,19 @@ function resizeAndStripExif(string $path, string $mimeType, int $maxDim): array|
  * Call Gemini 3.1 Flash Lite API with image for species identification + environment analysis.
  * Returns parsed suggestions + environment or false.
  */
-function callGeminiFlash(string $base64Image, string $mimeType): array|false
+function callGeminiFlash(array $images): array|false
 {
     $apiKey = GEMINI_API_KEY;
     $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key={$apiKey}";
 
+    $photoCount = count($images);
+    $photoNote = $photoCount > 1
+        ? "{$photoCount}枚の写真が提供されています。すべての写真を総合的に分析し、写っている生き物を特定してください。異なる写真に異なる生き物が写っている場合は、それぞれ別の候補として出力してください。"
+        : '';
+
     $prompt = <<<PROMPT
-あなたは生物多様性の専門家で、一般の人にもわかりやすく説明するのが得意です。この写真に写っている生き物を分類し、撮影環境も分析してください。
+あなたは生物多様性の専門家で、一般の人にもわかりやすく説明するのが得意です。写真に写っている生き物を分類し、撮影環境も分析してください。
+{$photoNote}
 
 ## ルール
 1. **種（Species）レベルの断定は禁止**。目・科・属など、確信度に応じた適切な分類階級で回答してください。自信があれば属レベル、不確かなら目レベルなど柔軟に判断。
@@ -277,19 +297,19 @@ function callGeminiFlash(string $base64Image, string $mimeType): array|false
 JSONのみ出力し、説明文やマークダウンは含めないでください。
 PROMPT;
 
+    $parts = [['text' => $prompt]];
+    foreach ($images as $img) {
+        $parts[] = [
+            'inline_data' => [
+                'mime_type' => $img['mime'],
+                'data' => $img['data'],
+            ],
+        ];
+    }
+
     $payload = [
         'contents' => [
-            [
-                'parts' => [
-                    ['text' => $prompt],
-                    [
-                        'inline_data' => [
-                            'mime_type' => $mimeType,
-                            'data' => $base64Image,
-                        ],
-                    ],
-                ],
-            ],
+            ['parts' => $parts],
         ],
         'generationConfig' => [
             'temperature' => 0.2,
