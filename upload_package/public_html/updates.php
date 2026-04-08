@@ -27,13 +27,45 @@ Auth::init();
 
             <div class="space-y-8">
 
+                <!-- v0.10.1 -->
+                <article class="relative pl-8 border-l-2 border-emerald-500/30">
+                    <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.10.1</span>
+                        <time class="text-sm text-gray-500">2026年4月8日</time>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
+                    </div>
+                    <h2 class="text-xl font-bold mb-3 text-gray-900">AI考察 全面強化 — 写真で即分析・見分け方まで表示</h2>
+                    <ul class="space-y-2 text-gray-600 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>AI自動提案復活</strong>: 写真をアップロードするだけでAIが即座に種を分析・提案するように戻りました。複数枚の写真を同時にアップロードして、より正確な同定が可能になりました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>見分け方を表示</strong>: AI考察に「この種をどう見分けるか」のポイントが追加されました。似た種との違いも chip 形式でコンパクトに確認できます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>AI精度向上</strong>: 形質（色・形・模様）が写真に見えている場合は積極的に種レベルで判定するよう改善。「属止まり」だった判定が種レベルに引き上げられるケースが増えます</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>API安定性改善</strong>: タイムアウト・トークン上限・リトライ強化により、AI考察の失敗率を大幅に削減。大きな写真でも正常に分析できるようになりました</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 shrink-0">✓</span>
+                            <span><strong>デザイン統一</strong>: サイト全体をエメラルド単色調のデザインに刷新。多色使いを整理し、より洗練された見た目になりました</span>
+                        </li>
+                    </ul>
+                </article>
+
                 <!-- v0.10.0 -->
                 <article class="relative pl-8 border-l-2 border-emerald-500/30">
                     <div class="absolute left-0 top-0 w-4 h-4 -translate-x-[9px] rounded-full bg-emerald-500 ring-4 ring-emerald-100"></div>
                     <div class="flex items-center gap-3 mb-3">
                         <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">v0.10.0</span>
                         <time class="text-sm text-gray-500">2026年4月上旬</time>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">NEW</span>
                     </div>
                     <h2 class="text-xl font-bold mb-3 text-gray-900">フィールドスキャン Perch v2 + おすすめ調査エリア</h2>
                     <ul class="space-y-2 text-gray-600 text-sm">
