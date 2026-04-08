@@ -24,21 +24,21 @@ class AiObservationAssessment
     private const LANE_PROFILES = [
         'fast' => [
             'max_images' => 10,
-            'max_dim' => 768,
+            'max_dim' => 512,
             'max_output_tokens' => 480,
-            'timeout' => 20,
+            'timeout' => 45,
         ],
         'batch' => [
             'max_images' => 10,
-            'max_dim' => 768,
+            'max_dim' => 512,
             'max_output_tokens' => 480,
-            'timeout' => 25,
+            'timeout' => 50,
         ],
         'deep' => [
             'max_images' => 10,
             'max_dim' => 1024,
             'max_output_tokens' => 720,
-            'timeout' => 30,
+            'timeout' => 60,
         ],
     ];
 
