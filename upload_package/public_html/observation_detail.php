@@ -811,30 +811,29 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                     <div class="space-y-3" style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.75rem;">
                                         <?php if (!empty($latestAiAssessment['similar_taxa_to_compare'])): ?>
                                             <div>
-                                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">見分け候補</p>
+                                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">紛らわしい種 <span class="font-normal normal-case">（AI参考）</span></p>
                                                 <div class="flex flex-wrap gap-2">
                                                     <?php foreach ($latestAiAssessment['similar_taxa_to_compare'] as $candidateName): ?>
-                                                        <?php $candidateUrl = 'explore.php?q=' . urlencode((string)$candidateName); ?>
-                                                        <a href="<?php echo htmlspecialchars($candidateUrl); ?>" class="inline-flex items-center rounded-full bg-white border border-border px-3 py-1 text-xs text-text hover:border-primary/40 hover:text-primary transition">
+                                                        <span class="inline-flex items-center rounded-full bg-white border border-border px-3 py-1 text-xs text-text">
                                                             <?php echo htmlspecialchars((string)$candidateName); ?>
-                                                        </a>
+                                                        </span>
                                                     <?php endforeach; ?>
                                                 </div>
-                                                <p class="text-[11px] text-muted mt-2">タップすると、その候補に近い記録を探せます。</p>
-                                                <?php if (!empty($latestAiAssessment['missing_evidence'])): ?>
-                                                    <p class="text-[11px] text-muted mt-1">
-                                                        違いが出やすいポイント:
-                                                        <?php echo htmlspecialchars(implode(' / ', array_slice($latestAiAssessment['missing_evidence'], 0, 2))); ?>
-                                                    </p>
-                                                <?php endif; ?>
                                             </div>
                                         <?php endif; ?>
                                         <?php if (!empty($latestAiAssessment['missing_evidence'])): ?>
                                             <div>
-                                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">あるともっと絞りやすい情報</p>
-                                                <p class="text-text leading-relaxed"><?php echo htmlspecialchars(implode(' / ', $latestAiAssessment['missing_evidence'])); ?></p>
+                                                <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1">見分けるポイント（ここを確認してみよう）</p>
+                                                <div class="flex flex-wrap gap-1.5 mt-1">
+                                                    <?php foreach ($latestAiAssessment['missing_evidence'] as $point): ?>
+                                                        <span class="inline-flex items-center rounded-md bg-white border border-border px-2 py-0.5 text-xs text-text">
+                                                            <?php echo htmlspecialchars($point); ?>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                </div>
                                             </div>
                                         <?php endif; ?>
+                                        <p class="text-[10px] text-muted">※ AIによる参考情報です。確証を得るには実物の詳細観察や図鑑の確認をおすすめします。</p>
                                     </div>
                                 <?php endif; ?>
                             </div>
