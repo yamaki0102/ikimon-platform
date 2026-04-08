@@ -195,11 +195,26 @@ systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}"
 systemctl start "${SERVICE_NAME}"
 
+# --- 7. バッチワーカー cron 登録（5分毎）---
+echo "[7/7] Setting up audio batch worker cron..."
+
+WORKER_SCRIPT="/var/www/ikimon.life/repo/upload_package/scripts/audio_batch_worker.py"
+CRON_LINE="*/5 * * * * ${VENV_DIR}/bin/python3 ${WORKER_SCRIPT} >> /var/log/ikimon-audio-batch.log 2>&1"
+
+# www-data の crontab に追加（既存エントリがなければ）
+if ! crontab -u www-data -l 2>/dev/null | grep -q "audio_batch_worker.py"; then
+    (crontab -u www-data -l 2>/dev/null; echo "${CRON_LINE}") | crontab -u www-data -
+    echo "Cron registered: ${CRON_LINE}"
+else
+    echo "Cron already registered. Skip."
+fi
+
 echo ""
 echo "=== Setup Complete ==="
 echo "Service: systemctl status ${SERVICE_NAME}"
 echo "Logs:    journalctl -u ${SERVICE_NAME} -f"
 echo "Test:    curl http://127.0.0.1:8100/health"
+echo "Batch:   tail -f /var/log/ikimon-audio-batch.log"
 echo ""
 
 # ヘルスチェック（起動待ち）

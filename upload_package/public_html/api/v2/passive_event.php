@@ -262,6 +262,10 @@ foreach ($result['observations'] as $obs) {
     $obs['user_name'] = $userName;
     $obs['user_avatar'] = $userAvatar;
     $obs['observation_source'] = $scanMode;
+    // record_source: 3ソースを完全に区別するフィールド
+    //   'fieldscan'    → Android APK (install_id 認証)
+    //   'ikimon_sensor' → ブラウザ版いきものセンサー (session 認証)
+    $obs['record_source'] = isset($installId) ? 'fieldscan' : 'ikimon_sensor';
 
     if (!empty($sessionGeo['municipality'])) {
         $obs['municipality'] = $sessionGeo['municipality'];

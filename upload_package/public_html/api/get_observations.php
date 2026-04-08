@@ -99,6 +99,13 @@ if ($invasiveFilter !== 'all') {
     $observations = array_filter($observations, fn($obs) => observationMatchesInvasiveFilter($obs, $invasiveFilter));
 }
 
+// Record Source Filter (post / ikimon_sensor / fieldscan)
+$recordSource = trim((string)($_GET['record_source'] ?? ''));
+if (!empty($recordSource) && in_array($recordSource, ['post', 'ikimon_sensor', 'fieldscan'], true)) {
+    require_once __DIR__ . '/../../libs/ObservationSourceHelper.php';
+    $observations = array_filter($observations, fn($obs) => ObservationSourceHelper::getSource($obs) === $recordSource);
+}
+
 // Exclude test/E2E users and sample images from public feed
 $observations = array_filter($observations, function ($obs) {
     $userName = $obs['user_name'] ?? '';

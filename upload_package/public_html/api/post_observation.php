@@ -592,6 +592,8 @@ if (!empty($_POST['taxon_name'])) {
 
 // Mark as user-generated content (protected from seed cleanup)
 $observation['import_source'] = 'user_post';
+// record_source: 3ソースを完全に区別するフィールド
+$observation['record_source'] = 'post';
 
 // Phase 15B P1: 外来種アラートチェック
 $invasiveAlert = null;

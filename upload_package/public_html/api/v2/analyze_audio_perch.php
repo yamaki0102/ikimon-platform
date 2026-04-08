@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 Auth::init();
+$userId = null;
 if (!Auth::isLoggedIn()) {
     // FieldScan アプリからの install_id 認証
     $installId = $_GET['install_id'] ?? null;
@@ -39,9 +40,12 @@ if (!Auth::isLoggedIn()) {
         if (!$matched) {
             api_error('Invalid install_id', 401);
         }
+        $userId = $matched['user_id'] ?? null;
     } else {
         api_error('Unauthorized', 401);
     }
+} else {
+    $userId = Auth::getCurrentUserId();
 }
 
 if (!api_rate_limit('analyze_audio_perch', 20, 60)) {
@@ -65,11 +69,22 @@ if (!in_array($mimeDetected, $allowedMimes, true)) {
     api_error('Invalid audio format: ' . $mimeDetected, 415);
 }
 
-$lat = (float)($_POST['lat'] ?? 35.0);
-$lng = (float)($_POST['lng'] ?? 139.0);
-$minConf = 0.3;
+$lat       = (float)($_POST['lat'] ?? 35.0);
+$lng       = (float)($_POST['lng'] ?? 139.0);
+$sessionId = $_POST['session_id'] ?? null;
+$minConf   = 0.3;
 
 $merged = _dualEngineClassify($file['tmp_name'], $file['type'] ?: 'audio/webm', $file['name'] ?: 'audio.webm', $lat, $lng, $minConf);
+
+// バッチキューに音声を投入（リアルタイム推論後の高品質評価のため）
+// セッションIDがある場合のみ。FieldScan または LiveScanner 経由のリクエスト。
+$audioId = null;
+if ($sessionId) {
+    $audioId = _enqueueForBatch($file['tmp_name'], $file['type'] ?: 'audio/webm', $sessionId, $lat, $lng, $userId ?? null);
+}
+
+$merged['audio_id']   = $audioId;
+$merged['batch_queued'] = ($audioId !== null);
 
 api_success($merged);
 
@@ -378,4 +393,54 @@ function _mergeResults(array $perchResults, array $birdnetResults, float $minCon
     $merged = array_filter($merged, fn($d) => $d['confidence'] >= $minConf);
 
     return array_values(array_slice($merged, 0, 5));
+}
+
+// ---------------------------------------------------------------------------
+// バッチキュー投入（非同期・失敗しても無視）
+// ---------------------------------------------------------------------------
+
+function _enqueueForBatch(string $tmpPath, string $mimeType, string $sessionId, float $lat, float $lng, ?string $userId): ?string
+{
+    try {
+        $queueDir = DATA_DIR . 'audio_queue/';
+        $audioDir = DATA_DIR . 'audio_snippets/';
+
+        foreach ([$queueDir, $audioDir] as $dir) {
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+        }
+
+        $ext      = in_array($mimeType, ['audio/mp4', 'video/webm'], true) ? '.mp4' : '.webm';
+        $audioId  = bin2hex(random_bytes(8));
+        $destPath = $audioDir . $audioId . $ext;
+
+        // アップロードされた一時ファイルをコピー（move_uploaded_file はこの時点では使えない）
+        if (!copy($tmpPath, $destPath)) {
+            return null;
+        }
+
+        $jobId  = 'abj_' . bin2hex(random_bytes(8));
+        $job    = [
+            'job_id'     => $jobId,
+            'audio_id'   => $audioId,
+            'audio_path' => $destPath,
+            'session_id' => $sessionId,
+            'user_id'    => $userId,
+            'lat'        => $lat,
+            'lng'        => $lng,
+            'queued_at'  => date('c'),
+            'status'     => 'queued',
+            'source'     => 'realtime_passthrough',
+        ];
+
+        $jobFile = $queueDir . $jobId . '.json';
+        file_put_contents($jobFile, json_encode($job, JSON_UNESCAPED_UNICODE));
+
+        return $audioId;
+
+    } catch (Exception $e) {
+        error_log('[analyze_audio_perch] バッチキュー投入失敗: ' . $e->getMessage());
+        return null;
+    }
 }

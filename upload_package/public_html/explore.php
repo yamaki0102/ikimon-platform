@@ -171,6 +171,21 @@ Auth::init();
                         <i data-lucide="x" class="w-3 h-3" style="pointer-events:none"></i> フィルタ解除
                     </button>
                 </template>
+                <span class="w-px h-5 bg-border shrink-0 mx-1 self-center"></span>
+                <button @click="sourceFilter='post'; load(true)" class="m3-chip" :class="sourceFilter === 'post' ? 'selected' : ''">
+                    📷 投稿
+                </button>
+                <button @click="sourceFilter='ikimon_sensor'; load(true)" class="m3-chip" :class="sourceFilter === 'ikimon_sensor' ? 'selected' : ''">
+                    📡 センサー
+                </button>
+                <button @click="sourceFilter='fieldscan'; load(true)" class="m3-chip" :class="sourceFilter === 'fieldscan' ? 'selected' : ''">
+                    🔬 スキャン
+                </button>
+                <template x-if="sourceFilter !== 'all'">
+                    <button @click="sourceFilter='all'; load(true)" class="m3-chip" style="background:var(--md-surface-container-high,#e8e8e8);">
+                        <i data-lucide="x" class="w-3 h-3" style="pointer-events:none"></i> ソース解除
+                    </button>
+                </template>
             </div>
         </div>
 
@@ -181,6 +196,9 @@ Auth::init();
             <div class="mb-6" x-data="regionalCompletion('full')">
                 <?php include __DIR__ . '/components/regional_completion.php'; ?>
             </div>
+
+            <!-- Scan Recommendation Cards -->
+            <?php include __DIR__ . '/components/scan_recommendation_cards.php'; ?>
 
             <!-- Loading State (Skeleton) -->
             <div x-show="loading && items.length === 0" class="responsive-grid pb-12">
@@ -251,6 +269,7 @@ Auth::init();
                 filter: 'all',
                 aiFilter: 'all',
                 invasiveFilter: 'all',
+                sourceFilter: 'all',
                 includeImported: new URLSearchParams(window.location.search).get('include_imported') === '1',
                 items: [],
                 loading: false,
@@ -258,9 +277,14 @@ Auth::init();
                 limit: 20,
                 hasMore: true,
                 regionStats: null,
+                scanRecs: [],
+                scanSummary: null,
+                scanRecsLoaded: false,
+                scanRecsLoading: false,
 
                 init() {
                     this.load();
+                    this.tryAutoLoadScanRecs();
                 },
 
                 async load(reset = false) {
@@ -290,6 +314,9 @@ Auth::init();
                         }
                         if (this.includeImported) {
                             url += `&include_imported=1`;
+                        }
+                        if (this.sourceFilter !== 'all') {
+                            url += `&record_source=${encodeURIComponent(this.sourceFilter)}`;
                         }
                         const res = await fetch(url);
                         const result = await res.json();
@@ -352,6 +379,49 @@ Auth::init();
                         return rankMap[rank] + 'ヒントあり';
                     }
                     return '';
+                },
+
+                async tryAutoLoadScanRecs() {
+                    if (!navigator.geolocation) return;
+                    try {
+                        const pos = await new Promise((resolve, reject) =>
+                            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, maximumAge: 300000 })
+                        );
+                        await this.loadScanRecs(pos.coords.latitude, pos.coords.longitude);
+                    } catch (_) {
+                        // Location denied — show prompt
+                    }
+                },
+
+                async requestLocationForScanRecs() {
+                    if (!navigator.geolocation) return;
+                    this.scanRecsLoading = true;
+                    try {
+                        const pos = await new Promise((resolve, reject) =>
+                            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 })
+                        );
+                        await this.loadScanRecs(pos.coords.latitude, pos.coords.longitude);
+                    } catch (_) {
+                        this.scanRecsLoading = false;
+                    }
+                },
+
+                async loadScanRecs(lat, lng) {
+                    this.scanRecsLoading = true;
+                    try {
+                        const res = await fetch(`/api/v2/scan_recommendations.php?lat=${lat}&lng=${lng}&radius=5`);
+                        const json = await res.json();
+                        if (json.success) {
+                            this.scanRecs = json.data.recommendations || [];
+                            this.scanSummary = json.data.summary || null;
+                            this.scanRecsLoaded = true;
+                        }
+                    } catch (e) {
+                        console.error('[ScanRecs]', e);
+                    } finally {
+                        this.scanRecsLoading = false;
+                        this.$nextTick(() => lucide.createIcons());
+                    }
                 },
 
                 toggleImported() {

@@ -103,6 +103,10 @@ class LiveScanner {
         this._sentEventCount = 0;
         this._serverSessionId = null;
 
+        // バッチ評価（デュアルエンジン高品質解析）
+        this._batchJobIds = [];
+        this._batchResults = null;
+
         // Power
         this._powerSaveMode = false;
         this._batteryLevel = 1.0;
@@ -229,8 +233,15 @@ class LiveScanner {
         // Fetch recap
         const recap = await this._fetchRecap(duration);
 
+        // バッチ評価を非同期で開始（散歩レポートには含まれないが、後から参照可能）
+        // セッションIDをキーにポーリングできる
+        const effectiveSessionId = this._serverSessionId || this.sessionId;
+        if (effectiveSessionId && this._batchJobIds.length > 0) {
+            this.onLog(`🔬 ${this._batchJobIds.length}件の音声をデュアル評価キューに投入済み`);
+        }
+
         return {
-            sessionId: this._serverSessionId || this.sessionId,
+            sessionId: effectiveSessionId,
             mode: this.movementMode,
             duration,
             distance,
@@ -247,7 +258,65 @@ class LiveScanner {
             recap,
             dataUsage: this.dataUsage,
             movementModeLog: this._movementModeLog,
+            batchQueued: this._batchJobIds.length,
         };
+    }
+
+    // ========== バッチ評価結果取得 ==========
+
+    /**
+     * バッチ評価の結果をポーリングで取得する。
+     * 散歩レポート画面から呼び出す用途。
+     *
+     * @param {string} sessionId  サーバー側セッションID
+     * @param {number} maxWaitMs  最大待機ミリ秒（デフォルト 5分）
+     * @param {function} onProgress  進捗コールバック({ status, completed, total })
+     * @returns {Promise<object|null>}  バッチ評価結果、またはタイムアウトで null
+     */
+    async fetchBatchResults(sessionId, maxWaitMs = 300000, onProgress = null) {
+        if (!sessionId) return null;
+
+        const pollIntervalMs = 15000;
+        const deadline = Date.now() + maxWaitMs;
+
+        while (Date.now() < deadline) {
+            try {
+                const resp = await fetch(
+                    `/api/v2/audio_batch_status.php?session_id=${encodeURIComponent(sessionId)}`,
+                    { credentials: 'same-origin' }
+                );
+                if (!resp.ok) break;
+
+                const json = await resp.json();
+                if (!json.success) break;
+
+                const data = json.data;
+
+                if (onProgress) {
+                    onProgress({
+                        status: data.status,
+                        completed: data.completed_jobs || 0,
+                        total: data.total_jobs || 0,
+                    });
+                }
+
+                if (data.status === 'done') {
+                    this._batchResults = data;
+                    return data;
+                }
+
+                if (data.status === 'no_jobs') {
+                    return null;
+                }
+
+            } catch (e) {
+                // ネットワークエラーは無視して次のポーリングへ
+            }
+
+            await new Promise(r => setTimeout(r, pollIntervalMs));
+        }
+
+        return null;
     }
 
     // ========== GPS ==========
@@ -599,6 +668,10 @@ class LiveScanner {
             fd.append('audio', blob, 'snippet' + (this._mime.includes('mp4') ? '.mp4' : '.webm'));
             fd.append('lat', last ? last.lat : 35.0);
             fd.append('lng', last ? last.lng : 139.0);
+            // セッションIDを送ることで、サーバー側がバッチキューに投入する
+            if (this._serverSessionId || this.sessionId) {
+                fd.append('session_id', this._serverSessionId || this.sessionId);
+            }
             this.dataUsage += blob.size;
 
             try {
@@ -618,7 +691,12 @@ class LiveScanner {
                         this._audioEmptyStreak = 0;
                         this.onAudioState('detected');
                         setTimeout(() => this.onAudioState('listening'), 2000);
-                        this.onLog('🎤 Perch v2: ' + (json.data.detections.length) + '件');
+                        const engineLabel = json.data.engine === 'dual' ? 'デュアル' : 'Perch v2';
+                        this.onLog(`🎤 ${engineLabel}: ${json.data.detections.length}件`);
+                        // バッチキューに投入済みであれば audio_id を記録
+                        if (json.data.batch_queued && json.data.audio_id) {
+                            this._batchJobIds.push(json.data.audio_id);
+                        }
                     } else {
                         this._audioEmptyStreak++;
                         if (json.data?.status === 'service_unavailable') {

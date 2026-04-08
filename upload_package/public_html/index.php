@@ -500,7 +500,6 @@ $meta_description = '道端の花の名前がわかると、世界の解像度�
                         ];
                         $obsTotalReactions += count($_rl);
                     }
-                    // Legacy fallback: likes/ ディレクトリも確認
                     if ($obsTotalReactions === 0) {
                         $_legacyFile = DATA_DIR . '/likes/' . $obs['id'] . '.json';
                         if (file_exists($_legacyFile)) {
@@ -510,124 +509,13 @@ $meta_description = '道端の花の名前がわかると、世界の解像度�
                             $obsTotalReactions = count($_ll);
                         }
                     }
-                    $obsComments = count($obs['identifications'] ?? []);
+                    // コンポーネント変数をセット
+                    $cardObs              = $obs;
+                    $cardReactionsJson    = json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP);
+                    $cardObsTotalReactions = $obsTotalReactions;
+                    $cardLoggedIn         = (bool)$currentUser;
+                    include PUBLIC_DIR . 'components/observation_feed_card.php';
                 ?>
-                    <?php
-                        $feedCardReactionsJson = json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP);
-                        $feedCardObsId = $obs['id'];
-                        $feedCardDetailUrl = 'observation_detail.php?id=' . urlencode($obs['id']);
-                        $feedCardShareTitle = $obs['taxon']['name'] ?? '観察記録';
-                    ?>
-                    <article x-data='{ reactions: <?php echo $feedCardReactionsJson; ?>, total: <?php echo (int)$obsTotalReactions; ?>, scale: 1, menuOpen: false, loggedIn: <?php echo $currentUser ? 'true' : 'false'; ?> }'
-                     @click.outside="menuOpen = false"
-                        class="feed-card feed-card--animated overflow-hidden transition" style="background:var(--md-surface-container-low);border-radius:var(--shape-xl);box-shadow:var(--elev-1);"
-                        <!-- Feed Header -->
-                        <div class="px-4 py-3 flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-surface overflow-hidden">
-                                    <img src="<?php echo htmlspecialchars($obs['user_avatar'] ?? '/assets/img/default-avatar.svg'); ?>" alt="<?php echo htmlspecialchars($obs['user_name'] ?? 'ユーザー'); ?>のアバター" class="w-full h-full object-cover" loading="lazy" onerror="this.src='/assets/img/default-avatar.svg'">
-                                </div>
-                                <div>
-                                    <p class="text-sm font-bold leading-none text-text"><?php echo htmlspecialchars($obs['user_name'] ?? substr($obs['user_id'], 0, 4)); ?></p>
-                                    <p class="text-token-xs text-muted"><?php echo BioUtils::timeAgo($obs['observed_at']); ?> ・ <?php echo htmlspecialchars($obs['municipality'] ?? $obs['location']['name'] ?? ''); ?></p>
-                                </div>
-                            </div>
-                            <div class="relative">
-                                <button @click.stop="menuOpen = !menuOpen" class="p-2 transition rounded-full text-faint hover:bg-surface">
-                                    <i data-lucide="more-horizontal" class="w-4 h-4"></i>
-                                </button>
-                                <div x-show="menuOpen" x-transition.opacity.duration.150ms
-                                    style="position:absolute;right:0;top:100%;margin-top:4px;width:11rem;background:var(--md-surface-container-high);border-radius:var(--shape-md);box-shadow:var(--elev-3);z-index:30;padding:4px 0;overflow:hidden;"
-                                    <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>"
-                                        class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-text hover:bg-surface transition">
-                                        <i data-lucide="eye" class="w-4 h-4 text-faint"></i>詳細を見る
-                                    </a>
-                                    <button @click="menuOpen=false; let u=location.origin+'/<?php echo $feedCardDetailUrl; ?>'; if(navigator.share){navigator.share({title:'<?php echo htmlspecialchars($feedCardShareTitle, ENT_QUOTES); ?>',url:u}).catch(()=>{})}else{navigator.clipboard.writeText(u)}"
-                                        class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-text hover:bg-surface transition text-left">
-                                        <i data-lucide="share-2" class="w-4 h-4 text-faint"></i>シェアする
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Photo -->
-                        <div class="aspect-square w-full bg-surface relative group select-none block overflow-hidden">
-                            <img src="<?php echo $obs['photos'][0]; ?>" alt="<?php echo htmlspecialchars($obs['taxon']['name'] ?? $obs['species_name'] ?? '観察写真'); ?>" class="w-full h-full object-cover pointer-events-none" loading="lazy" decoding="async" onload="this.parentElement.classList.remove('lazy-img')">
-                            <a href="<?php echo htmlspecialchars($feedCardDetailUrl); ?>" class="absolute inset-0 z-[1] cursor-pointer" aria-label="観察詳細を見る"></a>
-
-                            <div x-show="scale > 1"
-                                x-transition:enter="transition ease-out duration-200"
-                                x-transition:enter-start="opacity-0 scale-0"
-                                x-transition:enter-end="opacity-100 scale-150"
-                                x-transition:leave="transition ease-in duration-200"
-                                x-transition:leave-start="opacity-100 scale-150"
-                                x-transition:leave-end="opacity-0 scale-0"
-                                class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                                <span class="text-8xl drop-shadow-2xl opacity-90">✨</span>
-                            </div>
-
-                            <?php if (BioUtils::hasResolvedTaxon($obs)): ?>
-                                <?php
-                                $feedTaxon = is_array($obs['taxon'] ?? null) ? $obs['taxon'] : [];
-                                $feedDisplayName = $feedTaxon['name'] ?? ($obs['community_taxon']['name'] ?? '同定あり');
-                                $feedSlug = $feedTaxon['slug'] ?? ($obs['community_taxon']['slug'] ?? null);
-                                $feedSpeciesUrl = $feedSlug
-                                    ? 'species/' . urlencode($feedSlug)
-                                    : 'species.php?taxon=' . urlencode($feedDisplayName);
-                                ?>
-                                <a href="<?php echo htmlspecialchars($feedSpeciesUrl); ?>" onclick="event.stopPropagation()"
-                                    class="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md flex items-center gap-1.5 border border-white/20 hover:bg-black/70 transition z-10 max-w-[calc(100%-3rem)] truncate">
-                                    <i data-lucide="check-circle-2" class="w-3 h-3 text-green-400"></i>
-                                    <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($feedDisplayName); ?></span>
-                                    <?php if (!empty($obs['individual_count'])): ?>
-                                        <span class="text-[10px] font-bold text-white/80 bg-white/15 px-1.5 py-0.5 rounded-full">&times;<?php echo (int)$obs['individual_count']; ?></span>
-                                    <?php endif; ?>
-                                </a>
-                            <?php else: ?>
-                                <div class="absolute bottom-2 left-2 flex items-center gap-1.5 z-10">
-                                    <div class="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-2 border border-white/10">
-                                        <i data-lucide="help-circle" class="w-3 h-3 text-white/50"></i>
-                                        <span class="text-xs text-white/60"><?php echo __('home.identifying'); ?></span>
-                                    </div>
-                                    <?php if (!empty($obs['individual_count'])): ?>
-                                        <span class="px-2 py-1 rounded-full bg-black/40 backdrop-blur-md text-[10px] font-bold text-white/70 border border-white/10">&times;<?php echo (int)$obs['individual_count']; ?></span>
-                                    <?php endif; ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-
-                        <!-- Actions: 4 Reaction Buttons -->
-                        <div class="px-4 py-2 pb-0 flex items-center gap-0.5">
-                            <?php foreach (['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', 'manabi' => '🔬'] as $_rtype => $_remoji): ?>
-                            <button @click="if(!loggedIn){window.location.href='/login.php?redirect='+encodeURIComponent(window.location.pathname+window.location.search);return}; let r=reactions.<?php echo $_rtype; ?>; let prev=r.reacted; r.reacted=!r.reacted; r.count+=r.reacted?1:-1; total+=r.reacted?1:-1; if(r.reacted){scale=1.2;setTimeout(()=>scale=1,200)}; fetch('/api/toggle_like.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'<?php echo htmlspecialchars($feedCardObsId, ENT_QUOTES); ?>',type:'<?php echo $_rtype; ?>'})}).then(res=>res.json()).then(data=>{if(!data.success){r.reacted=prev;r.count+=prev?1:-1;total+=prev?1:-1}}).catch(()=>{r.reacted=prev;r.count+=prev?1:-1;total+=prev?1:-1})"
-                                class="flex items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-all hover:bg-surface active:scale-90"
-                                :class="reactions.<?php echo $_rtype; ?>.reacted ? 'bg-primary/10' : ''">
-                                <span class="text-base" :class="reactions.<?php echo $_rtype; ?>.reacted ? 'opacity-100' : 'opacity-40'"><?php echo $_remoji; ?></span>
-                                <span class="text-[10px] font-bold"
-                                    :class="reactions.<?php echo $_rtype; ?>.reacted ? 'text-primary' : 'text-faint'"
-                                    x-show="reactions.<?php echo $_rtype; ?>.count > 0"
-                                    x-text="reactions.<?php echo $_rtype; ?>.count"></span>
-                            </button>
-                            <?php endforeach; ?>
-                            <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="flex items-center gap-1.5 group active:scale-90 transition-transform py-1.5 px-2 rounded-lg hover:bg-surface" title="同定・コメント">
-                                <i data-lucide="message-circle" class="w-5 h-5 transition pointer-events-none <?php echo $obsComments > 0 ? 'text-secondary' : 'text-faint group-hover:text-secondary'; ?>"></i>
-                                <span class="text-xs font-bold <?php echo $obsComments > 0 ? 'text-secondary' : 'text-faint'; ?>"><?php echo (int)$obsComments; ?></span>
-                            </a>
-                            <div class="flex-1"></div>
-                        </div>
-
-                        <!-- Caption -->
-                        <div class="px-4 py-3">
-                            <p class="text-sm text-muted line-clamp-2">
-                                <span class="font-bold text-text"><?php echo htmlspecialchars($obs['user_name'] ?? substr($obs['user_id'], 0, 4)); ?></span>
-                                <?php echo htmlspecialchars($obs['note'] ?? '記録しました'); ?>
-                            </p>
-                            <div class="flex items-center justify-between mt-2">
-                                <span class="text-token-xs text-muted"><?php echo date('Y.m.d H:i', strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now')); ?></span>
-                                <a href="observation_detail.php?id=<?php echo urlencode($obs['id']); ?>" class="text-token-xs font-bold transition text-muted hover:text-primary-dark">詳しく見る →</a>
-                            </div>
-                        </div>
-                    </article>
                 <?php endforeach; ?>
             </div>
 

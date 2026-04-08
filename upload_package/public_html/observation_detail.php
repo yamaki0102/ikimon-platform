@@ -14,6 +14,7 @@ require_once __DIR__ . '/../libs/OmoikaneSearchEngine.php';
 require_once __DIR__ . '/../libs/ObservationMeta.php';
 require_once __DIR__ . '/../libs/AffiliateManager.php';
 require_once __DIR__ . '/../libs/CSRF.php';
+require_once __DIR__ . '/../libs/ObservationSourceHelper.php';
 Auth::init();
 $currentUser = Auth::user();
 $csrfToken = CSRF::generate();
@@ -937,6 +938,173 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
             <!-- RIGHT COLUMN: Info & Activity (LG: 5 cols - ~42%) -->
             <div class="lg:col-span-5 flex flex-col gap-8">
+
+                <?php
+                // ── ソース別情報セクション ──
+                $_detailSrc     = ObservationSourceHelper::getSource($obs);
+                $_detailSrcMeta = ObservationSourceHelper::getMeta($_detailSrc);
+                $_detailDetMeta = ObservationSourceHelper::getDetectionMeta($obs);
+                ?>
+
+                <?php if ($_detailSrc === 'ikimon_sensor' || $_detailSrc === 'fieldscan'): ?>
+                <!-- AIセンサー記録の詳細情報 -->
+                <div style="background:var(--md-surface-container);border-radius:var(--shape-xl);overflow:hidden;box-shadow:var(--elev-1);">
+
+                    <!-- ヘッダー -->
+                    <div class="px-5 py-4 flex items-center gap-3 border-b" style="border-color:rgba(0,0,0,0.06);">
+                        <div class="w-9 h-9 rounded-full flex items-center justify-center <?php echo $_detailSrcMeta['color_class']; ?> border <?php echo $_detailSrcMeta['border_color_class']; ?>">
+                            <i data-lucide="<?php echo $_detailSrcMeta['icon']; ?>" class="w-4 h-4 <?php echo $_detailSrcMeta['text_color_class']; ?>"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-widest text-faint">記録方法</p>
+                            <p class="text-sm font-bold text-text"><?php echo htmlspecialchars($_detailSrcMeta['label']); ?></p>
+                        </div>
+                        <div class="ml-auto">
+                            <?php echo ObservationSourceHelper::renderBadge($_detailSrc, true); ?>
+                        </div>
+                    </div>
+
+                    <!-- 説明 -->
+                    <div class="px-5 py-4">
+                        <p class="text-xs text-muted leading-relaxed"><?php echo htmlspecialchars($_detailSrcMeta['description']); ?></p>
+                        <?php if ($_detailSrcMeta['evidence_note']): ?>
+                            <p class="text-xs text-faint mt-1.5 leading-relaxed">📋 <?php echo htmlspecialchars($_detailSrcMeta['evidence_note']); ?></p>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- AI検出の詳細 -->
+                    <?php if ($_detailDetMeta['confidence'] > 0 || $_detailDetMeta['engine_label']): ?>
+                    <div class="px-5 pb-4 grid grid-cols-2 gap-3">
+
+                        <?php if ($_detailDetMeta['confidence'] > 0): ?>
+                        <div class="rounded-xl p-3" style="background:var(--md-surface-container-low);">
+                            <p class="text-[10px] font-bold text-faint uppercase tracking-wider mb-2">AI確信度</p>
+                            <div class="flex items-center gap-2">
+                                <div class="flex-1 h-2 bg-surface rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full"
+                                        style="width:<?php echo round($_detailDetMeta['confidence'] * 100); ?>%;background:<?php echo $_detailDetMeta['confidence'] >= 0.7 ? '#10b981' : ($_detailDetMeta['confidence'] >= 0.4 ? '#f59e0b' : '#ef4444'); ?>;">
+                                    </div>
+                                </div>
+                                <span class="text-sm font-black <?php echo $_detailDetMeta['conf_label']['class']; ?>">
+                                    <?php echo round($_detailDetMeta['confidence'] * 100); ?>%
+                                </span>
+                            </div>
+                            <p class="text-[10px] <?php echo $_detailDetMeta['conf_label']['class']; ?> font-bold mt-1"><?php echo htmlspecialchars($_detailDetMeta['conf_label']['text']); ?></p>
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if ($_detailDetMeta['engine_label']): ?>
+                        <div class="rounded-xl p-3" style="background:var(--md-surface-container-low);">
+                            <p class="text-[10px] font-bold text-faint uppercase tracking-wider mb-2">推論エンジン</p>
+                            <p class="text-sm font-bold text-text"><?php echo htmlspecialchars($_detailDetMeta['engine_label']); ?></p>
+                            <p class="text-[10px] text-faint mt-1">
+                                <?php echo $_detailDetMeta['emoji']; ?> <?php echo htmlspecialchars($_detailDetMeta['label']); ?>
+                                <?php if ($_detailDetMeta['is_batch']): ?>· バッチ評価済<?php endif; ?>
+                            </p>
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if ($_detailDetMeta['is_tier_1_5']): ?>
+                        <div class="col-span-2 rounded-xl p-3 border border-emerald-400/30" style="background:rgba(16,185,129,0.06);">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
+                                <p class="text-xs font-bold text-emerald-700">Evidence Tier 1.5 — 機械合意による自動昇格</p>
+                            </div>
+                            <p class="text-[10px] text-muted mt-1">BirdNET v2.4 と Perch v2 の両エンジンが同一種を独立して確認しました。</p>
+                        </div>
+                        <?php endif; ?>
+
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if ($_detailSrc === 'fieldscan'): ?>
+                    <!-- フィールドスキャン固有: 環境センサーデータ -->
+                    <?php
+                    $envSnap = $obs['environment_snapshot'] ?? $obs['env_snapshot'] ?? [];
+                    $hasSensorData = !empty($envSnap) || isset($obs['ndsi']) || isset($obs['temp_celsius']);
+                    ?>
+                    <?php if ($hasSensorData): ?>
+                    <div class="px-5 pb-4">
+                        <p class="text-[10px] font-bold text-faint uppercase tracking-wider mb-2">環境センサーデータ</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <?php if (!empty($envSnap['habitat'])): ?>
+                                <div class="rounded-lg px-3 py-2" style="background:var(--md-surface-container-low);">
+                                    <p class="text-[10px] text-muted">生息環境</p>
+                                    <p class="text-xs font-bold text-text"><?php echo htmlspecialchars($envSnap['habitat']); ?></p>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (isset($envSnap['canopy_cover'])): ?>
+                                <div class="rounded-lg px-3 py-2" style="background:var(--md-surface-container-low);">
+                                    <p class="text-[10px] text-muted">林冠被覆率</p>
+                                    <p class="text-xs font-bold text-text"><?php echo (int)$envSnap['canopy_cover']; ?>%</p>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (isset($obs['ndsi'])): ?>
+                                <div class="rounded-lg px-3 py-2" style="background:var(--md-surface-container-low);">
+                                    <p class="text-[10px] text-muted">音響指数 (NDSI)</p>
+                                    <p class="text-xs font-bold text-text"><?php echo round((float)$obs['ndsi'], 3); ?></p>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (isset($obs['temp_celsius'])): ?>
+                                <div class="rounded-lg px-3 py-2" style="background:var(--md-surface-container-low);">
+                                    <p class="text-[10px] text-muted">気温</p>
+                                    <p class="text-xs font-bold text-text"><?php echo round((float)$obs['temp_celsius'], 1); ?>°C</p>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (!empty($envSnap['disturbance'])): ?>
+                                <div class="rounded-lg px-3 py-2" style="background:var(--md-surface-container-low);">
+                                    <p class="text-[10px] text-muted">撹乱レベル</p>
+                                    <p class="text-xs font-bold text-text"><?php echo htmlspecialchars($envSnap['disturbance']); ?></p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <p class="text-[10px] text-faint mt-2">🌍 このデータは100年アーカイブとして永続保存されます</p>
+                    </div>
+                    <?php endif; ?>
+                    <?php endif; ?>
+
+                </div>
+
+                <?php elseif ($_detailSrc === 'post'): ?>
+                <!-- 観察投稿: 証拠・信頼性バッジ -->
+                <div style="background:var(--md-surface-container);border-radius:var(--shape-xl);overflow:hidden;box-shadow:var(--elev-1);">
+                    <div class="px-5 py-4 flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-full flex items-center justify-center bg-blue-500/15 border border-blue-400/30">
+                            <i data-lucide="camera" class="w-4 h-4 text-blue-700"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-xs font-black uppercase tracking-widest text-faint">記録方法</p>
+                            <p class="text-sm font-bold text-text">観察投稿</p>
+                            <p class="text-xs text-muted mt-0.5">あなたが現場で撮影した写真による観察記録です。</p>
+                        </div>
+                        <?php echo ObservationSourceHelper::renderBadge($_detailSrc, true); ?>
+                    </div>
+                    <?php if (!empty($obs['quality_flags'])): ?>
+                    <div class="px-5 pb-4">
+                        <p class="text-[10px] font-bold text-faint uppercase tracking-wider mb-2">データ品質フラグ</p>
+                        <div class="flex flex-wrap gap-1.5">
+                            <?php
+                            $qfLabels = [
+                                'has_media'    => ['📷', '写真あり'],
+                                'has_location' => ['📍', '位置情報あり'],
+                                'has_date'     => ['📅', '日時あり'],
+                                'is_wild'      => ['🌿', '野生個体'],
+                            ];
+                            foreach ($qfLabels as $flag => [$emoji, $label]):
+                                if (!empty($obs['quality_flags'][$flag])):
+                            ?>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-green-500/10 text-green-700 border border-green-400/20 font-bold">
+                                    <?php echo $emoji; ?> <?php echo $label; ?>
+                                </span>
+                            <?php
+                                endif;
+                            endforeach;
+                            ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
 
                 <?php if (!empty($trustGuidance['steps']) && ($trustGuidance['status'] ?? '') !== '種レベル研究用'): ?>
                     <div style="background:var(--md-primary-container);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">

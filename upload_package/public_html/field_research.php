@@ -664,6 +664,23 @@ if (!$currentUser) {
         </div>
     </div>
 
+    <!-- Scan Recommendation Mini Card -->
+    <div x-show="nearbyRec && !sessionActive && !showModeSelect && !showSensorIntro" x-cloak
+        class="fixed left-4 right-4 z-40 transition-all duration-300"
+        style="bottom: 100px;">
+        <div class="rounded-2xl border border-emerald-200 bg-white/95 backdrop-blur-md shadow-lg p-3 flex items-center gap-3"
+            @click="if(nearbyRec) window.location.href='/field_research.php?mode=scan&lat='+nearbyRec.center.lat+'&lng='+nearbyRec.center.lng">
+            <span class="text-2xl shrink-0" x-text="nearbyRec?.environment?.icon || '🌍'"></span>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-emerald-800 truncate">
+                    近くに<span x-text="nearbyRec?.external_species || '?'"></span>種記録のおすすめ調査エリア
+                </p>
+                <p class="text-[10px] text-slate-500 truncate" x-text="nearbyRec?.reasons?.[0] || ''"></p>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+        </div>
+    </div>
+
     <!-- Bottom Action Bar (when no session and sensor panel hidden) -->
     <div class="bottom-bar glass" x-show="!sessionActive && !showModeSelect && !showSensorIntro" x-cloak>
         <!-- Locate -->
@@ -790,6 +807,54 @@ if (!$currentUser) {
                         <span style="color:var(--md-on-surface);" x-text="c.text"></span>
                     </div>
                 </template>
+            </div>
+
+            <!-- Dual Engine Batch Results -->
+            <div x-show="batchState !== 'none'" style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1.5px solid #34d399;border-radius:var(--shape-lg);padding:16px;margin-bottom:16px;">
+                <div x-show="batchState === 'polling'" style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:18px;height:18px;border:2.5px solid #10b981;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></div>
+                    <div>
+                        <div style="font-size:var(--type-label-lg);font-weight:700;color:#065f46;">🔬 デュアル評価キュー済み</div>
+                        <div style="font-size:var(--type-label-sm);color:#6b7280;margin-top:2px;">BirdNET + Perch v2 で精度向上中...</div>
+                    </div>
+                </div>
+                <div x-show="batchState === 'done' && batchResults">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <span style="font-size:var(--type-label-lg);font-weight:700;color:#065f46;">✅ デュアル評価完了</span>
+                        <span style="font-size:var(--type-label-sm);background:#bbf7d0;color:#065f46;padding:2px 8px;border-radius:var(--shape-full);font-weight:700;" x-text="'Tier ' + (batchResults?.summary?.tier_1_5_count > 0 ? '1.5' : '2') + ' 確認'"></span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.7);border-radius:var(--shape-md);">
+                            <div style="font-size:var(--type-headline-sm);font-weight:900;color:#065f46;" x-text="batchResults?.summary?.total || 0"></div>
+                            <div style="font-size:var(--type-label-sm);color:#6b7280;">総検出</div>
+                        </div>
+                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.7);border-radius:var(--shape-md);">
+                            <div style="font-size:var(--type-headline-sm);font-weight:900;color:#059669;" x-text="batchResults?.summary?.dual_agree_count || 0"></div>
+                            <div style="font-size:var(--type-label-sm);color:#6b7280;">デュアル一致</div>
+                        </div>
+                        <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.7);border-radius:var(--shape-md);">
+                            <div style="font-size:var(--type-headline-sm);font-weight:900;color:#7c3aed;" x-text="batchResults?.summary?.tier_1_5_count || 0"></div>
+                            <div style="font-size:var(--type-label-sm);color:#6b7280;">Tier 1.5</div>
+                        </div>
+                    </div>
+                    <template x-if="batchResults?.detections?.length > 0">
+                        <div style="display:flex;flex-direction:column;gap:6px;">
+                            <template x-for="d in (batchResults?.detections || []).slice(0,5)" :key="d.scientific_name">
+                                <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.6);border-radius:var(--shape-sm);padding:6px 10px;">
+                                    <div>
+                                        <span style="font-size:var(--type-body-sm);font-weight:700;color:#065f46;" x-text="d.japanese_name || d.scientific_name"></span>
+                                        <span x-show="d.is_tier_1_5" style="font-size:9px;background:#7c3aed;color:#fff;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:700;">Tier 1.5</span>
+                                    </div>
+                                    <span style="font-size:var(--type-label-sm);font-weight:700;" :style="'color:' + (d.confidence >= 0.8 ? '#059669' : d.confidence >= 0.55 ? '#d97706' : '#ef4444')" x-text="Math.round((d.confidence || 0) * 100) + '%'"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <div style="font-size:var(--type-label-sm);color:#6b7280;text-align:center;margin-top:8px;">BirdNET v2.4 + Perch v2 デュアルエンジン評価</div>
+                </div>
+                <div x-show="batchState === 'timeout'" style="font-size:var(--type-label-md);color:#6b7280;">
+                    🔬 評価はバックグラウンドで継続中（完了後に観察詳細で確認できます）
+                </div>
             </div>
 
             <!-- Weekly Summary — M3 Outlined Container -->
@@ -944,6 +1009,8 @@ if (!$currentUser) {
                 reportLoading: false,
                 reportData: null,
                 weeklyStats: { sessions: 0, species: 0, distance: 0, streak: 0 },
+                batchState: 'none', // 'none' | 'polling' | 'done' | 'timeout'
+                batchResults: null,
 
                 // Session state
                 sessionActive: false,
@@ -958,6 +1025,7 @@ if (!$currentUser) {
                 _sessionTimer: null,
                 _detectionFadeTimer: null,
                 envLabel: '',
+                nearbyRec: null,
 
                 // Speaker selection
                 showSensorIntro: !localStorage.getItem('ikimon_sensor_intro_v1'),
@@ -1084,6 +1152,7 @@ if (!$currentUser) {
                                 center: [pos.coords.longitude, pos.coords.latitude],
                                 zoom: 15, duration: 1500
                             });
+                            this.loadNearbyRec(pos.coords.latitude, pos.coords.longitude);
                         }, () => {}, { enableHighAccuracy: true, timeout: 5000 });
                     }
 
@@ -1354,8 +1423,13 @@ if (!$currentUser) {
 
                     // バックグラウンドで詳細データを取得
                     let result = null;
+                    let batchSessionId = null;
+                    this.batchState = 'none';
+                    this.batchResults = null;
                     if (this.liveScanner) {
-                        result = await this.liveScanner.stop();
+                        const scannerRef = this.liveScanner;
+                        batchSessionId = scannerRef._serverSessionId || scannerRef.sessionId || null;
+                        result = await scannerRef.stop();
                         this.liveScanner = null;
                     }
 
@@ -1391,8 +1465,33 @@ if (!$currentUser) {
                     if (result?.recap) this.reportData.recap = result.recap;
                     this.reportLoading = false;
 
+                    // バッチ音声評価ポーリング開始
+                    if (result?.batchQueued > 0 && batchSessionId) {
+                        this.batchState = 'polling';
+                        this._startBatchPolling(batchSessionId);
+                    }
+
                     this._saveWeeklySession(this.reportData);
                     this._loadWeeklyStats();
+                },
+
+                async _startBatchPolling(sessionId) {
+                    const maxRetries = 20;
+                    for (let i = 0; i < maxRetries; i++) {
+                        await new Promise(r => setTimeout(r, 30000));
+                        if (!this.showReport || this.batchState !== 'polling') return;
+                        try {
+                            const r = await fetch('/api/v2/audio_batch_status.php?session_id=' + encodeURIComponent(sessionId));
+                            if (!r.ok) continue;
+                            const j = await r.json();
+                            if (j.status === 'done' || j.status === 'partial') {
+                                this.batchResults = j;
+                                this.batchState = 'done';
+                                return;
+                            }
+                        } catch(e) { /* keep polling */ }
+                    }
+                    if (this.batchState === 'polling') this.batchState = 'timeout';
                 },
 
                 async _fireAmbientGuide() {
@@ -1733,6 +1832,17 @@ if (!$currentUser) {
                             zoom: 16, duration: 1000
                         });
                     }, () => {}, { enableHighAccuracy: true, timeout: 5000 });
+                },
+
+                async loadNearbyRec(lat, lng) {
+                    try {
+                        const res = await fetch(`/api/v2/scan_recommendations.php?lat=${lat}&lng=${lng}&radius=3`);
+                        const json = await res.json();
+                        if (json.success && json.data.recommendations?.length) {
+                            this.nearbyRec = json.data.recommendations[0];
+                            this.$nextTick(() => lucide.createIcons());
+                        }
+                    } catch (_) {}
                 },
 
                 // ── Format Helpers ──
