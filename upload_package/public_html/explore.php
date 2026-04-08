@@ -269,7 +269,7 @@ Auth::init();
                 filter: 'all',
                 aiFilter: 'all',
                 invasiveFilter: 'all',
-                sourceFilter: 'all',
+                sourceFilter: new URLSearchParams(window.location.search).get('source') || 'all',
                 includeImported: new URLSearchParams(window.location.search).get('include_imported') === '1',
                 items: [],
                 loading: false,
