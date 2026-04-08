@@ -28,7 +28,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-text" x-text="regionName"></span>
+                        <span class="text-xs font-bold" style="color:#1a2e1f;" x-text="regionName"></span>
                         <span class="text-[10px] font-bold text-primary" x-text="observedSpecies + '種を発見'"></span>
                     </div>
                     <!-- Milestone Progress Bar -->
@@ -39,7 +39,7 @@
                 </div>
                 <div class="text-right shrink-0">
                     <div class="text-xs font-bold text-primary" x-text="'Lv.' + adventureLevel"></div>
-                    <div class="text-[10px] text-muted" x-text="'次: ' + nextMilestone + '種'"></div>
+                    <div class="text-[10px]" style="color:#4b5563;" x-text="'次: ' + nextMilestone + '種'"></div>
                 </div>
                 <i data-lucide="chevron-down" class="w-4 h-4 text-muted transition-transform duration-300" :class="expanded && 'rotate-180'"></i>
             </div>
