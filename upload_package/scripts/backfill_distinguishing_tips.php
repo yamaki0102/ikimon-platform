@@ -33,32 +33,41 @@ $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . 
 echo "=== backfill_distinguishing_tips ===\n";
 echo "limit={$limit}  delay={$delay}s  dry-run=" . ($dryRun ? 'YES' : 'no') . "\n\n";
 
-// ── 対象観察を収集 ────────────────────────────────────────────────────────────
-$all = DataStore::fetchAll('observations');
-usort($all, fn($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
+// ── パーティションファイル走査で対象を収集（直接ファイルを読む） ──────────────
+$obsDir = DATA_DIR . 'observations';
+$partFiles = glob($obsDir . '/*.json');
+rsort($partFiles);
 
 $targets = [];
-foreach ($all as $obs) {
+foreach ($partFiles as $pFile) {
     if (count($targets) >= $limit) break;
 
-    $last = null;
-    $lastIdx = null;
-    foreach (array_reverse($obs['ai_assessments'] ?? [], true) as $idx => $a) {
-        if (($a['kind'] ?? '') === 'machine_assessment') {
-            $last = $a;
-            $lastIdx = $idx;
-            break;
-        }
-    }
-    if (!$last) continue;
-    if (empty($last['similar_taxa_to_compare'])) continue;
-    if (!empty($last['distinguishing_tips'])) continue;
+    $partData = json_decode(file_get_contents($pFile), true) ?: [];
+    usort($partData, fn($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
 
-    $targets[] = [
-        'obs'     => $obs,
-        'lastIdx' => $lastIdx,
-        'last'    => $last,
-    ];
+    foreach ($partData as $obs) {
+        if (count($targets) >= $limit) break;
+
+        $last = null;
+        $lastIdx = null;
+        foreach (array_reverse($obs['ai_assessments'] ?? [], true) as $idx => $a) {
+            if (($a['kind'] ?? '') === 'machine_assessment') {
+                $last = $a;
+                $lastIdx = $idx;
+                break;
+            }
+        }
+        if (!$last) continue;
+        if (empty($last['similar_taxa_to_compare'])) continue;
+        if (!empty($last['distinguishing_tips'])) continue;
+
+        $targets[] = [
+            'obs'      => $obs,
+            'lastIdx'  => $lastIdx,
+            'last'     => $last,
+            'partFile' => $pFile,
+        ];
+    }
 }
 
 $total = count($targets);
@@ -173,15 +182,29 @@ PROMPT;
 
     echo "  tips: " . implode(' / ', $tips) . "\n";
 
-    // ── observation に書き込み ────────────────────────────────────────────────
-    $obs['ai_assessments'][$lastIdx]['distinguishing_tips'] = $tips;
+    // ── パーティションファイルを直接更新 ───────────────────────────────────────
+    $pFile = $target['partFile'];
+    $partData = json_decode(file_get_contents($pFile), true) ?: [];
+    $saved = false;
+    foreach ($partData as &$pObs) {
+        if (($pObs['id'] ?? '') !== ($obs['id'] ?? '')) continue;
+        foreach (array_reverse(array_keys($pObs['ai_assessments'] ?? []), false) as $aIdx) {
+            if (($pObs['ai_assessments'][$aIdx]['kind'] ?? '') === 'machine_assessment') {
+                $pObs['ai_assessments'][$aIdx]['distinguishing_tips'] = $tips;
+                $saved = true;
+                break;
+            }
+        }
+        break;
+    }
+    unset($pObs);
 
-    $saved = DataStore::upsert('observations', $obs);
     if ($saved) {
-        echo "  [OK] 保存完了\n\n";
+        file_put_contents($pFile, json_encode($partData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX);
+        echo "  [OK] 保存完了 ({$pFile})\n\n";
         $done++;
     } else {
-        echo "  [FAIL] 保存失敗\n\n";
+        echo "  [FAIL] 観察が見つからない\n\n";
         $failed++;
     }
 
