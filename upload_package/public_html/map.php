@@ -407,6 +407,9 @@ Auth::init();
                 <button class="map-tab" role="tab" :aria-selected="activeTab === 'heatmap'" :class="{'active': activeTab === 'heatmap'}" @click="switchTab('heatmap')">
                     <i data-lucide="flame" class="w-3.5 h-3.5"></i> ストランドマップ
                 </button>
+                <button class="map-tab" role="tab" :aria-selected="activeTab === 'coverage'" :class="{'active': activeTab === 'coverage'}" @click="switchTab('coverage')">
+                    <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i> 調査網羅
+                </button>
             </div>
 
             <!-- Search Bar -->
@@ -449,6 +452,12 @@ Auth::init();
                 <button class="filter-chip" :class="{'active': activeTaxonGroup === 'fungi'}" @click="setTaxonGroup('fungi')">🍄 菌類</button>
             </div>
 
+            <!-- Coverage info bar -->
+            <div class="flex items-center gap-2 px-1 py-1 text-sm text-muted" x-show="activeTab === 'coverage'" x-transition>
+                <i data-lucide="info" class="w-4 h-4 shrink-0"></i>
+                <span>コミュニティのスキャン済みエリアを表示（k匿名性保護済み）</span>
+            </div>
+
             <!-- Heatmap Filters (heatmap tab) -->
             <div class="flex items-center gap-2" x-show="activeTab === 'heatmap'" x-transition>
                 <div class="filter-chip-bar flex-1">
@@ -476,6 +485,17 @@ Auth::init();
                 <span>多</span>
             </div>
             <div class="text-muted mt-1" x-text="'データ: ' + heatmapPointCount.toLocaleString() + '件'"></div>
+        </div>
+
+        <!-- Coverage Legend -->
+        <div x-show="activeTab === 'coverage'" x-transition style="display:none;"
+             class="heatmap-legend">
+            <div class="font-bold text-text mb-1">スキャン回数</div>
+            <div style="height:8px;border-radius:4px;background:linear-gradient(to right, rgba(16,185,129,0.12), rgba(16,185,129,0.75));"></div>
+            <div class="flex justify-between text-muted text-xs mt-0.5">
+                <span>少</span><span>多</span>
+            </div>
+            <div class="text-muted text-xs mt-1" x-text="coverageMeshCount.toLocaleString() + ' メッシュ調査済み'"></div>
         </div>
 
         <!-- Observation Detail Preview (in-page, no navigation) -->
@@ -750,7 +770,7 @@ Auth::init();
                 // Tab system
                 activeTab: (() => {
                     const tab = new URLSearchParams(window.location.search).get('tab') || 'markers';
-                    return ['markers', 'heatmap'].includes(tab) ? tab : 'markers';
+                    return ['markers', 'heatmap', 'coverage'].includes(tab) ? tab : 'markers';
                 })(),
 
                 // Heatmap state
@@ -758,6 +778,10 @@ Auth::init();
                 heatmapYear: 'all',
                 heatmapPointCount: 0,
                 _heatmapLoaded: false,
+
+                // Coverage state
+                coverageMeshCount: 0,
+                _coverageLoaded: false,
 
                 // Ghosts state
                 ghosts: [],
@@ -808,6 +832,17 @@ Auth::init();
                             this.map.setLayoutProperty(id, 'visibility', tab === 'heatmap' ? 'visible' : 'none');
                         }
                     });
+
+                    const coverageLayers = ['mesh-coverage-fill', 'mesh-coverage-outline'];
+                    coverageLayers.forEach(id => {
+                        if (this.map.getLayer(id)) {
+                            this.map.setLayoutProperty(id, 'visibility', tab === 'coverage' ? 'visible' : 'none');
+                        }
+                    });
+                    // Lazy load
+                    if (tab === 'coverage' && !this._coverageLoaded) {
+                        this.loadCoverageData();
+                    }
 
                     // Toggle DOM markers (photo markers at high zoom)
                     Object.values(this.markers).forEach(m => {
@@ -892,6 +927,66 @@ Auth::init();
                         }
                     } catch (e) {
                         console.error('Heatmap load failed:', e);
+                    }
+                },
+
+                async loadCoverageData() {
+                    try {
+                        const bounds = this.map.getBounds();
+                        const url = `api/v2/mesh_coverage.php?sw_lat=${bounds.getSouth()}&sw_lng=${bounds.getWest()}&ne_lat=${bounds.getNorth()}&ne_lng=${bounds.getEast()}`;
+                        const res = await fetch(url);
+                        const data = await res.json();
+                        this.coverageMeshCount = data.meta?.community_mesh_count ?? 0;
+                        this._coverageLoaded = true;
+
+                        if (!this.map) return;
+
+                        if (this.map.getSource('mesh-coverage')) {
+                            this.map.getSource('mesh-coverage').setData(data);
+                        } else {
+                            this.map.addSource('mesh-coverage', { type: 'geojson', data });
+                            this.map.addLayer({
+                                id: 'mesh-coverage-fill',
+                                type: 'fill',
+                                source: 'mesh-coverage',
+                                paint: {
+                                    'fill-color': [
+                                        'interpolate', ['linear'],
+                                        ['get', 'scan_count'],
+                                        1, 'rgba(16,185,129,0.12)',
+                                        5, 'rgba(16,185,129,0.30)',
+                                        20, 'rgba(16,185,129,0.55)',
+                                        50, 'rgba(16,185,129,0.75)'
+                                    ],
+                                    'fill-opacity': [
+                                        'interpolate', ['linear'],
+                                        ['get', 'freshness'],
+                                        0.1, 0.4,
+                                        0.5, 0.7,
+                                        1.0, 1.0
+                                    ]
+                                }
+                            });
+                            this.map.addLayer({
+                                id: 'mesh-coverage-outline',
+                                type: 'line',
+                                source: 'mesh-coverage',
+                                paint: {
+                                    'line-color': 'rgba(16,185,129,0.4)',
+                                    'line-width': 0.8
+                                }
+                            });
+                        }
+
+                        // Reload on map move
+                        this.map.on('moveend', () => {
+                            if (this.activeTab === 'coverage') {
+                                this._coverageLoaded = false;
+                                this.loadCoverageData();
+                            }
+                        });
+                    } catch(e) {
+                        console.error('coverage load error', e);
                     }
                 },
 
