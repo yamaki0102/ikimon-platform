@@ -14,7 +14,7 @@
  *   - install_id は推薦パーソナライズのみに使用
  */
 
-require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__ . '/bootstrap.php';
 require_once ROOT_DIR . '/libs/Auth.php';
 require_once ROOT_DIR . '/libs/ScanRecommendationEngine.php';
 require_once ROOT_DIR . '/libs/DataStore.php';
