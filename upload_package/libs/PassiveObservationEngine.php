@@ -328,7 +328,9 @@ class PassiveObservationEngine
             $engine = new \OmoikaneSearchEngine();
 
             if ($scientificName) {
-                $resolved = $engine->resolveByScientificName($scientificName);
+                $resolved = method_exists($engine, 'getTraitsByScientificName')
+                    ? $engine->getTraitsByScientificName($scientificName)
+                    : null;
                 if ($resolved && !empty($resolved['japanese_name'])) {
                     return $resolved['japanese_name'];
                 }

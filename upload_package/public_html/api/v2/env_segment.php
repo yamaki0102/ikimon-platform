@@ -33,8 +33,8 @@
  */
 
 require_once __DIR__ . '/bootstrap.php';
-require_once ROOT_DIR . 'libs/EnvSegmentStore.php';
-require_once ROOT_DIR . 'libs/Auth.php';
+require_once ROOT_DIR . '/libs/EnvSegmentStore.php';
+require_once ROOT_DIR . '/libs/Auth.php';
 
 // POST のみ
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
