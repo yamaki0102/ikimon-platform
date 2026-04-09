@@ -4,6 +4,8 @@ require_once __DIR__ . '/DataStore.php';
 require_once __DIR__ . '/AiBudgetGuard.php';
 require_once __DIR__ . '/AiObservationAssessment.php';
 require_once __DIR__ . '/AsyncJobMetrics.php';
+require_once __DIR__ . '/ObservationSignificanceScorer.php';
+require_once __DIR__ . '/AdminAlertManager.php';
 
 class AiAssessmentQueue
 {
@@ -52,13 +54,53 @@ class AiAssessmentQueue
         $hasConflict = !empty($observation['quality_flags']['has_lineage_conflict']);
         $hasMachineAssessment = self::hasMachineAssessment($observation);
 
-        return match ($reason) {
+        // --- 重要度スコアリング ---
+        // significance は lane 昇格・admin アラート・RAG 深度の判断基準になる。
+        // 処理コストを抑えるため、スコアリングが失敗しても通常フローで続行する。
+        $significance = null;
+        try {
+            $significance = ObservationSignificanceScorer::score($observation);
+            // critical 観察は管理者にアラートを送る
+            if ($significance['needs_admin_alert']) {
+                AdminAlertManager::notify($observation, $significance);
+            }
+        } catch (\Throwable $e) {
+            // 非致命的 — significance なしで続行
+        }
+
+        $sensitivityLevel = $significance['sensitivity_level'] ?? 'normal';
+
+        // --- ベース lane 判定（既存ロジック維持） ---
+        $basePlan = match ($reason) {
             'observation_created' => (!$hasHumanTaxon && $needsId) ? ['lane' => 'fast', 'reason' => $reason] : null,
             'photo_added' => ($needsId || $hasConflict) ? ['lane' => 'batch', 'reason' => $reason] : null,
             'identification_updated', 'observation_refreshed' => (($needsId || $hasConflict || !$hasMachineAssessment) ? ['lane' => 'batch', 'reason' => $reason] : null),
             'manual_deep_review' => ['lane' => 'deep', 'reason' => $reason],
             default => (!$hasHumanTaxon && $needsId) ? ['lane' => 'fast', 'reason' => $reason] : null,
         };
+
+        // --- significance による lane 昇格 ---
+        // important/critical な観察はキュー対象でなくても処理する。
+        if ($basePlan === null && $sensitivityLevel !== 'normal') {
+            $basePlan = ['lane' => 'batch', 'reason' => $reason];
+        }
+
+        if ($basePlan === null) {
+            return null;
+        }
+
+        if ($sensitivityLevel === 'critical') {
+            $basePlan['lane'] = 'deep';
+        } elseif ($sensitivityLevel === 'important' && $basePlan['lane'] === 'fast') {
+            $basePlan['lane'] = 'batch';
+        }
+
+        // significance を plan に乗せて saveAssessmentToObservation 側で参照できるようにする
+        if ($significance !== null) {
+            $basePlan['significance'] = $significance;
+        }
+
+        return $basePlan;
     }
 
     public static function processPending(int $limit = 20, array $options = []): array
@@ -221,6 +263,13 @@ class AiAssessmentQueue
         ));
         $observation['ai_assessments'][] = $assessment;
         $observation['updated_at'] = date('Y-m-d H:i:s');
+
+        // significance を observation に永続保存
+        // (ランキング・B2Bレポート・保全ホットスポット検出で再利用できる)
+        if (!empty($assessment['significance'])) {
+            $observation['significance'] = $assessment['significance'];
+        }
+
         DataStore::upsert('observations', $observation);
     }
 

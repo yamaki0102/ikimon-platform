@@ -184,6 +184,31 @@ class OmoikaneDB
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_habitat ON ecological_constraints(habitat);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_season ON ecological_constraints(season);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_altitude ON ecological_constraints(altitude);");
+
+        // Table: claims (Phase 4 — sentence-level grounding 用の claim/根拠分離モデル)
+        //
+        // distilled_knowledge が paragraph 単位の blob なのに対し、
+        // claims は「1つの主張 + その根拠」という最小単位で保存する。
+        //
+        // claim_type: 'habitat' | 'season' | 'conservation' | 'distribution' | 'morphology' | 'behavior'
+        // source_tier: 'A' (査読論文・環境省) | 'B' (大学・学会) | 'C' (未検証)
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS claims (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                taxon_key TEXT NOT NULL,
+                claim_type TEXT NOT NULL,
+                claim_text TEXT NOT NULL,
+                source_tier TEXT DEFAULT 'B',
+                doi TEXT,
+                source_title TEXT,
+                region_scope TEXT,
+                confidence REAL DEFAULT 0.5,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_taxon ON claims(taxon_key);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_type ON claims(claim_type);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_tier ON claims(source_tier);");
     }
 
     public function getPDO()
