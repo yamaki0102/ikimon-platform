@@ -354,30 +354,202 @@ foreach ($species as $sp) {
 
     $allPapers = [];
 
-    if (!$onlySrc || $onlySrc === 'openalex') {
-        $papers = fetchOpenAlex($sci);
-        echo "  OpenAlex: " . count($papers) . " papers\n";
-        $allPapers = array_merge($allPapers, $papers);
-    }
-    if (!$onlySrc || $onlySrc === 'pubmed') {
-        $papers = fetchPubMed($sci);
-        echo "  PubMed: " . count($papers) . " papers\n";
-        $allPapers = array_merge($allPapers, $papers);
-    }
-    if (!$onlySrc || $onlySrc === 'europepmc') {
-        $papers = fetchEuropePMC($sci);
-        echo "  EuropePMC: " . count($papers) . " papers\n";
-        $allPapers = array_merge($allPapers, $papers);
-    }
-    if (!$onlySrc || $onlySrc === 'jstage') {
-        $papers = fetchJStage($sci, $ja);
-        echo "  J-STAGE: " . count($papers) . " papers\n";
-        $allPapers = array_merge($allPapers, $papers);
-    }
-    if (!$onlySrc || $onlySrc === 'cinii') {
-        $papers = fetchCiNii($sci, $ja);
-        echo "  CiNii: " . count($papers) . " papers\n";
-        $allPapers = array_merge($allPapers, $papers);
+    if ($onlySrc) {
+        // Single source mode (original sequential)
+        if ($onlySrc === 'openalex')  { $p = fetchOpenAlex($sci);   echo "  OpenAlex: " . count($p) . " papers\n";  $allPapers = array_merge($allPapers, $p); }
+        if ($onlySrc === 'pubmed')    { $p = fetchPubMed($sci);     echo "  PubMed: " . count($p) . " papers\n";    $allPapers = array_merge($allPapers, $p); }
+        if ($onlySrc === 'europepmc') { $p = fetchEuropePMC($sci);  echo "  EuropePMC: " . count($p) . " papers\n"; $allPapers = array_merge($allPapers, $p); }
+        if ($onlySrc === 'jstage')    { $p = fetchJStage($sci, $ja); echo "  J-STAGE: " . count($p) . " papers\n"; $allPapers = array_merge($allPapers, $p); }
+        if ($onlySrc === 'cinii')     { $p = fetchCiNii($sci, $ja);  echo "  CiNii: " . count($p) . " papers\n";  $allPapers = array_merge($allPapers, $p); }
+    } else {
+        // Parallel mode: fire OpenAlex + EuropePMC + J-STAGE + CiNii via curl_multi,
+        // PubMed runs sequentially (3-step API).
+        // Each source has INDEPENDENT rate limits — parallel is safe.
+        $mh = curl_multi_init();
+        $handles = [];
+
+        // OpenAlex
+        $oaUrl = "https://api.openalex.org/works?filter=title_and_abstract.search:" . urlencode('"' . $sci . '"')
+            . "&per_page=15&select=id,title,abstract_inverted_index,doi,publication_year,primary_location,authorships"
+            . "&mailto=admin@ikimon.life";
+        $handles['openalex'] = curl_init($oaUrl);
+
+        // EuropePMC
+        $epmcUrl = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+            . "?query=" . urlencode('"' . $sci . '"')
+            . "&resultType=core&pageSize=8&format=json&cursorMark=*";
+        $handles['europepmc'] = curl_init($epmcUrl);
+
+        // J-STAGE
+        $jsQuery = $sci . (!empty($ja) ? ' ' . $ja : '');
+        $jsUrl = "https://api.jstage.jst.go.jp/searchapi/do?service=3"
+            . "&text=" . urlencode($jsQuery) . "&pubyearfrom=2000&count=8";
+        $handles['jstage'] = curl_init($jsUrl);
+
+        // CiNii
+        $cnQuery = !empty($ja) ? $ja : $sci;
+        $cnUrl = "https://cir.nii.ac.jp/opensearch/all?q=" . urlencode($cnQuery) . "&format=json&count=8";
+        $handles['cinii'] = curl_init($cnUrl);
+
+        foreach ($handles as $ch) {
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 12,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_HTTPHEADER     => ['User-Agent: ' . AP_UA, 'Accept: application/json'],
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 3,
+                CURLOPT_SSL_VERIFYPEER => false,
+            ]);
+            curl_multi_add_handle($mh, $ch);
+        }
+
+        // Run PubMed sequentially while curl_multi fetches the other 4
+        $pubmedPapers = fetchPubMed($sci);
+        echo "  PubMed: " . count($pubmedPapers) . " papers\n";
+        $allPapers = array_merge($allPapers, $pubmedPapers);
+
+        // Wait for parallel requests to complete
+        $running = null;
+        do {
+            curl_multi_exec($mh, $running);
+            curl_multi_select($mh, 1);
+        } while ($running > 0);
+
+        // Collect OpenAlex results
+        $oaBody = curl_multi_getcontent($handles['openalex']);
+        if ($oaBody && curl_getinfo($handles['openalex'], CURLINFO_HTTP_CODE) === 200) {
+            $oaData = json_decode($oaBody, true);
+            $oaPapers = [];
+            foreach (($oaData['results'] ?? []) as $work) {
+                $abstract = reconstructOpenAlexAbstract($work['abstract_inverted_index'] ?? []);
+                if (empty($abstract) && mb_strlen($work['title'] ?? '') < 50) continue;
+                $doi = ltrim($work['doi'] ?? '', 'https://doi.org/');
+                $authors = [];
+                foreach (array_slice($work['authorships'] ?? [], 0, 5) as $a) {
+                    $authors[] = $a['author']['display_name'] ?? '';
+                }
+                $oaPapers[] = [
+                    'doi'            => $doi ?: 'openalex-' . md5($work['id'] ?? $sci . $work['title']),
+                    'title'          => $work['title'] ?? '',
+                    'author'         => implode(', ', array_filter($authors)),
+                    'published_date' => (string)($work['publication_year'] ?? ''),
+                    'abstract'       => $abstract,
+                    'link'           => $doi ? "https://doi.org/{$doi}" : ($work['primary_location']['landing_page_url'] ?? ''),
+                    'source'         => 'OpenAlex',
+                ];
+            }
+            echo "  OpenAlex: " . count($oaPapers) . " papers\n";
+            $allPapers = array_merge($allPapers, $oaPapers);
+        } else {
+            echo "  OpenAlex: 0 papers\n";
+        }
+
+        // Collect EuropePMC results
+        $epmcBody = curl_multi_getcontent($handles['europepmc']);
+        if ($epmcBody && curl_getinfo($handles['europepmc'], CURLINFO_HTTP_CODE) === 200) {
+            $epmcData = json_decode($epmcBody, true);
+            $epmcPapers = [];
+            foreach (($epmcData['resultList']['result'] ?? []) as $article) {
+                $abstract = $article['abstractText'] ?? '';
+                $title = $article['title'] ?? '';
+                if (empty($abstract) && mb_strlen($title) < 50) continue;
+                $doi = $article['doi'] ?? '';
+                $pmid = $article['pmid'] ?? '';
+                $epmcPapers[] = [
+                    'doi'            => $doi ?: ($pmid ? "pmid-{$pmid}" : 'epmc-' . md5($title)),
+                    'title'          => $title,
+                    'author'         => implode(', ', array_column(array_slice($article['authorList']['author'] ?? [], 0, 5), 'fullName')),
+                    'published_date' => (string)($article['pubYear'] ?? ''),
+                    'abstract'       => strip_tags($abstract),
+                    'link'           => $doi ? "https://doi.org/{$doi}" : ($pmid ? "https://pubmed.ncbi.nlm.nih.gov/{$pmid}/" : ''),
+                    'source'         => 'EuropePMC',
+                ];
+            }
+            echo "  EuropePMC: " . count($epmcPapers) . " papers\n";
+            $allPapers = array_merge($allPapers, $epmcPapers);
+        } else {
+            echo "  EuropePMC: 0 papers\n";
+        }
+
+        // Collect J-STAGE results
+        $jsBody = curl_multi_getcontent($handles['jstage']);
+        if ($jsBody && curl_getinfo($handles['jstage'], CURLINFO_HTTP_CODE) === 200) {
+            $jsPapers = [];
+            try {
+                $dom = @simplexml_load_string($jsBody);
+                if ($dom && $dom->channel) {
+                    foreach (($dom->channel->item ?? []) as $item) {
+                        $title = (string)($item->title ?? '');
+                        $abstract = (string)($item->description ?? '');
+                        $link = (string)($item->link ?? '');
+                        if (empty($title)) continue;
+                        if (empty($abstract)) $abstract = $title;
+                        $doi = preg_match('#doi\.org/(.+)$#', $link, $m) ? urldecode($m[1]) : '';
+                        $jsPapers[] = [
+                            'doi'            => $doi ?: 'jstage-' . md5($title . $link),
+                            'title'          => $title,
+                            'author'         => '',
+                            'published_date' => '',
+                            'abstract'       => $abstract,
+                            'link'           => $link,
+                            'source'         => 'J-STAGE',
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {}
+            echo "  J-STAGE: " . count($jsPapers) . " papers\n";
+            $allPapers = array_merge($allPapers, $jsPapers);
+        } else {
+            echo "  J-STAGE: 0 papers\n";
+        }
+
+        // Collect CiNii results
+        $cnBody = curl_multi_getcontent($handles['cinii']);
+        if ($cnBody && curl_getinfo($handles['cinii'], CURLINFO_HTTP_CODE) === 200) {
+            $cnData = json_decode($cnBody, true);
+            $cnPapers = [];
+            foreach (($cnData['items'] ?? []) as $item) {
+                $title = $item['title'] ?? ($item['dc:title'] ?? '');
+                $abstract = $item['description'] ?? ($item['dc:description'] ?? '');
+                $rawLink = $item['link'] ?? ($item['@id'] ?? '');
+                if (is_array($rawLink)) {
+                    $link = $rawLink[0]['@id'] ?? $rawLink[0] ?? '';
+                    if (is_array($link)) $link = '';
+                } else {
+                    $link = (string)$rawLink;
+                }
+                if (is_array($title))    $title    = implode(' / ', $title);
+                if (is_array($abstract)) $abstract = implode(' ', $abstract);
+                $title = (string)$title;
+                $abstract = (string)$abstract;
+                if (empty($title)) continue;
+                if (empty($abstract)) $abstract = $title;
+                $doi = is_string($link) && preg_match('#doi\.org/(.+)$#', $link, $m) ? urldecode($m[1]) : '';
+                $cnPapers[] = [
+                    'doi'            => $doi ?: 'cinii-' . md5($title . $link),
+                    'title'          => $title,
+                    'author'         => '',
+                    'published_date' => '',
+                    'abstract'       => $abstract,
+                    'link'           => $link,
+                    'source'         => 'CiNii',
+                ];
+            }
+            echo "  CiNii: " . count($cnPapers) . " papers\n";
+            $allPapers = array_merge($allPapers, $cnPapers);
+        } else {
+            echo "  CiNii: 0 papers\n";
+        }
+
+        foreach ($handles as $ch) {
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+        }
+        curl_multi_close($mh);
+
+        // Polite delay between species (200ms)
+        usleep(200000);
     }
 
     // PaperStore + TaxonPaperIndex に保存
