@@ -433,7 +433,7 @@ function saveClaims(\PDO $pdo, int|null $speciesId, string $sciName, array $clai
     };
 
     $stmt = $pdo->prepare("
-        INSERT OR IGNORE INTO claims
+        INSERT INTO claims
             (taxon_key, claim_type, claim_text, source_tier, doi, source_title, confidence, claim_hash)
         VALUES (:taxon, :type, :text, :tier, NULL, :title, :conf, :hash)
         ON CONFLICT(claim_hash) DO NOTHING
@@ -473,8 +473,8 @@ foreach ($species as $sp) {
     $ja  = $sp['japanese_name'];
     $sid = $sp['species_id'];
 
-    // チェックポイントでスキップ
-    if (in_array($sci, $processed, true)) {
+    // チェックポイントでスキップ (--force 時はバイパス)
+    if (!$force && in_array($sci, $processed, true)) {
         $skip++;
         continue;
     }
