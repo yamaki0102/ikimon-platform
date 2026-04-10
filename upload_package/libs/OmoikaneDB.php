@@ -64,8 +64,19 @@ class OmoikaneDB
             // none  = claims 0件, basic = 1-4件, rich = 5件以上
             $this->pdo->exec("ALTER TABLE species ADD COLUMN knowledge_coverage TEXT DEFAULT 'none';");
         } catch (PDOException $e) { /* already exists */ }
+        // GBIF Backbone taxonomy hierarchy columns
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN kingdom TEXT;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN phylum TEXT;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN class_name TEXT;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN order_name TEXT;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN family TEXT;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN gbif_taxon_id INTEGER;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN catalog_source TEXT DEFAULT 'gbif_backbone';"); } catch (PDOException $e) {}
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_japanese_name ON species(japanese_name);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_knowledge_coverage ON species(knowledge_coverage);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_species_gbif_taxon_id ON species(gbif_taxon_id);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_species_kingdom ON species(kingdom);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_species_family ON species(family);");
 
         // Table: ecological_constraints (The Searchable Dimensions)
         $this->pdo->exec("
