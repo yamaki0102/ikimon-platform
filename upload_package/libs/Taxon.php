@@ -90,6 +90,24 @@ class Taxon {
         return $cached ?: [$term];
     }
     public static function getJapaneseName($taxon_key) {
+        // Local lookup first (GBIF Backbone VernacularName.tsv)
+        if ($taxon_key && defined('ROOT_DIR') && file_exists(ROOT_DIR . 'libs/OmoikaneDB.php')) {
+            try {
+                require_once ROOT_DIR . 'libs/OmoikaneDB.php';
+                $db = new OmoikaneDB();
+                $pdo = $db->getPDO();
+                $stmt = $pdo->prepare(
+                    "SELECT name FROM vernacular_names WHERE gbif_taxon_id = :gid AND language IN ('ja', 'jpn') LIMIT 1"
+                );
+                $stmt->execute([':gid' => (int)$taxon_key]);
+                $localName = $stmt->fetchColumn();
+                if ($localName) return $localName;
+            } catch (Exception $e) {
+                // Fall through to API
+            }
+        }
+
+        // API fallback
         $url = "https://api.gbif.org/v1/species/{$taxon_key}/vernacularNames";
         $content = @file_get_contents($url);
         if ($content) {

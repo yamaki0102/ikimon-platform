@@ -28,6 +28,50 @@ class GbifService
     {
         if (empty($scientificName)) return null;
 
+        // 0. Local synonym resolution (GBIF Backbone taxon_synonyms table)
+        if (defined('ROOT_DIR') && file_exists(ROOT_DIR . 'libs/OmoikaneDB.php')) {
+            try {
+                require_once ROOT_DIR . 'libs/OmoikaneDB.php';
+                $db = new OmoikaneDB();
+                $pdo = $db->getPDO();
+                $synStmt = $pdo->prepare(
+                    "SELECT accepted_id, synonym_name, taxonomic_status FROM taxon_synonyms WHERE synonym_name = :name COLLATE NOCASE LIMIT 1"
+                );
+                $synStmt->execute([':name' => $scientificName]);
+                $syn = $synStmt->fetch(PDO::FETCH_ASSOC);
+                if ($syn) {
+                    $spStmt = $pdo->prepare("SELECT scientific_name, gbif_taxon_id, kingdom, phylum, class_name, order_name, family FROM species WHERE gbif_taxon_id = :gid LIMIT 1");
+                    $spStmt->execute([':gid' => $syn['accepted_id']]);
+                    $sp = $spStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($sp) {
+                        $result = [
+                            'taxon_key'      => $sp['gbif_taxon_id'],
+                            'scientific_name' => $sp['scientific_name'],
+                            'status'         => 'SYNONYM',
+                            'match_type'     => 'LOCAL_SYNONYM',
+                            'confidence'     => 100,
+                            'accepted_key'   => $sp['gbif_taxon_id'],
+                            'accepted_name'  => $sp['scientific_name'],
+                            'kingdom'        => $sp['kingdom'],
+                            'phylum'         => $sp['phylum'],
+                            'class'          => $sp['class_name'],
+                            'order'          => $sp['order_name'],
+                            'family'         => $sp['family'],
+                            'genus'          => null,
+                            'rank'           => 'SPECIES',
+                            'original_query' => $scientificName,
+                            '_cached_at'     => time(),
+                            '_source'        => 'local_synonym_table',
+                        ];
+                        DataStore::save(self::CACHE_PREFIX . '/match/' . md5($scientificName), $result);
+                        return $result;
+                    }
+                }
+            } catch (Exception $e) {
+                // Fall through to cache/API
+            }
+        }
+
         // 1. Check Cache
         $cacheKey = self::CACHE_PREFIX . '/match/' . md5($scientificName);
         $cached = DataStore::get($cacheKey);

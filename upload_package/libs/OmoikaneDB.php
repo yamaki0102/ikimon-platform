@@ -303,6 +303,55 @@ class OmoikaneDB
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_scope ON redlist_assessments(scope_level, country_code);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_region ON redlist_assessments(region_code);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_municipality ON redlist_assessments(municipality_code);");
+
+        // Table: taxon_synonyms — GBIF Backbone シノニム解決テーブル
+        // Taxon.tsv の非accepted行を格納。任意の旧名→現在のaccepted IDをローカルで即座に解決。
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS taxon_synonyms (
+                synonym_id INTEGER PRIMARY KEY,
+                accepted_id INTEGER NOT NULL,
+                synonym_name TEXT NOT NULL,
+                taxonomic_status TEXT NOT NULL,
+                backbone_version TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_syn_accepted ON taxon_synonyms(accepted_id);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_syn_name ON taxon_synonyms(synonym_name COLLATE NOCASE);");
+
+        // Table: vernacular_names — GBIF Backbone VernacularName.tsv
+        // 和名・英名等をローカルに保持。GBIF API呼び出しを排除。
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS vernacular_names (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gbif_taxon_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                language TEXT NOT NULL,
+                country TEXT,
+                source TEXT,
+                backbone_version TEXT NOT NULL,
+                UNIQUE(gbif_taxon_id, name, language)
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_vn_taxon ON vernacular_names(gbif_taxon_id);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_vn_name ON vernacular_names(name);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_vn_lang ON vernacular_names(language);");
+
+        // Table: taxon_distribution — GBIF Backbone Distribution.tsv
+        // 国別の在来/外来ステータス。
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS taxon_distribution (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gbif_taxon_id INTEGER NOT NULL,
+                location_id TEXT NOT NULL,
+                locality TEXT,
+                establishment_means TEXT,
+                backbone_version TEXT NOT NULL,
+                UNIQUE(gbif_taxon_id, location_id, establishment_means)
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_dist_taxon ON taxon_distribution(gbif_taxon_id);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_dist_location ON taxon_distribution(location_id);");
     }
 
     public function getPDO()
