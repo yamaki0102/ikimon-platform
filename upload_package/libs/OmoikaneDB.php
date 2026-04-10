@@ -218,6 +218,8 @@ class OmoikaneDB
         // claim_hash: taxon_key + claim_type + claim_text の md5。重複 claim 防止に使う。
         try {
             $this->pdo->exec("ALTER TABLE claims ADD COLUMN claim_hash TEXT;");
+        } catch (PDOException $e) { /* already exists */ }
+        try {
             $this->pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_claims_hash ON claims(claim_hash) WHERE claim_hash IS NOT NULL;");
         } catch (PDOException $e) { /* already exists */ }
 

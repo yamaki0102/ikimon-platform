@@ -118,7 +118,7 @@ PROMPT;
     $inserted = [];
 
     $stmt = $pdo->prepare("
-        INSERT OR IGNORE INTO claims
+        INSERT INTO claims
             (taxon_key, claim_type, claim_text, source_tier, doi, source_title, confidence, claim_hash)
         VALUES (:taxon, :type, :text, 'B', NULL, 'AI (on-demand)', 0.5, :hash)
         ON CONFLICT(claim_hash) DO NOTHING
