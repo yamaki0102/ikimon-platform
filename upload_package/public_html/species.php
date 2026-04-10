@@ -640,6 +640,52 @@ $speciesNarrative = SpeciesNarrative::build([
             </section>
         <?php endif; ?>
 
+        <!-- いきもの知恵袋 — Species Claims (OmoikaneDB) -->
+        <?php $claimsApiParam = $scientific_name ? ('scientific_name=' . urlencode($scientific_name)) : ($taxon ? ('japanese_name=' . urlencode($taxon)) : ''); ?>
+        <?php if ($claimsApiParam): ?>
+        <div x-data="speciesClaimsSection('<?php echo htmlspecialchars($claimsApiParam, ENT_QUOTES); ?>')"
+             x-init="load()" x-cloak>
+            <template x-if="groups.length > 0">
+                <section class="space-y-3">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i data-lucide="book-open-text" class="w-4 h-4 text-secondary"></i>
+                        <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-secondary">いきもの知恵袋</h2>
+                        <span class="ml-auto text-token-xs font-mono text-muted bg-secondary/10 px-2 py-0.5 rounded-full text-secondary border border-secondary/20"
+                              x-text="totalClaims + ' INSIGHTS'"></span>
+                    </div>
+                    <div style="padding:1.25rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);" class="space-y-5">
+                        <template x-for="group in groups" :key="group.type">
+                            <div>
+                                <h3 class="text-xs font-bold text-muted-dark uppercase tracking-wider mb-3 flex items-center gap-1.5"
+                                    :class="headingClass(group.type)">
+                                    <span x-text="groupIcon(group.type)"></span>
+                                    <span x-text="group.label"></span>
+                                    <span class="font-normal normal-case ml-auto text-[10px]"
+                                          :class="group.claims[0].source_tier === 'A' ? 'text-green-600' : 'text-amber-500'"
+                                          x-text="group.claims[0].source_tier === 'A' ? '査読済' : '百科事典'"></span>
+                                </h3>
+                                <ul class="space-y-2">
+                                    <template x-for="(claim, ci) in group.claims" :key="ci">
+                                        <li class="flex items-start gap-2 text-sm text-text-secondary leading-relaxed">
+                                            <span class="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                                  :class="claim.source_tier === 'A' ? 'bg-green-400' : 'bg-amber-400'"></span>
+                                            <span x-text="claim.text"></span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </template>
+                        <p class="text-[10px] text-muted pt-2 border-t border-border/40">
+                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 mr-0.5 align-middle"></span>査読済文献
+                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 mr-0.5 ml-2 align-middle"></span>百科事典・GBIF
+                            — Omoikane Knowledge Graph
+                        </p>
+                    </div>
+                </section>
+            </template>
+        </div>
+        <?php endif; ?>
+
         <!-- Phenology Bar (Month Activity) -->
         <?php if ($hasPhenologyData): ?>
             <section>
@@ -1161,6 +1207,41 @@ $speciesNarrative = SpeciesNarrative::build([
         document.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) lucide.createIcons();
         });
+    </script>
+    <script nonce="<?= CspNonce::attr() ?>">
+    function speciesClaimsSection(apiParam) {
+        return {
+            groups: [],
+            totalClaims: 0,
+            load() {
+                fetch('/api/v2/species_claims.php?' + apiParam)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.success) return;
+                        const show = ['identification_pitfall','photo_target','hybridization','ecology_trivia','cultural','taxonomy_note','regional_variation'];
+                        this.groups = (data.groups || []).filter(g => show.includes(g.type));
+                        this.totalClaims = this.groups.reduce((s, g) => s + g.claims.length, 0);
+                        this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+                    })
+                    .catch(() => {});
+            },
+            groupIcon(type) {
+                const m = {
+                    identification_pitfall: '⚠️', photo_target: '📷', hybridization: '🧬',
+                    ecology_trivia: '🌿', cultural: '🎭', taxonomy_note: '📝', regional_variation: '🗺️'
+                };
+                return m[type] || '💡';
+            },
+            headingClass(type) {
+                const m = {
+                    identification_pitfall: 'text-red-600', photo_target: 'text-blue-600',
+                    hybridization: 'text-orange-600', ecology_trivia: 'text-green-700',
+                    cultural: 'text-purple-600', taxonomy_note: 'text-indigo-600', regional_variation: 'text-teal-600'
+                };
+                return m[type] || 'text-muted-dark';
+            }
+        };
+    }
     </script>
 </body>
 

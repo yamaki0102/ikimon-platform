@@ -59,7 +59,13 @@ class OmoikaneDB
         try {
             $this->pdo->exec("ALTER TABLE species ADD COLUMN japanese_name TEXT;");
         } catch (PDOException $e) { /* already exists */ }
+        try {
+            // knowledge_coverage: 'none' | 'basic' | 'rich'
+            // none  = claims 0件, basic = 1-4件, rich = 5件以上
+            $this->pdo->exec("ALTER TABLE species ADD COLUMN knowledge_coverage TEXT DEFAULT 'none';");
+        } catch (PDOException $e) { /* already exists */ }
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_japanese_name ON species(japanese_name);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_knowledge_coverage ON species(knowledge_coverage);");
 
         // Table: ecological_constraints (The Searchable Dimensions)
         $this->pdo->exec("
@@ -209,6 +215,11 @@ class OmoikaneDB
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_taxon ON claims(taxon_key);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_type ON claims(claim_type);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_tier ON claims(source_tier);");
+        // claim_hash: taxon_key + claim_type + claim_text の md5。重複 claim 防止に使う。
+        try {
+            $this->pdo->exec("ALTER TABLE claims ADD COLUMN claim_hash TEXT;");
+            $this->pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_claims_hash ON claims(claim_hash) WHERE claim_hash IS NOT NULL;");
+        } catch (PDOException $e) { /* already exists */ }
 
         // Table: redlist_assessments — グローバル保全ステータス統合テーブル
         //
@@ -284,5 +295,37 @@ class OmoikaneDB
     public function getPDO()
     {
         return $this->pdo;
+    }
+
+    /**
+     * claims テーブルの件数に基づいて species.knowledge_coverage を更新する。
+     * none=0件, basic=1-4件, rich=5件以上。
+     * 引数は学名 or taxon_key (species.id の文字列表現)。
+     */
+    public function refreshKnowledgeCoverage(string $taxonKey): void
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT COUNT(*) FROM claims
+                WHERE taxon_key = :key
+                  AND claim_type IN ('identification_pitfall','photo_target','hybridization',
+                                     'cultural','ecology_trivia','taxonomy_note','regional_variation')
+            ");
+            $stmt->execute([':key' => $taxonKey]);
+            $count = (int)$stmt->fetchColumn();
+
+            $coverage = match(true) {
+                $count >= 5 => 'rich',
+                $count >= 1 => 'basic',
+                default     => 'none',
+            };
+
+            $this->pdo->prepare("
+                UPDATE species SET knowledge_coverage = :cov
+                WHERE scientific_name = :key OR CAST(id AS TEXT) = :key2
+            ")->execute([':cov' => $coverage, ':key' => $taxonKey, ':key2' => $taxonKey]);
+        } catch (\Throwable $e) {
+            // non-fatal
+        }
     }
 }

@@ -217,6 +217,78 @@ function fetchGbifDescriptions(string $scientificName): ?string
     return !empty($texts) ? implode(' / ', $texts) : null;
 }
 
+// === Wikidata 構造化プロパティを取得して claims に変換 ===
+function fetchWikidataProperties(string $scientificName, \PDO $pdo, int|null $speciesId): void
+{
+    $sparql = 'SELECT ?item ?endemic ?habitatLabel WHERE { ?item wdt:P225 "' . addslashes($scientificName) . '". OPTIONAL { ?item wdt:P183 ?endemic. } OPTIONAL { ?item wdt:P2974 ?habitat. } SERVICE wikibase:label { bd:serviceParam wikibase:language "ja,en". } } LIMIT 1';
+    $url = 'https://query.wikidata.org/sparql?' . http_build_query(['query' => $sparql, 'format' => 'json']);
+    usleep(FF_RATE_SLEEP_US);
+    $json = httpGet($url);
+    if (!$json) return;
+
+    $data    = json_decode($json, true);
+    $results = $data['results']['bindings'] ?? [];
+    if (empty($results)) return;
+
+    $row = $results[0];
+    $taxonKey = $speciesId !== null ? (string)$speciesId : $scientificName;
+
+    $stmt = $pdo->prepare("
+        INSERT OR IGNORE INTO claims
+            (taxon_key, claim_type, claim_text, source_tier, doi, source_title, confidence, claim_hash)
+        VALUES (:taxon, :type, :text, 'B', NULL, 'Wikidata', 0.55, :hash)
+        ON CONFLICT(claim_hash) DO NOTHING
+    ");
+
+    if (!empty($row['endemic']['value'])) {
+        $text = '固有種: ' . mb_substr($row['endemic']['value'], 0, 80);
+        $hash = md5($taxonKey . '|regional_variation|' . $text);
+        try { $stmt->execute([':taxon' => $taxonKey, ':type' => 'regional_variation', ':text' => $text, ':hash' => $hash]); } catch (\PDOException $e) {}
+    }
+    if (!empty($row['habitatLabel']['value'])) {
+        $text = '生息環境(Wikidata): ' . mb_substr($row['habitatLabel']['value'], 0, 80);
+        $hash = md5($taxonKey . '|habitat|' . $text);
+        try { $stmt->execute([':taxon' => $taxonKey, ':type' => 'habitat', ':text' => $text, ':hash' => $hash]); } catch (\PDOException $e) {}
+    }
+}
+
+// === iNaturalist Taxon Page 情報を取得 ===
+function fetchINaturalistInfo(string $scientificName): ?string
+{
+    $url = 'https://api.inaturalist.org/v1/taxa?' . http_build_query([
+        'q'     => $scientificName,
+        'rank'  => 'species',
+        'limit' => 1,
+    ]);
+    usleep(FF_RATE_SLEEP_US);
+    $json = httpGet($url);
+    if (!$json) return null;
+
+    $data = json_decode($json, true);
+    $results = $data['results'] ?? [];
+    if (empty($results)) return null;
+
+    $taxon = $results[0];
+    $parts = [];
+
+    $wikiSummary = $taxon['wikipedia_summary'] ?? '';
+    if (!empty($wikiSummary)) {
+        $parts[] = mb_substr(strip_tags($wikiSummary), 0, 400);
+    }
+
+    $defaultName = $taxon['default_name']['name'] ?? '';
+    if (!empty($defaultName) && $defaultName !== $scientificName) {
+        $parts[] = '通称: ' . $defaultName;
+    }
+
+    $observationsCount = $taxon['observations_count'] ?? 0;
+    if ($observationsCount > 0) {
+        $parts[] = 'iNaturalist 観察記録数: ' . number_format($observationsCount);
+    }
+
+    return !empty($parts) ? implode(' / ', $parts) : null;
+}
+
 // === Gemini で fun_fact 生成 ===
 function generateFunFact(string $japaneseName, string $scientificName, string $context): ?array
 {
@@ -224,27 +296,48 @@ function generateFunFact(string $japaneseName, string $scientificName, string $c
 
     $displayName = $japaneseName ?: $scientificName;
     $prompt = <<<PROMPT
-あなたは生物多様性プラットフォーム ikimon.life の豆知識生成エンジンです。
+あなたは生物多様性プラットフォーム ikimon.life の知識生成エンジンです。
 
 【対象生物】
 和名: {$displayName}
 学名: {$scientificName}
 
-【収集した情報（Wikipedia・GBIF由来）】
+【収集した情報（Wikipedia・GBIF・iNaturalist由来）】
 {$context}
 
-上記の情報のみを根拠に、この生き物について「へえ！」と声が出るような豆知識を1つ生成してください。
+上記の情報のみを根拠に、以下の2つを生成してください。
 
-要件:
+## 1. fun_fact（豆知識）
 - body: 120文字以内の日本語
-- 断定しない語尾（「〜とも言われています」「〜という特徴があります」「〜とされています」等）
+- 断定しない語尾（「〜とも言われています」「〜という特徴があります」等）
 - 視点の転換・意外な生態・名前の由来・他の生き物との関係 のどれかに絞る
-- 収集した情報にない事実は書かない
-- search_keyword: この豆知識をさらに調べるための日本語キーワード（例: "根粒菌 マメ科"）
-- source: "wikipedia_ja" または "gbif" または "wikipedia_ja,gbif"（使ったソースを記載）
+- search_keyword: さらに調べるための日本語キーワード
+- source: "wikipedia_ja" / "gbif" / "wikipedia_ja,gbif"
+
+## 2. claims（構造化知識）
+収集した情報から抽出できるものだけ。各 claim は80文字以内の日本語。
+
+抽出対象:
+- identification_pitfall: 同定の落とし穴（よくある誤同定、紛らわしい類似種）
+- photo_target: 同定に重要な撮影部位と理由
+- hybridization: 雑種・交雑情報
+- cultural: 文化的・歴史的な意義、名前の由来
+- ecology_trivia: 意外な生態的事実
+- taxonomy_note: 分類の改訂・変更情報
+- regional_variation: 地域による形態・生態の違い
+
+該当情報がなければ空配列 [] を返してください。収集情報にない事実は絶対に書かないこと。
 
 JSONのみ返してください:
-{"body": "...", "search_keyword": "...", "source": "..."}
+{
+  "body": "...",
+  "search_keyword": "...",
+  "source": "...",
+  "claims": [
+    {"type": "identification_pitfall", "text": "..."},
+    {"type": "ecology_trivia", "text": "..."}
+  ]
+}
 PROMPT;
 
     $url     = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=' . GEMINI_API_KEY;
@@ -252,7 +345,7 @@ PROMPT;
         'contents'         => [['parts' => [['text' => $prompt]]]],
         'generationConfig' => [
             'temperature'      => 0.0,
-            'maxOutputTokens'  => 200,
+            'maxOutputTokens'  => 512,
             'responseMimeType' => 'application/json',
             'responseSchema'   => [
                 'type'       => 'OBJECT',
@@ -260,8 +353,19 @@ PROMPT;
                     'body'           => ['type' => 'STRING'],
                     'search_keyword' => ['type' => 'STRING'],
                     'source'         => ['type' => 'STRING'],
+                    'claims'         => [
+                        'type'  => 'ARRAY',
+                        'items' => [
+                            'type'       => 'OBJECT',
+                            'properties' => [
+                                'type' => ['type' => 'STRING'],
+                                'text' => ['type' => 'STRING'],
+                            ],
+                            'required' => ['type', 'text'],
+                        ],
+                    ],
                 ],
-                'required' => ['body', 'search_keyword', 'source'],
+                'required' => ['body', 'search_keyword', 'source', 'claims'],
             ],
         ],
     ];
@@ -307,6 +411,55 @@ function saveFunFact(\PDO $pdo, int|null $speciesId, string $sciName, array $fun
     return $stmt->execute([':taxon_key' => $taxonKey, ':content' => $content]);
 }
 
+// === claims を OmoikaneDB に保存 ===
+function saveClaims(\PDO $pdo, int|null $speciesId, string $sciName, array $claims, string $sourceLabel): void
+{
+    if (empty($claims)) return;
+
+    $taxonKey = $speciesId !== null ? (string)$speciesId : $sciName;
+    $validTypes = [
+        'identification_pitfall', 'photo_target', 'hybridization',
+        'cultural', 'ecology_trivia', 'taxonomy_note', 'regional_variation',
+    ];
+
+    $sourceTier = 'B';
+    $sourceTitle = match (true) {
+        str_contains($sourceLabel, 'wikipedia') && str_contains($sourceLabel, 'gbif') => 'Wikipedia JA / GBIF',
+        str_contains($sourceLabel, 'wikipedia') && str_contains($sourceLabel, 'inat') => 'Wikipedia JA / iNaturalist',
+        str_contains($sourceLabel, 'wikipedia') => 'Wikipedia JA',
+        str_contains($sourceLabel, 'gbif')      => 'GBIF Species Descriptions',
+        str_contains($sourceLabel, 'inat')      => 'iNaturalist',
+        default                                  => 'Wikipedia JA / GBIF / iNaturalist',
+    };
+
+    $stmt = $pdo->prepare("
+        INSERT OR IGNORE INTO claims
+            (taxon_key, claim_type, claim_text, source_tier, doi, source_title, confidence, claim_hash)
+        VALUES (:taxon, :type, :text, :tier, NULL, :title, :conf, :hash)
+        ON CONFLICT(claim_hash) DO NOTHING
+    ");
+
+    foreach ($claims as $claim) {
+        $type = $claim['type'] ?? '';
+        $text = trim($claim['text'] ?? '');
+        if ($text === '' || !in_array($type, $validTypes, true)) continue;
+        $text = mb_substr($text, 0, 200);
+        $hash = md5($taxonKey . '|' . $type . '|' . $text);
+
+        try {
+            $stmt->execute([
+                ':taxon' => $taxonKey,
+                ':type'  => $type,
+                ':text'  => $text,
+                ':tier'  => $sourceTier,
+                ':title' => $sourceTitle,
+                ':conf'  => 0.6,
+                ':hash'  => $hash,
+            ]);
+        } catch (\PDOException $e) { /* dup */ }
+    }
+}
+
 // === メイン処理 ===
 $species = buildSpeciesList($pdo, $includeObs);
 $total   = count($species);
@@ -343,7 +496,11 @@ foreach ($species as $sp) {
     $gbifText = fetchGbifDescriptions($sci);
     echo $gbifText ? 'gbif✓ ' : 'gbif- ';
 
-    $context = implode("\n\n", array_filter([$wikiText, $gbifText]));
+    // iNaturalist 取得
+    $inatText = fetchINaturalistInfo($sci);
+    echo $inatText ? 'inat✓ ' : 'inat- ';
+
+    $context = implode("\n\n", array_filter([$wikiText, $gbifText, $inatText]));
     if (empty($context)) {
         echo "→ スキップ（テキストなし）\n";
         $errors[] = $sci;
@@ -364,10 +521,17 @@ foreach ($species as $sp) {
         continue;
     }
 
-    echo "→ \"{$funFact['body']}\"\n";
+    $claimCount = count($funFact['claims'] ?? []);
+    echo "→ \"{$funFact['body']}\" (claims: {$claimCount})\n";
 
     if (!$dryRun) {
         saveFunFact($pdo, $sid, $sci, $funFact);
+        saveClaims($pdo, $sid, $sci, $funFact['claims'] ?? [], $funFact['source'] ?? 'unknown');
+        fetchWikidataProperties($sci, $pdo, $sid);
+        // knowledge_coverage を更新
+        try {
+            $db->refreshKnowledgeCoverage($sci);
+        } catch (\Throwable $e) { /* non-fatal */ }
     }
     $processed[] = $sci;
     $done++;
