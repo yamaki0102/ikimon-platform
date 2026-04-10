@@ -226,6 +226,43 @@ class ExtractionQueue
     }
 
     /**
+     * Bulk-add species to the queue (INSERT OR IGNORE). Much faster than addSpecies() in a loop.
+     * @param array $speciesList Array of ['name' => string, 'gbif_key' => int|null, 'source' => string]
+     * @return int Number of actually inserted rows
+     */
+    public function addSpeciesBulk(array $speciesList, string $defaultSource = 'gbif_backbone'): int
+    {
+        if (empty($speciesList)) return 0;
+
+        $stmt = $this->pdo->prepare(
+            "INSERT OR IGNORE INTO queue (species_name, slug, status, source, gbif_key, occurrence_count_jp, retries, added_at)
+             VALUES (:name, :slug, 'pending', :source, :gbif_key, 0, 0, :added)"
+        );
+        $added = 0;
+        $now = date('Y-m-d H:i:s');
+
+        $this->pdo->beginTransaction();
+        try {
+            foreach ($speciesList as $sp) {
+                $name = $sp['name'];
+                $stmt->execute([
+                    ':name' => $name,
+                    ':slug' => str_replace(' ', '-', strtolower($name)),
+                    ':source' => $sp['source'] ?? $defaultSource,
+                    ':gbif_key' => $sp['gbif_key'] ?? null,
+                    ':added' => $now,
+                ]);
+                $added += $stmt->rowCount();
+            }
+            $this->pdo->commit();
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+        return $added;
+    }
+
+    /**
      * Update prefetched literature for a species.
      */
     public function updateLiterature(string $name, string $newStatus, array $literature, array $citations = [], array $specimens = []): void

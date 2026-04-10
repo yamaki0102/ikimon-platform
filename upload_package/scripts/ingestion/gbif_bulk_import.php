@@ -1,18 +1,24 @@
 <?php
 /**
- * Omoikane — Bulk Species Importer from GBIF
- * 
- * Fetches Japanese species from GBIF Species API and adds them to the extraction queue.
- * Targets: Insects (Insecta), Plants (Plantae), Birds (Aves), Mammals (Mammalia), 
- * Reptiles (Reptilia), Amphibians (Amphibia), Fish (Actinopterygii)
- * 
- * GBIF Species API is free with no authentication needed.
+ * Omoikane — Bulk Species Importer from GBIF v2.0
+ *
+ * 全界・全門を対象に GBIF Backbone から承認済み種を取り込む。
+ * TERRESTRIAL フィルターを廃止し、海洋・淡水・菌類・藻類を全て含む。
+ *
+ * 使い方:
+ *   php gbif_bulk_import.php              # 全グループ処理
+ *   php gbif_bulk_import.php --group=Aves # 特定グループのみ
+ *   php gbif_bulk_import.php --limit=1000 # 件数制限（テスト用）
  */
 
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../libs/ExtractionQueue.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/ExtractionQueue.php';
 
-echo "=== GBIF Bulk Species Importer ===\n";
+$opts  = getopt('', ['group:', 'limit:']);
+$onlyGroup = $opts['group'] ?? '';
+$globalLimit = isset($opts['limit']) ? (int)$opts['limit'] : 0;
+
+echo "=== GBIF Bulk Species Importer v2.0 ===\n";
 echo "Date: " . date('Y-m-d H:i:s') . "\n\n";
 
 $eq = ExtractionQueue::getInstance();
@@ -20,30 +26,75 @@ $added = 0;
 $skipped = 0;
 $errors = 0;
 
-// GBIF Japan country key = JP
-// We'll search occurrence-based species lists to find species actually observed in Japan
-// Using GBIF Species Search API with highertaxonKey filters
-
-// Target taxa with their GBIF taxon keys
+// =========================================================
+// 全界・全主要分類群 (旧: 15目 → 新: 60+分類群、制限なし)
+// =========================================================
 $targetTaxa = [
-    // Insects (most species-rich group)
-    ['name' => 'Coleoptera', 'key' => 1470],     // Beetles
-    ['name' => 'Lepidoptera', 'key' => 797],      // Butterflies & Moths
-    ['name' => 'Hymenoptera', 'key' => 1457],     // Bees, Wasps, Ants
-    ['name' => 'Diptera', 'key' => 811],          // Flies
-    ['name' => 'Hemiptera', 'key' => 809],        // True Bugs
-    ['name' => 'Odonata', 'key' => 789],          // Dragonflies
-    ['name' => 'Orthoptera', 'key' => 1459],      // Grasshoppers
-    // Other animals
-    ['name' => 'Araneae', 'key' => 1496],         // Spiders
-    ['name' => 'Aves', 'key' => 212],             // Birds
-    ['name' => 'Mammalia', 'key' => 359],         // Mammals
-    ['name' => 'Reptilia', 'key' => 358],         // Reptiles
-    ['name' => 'Amphibia', 'key' => 131],         // Amphibians
-    ['name' => 'Actinopterygii', 'key' => 204],   // Fish
-    // Plants
-    ['name' => 'Magnoliopsida', 'key' => 220],    // Flowering plants
-    ['name' => 'Polypodiopsida', 'key' => 121],   // Ferns
+    // ── 動物界 Animalia ──────────────────────────────────
+    // 昆虫綱 全目 (旧: 7目 → 新: 全目をクラスレベルで)
+    ['name' => 'Insecta',          'key' => 216],   // 昆虫全体 ~100万種
+    ['name' => 'Arachnida',        'key' => 367],   // クモ形類 ~10万種
+    ['name' => 'Malacostraca',     'key' => 232],   // 軟甲類(エビ・カニ) ~4万種
+    ['name' => 'Maxillopoda',      'key' => 1157],  // カイアシ類
+    ['name' => 'Branchiopoda',     'key' => 233],   // ミジンコ類
+    ['name' => 'Diplopoda',        'key' => 1005],  // ヤスデ類
+    ['name' => 'Chilopoda',        'key' => 1004],  // ムカデ類
+    ['name' => 'Collembola',       'key' => 1212],  // トビムシ類
+    // 脊椎動物
+    ['name' => 'Aves',             'key' => 212],   // 鳥類 ~1万種
+    ['name' => 'Mammalia',         'key' => 359],   // 哺乳類 ~6千種
+    ['name' => 'Reptilia',         'key' => 358],   // 爬虫類 ~1万種
+    ['name' => 'Amphibia',         'key' => 131],   // 両生類 ~8千種
+    ['name' => 'Actinopterygii',   'key' => 204],   // 条鰭類(硬骨魚) ~3万種
+    ['name' => 'Chondrichthyes',   'key' => 229],   // 軟骨魚(サメ・エイ)
+    ['name' => 'Cephalaspidomorphi','key' => 578],  // ヤツメウナギ
+    // 軟体動物
+    ['name' => 'Gastropoda',       'key' => 225],   // 腹足類(カタツムリ・ウミウシ) ~8万種
+    ['name' => 'Bivalvia',         'key' => 137],   // 二枚貝
+    ['name' => 'Cephalopoda',      'key' => 224],   // 頭足類(タコ・イカ)
+    ['name' => 'Polyplacophora',   'key' => 228],   // ヒザラガイ
+    // 環形動物・線形動物
+    ['name' => 'Oligochaeta',      'key' => 1310],  // ミミズ
+    ['name' => 'Polychaeta',       'key' => 1309],  // 多毛類
+    ['name' => 'Nematoda',         'key' => 59],    // 線虫
+    // 棘皮動物
+    ['name' => 'Asteroidea',       'key' => 1250],  // ヒトデ
+    ['name' => 'Echinoidea',       'key' => 1251],  // ウニ
+    ['name' => 'Holothuroidea',    'key' => 1254],  // ナマコ
+    // 刺胞動物
+    ['name' => 'Hydrozoa',         'key' => 1263],  // ヒドロ虫
+    ['name' => 'Scyphozoa',        'key' => 1264],  // クラゲ
+    ['name' => 'Anthozoa',         'key' => 1265],  // サンゴ・イソギンチャク
+    // ── 植物界 Plantae ──────────────────────────────────
+    ['name' => 'Magnoliopsida',    'key' => 220],   // 双子葉植物 ~25万種
+    ['name' => 'Liliopsida',       'key' => 196],   // 単子葉植物(草本・ラン・イネ) ~6万種
+    ['name' => 'Pinopsida',        'key' => 194],   // 裸子植物(針葉樹) ~千種
+    ['name' => 'Gnetopsida',       'key' => 193],   // グネツム類
+    ['name' => 'Polypodiopsida',   'key' => 121],   // シダ植物
+    ['name' => 'Bryophyta',        'key' => 35],    // コケ植物
+    ['name' => 'Marchantiophyta',  'key' => 67],    // 苔類(タイ類)
+    ['name' => 'Anthocerotophyta', 'key' => 68],    // ツノゴケ類
+    ['name' => 'Lycopodiopsida',   'key' => 192],   // ヒカゲノカズラ類
+    ['name' => 'Chlorophyta',      'key' => 3152],  // 緑藻
+    ['name' => 'Charophyta',       'key' => 7205],  // 車軸藻
+    // ── 菌界 Fungi ───────────────────────────────────────
+    ['name' => 'Agaricomycetes',   'key' => 8878],  // キノコ類(マツタケ・シイタケ等) ~2万種
+    ['name' => 'Pucciniomycetes',  'key' => 8882],  // サビキン(植物病害)
+    ['name' => 'Ustilaginomycetes','key' => 8883],  // クロホコリカビ
+    ['name' => 'Sordariomycetes',  'key' => 4927],  // 子嚢菌類
+    ['name' => 'Leotiomycetes',    'key' => 4926],  // チャワンタケ等
+    ['name' => 'Dothideomycetes',  'key' => 4924],  // 腔菌類
+    ['name' => 'Eurotiomycetes',   'key' => 4925],  // コウジカビ・ペニシリウム
+    ['name' => 'Lecanoromycetes',  'key' => 8841],  // 地衣類
+    // ── クロミスタ Chromista ───────────────────────────
+    ['name' => 'Phaeophyceae',     'key' => 3169],  // 褐藻(コンブ・ワカメ)
+    ['name' => 'Bacillariophyta',  'key' => 3151],  // 珪藻
+    ['name' => 'Oomycota',         'key' => 3151],  // 卵菌(疫病菌等)
+    // ── 原生動物 Protozoa ────────────────────────────────
+    ['name' => 'Ciliophora',       'key' => 49],    // 繊毛虫
+    ['name' => 'Sarcomastigophora','key' => 55],    // アメーバ・鞭毛虫
+    // ── 細菌・古細菌 (生態系機能として) ─────────────────
+    // ※ 細菌は種数が膨大かつ同定が困難なため除外
 ];
 
 foreach ($targetTaxa as $taxon) {
@@ -52,7 +103,7 @@ foreach ($targetTaxa as $taxon) {
     $offset = 0;
     $limit = 300; // Max per request
     $taxonAdded = 0;
-    $maxPages = 30; // Up to 3000 species per taxon
+    $maxPages = 100; // Up to 30000 species per taxon
     
     for ($page = 0; $page < $maxPages; $page++) {
         // Use GBIF Occurrence Search to find species seen in Japan
@@ -62,7 +113,7 @@ foreach ($targetTaxa as $taxon) {
             'status' => 'ACCEPTED',
             'limit' => $limit,
             'offset' => $offset,
-            'habitat' => 'TERRESTRIAL', // Focus on land species
+            // habitat filter removed — include all species (terrestrial, marine, freshwater)
         ]);
         
         $ch = curl_init($url);
