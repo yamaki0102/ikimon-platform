@@ -276,8 +276,10 @@ if ($processed > 0) {
 
                     // distilled_knowledge テーブル
                     $reviewedBy = ($item['review_status'] === 'approved') ? ($item['reviewed_by'] ?? null) : null;
+                    $confidence = (float)($item['review_confidence'] ?? 0.0);
+                    $sourceTier = in_array($paper['source'] ?? '', ['cinii', 'jstage', 'crossref', 'gbif_lit'], true) ? 'A' : 'B';
 
-                    // ecological_constraint エントリ
+                    // ecological_constraint エントリ（blob として distilled_knowledge に保存）
                     if (!empty($eco['habitat']) || !empty($eco['altitude_range'])) {
                         $stmt = $pdo->prepare("
                             INSERT OR IGNORE INTO distilled_knowledge (doi, taxon_key, knowledge_type, content, confidence, reviewed_by)
@@ -287,12 +289,12 @@ if ($processed > 0) {
                             ':doi' => $doi,
                             ':taxon' => $taxonKey,
                             ':content' => json_encode($eco, JSON_UNESCAPED_UNICODE),
-                            ':conf' => $item['review_confidence'] ?? 0.0,
+                            ':conf' => $confidence,
                             ':reviewer' => $reviewedBy,
                         ]);
                     }
 
-                    // identification_key エントリ
+                    // identification_key エントリ（blob として distilled_knowledge に保存）
                     if (!empty($idKeys)) {
                         $stmt = $pdo->prepare("
                             INSERT OR IGNORE INTO distilled_knowledge (doi, taxon_key, knowledge_type, content, confidence, reviewed_by)
@@ -302,13 +304,100 @@ if ($processed > 0) {
                             ':doi' => $doi,
                             ':taxon' => $taxonKey,
                             ':content' => json_encode($idKeys, JSON_UNESCAPED_UNICODE),
-                            ':conf' => $item['review_confidence'] ?? 0.0,
+                            ':conf' => $confidence,
                             ':reviewer' => $reviewedBy,
                         ]);
                     }
 
+                    // --- claims テーブル: sentence-level grounding 用に claim 単位で分解保存 ---
+                    // blob を「1主張 = 1行」に分解し、provenance (doi / source_tier) を付ける。
+                    // retrieveAssessmentContext() がここを検索して根拠付き chunks を返す。
+
+                    $sourceTitle = $paper['title'] ?? '';
+                    $claimInsert = $pdo->prepare("
+                        INSERT OR IGNORE INTO claims
+                            (taxon_key, claim_type, claim_text, source_tier, doi, source_title, confidence)
+                        VALUES (:taxon, :type, :text, :tier, :doi, :title, :conf)
+                    ");
+
+                    // 生息地 claim
+                    if (!empty($eco['habitat'])) {
+                        $habitatText = is_array($eco['habitat']) ? implode('、', $eco['habitat']) : $eco['habitat'];
+                        $claimInsert->execute([
+                            ':taxon' => $taxonKey,
+                            ':type'  => 'habitat',
+                            ':text'  => '生息地: ' . $habitatText,
+                            ':tier'  => $sourceTier,
+                            ':doi'   => $doi,
+                            ':title' => $sourceTitle,
+                            ':conf'  => $confidence,
+                        ]);
+                    }
+
+                    // 活動期 claim
+                    $season = is_array($eco['active_season'] ?? null)
+                        ? implode('、', $eco['active_season'])
+                        : ($eco['active_season'] ?? '');
+                    if ($season !== '') {
+                        $claimInsert->execute([
+                            ':taxon' => $taxonKey,
+                            ':type'  => 'season',
+                            ':text'  => '活動時期: ' . $season,
+                            ':tier'  => $sourceTier,
+                            ':doi'   => $doi,
+                            ':title' => $sourceTitle,
+                            ':conf'  => $confidence,
+                        ]);
+                    }
+
+                    // 高度 claim
+                    if (!empty($eco['altitude_range'])) {
+                        $claimInsert->execute([
+                            ':taxon' => $taxonKey,
+                            ':type'  => 'habitat',
+                            ':text'  => '標高: ' . $eco['altitude_range'],
+                            ':tier'  => $sourceTier,
+                            ':doi'   => $doi,
+                            ':title' => $sourceTitle,
+                            ':conf'  => $confidence,
+                        ]);
+                    }
+
+                    // 備考 claim
+                    if (!empty($eco['notes'])) {
+                        $claimInsert->execute([
+                            ':taxon' => $taxonKey,
+                            ':type'  => 'habitat',
+                            ':text'  => $eco['notes'],
+                            ':tier'  => $sourceTier,
+                            ':doi'   => $doi,
+                            ':title' => $sourceTitle,
+                            ':conf'  => $confidence * 0.9,
+                        ]);
+                    }
+
+                    // 形態同定 claims (identification_keys 各エントリ)
+                    foreach ($idKeys as $idKey) {
+                        if (empty($idKey['feature']) || empty($idKey['description'])) {
+                            continue;
+                        }
+                        $claimText = $idKey['feature'] . ': ' . $idKey['description'];
+                        if (!empty($idKey['comparison_species'])) {
+                            $claimText .= '（比較種: ' . implode('、', $idKey['comparison_species']) . '）';
+                        }
+                        $claimInsert->execute([
+                            ':taxon' => $taxonKey,
+                            ':type'  => 'morphology',
+                            ':text'  => $claimText,
+                            ':tier'  => $sourceTier,
+                            ':doi'   => $doi,
+                            ':title' => $sourceTitle,
+                            ':conf'  => $confidence,
+                        ]);
+                    }
+
                     // papers テーブルの distill_status を更新
-                    $stmt = $pdo->prepare("UPDATE papers SET distill_status = 'distilled', distilled_at = :at WHERE doi = :doi");
+                    $stmt = $pdo->prepare("UPDATE papers SET distill_status = 'completed', distilled_at = :at WHERE doi = :doi");
                     $stmt->execute([':at' => date('c'), ':doi' => $doi]);
 
                     $sqliteOk++;
