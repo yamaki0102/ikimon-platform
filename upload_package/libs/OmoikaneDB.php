@@ -209,6 +209,76 @@ class OmoikaneDB
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_taxon ON claims(taxon_key);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_type ON claims(claim_type);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_tier ON claims(source_tier);");
+
+        // Table: redlist_assessments — グローバル保全ステータス統合テーブル
+        //
+        // 設計原則:
+        //   1. MECE地理スコープ: global → regional → national → subnational_1 → subnational_2
+        //   2. 100年耐性: 行政コードは便宜。地理アンカー(重心座標)で永続的に位置を特定
+        //   3. 時点スナップショット: 行政区画名は評価時点の名称を保存（合併・分割を追跡可能）
+        //   4. IUCN準拠カテゴリ: EX/EW/CR/EN/VU/NT/LC/DD/NE + 地域拡張(LP)
+        //
+        // scope_level MECE階層:
+        //   'global'        — IUCN Red List (country_code=NULL)
+        //   'regional'      — EU Red Lists, ASEAN etc.
+        //   'national'      — 環境省, US ESA, etc.
+        //   'subnational_1' — 都道府県 / State / Province
+        //   'subnational_2' — 市区町村 / Municipality / County
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS redlist_assessments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                -- Taxon identification (multiple keys for resilience)
+                taxon_key INTEGER,
+                scientific_name TEXT NOT NULL,
+                japanese_name TEXT,
+                common_name_en TEXT,
+
+                -- IUCN-compatible assessment
+                category TEXT NOT NULL,
+                criteria TEXT,
+
+                -- MECE Geographic Scope (hierarchical)
+                scope_level TEXT NOT NULL,
+                country_code TEXT,
+                region_code TEXT,
+                municipality_code TEXT,
+
+                -- 100-year resilience: human-readable names + geographic anchor
+                scope_name TEXT NOT NULL,
+                scope_name_en TEXT,
+                scope_centroid_lat REAL,
+                scope_centroid_lng REAL,
+                parent_scope_name TEXT,
+                scope_valid_from TEXT,
+                scope_valid_until TEXT,
+                scope_note TEXT,
+
+                -- Source provenance
+                authority TEXT NOT NULL,
+                source_url TEXT,
+                assessment_year INTEGER,
+                version TEXT,
+
+                -- Taxonomy
+                taxon_group TEXT,
+                taxon_group_en TEXT,
+
+                -- Metadata
+                notes TEXT,
+                imported_at TEXT DEFAULT (datetime('now')),
+
+                -- Dedup key: computed on INSERT via import script
+                dedup_key TEXT UNIQUE
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_taxon_key ON redlist_assessments(taxon_key);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_sciname ON redlist_assessments(scientific_name);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_janame ON redlist_assessments(japanese_name);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_category ON redlist_assessments(category);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_scope ON redlist_assessments(scope_level, country_code);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_region ON redlist_assessments(region_code);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_municipality ON redlist_assessments(municipality_code);");
     }
 
     public function getPDO()

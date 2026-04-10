@@ -291,6 +291,19 @@ class OmoikaneInferenceEnhancer
             }
         }
 
+        // --- 1.5. redlist_assessments (常に取得 — source_tier='A' 政府公式) ---
+        try {
+            require_once __DIR__ . '/RedListManager.php';
+            $rlm = new RedListManager(new OmoikaneDB());
+            $rlChunks = $rlm->getAssessmentChunks($japaneseName, $scientificName);
+            foreach ($rlChunks as $rlChunk) {
+                $chunks[] = $rlChunk;
+                $evidenceIds[] = 'redlist-' . md5($rlChunk['text']);
+            }
+        } catch (\Throwable $e) {
+            // RedList unavailable — non-fatal
+        }
+
         // --- 2. identification_keys (常に取得) ---
         $stmt = $this->pdo->prepare("
             SELECT morphological_traits, similar_species, key_differences
