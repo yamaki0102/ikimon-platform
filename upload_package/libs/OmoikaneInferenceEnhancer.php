@@ -412,16 +412,41 @@ class OmoikaneInferenceEnhancer
         }
 
         // --- 5. claims テーブル (あれば優先して取得) ---
+        // identification_pitfall / photo_target は同定精度に直結するため最優先で注入
         try {
+            $priorityTypes = ['identification_pitfall', 'photo_target', 'hybridization'];
+            $otherTypes    = ['morphology', 'ecology_trivia', 'cultural', 'taxonomy_note', 'regional_variation', 'habitat', 'season'];
+
+            // 優先 claims（常に取得）
+            $placeholdersPrio = implode(',', array_fill(0, count($priorityTypes), '?'));
             $stmt = $this->pdo->prepare("
                 SELECT id, claim_type, claim_text, source_tier, doi, source_title, confidence
                 FROM claims
                 WHERE taxon_key = ?
+                  AND claim_type IN ({$placeholdersPrio})
                 ORDER BY source_tier ASC, confidence DESC
-                LIMIT 10
+                LIMIT 6
             ");
-            $stmt->execute([$scientificName]);
-            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $stmt->execute([$scientificName, ...$priorityTypes]);
+            $priorityClaims = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // その他 claims（important/critical のみ）
+            $otherClaims = [];
+            if (in_array($significanceLevel, ['important', 'critical'], true)) {
+                $placeholdersOther = implode(',', array_fill(0, count($otherTypes), '?'));
+                $stmt = $this->pdo->prepare("
+                    SELECT id, claim_type, claim_text, source_tier, doi, source_title, confidence
+                    FROM claims
+                    WHERE taxon_key = ?
+                      AND claim_type IN ({$placeholdersOther})
+                    ORDER BY source_tier ASC, confidence DESC
+                    LIMIT 6
+                ");
+                $stmt->execute([$scientificName, ...$otherTypes]);
+                $otherClaims = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+
+            foreach (array_merge($priorityClaims, $otherClaims) as $row) {
                 $chunks[] = [
                     'text'         => $row['claim_text'],
                     'source_type'  => $row['claim_type'],
