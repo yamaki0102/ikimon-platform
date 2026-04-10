@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/Taxonomy.php';
 require_once __DIR__ . '/OmoikaneInferenceEnhancer.php';
+require_once __DIR__ . '/DataStore.php';
 
 class AiObservationAssessment
 {
@@ -71,19 +72,38 @@ class AiObservationAssessment
             return null;
         }
 
-        $ragContext = null;
+        // --- RAG: provenance 付き assessment context を取得 ---
+        // significance_level に応じて検索深度を制御する。
+        // fun_fact 専用の getCachedFunFact / retrieveFunFactContext は別途残す。
+        $ragResult   = null;
+        $ragContext   = null;  // fun_fact 用 (後方互換)
+        $significance = $options['significance'] ?? null;
+        $significanceLevel = (string)(is_array($significance) ? ($significance['sensitivity_level'] ?? 'normal') : 'normal');
+
         try {
-            $enhancer = new OmoikaneInferenceEnhancer();
+            $enhancer  = new OmoikaneInferenceEnhancer();
             $taxonName = (string)($observation['taxon']['name'] ?? '');
-            $sciName = (string)($observation['taxon']['scientific_name'] ?? '');
+            $sciName   = (string)($observation['taxon']['scientific_name'] ?? '');
+
+            // provenance 付き assessment context
+            $ragResult = $enhancer->retrieveAssessmentContext($taxonName, $sciName, [
+                'lat'               => $observation['lat'] ?? $observation['latitude'] ?? null,
+                'lng'               => $observation['lng'] ?? $observation['longitude'] ?? null,
+                'observed_at'       => $observation['observed_at'] ?? '',
+                'significance_level' => $significanceLevel,
+                'biome'             => $observation['biome'] ?? '',
+            ]);
+
+            // fun_fact 用 text blob (後方互換 — getCachedFunFact を優先)
             $ragContext = ($sciName !== '' ? $enhancer->getCachedFunFact($sciName) : null)
+                       ?? (!empty($ragResult['assembled_context']) ? $ragResult['assembled_context'] : null)
                        ?? $enhancer->retrieveFunFactContext($taxonName, $sciName);
         } catch (\Throwable $e) {
             // RAG failure is non-fatal — proceed with free generation
         }
 
         try {
-            $payload = self::callModel($images, $observation, $profile, $ragContext);
+            $payload = self::callModel($images, $observation, $profile, $ragContext, $ragResult);
         } catch (\Throwable $e) {
             $payload = null;
         }
@@ -103,11 +123,21 @@ class AiObservationAssessment
         $fusion = self::synthesizeCandidateFusion(array_values(array_filter(
             array_map(fn($candidate) => $candidate['resolved'] ?? null, $providerCandidates)
         )));
-        $recommendedTaxon = $fusion['recommended_taxon'] ?? null;
+        $recommendedTaxon  = $fusion['recommended_taxon'] ?? null;
         $bestSpecificTaxon = $fusion['best_specific_taxon'] ?? null;
 
+        // --- evidence_bundle 保存 (critical 観察のみ) ---
+        $assessmentId      = 'ai-' . substr(bin2hex(random_bytes(8)), 0, 12);
+        $evidenceBundleId  = null;
+        if ($significanceLevel === 'critical' && $ragResult !== null) {
+            $evidenceBundleId = self::saveEvidenceBundle($observation, $assessmentId, $ragResult, $significance);
+        }
+
+        // --- references: A tier の出典のみ公開 ---
+        $verifiedReferences = self::buildVerifiedReferences($ragResult['chunks'] ?? []);
+
         return [
-            'id' => 'ai-' . substr(bin2hex(random_bytes(8)), 0, 12),
+            'id' => $assessmentId,
             'kind' => 'machine_assessment',
             'created_at' => date('Y-m-d H:i:s'),
             'visibility' => 'public',
@@ -138,13 +168,16 @@ class AiObservationAssessment
             'observer_boost' => self::clip($payload['observer_boost'] ?? ''),
             'next_step' => self::clip($payload['next_step'] ?? ''),
             'cautionary_note' => self::clip($payload['cautionary_note'] ?? ''),
-            'references' => [],
+            'references' => $verifiedReferences,
             'photo_count_used' => count($images),
             'simple_summary' => self::buildSimpleSummary($recommendedTaxon, $bestSpecificTaxon, $payload),
             'text' => self::buildPublicText($payload, $recommendedTaxon, $bestSpecificTaxon),
             'display_ja' => self::buildDisplayJa($recommendedTaxon, $bestSpecificTaxon, $payload),
             'fun_fact' => $payload['fun_fact'] ?? null,
             'fun_fact_grounded' => $ragContext !== null,
+            'significance' => $significance,
+            'evidence_bundle_id' => $evidenceBundleId,
+            'rag_chunk_count' => count($ragResult['chunks'] ?? []),
         ];
     }
 
@@ -249,7 +282,7 @@ class AiObservationAssessment
         ];
     }
 
-    private static function callModel(array $images, array $observation, array $profile, ?string $ragContext = null): ?array
+    private static function callModel(array $images, array $observation, array $profile, ?string $ragContext = null, ?array $ragResult = null): ?array
     {
         $model = (string)$profile['model'];
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . GEMINI_API_KEY;
@@ -287,7 +320,7 @@ class AiObservationAssessment
 必須ルール:
 1. 識別形質が複数写真から読み取れる場合は、積極的に species まで踏み込んでください。「迷うから属で止める」ではなく「この形質が見えているから種まで言える」を基準にしてください。
 2. JSONのみ返してください。Markdown禁止。
-3. 実在確認していない論文・URL・DOIを出してはいけません。references は必ず空配列にしてください。
+3. references には【根拠データ】セクションに明示された出典のみ引用できます。それ以外の論文・URL・DOIを捏造してはいけません。根拠データがない場合は references を空配列にしてください。
 4. 地理・季節は補助証拠として積極的に使ってください。形態証拠と組み合わせて絞り込む材料にしてください。
 5. 複数枚ある場合は、枚数差分で見えている形質の増減を反映してください。
 6. summary / why_not_more_specific / geographic_context / seasonal_context / observer_boost / next_step は80文字以内、日本語。
@@ -322,10 +355,18 @@ class AiObservationAssessment
 }
 PROMPT;
 
+        // provenance 付き assessment context が取れている場合は注入する
+        if (!empty($ragResult['chunks'])) {
+            $ragSections = self::buildRagPromptSections($ragResult['chunks']);
+            if ($ragSections !== '') {
+                $prompt .= "\n\n" . $ragSections;
+            }
+        }
+
         if ($ragContext !== null) {
             $prompt .= <<<RAG_BLOCK
 
-【図鑑データ（信頼できる情報源）】
+【図鑑データ（fun_fact 生成用）】
 {$ragContext}
 
 fun_fact は上記の図鑑データのみを根拠に生成してください。図鑑データにない情報は書かないでください。
@@ -806,7 +847,9 @@ PROMPT;
 
     private static function normalizePayloadShape(array $payload): array
     {
-        $payload['references'] = [];
+        // references は LLM が返した値を保持する（後で buildVerifiedReferences でフィルタする）。
+        // 旧: $payload['references'] = []; → 廃止。
+        $payload['references'] = is_array($payload['references'] ?? null) ? $payload['references'] : [];
         $payload['confidence_band'] = in_array(($payload['confidence_band'] ?? ''), ['high', 'medium', 'low'], true)
             ? $payload['confidence_band']
             : 'low';
@@ -908,6 +951,138 @@ PROMPT;
             return ['花や実', '葉のつき方', '全体像'];
         }
         return ['全体像', '特徴が出る部位', '別角度の写真'];
+    }
+
+    /**
+     * RAG chunks から provenance 付きプロンプトセクションを構築する。
+     * A tier は【根拠データ（査読済み）】、B tier は【参考データ】として分けて提示する。
+     */
+    private static function buildRagPromptSections(array $chunks): string
+    {
+        $aTier = [];
+        $bTier = [];
+
+        foreach ($chunks as $chunk) {
+            $text = trim((string)($chunk['text'] ?? ''));
+            if ($text === '') {
+                continue;
+            }
+            $tier  = (string)($chunk['source_tier'] ?? 'B');
+            $title = (string)($chunk['source_title'] ?? '');
+            $doi   = (string)($chunk['doi'] ?? '');
+
+            $line = $text;
+            if ($doi !== '') {
+                $line .= "（出典: {$doi}" . ($title !== '' ? " / {$title}" : '') . '）';
+            } elseif ($title !== '') {
+                $line .= "（出典: {$title}）";
+            }
+
+            if ($tier === 'A') {
+                $aTier[] = $line;
+            } else {
+                $bTier[] = $line;
+            }
+        }
+
+        $sections = [];
+        if (!empty($aTier)) {
+            $sections[] = "【根拠データ（査読済み・公的機関）】\n" . implode("\n", $aTier);
+        }
+        if (!empty($bTier)) {
+            $sections[] = "【参考データ（データベース・研究機関）】\n" . implode("\n", $bTier);
+        }
+
+        return implode("\n\n", $sections);
+    }
+
+    /**
+     * RAG chunks から A tier のみ公開 references に変換する。
+     * LLM が出力した references は使わない（捏造防止）。
+     *
+     * @param array $chunks retrieveAssessmentContext() が返す chunks
+     * @return array
+     */
+    private static function buildVerifiedReferences(array $chunks): array
+    {
+        $refs = [];
+        $seen = [];
+
+        foreach ($chunks as $chunk) {
+            if (($chunk['source_tier'] ?? 'B') !== 'A') {
+                continue;
+            }
+            $doi   = (string)($chunk['doi'] ?? '');
+            $title = (string)($chunk['source_title'] ?? '');
+            if ($doi === '' && $title === '') {
+                continue;
+            }
+
+            $key = $doi !== '' ? $doi : md5($title);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+
+            $ref = [
+                'type'  => (string)($chunk['source_type'] ?? 'unknown'),
+                'tier'  => 'A',
+            ];
+            if ($doi !== '') {
+                $ref['doi'] = $doi;
+            }
+            if ($title !== '') {
+                $ref['title'] = $title;
+            }
+
+            $refs[] = $ref;
+        }
+
+        return array_slice($refs, 0, 5);
+    }
+
+    /**
+     * critical 観察の evidence bundle を data/evidence_bundles/{observationId}.json に保存する。
+     *
+     * @param array      $observation
+     * @param string     $assessmentId
+     * @param array      $ragResult
+     * @param array|null $significance
+     * @return string    evidence_bundle_id
+     */
+    private static function saveEvidenceBundle(
+        array $observation,
+        string $assessmentId,
+        array $ragResult,
+        ?array $significance
+    ): string {
+        $observationId = (string)($observation['id'] ?? '');
+        $bundleId      = 'eb-' . substr(bin2hex(random_bytes(6)), 0, 12);
+
+        try {
+            $bundle = [
+                'id'             => $bundleId,
+                'observation_id' => $observationId,
+                'assessment_id'  => $assessmentId,
+                'significance'   => $significance,
+                'rag_chunks'     => $ragResult['chunks'] ?? [],
+                'evidence_ids'   => $ragResult['evidence_ids'] ?? [],
+                'species_id'     => $ragResult['species_id'] ?? null,
+                'created_at'     => date('c'),
+            ];
+
+            $dir = DATA_DIR . 'evidence_bundles';
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+
+            $filePath = $dir . '/' . ($observationId !== '' ? $observationId : $bundleId) . '.json';
+            file_put_contents($filePath, json_encode($bundle, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        } catch (\Throwable $e) {
+            error_log('AiObservationAssessment: failed to save evidence bundle — ' . $e->getMessage());
+        }
+
+        return $bundleId;
     }
 
     private static function suggestNextStepFromObservation(array $observation): string
