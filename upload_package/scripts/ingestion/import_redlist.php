@@ -5,9 +5,9 @@
  * Resolves GBIF Taxonomy (The Rosetta Stone).
  */
 
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../libs/DataStore.php';
-require_once __DIR__ . '/../libs/Taxon.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../libs/DataStore.php';
+require_once __DIR__ . '/../../libs/Taxon.php';
 
 if (php_sapi_name() !== 'cli') {
     die("Run from CLI.");
