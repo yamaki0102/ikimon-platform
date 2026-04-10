@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../libs/UserStore.php';
 require_once __DIR__ . '/../../libs/Moderation.php';
 require_once __DIR__ . '/../../libs/BioUtils.php';
 require_once __DIR__ . '/../../libs/BusinessApplicationManager.php';
+require_once __DIR__ . '/../../libs/AdminAlertManager.php';
 Auth::init();
 
 Auth::requireRole('Analyst');
@@ -40,6 +41,7 @@ $pendingFlags = $modStats['active_flags'] ?? 0;
 $bannedCount = $modStats['active_bans'] ?? 0;
 $bizStats = BusinessApplicationManager::stats();
 $bizPending = ($bizStats['statuses']['new'] ?? 0) + ($bizStats['statuses']['reviewing'] ?? 0);
+$significantAlertCount = AdminAlertManager::unreadCount();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -90,6 +92,15 @@ $bizPending = ($bizStats['statuses']['new'] ?? 0) + ($bizStats['statuses']['revi
         </div>
         <!-- KPI Cards Row 2 -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-slate-800 p-5 rounded-2xl border <?php echo $significantAlertCount > 0 ? 'border-amber-500/50 ring-1 ring-amber-500/20' : 'border-slate-700'; ?>">
+                <p class="text-slate-400 text-xs font-bold uppercase mb-2">重要観察アラート</p>
+                <p class="text-3xl font-black <?php echo $significantAlertCount > 0 ? 'text-amber-400' : 'text-slate-500'; ?>"><?php echo $significantAlertCount; ?></p>
+                <?php if ($significantAlertCount > 0): ?>
+                    <a href="significant_observations.php" class="text-xs text-amber-400 hover:underline mt-1 inline-block">確認 →</a>
+                <?php else: ?>
+                    <p class="text-xs text-slate-600 mt-1">未読なし</p>
+                <?php endif; ?>
+            </div>
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <p class="text-slate-400 text-xs font-bold uppercase mb-2">総ユーザー数</p>
                 <p class="text-3xl font-black text-blue-400"><?php echo number_format($totalUsers); ?></p>

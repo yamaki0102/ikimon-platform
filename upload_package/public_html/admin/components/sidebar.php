@@ -2,16 +2,30 @@
 
 /**
  * Admin Sidebar Component
- * 
- * Usage: 
- *   $adminPage = 'index'; // 'index', 'applications', 'observations', 'moderation', 'verification', 'users', 'surveyors', 'corporate'
+ *
+ * Usage:
+ *   $adminPage = 'index'; // 'index', 'applications', 'observations', 'moderation',
+ *                           'verification', 'users', 'surveyors', 'corporate', 'significant'
  *   include __DIR__ . '/components/sidebar.php';
  *
  * Required: $currentUser (from Auth::user()) and $pendingFlags (int, optional)
  */
-$adminPage = $adminPage ?? 'index';
+$adminPage    = $adminPage    ?? 'index';
 $pendingFlags = $pendingFlags ?? 0;
-$currentUser = $currentUser ?? Auth::user();
+$currentUser  = $currentUser  ?? Auth::user();
+
+// 重要観察アラートの未読件数（AdminAlertManager が利用可能な場合のみ）
+$significantAlertCount = 0;
+if (!isset($significantAlertCount) || $significantAlertCount === 0) {
+    try {
+        if (!class_exists('AdminAlertManager')) {
+            require_once __DIR__ . '/../../../libs/AdminAlertManager.php';
+        }
+        $significantAlertCount = AdminAlertManager::unreadCount();
+    } catch (\Throwable $e) {
+        $significantAlertCount = 0;
+    }
+}
 ?>
 <aside class="w-64 bg-slate-900 border-r border-slate-800 hidden md:flex flex-col">
     <div class="p-6 flex items-center gap-3">
@@ -23,6 +37,7 @@ $currentUser = $currentUser ?? Auth::user();
         <?php
         $navItems = [
             ['id' => 'index',        'href' => 'index.php',        'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
+            ['id' => 'significant',  'href' => 'significant_observations.php', 'icon' => 'alert-triangle', 'label' => '重要観察アラート', 'badge' => $significantAlertCount, 'badge_color' => 'bg-amber-500'],
             ['id' => 'applications', 'href' => 'business_applications.php', 'icon' => 'inbox',  'label' => '申込み管理'],
             ['id' => 'observations', 'href' => 'observations.php', 'icon' => 'eye',              'label' => '観察管理'],
             ['id' => 'moderation',   'href' => 'moderation.php',   'icon' => 'shield-alert',     'label' => 'モデレーション', 'badge' => $pendingFlags],
@@ -42,7 +57,8 @@ $currentUser = $currentUser ?? Auth::user();
                 <i data-lucide="<?php echo $item['icon']; ?>" class="w-5 h-5"></i>
                 <?php echo $item['label']; ?>
                 <?php if (!empty($item['badge']) && $item['badge'] > 0): ?>
-                    <span class="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full"><?php echo $item['badge']; ?></span>
+                    <?php $badgeClass = $item['badge_color'] ?? 'bg-red-500'; ?>
+                    <span class="ml-auto <?php echo $badgeClass; ?> text-white text-[10px] px-2 py-0.5 rounded-full"><?php echo $item['badge']; ?></span>
                 <?php endif; ?>
             </a>
         <?php endforeach; ?>
