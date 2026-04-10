@@ -93,7 +93,7 @@ foreach ($jpSpecies as $speciesKey => $occCount) {
 echo "  Already in OmoikaneDB: " . number_format($matchedInDb) . "\n";
 echo "  Need GBIF API resolve: " . number_format(count($keysToResolve)) . "\n";
 
-// Batch-resolve unknown species keys via GBIF Species API
+// Batch-resolve unknown species keys via GBIF Species API (curl_multi for speed)
 $resolved = 0;
 $resolveErrors = 0;
 $batchKeys = array_keys($keysToResolve);
@@ -104,24 +104,45 @@ $insertStmt = $pdo->prepare(
      VALUES (:name, :gid, 'gbif_jp_occurrence', 'catalog', :kingdom, :phylum, :class, :order, :family)"
 );
 
-for ($i = 0; $i < $totalToResolve; $i += 50) {
-    $chunk = array_slice($batchKeys, $i, 50);
+$concurrency = 20;
+for ($i = 0; $i < $totalToResolve; $i += $concurrency) {
+    $chunk = array_slice($batchKeys, $i, $concurrency);
+    $mh = curl_multi_init();
+    $handles = [];
+
+    foreach ($chunk as $key) {
+        $ch = curl_init("https://api.gbif.org/v1/species/$key");
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_HTTPHEADER => ['Accept: application/json'],
+        ]);
+        curl_multi_add_handle($mh, $ch);
+        $handles[$key] = $ch;
+    }
+
+    $running = null;
+    do {
+        curl_multi_exec($mh, $running);
+        curl_multi_select($mh, 1);
+    } while ($running > 0);
 
     if (!$dryRun) {
         $pdo->beginTransaction();
     }
 
-    foreach ($chunk as $key) {
-        $apiUrl = "https://api.gbif.org/v1/species/$key";
-        $ctx = stream_context_create(['http' => ['timeout' => 10]]);
-        $json = @file_get_contents($apiUrl, false, $ctx);
+    foreach ($handles as $key => $ch) {
+        $resp = curl_multi_getcontent($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_multi_remove_handle($mh, $ch);
+        curl_close($ch);
 
-        if (!$json) {
+        if ($httpCode !== 200 || !$resp) {
             $resolveErrors++;
             continue;
         }
 
-        $sp = json_decode($json, true);
+        $sp = json_decode($resp, true);
         $name = $sp['canonicalName'] ?? $sp['species'] ?? '';
         if (empty($name) || substr_count(trim($name), ' ') !== 1) {
             $resolveErrors++;
@@ -148,12 +169,12 @@ for ($i = 0; $i < $totalToResolve; $i += 50) {
         $pdo->commit();
     }
 
-    // Rate limiting: 50 requests then 500ms pause
-    usleep(500000);
+    curl_multi_close($mh);
+    usleep(100000); // 100ms between batches
 
-    if (($i + 50) % 500 < 50) {
-        echo "\r  Resolved: " . number_format($resolved) . " / " . number_format($totalToResolve)
-            . " (errors: $resolveErrors)";
+    if (($i + $concurrency) % 500 < $concurrency) {
+        echo "  Resolved: " . number_format($resolved) . " / " . number_format($totalToResolve)
+            . " (errors: $resolveErrors)\n";
     }
 }
 
