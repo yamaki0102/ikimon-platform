@@ -57,6 +57,16 @@ $evtJson = json_encode([
     'bingo_species'  => $event['bingo_species'] ?? [],
     'bingo_template_id' => $event['bingo_template_id'] ?? '',
     'target_species' => $event['target_species'] ?? [],
+    'subtitle'       => $event['subtitle'] ?? '',
+    'rain_decision_time' => $event['rain_decision_time'] ?? '',
+    'max_participants'   => $event['max_participants'] ?? null,
+    'registration_deadline' => $event['registration_deadline'] ?? '',
+    'target_age'     => $event['target_age'] ?? 'all',
+    'difficulty'     => $event['difficulty'] ?? 'beginner',
+    'walking_distance'   => $event['walking_distance'] ?? '',
+    'equipment'      => $event['equipment'] ?? '',
+    'rental_equipment'   => $event['rental_equipment'] ?? '',
+    'event_category' => $event['event_category'] ?? 'general',
 ], JSON_UNESCAPED_UNICODE);
 
 $meta_title = "観察会を編集";
@@ -242,6 +252,12 @@ $meta_description = "観察会の情報を編集します。";
             <input type="text" x-model="title" placeholder="自動生成されます（空欄OK）" maxlength="100">
         </div>
 
+        <!-- Subtitle -->
+        <div class="form-field">
+            <label>サブタイトル（任意）</label>
+            <input type="text" x-model="subtitle" placeholder="例: 春の渡り鳥を観察しよう" maxlength="200">
+        </div>
+
         <!-- Date / Time -->
         <div class="grid grid-cols-3 gap-3">
             <div class="form-field col-span-1">
@@ -256,6 +272,12 @@ $meta_description = "観察会の情報を編集します。";
                 <label>🕐 終了</label>
                 <input type="time" x-model="endTime">
             </div>
+        </div>
+
+        <!-- Registration Deadline -->
+        <div class="form-field">
+            <label>📋 申込締切日（任意）</label>
+            <input type="date" x-model="registrationDeadline">
         </div>
 
         <!-- Location Search -->
@@ -314,6 +336,20 @@ $meta_description = "観察会の情報を編集します。";
             <textarea x-model="memo" rows="2" maxlength="100" placeholder="簡単な説明など"></textarea>
         </div>
 
+        <!-- Event Category -->
+        <div class="form-field">
+            <label>イベントカテゴリ（任意）</label>
+            <select x-model="eventCategory">
+                <option value="general">観察会</option>
+                <option value="beginner">初心者向け</option>
+                <option value="family">親子向け</option>
+                <option value="theme">テーマ観察会</option>
+                <option value="night">夜間観察</option>
+                <option value="bioblitz">BioBlitz</option>
+                <option value="school">学校・団体調査</option>
+            </select>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="form-field">
                 <label>参加方式</label>
@@ -348,6 +384,51 @@ $meta_description = "観察会の情報を編集します。";
             <input type="text" x-model="parkingInfo" placeholder="例: 無料駐車場あり（30台）" maxlength="200">
         </div>
 
+        <!-- Target Age & Difficulty -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="form-field">
+                <label>🎯 対象年齢（任意）</label>
+                <select x-model="targetAge">
+                    <option value="all">全年齢</option>
+                    <option value="adult">大人向け</option>
+                    <option value="family">親子向け</option>
+                    <option value="children">子ども向け</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>📊 難易度（任意）</label>
+                <select x-model="difficulty">
+                    <option value="beginner">初心者OK</option>
+                    <option value="intermediate">中級</option>
+                    <option value="advanced">上級</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Max Participants -->
+        <div class="form-field">
+            <label>👥 定員（任意）</label>
+            <input type="number" x-model.number="maxParticipants" min="0" max="9999" placeholder="例: 30">
+        </div>
+
+        <!-- Walking Distance -->
+        <div class="form-field">
+            <label>🚶 歩行距離（任意）</label>
+            <input type="text" x-model="walkingDistance" placeholder="例: 約2km" maxlength="50">
+        </div>
+
+        <!-- Equipment -->
+        <div class="form-field">
+            <label>🎒 持ち物・装備（任意・500字）</label>
+            <textarea x-model="equipment" rows="3" maxlength="500" placeholder="例: 双眼鏡、長靴、雨具、飲み物"></textarea>
+        </div>
+
+        <!-- Rental Equipment -->
+        <div class="form-field">
+            <label>🔄 貸出装備（任意）</label>
+            <input type="text" x-model="rentalEquipment" placeholder="例: 双眼鏡10台貸出可" maxlength="200">
+        </div>
+
         <!-- Rain Policy -->
         <div class="form-field">
             <label>🌧️ 雨天時（任意）</label>
@@ -357,6 +438,13 @@ $meta_description = "観察会の情報を編集します。";
                 <option value="light_ok">小雨決行</option>
                 <option value="rain_ok">雨天決行</option>
             </select>
+        </div>
+
+        <!-- Rain Decision Time (conditional) -->
+        <div class="form-field" x-show="rainPolicy" x-cloak>
+            <label>⏰ 雨天判断時刻（任意）</label>
+            <input type="time" x-model="rainDecisionTime" placeholder="例: 06:00">
+            <p class="text-xs text-gray-400 mt-1">当日何時に開催判断するかを設定します</p>
         </div>
 
         <!-- Precautions -->
@@ -450,6 +538,16 @@ $meta_description = "観察会の情報を編集します。";
                 siteId: evt.site_id || '',
                 bingoSpecies: evt.bingo_species || [],
                 bingoTemplateId: evt.bingo_template_id || '',
+                subtitle: evt.subtitle || '',
+                rainDecisionTime: evt.rain_decision_time || '',
+                maxParticipants: evt.max_participants ?? '',
+                registrationDeadline: evt.registration_deadline || '',
+                targetAge: evt.target_age || 'all',
+                difficulty: evt.difficulty || 'beginner',
+                walkingDistance: evt.walking_distance || '',
+                equipment: evt.equipment || '',
+                rentalEquipment: evt.rental_equipment || '',
+                eventCategory: evt.event_category || 'general',
                 searchQuery: '',
                 searchResults: [],
                 saving: false,
@@ -592,6 +690,16 @@ $meta_description = "観察会の情報を編集します。";
                                 name: this.locationName,
                             },
                             target_species: [],
+                            subtitle: this.subtitle,
+                            rain_decision_time: this.rainDecisionTime,
+                            max_participants: this.maxParticipants !== '' ? Number(this.maxParticipants) : null,
+                            registration_deadline: this.registrationDeadline,
+                            target_age: this.targetAge,
+                            difficulty: this.difficulty,
+                            walking_distance: this.walkingDistance,
+                            equipment: this.equipment,
+                            rental_equipment: this.rentalEquipment,
+                            event_category: this.eventCategory,
                         };
                         const res = await fetch('api/save_event.php', {
                             method: 'POST',

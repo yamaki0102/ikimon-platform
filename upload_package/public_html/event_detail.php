@@ -65,12 +65,29 @@ $dateStr = $dateObj->format('Y年n月j日') . "（{$dow}）";
 
 $meta_title = htmlspecialchars($event['title'] ?? '観察会');
 $meta_description = $dateStr . ' ' . $locName . ' の観察会';
+$ogUrl = (defined('BASE_URL') ? BASE_URL : 'https://ikimon.life') . '/event_detail.php?id=' . urlencode($eventId);
+$ogImage = !empty($event['cover_image']) ? $event['cover_image'] : ((defined('BASE_URL') ? BASE_URL : 'https://ikimon.life') . '/assets/images/og-default.png');
+
+$eventCategoryLabels = [
+    'general' => '観察会', 'beginner' => '初心者向け', 'family' => '親子向け',
+    'theme' => 'テーマ観察会', 'night' => '夜間観察', 'bioblitz' => 'BioBlitz', 'school' => '学校・団体調査',
+];
+$targetAgeLabels = ['all' => '全年齢', 'adult' => '大人向け', 'family' => '親子向け', 'children' => '子ども向け'];
+$difficultyLabels = ['beginner' => '初心者OK', 'intermediate' => '中級', 'advanced' => '上級'];
 ?>
 <!DOCTYPE html>
 <html lang="ja">
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="<?php echo $meta_title; ?> | ikimon.life">
+    <meta property="og:description" content="<?php echo htmlspecialchars($meta_description); ?>">
+    <meta property="og:url" content="<?php echo htmlspecialchars($ogUrl); ?>">
+    <meta property="og:image" content="<?php echo htmlspecialchars($ogImage); ?>">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<?php echo $meta_title; ?> | ikimon.life">
+    <meta name="twitter:description" content="<?php echo htmlspecialchars($meta_description); ?>">
 </head>
 
 <body class="font-sans min-h-screen pb-24 safe-area-inset-bottom" style="background:var(--md-surface);color:var(--md-on-surface);"
@@ -115,9 +132,17 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
         <?php endif; ?>
 
         <div class="px-5 pt-4">
+            <?php
+            $catLabel = $eventCategoryLabels[$event['event_category'] ?? ''] ?? '';
+            if ($catLabel): ?>
+                <span class="inline-block mb-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700"><?php echo htmlspecialchars($catLabel); ?></span>
+            <?php endif; ?>
             <h1 class="text-xl font-black text-gray-900 leading-tight">
                 <?php echo htmlspecialchars($event['title'] ?? ''); ?>
             </h1>
+            <?php if (!empty($event['subtitle'])): ?>
+                <p class="mt-1 text-sm text-gray-500"><?php echo htmlspecialchars($event['subtitle']); ?></p>
+            <?php endif; ?>
             <div class="mt-2 space-y-1.5 text-sm text-gray-600">
                 <div class="flex items-center gap-2">
                     <i data-lucide="calendar" class="w-4 h-4 text-emerald-500"></i>
@@ -155,7 +180,55 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                 </div>
             <?php endif; ?>
 
-            <p class="mt-3 p-3 bg-gray-50 rounded-xl text-sm text-gray-600"><?php echo nl2br(htmlspecialchars($event['memo'] ?? '')); ?></p>
+            <?php if (!empty($event['memo'])): ?>
+                <p class="mt-3 p-3 bg-gray-50 rounded-xl text-sm text-gray-600"><?php echo nl2br(htmlspecialchars($event['memo'])); ?></p>
+            <?php endif; ?>
+
+            <?php
+            $ageLabel = $targetAgeLabels[$event['target_age'] ?? ''] ?? '';
+            $diffLabel = $difficultyLabels[$event['difficulty'] ?? ''] ?? '';
+            $walkDist = $event['walking_distance'] ?? '';
+            $maxPart = (int)($event['max_participants'] ?? 0);
+            $equip = $event['equipment'] ?? '';
+            $rentalEquip = $event['rental_equipment'] ?? '';
+            $rainDecTime = $event['rain_decision_time'] ?? '';
+            $regDeadline = $event['registration_deadline'] ?? '';
+            $hasInfoCard = $diffLabel || $ageLabel || $walkDist || $maxPart || $equip || $rentalEquip;
+            ?>
+            <?php if ($hasInfoCard): ?>
+                <div class="mt-3 rounded-2xl border border-gray-100 bg-white p-4 space-y-2">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">参加ガイド</h3>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <?php if ($diffLabel): ?>
+                            <div class="flex items-center gap-2"><i data-lucide="gauge" class="w-4 h-4 text-sky-500"></i><span><?php echo htmlspecialchars($diffLabel); ?></span></div>
+                        <?php endif; ?>
+                        <?php if ($ageLabel): ?>
+                            <div class="flex items-center gap-2"><i data-lucide="baby" class="w-4 h-4 text-pink-500"></i><span><?php echo htmlspecialchars($ageLabel); ?></span></div>
+                        <?php endif; ?>
+                        <?php if ($walkDist): ?>
+                            <div class="flex items-center gap-2"><i data-lucide="footprints" class="w-4 h-4 text-amber-500"></i><span><?php echo htmlspecialchars($walkDist); ?></span></div>
+                        <?php endif; ?>
+                        <?php if ($maxPart > 0): ?>
+                            <div class="flex items-center gap-2"><i data-lucide="users" class="w-4 h-4 text-indigo-500"></i><span>定員 <?php echo $maxPart; ?>名</span></div>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($equip): ?>
+                        <div class="pt-2 border-t border-gray-50">
+                            <div class="flex items-start gap-2 text-sm"><i data-lucide="backpack" class="w-4 h-4 text-orange-500 shrink-0 mt-0.5"></i><div><span class="font-bold text-gray-700 text-xs">持ち物</span><br><span class="text-gray-600"><?php echo htmlspecialchars($equip); ?></span></div></div>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($rentalEquip): ?>
+                        <div class="flex items-start gap-2 text-sm"><i data-lucide="hand-helping" class="w-4 h-4 text-teal-500 shrink-0 mt-0.5"></i><div><span class="font-bold text-gray-700 text-xs">貸出機材</span><br><span class="text-gray-600"><?php echo htmlspecialchars($rentalEquip); ?></span></div></div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($regDeadline): ?>
+                <div class="mt-2 flex items-center gap-2 text-xs text-gray-500"><i data-lucide="timer" class="w-3.5 h-3.5"></i><span>申込締切: <?php echo htmlspecialchars($regDeadline); ?></span></div>
+            <?php endif; ?>
+            <?php if ($rainDecTime && ($event['rain_policy'] ?? '')): ?>
+                <div class="mt-1 flex items-center gap-2 text-xs text-gray-500"><i data-lucide="cloud-rain" class="w-3.5 h-3.5"></i><span>雨天判断: <?php echo htmlspecialchars($rainDecTime); ?></span></div>
+            <?php endif; ?>
 
             <div class="mt-4 grid grid-cols-1 gap-3">
                 <button
@@ -198,8 +271,27 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
             </div>
 
             <?php if (!$canRevealSpeciesDetails): ?>
-                <div class="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-7 text-sky-900">
-                    無料団体の観察会ページでは、発見種の一覧や種名は公開しません。参加人数、観察件数、発見種数などの概要だけを見せています。完全な種一覧やレポート出力は Public プランで有効になります。
+                <div class="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-900">
+                    <h3 class="font-bold text-sky-800 mb-2">Public プランで使える成果物</h3>
+                    <ul class="space-y-1.5 text-sky-700">
+                        <li class="flex items-center gap-2"><i data-lucide="file-text" class="w-4 h-4"></i>正式イベントレポート PDF</li>
+                        <li class="flex items-center gap-2"><i data-lucide="table" class="w-4 h-4"></i>種リスト CSV / XLSX</li>
+                        <li class="flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4"></i>希少種配慮付き内部版レポート</li>
+                        <li class="flex items-center gap-2"><i data-lucide="award" class="w-4 h-4"></i>助成金・事業報告に提出可能な品質</li>
+                    </ul>
+                    <a href="pricing.php" class="mt-3 inline-flex items-center gap-1 text-sky-600 font-bold text-sm hover:underline">
+                        Public プランについて <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </a>
+                </div>
+            <?php endif; ?>
+            <?php if (($isOrganizer || $isAdmin) && $canUseAdvancedOutputs && $isPast): ?>
+                <div class="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                    <h3 class="text-sm font-bold text-blue-800 mb-2">成果物ダウンロード</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <a href="generate_event_report.php?event_id=<?php echo urlencode($eventId); ?>" class="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition"><i data-lucide="file-text" class="w-3.5 h-3.5"></i>レポート PDF</a>
+                        <a href="api/export_event_species_csv.php?event_id=<?php echo urlencode($eventId); ?>" class="flex items-center gap-1.5 bg-white text-blue-700 border border-blue-200 text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-100 transition"><i data-lucide="download" class="w-3.5 h-3.5"></i>種リスト CSV</a>
+                        <a href="api/export_event_species_xlsx.php?event_id=<?php echo urlencode($eventId); ?>" class="flex items-center gap-1.5 bg-white text-blue-700 border border-blue-200 text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-100 transition"><i data-lucide="download" class="w-3.5 h-3.5"></i>種リスト XLSX</a>
+                    </div>
                 </div>
             <?php endif; ?>
         </div>
@@ -279,16 +371,15 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
         $editHistory = $event['edit_history'] ?? [];
         if (!empty($editHistory)):
             $fieldLabels = [
-                'title' => 'タイトル',
-                'event_date' => '日付',
-                'start_time' => '開始時間',
-                'end_time' => '終了時間',
-                'location' => '場所',
-                'memo' => 'メモ',
-                'meeting_point' => '集合場所',
-                'parking_info' => '駐車場',
-                'rain_policy' => '雨天時',
-                'precautions' => '注意事項',
+                'title' => 'タイトル', 'event_date' => '日付', 'start_time' => '開始時間',
+                'end_time' => '終了時間', 'location' => '場所', 'memo' => 'メモ',
+                'meeting_point' => '集合場所', 'parking_info' => '駐車場',
+                'rain_policy' => '雨天時', 'precautions' => '注意事項',
+                'subtitle' => '概要', 'rain_decision_time' => '雨天判断時刻',
+                'max_participants' => '定員', 'registration_deadline' => '申込締切',
+                'target_age' => '対象年齢', 'difficulty' => '難易度',
+                'walking_distance' => '歩行距離', 'equipment' => '持ち物',
+                'rental_equipment' => '貸出機材', 'event_category' => 'イベント種別',
             ];
             $lastEdit = end($editHistory);
             $editDate = (new DateTime($lastEdit['at']))->format('n/j H:i');
@@ -313,6 +404,35 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                     <div class="text-2xl font-black text-orange-500" x-text="stats.contributor_count">0</div>
                     <div class="text-xs text-gray-400 mt-0.5">参加者</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ========== AI FIELD GUIDE (LIVE only) ========== -->
+        <div x-show="isLive && aiSuggestion" x-cloak class="px-4 mt-4">
+            <div class="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-xs font-bold text-emerald-600">みんなの発見</span>
+                    <div class="flex-1 bg-emerald-100 rounded-full h-2">
+                        <div class="bg-emerald-500 rounded-full h-2 transition-all duration-500"
+                            :style="'width:' + Math.min(100, (stats.species_count / Math.max(targetSpeciesCount, 20)) * 100) + '%'"></div>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-700" x-text="stats.species_count + '種'"></span>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="size-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 text-lg">🌿</div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-900" x-text="aiSuggestion.text"></p>
+                        <p class="text-xs text-gray-500 mt-1" x-text="aiSuggestion.followup"></p>
+                    </div>
+                </div>
+                <p class="mt-3 text-xs text-emerald-600 font-bold" x-text="aiSuggestion.encouragement"></p>
+                <template x-if="groupProgress && groupProgress.recent_achievement">
+                    <p class="mt-1 text-xs text-emerald-500" x-text="'🎉 ' + groupProgress.recent_achievement"></p>
+                </template>
+                <details class="mt-2">
+                    <summary class="text-[10px] text-gray-400 cursor-pointer">見つからなくても大丈夫</summary>
+                    <p class="text-xs text-gray-500 mt-1 pl-2 border-l-2 border-gray-200" x-text="aiSuggestion.absence_note"></p>
+                </details>
             </div>
         </div>
 
@@ -363,10 +483,23 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                     </div>
                 </div>
 
-                <div class="mt-5 flex gap-2">
-                    <button @click="shareSummary('x')" class="flex-1 bg-black text-white rounded-xl py-3 text-sm font-bold">Xでシェア</button>
-                    <button @click="shareSummary('line')" class="flex-1 bg-green-500 text-white rounded-xl py-3 text-sm font-bold">LINEで送る</button>
-                    <button @click="copySummaryLink()" class="flex-1 bg-gray-100 text-gray-700 rounded-xl py-3 text-sm font-bold">リンクをコピー</button>
+                <div class="mt-5 grid grid-cols-2 gap-2">
+                    <button @click="shareSummary('x')" class="bg-black text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        Xでシェア
+                    </button>
+                    <button @click="shareSummary('line')" class="bg-[#06C755] text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
+                        LINEで送る
+                    </button>
+                    <button @click="shareSummary('instagram')" class="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                        ストーリーズ
+                    </button>
+                    <button @click="copySummaryLink()" class="bg-gray-100 text-gray-700 rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-1.5">
+                        <i data-lucide="link" class="w-4 h-4" style="pointer-events:none"></i>
+                        リンクをコピー
+                    </button>
                 </div>
             </div>
         </div>
@@ -497,6 +630,29 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
             </div>
         </template>
 
+        <!-- ========== NEXT STEPS (Past events) ========== -->
+        <div x-show="isPast" x-cloak class="px-4 mt-5">
+            <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                <h3 class="text-sm font-bold text-emerald-800 mb-3">次の一歩</h3>
+                <div class="space-y-2">
+                    <a href="events.php" class="flex items-center gap-2 bg-white rounded-xl p-3 text-sm font-bold text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition">
+                        <i data-lucide="calendar-plus" class="w-4 h-4" style="pointer-events:none"></i>
+                        次の観察会を探す
+                    </a>
+                    <a href="explore.php" class="flex items-center gap-2 bg-white rounded-xl p-3 text-sm font-bold text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition">
+                        <i data-lucide="compass" class="w-4 h-4" style="pointer-events:none"></i>
+                        この地域の生きものを見る
+                    </a>
+                    <?php if (!Auth::isLoggedIn()): ?>
+                        <a href="login.php" class="flex items-center gap-2 bg-emerald-600 rounded-xl p-3 text-sm font-bold text-white hover:bg-emerald-700 transition">
+                            <i data-lucide="user-plus" class="w-4 h-4" style="pointer-events:none"></i>
+                            ikimon.life に参加する
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
         <!-- ========== CTA: Post Observation ========== -->
         <?php if (!$isPast): ?>
             <div class="px-4 mt-6">
@@ -556,6 +712,10 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                         event_days: 1,
                     },
                     topPhotos: [],
+                    aiSuggestion: null,
+                    groupProgress: null,
+                    targetSpeciesCount: <?php echo (int)count($event['target_species'] ?? []); ?> || 20,
+                    aiRefreshInterval: null,
                     isLive: <?php echo $isLive ? 'true' : 'false'; ?>,
                     isPast: <?php echo $isPast ? 'true' : 'false'; ?>,
                     isParticipant: <?php echo $isParticipant ? 'true' : 'false'; ?>,
@@ -577,6 +737,11 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                             this.toggleParticipation('join');
                         }
 
+                        if (this.isLive) {
+                            this.loadAiSuggestion();
+                            this.aiRefreshInterval = setInterval(() => this.loadAiSuggestion(), 600000);
+                        }
+
                         this.refreshInterval = setInterval(() => {
                             this.loadData();
                             if (this.leaderboardEnabled) {
@@ -587,6 +752,7 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
 
                     destroy() {
                         if (this.refreshInterval) clearInterval(this.refreshInterval);
+                        if (this.aiRefreshInterval) clearInterval(this.aiRefreshInterval);
                     },
 
                     initMap() {
@@ -687,6 +853,20 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                         }
                     },
 
+                    async loadAiSuggestion() {
+                        if (!this.isLive) return;
+                        try {
+                            const res = await fetch(`api/get_event_ai_suggestion.php?event_id=${encodeURIComponent(this.eventId)}`);
+                            const data = await res.json();
+                            if (data.success) {
+                                this.aiSuggestion = data.suggestion;
+                                this.groupProgress = data.group_progress;
+                            }
+                        } catch (e) {
+                            console.warn('AI suggestion load failed:', e);
+                        }
+                    },
+
                     renderQrCode() {
                         const target = document.getElementById('qr-canvas');
                         if (!target || typeof QRCode === 'undefined') {
@@ -764,6 +944,32 @@ $meta_description = $dateStr . ' ' . $locName . ' の観察会';
                         }
                         if (channel === 'line') {
                             window.open(`https://social-plugins.line.me/lineit/share?url=${url}`, '_blank', 'noopener');
+                            return;
+                        }
+                        if (channel === 'instagram') {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = 1080; canvas.height = 1920;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = '#064e3b'; ctx.fillRect(0, 0, 1080, 1920);
+                            ctx.fillStyle = '#10b981'; ctx.fillRect(0, 0, 1080, 120);
+                            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 48px sans-serif'; ctx.textAlign = 'center';
+                            ctx.fillText('ikimon.life', 540, 80);
+                            ctx.font = 'bold 56px sans-serif';
+                            ctx.fillText(<?php echo json_encode($event['title'] ?? '観察会', JSON_HEX_TAG); ?>, 540, 500);
+                            ctx.font = '40px sans-serif'; ctx.fillStyle = '#a7f3d0';
+                            ctx.fillText(`${this.leaderboardStats.total_observations}件の記録`, 540, 800);
+                            ctx.fillText(`${this.leaderboardStats.total_species}種を発見`, 540, 870);
+                            ctx.fillText(`${this.leaderboardStats.total_participants}人が参加`, 540, 940);
+                            ctx.font = '32px sans-serif'; ctx.fillStyle = '#6ee7b7';
+                            ctx.fillText('ikimon.life', 540, 1600);
+                            canvas.toBlob(blob => {
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url; a.download = `ikimon-event-story.png`;
+                                a.click(); URL.revokeObjectURL(url);
+                                alert('画像をダウンロードしました。Instagramストーリーズに投稿してください。');
+                            }, 'image/png');
+                            return;
                         }
                     },
 
