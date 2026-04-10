@@ -12,7 +12,7 @@ class InvasiveAlertManager
 
     private static function dataPath(): string
     {
-        return DATA_DIR . 'masters/invasive_species.json';
+        return DATA_DIR . '/masters/invasive_species.json';
     }
 
     /**

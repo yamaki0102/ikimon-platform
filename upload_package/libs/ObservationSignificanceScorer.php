@@ -15,21 +15,21 @@ require_once __DIR__ . '/InvasiveAlertManager.php';
  *
  * スコア軸と加算値:
  *   保全重要度 (RedList): CR=+40, EN=+35, VU=+25, NT=+15, DD=+10
- *   地域希少性 (DistributionAnalyzer): area_first=+30, rare=+15
  *   外来種 (InvasiveAlertManager): hit=+20
+ *   地域希少性 (DistributionAnalyzer): area_first+保全裏付け=+25, area_first単独=+5, rare=+15
  *   季節異常 (Omoikane season vs 観察月): mismatch=+15
  *   写真品質: 3枚以上=+5, 5枚以上=+10
  *   外来種でない希少種の誤同定リスク: -5 (近縁種多数の場合)
  *
  * 閾値:
- *   0-29  → normal   (fast/batch lane そのまま)
- *   30-59 → important (batch lane + 拡張 RAG)
+ *   0-44  → normal   (fast/batch lane そのまま)
+ *   45-59 → important (batch lane + 拡張 RAG)
  *   60+   → critical  (deep lane + admin alert + evidence bundle)
  */
 class ObservationSignificanceScorer
 {
     private const THRESHOLD_CRITICAL  = 60;
-    private const THRESHOLD_IMPORTANT = 30;
+    private const THRESHOLD_IMPORTANT = 45;
 
     private const REDLIST_SCORES = [
         'CR'    => 40,
@@ -80,23 +80,7 @@ class ObservationSignificanceScorer
             }
         }
 
-        // --- 軸2: 地域希少性 (DistributionAnalyzer) ---
-        $distributionRarity = null;
-        if ($taxonName !== '' && $lat !== 0.0 && $lng !== 0.0) {
-            try {
-                $rarity = DistributionAnalyzer::checkRarity($taxonName, $lat, $lng);
-                $distributionRarity = $rarity['rarity_level'];
-                if ($rarity['is_rare']) {
-                    $pts = $rarity['rarity_level'] === 'area_first' ? 30 : 15;
-                    $totalScore += $pts;
-                    $reasons[] = "地域希少性({$rarity['rarity_level']} / {$rarity['area_name']}): +{$pts}点";
-                }
-            } catch (\Throwable $e) {
-                // 非致命的 — スキップ
-            }
-        }
-
-        // --- 軸3: 外来種 ---
+        // --- 軸2: 外来種 (軸3の前に確定させ、area_first 補正に使う) ---
         $isInvasive = false;
         if ($taxonName !== '') {
             try {
@@ -105,6 +89,30 @@ class ObservationSignificanceScorer
                     $isInvasive = true;
                     $totalScore += 20;
                     $reasons[] = "外来種({$invasiveResult['category']}): +20点";
+                }
+            } catch (\Throwable $e) {
+                // 非致命的 — スキップ
+            }
+        }
+
+        // --- 軸3: 地域希少性 (DistributionAnalyzer) ---
+        // area_first は「データが少ないセルで誰でも初記録になる」誤発火が多い。
+        // RedList/外来種といった独立した保全シグナルが重なった場合のみ高得点とする。
+        $distributionRarity = null;
+        if ($taxonName !== '' && $lat !== 0.0 && $lng !== 0.0) {
+            try {
+                $rarity = DistributionAnalyzer::checkRarity($taxonName, $lat, $lng);
+                $distributionRarity = $rarity['rarity_level'];
+                if ($rarity['is_rare']) {
+                    if ($rarity['rarity_level'] === 'area_first') {
+                        // 保全シグナルが別軸で裏付けられている場合のみ +25、単独では +5
+                        $hasCorroboration = ($redlistCategory !== null || $isInvasive);
+                        $pts = $hasCorroboration ? 25 : 5;
+                    } else {
+                        $pts = 15;
+                    }
+                    $totalScore += $pts;
+                    $reasons[] = "地域希少性({$rarity['rarity_level']} / {$rarity['area_name']}): +{$pts}点";
                 }
             } catch (\Throwable $e) {
                 // 非致命的 — スキップ
