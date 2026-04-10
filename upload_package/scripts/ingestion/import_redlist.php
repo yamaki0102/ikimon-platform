@@ -13,7 +13,7 @@ if (php_sapi_name() !== 'cli') {
     die("Run from CLI.");
 }
 
-$csvDir = __DIR__ . '/../data/redlists';
+$csvDir = __DIR__ . '/../../data/redlists';
 $files = glob($csvDir . '/*.csv');
 
 if (empty($files)) {
