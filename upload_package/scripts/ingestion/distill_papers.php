@@ -342,7 +342,6 @@ if ($processed > 0) {
                             (taxon_key, claim_type, claim_text, source_tier, doi, source_title, confidence, claim_hash)
                         VALUES (:taxon, :type, :text, :tier, :doi, :title, :conf,
                                 lower(hex(randomblob(8))) || '-' || :hash_val)
-                        ON CONFLICT(claim_hash) DO NOTHING
                     ");
                     // claim_hash を実行時に計算してバインドするヘルパー
                     $execClaim = function(array $params) use ($claimInsert, $pdo): void {

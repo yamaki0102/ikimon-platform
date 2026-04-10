@@ -237,7 +237,6 @@ function fetchWikidataProperties(string $scientificName, \PDO $pdo, int|null $sp
         INSERT OR IGNORE INTO claims
             (taxon_key, claim_type, claim_text, source_tier, doi, source_title, confidence, claim_hash)
         VALUES (:taxon, :type, :text, 'B', NULL, 'Wikidata', 0.55, :hash)
-        ON CONFLICT(claim_hash) DO NOTHING
     ");
 
     if (!empty($row['endemic']['value'])) {
@@ -433,10 +432,9 @@ function saveClaims(\PDO $pdo, int|null $speciesId, string $sciName, array $clai
     };
 
     $stmt = $pdo->prepare("
-        INSERT INTO claims
+        INSERT OR IGNORE INTO claims
             (taxon_key, claim_type, claim_text, source_tier, doi, source_title, confidence, claim_hash)
         VALUES (:taxon, :type, :text, :tier, NULL, :title, :conf, :hash)
-        ON CONFLICT(claim_hash) DO NOTHING
     ");
 
     foreach ($claims as $claim) {
