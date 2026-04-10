@@ -57,8 +57,7 @@ for ($i = $startIndex; $i < count($slugs); $i++) {
     echo "\n-------------------------------------------------\n";
     echo "Querying GBIF Literature API for: $name\n";
 
-    // limit=3 to avoid blowing up DB on initial runs
-    $url = "https://api.gbif.org/v1/literature/search?q=" . urlencode('"' . $name . '"') . "&limit=3";
+    $url = "https://api.gbif.org/v1/literature/search?q=" . urlencode('"' . $name . '"') . "&limit=15";
 
     // Create streaming context to have a small timeout
     $ctx = stream_context_create(['http' => ['timeout' => 10]]);
