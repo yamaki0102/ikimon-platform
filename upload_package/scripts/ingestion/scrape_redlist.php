@@ -179,12 +179,38 @@ if ($dryRun) echo "(Dry run)\n";
 
 function fetchWithRetry(string $url, int $retries = 2): ?string
 {
+    if (function_exists('curl_init')) {
+        for ($i = 0; $i <= $retries; $i++) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 5,
+                CURLOPT_TIMEOUT        => 20,
+                CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+                CURLOPT_HTTPHEADER     => [
+                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language: ja,en;q=0.5',
+                ],
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_ENCODING       => 'gzip, deflate',
+            ]);
+            $body = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($body !== false && $code === 200) return $body;
+            if ($i < $retries) usleep(1000000);
+        }
+        return null;
+    }
+
+    // Fallback: file_get_contents
     for ($i = 0; $i <= $retries; $i++) {
         $ctx = stream_context_create([
             'http' => [
                 'timeout' => 20,
-                'user_agent' => 'ikimon.life/1.0 (biodiversity archive; contact@ikimon.life)',
-                'header' => "Accept: text/html,application/xhtml+xml\r\n",
+                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+                'header' => "Accept: text/html\r\nAccept-Language: ja,en;q=0.5\r\n",
             ],
             'ssl' => ['verify_peer' => false],
         ]);
