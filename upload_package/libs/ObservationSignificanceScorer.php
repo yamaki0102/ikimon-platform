@@ -179,7 +179,8 @@ class ObservationSignificanceScorer
     }
 
     /**
-     * RedListManager で国・都道府県を横断してカテゴリを調べ、最高深刻度のコードを返す。
+     * RedListManager で全スコープを横断し、最高深刻度のカテゴリコードを返す。
+     * OmoikaneDB (SQLite) をプライマリ、JSON を fallback として使用。
      */
     private static function resolveRedListCategory(string $taxonName, ?string $prefecture): ?string
     {
@@ -189,19 +190,23 @@ class ObservationSignificanceScorer
                 $rlm = new RedListManager();
             }
 
+            $sciName = null;
+            $highest = $rlm->getHighestSeverity($taxonName, $sciName);
+            if ($highest) {
+                return $highest['category'] ?? null;
+            }
+
             $prefCode = self::prefNameToCode($prefecture ?? '');
             $result   = $rlm->lookup($taxonName, $prefCode ?: null);
             if (!$result) {
                 return null;
             }
 
-            $severityOrder = ['CR' => 5, 'EN' => 4, 'CR+EN' => 5, 'VU' => 3, 'NT' => 2, 'LP' => 2, 'DD' => 1];
-            $best          = null;
-            $bestScore     = -1;
-
-            foreach ($result as $listId => $entry) {
+            $best      = null;
+            $bestScore = -1;
+            foreach ($result as $entry) {
                 $cat = (string)($entry['category_en'] ?? $entry['category'] ?? '');
-                $score = $severityOrder[$cat] ?? 0;
+                $score = RedListManager::getSeverity($cat);
                 if ($score > $bestScore) {
                     $bestScore = $score;
                     $best      = $cat;
