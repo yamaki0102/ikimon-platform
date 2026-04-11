@@ -1078,6 +1078,24 @@ if ($isGuest) {
                     </div>
                 </template>
 
+                <!-- 次回のヒント (Knowledge Tips) -->
+                <template x-if="nextTimeTips.length > 0">
+                    <div class="rounded-2xl border border-primary/20 bg-primary-surface/30 p-4 mb-4 max-w-sm mx-auto text-left">
+                        <p class="text-[10px] font-black text-primary uppercase tracking-widest mb-2.5">次回のヒント</p>
+                        <div class="space-y-2">
+                            <template x-for="tip in nextTimeTips" :key="tip.label">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-sm flex-shrink-0 mt-px" x-text="tip.icon"></span>
+                                    <div class="min-w-0">
+                                        <p class="text-[10px] font-bold text-primary-dark" x-text="tip.label"></p>
+                                        <p class="text-xs text-text leading-relaxed mt-0.5" x-text="tip.text"></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
                 <div class="rounded-2xl border border-border bg-surface p-4 mb-6 max-w-sm mx-auto text-left">
                     <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-2">この記録が次に育つこと</p>
                     <div class="space-y-2 text-xs text-text">

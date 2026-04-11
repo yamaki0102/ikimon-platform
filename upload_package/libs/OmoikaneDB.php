@@ -390,4 +390,70 @@ class OmoikaneDB
             // non-fatal
         }
     }
+
+    /**
+     * 複数種の「最良 claim」を一括取得する。
+     * フィード・図鑑カードで「1種1行の知識チップ」を効率的に表示するために使う。
+     *
+     * @param array $scientificNames ['Chelonia mydas', 'Passer montanus', ...]
+     * @param int $limit 1種あたりの claim 件数 (default: 1)
+     * @return array ['Chelonia mydas' => ['type'=>'ecology_trivia', 'text'=>'...', 'tier'=>'B', 'confidence'=>0.7], ...]
+     */
+    public function getBatchNuggets(array $scientificNames, int $limit = 1): array
+    {
+        if (empty($scientificNames)) return [];
+
+        $result = [];
+        try {
+            $placeholders = implode(',', array_fill(0, count($scientificNames), '?'));
+
+            $typePriority = "CASE claim_type
+                WHEN 'identification_pitfall' THEN 1
+                WHEN 'photo_target' THEN 2
+                WHEN 'ecology_trivia' THEN 3
+                WHEN 'cultural' THEN 4
+                WHEN 'taxonomy_note' THEN 5
+                WHEN 'regional_variation' THEN 6
+                WHEN 'hybridization' THEN 7
+                ELSE 99 END";
+
+            $sql = "SELECT taxon_key, claim_type, claim_text, source_tier, confidence
+                    FROM claims
+                    WHERE taxon_key IN ({$placeholders})
+                      AND claim_type IN ('identification_pitfall','photo_target','ecology_trivia',
+                                         'cultural','taxonomy_note','regional_variation','hybridization')
+                    ORDER BY taxon_key, {$typePriority}, confidence DESC";
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute(array_values($scientificNames));
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $counts = [];
+            foreach ($rows as $row) {
+                $key = $row['taxon_key'];
+                if (!isset($counts[$key])) $counts[$key] = 0;
+                if ($counts[$key] >= $limit) continue;
+                $counts[$key]++;
+
+                if ($limit === 1) {
+                    $result[$key] = [
+                        'type'       => $row['claim_type'],
+                        'text'       => $row['claim_text'],
+                        'tier'       => $row['source_tier'],
+                        'confidence' => (float)$row['confidence'],
+                    ];
+                } else {
+                    $result[$key][] = [
+                        'type'       => $row['claim_type'],
+                        'text'       => $row['claim_text'],
+                        'tier'       => $row['source_tier'],
+                        'confidence' => (float)$row['confidence'],
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            // non-fatal: claims are optional enhancement
+        }
+        return $result;
+    }
 }

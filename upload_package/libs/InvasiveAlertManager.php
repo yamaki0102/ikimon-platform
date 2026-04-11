@@ -25,6 +25,7 @@ class InvasiveAlertManager
      */
     public static function check(string $taxonName, string $scientificName = ''): ?array
     {
+        // 1. JSON マスタ照合 (環境省リスト)
         $list = self::load();
         $nameLower = mb_strtolower(trim($taxonName));
         $sciLower  = mb_strtolower(trim($scientificName));
@@ -43,6 +44,64 @@ class InvasiveAlertManager
         }
 
         return null;
+    }
+
+    /**
+     * GBIF Backbone Distribution データから日本での在来/外来ステータスを返す。
+     * taxon_distribution テーブル (import_gbif_distribution.php で投入) を参照。
+     *
+     * @param string $scientificName 学名
+     * @return array{status:string,establishment_means:string}|null
+     *   status: 'native' | 'introduced' | 'invasive' | 'uncertain' | null
+     */
+    public static function getDistributionStatus(string $scientificName): ?array
+    {
+        if (empty($scientificName) || !defined('ROOT_DIR')) return null;
+
+        static $cache = [];
+        if (isset($cache[$scientificName])) return $cache[$scientificName];
+
+        try {
+            require_once ROOT_DIR . 'libs/OmoikaneDB.php';
+            $db = new OmoikaneDB();
+            $pdo = $db->getPDO();
+
+            $stmt = $pdo->prepare("
+                SELECT td.establishment_means
+                FROM taxon_distribution td
+                JOIN species s ON s.gbif_taxon_id = td.gbif_taxon_id
+                WHERE s.scientific_name = :name
+                  AND td.location_id LIKE '%JP%'
+                LIMIT 1
+            ");
+            $stmt->execute([':name' => $scientificName]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$row) {
+                $cache[$scientificName] = null;
+                return null;
+            }
+
+            $means = strtoupper(trim($row['establishment_means'] ?? ''));
+            $status = match (true) {
+                str_contains($means, 'INVASIVE') => 'invasive',
+                str_contains($means, 'INTRODUCED') => 'introduced',
+                str_contains($means, 'NATIVE') => 'native',
+                str_contains($means, 'NATURALISED') => 'introduced',
+                str_contains($means, 'UNCERTAIN') => 'uncertain',
+                default => null,
+            };
+
+            $result = $status ? [
+                'status' => $status,
+                'establishment_means' => $row['establishment_means'],
+            ] : null;
+
+            $cache[$scientificName] = $result;
+            return $result;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**

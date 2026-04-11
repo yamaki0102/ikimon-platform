@@ -63,6 +63,7 @@ function uploader() {
         aiReady: false,
         aiPending: false,
         aiSummary: '',
+        nextTimeTips: [],
         aiPollTimer: null,
         map: null,
         marker: null,
@@ -698,6 +699,27 @@ function uploader() {
                     if (window.ikimonAnalytics) ikimonAnalytics.track('post_success', {
                         obs_id: result.id
                     });
+
+                    // Knowledge tips: 投稿後の「次回のヒント」
+                    if (this.taxon_slug) {
+                        fetch(`/api/v2/species_claims.php?scientific_name=${encodeURIComponent(this.taxon_slug)}`)
+                            .then(r => r.ok ? r.json() : null)
+                            .then(d => {
+                                if (!d || !d.groups) return;
+                                const tips = [];
+                                for (const g of d.groups) {
+                                    if (g.type === 'photo_target' && g.claims.length) {
+                                        tips.push({ icon: '📷', label: '次回の撮影ヒント', text: g.claims[0].text });
+                                    }
+                                    if (g.type === 'identification_pitfall' && g.claims.length) {
+                                        tips.push({ icon: '🔍', label: '同定の注意点', text: g.claims[0].text });
+                                    }
+                                }
+                                if (tips.length) this.nextTimeTips = tips.slice(0, 2);
+                            })
+                            .catch(() => {});
+                    }
+
                     this.completeSubmission();
                     if (this.aiPending && this.lastObservationId) {
                         this.scheduleAiStatusPoll();
