@@ -602,10 +602,6 @@ require_once __DIR__ . '/../../libs/Asset.php';
             <span class="text-lg">🗺️</span>
             <span class="text-sm font-bold"><?php echo __('nav.field_map'); ?></span>
         </a>
-        <a href="/map.php?tab=biodiversity" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
-            <span class="text-lg">🌿</span>
-            <span class="text-sm font-bold">いきものマップ</span>
-        </a>
         <a href="/zukan.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">📖</span>
             <span class="text-sm font-bold">図鑑</span>
@@ -712,9 +708,6 @@ require_once __DIR__ . '/../../libs/Asset.php';
             </a>
             <a href="/map.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="map" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">フィールドマップ</span>
-            </a>
-            <a href="/map.php?tab=biodiversity" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
-                <i data-lucide="leaf" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">いきものマップ</span>
             </a>
             <a href="/zukan.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="book-open" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">図鑑</span>
