@@ -169,6 +169,7 @@ class LibraryService
 
         require_once __DIR__ . '/../TaxonPaperIndex.php';
         require_once __DIR__ . '/../PaperStore.php';
+        require_once __DIR__ . '/../Indexer.php';
 
         $dois = TaxonPaperIndex::getPapersForTaxon($scientificName);
         $papers = [];
@@ -177,6 +178,10 @@ class LibraryService
         foreach ($dois as $doi) {
             if (isset($seenDoi[$doi])) continue;
             $seenDoi[$doi] = true;
+
+            // Skip DOIs not in the PaperStore index — avoids expensive full-dir scan
+            $indexEntry = Indexer::getFromIndex('library/papers_index', $doi);
+            if (empty($indexEntry)) continue;
 
             $paper = PaperStore::findById($doi, 'doi');
             if (!$paper) continue;

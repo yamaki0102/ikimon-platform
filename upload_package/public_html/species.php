@@ -99,12 +99,13 @@ $distilledKnowledge = LibraryService::getDistilledKnowledgeForTaxon($scientificN
 // 3.5. Fetch Specimen Records
 $specimenRecords = LibraryService::getSpecimenRecords($scientificName);
 
-// 3.6. Fetch BHL Original Descriptions + Plazi Treatments + Research Network
-$bhlRecords = !empty($scientificName) ? LibraryService::getIndexedPapers($scientificName, 'BHL') : [];
+// 3.6. Fetch BHL/Plazi/Research Network (single index pass, split by source)
+$allIndexedPapers = !empty($scientificName) ? LibraryService::getIndexedPapers($scientificName) : [];
+$bhlRecords = array_filter($allIndexedPapers, fn($p) => ($p['source'] ?? '') === 'BHL');
 usort($bhlRecords, fn($a, $b) => ($a['published_date'] ?? '9999') <=> ($b['published_date'] ?? '9999'));
+$bhlRecords = array_values($bhlRecords);
 $originalDescription = !empty($bhlRecords) ? $bhlRecords[0] : null;
-
-$plaziTreatments = !empty($scientificName) ? LibraryService::getIndexedPapers($scientificName, 'Plazi') : [];
+$plaziTreatments = array_values(array_filter($allIndexedPapers, fn($p) => ($p['source'] ?? '') === 'Plazi'));
 
 $jglobalLinks = !empty($scientificName) ? LibraryService::getJGlobalLinks($scientificName) : [];
 $jpInstitutions = !empty($scientificName) ? LibraryService::getJapaneseInstitutions($scientificName) : [];
@@ -1109,12 +1110,12 @@ $speciesNarrative = SpeciesNarrative::build([
             </div>
         </section>
 
-        <!-- 4.5. Original Description (BHL) -->
+        <!-- 4.5. Historical Reference (BHL) -->
         <?php if ($originalDescription): ?>
             <section>
                 <div class="flex items-center gap-2 mb-3">
                     <i data-lucide="scroll-text" class="w-4 h-4 text-warning"></i>
-                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-warning">ORIGINAL DESCRIPTION</h2>
+                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-warning">HISTORICAL REFERENCE</h2>
                     <span class="ml-auto text-token-xs font-mono text-muted" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);padding:2px 8px;border-radius:9999px;">BHL</span>
                 </div>
                 <a href="<?php echo htmlspecialchars($originalDescription['link'] ?? $originalDescription['bhl_page_url'] ?? '#'); ?>"
