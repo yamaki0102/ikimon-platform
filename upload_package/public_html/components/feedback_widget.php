@@ -3,6 +3,7 @@
 
     <!-- Trigger Button -->
     <button
+        type="button"
         @click="open = !open; if(open) $nextTick(() => lucide.createIcons({nameAttr:'data-lucide'}))"
         class="feedback-trigger"
         :class="{ 'is-active': open }"
@@ -46,16 +47,19 @@
                 <!-- Category chips -->
                 <div class="flex gap-2 mb-3">
                     <button
+                        type="button"
                         @click="category = 'bug'"
                         class="feedback-chip"
                         :class="{ 'is-selected': category === 'bug' }"
                     >&#x1F41B; バグ</button>
                     <button
+                        type="button"
                         @click="category = 'improvement'"
                         class="feedback-chip"
                         :class="{ 'is-selected': category === 'improvement' }"
                     >&#x1F4A1; 改善</button>
                     <button
+                        type="button"
                         @click="category = 'other'"
                         class="feedback-chip"
                         :class="{ 'is-selected': category === 'other' }"
@@ -76,6 +80,7 @@
 
                 <!-- Submit -->
                 <button
+                    type="button"
                     @click="submit()"
                     class="feedback-submit"
                     :disabled="!category || !description.trim() || sending"
