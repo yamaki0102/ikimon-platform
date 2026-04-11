@@ -149,9 +149,7 @@ if ($isGuest) {
     </style>
     <!-- EXIF.js for client-side extraction -->
     <!-- EXIF.js: Removed in favor of local js/exif-mini.js -->
-    <!-- Leaflet -->
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" rel="stylesheet" />
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <!-- Offline Manager -->
     <script src="<?= htmlspecialchars(Asset::versioned('/js/ToastManager.js')) ?>"></script>
     <script src="<?= htmlspecialchars(Asset::versioned('/js/OfflineManager.js')) ?>"></script>

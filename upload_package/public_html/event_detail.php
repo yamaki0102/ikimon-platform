@@ -685,8 +685,7 @@ $difficultyLabels = ['beginner' => '初心者OK', 'intermediate' => '中級', 'a
 
 
 
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css" />
-        <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+        <?php include __DIR__ . '/components/map_config.php'; ?>
         <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
         <script nonce="<?= CspNonce::attr() ?>">
             function eventDashboard() {
@@ -755,6 +754,21 @@ $difficultyLabels = ['beginner' => '初心者OK', 'intermediate' => '中級', 'a
                         if (this.aiRefreshInterval) clearInterval(this.aiRefreshInterval);
                     },
 
+                    _circlePolygon(lngCenter, latCenter, radiusM, steps) {
+                        steps = steps || 64;
+                        const coords = [];
+                        const km = radiusM / 1000;
+                        for (let i = 0; i <= steps; i++) {
+                            const angle = (i / steps) * 2 * Math.PI;
+                            const dx = km * Math.cos(angle);
+                            const dy = km * Math.sin(angle);
+                            const lat = latCenter + (dy / 110.574);
+                            const lng = lngCenter + (dx / (111.320 * Math.cos(latCenter * Math.PI / 180)));
+                            coords.push([lng, lat]);
+                        }
+                        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] } };
+                    },
+
                     initMap() {
                         const mapEl = document.getElementById('event-map');
                         if (!mapEl) return;
@@ -763,50 +777,54 @@ $difficultyLabels = ['beginner' => '初心者OK', 'intermediate' => '中級', 'a
                         const lng = <?php echo $evtLng; ?>;
                         if (!lat || !lng) return;
 
-                        const map = L.map('event-map', {
-                            zoomControl: false,
+                        const map = new maplibregl.Map({
+                            container: 'event-map',
+                            style: IKIMON_MAP.style('light'),
+                            center: [lng, lat],
+                            zoom: 15,
                             attributionControl: false
-                        }).setView([lat, lng], 15);
-                        L.tileLayer('https://tile.openstreetmap.jp/{z}/{x}/{y}.png', {
-                            maxZoom: 19
-                        }).addTo(map);
-                        const pinIcon = L.divIcon({
-                            className: '',
-                            html: '<div style="font-size:28px;text-align:center;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))">📍</div>',
-                            iconSize: [30, 30],
-                            iconAnchor: [15, 30]
                         });
-                        L.marker([lat, lng], {
-                            icon: pinIcon
-                        }).addTo(map);
-                        L.circle([lat, lng], {
-                            radius: <?php echo $radiusM; ?>,
-                            color: '#10b981',
-                            fillColor: '#10b981',
-                            fillOpacity: 0.1,
-                            weight: 2
-                        }).addTo(map);
 
-                        // Meeting point map
+                        const pinEl = document.createElement('div');
+                        pinEl.style.cssText = 'font-size:28px;text-align:center;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));pointer-events:none';
+                        pinEl.textContent = '📍';
+                        new maplibregl.Marker({ element: pinEl }).setLngLat([lng, lat]).addTo(map);
+
+                        map.on('load', () => {
+                            map.addSource('event-radius', {
+                                type: 'geojson',
+                                data: this._circlePolygon(lng, lat, <?php echo $radiusM; ?>)
+                            });
+                            map.addLayer({
+                                id: 'event-radius-fill',
+                                type: 'fill',
+                                source: 'event-radius',
+                                paint: { 'fill-color': '#10b981', 'fill-opacity': 0.1 }
+                            });
+                            map.addLayer({
+                                id: 'event-radius-line',
+                                type: 'line',
+                                source: 'event-radius',
+                                paint: { 'line-color': '#10b981', 'line-width': 2 }
+                            });
+                        });
+
                         <?php if ($meetingLat && $meetingLng): ?>
                             const mpEl = document.getElementById('meeting-point-map');
                             if (mpEl) {
-                                const mpMap = L.map(mpEl, {
-                                    zoomControl: false,
+                                const mpMap = new maplibregl.Map({
+                                    container: mpEl,
+                                    style: IKIMON_MAP.style('light'),
+                                    center: [<?php echo $meetingLng; ?>, <?php echo $meetingLat; ?>],
+                                    zoom: 16,
                                     attributionControl: false
-                                }).setView([<?php echo $meetingLat; ?>, <?php echo $meetingLng; ?>], 16);
-                                L.tileLayer('https://tile.openstreetmap.jp/{z}/{x}/{y}.png', {
-                                    maxZoom: 19
-                                }).addTo(mpMap);
-                                const flagIcon = L.divIcon({
-                                    className: '',
-                                    html: '<div style="font-size:24px;text-align:center;">🚩</div>',
-                                    iconSize: [30, 30],
-                                    iconAnchor: [15, 28]
                                 });
-                                L.marker([<?php echo $meetingLat; ?>, <?php echo $meetingLng; ?>], {
-                                    icon: flagIcon
-                                }).addTo(mpMap);
+                                const flagEl = document.createElement('div');
+                                flagEl.style.cssText = 'font-size:24px;text-align:center;pointer-events:none';
+                                flagEl.textContent = '🚩';
+                                new maplibregl.Marker({ element: flagEl })
+                                    .setLngLat([<?php echo $meetingLng; ?>, <?php echo $meetingLat; ?>])
+                                    .addTo(mpMap);
                             }
                         <?php endif; ?>
                     },

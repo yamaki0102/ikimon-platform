@@ -77,8 +77,7 @@ $meta_description = "観察会の情報を編集します。";
 
 <head>
     <?php include('components/meta.php'); ?>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <style>
         .edit-form {
             max-width: 640px;
@@ -558,20 +557,36 @@ $meta_description = "観察会の情報を編集します。";
                 circle: null,
                 sites: [],
 
+                _circleGeoJSON(lng, lat, radiusM) {
+                    const coords = [];
+                    const km = radiusM / 1000;
+                    for (let i = 0; i <= 64; i++) {
+                        const a = (i / 64) * 2 * Math.PI;
+                        const dx = km * Math.cos(a);
+                        const dy = km * Math.sin(a);
+                        coords.push([lng + dx / (111.320 * Math.cos(lat * Math.PI / 180)), lat + dy / 110.574]);
+                    }
+                    return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] } };
+                },
+
                 init() {
                     this.$nextTick(() => {
-                        this.map = L.map('edit-map').setView([this.lat || 34.7, this.lng || 137.7], this.lat ? 15 : 10);
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            attribution: '© OpenStreetMap'
-                        }).addTo(this.map);
+                        this.map = new maplibregl.Map({
+                            container: 'edit-map',
+                            style: IKIMON_MAP.style('light'),
+                            center: [this.lng || 137.7, this.lat || 34.7],
+                            zoom: this.lat ? 15 : 10
+                        });
 
-                        if (this.lat && this.lng) {
-                            this.placeMarker();
-                        }
+                        this.map.on('load', () => {
+                            if (this.lat && this.lng) {
+                                this.placeMarker();
+                            }
+                        });
 
                         this.map.on('click', (e) => {
-                            this.lat = e.latlng.lat;
-                            this.lng = e.latlng.lng;
+                            this.lat = e.lngLat.lat;
+                            this.lng = e.lngLat.lng;
                             this.placeMarker();
                         });
                     });
@@ -579,19 +594,25 @@ $meta_description = "観察会の情報を編集します。";
                 },
 
                 placeMarker() {
-                    if (this.marker) this.map.removeLayer(this.marker);
-                    if (this.circle) this.map.removeLayer(this.circle);
-                    this.marker = L.marker([this.lat, this.lng]).addTo(this.map);
-                    this.circle = L.circle([this.lat, this.lng], {
-                        radius: this.radiusM,
-                        color: '#10b981',
-                        fillOpacity: 0.08,
-                        weight: 2,
-                    }).addTo(this.map);
+                    if (this.marker) this.marker.remove();
+                    this.marker = new maplibregl.Marker()
+                        .setLngLat([this.lng, this.lat])
+                        .addTo(this.map);
+
+                    const circleData = this._circleGeoJSON(this.lng, this.lat, this.radiusM);
+                    if (this.map.getSource('edit-radius')) {
+                        this.map.getSource('edit-radius').setData(circleData);
+                    } else {
+                        this.map.addSource('edit-radius', { type: 'geojson', data: circleData });
+                        this.map.addLayer({ id: 'edit-radius-fill', type: 'fill', source: 'edit-radius', paint: { 'fill-color': '#10b981', 'fill-opacity': 0.08 } });
+                        this.map.addLayer({ id: 'edit-radius-line', type: 'line', source: 'edit-radius', paint: { 'line-color': '#10b981', 'line-width': 2 } });
+                    }
                 },
 
                 updateRadiusCircle() {
-                    if (this.circle) this.circle.setRadius(this.radiusM);
+                    if (this.map && this.map.getSource('edit-radius') && this.lat) {
+                        this.map.getSource('edit-radius').setData(this._circleGeoJSON(this.lng, this.lat, this.radiusM));
+                    }
                 },
 
                 async loadSites() {
@@ -613,7 +634,7 @@ $meta_description = "観察会の情報を編集します。";
                     }
                     this.locationName = site.name || this.locationName;
                     this.radiusM = Math.max(this.radiusM, 500);
-                    this.map.setView([this.lat, this.lng], 15);
+                    this.map.jumpTo({ center: [this.lng, this.lat], zoom: 15 });
                     this.placeMarker();
                 },
 
@@ -650,7 +671,7 @@ $meta_description = "観察会の情報を編集します。";
                     if (!this.locationName && parts.length > 0) {
                         this.locationName = parts[0].trim();
                     }
-                    this.map.setView([this.lat, this.lng], 16);
+                    this.map.jumpTo({ center: [this.lng, this.lat], zoom: 16 });
                     this.placeMarker();
                 },
 

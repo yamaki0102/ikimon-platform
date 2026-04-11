@@ -17,8 +17,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
 
 <head>
     <?php include('components/meta.php'); ?>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <style>
         .wizard-step {
             display: none;
@@ -774,37 +773,49 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     this.eventDate = tomorrow.toISOString().slice(0, 10);
                 },
 
-                initMap() {
-                    // Default to user location or Japan center
-                    this.map = L.map('picker-map').setView([34.97, 138.38], 12);
-                    L.tileLayer('https://tile.openstreetmap.jp/{z}/{x}/{y}.png', {
-                        maxZoom: 19,
-                        attribution: '© OpenStreetMap'
-                    }).addTo(this.map);
-
-                    // Try geolocation
-                    if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(
-                            (pos) => {
-                                this.lat = pos.coords.latitude;
-                                this.lng = pos.coords.longitude;
-                                this.map.setView([this.lat, this.lng], 15);
-                                this.placeMarker();
-                            },
-                            (err) => {
-                                console.warn('Geolocation failed:', err.message);
-                            }, {
-                                enableHighAccuracy: true,
-                                timeout: 10000,
-                                maximumAge: 60000
-                            }
-                        );
+                _circleGeoJSON(lng, lat, radiusM) {
+                    const coords = [];
+                    const km = radiusM / 1000;
+                    for (let i = 0; i <= 64; i++) {
+                        const a = (i / 64) * 2 * Math.PI;
+                        const dx = km * Math.cos(a);
+                        const dy = km * Math.sin(a);
+                        coords.push([lng + dx / (111.320 * Math.cos(lat * Math.PI / 180)), lat + dy / 110.574]);
                     }
+                    return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] } };
+                },
 
-                    // Click to place marker
+                initMap() {
+                    this.map = new maplibregl.Map({
+                        container: 'picker-map',
+                        style: IKIMON_MAP.style('light'),
+                        center: [138.38, 34.97],
+                        zoom: 12
+                    });
+
+                    this.map.on('load', () => {
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(
+                                (pos) => {
+                                    this.lat = pos.coords.latitude;
+                                    this.lng = pos.coords.longitude;
+                                    this.map.jumpTo({ center: [this.lng, this.lat], zoom: 15 });
+                                    this.placeMarker();
+                                },
+                                (err) => {
+                                    console.warn('Geolocation failed:', err.message);
+                                }, {
+                                    enableHighAccuracy: true,
+                                    timeout: 10000,
+                                    maximumAge: 60000
+                                }
+                            );
+                        }
+                    });
+
                     this.map.on('click', (e) => {
-                        this.lat = Math.round(e.latlng.lat * 100000) / 100000;
-                        this.lng = Math.round(e.latlng.lng * 100000) / 100000;
+                        this.lat = Math.round(e.lngLat.lat * 100000) / 100000;
+                        this.lng = Math.round(e.lngLat.lng * 100000) / 100000;
                         this.placeMarker();
                     });
                 },
@@ -818,7 +829,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                         (pos) => {
                             this.lat = pos.coords.latitude;
                             this.lng = pos.coords.longitude;
-                            this.map.setView([this.lat, this.lng], 16);
+                            this.map.jumpTo({ center: [this.lng, this.lat], zoom: 16 });
                             this.placeMarker();
                         },
                         (err) => {
@@ -832,30 +843,28 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                 },
 
                 placeMarker() {
-                    if (this.marker) this.map.removeLayer(this.marker);
-                    if (this.circle) this.map.removeLayer(this.circle);
+                    if (this.marker) this.marker.remove();
 
-                    const pinIcon = L.divIcon({
-                        className: '',
-                        html: '<div style="font-size:28px;text-align:center;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))">📍</div>',
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 30]
-                    });
-                    this.marker = L.marker([this.lat, this.lng], {
-                        icon: pinIcon
-                    }).addTo(this.map);
-                    this.circle = L.circle([this.lat, this.lng], {
-                        radius: this.radiusM,
-                        color: '#10b981',
-                        fillColor: '#10b981',
-                        fillOpacity: 0.1,
-                        weight: 2
-                    }).addTo(this.map);
+                    const pinEl = document.createElement('div');
+                    pinEl.style.cssText = 'font-size:28px;text-align:center;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));pointer-events:none';
+                    pinEl.textContent = '📍';
+                    this.marker = new maplibregl.Marker({ element: pinEl })
+                        .setLngLat([this.lng, this.lat])
+                        .addTo(this.map);
+
+                    const circleData = this._circleGeoJSON(this.lng, this.lat, this.radiusM);
+                    if (this.map.getSource('picker-radius')) {
+                        this.map.getSource('picker-radius').setData(circleData);
+                    } else {
+                        this.map.addSource('picker-radius', { type: 'geojson', data: circleData });
+                        this.map.addLayer({ id: 'picker-radius-fill', type: 'fill', source: 'picker-radius', paint: { 'fill-color': '#10b981', 'fill-opacity': 0.1 } });
+                        this.map.addLayer({ id: 'picker-radius-line', type: 'line', source: 'picker-radius', paint: { 'line-color': '#10b981', 'line-width': 2 } });
+                    }
                 },
 
                 updateRadiusCircle() {
-                    if (this.circle) {
-                        this.circle.setRadius(this.radiusM);
+                    if (this.map && this.map.getSource('picker-radius') && this.lat) {
+                        this.map.getSource('picker-radius').setData(this._circleGeoJSON(this.lng, this.lat, this.radiusM));
                     }
                 },
 
@@ -878,7 +887,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     }
                     this.locationName = site.name || this.locationName;
                     this.radiusM = Math.max(this.radiusM, 500);
-                    this.map.setView([this.lat, this.lng], 15);
+                    this.map.jumpTo({ center: [this.lng, this.lat], zoom: 15 });
                     this.placeMarker();
                 },
 
@@ -917,7 +926,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     if (!this.locationName && parts.length > 0) {
                         this.locationName = parts[0].trim();
                     }
-                    this.map.setView([this.lat, this.lng], 16);
+                    this.map.jumpTo({ center: [this.lng, this.lat], zoom: 16 });
                     this.placeMarker();
                 },
 
@@ -925,7 +934,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     this.step = n;
                     if (n === 1) {
                         this.$nextTick(() => {
-                            if (this.map) this.map.invalidateSize();
+                            if (this.map) this.map.resize();
                         });
                     }
                     if (n === 3 && this.showLocationDetails) {
@@ -937,51 +946,54 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
 
                 initMeetingMap() {
                     if (this.meetingMap) {
-                        this.meetingMap.invalidateSize();
+                        this.meetingMap.resize();
                         return;
                     }
-                    const center = this.lat ? [this.lat, this.lng] : [34.97, 138.38];
-                    this.meetingMap = L.map('meeting-map').setView(center, this.lat ? 16 : 12);
-                    L.tileLayer('https://tile.openstreetmap.jp/{z}/{x}/{y}.png', {
-                        maxZoom: 19,
-                        attribution: '© OSM'
-                    }).addTo(this.meetingMap);
-                    // Show event area circle as reference
-                    if (this.lat) {
-                        L.circle([this.lat, this.lng], {
-                            radius: this.radiusM,
-                            color: '#10b981',
-                            fillColor: '#10b981',
-                            fillOpacity: 0.05,
-                            weight: 1,
-                            dashArray: '4'
-                        }).addTo(this.meetingMap);
-                    }
+                    const center = this.lat ? [this.lng, this.lat] : [138.38, 34.97];
+                    this.meetingMap = new maplibregl.Map({
+                        container: 'meeting-map',
+                        style: IKIMON_MAP.style('light'),
+                        center: center,
+                        zoom: this.lat ? 16 : 12
+                    });
+                    this.meetingMap.on('load', () => {
+                        if (this.lat) {
+                            this.meetingMap.addSource('meeting-ref-radius', {
+                                type: 'geojson',
+                                data: this._circleGeoJSON(this.lng, this.lat, this.radiusM)
+                            });
+                            this.meetingMap.addLayer({
+                                id: 'meeting-ref-fill', type: 'fill', source: 'meeting-ref-radius',
+                                paint: { 'fill-color': '#10b981', 'fill-opacity': 0.05 }
+                            });
+                            this.meetingMap.addLayer({
+                                id: 'meeting-ref-line', type: 'line', source: 'meeting-ref-radius',
+                                paint: { 'line-color': '#10b981', 'line-width': 1, 'line-dasharray': [4, 4] }
+                            });
+                        }
+                    });
                     this.meetingMap.on('click', (e) => {
-                        this.meetingLat = Math.round(e.latlng.lat * 100000) / 100000;
-                        this.meetingLng = Math.round(e.latlng.lng * 100000) / 100000;
+                        this.meetingLat = Math.round(e.lngLat.lat * 100000) / 100000;
+                        this.meetingLng = Math.round(e.lngLat.lng * 100000) / 100000;
                         this.placeMeetingMarker();
                     });
                 },
 
                 placeMeetingMarker() {
-                    if (this.meetingMarker) this.meetingMap.removeLayer(this.meetingMarker);
-                    const icon = L.divIcon({
-                        className: '',
-                        html: '<div style="font-size:24px;text-align:center;">🚩</div>',
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 28]
-                    });
-                    this.meetingMarker = L.marker([this.meetingLat, this.meetingLng], {
-                        icon
-                    }).addTo(this.meetingMap);
+                    if (this.meetingMarker) this.meetingMarker.remove();
+                    const flagEl = document.createElement('div');
+                    flagEl.style.cssText = 'font-size:24px;text-align:center;pointer-events:none';
+                    flagEl.textContent = '🚩';
+                    this.meetingMarker = new maplibregl.Marker({ element: flagEl })
+                        .setLngLat([this.meetingLng, this.meetingLat])
+                        .addTo(this.meetingMap);
                 },
 
                 clearMeetingPin() {
                     this.meetingLat = 0;
                     this.meetingLng = 0;
                     if (this.meetingMarker) {
-                        this.meetingMap.removeLayer(this.meetingMarker);
+                        this.meetingMarker.remove();
                         this.meetingMarker = null;
                     }
                 },

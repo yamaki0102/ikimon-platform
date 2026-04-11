@@ -111,8 +111,8 @@ function uploader() {
                     if (d.species_name) this.taxon_name = d.species_name;
                     if (d.taxon_slug) this.taxon_slug = d.taxon_slug;
                     if (this.map && this.marker) {
-                        this.map.flyTo([this.lat, this.lng], 16);
-                        this.marker.setLatLng([this.lat, this.lng]);
+                        this.map.flyTo({ center: [this.lng, this.lat], zoom: 16 });
+                        this.marker.setLngLat([this.lng, this.lat]);
                     }
                 }
             } catch (e) { }
@@ -147,8 +147,8 @@ function uploader() {
                         this.deviceGps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                         this.reverseGeocode(this.lat, this.lng);
                         if (this.map && this.marker) {
-                            this.map.flyTo([this.lat, this.lng], 15);
-                            this.marker.setLatLng([this.lat, this.lng]);
+                            this.map.flyTo({ center: [this.lng, this.lat], zoom: 15 });
+                            this.marker.setLngLat([this.lng, this.lat]);
                         }
                     },
                     () => {
@@ -272,25 +272,19 @@ function uploader() {
                 setTimeout(() => this.initMapNow(), 100);
                 return;
             }
-            // Fix Leaflet default marker icon (CDN path resolution issue)
-            delete L.Icon.Default.prototype._getIconUrl;
-            L.Icon.Default.mergeOptions({
-                iconRetinaUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-                iconUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png',
-                shadowUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png',
+            this.map = new maplibregl.Map({
+                container: 'map',
+                style: IKIMON_MAP.style('light'),
+                center: [this.lng, this.lat],
+                zoom: 13
             });
-            this.map = L.map('map').setView([this.lat, this.lng], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap',
-                maxZoom: 19
-            }).addTo(this.map);
 
-            this.marker = L.marker([this.lat, this.lng], {
-                draggable: true
-            }).addTo(this.map);
+            this.marker = new maplibregl.Marker({ draggable: true })
+                .setLngLat([this.lng, this.lat])
+                .addTo(this.map);
 
             this.marker.on('dragend', () => {
-                const pos = this.marker.getLatLng();
+                const pos = this.marker.getLngLat();
                 this.lat = pos.lat.toFixed(6);
                 this.lng = pos.lng.toFixed(6);
                 this.locationSource = 'manual';
@@ -298,16 +292,15 @@ function uploader() {
                 if (navigator.vibrate) navigator.vibrate(10);
             });
             this.map.on('click', (e) => {
-                this.marker.setLatLng(e.latlng);
-                this.lat = e.latlng.lat.toFixed(6);
-                this.lng = e.latlng.lng.toFixed(6);
+                this.marker.setLngLat(e.lngLat);
+                this.lat = e.lngLat.lat.toFixed(6);
+                this.lng = e.lngLat.lng.toFixed(6);
                 this.locationSource = 'manual';
                 this.reverseGeocode(this.lat, this.lng);
                 if (navigator.vibrate) navigator.vibrate(10);
             });
 
-            // Ensure tiles render after container appears
-            setTimeout(() => this.map.invalidateSize(), 200);
+            setTimeout(() => this.map.resize(), 200);
         },
 
         async reverseGeocode(lat, lng) {
@@ -348,8 +341,8 @@ function uploader() {
             this.showAddressSuggestions = false;
             this.locationSource = 'manual';
             if (this.map && this.marker) {
-                this.map.flyTo([this.lat, this.lng], 16);
-                this.marker.setLatLng([this.lat, this.lng]);
+                this.map.flyTo({ center: [this.lng, this.lat], zoom: 16 });
+                this.marker.setLngLat([this.lng, this.lat]);
             }
             if (navigator.vibrate) navigator.vibrate(30);
             this.autoSelectBiome();
@@ -1073,8 +1066,8 @@ function uploader() {
             this.reverseGeocode(this.lat, this.lng);
             const applyToMap = () => {
                 if (this.map && this.marker) {
-                    this.map.flyTo([lat, lng], 16);
-                    this.marker.setLatLng([lat, lng]);
+                    this.map.flyTo({ center: [lng, lat], zoom: 16 });
+                    this.marker.setLngLat([lng, lat]);
                 } else {
                     setTimeout(applyToMap, 500);
                 }
@@ -1097,8 +1090,8 @@ function uploader() {
                 this.locationSource = 'gps';
                 this.reverseGeocode(this.lat, this.lng);
                 if (this.map && this.marker) {
-                    this.map.flyTo([this.lat, this.lng], 16);
-                    this.marker.setLatLng([this.lat, this.lng]);
+                    this.map.flyTo({ center: [this.lng, this.lat], zoom: 16 });
+                    this.marker.setLngLat([this.lng, this.lat]);
                 }
             }
             this.gpsConflict = false;

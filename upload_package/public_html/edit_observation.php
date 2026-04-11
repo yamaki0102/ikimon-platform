@@ -37,8 +37,7 @@ $meta_description = '観察の日時・場所・環境・ライフステージ�
 <html lang="ja">
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+    <?php include __DIR__ . '/components/map_config.php'; ?>
 </head>
 <body class="font-body min-h-screen" style="background:var(--md-surface);color:var(--md-on-surface);">
 <?php include __DIR__ . '/components/nav.php'; ?>
@@ -243,35 +242,30 @@ function observationEditor() {
             const lat = parseFloat(this.form.lat) || 35.68;
             const lng = parseFloat(this.form.lng) || 139.76;
 
-            // Fix Leaflet default marker icon
-            delete L.Icon.Default.prototype._getIconUrl;
-            L.Icon.Default.mergeOptions({
-                iconRetinaUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-                iconUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png',
-                shadowUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png',
+            this._map = new maplibregl.Map({
+                container: 'edit-map',
+                style: IKIMON_MAP.style('light'),
+                center: [lng, lat],
+                zoom: 15
             });
 
-            this._map = L.map('edit-map').setView([lat, lng], 15);
-            L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
-                maxZoom: 18,
-            }).addTo(this._map);
-
-            this._marker = L.marker([lat, lng], { draggable: true }).addTo(this._map);
+            this._marker = new maplibregl.Marker({ draggable: true })
+                .setLngLat([lng, lat])
+                .addTo(this._map);
 
             this._marker.on('dragend', () => {
-                const pos = this._marker.getLatLng();
+                const pos = this._marker.getLngLat();
                 this.form.lat = pos.lat.toFixed(6);
                 this.form.lng = pos.lng.toFixed(6);
             });
 
             this._map.on('click', (e) => {
-                this._marker.setLatLng(e.latlng);
-                this.form.lat = e.latlng.lat.toFixed(6);
-                this.form.lng = e.latlng.lng.toFixed(6);
+                this._marker.setLngLat(e.lngLat);
+                this.form.lat = e.lngLat.lat.toFixed(6);
+                this.form.lng = e.lngLat.lng.toFixed(6);
             });
 
-            setTimeout(() => this._map.invalidateSize(), 200);
+            setTimeout(() => this._map.resize(), 200);
         },
         getCurrentLocation() {
             if (!('geolocation' in navigator)) return;
@@ -281,8 +275,8 @@ function observationEditor() {
                 this.form.lat = lat.toFixed(6);
                 this.form.lng = lng.toFixed(6);
                 if (this._map && this._marker) {
-                    this._marker.setLatLng([lat, lng]);
-                    this._map.flyTo([lat, lng], 16);
+                    this._marker.setLngLat([lng, lat]);
+                    this._map.flyTo({ center: [lng, lat], zoom: 16 });
                 }
             }, () => {
                 this.message = '位置情報の取得に失敗しました';
