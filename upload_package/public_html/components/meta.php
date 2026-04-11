@@ -95,7 +95,7 @@ $canonical = !empty($meta_canonical) ? $meta_canonical : $url;
 <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 
 <link rel="dns-prefetch" href="https://unpkg.com">
-<link rel="dns-prefetch" href="https://tile.openstreetmap.jp">
+<link rel="dns-prefetch" href="https://protomaps.github.io">
 
 <!-- Fonts (Design System v2: Inter + Montserrat + Noto Sans JP) -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;900&family=Noto+Sans+JP:wght@400;500;700;900&family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&display=swap" rel="stylesheet">

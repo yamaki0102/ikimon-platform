@@ -12,8 +12,7 @@ Auth::init();
     $meta_title = "マップ";
     include __DIR__ . '/components/meta.php';
     ?>
-    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <style>
         /* Force Solid Header on Map Page to prevent readability issues */
         .glass-nav {
@@ -1178,7 +1177,7 @@ Auth::init();
                 initMap() {
                     this.map = new maplibregl.Map({
                         container: 'map',
-                        style: 'https://tile.openstreetmap.jp/styles/maptiler-basic-ja/style.json',
+                        style: IKIMON_MAP.style('light'),
                         center: [137.7261, 34.7108],
                         zoom: 12,
                         attributionControl: false
@@ -1479,43 +1478,9 @@ Auth::init();
                     localStorage.setItem('ikimon_map_layer', layerName);
 
                     const styles = {
-                        standard: 'https://tile.openstreetmap.jp/styles/maptiler-basic-ja/style.json',
-                        satellite: {
-                            version: 8,
-                            sources: {
-                                'gsi-satellite': {
-                                    type: 'raster',
-                                    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg'],
-                                    tileSize: 256,
-                                    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>'
-                                }
-                            },
-                            layers: [{
-                                id: 'gsi-satellite-layer',
-                                type: 'raster',
-                                source: 'gsi-satellite',
-                                minzoom: 0,
-                                maxzoom: 18
-                            }]
-                        },
-                        terrain: {
-                            version: 8,
-                            sources: {
-                                'gsi-pale': {
-                                    type: 'raster',
-                                    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'],
-                                    tileSize: 256,
-                                    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>'
-                                }
-                            },
-                            layers: [{
-                                id: 'gsi-pale-layer',
-                                type: 'raster',
-                                source: 'gsi-pale',
-                                minzoom: 0,
-                                maxzoom: 18
-                            }]
-                        }
+                        standard: IKIMON_MAP.style('light'),
+                        satellite: IKIMON_MAP.satellite(),
+                        terrain: IKIMON_MAP.terrain()
                     };
 
                     const currentCenter = this.map.getCenter();

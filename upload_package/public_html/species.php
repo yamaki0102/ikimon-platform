@@ -99,6 +99,16 @@ $distilledKnowledge = LibraryService::getDistilledKnowledgeForTaxon($scientificN
 // 3.5. Fetch Specimen Records
 $specimenRecords = LibraryService::getSpecimenRecords($scientificName);
 
+// 3.6. Fetch BHL Original Descriptions + Plazi Treatments + Research Network
+$bhlRecords = !empty($scientificName) ? LibraryService::getIndexedPapers($scientificName, 'BHL') : [];
+usort($bhlRecords, fn($a, $b) => ($a['published_date'] ?? '9999') <=> ($b['published_date'] ?? '9999'));
+$originalDescription = !empty($bhlRecords) ? $bhlRecords[0] : null;
+
+$plaziTreatments = !empty($scientificName) ? LibraryService::getIndexedPapers($scientificName, 'Plazi') : [];
+
+$jglobalLinks = !empty($scientificName) ? LibraryService::getJGlobalLinks($scientificName) : [];
+$jpInstitutions = !empty($scientificName) ? LibraryService::getJapaneseInstitutions($scientificName) : [];
+
 // 4. Red List Lookup
 $rlManager = new RedListManager();
 $rlResult = $rlManager->lookup($taxon);
@@ -335,8 +345,7 @@ $speciesNarrative = SpeciesNarrative::build([
         ?>
     </script>
     <?php if (!empty($obsLocations)): ?>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css">
-        <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+        <?php include __DIR__ . '/components/map_config.php'; ?>
     <?php endif; ?>
     <style>
         body {
@@ -875,7 +884,7 @@ $speciesNarrative = SpeciesNarrative::build([
 
                         const map = new maplibregl.Map({
                             container: 'species-map',
-                            style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+                            style: IKIMON_MAP.style('light'),
                             center: [allPts[0].lng, allPts[0].lat],
                             zoom: 13,
                             interactive: true,
@@ -1100,6 +1109,109 @@ $speciesNarrative = SpeciesNarrative::build([
             </div>
         </section>
 
+        <!-- 4.5. Original Description (BHL) -->
+        <?php if ($originalDescription): ?>
+            <section>
+                <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="scroll-text" class="w-4 h-4 text-warning"></i>
+                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-warning">ORIGINAL DESCRIPTION</h2>
+                    <span class="ml-auto text-token-xs font-mono text-muted" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);padding:2px 8px;border-radius:9999px;">BHL</span>
+                </div>
+                <a href="<?php echo htmlspecialchars($originalDescription['link'] ?? $originalDescription['bhl_page_url'] ?? '#'); ?>"
+                    target="_blank" rel="noopener noreferrer"
+                    class="block group" style="padding:1.25rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
+                    <div class="flex items-start gap-4">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg, rgba(var(--md-warning-rgb, 183,134,11), 0.12), rgba(var(--md-warning-rgb, 183,134,11), 0.04));">
+                            <span class="text-2xl" style="pointer-events:none;">&#128220;</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-semibold leading-snug text-text line-clamp-2 group-hover:text-warning transition">
+                                <?php echo htmlspecialchars($originalDescription['title'] ?? ''); ?>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                                <?php if (!empty($originalDescription['published_date'])): ?>
+                                    <span class="text-token-xs font-mono font-bold text-warning"><?php echo htmlspecialchars($originalDescription['published_date']); ?></span>
+                                <?php endif; ?>
+                                <?php if (!empty($originalDescription['author'])): ?>
+                                    <span class="text-token-xs text-muted truncate"><?php echo htmlspecialchars($originalDescription['author']); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <?php if (!empty($originalDescription['abstract'])): ?>
+                                <div class="text-xs text-muted mt-1.5 line-clamp-1"><?php echo htmlspecialchars($originalDescription['abstract']); ?></div>
+                            <?php endif; ?>
+                            <div class="flex items-center gap-1.5 mt-2 text-xs font-semibold text-warning opacity-70 group-hover:opacity-100 transition">
+                                <?php if (!empty($originalDescription['bhl_page_url'])): ?>
+                                    <i data-lucide="image" class="w-3.5 h-3.5" style="pointer-events:none;"></i>
+                                    View scanned page
+                                <?php else: ?>
+                                    <i data-lucide="external-link" class="w-3.5 h-3.5" style="pointer-events:none;"></i>
+                                    View on BHL
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+                <?php if (count($bhlRecords) > 1): ?>
+                    <div class="mt-2 text-xs text-muted text-center">
+                        +<?php echo count($bhlRecords) - 1; ?> more historical references on BHL
+                    </div>
+                <?php endif; ?>
+            </section>
+        <?php endif; ?>
+
+        <!-- 4.6. Taxonomic Treatment (Plazi) -->
+        <?php if (!empty($plaziTreatments)): ?>
+            <section>
+                <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="dna" class="w-4 h-4 text-secondary"></i>
+                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-secondary">TAXONOMIC TREATMENT</h2>
+                    <span class="ml-auto text-token-xs font-mono text-muted" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);padding:2px 8px;border-radius:9999px;">Plazi</span>
+                </div>
+                <div class="space-y-2">
+                    <?php foreach (array_slice($plaziTreatments, 0, 3) as $treatment): ?>
+                        <a href="<?php echo htmlspecialchars($treatment['link'] ?? $treatment['plazi_uri'] ?? '#'); ?>"
+                            target="_blank" rel="noopener noreferrer"
+                            class="block p-4 rounded-xl border hover:border-secondary/40 transition group" style="background:var(--md-surface-container);border-color:var(--md-outline-variant);">
+                            <div class="flex items-start gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <i data-lucide="book-open-check" class="w-4 h-4 text-secondary" style="pointer-events:none;"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-semibold leading-snug text-text line-clamp-2">
+                                        <?php echo htmlspecialchars($treatment['title'] ?? ''); ?>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                                        <?php if (!empty($treatment['author'])): ?>
+                                            <span class="text-token-xs text-muted"><?php echo htmlspecialchars($treatment['author']); ?></span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($treatment['published_date'])): ?>
+                                            <span class="text-token-xs font-mono font-bold text-secondary"><?php echo htmlspecialchars($treatment['published_date']); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php if (!empty($treatment['abstract'])): ?>
+                                        <div class="flex flex-wrap gap-1.5 mt-2">
+                                            <?php foreach (explode(' — ', $treatment['abstract']) as $tag): ?>
+                                                <?php if (trim($tag)): ?>
+                                                    <span class="text-[10px] px-2 py-0.5 rounded-sm font-mono text-muted" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);">
+                                                        <?php echo htmlspecialchars(trim($tag)); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($treatment['treatment_lsid'])): ?>
+                                        <div class="text-[10px] font-mono text-muted mt-1.5 truncate">
+                                            LSID: <?php echo htmlspecialchars($treatment['treatment_lsid']); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+
         <!-- 5. Academic References -->
         <?php if (!empty($papers)): ?>
             <section x-data="{ showAll: false }">
@@ -1181,6 +1293,54 @@ $speciesNarrative = SpeciesNarrative::build([
                         <i data-lucide="chevron-up" class="w-4 h-4"></i>
                         Show less
                     </button>
+                </div>
+            </section>
+        <?php endif; ?>
+
+        <!-- 5.5. Research Network -->
+        <?php if (!empty($jglobalLinks) || !empty($jpInstitutions)): ?>
+            <section>
+                <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="users" class="w-4 h-4 text-accent"></i>
+                    <h2 class="text-token-xs font-bold tracking-[.15em] uppercase text-accent">RESEARCH NETWORK</h2>
+                </div>
+                <div style="padding:1rem 1.25rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);">
+                    <?php if (!empty($jglobalLinks)): ?>
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <?php if (!empty($jglobalLinks['jglobal_article_url'])): ?>
+                                <a href="<?php echo htmlspecialchars($jglobalLinks['jglobal_article_url']); ?>"
+                                    target="_blank" rel="noopener noreferrer"
+                                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-accent/20 text-accent hover:bg-accent hover:text-white transition">
+                                    <i data-lucide="file-search" class="w-3.5 h-3.5" style="pointer-events:none;"></i>
+                                    J-GLOBAL で論文を探す
+                                </a>
+                            <?php endif; ?>
+                            <?php if (!empty($jglobalLinks['jglobal_researcher_url'])): ?>
+                                <a href="<?php echo htmlspecialchars($jglobalLinks['jglobal_researcher_url']); ?>"
+                                    target="_blank" rel="noopener noreferrer"
+                                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-accent/20 text-accent hover:bg-accent hover:text-white transition">
+                                    <i data-lucide="user-search" class="w-3.5 h-3.5" style="pointer-events:none;"></i>
+                                    J-GLOBAL で研究者を探す
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (!empty($jpInstitutions)): ?>
+                        <div>
+                            <span class="text-[10px] font-bold text-muted-dark uppercase tracking-wider">Japanese Institutions</span>
+                            <div class="flex flex-wrap gap-1.5 mt-1.5">
+                                <?php foreach (array_slice($jpInstitutions, 0, 8) as $inst): ?>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface-variant);">
+                                        <i data-lucide="building-2" class="w-3 h-3" style="pointer-events:none;"></i>
+                                        <?php echo htmlspecialchars($inst); ?>
+                                    </span>
+                                <?php endforeach; ?>
+                                <?php if (count($jpInstitutions) > 8): ?>
+                                    <span class="text-xs text-muted px-2 py-1">+<?php echo count($jpInstitutions) - 8; ?> more</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </section>
         <?php endif; ?>

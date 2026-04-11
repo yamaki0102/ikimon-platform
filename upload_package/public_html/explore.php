@@ -14,9 +14,7 @@ Auth::init();
     $meta_description = "日本各地の生きもの観察記録をマップ・グリッドで探索。鳥・虫・植物・魚など3,000種以上の観察データを地域別・分類別に閲覧できます。";
     include __DIR__ . '/components/meta.php';
     ?>
-    <!-- MapLibre GL JS -->
-    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <style>
         [x-cloak] { display: none !important; }
 
