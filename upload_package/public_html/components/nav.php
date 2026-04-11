@@ -66,7 +66,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
                 <div class="absolute left-0 top-full -mt-2 w-48 z-50 origin-top-left bg-elevated rounded-xl border border-border-strong shadow-lg py-2 opacity-0 invisible scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:visible group-hover:scale-100 group-hover:translate-y-2">
                     <a href="/explore.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="search" class="w-4 h-4 text-faint"></i> みつける</a>
                     <a href="/map.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="map" class="w-4 h-4 text-faint"></i> マップ</a>
-                    <a href="/biodiversity_map.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="leaf" class="w-4 h-4 text-faint"></i> いきものマップ</a>
+                    <a href="/map.php?tab=biodiversity" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="leaf" class="w-4 h-4 text-faint"></i> いきものマップ</a>
                     <a href="/zukan.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="book-open" class="w-4 h-4 text-faint"></i> 図鑑</a>
                     <a href="/compass.php" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-muted hover:bg-surface hover:text-text transition"><i data-lucide="compass" class="w-4 h-4 text-faint"></i> コンパス</a>
                 </div>
@@ -603,7 +603,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
             <span class="text-lg">🗺️</span>
             <span class="text-sm font-bold"><?php echo __('nav.field_map'); ?></span>
         </a>
-        <a href="/biodiversity_map.php" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
+        <a href="/map.php?tab=biodiversity" class="flex items-center gap-3 py-3 border-b border-[var(--color-border)] text-[var(--color-text)]" style="text-decoration:none">
             <span class="text-lg">🌿</span>
             <span class="text-sm font-bold">いきものマップ</span>
         </a>
@@ -714,7 +714,7 @@ require_once __DIR__ . '/../../libs/Asset.php';
             <a href="/map.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="map" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">フィールドマップ</span>
             </a>
-            <a href="/biodiversity_map.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
+            <a href="/map.php?tab=biodiversity" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
                 <i data-lucide="leaf" class="w-5 h-5 text-[var(--color-muted)]"></i> <span class="text-sm font-bold">いきものマップ</span>
             </a>
             <a href="/zukan.php" class="flex items-center gap-3 py-3 px-2 border-b border-[var(--color-border)] text-[var(--color-text)]">
