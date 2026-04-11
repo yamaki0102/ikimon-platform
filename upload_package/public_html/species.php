@@ -651,7 +651,7 @@ $speciesNarrative = SpeciesNarrative::build([
         <?php endif; ?>
 
         <!-- いきもの知恵袋 — Species Claims (OmoikaneDB) -->
-        <?php $claimsApiParam = $scientific_name ? ('scientific_name=' . urlencode($scientific_name)) : ($taxon ? ('japanese_name=' . urlencode($taxon)) : ''); ?>
+        <?php $claimsApiParam = $scientificName ? ('scientific_name=' . urlencode($scientificName)) : ($taxon ? ('japanese_name=' . urlencode($taxon)) : ''); ?>
         <?php if ($claimsApiParam): ?>
         <div x-data="speciesClaimsSection('<?php echo htmlspecialchars($claimsApiParam, ENT_QUOTES); ?>')"
              x-init="load()" x-cloak>
