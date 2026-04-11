@@ -22,8 +22,7 @@ $currentUser = Auth::user();
     ?>
     <link rel="stylesheet" href="assets/css/tokens.css?v=2026_naturalism">
     <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
-    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <style>
         #map { position: absolute; inset: 0; top: var(--nav-height, 56px); }
         .map-overlay { position: absolute; z-index: 10; pointer-events: none; }
@@ -126,11 +125,7 @@ $currentUser = Auth::user();
 <script nonce="<?= CspNonce::attr() ?>">
 var map = new maplibregl.Map({
     container: 'map',
-    style: {
-        version: 8,
-        sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.jp/styles/osm-bright-ja/{z}/{x}/{y}.png'], tileSize: 256, attribution: '&copy; OpenStreetMap' } },
-        layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
-    },
+    style: IKIMON_MAP.style('dark'),
     center: [139.0, 36.0],
     zoom: 5,
 });

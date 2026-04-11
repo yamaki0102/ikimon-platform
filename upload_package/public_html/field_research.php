@@ -41,8 +41,7 @@ if (!$currentUser) {
     $meta_title = "AIレンズ";
     include __DIR__ . '/components/meta.php';
     ?>
-    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <script src="https://unpkg.com/idb@7/build/iife/index-min.js"></script>
 
     <style>
@@ -1105,7 +1104,7 @@ if (!$currentUser) {
                     // Init map
                     this.map = new maplibregl.Map({
                         container: 'map',
-                        style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+                        style: IKIMON_MAP.style('light'),
                         center: [137.73, 34.71],
                         zoom: 14
                     });

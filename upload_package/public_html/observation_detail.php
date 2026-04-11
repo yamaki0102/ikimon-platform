@@ -368,8 +368,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     </script>
 
     <!-- MapLibre -->
-    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <?php include __DIR__ . '/components/map_config.php'; ?>
 </head>
 
 <body class="js-loading font-body min-h-screen antialiased" style="background:var(--md-surface);color:var(--md-on-surface);" x-data="{ idModalOpen: false, photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, locationName: '<?php echo htmlspecialchars($obs['municipality'] ?? ($obs['prefecture'] ?? ''), ENT_QUOTES); ?>' }" x-init="
@@ -2172,7 +2171,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                 const lng = <?php echo round($displayLng, 4); ?>;
                 const map = new maplibregl.Map({
                     container: 'reborn-map',
-                    style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json',
+                    style: IKIMON_MAP.style('light'),
                     center: [lng, lat],
                     zoom: 11,
                     interactive: false // Mini Map

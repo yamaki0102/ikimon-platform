@@ -44,11 +44,11 @@ unset($allObs, $userObs);
     ?>
     <link rel="stylesheet" href="assets/css/tokens.css?v=2026_naturalism">
     <link rel="stylesheet" href="assets/css/input.css?v=2026_naturalism">
-    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <style>
         @keyframes fadeInOut { 0%{opacity:0;transform:translateY(-10px)} 10%{opacity:1;transform:translateY(0)} 80%{opacity:1} 100%{opacity:0;transform:translateY(-10px)} }
     </style>
-    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <!-- MapLibre loaded via map_config.php -->
 </head>
 <body class="bg-[#050505] text-white min-h-screen">
 
@@ -410,18 +410,7 @@ function initMap(lat, lng) {
     if (walkMap) return;
     walkMap = new maplibregl.Map({
         container: 'walk-map',
-        style: {
-            version: 8,
-            sources: {
-                osm: {
-                    type: 'raster',
-                    tiles: ['https://tile.openstreetmap.jp/styles/osm-bright-ja/{z}/{x}/{y}.png'],
-                    tileSize: 256,
-                    attribution: '&copy; OpenStreetMap contributors'
-                }
-            },
-            layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
-        },
+        style: IKIMON_MAP.style('light'),
         center: [lng, lat],
         zoom: 16,
     });

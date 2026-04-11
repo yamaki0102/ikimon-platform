@@ -52,8 +52,7 @@ $pageTitle = 'Portfolio Dashboard | Enterprise HQ';
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
     <meta name="robots" content="noindex, nofollow">
-    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <title><?= $pageTitle ?></title>
     <style>
         .glass-card {
@@ -203,7 +202,7 @@ $pageTitle = 'Portfolio Dashboard | Enterprise HQ';
         // Initialize MapLibre
         const map = new maplibregl.Map({
             container: 'portfolio-map',
-            style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json', // Light style suitable for corporate dashboards
+            style: IKIMON_MAP.style('light'),
             center: [137.75, 34.70],
             zoom: 11,
             pitch: 40
