@@ -274,9 +274,9 @@ Auth::init();
 
         .map-tab {
             flex: 1;
-            padding: 8px 12px;
+            padding: 8px 8px;
             border-radius: var(--shape-sm);
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             text-align: center;
             cursor: pointer;
@@ -409,6 +409,9 @@ Auth::init();
                 <button class="map-tab" role="tab" :aria-selected="activeTab === 'coverage'" :class="{'active': activeTab === 'coverage'}" @click="switchTab('coverage')">
                     <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i> 調査網羅
                 </button>
+                <button class="map-tab" role="tab" :aria-selected="activeTab === 'biodiversity'" :class="{'active': activeTab === 'biodiversity'}" @click="switchTab('biodiversity')">
+                    <i data-lucide="leaf" class="w-3.5 h-3.5"></i> 多様性
+                </button>
             </div>
 
             <!-- Search Bar -->
@@ -473,6 +476,19 @@ Auth::init();
                     <option value="2024">2024</option>
                 </select>
             </div>
+
+            <!-- Biodiversity Filters (biodiversity tab) -->
+            <div class="flex flex-wrap items-center gap-2" x-show="activeTab === 'biodiversity'" x-transition>
+                <div class="filter-chip-bar flex-1">
+                    <button class="filter-chip" :class="{'active': biodiversityStage === 'all'}" @click="setBiodiversityStage('all')">✨ すべて</button>
+                    <button class="filter-chip" :class="{'active': biodiversityStage === 'S'}" @click="setBiodiversityStage('S')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;margin-right:3px"></span>S 充実</button>
+                    <button class="filter-chip" :class="{'active': biodiversityStage === 'A'}" @click="setBiodiversityStage('A')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:3px"></span>A 豊か</button>
+                    <button class="filter-chip" :class="{'active': biodiversityStage === 'B'}" @click="setBiodiversityStage('B')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:3px"></span>B 成長中</button>
+                    <button class="filter-chip" :class="{'active': biodiversityStage === 'C'}" @click="setBiodiversityStage('C')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;margin-right:3px"></span>C 芽吹き</button>
+                    <button class="filter-chip" :class="{'active': biodiversityStage === 'D'}" @click="setBiodiversityStage('D')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#94a3b8;margin-right:3px"></span>D 発見</button>
+                </div>
+                <button class="filter-chip" :class="{'active': biodiversityRedlistOnly}" @click="toggleBiodiversityRedlist()">🔴 希少種のみ</button>
+            </div>
         </div>
 
         <!-- Heatmap Legend (heatmap tab only) -->
@@ -497,8 +513,36 @@ Auth::init();
             <div class="text-muted text-xs mt-1" x-text="coverageMeshCount.toLocaleString() + ' メッシュ調査済み'"></div>
         </div>
 
+        <!-- Biodiversity Legend -->
+        <div x-show="activeTab === 'biodiversity'" x-transition style="display:none;" class="heatmap-legend">
+            <div class="font-bold text-text mb-2">多様性マップ</div>
+            <div class="flex gap-3 mb-3">
+                <div>
+                    <div class="font-black text-emerald-600" style="font-size:18px;line-height:1.1;" x-text="biodiversityStats.meshes || '—'"></div>
+                    <div class="text-muted" style="font-size:10px;">調査エリア</div>
+                </div>
+                <div>
+                    <div class="font-black text-blue-600" style="font-size:18px;line-height:1.1;" x-text="biodiversityStats.species || '—'"></div>
+                    <div class="text-muted" style="font-size:10px;">確認種</div>
+                </div>
+                <div>
+                    <div class="font-black text-red-600" style="font-size:18px;line-height:1.1;" x-text="biodiversityStats.redlist"></div>
+                    <div class="text-muted" style="font-size:10px;">希少種</div>
+                </div>
+            </div>
+            <div class="font-bold text-muted border-t pt-2 mb-1" style="font-size:11px;">成長段階</div>
+            <div style="display:flex;flex-direction:column;gap:3px;font-size:11px;">
+                <div style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span><span class="text-text">S — 充実</span></div>
+                <div style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span><span class="text-text">A — 豊か</span></div>
+                <div style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block;"></span><span class="text-text">B — 成長中</span></div>
+                <div style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#3b82f6;display:inline-block;"></span><span class="text-text">C — 芽吹き</span></div>
+                <div style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block;"></span><span class="text-text">D — 発見</span></div>
+            </div>
+            <div class="text-muted mt-2" style="font-size:10px;">記録が増えるとエリアが成長します</div>
+        </div>
+
         <!-- Observation Detail Preview (in-page, no navigation) -->
-        <div class="cluster-panel" :class="{'is-open': selectedObs && !showBottomSheet}" id="obsDetailPanel">
+        <div class="cluster-panel" :class="{'is-open': (selectedObs || selectedMesh) && !showBottomSheet}" id="obsDetailPanel">
             <div class="sheet-handle">
                 <div class="bar"></div>
             </div>
@@ -565,6 +609,80 @@ Auth::init();
                                 style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border-radius:12px; background:var(--color-primary-surface); color:var(--color-primary); font-size:13px; font-weight:700; text-decoration:none; cursor:pointer;">
                                 詳しく見る →
                             </a>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <!-- Biodiversity Mesh Detail Panel -->
+            <template x-if="selectedMesh">
+                <div class="obs-detail-view">
+                    <div class="obs-detail-topbar" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--color-border);">
+                        <span style="font-size:13px; font-weight:700; color:var(--color-text);">多様性メッシュ</span>
+                        <button @click="selectedMesh = null" style="display:flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:var(--color-bg-faint); border:none; cursor:pointer; color:var(--color-muted);">✕</button>
+                    </div>
+                    <div class="obs-detail-info">
+                        <!-- ステージバッジ + スコア -->
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                            <span style="display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:12px; font-size:20px; font-weight:900;"
+                                :style="'background:' + ({S:'#ef4444',A:'#f59e0b',B:'#10b981',C:'#3b82f6',D:'#94a3b8'}[selectedMesh.stage]||'#94a3b8') + '22;border:2px solid ' + ({S:'#ef4444',A:'#f59e0b',B:'#10b981',C:'#3b82f6',D:'#94a3b8'}[selectedMesh.stage]||'#94a3b8') + ';color:' + ({S:'#ef4444',A:'#f59e0b',B:'#10b981',C:'#3b82f6',D:'#94a3b8'}[selectedMesh.stage]||'#94a3b8')"
+                                x-text="selectedMesh.stage || 'D'"></span>
+                            <div>
+                                <div style="font-size:16px; font-weight:900;"
+                                    :style="'color:' + ({S:'#ef4444',A:'#f59e0b',B:'#10b981',C:'#3b82f6',D:'#94a3b8'}[selectedMesh.stage]||'#94a3b8')"
+                                    x-text="{S:'充実',A:'豊か',B:'成長中',C:'芽吹き',D:'発見'}[selectedMesh.stage] || '発見'"></div>
+                                <div style="font-size:11px; color:var(--color-muted);">BIS スコア: <span x-text="selectedMesh.score || 0"></span>/100</div>
+                            </div>
+                            <span x-show="selectedMesh.red_list_count > 0" style="margin-left:auto; background:rgba(239,68,68,0.12); color:#ef4444; padding:3px 8px; border-radius:8px; font-size:11px; font-weight:700;">🔴 希少種 <span x-text="selectedMesh.red_list_count"></span></span>
+                        </div>
+
+                        <!-- 種数サマリー -->
+                        <div style="font-size:11px; color:var(--color-muted); margin-bottom:10px;">
+                            <span x-text="(selectedMesh.species_count || 0) + '種'"></span>
+                            <span> · </span>
+                            <span x-text="(selectedMesh.total || 0) + '件の記録'"></span>
+                            <span x-show="selectedMesh.group_count"> · <span x-text="selectedMesh.group_count"></span>グループ</span>
+                        </div>
+
+                        <!-- BIS 5軸バー -->
+                        <div style="margin-bottom:12px;">
+                            <div style="font-size:11px; font-weight:700; color:var(--color-muted); margin-bottom:6px;">BIS スコア内訳</div>
+                            <template x-for="ax in [{key:'richness',label:'種の多様性',color:'#10b981'},{key:'confidence',label:'データ信頼性',color:'#3b82f6'},{key:'conservation',label:'保全価値',color:'#ef4444'},{key:'coverage',label:'分類群カバー率',color:'#f59e0b'},{key:'effort',label:'調査の継続性',color:'#8b5cf6'}]" :key="ax.key">
+                                <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                                    <span style="font-size:10px; color:var(--color-muted); min-width:80px;" x-text="ax.label"></span>
+                                    <div style="flex:1; height:4px; border-radius:2px; background:var(--color-border);">
+                                        <div style="height:100%; border-radius:2px; transition:width 0.3s;"
+                                            :style="'width:' + (selectedMesh[ax.key] || 0) + '%;background:' + ax.color"></div>
+                                    </div>
+                                    <span style="font-size:10px; color:var(--color-muted); min-width:20px; text-align:right;" x-text="selectedMesh[ax.key] || 0"></span>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- 種リスト -->
+                        <div x-show="selectedMesh.species && selectedMesh.species.length > 0" style="border-top:1px solid var(--color-border); padding-top:10px; margin-bottom:12px;">
+                            <div style="font-size:11px; font-weight:700; color:var(--color-muted); margin-bottom:6px;">確認されている生き物</div>
+                            <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                                <template x-for="sp in (selectedMesh.species || []).slice(0, 10)" :key="sp.name">
+                                    <span style="display:inline-flex; align-items:center; gap:3px; background:var(--color-surface); border-radius:8px; padding:2px 8px; font-size:11px; color:var(--color-text);"
+                                        :style="'border:1px solid ' + ({'鳥類':'#f59e0b','植物':'#10b981','昆虫':'#f97316','哺乳類':'#8b5cf6','爬虫類':'#84cc16','両生類':'#06b6d4','魚類':'#3b82f6','クモ類':'#ec4899','菌類':'#a78bfa'}[sp.group] || '#9ca3af') + '66'">
+                                        <span x-text="{'鳥類':'🐦','植物':'🌿','昆虫':'🐛','哺乳類':'🐾','爬虫類':'🦎','両生類':'🐸','魚類':'🐟','クモ類':'🕷','菌類':'🍄'}[sp.group] || '•'"></span>
+                                        <span x-text="sp.name"></span>
+                                        <span x-show="sp.count > 1" style="font-size:9px; opacity:0.5;" x-text="'×' + sp.count"></span>
+                                    </span>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- CTA ボタン -->
+                        <div style="display:flex; gap:8px; margin-top:4px;">
+                            <a :href="'post.php?lat=' + (selectedMesh._center ? selectedMesh._center[1].toFixed(5) : '') + '&lng=' + (selectedMesh._center ? selectedMesh._center[0].toFixed(5) : '')"
+                                style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border-radius:12px; background:var(--color-primary); color:#fff; font-size:13px; font-weight:700; text-decoration:none; cursor:pointer;">
+                                <i data-lucide="camera" class="w-4 h-4"></i> 記録する
+                            </a>
+                            <button @click="selectedMesh = null; switchTab('markers')"
+                                style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border:1px solid var(--color-border); border-radius:12px; background:var(--color-surface); color:var(--color-text); font-size:13px; font-weight:600; cursor:pointer;">
+                                <i data-lucide="map-pin" class="w-4 h-4"></i> 観察を見る
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -743,6 +861,18 @@ Auth::init();
 
     <script nonce="<?= CspNonce::attr() ?>">
         function mapExplorer() {
+            const STAGE_COLORS = { S:'#ef4444', A:'#f59e0b', B:'#10b981', C:'#3b82f6', D:'#94a3b8' };
+            const STAGE_LABELS = { S:'充実', A:'豊か', B:'成長中', C:'芽吹き', D:'発見' };
+            const BIS_AXES = [
+                { key:'richness',     label:'種の多様性',     color:'#10b981' },
+                { key:'confidence',   label:'データ信頼性',   color:'#3b82f6' },
+                { key:'conservation', label:'保全価値',       color:'#ef4444' },
+                { key:'coverage',     label:'分類群カバー率', color:'#f59e0b' },
+                { key:'effort',       label:'調査の継続性',   color:'#8b5cf6' }
+            ];
+            const GROUP_ICONS = { '鳥類':'🐦','植物':'🌿','昆虫':'🐛','哺乳類':'🐾','爬虫類':'🦎','両生類':'🐸','魚類':'🐟','クモ類':'🕷','菌類':'🍄','その他':'•' };
+            const GROUP_COLORS = { '鳥類':'#f59e0b','植物':'#10b981','昆虫':'#f97316','哺乳類':'#8b5cf6','爬虫類':'#84cc16','両生類':'#06b6d4','魚類':'#3b82f6','クモ類':'#ec4899','菌類':'#a78bfa','その他':'#9ca3af' };
+
             return {
                 query: '',
                 items: [],
@@ -769,7 +899,7 @@ Auth::init();
                 // Tab system
                 activeTab: (() => {
                     const tab = new URLSearchParams(window.location.search).get('tab') || 'markers';
-                    return ['markers', 'heatmap', 'coverage'].includes(tab) ? tab : 'markers';
+                    return ['markers', 'heatmap', 'coverage', 'biodiversity'].includes(tab) ? tab : 'markers';
                 })(),
 
                 // Heatmap state
@@ -781,6 +911,14 @@ Auth::init();
                 // Coverage state
                 coverageMeshCount: 0,
                 _coverageLoaded: false,
+
+                // Biodiversity tab state
+                biodiversityStage: 'all',
+                biodiversityRedlistOnly: false,
+                _biodiversityLoaded: false,
+                biodiversityGeoJson: null,
+                biodiversityStats: { meshes: 0, species: 0, redlist: 0 },
+                selectedMesh: null,
 
                 // Ghosts state
                 ghosts: [],
@@ -841,6 +979,17 @@ Auth::init();
                     // Lazy load
                     if (tab === 'coverage' && !this._coverageLoaded) {
                         this.loadCoverageData();
+                    }
+
+                    const biodiversityLayers = ['bio-mesh-heat', 'bio-mesh-fill', 'bio-mesh-outline', 'bio-mesh-label', 'bio-mesh-links'];
+                    biodiversityLayers.forEach(id => {
+                        if (this.map.getLayer(id)) {
+                            this.map.setLayoutProperty(id, 'visibility', tab === 'biodiversity' ? 'visible' : 'none');
+                        }
+                    });
+                    if (tab !== 'biodiversity') this.selectedMesh = null;
+                    if (tab === 'biodiversity' && !this._biodiversityLoaded) {
+                        this.loadBiodiversityData();
                     }
 
                     // Toggle DOM markers (photo markers at high zoom)
@@ -987,6 +1136,165 @@ Auth::init();
                     } catch(e) {
                         console.error('coverage load error', e);
                     }
+                },
+
+                async loadBiodiversityData() {
+                    if (this._biodiversityLoaded) return;
+                    try {
+                        const res = await fetch('/api/v2/mesh_importance.php');
+                        const gj = await res.json();
+                        if (!gj.features) return;
+
+                        // ラベル生成
+                        const stageIcons = { S:'🔥', A:'🌳', B:'🌱', C:'🌿', D:'📍' };
+                        gj.features.forEach(f => {
+                            const p = f.properties;
+                            f.properties.label_short = (stageIcons[p.stage] || '📍') + ' ' + (p.species_count || 0) + '種';
+                        });
+
+                        this.biodiversityGeoJson = gj;
+                        const summary = gj.summary || {};
+                        this.biodiversityStats = {
+                            meshes:  summary.total_meshes  ?? gj.features.length,
+                            species: summary.total_species ?? '—',
+                            redlist: summary.red_list_total ?? 0
+                        };
+
+                        if (!this.map) return;
+
+                        // セントロイド計算
+                        const centroidCalc = coords => {
+                            let cx = 0, cy = 0;
+                            coords.forEach(c => { cx += c[0]; cy += c[1]; });
+                            return [cx / coords.length, cy / coords.length];
+                        };
+
+                        const centroids = gj.features.map(f => {
+                            const c = centroidCalc(f.geometry.coordinates[0]);
+                            return { type:'Feature', geometry:{ type:'Point', coordinates:c }, properties:{ score: f.properties.score || 0 } };
+                        });
+
+                        // 隣接リンク計算
+                        const meshSet = {};
+                        gj.features.forEach(f => {
+                            const c = centroidCalc(f.geometry.coordinates[0]);
+                            meshSet[f.properties.mesh_code] = c;
+                        });
+                        const links = [];
+                        const seen = {};
+                        gj.features.forEach(f => {
+                            const code = f.properties.mesh_code;
+                            const center = meshSet[code];
+                            if (!center || code.length < 8) return;
+                            const p2 = parseInt(code.substring(0,2)), u2 = parseInt(code.substring(2,4));
+                            const q2 = parseInt(code.substring(4,5)), v2 = parseInt(code.substring(5,6));
+                            const r2 = parseInt(code.substring(6,7)), w2 = parseInt(code.substring(7,8));
+                            const neighbors = [];
+                            // 右
+                            let nr = w2+1, nq = q2, nv = v2, nu = u2, np = p2, nrr = r2;
+                            if (nr > 9) { nr = 0; nv = v2+1; if (nv > 7) { nv = 0; nu = u2+1; } }
+                            neighbors.push(''+String(np).padStart(2,'0')+String(nu).padStart(2,'0')+nq+nv+nrr+nr);
+                            // 上
+                            let ur = r2+1, uq = q2, up = p2;
+                            if (ur > 9) { ur = 0; uq = q2+1; if (uq > 7) { uq = 0; up = p2+1; } }
+                            neighbors.push(''+String(up).padStart(2,'0')+String(u2).padStart(2,'0')+uq+v2+ur+w2);
+                            neighbors.forEach(nc => {
+                                if (!meshSet[nc]) return;
+                                const key = [code, nc].sort().join('-');
+                                if (seen[key]) return;
+                                seen[key] = true;
+                                links.push({ type:'Feature', geometry:{ type:'LineString', coordinates:[center, meshSet[nc]] }, properties:{} });
+                            });
+                        });
+
+                        // ソース追加
+                        if (!this.map.getSource('bio-mesh')) {
+                            this.map.addSource('bio-mesh', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+                            this.map.addSource('bio-mesh-centroids', { type:'geojson', data:{ type:'FeatureCollection', features:centroids } });
+                            this.map.addSource('bio-mesh-links', { type:'geojson', data:{ type:'FeatureCollection', features:links } });
+
+                            // レイヤー追加
+                            this.map.addLayer({ id:'bio-mesh-heat', type:'heatmap', source:'bio-mesh-centroids', maxzoom:12, paint:{
+                                'heatmap-weight': ['interpolate',['linear'],['get','score'], 0,0.1, 50,0.5, 80,1],
+                                'heatmap-intensity': ['interpolate',['linear'],['zoom'], 0,0.6, 12,2.5],
+                                'heatmap-radius': ['interpolate',['linear'],['zoom'], 0,10, 8,22, 12,35],
+                                'heatmap-color': ['interpolate',['linear'],['heatmap-density'],
+                                    0,'rgba(0,0,0,0)', 0.15,'rgba(59,130,246,0.25)', 0.35,'rgba(16,185,129,0.45)',
+                                    0.55,'rgba(245,158,11,0.6)', 0.75,'rgba(239,68,68,0.75)', 1.0,'rgba(255,255,255,0.9)'],
+                                'heatmap-opacity': ['interpolate',['linear'],['zoom'], 9,0.85, 12,0]
+                            }});
+                            this.map.addLayer({ id:'bio-mesh-fill', type:'fill', source:'bio-mesh', minzoom:8, paint:{
+                                'fill-color': ['match',['get','stage'],'S',STAGE_COLORS.S,'A',STAGE_COLORS.A,'B',STAGE_COLORS.B,'C',STAGE_COLORS.C,'D',STAGE_COLORS.D,'#94a3b8'],
+                                'fill-opacity': ['interpolate',['linear'],['zoom'],
+                                    8, ['interpolate',['linear'],['get','score'], 0,0.1, 40,0.2, 80,0.35],
+                                    12,['interpolate',['linear'],['get','score'], 0,0.2, 40,0.4, 80,0.65]]
+                            }});
+                            this.map.addLayer({ id:'bio-mesh-outline', type:'line', source:'bio-mesh', minzoom:9, paint:{
+                                'line-color': ['match',['get','stage'],'S',STAGE_COLORS.S,'A',STAGE_COLORS.A,'B',STAGE_COLORS.B,'C',STAGE_COLORS.C,'D',STAGE_COLORS.D,'rgba(100,100,100,0.3)'],
+                                'line-width': ['interpolate',['linear'],['zoom'], 9,0.5, 14,1.5],
+                                'line-opacity': 0.7
+                            }});
+                            this.map.addLayer({ id:'bio-mesh-links', type:'line', source:'bio-mesh-links', minzoom:10, paint:{
+                                'line-color': 'rgba(80,80,80,0.15)', 'line-width': 1
+                            }});
+                            this.map.addLayer({ id:'bio-mesh-label', type:'symbol', source:'bio-mesh', minzoom:11, layout:{
+                                'text-field': ['get','label_short'],
+                                'text-size': ['interpolate',['linear'],['zoom'], 11,9, 14,12],
+                                'text-anchor': 'center'
+                            }, paint:{
+                                'text-color': '#333',
+                                'text-halo-color': 'rgba(255,255,255,0.9)',
+                                'text-halo-width': 1.5
+                            }});
+
+                            // クリックハンドラ
+                            this.map.on('click', 'bio-mesh-fill', (e) => {
+                                const f = e.features[0];
+                                const p = f.properties;
+                                let byGroup = p.by_group;
+                                if (typeof byGroup === 'string') try { byGroup = JSON.parse(byGroup); } catch(_) { byGroup = {}; }
+                                let species = p.species;
+                                if (typeof species === 'string') try { species = JSON.parse(species); } catch(_) { species = []; }
+                                if (!Array.isArray(species)) species = [];
+                                const coords = f.geometry.coordinates[0];
+                                const center = centroidCalc(coords);
+                                this.selectedMesh = { ...p, by_group: byGroup, species: species, _center: center };
+                                this.selectedObs = null;
+                                this.showBottomSheet = false;
+                                this.$nextTick(() => lucide.createIcons());
+                            });
+                            this.map.on('mouseenter', 'bio-mesh-fill', () => { this.map.getCanvas().style.cursor = 'pointer'; });
+                            this.map.on('mouseleave', 'bio-mesh-fill', () => { this.map.getCanvas().style.cursor = ''; });
+                        } else {
+                            this.map.getSource('bio-mesh-centroids').setData({ type:'FeatureCollection', features:centroids });
+                            this.map.getSource('bio-mesh-links').setData({ type:'FeatureCollection', features:links });
+                        }
+
+                        this._biodiversityLoaded = true;
+                        this.applyBiodiversityFilter();
+                    } catch(e) {
+                        console.error('biodiversity load error', e);
+                    }
+                },
+
+                applyBiodiversityFilter() {
+                    if (!this.biodiversityGeoJson || !this.map || !this.map.getSource('bio-mesh')) return;
+                    const filtered = { type:'FeatureCollection', features: this.biodiversityGeoJson.features.filter(f => {
+                        if (this.biodiversityStage !== 'all' && f.properties.stage !== this.biodiversityStage) return false;
+                        if (this.biodiversityRedlistOnly && !(f.properties.red_list_count > 0)) return false;
+                        return true;
+                    })};
+                    this.map.getSource('bio-mesh').setData(filtered);
+                },
+
+                setBiodiversityStage(stage) {
+                    this.biodiversityStage = stage;
+                    this.applyBiodiversityFilter();
+                },
+
+                toggleBiodiversityRedlist() {
+                    this.biodiversityRedlistOnly = !this.biodiversityRedlistOnly;
+                    this.applyBiodiversityFilter();
                 },
 
                 async loadGhosts() {
@@ -1576,6 +1884,13 @@ Auth::init();
                             this.map.on('mouseleave', 'unclustered-point', () => this.map.getCanvas().style.cursor = '');
                         }
                         this.updateSource();
+                        // Re-init biodiversity layers after style change
+                        if (this._biodiversityLoaded) {
+                            this._biodiversityLoaded = false;
+                            if (this.activeTab === 'biodiversity') {
+                                this.loadBiodiversityData();
+                            }
+                        }
                     });
                 },
 
