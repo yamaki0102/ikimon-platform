@@ -1695,7 +1695,7 @@ Auth::init();
                             type: 'Feature',
                             properties: {
                                 id: obs.id,
-                                photo: obs.photos[0],
+                                photo: obs.photos && obs.photos[0],
                                 // Pass entire obs for preview (serialize roughly or just ID)
                                 obsData: obs
                             },
