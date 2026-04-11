@@ -82,7 +82,8 @@ echo "Academic Paper Harvester v1.0\n";
 echo "対象種: {$total}件 | force=" . ($force ? 'yes' : 'no') . " | source=" . ($onlySrc ?: 'all') . "\n\n";
 
 // === HTTP GET ===
-function apHttpGet(string $url, int $timeout = 12): ?string
+// Returns [httpCode, body|null]. Callers must check code before json_decode.
+function apHttpGet(string $url, int $timeout = 12): array
 {
     $ch = curl_init($url);
     curl_setopt_array($ch, [
@@ -92,13 +93,13 @@ function apHttpGet(string $url, int $timeout = 12): ?string
         CURLOPT_HTTPHEADER     => ['User-Agent: ' . AP_UA, 'Accept: application/json'],
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS      => 3,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => true,
     ]);
     $body     = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    if ($httpCode !== 200 || !is_string($body) || $body === '') return null;
-    return $body;
+    if (!is_string($body) || $body === '') return [$httpCode, null];
+    return [$httpCode, $body];
 }
 
 // === OpenAlex abstract 復元 ===
@@ -134,8 +135,9 @@ function fetchOpenAlex(string $sciName): array
     $url = "https://api.openalex.org/works?filter=title_and_abstract.search:" . urlencode('"' . $sciName . '"')
         . "&per_page=15&select=id,title,abstract_inverted_index,doi,publication_year,primary_location,authorships"
         . "&mailto=admin@ikimon.life";
-    $json = apHttpGet($url);
-    if (!$json) return $results;
+    [$code, $json] = apHttpGet($url);
+    if ($code === 429) { echo "  OpenAlex: rate limited\n"; return $results; }
+    if (!$json || $code !== 200) return $results;
     $data = json_decode($json, true);
     foreach (($data['results'] ?? []) as $work) {
         $abstract = reconstructOpenAlexAbstract($work['abstract_inverted_index'] ?? []);
@@ -167,8 +169,9 @@ function fetchPubMed(string $sciName): array
     $searchUrl = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed"
         . "&term=" . urlencode('"' . $sciName . '"[TIAB]')
         . "&retmax=10&retmode=json&usehistory=y" . $apiKey;
-    $searchJson = apHttpGet($searchUrl);
-    if (!$searchJson) return $results;
+    [$code, $searchJson] = apHttpGet($searchUrl);
+    if ($code === 429) { echo "  PubMed: rate limited\n"; return $results; }
+    if (!$searchJson || $code !== 200) return $results;
 
     $searchData = json_decode($searchJson, true);
     $pmids      = $searchData['esearchresult']['idlist'] ?? [];
@@ -179,8 +182,9 @@ function fetchPubMed(string $sciName): array
     $summaryUrl = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed"
         . "&id=" . implode(',', array_slice($pmids, 0, 10))
         . "&retmode=json" . $apiKey;
-    $summaryJson = apHttpGet($summaryUrl);
-    if (!$summaryJson) return $results;
+    [$code, $summaryJson] = apHttpGet($summaryUrl);
+    if ($code === 429) { echo "  PubMed: rate limited (summary)\n"; return $results; }
+    if (!$summaryJson || $code !== 200) return $results;
     $summaryData = json_decode($summaryJson, true);
     usleep(350000);
 
@@ -188,12 +192,13 @@ function fetchPubMed(string $sciName): array
     $abstractsUrl = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed"
         . "&id=" . implode(',', array_slice($pmids, 0, 10))
         . "&retmode=text&rettype=abstract" . $apiKey;
-    $abstractsText = apHttpGet($abstractsUrl);
+    [$code, $abstractsText] = apHttpGet($abstractsUrl);
+    if ($code === 429) $abstractsText = null;
     usleep(350000);
 
     // abstract テキストを PMID ごとに分割
     $abstractMap = [];
-    if ($abstractsText) {
+    if ($abstractsText && $code === 200) {
         $blocks = preg_split('/\n\d+\. /', "\n" . $abstractsText);
         foreach (array_filter($blocks) as $block) {
             if (preg_match('/PMID:\s*(\d+)/', $block, $m)) {
@@ -236,8 +241,9 @@ function fetchEuropePMC(string $sciName): array
     $url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
         . "?query=" . urlencode('"' . $sciName . '"')
         . "&resultType=core&pageSize=8&format=json&cursorMark=*";
-    $json = apHttpGet($url);
-    if (!$json) return $results;
+    [$code, $json] = apHttpGet($url);
+    if ($code === 429) { echo "  EuropePMC: rate limited\n"; return $results; }
+    if (!$json || $code !== 200) return $results;
     $data = json_decode($json, true);
     foreach (($data['resultList']['result'] ?? []) as $article) {
         $abstract = $article['abstractText'] ?? '';
@@ -266,8 +272,9 @@ function fetchJStage(string $sciName, string $jaName): array
     $url   = "https://api.jstage.jst.go.jp/searchapi/do?service=3"
         . "&text=" . urlencode($query)
         . "&pubyearfrom=2000&count=8";
-    $xml = apHttpGet($url);
-    if (!$xml) return $results;
+    [$code, $xml] = apHttpGet($url);
+    if ($code === 429) { echo "  J-STAGE: rate limited\n"; return $results; }
+    if (!$xml || $code !== 200) return $results;
     try {
         $dom = @simplexml_load_string($xml);
         if (!$dom) return $results;
@@ -301,8 +308,9 @@ function fetchCiNii(string $sciName, string $jaName): array
     $results = [];
     $query = !empty($jaName) ? $jaName : $sciName;
     $url   = "https://cir.nii.ac.jp/opensearch/all?q=" . urlencode($query) . "&format=json&count=8";
-    $json  = apHttpGet($url);
-    if (!$json) return $results;
+    [$code, $json] = apHttpGet($url);
+    if ($code === 429) { echo "  CiNii: rate limited\n"; return $results; }
+    if (!$json || $code !== 200) return $results;
     $data = json_decode($json, true);
     foreach (($data['items'] ?? []) as $item) {
         $title    = $item['title'] ?? ($item['dc:title'] ?? '');
@@ -399,7 +407,7 @@ foreach ($species as $sp) {
                 CURLOPT_HTTPHEADER     => ['User-Agent: ' . AP_UA, 'Accept: application/json'],
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS      => 3,
-                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYPEER => true,
             ]);
             curl_multi_add_handle($mh, $ch);
         }

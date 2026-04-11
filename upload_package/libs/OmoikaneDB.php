@@ -144,39 +144,73 @@ class OmoikaneDB
         ");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_trust_score ON trust_scores(trust_score);");
 
-        // Table: papers (Phase 2 — 論文メタデータ。PaperStore JSON→SQLite移行)
+        // Table: papers — Schema v2 (paper_id as PK, doi as nullable unique index)
+        // Migration: if old schema (doi PK) exists and is empty, drop and recreate.
+        $papersHasOldSchema = false;
+        try {
+            $cols = $this->pdo->query("PRAGMA table_info(papers)")->fetchAll(\PDO::FETCH_ASSOC);
+            foreach ($cols as $col) {
+                if ($col['name'] === 'doi' && $col['pk'] == 1) {
+                    $papersHasOldSchema = true;
+                    break;
+                }
+            }
+        } catch (\Throwable $_) {}
+        if ($papersHasOldSchema) {
+            $count = (int)$this->pdo->query("SELECT COUNT(*) FROM papers")->fetchColumn();
+            if ($count === 0) {
+                $this->pdo->exec("DROP TABLE IF EXISTS paper_taxa");
+                $this->pdo->exec("DROP TABLE IF EXISTS papers");
+            }
+        }
         $this->pdo->exec("
             CREATE TABLE IF NOT EXISTS papers (
-                doi TEXT PRIMARY KEY,
-                title TEXT,
-                authors TEXT,
-                year INTEGER,
-                journal TEXT,
-                source TEXT DEFAULT 'gbif_lit',
-                abstract TEXT,
-                language TEXT DEFAULT 'ja',
-                url TEXT,
-                subjects TEXT,
-                ingested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                paper_id     TEXT PRIMARY KEY,
+                doi          TEXT UNIQUE,
+                external_ids TEXT NOT NULL DEFAULT '{}',
+                title        TEXT,
+                authors      TEXT,
+                year         INTEGER,
+                journal      TEXT,
+                source       TEXT DEFAULT 'unknown',
+                abstract     TEXT,
+                language     TEXT,
+                url          TEXT,
+                subjects     TEXT,
+                ingested_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
                 distilled_at DATETIME,
                 distill_status TEXT DEFAULT 'pending'
             )
         ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_doi ON papers(doi) WHERE doi IS NOT NULL;");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_year ON papers(year);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_source ON papers(source);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_distill ON papers(distill_status);");
 
+        // Table: paper_aliases — DOI後付け判明時の別名統合
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS paper_aliases (
+                alias_id         TEXT NOT NULL,
+                alias_type       TEXT NOT NULL,
+                canonical_paper_id TEXT NOT NULL,
+                created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (alias_id, alias_type)
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_paper_aliases_canonical ON paper_aliases(canonical_paper_id);");
+
         // Table: paper_taxa (Phase 2 — 論文-種マッピング。TaxonPaperIndex JSON→SQLite移行)
         $this->pdo->exec("
             CREATE TABLE IF NOT EXISTS paper_taxa (
-                doi TEXT NOT NULL,
-                taxon_key TEXT NOT NULL,
+                paper_id   TEXT NOT NULL,
+                taxon_key  TEXT NOT NULL,
                 confidence REAL DEFAULT 1.0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (doi, taxon_key)
+                PRIMARY KEY (paper_id, taxon_key)
             )
         ");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_paper_taxa_taxon ON paper_taxa(taxon_key);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_paper_taxa_paper ON paper_taxa(paper_id);");
 
         // Table: distilled_knowledge (Phase 2 — 蒸留結果。生態制約 + 同定キー)
         $this->pdo->exec("

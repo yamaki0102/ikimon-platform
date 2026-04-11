@@ -51,7 +51,7 @@ class LiteratureIngestionPipeline
      *
      * @param string $scientificName 学名
      * @param int    $perSource      ソースあたりの最大件数
-     * @return array {new: int, duplicate: int, errors: string[], sources: array}
+     * @return array {new: int, duplicate: int, errors: string[], sources: array, source_status: array}
      */
     public function ingestForTaxon(string $scientificName, int $perSource = self::DEFAULT_PER_SOURCE): array
     {
@@ -75,6 +75,9 @@ class LiteratureIngestionPipeline
 
         $this->stats['total_fetched'] = count($allPapers);
         $this->stats['after_dedup'] = count($deduplicated);
+
+        // source_status: ソース別 ok/err/429 サマリー（LiteratureIngestionQueue.markDone に渡す）
+        $this->stats['source_status'] = $this->buildSourceStatus();
 
         // ログ保存
         $this->saveLog($scientificName);
@@ -181,69 +184,111 @@ class LiteratureIngestionPipeline
 
     /**
      * 論文をデュアルライト（JSON + SQLite）で保存する。
+     * paper_id = doi (実 DOI) or sha256(source:source_identifier)
      *
      * @param array  $paper          正規化済み論文データ
      * @param string $scientificName 関連する学名
      */
     private function persistPaper(array $paper, string $scientificName): void
     {
-        $doi = $paper['doi'] ?? null;
-        $identifier = $doi ?: md5($paper['title'] ?? uniqid());
+        $rawDoi = $paper['doi'] ?? null;
 
-        // --- JSON ストレージ ---
+        // 実 DOI かどうかを判定（プレフィックス付きは別扱い）
+        $isRealDoi = $rawDoi && !preg_match('/^(pmid-|openalex-|epmc-|jstage-|cinii-)/', $rawDoi);
+        $doi       = $isRealDoi ? $rawDoi : null;
+
+        // canonical paper_id: 実 DOI があれば doi、なければ source:id の sha256
+        $sourceId = $rawDoi ?: ($paper['title'] ? md5($paper['title']) : uniqid('paper_', true));
+        $source   = strtolower($paper['source'] ?? 'unknown');
+        $paperId  = $doi ?: hash('sha256', $source . ':' . $sourceId);
+
+        // external_ids にプレフィックス付き ID を移動
+        $externalIds = [];
+        if ($rawDoi && !$isRealDoi) {
+            if (str_starts_with($rawDoi, 'pmid-'))    $externalIds['pmid']    = substr($rawDoi, 5);
+            if (str_starts_with($rawDoi, 'openalex-')) $externalIds['openalex'] = substr($rawDoi, 9);
+            if (str_starts_with($rawDoi, 'epmc-'))    $externalIds['epmc']    = substr($rawDoi, 5);
+            if (str_starts_with($rawDoi, 'jstage-'))  $externalIds['jstage']  = substr($rawDoi, 7);
+            if (str_starts_with($rawDoi, 'cinii-'))   $externalIds['cinii']   = substr($rawDoi, 6);
+        }
+
+        // --- JSON ストレージ (dual-write 期間中は継続)---
         try {
-            $existing = $doi ? PaperStore::findById($doi) : null;
+            $lookupKey = $doi ?: $paperId;
+            $existing  = PaperStore::findById($lookupKey) ?: ($doi ? null : PaperStore::findById($rawDoi ?? ''));
             if ($existing) {
                 $this->stats['duplicate']++;
             } else {
-                PaperStore::append($paper);
+                $paperForJson = array_merge($paper, ['paper_id' => $paperId]);
+                if (!$doi) $paperForJson['doi'] = $rawDoi; // keep original for JSON compat
+                PaperStore::append($paperForJson);
                 $this->stats['new']++;
             }
-
-            // TaxonPaperIndex 更新
-            if ($doi) {
-                TaxonPaperIndex::add($scientificName, $doi);
-            }
+            TaxonPaperIndex::add($scientificName, $doi ?: $paperId);
         } catch (\Throwable $e) {
             $this->stats['errors'][] = "JSON persist: " . $e->getMessage();
         }
 
-        // --- SQLite ストレージ（OmoikaneDB）---
+        // --- SQLite ストレージ（新スキーマ: paper_id PK）---
         try {
             $pdo = $this->getOmoikanePDO();
-            if ($pdo && $doi) {
-                // papers テーブル（UPSERT）
-                $stmt = $pdo->prepare("
-                    INSERT OR IGNORE INTO papers (doi, title, authors, year, journal, source, abstract, language, url, subjects)
-                    VALUES (:doi, :title, :authors, :year, :journal, :source, :abstract, :language, :url, :subjects)
-                ");
-                $stmt->execute([
+            if ($pdo) {
+                $pdo->prepare("
+                    INSERT OR IGNORE INTO papers
+                        (paper_id, doi, external_ids, title, authors, year, journal, source, abstract, language, url, subjects)
+                    VALUES
+                        (:pid, :doi, :ext, :title, :authors, :year, :journal, :source, :abstract, :language, :url, :subjects)
+                ")->execute([
+                    ':pid'      => $paperId,
                     ':doi'      => $doi,
+                    ':ext'      => json_encode($externalIds, JSON_UNESCAPED_UNICODE),
                     ':title'    => $paper['title'] ?? '',
                     ':authors'  => json_encode($paper['authors'] ?? [], JSON_UNESCAPED_UNICODE),
                     ':year'     => $paper['year'] ?? null,
                     ':journal'  => $paper['journal'] ?? '',
-                    ':source'   => $paper['source'] ?? 'unknown',
+                    ':source'   => $source,
                     ':abstract' => $paper['abstract'] ?? null,
-                    ':language' => $paper['language'] ?? 'ja',
+                    ':language' => $paper['language'] ?? null,
                     ':url'      => $paper['url'] ?? null,
                     ':subjects' => json_encode($paper['subjects'] ?? [], JSON_UNESCAPED_UNICODE),
                 ]);
 
-                // paper_taxa テーブル
-                $stmt = $pdo->prepare("
-                    INSERT OR IGNORE INTO paper_taxa (doi, taxon_key, confidence)
-                    VALUES (:doi, :taxon_key, :confidence)
-                ");
-                $stmt->execute([
-                    ':doi'        => $doi,
+                $pdo->prepare("
+                    INSERT OR IGNORE INTO paper_taxa (paper_id, taxon_key, confidence)
+                    VALUES (:pid, :taxon_key, :confidence)
+                ")->execute([
+                    ':pid'        => $paperId,
                     ':taxon_key'  => strtolower(trim($scientificName)),
                     ':confidence' => 1.0,
                 ]);
+
+                $this->stats['sources']['sqlite_ok'] = ($this->stats['sources']['sqlite_ok'] ?? 0) + 1;
             }
         } catch (\Throwable $e) {
             $this->stats['errors'][] = "SQLite persist: " . $e->getMessage();
         }
+    }
+
+    /**
+     * ソース別取得状況サマリーを構築する（LiteratureIngestionQueue に渡す用）。
+     */
+    private function buildSourceStatus(): array
+    {
+        $status = [];
+        foreach ($this->stats['sources'] as $src => $count) {
+            $status[$src] = ['ok' => $count, 'err' => 0];
+        }
+        foreach ($this->stats['errors'] as $err) {
+            foreach (['CrossRef', 'J-STAGE', 'CiNii', 'OpenAlex', 'PubMed', 'EuropePMC'] as $src) {
+                if (stripos($err, $src) !== false) {
+                    $key = strtolower($src);
+                    $status[$key] = $status[$key] ?? ['ok' => 0, 'err' => 0];
+                    $status[$key]['err']++;
+                    break;
+                }
+            }
+        }
+        return $status;
     }
 
     /**
@@ -310,6 +355,7 @@ class LiteratureIngestionPipeline
             'after_dedup'   => 0,
             'errors'        => [],
             'sources'       => [],
+            'source_status' => [],
         ];
     }
 
