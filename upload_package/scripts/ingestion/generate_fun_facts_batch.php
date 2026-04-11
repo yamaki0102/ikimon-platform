@@ -37,7 +37,10 @@ $includeObs = ($opts['source'] ?? '') === 'obs';
 define('FF_USER_AGENT',    'ikimon.life FunFactBot/1.1 (https://ikimon.life; contact@ikimon.life) PHP/' . PHP_VERSION);
 define('FF_WIKI_API_BASE', 'https://ja.wikipedia.org/w/api.php');
 define('FF_GBIF_API_BASE', 'https://api.gbif.org/v1');
-define('FF_RATE_SLEEP_US', 900_000); // 0.9秒 = 約67req/min (Wikipedia推奨範囲内)
+define('FF_RATE_SLEEP_US',         900_000); // Wikipedia: 0.9秒 = 約67req/min (推奨範囲内)
+define('FF_RATE_SLEEP_GBIF_US',   200_000); // GBIF: 0.2秒 = 5req/sec (公式上限10req/sec)
+define('FF_RATE_SLEEP_WIKIDATA_US', 500_000); // Wikidata SPARQL: 0.5秒
+define('FF_RATE_SLEEP_INAT_US',   200_000); // iNaturalist: 0.2秒 (ratelimit 100req/min)
 define('FF_CHECKPOINT',    rtrim(DATA_DIR, '/') . '/library/fun_fact_progress.json');
 
 // === DB接続 ===
@@ -190,7 +193,7 @@ function fetchGbifDescriptions(string $scientificName): ?string
         'name'   => $scientificName,
         'strict' => 'true',
     ]);
-    usleep(FF_RATE_SLEEP_US);
+    usleep(FF_RATE_SLEEP_GBIF_US);
     $matchJson = httpGet($matchUrl);
     if (!$matchJson) return null;
     $match    = json_decode($matchJson, true);
@@ -199,7 +202,7 @@ function fetchGbifDescriptions(string $scientificName): ?string
 
     // Step2: Descriptions 取得
     $descUrl = FF_GBIF_API_BASE . "/species/{$usageKey}/descriptions?limit=5";
-    usleep(FF_RATE_SLEEP_US);
+    usleep(FF_RATE_SLEEP_GBIF_US);
     $descJson = httpGet($descUrl);
     if (!$descJson) return null;
     $descData = json_decode($descJson, true);
@@ -222,7 +225,7 @@ function fetchWikidataProperties(string $scientificName, \PDO $pdo, int|null $sp
 {
     $sparql = 'SELECT ?item ?endemic ?habitatLabel WHERE { ?item wdt:P225 "' . addslashes($scientificName) . '". OPTIONAL { ?item wdt:P183 ?endemic. } OPTIONAL { ?item wdt:P2974 ?habitat. } SERVICE wikibase:label { bd:serviceParam wikibase:language "ja,en". } } LIMIT 1';
     $url = 'https://query.wikidata.org/sparql?' . http_build_query(['query' => $sparql, 'format' => 'json']);
-    usleep(FF_RATE_SLEEP_US);
+    usleep(FF_RATE_SLEEP_WIKIDATA_US);
     $json = httpGet($url);
     if (!$json) return;
 
@@ -259,7 +262,7 @@ function fetchINaturalistInfo(string $scientificName): ?string
         'rank'  => 'species',
         'limit' => 1,
     ]);
-    usleep(FF_RATE_SLEEP_US);
+    usleep(FF_RATE_SLEEP_INAT_US);
     $json = httpGet($url);
     if (!$json) return null;
 
