@@ -343,13 +343,17 @@ class MyZukanService
         ];
     }
 
-    public static function getSpeciesDetail(string $userId, string $taxonKey): ?array
+    public static function getSpeciesDetail(string $userId, string $taxonKey, ?string $jaName = null): ?array
     {
         $index = self::buildUserIndex($userId);
-        if (!isset($index[$taxonKey])) return null;
+        if (isset($index[$taxonKey])) return $index[$taxonKey];
 
-        $entry = $index[$taxonKey];
-        return $entry;
+        if ($jaName) {
+            foreach ($index as $entry) {
+                if ($entry['name'] === $jaName) return $entry;
+            }
+        }
+        return null;
     }
 
     private static function computeStats(array $index): array
