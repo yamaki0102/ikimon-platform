@@ -114,7 +114,15 @@ if ($fetchAll) {
     $url = IUCN_API_BASE . "/species/region/{$region}/page/0?token={$token}";
     echo "Mode: Regional — {$region}\n";
     $data = iucnGet($url);
-    processSpeciesList($data['result'] ?? [], 'regional', null, $region, $region, $token, $pdo, $stmt ?? null, $stats, $dryRun);
+    if (empty($data['result'])) {
+        echo "No results returned for region: {$region}.\n";
+        exit(1);
+    }
+    echo "Found " . count($data['result']) . " species for region {$region}.\n\n";
+    if (!$dryRun && !isset($stmt)) {
+        $stmt = $pdo->prepare($insertSql);
+    }
+    processSpeciesList($data['result'] ?? [], 'regional', null, $region, ucfirst($region), $token, $pdo, $stmt ?? null, $stats, $dryRun);
 
 } else {
     // Country-specific species list (default, fastest for Japan)
@@ -183,7 +191,7 @@ function processCountrySpecies(array $species, string $countryCode, string $toke
         }
 
         // This entry is the global assessment
-        $dedupKey = "{$sciName}|global||||}IUCN Red List";
+        $dedupKey = "{$sciName}|global||||IUCN Red List|" . ($assessYear ?? '');
         $params = [
             ':dedup_key'         => $dedupKey,
             ':taxon_key'         => $taxonId,
@@ -260,11 +268,64 @@ function processPages(int $startPage, int $maxPage, ?string $countryCode, string
 
 function processSpeciesList(array $species, string $scopeLevel, ?string $countryCode, string $regionCode, string $scopeName, string $token, PDO $pdo, ?PDOStatement $stmt, array &$stats, bool $dryRun): void
 {
+    if (!$dryRun && $stmt === null) return;
+
+    if (!$dryRun) {
+        $pdo->beginTransaction();
+    }
+
     foreach ($species as $sp) {
         $stats['fetched']++;
-        if ($dryRun) {
-            echo "DRY: " . ($sp['scientific_name'] ?? '?') . " — " . ($sp['category'] ?? '?') . " [{$scopeLevel}:{$scopeName}]\n";
+        $sciName  = trim($sp['scientific_name'] ?? '');
+        $rawCat   = strtoupper(trim($sp['category'] ?? ''));
+        $category = IUCN_CATEGORY_MAP[$rawCat] ?? null;
+
+        if (!$sciName || !$category) {
+            $stats['skipped']++;
+            if ($dryRun) echo "  DRY: " . ($sp['scientific_name'] ?? '?') . " — SKIP (invalid category: {$rawCat})\n";
+            continue;
         }
+
+        if ($dryRun) {
+            echo "  DRY: {$sciName} — {$category} [{$scopeLevel}:{$scopeName}]\n";
+            continue;
+        }
+
+        $taxonId  = (int)($sp['taxonid'] ?? 0) ?: null;
+        $commonEn = trim($sp['main_common_name'] ?? '') ?: null;
+        $taxonGrp = trim($sp['class_name'] ?? '') ?: null;
+        $dedupKey = "{$sciName}|{$scopeLevel}|" . ($countryCode ?? '') . "|{$regionCode}||IUCN Red List|";
+
+        $stmt->execute([
+            ':dedup_key'          => $dedupKey,
+            ':taxon_key'          => $taxonId,
+            ':scientific_name'    => $sciName,
+            ':japanese_name'      => null,
+            ':common_name_en'     => $commonEn,
+            ':category'           => $category,
+            ':criteria'           => null,
+            ':scope_level'        => $scopeLevel,
+            ':country_code'       => $countryCode,
+            ':region_code'        => $regionCode ?: null,
+            ':municipality_code'  => null,
+            ':scope_name'         => $scopeName,
+            ':scope_name_en'      => $scopeName,
+            ':scope_centroid_lat' => null,
+            ':scope_centroid_lng' => null,
+            ':parent_scope_name'  => null,
+            ':authority'          => 'IUCN Red List',
+            ':source_url'         => $taxonId ? "https://www.iucnredlist.org/species/{$taxonId}/" : null,
+            ':assessment_year'    => null,
+            ':version'            => null,
+            ':taxon_group'        => $taxonGrp,
+            ':taxon_group_en'     => $taxonGrp,
+            ':notes'              => null,
+        ]);
+        $stats['imported']++;
+    }
+
+    if (!$dryRun) {
+        $pdo->commit();
     }
 }
 

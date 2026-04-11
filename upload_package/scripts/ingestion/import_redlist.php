@@ -84,9 +84,14 @@ $insertSql = "
     )
 ";
 
-function buildDedupKey(string $sciName, string $scopeLevel, ?string $countryCode, ?string $regionCode, ?string $municipalityCode, string $authority): string
+/**
+ * dedup_key = sciName|scope|country|region|municipality|authority|year
+ * assessment_year を含めることで同一スコープでも年次版を別レコードとして保持する。
+ * 100年後に「2024年版はEN、2040年版はCR」という変遷が追跡可能になる。
+ */
+function buildDedupKey(string $sciName, string $scopeLevel, ?string $countryCode, ?string $regionCode, ?string $municipalityCode, string $authority, ?int $assessmentYear = null): string
 {
-    return implode('|', [$sciName, $scopeLevel, $countryCode ?? '', $regionCode ?? '', $municipalityCode ?? '', $authority]);
+    return implode('|', [$sciName, $scopeLevel, $countryCode ?? '', $regionCode ?? '', $municipalityCode ?? '', $authority, $assessmentYear ?? '']);
 }
 
 if (!$dryRun) {
@@ -189,7 +194,7 @@ foreach ($files as $file) {
             usleep(50000);
         }
 
-        $dedupKey = buildDedupKey($sciName, $scopeLevel, $get('country_code'), $get('region_code'), $get('municipality_code'), $authority);
+        $dedupKey = buildDedupKey($sciName, $scopeLevel, $get('country_code'), $get('region_code'), $get('municipality_code'), $authority, $get('assessment_year') ? (int)$get('assessment_year') : null);
 
         $params = [
             ':dedup_key'         => $dedupKey,

@@ -66,8 +66,7 @@ class RedListManager
         try {
             $db = $db ?? new OmoikaneDB();
             $this->pdo = $db->getPDO();
-            $count = $this->pdo->query("SELECT COUNT(*) FROM redlist_assessments")->fetchColumn();
-            $this->dbAvailable = ($count > 0);
+            $this->dbAvailable = true;
         } catch (\Throwable $e) {
             $this->dbAvailable = false;
         }
@@ -85,7 +84,8 @@ class RedListManager
     public function lookupTaxon($taxonId = null, ?string $jaName = null, ?string $scopeHint = null): ?array
     {
         if ($this->dbAvailable) {
-            return $this->lookupFromDb($taxonId, $jaName, $scopeHint);
+            $result = $this->lookupFromDb($taxonId, $jaName, $scopeHint);
+            if ($result !== null) return $result;
         }
         return $this->lookupFromJson($taxonId, $jaName, $scopeHint);
     }
@@ -93,19 +93,14 @@ class RedListManager
     /**
      * Legacy wrapper: lookup by Japanese name
      */
-    public function lookup(string $jaName, ?string $prefecture = 'shizuoka'): ?array
+    public function lookup(string $jaName, ?string $prefecture = null): ?array
     {
         $result = $this->lookupTaxon(null, $jaName, $prefecture);
         if ($result === null) return null;
 
         $legacy = [];
-        if (isset($result['national'])) {
-            $legacy['national'] = $result['national'][0] ?? $result['national'];
-        }
         foreach ($result as $key => $entries) {
-            if ($key !== 'national' && $key !== 'global' && $key !== 'regional') {
-                $legacy[$key] = is_array($entries) && isset($entries[0]) ? $entries[0] : $entries;
-            }
+            $legacy[$key] = is_array($entries) && isset($entries[0]) ? $entries[0] : $entries;
         }
         return !empty($legacy) ? $legacy : null;
     }
@@ -444,8 +439,10 @@ class RedListManager
         $grouped = [];
         foreach ($rows as $row) {
             $key = $row['scope_level'];
-            if ($key === 'subnational_1' || $key === 'subnational_2') {
+            if ($key === 'subnational_1') {
                 $key = $row['region_code'] ?? $row['scope_name'];
+            } elseif ($key === 'subnational_2') {
+                $key = $row['municipality_code'] ?? $row['scope_name'];
             }
             $grouped[$key][] = $this->enrichEntry($row, $row['scope_level'] . ':' . $row['scope_name']);
         }

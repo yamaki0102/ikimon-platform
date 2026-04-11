@@ -72,7 +72,7 @@ class ObservationSignificanceScorer
         // --- 軸1: 保全重要度 (RedList) ---
         $redlistCategory = null;
         if ($taxonName !== '') {
-            $redlistCategory = self::resolveRedListCategory($taxonName, $observation['prefecture'] ?? null);
+            $redlistCategory = self::resolveRedListCategory($taxonName, $observation['prefecture'] ?? null, $sciName);
             if ($redlistCategory !== null && isset(self::REDLIST_SCORES[$redlistCategory])) {
                 $pts = self::REDLIST_SCORES[$redlistCategory];
                 $totalScore += $pts;
@@ -182,7 +182,7 @@ class ObservationSignificanceScorer
      * RedListManager で全スコープを横断し、最高深刻度のカテゴリコードを返す。
      * OmoikaneDB (SQLite) をプライマリ、JSON を fallback として使用。
      */
-    private static function resolveRedListCategory(string $taxonName, ?string $prefecture): ?string
+    private static function resolveRedListCategory(string $taxonName, ?string $prefecture, ?string $sciName = null): ?string
     {
         try {
             static $rlm = null;
@@ -190,7 +190,6 @@ class ObservationSignificanceScorer
                 $rlm = new RedListManager();
             }
 
-            $sciName = null;
             $highest = $rlm->getHighestSeverity($taxonName, $sciName);
             if ($highest) {
                 return $highest['category'] ?? null;
@@ -362,17 +361,29 @@ class ObservationSignificanceScorer
     }
 
     /**
-     * 都道府県名 → RedListManager が使う prefCode に変換。
+     * 都道府県名 → ISO 3166-2 コード (JP-01〜JP-47) に変換。
+     * 100年耐性: コードは行政名が変わっても地理的位置に紐づく恒久識別子。
      * 未対応の場合は空文字を返す（国リストのみで判定）。
      */
     private static function prefNameToCode(string $prefName): string
     {
         $map = [
-            '静岡県' => 'shizuoka',
-            '愛知県' => 'aichi',
-            '神奈川県' => 'kanagawa',
-            '東京都' => 'tokyo',
-            '大阪府' => 'osaka',
+            '北海道'   => 'JP-01', '青森県' => 'JP-02', '岩手県' => 'JP-03',
+            '宮城県'   => 'JP-04', '秋田県' => 'JP-05', '山形県' => 'JP-06',
+            '福島県'   => 'JP-07', '茨城県' => 'JP-08', '栃木県' => 'JP-09',
+            '群馬県'   => 'JP-10', '埼玉県' => 'JP-11', '千葉県' => 'JP-12',
+            '東京都'   => 'JP-13', '神奈川県' => 'JP-14', '新潟県' => 'JP-15',
+            '富山県'   => 'JP-16', '石川県' => 'JP-17', '福井県' => 'JP-18',
+            '山梨県'   => 'JP-19', '長野県' => 'JP-20', '岐阜県' => 'JP-21',
+            '静岡県'   => 'JP-22', '愛知県' => 'JP-23', '三重県' => 'JP-24',
+            '滋賀県'   => 'JP-25', '京都府' => 'JP-26', '大阪府' => 'JP-27',
+            '兵庫県'   => 'JP-28', '奈良県' => 'JP-29', '和歌山県' => 'JP-30',
+            '鳥取県'   => 'JP-31', '島根県' => 'JP-32', '岡山県' => 'JP-33',
+            '広島県'   => 'JP-34', '山口県' => 'JP-35', '徳島県' => 'JP-36',
+            '香川県'   => 'JP-37', '愛媛県' => 'JP-38', '高知県' => 'JP-39',
+            '福岡県'   => 'JP-40', '佐賀県' => 'JP-41', '長崎県' => 'JP-42',
+            '熊本県'   => 'JP-43', '大分県' => 'JP-44', '宮崎県' => 'JP-45',
+            '鹿児島県' => 'JP-46', '沖縄県' => 'JP-47',
         ];
         return $map[$prefName] ?? '';
     }

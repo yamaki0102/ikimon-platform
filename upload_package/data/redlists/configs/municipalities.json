@@ -17,7 +17,7 @@
     "assessment_year": 2020,
     "format": "pdf",
     "scrape_status": "manual_csv_required",
-    "note": "ikimon.lifeの主要活動域。最優先。"
+    "scope_valid_until": null
   },
   {
     "id": "yokohama",
@@ -28,14 +28,15 @@
     "scope_name": "横浜市",
     "scope_name_en": "Yokohama City",
     "scope_centroid_lat": 35.4437,
-    "scope_centroid_lng": 139.6380,
+    "scope_centroid_lng": 139.638,
     "parent_scope_name": "神奈川県",
     "authority": "横浜市レッドデータブック",
     "url": "https://www.city.yokohama.lg.jp/kurashi/machizukuri-kankyo/kankyo/hogo/biodiversity/rdb.html",
     "assessment_year": 2023,
     "format": "html_table",
     "scrape_status": "possible",
-    "note": "横浜市は更新が早い。HTML版あり。"
+    "scope_note": "横浜市は更新が早い。HTML版あり。",
+    "scope_valid_until": null
   },
   {
     "id": "kawasaki",
@@ -52,7 +53,8 @@
     "url": "https://www.city.kawasaki.jp/300/page/0000014523.html",
     "assessment_year": 2011,
     "format": "pdf",
-    "scrape_status": "manual_csv_required"
+    "scrape_status": "manual_csv_required",
+    "scope_valid_until": null
   },
   {
     "id": "nagoya",
@@ -69,7 +71,8 @@
     "url": "https://www.city.nagoya.jp/kankyo/page/0000004785.html",
     "assessment_year": 2020,
     "format": "html_table",
-    "scrape_status": "possible"
+    "scrape_status": "possible",
+    "scope_valid_until": null
   },
   {
     "id": "osaka_city",
@@ -86,7 +89,8 @@
     "url": "https://www.city.osaka.lg.jp/kankyo/page/0000007400.html",
     "assessment_year": 2014,
     "format": "pdf",
-    "scrape_status": "manual_csv_required"
+    "scrape_status": "manual_csv_required",
+    "scope_valid_until": null
   },
   {
     "id": "kobe",
@@ -97,13 +101,14 @@
     "scope_name": "神戸市",
     "scope_name_en": "Kobe City",
     "scope_centroid_lat": 34.6913,
-    "scope_centroid_lng": 135.1830,
+    "scope_centroid_lng": 135.183,
     "parent_scope_name": "兵庫県",
     "authority": "神戸市レッドデータブック",
     "url": "https://www.city.kobe.lg.jp/a49938/shise/kekaku/kankyokyoku/kankyohozen/rdb/index.html",
     "assessment_year": 2021,
     "format": "html_table",
-    "scrape_status": "possible"
+    "scrape_status": "possible",
+    "scope_valid_until": null
   },
   {
     "id": "sapporo",
@@ -120,7 +125,8 @@
     "url": "https://www.city.sapporo.jp/kankyo/green/rdb/rdb.html",
     "assessment_year": 2017,
     "format": "html_table",
-    "scrape_status": "possible"
+    "scrape_status": "possible",
+    "scope_valid_until": null
   },
   {
     "id": "sendai",
@@ -137,7 +143,8 @@
     "url": "https://www.city.sendai.jp/kankyo-kankyo/kurashi/kankyo/shizen/yakusoku/rdb.html",
     "assessment_year": 2016,
     "format": "pdf",
-    "scrape_status": "manual_csv_required"
+    "scrape_status": "manual_csv_required",
+    "scope_valid_until": null
   },
   {
     "id": "hiroshima_city",
@@ -154,7 +161,8 @@
     "url": "https://www.city.hiroshima.lg.jp/site/kankyo/8895.html",
     "assessment_year": 2018,
     "format": "pdf",
-    "scrape_status": "manual_csv_required"
+    "scrape_status": "manual_csv_required",
+    "scope_valid_until": null
   },
   {
     "id": "kyoto_city",
@@ -171,7 +179,8 @@
     "url": "https://www.city.kyoto.lg.jp/kankyo/page/0000018258.html",
     "assessment_year": 2021,
     "format": "html_table",
-    "scrape_status": "possible"
+    "scrape_status": "possible",
+    "scope_valid_until": null
   },
   {
     "id": "naha",
@@ -188,6 +197,7 @@
     "url": "https://www.city.naha.okinawa.jp/kurashi/kankyo/biodiversity/rdb.html",
     "assessment_year": 2015,
     "format": "pdf",
-    "scrape_status": "manual_csv_required"
+    "scrape_status": "manual_csv_required",
+    "scope_valid_until": null
   }
 ]

@@ -1,53 +1,81 @@
 <?php
 /**
- * RedList - Logic for checking endangered status
- * Supports Global (IUCN), National (MOE), and Local (Pref/City) lists.
- * NOW INCLUDES: Rosetta Stone Taxon Mapping
+ * RedList — Legacy bridge → RedListManager v2
+ *
+ * 旧コードは RedList::check($taxon_key) / RedList::getCategory($taxon_key) を使用。
+ * 新コードは RedListManager を直接使う。
+ * このクラスは既存呼び出し箇所との後方互換を保ちつつ、実体を RedListManager に委譲する。
+ *
+ * 戻り値フォーマット (後方互換):
+ *   ['ranks' => ['scope_key' => ['code' => 'CR', 'label' => '絶滅危惧IA類', 'authority' => '...']]]
+ *   または null
  */
 
-class RedList {
-    private static $mapping_file = 'redlist_mapping';
-    private static $severity_order = ['CR' => 5, 'EN' => 4, 'VU' => 3, 'NT' => 2, 'DD' => 1, 'LC' => 0];
-    private static $mapping_data = null;
+class RedList
+{
+    private static ?RedListManager $rlm = null;
 
-    public static function check($taxon_key) {
-        if (self::$mapping_data === null) {
-            // Load the generated mapping file
-            self::$mapping_data = DataStore::get(self::$mapping_file);
+    private static function getManager(): RedListManager
+    {
+        if (self::$rlm === null) {
+            require_once __DIR__ . '/RedListManager.php';
+            self::$rlm = new RedListManager();
         }
-
-        // 1. Direct Lookup by GBIF Key
-        if (isset(self::$mapping_data[$taxon_key])) {
-            return self::$mapping_data[$taxon_key];
-        }
-
-        // 2. Original fallback? No, we trust the mapping file.
-        // If not in mapping, it's not on the maintained Red List.
-        return null;
+        return self::$rlm;
     }
 
     /**
-     * Get the highest severity category code across all lists.
-     * Used for location obscuring logic.
+     * @param string|int $taxon_key 和名 または GBIF taxon key
+     * @return array|null ['ranks' => [...]] 形式、またはリスト未掲載なら null
      */
-    public static function getCategory($taxon_key) {
-        $item = self::check($taxon_key);
-        if (!$item || !isset($item['ranks'])) {
+    public static function check($taxon_key): ?array
+    {
+        try {
+            $rlm    = self::getManager();
+            $isInt  = is_int($taxon_key) || (is_string($taxon_key) && ctype_digit((string)$taxon_key));
+            $id     = $isInt ? (int)$taxon_key : null;
+            $name   = $isInt ? null : (string)$taxon_key;
+            $result = $rlm->lookupTaxon($id, $name);
+            if ($result === null) return null;
+
+            $ranks = [];
+            foreach ($result as $scopeKey => $entries) {
+                $entries = isset($entries[0]) ? $entries : [$entries];
+                foreach ($entries as $entry) {
+                    $cat = $entry['category'] ?? '';
+                    if ($cat) {
+                        $ranks[$scopeKey] = [
+                            'code'      => $cat,
+                            'label'     => RedListManager::getCategoryLabel($cat),
+                            'color'     => RedListManager::getCategoryColor($cat),
+                            'authority' => $entry['authority'] ?? '',
+                            'scope'     => $scopeKey,
+                        ];
+                        break;
+                    }
+                }
+            }
+            return $ranks ? ['ranks' => $ranks] : null;
+        } catch (\Throwable $e) {
             return null;
         }
+    }
 
-        $highest_score = -1;
-        $highest_cat = null;
-
-        foreach ($item['ranks'] as $scope => $data) {
-            $code = $data['code'];
-            $score = self::$severity_order[$code] ?? 0;
-            if ($score > $highest_score) {
-                $highest_score = $score;
-                $highest_cat = $code;
-            }
+    /**
+     * @param string|int $taxon_key
+     * @return string|null IUCN カテゴリコード (e.g. 'CR') または null
+     */
+    public static function getCategory($taxon_key): ?string
+    {
+        try {
+            $rlm   = self::getManager();
+            $isInt = is_int($taxon_key) || (is_string($taxon_key) && ctype_digit((string)$taxon_key));
+            $id    = $isInt ? (int)$taxon_key : null;
+            $name  = $isInt ? null : (string)$taxon_key;
+            $row   = $rlm->getHighestSeverity($name ?? '', $name ? null : null);
+            return $row ? ($row['category'] ?? null) : null;
+        } catch (\Throwable $e) {
+            return null;
         }
-
-        return $highest_cat;
     }
 }
