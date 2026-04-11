@@ -274,7 +274,12 @@ require_once __DIR__ . '/../../libs/Asset.php';
             <?php endif; ?>
 
             <!-- Language Toggle (Desktop) -->
-            <a href="?lang=<?php echo Lang::get('nav.toggle_lang') == 'English' ? 'en' : 'ja'; ?>" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-xs font-bold transition text-muted hover:text-text hover:border-border-strong">
+            <?php
+            $langSwitchParams = array_merge($_GET, ['lang' => Lang::get('nav.toggle_lang') == 'English' ? 'en' : 'ja']);
+            unset($langSwitchParams['csrf_token']);
+            $langSwitchUrl = '?' . http_build_query($langSwitchParams);
+            ?>
+            <a href="<?php echo htmlspecialchars($langSwitchUrl); ?>" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-xs font-bold transition text-muted hover:text-text hover:border-border-strong">
                 <i data-lucide="globe" class="w-3.5 h-3.5"></i>
                 <?php echo __('nav.toggle_lang'); ?>
             </a>
