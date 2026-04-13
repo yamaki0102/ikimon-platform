@@ -156,7 +156,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       --hero-a: #163821;
       --hero-b: #8dbf77;
       --hero-c: #dbe7d3;
-      --accent: #0d7a5f;
+      --accent: #059669;
       --accent-hover: #065f46;
       --accent-soft: #ecfdf5;
       --shadow: 0 18px 44px rgba(10, 42, 24, .07);
@@ -183,13 +183,13 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .brand small { display: block; margin-top: 2px; color: var(--muted); }
     .site-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .site-nav-link { padding: 9px 14px; border-radius: 999px; background: rgba(255,255,255,.64); border: 1px solid rgba(16,185,129,.1); font-weight: 700; font-size: 14px; color: var(--ink); }
-    .site-nav-link.is-active { background: var(--accent); color: white; border-color: transparent; box-shadow: 0 4px 12px rgba(13,122,95,.2); }
+    .site-nav-link.is-active { background: var(--accent); color: white; border-color: transparent; box-shadow: 0 4px 12px rgba(5,150,105,.22); }
     .site-header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 999px; font-weight: 800; border: 1px solid transparent; }
-    .btn-solid { background: linear-gradient(135deg, #0d7a5f, #059669); color: white; box-shadow: 0 8px 20px rgba(13,122,95,.18); }
+    .btn-solid { background: linear-gradient(135deg, #059669, #0d9488); color: white; box-shadow: 0 8px 20px rgba(5,150,105,.22); }
     .btn-solid-on-light { background: linear-gradient(135deg, var(--hero-a), #1b5f34); color: white; box-shadow: 0 12px 26px rgba(18,61,37,.18); }
     .btn-ghost { background: rgba(255,255,255,.86); border-color: var(--border); color: var(--ink); }
-    .btn-ghost-on-dark { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.28); color: white; }
+    .btn-ghost-on-dark { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.32); color: white; backdrop-filter: blur(4px); }
     .btn.secondary { background: rgba(255,255,255,.88); border-color: var(--border); color: var(--ink); }
     .hero-panel {
       position: relative;
@@ -197,20 +197,29 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       padding: 56px 48px;
       border-radius: 32px;
       background:
-        radial-gradient(circle at top right, rgba(255,255,255,.10), transparent 28%),
-        linear-gradient(135deg, #163821 0%, #1b5f34 52%, #3a8c5a 100%);
+        radial-gradient(ellipse at 20% 80%, rgba(255,255,255,.06), transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(255,255,255,.08), transparent 40%),
+        linear-gradient(135deg, #064e3b 0%, #065f46 25%, #047857 50%, #059669 75%, #0d9488 100%);
       color: white;
       box-shadow: var(--shadow-strong);
       overflow: hidden;
+    }
+    .hero-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(255,255,255,.06) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
     }
     .hero-panel::after {
       content: "";
       position: absolute;
       inset: auto -6% -22% auto;
-      width: 340px;
-      height: 340px;
+      width: 360px;
+      height: 360px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,.18), transparent 64%);
+      background: radial-gradient(circle, rgba(13,148,136,.3), transparent 64%);
       pointer-events: none;
     }
     .hero-panel.has-media {
@@ -223,11 +232,11 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .hero-panel h1 {
       margin: 10px 0 0;
       font-family: "Zen Kaku Gothic New", "BIZ UDPGothic", "Noto Sans JP", sans-serif;
-      font-size: clamp(30px, 4.2vw, 46px);
-      line-height: 1.18;
+      font-size: clamp(26px, 3.6vw, 40px);
+      line-height: 1.22;
       letter-spacing: -.02em;
       font-weight: 900;
-      max-width: 720px;
+      max-width: 640px;
     }
     .hero-panel p { margin: 16px 0 0; max-width: 760px; color: rgba(255,255,255,.9); line-height: 1.8; font-size: 17px; }
     .hero-supplement { margin-top: 18px; }
@@ -333,7 +342,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .hero { padding: 26px; border-radius: 28px; background: linear-gradient(135deg, var(--hero-a), var(--hero-b)); color: white; box-shadow: 0 20px 46px rgba(18,61,37,.16); }
     .hero .muted, .hero .meta, .hero p { color: rgba(255,255,255,.88); }
     .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); opacity: .9; }
-    .section { margin-top: 40px; }
+    .section { margin-top: 32px; }
     .section-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; }
     .section-header h2 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
     .section-header p { margin: 8px 0 0; color: var(--muted); }
@@ -351,7 +360,21 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
     }
     .card:hover { transform: translateY(-3px); box-shadow: 0 22px 44px rgba(10,42,24,.10); border-color: rgba(16,185,129,.22); }
+    .card.has-accent { border-left: 3px solid var(--accent); }
     .card-body { padding: 18px; }
+    .card-step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
     .card h2, .title {
       margin: 8px 0 0;
       font-family: "Zen Kaku Gothic New", "BIZ UDPGothic", "Noto Sans JP", sans-serif;

@@ -70,7 +70,8 @@ function buildLandingRootHtml(options: PreviewContext): string {
     },
     body: `<section class="section">
       <div class="grid">
-        <div class="card">
+        <div class="card has-accent">
+          <div class="card-step">1</div>
           <div class="eyebrow">today</div>
           <h2>まず、記録してみる</h2>
           <p>名前が分からなくても大丈夫。場所と時間と写真があれば十分です。</p>
@@ -78,7 +79,8 @@ function buildLandingRootHtml(options: PreviewContext): string {
             <a class="btn btn-solid" href="${escapeHtml(recordHref)}">Record</a>
           </div>
         </div>
-        <div class="card">
+        <div class="card has-accent">
+          <div class="card-step">2</div>
           <div class="eyebrow">season</div>
           <h2>次に見るべきものが分かる</h2>
           <p>あとで見返すと、次は何を見ればよいかが少しずつ返ってきます。</p>
@@ -86,7 +88,8 @@ function buildLandingRootHtml(options: PreviewContext): string {
             <a class="btn btn-ghost" href="${escapeHtml(detailHref)}">Observation Detail</a>
           </div>
         </div>
-        <div class="card">
+        <div class="card has-accent">
+          <div class="card-step">3</div>
           <div class="eyebrow">later</div>
           <h2>また行きたくなる</h2>
           <p>同じ場所を比べると、季節の変化が見えてきます。</p>
@@ -98,7 +101,7 @@ function buildLandingRootHtml(options: PreviewContext): string {
     </section>
 
     <section class="section">
-      <div class="card" style="padding:32px 28px;background:linear-gradient(135deg,#163821,#1b5f34 60%,#3a8c5a);color:white;border-color:transparent">
+      <div class="card" style="padding:32px 28px;background:linear-gradient(135deg,#064e3b,#065f46 40%,#047857 70%,#059669);color:white;border-color:transparent">
         <div class="eyebrow" style="color:rgba(255,255,255,.7)">field mentor</div>
         <h2 style="margin:10px 0 12px;font-size:26px;line-height:1.18;font-family:'Shippori Mincho','Yu Mincho',serif;max-width:680px">自分が学ぶことと、みんなの AI を育てることが、ひとつの行動になる。</h2>
         <p style="margin:0;color:rgba(255,255,255,.84);line-height:1.75;max-width:640px;font-size:15px">
