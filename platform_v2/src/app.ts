@@ -13,6 +13,11 @@ type PreviewContext = {
   userId: string;
   occurrenceId: string;
   usesDemoFixture: boolean;
+  stats: {
+    observationCount: number;
+    speciesCount: number;
+    placeCount: number;
+  };
 };
 
 function buildFlowLink(basePath: string, href: string, label: string, note: string): string {
@@ -45,6 +50,13 @@ function buildLandingRootHtml(options: PreviewContext): string {
       lead: "見つけたものを残しておくと、次に歩くとき、少し見え方が変わる。",
       align: "center",
       supplementHtml: `
+        ${options.stats.observationCount > 0 ? `<div class="hero-metric-strip">
+          <span class="hero-metric"><strong>${options.stats.observationCount.toLocaleString()}</strong> 件の観察</span>
+          <span class="hero-metric-dot"></span>
+          <span class="hero-metric"><strong>${options.stats.speciesCount.toLocaleString()}</strong> 種を確認</span>
+          <span class="hero-metric-dot"></span>
+          <span class="hero-metric"><strong>${options.stats.placeCount.toLocaleString()}</strong> か所</span>
+        </div>` : ""}
         <div class="hero-chip-row">
           <span class="hero-chip">ひとりでも始められる</span>
           <span class="hero-chip">歩く理由がひとつ増える</span>
@@ -272,22 +284,35 @@ async function getPreviewContext(): Promise<PreviewContext> {
     order by created_at desc
     limit 1
   `;
+  const statsQuery = `
+    select
+      (select count(*) from occurrences)::int as observation_count,
+      (select count(distinct scientific_name) from occurrences where scientific_name is not null and scientific_name <> '')::int as species_count,
+      (select count(*) from places)::int as place_count
+  `;
 
-  const [demoUser, demoOccurrence, latestUser, latestOccurrence] = await Promise.all([
+  const [demoUser, demoOccurrence, latestUser, latestOccurrence, statsResult] = await Promise.all([
     pool.query<{ user_id: string }>(demoUserQuery),
     pool.query<{ occurrence_id: string }>(demoOccurrenceQuery),
     pool.query<{ user_id: string }>(latestUserQuery),
     pool.query<{ occurrence_id: string }>(latestOccurrenceQuery),
+    pool.query<{ observation_count: number; species_count: number; place_count: number }>(statsQuery),
   ]);
 
   const userId = demoUser.rows[0]?.user_id ?? latestUser.rows[0]?.user_id ?? "";
   const occurrenceId = demoOccurrence.rows[0]?.occurrence_id ?? latestOccurrence.rows[0]?.occurrence_id ?? "";
 
+  const row = statsResult.rows[0];
   return {
     basePath: "",
     userId,
     occurrenceId,
     usesDemoFixture: Boolean(demoUser.rows[0]?.user_id || demoOccurrence.rows[0]?.occurrence_id),
+    stats: {
+      observationCount: row?.observation_count ?? 0,
+      speciesCount: row?.species_count ?? 0,
+      placeCount: row?.place_count ?? 0,
+    },
   };
 }
 

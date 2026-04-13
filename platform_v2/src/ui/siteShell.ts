@@ -231,6 +231,21 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     }
     .hero-panel p { margin: 16px 0 0; max-width: 760px; color: rgba(255,255,255,.9); line-height: 1.8; font-size: 17px; }
     .hero-supplement { margin-top: 18px; }
+    .hero-metric-strip {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      color: rgba(255,255,255,.88);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .hero-metric strong { font-weight: 800; color: white; font-size: 15px; }
+    .hero-metric-dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,255,255,.4); flex-shrink: 0; }
     .hero-panel.is-center .hero-copy { text-align: center; margin-inline: auto; }
     .hero-panel.is-center .hero-copy h1,
     .hero-panel.is-center .hero-copy p { margin-inline: auto; }
