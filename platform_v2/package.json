@@ -1,0 +1,46 @@
+{
+  "name": "ikimon-platform-v2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zero-base rebuild for ikimon.life on the existing VPS",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "migrate": "tsx src/scripts/applyMigrations.ts",
+    "import:legacy": "tsx src/scripts/bootstrapLegacyImport.ts",
+    "import:plan:observations": "tsx src/scripts/planObservationLedger.ts",
+    "import:observations": "tsx src/scripts/importObservationMeaning.ts",
+    "import:observations:evidence": "tsx src/scripts/importObservationEvidence.ts",
+    "import:observations:identifications": "tsx src/scripts/importObservationIdentification.ts",
+    "import:observations:conditions": "tsx src/scripts/importObservationPlaceCondition.ts",
+    "import:remember-tokens": "tsx src/scripts/importRememberTokens.ts",
+    "import:tracks": "tsx src/scripts/importTrackSessions.ts",
+    "verify:legacy": "tsx src/scripts/verifyLegacyParity.ts",
+    "verify:production-shadow": "tsx src/scripts/verifyProductionShadowParity.ts",
+    "materialize:legacy-verify-snapshot": "tsx src/scripts/materializeLegacyVerifySnapshot.ts",
+    "report:legacy-drift": "tsx src/scripts/reportLegacyDrift.ts",
+    "smoke:v2-lane": "tsx src/scripts/smokeV2Lane.ts",
+    "smoke:v2-read-lane": "tsx src/scripts/smokeV2ReadLane.ts",
+    "smoke:v2-write-lane": "tsx src/scripts/smokeV2WriteLane.ts",
+    "sync:legacy": "tsx src/scripts/syncLegacyDelta.ts",
+    "write:legacy": "tsx src/scripts/writeLegacyCompatibility.ts",
+    "readiness": "tsx src/scripts/readinessReport.ts",
+    "rehearse:cutover": "tsx src/scripts/rehearseCutover.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.6.1",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.1",
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
