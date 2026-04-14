@@ -3,6 +3,11 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Taxon.php';
+require_once __DIR__ . '/../../libs/Auth.php';
+require_once __DIR__ . '/../../libs/PrivacyFilter.php';
+require_once __DIR__ . '/../../libs/CanonicalObservationView.php';
+
+Auth::init();
 
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 24;
 $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
@@ -181,22 +186,39 @@ require_once __DIR__ . '/../../libs/BioUtils.php';
 require_once __DIR__ . '/../../libs/RedList.php';
 
 foreach ($data as &$obs) {
+    $obs = CanonicalObservationView::hydrate($obs, true);
+    if (isset($obs['taxon']['name']) && empty($obs['species_name'])) {
+        $obs['species_name'] = $obs['taxon']['name'];
+    }
+
+    $originalLat = $obs['lat'] ?? null;
+    $originalLng = $obs['lng'] ?? null;
+    $privacyFiltered = PrivacyFilter::autoFilter($obs);
+    $filteredLat = $privacyFiltered['latitude'] ?? $privacyFiltered['lat'] ?? null;
+    $filteredLng = $privacyFiltered['longitude'] ?? $privacyFiltered['lng'] ?? null;
+    $obs['lat'] = is_numeric($filteredLat) ? (float)$filteredLat : null;
+    $obs['lng'] = is_numeric($filteredLng) ? (float)$filteredLng : null;
+    $obs['privacy_layer'] = $privacyFiltered['privacy_layer'] ?? 'ambient';
+
     if (isset($obs['taxon']['name'])) {
         $rl = RedList::check($obs['taxon']['name']);
         if ($rl) {
-            $obscured = BioUtils::getObscuredLocation($obs['lat'], $obs['lng'], $rl['category']);
-            $obs['lat'] = $obscured['lat'];
-            $obs['lng'] = $obscured['lng'];
-            $obs['obscured_radius'] = $obscured['radius'];
-            $obs['is_obscured'] = true;
             $obs['red_list'] = $rl;
         }
+    }
+    if (($obs['privacy_layer'] ?? '') === 'ambient'
+        && (($obs['lat'] !== $originalLat) || ($obs['lng'] !== $originalLng) || (($obs['location_granularity'] ?? 'exact') !== 'exact'))) {
+        $obs['obscured_radius'] = $privacyFiltered['grid_m'] ?? null;
+        $obs['is_obscured'] = true;
     }
     // Inject fresh user name
     if (isset($obs['user_id'])) {
         $obs['user_name'] = BioUtils::getUserName($obs['user_id']);
     }
     $obs['latest_ai_assessment'] = latestAiAssessmentSummary($obs);
+    if (!empty($obs['canonical_view']['enabled'])) {
+        $obs['canonical_occurrence_id'] = $obs['canonical_view']['occurrence_id'] ?? null;
+    }
 }
 
 echo json_encode([

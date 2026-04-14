@@ -104,3 +104,13 @@ upload_package/scripts/inspect_photos.php
 /.phpunit.cache/
 /tests/fixtures/
 .gstack/
+.agent/runtime/
+
+# platform_v2 build output & local probes
+platform_v2/dist/
+platform_v2/node_modules/
+platform_v2/tmp_*.py
+
+# forbidden per deploy_manifest.json (must never ship)
+tmp_*
+**/cleanup_test_*.php

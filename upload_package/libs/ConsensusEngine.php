@@ -157,17 +157,19 @@ class ConsensusEngine
             $stmt->execute([':q' => $result['data_quality'], ':id' => $occurrenceId]);
 
             // 監査ログ
-            AuditLog::log([
-                'occurrence_id' => $occurrenceId,
-                'action'        => 'consensus_promote',
-                'actor'         => 'consensus_engine',
-                'old_value'     => json_encode(['tier' => $currentTier]),
-                'new_value'     => json_encode([
-                    'tier'   => $result['tier'],
+            AuditLog::log(
+                AuditLog::ACTION_SYNC,
+                'consensus_engine',
+                $occurrenceId,
+                (string)($occ['event_id'] ?? ''),
+                json_encode(['tier' => $currentTier], JSON_UNESCAPED_UNICODE),
+                json_encode([
+                    'tier' => $result['tier'],
                     'status' => $result['status'],
                     'voters' => $result['voter_count'],
-                ]),
-            ]);
+                ], JSON_UNESCAPED_UNICODE),
+                ['source' => 'consensus_promote']
+            );
 
             $result['promoted'] = true;
             $result['from_tier'] = $currentTier;

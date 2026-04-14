@@ -5,6 +5,8 @@ require_once __DIR__ . '/../libs/Lang.php';
 Auth::init();
 Lang::init();
 
+$documentLang = method_exists('Lang', 'current') ? Lang::current() : 'ja';
+
 // FAQ data structure: [category_key => [icon, items[]]]
 $faq_categories = [
     'cat_getting_started' => ['icon' => 'sparkles',  'items' => ['a1', 'a2', 'a3', 'a4', 'a5']],
@@ -39,7 +41,7 @@ $schema = [
 ];
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= htmlspecialchars($documentLang, ENT_QUOTES, 'UTF-8') ?>">
 
 <head>
     <?php

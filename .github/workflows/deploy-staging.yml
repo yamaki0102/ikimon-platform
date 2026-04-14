@@ -1,0 +1,80 @@
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy to staging'
+        required: false
+        default: 'main'
+        type: string
+  push:
+    branches: [staging]
+
+jobs:
+  pre-flight:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: gd, mbstring, json
+
+      - name: Check deploy guardrails
+        shell: pwsh
+        run: ./scripts/check_deploy_guardrails.ps1
+
+      - name: Check staging manifest sync
+        shell: pwsh
+        run: ./scripts/check_staging_manifest_sync.ps1
+
+      - name: PHP Syntax Check
+        run: php tools/lint.php
+
+  deploy:
+    name: Deploy via SSH (Staging)
+    runs-on: ubuntu-latest
+    needs: pre-flight
+    environment: staging
+    steps:
+      - name: Deploy staging via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            STAGING_BRANCH=${{ github.event.inputs.branch || github.ref_name }}
+            export STAGING_BRANCH
+            /var/www/ikimon.life-staging/deploy.sh
+
+  verify:
+    name: Verify Staging
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Verify staging through SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            for url in \
+              http://127.0.0.1:8081/index.php \
+              http://127.0.0.1:8081/explore.php \
+              http://127.0.0.1:8081/post.php \
+              http://127.0.0.1:8081/api/get_events.php
+            do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+              if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+                echo "OK $url -> $STATUS"
+              else
+                echo "FAIL $url -> $STATUS"
+                exit 1
+              fi
+            done

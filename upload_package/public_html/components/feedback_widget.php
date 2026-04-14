@@ -6,7 +6,7 @@
         @click="open = !open; if(open) $nextTick(() => lucide.createIcons({nameAttr:'data-lucide'}))"
         class="feedback-trigger"
         :class="{ 'is-active': open }"
-        aria-label="フィードバックを送る"
+        aria-label="<?= htmlspecialchars(__('feedback.trigger_aria', 'Send feedback')) ?>"
     >
         <svg x-show="!open" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
         <svg x-show="open" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -27,7 +27,7 @@
         <!-- Header -->
         <div class="flex items-center gap-2 mb-4">
             <svg class="w-4 h-4 text-[var(--color-primary)]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
-            <p class="text-sm font-bold text-text">フィードバック</p>
+            <p class="text-sm font-bold text-text"><?= htmlspecialchars(__('feedback.title', 'Feedback')) ?></p>
             <span class="text-[10px] text-faint ml-auto uppercase tracking-wider font-bold">Beta</span>
         </div>
 
@@ -35,8 +35,8 @@
         <template x-if="sent">
             <div class="text-center py-6">
                 <div class="text-3xl mb-2">&#x2705;</div>
-                <p class="text-sm font-bold text-text mb-1">ありがとうございます！</p>
-                <p class="text-xs text-muted">改善に役立てます</p>
+                <p class="text-sm font-bold text-text mb-1"><?= htmlspecialchars(__('feedback.thanks_title', 'Thanks for the feedback')) ?></p>
+                <p class="text-xs text-muted"><?= htmlspecialchars(__('feedback.thanks_body', 'It will help improve ikimon')) ?></p>
             </div>
         </template>
 
@@ -49,24 +49,24 @@
                         @click="category = 'bug'"
                         class="feedback-chip"
                         :class="{ 'is-selected': category === 'bug' }"
-                    >&#x1F41B; バグ</button>
+                    >&#x1F41B; <?= htmlspecialchars(__('feedback.category_bug', 'Bug')) ?></button>
                     <button
                         @click="category = 'improvement'"
                         class="feedback-chip"
                         :class="{ 'is-selected': category === 'improvement' }"
-                    >&#x1F4A1; 改善</button>
+                    >&#x1F4A1; <?= htmlspecialchars(__('feedback.category_improvement', 'Improve')) ?></button>
                     <button
                         @click="category = 'other'"
                         class="feedback-chip"
                         :class="{ 'is-selected': category === 'other' }"
-                    >&#x1F4AC; その他</button>
+                    >&#x1F4AC; <?= htmlspecialchars(__('feedback.category_other', 'Other')) ?></button>
                 </div>
 
                 <!-- Description -->
                 <textarea
                     x-model="description"
                     class="feedback-textarea"
-                    :placeholder="category === 'bug' ? '何が起きましたか？' : 'こうなると嬉しい！'"
+                    :placeholder="category === 'bug' ? <?= json_encode(__('feedback.placeholder_bug', 'What happened?'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> : <?= json_encode(__('feedback.placeholder_other', 'What would make this better?'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>"
                     rows="3"
                     maxlength="2000"
                 ></textarea>
@@ -81,10 +81,10 @@
                     :disabled="!category || !description.trim() || sending"
                     :class="{ 'opacity-50 cursor-not-allowed': !category || !description.trim() || sending }"
                 >
-                    <span x-show="!sending">送信</span>
+                    <span x-show="!sending"><?= htmlspecialchars(__('feedback.submit', 'Send')) ?></span>
                     <span x-show="sending" class="flex items-center gap-1">
                         <svg class="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                        送信中
+                        <?= htmlspecialchars(__('feedback.sending', 'Sending')) ?>
                     </span>
                 </button>
             </div>
@@ -124,16 +124,16 @@ function feedbackWidget() {
 
                 if (json.ok) {
                     this.sent = true;
-                    if (window.Toast) Toast.show('フィードバックを送信しました！', 'success');
+                    if (window.Toast) Toast.show(<?= json_encode(__('feedback.toast_sent', 'Feedback sent'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>, 'success');
                     setTimeout(() => {
                         this.open = false;
                         this.reset();
                     }, 2000);
                 } else {
-                    if (window.Toast) Toast.show(json.message || 'エラーが発生しました', 'error');
+                    if (window.Toast) Toast.show(json.message || <?= json_encode(__('feedback.toast_error', 'Something went wrong'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>, 'error');
                 }
             } catch (e) {
-                if (window.Toast) Toast.show('通信エラーが発生しました', 'error');
+                if (window.Toast) Toast.show(<?= json_encode(__('feedback.toast_network_error', 'A network error occurred'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>, 'error');
             } finally {
                 this.sending = false;
             }

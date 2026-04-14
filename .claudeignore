@@ -1,0 +1,16 @@
+.git/
+vendor/
+node_modules/
+dist/
+build/
+coverage/
+output/
+_archive/
+_deploy_tmp/
+_tmp/
+_tmp_*/
+upload_package/
+.phpunit.cache/
+*.log
+ikimon_cookie*.txt
+ikimon_post*.html

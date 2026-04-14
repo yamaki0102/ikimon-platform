@@ -15,6 +15,8 @@ if (!defined('LIBS_DIR')) define('LIBS_DIR', ROOT_DIR . '/libs');
 if (!defined('PUBLIC_DIR')) define('PUBLIC_DIR', ROOT_DIR . '/public_html');
 if (!defined('NOINDEX_SITE')) define('NOINDEX_SITE', true);
 if (!defined('BASE_URL')) define('BASE_URL', 'http://localhost');
+if (!defined('CANONICAL_DUAL_WRITE_ENABLED')) define('CANONICAL_DUAL_WRITE_ENABLED', true);
+if (!defined('CANONICAL_READ_PILOT_ENABLED')) define('CANONICAL_READ_PILOT_ENABLED', true);
 define('UPLOADS_DIR', __DIR__ . '/fixtures/uploads');
 
 // Create fixtures directory if needed

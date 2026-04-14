@@ -27,6 +27,12 @@ echo "Synced:  {$result['synced']}\n";
 echo "Skipped: {$result['skipped']} (already in Canonical)\n";
 echo "Errors:  {$result['errors']}\n";
 echo "Time:    {$elapsed}s\n";
+if (!empty($result['skip_reasons'])) {
+    echo "Skip reasons:\n";
+    foreach ($result['skip_reasons'] as $reason => $count) {
+        echo "  - {$reason}: {$count}\n";
+    }
+}
 
 // Canonical Store の状態を表示
 require_once __DIR__ . '/../../libs/CanonicalStore.php';

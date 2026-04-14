@@ -1,7 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
+import { appendLangToHref, detectLangFromUrl } from "../i18n.js";
 import { getSessionFromCookie } from "../services/authSession.js";
+import { getLandingSnapshot } from "../services/landingSnapshot.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
+import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
 import {
   getExploreSnapshot,
   getHomeSnapshot,
@@ -9,6 +12,12 @@ import {
   getProfileSnapshot,
   getSpecialistSnapshot,
 } from "../services/readModels.js";
+import {
+  MAP_MINI_STYLES,
+  mapMiniBootScript,
+  renderMapMini,
+  toMapPoints,
+} from "../ui/mapMini.js";
 
 function layout(basePath: string, title: string, body: string, activeNav: string): string {
   return renderSiteDocument({
@@ -607,5 +616,208 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </script>`,
       "Specialist",
     );
+  });
+
+  /* -------------------------------------------------------------- */
+  /* Field Note main entry (/notes) — user's own notebook           */
+  /* -------------------------------------------------------------- */
+  app.get("/notes", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const queryUserId = typeof request.query === "object" && request.query && "userId" in request.query
+      ? String((request.query as Record<string, unknown>).userId || "")
+      : "";
+    const session = queryUserId ? null : await getSessionFromCookie(request.headers.cookie);
+    const viewerUserId = queryUserId || session?.userId || null;
+    const snapshot = await getLandingSnapshot(viewerUserId);
+
+    const isLoggedIn = Boolean(viewerUserId);
+    const ownCards = snapshot.myFeed
+      .map((obs) => renderObservationCard(basePath, lang, obs))
+      .join("");
+    const nearbyCards = snapshot.feed
+      .slice(0, 9)
+      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true }))
+      .join("");
+
+    const emptyCopy = lang === "ja"
+      ? "まだノートは真っ白です。1 件記録すると、あなたの観察がここに積み上がります。"
+      : "The notebook is blank. Record one observation to stack pages here.";
+    const nearbyCopy = lang === "ja" ? "近くで書かれているノート" : "Nearby pages";
+    const myCopy = lang === "ja" ? "あなたのノート" : "Your pages";
+
+    reply.type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      title: lang === "ja" ? "フィールドノート | ikimon" : "Field Note | ikimon",
+      activeNav: lang === "ja" ? "ホーム" : "Home",
+      lang,
+      extraStyles: `${OBSERVATION_CARD_STYLES}
+        .notes-page { margin-top: 24px; }
+        .notes-head { display: flex; gap: 16px; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; }
+        .notes-head h2 { margin: 0; }
+        .notes-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+        .notes-grid.is-compact { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+        @media (max-width: 860px) { .notes-grid, .notes-grid.is-compact { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+        @media (max-width: 480px) { .notes-grid, .notes-grid.is-compact { grid-template-columns: 1fr; } }
+      `,
+      hero: {
+        eyebrow: lang === "ja" ? "あなたの 1 冊" : "Your notebook",
+        heading: lang === "ja" ? "📖 フィールドノート" : "📖 Field Note",
+        headingHtml: lang === "ja" ? "📖 フィールドノート" : "📖 Field Note",
+        lead: lang === "ja"
+          ? "あなたの観察が積み上がるノート。あとから読み返すほど、同じ道が違って見えてきます。"
+          : "Your notebook where observations stack up. The more you re-read it, the more the same path changes.",
+        tone: "light",
+        align: "center",
+        actions: [
+          { href: "/record", label: lang === "ja" ? "続きを書く" : "Keep writing" },
+          { href: "/map", label: lang === "ja" ? "マップで見る" : "See on the map", variant: "secondary" as const },
+        ],
+      },
+      body: `<section class="section notes-page">
+        <div class="notes-head"><div><h2>${escapeHtml(myCopy)}</h2></div></div>
+        ${isLoggedIn
+          ? (ownCards
+              ? `<div class="notes-grid">${ownCards}</div>`
+              : `<div class="card"><div class="card-body"><p class="meta">${escapeHtml(emptyCopy)}</p></div></div>`)
+          : `<div class="card"><div class="card-body"><p class="meta">${escapeHtml(lang === "ja" ? "ログインすると、あなたのノートがここに表示されます。" : "Sign in to see your own notebook here.")}</p></div></div>`}
+      </section>
+      <section class="section notes-page">
+        <div class="notes-head"><div><h2>${escapeHtml(nearbyCopy)}</h2></div></div>
+        ${nearbyCards
+          ? `<div class="notes-grid is-compact">${nearbyCards}</div>`
+          : `<div class="card"><div class="card-body"><p class="meta">${escapeHtml(emptyCopy)}</p></div></div>`}
+      </section>`,
+      footerNote: lang === "ja" ? "フィールドノート — 歩いて、見つけて、1 冊に残す。" : "Field Note — walk, find, write it in one notebook.",
+    });
+  });
+
+  /* -------------------------------------------------------------- */
+  /* AI Lens entry (/lens) — marketing + CTA into /record           */
+  /* -------------------------------------------------------------- */
+  app.get("/lens", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const recordHref = appendLangToHref(withBasePath(basePath, "/record"), lang);
+    const notesHref = appendLangToHref(withBasePath(basePath, "/notes"), lang);
+
+    reply.type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      title: lang === "ja" ? "AIレンズ | ikimon" : "AI Lens | ikimon",
+      activeNav: lang === "ja" ? "ホーム" : "Home",
+      lang,
+      hero: {
+        eyebrow: lang === "ja" ? "補助機能" : "Supporting tool",
+        heading: lang === "ja" ? "🔍 AIレンズ" : "🔍 AI Lens",
+        headingHtml: lang === "ja" ? "🔍 AIレンズ" : "🔍 AI Lens",
+        lead: lang === "ja"
+          ? "撮った瞬間、AI が候補を返す。名前を知らなくても、フィールドノートの最初の一行を書き始められる補助機能です。"
+          : "AI returns candidate species the moment you shoot. A supporting tool that lets you start the first line of your field note without knowing the name.",
+        tone: "light",
+        align: "center",
+        actions: [
+          { href: "/record", label: lang === "ja" ? "撮影して試す" : "Try it now" },
+          { href: "/notes", label: lang === "ja" ? "フィールドノートへ戻る" : "Back to Field Note", variant: "secondary" as const },
+        ],
+      },
+      body: `<section class="section">
+        <div class="grid">
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "使い方" : "How to use")}</div><h2>${escapeHtml(lang === "ja" ? "撮って、候補から選ぶ" : "Shoot, then pick a candidate")}</h2><p>${escapeHtml(lang === "ja" ? "記録画面で写真をアップすると、AI が可能な種の候補を返します。自信のない観察でも、ノートの最初の一行を書き始められます。" : "Upload a photo on the record screen. AI returns possible candidates so you can start a note even when you are unsure.")}</p></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "ノートとの関係" : "Relation to the notebook")}</div><h2>${escapeHtml(lang === "ja" ? "主役はノート、レンズは入口" : "Notebook is the star, lens is the door")}</h2><p>${escapeHtml(lang === "ja" ? "AIレンズの候補はあくまで下書き補助です。最終的にノートに残す内容は、あなた自身が選びます。" : "AI candidates are just a draft helper. The content that actually lands in your notebook is your own choice.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(notesHref)}">${escapeHtml(lang === "ja" ? "フィールドノートへ" : "Go to Field Note")}</a></div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "実際に撮って試す" : "Actually try it")}</h2><p>${escapeHtml(lang === "ja" ? "最初の 1 枚が一番ハードルが高い。身近な生きものや風景で構いません。" : "The first shot is the hardest. Any nearby creature or scene is fine.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(recordHref)}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
+        </div>
+      </section>`,
+      footerNote: lang === "ja" ? "AIレンズはフィールドノートを育てる補助機能です。" : "AI Lens is a supporting tool that feeds the Field Note.",
+    });
+  });
+
+  /* -------------------------------------------------------------- */
+  /* Field Scan entry (/scan) — marketing + CTA into map/explore    */
+  /* -------------------------------------------------------------- */
+  app.get("/scan", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const mapHref = appendLangToHref(withBasePath(basePath, "/map"), lang);
+    const exploreHref = appendLangToHref(withBasePath(basePath, "/explore"), lang);
+
+    reply.type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      title: lang === "ja" ? "フィールドスキャン | ikimon" : "Field Scan | ikimon",
+      activeNav: lang === "ja" ? "ホーム" : "Home",
+      lang,
+      hero: {
+        eyebrow: lang === "ja" ? "補助機能" : "Supporting tool",
+        heading: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
+        headingHtml: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
+        lead: lang === "ja"
+          ? "歩きながら近辺の種の気配を拾う補助機能。次にフィールドノートへ書き足す場所を、マップがおすすめ調査エリアとして教えてくれます。"
+          : "A supporting tool that picks up the signal of species nearby while you walk. The map suggests the next place to add to your notebook.",
+        tone: "light",
+        align: "center",
+        actions: [
+          { href: "/map", label: lang === "ja" ? "マップで見る" : "See on the map" },
+          { href: "/explore", label: lang === "ja" ? "自治体・種で見る" : "By place / species", variant: "secondary" as const },
+        ],
+      },
+      body: `<section class="section">
+        <div class="grid">
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "何をするか" : "What it does")}</div><h2>${escapeHtml(lang === "ja" ? "近辺の多様性の気配を返す" : "Returns the signal of nearby diversity")}</h2><p>${escapeHtml(lang === "ja" ? "場所・季節・最近の観察密度から、次に歩くと発見がありそうなエリアを地図上に示します。" : "From place, season, and recent observation density, the map highlights areas likely to yield a find if you walk there next.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(mapHref)}">${escapeHtml(lang === "ja" ? "マップで見る" : "See on the map")}</a></div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "ノートとの関係" : "Relation to the notebook")}</div><h2>${escapeHtml(lang === "ja" ? "次のページのネタ元" : "Fuel for the next page")}</h2><p>${escapeHtml(lang === "ja" ? "スキャンは主役ではなく、ノートに新しいページを書き足す理由を与える補助機能です。" : "Scan is not the star — it gives you a reason to add a new page to your notebook.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(exploreHref)}">${escapeHtml(lang === "ja" ? "自治体と種の広がりを見る" : "Browse places and species")}</a></div></div></div>
+        </div>
+      </section>`,
+      footerNote: lang === "ja" ? "フィールドスキャンはフィールドノートを育てる補助機能です。" : "Field Scan is a supporting tool that feeds the Field Note.",
+    });
+  });
+
+  /* -------------------------------------------------------------- */
+  /* Map (/map) — minimal MapLibre view of observation points       */
+  /* -------------------------------------------------------------- */
+  app.get("/map", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const snapshot = await getLandingSnapshot(null);
+    const points = toMapPoints(snapshot.feed);
+    const notesHref = appendLangToHref(withBasePath(basePath, "/notes"), lang);
+
+    reply.type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      title: lang === "ja" ? "探索マップ | ikimon" : "Explore Map | ikimon",
+      activeNav: lang === "ja" ? "ホーム" : "Home",
+      lang,
+      extraStyles: `${MAP_MINI_STYLES}
+        .map-page { margin-top: 24px; }
+        .map-page .map-mini { --map-mini-height: 64vh; }
+      `,
+      hero: {
+        eyebrow: lang === "ja" ? "探索マップ" : "Explore Map",
+        heading: lang === "ja" ? "🗺️ 観察を地図で見る" : "🗺️ Observations on the map",
+        headingHtml: lang === "ja" ? "🗺️ 観察を地図で見る" : "🗺️ Observations on the map",
+        lead: lang === "ja"
+          ? "あなたと周りの観察がどの場所に積み上がっているかを地図で確認できます。"
+          : "See where you and others have stacked observations on the map.",
+        tone: "light",
+        align: "center",
+        actions: [
+          { href: "/notes", label: lang === "ja" ? "フィールドノートへ戻る" : "Back to Field Note", variant: "secondary" as const },
+          { href: "/record", label: lang === "ja" ? "ここに書き足す" : "Add a page here" },
+        ],
+      },
+      body: `<section class="section map-page">
+        ${renderMapMini({
+          id: "ikimon-map-full",
+          points,
+          mapHref: notesHref,
+          mapCtaLabel: lang === "ja" ? "ノートへ戻る" : "Back to notebook",
+          emptyLabel: lang === "ja" ? "まだ地図に載せる観察がありません" : "No observations on the map yet",
+          height: 520,
+        })}
+      </section>
+      ${mapMiniBootScript("ikimon-map-full")}`,
+      footerNote: lang === "ja" ? "観察の広がりを、あとで見返せる地図として残す。" : "Keep the spread of observations as a map you can revisit.",
+    });
   });
 }

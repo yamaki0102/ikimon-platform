@@ -4,6 +4,17 @@
  * FB-38: NPS Survey Component
  * Shows after user's 5th observation post
  */
+
+$nps = [
+    'title' => __('nps.title', 'How is ikimon working for you?'),
+    'body' => __('nps.body', 'How likely are you to recommend ikimon to a friend or colleague?'),
+    'low' => __('nps.low', 'Would not recommend'),
+    'high' => __('nps.high', 'Strongly recommend'),
+    'placeholder' => __('nps.placeholder', 'If you have any suggestions or pain points, tell us here.'),
+    'submit' => __('nps.submit', 'Send'),
+    'thanks_title' => __('nps.thanks_title', 'Thank you'),
+    'thanks_body' => __('nps.thanks_body', 'Your feedback helps improve the product.'),
+];
 ?>
 
 <!-- NPS Survey Modal -->
@@ -34,10 +45,8 @@
                 <i data-lucide="heart" class="w-8 h-8 text-[var(--color-primary)]"></i>
             </div>
 
-            <h3 class="text-xl font-bold mb-2">ikimonはいかがですか？</h3>
-            <p class="text-sm text-gray-400 mb-6">
-                友人や同僚にikimonを勧める可能性はどのくらいですか？
-            </p>
+            <h3 class="text-xl font-bold mb-2"><?= htmlspecialchars($nps['title']) ?></h3>
+            <p class="text-sm text-gray-400 mb-6"><?= htmlspecialchars($nps['body']) ?></p>
 
             <!-- NPS Score Buttons -->
             <div class="flex justify-center gap-1 mb-4">
@@ -50,14 +59,14 @@
             </div>
 
             <div class="flex justify-between text-xs text-gray-500 mb-6">
-                <span>勧めない</span>
-                <span>強く勧める</span>
+                <span><?= htmlspecialchars($nps['low']) ?></span>
+                <span><?= htmlspecialchars($nps['high']) ?></span>
             </div>
 
             <!-- Feedback textarea -->
             <div x-show="score !== null" x-transition class="mb-6">
                 <textarea x-model="feedback"
-                    placeholder="改善点やご意見があればお聞かせください（任意）"
+                    placeholder="<?= htmlspecialchars($nps['placeholder']) ?>"
                     class="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 resize-none h-24 text-sm focus:outline-none focus:border-[var(--color-primary)]"></textarea>
             </div>
 
@@ -65,7 +74,7 @@
                 :disabled="score === null"
                 :class="score === null ? 'opacity-50 cursor-not-allowed' : ''"
                 class="btn-primary w-full">
-                送信する
+                <?= htmlspecialchars($nps['submit']) ?>
             </button>
         </div>
 
@@ -74,10 +83,8 @@
             <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
                 <i data-lucide="check" class="w-8 h-8 text-green-400"></i>
             </div>
-            <h3 class="text-xl font-bold mb-2">ありがとうございます！</h3>
-            <p class="text-sm text-gray-400">
-                ご意見はプロダクトの改善に活かさせていただきます。
-            </p>
+            <h3 class="text-xl font-bold mb-2"><?= htmlspecialchars($nps['thanks_title']) ?></h3>
+            <p class="text-sm text-gray-400"><?= htmlspecialchars($nps['thanks_body']) ?></p>
         </div>
 
     </div>

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "strategy": "github_actions_only",
+  "productionHost": "162.43.44.131",
+  "productionRoot": "/var/www/ikimon.life",
+  "repositoryRootOnServer": "/var/www/ikimon.life/repo",
+  "persistentPaths": [
+    "upload_package/data/**",
+    "upload_package/config/secret.php",
+    "upload_package/config/oauth_config.php",
+    "upload_package/config/config.php"
+  ],
+  "forbiddenPaths": [
+    "upload_package/data/**",
+    "**/*.sqlite",
+    "**/*.sqlite3",
+    "**/*.sqlite3-shm",
+    "**/*.sqlite3-wal",
+    "**/*.db",
+    "**/credentials.json",
+    "**/.env",
+    "**/debug_*.php",
+    "**/test_*.php",
+    "tmp_*",
+    "**/*.bak"
+  ],
+  "deployableRoots": [
+    "upload_package/public_html/**",
+    "upload_package/libs/**",
+    "upload_package/lang/**",
+    "upload_package/scripts/**",
+    "upload_package/tools/**",
+    "upload_package/.htaccess",
+    "upload_package/public_html/.htaccess",
+    "composer.json",
+    "composer.lock"
+  ],
+  "healthChecks": [
+    "https://ikimon.life/index.php",
+    "https://ikimon.life/explore.php",
+    "https://ikimon.life/post.php",
+    "https://ikimon.life/api/get_events.php"
+  ],
+  "requiredChecks": [
+    "php tools/lint.php",
+    "composer test",
+    "powershell -ExecutionPolicy Bypass -File .\\scripts\\check_deploy_guardrails.ps1"
+  ],
+  "notes": [
+    "Production deploy is triggered only by merge to main and GitHub Actions.",
+    "Persistent paths must never be overwritten by repo sync or manual copy.",
+    "Legacy deploy.json + deploy_wsl.php route is disabled for this repository."
+  ]
+}

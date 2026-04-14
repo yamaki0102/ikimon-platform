@@ -16,6 +16,7 @@
 require_once __DIR__ . '/DataStore.php';
 require_once __DIR__ . '/CanonicalStore.php';
 require_once __DIR__ . '/AuditLog.php';
+require_once __DIR__ . '/CanonicalObservationGuard.php';
 
 class CanonicalSync
 {
@@ -30,14 +31,17 @@ class CanonicalSync
         $synced = 0;
         $skipped = 0;
         $errors = 0;
+        $skipReasons = [];
 
         foreach ($observations as $obs) {
             try {
                 $result = self::syncOne($obs);
-                if ($result) {
+                if (($result['synced'] ?? false) === true) {
                     $synced++;
                 } else {
                     $skipped++;
+                    $reason = (string)($result['skip_reason'] ?? 'unknown');
+                    $skipReasons[$reason] = ($skipReasons[$reason] ?? 0) + 1;
                 }
             } catch (\Exception $e) {
                 $errors++;
@@ -45,22 +49,35 @@ class CanonicalSync
             }
         }
 
-        return compact('synced', 'skipped', 'errors');
+        return [
+            'synced' => $synced,
+            'skipped' => $skipped,
+            'errors' => $errors,
+            'skip_reasons' => $skipReasons,
+        ];
     }
 
     /**
      * 1件の観察を同期（冪等: 既存なら skip）
      *
-     * @return bool true=同期した, false=スキップ（既存）
+     * @return array { synced: bool, skip_reason?: string }
      */
-    public static function syncOne(array $obs): bool
+    public static function syncOne(array $obs): array
     {
         $obsId = $obs['id'] ?? '';
-        if (empty($obsId)) return false;
+        if (empty($obsId)) {
+            return ['synced' => false, 'skip_reason' => 'missing_observation_id'];
+        }
+        $guardDecision = CanonicalObservationGuard::shouldSkip($obs);
+        if ($guardDecision !== null) {
+            return ['synced' => false, 'skip_reason' => (string)$guardDecision['reason']];
+        }
 
         // 既存チェック（original_observation_id で検索）
         $existing = self::findByOriginalId($obsId);
-        if ($existing) return false;
+        if ($existing) {
+            return ['synced' => false, 'skip_reason' => 'already_synced'];
+        }
 
         // Event 作成
         $eventId = CanonicalStore::createEvent([
@@ -131,7 +148,7 @@ class CanonicalSync
             ['original_id' => $obsId, 'tier' => $tier]
         );
 
-        return true;
+        return ['synced' => true];
     }
 
     /**

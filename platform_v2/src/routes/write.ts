@@ -10,6 +10,7 @@ import { uploadObservationPhoto, type ObservationPhotoUploadInput } from "../ser
 import { upsertObservation, type ObservationUpsertInput } from "../services/observationWrite.js";
 import { recordSpecialistReview, type SpecialistDecision, type SpecialistLane } from "../services/specialistReview.js";
 import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
+import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { upsertUser, type UserUpsertInput } from "../services/userWrite.js";
 
 export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
@@ -93,7 +94,22 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
 
   app.post<{ Body: ObservationUpsertInput }>("/api/v1/observations/upsert", async (request, reply) => {
     try {
-      return await upsertObservation(request.body);
+      const result = await upsertObservation(request.body);
+      void recordUiKpiEvent({
+        eventName: "task_completion",
+        eventSource: "api",
+        routeKey: "/api/v1/observations/upsert",
+        actionKey: "record_observation",
+        userId: request.body.userId,
+        metadata: {
+          visitId: result.visitId,
+          occurrenceId: result.occurrenceId,
+          placeId: result.placeId,
+          compatibilityAttempted: result.compatibility?.attempted ?? false,
+          compatibilitySucceeded: result.compatibility?.succeeded ?? false,
+        },
+      }).catch(() => undefined);
+      return result;
     } catch (error) {
       reply.code(400);
       return {

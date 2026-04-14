@@ -15,7 +15,7 @@
  */
 
 $icon   = $empty_icon   ?? 'inbox';
-$title  = $empty_title  ?? 'まだデータがありません';
+$title  = $empty_title  ?? __('ui.empty_state_default_title', 'No data yet');
 $body   = $empty_body   ?? '';
 $action = $empty_action ?? '';
 $href   = $empty_href   ?? '';

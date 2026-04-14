@@ -530,13 +530,28 @@ class Auth
         $rank = $user['rank'] ?? null;
         if ($rank) return $rank;
         $role = $user['role'] ?? 'Observer';
+        $lang = 'ja';
+        if (class_exists('Lang') && method_exists('Lang', 'current')) {
+            $lang = Lang::current();
+        } elseif (!empty($_SESSION['lang'])) {
+            $lang = (string) $_SESSION['lang'];
+        }
         $labelMap = [
-            'Observer' => '観察者',
-            'Specialist' => '熟練者',
-            'Analyst' => '認定研究者',
-            'Admin' => '管理者'
+            'ja' => [
+                'Observer' => '観察者',
+                'Specialist' => '熟練者',
+                'Analyst' => '認定研究者',
+                'Admin' => '管理者',
+            ],
+            'default' => [
+                'Observer' => 'Observer',
+                'Specialist' => 'Specialist',
+                'Analyst' => 'Certified analyst',
+                'Admin' => 'Admin',
+            ],
         ];
-        return $labelMap[$role] ?? '観察者';
+        $map = ($lang === 'ja') ? $labelMap['ja'] : $labelMap['default'];
+        return $map[$role] ?? ($lang === 'ja' ? '観察者' : 'Observer');
     }
 
     /**

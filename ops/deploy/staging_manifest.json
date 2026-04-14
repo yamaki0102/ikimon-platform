@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "strategy": "staging_first_public_lightweight",
+  "stagingRoot": "/var/www/ikimon.life-staging",
+  "stagingListenHost": "0.0.0.0",
+  "stagingListenPort": 8081,
+  "stagingBaseUrl": "https://staging.ikimon.life/",
+  "sourceProductionRoot": "/var/www/ikimon.life",
+  "persistentPaths": [
+    "upload_package/data/**",
+    "upload_package/config/secret.php",
+    "upload_package/config/oauth_config.php",
+    "upload_package/config/config.php"
+  ],
+  "healthChecks": [
+    "http://127.0.0.1:8081/index.php",
+    "http://127.0.0.1:8081/explore.php",
+    "http://127.0.0.1:8081/post.php",
+    "http://127.0.0.1:8081/api/get_events.php"
+  ],
+  "notes": [
+    "Preferred staging URL is https://staging.ikimon.life/ behind HTTPS + basic auth + noindex.",
+    "sslip.io is only a fallback review endpoint and should not be treated as the formal staging hostname.",
+    "Initial staging data is copied from production before any redesign work is deployed.",
+    "Uploads are stored outside the staging repo and symlinked into public_html/uploads.",
+    "Developer machines do not need hosts overrides because sslip.io resolves the VPS IP automatically.",
+    "Analytics and service worker are disabled on staging so review traffic does not pollute production telemetry."
+  ]
+}

@@ -548,3 +548,43 @@ export async function getSpecialistSnapshot(
     })),
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Landing (top) — field-note-first snapshot                          */
+/* ------------------------------------------------------------------ */
+
+export type LandingObservation = RecentObservation & {
+  latitude: number | null;
+  longitude: number | null;
+  observerUserId: string | null;
+  observerAvatarUrl: string | null;
+  /** "observation" = 自分 or 誰かの観察記録。"identification" = 自分が他人の観察に付けた個人同定。 */
+  entryType?: "observation" | "identification";
+  /** entryType="identification" のときに自分が提案した種名。 */
+  proposedName?: string | null;
+  /** entryType="identification" のときの同定時刻。 */
+  identifiedAt?: string | null;
+};
+
+export type AmbientObserver = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  latestObservedAt: string;
+  latestDisplayName: string;
+};
+
+export type LandingStats = {
+  observationCount: number;
+  speciesCount: number;
+  placeCount: number;
+};
+
+export type LandingSnapshot = {
+  viewerUserId: string | null;
+  stats: LandingStats;
+  feed: LandingObservation[];
+  myFeed: LandingObservation[];
+  myPlaces: HomePlace[];
+  ambient: AmbientObserver[];
+};

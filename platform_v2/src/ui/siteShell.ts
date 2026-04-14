@@ -1,4 +1,5 @@
 import { withBasePath } from "../httpBasePath.js";
+import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
 
 export type SiteAction = {
   href: string;
@@ -9,10 +10,12 @@ export type SiteAction = {
 export type SiteHero = {
   eyebrow: string;
   heading: string;
+  headingHtml?: string;
   lead: string;
   actions?: SiteAction[];
   mediaHtml?: string;
   supplementHtml?: string;
+  afterActionsHtml?: string;
   tone?: "dark" | "light";
   align?: "left" | "center";
 };
@@ -22,8 +25,193 @@ export type SiteShellOptions = {
   title: string;
   body: string;
   hero?: SiteHero;
+  /** HTML slot rendered inside <main> between the hero and body (e.g. quick nav chips). */
+  belowHeroHtml?: string;
+  /** CSS appended after the base shell styles (scoped via class names). */
+  extraStyles?: string;
   activeNav?: string;
   footerNote?: string;
+  lang?: SiteLang;
+  currentPath?: string;
+};
+
+type ShellCopy = {
+  brandTagline: string;
+  nav: {
+    home: string;
+    explore: string;
+    learn: string;
+    business: string;
+  };
+  record: string;
+  footer: {
+    tagline: string;
+    start: string;
+    startLinks: {
+      discover: string;
+      record: string;
+      places: string;
+    };
+    learn: string;
+    learnLinks: {
+      guides: string;
+      about: string;
+      faq: string;
+      updates: string;
+    };
+    trust: string;
+    trustLinks: {
+      business: string;
+      contact: string;
+      terms: string;
+      privacy: string;
+    };
+    copyright: string;
+    revisit: string;
+  };
+};
+
+const shellCopy: Record<SiteLang, ShellCopy> = {
+  ja: {
+    brandTagline: "Enjoy Nature",
+    nav: {
+      home: "ホーム",
+      explore: "みつける",
+      learn: "読む",
+      business: "法人向け",
+    },
+    record: "記録する",
+    footer: {
+      tagline: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
+      start: "はじめる",
+      startLinks: {
+        discover: "みつける",
+        record: "記録する",
+        places: "自分の場所",
+      },
+      learn: "読む",
+      learnLinks: {
+        guides: "ガイド一覧",
+        about: "ikimon について",
+        faq: "よくある質問",
+        updates: "アップデート",
+      },
+      trust: "安心と案内",
+      trustLinks: {
+        business: "法人向け",
+        contact: "お問い合わせ",
+        terms: "利用規約",
+        privacy: "プライバシー",
+      },
+      copyright: "© 2024-2026 ikimon Project.",
+      revisit: "近くの自然の記録を、あとで見返せる形に残す。",
+    },
+  },
+  en: {
+    brandTagline: "Keep nearby finds so you can revisit them, place by place.",
+    nav: {
+      home: "Home",
+      explore: "Explore",
+      learn: "Learn",
+      business: "For Business",
+    },
+    record: "Record",
+    footer: {
+      tagline: "Save what you find nearby and revisit it later.",
+      start: "Start",
+      startLinks: {
+        discover: "Explore",
+        record: "Record",
+        places: "My Places",
+      },
+      learn: "Learn",
+      learnLinks: {
+        guides: "Guides",
+        about: "About",
+        faq: "FAQ",
+        updates: "Updates",
+      },
+      trust: "Trust",
+      trustLinks: {
+        business: "For Business",
+        contact: "Contact",
+        terms: "Terms",
+        privacy: "Privacy",
+      },
+      copyright: "© 2024-2026 ikimon Project.",
+      revisit: "Keep nearby nature records in a form you can revisit later.",
+    },
+  },
+  es: {
+    brandTagline: "Guarda lo que encuentras cerca para volver a verlo por lugar.",
+    nav: {
+      home: "Inicio",
+      explore: "Explorar",
+      learn: "Aprender",
+      business: "Para organizaciones",
+    },
+    record: "Registrar",
+    footer: {
+      tagline: "Guarda lo que encuentras cerca y revísalo más tarde.",
+      start: "Empezar",
+      startLinks: {
+        discover: "Explorar",
+        record: "Registrar",
+        places: "Mis lugares",
+      },
+      learn: "Aprender",
+      learnLinks: {
+        guides: "Guías",
+        about: "Acerca de",
+        faq: "Preguntas frecuentes",
+        updates: "Actualizaciones",
+      },
+      trust: "Confianza",
+      trustLinks: {
+        business: "Para organizaciones",
+        contact: "Contacto",
+        terms: "Términos",
+        privacy: "Privacidad",
+      },
+      copyright: "© 2024-2026 ikimon Project.",
+      revisit: "Guarda registros de naturaleza cercana para revisarlos después.",
+    },
+  },
+  "pt-BR": {
+    brandTagline: "Guarde o que encontra por perto para revisar depois, lugar por lugar.",
+    nav: {
+      home: "Início",
+      explore: "Explorar",
+      learn: "Aprender",
+      business: "Para organizações",
+    },
+    record: "Registrar",
+    footer: {
+      tagline: "Salve o que encontrar por perto e reveja mais tarde.",
+      start: "Começar",
+      startLinks: {
+        discover: "Explorar",
+        record: "Registrar",
+        places: "Meus lugares",
+      },
+      learn: "Aprender",
+      learnLinks: {
+        guides: "Guias",
+        about: "Sobre",
+        faq: "Perguntas frequentes",
+        updates: "Atualizações",
+      },
+      trust: "Confiança",
+      trustLinks: {
+        business: "Para organizações",
+        contact: "Contato",
+        terms: "Termos",
+        privacy: "Privacidade",
+      },
+      copyright: "© 2024-2026 ikimon Project.",
+      revisit: "Guarde registros da natureza próxima de um jeito que possa rever depois.",
+    },
+  },
 };
 
 export function escapeHtml(value: string | null | undefined): string {
@@ -35,32 +223,39 @@ export function escapeHtml(value: string | null | undefined): string {
     .replaceAll("'", "&#39;");
 }
 
-function nav(basePath: string, activeNav?: string): string {
+function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: string): string {
+  const copy = shellCopy[lang];
+  const brandMarkSrc = "/assets/img/icon-192.png";
   const links = [
-    { href: withBasePath(basePath, "/"), label: "Home" },
-    { href: withBasePath(basePath, "/explore"), label: "Explore" },
-    { href: withBasePath(basePath, "/record"), label: "Record" },
-    { href: withBasePath(basePath, "/learn"), label: "Learn" },
-    { href: withBasePath(basePath, "/for-business"), label: "For Business" },
+    { href: withBasePath(basePath, "/"), label: copy.nav.home },
+    { href: withBasePath(basePath, "/explore"), label: copy.nav.explore },
+    { href: withBasePath(basePath, "/learn"), label: copy.nav.learn },
+    { href: withBasePath(basePath, "/for-business"), label: copy.nav.business },
   ];
 
   return `<header class="site-header">
     <div class="site-header-inner">
-      <a class="brand" href="${escapeHtml(withBasePath(basePath, "/"))}">
-        <span class="brand-mark">i</span>
+      <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}">
+        <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="ikimon icon" /></span>
         <span>
-          <strong>ikimon.life</strong>
-          <small>observe, learn, revisit</small>
+          <strong>ikimon</strong>
+          <small>${escapeHtml(copy.brandTagline)}</small>
         </span>
       </a>
       <nav class="site-nav">${links
         .map((link) => {
           const activeClass = activeNav === link.label ? " is-active" : "";
-          return `<a class="site-nav-link${activeClass}" href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`;
+          return `<a class="site-nav-link${activeClass}" href="${escapeHtml(appendLangToHref(link.href, lang))}">${escapeHtml(link.label)}</a>`;
         })
         .join("")}</nav>
       <div class="site-header-actions">
-        <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">Record</a>
+        <div class="lang-switch" aria-label="Language switcher">${supportedLanguages
+          .map((language) => {
+            const activeClass = language.code === lang ? " is-active" : "";
+            return `<a class="lang-switch-link${activeClass}" href="${escapeHtml(appendLangToHref(currentPath, language.code))}" hreflang="${escapeHtml(language.code)}" lang="${escapeHtml(language.code)}">${escapeHtml(language.shortLabel)}</a>`;
+          })
+          .join("")}</div>
+        <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.record)}</a>
       </div>
     </div>
   </header>`;
@@ -78,128 +273,250 @@ function hero(basePath: string, content?: SiteHero): string {
 
   return `<section class="hero-panel${content.mediaHtml ? " has-media" : ""}${content.tone === "light" ? " is-light" : ""}${content.align === "center" ? " is-center" : ""}">
     <div class="hero-copy">
-      <div class="eyebrow">${escapeHtml(content.eyebrow)}</div>
-      <h1>${escapeHtml(content.heading)}</h1>
+      <div class="hero-badge"><span class="hero-badge-dot"></span>${escapeHtml(content.eyebrow)}</div>
+      <h1>${content.headingHtml ?? escapeHtml(content.heading)}</h1>
       <p>${escapeHtml(content.lead)}</p>
       ${content.supplementHtml ? `<div class="hero-supplement">${content.supplementHtml}</div>` : ""}
       ${actions ? `<div class="actions">${actions}</div>` : ""}
+      ${content.afterActionsHtml ? `<div class="hero-after-actions">${content.afterActionsHtml}</div>` : ""}
     </div>
     ${content.mediaHtml ? `<div class="hero-media">${content.mediaHtml}</div>` : ""}
   </section>`;
 }
 
-function footer(basePath: string, footerNote?: string): string {
-  const note = footerNote ?? "ikimon.life — observe, learn, revisit.";
+function footer(basePath: string, lang: SiteLang, footerNote?: string): string {
+  const copy = shellCopy[lang];
+  const note = footerNote ?? copy.footer.tagline;
   return `<footer class="site-footer">
-    <div class="site-footer-grid">
-      <div class="site-footer-block">
-        <div class="eyebrow">ikimon</div>
-        <h2>Save what you found nearby and revisit it, place by place.</h2>
-        <p class="meta">${escapeHtml(note)}</p>
+    <div class="site-footer-inner">
+      <div class="site-footer-top">
+        <section class="site-footer-brand">
+          <div class="brand brand-footer">
+            <span class="brand-mark"><img src="/assets/img/icon-192.png" alt="ikimon icon" /></span>
+            <span>
+              <strong>ikimon</strong>
+              <small>${escapeHtml(copy.footer.tagline)}</small>
+            </span>
+          </div>
+          <p class="meta">${escapeHtml(note)}</p>
+        </section>
+        <section class="site-footer-links-group">
+          <div class="eyebrow">${escapeHtml(copy.footer.start)}</div>
+          <div class="footer-links">
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/explore"), lang))}">${escapeHtml(copy.footer.startLinks.discover)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.footer.startLinks.record)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/home"), lang))}">${escapeHtml(copy.footer.startLinks.places)}</a>
+          </div>
+        </section>
+        <section class="site-footer-links-group">
+          <div class="eyebrow">${escapeHtml(copy.footer.learn)}</div>
+          <div class="footer-links">
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">${escapeHtml(copy.footer.learnLinks.guides)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/about"), lang))}">${escapeHtml(copy.footer.learnLinks.about)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/faq"), lang))}">${escapeHtml(copy.footer.learnLinks.faq)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/updates"), lang))}">${escapeHtml(copy.footer.learnLinks.updates)}</a>
+          </div>
+        </section>
+        <section class="site-footer-links-group">
+          <div class="eyebrow">${escapeHtml(copy.footer.trust)}</div>
+          <div class="footer-links">
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/for-business"), lang))}">${escapeHtml(copy.footer.trustLinks.business)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/contact"), lang))}">${escapeHtml(copy.footer.trustLinks.contact)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/terms"), lang))}">${escapeHtml(copy.footer.trustLinks.terms)}</a>
+            <a href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/privacy"), lang))}">${escapeHtml(copy.footer.trustLinks.privacy)}</a>
+          </div>
+        </section>
       </div>
-      <div class="site-footer-block">
-        <div class="eyebrow">Start</div>
-        <div class="footer-links">
-          <a href="${escapeHtml(withBasePath(basePath, "/"))}">Home</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/explore"))}">Explore</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/record"))}">Record</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/home"))}">My trail</a>
-        </div>
-      </div>
-      <div class="site-footer-block">
-        <div class="eyebrow">Learn</div>
-        <div class="footer-links">
-          <a href="${escapeHtml(withBasePath(basePath, "/learn"))}">Learn hub</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/about"))}">About</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/faq"))}">FAQ</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/for-business/demo"))}">Demo</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/contact"))}">Contact</a>
-        </div>
-      </div>
-      <div class="site-footer-block">
-        <div class="eyebrow">For Business</div>
-        <div class="footer-links">
-          <a href="${escapeHtml(withBasePath(basePath, "/for-business"))}">Overview</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/for-business/pricing"))}">Pricing</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/for-business/apply"))}">Apply</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench"))}">Specialist lane</a>
-        </div>
-      </div>
-      <div class="site-footer-block">
-        <div class="eyebrow">Trust</div>
-        <div class="footer-links">
-          <a href="${escapeHtml(withBasePath(basePath, "/privacy"))}">Privacy</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/terms"))}">Terms</a>
-          <a href="${escapeHtml(withBasePath(basePath, "/contact"))}">Contact</a>
-        </div>
+      <div class="site-footer-bottom">
+        <p>${escapeHtml(copy.footer.copyright)}</p>
+        <p>${escapeHtml(copy.footer.revisit)}</p>
       </div>
     </div>
   </footer>`;
 }
 
 export function renderSiteDocument(options: SiteShellOptions): string {
+  const lang = options.lang ?? "ja";
+  const currentPath = options.currentPath ?? withBasePath(options.basePath, "/");
+  const uiKpiEndpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
+  const skipLabel =
+    lang === "ja"
+      ? "本文へスキップ"
+      : lang === "es"
+        ? "Saltar al contenido"
+        : lang === "pt-BR"
+          ? "Pular para o conteúdo"
+          : "Skip to content";
+  const uiKpiScript = `<script>
+(function () {
+  const endpoint = ${JSON.stringify(uiKpiEndpoint)};
+  const pagePath = location.pathname + location.search;
+  let sent = false;
+  try {
+    const key = 'ikimon:v2:first_action:' + pagePath;
+    if (sessionStorage.getItem(key) === '1') {
+      sent = true;
+    }
+    const send = (actionKey, routeKey) => {
+      if (sent) return;
+      sent = true;
+      try { sessionStorage.setItem(key, '1'); } catch (_) {}
+      const payload = {
+        eventName: 'first_action',
+        pagePath,
+        actionKey,
+        routeKey,
+        metadata: {
+          lang: document.documentElement.lang || 'ja',
+          ts: new Date().toISOString(),
+        },
+      };
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+        credentials: 'same-origin',
+      }).catch(() => undefined);
+    };
+
+    document.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target.closest('a,button') : null;
+      if (!target) return;
+      const tag = target.tagName.toLowerCase();
+      const text = (target.textContent || '').trim().slice(0, 80);
+      const href = tag === 'a' ? target.getAttribute('href') || '' : '';
+      const routeKey = href && href.startsWith('/') ? href : '';
+      const actionKey = target.getAttribute('data-kpi-action') || (text ? text : tag);
+      send(actionKey, routeKey);
+    }, { capture: true, passive: true });
+  } catch (_) {}
+})();
+</script>`;
   return `<!doctype html>
-<html lang="ja">
+<html lang="${escapeHtml(lang)}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#10b981" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/img/icon-192.png" />
   <title>${escapeHtml(options.title)}</title>
   <style>
     :root {
       color-scheme: light;
-      --bg: #f3f8f5;
+      --bg: #f9fffe;
       --surface: rgba(255,255,255,.92);
       --surface-strong: #ffffff;
-      --border: rgba(16,185,129,.12);
+      --border: rgba(0,0,0,.06);
       --ink: #1a2e1f;
-      --muted: #4a635a;
-      --hero-a: #163821;
-      --hero-b: #8dbf77;
-      --hero-c: #dbe7d3;
-      --accent: #059669;
-      --accent-hover: #065f46;
+      --muted: #64748b;
+      --hero-a: #059669;
+      --hero-b: #10b981;
+      --hero-c: #0ea5e9;
+      --accent: #10b981;
+      --accent-hover: #059669;
       --accent-soft: #ecfdf5;
-      --shadow: 0 18px 44px rgba(10, 42, 24, .07);
-      --shadow-strong: 0 26px 64px rgba(10, 42, 24, .14);
+      --shadow: 0 18px 44px rgba(15, 23, 42, .07);
+      --shadow-strong: 0 26px 64px rgba(15, 23, 42, .12);
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      font-family: "Inter", "Noto Sans JP", "Hiragino Sans", sans-serif;
       color: var(--ink);
       background:
         radial-gradient(circle at top left, rgba(16,185,129,.07), transparent 36%),
-        radial-gradient(circle at top right, rgba(16,185,129,.04), transparent 30%),
+        radial-gradient(circle at top right, rgba(14,165,233,.05), transparent 30%),
         linear-gradient(180deg, #f9fffe 0%, var(--bg) 100%);
     }
     a { color: inherit; text-decoration: none; }
     .site-shell { min-height: 100vh; }
     .shell { max-width: 1140px; margin: 0 auto; padding: 28px 24px 24px; }
-    .site-header { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(18px); background: rgba(249,255,254,.82); border-bottom: 1px solid rgba(16,185,129,.08); }
-    .site-header-inner { max-width: 1180px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap; }
+    .md-hidden { display: none; }
+    .site-header { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(16px); background: rgba(249,255,254,.9); border-bottom: 1px solid rgba(0,0,0,.04); }
+    .site-header-inner { max-width: 1180px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap; }
     .brand { display: inline-flex; align-items: center; gap: 12px; min-width: 220px; }
-    .brand-mark { width: 38px; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--hero-a), var(--hero-b)); color: white; font-weight: 900; box-shadow: var(--shadow); }
-    .brand strong { display: block; font-size: 15px; }
+    .brand-mark { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 10px 24px rgba(15,23,42,.08); background: white; }
+    .brand-mark img { width: 100%; height: 100%; display: block; }
+    .brand strong { display: block; font-size: 15px; font-weight: 900; }
     .brand small { display: block; margin-top: 2px; color: var(--muted); }
-    .site-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .site-nav-link { padding: 9px 14px; border-radius: 999px; background: rgba(255,255,255,.64); border: 1px solid rgba(16,185,129,.1); font-weight: 700; font-size: 14px; color: var(--ink); }
-    .site-nav-link.is-active { background: var(--accent); color: white; border-color: transparent; box-shadow: 0 4px 12px rgba(5,150,105,.22); }
-    .site-header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .site-nav { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+    .site-nav-link { padding: 6px 0; border-radius: 0; background: transparent; border: 0; font-weight: 700; font-size: 14px; color: #475569; }
+    .site-nav-link.is-active { color: #0f172a; }
+    .site-header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .lang-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.88);
+      border: 1px solid rgba(148,163,184,.24);
+      box-shadow: 0 8px 20px rgba(15,23,42,.05);
+    }
+    .lang-switch-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
+      height: 34px;
+      padding: 0 10px;
+      border-radius: 999px;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .04em;
+    }
+    .lang-switch-link.is-active {
+      background: linear-gradient(135deg, rgba(16,185,129,.14), rgba(14,165,233,.14));
+      color: #0f172a;
+    }
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 999px; font-weight: 800; border: 1px solid transparent; }
-    .btn-solid { background: linear-gradient(135deg, #059669, #0d9488); color: white; box-shadow: 0 8px 20px rgba(5,150,105,.22); }
-    .btn-solid-on-light { background: linear-gradient(135deg, var(--hero-a), #1b5f34); color: white; box-shadow: 0 12px 26px rgba(18,61,37,.18); }
+    .btn-solid { background: linear-gradient(135deg, #10b981, #0ea5e9); color: white; box-shadow: 0 10px 24px rgba(14,165,233,.18); }
+    .btn-solid-on-light { background: linear-gradient(135deg, #10b981, #0ea5e9); color: white; box-shadow: 0 12px 26px rgba(14,165,233,.18); }
     .btn-ghost { background: rgba(255,255,255,.86); border-color: var(--border); color: var(--ink); }
     .btn-ghost-on-dark { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.32); color: white; backdrop-filter: blur(4px); }
     .btn.secondary { background: rgba(255,255,255,.88); border-color: var(--border); color: var(--ink); }
+    .skip-link {
+      position: absolute;
+      left: 12px;
+      top: -48px;
+      z-index: 100;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #ffffff;
+      font-weight: 700;
+      transition: top .15s ease;
+    }
+    .skip-link:focus-visible { top: 10px; }
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible,
+    select:focus-visible,
+    .btn:focus-visible,
+    .site-nav-link:focus-visible,
+    .lang-switch-link:focus-visible {
+      outline: 3px solid #0284c7;
+      outline-offset: 2px;
+      border-radius: 10px;
+    }
+    .site-nav-link:focus-visible,
+    .lang-switch-link:focus-visible {
+      border-radius: 999px;
+    }
     .hero-panel {
       position: relative;
-      margin-top: 22px;
+      margin-top: 8px;
       padding: 56px 48px;
       border-radius: 32px;
       background:
-        radial-gradient(ellipse at 20% 80%, rgba(255,255,255,.06), transparent 50%),
-        radial-gradient(ellipse at 80% 20%, rgba(255,255,255,.08), transparent 40%),
-        linear-gradient(135deg, #064e3b 0%, #065f46 25%, #047857 50%, #059669 75%, #0d9488 100%);
+        radial-gradient(ellipse at 18% 82%, rgba(255,255,255,.1), transparent 50%),
+        radial-gradient(ellipse at 84% 16%, rgba(255,255,255,.14), transparent 42%),
+        linear-gradient(135deg, #059669 0%, #10b981 42%, #34d399 64%, #0ea5e9 100%);
       color: white;
       box-shadow: var(--shadow-strong);
       overflow: hidden;
@@ -219,7 +536,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       width: 360px;
       height: 360px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(13,148,136,.3), transparent 64%);
+      background: radial-gradient(circle, rgba(14,165,233,.24), transparent 64%);
       pointer-events: none;
     }
     .hero-panel.has-media {
@@ -228,18 +545,52 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       gap: 28px;
       align-items: stretch;
     }
-    .hero-copy { position: relative; z-index: 1; }
-    .hero-panel h1 {
-      margin: 10px 0 0;
-      font-family: "Zen Kaku Gothic New", "BIZ UDPGothic", "Noto Sans JP", sans-serif;
-      font-size: clamp(26px, 3.6vw, 40px);
-      line-height: 1.22;
-      letter-spacing: -.02em;
-      font-weight: 900;
-      max-width: 640px;
+    .hero-copy { position: relative; z-index: 1; max-width: 760px; }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.16);
+      color: rgba(255,255,255,.88);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: none;
+      box-shadow: 0 10px 24px rgba(15,23,42,.08);
     }
-    .hero-panel p { margin: 16px 0 0; max-width: 760px; color: rgba(255,255,255,.9); line-height: 1.8; font-size: 17px; }
-    .hero-supplement { margin-top: 18px; }
+    .hero-badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #34d399;
+      box-shadow: 0 0 0 4px rgba(52,211,153,.16);
+      flex-shrink: 0;
+    }
+    .hero-panel h1 {
+      margin: 18px 0 0;
+      font-family: "Zen Kaku Gothic New", "Inter", "Noto Sans JP", sans-serif;
+      font-size: clamp(30px, 4.4vw, 54px);
+      line-height: 1.34;
+      letter-spacing: -.03em;
+      font-weight: 900;
+      max-width: 13ch;
+      text-wrap: balance;
+    }
+    .hero-emphasis { color: #bbf7d0; }
+    .hero-panel p {
+      margin: 22px 0 0;
+      max-width: 34ch;
+      color: rgba(255,255,255,.9);
+      line-height: 1.95;
+      font-size: 18px;
+      letter-spacing: -.01em;
+      text-wrap: pretty;
+    }
+    .hero-supplement { margin-top: 22px; }
+    .hero-panel .actions { margin-top: 30px; gap: 12px; }
     .hero-metric-strip {
       display: inline-flex;
       align-items: center;
@@ -258,22 +609,63 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .hero-panel.is-center .hero-copy { text-align: center; margin-inline: auto; }
     .hero-panel.is-center .hero-copy h1,
     .hero-panel.is-center .hero-copy p { margin-inline: auto; }
+    .hero-panel.is-center .hero-badge { margin-inline: auto; }
     .hero-panel.is-center .actions { justify-content: center; }
     .hero-panel.is-light {
       background:
-        radial-gradient(circle at top left, rgba(141,191,119,.14), transparent 38%),
-        radial-gradient(circle at top right, rgba(37,99,235,.05), transparent 28%),
+        radial-gradient(circle at top left, rgba(16,185,129,.12), transparent 38%),
+        radial-gradient(circle at top right, rgba(14,165,233,.08), transparent 28%),
         linear-gradient(180deg, #f8fbff 0%, #ffffff 62%, #f8fbf8 100%);
       color: #0f172a;
-      box-shadow: 0 18px 40px rgba(15, 23, 42, .06);
-      border: 1px solid rgba(15, 23, 42, .08);
+      box-shadow: none;
+      border: 0;
+      border-radius: 0 0 36px 36px;
+      padding: 68px 24px 52px;
     }
     .hero-panel.is-light::after { display: none; }
+    .hero-panel.is-light::before { display: none; }
     .hero-panel.is-light p { color: #475569; }
     .hero-panel.is-light .eyebrow { color: #475569; opacity: 1; }
-    .hero-panel.is-light .btn-solid-on-light { background: #0f172a; color: white; box-shadow: 0 12px 24px rgba(15,23,42,.12); }
+    .hero-panel.is-light .hero-badge {
+      background: rgba(255,255,255,.92);
+      border-color: rgba(15,23,42,.08);
+      color: #475569;
+    }
+    .hero-panel.is-light .btn-solid-on-light { background: linear-gradient(135deg, #10b981, #0ea5e9); color: white; box-shadow: 0 12px 24px rgba(14,165,233,.16); }
     .hero-panel.is-light .btn-ghost-on-dark { background: rgba(255,255,255,.92); border-color: rgba(148,163,184,.45); color: #334155; }
-    .hero-chip-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    .hero-panel.is-light.has-media { display: block; }
+    .hero-panel.is-light .hero-media {
+      max-width: 540px;
+      margin: 22px auto 0;
+    }
+    .hero-panel.is-light .hero-metric-strip {
+      background: rgba(255,255,255,.92);
+      border-color: rgba(15,23,42,.08);
+      color: #475569;
+      box-shadow: 0 10px 24px rgba(15,23,42,.06);
+    }
+    .hero-panel.is-light .hero-metric strong { color: #0f172a; }
+    .hero-panel.is-light .hero-metric-dot { background: rgba(100,116,139,.38); }
+    .hero-panel.is-light .hero-chip {
+      background: rgba(255,255,255,.92);
+      border-color: rgba(15,23,42,.08);
+      color: #334155;
+      box-shadow: 0 8px 18px rgba(15,23,42,.04);
+    }
+    .hero-after-actions {
+      margin-top: 16px;
+      display: flex;
+      justify-content: center;
+    }
+    .hero-panel.is-center .hero-after-actions { justify-content: center; }
+    .hero-panel.is-light .field-note-mini {
+      background: linear-gradient(180deg, rgba(14,165,233,.08), rgba(16,185,129,.08));
+      border-color: rgba(14,165,233,.12);
+      color: #0f172a;
+      box-shadow: 0 14px 28px rgba(15,23,42,.08);
+    }
+    .hero-panel.is-light .field-note-mini-label { color: #0ea5e9; }
+    .hero-chip-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
     .hero-chip {
       display: inline-flex;
       align-items: center;
@@ -292,9 +684,140 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       position: relative;
       z-index: 1;
       display: grid;
-      grid-template-columns: 1.05fr .95fr;
+      grid-template-columns: 1fr;
       gap: 12px;
       min-height: 100%;
+    }
+    .field-note-preview { display: grid; gap: 10px; align-content: start; }
+    .field-note-card {
+      position: relative;
+      padding: 22px 22px 20px 26px;
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(255,255,255,.97), rgba(248,250,252,.94));
+      border: 1px solid rgba(255,255,255,.34);
+      box-shadow: 0 24px 54px rgba(15,23,42,.16);
+      color: #0f172a;
+      overflow: hidden;
+    }
+    .field-note-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(
+          180deg,
+          transparent 0,
+          transparent 30px,
+          rgba(14,165,233,.08) 31px,
+          transparent 32px
+        );
+      pointer-events: none;
+    }
+    .field-note-card::after {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 18px;
+      width: 2px;
+      background: linear-gradient(180deg, rgba(239,68,68,.28), rgba(239,68,68,.18));
+      pointer-events: none;
+    }
+    .field-note-topline,
+    .field-note-card h3,
+    .field-note-card p,
+    .field-note-meta,
+    .field-note-tags { position: relative; z-index: 1; }
+    .field-note-topline {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      font-size: 12px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      font-weight: 800;
+    }
+    .field-note-kicker { color: #059669; }
+    .field-note-date { color: #0ea5e9; }
+    .field-note-card h3 {
+      margin: 16px 0 10px;
+      font-family: "Zen Kaku Gothic New", "Inter", "Noto Sans JP", sans-serif;
+      font-size: 24px;
+      line-height: 1.35;
+      letter-spacing: -.02em;
+    }
+    .field-note-card p {
+      margin: 0;
+      color: #334155;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    .field-note-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      margin-top: 16px;
+      color: #475569;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .field-note-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .field-note-tags span {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(16,185,129,.08);
+      border: 1px solid rgba(16,185,129,.12);
+      color: #047857;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .field-note-mini {
+      padding: 14px 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.94);
+      border: 1px solid rgba(15,23,42,.08);
+      color: #0f172a;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 12px 28px rgba(15,23,42,.08);
+    }
+    .field-note-mini-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.72);
+    }
+    .field-note-mini strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 15px;
+      line-height: 1.45;
+      letter-spacing: -.01em;
+    }
+    .field-note-mini span {
+      display: block;
+      margin-top: 8px;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .hero-panel .btn-solid {
+      background: #0f172a;
+      color: white;
+      box-shadow: 0 12px 28px rgba(15,23,42,.18);
+    }
+    .hero-panel .btn-solid:hover { background: #1e293b; }
+    .hero-panel .btn-ghost-on-dark {
+      background: rgba(255,255,255,.92);
+      color: #334155;
+      border-color: rgba(255,255,255,.42);
     }
     .hero-photo {
       position: relative;
@@ -342,25 +865,29 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .hero { padding: 26px; border-radius: 28px; background: linear-gradient(135deg, var(--hero-a), var(--hero-b)); color: white; box-shadow: 0 20px 46px rgba(18,61,37,.16); }
     .hero .muted, .hero .meta, .hero p { color: rgba(255,255,255,.88); }
     .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); opacity: .9; }
-    .section { margin-top: 32px; }
+    .section { margin-top: 24px; }
     .section-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; }
     .section-header h2 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
     .section-header p { margin: 8px 0 0; color: var(--muted); }
-    .grid, .actions { display: flex; flex-wrap: wrap; gap: 16px; }
-    .grid { margin-top: 16px; }
+    .grid, .actions { display: flex; flex-wrap: wrap; gap: 14px; }
+    .grid { margin-top: 12px; }
     .card {
       flex: 1 1 260px;
       min-width: 240px;
-      padding: 24px;
-      border-radius: 20px;
+      padding: 22px;
+      border-radius: 28px;
       background: var(--surface);
       border: 1px solid var(--border);
-      box-shadow: var(--shadow);
+      box-shadow: 0 12px 28px rgba(15,23,42,.05);
       overflow: hidden;
       transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
     }
-    .card:hover { transform: translateY(-3px); box-shadow: 0 22px 44px rgba(10,42,24,.10); border-color: rgba(16,185,129,.22); }
-    .card.has-accent { border-left: 3px solid var(--accent); }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 18px 34px rgba(15,23,42,.08); border-color: rgba(14,165,233,.14); }
+    .card.has-accent { border-left: 3px solid #10b981; }
+    .card.is-soft {
+      background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,250,252,.92));
+      box-shadow: 0 10px 24px rgba(15,23,42,.05);
+    }
     .card-body { padding: 18px; }
     .card-step {
       display: inline-flex;
@@ -369,15 +896,15 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       width: 32px;
       height: 32px;
       border-radius: 10px;
-      background: var(--accent-soft);
-      color: var(--accent);
+      background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(14,165,233,.12));
+      color: #059669;
       font-size: 14px;
       font-weight: 800;
       margin-bottom: 6px;
     }
     .card h2, .title {
       margin: 8px 0 0;
-      font-family: "Zen Kaku Gothic New", "BIZ UDPGothic", "Noto Sans JP", sans-serif;
+      font-family: "Zen Kaku Gothic New", "Inter", "Noto Sans JP", sans-serif;
       font-size: 19px;
       line-height: 1.32;
       font-weight: 800;
@@ -385,6 +912,40 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     }
     .card p, .meta, .muted { color: var(--muted); line-height: 1.7; }
     .meta { font-size: 13px; margin-top: 6px; }
+    .inline-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #047857;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .inline-link::after {
+      content: "→";
+      font-size: 14px;
+    }
+    .mentor-inline {
+      padding: 22px 24px;
+      background: linear-gradient(180deg, rgba(16,185,129,.05), rgba(14,165,233,.04));
+      border-color: rgba(16,185,129,.12);
+      box-shadow: 0 10px 24px rgba(15,23,42,.05);
+    }
+    .mentor-inline h2 {
+      margin: 10px 0 8px;
+      font-family: "Zen Kaku Gothic New", "Inter", "Noto Sans JP", sans-serif;
+      font-size: 24px;
+      line-height: 1.3;
+      letter-spacing: -.02em;
+      color: #0f172a;
+      max-width: 760px;
+    }
+    .mentor-inline p {
+      margin: 0;
+      max-width: 760px;
+      color: #475569;
+      line-height: 1.8;
+      font-size: 15px;
+    }
     .list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
     .row {
       display: flex;
@@ -467,37 +1028,67 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       font: inherit;
     }
     code { font-family: ui-monospace, monospace; font-size: 13px; }
-    .site-footer { margin-top: 48px; border-top: 1px solid rgba(16,185,129,.08); background: rgba(255,255,255,.52); }
-    .site-footer-grid { max-width: 1240px; margin: 0 auto; padding: 28px 24px 40px; display: grid; gap: 18px; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; }
-    .site-footer-block { padding: 18px; border-radius: 20px; background: rgba(255,255,255,.68); border: 1px solid rgba(16,185,129,.08); }
-    .site-footer-block h2 { margin: 10px 0 0; font-size: 24px; line-height: 1.2; }
+    .site-footer { margin-top: 48px; border-top: 1px solid rgba(0,0,0,.04); background: #f8fafc; }
+    .site-footer-inner { max-width: 1120px; margin: 0 auto; padding: 40px 24px 28px; }
+    .site-footer-top {
+      display: grid;
+      gap: 28px;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr;
+      padding-bottom: 28px;
+      border-bottom: 1px solid rgba(148,163,184,.22);
+    }
+    .site-footer-brand { max-width: 340px; }
+    .brand-footer { min-width: 0; }
+    .site-footer-links-group { min-width: 0; }
     .footer-links { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
     .footer-links a { color: var(--muted); font-weight: 700; }
+    .site-footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 18px;
+      color: #64748b;
+      font-size: 12px;
+    }
     @media (max-width: 900px) {
-      .site-footer-grid { grid-template-columns: 1fr 1fr; }
+      .site-footer-top { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 720px) {
+      .md-hidden { display: inline; }
       .shell { padding: 20px 18px 18px; }
       .site-header-inner { padding: 12px 18px; }
-      .hero-panel { padding: 30px 24px; border-radius: 26px; }
+      .hero-panel { padding: 48px 24px 36px; border-radius: 26px; }
+      .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); line-height: 1.28; max-width: 11ch; }
+      .hero-panel p { font-size: 16px; line-height: 1.85; max-width: 28ch; margin-top: 18px; }
       .hero-panel.has-media { grid-template-columns: 1fr; }
-      .hero-media { grid-template-columns: 1fr 1fr; }
+      .hero-media { grid-template-columns: 1fr; }
+      .hero-panel.is-light .hero-media { margin-top: 20px; }
       .hero-photo.tall { grid-row: auto; min-height: 220px; }
       .photo-grid { grid-template-columns: 1fr; }
-      .site-footer-grid { grid-template-columns: 1fr; padding: 22px 18px 34px; }
+      .site-footer-inner { padding: 28px 18px 24px; }
+      .site-footer-top { grid-template-columns: 1fr; }
+      .site-footer-bottom { flex-direction: column; }
       .row { flex-direction: column; }
+      .field-note-card { padding: 18px 18px 18px 20px; }
+      .field-note-card h3 { font-size: 20px; }
+      .mentor-inline { padding: 20px 20px; }
+      .mentor-inline h2 { font-size: 21px; }
     }
+    ${options.extraStyles ?? ""}
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
   <div class="site-shell">
-    ${nav(options.basePath, options.activeNav)}
-    <main class="shell">
+    ${nav(options.basePath, lang, currentPath, options.activeNav)}
+    <main id="main-content" class="shell" tabindex="-1">
       ${hero(options.basePath, options.hero)}
+      ${options.belowHeroHtml ?? ""}
       ${options.body}
     </main>
-    ${footer(options.basePath, options.footerNote)}
+    ${footer(options.basePath, lang, options.footerNote)}
   </div>
+  ${uiKpiScript}
 </body>
 </html>`;
 }

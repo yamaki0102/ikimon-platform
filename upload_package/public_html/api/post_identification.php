@@ -35,6 +35,7 @@ require_once __DIR__ . '/../../libs/CSRF.php';
 require_once __DIR__ . '/../../libs/StreakTracker.php';
 require_once __DIR__ . '/../../libs/Taxonomy.php';
 require_once __DIR__ . '/../../libs/ObservationRecalcQueue.php';
+require_once __DIR__ . '/../../libs/CanonicalObservationUpdater.php';
 
 Auth::init();
 CSRF::validateRequest();
@@ -144,6 +145,33 @@ $obs['updated_at'] = date('Y-m-d H:i:s');
 
 if (DataStore::upsert('observations', $obs)) {
     ObservationRecalcQueue::enqueue($obs['id'], 'identification_saved');
+    $canonicalMeta = [
+        'attempted' => true,
+        'written' => false,
+        'skipped' => false,
+    ];
+    try {
+        $canonicalResult = CanonicalObservationUpdater::appendIdentification($obs, $id_entry, $currentUser);
+        $canonicalMeta['written'] = empty($canonicalResult['skipped']);
+        $canonicalMeta['skipped'] = !empty($canonicalResult['skipped']);
+        if (!empty($canonicalResult['skip_reason'])) {
+            $canonicalMeta['skip_reason'] = $canonicalResult['skip_reason'];
+        }
+        if (!empty($canonicalResult['occurrence_id'])) {
+            $canonicalMeta['occurrence_id'] = $canonicalResult['occurrence_id'];
+        }
+        if (!empty($canonicalResult['event_id'])) {
+            $canonicalMeta['event_id'] = $canonicalResult['event_id'];
+        }
+        if (isset($canonicalResult['consensus'])) {
+            $canonicalMeta['consensus'] = $canonicalResult['consensus'];
+        }
+    } catch (Throwable $e) {
+        $canonicalMeta['written'] = false;
+        $canonicalMeta['error'] = 'canonical_identification_failed';
+        error_log('[post_identification] canonical sync failed: ' . $e->getMessage());
+    }
+
     // Send Notification if not owner
     if (($obs['user_id'] ?? '') !== $currentUser['id']) {
         Notification::sendAmbient(
@@ -175,6 +203,7 @@ if (DataStore::upsert('observations', $obs)) {
         'success'        => true,
         'identification' => $id_entry,
         'new_status'     => $obs['status'],
+        'canonical'      => $canonicalMeta,
     ];
     if (!empty($gamificationEvents)) {
         $responsePayload['gamification_events'] = $gamificationEvents;

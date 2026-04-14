@@ -6,12 +6,23 @@ require_once __DIR__ . '/../libs/Auth.php';
 require_once __DIR__ . '/../libs/BadgeManager.php';
 require_once __DIR__ . '/../libs/StreakTracker.php';
 require_once __DIR__ . '/../libs/SurveyorManager.php';
+require_once __DIR__ . '/../libs/PlaceRevisitLoop.php';
+require_once __DIR__ . '/../libs/Lang.php';
 
 require_once __DIR__ . '/../libs/Services/EventLogService.php';
 require_once __DIR__ . '/../libs/Services/SurveyLogService.php';
 
 Auth::init();
+Lang::init();
 $user = Auth::user();
+$documentLang = 'ja';
+if (method_exists('Lang', 'current')) {
+    $documentLang = Lang::current();
+} elseif (!empty($_SESSION['lang'])) {
+    $documentLang = (string) $_SESSION['lang'];
+} elseif (!empty($_GET['lang'])) {
+    $documentLang = (string) $_GET['lang'];
+}
 
 // Redirect if not logged in
 if (!$user) {
@@ -29,6 +40,9 @@ $all_obs = DataStore::fetchAll('observations');
 $user_obs = array_filter($all_obs, function ($o) use ($user) {
     return isset($o['user_id']) && (string)$o['user_id'] === (string)$user['id'];
 });
+$placeBuckets = PlaceRevisitLoop::buildBuckets($user_obs);
+$recentRevisitPlaces = PlaceRevisitLoop::recent($placeBuckets, 3);
+$staleRevisitPlaces = PlaceRevisitLoop::stale($placeBuckets, 3, 21);
 
 // Calculate Life List (Unique Species)
 $life_list = [];
@@ -40,10 +54,12 @@ foreach ($user_obs as $o) {
 $surveyorApproved = SurveyorManager::isApproved($user);
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= htmlspecialchars($documentLang) ?>">
 <?php
-$meta_title = $user['name'] . "のプロフィール";
-$meta_description = $user['name'] . "さんのikimonでの活動記録とライフリストです。";
+$meta_title = __('profile_page.meta_title_prefix', 'My places') . " — " . $user['name'];
+$meta_description = __('profile_page.meta_description', 'A page where you can review {name}’s records and the flow of each place.', [
+    'name' => $user['name'],
+]);
 ?>
 
 <head>
@@ -73,6 +89,7 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
         $orsProgress = $orsData['progress'] ?? 0;
         $orsAxes = $orsData['axes'] ?? ['recorder' => 0, 'identifier' => 0, 'fieldwork' => 0, 'bonus' => 0];
         $orsNextThreshold = $orsData['next_threshold'] ?? null;
+        $orsRankLabel = ObserverRank::getRankLabel((int) $orsLevel, $documentLang);
         ?>
 
         <!-- Profile Header -->
@@ -109,12 +126,12 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                     style="position:absolute;top:100%;left:0;margin-top:1rem;width:12rem;background:var(--md-surface-container-high);border-radius:var(--shape-md);box-shadow:var(--elev-3);overflow:hidden;z-index:30;">
                     <a href="profile_edit.php" class="block w-full text-left px-4 py-3 text-text hover:bg-surface transition flex items-center gap-3">
                         <i data-lucide="edit-3" class="w-4 h-4"></i>
-                        プロフィール編集
+                        <?= __('profile_page.edit_profile', 'Edit profile') ?>
                     </a>
                     <div class="h-px bg-border mx-2"></div>
                     <a href="logout.php" class="block w-full text-left px-4 py-3 text-danger hover:bg-danger/10 transition flex items-center gap-3 font-bold">
                         <i data-lucide="log-out" class="w-4 h-4"></i>
-                        ログアウト
+                        <?= __('nav.logout', 'Logout') ?>
                     </a>
                 </div>
             </div>
@@ -124,15 +141,16 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <!-- Name & Rank -->
                     <div>
+                        <p class="mb-2 text-xs font-black uppercase tracking-[0.16em] text-primary"><?= __('profile_page.hero_eyebrow', 'My places') ?></p>
                         <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-2 flex flex-col md:flex-row items-center md:items-end gap-3 justify-center md:justify-start text-text">
                             <?php echo $user['name']; ?>
                             <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5" style="background: <?php echo $orsRank['color']; ?>15; border: 1px solid <?php echo $orsRank['color']; ?>40; color: <?php echo $orsRank['color']; ?>;">
                                 <span class="text-sm"><?php echo $orsRank['icon']; ?></span>
-                                <?php echo $orsRank['name_ja']; ?> Lv.<?php echo $orsLevel; ?>
+                                <?php echo htmlspecialchars($orsRankLabel); ?> Lv.<?php echo $orsLevel; ?>
                             </span>
                         </h1>
                         <p class="text-muted max-w-xl mx-auto md:mx-0 leading-relaxed">
-                            <?php echo nl2br(htmlspecialchars($user['bio'] ?? 'まだ自己紹介がありません。')); ?>
+                            <?php echo nl2br(htmlspecialchars($user['bio'] ?? __('profile_page.bio_fallback', 'You can revisit the records you saved nearby, place by place.'))); ?>
                         </p>
                     </div>
 
@@ -143,18 +161,18 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                 <div class="flex flex-wrap justify-center md:justify-start gap-8 mt-8">
                     <div class="text-center">
                         <p class="text-4xl md:text-5xl font-heading font-black text-primary tracking-tight"><?php echo $user['post_count'] ?? 0; ?></p>
-                        <p class="font-bold text-muted uppercase tracking-widest mt-1" style="font-size: var(--text-xs);">記録</p>
+                        <p class="font-bold text-muted uppercase tracking-widest mt-1" style="font-size: var(--text-xs);"><?= __('profile_page.stat_records', 'Records') ?></p>
                     </div>
                     <div class="text-center">
                         <p class="text-4xl md:text-5xl font-heading font-black text-text tracking-tight"><?php echo $user['species_count'] ?? 0; ?></p>
-                        <p class="font-bold text-muted uppercase tracking-widest mt-1" style="font-size: var(--text-xs);">種数</p>
+                        <p class="font-bold text-muted uppercase tracking-widest mt-1" style="font-size: var(--text-xs);"><?= __('profile_page.stat_species', 'Species found') ?></p>
                     </div>
                     <div class="text-center">
                         <p class="text-4xl md:text-5xl font-heading font-black text-secondary tracking-tight"><?php echo $user['score']; ?></p>
-                        <p class="font-bold text-muted uppercase tracking-widest mt-1" style="font-size: var(--text-xs);">スコア</p>
+                        <p class="font-bold text-muted uppercase tracking-widest mt-1" style="font-size: var(--text-xs);"><?= __('profile_page.stat_score', 'Score') ?></p>
                         <?php if (($profileStreak['current_streak'] ?? 0) > 0): ?>
                             <span class="inline-flex items-center gap-1 text-sm text-orange-500 font-bold mt-2">
-                                🔥 <?= $profileStreak['current_streak'] ?>日連続
+                                🔥 <?= __('profile_page.streak_days', '{days} days in a row', ['days' => $profileStreak['current_streak']]) ?>
                             </span>
                         <?php endif; ?>
                     </div>
@@ -163,9 +181,9 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
 
                 <?php if ($surveyorApproved): ?>
                     <div class="mt-6 inline-flex flex-wrap items-center gap-3 px-4 py-3" style="border-radius:var(--shape-xl);background:var(--md-surface-container);box-shadow:var(--elev-1);">
-                        <span class="text-sm font-black text-sky-800">認定調査員として公開中</span>
-                        <a href="surveyor_profile.php?id=<?= urlencode($user['id']) ?>" class="text-xs font-bold text-sky-700 underline">公開ページを見る</a>
-                        <a href="surveyor_profile_edit.php" class="text-xs font-bold text-sky-700 underline">調査員プロフィールを編集</a>
+                        <span class="text-sm font-black text-sky-800"><?= __('profile_page.surveyor_public', 'Public as a certified surveyor') ?></span>
+                        <a href="surveyor_profile.php?id=<?= urlencode($user['id']) ?>" class="text-xs font-bold text-sky-700 underline"><?= __('profile_page.surveyor_view', 'View public page') ?></a>
+                        <a href="surveyor_profile_edit.php" class="text-xs font-bold text-sky-700 underline"><?= __('profile_page.surveyor_edit', 'Edit surveyor profile') ?></a>
                     </div>
                 <?php endif; ?>
             </div>
@@ -180,14 +198,14 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                     <div class="flex items-center gap-4">
                         <span class="text-4xl" style="filter: drop-shadow(0 2px 8px <?php echo $orsRank['color']; ?>40);"><?php echo $orsRank['icon']; ?></span>
                         <div>
-                            <h3 class="text-lg font-black text-text"><?php echo $orsRank['name_ja']; ?></h3>
-                            <p class="text-xs text-muted">観察者スコア: <span class="font-bold text-primary"><?php echo number_format($orsScore); ?></span></p>
+                            <h3 class="text-lg font-black text-text"><?= __('profile_page.summary_title', 'Record summary') ?></h3>
+                            <p class="text-xs text-muted"><?php echo htmlspecialchars($orsRankLabel); ?> · <?= __('profile_page.stat_score', 'Score') ?> <span class="font-bold text-primary"><?php echo number_format($orsScore); ?></span></p>
                         </div>
                     </div>
                     <div class="text-right">
                         <span class="text-2xl font-black" style="color: <?php echo $orsRank['color']; ?>;">Lv.<?php echo $orsLevel; ?></span>
                         <?php if ($orsNextThreshold): ?>
-                            <p class="text-muted" style="font-size: var(--text-xs);">次のランクまで: <?php echo number_format($orsNextThreshold); ?> ポイント</p>
+                            <p class="text-muted" style="font-size: var(--text-xs);"><?= __('profile_page.next_rank', 'Next rank in: {points} points', ['points' => number_format($orsNextThreshold)]) ?></p>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -201,15 +219,15 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                 <div class="grid grid-cols-3 gap-3">
                     <div class="text-center p-3" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
                         <p class="text-lg font-black text-primary"><?php echo number_format($orsAxes['recorder']); ?></p>
-                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">📝 記録者</p>
+                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">📝 <?= __('profile_page.axis_record', 'Recording') ?></p>
                     </div>
                     <div class="text-center p-3" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
                         <p class="text-lg font-black text-secondary"><?php echo number_format($orsAxes['identifier']); ?></p>
-                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🔬 同定者</p>
+                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🔬 <?= __('profile_page.axis_identify', 'Identifier') ?></p>
                     </div>
                     <div class="text-center p-3" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
                         <p class="text-lg font-black text-accent"><?php echo number_format($orsAxes['fieldwork']); ?></p>
-                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🥾 フィールドワーク</p>
+                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🥾 <?= __('profile_page.axis_fieldwork', 'Fieldwork') ?></p>
                     </div>
                 </div>
             </div>
@@ -217,7 +235,7 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
             <!-- Time Capsule -->
             <div style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:1.5rem;margin-bottom:1rem;box-shadow:var(--elev-1);" x-show="capsule && capsule.echoes.length > 0">
                 <h3 class="text-sm font-black text-text mb-2 flex items-center gap-2">
-                    ⏳ 去年のエコー
+                    ⏳ <?= __('profile_page.echo_title', 'Last year’s echo') ?>
                 </h3>
                 <p class="text-xs text-muted mb-3" x-text="capsule?.narrative"></p>
                 <div class="flex gap-2 overflow-x-auto pb-2">
@@ -234,8 +252,8 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
             <a href="#" @click.prevent="showReport = true" style="display:block;background:var(--md-primary-container);border-radius:var(--shape-xl);padding:1rem;text-decoration:none;box-shadow:var(--elev-1);" class="group transition">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-black text-text group-hover:text-primary transition">📊 私の足あとレポート</h3>
-                        <p class="text-xs text-muted">今年の活動を振り返る</p>
+                        <h3 class="text-sm font-black text-text group-hover:text-primary transition">📊 <?= __('profile_page.report_title', 'My places report') ?></h3>
+                        <p class="text-xs text-muted"><?= __('profile_page.report_body', 'Review records by place') ?></p>
                     </div>
                     <i data-lucide="chevron-right" class="w-5 h-5 text-muted group-hover:text-primary transition"></i>
                 </div>
@@ -249,13 +267,118 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                             <i data-lucide="map" class="w-5 h-5"></i>
                         </div>
                         <div>
-                            <h3 class="text-sm font-black text-gray-800 group-hover:text-green-700 transition">さんぽ記録</h3>
-                            <p class="text-xs text-gray-500">身近なフィールドの状態をチェック</p>
+                            <h3 class="text-sm font-black text-gray-800 group-hover:text-green-700 transition"><?= __('profile_page.walk_title', 'Field notes') ?></h3>
+                            <p class="text-xs text-gray-500"><?= __('profile_page.walk_body', 'Gather records from places you walked') ?></p>
                         </div>
                     </div>
                     <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400 group-hover:text-green-600 transition"></i>
                 </div>
             </a>
+
+            <?php if (!empty($recentRevisitPlaces) || !empty($staleRevisitPlaces)): ?>
+                <div style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:1.25rem;margin-top:0.75rem;box-shadow:var(--elev-1);">
+                    <div class="flex items-start justify-between gap-4 mb-4">
+                        <div>
+                            <h3 class="text-sm font-black text-text"><?= __('profile_page.revisit_title', 'Revisit loops') ?></h3>
+                            <p class="text-xs text-muted mt-1"><?= __('profile_page.revisit_body', 'See where the flow is already moving and which places are ready for one more dated trace.') ?></p>
+                        </div>
+                    </div>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <?php if (!empty($recentRevisitPlaces)): ?>
+                            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                                <p class="text-[10px] font-black uppercase tracking-widest text-emerald-700"><?= __('profile_page.revisit_recent_title', 'Recently revisited') ?></p>
+                                <div class="mt-3 space-y-3">
+                                    <?php foreach ($recentRevisitPlaces as $place): ?>
+                                        <?php
+                                        $recordAgainHref = 'post.php?' . http_build_query([
+                                            'return' => 'profile.php',
+                                            'lat' => $place['lat'] !== null ? number_format((float)$place['lat'], 6, '.', '') : null,
+                                            'lng' => $place['lng'] !== null ? number_format((float)$place['lng'], 6, '.', '') : null,
+                                            'location_name' => $place['label'],
+                                        ]);
+                                        ?>
+                                        <div class="rounded-2xl border border-emerald-200/80 bg-white px-3 py-3">
+                                            <div class="flex items-start gap-3">
+                                                <?php if (!empty($place['photo'])): ?>
+                                                    <img src="<?php echo htmlspecialchars($place['photo']); ?>" alt="<?php echo htmlspecialchars($place['label']); ?>" class="h-14 w-14 rounded-xl object-cover border border-emerald-100">
+                                                <?php else: ?>
+                                                    <div class="h-14 w-14 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">🌿</div>
+                                                <?php endif; ?>
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="text-sm font-bold text-text truncate"><?php echo htmlspecialchars($place['label']); ?></p>
+                                                    <p class="mt-1 text-[11px] text-emerald-800">
+                                                        <?= __('profile_page.revisit_recent_count', '{count} dated traces are already here', ['count' => (string)($place['count'] ?? 0)]) ?>
+                                                    </p>
+                                                    <p class="mt-1 text-[11px] text-muted">
+                                                        <?= __('profile_page.revisit_latest_date', 'Latest: {date}', ['date' => date('Y.m.d', (int)$place['latest_at'])]) ?>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div class="mt-3 flex flex-wrap gap-2">
+                                                <a href="observation_detail.php?id=<?php echo urlencode((string)$place['latest_obs_id']); ?>" class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
+                                                    <?= __('profile_page.revisit_view_latest', 'View latest trace') ?>
+                                                </a>
+                                                <?php if ($place['lat'] !== null && $place['lng'] !== null): ?>
+                                                    <a href="<?php echo htmlspecialchars($recordAgainHref); ?>" class="inline-flex items-center rounded-full bg-emerald-700 px-3 py-1.5 text-[11px] font-bold text-white">
+                                                        <?= __('profile_page.revisit_record_again', 'Record here again') ?>
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($staleRevisitPlaces)): ?>
+                            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                <p class="text-[10px] font-black uppercase tracking-widest text-amber-700"><?= __('profile_page.revisit_stale_title', 'Ready to revisit') ?></p>
+                                <div class="mt-3 space-y-3">
+                                    <?php foreach ($staleRevisitPlaces as $place): ?>
+                                        <?php
+                                        $daysSince = (int)floor((time() - (int)$place['latest_at']) / 86400);
+                                        $recordAgainHref = 'post.php?' . http_build_query([
+                                            'return' => 'profile.php',
+                                            'lat' => $place['lat'] !== null ? number_format((float)$place['lat'], 6, '.', '') : null,
+                                            'lng' => $place['lng'] !== null ? number_format((float)$place['lng'], 6, '.', '') : null,
+                                            'location_name' => $place['label'],
+                                        ]);
+                                        ?>
+                                        <div class="rounded-2xl border border-amber-200/80 bg-white px-3 py-3">
+                                            <div class="flex items-start gap-3">
+                                                <?php if (!empty($place['photo'])): ?>
+                                                    <img src="<?php echo htmlspecialchars($place['photo']); ?>" alt="<?php echo htmlspecialchars($place['label']); ?>" class="h-14 w-14 rounded-xl object-cover border border-amber-100">
+                                                <?php else: ?>
+                                                    <div class="h-14 w-14 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">🕰️</div>
+                                                <?php endif; ?>
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="text-sm font-bold text-text truncate"><?php echo htmlspecialchars($place['label']); ?></p>
+                                                    <p class="mt-1 text-[11px] text-amber-800">
+                                                        <?= __('profile_page.revisit_stale_gap', '{days} days since the last trace', ['days' => (string)$daysSince]) ?>
+                                                    </p>
+                                                    <p class="mt-1 text-[11px] text-muted">
+                                                        <?= __('profile_page.revisit_latest_date', 'Latest: {date}', ['date' => date('Y.m.d', (int)$place['latest_at'])]) ?>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div class="mt-3 flex flex-wrap gap-2">
+                                                <a href="observation_detail.php?id=<?php echo urlencode((string)$place['latest_obs_id']); ?>" class="inline-flex items-center rounded-full border border-amber-200 bg-amber-100 px-3 py-1.5 text-[11px] font-bold text-amber-800">
+                                                    <?= __('profile_page.revisit_view_latest', 'View latest trace') ?>
+                                                </a>
+                                                <?php if ($place['lat'] !== null && $place['lng'] !== null): ?>
+                                                    <a href="<?php echo htmlspecialchars($recordAgainHref); ?>" class="inline-flex items-center rounded-full bg-amber-500 px-3 py-1.5 text-[11px] font-bold text-white">
+                                                        <?= __('profile_page.revisit_record_again', 'Record here again') ?>
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <!-- Nature Wellness Card -->
             <div style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:1.5rem;margin-top:0.5rem;box-shadow:var(--elev-1);" x-show="wellness" x-cloak>
@@ -263,18 +386,18 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                     <div class="flex items-center gap-3">
                         <span class="text-2xl">🌿</span>
                         <div>
-                            <h3 class="text-sm font-black text-text">ネイチャーウェルネス</h3>
-                            <p class="text-muted" style="font-size: var(--text-xs);">自然がもたらす心身の健康</p>
+                            <h3 class="text-sm font-black text-text"><?= __('profile_page.wellness_title', 'Time in nature') ?></h3>
+                            <p class="text-muted" style="font-size: var(--text-xs);"><?= __('profile_page.wellness_body', 'Recent trends visible from your records') ?></p>
                         </div>
                     </div>
-                    <a href="wellness.php" class="text-xs font-bold text-primary hover:text-primary-dark transition">詳細 →</a>
+                    <a href="wellness.php" class="text-xs font-bold text-primary hover:text-primary-dark transition"><?= __('profile_page.details', 'Details') ?> →</a>
                 </div>
 
                 <!-- Weekly Nature Time Progress -->
                 <div class="mb-5">
                     <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-bold text-muted uppercase tracking-wider">今週の自然時間</span>
-                        <span class="text-xs font-black" :class="wellnessCurrentWeekMin >= 120 ? 'text-primary' : 'text-text'" x-text="wellnessCurrentWeekMin + ' / 120分'"></span>
+                        <span class="text-xs font-bold text-muted uppercase tracking-wider"><?= __('profile_page.weekly_nature_time', 'This week’s nature time') ?></span>
+                        <span class="text-xs font-black" :class="wellnessCurrentWeekMin >= 120 ? 'text-primary' : 'text-text'" x-text="wellnessCurrentWeekMin + ' / 120<?= addslashes(__('profile_page.minutes_suffix', ' min')) ?>'"></span>
                     </div>
                     <div class="relative h-3 rounded-full bg-base overflow-hidden">
                         <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-1000"
@@ -282,27 +405,27 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
                             <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
                         </div>
                     </div>
-                    <p class="text-muted mt-1" style="font-size: var(--text-xs);" x-show="wellnessCurrentWeekMin >= 120">🎉 WHO推奨の週120分を達成！</p>
+                    <p class="text-muted mt-1" style="font-size: var(--text-xs);" x-show="wellnessCurrentWeekMin >= 120">🎉 <?= __('profile_page.weekly_goal_reached', 'Reached the WHO-recommended 120 minutes per week!') ?></p>
                 </div>
 
                 <!-- 4 Mini Cards -->
                 <div class="grid grid-cols-2 gap-3">
                     <div class="text-center p-3" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
-                        <p class="text-lg font-black text-primary" x-text="wellnessCurrentWeekMin + '分'"></p>
-                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🌳 自然時間</p>
+                        <p class="text-lg font-black text-primary" x-text="wellnessCurrentWeekMin + '<?= addslashes(__('profile_page.minutes_suffix', ' min')) ?>'"></p>
+                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🌳 <?= __('profile_page.wellness_nature_time', 'Nature time') ?></p>
                     </div>
                     <div class="text-center p-3" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
-                        <p class="text-lg font-black text-secondary" x-text="(wellness?.physical?.session_count ?? 0) + '回'"></p>
-                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🥾 セッション</p>
+                        <p class="text-lg font-black text-secondary" x-text="(wellness?.physical?.session_count ?? 0) + '<?= addslashes(__('profile_page.sessions_suffix', ' sessions')) ?>'"></p>
+                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🥾 <?= __('profile_page.wellness_sessions', 'Sessions') ?></p>
                     </div>
                     <div class="text-center p-3" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
                         <p class="text-lg font-black text-accent" x-text="wellness?.cognitive?.cognitive_engagement ?? 0"></p>
-                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🧠 認知エンゲージメント</p>
-                        <p class="text-muted mt-0.5" style="font-size: 9px;">参考指標</p>
+                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">🧠 <?= __('profile_page.wellness_cognitive', 'Cognitive engagement') ?></p>
+                        <p class="text-muted mt-0.5" style="font-size: 9px;"><?= __('profile_page.wellness_reference', 'Reference metric') ?></p>
                     </div>
                     <div class="text-center p-3" style="border-radius:var(--shape-md);background:var(--md-surface-container-low);">
-                        <p class="text-lg font-black text-text" x-text="(wellness?.emotional?.lifelist_total ?? 0) + '種'"></p>
-                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">📋 ライフリスト</p>
+                        <p class="text-lg font-black text-text" x-text="(wellness?.emotional?.lifelist_total ?? 0) + '<?= addslashes(__('profile_page.species_suffix', ' species')) ?>'"></p>
+                        <p class="font-bold text-muted uppercase tracking-wider" style="font-size: var(--text-xs);">📋 <?= __('profile_page.wellness_my_list', 'My List') ?></p>
                     </div>
                 </div>
             </div>
@@ -319,19 +442,26 @@ $meta_description = $user['name'] . "さんのikimonでの活動記録とライ�
         ?>
         <div x-data="{ tab: 'observations' }">
             <div class="sticky top-20 z-30 bg-base/95 backdrop-blur-md border-b border-border mb-12 flex gap-6 md:gap-12 pt-4 overflow-x-auto">
-                <button @click="tab = 'observations'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 whitespace-nowrap" :class="tab === 'observations' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'">記録</button>
-                <button @click="tab = 'badges'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 whitespace-nowrap" :class="tab === 'badges' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'">📛 バッジ</button>
-                <button @click="tab = 'events'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 whitespace-nowrap" :class="tab === 'events' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'">📅 観察会</button>
-                <button @click="tab = 'lifelist'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 whitespace-nowrap" :class="tab === 'lifelist' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'">ライフリスト</button>
-                <button @click="tab = 'stats'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 whitespace-nowrap" :class="tab === 'stats' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'">統計</button>
-                <button @click="tab = 'surveys'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 whitespace-nowrap" :class="tab === 'surveys' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'">🔬 調査</button>
+                <button @click="tab = 'observations'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 min-w-0 text-left leading-tight" :class="tab === 'observations' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'"><?= __('profile_page.stat_records', 'Records') ?></button>
+                <button @click="tab = 'badges'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 min-w-0 text-left leading-tight" :class="tab === 'badges' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'">📛 <?= __('profile_page.tab_badges', 'Badges') ?></button>
+                <button @click="tab = 'events'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 min-w-0 text-left leading-tight" :class="tab === 'events' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'">📅 <?= __('profile_page.tab_events', 'Events') ?></button>
+                <button @click="tab = 'lifelist'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 min-w-0 text-left leading-tight" :class="tab === 'lifelist' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'"><?= __('profile_page.stat_species', 'Species found') ?></button>
+                <button @click="tab = 'stats'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 min-w-0 text-left leading-tight" :class="tab === 'stats' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'"><?= __('profile_page.tab_review', 'Review') ?></button>
+                <button @click="tab = 'surveys'" class="pb-4 text-sm font-bold tracking-widest uppercase transition border-b-2 min-w-0 text-left leading-tight" :class="tab === 'surveys' ? 'text-primary border-primary' : 'text-muted border-transparent hover:text-text'">🔬 <?= __('profile_page.tab_surveys', 'Surveys') ?></button>
             </div>
 
             <!-- Observations Grid -->
             <div x-show="tab === 'observations'" x-transition>
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                     <?php if (empty($user_obs)): ?>
-                        <p class="col-span-full py-20 text-center text-muted font-bold">まだ観察がありません。投稿してみましょう！</p>
+                        <div class="col-span-full rounded-3xl border border-border bg-surface px-6 py-12 text-center">
+                            <p class="font-bold text-text"><?= __('profile_page.empty_title', 'No records yet') ?></p>
+                            <p class="mt-2 text-sm text-muted"><?= __('profile_page.empty_body', 'Try leaving just one record of something you found nearby.') ?></p>
+                            <a href="post.php" class="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-white">
+                                <i data-lucide="camera" class="w-4 h-4"></i>
+                                <?= __('profile_page.empty_cta', 'Record it') ?>
+                            </a>
+                        </div>
                     <?php else: ?>
                         <?php foreach (array_reverse($user_obs) as $obs): ?>
                             <a href="observation_detail.php?id=<?php echo $obs['id']; ?>" class="group block">

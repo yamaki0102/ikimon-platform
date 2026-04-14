@@ -43,6 +43,7 @@ require_once ROOT_DIR . '/libs/GeoUtils.php';
 require_once ROOT_DIR . '/libs/MeshCode.php';
 require_once ROOT_DIR . '/libs/MeshAggregator.php';
 require_once ROOT_DIR . '/libs/GeoPlausibility.php';
+require_once ROOT_DIR . '/libs/CanonicalMachineObservationPolicy.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     api_error('POST method required.', 405);
@@ -110,6 +111,10 @@ $body = api_json_body();
 $events = $body['events'] ?? [];
 $sessionMeta = $body['session'] ?? [];
 $envHistory = $body['env_history'] ?? [];
+$qaSessionIntent  = $sessionMeta['session_intent'] ?? 'official';
+$qaOfficialRecord = $sessionMeta['official_record'] ?? true;
+$qaTestProfile    = $sessionMeta['test_profile'] ?? 'field';
+$canonicalPolicy = CanonicalMachineObservationPolicy::evaluate($sessionMeta);
 
 if (empty($events)) {
     api_error('No events provided.', 400);
@@ -219,21 +224,23 @@ try {
         'env_history'   => !empty($envHistory) ? $envHistory : null,
     ];
 
-    $parentEventId = CanonicalStore::createEvent([
-        'event_date'              => date('c'),
-        'decimal_latitude'        => $centerLat,
-        'decimal_longitude'       => $centerLng,
-        'sampling_protocol'       => $isLiveScan ? 'live-scan' : 'walk-audio',
-        'sampling_effort'         => $samplingEffort,
-        'capture_device'          => $sessionMeta['device'] ?? null,
-        'recorded_by'             => $userId,
-        'session_mode'            => $sessionMeta['scan_mode'] ?? $scanMode,
-        'complete_checklist_flag' => (int) ($sessionMeta['complete_checklist'] ?? 0),
-        'target_taxa_scope'       => $sessionMeta['target_taxa_scope'] ?? null,
-        'movement_mode'           => $sessionMeta['movement_mode'] ?? null,
-        'movement_mode_log'       => $sessionMeta['movement_mode_log'] ?? null,
-        'route_hash'              => $sessionMeta['route_hash'] ?? null,
-    ]);
+    if ($canonicalPolicy['enabled']) {
+        $parentEventId = CanonicalStore::createEvent([
+            'event_date'              => date('c'),
+            'decimal_latitude'        => $centerLat,
+            'decimal_longitude'       => $centerLng,
+            'sampling_protocol'       => $isLiveScan ? 'live-scan' : 'walk-audio',
+            'sampling_effort'         => $samplingEffort,
+            'capture_device'          => $sessionMeta['device'] ?? null,
+            'recorded_by'             => $userId,
+            'session_mode'            => $sessionMeta['scan_mode'] ?? $scanMode,
+            'complete_checklist_flag' => (int) ($sessionMeta['complete_checklist'] ?? 0),
+            'target_taxa_scope'       => $sessionMeta['target_taxa_scope'] ?? null,
+            'movement_mode'           => $sessionMeta['movement_mode'] ?? null,
+            'movement_mode_log'       => $sessionMeta['movement_mode_log'] ?? null,
+            'route_hash'              => $sessionMeta['route_hash'] ?? null,
+        ]);
+    }
 } catch (Exception $e) {
     error_log('[passive_event] Session event creation error: ' . $e->getMessage());
 }
@@ -298,7 +305,7 @@ foreach ($result['observations'] as $obs) {
     }
 
     // 全モード → Canonical Schema（デジタルツインに蓄積）
-    if ($parentEventId) {
+    if ($parentEventId && $canonicalPolicy['enabled']) {
         try {
             // 検出時点の環境スナップショットを sampling_effort に格納
             $envSnap = $obs['environment_snapshot'] ?? null;
@@ -354,7 +361,7 @@ foreach ($result['observations'] as $obs) {
 }
 
 // 検出ゼロでもセッション event は残す（不在データ = 努力したが見つからなかった記録）
-if ($savedCount === 0 && $parentEventId) {
+if ($savedCount === 0 && $parentEventId && $canonicalPolicy['enabled']) {
     try {
         CanonicalStore::createOccurrence([
             'event_id'           => $parentEventId,
@@ -387,6 +394,7 @@ $sessionLog = [
     'batch_index' => $existingSessionLog ? (($existingSessionLog['batch_index'] ?? 0) + 1) : 0,
     'started_at' => $existingSessionLog ? ($existingSessionLog['started_at'] ?? date('c')) : date('c'),
     'ended_at' => $isFinal ? date('c') : null,
+    'canonical_policy' => $canonicalPolicy,
     'created_at' => date('c'),
 ];
 DataStore::append('passive_sessions', $sessionLog);
@@ -453,10 +461,6 @@ if ($isLiveScan && !empty($result['summary']['species'])) {
     }
 }
 
-$qaSessionIntent  = $sessionMeta['session_intent'] ?? 'official';
-$qaOfficialRecord = $sessionMeta['official_record'] ?? true;
-$qaTestProfile    = $sessionMeta['test_profile'] ?? 'field';
-
 api_success([
     'session_id' => $mergedSessionId,
     'observations_created' => $savedCount,
@@ -475,9 +479,12 @@ api_success([
         'session_intent'            => $qaSessionIntent,
         'official_record'           => (bool) $qaOfficialRecord,
         'test_profile'              => $qaTestProfile,
+        'canonical_enabled'         => (bool) $canonicalPolicy['enabled'],
+        'canonical_skip_reason'     => $canonicalPolicy['reason'],
     ],
 ], [
     'events_received' => count($events),
     'events_valid' => count($validEvents),
     'batch_merged' => $existingSessionLog !== null,
+    'canonical' => $canonicalPolicy,
 ]);

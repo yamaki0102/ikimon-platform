@@ -109,10 +109,13 @@ Commit with message: 'docs: update DEVELOPMENT_PLAN task 1.1 completed'
 ## デプロイ
 
 ```bash
-# 本番デプロイ（Xserver VPS）
+# release preflight
+powershell -ExecutionPolicy Bypass -File .\scripts\check_deploy_guardrails.ps1
+
+# 本番デプロイ
 git push origin <branch>
 # PR作成 → レビュー → mainマージ後:
-ssh -i ~/Downloads/ikimon.pem root@162.43.44.131 /var/www/ikimon.life/deploy.sh
+# GitHub Actions が /var/www/ikimon.life/deploy.sh を実行
 ```
 
 ## 注意事項

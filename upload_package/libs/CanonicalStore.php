@@ -14,15 +14,21 @@
  * Layer 6: live_detections — リアルタイム (24h TTL)
  *
  * 全メソッド static。SiteManager と同じパターン。
+ *
+ * R0 policy note:
+ * ikimon.db is the canonical source for structured domain state.
+ * JSON is retained as ingest/archive/legacy-read support during migration.
  */
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/MeshCode.php';
 
 class CanonicalStore
 {
     private static ?PDO $pdo = null;
     private static bool $vernacularChecked = false;
     private static bool $sensorColumnsChecked = false;
+    private static bool $placeColumnsChecked = false;
 
     // ─── Connection ─────────────────────────────────────────────
 
@@ -68,6 +74,21 @@ class CanonicalStore
         } catch (\Throwable $e) {}
     }
 
+    private static function ensurePlaceColumns(PDO $pdo): void
+    {
+        if (self::$placeColumnsChecked) return;
+        self::$placeColumnsChecked = true;
+        $additions = [
+            "ALTER TABLE events ADD COLUMN place_id TEXT",
+            "ALTER TABLE events ADD COLUMN locality_label TEXT",
+            "ALTER TABLE events ADD COLUMN locality_context TEXT",
+        ];
+        foreach ($additions as $sql) {
+            try { $pdo->exec($sql); } catch (\Throwable $e) { /* already exists */ }
+        }
+        try { $pdo->exec("CREATE INDEX IF NOT EXISTS idx_events_place ON events(place_id)"); } catch (\Throwable $e) {}
+    }
+
     // ─── Layer 1: Events ────────────────────────────────────────
 
     /**
@@ -78,6 +99,7 @@ class CanonicalStore
         $eventId = $data['event_id'] ?? self::uuid();
         $pdo = self::getPDO();
         self::ensureSensorColumns($pdo);
+        self::ensurePlaceColumns($pdo);
 
         // sampling_effort を JSON 文字列に変換
         $effort = $data['sampling_effort'] ?? null;
@@ -98,7 +120,8 @@ class CanonicalStore
                 sampling_protocol, sampling_effort, capture_device,
                 recorded_by, site_id,
                 session_mode, complete_checklist_flag, target_taxa_scope,
-                movement_mode, movement_mode_log, route_hash
+                movement_mode, movement_mode_log, route_hash,
+                place_id, locality_label, locality_context
             ) VALUES (
                 :event_id, :parent_event_id, :event_date,
                 :lat, :lng, :datum,
@@ -106,7 +129,8 @@ class CanonicalStore
                 :protocol, :effort, :device,
                 :recorded_by, :site_id,
                 :session_mode, :checklist_flag, :taxa_scope,
-                :movement_mode, :movement_mode_log, :route_hash
+                :movement_mode, :movement_mode_log, :route_hash,
+                :place_id, :locality_label, :locality_context
             )
         ");
 
@@ -130,6 +154,11 @@ class CanonicalStore
             ':movement_mode'      => $data['movement_mode'] ?? null,
             ':movement_mode_log'  => $movementModeLog,
             ':route_hash'         => $data['route_hash'] ?? null,
+            ':place_id'           => $data['place_id'] ?? null,
+            ':locality_label'     => $data['locality_label'] ?? null,
+            ':locality_context'   => isset($data['locality_context'])
+                ? (is_string($data['locality_context']) ? $data['locality_context'] : json_encode($data['locality_context'], JSON_UNESCAPED_UNICODE))
+                : null,
         ]);
 
         return $eventId;
@@ -145,6 +174,229 @@ class CanonicalStore
         $stmt->execute([':id' => $eventId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
+    }
+
+    public static function updateEvent(string $eventId, array $data): void
+    {
+        $pdo = self::getPDO();
+        self::ensurePlaceColumns($pdo);
+
+        $localityContext = $data['locality_context'] ?? null;
+        if (is_array($localityContext)) {
+            $localityContext = json_encode($localityContext, JSON_UNESCAPED_UNICODE);
+        }
+
+        $stmt = $pdo->prepare("
+            UPDATE events
+            SET
+                event_date = :event_date,
+                decimal_latitude = :lat,
+                decimal_longitude = :lng,
+                coordinate_uncertainty_m = :uncertainty,
+                uncertainty_type = :uncertainty_type,
+                place_id = :place_id,
+                locality_label = :locality_label,
+                locality_context = :locality_context
+            WHERE event_id = :event_id
+        ");
+
+        $stmt->execute([
+            ':event_id' => $eventId,
+            ':event_date' => $data['event_date'] ?? date('c'),
+            ':lat' => $data['decimal_latitude'] ?? null,
+            ':lng' => $data['decimal_longitude'] ?? null,
+            ':uncertainty' => $data['coordinate_uncertainty_m'] ?? null,
+            ':uncertainty_type' => $data['uncertainty_type'] ?? 'device_default',
+            ':place_id' => $data['place_id'] ?? null,
+            ':locality_label' => $data['locality_label'] ?? null,
+            ':locality_context' => $localityContext,
+        ]);
+    }
+
+    public static function upsertPlace(array $data): string
+    {
+        $pdo = self::getPDO();
+        $placeId = $data['place_id'] ?? self::uuid();
+        $stmt = $pdo->prepare("
+            INSERT INTO place_registry (
+                place_id, place_key, site_id, source_kind,
+                canonical_name, locality_label,
+                country, prefecture, municipality,
+                mesh3, mesh4, center_latitude, center_longitude,
+                first_event_at, last_event_at,
+                visit_count, occurrence_count, updated_at
+            ) VALUES (
+                :place_id, :place_key, :site_id, :source_kind,
+                :canonical_name, :locality_label,
+                :country, :prefecture, :municipality,
+                :mesh3, :mesh4, :center_latitude, :center_longitude,
+                :first_event_at, :last_event_at,
+                :visit_count, :occurrence_count, datetime('now')
+            )
+            ON CONFLICT(place_key) DO UPDATE SET
+                site_id = COALESCE(excluded.site_id, place_registry.site_id),
+                source_kind = COALESCE(excluded.source_kind, place_registry.source_kind),
+                canonical_name = COALESCE(excluded.canonical_name, place_registry.canonical_name),
+                locality_label = COALESCE(excluded.locality_label, place_registry.locality_label),
+                country = COALESCE(excluded.country, place_registry.country),
+                prefecture = COALESCE(excluded.prefecture, place_registry.prefecture),
+                municipality = COALESCE(excluded.municipality, place_registry.municipality),
+                mesh3 = COALESCE(excluded.mesh3, place_registry.mesh3),
+                mesh4 = COALESCE(excluded.mesh4, place_registry.mesh4),
+                center_latitude = COALESCE(excluded.center_latitude, place_registry.center_latitude),
+                center_longitude = COALESCE(excluded.center_longitude, place_registry.center_longitude),
+                first_event_at = COALESCE(place_registry.first_event_at, excluded.first_event_at),
+                last_event_at = CASE
+                    WHEN place_registry.last_event_at IS NULL THEN excluded.last_event_at
+                    WHEN excluded.last_event_at IS NULL THEN place_registry.last_event_at
+                    WHEN excluded.last_event_at > place_registry.last_event_at THEN excluded.last_event_at
+                    ELSE place_registry.last_event_at
+                END,
+                visit_count = MAX(place_registry.visit_count, excluded.visit_count),
+                occurrence_count = MAX(place_registry.occurrence_count, excluded.occurrence_count),
+                updated_at = datetime('now')
+        ");
+        $stmt->execute([
+            ':place_id' => $placeId,
+            ':place_key' => $data['place_key'],
+            ':site_id' => $data['site_id'] ?? null,
+            ':source_kind' => $data['source_kind'] ?? 'mesh4',
+            ':canonical_name' => $data['canonical_name'] ?? null,
+            ':locality_label' => $data['locality_label'] ?? null,
+            ':country' => $data['country'] ?? null,
+            ':prefecture' => $data['prefecture'] ?? null,
+            ':municipality' => $data['municipality'] ?? null,
+            ':mesh3' => $data['mesh3'] ?? null,
+            ':mesh4' => $data['mesh4'] ?? null,
+            ':center_latitude' => $data['center_latitude'] ?? null,
+            ':center_longitude' => $data['center_longitude'] ?? null,
+            ':first_event_at' => $data['first_event_at'] ?? null,
+            ':last_event_at' => $data['last_event_at'] ?? null,
+            ':visit_count' => (int)($data['visit_count'] ?? 0),
+            ':occurrence_count' => (int)($data['occurrence_count'] ?? 0),
+        ]);
+
+        $query = $pdo->prepare("SELECT place_id FROM place_registry WHERE place_key = :place_key LIMIT 1");
+        $query->execute([':place_key' => $data['place_key']]);
+        return (string)$query->fetchColumn();
+    }
+
+    public static function addPlaceConditionLog(array $data): string
+    {
+        $conditionId = $data['condition_id'] ?? self::uuid();
+        $pdo = self::getPDO();
+        $stmt = $pdo->prepare("
+            INSERT INTO place_condition_logs (
+                condition_id, place_id, event_id, observed_at,
+                biome, substrate_tags, evidence_tags,
+                cultivation, organism_origin,
+                managed_context_type, managed_site_name,
+                locality_note, environment_summary, metadata
+            ) VALUES (
+                :condition_id, :place_id, :event_id, :observed_at,
+                :biome, :substrate_tags, :evidence_tags,
+                :cultivation, :organism_origin,
+                :managed_context_type, :managed_site_name,
+                :locality_note, :environment_summary, :metadata
+            )
+        ");
+        $stmt->execute([
+            ':condition_id' => $conditionId,
+            ':place_id' => $data['place_id'],
+            ':event_id' => $data['event_id'] ?? null,
+            ':observed_at' => $data['observed_at'] ?? date('c'),
+            ':biome' => $data['biome'] ?? null,
+            ':substrate_tags' => self::encodeJsonField($data['substrate_tags'] ?? null),
+            ':evidence_tags' => self::encodeJsonField($data['evidence_tags'] ?? null),
+            ':cultivation' => $data['cultivation'] ?? null,
+            ':organism_origin' => $data['organism_origin'] ?? null,
+            ':managed_context_type' => $data['managed_context_type'] ?? null,
+            ':managed_site_name' => $data['managed_site_name'] ?? null,
+            ':locality_note' => $data['locality_note'] ?? null,
+            ':environment_summary' => $data['environment_summary'] ?? null,
+            ':metadata' => self::encodeJsonField($data['metadata'] ?? null),
+        ]);
+        return $conditionId;
+    }
+
+    public static function refreshPlaceStats(string $placeId): void
+    {
+        $pdo = self::getPDO();
+        $stmt = $pdo->prepare("
+            UPDATE place_registry
+            SET
+                visit_count = (
+                    SELECT COUNT(DISTINCT event_id) FROM events WHERE place_id = :place_id
+                ),
+                occurrence_count = (
+                    SELECT COUNT(DISTINCT o.occurrence_id)
+                    FROM occurrences o
+                    JOIN events e ON e.event_id = o.event_id
+                    WHERE e.place_id = :place_id
+                ),
+                first_event_at = (
+                    SELECT MIN(event_date) FROM events WHERE place_id = :place_id
+                ),
+                last_event_at = (
+                    SELECT MAX(event_date) FROM events WHERE place_id = :place_id
+                ),
+                updated_at = datetime('now')
+            WHERE place_id = :place_id
+        ");
+        $stmt->execute([':place_id' => $placeId]);
+    }
+
+    public static function getPlaceSummary(string $placeId): ?array
+    {
+        $pdo = self::getPDO();
+        $stmt = $pdo->prepare("SELECT * FROM place_revisit_summary WHERE place_id = :place_id LIMIT 1");
+        $stmt->execute([':place_id' => $placeId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public static function derivePlaceContext(array $data): array
+    {
+        $lat = isset($data['decimal_latitude']) ? (float)$data['decimal_latitude'] : null;
+        $lng = isset($data['decimal_longitude']) ? (float)$data['decimal_longitude'] : null;
+        $mesh = ($lat !== null && $lng !== null) ? MeshCode::fromLatLng($lat, $lng) : null;
+        $siteId = trim((string)($data['site_id'] ?? ''));
+        $municipality = trim((string)($data['municipality'] ?? ''));
+        $prefecture = trim((string)($data['prefecture'] ?? ''));
+        $siteName = trim((string)($data['site_name'] ?? ''));
+        $localityLabel = trim((string)($data['locality_label'] ?? ''));
+
+        if ($siteId !== '') {
+            $placeKey = 'site:' . $siteId;
+            $sourceKind = 'site';
+        } elseif ($mesh !== null) {
+            $placeKey = 'mesh4:' . $mesh['mesh4'];
+            $sourceKind = 'mesh4';
+        } else {
+            $placeKey = 'municipality:' . mb_strtolower($municipality !== '' ? $municipality : 'unknown');
+            $sourceKind = 'municipality';
+        }
+
+        if ($localityLabel === '') {
+            $localityLabel = $siteName !== '' ? $siteName : ($municipality !== '' ? $municipality : ($prefecture !== '' ? $prefecture : 'Unknown place'));
+        }
+
+        return [
+            'place_key' => $placeKey,
+            'source_kind' => $sourceKind,
+            'site_id' => $siteId !== '' ? $siteId : null,
+            'canonical_name' => $siteName !== '' ? $siteName : $localityLabel,
+            'locality_label' => $localityLabel,
+            'country' => $data['country'] ?? null,
+            'prefecture' => $prefecture !== '' ? $prefecture : null,
+            'municipality' => $municipality !== '' ? $municipality : null,
+            'mesh3' => $mesh['mesh3'] ?? null,
+            'mesh4' => $mesh['mesh4'] ?? null,
+            'center_latitude' => $lat,
+            'center_longitude' => $lng,
+            'first_event_at' => $data['event_date'] ?? null,
+            'last_event_at' => $data['event_date'] ?? null,
+        ];
     }
 
     // ─── Layer 2: Occurrences ───────────────────────────────────
@@ -225,6 +477,49 @@ class CanonicalStore
             $row['confidence_context'] = json_decode($row['confidence_context'], true);
         }
         return $row ?: null;
+    }
+
+    public static function updateOccurrence(string $occId, array $data): void
+    {
+        $pdo = self::getPDO();
+        self::ensureVernacularColumn($pdo);
+
+        $stmt = $pdo->prepare("
+            UPDATE occurrences
+            SET
+                scientific_name = :scientific_name,
+                vernacular_name = :vernacular_name,
+                taxon_rank = :taxon_rank,
+                individual_count = :individual_count,
+                data_quality = :data_quality
+            WHERE occurrence_id = :occurrence_id
+        ");
+
+        $stmt->execute([
+            ':occurrence_id' => $occId,
+            ':scientific_name' => $data['scientific_name'] ?? null,
+            ':vernacular_name' => $data['vernacular_name'] ?? null,
+            ':taxon_rank' => $data['taxon_rank'] ?? 'species',
+            ':individual_count' => $data['individual_count'] ?? null,
+            ':data_quality' => $data['data_quality'] ?? 'C',
+        ]);
+    }
+
+    public static function findOccurrenceByOriginalObservationId(string $originalId): ?array
+    {
+        try {
+            $pdo = self::getPDO();
+            $stmt = $pdo->prepare("
+                SELECT * FROM occurrences
+                WHERE original_observation_id = :id
+                LIMIT 1
+            ");
+            $stmt->execute([':id' => $originalId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row ?: null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**
@@ -387,6 +682,41 @@ class CanonicalStore
             ':basis'     => $data['legal_basis'] ?? 'consent',
             ':sensitive' => $data['sensitive_species'] ?? 0,
         ]);
+    }
+
+    public static function getPrivacyAccess(string $occId): ?array
+    {
+        try {
+            $pdo = self::getPDO();
+            $stmt = $pdo->prepare("
+                SELECT * FROM privacy_access WHERE record_id = :id LIMIT 1
+            ");
+            $stmt->execute([':id' => $occId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row ?: null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    public static function getObservationAggregateByOriginalObservationId(string $originalId): ?array
+    {
+        $occurrence = self::findOccurrenceByOriginalObservationId($originalId);
+        if ($occurrence === null) {
+            return null;
+        }
+
+        try {
+            return [
+                'occurrence' => $occurrence,
+                'event' => self::getEvent((string)$occurrence['event_id']),
+                'evidence' => self::getEvidenceByOccurrence((string)$occurrence['occurrence_id']),
+                'identifications' => self::getIdentificationHistory((string)$occurrence['occurrence_id']),
+                'privacy_access' => self::getPrivacyAccess((string)$occurrence['occurrence_id']),
+            ];
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     // ─── Layer 6: Live Detections ───────────────────────────────
@@ -645,5 +975,13 @@ class CanonicalStore
         $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
         $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+    }
+
+    private static function encodeJsonField($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        return is_string($value) ? $value : json_encode($value, JSON_UNESCAPED_UNICODE);
     }
 }

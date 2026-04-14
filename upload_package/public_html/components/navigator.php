@@ -1,4 +1,13 @@
 
+<?php
+$navigatorLang = class_exists('Lang') && method_exists('Lang', 'current') ? Lang::current() : 'ja';
+$navigatorDataFile = match ($navigatorLang) {
+    'en' => 'assets/data/navigator_data.en.json',
+    'es' => 'assets/data/navigator_data.es.json',
+    'pt-BR' => 'assets/data/navigator_data.pt-br.json',
+    default => 'assets/data/navigator_data.json',
+};
+?>
 <!-- Bio-Navigator Modal -->
 <div x-data="navigator()" x-show="open" style="display: none;" 
      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
@@ -10,9 +19,9 @@
         <!-- Header -->
         <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-[#111]">
             <h3 id="navigator-title" class="font-black text-base flex items-center gap-2">
-                <i data-lucide="compass" class="text-[var(--color-primary)] w-5 h-5"></i> Bio-Navigator
+                <i data-lucide="compass" class="text-[var(--color-primary)] w-5 h-5"></i> <?= __('nav.navigator_title', 'Navigator') ?>
             </h3>
-            <button @click="open = false" class="p-2 min-w-11 min-h-11 flex items-center justify-center hover:bg-white/10 rounded-full transition" aria-label="閉じる"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <button @click="open = false" class="p-2 min-w-11 min-h-11 flex items-center justify-center hover:bg-white/10 rounded-full transition" aria-label="<?= __('nav.close', 'Close') ?>"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
 
         <!-- Content Area -->
@@ -20,7 +29,7 @@
             
             <!-- Question -->
             <div class="text-center mb-4">
-                <p class="text-[var(--color-primary)] font-mono text-[10px] mb-1 tracking-widest uppercase" x-text="'Step ' + (history.length + 1)"></p>
+                <p class="text-[var(--color-primary)] font-mono text-[10px] mb-1 tracking-widest uppercase" x-text="'<?= addslashes(__('nav.step', 'Step')) ?> ' + (history.length + 1)"></p>
                 <h2 class="text-xl font-bold" x-text="currentData.question"></h2>
             </div>
 
@@ -48,14 +57,14 @@
                 <!-- Show More Button -->
                 <template x-if="currentData.hasMore">
                     <button @click="toggleMore()" class="col-span-2 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs text-gray-400 font-mono border border-dashed border-white/10">
-                        <span x-text="taxonomyLimit ? ('Show All (' + currentData.totalCount + ')') : 'Show Less'"></span>
+                        <span x-text="taxonomyLimit ? ('<?= addslashes(__('nav.show_all', 'Show all')) ?> (' + currentData.totalCount + ')') : '<?= addslashes(__('nav.show_less', 'Show less')) ?>'"></span>
                     </button>
                 </template>
                 
                 <!-- Show Less Button -->
                 <template x-if="!taxonomyLimit && currentData.totalCount > 12">
                      <button @click="toggleMore()" class="col-span-2 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs text-gray-400 font-mono border border-dashed border-white/10">
-                        Show Less
+                        <?= __('nav.show_less', 'Show less') ?>
                     </button>
                 </template>
             </div>
@@ -65,11 +74,11 @@
         <!-- Footer / Controls -->
         <div class="px-6 py-4 bg-[#111] border-t border-white/5 flex items-center justify-between">
             <button @click="back()" x-show="history.length > 0" class="text-gray-400 hover:text-white text-sm font-bold flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 transition">
-                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> <?= __('nav.back', 'Back') ?>
             </button>
             <div x-show="history.length === 0"></div>
 
-            <button @click="open = false" class="text-gray-500 text-xs hover:text-white transition">Cancel</button>
+            <button @click="open = false" class="text-gray-500 text-xs hover:text-white transition"><?= __('nav.close', 'Close') ?></button>
         </div>
     </div>
 </div>
@@ -83,6 +92,8 @@
             taxonomyLimit: 12,
             currentKey: 'root',
             history: [],
+            currentLang: '<?= addslashes($navigatorLang) ?>',
+            navigatorDataUrl: '<?= addslashes($navigatorDataFile) ?>',
             
             // Visual Map for known Families to Icons
             iconMap: {
@@ -117,7 +128,7 @@
             async loadData() {
                 try {
                     const [navRes, taxRes] = await Promise.all([
-                        fetch('assets/data/navigator_data.json?v=' + Date.now()),
+                        fetch(this.navigatorDataUrl + '?v=' + Date.now()),
                         fetch('assets/data/navigator_taxonomy.json?v=' + Date.now()).catch(() => null)
                     ]);
                     
@@ -151,8 +162,8 @@
                             source: node.source,
                             options: displayList.map(item => ({
                                 id: item.id,
-                                label: item.label,
-                                sub: item.sub, 
+                                label: this.dynamicLabel(item),
+                                sub: this.dynamicSub(item), 
                                 icon: this.iconMap[item.sub] || 'help-circle', 
                                 result: item.label, 
                                 color: 'text-gray-300'
@@ -166,6 +177,22 @@
                 }
                 
                 return node;
+            },
+
+            dynamicLabel(item) {
+                if (this.currentLang !== 'ja' && /[ぁ-んァ-ヶ一-龠]/.test(item.label) && /^[A-Za-z]/.test(item.sub || '')) {
+                    return item.sub;
+                }
+
+                return item.label;
+            },
+
+            dynamicSub(item) {
+                if (this.currentLang !== 'ja' && /[ぁ-んァ-ヶ一-龠]/.test(item.label) && /^[A-Za-z]/.test(item.sub || '')) {
+                    return item.label;
+                }
+
+                return item.sub;
             },
 
             toggleMore() {

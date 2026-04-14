@@ -51,19 +51,25 @@ class AudioClassifier(private val context: Context) {
                 )
             } catch (e: SecurityException) { return null }
 
-            if (recorder.state != android.media.AudioRecord.STATE_INITIALIZED) return null
+            if (recorder.state != android.media.AudioRecord.STATE_INITIALIZED) {
+                recorder.release()
+                return null
+            }
 
             val totalSamples = (SAMPLE_RATE * durationMs / 1000).toInt()
             val audioData = FloatArray(totalSamples)
             var readTotal = 0
-            recorder.startRecording()
-            while (readTotal < totalSamples) {
-                val toRead = minOf(totalSamples - readTotal, bufferSize / 4)
-                val read = recorder.read(audioData, readTotal, toRead, android.media.AudioRecord.READ_BLOCKING)
-                if (read > 0) readTotal += read else break
+            try {
+                recorder.startRecording()
+                while (readTotal < totalSamples) {
+                    val toRead = minOf(totalSamples - readTotal, bufferSize / 4)
+                    val read = recorder.read(audioData, readTotal, toRead, android.media.AudioRecord.READ_BLOCKING)
+                    if (read > 0) readTotal += read else break
+                }
+            } finally {
+                recorder.stop()
+                recorder.release()
             }
-            recorder.stop()
-            recorder.release()
 
             if (readTotal <= SAMPLE_RATE) return null
 

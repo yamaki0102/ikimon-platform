@@ -1,39 +1,99 @@
 import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
+import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 
 function requestBasePath(request: { headers: Record<string, unknown> }): string {
   return getForwardedBasePath(request.headers);
 }
 
-function layout(basePath: string, title: string, eyebrow: string, heading: string, lead: string, body: string, activeNav: string): string {
+function requestUrl(request: { url?: string; raw?: { url?: string } }): string {
+  return String(request.raw?.url ?? request.url ?? "");
+}
+
+function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }): string {
+  return withBasePath(requestBasePath(request), requestUrl(request));
+}
+
+function layout(
+  basePath: string,
+  lang: SiteLang,
+  currentPath: string,
+  title: string,
+  eyebrow: string,
+  heading: string,
+  lead: string,
+  body: string,
+  activeNavKey: string,
+  afterActionsHtml?: string,
+): string {
+  const activeNav = activeNavLabel(activeNavKey, lang);
+  const copy = layoutCopy(lang);
+  const intro = `<section class="section"><div class="card"><div class="eyebrow">${escapeHtml(eyebrow)}</div><h1>${escapeHtml(heading)}</h1><p class="meta">${escapeHtml(lead)}</p>${afterActionsHtml ? `<div style="margin-top:12px">${afterActionsHtml}</div>` : ""}</div></section>`;
   return renderSiteDocument({
     basePath,
     title,
     activeNav,
-    hero: {
-      eyebrow,
-      heading,
-      lead,
-      actions: [
-        { href: "/record", label: "Record" },
-        { href: "/explore", label: "Explore", variant: "secondary" },
-        { href: "/for-business", label: "For Business", variant: "secondary" },
-      ],
-    },
-    body,
-    footerNote: "shared website shell on staging. design, transitions, and page hierarchy should be checked here before live rehearsal.",
+    lang,
+    currentPath,
+    body: intro + body,
+    footerNote: copy.footerNote,
   });
+}
+
+function layoutCopy(lang: SiteLang): { record: string; explore: string; business: string; footerNote: string } {
+  switch (lang) {
+    case "en":
+      return {
+        record: "Record",
+        explore: "Explore",
+        business: "For Business",
+        footerNote: "Save what you find nearby and review it later, place by place.",
+      };
+    case "es":
+      return {
+        record: "Registrar",
+        explore: "Explorar",
+        business: "Para organizaciones",
+        footerNote: "Guarda lo que encuentras cerca y revísalo después, lugar por lugar.",
+      };
+    case "pt-BR":
+      return {
+        record: "Registrar",
+        explore: "Explorar",
+        business: "Para organizações",
+        footerNote: "Guarde o que encontra por perto e reveja depois, lugar por lugar.",
+      };
+    default:
+      return {
+        record: "記録する",
+        explore: "みつける",
+        business: "法人向け",
+        footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
+      };
+  }
+}
+
+function activeNavLabel(nav: string, lang: SiteLang): string {
+  const table: Record<string, Record<SiteLang, string>> = {
+    Home: { ja: "ホーム", en: "Home", es: "Inicio", "pt-BR": "Início" },
+    Learn: { ja: "読む", en: "Learn", es: "Aprender", "pt-BR": "Aprender" },
+    "For Business": { ja: "法人向け", en: "For Business", es: "Para organizaciones", "pt-BR": "Para organizações" },
+    FAQ: { ja: "読む", en: "Learn", es: "Aprender", "pt-BR": "Aprender" },
+    Trust: { ja: "読む", en: "Learn", es: "Aprender", "pt-BR": "Aprender" },
+    Contact: { ja: "読む", en: "Learn", es: "Aprender", "pt-BR": "Aprender" },
+  };
+  return table[nav]?.[lang] ?? nav;
 }
 
 function cards(items: Array<{ title: string; body: string; href?: string; label?: string }>): string {
   return `<section class="section"><div class="grid">${items
     .map(
       (item) => `<div class="card">
-        <div class="eyebrow">ikimon v2</div>
+        <div class="eyebrow">ikimon</div>
         <h2>${escapeHtml(item.title)}</h2>
         <p>${escapeHtml(item.body)}</p>
-        ${item.href ? `<div class="actions" style="margin-top:12px"><a class="btn primary" href="${escapeHtml(item.href)}">${escapeHtml(item.label ?? "Open")}</a></div>` : ""}
+        ${item.href ? `<div class="actions" style="margin-top:12px"><a class="btn btn-ghost" href="${escapeHtml(item.href)}">${escapeHtml(item.label ?? "Open")}</a></div>` : ""}
       </div>`,
     )
     .join("")}</div></section>`;
@@ -47,7 +107,7 @@ function rows(items: Array<{ title: string; body: string; actionHref?: string; a
           <strong>${escapeHtml(item.title)}</strong>
           <div class="meta">${escapeHtml(item.body)}</div>
         </div>
-        ${item.actionHref ? `<a class="btn primary" href="${escapeHtml(item.actionHref)}">${escapeHtml(item.actionLabel ?? "Open")}</a>` : ""}
+        ${item.actionHref ? `<a class="btn btn-ghost" href="${escapeHtml(item.actionHref)}">${escapeHtml(item.actionLabel ?? "Open")}</a>` : ""}
       </div>`,
     )
     .join("")}</div></section>`;
@@ -82,101 +142,113 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
   for (const [legacyPath, targetPath] of redirectMap) {
     app.get(legacyPath, async (request, reply) => {
       const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-      return reply.redirect(withBasePath(basePath, targetPath), 308);
+      const lang = detectLangFromUrl(requestUrl(request));
+      return reply.redirect(appendLangToHref(withBasePath(basePath, targetPath), lang), 308);
     });
   }
 
   app.get("/about", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "About | ikimon v2",
-      "About",
-      "観察を、学びと地域の記録基盤に変える。",
-      "ikimon.life は、自分が学ぶこと、みんなの AI を育てること、そしてまだ十分に知られていない生物多様性の理解に寄与することを一つの行動ループにまとめる。",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      lang === "ja" ? "ikimonの想い — 自然が、子どもとまちを結ぶ | ikimon" : "About | ikimon",
+      lang === "ja" ? "ikimonについて" : "About",
+      "自然が、子どもとまちを結ぶ。",
+      "原体験から始まった、小さな自然観察をまちの営みにつなげるためのプロジェクトです。",
       cards([
         {
-          title: "続ける動機",
-          body: "記録すると自分の変化が見え、場所ごとの比較ができ、次の観察理由が増える。単発の投稿ではなく再訪の理由を残す。",
+          title: "原体験",
+          body: "幼少期の小さな発見が、自然との距離を縮め、学びの入口になります。",
         },
         {
-          title: "Collective AI Growth Loop",
-          body: "一件ずつの観察と同定が、個人の学びだけでなく、みんなの AI がより良い候補と根拠を返す材料になる。",
+          title: "まちの解像度が上がると、愛着も上がる",
+          body: "近所の緑地や道端での観察が積み上がると、地域の見え方が変わっていきます。",
         },
         {
-          title: "Place-first",
-          body: "種だけでなく場所を主語にして、自治体・学校・企業・地域団体があとで見返せる記録基盤にする。",
+          title: "なぜ、地域創生なのか",
+          body: "自然を記録して見返す行為が、地域の関係人口と継続的な関わりを生みます。",
+        },
+        {
+          title: "子どもだけじゃない。大人もイキイキしていないと",
+          body: "世代を問わず、自然との接点があることで日常の楽しさと学びが増えます。",
+        },
+        {
+          title: "消滅可能性自治体",
+          body: "地域の魅力を再発見し、地元に目を向けるきっかけを増やすことが重要です。",
+        },
+        {
+          title: "持続可能なかたち",
+          body: "一過性のイベントではなく、記録と再訪の循環を続けられる設計を重視しています。",
         },
       ]),
       "Learn",
+      `<a class="inline-link" href="${escapeHtml(withBasePath(basePath, "/learn"))}">考え方を読む</a>`,
     );
   });
 
   app.get("/learn", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Learn | ikimon v2",
-      "Learn",
-      "見る目が育つと、また行きたくなる。",
-      "ikimon の Learn は content marketing を消すための置き場ではなく、観察・再訪・同定の考え方を深める hub です。入口は protagonist-first のまま保ちつつ、必要なときにだけ深く読めるようにする。",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      lang === "ja" ? "解説ガイド一覧 | ikimon" : "Learn | ikimon",
+      lang === "ja" ? "解説ガイド" : "Learn",
+      "解説ガイド一覧",
+      "自然と社会、健康と学び、組織導入と分析まで、ikimonの読みものを分野ごとに整理しています。",
       cards([
         {
-          title: "About ikimon",
-          body: "ikimon の思想、地域性、Field Mentor / Long-term Observatory の意味を読む。",
-          href: withBasePath(basePath, "/about"),
-          label: "Open about",
+          title: "自然と社会",
+          body: "地域の自然観察が、暮らしやまちづくりにどうつながるかを解説します。",
         },
         {
-          title: "FAQ",
-          body: "個人利用、Public、切替中の v2 の見方など、まず詰まりやすい点を解消する。",
-          href: withBasePath(basePath, "/faq"),
-          label: "Open FAQ",
+          title: "健康と学び",
+          body: "観察活動が健康・教育・継続学習に与える価値を紹介します。",
         },
         {
-          title: "Identification basics",
-          body: "なぜ今は species まで行けないか、AI 提案と expert lane をどう分けるか、再撮影が価値になる理由を読む。",
-          href: withBasePath(basePath, "/learn/identification-basics"),
-          label: "Open basics",
-        },
-        {
-          title: "Methodology",
-          body: "データ方針、希少種の位置精度、MRI の考え方、透明性の前提を確認する。",
-          href: withBasePath(basePath, "/learn/methodology"),
-          label: "Open methodology",
-        },
-        {
-          title: "Updates",
-          body: "Perch v2、AI レンズ、サウンドアーカイブなど、既存アップデート資産を時系列で追う。",
-          href: withBasePath(basePath, "/learn/updates"),
-          label: "Open updates",
+          title: "組織導入と分析",
+          body: "自治体・学校・企業での導入観点、指標、運用設計を確認できます。",
+          href: withBasePath(basePath, "/for-business"),
+          label: lang === "ja" ? "法人向け" : "For Business",
         },
       ]) + rows([
         {
-          title: "観察の目を育てる",
-          body: "答えの即時提示だけでなく、見分けポイント、似た種、次に撮るべき証拠を返す設計にする。",
+          title: "同定の考え方",
+          body: "断定しない理由、次に見るべきポイント、再観察で精度を上げる方法。",
+          actionHref: withBasePath(basePath, "/learn/identification-basics"),
+          actionLabel: lang === "ja" ? "読む" : "Basics",
         },
         {
-          title: "個人から collective へつながる",
-          body: "入口は自分の発見と成長だが、改善された観察と review は future AI explanation の学習資産にもなる。",
+          title: "Methodology（方針）",
+          body: "データ方針、位置情報の扱い、公開の前提と限界。",
+          actionHref: withBasePath(basePath, "/learn/methodology"),
+          actionLabel: lang === "ja" ? "確認する" : "Methodology",
         },
         {
-          title: "既存コンテンツは捨てない",
-          body: "About / FAQ / guides / methodology / updates などの資産は Learn 配下に再編し、SEO と理解促進に使い続ける。",
+          title: "アップデート",
+          body: "機能追加を単なる更新履歴ではなく、観察体験の進化として整理。",
         },
       ]),
       "Learn",
+      `<a class="inline-link" href="${escapeHtml(withBasePath(basePath, "/about"))}">ikimon について読む</a>`,
     );
   });
 
   app.get("/learn/identification-basics", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Identification Basics | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "Identification Basics | ikimon",
       "Learn",
       "同定は、いきなり正解を断言するためだけにあるわけではない。",
       "ikimon では observation-first を保ち、一般ユーザーと AI の候補提示は『次に何を見ればよいか』を返す lane に置く。formal ID や確定に近い判断は expert lane で扱い、両者を同じ重さで見せない。",
@@ -217,10 +289,13 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
   app.get("/learn/methodology", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Methodology | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "Methodology | ikimon",
       "Learn",
       "透明性は、信頼のためだけでなく学びのためにも必要です。",
       "ikimon は観察データの取り扱い、希少種の位置保護、ライセンス、モニタリング参考インデックスの考え方を公開する。数値は環境の価値を断言するためではなく、継続観察の進み方を対話できるようにするために置く。",
@@ -259,10 +334,13 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
   app.get("/learn/updates", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Updates | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "Updates | ikimon",
       "Learn",
       "観察体験は、少しずつ積み上げてきた。",
       "既存の updates 資産は捨てず、Field Mentor と Long-term Observatory の方向へつながる変化として読み直す。ここでは主要な進化だけを時系列で残す。",
@@ -305,30 +383,30 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
   app.get("/faq", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "FAQ | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      lang === "ja" ? "よくある質問 | ikimon" : "FAQ | ikimon",
       "FAQ",
-      "まず確認されること",
-      "無料で使える範囲、企業向け導線、データの扱い、切替中の v2 についての簡易 FAQ。",
-      rows([
-        {
-          title: "個人利用は申し込みが必要か",
-          body: "個人利用と Community のグループページは申込不要。すぐに記録を始められる。",
-        },
-        {
-          title: "Public は何が違うか",
-          body: "全種リスト、CSV、証跡レポートなど、調査・報告に使う出力機能を含む有料プラン。",
-          actionHref: withBasePath(basePath, "/for-business/pricing"),
-          actionLabel: "Pricing",
-        },
-        {
-          title: "いまの v2 は何を確認できるか",
-          body: "Record / Explore / Home / Observation Detail / Profile と readiness の確認ができる。",
-          actionHref: withBasePath(basePath, "/"),
-          actionLabel: "Preview",
-        },
+      "よくある質問",
+      "はじめての方、記録・投稿、同定、AI支援、法人利用、データ・プライバシーについて整理しています。",
+      cards([
+        { title: "はじめての方へ", body: "まず何から始めるか、個人利用の入口と基本導線を案内します。" },
+        { title: "記録・投稿", body: "観察の記録方法、投稿時の注意点、写真の扱いについて。", href: withBasePath(basePath, "/record"), label: lang === "ja" ? "記録する" : "Record" },
+        { title: "同定・名前", body: "名前が分からない場合の進め方と、同定精度を上げるコツ。" },
+        { title: "AI支援機能", body: "AI候補の見方、根拠、使いどころと限界。" },
+        { title: "企業・自治体向け", body: "組織導入時のプラン、出力機能、運用相談の流れ。", href: withBasePath(basePath, "/for-business"), label: lang === "ja" ? "法人向け" : "For Business" },
+        { title: "データ・プライバシー", body: "収集する情報、利用目的、公開範囲の考え方。" },
+        { title: "科学データ・標本", body: "市民科学データの扱い方針と将来的な連携の考え方。" },
+      ]) + rows([
+        { title: "個人利用は申し込みが必要か", body: "個人利用は申込不要で、すぐに記録を始められます。" },
+        { title: "同定の進め方はどこで確認できるか", body: "同定の進め方と証拠の考え方は Identification Basics で確認できます。", actionHref: withBasePath(basePath, "/learn/identification-basics"), actionLabel: lang === "ja" ? "同定の考え方" : "Basics" },
+        { title: "データ・プライバシーはどこで確認できるか", body: "データ利用目的と公開範囲の考え方は Privacy で確認できます。", actionHref: withBasePath(basePath, "/privacy"), actionLabel: lang === "ja" ? "プライバシー" : "Privacy" },
+        { title: "AI支援の方針はどこで確認できるか", body: "AI候補の役割と限界は Methodology にまとめています。", actionHref: withBasePath(basePath, "/learn/methodology"), actionLabel: "Methodology" },
+        { title: "Public は何が違うか", body: "全種リストやCSVなど、調査や報告で使う出力機能を含む組織向けのプランです。" },
       ]),
       "Learn",
     );
@@ -336,10 +414,13 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
   app.get("/privacy", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Privacy Policy | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "Privacy Policy | ikimon",
       "Trust",
       "Privacy Policy",
       "サインイン維持、フォーム送信、安全な運用、改善のために必要な範囲でデータを扱う。ここでは v2 public surface 用の短い要約を返す。",
@@ -354,10 +435,13 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
   app.get("/terms", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Terms | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "Terms | ikimon",
       "Trust",
       "Terms",
       "利用中の記録、投稿、アップロード、公開範囲、禁止行為に関する要点を v2 public surface 向けに簡略表示する。",
@@ -372,23 +456,26 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
   app.get("/contact", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Contact | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "Contact | ikimon",
       "Contact",
       "問い合わせの入口",
-      "企業導入、Public プラン、改善相談、パイロット検討の入口を v2 側に固定する。",
+      "導入相談、Public プランの確認、改善相談などをまとめて受けるための入口です。",
       rows([
         {
-          title: "Implementation / pilot inquiry",
-          body: "導入相談、共同パイロット、運用改善の相談は for-business/apply から受け付ける。",
+          title: "導入相談・パイロット相談",
+          body: "組織導入や共同パイロットの相談は apply から受け付けます。",
           actionHref: withBasePath(basePath, "/for-business/apply"),
           actionLabel: "Apply",
         },
         {
           title: "Public plan / pricing",
-          body: "Public で提供する出力機能と適用範囲を確認する。",
+          body: "組織向けプランで使える出力機能と適用範囲を確認できます。",
           actionHref: withBasePath(basePath, "/for-business/pricing"),
           actionLabel: "Pricing",
         },
@@ -399,49 +486,75 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
   app.get("/for-business", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "For Business | ikimon v2",
-      "For Business",
-      "場所の記録基盤を、導入しやすくする。",
-      "Community から始め、必要な組織だけ Public の出力機能や導入相談へ進める。若年女性減少率 80% 以上を目安に、最も記録基盤が必要な地域には無償提供も含めて検討する。",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      lang === "ja" ? "ikimon for Business — 組織で支える、近くの自然" : "For Business | ikimon",
+      lang === "ja" ? "法人向け" : "For Business",
+      "観察会や地域の記録を、続けやすくする。",
+      "観察記録の収集から、報告書の出力まで。学校・自治体・企業で継続運用しやすい導線を用意しています。",
       cards([
         {
-          title: "Pricing",
-          body: "Public が含む全種リスト、CSV、証跡レポートなどの出力機能を確認。",
-          href: withBasePath(basePath, "/for-business/pricing"),
-          label: "Open pricing",
-        },
-        {
-          title: "Demo",
-          body: "組織向け導線の確認用 preview。必要に応じて staging での確認に繋げる。",
+          title: "観察記録の収集から、報告書の出力まで",
+          body: "現場の記録を集め、整理し、共有・報告につなげるまでを一つの流れで支援します。",
           href: withBasePath(basePath, "/for-business/demo"),
-          label: "Open demo",
+          label: lang === "ja" ? "デモを見る" : "Demo",
         },
         {
-          title: "Status",
-          body: "切替・導入 readiness・パイロット相談の前提を確認。",
-          href: withBasePath(basePath, "/for-business/status"),
-          label: "Open status",
+          title: "どんな団体を想定しているか",
+          body: "自治体、学校、企業、NPOなど、地域で自然観察を継続したい組織を対象にしています。",
         },
         {
-          title: "Apply",
-          body: "導入相談・共同パイロット・改善相談の入口。",
+          title: "プランの設計について",
+          body: "Community / Public の違いと、運用段階に応じた導入ステップを確認できます。",
+          href: withBasePath(basePath, "/for-business/pricing"),
+          label: lang === "ja" ? "料金を見る" : "Pricing",
+        },
+        {
+          title: "3つのプラン",
+          body: "導入規模や目的に応じて、段階的に選べる構成。",
+        },
+        {
+          title: "なぜこの料金設計なのか",
+          body: "継続運用と現場負担のバランスを優先した設計です。",
+        },
+        {
+          title: "よくある質問",
+          body: "導入前に確認したい点を先に整理できます。",
+          href: withBasePath(basePath, "/faq"),
+          label: "FAQ",
+        },
+        {
+          title: "導入相談も、共同実証の相談も歓迎しています。",
+          body: "要件整理、試験導入、共同実証までお気軽に相談ください。",
           href: withBasePath(basePath, "/for-business/apply"),
-          label: "Open apply",
+          label: lang === "ja" ? "相談する" : "Apply",
+        },
+      ]) + rows([
+        {
+          title: "料金設計の背景",
+          body: "継続運用と現場負担のバランスを優先した設計思想を確認できます。",
+          actionHref: withBasePath(basePath, "/for-business/pricing"),
+          actionLabel: lang === "ja" ? "設計思想" : "Pricing rationale",
         },
       ]),
       "For Business",
+      `<a class="inline-link" href="${escapeHtml(withBasePath(basePath, "/contact"))}">問い合わせる</a>`,
     );
   });
 
   app.get("/for-business/pricing", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "For Business Pricing | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "For Business Pricing | ikimon",
       "For Business",
       "Community から Public へ上げる基準を明確にする。",
       "Community は無料で始め、Public では調査・報告に使う出力機能を提供する。導入時は現在の運用と必要な出力から逆算する。",
@@ -456,10 +569,13 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
   app.get("/for-business/demo", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "For Business Demo | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "For Business Demo | ikimon",
       "For Business",
       "デモ確認の入口",
       "営業用の重い専用画面ではなく、実際の v2 lane を薄く案内しながら業務導線を確認できる形にする。",
@@ -474,10 +590,13 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
   app.get("/for-business/status", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "For Business Status | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "For Business Status | ikimon",
       "For Business",
       "運用 readiness の要点",
       "v2 は mirror-only rehearsal と write compatibility の確認が済んでおり、公開面の置換と archive mode を残している。",
@@ -492,10 +611,13 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
   app.get("/for-business/apply", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "For Business Apply | ikimon v2",
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "For Business Apply | ikimon",
       "For Business",
       "Implementation / pilot inquiry",
       "導入相談、共同パイロット、改善相談をここに集約する。個人利用や無料 Community は申込不要で、必要なときだけ Public や相談へ案内する。",

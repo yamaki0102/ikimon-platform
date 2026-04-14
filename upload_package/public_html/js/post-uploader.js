@@ -6,6 +6,7 @@
 function uploader() {
     const config = window.__POST_CONFIG || {};
     return {
+        copy: config.successGuidance || {},
         AiAssist: window.AiAssist,
         photos: [],
         observed_at: '',
@@ -72,6 +73,7 @@ function uploader() {
         guestPostLimit: config.guestPostLimit ?? 3,
         csrfToken: config.csrfToken ?? '',
         survey_id: config.survey_id ?? null,
+        outboxCount: 0,
         showDetails: false,
         biome: 'unknown',
         biomeAutoSelected: false,
@@ -122,6 +124,14 @@ function uploader() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('taxon_name')) this.taxon_name = urlParams.get('taxon_name');
             if (urlParams.get('note')) this.note = urlParams.get('note');
+            if (urlParams.get('lat') && urlParams.get('lng')) {
+                this.lat = Number(urlParams.get('lat')).toFixed(6);
+                this.lng = Number(urlParams.get('lng')).toFixed(6);
+                this.locationSource = 'manual';
+            }
+            if (urlParams.get('location_name')) {
+                this.locationName = urlParams.get('location_name');
+            }
             if (urlParams.get('event_id')) {
                 this.event_id = urlParams.get('event_id');
                 this.event_name = urlParams.get('event_name') || '観察会';
@@ -189,6 +199,8 @@ function uploader() {
                         if (d.managed_context_type) this.managed_context_type = d.managed_context_type;
                         if (d.managed_site_name) this.managed_site_name = d.managed_site_name;
                         if (d.managed_context_note) this.managed_context_note = d.managed_context_note;
+                        if (d.locationGranularity) this.locationGranularity = d.locationGranularity;
+                        if (d.lightMode) this.lightMode = !!d.lightMode;
                     }
                 } catch (e) { }
             }
@@ -204,6 +216,11 @@ function uploader() {
                     }
                 }
             } catch (e) { /* no active session */ }
+
+            this.refreshOutboxCount();
+            window.addEventListener('offline-outbox-count', (event) => {
+                this.outboxCount = event.detail?.count ?? 0;
+            });
 
             // Auto-Save Draft
             this.$watch('note', val => this.saveDraft());
@@ -254,6 +271,59 @@ function uploader() {
                 return hasLocation && hasSubstance;
             }
             return this.photos.length > 0;
+        },
+
+        get successGuidance() {
+            const rank = String(this.taxon_rank || '').toLowerCase();
+            const speciesOrBelow = ['species', 'subspecies', 'variety', 'form'].includes(rank);
+            const hasCoarseRank = rank !== '' && !speciesOrBelow;
+            const hasNameHypothesis = !!(this.taxon_slug || this.taxon_name.trim());
+            const progressBody = speciesOrBelow
+                ? (this.copy.progressBodySpecies || '')
+                : (hasCoarseRank ? (this.copy.progressBodyCoarse || '') : (this.copy.progressBodyDefault || ''));
+            const retakeBody = this.photos.length <= 1
+                ? (this.copy.retakeBodySingle || '')
+                : (this.copy.retakeBodyMulti || '');
+            const contributionBody = hasNameHypothesis
+                ? (this.copy.contributionBodyNamed || this.copy.contributionBodyDefault || '')
+                : (this.copy.contributionBodyDefault || '');
+
+            return {
+                sectionTitle: this.copy.sectionTitle || '',
+                sectionBody: this.copy.sectionBody || '',
+                cards: [
+                    {
+                        icon: '🪜',
+                        title: this.copy.progressTitle || '',
+                        body: progressBody,
+                    },
+                    {
+                        icon: '📷',
+                        title: this.copy.retakeTitle || '',
+                        body: retakeBody,
+                    },
+                    {
+                        icon: '🌍',
+                        title: this.copy.contributionTitle || '',
+                        body: contributionBody,
+                        note: this.copy.contributionNote || '',
+                    },
+                ],
+            };
+        },
+
+        get successRevisit() {
+            return {
+                title: this.copy.revisitTitle || '',
+                body: this.isLoggedIn
+                    ? (this.copy.revisitBodyLoggedIn || this.copy.revisitBodyDefault || '')
+                    : (this.copy.revisitBodyGuest || this.copy.revisitBodyDefault || ''),
+                note: this.copy.revisitNote || '',
+                collectionHref: this.isLoggedIn ? 'profile.php' : 'explore.php',
+                collectionLabel: this.isLoggedIn
+                    ? (this.copy.revisitCollectionProfile || '')
+                    : (this.copy.revisitCollectionExplore || ''),
+            };
         },
 
         ensureFormReady() {
@@ -376,6 +446,8 @@ function uploader() {
             this.evidence_tags = [];
             this.individual_count = null;
             this.record_mode = 'standard';
+            this.lightMode = false;
+            this.locationGranularity = 'exact';
             this.showDetails = false;
             this.submitting = false;
             this.success = false;
@@ -402,6 +474,23 @@ function uploader() {
             this.$nextTick(() => lucide.createIcons());
         },
 
+        continueAtSamePlace() {
+            this.resetForm();
+            this.showDetails = true;
+            this.$nextTick(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                    if (this.marker) {
+                        this.marker.setLatLng([this.lat, this.lng]);
+                    }
+                    this.map.flyTo([this.lat, this.lng], 16);
+                } else {
+                    setTimeout(() => this.initMapNow(), 200);
+                }
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        },
+
         saveDraft() {
             const draft = {
                 note: this.note,
@@ -426,6 +515,8 @@ function uploader() {
                 managed_context_type: this.managed_context_type,
                 managed_site_name: this.managed_site_name,
                 managed_context_note: this.managed_context_note,
+                locationGranularity: this.locationGranularity,
+                lightMode: this.lightMode,
                 timestamp: Date.now()
             };
             try {
@@ -433,6 +524,28 @@ function uploader() {
             } catch (e) {
                 console.warn('[Draft] localStorage full, skipping save');
             }
+        },
+
+        async refreshOutboxCount() {
+            try {
+                this.outboxCount = await window.offlineManager.getCount();
+            } catch (e) {
+                this.outboxCount = 0;
+            }
+        },
+
+        async queueObservation(formData, reason, errorMessage) {
+            await window.offlineManager.saveObservation(formData, {
+                reason,
+                error: errorMessage || ''
+            });
+            this.progress = 100;
+            this.success = true;
+            if (navigator.vibrate) navigator.vibrate([50, 50]);
+            alert('📱 端末に保存したよ！\n通信が安定したら自動で再送するから安心してね。');
+            localStorage.removeItem('draft_obs');
+            await this.refreshOutboxCount();
+            setTimeout(() => window.location.href = 'index.php', 500);
         },
 
         handleFiles(e) {
@@ -629,6 +742,7 @@ function uploader() {
             if (this.evidence_tags.length > 0) formData.append('evidence_tags', JSON.stringify(this.evidence_tags));
             if (this.individual_count !== null && this.individual_count !== '') formData.append('individual_count', this.individual_count);
             formData.append('record_mode', this.record_mode);
+            if (this.lightMode) formData.append('light_mode', '1');
             if (this.locationGranularity !== 'exact') formData.append('location_granularity', this.locationGranularity);
 
             // NP: Send GPS coordinate accuracy for DwC coordinateUncertaintyInMeters
@@ -665,14 +779,18 @@ function uploader() {
                 });
 
                 const text = await res.text();
+                if (res.status >= 500) {
+                    console.error('Server Error (5xx):', res.status, text.slice(0, 200));
+                    await this.queueObservation(formData, `server_${res.status}`, text.slice(0, 200));
+                    return;
+                }
                 let result;
                 try {
                     result = JSON.parse(text);
                 } catch (e) {
-                    // Server returned non-JSON (500 error, HTML error page, etc.)
+                    // Server returned non-JSON (proxy failure, HTML error page, etc.)
                     console.error('Server Error (non-JSON):', text.slice(0, 200));
-                    alert('サーバーエラーが発生したよ 🙇\nもう一度試してみてね。\n\n' + text.slice(0, 80));
-                    this.submitting = false;
+                    await this.queueObservation(formData, 'non_json_response', text.slice(0, 200));
                     return;
                 }
 
@@ -713,13 +831,7 @@ function uploader() {
                 if (e instanceof TypeError || !navigator.onLine) {
                     console.log('Network unavailable, saving to Outbox...', e);
                     try {
-                        await window.offlineManager.saveObservation(formData);
-                        this.progress = 100;
-                        this.success = true;
-                        if (navigator.vibrate) navigator.vibrate([50, 50]);
-                        alert('📱 端末に保存したよ！\nネットが繋がったら自動で送信されるから安心してね。');
-                        localStorage.removeItem('draft_obs');
-                        setTimeout(() => window.location.href = 'index.php', 500);
+                        await this.queueObservation(formData, 'network_error', e.message || 'network_error');
                     } catch (dbError) {
                         console.error('IndexedDB Failed:', dbError);
                         alert('ごめん、保存がうまくいかなかった... 🙇\nもう一回試してみてね');

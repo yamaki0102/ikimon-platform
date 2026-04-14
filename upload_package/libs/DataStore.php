@@ -2,6 +2,10 @@
 
 /**
  * DataStore - Scalable JSON Data Handler
+ *
+ * R0 policy note:
+ * JSON remains the ingest/archive path for legacy and rollback safety.
+ * Canonical business truth for new cross-cutting features must move into ikimon.db.
  */
 
 require_once __DIR__ . '/../config/config.php';

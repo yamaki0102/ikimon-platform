@@ -1,0 +1,312 @@
+{
+    "root": {
+        "question": "Onde você encontrou?",
+        "description": "Primeiro, reduza pelo lugar.",
+        "options": [
+            {
+                "id": "land",
+                "label": "Terra / chão / grama",
+                "sub": "Em terra",
+                "icon": "footprints",
+                "next": "land_creature",
+                "desc": "No chão ou na grama de uma floresta, parque, beira de estrada ou perto de casa."
+            },
+            {
+                "id": "water",
+                "label": "Beira d'água / na água",
+                "sub": "Rio / lagoa / mar",
+                "icon": "waves",
+                "next": "water_creature",
+                "desc": "Em um rio, lagoa, mar, arrozal ou poça d'água."
+            },
+            {
+                "id": "sky",
+                "label": "Céu / lugares altos",
+                "sub": "Voando",
+                "icon": "cloud",
+                "next": "sky_creature",
+                "desc": "Voando no céu ou em uma árvore alta ou fio elétrico."
+            },
+            {
+                "id": "indoor",
+                "label": "Dentro de casa / prédio",
+                "sub": "Ambiente interno",
+                "icon": "home",
+                "next": "indoor_creature",
+                "desc": "Encontrado dentro de um cômodo, na varanda ou em uma parede."
+            }
+        ]
+    },
+    "land_creature": {
+        "question": "Como era?",
+        "description": "Que pista de movimento ou aparência chamou mais atenção?",
+        "options": [
+            {
+                "id": "plant",
+                "label": "Não se move (planta)",
+                "sub": "Flor / grama / árvore",
+                "icon": "flower",
+                "next": "plant_type",
+                "desc": "Cresce do solo e não se move por conta própria, exceto com o vento."
+            },
+            {
+                "id": "insect_land",
+                "label": "Inseto (6 patas ou mais)",
+                "sub": "Inseto / aranha",
+                "icon": "bug",
+                "next": "insect_type",
+                "desc": "Um ser pequeno com muitas patas, normalmente 6 ou 8, rastejando ou pulando."
+            },
+            {
+                "id": "animal",
+                "label": "Animal (4 patas)",
+                "sub": "Mamífero / réptil",
+                "icon": "dog",
+                "next": "mammal_type",
+                "desc": "Um animal andando sobre quatro patas, como gato, cachorro ou lagarto."
+            },
+            {
+                "id": "unknown_land",
+                "label": "Não tenho certeza",
+                "sub": "Outro",
+                "icon": "help-circle",
+                "result": "未同定(陸)",
+                "desc": "Algo como um fungo, fezes de animal ou qualquer coisa difícil de identificar."
+            }
+        ]
+    },
+    "water_creature": {
+        "question": "Um ser perto da água",
+        "description": "Que forma ele tinha?",
+        "options": [
+            {
+                "id": "fish",
+                "label": "Peixe",
+                "sub": "Nadando",
+                "icon": "fish",
+                "result": "魚上綱 (Pisces)",
+                "desc": "Nada suavemente na água, com nadadeiras e sem patas."
+            },
+            {
+                "id": "frog",
+                "label": "Sapo / tritão",
+                "sub": "Anfíbio",
+                "icon": "cloud-rain",
+                "result": "両生綱 (Amphibia)",
+                "desc": "Fica perto da água, tem quatro patas e muitas vezes pele úmida."
+            },
+            {
+                "id": "water_bird",
+                "label": "Ave aquática",
+                "sub": "Ave que nada",
+                "icon": "anchor",
+                "result": "鳥綱 (Aves)",
+                "desc": "Uma ave boiando na água ou andando na margem."
+            },
+            {
+                "id": "water_insect",
+                "label": "Inseto aquático",
+                "sub": "Percevejo-d'água / ninfa",
+                "icon": "droplets",
+                "result": "水生昆虫",
+                "desc": "Um inseto dentro da água ou na superfície, como um percevejo-d'água."
+            }
+        ]
+    },
+    "sky_creature": {
+        "question": "Um ser no céu",
+        "description": "O que estava voando?",
+        "options": [
+            {
+                "id": "bird",
+                "label": "Ave",
+                "sub": "Tem penas",
+                "icon": "feather",
+                "result": "鳥綱 (Aves)",
+                "desc": "Coberta de penas e voando com asas."
+            },
+            {
+                "id": "flying_insect",
+                "label": "Inseto voador",
+                "sub": "Borboleta / libélula",
+                "icon": "plane",
+                "next": "insect_type",
+                "desc": "Um ser pequeno voando com asas."
+            }
+        ]
+    },
+    "indoor_creature": {
+        "question": "Um ser em ambiente interno",
+        "description": "Onde você encontrou?",
+        "options": [
+            {
+                "id": "indoor_insect",
+                "label": "Inseto dentro de casa",
+                "sub": "Mosca / aranha",
+                "icon": "bug",
+                "result": "節足動物門 (Arthropoda)",
+                "desc": "Um inseto pequeno que provavelmente entrou por uma janela ou fresta."
+            },
+            {
+                "id": "pet",
+                "label": "Animal de estimação",
+                "sub": "Criado por pessoas",
+                "icon": "heart",
+                "result": "ペット",
+                "desc": "Um cachorro, gato ou até uma planta que alguém cuida."
+            }
+        ]
+    },
+    "insect_type": {
+        "question": "Que tipo de formato de inseto?",
+        "description": "O que mais se destaca?",
+        "options": [
+            {
+                "id": "butterfly",
+                "label": "Borboleta / mariposa",
+                "sub": "Asas grandes",
+                "icon": "fan",
+                "result": "チョウ目 (Lepidoptera)",
+                "desc": "Voa com asas grandes. Pode fechá-las ou abri-las quando pousa."
+            },
+            {
+                "id": "beetle",
+                "label": "Besouro",
+                "sub": "Costas duras",
+                "icon": "shield",
+                "next": "beetle_type",
+                "desc": "Tem costas lisas e duras, como um besouro-rinoceronte ou joaninha."
+            },
+            {
+                "id": "dragonfly",
+                "label": "Libélula",
+                "sub": "Corpo longo / asas transparentes",
+                "icon": "plane",
+                "result": "トンボ目 (Odonata)",
+                "desc": "Corpo fino e comprido, quatro asas transparentes e olhos grandes."
+            },
+            {
+                "id": "mantis",
+                "label": "Louva-a-deus / gafanhoto",
+                "sub": "Parece capim",
+                "icon": "activity",
+                "result": "バッタ目 (Orthoptera)",
+                "desc": "Verde ou marrom, parecido com capim, e costuma pular com as patas."
+            },
+            {
+                "id": "spider",
+                "label": "Aranha",
+                "sub": "8 patas",
+                "icon": "snowflake",
+                "result": "クモ綱 (Arachnida)",
+                "desc": "Tem oito patas em vez de seis. Algumas fazem teia e outras andam soltas."
+            }
+        ]
+    },
+    "plant_type": {
+        "question": "Que tipo de planta?",
+        "description": "Como ela parece?",
+        "options": [
+            {
+                "id": "flower",
+                "label": "Com flores",
+                "sub": "Flor silvestre",
+                "icon": "flower-2",
+                "result": "被子植物門 (Angiosperms)",
+                "desc": "Cresce do solo e tem pétalas visíveis."
+            },
+            {
+                "id": "tree",
+                "label": "Árvore",
+                "sub": "Tronco duro",
+                "icon": "tree-pine",
+                "result": "木本植物 (Woody plants)",
+                "desc": "Alta, com tronco marrom e duro."
+            },
+            {
+                "id": "grass",
+                "label": "Capim / folhas",
+                "sub": "Mato / samambaia",
+                "icon": "sprout",
+                "result": "維管束植物 (Tracheophyta)",
+                "desc": "Principalmente folhas verdes, com flores pequenas ou pouco visíveis."
+            }
+        ]
+    },
+    "beetle_type": {
+        "question": "Que tipo de besouro?",
+        "description": "Avance mais um passo.",
+        "options": [
+            {
+                "id": "rhinoceros_beetle",
+                "label": "Besouro-rinoceronte",
+                "sub": "Tem chifre",
+                "icon": "sword",
+                "result": "カブトムシ亜科 (Dynastinae)",
+                "desc": "Um besouro clássico do verão. Os machos têm um grande chifre."
+            },
+            {
+                "id": "stag_beetle",
+                "label": "Besouro-cervo",
+                "sub": "Mandíbulas grandes",
+                "icon": "scissors",
+                "result": "クワガタムシ科 (Lucanidae)",
+                "desc": "Tem grandes mandíbulas em forma de pinça."
+            },
+            {
+                "id": "ladybug",
+                "label": "Joaninha",
+                "sub": "Redonda e vermelha",
+                "icon": "disc",
+                "result": "テントウムシ科 (Coccinellidae)",
+                "desc": "Um pequeno besouro com manchas vermelhas ou pretas."
+            },
+            {
+                "id": "chafer",
+                "label": "Besouro brilhante",
+                "sub": "Brilhante",
+                "icon": "sun",
+                "result": "コガネムシ科 (Scarabaeidae)",
+                "desc": "Muitas vezes tem uma superfície metálica ou brilhante."
+            },
+            {
+                "id": "longhorn",
+                "label": "Besouro-serra-pau",
+                "sub": "Antenas longas",
+                "icon": "radio-receiver",
+                "result": "カミキリムシ科 (Cerambycidae)",
+                "desc": "Tem antenas mais longas que o próprio corpo."
+            },
+            {
+                "id": "general_beetle",
+                "label": "Besouro (geral)",
+                "sub": "Não afunilar mais",
+                "icon": "check-circle",
+                "result": "甲虫目 (Coleoptera)",
+                "desc": "Registre apenas como besouro, sem afinar mais o tipo."
+            }
+        ]
+    },
+    "mammal_type": {
+        "question": "Qual era o tamanho do animal?",
+        "description": "Qual parecia ser o porte?",
+        "options": [
+            {
+                "id": "dog_cat",
+                "label": "Tamanho de cachorro / gato",
+                "sub": "Médio",
+                "icon": "dog",
+                "result": "哺乳綱 (Mammalia)",
+                "desc": "Um animal de algum porte, como um tanuki ou civeta."
+            },
+            {
+                "id": "mouse",
+                "label": "Tamanho de rato",
+                "sub": "Pequeno",
+                "icon": "mouse",
+                "result": "哺乳綱 (Mammalia)",
+                "desc": "Um animal pequeno, mais ou menos do tamanho da palma da mão."
+            }
+        ]
+    }
+}

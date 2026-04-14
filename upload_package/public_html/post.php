@@ -5,9 +5,11 @@ require_once __DIR__ . '/../libs/CSRF.php';
 require_once __DIR__ . '/../libs/SurveyManager.php';
 require_once __DIR__ . '/../libs/Asset.php';
 require_once __DIR__ . '/../libs/SurveyorManager.php';
+require_once __DIR__ . '/../libs/Lang.php';
 
 // Guest Access Allowed — ゲストは3件まで投稿可能
 Auth::init();
+Lang::init();
 $csrfToken = CSRF::generate(); // Must be called before any HTML output (setcookie requires headers not sent)
 
 // Check for active survey (Auth::init() 後に呼ぶ — userId が必要)
@@ -22,6 +24,8 @@ $guestPostCount = 0;
 $canPost = true;
 $currentUser = Auth::user();
 $canSurveyorOfficialPost = SurveyorManager::isApproved($currentUser);
+$documentLang = Lang::current();
+$jsLocale = $documentLang === 'pt-br' ? 'pt-BR' : $documentLang;
 
 // Return URL after posting (e.g., from field_research.php)
 $returnUrl = isset($_GET['return']) ? htmlspecialchars($_GET['return'], ENT_QUOTES, 'UTF-8') : '';
@@ -39,12 +43,12 @@ if ($isGuest) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= htmlspecialchars($documentLang, ENT_QUOTES, 'UTF-8') ?>">
 
 <head>
     <?php
-    $meta_title = "投稿する — ikimon.life";
-    $meta_description = "生き物を撮って投稿。GPS自動取得、写真からの日時・位置情報の自動抽出で、最短3タップで観察記録を残せます。";
+$meta_title = __('post_page.meta_title', 'Save today’s finds — ikimon');
+$meta_description = __('post_page.meta_description', 'Save what you found nearby first. You can start with one photo even if the name is still unclear.');
     include __DIR__ . '/components/meta.php';
     ?>
     <style>
@@ -168,10 +172,10 @@ if ($isGuest) {
 
         <!-- Immersive Header -->
         <header class="fixed top-0 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] h-14 flex items-center justify-between px-4 bg-surface/90 backdrop-blur-xl z-50 border-b border-border">
-            <a href="javascript:history.length > 1 ? history.back() : location.href='index.php'" aria-label="戻る" class="p-3 -ml-3 text-muted hover:text-text transition">
+            <a href="javascript:history.length > 1 ? history.back() : location.href='index.php'" aria-label="<?= __('post_page.back', 'Back') ?>" class="p-3 -ml-3 text-muted hover:text-text transition">
                 <i data-lucide="x" class="w-6 h-6"></i>
             </a>
-            <h1 class="text-sm font-black tracking-widest uppercase text-text">記録する</h1>
+            <h1 class="text-sm font-black tracking-widest uppercase text-text"><?= __('post_page.title', 'Save today’s finds') ?></h1>
             <div class="w-10"></div>
         </header>
 
@@ -180,7 +184,7 @@ if ($isGuest) {
             x-show="offline" x-transition
             class="fixed top-14 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] z-40 px-4 py-2 flex items-center gap-2" style="background:var(--md-error-container);border-bottom:1px solid var(--md-outline-variant);">
             <i data-lucide="wifi-off" class="w-3.5 h-3.5 text-danger"></i>
-            <span class="text-xs font-bold text-danger">オフライン — 入力は端末に保存され、通信回復後に自動送信されます</span>
+            <span class="text-xs font-bold text-danger"><?= __('post_page.offline_banner', 'Offline — input is saved on the device and sent automatically when the connection returns') ?></span>
         </div>
 
         <!-- ゲストモードバナー -->
@@ -188,15 +192,37 @@ if ($isGuest) {
             <div class="fixed top-14 left-0 w-full md:max-w-md md:left-[50%] md:translate-x-[-50%] z-40 px-4 py-2 flex items-center justify-between" style="background:var(--md-tertiary-container);border-bottom:1px solid var(--md-outline-variant);">
                 <span class="text-xs text-accent font-bold flex items-center gap-1">
                     <i data-lucide="user" class="w-3 h-3"></i>
-                    ゲスト投稿 <span x-text="guestPostCount"></span>/<span x-text="guestPostLimit"></span>件
+                    <?= __('post_page.guest_count', 'Guest posts') ?> <span x-text="guestPostCount"></span>/<span x-text="guestPostLimit"></span>
                 </span>
                 <a href="login.php?redirect=post.php" class="text-[10px] font-bold text-primary bg-elevated px-3 py-1 rounded-full border border-primary/20 hover:bg-primary-surface transition">
-                    🔑 ログインして無制限に
+                    🔑 <?= __('post_page.guest_continue', 'Sign in to continue') ?>
                 </a>
             </div>
         </template>
 
         <main :class="isGuest ? 'pt-28 pb-32 px-4' : 'pt-20 pb-32 px-4'">
+            <section class="mb-5 px-4 py-4" style="background:var(--md-primary-container);border-radius:var(--shape-xl);box-shadow:var(--elev-1);">
+                <div class="flex items-start gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-white/80 text-primary flex items-center justify-center shrink-0">
+                        <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-sm font-black text-text"><?= __('post_page.hero_title', 'You do not need the right answer right away') ?></p>
+                        <p class="text-xs text-muted mt-1 leading-relaxed"><?= __('post_page.hero_body', 'Save what you found nearby first. Even if the name is unclear, a record you can revisit later is what matters most.') ?></p>
+                    </div>
+                </div>
+            </section>
+
+            <div x-show="outboxCount > 0" x-transition class="mb-4 px-4 py-3 flex items-start gap-3" style="background:var(--md-tertiary-container);border-radius:var(--shape-xl);">
+                <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                    <i data-lucide="cloud-upload" class="w-4 h-4"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-black text-text" x-text="'<?= addslashes(__('post_page.outbox_title', 'Outbox has {count} pending items')) ?>'.replace('{count}', outboxCount)"></p>
+                    <p class="text-xs text-muted mt-1 leading-relaxed"><?= __('post_page.outbox_body', 'If the connection drops or a 5xx occurs, the item is moved to the queue. It will resend automatically when the connection returns.') ?></p>
+                </div>
+            </div>
+
 
             <!-- 観察会連携バナー -->
             <template x-if="event_id">
@@ -204,7 +230,7 @@ if ($isGuest) {
                     <span class="text-2xl">📋</span>
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-bold text-primary truncate" x-text="event_name"></p>
-                        <p class="text-[10px] text-primary/60">この観察会に記録が紐づけられます</p>
+                        <p class="text-[10px] text-primary/60"><?= __('post_page.event_linked', 'This record will be linked to the event') ?></p>
                     </div>
                     <button type="button" @click="event_id = null; event_name = ''" class="text-primary/40 hover:text-primary p-1">
                         <i data-lucide="x" class="w-4 h-4"></i>
@@ -220,18 +246,18 @@ if ($isGuest) {
                             <i data-lucide="badge-check" class="w-5 h-5"></i>
                         </div>
                         <div class="flex-1 min-w-0">
-                            <p class="text-sm font-black text-sky-900">調査員モードが有効です</p>
+                            <p class="text-sm font-black text-sky-900"><?= __('post_page.surveyor_title', 'Surveyor mode is enabled') ?></p>
                             <p class="text-xs text-sky-900/70 mt-1 leading-relaxed">
-                                写真つきの通常記録に加えて、現地確認だけで公式記録を残せます。写真がない場合は、種名とメモをできるだけ具体的に残してください。
+                                <?= __('post_page.surveyor_body', 'In addition to a normal photo record, you can leave an official record from field confirmation alone. If there is no photo, please record the species name and notes as specifically as possible.') ?>
                             </p>
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <button type="button" @click="record_mode = 'standard'" class="px-3 py-2 rounded-xl text-xs font-bold border transition"
                                     :class="record_mode === 'standard' ? 'bg-primary text-white border-primary' : 'bg-white text-text border-sky-200'">
-                                    通常記録
+                                    <?= __('post_page.mode_standard', 'Standard record') ?>
                                 </button>
                                 <button type="button" @click="record_mode = 'surveyor_official'" class="px-3 py-2 rounded-xl text-xs font-bold border transition"
                                     :class="record_mode === 'surveyor_official' ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-sky-800 border-sky-200'">
-                                    調査員公式記録
+                                    <?= __('post_page.mode_official', 'Official surveyor record') ?>
                                 </button>
                             </div>
                         </div>
@@ -262,37 +288,37 @@ if ($isGuest) {
                     <div class="border-2 border-dashed border-border rounded-3xl p-6 text-center transition bg-surface hover:bg-white/5">
                         <div x-show="photos.length === 0">
                             <i data-lucide="camera" class="w-10 h-10 mx-auto mb-3 text-primary"></i>
-                            <p class="text-sm font-bold mb-1 text-text" x-text="record_mode === 'surveyor_official' ? '写真がなくても公式記録を残せます' : '生き物を撮影・選択'"></p>
-                            <p class="text-xs text-muted mb-2" x-text="record_mode === 'surveyor_official' ? '📋 現地確認のみならこのまま下のフォームへ。写真があれば付けると再利用しやすくなります' : '📸 撮るだけでOK！名前は後からでも大丈夫'"></p>
-                            <p x-show="record_mode !== 'surveyor_official'" class="text-[10px] text-faint mb-4">🌱 スズメもタンポポも、ふだんの記録が地域の生態系データの基盤になります</p>
+                            <p class="text-sm font-bold mb-1 text-text" x-text="record_mode === 'surveyor_official' ? '<?= addslashes(__('post_page.photo_heading_official', 'You can leave an official record without a photo')) ?>' : '<?= addslashes(__('post_page.photo_heading_standard', 'Take or choose a living thing photo')) ?>'"></p>
+                            <p class="text-xs text-muted mb-2" x-text="record_mode === 'surveyor_official' ? '<?= addslashes(__('post_page.photo_sub_official', 'If this is field confirmation only, continue to the form below. A photo helps reuse the record later if you have one.')) ?>' : '<?= addslashes(__('post_page.photo_sub_standard', 'A photo is enough to start. The name can come later.')) ?>'"></p>
+                            <p x-show="record_mode !== 'surveyor_official'" class="text-[10px] text-faint mb-4">🌱 <?= __('post_page.photo_context', 'Everyday records become the base layer of local ecosystem data') ?></p>
                             <div class="flex flex-col gap-3">
                                 <button type="button" @click="$refs.cameraInput.click()" class="m3-btn-filled" style="padding:20px 24px;border-radius:var(--shape-xl);justify-content:flex-start;">
                                     <i data-lucide="camera" class="w-6 h-6" style="pointer-events:none;flex-shrink:0;"></i>
                                     <div style="text-align:left;">
-                                        <span style="display:block;">📸 写真を撮る</span>
-                                        <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.8;">カメラロールにも保存されます</span>
+                                        <span style="display:block;">📸 <?= __('post_page.take_photo', 'Take a photo') ?></span>
+                                        <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.8;"><?= __('post_page.take_photo_body', 'It will also be saved to your camera roll') ?></span>
                                     </div>
                                 </button>
                                 <button type="button" @click="$refs.galleryInput.click()" class="m3-btn-tonal" style="padding:18px 24px;border-radius:var(--shape-xl);justify-content:flex-start;">
                                     <i data-lucide="image" class="w-6 h-6" style="pointer-events:none;flex-shrink:0;"></i>
                                     <div style="text-align:left;">
-                                        <span style="display:block;">🖼️ ギャラリーから選ぶ</span>
-                                        <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.7;">保存済みの写真をアップロード</span>
+                                        <span style="display:block;">🖼️ <?= __('post_page.choose_gallery', 'Choose from gallery') ?></span>
+                                        <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.7;"><?= __('post_page.choose_gallery_body', 'Upload a saved photo') ?></span>
                                     </div>
                                 </button>
                                 <template x-if="record_mode === 'surveyor_official'">
                                     <button type="button" @click="ensureFormReady()" class="m3-btn-tonal" style="padding:18px 24px;border-radius:var(--shape-xl);justify-content:flex-start;">
                                         <i data-lucide="clipboard-check" class="w-6 h-6" style="pointer-events:none;flex-shrink:0;"></i>
                                         <div style="text-align:left;">
-                                            <span style="display:block;">📝 写真なしで公式記録する</span>
-                                            <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.7;">位置・日時・種名・メモを残します</span>
+                                            <span style="display:block;">📝 <?= __('post_page.official_no_photo', 'Official record without photo') ?></span>
+                                            <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.7;"><?= __('post_page.official_no_photo_body', 'We will keep location, date, species name, and notes') ?></span>
                                         </div>
                                     </button>
                                 </template>
                                 <template x-if="record_mode !== 'surveyor_official'">
                                     <button type="button" @click="lightMode = true; ensureFormReady(); showDetails = true" class="w-full text-center py-2 text-xs font-bold text-faint hover:text-primary transition">
                                         <i data-lucide="pen-line" class="w-3 h-3 inline-block mr-1" style="pointer-events:none;"></i>
-                                        写真なしでメモだけ残す
+                                        <?= __('post_page.note_only', 'Leave a note only') ?>
                                     </button>
                                 </template>
                             </div>
@@ -303,7 +329,7 @@ if ($isGuest) {
                             <span class="text-xs font-bold text-muted">
                                 📷 <span x-text="photos.length"></span>/5枚
                             </span>
-                            <span x-show="photos.length >= 5" class="text-[10px] text-orange-400 font-bold">最大枚数です</span>
+                            <span x-show="photos.length >= 5" class="text-[10px] text-orange-400 font-bold"><?= __('post_page.max_photos', 'You reached the max number of photos') ?></span>
                         </div>
 
                         <!-- Preview Grid -->
@@ -313,11 +339,11 @@ if ($isGuest) {
                                     :class="index === 0 ? 'ring-2 ring-primary ring-offset-2' : ''">
                                     <img :src="photo.preview" :alt="'観察写真 ' + (index + 1)" class="w-full h-full object-cover">
                                     <!-- Main photo badge -->
-                                    <div x-show="index === 0" class="absolute bottom-1 left-1 bg-primary text-white text-[9px] font-black px-2 py-0.5 rounded-full z-20">メイン</div>
+                                    <div x-show="index === 0" class="absolute bottom-1 left-1 bg-primary text-white text-[9px] font-black px-2 py-0.5 rounded-full z-20"><?= __('post_page.main_photo', 'Main') ?></div>
                                     <!-- Set as main (tap photo area) -->
                                     <button x-show="index !== 0" @click.prevent="setMainPhoto(index)"
                                         class="absolute bottom-1 left-1 bg-black/50 text-white text-[9px] font-bold px-2 py-1 rounded-full z-20 hover:bg-primary transition min-h-[32px]" title="メイン写真にする">
-                                        <i data-lucide="star" class="w-3 h-3 inline-block mr-0.5" style="pointer-events:none;"></i>メインにする
+                                        <i data-lucide="star" class="w-3 h-3 inline-block mr-0.5" style="pointer-events:none;"></i><?= __('post_page.set_main', 'Set as main') ?>
                                     </button>
                                     <!-- Move left -->
                                     <button x-show="index > 0 && photos.length > 1" @click.prevent="movePhoto(index, index - 1)"
@@ -340,11 +366,11 @@ if ($isGuest) {
                             <!-- Add More Buttons in Grid -->
                             <div class="aspect-square border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-faint bg-surface">
                                 <button type="button" @click="$refs.cameraInput.click()" class="text-xs font-bold flex items-center gap-1 hover:text-primary transition px-2 py-2">
-                                    <i data-lucide="camera" class="w-4 h-4"></i> 撮影
+                                    <i data-lucide="camera" class="w-4 h-4"></i> <?= __('post_page.shoot', 'Shoot') ?>
                                 </button>
                                 <div class="w-full border-t border-border"></div>
                                 <button type="button" @click="$refs.galleryInput.click()" class="text-xs font-bold flex items-center gap-1 hover:text-text transition px-2 py-2">
-                                    <i data-lucide="image" class="w-4 h-4"></i> 選択
+                                    <i data-lucide="image" class="w-4 h-4"></i> <?= __('post_page.select', 'Select') ?>
                                 </button>
                             </div>
                         </div>
@@ -358,17 +384,17 @@ if ($isGuest) {
                     <div x-show="AiAssist && AiAssist.loading" x-transition class="px-4 py-4 text-center" style="background:var(--md-surface-container);border-radius:var(--shape-xl);">
                         <div class="flex items-center justify-center gap-2">
                             <span class="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></span>
-                            <span class="text-sm font-bold text-text">AI が写真を分析中...</span>
+                            <span class="text-sm font-bold text-text"><?= __('post_page.ai_analyzing', 'AI is analyzing the photo...') ?></span>
                         </div>
-                        <p class="text-[10px] text-muted mt-1">数秒で候補が表示されます</p>
+                        <p class="text-[10px] text-muted mt-1"><?= __('post_page.ai_wait', 'Candidates will appear in a few seconds') ?></p>
                     </div>
 
                     <!-- 提案カード -->
                     <div x-show="aiSuggestions.length > 0 && !(AiAssist && AiAssist.loading)" x-transition>
                         <div class="flex items-center gap-2 mb-2 px-1">
                             <i data-lucide="sparkles" class="w-3.5 h-3.5 text-primary"></i>
-                            <span class="text-[10px] font-black text-faint uppercase tracking-widest">AI候補</span>
-                            <span x-show="aiSelectedIndices.length > 0" class="text-[9px] font-bold bg-primary text-white px-2 py-0.5 rounded-full" x-text="aiSelectedIndices.length + '件選択中'"></span>
+                            <span class="text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.ai_candidates', 'AI candidates') ?></span>
+                            <span x-show="aiSelectedIndices.length > 0" class="text-[9px] font-bold bg-primary text-white px-2 py-0.5 rounded-full" x-text="'<?= addslashes(__('post_page.ai_selected', '{count} selected')) ?>'.replace('{count}', aiSelectedIndices.length)"></span>
                         </div>
                         <div class="space-y-2">
                             <template x-for="(sg, idx) in aiSuggestions" :key="idx">
@@ -399,14 +425,14 @@ if ($isGuest) {
                                 </button>
                             </template>
                         </div>
-                        <p class="text-[10px] text-faint mt-2 px-1 text-center">タップで選択・複数OK。選ばずに投稿してもOK</p>
+                        <p class="text-[10px] text-faint mt-2 px-1 text-center"><?= __('post_page.ai_tap_hint', 'Tap to select. Multiple choices are OK. You can also post without selecting anything.') ?></p>
                     </div>
 
                     <!-- エラー (非ブロッキング) -->
                     <div x-show="AiAssist && AiAssist.error && !AiAssist.loading && aiSuggestions.length === 0" x-transition
                         class="px-4 py-3 text-center" style="background:var(--md-surface-container);border-radius:var(--shape-xl);">
                         <p class="text-xs text-muted" x-text="AiAssist ? AiAssist.error : ''"></p>
-                        <p class="text-[10px] text-faint mt-1">そのまま投稿できます</p>
+                                <p class="text-[10px] text-faint mt-1"><?= __('post_page.ai_nonblocking', 'You can post as is') ?></p>
                     </div>
 
                     <!-- フォールバック -->
@@ -414,10 +440,10 @@ if ($isGuest) {
                         class="px-4 py-3 text-center" style="background:var(--md-surface-container);border-radius:var(--shape-xl);">
                         <p class="text-sm font-bold text-text flex items-center justify-center gap-2">
                             <i data-lucide="sparkles" class="w-4 h-4 text-primary"></i>
-                            投稿後に観察のヒントが自動で追加されます
+                                <?= __('post_page.ai_post_hint', 'Observation hints will be added automatically after posting') ?>
                         </p>
                         <p class="text-[10px] text-muted mt-1.5 leading-relaxed">
-                            いまはそのまま投稿してOKです。
+                            <?= __('post_page.ai_post_hint_body', 'It is fine to post as is for now.') ?>
                         </p>
                     </div>
 
@@ -440,10 +466,10 @@ if ($isGuest) {
                     <!-- 📍 Location (Essential - always visible) -->
                     <div>
                         <div class="flex justify-between items-center mb-2 px-2">
-                            <label class="block text-[10px] font-black text-faint uppercase tracking-widest">場所</label>
+                            <label class="block text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.location_label', 'Location') ?></label>
                             <button type="button" @click="loadHistory()" class="text-[10px] font-bold text-primary flex items-center gap-1">
                                 <i data-lucide="history" class="w-3 h-3"></i>
-                                前回と同じ
+                                <?= __('post_page.same_as_last', 'Same as last time') ?>
                             </button>
                         </div>
                         <!-- 📍 Address Search -->
@@ -453,7 +479,7 @@ if ($isGuest) {
                                 @keydown.enter.prevent="searchAddress()"
                                 @focus="showAddressSuggestions = addressResults.length > 0"
                                 @keydown.escape="showAddressSuggestions = false"
-                                placeholder="住所で検索（例: 静岡市駿河区）"
+                                placeholder="<?= __('post_page.address_placeholder', 'Search by address (e.g. Suruga Ward, Shizuoka City)') ?>"
                                 autocomplete="off"
                                 class="m3-input" style="padding-left:44px;">
                             <div class="absolute left-3 top-2.5 text-faint">
@@ -478,17 +504,17 @@ if ($isGuest) {
                                 <!-- Location Source Badge -->
                                 <template x-if="locationSource === 'exif'">
                                     <span class="inline-flex items-center gap-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded-full text-[10px] font-bold">
-                                        <span class="animate-pulse">📷</span> 写真から取得
+                                        <span class="animate-pulse">📷</span> <?= __('post_page.source_exif', 'From photo') ?>
                                     </span>
                                 </template>
                                 <template x-if="locationSource === 'gps'">
                                     <span class="inline-flex items-center gap-1">
-                                        <i data-lucide="navigation" class="w-3 h-3 text-primary"></i> GPSから取得
+                                        <i data-lucide="navigation" class="w-3 h-3 text-primary"></i> <?= __('post_page.source_gps', 'From GPS') ?>
                                     </span>
                                 </template>
                                 <template x-if="locationSource === 'manual'">
                                     <span class="inline-flex items-center gap-1">
-                                        <i data-lucide="hand" class="w-3 h-3"></i> 手動で設定
+                                        <i data-lucide="hand" class="w-3 h-3"></i> <?= __('post_page.source_manual', 'Set manually') ?>
                                     </span>
                                 </template>
                                 <template x-if="locationSource === 'default'">
@@ -496,7 +522,7 @@ if ($isGuest) {
                                         <i data-lucide="map-pin" class="w-3 h-3"></i>
                                     </span>
                                 </template>
-                                <span x-text="locationName || '地図をタップ or 住所を入力'"></span>
+                                <span x-text="locationName || '<?= addslashes(__('post_page.location_fallback', 'Tap the map or enter an address')) ?>'"></span>
                             </p>
                             <p x-show="gpsAccuracy" class="text-[10px] font-mono flex items-center gap-1"
                                 :class="gpsAccuracy < 20 ? 'text-primary' : gpsAccuracy < 100 ? 'text-warning' : 'text-danger'">
@@ -509,28 +535,34 @@ if ($isGuest) {
                         <div class="mt-2 px-2">
                             <div class="flex items-center gap-2 text-[10px] text-faint mb-2">
                                 <i data-lucide="shield" class="w-3 h-3 text-primary"></i>
-                                <span>希少種は自動でさらに粗くなります <a href="faq.php#privacy" class="text-primary underline">詳しく</a></span>
+                                <span><?= __('post_page.privacy_hint', 'Rare species are automatically rounded more coarsely.') ?> <a href="faq.php#privacy" class="text-primary underline"><?= __('post_page.learn_more', 'Learn more') ?></a></span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <label class="text-[10px] font-black text-faint uppercase tracking-widest whitespace-nowrap">公開範囲</label>
+                                <label class="text-[10px] font-black text-faint uppercase tracking-widest leading-tight"><?= __('post_page.visibility_label', 'Visibility') ?></label>
                                 <select x-model="locationGranularity" class="flex-1 text-xs font-bold bg-surface border border-border rounded-xl px-3 py-2 focus:outline-none focus:border-primary appearance-none">
-                                    <option value="exact">📍 詳細（デフォルト）</option>
-                                    <option value="municipality">🏘️ 市区町村レベル</option>
-                                    <option value="prefecture">🗾 都道府県レベル</option>
-                                    <option value="hidden">🔒 位置を非公開</option>
+                                    <option value="exact"><?= __('post_page.visibility_exact', '📍 Detailed (default)') ?></option>
+                                    <option value="municipality"><?= __('post_page.visibility_municipality', '🏘️ Municipality level') ?></option>
+                                    <option value="prefecture"><?= __('post_page.visibility_prefecture', '🗾 Prefecture level') ?></option>
+                                    <option value="hidden"><?= __('post_page.visibility_hidden', '🔒 Hide location') ?></option>
                                 </select>
                             </div>
-                            <p class="text-[9px] text-faint mt-1 px-0.5" x-show="locationGranularity === 'hidden'">📍 正確な位置はあなたと管理者だけが見られます</p>
+                            <p class="text-[9px] text-faint mt-1 px-0.5" x-show="locationGranularity === 'hidden'"><?= __('post_page.visibility_hidden_note', '📍 Only you and administrators can see the exact location.') ?></p>
+                            <div class="mt-2 rounded-2xl bg-surface border border-border px-3 py-3 text-[10px] leading-relaxed text-muted space-y-1">
+                                <p x-show="locationGranularity === 'exact'"><?= __('post_page.visibility_exact_body', 'Public detail: the public map and JSON-LD use a rounded position as the environmental layer. Only you and administrators can see the original precision.') ?></p>
+                                <p x-show="locationGranularity === 'municipality'"><?= __('post_page.visibility_municipality_body', 'Public detail: shared at municipality level. This is the recommended setting for ordinary school and home use.') ?></p>
+                                <p x-show="locationGranularity === 'prefecture'"><?= __('post_page.visibility_prefecture_body', 'Public detail: rounded to prefecture level to reduce exposure for rare or sensitive records.') ?></p>
+                                <p x-show="locationGranularity === 'hidden'"><?= __('post_page.visibility_hidden_body', 'Public detail: do not show map coordinates; only the region name appears publicly. Useful for school posts or records near home.') ?></p>
+                            </div>
                         </div>
                         <!-- Quick info: date auto-set -->
                         <div class="mt-2 px-2 flex items-center gap-2 text-[10px] text-faint">
                             <i data-lucide="clock" class="w-3 h-3"></i>
-                            <span x-text="observed_at ? new Date(observed_at).toLocaleString('ja-JP', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : ''"></span>
+                            <span x-text="observed_at ? new Date(observed_at).toLocaleString('<?= addslashes($jsLocale) ?>', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : ''"></span>
                             <template x-if="locationSource === 'exif'">
-                                <span class="text-primary font-bold">📷 写真から自動設定</span>
+                                <span class="text-primary font-bold"><?= __('post_page.auto_from_photo', '📷 Auto set from photo') ?></span>
                             </template>
                             <template x-if="locationSource !== 'exif'">
-                                <span class="text-primary">✓ 自動設定</span>
+                                <span class="text-primary"><?= __('post_page.auto_set', '✓ Auto set') ?></span>
                             </template>
                         </div>
                         <!-- Date discrepancy warning -->
@@ -555,39 +587,39 @@ if ($isGuest) {
                         <div class="px-4 py-3" style="background:var(--md-primary-container);border-radius:var(--shape-xl);">
                             <p class="text-sm font-bold text-text flex items-center gap-2">
                                 <i data-lucide="sparkles" class="w-4 h-4 text-primary"></i>
-                                環境や状態は、自動で入りつつあとから直せます
+                                <?= __('post_page.context_card_title', 'Context and condition can be auto-filled, then edited later.') ?>
                             </p>
                             <p class="text-[10px] text-muted mt-1.5 leading-relaxed">
-                                自動で選ばれた項目には「自動選択」がつきます。違っていたら投稿後に直せますし、ほかの人から提案が入ることもあります。
+                                <?= __('post_page.context_card_body', 'Items chosen automatically get an auto-selected badge. If they are wrong, you can fix them after posting, and others may also suggest edits.') ?>
                             </p>
                         </div>
 
                         <div>
                             <div class="flex items-center gap-2 mb-2 px-2">
-                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest">環境</label>
-                                <span x-show="biomeAutoSelected" class="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">自動選択</span>
+                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.biome_label', 'Environment') ?></label>
+                                <span x-show="biomeAutoSelected" class="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold"><?= __('post_page.auto_selected', 'Auto selected') ?></span>
                             </div>
                             <div class="relative">
                                 <select x-model="biome" @change="biomeAutoSelected = false; biomeAutoReason = ''" class="m3-input" style="font-weight:600;">
-                                    <option value="unknown">不明 / わからない</option>
-                                    <option value="forest">🌲 森林 (Forest)</option>
-                                    <option value="grassland">🍃 草地・河川敷 (Grassland)</option>
-                                    <option value="wetland">💧 湿地・水辺 (Wetland)</option>
-                                    <option value="coastal">🌊 海岸・干潟 (Coastal)</option>
-                                    <option value="urban">🏢 都市・公園 (Urban)</option>
-                                    <option value="farmland">🌾 農地・里山 (Farmland)</option>
+                                    <option value="unknown"><?= __('post_page.biome_unknown', 'Unknown / not sure') ?></option>
+                                    <option value="forest"><?= __('post_page.biome_forest', '🌲 Forest') ?></option>
+                                    <option value="grassland"><?= __('post_page.biome_grassland', '🍃 Grassland / riverside') ?></option>
+                                    <option value="wetland"><?= __('post_page.biome_wetland', '💧 Wetland / waterside') ?></option>
+                                    <option value="coastal"><?= __('post_page.biome_coastal', '🌊 Coast / tidal flat') ?></option>
+                                    <option value="urban"><?= __('post_page.biome_urban', '🏢 City / park') ?></option>
+                                    <option value="farmland"><?= __('post_page.biome_farmland', '🌾 Farmland / satoyama') ?></option>
                                 </select>
                                 <div class="absolute right-4 top-3.5 text-muted pointer-events-none">
                                     <i data-lucide="chevron-down" class="w-4 h-4"></i>
                                 </div>
                             </div>
-                            <p class="text-[10px] text-faint px-2 mt-1.5" x-show="biomeAutoSelected && biomeAutoReason" x-text="'✨ ' + biomeAutoReason + '。投稿後でも直せるし、ほかの人から提案も入ります'"></p>
+                            <p class="text-[10px] text-faint px-2 mt-1.5" x-show="biomeAutoSelected && biomeAutoReason" x-text="'✨ ' + biomeAutoReason + '<?= addslashes(__('post_page.biome_auto_suffix', '. You can still fix it after posting, and other people can suggest edits too.')) ?>'"></p>
                         </div>
 
                         <div>
                             <div class="flex items-center gap-2 mb-2 px-2">
-                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest">個体数</label>
-                                <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">任意・参考値</span>
+                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.count_label', 'Count') ?></label>
+                                <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full"><?= __('post_page.count_optional', 'Optional / approximate') ?></span>
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 <template x-for="opt in [
@@ -604,7 +636,7 @@ if ($isGuest) {
                                     </button>
                                 </template>
                             </div>
-                            <p class="text-[10px] text-faint px-2 mt-1.5">📊 正確でなくてOK。あとで他の人が訂正しやすい参考値として残せます</p>
+                            <p class="text-[10px] text-faint px-2 mt-1.5"><?= __('post_page.count_note', '📊 It does not need to be exact. You can leave an approximate value that others can correct later.') ?></p>
                         </div>
                     </div>
 
@@ -624,51 +656,52 @@ if ($isGuest) {
                                     </div>
                                     <div class="text-center">
                                         <div class="text-3xl mb-2">🗺️</div>
-                                        <h3 class="text-base font-bold text-text">撮影場所と現在地が離れています</h3>
+                                        <h3 class="text-base font-bold text-text"><?= __('post_page.gps_conflict_title', 'The photo location and your current location are far apart.') ?></h3>
                                         <p class="text-xs text-muted mt-1">
-                                            約 <span x-text="gpsConflictData.distance >= 1000 ? (gpsConflictData.distance / 1000).toFixed(1) + 'km' : gpsConflictData.distance + 'm'" class="font-bold text-primary"></span> の差があります
+                                            <?= __('post_page.gps_conflict_distance_prefix', 'About') ?> <span x-text="gpsConflictData.distance >= 1000 ? (gpsConflictData.distance / 1000).toFixed(1) + 'km' : gpsConflictData.distance + 'm'" class="font-bold text-primary"></span> <?= __('post_page.gps_conflict_distance_suffix', 'apart') ?>
                                         </p>
                                     </div>
                                     <div class="space-y-3">
                                         <button type="button" @click="usePhotoLocation()" class="m3-btn-filled" style="border-radius:var(--shape-full);">
-                                            <span style="pointer-events:none;">📷</span> 撮影場所を使う（写真のGPS）
+                                            <span style="pointer-events:none;">📷</span> <?= __('post_page.use_photo_location', 'Use photo location (photo GPS)') ?>
                                         </button>
                                         <button type="button" @click="useDeviceLocation()" class="m3-btn-tonal" style="border-radius:var(--shape-full);">
-                                            <span>📍</span> 現在地を使う（デバイスGPS）
+                                            <span>📍</span> <?= __('post_page.use_device_location', 'Use current location (device GPS)') ?>
                                         </button>
                                     </div>
-                                    <p class="text-center text-[10px] text-muted">あとから地図をタップして変更もできます</p>
+                                    <p class="text-center text-[10px] text-muted"><?= __('post_page.gps_conflict_note', 'You can also tap the map later to change it.') ?></p>
                                 </div>
                             </div>
                         </template>
                         <button type="button" @click="showDetails = !showDetails; if(showDetails && window.ikimonAnalytics) ikimonAnalytics.track('form_expand')"
                             class="m3-btn-tonal" style="border-radius:var(--shape-full);padding:14px 24px;"
+                        >
                             <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="showDetails ? 'rotate-180' : ''"></i>
-                            <span x-text="showDetails ? '閉じる' : '名前や詳細を追加する（任意）'"></span>
+                            <span x-text="showDetails ? '<?= addslashes(__('post_page.close_details', 'Close')) ?>' : '<?= addslashes(__('post_page.open_details', 'Add name and details (optional)')) ?>'"></span>
                         </button>
 
                         <div x-show="showDetails" x-transition class="space-y-6 mt-6">
                             <!-- Date (auto-set, editable here) -->
                             <div>
-                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">観察日時</label>
+                                <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2"><?= __('post_page.observed_at_label', 'Observed at') ?></label>
                                 <input type="datetime-local" x-model="observed_at" class="m3-input" style="font-weight:600;">
-                                <p class="text-[10px] text-faint px-2 mt-1">※写真はEXIFから自動設定されます</p>
+                                <p class="text-[10px] text-faint px-2 mt-1"><?= __('post_page.observed_at_note', '※ Photos are set automatically from EXIF when available.') ?></p>
                             </div>
 
                             <!-- Name Selection -->
                             <div class="relative">
                                 <div class="flex justify-between items-center mb-2 px-2">
-                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest">名前（わかる場合）</label>
+                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.name_label', 'Name (if known)') ?></label>
                                 </div>
                                 <div class="relative">
-                                    <input type="text" x-model="taxon_name" @input.debounce.300ms="searchTaxon()" @focus="showSuggestions = suggestions.length > 0" @keydown.escape="showSuggestions = false" placeholder="和名 or 学名を入力..." autocomplete="off" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-text font-bold pl-11">
+                                    <input type="text" x-model="taxon_name" @input.debounce.300ms="searchTaxon()" @focus="showSuggestions = suggestions.length > 0" @keydown.escape="showSuggestions = false" placeholder="<?= __('post_page.name_placeholder', 'Enter common or scientific name...') ?>" autocomplete="off" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-text font-bold pl-11">
                                     <div class="absolute left-4 top-3.5 text-faint">
                                         <i data-lucide="search" class="w-4 h-4"></i>
                                     </div>
                                     <!-- Selected slug badge + thumbnail -->
                                     <div x-show="taxon_slug" class="absolute right-3 top-1.5 flex items-center gap-1.5">
-                                    <img x-show="taxon_thumbnail" :src="taxon_thumbnail" :alt="taxon_name ? taxon_name + ' のサムネイル' : '種のサムネイル'" class="w-7 h-7 rounded-full object-cover border border-primary/30">
-                                        <span class="text-[10px] font-bold bg-primary-surface text-primary px-2 py-1 rounded-full">✓ 確定</span>
+<img x-show="taxon_thumbnail" :src="taxon_thumbnail" :alt="taxon_name ? taxon_name + '<?= addslashes(__('post_page.thumbnail_suffix', ' thumbnail')) ?>' : '<?= addslashes(__('post_page.species_thumbnail', 'Species thumbnail')) ?>'" class="w-7 h-7 rounded-full object-cover border border-primary/30">
+                                        <span class="text-[10px] font-bold bg-primary-surface text-primary px-2 py-1 rounded-full">✓ <?= __('post_page.name_confirmed', 'Confirmed') ?></span>
                                     </div>
                                 </div>
                                 <!-- Autocomplete Dropdown -->
@@ -678,7 +711,7 @@ if ($isGuest) {
                                             <!-- Thumbnail -->
                                             <div class="flex-shrink-0 w-9 h-9 rounded-lg overflow-hidden bg-surface-alt border border-border">
                                                 <template x-if="s.thumbnail_url">
-                                                    <img :src="s.thumbnail_url" :alt="s.jp_name || s.sci_name || '種のサムネイル'" class="w-full h-full object-cover" loading="lazy">
+                                                <img :src="s.thumbnail_url" :alt="s.jp_name || s.sci_name || '<?= addslashes(__('post_page.species_thumbnail', 'Species thumbnail')) ?>'" class="w-full h-full object-cover" loading="lazy">
                                                 </template>
                                                 <template x-if="!s.thumbnail_url">
                                                     <div class="w-full h-full flex items-center justify-center text-faint">
@@ -696,13 +729,13 @@ if ($isGuest) {
                                                     <span class="text-[11px] text-faint italic truncate" x-text="s.sci_name"></span>
                                                     <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
                                                         :class="s.source === 'local' ? 'bg-primary/10 text-primary' : s.source === 'inat' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'"
-                                                        x-text="s.source === 'local' ? 'ローカル' : s.source === 'inat' ? 'iNat' : s.source === 'gbif' ? 'GBIF' : ''"></span>
+                                                        x-text="s.source === 'local' ? '<?= addslashes(__('post_page.source_local', 'Local')) ?>' : s.source === 'inat' ? 'iNat' : s.source === 'gbif' ? 'GBIF' : ''"></span>
                                                 </div>
                                             </div>
                                             <i data-lucide="chevron-right" class="w-4 h-4 text-faint flex-shrink-0"></i>
                                         </button>
                                     </template>
-                                    <p class="text-[10px] text-faint px-2 mt-1.5">✨ 名前がわからなくても投稿OK！誰かが助けてくれます🐾</p>
+                                        <p class="text-[10px] text-faint px-2 mt-1.5"><?= __('post_page.name_help', '✨ You can post even if you do not know the name. Someone may help later.') ?></p>
                                 </div>
 
                                 <!-- Soft Validation Alarms (Ecological Constraints) -->
@@ -710,7 +743,7 @@ if ($isGuest) {
                                     <!-- Loading state -->
                                     <div x-show="validating" class="flex items-center gap-2 px-3 py-2 bg-surface border border-border rounded-xl">
                                         <i data-lucide="loader-2" class="w-3.5 h-3.5 text-muted animate-spin"></i>
-                                        <span class="text-[10px] text-muted font-bold">生態データをAI検証中...</span>
+                                        <span class="text-[10px] text-muted font-bold"><?= __('post_page.validation_loading', 'Validating ecological data with AI...') ?></span>
                                     </div>
                                     <!-- Warnings -->
                                     <template x-if="validationWarnings.length > 0">
@@ -720,7 +753,7 @@ if ($isGuest) {
                                                     <div class="absolute top-0 left-0 w-1 h-full bg-warning"></div>
                                                     <i data-lucide="alert-triangle" class="w-4 h-4 text-warning flex-shrink-0 mt-0.5"></i>
                                                     <div>
-                                                        <div class="text-[10px] font-black text-warning tracking-wider uppercase mb-0.5" x-text="warning.type === 'season' ? '時期の確認' : warning.type === 'habitat' ? '生息環境の確認' : warning.type === 'altitude' ? '標高の確認' : '生態の確認'"></div>
+                                                        <div class="text-[10px] font-black text-warning tracking-wider uppercase mb-0.5" x-text="warning.type === 'season' ? 'Season check' : warning.type === 'habitat' ? 'Habitat check' : warning.type === 'altitude' ? 'Elevation check' : 'Ecology check'"></div>
                                                         <div class="text-[11px] text-warning-dark font-medium leading-relaxed" x-text="warning.message"></div>
                                                     </div>
                                                 </div>
@@ -732,22 +765,22 @@ if ($isGuest) {
                                 <!-- Evidence UI (Morphological/Ecological Traits) -->
                                 <div x-show="taxon_name.trim().length > 0" x-transition.duration.300ms class="bg-primary/5 border border-primary/20 rounded-2xl p-4 mt-2">
                                     <div class="flex items-center gap-2 mb-3">
-                                        <label class="block text-[11px] font-black text-primary uppercase tracking-widest">同定のエビデンス（証拠）</label>
-                                        <span class="text-[9px] text-white bg-primary px-2 py-0.5 rounded-full font-bold">必須</span>
+                                        <label class="block text-[11px] font-black text-primary uppercase tracking-widest"><?= __('post_page.evidence_label', 'Identification evidence') ?></label>
+                                        <span class="text-[9px] text-white bg-primary px-2 py-0.5 rounded-full font-bold"><?= __('post_page.required', 'Required') ?></span>
                                     </div>
                                     <p class="text-[10px] text-muted mb-3 leading-relaxed">
-                                        データの信頼性（Data Quality）を高めるため、同定の決め手となった特徴を選んでください。
+                                        <?= __('post_page.evidence_body', 'To improve data quality, choose the features that helped you identify it.') ?>
                                     </p>
                                     <div class="space-y-3">
                                         <!-- Morphological Traits -->
                                         <div>
-                                            <div class="text-[10px] font-bold text-faint mb-1.5 flex items-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> 形態的特徴</div>
+                                            <div class="text-[10px] font-bold text-faint mb-1.5 flex items-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> <?= __('post_page.morphology_title', 'Morphological traits') ?></div>
                                             <div class="flex flex-wrap gap-2">
                                                 <template x-for="trait in [
-                                                {id: 'color_pattern', label: '体色・模様', emoji: '🎨'},
-                                                {id: 'shape', label: '全体的な形', emoji: '📐'},
-                                                {id: 'size', label: 'サイズ感', emoji: '📏'},
-                                                {id: 'specific_part', label: '特定の部位（羽、葉など）', emoji: '🔍'}
+                                                {id: 'color_pattern', label: '<?= addslashes(__('post_page.evidence_color_pattern', 'Color / pattern')) ?>', emoji: '🎨'},
+                                                {id: 'shape', label: '<?= addslashes(__('post_page.evidence_shape', 'Overall shape')) ?>', emoji: '📐'},
+                                                {id: 'size', label: '<?= addslashes(__('post_page.evidence_size', 'Size')) ?>', emoji: '📏'},
+                                                {id: 'specific_part', label: '<?= addslashes(__('post_page.evidence_specific_part', 'Specific part (wings, leaves, etc.)')) ?>', emoji: '🔍'}
                                             ]">
                                                     <button type="button" @click="toggleEvidence(trait.id)"
                                                         class="px-3 py-2 rounded-xl border transition text-xs font-bold flex items-center gap-1.5"
@@ -760,14 +793,14 @@ if ($isGuest) {
                                         </div>
                                         <!-- Ecological Traits -->
                                         <div>
-                                            <div class="text-[10px] font-bold text-faint mb-1.5 flex items-center gap-1"><i data-lucide="footprints" class="w-3 h-3"></i> 生態的特徴・その他</div>
+                                            <div class="text-[10px] font-bold text-faint mb-1.5 flex items-center gap-1"><i data-lucide="footprints" class="w-3 h-3"></i> <?= __('post_page.evidence_ecology_title', 'Ecological traits / others') ?></div>
                                             <div class="flex flex-wrap gap-2">
                                                 <template x-for="trait in [
-                                                {id: 'behavior', label: '行動・鳴き声', emoji: '🎵'},
-                                                {id: 'habitat', label: '生息環境', emoji: '🏞️'},
-                                                {id: 'host_plant', label: '食草・寄主', emoji: '🌿'},
-                                                {id: 'expert_id', label: '専門家・図鑑', emoji: '📖'},
-                                                {id: 'intuition', label: 'なんとなく・AI任せ', emoji: '🤖'}
+                                                {id: 'behavior', label: '<?= addslashes(__('post_page.evidence_behavior', 'Behavior / call')) ?>', emoji: '🎵'},
+                                                {id: 'habitat', label: '<?= addslashes(__('post_page.evidence_habitat', 'Habitat')) ?>', emoji: '🏞️'},
+                                                {id: 'host_plant', label: '<?= addslashes(__('post_page.evidence_host_plant', 'Host plant')) ?>', emoji: '🌿'},
+                                                {id: 'expert_id', label: '<?= addslashes(__('post_page.evidence_expert_id', 'Expert / field guide')) ?>', emoji: '📖'},
+                                                {id: 'intuition', label: '<?= addslashes(__('post_page.evidence_intuition', 'Gut feeling / AI-assisted')) ?>', emoji: '🤖'}
                                             ]">
                                                     <button type="button" @click="toggleEvidence(trait.id)"
                                                         class="px-3 py-2 rounded-xl border transition text-xs font-bold flex items-center gap-1.5"
@@ -780,25 +813,25 @@ if ($isGuest) {
                                         </div>
                                     </div>
                                     <div x-show="taxon_name.trim().length > 0 && evidence_tags.length === 0" class="mt-3 text-[10px] font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg flex items-center gap-1">
-                                        <i data-lucide="info" class="w-3 h-3"></i> どれか1つ選んでね。迷ったら「なんとなく・AI任せ」でOK!
+                                        <i data-lucide="info" class="w-3 h-3"></i> <?= __('post_page.evidence_tip', 'Pick at least one. If unsure, “gut feeling / AI-assisted” is fine.') ?>
                                     </div>
                                 </div>
                                 <!-- Status (野生/植栽) -->
                                 <div>
-                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">状態 <span class="text-primary normal-case">デフォルト: 野生</span></label>
+                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2"><?= __('post_page.state_label', 'Condition') ?> <span class="text-primary normal-case"><?= __('post_page.state_default_wild', 'Default: wild') ?></span></label>
                                     <div class="grid grid-cols-2 gap-2">
                                         <label class="cursor-pointer">
                                             <input type="radio" value="wild" x-model="cultivation" class="hidden peer">
                                             <div class="text-center py-3 rounded-2xl border border-border bg-surface peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary transition text-xs font-bold text-muted">
                                                 <i data-lucide="trees" class="w-4 h-4 mx-auto mb-1"></i>
-                                                野生
+                                                <?= __('post_page.state_wild', 'Wild') ?>
                                             </div>
                                         </label>
                                         <label class="cursor-pointer">
                                             <input type="radio" value="cultivated" x-model="cultivation" class="hidden peer">
                                             <div class="text-center py-3 rounded-2xl border border-border bg-surface peer-checked:bg-secondary peer-checked:text-white peer-checked:border-secondary transition text-xs font-bold text-muted">
                                                 <i data-lucide="flower-2" class="w-4 h-4 mx-auto mb-1"></i>
-                                                植栽・飼育
+                                                <?= __('post_page.state_cultivated', 'Cultivated / captive') ?>
                                             </div>
                                         </label>
                                     </div>
@@ -806,18 +839,18 @@ if ($isGuest) {
 
                                 <div>
                                     <div class="flex items-center gap-2 mb-2 px-2">
-                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest">個体の由来</label>
-                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">施設内でも野生はありえる</span>
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.origin_label', 'Origin') ?></label>
+                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full"><?= __('post_page.origin_note', 'Wild individuals can exist even inside facilities.') ?></span>
                                     </div>
                                     <div class="grid grid-cols-2 gap-2">
                                         <template x-for="opt in [
-                                            {value: 'wild', label: '野生', icon: 'trees', tone: 'primary'},
-                                            {value: 'cultivated', label: '栽培個体', icon: 'flower-2', tone: 'secondary'},
-                                            {value: 'captive', label: '飼育個体', icon: 'fence', tone: 'secondary'},
-                                            {value: 'released', label: '放された個体', icon: 'bird', tone: 'warning'},
-                                            {value: 'escaped', label: '逸出個体', icon: 'move-up-right', tone: 'warning'},
-                                            {value: 'naturalized', label: '野外定着', icon: 'sprout', tone: 'primary'},
-                                            {value: 'uncertain', label: '判断保留', icon: 'help-circle', tone: 'muted'}
+                                            {value: 'wild', label: '<?= addslashes(__('post_page.origin_wild', 'Wild')) ?>', icon: 'trees', tone: 'primary'},
+                                            {value: 'cultivated', label: '<?= addslashes(__('post_page.origin_cultivated', 'Cultivated')) ?>', icon: 'flower-2', tone: 'secondary'},
+                                            {value: 'captive', label: '<?= addslashes(__('post_page.origin_captive', 'Captive')) ?>', icon: 'fence', tone: 'secondary'},
+                                            {value: 'released', label: '<?= addslashes(__('post_page.origin_released', 'Released')) ?>', icon: 'bird', tone: 'warning'},
+                                            {value: 'escaped', label: '<?= addslashes(__('post_page.origin_escaped', 'Escaped')) ?>', icon: 'move-up-right', tone: 'warning'},
+                                            {value: 'naturalized', label: '<?= addslashes(__('post_page.origin_naturalized', 'Naturalized')) ?>', icon: 'sprout', tone: 'primary'},
+                                            {value: 'uncertain', label: '<?= addslashes(__('post_page.origin_uncertain', 'Uncertain')) ?>', icon: 'help-circle', tone: 'muted'}
                                         ]">
                                             <label class="cursor-pointer">
                                                 <input type="radio" :value="opt.value" x-model="organism_origin" class="hidden peer">
@@ -834,26 +867,26 @@ if ($isGuest) {
                                             </label>
                                         </template>
                                     </div>
-                                    <p class="text-[10px] text-faint px-2 mt-1.5">🌿 植物園の雑草は wild、展示個体は cultivated / captive と分けて残せます</p>
+                                    <p class="text-[10px] text-faint px-2 mt-1.5"><?= __('post_page.origin_help', '🌿 You can separate wild weeds in botanical gardens from cultivated / captive display specimens.') ?></p>
                                 </div>
 
                                 <div>
                                     <div class="flex items-center gap-2 mb-2 px-2">
-                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest">施設文脈</label>
-                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">100年後の来歴用</span>
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.facility_label', 'Facility context') ?></label>
+                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full"><?= __('post_page.facility_badge', 'For historical context 100 years from now') ?></span>
                                     </div>
                                     <div class="relative">
                                         <select x-model="managed_context_type" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 text-xs font-bold text-text focus:outline-none focus:border-primary appearance-none">
-                                            <option value="">施設なし / ふつうの野外観察</option>
-                                            <option value="botanical_garden">🌺 植物園</option>
-                                            <option value="zoo">🦁 動物園</option>
-                                            <option value="aquarium">🐟 水族館</option>
-                                            <option value="aviary">🕊️ 花鳥園・鳥類園</option>
-                                            <option value="conservation_center">🧬 保全施設・研究飼育</option>
-                                            <option value="park_planting">🌳 公園植栽</option>
-                                            <option value="school_biotope">🏫 学校ビオトープ</option>
-                                            <option value="private_collection">🏠 私設コレクション</option>
-                                            <option value="other">🏷️ その他</option>
+                                            <option value=""><?= __('post_page.facility_none', 'No facility / ordinary field observation') ?></option>
+                                            <option value="botanical_garden"><?= __('post_page.facility_botanical_garden', '🌺 Botanical garden') ?></option>
+                                            <option value="zoo"><?= __('post_page.facility_zoo', '🦁 Zoo') ?></option>
+                                            <option value="aquarium"><?= __('post_page.facility_aquarium', '🐟 Aquarium') ?></option>
+                                            <option value="aviary"><?= __('post_page.facility_aviary', '🕊️ Aviary / bird garden') ?></option>
+                                            <option value="conservation_center"><?= __('post_page.facility_conservation_center', '🧬 Conservation center / captive breeding') ?></option>
+                                            <option value="park_planting"><?= __('post_page.facility_park_planting', '🌳 Park planting') ?></option>
+                                            <option value="school_biotope"><?= __('post_page.facility_school_biotope', '🏫 School biotope') ?></option>
+                                            <option value="private_collection"><?= __('post_page.facility_private_collection', '🏠 Private collection') ?></option>
+                                            <option value="other"><?= __('post_page.facility_other', '🏷️ Other') ?></option>
                                         </select>
                                         <div class="absolute right-4 top-3.5 text-muted pointer-events-none">
                                             <i data-lucide="chevron-down" class="w-4 h-4"></i>
@@ -861,10 +894,10 @@ if ($isGuest) {
                                     </div>
                                     <div class="mt-2 space-y-2" x-show="managed_context_type" x-transition>
                                         <input type="text" x-model="managed_site_name"
-                                            placeholder="施設名（例: 浜松市動物園、○○植物園）"
+                                            placeholder="<?= __('post_page.facility_name_placeholder', 'Facility name (e.g. Hamamatsu City Zoo, XYZ Botanical Garden)') ?>"
                                             class="w-full bg-surface border border-border rounded-2xl px-4 py-3 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-sm text-text">
                                         <textarea x-model="managed_context_note"
-                                            placeholder="展示温室、放飼場、植栽エリアなど補足があれば"
+                                placeholder="<?= __('post_page.facility_note_placeholder', 'Add notes such as greenhouse, enclosure, or planting area if needed') ?>"
                                             class="w-full bg-surface border border-border rounded-2xl px-4 py-3 h-20 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-text placeholder-faint font-medium"></textarea>
                                     </div>
                                 </div>
@@ -872,19 +905,19 @@ if ($isGuest) {
                                 <!-- 🪨 Substrate/Terrain Tags (100-Year Archive Fusion) -->
                                 <div>
                                     <div class="flex items-center gap-2 mb-2 px-2">
-                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest">地面の状態</label>
-                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">任意・複数選択可</span>
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.substrate_label', 'Ground condition') ?></label>
+                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full"><?= __('post_page.substrate_badge', 'Optional / multiple select') ?></span>
                                     </div>
                                     <div class="flex flex-wrap gap-2">
                                         <template x-for="tag in [
-                                        {id: 'rock', label: '岩場', emoji: '🪨'},
-                                        {id: 'sand', label: '砂地', emoji: '🏖️'},
-                                        {id: 'gravel', label: '砂利', emoji: '🫘'},
-                                        {id: 'grass', label: '草地', emoji: '🌿'},
-                                        {id: 'leaf_litter', label: '落ち葉', emoji: '🍂'},
-                                        {id: 'deadwood', label: '倒木・朽木', emoji: '🪵'},
-                                        {id: 'water', label: '水辺', emoji: '💧'},
-                                        {id: 'artificial', label: '人工物', emoji: '🏗️'}
+                                        {id: 'rock', label: '<?= addslashes(__('post_page.substrate_rock', 'Rocky area')) ?>', emoji: '🪨'},
+                                        {id: 'sand', label: '<?= addslashes(__('post_page.substrate_sand', 'Sand')) ?>', emoji: '🏖️'},
+                                        {id: 'gravel', label: '<?= addslashes(__('post_page.substrate_gravel', 'Gravel')) ?>', emoji: '🫘'},
+                                        {id: 'grass', label: '<?= addslashes(__('post_page.substrate_grass', 'Grassland')) ?>', emoji: '🌿'},
+                                        {id: 'leaf_litter', label: '<?= addslashes(__('post_page.substrate_leaf_litter', 'Leaf litter')) ?>', emoji: '🍂'},
+                                        {id: 'deadwood', label: '<?= addslashes(__('post_page.substrate_deadwood', 'Deadwood / fallen logs')) ?>', emoji: '🪵'},
+                                        {id: 'water', label: '<?= addslashes(__('post_page.substrate_water', 'Waterside')) ?>', emoji: '💧'},
+                                        {id: 'artificial', label: '<?= addslashes(__('post_page.substrate_artificial', 'Artificial surface')) ?>', emoji: '🏗️'}
                                     ]">
                                             <button type="button" @click="toggleSubstrate(tag.id)"
                                                 class="px-3 py-2 rounded-xl border transition text-xs font-bold flex items-center gap-1.5"
@@ -894,22 +927,22 @@ if ($isGuest) {
                                             </button>
                                         </template>
                                     </div>
-                                    <p class="text-[10px] text-faint px-2 mt-1.5">🌍 地面の状態を記録すると、100年後の環境変化を追跡できるデータになります</p>
+                                    <p class="text-[10px] text-faint px-2 mt-1.5"><?= __('post_page.substrate_note', '🌍 Recording ground conditions creates data that can track environmental change 100 years from now.') ?></p>
                                 </div>
 
 
                                 <!-- Life Stage -->
                                 <div>
                                     <div class="flex items-center gap-2 mb-2 px-2">
-                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest">ライフステージ</label>
-                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full">任意</span>
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.life_stage_label', 'Life stage') ?></label>
+                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full"><?= __('post_page.optional', 'Optional') ?></span>
                                     </div>
                                     <div class="flex flex-wrap gap-2">
                                         <template x-for="stage in [
-                                        {id: 'adult', label: '成体', sub: '成虫・成魚・成獣', icon: 'crown'},
-                                        {id: 'juvenile', label: '幼体', sub: '幼虫・稚魚・芽生え', icon: 'sprout'},
-                                        {id: 'egg', label: '卵・種子', sub: '卵塚・胞子も', icon: 'circle-dot'},
-                                        {id: 'trace', label: '痕跡', sub: '足跡・糞・巣・脱皮', icon: 'footprints'}
+                                        {id: 'adult', label: '<?= addslashes(__('post_page.life_stage_adult', 'Adult')) ?>', sub: '<?= addslashes(__('post_page.life_stage_adult_sub', 'Imago, fish, mammal, etc.')) ?>', icon: 'crown'},
+                                        {id: 'juvenile', label: '<?= addslashes(__('post_page.life_stage_juvenile', 'Juvenile')) ?>', sub: '<?= addslashes(__('post_page.life_stage_juvenile_sub', 'Larva, fry, seedling')) ?>', icon: 'sprout'},
+                                        {id: 'egg', label: '<?= addslashes(__('post_page.life_stage_egg', 'Egg / seed')) ?>', sub: '<?= addslashes(__('post_page.life_stage_egg_sub', 'Also egg masses and spores')) ?>', icon: 'circle-dot'},
+                                        {id: 'trace', label: '<?= addslashes(__('post_page.life_stage_trace', 'Trace')) ?>', sub: '<?= addslashes(__('post_page.life_stage_trace_sub', 'Tracks, droppings, nests, molts')) ?>', icon: 'footprints'}
                                     ]">
                                             <label class="cursor-pointer">
                                                 <input type="radio" :value="stage.id" x-model="life_stage" class="hidden peer">
@@ -924,7 +957,7 @@ if ($isGuest) {
                                             <input type="radio" value="unknown" x-model="life_stage" class="hidden peer">
                                             <div class="px-3 py-2 rounded-xl border border-border bg-surface peer-checked:bg-muted peer-checked:text-white peer-checked:border-muted transition text-xs font-bold text-faint flex flex-col items-center gap-0.5 min-w-[72px]">
                                                 <i data-lucide="help-circle" class="w-4 h-4"></i>
-                                                不明
+                                                <?= __('post_page.life_stage_unknown', 'Unknown') ?>
                                             </div>
                                         </label>
                                     </div>
@@ -932,15 +965,15 @@ if ($isGuest) {
 
                                 <!-- Note -->
                                 <div>
-                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2">メモ</label>
-                                    <textarea x-model="note" placeholder="行動、環境、気づいたことを記録..." class="w-full bg-surface border border-border rounded-2xl px-4 py-3 h-24 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-text placeholder-faint font-medium"></textarea>
+                                    <label class="block text-[10px] font-black text-faint uppercase tracking-widest mb-2 px-2"><?= __('post_page.note_label', 'Notes') ?></label>
+                                    <textarea x-model="note" placeholder="<?= __('post_page.note_placeholder', 'Record actions, surroundings, and what you noticed...') ?>" class="w-full bg-surface border border-border rounded-2xl px-4 py-3 h-24 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition text-text placeholder-faint font-medium"></textarea>
                                 </div>
 
                                 <!-- CC License Selector -->
                                 <div>
                                     <div class="flex items-center gap-2 mb-2 px-2">
-                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest">ライセンス</label>
-                                        <span class="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">おすすめ: CC BY</span>
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.license_label', 'License') ?></label>
+                                        <span class="text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold"><?= __('post_page.license_badge', 'Recommended: CC BY') ?></span>
                                     </div>
                                     <div class="space-y-2">
                                         <label class="cursor-pointer block">
@@ -948,8 +981,8 @@ if ($isGuest) {
                                             <div class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-surface peer-checked:bg-primary/10 peer-checked:border-primary/40 transition">
                                                 <span class="text-lg">🌍</span>
                                                 <div class="flex-1">
-                                                    <span class="text-xs font-bold text-text">CC BY（表示）</span>
-                                                    <span class="block text-[10px] text-muted">クレジット表示で誰でも利用OK。GBIF共有対象 ✓</span>
+                                                    <span class="text-xs font-bold text-text"><?= __('post_page.license_cc_by_title', 'CC BY (Attribution)') ?></span>
+                                                    <span class="block text-[10px] text-muted"><?= __('post_page.license_cc_by_body', 'Anyone can use it with credit. Shared with GBIF ✓') ?></span>
                                                 </div>
                                                 <div class="w-4 h-4 rounded-full border-2 border-border peer-checked:border-primary flex items-center justify-center">
                                                     <div class="w-2 h-2 rounded-full" :class="license === 'CC-BY' ? 'bg-primary' : ''"></div>
@@ -961,8 +994,8 @@ if ($isGuest) {
                                             <div class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-surface peer-checked:bg-primary/10 peer-checked:border-primary/40 transition">
                                                 <span class="text-lg">🔓</span>
                                                 <div class="flex-1">
-                                                    <span class="text-xs font-bold text-text">CC0（パブリックドメイン）</span>
-                                                    <span class="block text-[10px] text-muted">制限なし。最もオープン。GBIF共有対象 ✓</span>
+                                                    <span class="text-xs font-bold text-text"><?= __('post_page.license_cc0_title', 'CC0 (Public Domain)') ?></span>
+                                                    <span class="block text-[10px] text-muted"><?= __('post_page.license_cc0_body', 'No restrictions. Most open. Shared with GBIF ✓') ?></span>
                                                 </div>
                                                 <div class="w-4 h-4 rounded-full border-2 border-border flex items-center justify-center">
                                                     <div class="w-2 h-2 rounded-full" :class="license === 'CC0' ? 'bg-primary' : ''"></div>
@@ -974,8 +1007,8 @@ if ($isGuest) {
                                             <div class="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-surface peer-checked:bg-secondary/10 peer-checked:border-secondary/40 transition">
                                                 <span class="text-lg">🔒</span>
                                                 <div class="flex-1">
-                                                    <span class="text-xs font-bold text-text">CC BY-NC（表示-非営利）</span>
-                                                    <span class="block text-[10px] text-muted">商用利用不可。GBIF共有対象外</span>
+                                                    <span class="text-xs font-bold text-text"><?= __('post_page.license_cc_by_nc_title', 'CC BY-NC (Attribution-NonCommercial)') ?></span>
+                                                    <span class="block text-[10px] text-muted"><?= __('post_page.license_cc_by_nc_body', 'No commercial use. Not shared with GBIF') ?></span>
                                                 </div>
                                                 <div class="w-4 h-4 rounded-full border-2 border-border flex items-center justify-center">
                                                     <div class="w-2 h-2 rounded-full" :class="license === 'CC-BY-NC' ? 'bg-secondary' : ''"></div>
@@ -984,8 +1017,8 @@ if ($isGuest) {
                                         </label>
                                     </div>
                                     <p class="text-[10px] text-faint px-2 mt-1.5">
-                                        💡 CC BY を選ぶと、あなたの記録が世界中の研究に活用されます。
-                                        <a href="faq.php#e1" class="text-primary underline">詳しくはFAQ</a>
+                                        <?= __('post_page.license_note', '💡 Choose CC BY and your record can help research around the world.') ?>
+                                        <a href="faq.php#e1" class="text-primary underline"><?= __('post_page.license_faq', 'See FAQ for details') ?></a>
                                     </p>
                                 </div>
                             </div>
@@ -1003,10 +1036,10 @@ if ($isGuest) {
                 class="w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:shadow-none active:scale-95">
                 <i data-lucide="send" x-show="!submitting" class="w-5 h-5"></i>
                 <span x-show="!submitting">
-                    <span x-text="record_mode === 'surveyor_official' ? '公式記録を残す' : '足跡を残す'"></span>
-                    <span x-show="photos.length > 0" class="ml-1 text-sm opacity-80" x-text="'(' + photos.length + '枚)'"></span>
+                    <span x-text="record_mode === 'surveyor_official' ? '<?= addslashes(__('post_page.submit_official', 'Save official record')) ?>' : '<?= addslashes(__('post_page.submit_standard', 'Leave a record')) ?>'"></span>
+                    <span x-show="photos.length > 0" class="ml-1 text-sm opacity-80" x-text="'(' + photos.length + '<?= addslashes(__('post_page.photo_count_suffix', ' photos')) ?>)'"></span>
                 </span>
-                <span x-show="submitting" class="flex items-center gap-2"><span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>送信中...</span>
+                <span x-show="submitting" class="flex items-center gap-2"><span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span><?= __('post_page.submitting', 'Sending...') ?></span>
             </button>
         </div>
 
@@ -1035,16 +1068,16 @@ if ($isGuest) {
                         <i data-lucide="check" class="w-12 h-12 text-white"></i>
                     </div>
                 </div>
-                <h3 class="text-2xl font-black text-text mb-1">記録された！ 🐾</h3>
-                <p class="text-sm text-muted mb-2">キミの気づきが、この場所の生態地図に足あとを刻んだよ</p>
-                <p class="text-[11px] text-faint mb-4" x-show="!aiReady && !aiPending">観察のヒントは観察詳細に追記されます。うまく絞れないときは、他の人からの訂正や追加同定も入りやすくなります。</p>
+                <h3 class="text-2xl font-black text-text mb-1"><?= __('post_page.success_title', 'Recorded!') ?> 🐾</h3>
+                <p class="text-sm text-muted mb-2"><?= __('post_page.success_body', 'Your observation left a mark on this place’s ecological map.') ?></p>
+                <p class="text-[11px] text-faint mb-4" x-show="!aiReady && !aiPending"><?= __('post_page.success_hint_later', 'Observation hints will be added to the detail view. If narrowing down is hard, corrections and additional identifications from others are easier to come in later.') ?></p>
                 <div x-show="aiPending" class="bg-surface border border-border rounded-2xl p-4 mb-4 max-w-sm mx-auto">
-                    <p class="text-sm font-bold text-text mb-1">🪄 観察のヒントを準備中</p>
-                    <p class="text-xs text-muted leading-relaxed">投稿はもう完了しています。数秒で属・科レベルのヒントが付くことが多いです。</p>
+                    <p class="text-sm font-bold text-text mb-1">🪄 <?= __('post_page.success_hint_pending_title', 'Preparing observation hints') ?></p>
+                    <p class="text-xs text-muted leading-relaxed"><?= __('post_page.success_hint_pending_body', 'Your post is already complete. Genus- or family-level hints often appear within seconds.') ?></p>
                 </div>
                 <div x-show="aiReady" class="bg-primary-surface border border-primary-glow rounded-2xl p-4 mb-4 max-w-sm mx-auto">
-                    <p class="text-sm text-primary font-bold mb-1">✨ 観察のヒントもついたよ</p>
-                    <p class="text-xs text-primary/80 leading-relaxed" x-text="aiSummary || '観察詳細を開くと、いま見えている手がかりをすぐ確認できます。'"></p>
+                    <p class="text-sm text-primary font-bold mb-1">✨ <?= __('post_page.success_hint_ready', 'Observation hints are ready too') ?></p>
+                    <p class="text-xs text-primary/80 leading-relaxed" x-text="aiSummary || '<?= addslashes(__('post_page.success_detail_fallback', 'Open the observation detail to review the clues visible right now.')) ?>'"></p>
                 </div>
 
                 <!-- Phase 15B P1: 外来種アラート -->
@@ -1072,33 +1105,48 @@ if ($isGuest) {
                                 <div class="mt-2 rounded-xl bg-amber-100 px-3 py-2">
                                     <p class="text-xs font-bold text-amber-900">📋 <span x-text="invasiveAlert.action"></span></p>
                                 </div>
-                                <p class="text-[10px] text-amber-600 mt-2 leading-relaxed">発見情報の記録は生態系保全に役立ちます。ご報告ありがとうございます。</p>
+                                <p class="text-[10px] text-amber-600 mt-2 leading-relaxed"><?= __('post_page.invasive_thanks', 'Recording sightings helps ecosystem conservation. Thank you for reporting it.') ?></p>
                             </div>
                         </div>
                     </div>
                 </template>
 
                 <div class="rounded-2xl border border-border bg-surface p-4 mb-6 max-w-sm mx-auto text-left">
-                    <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-2">この記録が次に育つこと</p>
-                    <div class="space-y-2 text-xs text-text">
-                        <div class="flex items-start gap-2">
-                            <span class="mt-0.5">1.</span>
-                            <p>観察詳細に、AIのヒントや同定の流れがまとまります</p>
-                        </div>
-                        <div class="flex items-start gap-2">
-                            <span class="mt-0.5">2.</span>
-                            <p>ほかの人の同定や訂正が入ると、記録が安定していきます</p>
-                        </div>
-                        <div class="flex items-start gap-2">
-                            <span class="mt-0.5">3.</span>
-                            <p>細部写真やメモを足すと、もっと下の分類群まで進みやすくなります</p>
-                        </div>
+                    <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-2" x-text="successGuidance.sectionTitle"></p>
+                    <p class="text-xs text-muted leading-relaxed mb-3" x-text="successGuidance.sectionBody"></p>
+                    <div class="space-y-3">
+                        <template x-for="(card, index) in successGuidance.cards" :key="index">
+                            <div class="rounded-2xl bg-surface-container-low border border-border px-3 py-3">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-lg leading-none" x-text="card.icon"></span>
+                                    <div class="min-w-0">
+                                        <p class="text-[10px] font-black text-faint uppercase tracking-widest" x-text="card.title"></p>
+                                        <p class="mt-1 text-xs text-text leading-relaxed" x-text="card.body"></p>
+                                        <p x-show="card.note" class="mt-2 text-[11px] text-muted leading-relaxed" x-text="card.note"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
-                        <span class="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">訂正歓迎</span>
-                        <span class="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-700">あとから追記OK</span>
-                        <span x-show="!taxon_slug" class="inline-flex items-center rounded-full bg-warning/10 px-3 py-1 text-[11px] font-bold text-warning">名前はまだ育ちます</span>
-                        <span x-show="taxon_slug" class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">いまの名前を起点に育てられます</span>
+                        <span class="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary"><?= __('post_page.tag_revision', 'Corrections welcome') ?></span>
+                        <span class="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-700"><?= __('post_page.tag_append', 'You can add more later') ?></span>
+                        <span x-show="!taxon_slug" class="inline-flex items-center rounded-full bg-warning/10 px-3 py-1 text-[11px] font-bold text-warning"><?= __('post_page.tag_name_growing', 'The name can still grow') ?></span>
+                        <span x-show="taxon_slug" class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700"><?= __('post_page.tag_name_base', 'The current name can be a starting point') ?></span>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 mb-6 max-w-sm mx-auto text-left">
+                    <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-2" x-text="successRevisit.title"></p>
+                    <p class="text-xs text-emerald-900 leading-relaxed" x-text="successRevisit.body"></p>
+                    <p class="mt-2 text-[11px] text-emerald-800/80 leading-relaxed" x-text="successRevisit.note"></p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button @click="continueAtSamePlace()" class="inline-flex items-center justify-center rounded-full bg-emerald-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-600">
+                            🌿 <?= __('post_page.revisit_record_cta', 'Record one more from this place') ?>
+                        </button>
+                        <a :href="successRevisit.collectionHref" class="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-bold text-emerald-800 transition hover:bg-emerald-100">
+                            <span x-text="successRevisit.collectionLabel"></span>
+                        </a>
                     </div>
                 </div>
 
@@ -1106,27 +1154,27 @@ if ($isGuest) {
                     <a :href="'observation_detail.php?id=' + lastObservationId"
                         class="block w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-black text-center shadow-lg shadow-primary/20 active:scale-95 transition flex items-center justify-center gap-2">
                         <i data-lucide="eye" class="w-5 h-5"></i>
-                        観察の詳細を見る
+                        <?= __('post_page.view_detail', 'View observation details') ?>
                     </a>
                     <a x-show="taxon_slug" :href="'species/' + encodeURIComponent(taxon_slug)"
                         class="block w-full py-3 rounded-full bg-surface border border-border text-text font-bold text-center text-sm hover:bg-white/5 transition flex items-center justify-center gap-2">
-                        📖 <span x-text="taxon_name"></span> の図鑑を見る
+                        📖 <span x-text="'<?= addslashes(__('post_page.view_species', 'View the guide for {name}')) ?>'.replace('{name}', taxon_name)"></span>
                     </a>
                     <a x-show="!taxon_slug" href="id_center.php"
                         class="block w-full py-3 rounded-full bg-surface border border-primary/30 text-primary font-bold text-sm text-center hover:bg-primary-surface/20 transition flex items-center justify-center gap-2 active:scale-95">
                         <i data-lucide="search" class="w-4 h-4"></i>
-                        みんなに名前を聞いてみる
+                        <?= __('post_page.ask_name', 'Ask others for the name') ?>
                     </a>
                     <button @click="resetForm()" class="w-full py-3 rounded-full bg-secondary-surface border border-secondary/20 text-secondary font-bold text-sm hover:bg-secondary-surface/80 transition flex items-center justify-center gap-2 active:scale-95">
-                        📸 もう一枚記録する
+                        📸 <?= __('post_page.record_another', 'Record another one') ?>
                     </button>
                     <?php if ($returnUrl): ?>
                         <a href="<?php echo $returnUrl; ?>" class="block w-full py-3 rounded-full bg-surface border border-primary/30 text-primary font-bold text-sm text-center hover:bg-primary-surface/20 transition flex items-center justify-center gap-2 active:scale-95">
-                            🗺️ フィールドワークに戻る
+                            🗺️ <?= __('post_page.return_fieldwork', 'Back to fieldwork') ?>
                         </a>
                     <?php endif; ?>
                     <a href="index.php" class="block text-sm text-faint hover:text-text transition py-2 text-center">
-                        🏠 ホームに戻る
+                        🏠 <?= __('post_page.return_home', 'Back to home') ?>
                     </a>
                 </div>
             </div>
@@ -1145,7 +1193,29 @@ if ($isGuest) {
             guestPostLimit: <?php echo Auth::GUEST_POST_LIMIT; ?>,
             csrfToken: '<?php echo $csrfToken; ?>',
             survey_id: '<?php echo $activeSurvey ? $activeSurvey['id'] : ''; ?>',
-            canSurveyorOfficialPost: <?php echo $canSurveyorOfficialPost ? 'true' : 'false'; ?>
+            canSurveyorOfficialPost: <?php echo $canSurveyorOfficialPost ? 'true' : 'false'; ?>,
+            successGuidance: {
+                sectionTitle: '<?= addslashes(__('post_page.learning_section_title', 'Turn this record into learning')) ?>',
+                sectionBody: '<?= addslashes(__('post_page.learning_section_body', 'The point is not perfect certainty at once. It is to leave a trace you can revisit, improve, and feed back into the next person’s learning loop.')) ?>',
+                progressTitle: '<?= addslashes(__('post_page.learning_progress_title', 'Why this already counts as progress')) ?>',
+                progressBodyDefault: '<?= addslashes(__('post_page.learning_progress_body_default', 'Saving a dated record with place already creates something you can revisit later.')) ?>',
+                progressBodySpecies: '<?= addslashes(__('post_page.learning_progress_body_species', 'If the current name already reaches species, treat it as a strong working start only while the evidence stays aligned.')) ?>',
+                progressBodyCoarse: '<?= addslashes(__('post_page.learning_progress_body_coarse', 'If the current name stops at genus or family, that is not failure. It means the record is staying honest about the evidence.')) ?>',
+                retakeTitle: '<?= addslashes(__('post_page.learning_retake_title', 'What to add next time')) ?>',
+                retakeBodySingle: '<?= addslashes(__('post_page.learning_retake_body_single', 'Next time, one closer photo and one wider place shot will make the next narrowing much easier.')) ?>',
+                retakeBodyMulti: '<?= addslashes(__('post_page.learning_retake_body_multi', 'You already have multiple photos. The next gain is a decisive angle or a place clue that rules out similar taxa.')) ?>',
+                contributionTitle: '<?= addslashes(__('post_page.learning_contribution_title', 'How this helps beyond you')) ?>',
+                contributionBodyDefault: '<?= addslashes(__('post_page.learning_contribution_body_default', 'This first saved trace gives later identifications and corrections a real place to start from.')) ?>',
+                contributionBodyNamed: '<?= addslashes(__('post_page.learning_contribution_body_named', 'Because this record already carries a name hypothesis, later reviews can focus on checking and refining instead of starting from zero.')) ?>',
+                contributionNote: '<?= addslashes(__('post_page.learning_contribution_note', 'As records become clearer, they also become better guidance for the next person and stronger learning signal for future ikimon AI.')) ?>',
+                revisitTitle: '<?= addslashes(__('post_page.revisit_title', 'Keep this place moving')) ?>',
+                revisitBodyDefault: '<?= addslashes(__('post_page.revisit_body_default', 'A second dated record from the same place makes later comparison much easier.')) ?>',
+                revisitBodyLoggedIn: '<?= addslashes(__('post_page.revisit_body_logged_in', 'Leave one more record here, then review the flow later in My places.')) ?>',
+                revisitBodyGuest: '<?= addslashes(__('post_page.revisit_body_guest', 'Leave one more record here or look at nearby records first. Even two traces from the same place already make change easier to see.')) ?>',
+                revisitNote: '<?= addslashes(__('post_page.revisit_note', 'Your current location is kept when you start another record from here.')) ?>',
+                revisitCollectionProfile: '<?= addslashes(__('post_page.revisit_collection_profile', 'Review in My places')) ?>',
+                revisitCollectionExplore: '<?= addslashes(__('post_page.revisit_collection_explore', 'See nearby records')) ?>'
+            }
         };
     </script>
     <script src="<?= htmlspecialchars(Asset::versioned('/js/exif-mini.js')) ?>"></script>
@@ -1188,7 +1258,7 @@ if ($isGuest) {
                 <p class="text-sm font-bold text-text" x-text="message"></p>
                 <!-- Badge Image if available -->
                 <template x-if="currentEvent && currentEvent.type === 'badge_earned' && currentEvent.badge.image_url">
-                    <img :src="currentEvent.badge.image_url" :alt="currentEvent.badge.name ? currentEvent.badge.name + ' のバッジ' : 'バッジ'" class="w-20 h-20 mx-auto mt-3 object-contain drop-shadow-md">
+                        <img :src="currentEvent.badge.image_url" :alt="currentEvent.badge.name ? currentEvent.badge.name + '<?= addslashes(__('post_page.gamification_badge_suffix', ' badge')) ?>' : '<?= addslashes(__('post_page.gamification_badge_fallback', 'Badge')) ?>'" class="w-20 h-20 mx-auto mt-3 object-contain drop-shadow-md">
                 </template>
                 <!-- Quest Reward -->
                 <template x-if="currentEvent && currentEvent.type === 'quest_complete'">
@@ -1201,7 +1271,7 @@ if ($isGuest) {
 
             <!-- Button -->
             <button @click="next()" class="w-full py-4 rounded-full bg-gradient-to-r from-primary to-accent text-white font-black shadow-lg shadow-primary/30 active:scale-95 transition hover:scale-105">
-                <span x-text="currentIndex < events.length - 1 ? '次の報酬へ！' : '最高！閉じる'"></span>
+                        <span x-text="currentIndex < events.length - 1 ? '<?= addslashes(__('post_page.gamification_next', 'Next reward!')) ?>' : '<?= addslashes(__('post_page.gamification_close', 'Awesome! Close')) ?>'"></span>
             </button>
         </div>
     </div>

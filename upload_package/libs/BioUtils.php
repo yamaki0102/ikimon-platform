@@ -19,13 +19,22 @@ class BioUtils
         $diff = time() - $timestamp;
 
         if ($diff < 60) {
-            return 'たった今';
+            return function_exists('__') ? __('time.just_now', 'just now') : 'just now';
         } elseif ($diff < 3600) {
-            return floor($diff / 60) . '分前';
+            $value = floor($diff / 60);
+            return function_exists('__')
+                ? str_replace('{value}', (string)$value, __('time.minutes_ago', '{value} min ago'))
+                : ($value . ' min ago');
         } elseif ($diff < 86400) {
-            return floor($diff / 3600) . '時間前';
+            $value = floor($diff / 3600);
+            return function_exists('__')
+                ? str_replace('{value}', (string)$value, __('time.hours_ago', '{value} hr ago'))
+                : ($value . ' hr ago');
         } elseif ($diff < 604800) {
-            return floor($diff / 86400) . '日前';
+            $value = floor($diff / 86400);
+            return function_exists('__')
+                ? str_replace('{value}', (string)$value, __('time.days_ago', '{value} d ago'))
+                : ($value . ' d ago');
         } else {
             return date('Y/m/d', $timestamp);
         }

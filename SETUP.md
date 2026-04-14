@@ -29,7 +29,8 @@ cd ikimon.life
 
 ## 3. SSH デプロイキーの配置
 
-本番サーバー（お名前.com）へのデプロイに必要。
+通常の開発には必須ではない。GitHub Actions が本番 deploy を担当する。
+サーバー保守や緊急確認で SSH 接続が必要な場合だけ設定する。
 
 ```powershell
 # ~/.ssh/ に production.pem を配置
@@ -89,8 +90,10 @@ git add -p          # 変更を確認しながらステージング
 git commit -m "..."
 git push
 
-# 本番デプロイ（Claude Code のワークフロー経由）
-# Claude に /deploy と指示する
+# release preflight
+powershell -ExecutionPolicy Bypass -File .\scripts\check_deploy_guardrails.ps1
+
+# 本番 deploy は PR を main にマージすると GitHub Actions が実行
 ```
 
 ## トラブルシューティング

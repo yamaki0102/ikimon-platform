@@ -15,8 +15,10 @@ require_once __DIR__ . '/../../libs/EmbeddingQueue.php';
 require_once __DIR__ . '/../../libs/AsyncJobMetrics.php';
 require_once __DIR__ . '/../../libs/Auth.php';
 require_once __DIR__ . '/../../libs/Gamification.php';
+require_once __DIR__ . '/../../libs/BioUtils.php';
 require_once __DIR__ . '/../../libs/GeoUtils.php';
 require_once __DIR__ . '/../../libs/SurveyorManager.php';
+require_once __DIR__ . '/../../libs/CanonicalObservationWriter.php';
 
 // FB-12: Apply post-specific rate limiting (10 posts / 5 min)
 RateLimiter::check();
@@ -232,6 +234,18 @@ function respondAndContinue($success, $message, $data = []): void
     }
 }
 
+function isLightweightSubmission(array $post, array $photos, string $recordMode): bool
+{
+    if ($recordMode !== 'standard' || !empty($photos)) {
+        return false;
+    }
+
+    $lightModeRequested = ($post['light_mode'] ?? '') === '1';
+    $hasSubstance = trim((string)($post['taxon_name'] ?? '')) !== '' || trim((string)($post['note'] ?? '')) !== '';
+
+    return $lightModeRequested && $hasSubstance;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     respond(false, 'Invalid request method');
 }
@@ -358,7 +372,9 @@ if (!empty($_FILES['photos'])) {
         }
     }
 } elseif ($recordMode !== 'surveyor_official') {
-    respond(false, '写真がアップロードされていません');
+    if (!isLightweightSubmission($_POST, $photos, $recordMode)) {
+        respond(false, '写真がアップロードされていません');
+    }
 }
 
 // FB-15: Apply EXIF data as fallback values
@@ -435,6 +451,15 @@ if ($currentUser) {
     $isGuestPost = true;
 }
 
+$observerDisplayName = $currentUser['name'] ?? null;
+if ($observerDisplayName === $userId || preg_match('/^user_[a-z0-9]+$/i', (string)$observerDisplayName)) {
+    $observerDisplayName = null;
+}
+$observerDisplayName = $observerDisplayName
+    ?? $currentUser['display_name']
+    ?? $currentUser['username']
+    ?? ($isGuestPost ? 'Guest' : BioUtils::getUserName($userId));
+
 // Check for Corporate Site Match
 require_once __DIR__ . '/../../libs/CorporateSites.php';
 $matchedSite = CorporateSites::findMatchingSite((float)$lat, (float)$lng);
@@ -442,7 +467,8 @@ $matchedSite = CorporateSites::findMatchingSite((float)$lat, (float)$lng);
 $observation = [
     'id' => $id,
     'user_id' => $userId,
-    'user_name' => $currentUser['name'] ?? 'Guest',
+    'user_name' => $observerDisplayName,
+    'user_display_name' => $observerDisplayName,
     'user_avatar' => $currentUser['avatar'] ?? 'https://i.pravatar.cc/150?u=' . $userId,
     'user_rank' => ($currentUser && !empty($currentUser['badges'])) ? end($currentUser['badges']) : 'Observer',
     'observed_at' => $observed_at ?: date('Y-m-d H:i'),
@@ -468,6 +494,7 @@ $observation = [
     'taxon' => null,
     'record_mode' => $isSurveyorOfficial ? 'surveyor_official' : 'standard',
     'official_record' => $isSurveyorOfficial,
+    'light_mode' => isLightweightSubmission($_POST, $photos, $recordMode),
     'biome' => $biome, // Phase 17
     'biome_meta' => [
         'auto_selected' => $biomeAutoSelected,
@@ -617,6 +644,35 @@ if (!empty($_POST['taxon_name'])) {
 
 // Save to DataStore (partition by creation month, not observed_at)
 if (DataStore::append('observations', $observation)) {
+    $canonicalWrite = [
+        'success' => false,
+        'skipped' => !CANONICAL_DUAL_WRITE_ENABLED,
+        'event_id' => null,
+        'occurrence_id' => null,
+        'error' => null,
+    ];
+    if (CANONICAL_DUAL_WRITE_ENABLED) {
+        try {
+            $canonicalResult = CanonicalObservationWriter::writeFromObservation($observation);
+            $canonicalWrite['success'] = true;
+            $canonicalWrite['skipped'] = !empty($canonicalResult['skipped']);
+            $canonicalWrite['event_id'] = $canonicalResult['event_id'] ?? null;
+            $canonicalWrite['occurrence_id'] = $canonicalResult['occurrence_id'] ?? null;
+
+            DataStore::upsert('observations', [
+                'id' => $id,
+                'canonical_refs' => [
+                    'event_id' => $canonicalWrite['event_id'],
+                    'occurrence_id' => $canonicalWrite['occurrence_id'],
+                    'synced_at' => date('c'),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            $canonicalWrite['error'] = $e->getMessage();
+            error_log('Canonical dual-write failed for ' . $id . ': ' . $e->getMessage());
+        }
+    }
+
     ObservationRecalcQueue::enqueue($id, 'observation_created');
     $aiPlan = AiAssessmentQueue::planForObservation($observation, 'observation_created');
     // ゲスト投稿カウント更新
@@ -710,6 +766,8 @@ if (DataStore::append('observations', $observation)) {
     $responseData['ai_assessment_ready'] = false;
     $responseData['ai_assessment_pending'] = $aiPlan !== null;
     $responseData['embedding_pending'] = $embeddingPlanned;
+    $responseData['canonical_write_success'] = $canonicalWrite['success'];
+    $responseData['canonical_occurrence_id'] = $canonicalWrite['occurrence_id'];
 
     // Add Gamification Events to response
     if (!empty($gamificationEvents)) {
@@ -729,6 +787,9 @@ if (DataStore::append('observations', $observation)) {
         'embedding_planned' => $embeddingPlanned,
         'ai_queue' => AiAssessmentQueue::snapshot(),
         'embedding_queue' => EmbeddingQueue::snapshot(),
+        'canonical_write_success' => $canonicalWrite['success'],
+        'canonical_write_skipped' => $canonicalWrite['skipped'],
+        'canonical_write_error' => $canonicalWrite['error'],
     ]);
 
     respondAndContinue(true, 'Observation posted successfully', $responseData);

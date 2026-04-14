@@ -6,6 +6,11 @@ on:
     paths:
       - 'upload_package/**'
       - 'tests/**'
+      - 'docs/**'
+      - 'scripts/**'
+      - '.vscode/**'
+      - 'ikimon.life.code-workspace'
+      - 'README.md'
   pull_request:
     branches: [main]
 
@@ -21,6 +26,18 @@ jobs:
         with:
           php-version: '8.2'
           extensions: gd, mbstring, json
+
+      - name: Check catch-up asset sync
+        shell: pwsh
+        run: ./scripts/check_catchup_sync.ps1
+
+      - name: Check deploy guardrails
+        shell: pwsh
+        run: ./scripts/check_deploy_guardrails.ps1
+
+      - name: Check deploy manifest sync
+        shell: pwsh
+        run: ./scripts/check_deploy_manifest_sync.ps1
 
       - name: Run PHP Lint
         run: php tools/lint.php

@@ -28,7 +28,16 @@ $_taxon      = is_array($cardObs['taxon'] ?? null) ? $cardObs['taxon'] : [];
 $_speciesName = $_taxon['name'] ?? ($cardObs['species_name'] ?? null);
 $_sciName     = $_taxon['scientific_name'] ?? '';
 $_hasId       = BioUtils::hasResolvedTaxon($cardObs);
-$_userName    = $cardObs['user_name'] ?? substr($cardObs['user_id'] ?? '?', 0, 4);
+$_rawUserName = $cardObs['user_name'] ?? null;
+if ($_rawUserName === ($cardObs['user_id'] ?? null)) {
+    $_rawUserName = null;
+}
+$_userName    = $cardObs['user_display_name']
+    ?? $_rawUserName
+    ?? $cardObs['user']['display_name']
+    ?? $cardObs['user']['name']
+    ?? (!empty($cardObs['user_id']) ? BioUtils::getUserName($cardObs['user_id']) : null)
+    ?? substr($cardObs['user_id'] ?? '?', 0, 4);
 $_avatar      = $cardObs['user_avatar'] ?? '/assets/img/default-avatar.svg';
 $_timeAgo     = BioUtils::timeAgo($cardObs['observed_at'] ?? $cardObs['created_at'] ?? 'now');
 $_place       = htmlspecialchars($cardObs['municipality'] ?? ($cardObs['location']['name'] ?? ''));
@@ -63,19 +72,19 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
                     <p class="text-token-xs text-muted mt-0.5"><?php echo $_timeAgo; ?><?php echo $_place ? ' · ' . $_place : ''; ?></p>
                 </div>
             </div>
-            <?php echo _obs_card_menu($_obsId, $_detailUrl, $_taxon['name'] ?? '観察記録', $cardLoggedIn); ?>
+            <?php echo _obs_card_menu($_obsId, $_detailUrl, $_taxon['name'] ?? __('feed_card.observation_record', 'Observation record'), $cardLoggedIn); ?>
         </div>
 
         <!-- 写真 -->
         <div class="aspect-square w-full bg-surface relative overflow-hidden">
             <?php if ($_hasPhoto): ?>
-                <img src="<?php echo htmlspecialchars($_photos[0]); ?>" alt="<?php echo htmlspecialchars($_speciesName ?? '観察写真'); ?>" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                <img src="<?php echo htmlspecialchars($_photos[0]); ?>" alt="<?php echo htmlspecialchars($_speciesName ?? __('feed_card.observation_photo', 'Observation photo')); ?>" class="w-full h-full object-cover" loading="lazy" decoding="async">
             <?php else: ?>
                 <div class="w-full h-full flex items-center justify-center bg-primary/5">
                     <i data-lucide="camera-off" class="w-12 h-12 text-faint"></i>
                 </div>
             <?php endif; ?>
-            <a href="<?php echo htmlspecialchars($_detailUrl); ?>" class="absolute inset-0 z-[1]" aria-label="観察詳細を見る"></a>
+            <a href="<?php echo htmlspecialchars($_detailUrl); ?>" class="absolute inset-0 z-[1]" aria-label="<?= htmlspecialchars(__('feed_card.view_observation_detail', 'View observation details')) ?>"></a>
 
             <!-- 種名バッジ -->
             <?php if ($_hasId): ?>
@@ -90,7 +99,7 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
                 <div class="absolute bottom-2 left-2 z-10">
                     <div class="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-2 border border-white/10">
                         <i data-lucide="help-circle" class="w-3 h-3 text-white/50"></i>
-                        <span class="text-xs text-white/60">同定中</span>
+                        <span class="text-xs text-white/60"><?= htmlspecialchars(__('feed_card.identifying', 'Identifying')) ?></span>
                     </div>
                 </div>
             <?php endif; ?>
@@ -101,11 +110,11 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
         <div class="px-4 py-3">
             <p class="text-sm text-muted line-clamp-2">
                 <span class="font-bold text-text"><?php echo htmlspecialchars($_userName); ?></span>
-                <?php echo htmlspecialchars($cardObs['note'] ?? '記録しました'); ?>
+                <?php echo htmlspecialchars($cardObs['note'] ?? __('feed_card.saved_record', 'Saved a record')); ?>
             </p>
             <div class="flex items-center justify-between mt-2">
                 <span class="text-token-xs text-muted"><?php echo date('Y.m.d H:i', strtotime($cardObs['observed_at'] ?? $cardObs['created_at'] ?? 'now')); ?></span>
-                <a href="<?php echo htmlspecialchars($_detailUrl); ?>" class="text-token-xs font-bold text-muted hover:text-primary-dark transition">詳しく見る →</a>
+                <a href="<?php echo htmlspecialchars($_detailUrl); ?>" class="text-token-xs font-bold text-muted hover:text-primary-dark transition"><?= htmlspecialchars(__('feed_card.view_more', 'View more')) ?> →</a>
             </div>
         </div>
 
@@ -129,7 +138,7 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
                     <p class="text-token-xs text-muted mt-0.5"><?php echo $_timeAgo; ?><?php echo $_place ? ' · ' . $_place : ''; ?></p>
                 </div>
             </div>
-            <?php echo _obs_card_menu($_obsId, $_detailUrl, $_speciesName ?? '検出記録', $cardLoggedIn); ?>
+            <?php echo _obs_card_menu($_obsId, $_detailUrl, $_speciesName ?? __('feed_card.detection_record', 'Detection record'), $cardLoggedIn); ?>
         </div>
 
         <!-- センサー検出メイン表示 -->
@@ -172,7 +181,7 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
         <?php if ($_detMeta['confidence'] > 0): ?>
         <div class="px-4 pb-2">
             <div class="flex items-center gap-2">
-                <span class="text-[10px] text-muted flex-shrink-0">AI確信度</span>
+                <span class="text-[10px] text-muted flex-shrink-0"><?= htmlspecialchars(__('feed_card.ai_confidence', 'AI confidence')) ?></span>
                 <div class="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
                     <div class="h-full rounded-full transition-all"
                         style="width:<?php echo round($_detMeta['confidence'] * 100); ?>%;background:<?php echo $_detMeta['confidence'] >= 0.7 ? '#10b981' : ($_detMeta['confidence'] >= 0.4 ? '#f59e0b' : '#ef4444'); ?>;">
@@ -204,13 +213,13 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
                         <p class="text-sm font-bold leading-none text-text"><?php echo htmlspecialchars($_userName); ?></p>
                         <?php echo ObservationSourceHelper::renderBadge($_src); ?>
                         <?php if ($_detMeta['is_dual']): ?>
-                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-400/20">✓✓ デュアル</span>
+                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-400/20">✓✓ <?= htmlspecialchars(__('feed_card.dual', 'Dual')) ?></span>
                         <?php endif; ?>
                     </div>
                     <p class="text-token-xs text-muted mt-0.5"><?php echo $_timeAgo; ?><?php echo $_place ? ' · ' . $_place : ''; ?></p>
                 </div>
             </div>
-            <?php echo _obs_card_menu($_obsId, $_detailUrl, $_speciesName ?? 'スキャン記録', $cardLoggedIn); ?>
+            <?php echo _obs_card_menu($_obsId, $_detailUrl, $_speciesName ?? __('feed_card.scan_record', 'Scan record'), $cardLoggedIn); ?>
         </div>
 
         <!-- フィールドスキャンメイン表示 -->
@@ -247,7 +256,7 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
         <div class="px-4 pb-2">
             <div class="flex items-center gap-2">
                 <span class="text-[10px] text-muted flex-shrink-0">
-                    <?php echo $_detMeta['is_dual'] ? 'デュアル確信度' : 'AI確信度'; ?>
+                    <?php echo htmlspecialchars($_detMeta['is_dual'] ? __('feed_card.dual_confidence', 'Dual confidence') : __('feed_card.ai_confidence', 'AI confidence')); ?>
                 </span>
                 <div class="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
                     <div class="h-full rounded-full transition-all"
@@ -269,4 +278,3 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
     <?php endif; ?>
 
 </article>
-

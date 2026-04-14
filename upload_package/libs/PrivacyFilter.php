@@ -34,7 +34,10 @@ class PrivacyFilter
     {
         $lat = (float)($observation['latitude'] ?? $observation['lat'] ?? 0);
         $lng = (float)($observation['longitude'] ?? $observation['lng'] ?? 0);
-        $speciesName = $observation['species_name'] ?? '';
+        $speciesName = $observation['species_name']
+            ?? $observation['taxon']['name']
+            ?? $observation['taxon']['scientific_name']
+            ?? '';
         $observedAt = $observation['observed_at'] ?? $observation['created_at'] ?? '';
 
         // Check if species is on any protection list
@@ -272,5 +275,15 @@ class PrivacyFilter
 
         // Layer 2: Ambient (default for all public viewers)
         return self::forAmbient($observation, $gridM);
+    }
+
+    public static function describeGranularity(string $granularity): array
+    {
+        return match ($granularity) {
+            'hidden' => ['label' => '位置非公開', 'grid_m' => null],
+            'prefecture' => ['label' => '都道府県レベル', 'grid_m' => 10000],
+            'municipality' => ['label' => '市区町村レベル', 'grid_m' => 1000],
+            default => ['label' => '環境レイヤー', 'grid_m' => 1000],
+        };
     }
 }

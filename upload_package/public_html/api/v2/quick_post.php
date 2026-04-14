@@ -15,6 +15,7 @@ require_once __DIR__ . '/bootstrap.php';
 require_once ROOT_DIR . '/libs/Auth.php';
 require_once ROOT_DIR . '/libs/DataStore.php';
 require_once ROOT_DIR . '/libs/AiAssessmentQueue.php';
+require_once ROOT_DIR . '/libs/CanonicalObservationWriter.php';
 
 Auth::init();
 if (!Auth::isLoggedIn()) {
@@ -88,6 +89,30 @@ $observation = [
 
 DataStore::append('observations', $observation);
 
+$canonicalMeta = [
+    'attempted' => false,
+    'written' => false,
+    'skipped' => false,
+];
+try {
+    $canonicalMeta['attempted'] = true;
+    $canonicalResult = CanonicalObservationWriter::writeFromObservation($observation);
+    $canonicalMeta['written'] = !($canonicalResult['skipped'] ?? false);
+    $canonicalMeta['skipped'] = (bool)($canonicalResult['skipped'] ?? false);
+    if (isset($canonicalResult['skip_reason'])) {
+        $canonicalMeta['skip_reason'] = $canonicalResult['skip_reason'];
+    }
+    if (!empty($canonicalResult['occurrence_id'])) {
+        $canonicalMeta['occurrence_id'] = $canonicalResult['occurrence_id'];
+    }
+    if (!empty($canonicalResult['event_id'])) {
+        $canonicalMeta['event_id'] = $canonicalResult['event_id'];
+    }
+} catch (\Throwable $e) {
+    $canonicalMeta['error'] = 'canonical_write_failed';
+    error_log("quick_post canonical write failed for {$obsId}: " . $e->getMessage());
+}
+
 $aiPlan = AiAssessmentQueue::planForObservation($observation, 'observation_created');
 if ($aiPlan !== null) {
     try {
@@ -100,4 +125,6 @@ if ($aiPlan !== null) {
 api_success([
     'id' => $obsId,
     'photos' => count($savedPhotos),
+], [
+    'canonical' => $canonicalMeta,
 ]);

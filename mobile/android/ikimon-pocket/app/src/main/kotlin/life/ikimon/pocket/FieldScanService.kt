@@ -76,11 +76,15 @@ class FieldScanService : Service() {
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
     // 音声ループ（録音は10秒ブロッキング → IOスレッドで実行）
+    // postDelayed は録音+推論完了後に行う — 多重起動防止
     private val audioRunnable = object : Runnable {
         override fun run() {
             if (!isRunning) return
-            scope.launch(Dispatchers.IO) { captureAndClassifyAudio() }
-            handler.postDelayed(this, runtimeConfig.audioIntervalMs)
+            val self = this
+            scope.launch(Dispatchers.IO) {
+                captureAndClassifyAudio()
+                if (isRunning) handler.postDelayed(self, runtimeConfig.audioIntervalMs)
+            }
         }
     }
 
@@ -88,8 +92,11 @@ class FieldScanService : Service() {
     private val visionRunnable = object : Runnable {
         override fun run() {
             if (!isRunning) return
-            scope.launch { captureAndClassifyVision() }
-            handler.postDelayed(this, runtimeConfig.visionIntervalMs)
+            val self = this
+            scope.launch {
+                captureAndClassifyVision()
+                if (isRunning) handler.postDelayed(self, runtimeConfig.visionIntervalMs)
+            }
         }
     }
 
@@ -97,8 +104,11 @@ class FieldScanService : Service() {
     private val envRunnable = object : Runnable {
         override fun run() {
             if (!isRunning) return
-            scope.launch { analyzeEnvironment() }
-            handler.postDelayed(this, runtimeConfig.envIntervalMs)
+            val self = this
+            scope.launch {
+                analyzeEnvironment()
+                if (isRunning) handler.postDelayed(self, runtimeConfig.envIntervalMs)
+            }
         }
     }
 
@@ -234,6 +244,10 @@ class FieldScanService : Service() {
     }
 
     private fun startMonitoring() {
+        if (isRunning) {
+            Log.w(TAG, "startMonitoring called while already running — ignored")
+            return
+        }
         isRunning = true
         Log.i(TAG, "Field Scan started — intent=$sessionIntent official=$officialRecord profile=$testProfile")
 
@@ -242,7 +256,12 @@ class FieldScanService : Service() {
         }
 
         sensorCollector?.start()
-        handler.post(audioRunnable)
+        // 車モードは車内ノイズ（エンジン・ロードノイズ）で音声分類が機能しないため無効
+        if (movementMode != "vehicle") {
+            handler.post(audioRunnable)
+        } else {
+            Log.i(TAG, "Audio disabled — vehicle mode")
+        }
 
         // 視覚と環境は少し遅延して開始（Gemini Nano初期化待ち）
         handler.postDelayed(visionRunnable, 3_000L)

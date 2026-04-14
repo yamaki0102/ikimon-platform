@@ -1,15 +1,30 @@
 <?php
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../libs/Auth.php';
+require_once __DIR__ . '/../libs/Lang.php';
 Auth::init();
+Lang::init();
+
+$documentLang = method_exists('Lang', 'current') ? Lang::current() : 'ja';
+$updatesText = [
+    'meta_title' => __('updates_page.meta_title', 'Update History | ikimon.life'),
+    'meta_description' => __('updates_page.meta_description', 'Track ikimon feature releases and improvements over time.'),
+    'title' => __('updates_page.title', 'Update History'),
+    'lead' => __('updates_page.lead', 'Recent improvements and new features from ikimon.'),
+    'newsletter_title' => __('updates_page.newsletter_title', 'Get the latest updates'),
+    'newsletter_text' => __('updates_page.newsletter_text', 'Sign up to receive update notifications by email.'),
+    'newsletter_button' => __('updates_page.newsletter_button', 'Sign Up'),
+];
 ?>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="<?= htmlspecialchars($documentLang, ENT_QUOTES, 'UTF-8') ?>">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アップデート履歴 | ikimon</title>
-    <?php include __DIR__ . '/components/meta.php'; ?>
+    <?php
+    $meta_title = $updatesText['meta_title'];
+    $meta_description = $updatesText['meta_description'];
+    include __DIR__ . '/components/meta.php';
+    ?>
 </head>
 
 <body class="js-loading pt-14 font-body" style="background:var(--md-surface);color:var(--md-on-surface);">
@@ -22,8 +37,8 @@ Auth::init();
     <main>
     <section class="pt-32 pb-16 px-6">
         <div class="max-w-3xl mx-auto">
-            <h1 class="text-3xl font-black mb-4">アップデート履歴</h1>
-            <p class="text-gray-500 mb-12">ikimonの最新の改善と機能追加をお知らせします</p>
+            <h1 class="text-3xl font-black mb-4"><?php echo $updatesText['title']; ?></h1>
+            <p class="text-gray-500 mb-12"><?php echo $updatesText['lead']; ?></p>
 
             <div class="space-y-8">
 
@@ -785,12 +800,12 @@ Auth::init();
 
             <!-- Newsletter signup -->
             <div class="mt-16 text-center" style="padding:2rem;border-radius:var(--shape-xl);background:var(--md-surface-container);border:1px solid var(--md-outline-variant);box-shadow:var(--elev-1);">
-                <h3 class="text-lg font-bold mb-2">最新情報をお届けします</h3>
-                <p class="text-sm text-gray-500 mb-4">新機能の追加時にメールでお知らせします</p>
+                <h3 class="text-lg font-bold mb-2"><?php echo $updatesText['newsletter_title']; ?></h3>
+                <p class="text-sm text-gray-500 mb-4"><?php echo $updatesText['newsletter_text']; ?></p>
                 <div class="flex gap-2 max-w-md mx-auto">
                     <input type="email" placeholder="メールアドレス"
                         class="flex-1 px-4 py-3 rounded-xl focus:outline-none" style="background:var(--md-surface-container-low);border:1px solid var(--md-outline-variant);color:var(--md-on-surface);">
-                    <button class="btn-primary whitespace-nowrap">登録</button>
+                    <button class="btn-primary whitespace-nowrap"><?php echo $updatesText['newsletter_button']; ?></button>
                 </div>
             </div>
 
