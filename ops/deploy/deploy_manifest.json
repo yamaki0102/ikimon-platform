@@ -11,7 +11,11 @@
     "upload_package/config/config.php"
   ],
   "forbiddenPaths": [
-    "upload_package/data/**",
+    "upload_package/data/observations/**",
+    "upload_package/data/tracks/**",
+    "upload_package/data/auth_tokens/**",
+    "upload_package/data/sessions/**",
+    "upload_package/data/affiliate/**",
     "**/*.sqlite",
     "**/*.sqlite3",
     "**/*.sqlite3-shm",

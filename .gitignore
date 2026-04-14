@@ -114,3 +114,5 @@ platform_v2/tmp_*.py
 # forbidden per deploy_manifest.json (must never ship)
 tmp_*
 **/cleanup_test_*.php
+CLI-Anything/
+.claude/worktrees/
