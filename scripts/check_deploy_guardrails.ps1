@@ -97,3 +97,7 @@ if ($issues.Count -gt 0) {
 }
 
 Write-Output "Deploy guardrails passed."
+# Reset any lingering non-zero $LASTEXITCODE from internal git probes
+# so pwsh -command exits 0 when the guardrail actually passes.
+$global:LASTEXITCODE = 0
+exit 0
