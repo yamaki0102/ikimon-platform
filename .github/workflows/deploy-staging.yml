@@ -41,7 +41,7 @@ jobs:
     needs: pre-flight
     environment: staging
     steps:
-      - name: Deploy staging via SSH
+      - name: Deploy staging PHP lane via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: 162.43.44.131
@@ -51,6 +51,49 @@ jobs:
             STAGING_BRANCH=${{ github.event.inputs.branch || github.ref_name }}
             export STAGING_BRANCH
             /var/www/ikimon.life-staging/deploy.sh
+
+      - name: Rebuild + restart platform_v2 on staging
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: false
+          script: |
+            set +e
+            V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            if [ ! -d "$V2_DIR" ]; then
+              echo "platform_v2 directory missing at $V2_DIR — skip v2 rebuild."
+              exit 0
+            fi
+            cd "$V2_DIR"
+            echo "== npm ci =="
+            npm ci --silent || echo "WARN: npm ci failed (continuing)"
+            echo "== npm run build =="
+            npm run build || echo "WARN: build failed (continuing)"
+            echo "== restart v2 service =="
+            restarted=0
+            for svc in ikimon-v2-staging.service ikimon-v2.service platform-v2-staging.service; do
+              if systemctl list-unit-files "$svc" 2>/dev/null | grep -q "^$svc"; then
+                systemctl restart "$svc" && echo "Restarted via systemd: $svc" && restarted=1 && break
+              fi
+            done
+            if [ "$restarted" = "0" ] && command -v pm2 >/dev/null 2>&1; then
+              pm2 restart ikimon-v2-staging-api --update-env 2>/dev/null && echo "Restarted via pm2" && restarted=1
+            fi
+            if [ "$restarted" = "0" ]; then
+              echo "WARN: no known v2 service manager reacted. Manual restart may be required."
+            fi
+            echo "== v2 health probe =="
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3200/healthz 2>/dev/null)
+              if [ "$code" = "200" ]; then
+                echo "v2 healthz OK"
+                break
+              fi
+              sleep 1
+            done
+            exit 0
 
   verify:
     name: Verify Staging
@@ -64,6 +107,7 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            echo "== PHP lane (port 8081) =="
             for url in \
               http://127.0.0.1:8081/index.php \
               http://127.0.0.1:8081/explore.php \
@@ -75,6 +119,16 @@ jobs:
                 echo "OK $url -> $STATUS"
               else
                 echo "FAIL $url -> $STATUS"
+                exit 1
+              fi
+            done
+            echo "== v2 lane (port 3200) =="
+            for path in /healthz / /notes /lens /scan /map; do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Accept: text/html" "http://127.0.0.1:3200${path}")
+              if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
+                echo "OK v2 ${path} -> $STATUS"
+              else
+                echo "FAIL v2 ${path} -> $STATUS"
                 exit 1
               fi
             done
