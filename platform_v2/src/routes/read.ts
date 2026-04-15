@@ -20,14 +20,52 @@ import {
   toMapPoints,
 } from "../ui/mapMini.js";
 
-function layout(basePath: string, title: string, body: string, activeNav: string): string {
+type LayoutHero = {
+  eyebrow: string;
+  heading: string;
+  headingHtml?: string;
+  lead: string;
+  actions?: Array<{ href: string; label: string; variant?: "primary" | "secondary" }>;
+};
+
+function layout(
+  basePath: string,
+  title: string,
+  body: string,
+  activeNav: string,
+  hero?: LayoutHero,
+  extraStyles?: string,
+): string {
   return renderSiteDocument({
     basePath,
     title,
     activeNav,
     body,
+    hero: hero
+      ? {
+          eyebrow: hero.eyebrow,
+          heading: hero.heading,
+          headingHtml: hero.headingHtml ?? hero.heading,
+          lead: hero.lead,
+          tone: "light",
+          align: "center",
+          actions: hero.actions,
+        }
+      : undefined,
+    extraStyles,
     footerNote: "shared website shell on staging. use these pages to verify the actual visual journey, not only the data endpoints.",
   });
+}
+
+/** Small inline "state" card for 401 / 404 states — replaces the old dark-hero div. */
+function stateCard(eyebrow: string, title: string, body: string): string {
+  return `<section class="section">
+    <div class="card is-soft">
+      <div class="eyebrow">${escapeHtml(eyebrow)}</div>
+      <h2 style="margin-top:8px">${escapeHtml(title)}</h2>
+      <p style="margin-top:8px;color:#475569;line-height:1.7">${body}</p>
+    </div>
+  </section>`;
 }
 
 function requestBasePath(request: { headers: Record<string, unknown> }): string {
@@ -46,7 +84,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       return layout(
         basePath,
         "Session required",
-        `<div class="hero"><div class="title">Session required</div><p class="muted" style="color:rgba(255,255,255,.86);margin-top:10px">Issue a v2 session first, or open <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code> for staging capture.</p></div>`,
+        stateCard(
+          "Session required",
+          "記録するにはサインインが必要です",
+          `<p style="margin:0 0 12px">ログイン済みのセッションがまだありません。</p>
+          <div class="actions" style="margin-top:16px">
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
+            <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/faq"))}">サインイン方法</a>
+          </div>
+          <p class="meta" style="margin-top:16px;font-size:12px;color:#94a3b8">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>`,
+        ),
         "Record",
       );
     }
@@ -55,16 +102,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return layout(
       basePath,
       "ikimon v2 record",
-      `<section class="hero">
-        <div class="eyebrow">Record</div>
-        <h1 class="title">Record minimal shell</h1>
-        <p class="muted" style="color:rgba(255,255,255,.86);margin-top:10px">Quick capture now runs on the v2 cutover lane with observation upsert and optional photo upload.</p>
-        <div class="actions">
-          <a class="btn secondary" href="${escapeHtml(queryUserId ? withBasePath(basePath, `/home?userId=${encodeURIComponent(viewerUserId)}`) : withBasePath(basePath, "/home"))}">Open home</a>
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/explore"))}">Explore</a>
-        </div>
-      </section>
-      <section class="grid" style="margin-top:20px">
+      `<section class="grid" style="margin-top:20px">
         <div class="card">
           <div class="card-body">
             <div class="eyebrow">Quick capture</div>
@@ -176,83 +214,115 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         });
       </script>`,
       "Record",
+      {
+        eyebrow: "記録する",
+        heading: "今日の 1 ページを書く",
+        lead: "観察した場所・時刻・気づいた生きものを、そのまま 1 件のノートに残します。同定候補は AIレンズが補助します。",
+        actions: [
+          { href: queryUserId ? `/home?userId=${encodeURIComponent(viewerUserId)}` : "/home", label: "ホーム" },
+          { href: "/explore", label: "みつける", variant: "secondary" as const },
+        ],
+      },
     );
   });
 
   app.get("/explore", async (_request, reply) => {
     const basePath = requestBasePath(_request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((_request as unknown as { url?: string }).url ?? ""));
     const snapshot = await getExploreSnapshot();
-    const cards = snapshot.recentObservations.map((item) => `
-      <a class="card" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">
-        ${item.photoUrl ? `<img class="thumb" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName)}" />` : ""}
-        <div class="card-body">
-          <div class="eyebrow">${escapeHtml(item.municipality || "Municipality unknown")}</div>
-          <div class="title">${escapeHtml(item.displayName)}</div>
-          <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
-          <div class="meta">${escapeHtml(item.observerName)} · ${item.identificationCount} identifications</div>
-        </div>
-      </a>`).join("");
+    const cards = snapshot.recentObservations.map((item) =>
+      renderObservationCard(basePath, lang, {
+        occurrenceId: item.occurrenceId,
+        visitId: item.visitId,
+        displayName: item.displayName,
+        observedAt: item.observedAt,
+        observerName: item.observerName,
+        placeName: item.placeName,
+        municipality: item.municipality,
+        photoUrl: item.photoUrl,
+        identificationCount: item.identificationCount,
+        latitude: null,
+        longitude: null,
+        observerUserId: null,
+        observerAvatarUrl: null,
+      }),
+    ).join("");
     const municipalities = snapshot.municipalities.map((item) => `
       <div class="row">
         <div>
           <div style="font-weight:800">${escapeHtml(item.municipality)}</div>
-          <div class="meta">Observation cluster</div>
+          <div class="meta">観察クラスター</div>
         </div>
-        <span class="pill">${item.observationCount} obs</span>
+        <span class="pill">${item.observationCount} 件</span>
       </div>`).join("");
     const taxa = snapshot.topTaxa.map((item) => `
       <div class="row">
         <div>
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
-          <div class="meta">Top observed taxon</div>
+          <div class="meta">よく観察されている種</div>
         </div>
-        <span class="pill">${item.observationCount} obs</span>
+        <span class="pill">${item.observationCount} 件</span>
       </div>`).join("");
 
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "ikimon v2 explore",
-      `<section class="hero">
-        <div class="eyebrow">Explore</div>
-        <h1 class="title">Explore minimal shell</h1>
-        <p class="muted" style="color:rgba(255,255,255,.86);margin-top:10px">Recent observations, active municipalities, and top taxa are available on the v2 cutover lane.</p>
-        <div class="actions">
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/home"))}">Open home</a>
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/ops/readiness"))}">Ops readiness</a>
+      "みつける | ikimon",
+      `<section class="section">
+        <div class="grid">
+          <div class="card"><div class="card-body"><div class="eyebrow">活発な自治体</div><div class="list">${municipalities || '<div class="row"><div>まだ自治体データがありません。</div></div>'}</div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">よく観察されている種</div><div class="list">${taxa || '<div class="row"><div>まだ種データがありません。</div></div>'}</div></div></div>
         </div>
       </section>
-      <section class="grid" style="margin-top:20px">
-        <div class="card"><div class="card-body"><div class="eyebrow">Active municipalities</div><div class="list">${municipalities || '<div class="row"><div>No municipalities yet.</div></div>'}</div></div></div>
-        <div class="card"><div class="card-body"><div class="eyebrow">Top taxa</div><div class="list">${taxa || '<div class="row"><div>No taxa yet.</div></div>'}</div></div></div>
-      </section>
-      <section style="margin-top:20px"><div class="eyebrow">Recent observations</div><div class="grid">${cards || '<div class="card"><div class="card-body">No observations yet.</div></div>'}</div></section>`,
-      "Explore",
+      <section class="section"><div class="section-header"><div><div class="eyebrow">直近の観察</div><h2>近くで見つかっているもの</h2></div></div><div class="explore-grid">${cards || '<div class="card"><div class="card-body">まだ観察がありません。</div></div>'}</div></section>`,
+      "みつける",
+      {
+        eyebrow: "みつける",
+        heading: "📡 近くの観察を広く見る",
+        lead: "自治体・種・直近の観察を横断して、今どこで何が見つかっているかを俯瞰します。",
+        actions: [
+          { href: "/map", label: "マップで見る" },
+          { href: "/notes", label: "ノートに戻る", variant: "secondary" as const },
+        ],
+      },
+      `${OBSERVATION_CARD_STYLES}
+        .explore-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+        @media (max-width: 860px) { .explore-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+        @media (max-width: 480px) { .explore-grid { grid-template-columns: 1fr; } }
+      `,
     );
   });
 
   app.get("/home", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
     const snapshot = await getHomeSnapshot(viewerUserId);
-    const cards = snapshot.recentObservations.map((item) => `
-      <a class="card" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">
-        ${item.photoUrl ? `<img class="thumb" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName)}" />` : ""}
-        <div class="card-body">
-          <div class="eyebrow">${escapeHtml(item.placeName)}</div>
-          <div class="title">${escapeHtml(item.displayName)}</div>
-          <div class="meta">${escapeHtml(item.observerName)} · ${escapeHtml(item.observedAt)}</div>
-          <div class="meta">${escapeHtml(item.municipality || "Municipality unknown")} · ${item.identificationCount} identifications</div>
-        </div>
-      </a>`).join("");
+    const cards = snapshot.recentObservations.map((item) =>
+      renderObservationCard(basePath, lang, {
+        occurrenceId: item.occurrenceId,
+        visitId: item.visitId,
+        displayName: item.displayName,
+        observedAt: item.observedAt,
+        observerName: item.observerName,
+        placeName: item.placeName,
+        municipality: item.municipality,
+        photoUrl: item.photoUrl,
+        identificationCount: item.identificationCount,
+        latitude: null,
+        longitude: null,
+        observerUserId: null,
+        observerAvatarUrl: null,
+      }),
+    ).join("");
     const myPlaces = snapshot.myPlaces.map((place) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, `/profile/${encodeURIComponent(snapshot.viewerUserId || "")}`))}">
         <div>
           <div style="font-weight:800">${escapeHtml(place.placeName)}</div>
-          <div class="meta">${escapeHtml(place.municipality || "Municipality unknown")} · last ${escapeHtml(place.lastObservedAt)}</div>
+          <div class="meta">${escapeHtml(place.municipality || "自治体不明")} · 前回 ${escapeHtml(place.lastObservedAt)}</div>
         </div>
-        <span class="pill">${place.visitCount} visits</span>
+        <span class="pill">${place.visitCount} 回</span>
       </a>`).join("");
     const revisitCue = snapshot.myPlaces[0]
       ? `${snapshot.myPlaces[0].placeName} を起点に、前回の記録と今季の変化を見返せます。`
@@ -264,25 +334,31 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "ikimon v2 home",
-      `<section class="hero">
-        <div class="eyebrow">my field mentor</div>
-        <h1 class="title">前回より、少し見えるようになるホーム</h1>
-        <p class="muted" style="color:rgba(255,255,255,.86);margin-top:10px">Home は一覧ではなく、前回からの成長と、また行きたくなる場所を返す面です。Session cookie または <code>?userId=...</code> で My places を開けます。</p>
-        <div class="actions">
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/explore"))}">Explore nearby flow</a>
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/record"))}">Add another record</a>
-          ${snapshot.viewerUserId ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/profile"))}">My profile</a>` : ""}
+      "ホーム | ikimon",
+      `<section class="section">
+        <div class="grid">
+          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">今回の学び</div><h2>前回より見えた点</h2><p class="meta">${escapeHtml(growthCue)}</p></div></div>
+          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">また行く理由</div><h2>次に訪れる場所</h2><p class="meta">${escapeHtml(revisitCue)}</p></div></div>
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">みんなへの貢献</div><h2>Collective AI</h2><p class="meta">改善された観察と見分けの根拠は、将来の候補提示と explanation を良くする学習資産になります。</p></div></div>
         </div>
       </section>
-      <section class="grid" style="margin-top:20px">
-        <div class="card"><div class="card-body"><div class="eyebrow">Growth cue</div><div class="title">今回の学び</div><div class="meta">${escapeHtml(growthCue)}</div></div></div>
-        <div class="card"><div class="card-body"><div class="eyebrow">Revisit cue</div><div class="title">また行く理由</div><div class="meta">${escapeHtml(revisitCue)}</div></div></div>
-        <div class="card"><div class="card-body"><div class="eyebrow">Collective AI</div><div class="title">みんなへの貢献</div><div class="meta">改善された観察と見分けの根拠は、将来の候補提示と explanation を良くする学習資産になります。</div></div></div>
-      </section>
-      ${snapshot.viewerUserId ? `<section style="margin-top:20px"><div class="eyebrow">My places</div><div class="list">${myPlaces || '<div class="row"><div>No places yet.</div></div>'}</div></section>` : ""}
-      <section style="margin-top:20px"><div class="eyebrow">Recent observations</div><div class="grid">${cards}</div></section>`,
-      "Home",
+      ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>My places</h2></div></div><div class="list">${myPlaces || '<div class="row"><div>まだ記録した場所はありません。</div></div>'}</div></section>` : ""}
+      <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="home-grid">${cards}</div></section>`,
+      "ホーム",
+      {
+        eyebrow: "my field mentor",
+        heading: "前回より、少し見えるようになるホーム",
+        lead: "一覧ではなく、前回からの成長と、また行きたくなる場所を返す面です。",
+        actions: [
+          { href: "/notes", label: "ノートへ" },
+          { href: "/record", label: "1 件記録する", variant: "secondary" as const },
+        ],
+      },
+      `${OBSERVATION_CARD_STYLES}
+        .home-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+        @media (max-width: 860px) { .home-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+        @media (max-width: 480px) { .home-grid { grid-template-columns: 1fr; } }
+      `,
     );
   });
 
@@ -291,9 +367,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const snapshot = await getObservationDetailSnapshot(request.params.id);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "Observation not found", `<div class="hero"><div class="title">Observation not found</div></div>`, "Explore");
+      return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
     }
-    const photos = snapshot.photoUrls.map((url) => `<img class="thumb" src="${escapeHtml(url)}" alt="${escapeHtml(snapshot.displayName)}" />`).join("");
+    const photos = snapshot.photoUrls.map((url) => `<div class="obs-detail-photo"><img src="${escapeHtml(url)}" alt="${escapeHtml(snapshot.displayName)}" loading="lazy" onerror="this.closest('.obs-detail-photo').classList.add('is-broken');" /><span class="obs-detail-photo-fallback">📷 ${escapeHtml(snapshot.displayName)} / 写真なし</span></div>`).join("");
     const ids = snapshot.identifications.map((item) => `
       <div class="row">
         <div>
@@ -316,28 +392,40 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${snapshot.displayName} | ikimon v2`,
-      `<section class="hero">
-        <div class="eyebrow">Observation detail</div>
-        <h1 class="title">${escapeHtml(snapshot.displayName)}</h1>
-        <p class="muted" style="color:rgba(255,255,255,.86);margin-top:10px">${escapeHtml(snapshot.placeName)} · ${escapeHtml(snapshot.observedAt)} · by ${escapeHtml(snapshot.observerName)}。観察結果だけでなく、次に何を見れば進むかまで確認する面です。</p>
-        <div class="actions">
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/home"))}">Back to home</a>
-          ${snapshot.observerUserId ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, `/profile/${encodeURIComponent(snapshot.observerUserId)}`))}">Open observer profile</a>` : ""}
+      `${snapshot.displayName} | ikimon`,
+      `${photos ? `<section class="section"><div class="obs-detail-gallery">${photos}</div></section>` : ""}
+      <section class="section">
+        <div class="grid">
+          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">今の状態</div><h2>無理に当て切らない理由</h2><p class="meta">${escapeHtml(unresolvedReason)}</p></div></div>
+          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">次の一歩</div><h2>次に撮ると進むこと</h2><div class="list">${retakeChecklist}</div></div></div>
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">学習資産</div><h2>今回の記録の意味</h2><p class="meta">場所の変化を後から比較するための前提情報であり、同時に future AI explanation の学習データ候補です。</p></div></div>
         </div>
       </section>
-      <section class="grid" style="margin-top:20px">
-        <div class="card"><div class="card-body"><div class="eyebrow">Why not species yet</div><div class="title">いま無理に当て切らない理由</div><div class="meta">${escapeHtml(unresolvedReason)}</div></div></div>
-        <div class="card"><div class="card-body"><div class="eyebrow">Next observation</div><div class="title">次に撮ると進むこと</div><div class="list">${retakeChecklist}</div></div></div>
-        <div class="card"><div class="card-body"><div class="eyebrow">Learning loop</div><div class="title">今回の記録の意味</div><div class="meta">この観察は、場所の変化をあとで比較するための前提情報であり、同時に future AI explanation の学習資産候補でもあります。</div></div></div>
+      <section class="section">
+        <div class="grid">
+          <div class="card"><div class="card-body"><div class="eyebrow">場所</div><h2>${escapeHtml(snapshot.placeName)}</h2><p class="meta">${escapeHtml(snapshot.municipality || "自治体不明")}</p></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">学名</div><h2>${escapeHtml(snapshot.scientificName || "未確定")}</h2><p class="meta">${escapeHtml(snapshot.note || "メモなし")}</p></div></div>
+        </div>
       </section>
-      <section class="grid" style="margin-top:20px">${photos || '<div class="card"><div class="card-body">No photos</div></div>'}</section>
-      <section class="grid" style="margin-top:20px">
-        <div class="card"><div class="card-body"><div class="eyebrow">Place</div><div class="title">${escapeHtml(snapshot.placeName)}</div><div class="meta">${escapeHtml(snapshot.municipality || "Municipality unknown")}</div></div></div>
-        <div class="card"><div class="card-body"><div class="eyebrow">Scientific name</div><div class="title">${escapeHtml(snapshot.scientificName || "Unresolved")}</div><div class="meta">${escapeHtml(snapshot.note || "No note")}</div></div></div>
-      </section>
-      <section style="margin-top:20px"><div class="eyebrow">Identifications</div><div class="list">${ids || '<div class="row"><div>No identifications yet.</div></div>'}</div></section>`,
-      "Explore",
+      <section class="section"><div class="section-header"><div><div class="eyebrow">同定の履歴</div><h2>Identifications</h2></div></div><div class="list">${ids || '<div class="row"><div>まだ同定が付いていません。</div></div>'}</div></section>`,
+      "みつける",
+      {
+        eyebrow: "観察の詳細",
+        heading: escapeHtml(snapshot.displayName),
+        headingHtml: escapeHtml(snapshot.displayName),
+        lead: `${snapshot.placeName} · ${snapshot.observedAt} · ${snapshot.observerName} さんの観察`,
+        actions: [
+          { href: "/map", label: "マップで見る" },
+          ...(snapshot.observerUserId ? [{ href: `/profile/${encodeURIComponent(snapshot.observerUserId)}`, label: "観察者を見る", variant: "secondary" as const }] : []),
+        ],
+      },
+      `.obs-detail-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+       .obs-detail-photo { position: relative; aspect-ratio: 4/3; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); border: 1px solid rgba(15,23,42,.06); }
+       .obs-detail-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+       .obs-detail-photo-fallback { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 16px; color: #475569; font-size: 13px; font-weight: 700; background: repeating-linear-gradient(0deg, transparent 0 24px, rgba(15,23,42,.04) 24px 25px); }
+       .obs-detail-photo.is-broken img { display: none; }
+       .obs-detail-photo.is-broken .obs-detail-photo-fallback { display: flex; }
+      `,
     );
   });
 
@@ -346,15 +434,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const snapshot = await getProfileSnapshot(request.params.userId);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "Profile not found", `<div class="hero"><div class="title">Profile not found</div></div>`, "Home");
+      return layout(basePath, "Profile not found", stateCard("プロフィールなし", "このユーザーは見つかりません", "リンクが古い、または非公開の可能性があります。"), "ホーム");
     }
     const places = snapshot.recentPlaces.map((place) => `
       <div class="row">
         <div>
           <div style="font-weight:800">${escapeHtml(place.placeName)}</div>
-          <div class="meta">${escapeHtml(place.municipality || "Municipality unknown")} · ${escapeHtml(place.lastObservedAt)}</div>
+          <div class="meta">${escapeHtml(place.municipality || "自治体不明")} · ${escapeHtml(place.lastObservedAt)}</div>
         </div>
-        <span class="pill">${place.visitCount} visits</span>
+        <span class="pill">${place.visitCount} 回</span>
       </div>`).join("");
     const observations = snapshot.recentObservations.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">
@@ -368,18 +456,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${snapshot.displayName} | profile`,
-      `<section class="hero">
-        <div class="eyebrow">Profile / My places</div>
-        <h1 class="title">${escapeHtml(snapshot.displayName)}</h1>
-        <p class="muted" style="color:rgba(255,255,255,.86);margin-top:10px">${escapeHtml(snapshot.rankLabel || "Observer")}</p>
-        <div class="actions">
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, `/home?userId=${encodeURIComponent(snapshot.userId)}`))}">Open home as this user</a>
-        </div>
-      </section>
-      <section style="margin-top:20px"><div class="eyebrow">Recent places</div><div class="list">${places || '<div class="row"><div>No places yet.</div></div>'}</div></section>
-      <section style="margin-top:20px"><div class="eyebrow">Recent observations</div><div class="list">${observations || '<div class="row"><div>No observations yet.</div></div>'}</div></section>`,
-      "Home",
+      `${snapshot.displayName} | ikimon`,
+      `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`,
+      "ホーム",
+      {
+        eyebrow: snapshot.rankLabel || "Observer",
+        heading: snapshot.displayName,
+        headingHtml: escapeHtml(snapshot.displayName),
+        lead: `この人のフィールドノート — 最近の場所と観察を追う。`,
+        actions: [
+          { href: `/home?userId=${encodeURIComponent(snapshot.userId)}`, label: "このユーザーのホームを見る" },
+        ],
+      },
     );
   });
 
@@ -388,20 +477,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const session = await getSessionFromCookie(request.headers.cookie);
     if (!session) {
       reply.code(401).type("text/html; charset=utf-8");
-      return layout(basePath, "Session required", `<div class="hero"><div class="title">Session required</div><p class="muted" style="color:rgba(255,255,255,.86);margin-top:10px">Issue a v2 session first, then open profile.</p></div>`, "Home");
+      return layout(basePath, "Session required", stateCard("Session required", "サインインが必要です", "ログイン済みのセッションがまだありません。トップからサインインするか、staging では <code>?userId=...</code> で代替してください。"), "ホーム");
     }
     const snapshot = await getProfileSnapshot(session.userId);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "Profile not found", `<div class="hero"><div class="title">Profile not found</div></div>`, "Home");
+      return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "観察を 1 件でも記録するとプロフィールが育ち始めます。"), "ホーム");
     }
     const places = snapshot.recentPlaces.map((place) => `
       <div class="row">
         <div>
           <div style="font-weight:800">${escapeHtml(place.placeName)}</div>
-          <div class="meta">${escapeHtml(place.municipality || "Municipality unknown")} · ${escapeHtml(place.lastObservedAt)}</div>
+          <div class="meta">${escapeHtml(place.municipality || "自治体不明")} · ${escapeHtml(place.lastObservedAt)}</div>
         </div>
-        <span class="pill">${place.visitCount} visits</span>
+        <span class="pill">${place.visitCount} 回</span>
       </div>`).join("");
     const observations = snapshot.recentObservations.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">
@@ -415,18 +504,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `${snapshot.displayName} | profile`,
-      `<section class="hero">
-        <div class="eyebrow">Profile / Session</div>
-        <h1 class="title">${escapeHtml(snapshot.displayName)}</h1>
-        <p class="muted" style="color:rgba(255,255,255,.86);margin-top:10px">${escapeHtml(snapshot.rankLabel || "Observer")}</p>
-        <div class="actions">
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/home"))}">Open home</a>
-        </div>
-      </section>
-      <section style="margin-top:20px"><div class="eyebrow">Recent places</div><div class="list">${places || '<div class="row"><div>No places yet.</div></div>'}</div></section>
-      <section style="margin-top:20px"><div class="eyebrow">Recent observations</div><div class="list">${observations || '<div class="row"><div>No observations yet.</div></div>'}</div></section>`,
-      "Home",
+      `${snapshot.displayName} | ikimon`,
+      `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`,
+      "ホーム",
+      {
+        eyebrow: "あなたのプロフィール",
+        heading: snapshot.displayName,
+        headingHtml: escapeHtml(snapshot.displayName),
+        lead: `${snapshot.rankLabel || "Observer"} — あなたのフィールドノートと場所の記録。`,
+        actions: [
+          { href: "/notes", label: "ノートへ" },
+          { href: "/home", label: "ホームへ", variant: "secondary" as const },
+        ],
+      },
     );
   });
 
@@ -456,21 +547,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      `ikimon v2 ${laneTitle}`,
-      `<section class="hero">
-        <div class="eyebrow">Specialist</div>
-        <h1 class="title">${escapeHtml(laneTitle)}</h1>
-        <p class="muted" style="color:rgba(255,255,255,.86);margin-top:10px">formal ID を詰める前に、queue と observation detail を v2 側で確認する最小 shell。</p>
-        <div class="actions">
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?lane=public-claim"))}">Public claim</a>
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?lane=expert-lane"))}">Expert lane</a>
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/review-queue"))}">Review queue</a>
-        </div>
-      </section>
-      <section class="card" style="margin-top:20px">
-        <div class="card-body">
+      `${laneTitle} | ikimon`,
+      `<section class="section"><div class="card"><div class="card-body">
           <div class="eyebrow">Action</div>
-          <div class="title">Minimal specialist action</div>
+          <h2>Minimal specialist action</h2>
           <form id="specialist-review-form" class="stack" style="margin-top:14px">
             <label class="stack"><span style="font-weight:700">Actor userId</span><input name="actorUserId" type="text" placeholder="reviewer-user-id" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
             <label class="stack"><span style="font-weight:700">Occurrence ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
@@ -484,14 +564,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             </div>
           </form>
           <div id="specialist-review-status" class="list" style="margin-top:14px"><div class="row"><div>Ready.</div></div></div>
+        </div></div>
+      </section>
+      <section class="section">
+        <div class="grid">
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">Summary</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">unresolved occurrences / ${snapshot.summary.totalOccurrences} total</p></div></div>
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">Identifications</div><h2>${snapshot.summary.identificationCount}</h2><p class="meta">current identification rows in v2</p></div></div>
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">Observation photos</div><h2>${snapshot.summary.observationPhotoAssets}</h2><p class="meta">photo assets available for review</p></div></div>
         </div>
       </section>
-      <section class="grid" style="margin-top:20px">
-        <div class="card"><div class="card-body"><div class="eyebrow">Summary</div><div class="title">${snapshot.summary.unresolvedOccurrences}</div><div class="meta">unresolved occurrences / ${snapshot.summary.totalOccurrences} total</div></div></div>
-        <div class="card"><div class="card-body"><div class="eyebrow">Identifications</div><div class="title">${snapshot.summary.identificationCount}</div><div class="meta">current identification rows in v2</div></div></div>
-        <div class="card"><div class="card-body"><div class="eyebrow">Observation photos</div><div class="title">${snapshot.summary.observationPhotoAssets}</div><div class="meta">photo assets available for review</div></div></div>
-      </section>
-      <section style="margin-top:20px"><div class="eyebrow">Queue</div><div class="list">${rows || '<div class="row"><div>No queued observations.</div></div>'}</div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">Queue</div><h2>レビュー待ちの観察</h2></div></div><div class="list">${rows || '<div class="row"><div>キューに観察はありません。</div></div>'}</div></section>
       <script>
         const basePath = ${JSON.stringify(basePath)};
         const lane = ${JSON.stringify(lane)};
@@ -527,7 +609,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           });
         });
       </script>`,
-      "Specialist",
+      "ホーム",
+      {
+        eyebrow: "Specialist",
+        heading: laneTitle,
+        headingHtml: escapeHtml(laneTitle),
+        lead: "formal ID を詰める前に、queue と observation detail を v2 側で確認する最小 shell。",
+        actions: [
+          { href: "/specialist/id-workbench?lane=public-claim", label: "Public claim" },
+          { href: "/specialist/id-workbench?lane=expert-lane", label: "Expert lane", variant: "secondary" as const },
+          { href: "/specialist/review-queue", label: "Review queue", variant: "secondary" as const },
+        ],
+      },
     );
   });
 
@@ -547,20 +640,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "ikimon v2 review queue",
-      `<section class="hero">
-        <div class="eyebrow">Specialist</div>
-        <h1 class="title">Review Queue</h1>
-        <p class="muted" style="color:rgba(255,255,255,.86);margin-top:10px">自由入力レビューと public claim へ上げる前の確認用 read shell。</p>
-        <div class="actions">
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?lane=expert-lane"))}">Expert lane</a>
-          <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?lane=public-claim"))}">Public claim</a>
-        </div>
-      </section>
-      <section class="card" style="margin-top:20px">
-        <div class="card-body">
+      "Review Queue | ikimon",
+      `<section class="section"><div class="card"><div class="card-body">
           <div class="eyebrow">Action</div>
-          <div class="title">Minimal review action</div>
+          <h2>Minimal review action</h2>
           <form id="review-queue-form" class="stack" style="margin-top:14px">
             <label class="stack"><span style="font-weight:700">Actor userId</span><input name="actorUserId" type="text" placeholder="reviewer-user-id" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
             <label class="stack"><span style="font-weight:700">Occurrence ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
@@ -572,13 +655,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             </div>
           </form>
           <div id="review-queue-status" class="list" style="margin-top:14px"><div class="row"><div>Ready.</div></div></div>
-        </div>
+        </div></div>
       </section>
-      <section class="grid" style="margin-top:20px">
-        <div class="card"><div class="card-body"><div class="eyebrow">Queue size</div><div class="title">${snapshot.queue.length}</div><div class="meta">review shell に表示中の observation sample</div></div></div>
-        <div class="card"><div class="card-body"><div class="eyebrow">Unresolved</div><div class="title">${snapshot.summary.unresolvedOccurrences}</div><div class="meta">unresolved occurrences across v2</div></div></div>
-      </section>
-      <section style="margin-top:20px"><div class="eyebrow">Review sample</div><div class="list">${rows || '<div class="row"><div>No queued observations.</div></div>'}</div></section>
+      <section class="section"><div class="grid">
+        <div class="card is-soft"><div class="card-body"><div class="eyebrow">Queue size</div><h2>${snapshot.queue.length}</h2><p class="meta">review shell に表示中の observation sample</p></div></div>
+        <div class="card is-soft"><div class="card-body"><div class="eyebrow">Unresolved</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">unresolved occurrences across v2</p></div></div>
+      </div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">Review sample</div><h2>レビュー対象</h2></div></div><div class="list">${rows || '<div class="row"><div>キューに観察はありません。</div></div>'}</div></section>
       <script>
         const basePath = ${JSON.stringify(basePath)};
         const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
@@ -611,7 +694,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           });
         });
       </script>`,
-      "Specialist",
+      "ホーム",
+      {
+        eyebrow: "Specialist",
+        heading: "Review Queue",
+        headingHtml: "Review Queue",
+        lead: "自由入力レビューと public claim へ上げる前の確認用 read shell。",
+        actions: [
+          { href: "/specialist/id-workbench?lane=expert-lane", label: "Expert lane" },
+          { href: "/specialist/id-workbench?lane=public-claim", label: "Public claim", variant: "secondary" as const },
+        ],
+      },
     );
   });
 

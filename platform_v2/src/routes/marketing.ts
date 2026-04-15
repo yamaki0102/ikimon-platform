@@ -29,14 +29,22 @@ function layout(
 ): string {
   const activeNav = activeNavLabel(activeNavKey, lang);
   const copy = layoutCopy(lang);
-  const intro = `<section class="section"><div class="card"><div class="eyebrow">${escapeHtml(eyebrow)}</div><h1>${escapeHtml(heading)}</h1><p class="meta">${escapeHtml(lead)}</p>${afterActionsHtml ? `<div style="margin-top:12px">${afterActionsHtml}</div>` : ""}</div></section>`;
   return renderSiteDocument({
     basePath,
     title,
     activeNav,
     lang,
     currentPath,
-    body: intro + body,
+    hero: {
+      eyebrow,
+      heading,
+      headingHtml: escapeHtml(heading),
+      lead,
+      tone: "light",
+      align: "center",
+      afterActionsHtml: afterActionsHtml ?? "",
+    },
+    body,
     footerNote: copy.footerNote,
   });
 }
@@ -86,17 +94,40 @@ function activeNavLabel(nav: string, lang: SiteLang): string {
   return table[nav]?.[lang] ?? nav;
 }
 
-function cards(items: Array<{ title: string; body: string; href?: string; label?: string }>): string {
-  return `<section class="section"><div class="grid">${items
+// Break Krug AI-slop 3-col feature grid by making the first card featured
+// (double-width, accent left border, larger heading) and the rest plain.
+// Also drops the repeated "ikimon" eyebrow that all cards used to share.
+function cards(items: Array<{ title: string; body: string; href?: string; label?: string; eyebrow?: string }>): string {
+  const featured = items[0];
+  if (!featured) return "";
+  const rest = items.slice(1);
+  const featuredHtml = `<div class="card has-accent mkt-featured">
+    ${featured.eyebrow ? `<div class="eyebrow">${escapeHtml(featured.eyebrow)}</div>` : ""}
+    <h2 class="mkt-featured-title">${escapeHtml(featured.title)}</h2>
+    <p>${escapeHtml(featured.body)}</p>
+    ${featured.href ? `<div class="actions" style="margin-top:14px"><a class="btn btn-solid" href="${escapeHtml(featured.href)}">${escapeHtml(featured.label ?? "Open")}</a></div>` : ""}
+  </div>`;
+  const restHtml = rest
     .map(
-      (item) => `<div class="card">
-        <div class="eyebrow">ikimon</div>
-        <h2>${escapeHtml(item.title)}</h2>
+      (item) => `<div class="card is-soft">
+        ${item.eyebrow ? `<div class="eyebrow">${escapeHtml(item.eyebrow)}</div>` : ""}
+        <h3>${escapeHtml(item.title)}</h3>
         <p>${escapeHtml(item.body)}</p>
-        ${item.href ? `<div class="actions" style="margin-top:12px"><a class="btn btn-ghost" href="${escapeHtml(item.href)}">${escapeHtml(item.label ?? "Open")}</a></div>` : ""}
+        ${item.href ? `<div class="actions" style="margin-top:10px"><a class="inline-link" href="${escapeHtml(item.href)}">${escapeHtml(item.label ?? "Open")}</a></div>` : ""}
       </div>`,
     )
-    .join("")}</div></section>`;
+    .join("");
+  return `<section class="section mkt-cards">
+    <style>
+      .mkt-cards .card { flex: 1 1 260px; }
+      .mkt-cards .mkt-featured { flex: 1 1 100%; padding: 28px 32px; background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%); border-left: 4px solid #10b981; }
+      .mkt-cards .mkt-featured-title { font-size: clamp(22px, 2.4vw, 30px); line-height: 1.3; letter-spacing: -.02em; margin-top: 10px; }
+      .mkt-cards .card h3 { margin: 6px 0 8px; font-size: 16px; font-weight: 800; letter-spacing: -.01em; color: #0f172a; }
+      .mkt-cards .grid { gap: 14px; }
+    </style>
+    ${featuredHtml}
+    <div class="grid" style="margin-top:14px">${restHtml}</div>
+  </section>`;
 }
 
 function rows(items: Array<{ title: string; body: string; actionHref?: string; actionLabel?: string }>): string {
