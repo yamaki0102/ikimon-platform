@@ -44,6 +44,7 @@ require_once ROOT_DIR . '/libs/MeshCode.php';
 require_once ROOT_DIR . '/libs/MeshAggregator.php';
 require_once ROOT_DIR . '/libs/GeoPlausibility.php';
 require_once ROOT_DIR . '/libs/CanonicalMachineObservationPolicy.php';
+require_once ROOT_DIR . '/libs/ContributionLedger.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     api_error('POST method required.', 405);
@@ -399,6 +400,16 @@ $sessionLog = [
 ];
 DataStore::append('passive_sessions', $sessionLog);
 
+// ContributionLedger: セッション完結時に contribution を計算・蓄積
+$contributionResult = null;
+if ($isFinal) {
+    try {
+        $contributionResult = ContributionLedger::recordSessionContribution($mergedSessionId);
+    } catch (Throwable $e) {
+        error_log('[passive_event] ContributionLedger error: ' . $e->getMessage());
+    }
+}
+
 // 環境観測ログを独立保存（100年後の環境変化追跡用）
 if (!empty($envHistory)) {
     $envLog = [
@@ -465,6 +476,7 @@ api_success([
     'session_id' => $mergedSessionId,
     'observations_created' => $savedCount,
     'summary' => $result['summary'],
+    'contribution' => $contributionResult ? ($contributionResult['summary'] ?? null) : null,
     'scan_quests' => $scanQuests,
     'quest_shown' => $questShown,
     'is_incremental' => $isIncremental,
