@@ -142,12 +142,28 @@ jobs:
             shopt -u nullglob
 
             if diff -q "$SRC" "$DST" >/dev/null 2>&1; then
-              echo "nginx conf already in sync (DST unchanged)"
+              echo "nginx conf already in sync (sites-available unchanged)"
             else
               BACKUP="${DST}.bak-$(date +%Y%m%d-%H%M%S)"
               echo "Backing up live conf to $BACKUP"
               cp -a "$DST" "$BACKUP"
               cp "$SRC" "$DST"
+            fi
+
+            # Ensure sites-enabled entry is a SYMLINK to sites-available.
+            # If it is a plain file (legacy provisioning), it has its own stale content
+            # and any update to sites-available is silently ignored by nginx.
+            ENABLED_LINK="$ENABLED_DIR/staging.ikimon.life"
+            if [ -e "$ENABLED_LINK" ] && [ ! -L "$ENABLED_LINK" ]; then
+              echo "sites-enabled/staging.ikimon.life is a plain file — converting to symlink"
+              mv -f "$ENABLED_LINK" "/etc/nginx/sites-available/staging.ikimon.life.legacy-$(date +%Y%m%d-%H%M%S)"
+            fi
+            if [ ! -e "$ENABLED_LINK" ]; then
+              ln -s "$DST" "$ENABLED_LINK"
+              echo "Created symlink $ENABLED_LINK -> $DST"
+            elif [ -L "$ENABLED_LINK" ] && [ "$(readlink -f "$ENABLED_LINK")" != "$(readlink -f "$DST")" ]; then
+              ln -sf "$DST" "$ENABLED_LINK"
+              echo "Re-pointed symlink $ENABLED_LINK -> $DST"
             fi
 
             if nginx -t; then
