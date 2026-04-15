@@ -4,6 +4,20 @@
 > Claude Code / 運用者が上から順に実行することを想定。**Step F (flip) は明示許可後のみ**。
 > 失敗時は Step R (rollback) を即時実行。
 
+## Quick status (2026-04-15 23:45)
+
+| 項目 | 状態 |
+|---|---|
+| staging `/` | 🟢 v2 field-note-first (title: `歩いて、見つけて、ノートに残す`) |
+| staging `/legacy/` | 🟢 PHP rollback lane (archive) |
+| Security findings (CSO v2 audit) | 🟢 3/3 closed (commit 5289a55c) |
+| Design findings (design-review v0.17) | 🟢 10/10 closed (commit 5af2aa78) |
+| Goodwill Reservoir (Krug) | 🟢 80/100 (from 55) |
+| Trunk Test | 🟢 PASS 6/6 (search 追加で partial → pass) |
+| Touch targets | 🟢 44px min across nav + lang switch |
+| Cutover gate | 🟢 **Flip GO** (D-1/D-2 の DB 方針決定のみ残) |
+| PR | `feat/v2-top-production-redesign` → `main` open |
+
 ---
 
 ## 0. Security pre-flight (必須 — all PASS before Step F)
