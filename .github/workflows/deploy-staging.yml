@@ -120,6 +120,13 @@ jobs:
             set -e
             SRC=/var/www/ikimon.life-staging/repo/ops/deploy/staging_ikimon_life_tls_reference.conf
             DST=/etc/nginx/sites-available/staging.ikimon.life
+            echo "== diagnostic: sites-enabled inventory =="
+            ls -la /etc/nginx/sites-enabled/ 2>/dev/null | head -20
+            echo "== diagnostic: confs mentioning staging.ikimon.life =="
+            grep -rln "staging.ikimon.life" /etc/nginx/sites-enabled/ /etc/nginx/sites-available/ 2>/dev/null
+            echo "== diagnostic: which server block serves / for that host =="
+            nginx -T 2>/dev/null | awk '/server_name staging\.ikimon\.life/{flag=1} flag{print; if(/^}/){flag=0; print "---"}}' | head -80
+            echo "== diagnostic end =="
             if [ ! -f "$SRC" ]; then
               echo "Source nginx conf missing at $SRC — skip."
               exit 0
