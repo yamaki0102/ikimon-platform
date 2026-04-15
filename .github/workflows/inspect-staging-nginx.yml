@@ -1,0 +1,31 @@
+name: Inspect staging nginx
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: SSH inspect
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "=== sites-enabled ==="
+            ls -la /etc/nginx/sites-enabled/
+            echo ""
+            echo "=== confs mentioning staging.ikimon.life ==="
+            grep -rln "staging.ikimon.life" /etc/nginx/sites-enabled/ /etc/nginx/sites-available/ 2>/dev/null
+            echo ""
+            echo "=== head + server_name/listen lines of each sites-enabled conf ==="
+            for f in /etc/nginx/sites-enabled/*; do
+              echo "--- $f ---"
+              grep -nE "listen|server_name|location|proxy_pass" "$f" | head -20
+              echo ""
+            done
+            echo "=== nginx -T | first staging match ==="
+            nginx -T 2>/dev/null | grep -nB2 -A8 "server_name staging.ikimon.life" | head -80
