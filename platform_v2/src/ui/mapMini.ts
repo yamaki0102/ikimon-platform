@@ -76,11 +76,19 @@ export function mapMiniBootScript(id: string = "ikimon-map-mini"): string {
   try { data = JSON.parse(raw); } catch (_) { return; }
   if (!data || !Array.isArray(data.points) || data.points.length === 0) return;
 
+  // Subresource Integrity: pin to the exact 4.7.1 upstream bytes. Regenerate with:
+  //   curl -sL https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.{css,js} | \
+  //     openssl dgst -sha384 -binary | openssl base64 -A
+  var MAPLIBRE_CSS_SRI = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
+  var MAPLIBRE_JS_SRI  = 'sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj';
   var styleHref = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
   if (!document.querySelector('link[data-maplibre="1"]')) {
     var link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = styleHref;
+    link.integrity = MAPLIBRE_CSS_SRI;
+    link.crossOrigin = 'anonymous';
+    link.referrerPolicy = 'no-referrer';
     link.setAttribute('data-maplibre', '1');
     document.head.appendChild(link);
   }
@@ -133,8 +141,15 @@ export function mapMiniBootScript(id: string = "ikimon-map-mini"): string {
   } else {
     var s = document.createElement('script');
     s.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+    s.integrity = MAPLIBRE_JS_SRI;
+    s.crossOrigin = 'anonymous';
+    s.referrerPolicy = 'no-referrer';
     s.defer = true;
     s.onload = hydrate;
+    s.onerror = function () {
+      // SRI mismatch or network error — leave fallback SVG map visible.
+      console.warn('MapLibre CDN load failed (possibly SRI mismatch). Falling back to static dots.');
+    };
     document.head.appendChild(s);
   }
 })();

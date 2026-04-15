@@ -41,14 +41,24 @@ jobs:
     needs: pre-flight
     environment: staging
     steps:
+      - name: Validate and export branch name
+        run: |
+          BRANCH='${{ github.event.inputs.branch || github.ref_name }}'
+          # git ref name allows alnum . _ - / ; reject anything else before shell expansion
+          if ! printf '%s' "$BRANCH" | grep -qE '^[a-zA-Z0-9._/-]+$'; then
+            echo "Invalid branch name: $BRANCH"
+            exit 1
+          fi
+          echo "STAGING_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
       - name: Deploy staging PHP lane via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: 162.43.44.131
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: STAGING_BRANCH
           script: |
-            STAGING_BRANCH=${{ github.event.inputs.branch || github.ref_name }}
             export STAGING_BRANCH
             /var/www/ikimon.life-staging/deploy.sh
 
@@ -79,7 +89,12 @@ jobs:
               fi
             done
             if [ "$restarted" = "0" ] && command -v pm2 >/dev/null 2>&1; then
-              pm2 restart ikimon-v2-staging-api --update-env 2>/dev/null && echo "Restarted via pm2" && restarted=1
+              # Inject staging-only env gates into the pm2 process env BEFORE restart.
+              # ALLOW_QUERY_USER_ID=1 keeps the ?userId= QA override working on staging.
+              # Production pm2 MUST NOT have this set (else anyone can impersonate).
+              pm2 set ikimon-v2-staging-api:ALLOW_QUERY_USER_ID 1 2>/dev/null || true
+              export ALLOW_QUERY_USER_ID=1
+              pm2 restart ikimon-v2-staging-api --update-env 2>/dev/null && echo "Restarted via pm2 (ALLOW_QUERY_USER_ID=1 for staging QA)" && restarted=1
             fi
             if [ "$restarted" = "0" ]; then
               echo "WARN: no known v2 service manager reacted. Manual restart may be required."

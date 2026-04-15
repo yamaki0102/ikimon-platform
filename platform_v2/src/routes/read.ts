@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl } from "../i18n.js";
 import { getSessionFromCookie } from "../services/authSession.js";
+import { resolveViewer } from "../services/viewerIdentity.js";
 import { getLandingSnapshot } from "../services/landingSnapshot.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
@@ -36,11 +37,10 @@ function requestBasePath(request: { headers: Record<string, unknown> }): string 
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/record", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const queryUserId = typeof request.query === "object" && request.query && "userId" in request.query
-      ? String((request.query as Record<string, unknown>).userId || "")
-      : "";
-    const session = queryUserId ? null : await getSessionFromCookie(request.headers.cookie);
-    const viewerUserId = queryUserId || session?.userId || "";
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const resolution = resolveViewer(request.query, session);
+    const viewerUserId = resolution.viewerUserId ?? "";
+    const queryUserId = resolution.queryOverrideHonored ? resolution.requestedUserId : "";
     if (!viewerUserId) {
       reply.code(401).type("text/html; charset=utf-8");
       return layout(
@@ -233,11 +233,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/home", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const queryUserId = typeof request.query === "object" && request.query && "userId" in request.query
-      ? String((request.query as Record<string, unknown>).userId || "")
-      : "";
-    const session = queryUserId ? null : await getSessionFromCookie(request.headers.cookie);
-    const viewerUserId = queryUserId || session?.userId || null;
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const { viewerUserId } = resolveViewer(request.query, session);
     const snapshot = await getHomeSnapshot(viewerUserId);
     const cards = snapshot.recentObservations.map((item) => `
       <a class="card" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">
@@ -624,11 +621,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/notes", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const queryUserId = typeof request.query === "object" && request.query && "userId" in request.query
-      ? String((request.query as Record<string, unknown>).userId || "")
-      : "";
-    const session = queryUserId ? null : await getSessionFromCookie(request.headers.cookie);
-    const viewerUserId = queryUserId || session?.userId || null;
+    const session = await getSessionFromCookie(request.headers.cookie);
+    const { viewerUserId } = resolveViewer(request.query, session);
     const snapshot = await getLandingSnapshot(viewerUserId);
 
     const isLoggedIn = Boolean(viewerUserId);

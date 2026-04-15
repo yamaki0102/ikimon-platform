@@ -9,6 +9,7 @@ import { registerReadRoutes } from "./routes/read.js";
 import { registerWriteRoutes } from "./routes/write.js";
 import { registerUiKpiRoutes } from "./routes/uiKpi.js";
 import { getSessionFromCookie } from "./services/authSession.js";
+import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
 import type { LandingSnapshot } from "./services/readModels.js";
 import { FIELD_NOTE_MAIN_STYLES, renderFieldNoteMain } from "./ui/fieldNoteMain.js";
@@ -601,11 +602,8 @@ export function buildApp() {
       const context = await getPreviewContext();
       context.basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
       const lang = detectLangFromUrl(requestUrl(request));
-      const queryUserId = typeof request.query === "object" && request.query && "userId" in request.query
-        ? String((request.query as Record<string, unknown>).userId || "")
-        : "";
-      const session = queryUserId ? null : await getSessionFromCookie(request.headers.cookie);
-      const viewerUserId = queryUserId || session?.userId || null;
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const { viewerUserId } = resolveViewer(request.query, session);
       const snapshot = await getLandingSnapshot(viewerUserId);
       reply.type("text/html; charset=utf-8");
       return buildLandingRootHtml(
