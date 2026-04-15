@@ -54,9 +54,17 @@ export function renderObservationCard(
   const avatar = obs.observerAvatarUrl
     ? `<img class="obs-card-avatar" src="${escapeHtml(obs.observerAvatarUrl)}" alt="" loading="lazy" />`
     : `<span class="obs-card-avatar is-placeholder">${escapeHtml((obs.observerName || "?").slice(0, 1))}</span>`;
+  // Broken / missing photo fallback: hand-drawn-style sketch card that looks
+  // intentional, not a broken <img>. onerror swaps in the sketch if the URL
+  // returns 404 (e.g. when /uploads/ is not yet mounted).
+  const sketchFallback = `<div class="obs-card-photo is-sketch" aria-hidden="true">
+    <span class="obs-card-sketch-icon">${isIdentification ? "📝" : "📷"}</span>
+    <span class="obs-card-sketch-name">${escapeHtml(obs.displayName)}</span>
+    <span class="obs-card-sketch-note">${lang === "ja" ? "写真なし" : lang === "es" ? "Sin foto" : lang === "pt-BR" ? "Sem foto" : "No photo"}</span>
+  </div>`;
   const photo = obs.photoUrl
-    ? `<img class="obs-card-photo" src="${escapeHtml(obs.photoUrl)}" alt="${escapeHtml(obs.displayName)}" loading="lazy" />`
-    : `<div class="obs-card-photo is-empty"><span>${isIdentification ? "📝" : "📷"}</span></div>`;
+    ? `<img class="obs-card-photo" src="${escapeHtml(obs.photoUrl)}" alt="${escapeHtml(obs.displayName)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
+    : sketchFallback;
   const placeLine = [obs.placeName, obs.municipality].filter(Boolean).join(" · ");
   const timestamp = isIdentification ? (obs.identifiedAt ?? obs.observedAt) : obs.observedAt;
   const attribution = kind.attribution(obs.observerName || "");
@@ -83,6 +91,27 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card-media { position: relative; display: block; aspect-ratio: 1 / 1; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); }
   .obs-card-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
   .obs-card-photo.is-empty { width: 100%; height: 100%; display: grid; place-items: center; font-size: 38px; opacity: .5; }
+  .obs-card-photo.is-sketch {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    padding: 16px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 24px, rgba(15,23,42,.04) 24px 25px),
+      linear-gradient(135deg, #fefce8 0%, #ecfdf5 60%, #e0f2fe 100%);
+    color: #0f172a;
+    text-align: center;
+    position: relative;
+  }
+  .obs-card-photo.is-sketch::before {
+    content: ""; position: absolute; inset: 10px;
+    border: 1px dashed rgba(15,23,42,.18); border-radius: 10px;
+    pointer-events: none;
+  }
+  .obs-card-sketch-icon { font-size: 28px; opacity: .68; }
+  .obs-card-sketch-name { font-size: 13px; font-weight: 800; line-height: 1.3; max-width: 90%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .obs-card-sketch-note { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
+  .obs-card-photo-fallback { display: none; }
+  .obs-card-photo-fallback.is-visible { display: flex; }
   .obs-card-species { position: absolute; left: 10px; bottom: 10px; padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.72); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: -.01em; backdrop-filter: blur(6px); max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .obs-card-meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; }
   .obs-card-who { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

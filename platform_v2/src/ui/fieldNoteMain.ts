@@ -98,7 +98,13 @@ export function renderFieldNoteMain(
   const myFeedSection = (() => {
     if (!isLoggedIn) return "";
     if (snapshot.myFeed.length === 0) {
-      return `<div class="fn-empty">${escapeHtml(copy.myNotebookEmpty)}</div>`;
+      const emptyCtaLabel = lang === "ja" ? "1 ページ書く" :
+        lang === "es" ? "Escribe 1 página" :
+        lang === "pt-BR" ? "Escreva 1 página" : "Write 1 page";
+      return `<div class="fn-empty">
+        <p>${escapeHtml(copy.myNotebookEmpty)}</p>
+        <a class="btn btn-solid" href="${escapeHtml(recordHref)}" data-kpi-action="fieldnote:empty-start">${escapeHtml(emptyCtaLabel)}</a>
+      </div>`;
     }
     const cards = snapshot.myFeed
       .slice(0, 4)
@@ -196,7 +202,9 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-subhead h3 { margin: 0; font-family: "Zen Kaku Gothic New","Inter","Noto Sans JP",sans-serif; font-size: 15px; font-weight: 800; color: #0f172a; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 2px solid rgba(16,185,129,.28); }
   .fn-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; padding-left: 18px; }
   .fn-grid-compact { grid-template-columns: repeat(4, minmax(0,1fr)); }
-  .fn-empty { margin-left: 18px; padding: 18px 22px; border-radius: 18px; background: rgba(248,250,252,.8); color: #64748b; font-size: 13px; font-weight: 700; }
+  .fn-empty { margin-left: 18px; padding: 18px 22px; border-radius: 18px; background: rgba(248,250,252,.8); color: #64748b; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .fn-empty p { margin: 0; flex: 1 1 240px; }
+  .fn-empty .btn { flex-shrink: 0; }
   .fn-place-row { display: flex; flex-wrap: wrap; gap: 10px; padding-left: 18px; }
   .fn-place-chip { padding: 10px 14px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 6px 14px rgba(15,23,42,.04); display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; font-size: 12px; transition: transform .15s ease; }
   .fn-place-chip:hover { transform: translateY(-2px); }

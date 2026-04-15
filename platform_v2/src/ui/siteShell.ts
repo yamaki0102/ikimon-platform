@@ -37,6 +37,8 @@ export type SiteShellOptions = {
 
 type ShellCopy = {
   brandTagline: string;
+  searchPlaceholder: string;
+  searchLabel: string;
   nav: {
     home: string;
     explore: string;
@@ -74,6 +76,8 @@ type ShellCopy = {
 const shellCopy: Record<SiteLang, ShellCopy> = {
   ja: {
     brandTagline: "Enjoy Nature",
+    searchPlaceholder: "生きもの・場所を探す",
+    searchLabel: "サイト内検索",
     nav: {
       home: "ホーム",
       explore: "みつける",
@@ -104,11 +108,13 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
         privacy: "プライバシー",
       },
       copyright: "© 2024-2026 ikimon Project.",
-      revisit: "近くの自然の記録を、あとで見返せる形に残す。",
+      revisit: "",
     },
   },
   en: {
     brandTagline: "Keep nearby finds so you can revisit them, place by place.",
+    searchPlaceholder: "Search species or places",
+    searchLabel: "Site search",
     nav: {
       home: "Home",
       explore: "Explore",
@@ -139,11 +145,13 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
         privacy: "Privacy",
       },
       copyright: "© 2024-2026 ikimon Project.",
-      revisit: "Keep nearby nature records in a form you can revisit later.",
+      revisit: "",
     },
   },
   es: {
     brandTagline: "Guarda lo que encuentras cerca para volver a verlo por lugar.",
+    searchPlaceholder: "Buscar especie o lugar",
+    searchLabel: "Búsqueda del sitio",
     nav: {
       home: "Inicio",
       explore: "Explorar",
@@ -174,11 +182,13 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
         privacy: "Privacidad",
       },
       copyright: "© 2024-2026 ikimon Project.",
-      revisit: "Guarda registros de naturaleza cercana para revisarlos después.",
+      revisit: "",
     },
   },
   "pt-BR": {
     brandTagline: "Guarde o que encontra por perto para revisar depois, lugar por lugar.",
+    searchPlaceholder: "Buscar espécie ou lugar",
+    searchLabel: "Busca no site",
     nav: {
       home: "Início",
       explore: "Explorar",
@@ -209,7 +219,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
         privacy: "Privacidade",
       },
       copyright: "© 2024-2026 ikimon Project.",
-      revisit: "Guarde registros da natureza próxima de um jeito que possa rever depois.",
+      revisit: "",
     },
   },
 };
@@ -248,6 +258,10 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: 
           return `<a class="site-nav-link${activeClass}" href="${escapeHtml(appendLangToHref(link.href, lang))}">${escapeHtml(link.label)}</a>`;
         })
         .join("")}</nav>
+      <form class="site-search" role="search" action="${escapeHtml(withBasePath(basePath, "/explore"))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
+        <span class="site-search-icon" aria-hidden="true">🔍</span>
+        <input class="site-search-input" type="search" name="q" placeholder="${escapeHtml(copy.searchPlaceholder)}" aria-label="${escapeHtml(copy.searchLabel)}" />
+      </form>
       <div class="site-header-actions">
         <div class="lang-switch" aria-label="Language switcher">${supportedLanguages
           .map((language) => {
@@ -329,7 +343,7 @@ function footer(basePath: string, lang: SiteLang, footerNote?: string): string {
       </div>
       <div class="site-footer-bottom">
         <p>${escapeHtml(copy.footer.copyright)}</p>
-        <p>${escapeHtml(copy.footer.revisit)}</p>
+        ${copy.footer.revisit ? `<p>${escapeHtml(copy.footer.revisit)}</p>` : ""}
       </div>
     </div>
   </footer>`;
@@ -442,10 +456,38 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .brand-mark img { width: 100%; height: 100%; display: block; }
     .brand strong { display: block; font-size: 15px; font-weight: 900; }
     .brand small { display: block; margin-top: 2px; color: var(--muted); }
-    .site-nav { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-    .site-nav-link { padding: 6px 0; border-radius: 0; background: transparent; border: 0; font-weight: 700; font-size: 14px; color: #475569; }
-    .site-nav-link.is-active { color: #0f172a; }
+    .site-nav { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .site-nav-link { display: inline-flex; align-items: center; min-height: 44px; padding: 11px 10px; border-radius: 10px; background: transparent; border: 0; font-weight: 700; font-size: 14px; color: #475569; }
+    .site-nav-link:hover { background: rgba(15,23,42,.04); }
+    .site-nav-link.is-active { color: #0f172a; background: rgba(16,185,129,.08); }
     .site-header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .site-search {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 4px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(148,163,184,.32);
+      box-shadow: 0 6px 14px rgba(15,23,42,.04);
+      flex: 1 1 200px;
+      max-width: 280px;
+    }
+    .site-search-icon { font-size: 14px; opacity: .7; }
+    .site-search-input {
+      flex: 1 1 auto;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      padding: 4px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .site-search-input::placeholder { color: #94a3b8; }
+    @media (max-width: 720px) { .site-search { flex: 1 1 100%; max-width: 100%; order: 3; } }
     .lang-switch {
       display: inline-flex;
       align-items: center;
@@ -460,9 +502,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 42px;
-      height: 34px;
-      padding: 0 10px;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0 12px;
       border-radius: 999px;
       color: #475569;
       font-size: 12px;

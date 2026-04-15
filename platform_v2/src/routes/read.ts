@@ -703,12 +703,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       activeNav: lang === "ja" ? "ホーム" : "Home",
       lang,
       hero: {
-        eyebrow: lang === "ja" ? "補助機能" : "Supporting tool",
+        eyebrow: lang === "ja" ? "撮って書く入口" : "Shoot and write",
         heading: lang === "ja" ? "🔍 AIレンズ" : "🔍 AI Lens",
         headingHtml: lang === "ja" ? "🔍 AIレンズ" : "🔍 AI Lens",
         lead: lang === "ja"
-          ? "撮った瞬間、AI が候補を返す。名前を知らなくても、フィールドノートの最初の一行を書き始められる補助機能です。"
-          : "AI returns candidate species the moment you shoot. A supporting tool that lets you start the first line of your field note without knowing the name.",
+          ? "撮った瞬間、AI が候補を返す。名前を知らなくても、フィールドノートの最初の一行が書き始められる。"
+          : "AI returns candidate species the moment you shoot. Start the first line of your field note without knowing the name.",
         tone: "light",
         align: "center",
         actions: [
@@ -743,12 +743,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       activeNav: lang === "ja" ? "ホーム" : "Home",
       lang,
       hero: {
-        eyebrow: lang === "ja" ? "補助機能" : "Supporting tool",
+        eyebrow: lang === "ja" ? "歩いて拾う入口" : "Walk and pick up",
         heading: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
         headingHtml: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
         lead: lang === "ja"
-          ? "歩きながら近辺の種の気配を拾う補助機能。次にフィールドノートへ書き足す場所を、マップがおすすめ調査エリアとして教えてくれます。"
-          : "A supporting tool that picks up the signal of species nearby while you walk. The map suggests the next place to add to your notebook.",
+          ? "歩きながら近辺の種の気配を拾う。次にフィールドノートへ書き足す場所を、マップがおすすめ調査エリアとして教えてくれる。"
+          : "Pick up the signal of species nearby while you walk. The map suggests the next place to add to your notebook.",
         tone: "light",
         align: "center",
         actions: [
@@ -776,6 +776,37 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const points = toMapPoints(snapshot.feed);
     const notesHref = appendLangToHref(withBasePath(basePath, "/notes"), lang);
 
+    // Side column: recent observations list + municipality cluster.
+    const recentListLabel = lang === "ja" ? "直近の観察" :
+      lang === "es" ? "Observaciones recientes" :
+      lang === "pt-BR" ? "Observações recentes" : "Recent observations";
+    const clusterLabel = lang === "ja" ? "活発な自治体" :
+      lang === "es" ? "Municipios activos" :
+      lang === "pt-BR" ? "Municípios ativos" : "Active municipalities";
+    const statsLabel = lang === "ja"
+      ? `${snapshot.stats.observationCount.toLocaleString("ja-JP")} 件 · ${snapshot.stats.speciesCount.toLocaleString("ja-JP")} 種`
+      : `${snapshot.stats.observationCount.toLocaleString("en-US")} obs · ${snapshot.stats.speciesCount.toLocaleString("en-US")} species`;
+
+    const recentList = snapshot.feed.slice(0, 6).map((obs) => {
+      const href = appendLangToHref(withBasePath(basePath, `/observations/${encodeURIComponent(obs.occurrenceId)}`), lang);
+      const place = [obs.placeName, obs.municipality].filter(Boolean).join(" · ") || "—";
+      return `<a class="map-side-item" href="${escapeHtml(href)}">
+        <strong>${escapeHtml(obs.displayName)}</strong>
+        <span>${escapeHtml(place)}</span>
+      </a>`;
+    }).join("");
+
+    const clusterCounts = new Map<string, number>();
+    for (const obs of snapshot.feed) {
+      const key = obs.municipality || (lang === "ja" ? "未分類" : "Unknown");
+      clusterCounts.set(key, (clusterCounts.get(key) ?? 0) + 1);
+    }
+    const clusterItems = [...clusterCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => `<div class="map-cluster-item"><span>${escapeHtml(name)}</span><strong>${count}</strong></div>`)
+      .join("");
+
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
@@ -784,7 +815,24 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
       extraStyles: `${MAP_MINI_STYLES}
         .map-page { margin-top: 24px; }
-        .map-page .map-mini { --map-mini-height: 64vh; }
+        .map-page-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+        .map-page-layout .map-mini { --map-mini-height: 64vh; }
+        .map-side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; }
+        .map-side-card { background: #fff; border: 1px solid rgba(15,23,42,.06); border-radius: 20px; padding: 16px 18px; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
+        .map-side-card h3 { margin: 0 0 10px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #059669; }
+        .map-side-stat { font-size: 15px; font-weight: 800; color: #0f172a; }
+        .map-side-list { display: flex; flex-direction: column; gap: 8px; }
+        .map-side-item { padding: 10px 12px; border-radius: 12px; background: rgba(236,253,245,.4); border: 1px solid rgba(16,185,129,.12); text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 2px; }
+        .map-side-item:hover { background: rgba(236,253,245,.8); }
+        .map-side-item strong { font-size: 13px; font-weight: 800; color: #0f172a; }
+        .map-side-item span { font-size: 11px; color: #64748b; }
+        .map-cluster-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 10px; background: rgba(248,250,252,.8); font-size: 13px; }
+        .map-cluster-item strong { font-weight: 800; color: #059669; }
+        @media (max-width: 900px) {
+          .map-page-layout { grid-template-columns: 1fr; }
+          .map-side { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 6px; }
+          .map-side-card { min-width: 240px; flex-shrink: 0; }
+        }
       `,
       hero: {
         eyebrow: lang === "ja" ? "探索マップ" : "Explore Map",
@@ -801,14 +849,30 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         ],
       },
       body: `<section class="section map-page">
-        ${renderMapMini({
-          id: "ikimon-map-full",
-          points,
-          mapHref: notesHref,
-          mapCtaLabel: lang === "ja" ? "ノートへ戻る" : "Back to notebook",
-          emptyLabel: lang === "ja" ? "まだ地図に載せる観察がありません" : "No observations on the map yet",
-          height: 520,
-        })}
+        <div class="map-page-layout">
+          <div>${renderMapMini({
+            id: "ikimon-map-full",
+            points,
+            mapHref: notesHref,
+            mapCtaLabel: lang === "ja" ? "ノートへ戻る" : "Back to notebook",
+            emptyLabel: lang === "ja" ? "まだ地図に載せる観察がありません" : "No observations on the map yet",
+            height: 520,
+          })}</div>
+          <aside class="map-side" aria-label="${escapeHtml(lang === "ja" ? "サイド情報" : "Side info")}">
+            <div class="map-side-card">
+              <h3>${escapeHtml(lang === "ja" ? "全体" : "Total")}</h3>
+              <div class="map-side-stat">${escapeHtml(statsLabel)}</div>
+            </div>
+            ${clusterItems ? `<div class="map-side-card">
+              <h3>${escapeHtml(clusterLabel)}</h3>
+              <div class="map-side-list">${clusterItems}</div>
+            </div>` : ""}
+            ${recentList ? `<div class="map-side-card">
+              <h3>${escapeHtml(recentListLabel)}</h3>
+              <div class="map-side-list">${recentList}</div>
+            </div>` : ""}
+          </aside>
+        </div>
       </section>
       ${mapMiniBootScript("ikimon-map-full")}`,
       footerNote: lang === "ja" ? "観察の広がりを、あとで見返せる地図として残す。" : "Keep the spread of observations as a map you can revisit.",

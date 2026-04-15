@@ -20,8 +20,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
     ja: {
       ariaLabel: "主要機能",
       chips: [
-        { icon: "📖", label: "フィールドノート", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
-        { icon: "🔍", label: "AIレンズ", href: withBasePath(basePath, "/lens") },
+        { icon: "🔍", label: "AIレンズ", href: withBasePath(basePath, "/lens"), emphasis: "primary" },
         { icon: "📡", label: "フィールドスキャン", href: withBasePath(basePath, "/scan") },
         { icon: "🗺️", label: "探索マップ", href: withBasePath(basePath, "/map") },
         { icon: "📚", label: "図鑑", href: "/zukan.php", external: true },
@@ -31,8 +30,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
     en: {
       ariaLabel: "Primary features",
       chips: [
-        { icon: "📖", label: "Field Note", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
-        { icon: "🔍", label: "AI Lens", href: withBasePath(basePath, "/lens") },
+        { icon: "🔍", label: "AI Lens", href: withBasePath(basePath, "/lens"), emphasis: "primary" },
         { icon: "📡", label: "Field Scan", href: withBasePath(basePath, "/scan") },
         { icon: "🗺️", label: "Map", href: withBasePath(basePath, "/map") },
         { icon: "📚", label: "Field Guide", href: "/zukan.php", external: true },
@@ -42,8 +40,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
     es: {
       ariaLabel: "Funciones principales",
       chips: [
-        { icon: "📖", label: "Cuaderno", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
-        { icon: "🔍", label: "Lente IA", href: withBasePath(basePath, "/lens") },
+        { icon: "🔍", label: "Lente IA", href: withBasePath(basePath, "/lens"), emphasis: "primary" },
         { icon: "📡", label: "Escaneo", href: withBasePath(basePath, "/scan") },
         { icon: "🗺️", label: "Mapa", href: withBasePath(basePath, "/map") },
         { icon: "📚", label: "Guía", href: "/zukan.php", external: true },
@@ -53,8 +50,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
     "pt-BR": {
       ariaLabel: "Funcionalidades principais",
       chips: [
-        { icon: "📖", label: "Caderno", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
-        { icon: "🔍", label: "Lente IA", href: withBasePath(basePath, "/lens") },
+        { icon: "🔍", label: "Lente IA", href: withBasePath(basePath, "/lens"), emphasis: "primary" },
         { icon: "📡", label: "Escaneamento", href: withBasePath(basePath, "/scan") },
         { icon: "🗺️", label: "Mapa", href: withBasePath(basePath, "/map") },
         { icon: "📚", label: "Guia", href: "/zukan.php", external: true },
