@@ -53,7 +53,7 @@ function layout(
         }
       : undefined,
     extraStyles,
-    footerNote: "shared website shell on staging. use these pages to verify the actual visual journey, not only the data endpoints.",
+    footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
   });
 }
 
@@ -92,7 +92,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
             <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/faq"))}">サインイン方法</a>
           </div>
-          <p class="meta" style="margin-top:16px;font-size:12px;color:#94a3b8">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>`,
+          ${process.env.ALLOW_QUERY_USER_ID === "1" ? `<p class="meta" style="margin-top:16px;font-size:12px;color:#94a3b8">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>` : ""}`,
         ),
         "Record",
       );
@@ -107,26 +107,26 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <div class="card-body">
             <div class="eyebrow">Quick capture</div>
             <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" class="stack" style="margin-top:14px">
-              <label class="stack"><span style="font-weight:700">Observed at</span><input id="observedAt" name="observedAt" type="datetime-local" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-              <label class="stack"><span style="font-weight:700">Latitude</span><input name="latitude" type="number" step="0.000001" value="34.7108" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-              <label class="stack"><span style="font-weight:700">Longitude</span><input name="longitude" type="number" step="0.000001" value="137.7261" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-              <label class="stack"><span style="font-weight:700">Municipality</span><input name="municipality" type="text" value="Hamamatsu" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">Place note</span><input name="localityNote" type="text" value="v2 quick capture shell" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">Scientific name</span><input name="scientificName" type="text" placeholder="Passer montanus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">Vernacular name</span><input name="vernacularName" type="text" placeholder="Tree Sparrow" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">Rank</span><input name="rank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">Photo</span><input name="photo" type="file" accept="image/*" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <button class="btn" type="submit">Submit observation</button>
+              <label class="stack"><span style="font-weight:700">観察した日時</span><input id="observedAt" name="observedAt" type="datetime-local" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+              <label class="stack"><span style="font-weight:700">緯度</span><input name="latitude" type="number" step="0.000001" value="34.7108" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+              <label class="stack"><span style="font-weight:700">経度</span><input name="longitude" type="number" step="0.000001" value="137.7261" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+              <label class="stack"><span style="font-weight:700">市区町村</span><input name="municipality" type="text" placeholder="例: 浜松市" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">場所のメモ</span><input name="localityNote" type="text" placeholder="例: 公園の入口付近" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">学名 (分かれば)</span><input name="scientificName" type="text" placeholder="例: Passer montanus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">和名 / 通称 (分かれば)</span><input name="vernacularName" type="text" placeholder="例: スズメ" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">分類の段階</span><input name="rank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">写真</span><input name="photo" type="file" accept="image/*" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <button class="btn btn-solid" type="submit">観察を記録する</button>
             </form>
           </div>
         </div>
         <div class="card">
           <div class="card-body">
-            <div class="eyebrow">Current actor</div>
+            <div class="eyebrow">サインイン中</div>
             <div class="title">${escapeHtml(viewerUserId)}</div>
-            <div class="meta">Session cookie or query userId can drive this capture shell.</div>
+            <div class="meta">サインインしたセッションで記録を送信します。</div>
             <div id="record-status" class="list" style="margin-top:16px">
-              <div class="row"><div>Ready to submit.</div></div>
+              <div class="row"><div>入力が完了したら送信してください。</div></div>
             </div>
           </div>
         </div>
@@ -151,7 +151,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             setStatus('<div class="row"><div>User context is missing.</div></div>');
             return;
           }
-          setStatus('<div class="row"><div>Submitting observation...</div></div>');
+          setStatus('<div class="row"><div>記録を送信中...</div></div>');
           try {
             const payload = {
               observationId,
@@ -163,8 +163,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               prefecture: 'Shizuoka',
               municipality: String(data.get('municipality') || ''),
               localityNote: String(data.get('localityNote') || ''),
-              note: 'v2 quick capture shell',
-              sourcePayload: { source: 'v2_record_shell' },
+              note: '',
+              sourcePayload: { source: 'v2_web' },
               taxon: {
                 scientificName: String(data.get('scientificName') || ''),
                 vernacularName: String(data.get('vernacularName') || ''),
@@ -202,14 +202,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 throw new Error(photoJson.error || 'photo_upload_failed');
               }
             }
-            setStatus('<div class="row"><div><strong>Observation submitted.</strong><div class="meta"><a href=\"' + withBasePath('/observations/' + encodeURIComponent(observationId)) + '\">Open detail</a> · <a href=\"' + withBasePath('/home?userId=' + encodeURIComponent(userId)) + '\">Open home</a></div></div></div>');
+            setStatus('<div class="row"><div><strong>記録を保存しました。</strong><div class="meta"><a href=\"' + withBasePath('/observations/' + encodeURIComponent(observationId)) + '\">観察を見る</a> · <a href=\"' + withBasePath('/notes') + '\">ノートへ戻る</a></div></div></div>');
             form.reset();
             if (observedAt) {
               const now = new Date();
               observedAt.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
             }
           } catch (error) {
-            setStatus('<div class="row"><div>Submit failed.<div class="meta">' + String(error.message || error) + '</div></div></div>');
+            setStatus('<div class="row"><div>送信に失敗しました。<div class="meta">' + String(error.message || error) + '</div></div></div>');
           }
         });
       </script>`,
@@ -348,7 +348,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       {
         eyebrow: "my field mentor",
         heading: "前回より、少し見えるようになるホーム",
-        lead: "一覧ではなく、前回からの成長と、また行きたくなる場所を返す面です。",
+        lead: "前回からの気づきと、また行きたくなる場所をお届けするページです。",
         actions: [
           { href: "/notes", label: "ノートへ" },
           { href: "/record", label: "1 件記録する", variant: "secondary" as const },
@@ -379,10 +379,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         </div>
       </div>`).join("");
     const unresolvedReason = snapshot.identifications.length === 0
-      ? "まだ formal identification が付いていません。今は証拠に見合う粒度で止めるのが正しい状態です。"
+      ? "まだ正式な同定は付いていません。今は写真で分かる範囲で止めておくのが正しい状態です。"
       : snapshot.scientificName
-        ? "現時点の候補はありますが、もっと良い写真や追加観察があると根拠を厚くできます。"
-        : "候補は出ていても、まだ species certainty を急がない方が安全な状態です。";
+        ? "候補は出ていますが、もう少し良い角度の写真や追加の観察があると根拠が厚くなります。"
+        : "候補はありますが、急いで種まで断定せず、もう一度観察するのが安心です。";
     const retakeChecklist = [
       "全身だけでなく、決め手になる部位をもう1枚撮る",
       "同じ場所で時間を変えて再訪し、季節や行動差を取る",
@@ -477,7 +477,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const session = await getSessionFromCookie(request.headers.cookie);
     if (!session) {
       reply.code(401).type("text/html; charset=utf-8");
-      return layout(basePath, "Session required", stateCard("Session required", "サインインが必要です", "ログイン済みのセッションがまだありません。トップからサインインするか、staging では <code>?userId=...</code> で代替してください。"), "ホーム");
+      return layout(basePath, "サインインが必要です", stateCard("サインイン", "プロフィールの表示にはサインインが必要です", "ログイン済みのセッションがまだありません。トップページからサインインしてください。"), "ホーム");
     }
     const snapshot = await getProfileSnapshot(session.userId);
     if (!snapshot) {
@@ -611,14 +611,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </script>`,
       "ホーム",
       {
-        eyebrow: "Specialist",
+        eyebrow: "専門家向け",
         heading: laneTitle,
         headingHtml: escapeHtml(laneTitle),
-        lead: "formal ID を詰める前に、queue と observation detail を v2 側で確認する最小 shell。",
+        lead: "観察の正式な同定や確認を行う、専門家向けの作業画面です。一般の方にはこの画面は表示されません。",
         actions: [
-          { href: "/specialist/id-workbench?lane=public-claim", label: "Public claim" },
+          { href: "/specialist/id-workbench?lane=public-claim", label: "公開同定" },
           { href: "/specialist/id-workbench?lane=expert-lane", label: "Expert lane", variant: "secondary" as const },
-          { href: "/specialist/review-queue", label: "Review queue", variant: "secondary" as const },
+          { href: "/specialist/review-queue", label: "レビュー待ち", variant: "secondary" as const },
         ],
       },
     );
@@ -696,13 +696,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </script>`,
       "ホーム",
       {
-        eyebrow: "Specialist",
-        heading: "Review Queue",
-        headingHtml: "Review Queue",
-        lead: "自由入力レビューと public claim へ上げる前の確認用 read shell。",
+        eyebrow: "専門家向け",
+        heading: "レビュー待ちの観察",
+        headingHtml: "レビュー待ちの観察",
+        lead: "公開同定に進める前に、専門家が内容を確認するための画面です。",
         actions: [
           { href: "/specialist/id-workbench?lane=expert-lane", label: "Expert lane" },
-          { href: "/specialist/id-workbench?lane=public-claim", label: "Public claim", variant: "secondary" as const },
+          { href: "/specialist/id-workbench?lane=public-claim", label: "公開同定", variant: "secondary" as const },
         ],
       },
     );
