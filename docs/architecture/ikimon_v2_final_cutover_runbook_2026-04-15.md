@@ -6,7 +6,25 @@
 
 ---
 
-## 0. 現在地 (2026-04-15 時点)
+## 0. Security pre-flight (必須 — all PASS before Step F)
+
+CSO 監査で上げた 3 件が cutover gate。それぞれ repo 側は commit 5289a55c で対処済。本番環境側で追加確認:
+
+- [ ] **Finding 1 (IDOR)**: 本番 pm2 の env に `ALLOW_QUERY_USER_ID` が含まれていない
+  ```bash
+  # VPS
+  pm2 env ikimon-v2-production-api 2>/dev/null | grep ALLOW_QUERY_USER_ID
+  # expected: empty output (env not set)
+  ```
+  もし production pm2 unit が未作成なら、起動前に `ALLOW_QUERY_USER_ID` を ecosystem.config.js / systemd EnvironmentFile に入れない。
+- [ ] **Finding 2 (workflow injection)**: main の `deploy.yml` も同じ branch input pattern を持つなら、`deploy-staging.yml` の fix を backport 済 (PR で並走)。本番が `git push origin main` でのみ発火するなら risk は workflow_dispatch に限定。
+- [ ] **Finding 3 (MapLibre SRI)**: `https://ikimon.life/` を開いて dev tools で `maplibre-gl.js` リクエスト見て、integrity attribute が設定されている。CDN 応答の `Access-Control-Allow-Origin` が valid なこと (crossOrigin=anonymous で CORS 強制)。
+
+どれか NG → **Step F へ進まない**。
+
+---
+
+## 1. 現在地 (2026-04-15 時点)
 
 ### 完了済み
 
