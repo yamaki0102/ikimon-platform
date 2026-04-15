@@ -120,13 +120,7 @@ jobs:
             set -e
             SRC=/var/www/ikimon.life-staging/repo/ops/deploy/staging_ikimon_life_tls_reference.conf
             DST=/etc/nginx/sites-available/staging.ikimon.life
-            echo "== diagnostic: sites-enabled inventory =="
-            ls -la /etc/nginx/sites-enabled/ 2>/dev/null | head -20
-            echo "== diagnostic: confs mentioning staging.ikimon.life =="
-            grep -rln "staging.ikimon.life" /etc/nginx/sites-enabled/ /etc/nginx/sites-available/ 2>/dev/null
-            echo "== diagnostic: which server block serves / for that host =="
-            nginx -T 2>/dev/null | awk '/server_name staging\.ikimon\.life/{flag=1} flag{print; if(/^}/){flag=0; print "---"}}' | head -80
-            echo "== diagnostic end =="
+            ENABLED_DIR=/etc/nginx/sites-enabled
             if [ ! -f "$SRC" ]; then
               echo "Source nginx conf missing at $SRC — skip."
               exit 0
@@ -135,23 +129,41 @@ jobs:
               echo "Live nginx conf missing at $DST — skip (not provisioned here)."
               exit 0
             fi
+
+            # Evict any stale backup files from sites-enabled/ that would claim
+            # server_name staging.ikimon.life before the real conf.
+            shopt -s nullglob
+            for stale in "$ENABLED_DIR"/staging.ikimon.life.bak* "$ENABLED_DIR"/staging.ikimon.life.*bak* "$ENABLED_DIR"/staging.ikimon.life.old* "$ENABLED_DIR"/staging.ikimon.life.disabled*; do
+              if [ -e "$stale" ]; then
+                echo "Evicting stale sites-enabled entry: $stale -> /etc/nginx/sites-available/$(basename "$stale")"
+                mv -f "$stale" "/etc/nginx/sites-available/"
+              fi
+            done
+            shopt -u nullglob
+
             if diff -q "$SRC" "$DST" >/dev/null 2>&1; then
-              echo "nginx conf already in sync"
-              exit 0
+              echo "nginx conf already in sync (DST unchanged)"
+            else
+              BACKUP="${DST}.bak-$(date +%Y%m%d-%H%M%S)"
+              echo "Backing up live conf to $BACKUP"
+              cp -a "$DST" "$BACKUP"
+              cp "$SRC" "$DST"
             fi
-            BACKUP="${DST}.bak-$(date +%Y%m%d-%H%M%S)"
-            echo "Backing up live conf to $BACKUP"
-            cp -a "$DST" "$BACKUP"
-            cp "$SRC" "$DST"
+
             if nginx -t; then
               systemctl reload nginx
               echo "nginx reloaded: staging / -> v2 (3200), /legacy/ -> PHP (8081)"
             else
-              echo "nginx -t FAILED — restoring backup"
-              cp "$BACKUP" "$DST"
+              echo "nginx -t FAILED — restoring latest backup"
+              LATEST_BACKUP=$(ls -1t "${DST}.bak-"* 2>/dev/null | head -1)
+              if [ -n "$LATEST_BACKUP" ]; then cp "$LATEST_BACKUP" "$DST"; fi
               nginx -t && systemctl reload nginx || echo "WARN: rollback reload also failed; manual intervention required"
               exit 1
             fi
+
+            # Post-reload sanity: which server block now owns /
+            echo "== active server_name blocks for staging.ikimon.life =="
+            nginx -T 2>/dev/null | awk '/server_name staging\.ikimon\.life/{flag=1; blk=""} flag{blk=blk"\n"$0; if(/proxy_pass|listen|server_name/){print $0} if(/^}/){flag=0; print "---"}}' | head -40
 
   verify:
     name: Verify Staging
