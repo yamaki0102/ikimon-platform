@@ -129,7 +129,6 @@ jobs:
               echo "Live nginx conf missing at $DST — skip (not provisioned here)."
               exit 0
             fi
-
             # Evict any stale backup files from sites-enabled/ that would claim
             # server_name staging.ikimon.life before the real conf.
             shopt -s nullglob
@@ -218,18 +217,11 @@ jobs:
                 exit 1
               fi
             done
-            echo "== public nginx routing (loopback with Host header) =="
-            # / must hit v2 field-note-first (after nginx flip)
-            BODY=$(curl -s -k -H 'Host: staging.ikimon.life' https://127.0.0.1/ 2>/dev/null || curl -s http://127.0.0.1:8080/ 2>/dev/null)
-            if echo "$BODY" | grep -q "service.*ikimon-platform-v2\|フィールドノート\|歩いて、見つけて"; then
-              echo "OK public / -> v2"
+            echo "== public routing sanity (basic-auth protected, loopback without creds returns 401 which is expected) =="
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -k -H 'Host: staging.ikimon.life' https://127.0.0.1/ 2>/dev/null)
+            if [ "$STATUS" = "401" ] || [ "$STATUS" = "200" ]; then
+              echo "OK public / responds ($STATUS — 401 = basic auth guard, 200 = pre-auth cached session)"
             else
-              echo "WARN: public / did not clearly return v2 content. Check nginx conf."
-            fi
-            # /legacy/ must route to PHP
-            BODY=$(curl -s -k -H 'Host: staging.ikimon.life' https://127.0.0.1/legacy/index.php 2>/dev/null || echo "")
-            if echo "$BODY" | grep -qi "ikimon\|<\?php\|<html"; then
-              echo "OK public /legacy/index.php -> PHP"
-            else
-              echo "WARN: /legacy/ did not return PHP content. Check nginx conf."
+              echo "FAIL public / returned $STATUS"
+              exit 1
             fi
