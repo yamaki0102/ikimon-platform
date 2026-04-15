@@ -110,6 +110,42 @@ jobs:
             done
             exit 0
 
+      - name: Sync staging nginx (v2 primary, PHP on /legacy/)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 162.43.44.131
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            SRC=/var/www/ikimon.life-staging/repo/ops/deploy/staging_ikimon_life_tls_reference.conf
+            DST=/etc/nginx/sites-available/staging.ikimon.life
+            if [ ! -f "$SRC" ]; then
+              echo "Source nginx conf missing at $SRC — skip."
+              exit 0
+            fi
+            if [ ! -f "$DST" ]; then
+              echo "Live nginx conf missing at $DST — skip (not provisioned here)."
+              exit 0
+            fi
+            if diff -q "$SRC" "$DST" >/dev/null 2>&1; then
+              echo "nginx conf already in sync"
+              exit 0
+            fi
+            BACKUP="${DST}.bak-$(date +%Y%m%d-%H%M%S)"
+            echo "Backing up live conf to $BACKUP"
+            cp -a "$DST" "$BACKUP"
+            cp "$SRC" "$DST"
+            if nginx -t; then
+              systemctl reload nginx
+              echo "nginx reloaded: staging / -> v2 (3200), /legacy/ -> PHP (8081)"
+            else
+              echo "nginx -t FAILED — restoring backup"
+              cp "$BACKUP" "$DST"
+              nginx -t && systemctl reload nginx || echo "WARN: rollback reload also failed; manual intervention required"
+              exit 1
+            fi
+
   verify:
     name: Verify Staging
     runs-on: ubuntu-latest
@@ -122,7 +158,7 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            echo "== PHP lane (port 8081) =="
+            echo "== PHP lane (port 8081, internal) =="
             for url in \
               http://127.0.0.1:8081/index.php \
               http://127.0.0.1:8081/explore.php \
@@ -137,7 +173,7 @@ jobs:
                 exit 1
               fi
             done
-            echo "== v2 lane (port 3200) =="
+            echo "== v2 lane (port 3200, internal) =="
             for path in /healthz / /notes /lens /scan /map; do
               STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Accept: text/html" "http://127.0.0.1:3200${path}")
               if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
@@ -147,3 +183,18 @@ jobs:
                 exit 1
               fi
             done
+            echo "== public nginx routing (loopback with Host header) =="
+            # / must hit v2 field-note-first (after nginx flip)
+            BODY=$(curl -s -k -H 'Host: staging.ikimon.life' https://127.0.0.1/ 2>/dev/null || curl -s http://127.0.0.1:8080/ 2>/dev/null)
+            if echo "$BODY" | grep -q "service.*ikimon-platform-v2\|フィールドノート\|歩いて、見つけて"; then
+              echo "OK public / -> v2"
+            else
+              echo "WARN: public / did not clearly return v2 content. Check nginx conf."
+            fi
+            # /legacy/ must route to PHP
+            BODY=$(curl -s -k -H 'Host: staging.ikimon.life' https://127.0.0.1/legacy/index.php 2>/dev/null || echo "")
+            if echo "$BODY" | grep -qi "ikimon\|<\?php\|<html"; then
+              echo "OK public /legacy/index.php -> PHP"
+            else
+              echo "WARN: /legacy/ did not return PHP content. Check nginx conf."
+            fi
