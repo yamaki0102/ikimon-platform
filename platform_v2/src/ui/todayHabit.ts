@@ -112,73 +112,10 @@ const copyByLang: Record<SiteLang, TodayHabitCopy> = {
   },
 };
 
-type HabitInsight = {
-  thisWeek: number;
-  todayCount: number;
-  streak: number;
-  daysSinceLast: number | null;
-};
-
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function dayDiff(a: Date, b: Date): number {
-  const ms = startOfDay(a).getTime() - startOfDay(b).getTime();
-  return Math.round(ms / 86_400_000);
-}
-
-function startOfThisWeek(now: Date): Date {
-  const day = now.getDay(); // 0 = Sunday
-  const diff = (day + 6) % 7; // distance to Monday
-  return startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff));
-}
-
-function computeInsight(snapshot: LandingSnapshot, now: Date): HabitInsight {
-  const dates: Date[] = [];
-  for (const entry of snapshot.myFeed) {
-    const ts = entry.entryType === "identification" ? entry.identifiedAt ?? entry.observedAt : entry.observedAt;
-    if (!ts) continue;
-    const d = new Date(ts);
-    if (Number.isNaN(d.getTime())) continue;
-    dates.push(d);
-  }
-  if (dates.length === 0) {
-    return { thisWeek: 0, todayCount: 0, streak: 0, daysSinceLast: null };
-  }
-
-  const weekStart = startOfThisWeek(now);
-  const today = startOfDay(now);
-  let thisWeek = 0;
-  let todayCount = 0;
-  for (const d of dates) {
-    if (d >= weekStart) thisWeek += 1;
-    if (dayDiff(d, today) === 0) todayCount += 1;
-  }
-
-  const uniqueDayKeys = new Set<string>(
-    dates.map((d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`),
-  );
-  // Build streak from the most recent contiguous day backward.
-  // If today has no entry but yesterday does, the "streak" still counts up to yesterday.
-  let streak = 0;
-  let cursor = todayCount > 0 ? today : new Date(today.getTime() - 86_400_000);
-  while (uniqueDayKeys.has(`${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`)) {
-    streak += 1;
-    cursor = new Date(cursor.getTime() - 86_400_000);
-  }
-
-  const sortedDesc = [...dates].sort((a, b) => b.getTime() - a.getTime());
-  const daysSinceLast = sortedDesc[0] ? dayDiff(today, sortedDesc[0]) : null;
-
-  return { thisWeek, todayCount, streak, daysSinceLast };
-}
-
 export function renderTodayHabit(
   basePath: string,
   lang: SiteLang,
   snapshot: LandingSnapshot,
-  now: Date = new Date(),
 ): string {
   const copy = copyByLang[lang];
   const isLoggedIn = Boolean(snapshot.viewerUserId);
@@ -198,8 +135,17 @@ export function renderTodayHabit(
     </section>`;
   }
 
-  const insight = computeInsight(snapshot, now);
-  const hasAnyHistory = snapshot.myFeed.length > 0;
+  // habit is computed server-side from visits (not myFeed), so streak is
+  // accurate beyond the feed page size. Fall back to zeros if the DB query
+  // failed for this request.
+  const habit = snapshot.habit ?? {
+    todayCount: 0,
+    thisWeekCount: 0,
+    activeDaysLast60: 0,
+    daysSinceLast: null,
+    streak: 0,
+  };
+  const hasAnyHistory = habit.daysSinceLast !== null;
 
   let heading: string;
   let lead: string;
@@ -213,30 +159,28 @@ export function renderTodayHabit(
     nudgeLabel = copy.nudgeFirstPage;
     nudgeHref = recordHref;
     kpiAction = "todayhabit:first-page";
-  } else if (insight.todayCount > 0) {
-    heading = copy.loggedInHeadingToday(insight.todayCount);
-    lead = insight.streak > 1
-      ? copy.loggedInLeadFresh(insight.streak)
-      : copy.loggedInLeadFresh(1);
+  } else if (habit.todayCount > 0) {
+    heading = copy.loggedInHeadingToday(habit.todayCount);
+    lead = copy.loggedInLeadFresh(Math.max(habit.streak, 1));
     nudgeLabel = copy.ctaContinue;
     nudgeHref = notesHref;
     kpiAction = "todayhabit:continue";
-  } else if (insight.daysSinceLast !== null && insight.daysSinceLast >= 7) {
+  } else if (habit.daysSinceLast !== null && habit.daysSinceLast >= 7) {
     heading = copy.loggedInHeadingNoToday;
-    lead = copy.loggedInLeadResting(insight.daysSinceLast);
-    nudgeLabel = copy.nudgeReturn(insight.daysSinceLast);
+    lead = copy.loggedInLeadResting(habit.daysSinceLast);
+    nudgeLabel = copy.nudgeReturn(habit.daysSinceLast);
     nudgeHref = recordHref;
     kpiAction = "todayhabit:return";
-  } else if (insight.streak >= 1) {
+  } else if (habit.streak >= 1) {
     heading = copy.loggedInHeadingNoToday;
-    lead = copy.loggedInLeadFresh(insight.streak);
-    nudgeLabel = copy.nudgeKeepStreak(insight.streak + 1);
+    lead = copy.loggedInLeadFresh(habit.streak);
+    nudgeLabel = copy.nudgeKeepStreak(habit.streak + 1);
     nudgeHref = recordHref;
     kpiAction = "todayhabit:keep-streak";
   } else {
     heading = copy.loggedInHeadingNoToday;
-    lead = insight.daysSinceLast !== null
-      ? copy.loggedInLeadResting(insight.daysSinceLast)
+    lead = habit.daysSinceLast !== null
+      ? copy.loggedInLeadResting(habit.daysSinceLast)
       : copy.loggedInLeadFirstTime;
     nudgeLabel = copy.nudgeWriteToday;
     nudgeHref = recordHref;
@@ -244,11 +188,11 @@ export function renderTodayHabit(
   }
 
   const stats: Array<{ value: number; label: string; key: string }> = [];
-  if (insight.streak > 0) {
-    stats.push({ value: insight.streak, label: copy.streakLabel(insight.streak), key: "streak" });
+  if (habit.streak > 0) {
+    stats.push({ value: habit.streak, label: copy.streakLabel(habit.streak), key: "streak" });
   }
-  if (insight.thisWeek > 0) {
-    stats.push({ value: insight.thisWeek, label: copy.weekLabel(insight.thisWeek), key: "week" });
+  if (habit.thisWeekCount > 0) {
+    stats.push({ value: habit.thisWeekCount, label: copy.weekLabel(habit.thisWeekCount), key: "week" });
   }
 
   const statsHtml = stats.length
@@ -311,6 +255,7 @@ export const TODAY_HABIT_STYLES = `
     letter-spacing: -.01em;
     font-weight: 900;
     color: #0f172a;
+    text-wrap: balance;
   }
   .th-lead {
     margin: 6px 0 0;

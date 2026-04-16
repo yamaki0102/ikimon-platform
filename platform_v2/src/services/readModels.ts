@@ -580,6 +580,24 @@ export type LandingStats = {
   placeCount: number;
 };
 
+/**
+ * Daily habit roll-up for the viewer, computed directly from visits.
+ * Derived server-side (not from myFeed) so it stays accurate regardless of
+ * feed page size. All fields are zero / null when the viewer has no history.
+ */
+export type LandingHabitStats = {
+  /** Observations the viewer logged today (local-date boundary, UTC). */
+  todayCount: number;
+  /** Observations the viewer logged this ISO week (Mon-start). */
+  thisWeekCount: number;
+  /** Distinct days the viewer has logged in the last 60 days (bound). */
+  activeDaysLast60: number;
+  /** Whole days since the viewer's last observation, or null if never. */
+  daysSinceLast: number | null;
+  /** Current streak: consecutive days up to (and including today or yesterday). */
+  streak: number;
+};
+
 export type LandingSnapshot = {
   viewerUserId: string | null;
   stats: LandingStats;
@@ -587,4 +605,5 @@ export type LandingSnapshot = {
   myFeed: LandingObservation[];
   myPlaces: HomePlace[];
   ambient: AmbientObserver[];
+  habit: LandingHabitStats | null;
 };

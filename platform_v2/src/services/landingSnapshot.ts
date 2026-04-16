@@ -2,6 +2,7 @@ import { getPool } from "../db.js";
 import { getHomeSnapshot } from "./readModels.js";
 import type {
   AmbientObserver,
+  LandingHabitStats,
   LandingObservation,
   LandingSnapshot,
   LandingStats,
@@ -139,6 +140,30 @@ function toIdentificationEntry(row: IdentificationRow): LandingObservation {
   };
 }
 
+/** Compute streak from a descending list of ISO date strings (YYYY-MM-DD). */
+function computeStreakFromDays(days: string[], todayIso: string, yesterdayIso: string): number {
+  if (days.length === 0) return 0;
+  const daySet = new Set(days);
+  // Streak only counts if it reaches today or yesterday — otherwise the
+  // anchor is lost and streak is 0 even if there's a long run in the past.
+  let cursor: string = "";
+  if (daySet.has(todayIso)) {
+    cursor = todayIso;
+  } else if (daySet.has(yesterdayIso)) {
+    cursor = yesterdayIso;
+  } else {
+    return 0;
+  }
+  let streak = 0;
+  while (daySet.has(cursor)) {
+    streak += 1;
+    const prev = new Date(`${cursor}T00:00:00Z`);
+    prev.setUTCDate(prev.getUTCDate() - 1);
+    cursor = prev.toISOString().slice(0, 10);
+  }
+  return streak;
+}
+
 export async function getLandingSnapshot(userId: string | null): Promise<LandingSnapshot> {
   let pool;
   try {
@@ -151,6 +176,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       myFeed: [],
       myPlaces: [],
       ambient: [],
+      habit: null,
     };
   }
 
@@ -248,6 +274,54 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     }
   }
 
+  // Habit stats — computed from visits directly so the streak is accurate
+  // beyond the myFeed page size. Dates are pulled bounded at 60 days for
+  // streak, plus today/week totals are counted unbounded.
+  let habit: LandingHabitStats | null = null;
+  if (userId) {
+    try {
+      const [todayRes, weekRes, lastRes, daysRes] = await Promise.all([
+        pool.query<{ c: string }>(
+          `select count(*)::text as c from visits where user_id = $1 and observed_at::date = current_date`,
+          [userId],
+        ),
+        pool.query<{ c: string }>(
+          `select count(*)::text as c from visits where user_id = $1 and observed_at::date >= date_trunc('week', current_date)::date`,
+          [userId],
+        ),
+        pool.query<{ days: string | null }>(
+          `select (current_date - max(observed_at::date))::text as days from visits where user_id = $1`,
+          [userId],
+        ),
+        pool.query<{ d: string }>(
+          `select distinct to_char(observed_at::date, 'YYYY-MM-DD') as d
+             from visits
+            where user_id = $1
+              and observed_at::date > current_date - interval '60 days'
+            order by d desc`,
+          [userId],
+        ),
+      ]);
+      const today = new Date();
+      const todayIso = today.toISOString().slice(0, 10);
+      const yesterday = new Date(today);
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      const yesterdayIso = yesterday.toISOString().slice(0, 10);
+      const days = daysRes.rows.map((row) => row.d);
+      habit = {
+        todayCount: Number(todayRes.rows[0]?.c ?? 0),
+        thisWeekCount: Number(weekRes.rows[0]?.c ?? 0),
+        activeDaysLast60: days.length,
+        daysSinceLast: lastRes.rows[0]?.days === null || lastRes.rows[0]?.days === undefined
+          ? null
+          : Number(lastRes.rows[0].days),
+        streak: computeStreakFromDays(days, todayIso, yesterdayIso),
+      };
+    } catch {
+      habit = null;
+    }
+  }
+
   // Stats
   let stats: LandingStats = { observationCount: 0, speciesCount: 0, placeCount: 0 };
   try {
@@ -341,5 +415,6 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     myFeed: combined.slice(0, 12),
     myPlaces,
     ambient,
+    habit,
   };
 }
