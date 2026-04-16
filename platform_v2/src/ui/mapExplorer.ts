@@ -371,9 +371,10 @@ function overlayPanelLabels(lang: SiteLang): {
 }
 
 export function renderMapExplorer(props: MapExplorerProps): string {
-  const copy = MAP_EXPLORER_COPY[props.lang];
-  const overlays: LocalizedOverlay[] = overlaysForLang(props.lang);
-  const overlayLabels = overlayPanelLabels(props.lang);
+  const lang = props.lang;
+  const copy = MAP_EXPLORER_COPY[lang];
+  const overlays: LocalizedOverlay[] = overlaysForLang(lang);
+  const overlayLabels = overlayPanelLabels(lang);
   const recordHref = appendLangToHref(withBasePath(props.basePath, "/record"), props.lang);
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
@@ -453,6 +454,14 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   </div>`;
 
   return `<section class="section me-section" aria-label="Map Explorer">
+    <div class="me-eyebrow-strip">
+      <span class="me-eyebrow-kicker">${escapeHtml(lang === "ja" ? "探索マップ" : lang === "es" ? "Mapa de exploración" : lang === "pt-BR" ? "Mapa de exploração" : "Explore Map")}</span>
+      <span class="me-eyebrow-hint">${escapeHtml(lang === "ja"
+        ? "観察がどこに積み上がり、どこが空白か。地域を選び、レイヤーを重ねて、次に歩く場所を決める。"
+        : lang === "es" ? "Dónde se acumulan las observaciones y dónde no. Elige región, apila capas, decide el próximo paseo."
+        : lang === "pt-BR" ? "Onde as observações se acumulam e onde estão vazias. Escolha região, empilhe camadas, decida o próximo passeio."
+        : "Where observations stack up and where they're blank. Pick a region, stack layers, decide the next walk.")}</span>
+    </div>
     ${crossChipsHtml}
     <div class="me-toolbar">
       <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}">
@@ -478,12 +487,12 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </div>
     </div>
 
-    <div class="me-region-bar" role="group" aria-label="${escapeHtml(copy.regionFilterLabel)}">
-      <span class="me-filter-label">${escapeHtml(copy.regionFilterLabel)}</span>
+    <details class="me-region-bar" role="group" aria-label="${escapeHtml(copy.regionFilterLabel)}">
+      <summary class="me-region-summary"><span class="me-filter-label">${escapeHtml(copy.regionFilterLabel)}</span><span class="me-region-hint">${escapeHtml(lang === "ja" ? "日本全体 / 静岡市 / 東京 …" : "Japan / Shizuoka / Tokyo …")}</span></summary>
       <div class="me-region-row">${regionChipsHtml}</div>
-    </div>
+    </details>
 
-    <details class="me-overlay-panel" open>
+    <details class="me-overlay-panel">
       <summary class="me-overlay-summary">
         <span class="me-overlay-heading">${escapeHtml(overlayLabels.heading)}</span>
         <span class="me-overlay-intro">${escapeHtml(overlayLabels.intro)}</span>
@@ -1337,7 +1346,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 }
 
 export const MAP_EXPLORER_STYLES = `
-  .me-section { margin-top: 16px; }
+  /* The /map page deliberately has no hero; this strip is a tiny,
+     1-line context row so the page doesn't open cold, but the map
+     still lands in the first viewport. */
+  .me-section { margin-top: 4px; }
+  .me-eyebrow-strip {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    padding: 8px 14px; border-radius: 12px;
+    background: linear-gradient(90deg, rgba(16,185,129,.06), rgba(14,165,233,.04));
+    border: 1px solid rgba(15,23,42,.04);
+    margin-bottom: 8px;
+  }
+  .me-eyebrow-kicker { font-weight: 900; font-size: 12px; color: #047857; letter-spacing: .08em; text-transform: uppercase; }
+  .me-eyebrow-hint { font-size: 12px; color: #475569; line-height: 1.5; flex: 1 1 260px; min-width: 0; }
   .me-cross-chips {
     display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
     margin-bottom: 14px; padding: 10px 14px; border-radius: 999px;
@@ -1372,28 +1393,42 @@ export const MAP_EXPLORER_STYLES = `
   .me-basemap-opt span { display: inline-block; padding: 6px 10px; border-radius: 9px; font-weight: 700; font-size: 12px; color: #475569; transition: background .15s ease, color .15s ease; }
   .me-basemap-opt.is-active span { background: #fff; color: #0f172a; box-shadow: 0 3px 8px rgba(15,23,42,.08); }
 
+  /* Collapsed by default — region chips are useful but not first-screen
+     critical. A single click expands them. */
   .me-region-bar {
-    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
-    padding: 10px 14px; border-radius: 16px;
-    background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.05);
-    overflow-x: auto;
+    margin-bottom: 10px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.88);
+    border: 1px solid rgba(15,23,42,.05);
+    overflow: hidden;
   }
-  .me-region-row { display: flex; gap: 6px; flex-wrap: nowrap; }
+  .me-region-summary {
+    display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+    cursor: pointer; user-select: none; position: relative;
+  }
+  .me-region-summary::-webkit-details-marker { display: none; }
+  .me-region-summary::after { content: "⌄"; margin-left: auto; font-weight: 800; color: #475569; transition: transform .2s ease; }
+  .me-region-bar[open] .me-region-summary::after { transform: rotate(180deg); }
+  .me-region-hint { font-size: 11px; color: #64748b; font-weight: 700; }
+  .me-region-row { display: flex; gap: 6px; flex-wrap: nowrap; padding: 0 14px 12px; overflow-x: auto; }
   .me-region-chip { white-space: nowrap; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; font-weight: 700; font-size: 12px; color: #334155; cursor: pointer; }
   .me-region-chip:hover { border-color: rgba(14,165,233,.4); }
   .me-region-chip.is-active { background: linear-gradient(135deg, rgba(14,165,233,.18), rgba(16,185,129,.14)); border-color: rgba(14,165,233,.45); color: #075985; }
 
+  /* Overlay panel stays collapsed by default. Opening it is a
+     deliberate action, not something that walls the user off from the
+     map on first load. */
   .me-overlay-panel {
-    margin-bottom: 14px;
+    margin-bottom: 10px;
     padding: 0;
-    border-radius: 16px;
+    border-radius: 14px;
     background: rgba(255,255,255,.94);
     border: 1px solid rgba(15,23,42,.06);
     overflow: hidden;
   }
   .me-overlay-summary {
     display: flex; flex-direction: column; gap: 2px;
-    padding: 12px 18px; cursor: pointer; user-select: none;
+    padding: 10px 16px; cursor: pointer; user-select: none;
     background: linear-gradient(90deg, rgba(99,102,241,.05), rgba(16,185,129,.05));
   }
   .me-overlay-summary::-webkit-details-marker { display: none; }
@@ -1434,10 +1469,13 @@ export const MAP_EXPLORER_STYLES = `
   .me-overlay-opacity-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; }
   .me-overlay-opacity-range { flex: 1; }
 
-  .me-main { display: grid; gap: 16px; grid-template-columns: 1fr; }
-  @media (min-width: 960px) { .me-main { grid-template-columns: minmax(0, 1fr) 280px; } }
+  .me-main { display: grid; gap: 14px; grid-template-columns: 1fr; }
+  @media (min-width: 1080px) { .me-main { grid-template-columns: minmax(0, 1fr) 260px; } }
   .me-map-wrap { position: relative; border-radius: 22px; overflow: hidden; background: linear-gradient(135deg,#ecfeff,#eff6ff); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 10px 24px rgba(15,23,42,.05); }
-  .me-map { width: 100%; height: 68vh; min-height: 420px; }
+  /* Map fills most of the first viewport on desktop — users came here to
+     see the map, not to read. The eyebrow + toolbar above it total about
+     ~180px, so 78vh lands the map edge-to-edge without clipping. */
+  .me-map { width: 100%; height: min(78vh, 760px); min-height: 480px; }
   .me-map-status {
     position: absolute; right: 14px; top: 14px; z-index: 4;
     padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.82);

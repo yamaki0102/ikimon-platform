@@ -3,6 +3,7 @@ import { getPool } from "./db.js";
 import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "./i18n.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerLegacyAssetRoutes } from "./routes/legacyAssets.js";
 import { registerMapApiRoutes } from "./routes/mapApi.js";
 import { registerMarketingRoutes } from "./routes/marketing.js";
 import { registerOpsRoutes } from "./routes/ops.js";
@@ -682,6 +683,7 @@ export function buildApp() {
   });
 
   void registerHealthRoutes(app);
+  void registerLegacyAssetRoutes(app);
   void registerMapApiRoutes(app);
   void registerMarketingRoutes(app);
   void registerReadRoutes(app);

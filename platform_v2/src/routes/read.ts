@@ -1104,20 +1104,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       activeNav: lang === "ja" ? "ホーム" : "Home",
       lang,
       extraStyles: MAP_EXPLORER_STYLES,
-      hero: {
-        eyebrow: lang === "ja" ? "探索マップ" : "Explore Map",
-        heading: lang === "ja" ? "場所の広がりで、次に歩く理由を決める。" : "Let the spread of places decide where to walk next.",
-        headingHtml: lang === "ja" ? "場所の広がりで、次に歩く理由を決める。" : "Let the spread of places decide where to walk next.",
-        lead: lang === "ja"
-          ? "観察がどこに積み上がり、どこが空白か。分類・年・ベース地図を切り替えて、次の 1 枚を書く場所を探す。"
-          : "See where observations stack up and where they're blank. Switch group, year, and basemap to find the next page to write.",
-        tone: "light",
-        align: "center",
-        actions: [
-          { href: "/notes", label: lang === "ja" ? "ノートに戻る" : "Back to notebook", variant: "secondary" as const },
-          { href: "/record", label: lang === "ja" ? "ここに書き足す" : "Add a page here" },
-        ],
-      },
+      // Deliberately no hero: a map page should land on the map, not on
+      // a wall of text. The explorer component carries a tight eyebrow
+      // strip at the top so context is still one line away.
       body: `${renderMapExplorer({ basePath, lang, years })}
 ${mapExplorerBootScript({ basePath, lang })}`,
       footerNote: lang === "ja"
