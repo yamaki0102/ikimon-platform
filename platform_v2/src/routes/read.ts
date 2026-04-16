@@ -954,6 +954,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const recordHref = appendLangToHref(withBasePath(basePath, "/record"), lang);
     const notesHref = appendLangToHref(withBasePath(basePath, "/notes"), lang);
+    const mapHref = appendLangToHref(withBasePath(basePath, "/map"), lang);
 
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
@@ -962,27 +963,54 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       activeNav: lang === "ja" ? "ホーム" : "Home",
       lang,
       hero: {
-        eyebrow: lang === "ja" ? "撮って書く入口" : "Shoot and write",
+        eyebrow: lang === "ja" ? "記録の前で迷ったとき" : "When you need a hint before recording",
         heading: lang === "ja" ? "🔍 AIレンズ" : "🔍 AI Lens",
         headingHtml: lang === "ja" ? "🔍 AIレンズ" : "🔍 AI Lens",
         lead: lang === "ja"
-          ? "AIレンズは、歩きながら近くの生きものを案内するための導線です。v2 ではまずノートと記録の体験を先に整えています。"
-          : "AI Lens is the route for a walking-time guide to nearby species. In v2, the notebook and record experience come first.",
+          ? "名前が分からないままでも、観察を止めずに次の一歩を決めるための入口です。いまの v2 では、候補を断定する機能ではなく、記録へ進む判断を助けるページとして置いています。"
+          : "An entry point that helps you decide the next step without stopping the observation just because you do not know the name yet.",
         tone: "light",
         align: "center",
         actions: [
-          { href: "/record", label: lang === "ja" ? "撮影して試す" : "Try it now" },
-          { href: "/notes", label: lang === "ja" ? "フィールドノートへ戻る" : "Back to Field Note", variant: "secondary" as const },
+          { href: "/record", label: lang === "ja" ? "このまま記録する" : "Record this now" },
+          { href: "/notes", label: lang === "ja" ? "ノートへ戻る" : "Back to Field Note", variant: "secondary" as const },
         ],
       },
       body: `<section class="section">
+        <div class="card has-accent is-soft">
+          <div class="card-body">
+            <div class="eyebrow">${escapeHtml(lang === "ja" ? "このページの役割" : "Role of this page")}</div>
+            <h2>${escapeHtml(lang === "ja" ? "名前が曖昧でも、観察を止めないための入口" : "An entry that keeps the observation moving even when the name is unclear")}</h2>
+            <p>${escapeHtml(lang === "ja"
+              ? "AIレンズは、いま見ている生きものをその場で断定するための画面ではありません。名前が分からないときに、まず証拠を残すか、あとで見返せるノートに進むかを決めるための補助線です。"
+              : "AI Lens is not a page that promises instant certainty. It helps you decide whether to save evidence now and move into the notebook flow.")}</p>
+            <p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja"
+              ? "ikimon が優先したいのは、立ち止まって考え込みすぎることではなく、観察の熱があるうちに場所・時刻・写真を失わずに残すことです。"
+              : "What matters first is not prolonged certainty but saving place, time, and evidence while the observation is still fresh.")}</p>
+          </div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="list">
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. まず写真かメモを残す" : "1. Save a photo or note first")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "分からなくても構いません。場所・時刻・見た印象を失わないことが先です。" : "Do not wait for certainty. Preserve place, time, and first impression.")}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. 候補より、見分けるポイントを見る" : "2. Look for distinguishing clues, not just a name")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "AI の価値は、候補そのものよりも『次に何を見れば前進するか』の整理にあります。" : "The useful part is not certainty but what to check next.")}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "3. ノートへ戻して育てる" : "3. Move it back into the notebook")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "最終的に残る中心はフィールドノートです。AIレンズ単体で完結させません。" : "The notebook remains the final home of the observation.")}</div></div></div>
+        </div>
+      </section>
+      <section class="section">
         <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "いまの位置づけ" : "Current status")}</div><h2>${escapeHtml(lang === "ja" ? "v2 では説明入口を先に置いている" : "v2 currently exposes the entry, not the full guide")}</h2><p>${escapeHtml(lang === "ja" ? "本来の AIレンズは、散歩・移動中に生きものを案内する体験です。現時点の v2 では、その前段としてノートと記録の導線を先に整備しています。" : "The intended AI Lens experience is a walking-time guide to nearby species. In the current v2, notebook and record flow are shipped first.")}</p></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "ノートとの関係" : "Relation to the notebook")}</div><h2>${escapeHtml(lang === "ja" ? "主役はノート、レンズは別導線" : "Notebook is the core, lens is a separate route")}</h2><p>${escapeHtml(lang === "ja" ? "AIレンズはノートの代わりではありません。観察を残して読み返す中心はフィールドノートで、AIレンズはその周辺体験として後続でつながります。" : "AI Lens does not replace the notebook. The notebook remains the core place to keep and revisit observations.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(notesHref)}">${escapeHtml(lang === "ja" ? "フィールドノートへ" : "Go to Field Note")}</a></div></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "いま出来ること" : "What you can do now")}</div><h2>${escapeHtml(lang === "ja" ? "まずは記録して、ノートを育てる" : "Record first and grow the notebook")}</h2><p>${escapeHtml(lang === "ja" ? "現時点では、観察の場所・時刻・写真を残して、あとから見返せる形にするのが v2 の主機能です。" : "Right now, the main v2 capability is to save place, time, and photos into a notebook you can revisit later.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(recordHref)}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "道端で 10 秒だけ迷ったとき" : "When you hesitate for 10 seconds in the field")}</h2><p>${escapeHtml(lang === "ja" ? "立ち止まって調べ込むより、ひとまず記録して後で見返す方が良い場面に向いています。" : "Use it when it is better to keep moving and record first.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "たとえば、葉・翅・鳴き声のどれが決め手か分からないときに、まず『どこが曖昧か』を整理して記録へ送る使い方です。" : "Useful when you need to turn uncertainty into the next observable clue, then save it.")}</p></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Do not overexpect")}</div><h2>${escapeHtml(lang === "ja" ? "いまは断定画面ではない" : "This is not a certainty machine yet")}</h2><p>${escapeHtml(lang === "ja" ? "v2 では完成したリアルタイム同定体験ではなく、記録に進む判断を助ける説明面として置いています。" : "In v2 this is still an explanatory lane that supports recording decisions.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "つまり、ここで『正解』を取りに行くよりも、あとで見返したときに何が足りなかったかが分かる形を作る方が大事です。" : "The point is to preserve what is missing for later review rather than to force an instant answer.")}</p></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "記録して、あとで見返す" : "Record now and revisit later")}</h2><p>${escapeHtml(lang === "ja" ? "現時点では、場所・時刻・写真をノートへ残すのが最短です。" : "For now, the shortest path is to save place, time, and photo into the notebook.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "このページで迷いをほどいたら、record で 1 件にし、notes で読み返せる形へ移す。そこまでが一続きです。" : "Once the hesitation is resolved here, move it into record and notes as one continuous flow.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(recordHref)}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="grid">
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "ノートとの関係" : "Relation to the notebook")}</div><h2>${escapeHtml(lang === "ja" ? "主役はフィールドノート" : "Field Note is still the core")}</h2><p>${escapeHtml(lang === "ja" ? "AIレンズはノートの前段にある入口です。観察を残して読み返す中心は、あくまでフィールドノートです。" : "AI Lens sits before the notebook flow. The notebook remains the core place to keep and revisit observations.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "レンズ側で完結させないのは、場所ごとの履歴や再訪理由を後から育てる主体が notes にあるからです。" : "It does not end here because the notebook is where revisit history and place-based memory accumulate.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(notesHref)}">${escapeHtml(lang === "ja" ? "フィールドノートへ" : "Go to Field Note")}</a></div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "歩きながら探すなら" : "If you are looking for where to walk")}</div><h2>${escapeHtml(lang === "ja" ? "フィールドスキャンを見る" : "Open Field Scan")}</h2><p>${escapeHtml(lang === "ja" ? "名前のヒントではなく、次にどの場所へ向かうかを考えたいなら、スキャン側の方が合っています。" : "If the question is where to go next rather than what the name might be, Field Scan is a better fit.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "AIレンズが『この観察をどう残すか』を見る入口だとすれば、フィールドスキャンは『次にどこへ行くか』を見る入口です。" : "AI Lens asks how to save this observation; Field Scan asks where you should go next.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(mapHref)}">${escapeHtml(lang === "ja" ? "マップへ" : "Go to map")}</a></div></div></div>
         </div>
       </section>`,
-      footerNote: lang === "ja" ? "AIレンズは歩行中ガイドの導線で、v2 ではまだ前段の説明面です。" : "AI Lens is the route toward a walking-time guide, and is still an entry page in v2.",
+      footerNote: lang === "ja" ? "AIレンズは『断定』の画面ではなく、観察を止めずにノートへつなぐ入口です。" : "AI Lens is not for certainty. It is an entry that keeps the observation moving toward the notebook.",
     });
   });
 
@@ -1002,26 +1030,54 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       activeNav: lang === "ja" ? "ホーム" : "Home",
       lang,
       hero: {
-        eyebrow: lang === "ja" ? "歩いて拾う入口" : "Walk and pick up",
+        eyebrow: lang === "ja" ? "次にどこへ行くか決める" : "Decide where to go next",
         heading: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
         headingHtml: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
         lead: lang === "ja"
-          ? "歩きながら近辺の種の気配を拾う。次にフィールドノートへ書き足す場所を、マップがおすすめ調査エリアとして教えてくれる。"
-          : "Pick up the signal of species nearby while you walk. The map suggests the next place to add to your notebook.",
+          ? "どこで観察が積み上がっていて、次にどこを再訪するとおもしろいかを決めるための入口です。名前を当てるページではなく、場所を選ぶページとして使います。"
+          : "Use this page to decide where observations are accumulating and where to revisit next.",
         tone: "light",
         align: "center",
         actions: [
           { href: "/map", label: lang === "ja" ? "マップで見る" : "See on the map" },
-          { href: "/explore", label: lang === "ja" ? "自治体・種で見る" : "By place / species", variant: "secondary" as const },
+          { href: "/notes", label: lang === "ja" ? "ノートへ戻る" : "Back to notebook", variant: "secondary" as const },
         ],
       },
       body: `<section class="section">
+        <div class="card has-accent is-soft">
+          <div class="card-body">
+            <div class="eyebrow">${escapeHtml(lang === "ja" ? "このページの役割" : "Role of this page")}</div>
+            <h2>${escapeHtml(lang === "ja" ? "『どこを歩くか』を決めるためのページ" : "A page for deciding where to walk next")}</h2>
+            <p>${escapeHtml(lang === "ja"
+              ? "フィールドスキャンは、場所ごとの観察密度や最近の動きを見て、次に戻る場所を考えるための入口です。種名当てよりも、再訪の判断を助けることを優先しています。"
+              : "Field Scan prioritizes the question of where to return next, using place-level observation density and recent activity.")}</p>
+            <p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja"
+              ? "地図の見方を整えておくと、『今日はどこを歩くか』『前回行かなかった側へ寄るか』の判断が速くなります。"
+              : "This page is meant to shorten the decision about where today’s walk should go.")}</p>
+          </div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="list">
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. まず観察が積み上がっている場所を見る" : "1. See where observations are accumulating")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "マップで偏りや空白を見ると、次に歩く理由が見えてきます。" : "The map shows clusters and gaps that can become your next reason to walk.")}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. そこで何が見られているかをざっくり掴む" : "2. Get a rough sense of what is being seen there")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "ここでは精密な同定より、場所の気配をつかむことが目的です。" : "The goal here is a place-level signal, not precise identification.")}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "3. 実際の記録はノートへ戻す" : "3. Send the actual record back into the notebook")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "歩く場所を決めたら、実際の観察は record / notes 側で残します。" : "Once you decide where to go, the actual observation should be saved in record / notes.")}</div></div></div>
+        </div>
+      </section>
+      <section class="section">
         <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "何をするか" : "What it does")}</div><h2>${escapeHtml(lang === "ja" ? "近辺の多様性の気配を返す" : "Returns the signal of nearby diversity")}</h2><p>${escapeHtml(lang === "ja" ? "場所・季節・最近の観察密度から、次に歩くと発見がありそうなエリアを地図上に示します。" : "From place, season, and recent observation density, the map highlights areas likely to yield a find if you walk there next.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(mapHref)}">${escapeHtml(lang === "ja" ? "マップで見る" : "See on the map")}</a></div></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "ノートとの関係" : "Relation to the notebook")}</div><h2>${escapeHtml(lang === "ja" ? "次のページのネタ元" : "Fuel for the next page")}</h2><p>${escapeHtml(lang === "ja" ? "スキャンは主役ではなく、ノートに新しいページを書き足す理由を与える補助機能です。" : "Scan is not the star — it gives you a reason to add a new page to your notebook.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(exploreHref)}">${escapeHtml(lang === "ja" ? "自治体と種の広がりを見る" : "Browse places and species")}</a></div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "散歩のルートを決めたいとき" : "When choosing a walking route")}</h2><p>${escapeHtml(lang === "ja" ? "どこへ行けば前回と違うものが見えそうか、次の 20 分を決めるのに向いています。" : "Useful when deciding where the next 20 minutes of walking should go.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "たとえば、今日は水辺側へ寄るか、公園の奥まで入るか、住宅地の縁を回るかを決める前の判断材料になります。" : "It is a pre-route judgment layer rather than a final observation page.")}</p></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Do not overexpect")}</div><h2>${escapeHtml(lang === "ja" ? "ここで観察は完結しない" : "The observation does not end here")}</h2><p>${escapeHtml(lang === "ja" ? "スキャンだけで完了ではありません。実際の証拠とメモはノートへ戻して初めて残ります。" : "This is not the final storage place. Evidence and notes still belong in the notebook.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "つまり、スキャンは『下見』に近い役割です。実際に見たものを残す場は、record と notes にあります。" : "Think of scan as reconnaissance; the actual record still belongs in record and notes.")}</p></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "マップで場所を決める" : "Choose the place on the map")}</h2><p>${escapeHtml(lang === "ja" ? "いま積み上がっている場所を見て、次の再訪先を決めてください。" : "Use the map to choose your next revisit spot.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "場所を決めたら、その場で 1 件残すところまで進めると、scan と notebook が初めてつながります。" : "Once you choose a place, connect scan to the notebook by saving at least one record there.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(mapHref)}">${escapeHtml(lang === "ja" ? "マップで見る" : "See on the map")}</a></div></div></div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="grid">
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "ノートとの関係" : "Relation to the notebook")}</div><h2>${escapeHtml(lang === "ja" ? "次のページを書く理由を増やす" : "Creates reasons for the next notebook page")}</h2><p>${escapeHtml(lang === "ja" ? "スキャンは主役ではなく、ノートに新しいページを書き足す理由を見つけるための補助線です。" : "Scan is a supporting lane that creates reasons for the next notebook page.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "『今日はここを歩こう』という決断ができると、notes に戻ったときの 1 ページ目が書きやすくなります。" : "A clearer route decision makes the next notebook page easier to write.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(exploreHref)}">${escapeHtml(lang === "ja" ? "場所と種の広がりを見る" : "Browse place and species spread")}</a></div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "実際に残すなら" : "If you want to save it now")}</div><h2>${escapeHtml(lang === "ja" ? "記録画面へ進む" : "Go to record")}</h2><p>${escapeHtml(lang === "ja" ? "場所が決まったら、その場の写真・時刻・メモは record 側で残すのが最短です。" : "Once the place is chosen, save the photo, time, and note in record.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "scan で方向を決め、record で 1 件にし、notes で積み上げる。この順にすると役割分担が崩れません。" : "Use scan to choose direction, record to create one entry, and notes to accumulate it.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
         </div>
       </section>`,
-      footerNote: lang === "ja" ? "フィールドスキャンはフィールドノートを育てる補助機能です。" : "Field Scan is a supporting tool that feeds the Field Note.",
+      footerNote: lang === "ja" ? "フィールドスキャンは『どこへ戻るか』を決め、実際の観察はノートへ戻すためのページです。" : "Field Scan decides where to return next, then sends the actual observation back into the notebook.",
     });
   });
 

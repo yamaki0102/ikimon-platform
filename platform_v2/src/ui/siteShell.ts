@@ -587,7 +587,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       gap: 28px;
       align-items: stretch;
     }
-    .hero-copy { position: relative; z-index: 1; max-width: 760px; }
+    .hero-copy { position: relative; z-index: 1; max-width: 880px; }
     .hero-badge {
       display: inline-flex;
       align-items: center;
@@ -614,17 +614,17 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .hero-panel h1 {
       margin: 18px 0 0;
       font-family: "Zen Kaku Gothic New", "Inter", "Noto Sans JP", sans-serif;
-      font-size: clamp(30px, 4.4vw, 54px);
+      font-size: clamp(30px, 4vw, 50px);
       line-height: 1.34;
       letter-spacing: -.03em;
       font-weight: 900;
-      max-width: 13ch;
+      max-width: 16ch;
       text-wrap: balance;
     }
     .hero-emphasis { color: #bbf7d0; }
     .hero-panel p {
       margin: 22px 0 0;
-      max-width: 34ch;
+      max-width: 42ch;
       color: rgba(255,255,255,.9);
       line-height: 1.95;
       font-size: 18px;
@@ -1098,8 +1098,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .shell { padding: 20px 18px 18px; }
       .site-header-inner { padding: 12px 18px; }
       .hero-panel { padding: 48px 24px 36px; border-radius: 26px; }
-      .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); line-height: 1.28; max-width: 11ch; }
-      .hero-panel p { font-size: 16px; line-height: 1.85; max-width: 28ch; margin-top: 18px; }
+      .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); line-height: 1.24; max-width: 12ch; }
+      .hero-panel p { font-size: 16px; line-height: 1.85; max-width: 30ch; margin-top: 18px; }
       .hero-panel.has-media { grid-template-columns: 1fr; }
       .hero-media { grid-template-columns: 1fr; }
       .hero-panel.is-light .hero-media { margin-top: 20px; }
