@@ -103,6 +103,85 @@ export const OVERLAYS: OverlayDefinition[] = [
       "pt-BR": { label: "Aérea 1984 (mudança)", note: "Imagem aérea de 40 anos atrás — comparações antes/depois." },
     },
   },
+  // --- Global overlays surfaced by codex research (Apr 2026) ------------
+  // Each URL was cross-referenced against official docs (NASA GIBS API,
+  // Esri ArcGIS Living Atlas tile docs) and chosen for CORS-friendliness
+  // and relevance to biodiversity / landcover / conservation framing.
+  {
+    id: "esa_worldcover",
+    category: "landcover",
+    tiles:
+      "https://tiles.arcgis.com/tiles/F7DSX1DSNSiWmOqh/arcgis/rest/services/landcover_tilepackage/MapServer/tile/{z}/{y}/{x}",
+    attribution: "ESA WorldCover 10m via Esri Living Atlas",
+    maxzoom: 12,
+    defaultOpacity: 0.45,
+    labels: {
+      ja: { label: "世界土地被覆 10m（ESA）", note: "ESA が Sentinel-2 で分類した 10m 精度の土地被覆。森林・草地・農地・湿地・水域などを色分けで重ねる。" },
+      en: { label: "World Cover 10m (ESA)", note: "ESA Sentinel-2 10m land-cover classes: forest, grassland, cropland, wetland, water, etc." },
+      es: { label: "Cobertura mundial 10m (ESA)", note: "Clases de cobertura del suelo de ESA a 10 m: bosque, pastizal, cultivo, humedal, agua." },
+      "pt-BR": { label: "Cobertura mundial 10m (ESA)", note: "Classes de cobertura do solo da ESA a 10 m: floresta, pastagem, agricultura, wetland, água." },
+    },
+  },
+  {
+    id: "world_ecosystems",
+    category: "landcover",
+    tiles:
+      "https://tiles.arcgis.com/tiles/P3ePLMYs2RVChkJx/arcgis/rest/services/World_Ecosystems/MapServer/tile/{z}/{y}/{x}",
+    attribution: "USGS/Esri World Ecosystems",
+    maxzoom: 10,
+    defaultOpacity: 0.45,
+    labels: {
+      ja: { label: "世界生態系区分（USGS/Esri）", note: "気候・地形・植生の組み合わせで分類した生態系ユニット。同じ「平地温帯林」がどこに広がるかを俯瞰できる。" },
+      en: { label: "World Ecosystems (USGS/Esri)", note: "Ecosystem units combining climate, landform, and vegetation — see where similar systems extend." },
+      es: { label: "Ecosistemas del mundo", note: "Unidades ecosistémicas por clima, relieve y vegetación — visión global de sistemas similares." },
+      "pt-BR": { label: "Ecossistemas do mundo", note: "Unidades ecossistêmicas combinando clima, relevo e vegetação." },
+    },
+  },
+  {
+    id: "conservation_priority",
+    category: "conservation",
+    tiles:
+      "https://tiles.arcgis.com/tiles/IkktFdUAcY3WrH25/arcgis/rest/services/Percent_total_terrestrial_025/MapServer/tile/{z}/{y}/{x}",
+    attribution: "Global Safety Net — terrestrial conservation priority",
+    maxzoom: 9,
+    defaultOpacity: 0.3,
+    labels: {
+      ja: { label: "地球保全優先度（30×30 の下敷き）", note: "「あと 25% を保全するとしたらどこか」を示す世界メッシュ。30×30 議論や自然共生サイト選定の下敷きに。" },
+      en: { label: "Global conservation priority (25% target)", note: "Where to protect next — grid priorities underpinning 30×30 conversations." },
+      es: { label: "Prioridad de conservación global", note: "Cuadrícula global de prioridades de protección (objetivo 25%)." },
+      "pt-BR": { label: "Prioridade global de conservação", note: "Grade global de prioridades de proteção (meta 25%)." },
+    },
+  },
+  {
+    id: "nasa_impervious",
+    category: "landcover",
+    tiles:
+      "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Landsat_Global_Man-made_Impervious_Surface/default/GoogleMapsCompatible_Level12/{z}/{y}/{x}.png",
+    attribution: "NASA GIBS / Landsat Man-made Impervious Surface",
+    maxzoom: 12,
+    defaultOpacity: 0.5,
+    labels: {
+      ja: { label: "人工構造物（NASA GIBS）", note: "舗装・建築など人工の不浸透面。市民観察と重ねて「都市の裂け目に残る自然」を見つけやすくする。" },
+      en: { label: "Impervious surface (NASA)", note: "Built/paved surfaces — overlay to find the nature surviving in urban seams." },
+      es: { label: "Superficie impermeable (NASA)", note: "Superficies construidas/pavimentadas — naturaleza que sobrevive en costuras urbanas." },
+      "pt-BR": { label: "Superfície impermeável (NASA)", note: "Superfícies construídas/pavimentadas — natureza que resiste nas costuras urbanas." },
+    },
+  },
+  {
+    id: "nasa_canopy",
+    category: "landcover",
+    tiles:
+      "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GEDI_ISS_L3_Canopy_Height_Mean_RH100_201904-202303/default/2019-04-18/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png",
+    attribution: "NASA GEDI / Canopy Height (2019-2023)",
+    maxzoom: 7,
+    defaultOpacity: 0.45,
+    labels: {
+      ja: { label: "樹冠高（NASA GEDI）", note: "宇宙ステーション搭載 LiDAR で測った平均樹冠高。森の厚みを定量視化し、観察メッシュ・保全優先度と重ねる。" },
+      en: { label: "Canopy height (NASA GEDI)", note: "Mean canopy height from ISS LiDAR — stack on top of observations to see forest thickness." },
+      es: { label: "Altura del dosel (GEDI)", note: "Altura media del dosel medida con LiDAR desde la ISS." },
+      "pt-BR": { label: "Altura do dossel (GEDI)", note: "Altura média do dossel medida por LiDAR na ISS." },
+    },
+  },
 ];
 
 export type LocalizedOverlay = {
