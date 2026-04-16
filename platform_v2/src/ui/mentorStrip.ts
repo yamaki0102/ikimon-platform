@@ -93,6 +93,9 @@ export const MENTOR_STRIP_STYLES = `
     letter-spacing: -.01em;
     font-weight: 900;
     color: #0f172a;
+    /* balance distributes characters evenly across lines so Japanese
+       headings don't break one character before the period ("...ありま / す。"). */
+    text-wrap: balance;
   }
   .ms-lead { margin: 4px 0 0; color: #475569; font-size: 14px; line-height: 1.85; text-wrap: pretty; }
 `;
