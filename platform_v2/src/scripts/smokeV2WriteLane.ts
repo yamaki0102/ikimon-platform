@@ -1,6 +1,7 @@
 type SmokeOptions = {
   baseUrl: string;
   fixturePrefix: string;
+  privilegedWriteApiKey: string;
 };
 
 type SmokeResult = {
@@ -23,6 +24,7 @@ function parseArgs(argv: string[]): SmokeOptions {
   const options: SmokeOptions = {
     baseUrl: process.env.V2_BASE_URL ?? "http://127.0.0.1:3200",
     fixturePrefix: `smoke-${stamp}`,
+    privilegedWriteApiKey: process.env.V2_PRIVILEGED_WRITE_API_KEY ?? "",
   };
 
   for (const arg of argv) {
@@ -32,6 +34,11 @@ function parseArgs(argv: string[]): SmokeOptions {
     }
     if (arg.startsWith("--fixture-prefix=")) {
       options.fixturePrefix = arg.slice("--fixture-prefix=".length).trim() || options.fixturePrefix;
+      continue;
+    }
+    if (arg.startsWith("--privileged-write-api-key=")) {
+      options.privilegedWriteApiKey =
+        arg.slice("--privileged-write-api-key=".length).trim() || options.privilegedWriteApiKey;
     }
   }
 
@@ -76,6 +83,13 @@ async function getJson(url: string, headers?: HeadersInit): Promise<JsonResponse
     method: "GET",
     headers,
   });
+}
+
+function privilegedHeaders(options: SmokeOptions): HeadersInit | undefined {
+  if (!options.privilegedWriteApiKey) {
+    return undefined;
+  }
+  return { "x-ikimon-write-key": options.privilegedWriteApiKey };
 }
 
 function validateUserResponse(payload: unknown, expectedUserId: string): string | null {
@@ -242,6 +256,7 @@ async function main(): Promise<void> {
       url: `${baseUrl}/api/v1/users/upsert`,
       payload: userPayload,
       validate: (payload: unknown) => validateUserResponse(payload, userId),
+      headers: () => privilegedHeaders(options),
     },
     {
       name: "auth/session/issue",
@@ -251,6 +266,7 @@ async function main(): Promise<void> {
         ttlHours: 24,
       },
       validate: (payload: unknown) => validateSessionResponse(payload, userId),
+      headers: () => privilegedHeaders(options),
       afterSuccess: (response: JsonResponse) => {
         const rawCookie = response.headers.get("set-cookie") ?? "";
         sessionCookie = rawCookie.split(";")[0] ?? "";
@@ -275,6 +291,7 @@ async function main(): Promise<void> {
         userAgent: "smoke-v2-write-lane",
       },
       validate: validateRememberTokenResponse,
+      headers: () => privilegedHeaders(options),
     },
     {
       name: "observations/upsert",
@@ -320,6 +337,7 @@ async function main(): Promise<void> {
         token: rawToken,
       },
       validate: validateRememberTokenResponse,
+      headers: () => privilegedHeaders(options),
     },
   ];
 

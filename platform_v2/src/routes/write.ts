@@ -12,6 +12,29 @@ import { recordSpecialistReview, type SpecialistDecision, type SpecialistLane } 
 import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { upsertUser, type UserUpsertInput } from "../services/userWrite.js";
+import {
+  assertObservationOwnedByUser,
+  assertPrivilegedWriteAccess,
+  assertSessionUser,
+  assertSpecialistSession,
+} from "../services/writeGuards.js";
+
+function errorStatus(error: unknown, fallback = 400): number {
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+  if (error.message === "session_required" || error.message === "account_disabled") {
+    return 401;
+  }
+  if (
+    error.message.startsWith("forbidden") ||
+    error.message === "observation_not_owned" ||
+    error.message === "specialist_role_required"
+  ) {
+    return 403;
+  }
+  return fallback;
+}
 
 export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   app.post<{
@@ -21,6 +44,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     };
   }>("/api/v1/auth/session/issue", async (request, reply) => {
     try {
+      assertPrivilegedWriteAccess(request);
       const result = await issueSession({
         userId: request.body.userId,
         ttlHours: request.body.ttlHours,
@@ -35,7 +59,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         session: result.session,
       };
     } catch (error) {
-      reply.code(400);
+      reply.code(errorStatus(error, 400));
       return {
         ok: false,
         error: error instanceof Error ? error.message : "session_issue_failed",
@@ -82,9 +106,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
 
   app.post<{ Body: UserUpsertInput }>("/api/v1/users/upsert", async (request, reply) => {
     try {
+      assertPrivilegedWriteAccess(request);
       return await upsertUser(request.body);
     } catch (error) {
-      reply.code(400);
+      reply.code(errorStatus(error, 400));
       return {
         ok: false,
         error: error instanceof Error ? error.message : "user_upsert_failed",
@@ -94,6 +119,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
 
   app.post<{ Body: ObservationUpsertInput }>("/api/v1/observations/upsert", async (request, reply) => {
     try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      assertSessionUser(session, request.body.userId);
       const result = await upsertObservation(request.body);
       void recordUiKpiEvent({
         eventName: "task_completion",
@@ -111,7 +138,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       }).catch(() => undefined);
       return result;
     } catch (error) {
-      reply.code(400);
+      reply.code(errorStatus(error, 400));
       return {
         ok: false,
         error: error instanceof Error ? error.message : "observation_upsert_failed",
@@ -123,6 +150,11 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     "/api/v1/observations/:id/photos/upload",
     async (request, reply) => {
       try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          throw new Error("session_required");
+        }
+        await assertObservationOwnedByUser(request.params.id, session.userId);
         return await uploadObservationPhoto({
           observationId: request.params.id,
           filename: request.body.filename,
@@ -130,7 +162,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           base64Data: request.body.base64Data,
         });
       } catch (error) {
-        reply.code(400);
+        reply.code(errorStatus(error, 400));
         return {
           ok: false,
           error: error instanceof Error ? error.message : "observation_photo_upload_failed",
@@ -141,9 +173,11 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
 
   app.post<{ Body: TrackUpsertInput }>("/api/v1/tracks/upsert", async (request, reply) => {
     try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      assertSessionUser(session, request.body.userId);
       return await upsertTrack(request.body);
     } catch (error) {
-      reply.code(400);
+      reply.code(errorStatus(error, 400));
       return {
         ok: false,
         error: error instanceof Error ? error.message : "track_upsert_failed",
@@ -163,6 +197,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     };
   }>("/api/v1/specialist/occurrences/:id/review", async (request, reply) => {
     try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      assertSpecialistSession(session, request.body.actorUserId);
       return await recordSpecialistReview({
         occurrenceId: request.params.id,
         actorUserId: request.body.actorUserId,
@@ -173,7 +209,7 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         notes: request.body.notes ?? null,
       });
     } catch (error) {
-      reply.code(400);
+      reply.code(errorStatus(error, 400));
       return {
         ok: false,
         error: error instanceof Error ? error.message : "specialist_review_failed",
@@ -191,9 +227,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     };
   }>("/api/v1/auth/remember-tokens/issue", async (request, reply) => {
     try {
+      assertPrivilegedWriteAccess(request);
       return await issueRememberToken(request.body);
     } catch (error) {
-      reply.code(400);
+      reply.code(errorStatus(error, 400));
       return {
         ok: false,
         error: error instanceof Error ? error.message : "remember_token_issue_failed",
@@ -207,9 +244,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
     };
   }>("/api/v1/auth/remember-tokens/revoke", async (request, reply) => {
     try {
+      assertPrivilegedWriteAccess(request);
       return await revokeRememberToken(request.body.token);
     } catch (error) {
-      reply.code(400);
+      reply.code(errorStatus(error, 400));
       return {
         ok: false,
         error: error instanceof Error ? error.message : "remember_token_revoke_failed",

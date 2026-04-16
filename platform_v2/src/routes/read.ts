@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl } from "../i18n.js";
 import { getSessionFromCookie } from "../services/authSession.js";
+import { assertSpecialistSession } from "../services/writeGuards.js";
 import { resolveViewer } from "../services/viewerIdentity.js";
 import { getLandingSnapshot } from "../services/landingSnapshot.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
@@ -523,6 +524,25 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/specialist/id-workbench", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const session = await getSessionFromCookie(request.headers.cookie);
+    try {
+      assertSpecialistSession(session, session?.userId ?? "");
+    } catch {
+      reply.code(403).type("text/html; charset=utf-8");
+      return layout(
+        basePath,
+        "Specialist access required",
+        stateCard(
+          "Specialist only",
+          "この画面は専門家ロール専用です",
+          `<p style="margin:0 0 12px">レビュー queue と同定 workbench は、サインイン済みの専門家アカウントからのみ閲覧できます。</p>
+          <div class="actions" style="margin-top:16px">
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
+          </div>`,
+        ),
+        "ホーム",
+      );
+    }
     const requestedLane = typeof request.query === "object" && request.query && "lane" in request.query
       ? String((request.query as Record<string, unknown>).lane || "")
       : "";
@@ -626,6 +646,25 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/specialist/review-queue", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const session = await getSessionFromCookie(request.headers.cookie);
+    try {
+      assertSpecialistSession(session, session?.userId ?? "");
+    } catch {
+      reply.code(403).type("text/html; charset=utf-8");
+      return layout(
+        basePath,
+        "Specialist access required",
+        stateCard(
+          "Specialist only",
+          "この画面は専門家ロール専用です",
+          `<p style="margin:0 0 12px">レビュー queue は一般公開しません。</p>
+          <div class="actions" style="margin-top:16px">
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
+          </div>`,
+        ),
+        "ホーム",
+      );
+    }
     const snapshot = await getSpecialistSnapshot("review-queue");
     const rows = snapshot.queue.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">

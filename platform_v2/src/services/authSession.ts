@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { getPool } from "../db.js";
+import { loadConfig } from "../config.js";
 import { issueRememberToken, revokeRememberToken } from "./rememberTokenWrite.js";
 
 export const SESSION_COOKIE_NAME = "ikimon_v2_session";
@@ -14,7 +15,9 @@ export type SessionIssueInput = {
 export type SessionSnapshot = {
   userId: string;
   displayName: string;
+  roleName: string;
   rankLabel: string | null;
+  banned: boolean;
   expiresAt: string;
   tokenHash: string;
 };
@@ -41,12 +44,14 @@ function parseCookies(headerValue: string | undefined): Record<string, string> {
 }
 
 export function buildSessionCookie(rawToken: string, expiresAt: string): string {
+  const config = loadConfig();
   const expires = new Date(expiresAt).toUTCString();
-  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(rawToken)}; Path=/; HttpOnly; SameSite=Lax; Expires=${expires}`;
+  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(rawToken)}; Path=/; HttpOnly; SameSite=Lax;${config.nodeEnv === "production" ? " Secure;" : ""} Expires=${expires}`;
 }
 
 export function buildClearedSessionCookie(): string {
-  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  const config = loadConfig();
+  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax;${config.nodeEnv === "production" ? " Secure;" : ""} Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
 export function readSessionTokenFromCookie(headerValue: string | undefined): string | null {
@@ -92,7 +97,9 @@ export async function getSessionByRawToken(rawToken: string): Promise<SessionSna
   const result = await pool.query<{
     user_id: string;
     display_name: string;
+    role_name: string | null;
     rank_label: string | null;
+    banned: boolean | null;
     expires_at: string;
     token_hash: string;
   }>(
@@ -102,7 +109,7 @@ export async function getSessionByRawToken(rawToken: string): Promise<SessionSna
      where rt.user_id = u.user_id
        and rt.token_hash = encode(digest($1, 'sha256'), 'hex')
        and rt.expires_at > now()
-     returning rt.user_id, u.display_name, u.rank_label, rt.expires_at::text, rt.token_hash`,
+     returning rt.user_id, u.display_name, u.role_name, u.rank_label, u.banned, rt.expires_at::text, rt.token_hash`,
     [rawToken],
   );
 
@@ -114,7 +121,9 @@ export async function getSessionByRawToken(rawToken: string): Promise<SessionSna
   return {
     userId: row.user_id,
     displayName: row.display_name,
+    roleName: row.role_name ?? "Observer",
     rankLabel: row.rank_label,
+    banned: Boolean(row.banned),
     expiresAt: row.expires_at,
     tokenHash: row.token_hash,
   };
