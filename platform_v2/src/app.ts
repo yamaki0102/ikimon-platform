@@ -13,6 +13,7 @@ import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
 import type { LandingSnapshot } from "./services/readModels.js";
 import { COMMUNITY_METER_STYLES, renderCommunityMeter } from "./ui/communityMeter.js";
+import { DEMO_LOGIN_BANNER_STYLES, renderDemoLoginBanner } from "./ui/demoLoginBanner.js";
 import { FIELD_NOTE_MAIN_STYLES, renderFieldNoteMain } from "./ui/fieldNoteMain.js";
 import { MAP_MINI_STYLES, mapMiniBootScript, renderMapMini, toMapPoints } from "./ui/mapMini.js";
 import { MENTOR_STRIP_STYLES, renderMentorStrip } from "./ui/mentorStrip.js";
@@ -257,6 +258,7 @@ function buildLandingRootHtml(
   lang: SiteLang,
   currentPath: string,
   snapshot: LandingSnapshot,
+  isDemoView: boolean,
 ): string {
   const copy = landingCopy(lang);
   const isLoggedIn = Boolean(snapshot.viewerUserId);
@@ -341,6 +343,7 @@ function buildLandingRootHtml(
     REVISIT_FLOW_STYLES,
     COMMUNITY_METER_STYLES,
     MENTOR_STRIP_STYLES,
+    DEMO_LOGIN_BANNER_STYLES,
     `
   .quick-nav-inner { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: none; }
   .tool-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-top: 16px; max-width: none; }
@@ -416,7 +419,7 @@ function buildLandingRootHtml(
       actions: heroActionsFinal,
       afterActionsHtml: heroAfterActionsHtml,
     },
-    belowHeroHtml: renderQuickNav(options.basePath, lang),
+    belowHeroHtml: `${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}${renderQuickNav(options.basePath, lang)}`,
     extraStyles,
     body: `${renderTodayHabit(options.basePath, lang, snapshot)}
 ${renderRevisitFlow(options.basePath, lang, snapshot)}
@@ -651,7 +654,7 @@ export function buildApp() {
       context.basePath = getForwardedBasePath(request.headers as Record<string, unknown>);
       const lang = detectLangFromUrl(requestUrl(request));
       const session = await getSessionFromCookie(request.headers.cookie);
-      const { viewerUserId } = resolveViewer(request.query, session);
+      const { viewerUserId, queryOverrideHonored } = resolveViewer(request.query, session);
       const snapshot = await getLandingSnapshot(viewerUserId);
       reply.type("text/html; charset=utf-8");
       return buildLandingRootHtml(
@@ -659,6 +662,7 @@ export function buildApp() {
         lang,
         requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
         snapshot,
+        queryOverrideHonored,
       );
     }
 
