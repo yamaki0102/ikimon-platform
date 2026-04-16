@@ -61,27 +61,27 @@ async function main(): Promise<void> {
       {
         name: "record",
         url: `${options.baseUrl.replace(/\/+$/, "")}/record?userId=${encodeURIComponent(userId)}`,
-        marker: "Record minimal shell",
+        marker: "Quick capture",
       },
       {
         name: "explore",
         url: `${options.baseUrl.replace(/\/+$/, "")}/explore`,
-        marker: "Explore minimal shell",
+        marker: "近くで見つかっているもの",
       },
       {
         name: "home",
         url: `${options.baseUrl.replace(/\/+$/, "")}/home?userId=${encodeURIComponent(userId)}`,
-        marker: "Minimum home shell for cutover",
+        marker: "My places",
       },
       {
         name: "observation detail",
         url: `${options.baseUrl.replace(/\/+$/, "")}/observations/${encodeURIComponent(occurrenceId)}`,
-        marker: "Observation detail",
+        marker: "Identifications",
       },
       {
         name: "profile",
         url: `${options.baseUrl.replace(/\/+$/, "")}/profile/${encodeURIComponent(userId)}`,
-        marker: "Profile / My places",
+        marker: "最近の My places",
       },
     ];
 

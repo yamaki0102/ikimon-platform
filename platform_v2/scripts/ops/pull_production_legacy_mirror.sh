@@ -6,7 +6,7 @@ PRODUCTION_SSH_PORT="${PRODUCTION_SSH_PORT:-8022}"
 PRODUCTION_SSH_USER="${PRODUCTION_SSH_USER:-r1522484}"
 PRODUCTION_SSH_KEY="${PRODUCTION_SSH_KEY:-/root/.ssh/onamae_backup}"
 PRODUCTION_LEGACY_DATA_ROOT="${PRODUCTION_LEGACY_DATA_ROOT:-/home/r1522484/public_html/ikimon.life/data}"
-PRODUCTION_UPLOADS_ROOT="${PRODUCTION_UPLOADS_ROOT:-/home/r1522484/public_html/ikimon.life/persistent/uploads}"
+PRODUCTION_UPLOADS_ROOT="${PRODUCTION_UPLOADS_ROOT:-/home/r1522484/public_html/ikimon.life/public_html/uploads}"
 PRODUCTION_PUBLIC_ROOT="${PRODUCTION_PUBLIC_ROOT:-/home/r1522484/public_html/ikimon.life/public_html}"
 PRODUCTION_MIRROR_ROOT="${PRODUCTION_MIRROR_ROOT:-/var/www/ikimon.life-staging/mirrors/production_legacy}"
 

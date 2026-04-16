@@ -283,10 +283,15 @@ async function main() {
   });
 
   if (changedFiles.length === 0) {
+    await upsertCursor(options.sourceName, Math.max(previousCursor, latestMtimeMs), {
+      changedFiles: 0,
+      latestMtimeMs,
+      reason: "no_changed_files",
+    });
     await finishRun(migrationRunId, "skipped", {
       rowsSeen,
       rowsSkipped: rowsSeen,
-      cursorValue: String(previousCursor),
+      cursorValue: String(Math.max(previousCursor, latestMtimeMs)),
       details: {
         reason: "no_changed_files",
       },

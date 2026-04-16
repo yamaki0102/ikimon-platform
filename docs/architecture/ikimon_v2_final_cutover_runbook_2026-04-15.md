@@ -155,9 +155,11 @@ pm2 env ikimon-v2-staging-api | grep -E "DATABASE_URL|APP_BASE_PATH|NODE_ENV"
 - 本番 nginx は 3201 に向ける
 - **リスク**: 作業量増 + staging で検証できないパス
 
-当 runbook の既存スクリプトは **D-1 前提** で書かれている (switch_public_nginx_to_v2.sh は :3200 固定)。
+cutover scripts は `PUBLIC_RUNTIME_PORT` で切替先 port を指定できる。
+- D-1: `PUBLIC_RUNTIME_PORT=3200`
+- D-2: `PUBLIC_RUNTIME_PORT=3201`
 
-**ユーザーが D-1 / D-2 のどちらを選ぶか確定するまで Step F に進まない**。
+**ユーザーが D-1 / D-2 のどちらを選ぶか確定し、対応する `PUBLIC_RUNTIME_PORT` を決めるまで Step F に進まない**。
 
 ---
 
@@ -177,11 +179,11 @@ npm run smoke:v2-read-lane
 npm run smoke:v2-write-lane
 
 # 3. Readiness
-curl -s http://127.0.0.1:3200/ops/readiness | jq .status
+PUBLIC_RUNTIME_PORT=3201 curl -s http://127.0.0.1:3201/ops/readiness | jq .status
 # expect: "near_ready" or "ready"
 
 # 4. Dry-run flip
-bash scripts/ops/switch_public_nginx_to_v2.sh --dry-run --label=prelive-dryrun-$(date +%Y%m%d%H%M)
+PUBLIC_RUNTIME_PORT=3201 bash scripts/ops/switch_public_nginx_to_v2.sh --dry-run --label=prelive-dryrun-$(date +%Y%m%d%H%M)
 # expect: "dry-run ok"
 
 # 5. Rollback rehearsal from the latest dry-run snapshot
@@ -210,10 +212,10 @@ curl -sfS https://ikimon.life/index.php | grep -q ikimon && echo "PHP live OK"
 # VPS, as root
 cd /var/www/ikimon.life-staging/repo/platform_v2/scripts/ops
 LABEL="live-cutover-$(date +%Y%m%d%H%M)"
-bash switch_public_nginx_to_v2.sh --label="$LABEL"
+PUBLIC_RUNTIME_PORT=3201 bash switch_public_nginx_to_v2.sh --label="$LABEL"
 # 想定出力:
 #   mode: archive-active
-#   public runtime target: v2 (127.0.0.1:3200)
+#   public runtime target: v2 (127.0.0.1:3201)
 #   legacy php role: rollback/archive artifact only
 #   /var/www/ikimon.life-staging/cutover-snapshots/<LABEL>
 
