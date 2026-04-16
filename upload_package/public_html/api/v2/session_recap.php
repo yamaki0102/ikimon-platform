@@ -65,13 +65,43 @@ $lng = floatval($input['lng'] ?? 0);
 $scanMode = $input['scan_mode'] ?? 'walk';
 $hour = isset($input['hour']) ? intval($input['hour']) : intval(date('G'));
 $weather = $input['weather'] ?? null;
+$inputSessionId = $input['session_id'] ?? null;
 
+// ContributionLedger からセッション集計を取得（検出0件でも価値を返すため早めに取得）
+$ledgerResult = null;
+if ($inputSessionId) {
+    try {
+        require_once ROOT_DIR . '/libs/ContributionLedger.php';
+        $ledgerResult = ContributionLedger::getSessionContribution($inputSessionId);
+    } catch (Throwable $e) {
+        error_log('[session_recap] Ledger lookup error: ' . $e->getMessage());
+    }
+}
+
+// 検出0件でも価値ある応答（不在データとして記録済み）
 if (empty($species)) {
+    $zeroNarrative = 'フィールドに出た記録がデータになっています。';
+    if ($ledgerResult) {
+        $h = $ledgerResult['summary']['headline'] ?? [];
+        $mins = $h['active_minutes'] ?? 0;
+        $dist = round(($h['distance_m'] ?? 0) / 1000, 1);
+        $pts = $h['data_points'] ?? 0;
+        $wins = $h['guaranteed_wins'] ?? 0;
+        $zeroNarrative = "{$mins}分・{$dist}kmの散歩で {$pts} データ点が蓄積された。検出種ゼロも「ここにいなかった」という不在データとして記録されています。";
+        if ($wins >= 2) {
+            $zeroNarrative .= " 今回で {$wins} 種類の記録が前進しました。";
+        }
+    }
+    $zeroContrib = $ledgerResult['summary']['contribution_impact'] ?? [];
+    if (empty($zeroContrib)) {
+        $zeroContrib = [['icon' => '🚶', 'text' => '歩いた記録そのものが地域データの土台になった']];
+    }
     api_success([
-        'narrative' => 'お疲れさまでした！今回は検出がありませんでしたが、フィールドに出ることが大切です。',
+        'narrative'     => $zeroNarrative,
         'species_cards' => [],
-        'contribution' => [],
+        'contribution'  => $zeroContrib,
         'rank_progress' => null,
+        'ledger'        => $ledgerResult ? ($ledgerResult['summary'] ?? null) : null,
     ]);
 }
 
@@ -330,14 +360,14 @@ try {
 }
 
 $recapResponse = [
-    'narrative' => $narrative,
+    'narrative'     => $narrative,
     'species_cards' => $speciesCards,
-    'contribution' => $contribution,
+    'contribution'  => $contribution,
     'rank_progress' => $rankProgress,
+    'ledger'        => $ledgerResult ? ($ledgerResult['summary'] ?? null) : null,
     'ai_disclaimer' => true,
 ];
 
-$inputSessionId = $input['session_id'] ?? null;
 if ($inputSessionId) {
     try {
         DataStore::save("session_recaps/{$inputSessionId}", [
