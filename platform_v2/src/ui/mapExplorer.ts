@@ -26,6 +26,14 @@ export type MapExplorerCopy = {
   taxonFilterLabel: string;
   yearFilterLabel: string;
   yearAll: string;
+  seasonFilterLabel: string;
+  seasonAll: string;
+  seasonSpring: string;
+  seasonSummer: string;
+  seasonAutumn: string;
+  seasonWinter: string;
+  regionFilterLabel: string;
+  regionPresets: Array<{ key: string; label: string; bounds: [number, number, number, number] }>;
   basemapLabel: string;
   basemapStandard: string;
   basemapSatelliteGsi: string;
@@ -52,6 +60,24 @@ export type MapExplorerCopy = {
   taxonChips: TaxonGroupChip[];
 };
 
+// Bounding boxes for 1-tap region jumps. Kept identical across locales
+// (they're geographic bboxes, not translations).
+const REGION_BBOXES: Array<{ key: string; bounds: [number, number, number, number] }> = [
+  { key: "japan",      bounds: [122.9, 24.0, 146.0, 45.6] },
+  { key: "shizuoka",   bounds: [138.21, 34.90, 138.55, 35.17] },
+  { key: "shizuoka_pref", bounds: [137.47, 34.57, 139.16, 35.65] },
+  { key: "tokyo",      bounds: [139.58, 35.55, 139.92, 35.82] },
+  { key: "nagoya",     bounds: [136.80, 35.00, 137.05, 35.24] },
+  { key: "osaka",      bounds: [135.35, 34.55, 135.65, 34.78] },
+  { key: "kyoto",      bounds: [135.65, 34.92, 135.90, 35.10] },
+  { key: "fukuoka",    bounds: [130.30, 33.48, 130.55, 33.68] },
+  { key: "sapporo",    bounds: [141.25, 42.94, 141.50, 43.15] },
+];
+
+function regionPresets(labels: Record<string, string>): Array<{ key: string; label: string; bounds: [number, number, number, number] }> {
+  return REGION_BBOXES.map((r) => ({ ...r, label: labels[r.key] ?? r.key }));
+}
+
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
     tabMarkers: "観察ピン",
@@ -61,6 +87,24 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     taxonFilterLabel: "分類",
     yearFilterLabel: "年",
     yearAll: "すべての年",
+    seasonFilterLabel: "季節",
+    seasonAll: "通年",
+    seasonSpring: "春",
+    seasonSummer: "夏",
+    seasonAutumn: "秋",
+    seasonWinter: "冬",
+    regionFilterLabel: "地域",
+    regionPresets: regionPresets({
+      japan: "日本全体",
+      shizuoka: "静岡市",
+      shizuoka_pref: "静岡県",
+      tokyo: "東京",
+      nagoya: "名古屋",
+      osaka: "大阪",
+      kyoto: "京都",
+      fukuoka: "福岡",
+      sapporo: "札幌",
+    }),
     basemapLabel: "ベース",
     basemapStandard: "標準",
     basemapSatelliteGsi: "空撮（地理院）",
@@ -103,6 +147,24 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     taxonFilterLabel: "Group",
     yearFilterLabel: "Year",
     yearAll: "All years",
+    seasonFilterLabel: "Season",
+    seasonAll: "Year-round",
+    seasonSpring: "Spring",
+    seasonSummer: "Summer",
+    seasonAutumn: "Autumn",
+    seasonWinter: "Winter",
+    regionFilterLabel: "Region",
+    regionPresets: regionPresets({
+      japan: "Japan",
+      shizuoka: "Shizuoka City",
+      shizuoka_pref: "Shizuoka Pref.",
+      tokyo: "Tokyo",
+      nagoya: "Nagoya",
+      osaka: "Osaka",
+      kyoto: "Kyoto",
+      fukuoka: "Fukuoka",
+      sapporo: "Sapporo",
+    }),
     basemapLabel: "Base",
     basemapStandard: "Standard",
     basemapSatelliteGsi: "Aerial (GSI)",
@@ -145,6 +207,24 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Año",
     yearAll: "Todos los años",
+    seasonFilterLabel: "Estación",
+    seasonAll: "Todo el año",
+    seasonSpring: "Primavera",
+    seasonSummer: "Verano",
+    seasonAutumn: "Otoño",
+    seasonWinter: "Invierno",
+    regionFilterLabel: "Región",
+    regionPresets: regionPresets({
+      japan: "Japón",
+      shizuoka: "Ciudad de Shizuoka",
+      shizuoka_pref: "Pref. Shizuoka",
+      tokyo: "Tokio",
+      nagoya: "Nagoya",
+      osaka: "Osaka",
+      kyoto: "Kioto",
+      fukuoka: "Fukuoka",
+      sapporo: "Sapporo",
+    }),
     basemapLabel: "Base",
     basemapStandard: "Estándar",
     basemapSatelliteGsi: "Aérea (GSI)",
@@ -187,6 +267,24 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Ano",
     yearAll: "Todos os anos",
+    seasonFilterLabel: "Estação",
+    seasonAll: "O ano todo",
+    seasonSpring: "Primavera",
+    seasonSummer: "Verão",
+    seasonAutumn: "Outono",
+    seasonWinter: "Inverno",
+    regionFilterLabel: "Região",
+    regionPresets: regionPresets({
+      japan: "Japão",
+      shizuoka: "Cidade de Shizuoka",
+      shizuoka_pref: "Pref. Shizuoka",
+      tokyo: "Tóquio",
+      nagoya: "Nagoya",
+      osaka: "Osaka",
+      kyoto: "Kyoto",
+      fukuoka: "Fukuoka",
+      sapporo: "Sapporo",
+    }),
     basemapLabel: "Base",
     basemapStandard: "Padrão",
     basemapSatelliteGsi: "Aérea (GSI)",
@@ -252,6 +350,33 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     )
     .join("");
 
+  const seasonOptions = [
+    { value: "", label: copy.seasonAll, icon: "✨" },
+    { value: "spring", label: copy.seasonSpring, icon: "🌸" },
+    { value: "summer", label: copy.seasonSummer, icon: "☀️" },
+    { value: "autumn", label: copy.seasonAutumn, icon: "🍁" },
+    { value: "winter", label: copy.seasonWinter, icon: "❄️" },
+  ];
+  const seasonChipsHtml = seasonOptions
+    .map(
+      (s, idx) => `<button
+        type="button"
+        class="me-chip me-season-chip${idx === 0 ? " is-active" : ""}"
+        data-season="${escapeHtml(s.value)}"
+        aria-pressed="${idx === 0 ? "true" : "false"}">
+        <span class="me-chip-icon" aria-hidden="true">${escapeHtml(s.icon)}</span>
+        <span>${escapeHtml(s.label)}</span>
+      </button>`,
+    )
+    .join("");
+
+  const regionChipsHtml = copy.regionPresets
+    .map((r) => `<button
+      type="button"
+      class="me-chip me-region-chip"
+      data-bounds="${escapeHtml(r.bounds.join(","))}">${escapeHtml(r.label)}</button>`)
+    .join("");
+
   const yearOptionsHtml = [`<option value="">${escapeHtml(copy.yearAll)}</option>`]
     .concat(props.years.map((y) => `<option value="${y}">${y}</option>`))
     .join("");
@@ -296,6 +421,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.taxonFilterLabel)}">${taxonChipsHtml}</div>
       </div>
       <div class="me-filter-group">
+        <span class="me-filter-label">${escapeHtml(copy.seasonFilterLabel)}</span>
+        <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.seasonFilterLabel)}">${seasonChipsHtml}</div>
+      </div>
+      <div class="me-filter-group">
         <label class="me-filter-label" for="me-year">${escapeHtml(copy.yearFilterLabel)}</label>
         <select id="me-year" class="me-year-select">${yearOptionsHtml}</select>
       </div>
@@ -303,6 +432,11 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <span class="me-filter-label">${escapeHtml(copy.basemapLabel)}</span>
         <div class="me-basemap-row" role="group" aria-label="${escapeHtml(copy.basemapLabel)}">${basemapRadiosHtml}</div>
       </div>
+    </div>
+
+    <div class="me-region-bar" role="group" aria-label="${escapeHtml(copy.regionFilterLabel)}">
+      <span class="me-filter-label">${escapeHtml(copy.regionFilterLabel)}</span>
+      <div class="me-region-row">${regionChipsHtml}</div>
     </div>
 
     <div class="me-main">
@@ -413,12 +547,33 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     tab: 'markers',
     taxonGroup: '',
     year: '',
+    season: '',
     basemap: 'standard',
     map: null,
-    features: [],
+    rawFeatures: [],   // unfiltered
+    features: [],      // season-filtered
     coverage: null,
     lastAbort: null,
   };
+
+  // Month ranges per season. Using 3/6/9/12 as the season boundaries
+  // keeps the UX simple even if meteorologists prefer finer splits.
+  var SEASON_MONTHS = {
+    spring: [3, 4, 5],
+    summer: [6, 7, 8],
+    autumn: [9, 10, 11],
+    winter: [12, 1, 2],
+  };
+  function filterBySeason(features, season) {
+    if (!season || !SEASON_MONTHS[season]) return features.slice();
+    var months = SEASON_MONTHS[season];
+    return features.filter(function (f) {
+      var ts = f.properties && f.properties.observedAt;
+      if (!ts) return false;
+      var m = new Date(ts).getMonth() + 1;
+      return months.indexOf(m) !== -1;
+    });
+  }
 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
   function showLegend(lowLabel, highLabel, gradient) {
@@ -704,15 +859,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     fetch(apiObservations + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.json(); })
       .then(function (coll) {
-        state.features = (coll && coll.features) || [];
+        state.rawFeatures = (coll && coll.features) || [];
+        state.features = filterBySeason(state.rawFeatures, state.season);
         ensureObservationSource(state.map, state.features);
         renderSideLists(state.features);
         applyTab(state.map, state.tab);
+        var totalAll = (coll && coll.stats && coll.stats.totalAll) || state.rawFeatures.length;
         if (state.features.length === 0) {
           setStatus(COPY.empty);
         } else {
-          var s = coll.stats || { totalReturned: state.features.length, totalAll: state.features.length };
-          setStatus(fmtStatsLabel(s.totalReturned, s.totalAll));
+          setStatus(fmtStatsLabel(state.features.length, totalAll));
         }
         // Fit bounds on first load only.
         if (state.features.length > 0 && !state._fittedOnce) {
@@ -728,6 +884,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (err && err.name === 'AbortError') return;
         setStatus('—');
       });
+  }
+
+  function applySeasonLocal() {
+    state.features = filterBySeason(state.rawFeatures, state.season);
+    if (!state.map) return;
+    ensureObservationSource(state.map, state.features);
+    renderSideLists(state.features);
+    applyTab(state.map, state.tab);
+    if (state.features.length === 0) setStatus(COPY.empty);
+    else setStatus(fmtStatsLabel(state.features.length, state.rawFeatures.length));
   }
 
   function switchBasemap(key) {
@@ -814,6 +980,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       switchBasemap(v);
     });
   });
+  document.querySelectorAll('.me-season-chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var v = btn.getAttribute('data-season') || '';
+      state.season = v;
+      document.querySelectorAll('.me-season-chip').forEach(function (b) {
+        b.classList.toggle('is-active', b === btn);
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
+      applySeasonLocal();
+    });
+  });
+  document.querySelectorAll('.me-region-chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!state.map) return;
+      var bs = (btn.getAttribute('data-bounds') || '').split(',').map(Number);
+      if (bs.length !== 4 || bs.some(function (n) { return !isFinite(n); })) return;
+      state.map.fitBounds([[bs[0], bs[1]], [bs[2], bs[3]]], { padding: 36, maxZoom: 12, duration: 450 });
+      document.querySelectorAll('.me-region-chip').forEach(function (b) {
+        b.classList.toggle('is-active', b === btn);
+      });
+    });
+  });
 })();
 </script>`;
 }
@@ -853,6 +1041,17 @@ export const MAP_EXPLORER_STYLES = `
   .me-basemap-opt input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .me-basemap-opt span { display: inline-block; padding: 6px 10px; border-radius: 9px; font-weight: 700; font-size: 12px; color: #475569; transition: background .15s ease, color .15s ease; }
   .me-basemap-opt.is-active span { background: #fff; color: #0f172a; box-shadow: 0 3px 8px rgba(15,23,42,.08); }
+
+  .me-region-bar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    padding: 10px 14px; border-radius: 16px;
+    background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.05);
+    overflow-x: auto;
+  }
+  .me-region-row { display: flex; gap: 6px; flex-wrap: nowrap; }
+  .me-region-chip { white-space: nowrap; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; font-weight: 700; font-size: 12px; color: #334155; cursor: pointer; }
+  .me-region-chip:hover { border-color: rgba(14,165,233,.4); }
+  .me-region-chip.is-active { background: linear-gradient(135deg, rgba(14,165,233,.18), rgba(16,185,129,.14)); border-color: rgba(14,165,233,.45); color: #075985; }
 
   .me-main { display: grid; gap: 16px; grid-template-columns: 1fr; }
   @media (min-width: 960px) { .me-main { grid-template-columns: minmax(0, 1fr) 280px; } }
