@@ -908,14 +908,12 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .hero .muted, .hero .meta, .hero p { color: rgba(255,255,255,.88); }
     .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); opacity: .9; }
     .section { margin-top: 24px; }
-    .section-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; }
+    .section-header { display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; align-items: flex-start; }
     .section-header h2 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
     .section-header p { margin: 8px 0 0; color: var(--muted); }
-    .grid, .actions { display: flex; flex-wrap: wrap; gap: 14px; }
-    .grid { margin-top: 12px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 12px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 14px; }
     .card {
-      flex: 1 1 260px;
-      min-width: 240px;
       padding: 22px;
       border-radius: 28px;
       background: var(--surface);

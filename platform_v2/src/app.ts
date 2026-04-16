@@ -334,8 +334,7 @@ function buildLandingRootHtml(
     FIELD_NOTE_MAIN_STYLES,
     QUICK_NAV_STYLES,
     `
-  .tool-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-top: 16px; }
-  @media (max-width: 720px) { .tool-card-grid { grid-template-columns: 1fr; } }
+  .tool-card-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; max-width: 760px; }
   .landing-hero-stat { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
   .landing-hero-stat::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.18); }
     `,

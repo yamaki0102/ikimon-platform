@@ -486,9 +486,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         ],
       },
       `${OBSERVATION_CARD_STYLES}
-        .home-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
-        @media (max-width: 860px) { .home-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-        @media (max-width: 480px) { .home-grid { grid-template-columns: 1fr; } }
+        .home-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
       `,
     );
   });
@@ -914,12 +912,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
       extraStyles: `${OBSERVATION_CARD_STYLES}
         .notes-page { margin-top: 24px; }
-        .notes-head { display: flex; gap: 16px; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; }
+        .notes-head { display: flex; flex-direction: column; gap: 8px; justify-content: flex-start; align-items: flex-start; margin-bottom: 16px; }
         .notes-head h2 { margin: 0; }
-        .notes-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
-        .notes-grid.is-compact { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
-        @media (max-width: 860px) { .notes-grid, .notes-grid.is-compact { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-        @media (max-width: 480px) { .notes-grid, .notes-grid.is-compact { grid-template-columns: 1fr; } }
+        .notes-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+        .notes-grid.is-compact { grid-template-columns: 1fr; gap: 12px; }
       `,
       hero: {
         eyebrow: lang === "ja" ? "あなたの 1 冊" : "Your notebook",

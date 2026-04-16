@@ -83,8 +83,9 @@ export const QUICK_NAV_STYLES = `
   .quick-nav { margin-top: 22px; }
   .quick-nav-inner {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 12px;
+    max-width: 760px;
   }
   .quick-nav-chip {
     display: flex;
@@ -120,10 +121,4 @@ export const QUICK_NAV_STYLES = `
   }
   .quick-nav-chip.is-primary .quick-nav-chip-icon { background: rgba(255,255,255,.7); }
   .quick-nav-chip-label { letter-spacing: -.01em; line-height: 1.35; }
-  @media (max-width: 980px) {
-    .quick-nav-inner { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  }
-  @media (max-width: 640px) {
-    .quick-nav-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
 `;
