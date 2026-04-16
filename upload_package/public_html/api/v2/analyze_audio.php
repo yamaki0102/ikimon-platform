@@ -110,20 +110,21 @@ $curlError = curl_error($ch);
 curl_close($ch);
 
 // --- Handle response ---
+// BirdNET 未起動または接続エラーは graceful degradation（空検出として返す）
 if ($curlError) {
-    error_log("[analyze_audio] cURL error: {$curlError}");
-    api_error('AI service temporarily unavailable', 503);
+    error_log("[analyze_audio] cURL error (BirdNET down?): {$curlError}");
+    api_success(['detections' => [], 'service_status' => 'unavailable']);
 }
 
 if ($httpCode !== 200) {
     error_log("[analyze_audio] BirdNET returned HTTP {$httpCode}: " . substr($response, 0, 500));
-    api_error('AI service error', 502);
+    api_success(['detections' => [], 'service_status' => 'error', 'http_code' => $httpCode]);
 }
 
 $result = json_decode($response, true);
 if (!$result || !isset($result['detections'])) {
     error_log("[analyze_audio] Invalid BirdNET response: " . substr($response, 0, 500));
-    api_error('Invalid AI response', 502);
+    api_success(['detections' => [], 'service_status' => 'invalid_response']);
 }
 
 // --- Enrich detections with Japanese names ---
