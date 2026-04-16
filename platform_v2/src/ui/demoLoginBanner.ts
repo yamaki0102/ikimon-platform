@@ -11,10 +11,10 @@ type DemoLoginCopy = {
 
 const copyByLang: Record<SiteLang, DemoLoginCopy> = {
   ja: {
-    eyebrowStaging: "staging 限定 · 本番では表示されません",
-    enterLabel: "demo ユーザーで表示する",
+    eyebrowStaging: "staging 限定 · 本番では出ない",
+    enterLabel: "demo で見る",
     exitLabel: "demo を終える",
-    activeLabel: "demo ユーザーで表示中",
+    activeLabel: "demo で表示中",
   },
   en: {
     eyebrowStaging: "staging only — hidden in production",
