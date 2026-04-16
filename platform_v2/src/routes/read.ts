@@ -103,33 +103,71 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return layout(
       basePath,
       "ikimon v2 record",
-      `<section class="grid" style="margin-top:20px">
-        <div class="card">
-          <div class="card-body">
-            <div class="eyebrow">Quick capture</div>
-            <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" class="stack" style="margin-top:14px">
-              <label class="stack"><span style="font-weight:700">観察した日時</span><input id="observedAt" name="observedAt" type="datetime-local" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-              <label class="stack"><span style="font-weight:700">緯度</span><input name="latitude" type="number" step="0.000001" value="34.7108" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-              <label class="stack"><span style="font-weight:700">経度</span><input name="longitude" type="number" step="0.000001" value="137.7261" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-              <label class="stack"><span style="font-weight:700">市区町村</span><input name="municipality" type="text" placeholder="例: 浜松市" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">場所のメモ</span><input name="localityNote" type="text" placeholder="例: 公園の入口付近" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">学名 (分かれば)</span><input name="scientificName" type="text" placeholder="例: Passer montanus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">和名 / 通称 (分かれば)</span><input name="vernacularName" type="text" placeholder="例: スズメ" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">分類の段階</span><input name="rank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">写真</span><input name="photo" type="file" accept="image/*" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <button class="btn btn-solid" type="submit">観察を記録する</button>
-            </form>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-body">
-            <div class="eyebrow">サインイン中</div>
-            <div class="title">${escapeHtml(viewerUserId)}</div>
-            <div class="meta">サインインしたセッションで記録を送信します。</div>
-            <div id="record-status" class="list" style="margin-top:16px">
-              <div class="row"><div>入力が完了したら送信してください。</div></div>
+      `<section class="record-page">
+        <div class="record-shell">
+          <section class="record-card record-sheet">
+            <div class="record-card-head">
+              <div>
+                <div class="eyebrow">Quick capture</div>
+                <h2>観察を 1 ページとして残す</h2>
+                <p class="meta">場所・時刻・名前の仮説を最小入力で残し、あとからノートで育てる前提の入力画面です。</p>
+              </div>
+              <div class="record-session-pill">
+                <span class="record-session-label">Signed in</span>
+                <strong>${escapeHtml(viewerUserId)}</strong>
+              </div>
             </div>
-          </div>
+            <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" class="record-form">
+              <label class="record-field record-field-wide"><span class="record-label">観察した日時</span><input id="observedAt" name="observedAt" type="datetime-local" required /></label>
+              <label class="record-field"><span class="record-label">緯度</span><input name="latitude" type="number" step="0.000001" value="34.7108" required /></label>
+              <label class="record-field"><span class="record-label">経度</span><input name="longitude" type="number" step="0.000001" value="137.7261" required /></label>
+              <label class="record-field"><span class="record-label">市区町村</span><input name="municipality" type="text" placeholder="例: 浜松市" /></label>
+              <label class="record-field record-field-wide"><span class="record-label">場所のメモ</span><input name="localityNote" type="text" placeholder="例: 公園の入口付近 / 水辺の柵のそば" /></label>
+              <label class="record-field"><span class="record-label">学名 (分かれば)</span><input name="scientificName" type="text" placeholder="例: Passer montanus" /></label>
+              <label class="record-field"><span class="record-label">和名 / 通称</span><input name="vernacularName" type="text" placeholder="例: スズメ" /></label>
+              <label class="record-field"><span class="record-label">分類の段階</span><input name="rank" type="text" value="species" /></label>
+              <label class="record-field record-field-wide record-photo-field"><span class="record-label">写真</span><input id="record-photo" name="photo" type="file" accept="image/*" /><span class="record-help">AIレンズの候補づくりにも使われます。未添付でも保存できます。</span></label>
+              <div class="record-actions">
+                <button class="btn btn-solid" type="submit">観察を記録する</button>
+                <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes"))}">ノートへ戻る</a>
+              </div>
+            </form>
+          </section>
+          <aside class="record-sidebar">
+            <section class="record-card record-preview-card">
+              <div class="eyebrow">Notebook preview</div>
+              <h2>この記録が残る形</h2>
+              <div class="record-preview">
+                <div class="record-preview-topline">
+                  <span class="record-preview-kicker">field note</span>
+                  <span id="record-preview-date">今日</span>
+                </div>
+                <h3 id="record-preview-title">名前未確定の観察</h3>
+                <p id="record-preview-place">場所メモが入ると、あとから再訪理由として効きます。</p>
+                <div class="record-preview-meta">
+                  <span id="record-preview-municipality">自治体未入力</span>
+                  <span id="record-preview-coords">34.7108, 137.7261</span>
+                </div>
+                <div id="record-preview-photo" class="record-preview-photo is-empty">写真プレビュー</div>
+              </div>
+            </section>
+            <section class="record-card record-guide-card">
+              <div class="eyebrow">Why this matters</div>
+              <h2>この 1 件が効く理由</h2>
+              <div class="list">
+                <div class="row"><div><strong>再訪理由が残る</strong><div class="meta">場所メモと日時が、次に同じ道を歩く理由になる。</div></div></div>
+                <div class="row"><div><strong>AI の候補が育つ</strong><div class="meta">写真と名前の仮説が、あとで見分け方の補助になる。</div></div></div>
+                <div class="row"><div><strong>ノートとして読み返せる</strong><div class="meta">単発投稿ではなく、前回との差分が見える履歴になる。</div></div></div>
+              </div>
+            </section>
+            <section class="record-card">
+              <div class="eyebrow">Status</div>
+              <h2>送信ステータス</h2>
+              <div id="record-status" class="list" style="margin-top:16px">
+                <div class="row"><div>入力が完了したら送信してください。</div></div>
+              </div>
+            </section>
+          </aside>
         </div>
       </section>
       <script>
@@ -138,11 +176,51 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const form = document.getElementById('record-form');
         const status = document.getElementById('record-status');
         const observedAt = document.getElementById('observedAt');
+        const previewDate = document.getElementById('record-preview-date');
+        const previewTitle = document.getElementById('record-preview-title');
+        const previewPlace = document.getElementById('record-preview-place');
+        const previewMunicipality = document.getElementById('record-preview-municipality');
+        const previewCoords = document.getElementById('record-preview-coords');
+        const previewPhoto = document.getElementById('record-preview-photo');
+        const photoInput = document.getElementById('record-photo');
         if (observedAt && !observedAt.value) {
           const now = new Date();
           observedAt.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
         }
         const setStatus = (html) => { status.innerHTML = html; };
+        const syncPreview = () => {
+          const data = new FormData(form);
+          const scientificName = String(data.get('scientificName') || '').trim();
+          const vernacularName = String(data.get('vernacularName') || '').trim();
+          const localityNote = String(data.get('localityNote') || '').trim();
+          const municipality = String(data.get('municipality') || '').trim();
+          const latitude = String(data.get('latitude') || '').trim();
+          const longitude = String(data.get('longitude') || '').trim();
+          const observedAtValue = String(data.get('observedAt') || '').trim();
+          previewTitle.textContent = vernacularName || scientificName || '名前未確定の観察';
+          previewPlace.textContent = localityNote || '場所メモが入ると、あとから再訪理由として効きます。';
+          previewMunicipality.textContent = municipality || '自治体未入力';
+          previewCoords.textContent = latitude && longitude ? latitude + ', ' + longitude : '座標未入力';
+          previewDate.textContent = observedAtValue ? new Date(observedAtValue).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' }) : '今日';
+        };
+        form.addEventListener('input', syncPreview);
+        if (photoInput && previewPhoto) {
+          photoInput.addEventListener('change', () => {
+            const file = photoInput.files && photoInput.files[0];
+            if (!file) {
+              previewPhoto.className = 'record-preview-photo is-empty';
+              previewPhoto.innerHTML = '写真プレビュー';
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+              previewPhoto.className = 'record-preview-photo';
+              previewPhoto.innerHTML = '<img src="' + String(reader.result || '') + '" alt="preview" />';
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+        syncPreview();
         form.addEventListener('submit', async (event) => {
           event.preventDefault();
           const data = new FormData(form);
@@ -224,6 +302,58 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           { href: "/explore", label: "みつける", variant: "secondary" as const },
         ],
       },
+      `
+        .record-page { margin-top: 24px; }
+        .record-shell { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .85fr); gap: 18px; align-items: start; }
+        .record-card { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 16px 36px rgba(15,23,42,.06); padding: 24px; }
+        .record-sheet { position: relative; overflow: hidden; }
+        .record-sheet::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0, transparent 34px, rgba(14,165,233,.05) 35px, transparent 36px); pointer-events: none; }
+        .record-sheet::after { content: ""; position: absolute; inset: 0 auto 0 20px; width: 2px; background: linear-gradient(180deg, rgba(239,68,68,.28), rgba(239,68,68,.14)); pointer-events: none; }
+        .record-sheet > * { position: relative; z-index: 1; }
+        .record-card-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 18px; padding-left: 16px; }
+        .record-card-head h2 { margin: 10px 0 0; font-size: clamp(24px, 2.8vw, 34px); line-height: 1.26; letter-spacing: -.02em; }
+        .record-session-pill { display: inline-flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: 18px; background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); min-width: 180px; }
+        .record-session-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
+        .record-session-pill strong { font-size: 14px; color: #0f172a; word-break: break-all; }
+        .record-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-left: 16px; }
+        .record-field { display: flex; flex-direction: column; gap: 8px; }
+        .record-field-wide { grid-column: 1 / -1; }
+        .record-label { font-weight: 800; color: #0f172a; font-size: 14px; }
+        .record-help { font-size: 12px; line-height: 1.6; color: #64748b; }
+        .record-photo-field input[type="file"] { padding: 14px; border-style: dashed; }
+        .record-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px; }
+        .record-sidebar { display: grid; gap: 18px; }
+        .record-preview-card h2, .record-guide-card h2 { margin: 10px 0 0; font-size: 22px; line-height: 1.3; }
+        .record-preview {
+          margin-top: 16px;
+          padding: 20px 20px 18px 24px;
+          border-radius: 24px;
+          background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+          border: 1px solid rgba(15,23,42,.06);
+          position: relative;
+          overflow: hidden;
+        }
+        .record-preview::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0, transparent 30px, rgba(14,165,233,.06) 31px, transparent 32px); pointer-events: none; }
+        .record-preview::after { content: ""; position: absolute; inset: 0 auto 0 16px; width: 2px; background: linear-gradient(180deg, rgba(239,68,68,.24), rgba(239,68,68,.12)); pointer-events: none; }
+        .record-preview > * { position: relative; z-index: 1; }
+        .record-preview-topline { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: #64748b; font-weight: 800; }
+        .record-preview-kicker { color: #059669; }
+        .record-preview h3 { margin: 14px 0 10px; font-size: 24px; line-height: 1.3; letter-spacing: -.02em; }
+        .record-preview p { margin: 0; color: #475569; line-height: 1.8; }
+        .record-preview-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 14px; color: #334155; font-size: 13px; font-weight: 700; }
+        .record-preview-photo { margin-top: 16px; min-height: 160px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(14,165,233,.12)); border: 1px solid rgba(14,165,233,.12); display: grid; place-items: center; color: #0f172a; font-weight: 800; }
+        .record-preview-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .record-preview-photo.is-empty { color: #475569; font-size: 13px; }
+        @media (max-width: 980px) {
+          .record-shell { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 720px) {
+          .record-card { padding: 20px; border-radius: 24px; }
+          .record-form { grid-template-columns: 1fr; padding-left: 0; }
+          .record-card-head { padding-left: 0; }
+          .record-sheet::after, .record-preview::after { display: none; }
+        }
+      `,
     );
   });
 
@@ -547,6 +677,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       ? String((request.query as Record<string, unknown>).lane || "")
       : "";
     const lane = requestedLane === "public-claim" || requestedLane === "expert-lane" ? requestedLane : "default";
+    const reviewerUserId = session?.userId ?? "";
     const snapshot = await getSpecialistSnapshot(lane);
     const laneTitle =
       lane === "public-claim"
@@ -572,7 +703,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <div class="eyebrow">Action</div>
           <h2>Minimal specialist action</h2>
           <form id="specialist-review-form" class="stack" style="margin-top:14px">
-            <label class="stack"><span style="font-weight:700">Actor userId</span><input name="actorUserId" type="text" placeholder="reviewer-user-id" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <input name="actorUserId" type="hidden" value="${escapeHtml(reviewerUserId)}" />
+            <div class="row"><div><strong>Signed in reviewer</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "specialist")}</span></div>
             <label class="stack"><span style="font-weight:700">Occurrence ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
             <label class="stack"><span style="font-weight:700">Proposed name</span><input name="proposedName" type="text" placeholder="Scientific or common name" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
             <label class="stack"><span style="font-weight:700">Proposed rank</span><input name="proposedRank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
@@ -666,6 +798,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       );
     }
     const snapshot = await getSpecialistSnapshot("review-queue");
+    const reviewerUserId = session?.userId ?? "";
     const rows = snapshot.queue.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">
         <div>
@@ -684,7 +817,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <div class="eyebrow">Action</div>
           <h2>Minimal review action</h2>
           <form id="review-queue-form" class="stack" style="margin-top:14px">
-            <label class="stack"><span style="font-weight:700">Actor userId</span><input name="actorUserId" type="text" placeholder="reviewer-user-id" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <input name="actorUserId" type="hidden" value="${escapeHtml(reviewerUserId)}" />
+            <div class="row"><div><strong>Signed in reviewer</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "specialist")}</span></div>
             <label class="stack"><span style="font-weight:700">Occurrence ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
             <label class="stack"><span style="font-weight:700">Note</span><textarea name="notes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8"></textarea></label>
             <div class="actions">

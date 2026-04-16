@@ -345,6 +345,12 @@ function buildLandingRootHtml(
     ? `<div class="landing-hero-stat">${escapeHtml(statLine)}</div>`
     : "";
 
+  const heroAfterActionsHtml = `<div class="hero-chip-row">
+    <span class="hero-chip">${escapeHtml(lang === "ja" ? "主役はフィールドノート" : lang === "es" ? "El cuaderno es el centro" : lang === "pt-BR" ? "O caderno e o centro" : "Field Note first")}</span>
+    <span class="hero-chip">${escapeHtml(lang === "ja" ? "AIレンズは入口" : lang === "es" ? "La IA abre la puerta" : lang === "pt-BR" ? "A IA abre a porta" : "AI Lens opens the door")}</span>
+    <span class="hero-chip">${escapeHtml(lang === "ja" ? "地図で再訪理由が育つ" : lang === "es" ? "El mapa crea motivos para volver" : lang === "pt-BR" ? "O mapa cria motivos para voltar" : "Map grows revisit reasons")}</span>
+  </div>`;
+
   const heroActionsFinal = isLoggedIn
     ? [
         { href: "/notes", label: copy.actionPrimaryLoggedIn },
@@ -370,7 +376,7 @@ function buildLandingRootHtml(
       align: "center",
       supplementHtml: heroSupplementHtml,
       actions: heroActionsFinal,
-      afterActionsHtml: "",
+      afterActionsHtml: heroAfterActionsHtml,
     },
     belowHeroHtml: renderQuickNav(options.basePath, lang),
     extraStyles,
