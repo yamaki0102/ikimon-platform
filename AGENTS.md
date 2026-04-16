@@ -6,7 +6,8 @@ Citizen-science biodiversity platform. Japanese UI, PHP backend, Alpine.js front
 > **（管理元: `antigravity/.agent/global/AGENTS.global.md`）**
 
 > **知識OS / Canonical / Evidence Tier / コンポーネントマップ:**
-> → まず `docs/KNOWLEDGE_OS_OVERVIEW.md` を読む（30分で全体把握できる）
+> → `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` → `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` → `docs/KNOWLEDGE_OS_OVERVIEW.md` の順で読む
+> → overview 更新要否は `powershell -ExecutionPolicy Bypass -File .\scripts\check_knowledge_os_overview_sync.ps1` で確認する
 
 ## Tech Stack
 

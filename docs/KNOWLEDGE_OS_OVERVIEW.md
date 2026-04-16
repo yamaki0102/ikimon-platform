@@ -1,9 +1,11 @@
 # ikimon.life — 知識OS 統一概要
 
-更新日: 2026-04-15  
+更新日: 2026-04-16  
 対象: Claude / Codex / antigravity など、すべてのエージェント
 
-> **このファイルを30分読めば、どのエージェントでも知識OSの全体像を把握し、どの層からでも作業を始められる。**
+> **このファイルは入口であり、単独の最終正本ではない。**
+> 現在地の確認は `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md`、
+> 正本索引は `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` を必ず併読すること。
 
 ---
 
@@ -19,7 +21,7 @@
 |---|---|---|
 | **A. 現行改装** | PHP v1 プロダクトの UX 刷新。Place Intelligence OS へ向かう | `docs/strategy/ikimon_renovation_master_plan_2026-04-11.md` |
 | **B. Canonical 化** | JSON → SQLite (`ikimon.db`) への段階的移行。証拠の信頼度管理 | `docs/architecture/ADR-001-canonical-source-of-truth.md` |
-| **C. v2 全面切替** | Next.js + Fastify + PostgreSQL の新スタック。parallel rebuild | `docs/architecture/ikimon_v2_zero_base_cutover_master_plan_2026-04-11.md` |
+| **C. v2 全面切替** | Fastify + PostgreSQL の parallel rebuild。cutover / rollback / readiness を含む | `docs/architecture/ikimon_v2_zero_base_cutover_master_plan_2026-04-11.md` |
 
 **重要**: タスクに入る前に「これはどのLayerか?」を確認する。混同すると判断を誤る。
 
@@ -75,9 +77,15 @@ Tier 4   → 論文・標本等の外部エビデンス紐付き
 | `ConsensusEngine` | `upload_package/libs/ConsensusEngine.php` | 同定合意形成 | ✅ 実装済み |
 | `DataStageManager` | `upload_package/libs/DataStageManager.php` | ステージ昇格管理 | ✅ 実装済み |
 | `CanonicalSync` | `upload_package/libs/CanonicalSync.php` | JSON→DB同期 | ✅ 実装済み |
-| `EmbeddingService` | `upload_package/libs/EmbeddingService.php` | Gemini Embedding 2 | 🔧 開発中 |
-| `OmoikaneDB` | `upload_package/libs/OmoikaneDB.php` | 種名セマンティック検索 | 🔧 開発中 |
+| `EmbeddingService` | `upload_package/libs/EmbeddingService.php` | Gemini Embedding 2 / 埋め込み生成 | 🔧 開発中 |
+| `OmoikaneDB` | `upload_package/libs/OmoikaneDB.php` | 種名・知識検索の SQLite 層 | ✅ 実装済み |
 | `AsyncJobMetrics` | `upload_package/libs/AsyncJobMetrics.php` | バックグラウンドジョブ監視 | ✅ 実装済み |
+| `SurveyRecommender` | `upload_package/libs/SurveyRecommender.php` | 調査推薦 | ✅ 実装済み |
+
+**注意**:
+- この表は「存在する / 入口として重要」なコンポーネントに絞っている
+- 実装済みでも、本番正本になっているとは限らない
+- `OmoikaneDB` は存在し、複数箇所から参照されている
 
 ---
 
@@ -126,15 +134,22 @@ platform_v2/src/
 │   ├── marketing.ts         トップページ・LP
 │   ├── write.ts             観察投稿 API
 │   ├── read.ts              観察取得 API
-│   └── health.ts            ヘルスチェック
+│   ├── health.ts            ヘルスチェック
+│   ├── ops.ts               /ops/readiness
+│   └── uiKpi.ts             UI KPI events
 ├── services/
-│   ├── auth.ts              認証
-│   └── specialistReview.ts  専門家レビュー
+│   ├── authSession.ts       cookie session
+│   ├── specialistReview.ts  専門家レビュー
+│   ├── readiness.ts         cutover gate 集約
+│   └── writeGuards.ts       write / specialist 権限制御
 └── scripts/                 移行スクリプト (import*/verify*)
 ```
 
-**v1 (PHP) ↔ v2 (TS) の契約**: dual-write 戦略。v1が正本の間はv2は読み取り専用。  
-切替タイミング: `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md` を参照。
+**現状の理解**:
+- v2 は `read-only` ではない。staging lane では minimal write lane / photo upload / session lane まで実測済み
+- ただし **本番正本はまだ legacy 側**。cutover までは rollback / compatibility を前提に扱う
+- 切替判断は `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md` と
+  `docs/architecture/ikimon_v2_final_cutover_runbook_2026-04-15.md` を参照する
 
 ---
 
@@ -145,9 +160,13 @@ platform_v2/src/
 | 言語 | PHP 8.2 | TypeScript (Node.js) |
 | Web | Vanilla PHP | Fastify |
 | DB | JSON files + SQLite | PostgreSQL + PostGIS |
-| Frontend | Alpine.js + Tailwind CDN | (TBD) |
+| Frontend | Alpine.js + Tailwind CDN | Fastify rendered HTML + small inline JS |
 | AI | Gemini Flash Lite / Embedding 2 | 同左 |
 | Hosting | Xserver VPS (162.43.44.131) | 同左 |
+
+**補足**:
+- `Next.js` は cutover 構想文書には現れるが、現 repo の v2 実装は Fastify 中心で進んでいる
+- 「構想」と「現実装」を混同しないこと
 
 ---
 
@@ -160,6 +179,14 @@ platform_v2/src/
 2. 既存コンポーネントを使えるか? (上の表を確認)
 3. JSON書込 vs DB書込 どちらが正本か? (現状: JSON が本番正本)
 4. v1のみ / v2のみ / dual-write か?
+```
+
+### いま追加で確認すべきこと
+
+```
+5. これは public surface / ops readiness / specialist / deploy のどれか?
+6. staging 実測が必要か? それとも doc 更新だけでよいか?
+7. security gate（session / specialist role / privileged write API key）に触る変更か?
 ```
 
 ### 禁止事項（再掲）
@@ -183,12 +210,19 @@ platform_v2/src/routes/                  v2 APIルート
 
 ## 9. 参照ドキュメント優先順（ikimon タスク）
 
-1. **このファイル** (`docs/KNOWLEDGE_OS_OVERVIEW.md`) — 全体像
+1. `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` — 文書の正本索引
 2. `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` — 現在地と計画
-3. `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` — 文書の正本索引
-4. `docs/architecture/ADR-001-canonical-source-of-truth.md` — Canonical設計
-5. `docs/architecture/adr-005-evidence-tier.md` — Evidence Tier仕様
-6. `docs/STAGING_RUNBOOK.md` / `docs/DEPLOYMENT.md` — デプロイ手順
+3. **このファイル** (`docs/KNOWLEDGE_OS_OVERVIEW.md`) — 用語と層の入口整理
+4. `docs/KNOWLEDGE_OS_BRIDGE_2026-04-14.md` — `.codex/knowledge` と repo docs の橋渡し
+5. `docs/architecture/ADR-001-canonical-source-of-truth.md` — Canonical設計
+6. `docs/architecture/adr-005-evidence-tier.md` — Evidence Tier仕様
+7. `docs/STAGING_RUNBOOK.md` / `docs/DEPLOYMENT.md` — 実行手順
+
+### v2 / cutover を触る場合の追加順
+
+1. `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md`
+2. `docs/architecture/ikimon_v2_final_cutover_runbook_2026-04-15.md`
+3. `docs/architecture/ikimon_v2_zero_base_cutover_master_plan_2026-04-11.md`
 
 ---
 
@@ -204,4 +238,36 @@ platform_v2/src/routes/                  v2 APIルート
 | 戦略変更 | `docs/IKIMON_MASTER_STATUS_AND_PLAN_*.md` を更新 |
 | エージェント固有メモ | Claude: `~/.claude/projects/.../memory/`、Codex: `~/.codex/knowledge/` |
 
-**このファイル自体も更新してよい。** 日付と変更箇所のコメントを先頭に追加する。
+### overview 保守プロトコル
+
+`docs/KNOWLEDGE_OS_OVERVIEW.md` は「入口」なので、次のどれかが変わったら review 対象とみなす。
+
+- `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md`
+- `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md`
+- `docs/KNOWLEDGE_OS_BRIDGE_2026-04-14.md`
+- `docs/STAGING_RUNBOOK.md`
+- `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md`
+- `docs/architecture/ikimon_v2_final_cutover_runbook_2026-04-15.md`
+- `platform_v2/src/routes/` と `platform_v2/src/services/` の主要構成
+
+更新フローは固定する。
+
+1. 上の監視対象に変更が入ったら `powershell -ExecutionPolicy Bypass -File .\scripts\check_knowledge_os_overview_sync.ps1` を実行する
+2. fail したら overview を更新し、`更新日` と関連節を直す
+3. doc-only 変更でも、overview が入口として誤誘導しないかを確認する
+
+**このファイル自体も更新してよい。** ただし更新時は `更新日` と影響節を必ず揃える。
+
+---
+
+## 11. 現時点の注意点（2026-04-16）
+
+- staging の正式 URL は `https://staging.ikimon.life/`
+- staging の `/` は v2、`/legacy/` は PHP rollback lane
+- v2 には `/ops/readiness` があり、cutover gate は `near_ready / needs_work` で確認する
+- v2 write lane には security gate が入っている
+  - 一般 write: cookie session の本人のみ
+  - specialist: session + specialist role
+  - 特権 API (`session issue / user upsert / remember-token issue/revoke`): `V2_PRIVILEGED_WRITE_API_KEY` 必須
+
+この4点を知らずに v2 を触ると、実装・運用・検証のどこかで判断を誤る。
