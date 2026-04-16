@@ -1,5 +1,6 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
+import { overlaysForLang, type LocalizedOverlay } from "../services/layerCatalog.js";
 import { escapeHtml } from "./siteShell.js";
 
 /**
@@ -328,8 +329,21 @@ export type MapExplorerProps = {
   years: number[];
 };
 
+function overlayPanelLabels(lang: SiteLang): {
+  heading: string;
+  intro: string;
+  opacityLabel: string;
+} {
+  if (lang === "en") return { heading: "Layers", intro: "Toggle to stack on top of the basemap.", opacityLabel: "Opacity" };
+  if (lang === "es") return { heading: "Capas", intro: "Actívalas para apilar sobre el mapa base.", opacityLabel: "Opacidad" };
+  if (lang === "pt-BR") return { heading: "Camadas", intro: "Ative para empilhar sobre o mapa base.", opacityLabel: "Opacidade" };
+  return { heading: "レイヤー", intro: "ベース地図の上に重ねて、行政 GIS × 市民観察 の視点を組み合わせる。", opacityLabel: "濃度" };
+}
+
 export function renderMapExplorer(props: MapExplorerProps): string {
   const copy = MAP_EXPLORER_COPY[props.lang];
+  const overlays: LocalizedOverlay[] = overlaysForLang(props.lang);
+  const overlayLabels = overlayPanelLabels(props.lang);
   const recordHref = appendLangToHref(withBasePath(props.basePath, "/record"), props.lang);
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
@@ -438,6 +452,54 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       <span class="me-filter-label">${escapeHtml(copy.regionFilterLabel)}</span>
       <div class="me-region-row">${regionChipsHtml}</div>
     </div>
+
+    <details class="me-overlay-panel" open>
+      <summary class="me-overlay-summary">
+        <span class="me-overlay-heading">${escapeHtml(overlayLabels.heading)}</span>
+        <span class="me-overlay-intro">${escapeHtml(overlayLabels.intro)}</span>
+      </summary>
+      <div class="me-overlay-list" data-overlay-catalog='${escapeHtml(
+        JSON.stringify(overlays.map((o) => ({
+          id: o.id,
+          tiles: o.tiles,
+          tileSize: o.tileSize,
+          attribution: o.attribution,
+          minzoom: o.minzoom,
+          maxzoom: o.maxzoom,
+          defaultOpacity: o.defaultOpacity,
+        })))
+      )}'>
+        ${overlays
+          .map(
+            (o) => `<label class="me-overlay-item" data-overlay-id="${escapeHtml(o.id)}">
+              <div class="me-overlay-row">
+                <input type="checkbox" class="me-overlay-toggle" />
+                <span class="me-overlay-label">${escapeHtml(o.label)}</span>
+                <span class="me-overlay-category me-overlay-cat-${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
+              </div>
+              ${o.note ? `<p class="me-overlay-note">${escapeHtml(o.note)}</p>` : ""}
+              ${o.legendGradient ? `<div class="me-overlay-legend">
+                <span class="me-overlay-legend-low">${escapeHtml(o.legendLow ?? "")}</span>
+                <span class="me-overlay-legend-gradient" style="background:${escapeHtml(o.legendGradient)}"></span>
+                <span class="me-overlay-legend-high">${escapeHtml(o.legendHigh ?? "")}</span>
+              </div>` : ""}
+              <div class="me-overlay-opacity">
+                <span class="me-overlay-opacity-label">${escapeHtml(overlayLabels.opacityLabel)}</span>
+                <input
+                  type="range"
+                  class="me-overlay-opacity-range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value="${o.defaultOpacity.toString()}"
+                  aria-label="${escapeHtml(overlayLabels.opacityLabel)}: ${escapeHtml(o.label)}"
+                />
+              </div>
+            </label>`,
+          )
+          .join("")}
+      </div>
+    </details>
 
     <div class="me-main">
       <div class="me-map-wrap">
@@ -1002,6 +1064,95 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
     });
   });
+
+  // ---- Overlay registry wire-up ------------------------------------------
+  // Reads the JSON catalog baked into data-overlay-catalog, then adds /
+  // removes raster sources + layers on toggle, and updates raster-opacity
+  // on slider change. Kept client-side so the server doesn't need to know
+  // which overlays are currently visible.
+  var overlayCatalog = [];
+  try {
+    var catalogEl = document.querySelector('.me-overlay-list');
+    if (catalogEl) overlayCatalog = JSON.parse(catalogEl.getAttribute('data-overlay-catalog') || '[]');
+  } catch (_) { overlayCatalog = []; }
+  var overlayState = {};
+  overlayCatalog.forEach(function (o) { overlayState[o.id] = { enabled: false, opacity: o.defaultOpacity }; });
+
+  function overlaySourceId(id) { return 'overlay-src-' + id; }
+  function overlayLayerId(id) { return 'overlay-layer-' + id; }
+
+  function addOverlay(map, def) {
+    if (!map || map.getSource(overlaySourceId(def.id))) return;
+    try {
+      map.addSource(overlaySourceId(def.id), {
+        type: 'raster',
+        tiles: [def.tiles],
+        tileSize: def.tileSize || 256,
+        attribution: def.attribution,
+        minzoom: def.minzoom || 0,
+        maxzoom: def.maxzoom || 22,
+      });
+      // Insert below the observation layers so pins stay on top.
+      var firstObsLayer = null;
+      if (map.getLayer('clusters')) firstObsLayer = 'clusters';
+      else if (map.getLayer('unclustered-point')) firstObsLayer = 'unclustered-point';
+      else if (map.getLayer('obs-heat')) firstObsLayer = 'obs-heat';
+      map.addLayer({
+        id: overlayLayerId(def.id),
+        type: 'raster',
+        source: overlaySourceId(def.id),
+        paint: { 'raster-opacity': overlayState[def.id].opacity },
+      }, firstObsLayer || undefined);
+    } catch (err) {
+      // Tile provider unreachable / CORS fail — swallow so one broken
+      // overlay doesn't kill the others.
+      console.warn('overlay add failed', def.id, err);
+    }
+  }
+  function removeOverlay(map, id) {
+    if (!map) return;
+    if (map.getLayer(overlayLayerId(id))) map.removeLayer(overlayLayerId(id));
+    if (map.getSource(overlaySourceId(id))) map.removeSource(overlaySourceId(id));
+  }
+  function setOverlayOpacity(map, id, opacity) {
+    if (!map || !map.getLayer(overlayLayerId(id))) return;
+    map.setPaintProperty(overlayLayerId(id), 'raster-opacity', opacity);
+  }
+  function reapplyOverlays(map) {
+    // Called after basemap swap so overlays survive a setStyle.
+    overlayCatalog.forEach(function (def) {
+      if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(map, def);
+    });
+  }
+  // Patch switchBasemap to also re-add overlays after style reloads.
+  var originalSwitchBasemap = switchBasemap;
+  switchBasemap = function (key) {
+    originalSwitchBasemap(key);
+    if (state.map) state.map.once('style.load', function () { reapplyOverlays(state.map); });
+  };
+
+  document.querySelectorAll('.me-overlay-item').forEach(function (label) {
+    var id = label.getAttribute('data-overlay-id');
+    var toggle = label.querySelector('.me-overlay-toggle');
+    var range = label.querySelector('.me-overlay-opacity-range');
+    if (!id || !toggle || !range) return;
+    var def = overlayCatalog.find(function (o) { return o.id === id; });
+    if (!def) return;
+
+    toggle.addEventListener('change', function () {
+      overlayState[id].enabled = !!toggle.checked;
+      label.classList.toggle('is-on', !!toggle.checked);
+      if (!state.map) return;
+      if (toggle.checked) addOverlay(state.map, def);
+      else removeOverlay(state.map, id);
+    });
+    range.addEventListener('input', function () {
+      var op = Number(range.value);
+      if (!isFinite(op)) return;
+      overlayState[id].opacity = op;
+      if (state.map) setOverlayOpacity(state.map, id, op);
+    });
+  });
 })();
 </script>`;
 }
@@ -1052,6 +1203,57 @@ export const MAP_EXPLORER_STYLES = `
   .me-region-chip { white-space: nowrap; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; font-weight: 700; font-size: 12px; color: #334155; cursor: pointer; }
   .me-region-chip:hover { border-color: rgba(14,165,233,.4); }
   .me-region-chip.is-active { background: linear-gradient(135deg, rgba(14,165,233,.18), rgba(16,185,129,.14)); border-color: rgba(14,165,233,.45); color: #075985; }
+
+  .me-overlay-panel {
+    margin-bottom: 14px;
+    padding: 0;
+    border-radius: 16px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid rgba(15,23,42,.06);
+    overflow: hidden;
+  }
+  .me-overlay-summary {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 12px 18px; cursor: pointer; user-select: none;
+    background: linear-gradient(90deg, rgba(99,102,241,.05), rgba(16,185,129,.05));
+  }
+  .me-overlay-summary::-webkit-details-marker { display: none; }
+  .me-overlay-summary::after { content: "⌄"; position: absolute; right: 20px; font-weight: 800; color: #475569; transition: transform .2s ease; }
+  .me-overlay-panel[open] .me-overlay-summary::after { transform: rotate(180deg); }
+  .me-overlay-summary { position: relative; }
+  .me-overlay-heading { font-weight: 900; font-size: 14px; color: #0f172a; letter-spacing: -.01em; }
+  .me-overlay-intro { font-size: 12px; color: #475569; line-height: 1.5; }
+
+  .me-overlay-list {
+    display: grid; gap: 10px; padding: 14px 16px 16px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 760px) { .me-overlay-list { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 1100px) { .me-overlay-list { grid-template-columns: 1fr 1fr 1fr 1fr; } }
+  .me-overlay-item {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 10px 12px; border-radius: 12px;
+    background: #fff; border: 1px solid rgba(15,23,42,.06);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .me-overlay-item.is-on { border-color: rgba(99,102,241,.45); box-shadow: 0 6px 14px rgba(99,102,241,.08); }
+  .me-overlay-row { display: flex; align-items: center; gap: 8px; }
+  .me-overlay-toggle { width: 16px; height: 16px; accent-color: #6366f1; flex-shrink: 0; }
+  .me-overlay-label { flex: 1 1 auto; font-weight: 800; font-size: 13px; color: #0f172a; letter-spacing: -.01em; }
+  .me-overlay-category {
+    font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .me-overlay-cat-terrain { background: rgba(245,158,11,.12); color: #92400e; }
+  .me-overlay-cat-landcover { background: rgba(16,185,129,.14); color: #065f46; }
+  .me-overlay-cat-conservation { background: rgba(99,102,241,.12); color: #3730a3; }
+  .me-overlay-note { margin: 0; font-size: 11px; line-height: 1.55; color: #64748b; }
+  .me-overlay-legend { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #64748b; }
+  .me-overlay-legend-gradient { flex: 1; height: 6px; border-radius: 3px; }
+  .me-overlay-opacity { display: flex; align-items: center; gap: 8px; opacity: .55; transition: opacity .15s ease; }
+  .me-overlay-item.is-on .me-overlay-opacity { opacity: 1; }
+  .me-overlay-opacity-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; }
+  .me-overlay-opacity-range { flex: 1; }
 
   .me-main { display: grid; gap: 16px; grid-template-columns: 1fr; }
   @media (min-width: 960px) { .me-main { grid-template-columns: minmax(0, 1fr) 280px; } }
