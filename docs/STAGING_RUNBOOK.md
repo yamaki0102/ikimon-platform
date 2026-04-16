@@ -20,15 +20,17 @@ ikimon.life の改装は **staging 先行** に切り替える。
 ### Staging
 
 - app root: `/var/www/ikimon.life-staging`
-- internal app: `127.0.0.1:8081`
-- public access: `https://staging.162-43-44-131.sslip.io/`
+- internal PHP lane: `127.0.0.1:8081`
+- internal v2 lane: `127.0.0.1:3200`
+- formal public access: `https://staging.ikimon.life/`
+- fallback review URL: `https://staging.162-43-44-131.sslip.io/`
 - protection: `noindex + basic auth`
-- local resolution: `sslip.io` により hosts 編集不要
+- local resolution: formal staging は DNS 運用、`sslip.io` は fallback
 
 基本アクセス:
 
 ```text
-https://staging.162-43-44-131.sslip.io/
+https://staging.ikimon.life/
 ```
 
 認証情報は `_archive/staging_access/staging_access_latest.txt` に保存する。
@@ -80,18 +82,19 @@ powershell -ExecutionPolicy Bypass -File .\scripts\provision_staging_from_produc
 手動:
 
 ```powershell
-ssh ikimon-vps "STAGING_BRANCH=main /var/www/ikimon.life-staging/deploy.sh"
+ssh ikimon-vps "STAGING_BRANCH=staging /var/www/ikimon.life-staging/deploy.sh"
 ```
 
 または GitHub Actions:
 
 - workflow: `Deploy to Staging`
-- branch input: 対象ブランチ
+- branch input: 既定は `staging`。review 用に別ブランチを出したいときだけ上書きする
 
 ## Guardrails
 
 - production data は repo 変更フローに混ぜない
-- staging は `8081` で listen するが、`noindex + basic auth` に留める
+- staging public root は `platform_v2`、PHP lane は `/legacy/` に固定する
+- staging は `8081` / `3200` で内部 listen するが、公開面は `noindex + basic auth` に留める
 - uploads は repo 配下でなく `persistent/uploads` に置く
 - 本番 deploy 前に staging で UI / data / health check を通す
 
@@ -105,7 +108,7 @@ ssh ikimon-vps "STAGING_BRANCH=main /var/www/ikimon.life-staging/deploy.sh"
 
 ## Debugging reminders
 
-- `https://staging.ikimon.life/v2/` は PHP lane ではなく `platform_v2` の配信。`/v2` のリンク不具合を直すときに `upload_package/config/config.php` を触っても効かない。
-- `https://staging.ikimon.life/` 配下は PHP lane (`127.0.0.1:8081`)、`https://staging.ikimon.life/v2/` 配下は Node/Fastify lane (`127.0.0.1:3200`) と切り分けてから原因調査する。
+- `https://staging.ikimon.life/` 配下は `platform_v2` (`127.0.0.1:3200`) が primary。`https://staging.ikimon.life/legacy/` 配下が PHP lane (`127.0.0.1:8081`)。
+- `/v2/` は旧構成の名残。現行 staging では root が v2 なので、`/v2` 前提で原因を追うと見当違いになりやすい。
 - `E:\Projects\03_ikimon.life_Product\web_site` は実体ではなく `E:\Projects\Playground\upload_package\public_html` への junction。修正対象と deploy 対象を取り違えないこと。
 - まず「どの lane の不具合か」「ローカル修正済みか」「staging 未deploy か」を 3 点確認してから手を入れる。
