@@ -304,7 +304,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       },
       `
         .record-page { margin-top: 24px; }
-        .record-shell { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .85fr); gap: 18px; align-items: start; }
+        .record-shell { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; max-width: 860px; }
         .record-card { border-radius: 28px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 16px 36px rgba(15,23,42,.06); padding: 24px; }
         .record-sheet { position: relative; overflow: hidden; }
         .record-sheet::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0, transparent 34px, rgba(14,165,233,.05) 35px, transparent 36px); pointer-events: none; }
@@ -344,9 +344,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-preview-photo { margin-top: 16px; min-height: 160px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(14,165,233,.12)); border: 1px solid rgba(14,165,233,.12); display: grid; place-items: center; color: #0f172a; font-weight: 800; }
         .record-preview-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .record-preview-photo.is-empty { color: #475569; font-size: 13px; }
-        @media (max-width: 980px) {
-          .record-shell { grid-template-columns: 1fr; }
-        }
         @media (max-width: 720px) {
           .record-card { padding: 20px; border-radius: 24px; }
           .record-form { grid-template-columns: 1fr; padding-left: 0; }
