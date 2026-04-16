@@ -58,6 +58,12 @@ export type MapExplorerCopy = {
   bottomSheetNotes: string;
   bottomSheetLens: string;
   bottomSheetScan: string;
+  searchPlaceholder: string;
+  searchAriaLabel: string;
+  searchNoResult: string;
+  searchError: string;
+  locateLabel: string;
+  locateError: string;
   taxonChips: TaxonGroupChip[];
 };
 
@@ -129,6 +135,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: "ノート詳細",
     bottomSheetLens: "AIレンズ",
     bottomSheetScan: "スキャン",
+    searchPlaceholder: "場所を探す（例: 静岡市 谷津山）",
+    searchAriaLabel: "地名検索",
+    searchNoResult: "見つからなかった。もう一語ゆるめてみる。",
+    searchError: "検索に失敗した。しばらく待ってから試す。",
+    locateLabel: "現在地へ",
+    locateError: "現在地を取得できなかった。ブラウザの位置情報を許可してほしい。",
     taxonChips: [
       { value: "", label: "すべて", icon: "✨" },
       { value: "insect", label: "昆虫", icon: "🦋" },
@@ -189,6 +201,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: "Notebook detail",
     bottomSheetLens: "AI Lens",
     bottomSheetScan: "Scan",
+    searchPlaceholder: "Find a place (e.g. Shizuoka Yatsu-yama)",
+    searchAriaLabel: "Place search",
+    searchNoResult: "No match. Try a looser term.",
+    searchError: "Search failed. Wait a moment and retry.",
+    locateLabel: "My location",
+    locateError: "Could not get your location. Allow location in your browser.",
     taxonChips: [
       { value: "", label: "All", icon: "✨" },
       { value: "insect", label: "Insects", icon: "🦋" },
@@ -249,6 +267,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: "Detalle del cuaderno",
     bottomSheetLens: "Lente IA",
     bottomSheetScan: "Escaneo",
+    searchPlaceholder: "Buscar lugar (p. ej. Shizuoka Yatsu-yama)",
+    searchAriaLabel: "Búsqueda de lugar",
+    searchNoResult: "Sin resultados. Prueba con menos palabras.",
+    searchError: "Fallo al buscar. Espera y reintenta.",
+    locateLabel: "Mi ubicación",
+    locateError: "No pude obtener tu ubicación. Permite la geolocalización en el navegador.",
     taxonChips: [
       { value: "", label: "Todo", icon: "✨" },
       { value: "insect", label: "Insectos", icon: "🦋" },
@@ -309,6 +333,12 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     bottomSheetNotes: "Detalhe do caderno",
     bottomSheetLens: "Lente IA",
     bottomSheetScan: "Escaneamento",
+    searchPlaceholder: "Buscar local (ex.: Shizuoka Yatsu-yama)",
+    searchAriaLabel: "Busca de local",
+    searchNoResult: "Sem resultados. Tente um termo mais amplo.",
+    searchError: "Falha na busca. Aguarde e tente novamente.",
+    locateLabel: "Minha localização",
+    locateError: "Não foi possível obter sua localização. Permita a geolocalização no navegador.",
     taxonChips: [
       { value: "", label: "Tudo", icon: "✨" },
       { value: "insect", label: "Insetos", icon: "🦋" },
@@ -504,6 +534,22 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     <div class="me-main">
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-api-observations="${escapeHtml(apiObservations)}" data-api-coverage="${escapeHtml(apiCoverage)}"></div>
+        <div class="me-search" role="search">
+          <span class="me-search-icon" aria-hidden="true">🔍</span>
+          <input
+            type="search"
+            id="me-search-input"
+            class="me-search-input"
+            placeholder="${escapeHtml(copy.searchPlaceholder)}"
+            aria-label="${escapeHtml(copy.searchAriaLabel)}"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <div id="me-search-results" class="me-search-results" role="listbox" aria-label="${escapeHtml(copy.searchAriaLabel)}"></div>
+        </div>
+        <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
+          <span aria-hidden="true">📍</span>
+        </button>
         <div class="me-map-status" id="me-map-status" role="status" aria-live="polite">${escapeHtml(copy.loading)}</div>
         <div class="me-legend is-hidden" id="me-legend" aria-hidden="true">
           <span class="me-legend-label" id="me-legend-label">${escapeHtml(copy.legendLabel)}</span>
@@ -565,7 +611,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     bottomSheetNotes: copy.bottomSheetNotes,
     bottomSheetLens: copy.bottomSheetLens,
     bottomSheetScan: copy.bottomSheetScan,
+    searchNoResult: copy.searchNoResult,
+    searchError: copy.searchError,
+    locateError: copy.locateError,
   })};
+  var SEARCH_LANG = ${JSON.stringify(props.lang)};
   var OBSERVATION_HREF_TPL = ${JSON.stringify(observationHrefTpl)};
   var RECORD_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/record"), props.lang))};
   var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang))};
@@ -1065,6 +1115,135 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   });
 
+  // ---- Nominatim place search + locate-me --------------------------------
+  // Follows OSM usage policy: 1 req/sec, include a descriptive referer-ish
+  // identifier through the query, debounce keystrokes, and bias results to JP.
+  // If we outgrow Nominatim we can swap the fetch URL for a Mapbox/GSI endpoint
+  // without touching the UI.
+  var NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+  var searchInputEl = document.getElementById('me-search-input');
+  var searchResultsEl = document.getElementById('me-search-results');
+  var searchDebounce = null;
+  var searchAbort = null;
+
+  function runPlaceSearch(query) {
+    if (!searchResultsEl) return;
+    searchResultsEl.innerHTML = '';
+    searchResultsEl.classList.remove('is-open');
+    if (!query || query.trim().length < 2) return;
+
+    if (searchAbort) { try { searchAbort.abort(); } catch(_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    searchAbort = controller;
+
+    var params = new URLSearchParams({
+      q: query.trim(),
+      format: 'jsonv2',
+      limit: '8',
+      countrycodes: 'jp',
+      'accept-language': SEARCH_LANG,
+      addressdetails: '0',
+    });
+    // Nominatim's free instance asks for a stable identifier — we pass one via
+    // the email param (the only non-UA way from a browser), pointing at the
+    // project rather than any individual user.
+    params.set('email', 'ops@ikimon.life');
+
+    fetch(NOMINATIM_URL + '?' + params.toString(), {
+      headers: { 'Accept': 'application/json' },
+      signal: controller ? controller.signal : undefined,
+    })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('nominatim ' + r.status)); })
+      .then(function (rows) {
+        if (!Array.isArray(rows) || rows.length === 0) {
+          searchResultsEl.innerHTML = '<div class="me-search-empty">' + escapeHtml(COPY.searchNoResult) + '</div>';
+          searchResultsEl.classList.add('is-open');
+          return;
+        }
+        searchResultsEl.innerHTML = rows.slice(0, 8).map(function (row, idx) {
+          var name = row.display_name || row.name || '';
+          var cls = row.type || row.category || '';
+          return '<button type="button" role="option" class="me-search-row" data-idx="' + idx + '">' +
+            '<strong>' + escapeHtml(name) + '</strong>' +
+            (cls ? '<span>' + escapeHtml(cls) + '</span>' : '') +
+            '</button>';
+        }).join('');
+        searchResultsEl.classList.add('is-open');
+        searchResultsEl.querySelectorAll('.me-search-row').forEach(function (btn, i) {
+          btn.addEventListener('click', function () {
+            var row = rows[i];
+            if (!row || !state.map) return;
+            var lat = Number(row.lat);
+            var lng = Number(row.lon);
+            if (!isFinite(lat) || !isFinite(lng)) return;
+            if (row.boundingbox && row.boundingbox.length === 4) {
+              var b = row.boundingbox.map(Number);
+              // Nominatim returns [south, north, west, east].
+              if (b.every(isFinite)) {
+                state.map.fitBounds([[b[2], b[0]], [b[3], b[1]]], { padding: 48, maxZoom: 14, duration: 500 });
+              } else {
+                state.map.flyTo({ center: [lng, lat], zoom: 12, duration: 500 });
+              }
+            } else {
+              state.map.flyTo({ center: [lng, lat], zoom: 12, duration: 500 });
+            }
+            searchResultsEl.classList.remove('is-open');
+            if (searchInputEl) searchInputEl.value = row.display_name || '';
+          });
+        });
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        searchResultsEl.innerHTML = '<div class="me-search-empty">' + escapeHtml(COPY.searchError) + '</div>';
+        searchResultsEl.classList.add('is-open');
+      });
+  }
+
+  if (searchInputEl) {
+    searchInputEl.addEventListener('input', function () {
+      var q = searchInputEl.value;
+      if (searchDebounce) clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(function () { runPlaceSearch(q); }, 400);
+    });
+    searchInputEl.addEventListener('focus', function () {
+      if (searchResultsEl && searchResultsEl.childElementCount > 0) searchResultsEl.classList.add('is-open');
+    });
+    // Close results on outside click.
+    document.addEventListener('click', function (e) {
+      var target = e.target;
+      if (!searchResultsEl || !searchInputEl) return;
+      if (target === searchInputEl || searchResultsEl.contains(target)) return;
+      searchResultsEl.classList.remove('is-open');
+    });
+  }
+
+  // locate-me
+  var locateFab = document.getElementById('me-locate-fab');
+  if (locateFab) {
+    locateFab.addEventListener('click', function () {
+      if (!state.map || !navigator.geolocation) {
+        setStatus(COPY.locateError);
+        return;
+      }
+      locateFab.classList.add('is-loading');
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        locateFab.classList.remove('is-loading');
+        var lng = pos.coords.longitude;
+        var lat = pos.coords.latitude;
+        state.map.flyTo({ center: [lng, lat], zoom: 14, duration: 650 });
+        // Drop a quick "you are here" marker; cheap DOM element rather than a
+        // source so it doesn't need a style reload.
+        if (state._meMarker) state._meMarker.remove();
+        var el = document.createElement('div');
+        el.className = 'me-locate-marker';
+        state._meMarker = new window.maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(state.map);
+      }, function () {
+        locateFab.classList.remove('is-loading');
+        setStatus(COPY.locateError);
+      }, { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 });
+    });
+  }
+
   // ---- Overlay registry wire-up ------------------------------------------
   // Reads the JSON catalog baked into data-overlay-catalog, then adds /
   // removes raster sources + layers on toggle, and updates raster-opacity
@@ -1264,6 +1443,58 @@ export const MAP_EXPLORER_STYLES = `
     padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.82);
     color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .02em;
     backdrop-filter: blur(8px);
+  }
+
+  .me-search {
+    position: absolute; left: 14px; top: 14px; z-index: 5;
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px 6px 14px; border-radius: 999px;
+    background: rgba(255,255,255,.95); border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 6px 18px rgba(15,23,42,.08);
+    min-width: 240px;
+    max-width: min(420px, 70%);
+  }
+  .me-search-icon { font-size: 13px; color: #475569; }
+  .me-search-input {
+    flex: 1 1 auto; min-width: 0; border: 0; background: transparent;
+    padding: 6px 4px; font-size: 13px; font-weight: 600; color: #0f172a;
+    outline: none;
+  }
+  .me-search-input::placeholder { color: #94a3b8; }
+  .me-search-results {
+    position: absolute; left: 0; right: 0; top: 100%; margin-top: 6px;
+    max-height: 320px; overflow-y: auto; z-index: 6;
+    background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 14px;
+    box-shadow: 0 18px 38px rgba(15,23,42,.14);
+    display: none;
+  }
+  .me-search-results.is-open { display: block; }
+  .me-search-row {
+    display: flex; flex-direction: column; gap: 2px;
+    width: 100%; text-align: left; border: 0; background: transparent;
+    padding: 10px 14px; cursor: pointer; border-bottom: 1px solid rgba(15,23,42,.05);
+  }
+  .me-search-row:last-child { border-bottom: 0; }
+  .me-search-row:hover { background: rgba(236,253,245,.55); }
+  .me-search-row strong { font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: -.01em; }
+  .me-search-row span { font-size: 11px; color: #64748b; }
+  .me-search-empty { padding: 14px; font-size: 12px; color: #64748b; }
+
+  .me-locate-fab {
+    position: absolute; right: 14px; bottom: 120px; z-index: 5;
+    width: 44px; height: 44px; border-radius: 999px; border: 0;
+    background: #fff; color: #0f172a; cursor: pointer;
+    box-shadow: 0 10px 24px rgba(15,23,42,.16);
+    display: grid; place-items: center; font-size: 18px;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .me-locate-fab:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(15,23,42,.2); }
+  .me-locate-fab.is-loading { animation: me-locate-spin .8s linear infinite; }
+  @keyframes me-locate-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .me-locate-marker {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #0ea5e9; border: 3px solid #fff;
+    box-shadow: 0 0 0 6px rgba(14,165,233,.28);
   }
   .me-legend {
     position: absolute; left: 14px; bottom: 14px; z-index: 4;
