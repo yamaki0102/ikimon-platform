@@ -298,6 +298,7 @@ async function main(): Promise<void> {
       url: `${baseUrl}/api/v1/observations/upsert`,
       payload: observationPayload,
       validate: validateObservationResponse,
+      headers: () => withSessionCookie(sessionCookie),
     },
     {
       name: "observations/photos/upload",
@@ -308,12 +309,14 @@ async function main(): Promise<void> {
         base64Data: tinyPngBase64,
       },
       validate: validatePhotoUploadResponse,
+      headers: () => withSessionCookie(sessionCookie),
     },
     {
       name: "tracks/upsert",
       url: `${baseUrl}/api/v1/tracks/upsert`,
       payload: trackPayload,
       validate: (payload: unknown) => validateTrackResponse(payload, trackPayload.points.length),
+      headers: () => withSessionCookie(sessionCookie),
     },
     {
       name: "auth/session/logout",
