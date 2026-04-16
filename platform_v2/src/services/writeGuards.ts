@@ -61,8 +61,8 @@ export function assertSessionUser(session: SessionSnapshot | null, assertedUserI
 
 export function assertSpecialistSession(session: SessionSnapshot | null, actorUserId: string): SessionSnapshot {
   const resolved = assertSessionUser(session, actorUserId);
-  const role = resolved.roleName.trim().toLowerCase();
-  if (!["admin", "analyst", "specialist"].includes(role)) {
+  const candidates = [resolved.roleName, resolved.rankLabel ?? ""].map((value) => value.trim().toLowerCase());
+  if (!candidates.some((value) => ["admin", "analyst", "specialist"].includes(value))) {
     throw new Error("specialist_role_required");
   }
   return resolved;
