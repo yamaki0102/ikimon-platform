@@ -6,7 +6,8 @@ Citizen-science biodiversity platform. Japanese UI, PHP backend, Alpine.js front
 > **（管理元: `antigravity/.agent/global/AGENTS.global.md`）**
 
 > **知識OS / Canonical / Evidence Tier / コンポーネントマップ:**
-> → まず `docs/KNOWLEDGE_OS_OVERVIEW.md` を読む（30分で全体把握できる）
+> → まず `E:\Projects\ikimon-internal\docs\KNOWLEDGE_OS_OVERVIEW.md` を読む（30分で全体把握できる）
+> → docs/ は private repo `yamaki0102/ikimon-internal` に移動済み（`E:\Projects\ikimon-internal\`）
 
 ## Tech Stack
 
@@ -169,7 +170,7 @@ php -S localhost:8899 -t upload_package/public_html  # Dev server
 
 - deploy manifest: `ops/deploy/deploy_manifest.json`
 - server deploy reference: `ops/deploy/production_deploy_reference.sh`
-- deploy guide: `docs/DEPLOYMENT.md`
+- deploy guide: `E:\Projects\ikimon-internal\docs\DEPLOYMENT.md`
 - guardrail check: `scripts/check_deploy_guardrails.ps1`
 - sync check: `scripts/check_deploy_manifest_sync.ps1`
 
