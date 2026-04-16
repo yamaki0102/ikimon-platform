@@ -618,9 +618,10 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       line-height: 1.34;
       letter-spacing: -.03em;
       font-weight: 900;
-      max-width: 18ch;
+      max-width: 24ch;
       text-wrap: pretty;
     }
+    .hero-emphasis { white-space: nowrap; }
     .hero-emphasis { color: #bbf7d0; }
     .hero-panel p {
       margin: 22px 0 0;
@@ -1098,8 +1099,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       .shell { padding: 20px 18px 18px; }
       .site-header-inner { padding: 12px 18px; }
       .hero-panel { padding: 48px 24px 36px; border-radius: 26px; }
-      .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); line-height: 1.24; max-width: 13ch; }
+      .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); line-height: 1.24; max-width: 18ch; }
       .hero-panel p { font-size: 16px; line-height: 1.85; max-width: 32ch; margin-top: 18px; }
+      .hero-emphasis { white-space: normal; }
       .hero-panel.has-media { grid-template-columns: 1fr; }
       .hero-media { grid-template-columns: 1fr; }
       .hero-panel.is-light .hero-media { margin-top: 20px; }

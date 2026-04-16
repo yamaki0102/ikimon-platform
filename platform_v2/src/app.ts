@@ -12,10 +12,14 @@ import { getSessionFromCookie } from "./services/authSession.js";
 import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
 import type { LandingSnapshot } from "./services/readModels.js";
+import { COMMUNITY_METER_STYLES, renderCommunityMeter } from "./ui/communityMeter.js";
 import { FIELD_NOTE_MAIN_STYLES, renderFieldNoteMain } from "./ui/fieldNoteMain.js";
 import { MAP_MINI_STYLES, mapMiniBootScript, renderMapMini, toMapPoints } from "./ui/mapMini.js";
+import { MENTOR_STRIP_STYLES, renderMentorStrip } from "./ui/mentorStrip.js";
 import { OBSERVATION_CARD_STYLES } from "./ui/observationCard.js";
 import { QUICK_NAV_STYLES, renderQuickNav } from "./ui/quickNav.js";
+import { REVISIT_FLOW_STYLES, renderRevisitFlow } from "./ui/revisitFlow.js";
+import { TODAY_HABIT_STYLES, renderTodayHabit } from "./ui/todayHabit.js";
 import { TOOL_CARD_STYLES, renderToolCard } from "./ui/toolCard.js";
 import { escapeHtml, renderSiteDocument } from "./ui/siteShell.js";
 
@@ -53,7 +57,7 @@ function landingCopy(lang: SiteLang) {
       heroEyebrow: "ikimon へようこそ",
       heroHeading: "歩いて、見つけて、<span class=\"hero-emphasis\">ノートに残す。</span>",
       heroHeadingPlain: "歩いて、見つけて、ノートに残す。",
-      heroLead: "近くの自然を記録して、あとから読み返す。前回より少し見えるようになり、その積み重ねが科学データにもなる。",
+      heroLead: "いつもの道で見つけた生きものを、場所と季節ごとに残す。読み返すほど、同じ道が少しずつ違って見えてくる。",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("ja-JP")} 件の観察 · ${species.toLocaleString("ja-JP")} 種`,
       actionPrimaryLoggedIn: "ノートの続きを書く",
       actionPrimaryGuest: "ノートを始める",
@@ -64,27 +68,27 @@ function landingCopy(lang: SiteLang) {
       tools: {
         lens: {
           eyebrow: "AIレンズ",
-          title: "散歩中の AI ガイドを準備中",
-          body: "AIレンズは、本来は歩きながら周囲の生きものを案内する入口です。v2 ではまずノートと記録導線を先に整えています。",
+          title: "歩きながら、AI が一緒に名前を探す",
+          body: "近くの生きものに、AI が候補を返します。あくまで補助線。最後に「これだ」と決めるのはあなたです。",
           cta: "AIレンズを見る",
           badge: "beta",
         },
         scan: {
           eyebrow: "フィールドスキャン",
-          title: "歩きながら、近くの生きものが分かる",
-          body: "今いる場所の近くで、どんな生きものが見つかっているかを地図上で確認できます。散歩のルート選びに。",
+          title: "近くの場所が、いま何を抱えているか",
+          body: "今いる場所の周りで、どんな生きものが記録されてきたかを地図で見られます。次に歩く道を選ぶときに。",
           cta: "フィールドスキャンを見る",
           badge: "v0.10",
         },
       },
-      mapSectionEyebrow: "マップで見る",
+      mapSectionEyebrow: "場所のノート",
       mapSectionTitle: "また行きたくなる場所を、地図で振り返る",
-      mapSectionLead: "観察がどこに積み重なっているかを見るための地図です。場所ごとの変化と、次に歩く理由を確かめられます。",
+      mapSectionLead: "観察が、どの場所にどう積み重なっているか。同じ場所が季節でどう動くか。次に歩く理由を、地図のなかから探せます。",
       mapCta: "マップを開く",
       mapEmpty: "まだ地図に載せる観察がありません",
-      bizEyebrow: "法人・団体のみなさまへ",
-      bizTitle: "🏢 学校・自治体・企業での導入",
-      bizBody: "学校・自治体・企業が、自然共生サイトの観察をすばやく始めて続けるための導線を用意しています。",
+      bizEyebrow: "企業・自治体の方へ",
+      bizTitle: "場所のノートを、組織の自然インフラに",
+      bizBody: "学校・自治体・企業で、自然共生サイトの観察を続けるための共有ノートとして使えます。導入の相談から運用まで、必要な分だけお手伝いします。",
       bizCta: "法人向けページへ",
       footerNote: "歩いて、見つけて、ノートに残す。",
     },
@@ -93,7 +97,7 @@ function landingCopy(lang: SiteLang) {
       heroEyebrow: "Welcome to ikimon",
       heroHeading: "Walk, find, <span class=\"hero-emphasis\">write it in the notebook.</span>",
       heroHeadingPlain: "Walk, find, write it in the notebook.",
-      heroLead: "Walks + species observation protect nature while keeping you healthy. Your footstep becomes science data.",
+      heroLead: "Save what you find on your usual walks, by place and season. The more you re-read it, the more the same path looks different.",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("en-US")} observations · ${species.toLocaleString("en-US")} species`,
       actionPrimaryLoggedIn: "Keep writing",
       actionPrimaryGuest: "Start your notebook",
@@ -104,27 +108,27 @@ function landingCopy(lang: SiteLang) {
       tools: {
         lens: {
           eyebrow: "AI Lens",
-          title: "Realtime AI guide is being prepared",
-          body: "AI Lens is meant to guide nearby species while you walk. In v2, the notebook and record flow come first.",
+          title: "AI helps you find a name as you walk",
+          body: "AI suggests candidates for what is nearby. It is a guide, not the answer. You are the one who decides.",
           cta: "See AI Lens",
           badge: "beta",
         },
         scan: {
           eyebrow: "Field Scan",
-          title: "Pick up the signal of species while walking",
-          body: "The map suggests the next place to add to your notebook as a recommended survey area.",
+          title: "What the place around you has held",
+          body: "See on the map which species have been recorded around here. A way to choose which path to walk next.",
           cta: "See Field Scan",
           badge: "v0.10",
         },
       },
-      mapSectionEyebrow: "Explore map",
-      mapSectionTitle: "See where your notebook has been on the map",
-      mapSectionLead: "The map shows where you and others have stacked pages.",
+      mapSectionEyebrow: "Place notebook",
+      mapSectionTitle: "Revisit places worth walking again, on the map",
+      mapSectionLead: "How observations stack at each place. How a place shifts with the season. Find the next reason to walk inside the map.",
       mapCta: "Open the full map",
       mapEmpty: "No observations on the map yet",
-      bizEyebrow: "For Business",
-      bizTitle: "For teams and organizations",
-      bizBody: "Organize place-based nature records in a format that is easy to revisit later.",
+      bizEyebrow: "For organizations",
+      bizTitle: "Place notebooks as nature infrastructure for your team",
+      bizBody: "A shared notebook for schools, municipalities, and companies to keep observing protected and nature-positive sites. From onboarding to running it, we help only as much as is needed.",
       bizCta: "For Business",
       footerNote: "ikimon.life v2 — Walk, find, write it in the notebook.",
     },
@@ -133,7 +137,7 @@ function landingCopy(lang: SiteLang) {
       heroEyebrow: "Bienvenido a ikimon",
       heroHeading: "Camina, descubre, <span class=\"hero-emphasis\">escríbelo en el cuaderno.</span>",
       heroHeadingPlain: "Camina, descubre, escríbelo en el cuaderno.",
-      heroLead: "Caminar y observar especies protege la naturaleza y tu salud. Tu paso se convierte en datos científicos.",
+      heroLead: "Guarda lo que encuentras en tus paseos habituales, por lugar y por estación. Cuanto más lo relees, más distinto se ve el mismo camino.",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("es-ES")} observaciones · ${species.toLocaleString("es-ES")} especies`,
       actionPrimaryLoggedIn: "Seguir escribiendo",
       actionPrimaryGuest: "Comenzar tu cuaderno",
@@ -144,27 +148,27 @@ function landingCopy(lang: SiteLang) {
       tools: {
         lens: {
           eyebrow: "Lente IA",
-          title: "La guía IA en tiempo real está en preparación",
-          body: "Lente IA está pensada para acompañar el paseo y señalar especies cercanas. En v2, primero priorizamos el cuaderno y el flujo de registro.",
+          title: "La IA te ayuda a encontrar un nombre mientras caminas",
+          body: "La IA propone candidatos para lo que está cerca. Es una guía, no la respuesta. Quien decide eres tú.",
           cta: "Ver Lente IA",
           badge: "beta",
         },
         scan: {
           eyebrow: "Escaneo de campo",
-          title: "Capta la señal de especies mientras caminas",
-          body: "El mapa sugiere el próximo lugar a añadir como área recomendada de estudio.",
+          title: "Lo que el lugar a tu alrededor ha sostenido",
+          body: "Mira en el mapa qué especies se han registrado por aquí. Una forma de elegir qué camino caminar después.",
           cta: "Ver Escaneo",
           badge: "v0.10",
         },
       },
-      mapSectionEyebrow: "Mapa de exploración",
-      mapSectionTitle: "Ver en el mapa dónde ha estado tu cuaderno",
-      mapSectionLead: "El mapa muestra dónde tú y otros habéis apilado páginas.",
+      mapSectionEyebrow: "Cuaderno del lugar",
+      mapSectionTitle: "Vuelve a lugares que vale la pena recorrer, en el mapa",
+      mapSectionLead: "Cómo se acumulan las observaciones en cada lugar. Cómo un lugar cambia con la estación. Encuentra dentro del mapa la próxima razón para caminar.",
       mapCta: "Abrir el mapa",
       mapEmpty: "Aún no hay observaciones en el mapa",
       bizEyebrow: "Para organizaciones",
-      bizTitle: "Para equipos y organizaciones",
-      bizBody: "Ordena registros naturales por lugar para revisarlos más tarde con facilidad.",
+      bizTitle: "Cuadernos del lugar como infraestructura natural de tu equipo",
+      bizBody: "Un cuaderno compartido para escuelas, municipios y empresas que necesitan seguir observando sitios protegidos y nature-positive. Desde la puesta en marcha hasta la operación, ayudamos solo lo necesario.",
       bizCta: "Para organizaciones",
       footerNote: "ikimon.life v2 — Camina, descubre, escríbelo en el cuaderno.",
     },
@@ -173,7 +177,7 @@ function landingCopy(lang: SiteLang) {
       heroEyebrow: "Bem-vindo ao ikimon",
       heroHeading: "Caminhe, descubra, <span class=\"hero-emphasis\">escreva no caderno.</span>",
       heroHeadingPlain: "Caminhe, descubra, escreva no caderno.",
-      heroLead: "Caminhar e observar espécies protege a natureza e a sua saúde. Seu passo vira dado científico.",
+      heroLead: "Guarde o que encontra nas suas caminhadas habituais, por lugar e por estação. Quanto mais você relê, mais o mesmo caminho parece diferente.",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("pt-BR")} observações · ${species.toLocaleString("pt-BR")} espécies`,
       actionPrimaryLoggedIn: "Continuar escrevendo",
       actionPrimaryGuest: "Começar seu caderno",
@@ -184,27 +188,27 @@ function landingCopy(lang: SiteLang) {
       tools: {
         lens: {
           eyebrow: "Lente IA",
-          title: "O guia IA em tempo real está em preparação",
-          body: "A Lente IA foi pensada para guiar a caminhada e apontar espécies próximas. No v2, o foco inicial é o caderno e o fluxo de registro.",
+          title: "A IA ajuda a achar um nome enquanto você caminha",
+          body: "A IA sugere candidatos para o que está por perto. É um guia, não a resposta. Quem decide é você.",
           cta: "Ver Lente IA",
           badge: "beta",
         },
         scan: {
           eyebrow: "Escaneamento de campo",
-          title: "Capte o sinal das espécies enquanto caminha",
-          body: "O mapa sugere o próximo lugar para adicionar como área recomendada de estudo.",
+          title: "O que o lugar ao seu redor já abrigou",
+          body: "Veja no mapa quais espécies já foram registradas por aqui. Um jeito de escolher qual caminho seguir em seguida.",
           cta: "Ver Escaneamento",
           badge: "v0.10",
         },
       },
-      mapSectionEyebrow: "Mapa",
-      mapSectionTitle: "Veja no mapa onde seu caderno esteve",
-      mapSectionLead: "O mapa mostra onde você e outros empilharam páginas.",
+      mapSectionEyebrow: "Caderno do lugar",
+      mapSectionTitle: "Volte a lugares que valem outra caminhada, no mapa",
+      mapSectionLead: "Como as observações se acumulam em cada lugar. Como o lugar muda com a estação. Encontre dentro do mapa o próximo motivo para caminhar.",
       mapCta: "Abrir o mapa completo",
       mapEmpty: "Ainda não há observações no mapa",
       bizEyebrow: "Para organizações",
-      bizTitle: "Para equipes e organizações",
-      bizBody: "Organize registros naturais por lugar em um formato fácil de revisitar depois.",
+      bizTitle: "Cadernos do lugar como infraestrutura natural do seu time",
+      bizBody: "Um caderno compartilhado para escolas, prefeituras e empresas que precisam continuar observando sites protegidos e nature-positive. Da entrada até a operação, ajudamos só o necessário.",
       bizCta: "Para organizações",
       footerNote: "ikimon.life v2 — Caminhe, descubra, escreva no caderno.",
     },
@@ -333,6 +337,10 @@ function buildLandingRootHtml(
     MAP_MINI_STYLES,
     FIELD_NOTE_MAIN_STYLES,
     QUICK_NAV_STYLES,
+    TODAY_HABIT_STYLES,
+    REVISIT_FLOW_STYLES,
+    COMMUNITY_METER_STYLES,
+    MENTOR_STRIP_STYLES,
     `
   .quick-nav-inner { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: none; }
   .tool-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-top: 16px; max-width: none; }
@@ -369,15 +377,17 @@ function buildLandingRootHtml(
     `,
   ].join("\n");
 
-  const heroSupplementHtml = statLine
-    ? `<div class="landing-hero-stat">${escapeHtml(statLine)}</div>`
-    : "";
-
-  const heroAfterActionsHtml = `<div class="hero-chip-row">
+  // Hero rhythm: badge → h1 → lead → chips (small) → CTA (large) → stat pill (subtle).
+  // Putting chips above the CTAs keeps the visual cadence small→large→small without bouncing.
+  const heroSupplementHtml = `<div class="hero-chip-row">
     <span class="hero-chip">${escapeHtml(lang === "ja" ? "主役はフィールドノート" : lang === "es" ? "El cuaderno es el centro" : lang === "pt-BR" ? "O caderno e o centro" : "Field Note first")}</span>
     <span class="hero-chip">${escapeHtml(lang === "ja" ? "AIレンズは入口" : lang === "es" ? "La IA abre la puerta" : lang === "pt-BR" ? "A IA abre a porta" : "AI Lens opens the door")}</span>
     <span class="hero-chip">${escapeHtml(lang === "ja" ? "地図で再訪理由が育つ" : lang === "es" ? "El mapa crea motivos para volver" : lang === "pt-BR" ? "O mapa cria motivos para voltar" : "Map grows revisit reasons")}</span>
   </div>`;
+
+  const heroAfterActionsHtml = statLine
+    ? `<div class="landing-hero-stat">${escapeHtml(statLine)}</div>`
+    : "";
 
   const heroActionsFinal = isLoggedIn
     ? [
@@ -408,9 +418,13 @@ function buildLandingRootHtml(
     },
     belowHeroHtml: renderQuickNav(options.basePath, lang),
     extraStyles,
-    body: `${renderFieldNoteMain(options.basePath, lang, snapshot)}
+    body: `${renderTodayHabit(options.basePath, lang, snapshot)}
+${renderRevisitFlow(options.basePath, lang, snapshot)}
+${renderFieldNoteMain(options.basePath, lang, snapshot)}
 ${toolsSectionHtml}
 ${mapSectionHtml}
+${renderCommunityMeter(options.basePath, lang, snapshot)}
+${renderMentorStrip(options.basePath, lang)}
 ${bizSectionHtml}
 ${mapMiniBootScript()}`,
     footerNote: copy.footerNote,
