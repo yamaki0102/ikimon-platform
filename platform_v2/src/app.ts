@@ -334,9 +334,38 @@ function buildLandingRootHtml(
     FIELD_NOTE_MAIN_STYLES,
     QUICK_NAV_STYLES,
     `
-  .tool-card-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; max-width: 760px; }
+  .quick-nav-inner { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: none; }
+  .tool-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-top: 16px; max-width: none; }
+  .landing-tools .section-header,
+  .landing-map .section-header { flex-direction: row; justify-content: space-between; align-items: flex-end; gap: 16px; }
+  .fn-main-head { flex-direction: row; flex-wrap: wrap; gap: 20px 28px; align-items: flex-end; justify-content: space-between; }
+  .fn-main-head-actions { align-items: flex-end; min-width: 220px; width: auto; }
+  .fn-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .fn-grid-compact { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .fn-place-row { display: flex; flex-wrap: wrap; }
+  .fn-ambient-row { display: flex; flex-wrap: wrap; }
+  .fn-ambient-item { border-radius: 999px; padding: 8px 14px 8px 8px; }
+  @media (max-width: 980px) {
+    .quick-nav-inner { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
   .landing-hero-stat { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
   .landing-hero-stat::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.18); }
+  @media (max-width: 860px) {
+    .fn-main-head { flex-direction: column; align-items: flex-start; justify-content: flex-start; }
+    .fn-main-head-actions { align-items: flex-start; min-width: 0; width: 100%; }
+    .fn-grid, .fn-grid-compact { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+  @media (max-width: 720px) {
+    .tool-card-grid { grid-template-columns: 1fr; }
+    .landing-tools .section-header,
+    .landing-map .section-header { flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 640px) {
+    .quick-nav-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 480px) {
+    .fn-grid, .fn-grid-compact { grid-template-columns: 1fr; }
+  }
     `,
   ].join("\n");
 
