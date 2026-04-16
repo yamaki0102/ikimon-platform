@@ -64,8 +64,8 @@ function landingCopy(lang: SiteLang) {
       tools: {
         lens: {
           eyebrow: "AIレンズ",
-          title: "撮った瞬間、名前の候補が分かる",
-          body: "名前を知らなくても、写真を 1 枚撮れば AI が候補を返します。気になった生きものをすぐ書き残せます。",
+          title: "散歩中の AI ガイドを準備中",
+          body: "AIレンズは、本来は歩きながら周囲の生きものを案内する入口です。v2 ではまずノートと記録導線を先に整えています。",
           cta: "AIレンズを見る",
           badge: "beta",
         },
@@ -104,8 +104,8 @@ function landingCopy(lang: SiteLang) {
       tools: {
         lens: {
           eyebrow: "AI Lens",
-          title: "Get AI candidates the moment you shoot",
-          body: "You do not need the name yet. AI returns candidate species so you can start the first line of a note.",
+          title: "Realtime AI guide is being prepared",
+          body: "AI Lens is meant to guide nearby species while you walk. In v2, the notebook and record flow come first.",
           cta: "See AI Lens",
           badge: "beta",
         },
@@ -144,8 +144,8 @@ function landingCopy(lang: SiteLang) {
       tools: {
         lens: {
           eyebrow: "Lente IA",
-          title: "Candidatos de IA al momento de disparar",
-          body: "No necesitas saber el nombre. La IA propone candidatos para empezar la primera línea.",
+          title: "La guía IA en tiempo real está en preparación",
+          body: "Lente IA está pensada para acompañar el paseo y señalar especies cercanas. En v2, primero priorizamos el cuaderno y el flujo de registro.",
           cta: "Ver Lente IA",
           badge: "beta",
         },
@@ -184,8 +184,8 @@ function landingCopy(lang: SiteLang) {
       tools: {
         lens: {
           eyebrow: "Lente IA",
-          title: "Candidatos de IA no momento do disparo",
-          body: "Você não precisa saber o nome. A IA retorna candidatos para começar a primeira linha.",
+          title: "O guia IA em tempo real está em preparação",
+          body: "A Lente IA foi pensada para guiar a caminhada e apontar espécies próximas. No v2, o foco inicial é o caderno e o fluxo de registro.",
           cta: "Ver Lente IA",
           badge: "beta",
         },

@@ -126,7 +126,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <label class="record-field"><span class="record-label">学名 (分かれば)</span><input name="scientificName" type="text" placeholder="例: Passer montanus" /></label>
               <label class="record-field"><span class="record-label">和名 / 通称</span><input name="vernacularName" type="text" placeholder="例: スズメ" /></label>
               <label class="record-field"><span class="record-label">分類の段階</span><input name="rank" type="text" value="species" /></label>
-              <label class="record-field record-field-wide record-photo-field"><span class="record-label">写真</span><input id="record-photo" name="photo" type="file" accept="image/*" /><span class="record-help">AIレンズの候補づくりにも使われます。未添付でも保存できます。</span></label>
+              <label class="record-field record-field-wide record-photo-field"><span class="record-label">写真</span><input id="record-photo" name="photo" type="file" accept="image/*" /><span class="record-help">写真は観察の証拠として保存できます。未添付でも記録は残せます。</span></label>
               <div class="record-actions">
                 <button class="btn btn-solid" type="submit">観察を記録する</button>
                 <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes"))}">ノートへ戻る</a>
@@ -296,7 +296,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       {
         eyebrow: "記録する",
         heading: "今日の 1 ページを書く",
-        lead: "観察した場所・時刻・気づいた生きものを、そのまま 1 件のノートに残します。同定候補は AIレンズが補助します。",
+        lead: "観察した場所・時刻・気づいた生きものを、そのまま 1 件のノートに残します。AIレンズ本体は別導線として後続で整備します。",
         actions: [
           { href: queryUserId ? `/home?userId=${encodeURIComponent(viewerUserId)}` : "/home", label: "ホーム" },
           { href: "/explore", label: "みつける", variant: "secondary" as const },
@@ -973,8 +973,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         heading: lang === "ja" ? "🔍 AIレンズ" : "🔍 AI Lens",
         headingHtml: lang === "ja" ? "🔍 AIレンズ" : "🔍 AI Lens",
         lead: lang === "ja"
-          ? "撮った瞬間、AI が候補を返す。名前を知らなくても、フィールドノートの最初の一行が書き始められる。"
-          : "AI returns candidate species the moment you shoot. Start the first line of your field note without knowing the name.",
+          ? "AIレンズは、歩きながら近くの生きものを案内するための導線です。v2 ではまずノートと記録の体験を先に整えています。"
+          : "AI Lens is the route for a walking-time guide to nearby species. In v2, the notebook and record experience come first.",
         tone: "light",
         align: "center",
         actions: [
@@ -984,12 +984,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       },
       body: `<section class="section">
         <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "使い方" : "How to use")}</div><h2>${escapeHtml(lang === "ja" ? "撮って、候補から選ぶ" : "Shoot, then pick a candidate")}</h2><p>${escapeHtml(lang === "ja" ? "記録画面で写真をアップすると、AI が可能な種の候補を返します。自信のない観察でも、ノートの最初の一行を書き始められます。" : "Upload a photo on the record screen. AI returns possible candidates so you can start a note even when you are unsure.")}</p></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "ノートとの関係" : "Relation to the notebook")}</div><h2>${escapeHtml(lang === "ja" ? "主役はノート、レンズは入口" : "Notebook is the star, lens is the door")}</h2><p>${escapeHtml(lang === "ja" ? "AIレンズの候補はあくまで下書き補助です。最終的にノートに残す内容は、あなた自身が選びます。" : "AI candidates are just a draft helper. The content that actually lands in your notebook is your own choice.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(notesHref)}">${escapeHtml(lang === "ja" ? "フィールドノートへ" : "Go to Field Note")}</a></div></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "実際に撮って試す" : "Actually try it")}</h2><p>${escapeHtml(lang === "ja" ? "最初の 1 枚が一番ハードルが高い。身近な生きものや風景で構いません。" : "The first shot is the hardest. Any nearby creature or scene is fine.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(recordHref)}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "いまの位置づけ" : "Current status")}</div><h2>${escapeHtml(lang === "ja" ? "v2 では説明入口を先に置いている" : "v2 currently exposes the entry, not the full guide")}</h2><p>${escapeHtml(lang === "ja" ? "本来の AIレンズは、散歩・移動中に生きものを案内する体験です。現時点の v2 では、その前段としてノートと記録の導線を先に整備しています。" : "The intended AI Lens experience is a walking-time guide to nearby species. In the current v2, notebook and record flow are shipped first.")}</p></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "ノートとの関係" : "Relation to the notebook")}</div><h2>${escapeHtml(lang === "ja" ? "主役はノート、レンズは別導線" : "Notebook is the core, lens is a separate route")}</h2><p>${escapeHtml(lang === "ja" ? "AIレンズはノートの代わりではありません。観察を残して読み返す中心はフィールドノートで、AIレンズはその周辺体験として後続でつながります。" : "AI Lens does not replace the notebook. The notebook remains the core place to keep and revisit observations.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(notesHref)}">${escapeHtml(lang === "ja" ? "フィールドノートへ" : "Go to Field Note")}</a></div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "いま出来ること" : "What you can do now")}</div><h2>${escapeHtml(lang === "ja" ? "まずは記録して、ノートを育てる" : "Record first and grow the notebook")}</h2><p>${escapeHtml(lang === "ja" ? "現時点では、観察の場所・時刻・写真を残して、あとから見返せる形にするのが v2 の主機能です。" : "Right now, the main v2 capability is to save place, time, and photos into a notebook you can revisit later.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(recordHref)}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
         </div>
       </section>`,
-      footerNote: lang === "ja" ? "AIレンズはフィールドノートを育てる補助機能です。" : "AI Lens is a supporting tool that feeds the Field Note.",
+      footerNote: lang === "ja" ? "AIレンズは歩行中ガイドの導線で、v2 ではまだ前段の説明面です。" : "AI Lens is the route toward a walking-time guide, and is still an entry page in v2.",
     });
   });
 
