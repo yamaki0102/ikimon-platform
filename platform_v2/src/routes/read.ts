@@ -156,7 +156,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <h2>この 1 件が効く理由</h2>
               <div class="list">
                 <div class="row"><div><strong>再訪理由が残る</strong><div class="meta">場所メモと日時が、次に同じ道を歩く理由になる。</div></div></div>
-                <div class="row"><div><strong>AI の候補が育つ</strong><div class="meta">写真と名前の仮説が、あとで見分け方の補助になる。</div></div></div>
+                <div class="row"><div><strong>見分け方の仮説が残る</strong><div class="meta">写真と名前の仮説が、次に見返したときの手がかりになる。</div></div></div>
                 <div class="row"><div><strong>ノートとして読み返せる</strong><div class="meta">単発投稿ではなく、前回との差分が見える履歴になる。</div></div></div>
               </div>
             </section>
@@ -296,7 +296,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       {
         eyebrow: "記録する",
         heading: "今日の 1 ページを書く",
-        lead: "観察した場所・時刻・気づいた生きものを、そのまま 1 件のノートに残します。AIレンズ本体は別導線として後続で整備します。",
+        lead: "観察した場所・時刻・気づいた生きものを、そのまま 1 件のノートに残します。まずは再訪できる形で残すことを優先します。",
         actions: [
           { href: queryUserId ? `/home?userId=${encodeURIComponent(viewerUserId)}` : "/home", label: "ホーム" },
           { href: "/explore", label: "みつける", variant: "secondary" as const },
@@ -398,16 +398,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       "みつける | ikimon",
       `<section class="section">
         <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">活発な自治体</div><div class="list">${municipalities || '<div class="row"><div>まだ自治体データがありません。</div></div>'}</div></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">よく観察されている種</div><div class="list">${taxa || '<div class="row"><div>まだ種データがありません。</div></div>'}</div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">また見に行ける場所</div><div class="list">${municipalities || '<div class="row"><div>まだ場所データがありません。</div></div>'}</div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">そこで目立つ生きもの</div><div class="list">${taxa || '<div class="row"><div>まだ種データがありません。</div></div>'}</div></div></div>
         </div>
       </section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">直近の観察</div><h2>近くで見つかっているもの</h2></div></div><div class="explore-grid">${cards || '<div class="card"><div class="card-body">まだ観察がありません。</div></div>'}</div></section>`,
+      <section class="section"><div class="section-header"><div><div class="eyebrow">直近の観察</div><h2>次に歩く理由を探す</h2></div></div><div class="explore-grid">${cards || '<div class="card"><div class="card-body">まだ観察がありません。</div></div>'}</div></section>`,
       "みつける",
       {
         eyebrow: "みつける",
-        heading: "📡 近くの観察を広く見る",
-        lead: "自治体・種・直近の観察を横断して、今どこで何が見つかっているかを俯瞰します。",
+        heading: "📡 次に歩く場所を探す",
+        lead: "場所ごとの観察の積み重なりから、どこを再訪すると発見が増えそうかを見つけます。",
         actions: [
           { href: "/map", label: "マップで見る" },
           { href: "/notes", label: "ノートに戻る", variant: "secondary" as const },
@@ -467,16 +467,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         <div class="grid">
           <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">今回の学び</div><h2>前回より見えた点</h2><p class="meta">${escapeHtml(growthCue)}</p></div></div>
           <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">また行く理由</div><h2>次に訪れる場所</h2><p class="meta">${escapeHtml(revisitCue)}</p></div></div>
-          <div class="card is-soft"><div class="card-body"><div class="eyebrow">みんなへの貢献</div><h2>Collective AI</h2><p class="meta">改善された観察と見分けの根拠は、将来の候補提示と explanation を良くする学習資産になります。</p></div></div>
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">積み上がる意味</div><h2>長く残る観察</h2><p class="meta">今日の観察は、次に見返すための記録であり、長い時間の自然アーカイブにもなっていきます。</p></div></div>
         </div>
       </section>
-      ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>My places</h2></div></div><div class="list">${myPlaces || '<div class="row"><div>まだ記録した場所はありません。</div></div>'}</div></section>` : ""}
+      ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>再訪したい場所</h2></div></div><div class="list">${myPlaces || '<div class="row"><div>まだ記録した場所はありません。</div></div>'}</div></section>` : ""}
       <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="home-grid">${cards}</div></section>`,
       "ホーム",
       {
-        eyebrow: "my field mentor",
-        heading: "前回より、少し見えるようになるホーム",
-        lead: "前回からの気づきと、また行きたくなる場所をお届けするページです。",
+        eyebrow: "再訪のホーム",
+        heading: "前回より、少し見えるようになる",
+        lead: "前回からの気づきと、また行きたくなる場所をまとめて返すホームです。",
         actions: [
           { href: "/notes", label: "ノートへ" },
           { href: "/record", label: "1 件記録する", variant: "secondary" as const },
@@ -1039,7 +1039,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const recentListLabel = lang === "ja" ? "直近の観察" :
       lang === "es" ? "Observaciones recientes" :
       lang === "pt-BR" ? "Observações recentes" : "Recent observations";
-    const clusterLabel = lang === "ja" ? "活発な自治体" :
+    const clusterLabel = lang === "ja" ? "観察が積み上がる場所" :
       lang === "es" ? "Municipios activos" :
       lang === "pt-BR" ? "Municípios ativos" : "Active municipalities";
     const statsLabel = lang === "ja"
@@ -1098,8 +1098,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         heading: lang === "ja" ? "🗺️ 観察を地図で見る" : "🗺️ Observations on the map",
         headingHtml: lang === "ja" ? "🗺️ 観察を地図で見る" : "🗺️ Observations on the map",
         lead: lang === "ja"
-          ? "あなたと周りの観察がどの場所に積み上がっているかを地図で確認できます。"
-          : "See where you and others have stacked observations on the map.",
+          ? "あなたと周りの観察がどの場所に積み上がっているかを見て、次に戻る場所を決められます。"
+          : "See where you and others have stacked observations, and decide where to return next.",
         tone: "light",
         align: "center",
         actions: [
