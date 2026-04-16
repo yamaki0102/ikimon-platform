@@ -20,6 +20,11 @@ import {
   renderMapMini,
   toMapPoints,
 } from "../ui/mapMini.js";
+import {
+  MAP_EXPLORER_STYLES,
+  mapExplorerBootScript,
+  renderMapExplorer,
+} from "../ui/mapExplorer.js";
 
 type LayoutHero = {
   eyebrow: string;
@@ -1082,45 +1087,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /* -------------------------------------------------------------- */
-  /* Map (/map) — minimal MapLibre view of observation points       */
+  /* Map (/map) — full Map Explorer (tabs, filters, basemaps, xlinks)*/
   /* -------------------------------------------------------------- */
   app.get("/map", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const snapshot = await getLandingSnapshot(null);
-    const points = toMapPoints(snapshot.feed);
-    const notesHref = appendLangToHref(withBasePath(basePath, "/notes"), lang);
 
-    // Side column: recent observations list + municipality cluster.
-    const recentListLabel = lang === "ja" ? "直近の観察" :
-      lang === "es" ? "Observaciones recientes" :
-      lang === "pt-BR" ? "Observações recentes" : "Recent observations";
-    const clusterLabel = lang === "ja" ? "観察が積み上がる場所" :
-      lang === "es" ? "Municipios activos" :
-      lang === "pt-BR" ? "Municípios ativos" : "Active municipalities";
-    const statsLabel = lang === "ja"
-      ? `${snapshot.stats.observationCount.toLocaleString("ja-JP")} 件 · ${snapshot.stats.speciesCount.toLocaleString("ja-JP")} 種`
-      : `${snapshot.stats.observationCount.toLocaleString("en-US")} obs · ${snapshot.stats.speciesCount.toLocaleString("en-US")} species`;
-
-    const recentList = snapshot.feed.slice(0, 6).map((obs) => {
-      const href = appendLangToHref(withBasePath(basePath, `/observations/${encodeURIComponent(obs.occurrenceId)}`), lang);
-      const place = [obs.placeName, obs.municipality].filter(Boolean).join(" · ") || "—";
-      return `<a class="map-side-item" href="${escapeHtml(href)}">
-        <strong>${escapeHtml(obs.displayName)}</strong>
-        <span>${escapeHtml(place)}</span>
-      </a>`;
-    }).join("");
-
-    const clusterCounts = new Map<string, number>();
-    for (const obs of snapshot.feed) {
-      const key = obs.municipality || (lang === "ja" ? "未分類" : "Unknown");
-      clusterCounts.set(key, (clusterCounts.get(key) ?? 0) + 1);
-    }
-    const clusterItems = [...clusterCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, count]) => `<div class="map-cluster-item"><span>${escapeHtml(name)}</span><strong>${count}</strong></div>`)
-      .join("");
+    const currentYear = new Date().getFullYear();
+    const years: number[] = [];
+    for (let y = currentYear; y >= currentYear - 10; y -= 1) years.push(y);
 
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
@@ -1128,69 +1103,33 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       title: lang === "ja" ? "探索マップ | ikimon" : "Explore Map | ikimon",
       activeNav: lang === "ja" ? "ホーム" : "Home",
       lang,
-      extraStyles: `${MAP_MINI_STYLES}
-        .map-page { margin-top: 24px; }
-        .map-page-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
-        .map-page-layout .map-mini { --map-mini-height: 64vh; }
-        .map-side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; }
-        .map-side-card { background: #fff; border: 1px solid rgba(15,23,42,.06); border-radius: 20px; padding: 16px 18px; box-shadow: 0 8px 20px rgba(15,23,42,.04); }
-        .map-side-card h3 { margin: 0 0 10px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #059669; }
-        .map-side-stat { font-size: 15px; font-weight: 800; color: #0f172a; }
-        .map-side-list { display: flex; flex-direction: column; gap: 8px; }
-        .map-side-item { padding: 10px 12px; border-radius: 12px; background: rgba(236,253,245,.4); border: 1px solid rgba(16,185,129,.12); text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 2px; }
-        .map-side-item:hover { background: rgba(236,253,245,.8); }
-        .map-side-item strong { font-size: 13px; font-weight: 800; color: #0f172a; }
-        .map-side-item span { font-size: 11px; color: #64748b; }
-        .map-cluster-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 10px; background: rgba(248,250,252,.8); font-size: 13px; }
-        .map-cluster-item strong { font-weight: 800; color: #059669; }
-        @media (max-width: 900px) {
-          .map-page-layout { grid-template-columns: 1fr; }
-          .map-side { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 6px; }
-          .map-side-card { min-width: 240px; flex-shrink: 0; }
-        }
-      `,
+      extraStyles: MAP_EXPLORER_STYLES,
       hero: {
         eyebrow: lang === "ja" ? "探索マップ" : "Explore Map",
-        heading: lang === "ja" ? "🗺️ 観察を地図で見る" : "🗺️ Observations on the map",
-        headingHtml: lang === "ja" ? "🗺️ 観察を地図で見る" : "🗺️ Observations on the map",
+        heading: lang === "ja" ? "場所の広がりで、次に歩く理由を決める。" : "Let the spread of places decide where to walk next.",
+        headingHtml: lang === "ja" ? "場所の広がりで、次に歩く理由を決める。" : "Let the spread of places decide where to walk next.",
         lead: lang === "ja"
-          ? "あなたと周りの観察がどの場所に積み上がっているかを見て、次に戻る場所を決められます。"
-          : "See where you and others have stacked observations, and decide where to return next.",
+          ? "観察がどこに積み上がり、どこが空白か。分類・年・ベース地図を切り替えて、次の 1 枚を書く場所を探す。"
+          : "See where observations stack up and where they're blank. Switch group, year, and basemap to find the next page to write.",
         tone: "light",
         align: "center",
         actions: [
-          { href: "/notes", label: lang === "ja" ? "フィールドノートへ戻る" : "Back to Field Note", variant: "secondary" as const },
+          { href: "/notes", label: lang === "ja" ? "ノートに戻る" : "Back to notebook", variant: "secondary" as const },
           { href: "/record", label: lang === "ja" ? "ここに書き足す" : "Add a page here" },
         ],
       },
-      body: `<section class="section map-page">
-        <div class="map-page-layout">
-          <div>${renderMapMini({
-            id: "ikimon-map-full",
-            points,
-            mapHref: notesHref,
-            mapCtaLabel: lang === "ja" ? "ノートへ戻る" : "Back to notebook",
-            emptyLabel: lang === "ja" ? "まだ地図に載せる観察がありません" : "No observations on the map yet",
-            height: 520,
-          })}</div>
-          <aside class="map-side" aria-label="${escapeHtml(lang === "ja" ? "サイド情報" : "Side info")}">
-            <div class="map-side-card">
-              <h3>${escapeHtml(lang === "ja" ? "全体" : "Total")}</h3>
-              <div class="map-side-stat">${escapeHtml(statsLabel)}</div>
-            </div>
-            ${clusterItems ? `<div class="map-side-card">
-              <h3>${escapeHtml(clusterLabel)}</h3>
-              <div class="map-side-list">${clusterItems}</div>
-            </div>` : ""}
-            ${recentList ? `<div class="map-side-card">
-              <h3>${escapeHtml(recentListLabel)}</h3>
-              <div class="map-side-list">${recentList}</div>
-            </div>` : ""}
-          </aside>
-        </div>
-      </section>
-      ${mapMiniBootScript("ikimon-map-full")}`,
-      footerNote: lang === "ja" ? "観察の広がりを、あとで見返せる地図として残す。" : "Keep the spread of observations as a map you can revisit.",
+      body: `${renderMapExplorer({ basePath, lang, years })}
+${mapExplorerBootScript({ basePath, lang })}`,
+      footerNote: lang === "ja"
+        ? "観察の広がりを、次に歩く理由に変える地図。"
+        : "A map that turns the spread of observations into your next reason to walk.",
     });
   });
 }
+
+// Keep the legacy mini map exports accessible so TypeScript doesn't mark them unused.
+void MAP_MINI_STYLES;
+void mapMiniBootScript;
+void renderMapMini;
+void toMapPoints;
+void getLandingSnapshot;

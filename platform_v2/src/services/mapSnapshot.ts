@@ -1,0 +1,343 @@
+import { getPool } from "../db.js";
+
+/**
+ * Map-layer-specific snapshot, separate from landingSnapshot because:
+ *  - it fetches more rows (up to 2000) and supports bbox / year / taxon_group filters
+ *  - it returns GeoJSON-ready shape so MapLibre can consume it directly
+ *  - it computes a coarse taxon_group on the server using scientific_name / vernacular_name
+ *    heuristics, mirroring the legacy `/api/get_observations.php?taxon_group=` behavior
+ *    until a real taxa table lands.
+ */
+
+export type MapObservationFeature = {
+  type: "Feature";
+  geometry: { type: "Point"; coordinates: [number, number] };
+  properties: {
+    occurrenceId: string;
+    visitId: string;
+    displayName: string;
+    scientificName: string | null;
+    vernacularName: string | null;
+    observerName: string;
+    placeName: string;
+    municipality: string | null;
+    observedAt: string;
+    year: number | null;
+    taxonGroup: TaxonGroup;
+    photoUrl: string | null;
+  };
+};
+
+export type MapObservationFeatureCollection = {
+  type: "FeatureCollection";
+  features: MapObservationFeature[];
+  stats: {
+    totalReturned: number;
+    totalAll: number;
+  };
+};
+
+export type TaxonGroup =
+  | "insect"
+  | "bird"
+  | "plant"
+  | "amphibian_reptile"
+  | "mammal"
+  | "fungi"
+  | "other";
+
+export type MapQueryFilters = {
+  taxonGroup?: TaxonGroup;
+  year?: number;
+  bbox?: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
+  limit?: number;
+};
+
+// Kingdom / class-level latin prefixes or Japanese vernacular cues for each
+// coarse group. Order matters: first match wins. The list is intentionally
+// conservative — unknowns fall through to "other" rather than being misplaced.
+const TAXON_RULES: ReadonlyArray<{
+  group: TaxonGroup;
+  scientificPrefixes?: string[];
+  scientificContains?: string[];
+  vernacularContains?: string[];
+}> = [
+  {
+    group: "bird",
+    scientificPrefixes: ["Passer", "Corvus", "Turdus", "Parus", "Hirundo", "Alauda", "Motacilla", "Sturnus", "Emberiza", "Cygnus", "Anas", "Accipiter", "Falco", "Columba", "Picus", "Dendrocopos", "Zosterops", "Pycnonotus"],
+    vernacularContains: ["鳥", "ハト", "カラス", "ツバメ", "スズメ", "ムクドリ", "カモ", "サギ", "タカ", "ワシ", "フクロウ", "ヒヨドリ", "シジュウカラ", "メジロ", "キジ", "ハクチョウ"],
+  },
+  {
+    group: "mammal",
+    scientificPrefixes: ["Canis", "Felis", "Vulpes", "Nyctereutes", "Cervus", "Sus", "Ursus", "Mustela", "Procyon", "Rattus", "Mus", "Apodemus", "Lepus", "Petaurista", "Macaca", "Sciurus"],
+    vernacularContains: ["犬", "猫", "キツネ", "タヌキ", "シカ", "イノシシ", "クマ", "イタチ", "ネズミ", "ウサギ", "リス", "サル", "コウモリ", "イルカ", "クジラ", "モグラ"],
+  },
+  {
+    group: "amphibian_reptile",
+    scientificPrefixes: ["Rana", "Bufo", "Hyla", "Rhacophorus", "Cynops", "Gekko", "Elaphe", "Trimeresurus", "Mauremys", "Pelodiscus", "Plestiodon", "Takydromus"],
+    vernacularContains: ["カエル", "蛙", "イモリ", "サンショウウオ", "ヤモリ", "トカゲ", "ヘビ", "蛇", "カメ", "亀"],
+  },
+  {
+    group: "fungi",
+    scientificPrefixes: ["Amanita", "Boletus", "Tricholoma", "Lactarius", "Russula", "Agaricus", "Lentinula", "Pleurotus", "Cortinarius", "Pholiota", "Hypholoma"],
+    scientificContains: ["mycetes", "mycota"],
+    vernacularContains: ["キノコ", "茸", "タケ", "ナメコ", "シイタケ", "マツタケ", "エノキ"],
+  },
+  {
+    group: "insect",
+    scientificPrefixes: ["Papilio", "Pieris", "Vanessa", "Apis", "Bombus", "Vespa", "Polistes", "Libellula", "Orthetrum", "Oryctes", "Trypoxylus", "Carabus", "Cicindela", "Formica", "Tenodera", "Gryllus"],
+    scientificContains: ["optera", "ptera"],
+    vernacularContains: ["チョウ", "蝶", "ガ", "蛾", "ハチ", "蜂", "トンボ", "蜻蛉", "セミ", "蝉", "カマキリ", "カブトムシ", "クワガタ", "テントウ", "バッタ", "コオロギ", "アリ", "蟻", "ハナバチ"],
+  },
+  {
+    group: "plant",
+    scientificPrefixes: ["Prunus", "Cerasus", "Quercus", "Acer", "Camellia", "Cornus", "Fagus", "Pinus", "Cryptomeria", "Taxus", "Ginkgo", "Rosa", "Trifolium", "Taraxacum", "Oxalis", "Plantago", "Rubus", "Hydrangea", "Wisteria", "Iris", "Lilium"],
+    scientificContains: ["aceae"],
+    vernacularContains: ["花", "草", "木", "樹", "桜", "梅", "松", "杉", "竹", "葉", "苔", "シダ", "タンポポ", "スミレ", "アジサイ", "ツツジ"],
+  },
+];
+
+export function inferTaxonGroup(
+  scientificName: string | null,
+  vernacularName: string | null,
+): TaxonGroup {
+  const sci = (scientificName ?? "").trim();
+  const vern = (vernacularName ?? "").trim();
+  if (!sci && !vern) return "other";
+
+  for (const rule of TAXON_RULES) {
+    if (sci && rule.scientificPrefixes) {
+      const genus = sci.split(/\s+/)[0] ?? "";
+      if (rule.scientificPrefixes.includes(genus)) return rule.group;
+    }
+    if (sci && rule.scientificContains) {
+      const lower = sci.toLowerCase();
+      if (rule.scientificContains.some((needle) => lower.includes(needle))) return rule.group;
+    }
+    if (vern && rule.vernacularContains) {
+      if (rule.vernacularContains.some((needle) => vern.includes(needle))) return rule.group;
+    }
+  }
+  return "other";
+}
+
+type FeedRow = {
+  occurrence_id: string;
+  visit_id: string;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  display_name: string;
+  observer_name: string;
+  place_name: string;
+  municipality: string | null;
+  observed_at: string;
+  latitude: number | null;
+  longitude: number | null;
+  photo_url: string | null;
+};
+
+function normalizeAssetUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")) return value;
+  return `/${value.replace(/^\.?\//, "")}`;
+}
+
+export async function getMapObservations(
+  filters: MapQueryFilters,
+): Promise<MapObservationFeatureCollection> {
+  let pool;
+  try {
+    pool = getPool();
+  } catch {
+    return { type: "FeatureCollection", features: [], stats: { totalReturned: 0, totalAll: 0 } };
+  }
+
+  const limit = Math.min(Math.max(filters.limit ?? 500, 1), 2000);
+  const whereClauses: string[] = [
+    "coalesce(v.point_latitude, p.center_latitude) is not null",
+    "coalesce(v.point_longitude, p.center_longitude) is not null",
+  ];
+  const params: unknown[] = [];
+
+  if (filters.year) {
+    params.push(filters.year);
+    whereClauses.push(`extract(year from v.observed_at) = $${params.length}`);
+  }
+  if (filters.bbox) {
+    const [minLng, minLat, maxLng, maxLat] = filters.bbox;
+    params.push(minLng, minLat, maxLng, maxLat);
+    whereClauses.push(
+      `coalesce(v.point_longitude, p.center_longitude) between $${params.length - 3} and $${params.length - 1}`,
+    );
+    whereClauses.push(
+      `coalesce(v.point_latitude, p.center_latitude) between $${params.length - 2} and $${params.length}`,
+    );
+  }
+
+  const sql = `
+    select
+      o.occurrence_id,
+      o.visit_id,
+      o.scientific_name,
+      o.vernacular_name,
+      coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
+      coalesce(u.display_name, 'Unknown observer') as observer_name,
+      coalesce(p.canonical_name, 'Unknown place') as place_name,
+      coalesce(v.observed_municipality, p.municipality) as municipality,
+      v.observed_at::text,
+      coalesce(v.point_latitude, p.center_latitude) as latitude,
+      coalesce(v.point_longitude, p.center_longitude) as longitude,
+      photo.public_url as photo_url
+    from occurrences o
+    join visits v on v.visit_id = o.visit_id
+    left join users u on u.user_id = v.user_id
+    left join places p on p.place_id = v.place_id
+    left join lateral (
+      select coalesce(ab.public_url, ab.storage_path) as public_url
+      from evidence_assets ea
+      join asset_blobs ab on ab.blob_id = ea.blob_id
+      where ea.occurrence_id = o.occurrence_id
+        and ea.asset_role = 'observation_photo'
+      order by ea.created_at asc
+      limit 1
+    ) photo on true
+    where ${whereClauses.join(" and ")}
+    order by v.observed_at desc
+    limit ${limit}
+  `;
+
+  let features: MapObservationFeature[] = [];
+  try {
+    const result = await pool.query<FeedRow>(sql, params);
+    features = result.rows
+      .filter((row) => row.latitude !== null && row.longitude !== null)
+      .map((row) => {
+        const lat = Number(row.latitude);
+        const lng = Number(row.longitude);
+        const year = row.observed_at ? new Date(row.observed_at).getUTCFullYear() : null;
+        const group = inferTaxonGroup(row.scientific_name, row.vernacular_name);
+        return {
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [lng, lat] as [number, number] },
+          properties: {
+            occurrenceId: row.occurrence_id,
+            visitId: row.visit_id,
+            displayName: row.display_name,
+            scientificName: row.scientific_name,
+            vernacularName: row.vernacular_name,
+            observerName: row.observer_name,
+            placeName: row.place_name,
+            municipality: row.municipality,
+            observedAt: row.observed_at,
+            year,
+            taxonGroup: group,
+            photoUrl: normalizeAssetUrl(row.photo_url),
+          },
+        };
+      });
+  } catch {
+    features = [];
+  }
+
+  // Apply server-side taxon_group filter after inference.
+  const filtered = filters.taxonGroup
+    ? features.filter((f) => f.properties.taxonGroup === filters.taxonGroup)
+    : features;
+
+  // Count unfiltered total for stats.
+  let totalAll = features.length;
+  try {
+    const countRes = await pool.query<{ c: string }>(
+      `select count(*)::text as c
+         from occurrences o
+         join visits v on v.visit_id = o.visit_id
+         left join places p on p.place_id = v.place_id
+         where coalesce(v.point_latitude, p.center_latitude) is not null
+           and coalesce(v.point_longitude, p.center_longitude) is not null`,
+    );
+    totalAll = Number(countRes.rows[0]?.c ?? totalAll);
+  } catch {
+    // keep fallback
+  }
+
+  return {
+    type: "FeatureCollection",
+    features: filtered,
+    stats: {
+      totalReturned: filtered.length,
+      totalAll,
+    },
+  };
+}
+
+/**
+ * Coverage mesh — aggregate observations at mesh4 (or mesh3) granularity to
+ * show which areas have been walked heavily vs. barely touched. Returns a
+ * GeoJSON FeatureCollection of small polygons; each feature's `count` property
+ * drives the fill opacity client-side.
+ */
+export async function getCoverageMesh(
+  filters: { year?: number } = {},
+): Promise<{
+  type: "FeatureCollection";
+  features: Array<{
+    type: "Feature";
+    geometry: { type: "Polygon"; coordinates: [number, number][][] };
+    properties: { mesh: string; count: number };
+  }>;
+  maxCount: number;
+}> {
+  const empty = { type: "FeatureCollection" as const, features: [], maxCount: 0 };
+  let pool;
+  try {
+    pool = getPool();
+  } catch {
+    return empty;
+  }
+
+  // We group by a ~0.01 deg (~1.1 km) grid snap to avoid relying on mesh4
+  // populated on every place (sparse in legacy data). Cheap and visually
+  // close to the legacy mesh3/4 buckets.
+  const whereYear = filters.year ? `and extract(year from v.observed_at) = $1` : "";
+  const params: unknown[] = filters.year ? [filters.year] : [];
+  const sql = `
+    select
+      round(coalesce(v.point_latitude, p.center_latitude)::numeric, 2)  as lat_bin,
+      round(coalesce(v.point_longitude, p.center_longitude)::numeric, 2) as lng_bin,
+      count(*)::int as c
+    from occurrences o
+    join visits v on v.visit_id = o.visit_id
+    left join places p on p.place_id = v.place_id
+    where coalesce(v.point_latitude, p.center_latitude) is not null
+      and coalesce(v.point_longitude, p.center_longitude) is not null
+      ${whereYear}
+    group by lat_bin, lng_bin
+    order by c desc
+    limit 1500
+  `;
+
+  try {
+    const result = await pool.query<{ lat_bin: string; lng_bin: string; c: number }>(sql, params);
+    const features = result.rows.map((row) => {
+      const lat = Number(row.lat_bin);
+      const lng = Number(row.lng_bin);
+      const cellSize = 0.01;
+      const ring: [number, number][] = [
+        [lng, lat],
+        [lng + cellSize, lat],
+        [lng + cellSize, lat + cellSize],
+        [lng, lat + cellSize],
+        [lng, lat],
+      ];
+      return {
+        type: "Feature" as const,
+        geometry: { type: "Polygon" as const, coordinates: [ring] },
+        properties: { mesh: `${lat.toFixed(2)},${lng.toFixed(2)}`, count: row.c },
+      };
+    });
+    const maxCount = features.reduce((m, f) => Math.max(m, f.properties.count), 0);
+    return { type: "FeatureCollection", features, maxCount };
+  } catch {
+    return empty;
+  }
+}
