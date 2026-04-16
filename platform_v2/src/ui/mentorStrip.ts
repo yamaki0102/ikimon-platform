@@ -14,31 +14,33 @@ const copyByLang: Record<SiteLang, MentorStripCopy> = {
     eyebrow: "あとから読み返す人",
     heading: "あなたのページを、専門家が読み直すことがあります。",
     lead: "観察には、別の lane で同定をつけ直す専門家がいます。記録は、あなた1人で完結しなくて大丈夫。書いたあとから、誰かが受け取ります。",
-    cta: "専門家 lane を見る",
+    cta: "ノートの仕組みを読む",
   },
   en: {
     eyebrow: "Who rereads later",
     heading: "Your page may be reread by a specialist.",
     lead: "Observations have a separate lane where specialists revisit identifications. The record does not have to be complete by you alone — someone picks it up after you.",
-    cta: "See the specialist lane",
+    cta: "Read how the notebook works",
   },
   es: {
     eyebrow: "Quienes vuelven a leer",
     heading: "Tu página puede ser releída por un especialista.",
     lead: "Las observaciones tienen otro carril donde especialistas revisan las identificaciones. El registro no necesita estar completo solo por ti — alguien lo recoge después.",
-    cta: "Ver el carril de especialistas",
+    cta: "Leer cómo funciona el cuaderno",
   },
   "pt-BR": {
     eyebrow: "Quem relê depois",
     heading: "Sua página pode ser relida por um especialista.",
     lead: "As observações têm outro carril onde especialistas revisam as identificações. O registro não precisa estar completo só por você — alguém o recebe depois.",
-    cta: "Ver o carril de especialistas",
+    cta: "Ler como o caderno funciona",
   },
 };
 
 export function renderMentorStrip(basePath: string, lang: SiteLang): string {
   const copy = copyByLang[lang];
-  const href = appendLangToHref(withBasePath(basePath, "/specialist/id-workbench"), lang);
+  // /about is the public-facing explanation page; the specialist workbench is
+  // a logged-in lane and not appropriate as the first link from a public chip.
+  const href = appendLangToHref(withBasePath(basePath, "/about"), lang);
 
   return `<section class="section ms-section" aria-labelledby="ms-heading">
     <div class="ms-card">
@@ -48,7 +50,7 @@ export function renderMentorStrip(basePath: string, lang: SiteLang): string {
         <p class="ms-lead">${escapeHtml(copy.lead)}</p>
       </div>
       <div class="ms-actions">
-        <a class="inline-link" href="${escapeHtml(href)}" data-kpi-action="mentorstrip:specialist-lane">${escapeHtml(copy.cta)}</a>
+        <a class="inline-link" href="${escapeHtml(href)}" data-kpi-action="mentorstrip:about">${escapeHtml(copy.cta)}</a>
       </div>
     </div>
   </section>`;
