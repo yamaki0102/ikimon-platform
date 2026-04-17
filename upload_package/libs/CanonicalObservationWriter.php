@@ -33,6 +33,8 @@ class CanonicalObservationWriter
             return $existing + ['skipped' => true];
         }
 
+        $hasVideoEvidence = !empty(self::extractVideoAssets($observation));
+
         $placeContext = CanonicalStore::derivePlaceContext([
             'event_date' => $observation['observed_at'] ?? $observation['created_at'] ?? date('c'),
             'decimal_latitude' => $observation['lat'] ?? null,
@@ -52,8 +54,8 @@ class CanonicalObservationWriter
             'decimal_longitude' => $observation['lng'] ?? null,
             'coordinate_uncertainty_m' => $observation['coordinate_accuracy'] ?? null,
             'uncertainty_type' => !empty($observation['coordinate_accuracy']) ? 'measured' : 'device_default',
-            'sampling_protocol' => !empty($observation['light_mode']) ? 'manual-light-post' : 'manual-photo-post',
-            'capture_device' => !empty($observation['light_mode']) ? 'light_mode' : 'photo_upload',
+            'sampling_protocol' => !empty($observation['light_mode']) ? 'manual-light-post' : ($hasVideoEvidence ? 'manual-video-post' : 'manual-photo-post'),
+            'capture_device' => !empty($observation['light_mode']) ? 'light_mode' : ($hasVideoEvidence ? 'video_upload' : 'photo_upload'),
             'recorded_by' => $observation['user_id'] ?? null,
             'site_id' => $observation['site_id'] ?? null,
             'session_mode' => !empty($observation['light_mode']) ? 'lightweight' : 'standard',
@@ -73,9 +75,9 @@ class CanonicalObservationWriter
             'scientific_name' => $taxon['scientific_name'] ?? ($observation['scientific_name'] ?? null),
             'vernacular_name' => $taxon['name'] ?? ($observation['species_name'] ?? null),
             'taxon_rank' => $taxon['rank'] ?? 'species',
-            'basis_of_record' => !empty($observation['photos']) ? 'HumanObservation' : 'HumanObservationWithoutMedia',
+            'basis_of_record' => (!empty($observation['photos']) || $hasVideoEvidence) ? 'HumanObservation' : 'HumanObservationWithoutMedia',
             'individual_count' => $observation['individual_count'] ?? null,
-            'evidence_tier' => !empty($observation['photos']) ? 1.0 : 0.5,
+            'evidence_tier' => (!empty($observation['photos']) || $hasVideoEvidence) ? 1.0 : 0.5,
             'evidence_tier_by' => 'post_write',
             'data_quality' => ($observation['status'] ?? '') === '研究用' ? 'A' : 'C',
             'observation_source' => $observation['record_source'] ?? 'post',
@@ -95,6 +97,29 @@ class CanonicalObservationWriter
                 'metadata' => [
                     'light_mode' => !empty($observation['light_mode']),
                     'location_granularity' => $observation['location_granularity'] ?? 'exact',
+                ],
+            ]);
+        }
+
+        foreach (self::extractVideoAssets($observation) as $videoAsset) {
+            $providerUid = (string)($videoAsset['provider_uid'] ?? '');
+            if ($providerUid === '') {
+                continue;
+            }
+
+            CanonicalStore::addEvidence([
+                'occurrence_id' => $occurrenceId,
+                'media_type' => 'video',
+                'media_path' => $providerUid,
+                'capture_timestamp' => $observation['observed_at'] ?? $observation['created_at'] ?? date('c'),
+                'metadata' => [
+                    'provider' => $videoAsset['provider'] ?? 'cloudflare_stream',
+                    'watch_url' => $videoAsset['watch_url'] ?? null,
+                    'iframe_url' => $videoAsset['iframe_url'] ?? null,
+                    'thumbnail_url' => $videoAsset['thumbnail_url'] ?? null,
+                    'poster_path' => $videoAsset['poster_path'] ?? null,
+                    'duration_ms' => $videoAsset['duration_ms'] ?? null,
+                    'upload_status' => $videoAsset['upload_status'] ?? null,
                 ],
             ]);
         }
@@ -181,5 +206,20 @@ class CanonicalObservationWriter
             $parts[] = 'evidence:' . implode(',', $observation['evidence_tags']);
         }
         return $parts ? implode(' | ', $parts) : null;
+    }
+
+    private static function extractVideoAssets(array $observation): array
+    {
+        $videoAssets = [];
+        foreach (($observation['media_assets'] ?? $observation['video_assets'] ?? []) as $asset) {
+            if (!is_array($asset)) {
+                continue;
+            }
+            if (($asset['media_type'] ?? '') !== 'video') {
+                continue;
+            }
+            $videoAssets[] = $asset;
+        }
+        return $videoAssets;
     }
 }

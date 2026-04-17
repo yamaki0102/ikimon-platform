@@ -63,6 +63,38 @@ class CanonicalObservationView
                     return in_array($type, ['photo', 'image'], true) && ($item['media_path'] ?? '') !== '';
                 })
             ));
+
+            $merged['media_assets'] = array_values(array_filter(array_map(static function (array $item): ?array {
+                $type = (string)($item['media_type'] ?? '');
+                if ($type === 'video') {
+                    $metadata = is_array($item['metadata'] ?? null) ? $item['metadata'] : [];
+                    return [
+                        'provider' => $metadata['provider'] ?? 'cloudflare_stream',
+                        'provider_uid' => $item['media_path'] ?? null,
+                        'media_type' => 'video',
+                        'asset_role' => 'observation_video',
+                        'thumbnail_url' => $metadata['thumbnail_url'] ?? null,
+                        'poster_path' => $metadata['poster_path'] ?? null,
+                        'watch_url' => $metadata['watch_url'] ?? null,
+                        'iframe_url' => $metadata['iframe_url'] ?? null,
+                        'duration_ms' => $metadata['duration_ms'] ?? null,
+                        'upload_status' => $metadata['upload_status'] ?? null,
+                    ];
+                }
+
+                if (!in_array($type, ['photo', 'image'], true) || ($item['media_path'] ?? '') === '') {
+                    return null;
+                }
+
+                return [
+                    'provider' => 'local_upload',
+                    'media_type' => 'photo',
+                    'asset_role' => 'observation_photo',
+                    'media_path' => (string)$item['media_path'],
+                    'thumbnail_url' => (string)$item['media_path'],
+                    'upload_status' => 'ready',
+                ];
+            }, $evidence)));
         }
 
         if (!is_array($merged['taxon'] ?? null)) {
