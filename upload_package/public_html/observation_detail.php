@@ -76,6 +76,89 @@ function normalizeAiDisplayList($value): array
     return array_values(array_unique($normalized));
 }
 
+function resolveObservationMediaUrl(?string $path): ?string
+{
+    if (!is_string($path) || trim($path) === '') {
+        return null;
+    }
+
+    if (strpos($path, 'http://') === 0 || strpos($path, 'https://') === 0) {
+        return $path;
+    }
+
+    return BASE_URL . '/' . ltrim($path, '/');
+}
+
+function buildObservationMediaItems(array $observation): array
+{
+    $items = [];
+    $seen = [];
+    $videoPosterPaths = [];
+    $mediaAssets = array_values(array_filter($observation['media_assets'] ?? [], fn($asset) => is_array($asset)));
+
+    foreach ($mediaAssets as $asset) {
+        if (($asset['media_type'] ?? '') === 'video' && !empty($asset['poster_path'])) {
+            $videoPosterPaths[(string)$asset['poster_path']] = true;
+        }
+        if (($asset['media_type'] ?? '') === 'video' && !empty($asset['thumbnail_url'])) {
+            $videoPosterPaths[(string)$asset['thumbnail_url']] = true;
+        }
+    }
+
+    foreach ($mediaAssets as $asset) {
+        $type = (string)($asset['media_type'] ?? '');
+        if ($type === 'video') {
+            $uid = (string)($asset['provider_uid'] ?? '');
+            if ($uid === '' || isset($seen['video:' . $uid])) {
+                continue;
+            }
+            $seen['video:' . $uid] = true;
+            $poster = resolveObservationMediaUrl($asset['poster_path'] ?? $asset['thumbnail_url'] ?? null);
+            $items[] = [
+                'type' => 'video',
+                'uid' => $uid,
+                'iframe_url' => $asset['iframe_url'] ?? null,
+                'watch_url' => $asset['watch_url'] ?? null,
+                'poster_url' => $poster,
+                'duration_ms' => isset($asset['duration_ms']) ? (int)$asset['duration_ms'] : null,
+                'label' => __('observation_page.video_label', 'Observation video'),
+            ];
+            continue;
+        }
+
+        if (!in_array($type, ['photo', 'image'], true)) {
+            continue;
+        }
+
+        $path = (string)($asset['media_path'] ?? '');
+        if ($path === '' || isset($videoPosterPaths[$path]) || isset($seen['photo:' . $path])) {
+            continue;
+        }
+        $seen['photo:' . $path] = true;
+        $items[] = [
+            'type' => 'photo',
+            'src' => resolveObservationMediaUrl($path),
+            'label' => __('observation_page.photo_label', 'Observation photo'),
+        ];
+    }
+
+    if ($items === []) {
+        foreach (($observation['photos'] ?? []) as $photoPath) {
+            if (!is_string($photoPath) || $photoPath === '' || isset($seen['photo:' . $photoPath])) {
+                continue;
+            }
+            $seen['photo:' . $photoPath] = true;
+            $items[] = [
+                'type' => 'photo',
+                'src' => resolveObservationMediaUrl($photoPath),
+                'label' => __('observation_page.photo_label', 'Observation photo'),
+            ];
+        }
+    }
+
+    return $items;
+}
+
 // Get Observation
 $id = $_GET['id'] ?? '';
 $obs = DataStore::findById('observations', $id);
@@ -88,6 +171,7 @@ if (!$obs) {
 
 $obs = CanonicalObservationView::hydrate($obs);
 $canonicalView = is_array($obs['canonical_view'] ?? null) ? $obs['canonical_view'] : ['enabled' => false];
+$mediaItems = buildObservationMediaItems($obs);
 
 // Increment View Count
 DataStore::increment('observations', $id, 'views');
@@ -347,8 +431,11 @@ $meta_description = strtr($metaDescriptionTemplate, [
     '{place_clause}' => $metaPlaceClause,
     '{taxonomy_clause}' => $metaTaxonomyClause,
 ]);
-if (!empty($obs['photos'])) {
-    $meta_image = (strpos($obs['photos'][0], 'http') === 0) ? $obs['photos'][0] : BASE_URL . '/' . $obs['photos'][0];
+if (!empty($mediaItems)) {
+    $firstMedia = $mediaItems[0];
+    $meta_image = $firstMedia['type'] === 'video'
+        ? ($firstMedia['poster_url'] ?? null)
+        : ($firstMedia['src'] ?? null);
 }
 $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($id);
 ?>
@@ -546,29 +633,41 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
 
             <!-- LEFT COLUMN: Visuals (LG: 7 cols - ~58%) -->
             <div class="lg:col-span-7 space-y-6">
-                <!-- Main Photo Carousel -->
+                <!-- Main Media Carousel -->
                 <div class="relative bg-black rounded-2xl overflow-hidden shadow-2xl border border-border group aspect-[4/3] flex items-center justify-center"
                     @click="lightbox = true"
                     @touchstart="touchStart = $event.changedTouches[0].screenX"
-                    @touchend="touchEnd = $event.changedTouches[0].screenX; let diff = touchStart - touchEnd; if(Math.abs(diff) > 50) { photoActive = diff > 0 ? (photoActive + 1) % <?php echo max(1, count($obs['photos'] ?? [])); ?> : (photoActive - 1 + <?php echo max(1, count($obs['photos'] ?? [])); ?>) % <?php echo max(1, count($obs['photos'] ?? [])); ?>; }">
-                    <?php if (!empty($obs['photos'])): ?>
-                        <?php foreach ($obs['photos'] as $idx => $photo): ?>
-                            <img src="<?php echo htmlspecialchars($photo); ?>"
-                                class="absolute inset-0 w-full h-full object-contain transition-all duration-500"
-                                :class="photoActive === <?php echo $idx; ?> ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'"
-                                alt="<?php echo htmlspecialchars(__('observation_page.photo_alt', 'Observation photo {index}', ['index' => $idx + 1])); ?>" loading="<?php echo $idx === 0 ? 'eager' : 'lazy'; ?>">
+                    @touchend="touchEnd = $event.changedTouches[0].screenX; let diff = touchStart - touchEnd; if(Math.abs(diff) > 50) { photoActive = diff > 0 ? (photoActive + 1) % <?php echo max(1, count($mediaItems)); ?> : (photoActive - 1 + <?php echo max(1, count($mediaItems)); ?>) % <?php echo max(1, count($mediaItems)); ?>; }">
+                    <?php if (!empty($mediaItems)): ?>
+                        <?php foreach ($mediaItems as $idx => $media): ?>
+                            <?php if (($media['type'] ?? '') === 'video'): ?>
+                                <div class="absolute inset-0 transition-all duration-500"
+                                    :class="photoActive === <?php echo $idx; ?> ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'">
+                                    <iframe src="<?php echo htmlspecialchars((string)($media['iframe_url'] ?? '')); ?>"
+                                        title="<?php echo htmlspecialchars(__('observation_page.video_alt', 'Observation video {index}', ['index' => $idx + 1])); ?>"
+                                        class="w-full h-full"
+                                        loading="<?php echo $idx === 0 ? 'eager' : 'lazy'; ?>"
+                                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                                        allowfullscreen></iframe>
+                                </div>
+                            <?php else: ?>
+                                <img src="<?php echo htmlspecialchars((string)($media['src'] ?? '')); ?>"
+                                    class="absolute inset-0 w-full h-full object-contain transition-all duration-500"
+                                    :class="photoActive === <?php echo $idx; ?> ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'"
+                                    alt="<?php echo htmlspecialchars(__('observation_page.photo_alt', 'Observation photo {index}', ['index' => $idx + 1])); ?>" loading="<?php echo $idx === 0 ? 'eager' : 'lazy'; ?>">
+                            <?php endif; ?>
                         <?php endforeach; ?>
 
                         <!-- Navigation Arrows -->
-                        <?php if (count($obs['photos']) > 1): ?>
-                    <button @click.stop="photoActive = (photoActive - 1 + <?php echo count($obs['photos']); ?>) % <?php echo count($obs['photos']); ?>" aria-label="<?= __('observation_page.prev_photo', 'Previous photo') ?>" class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20 opacity-0 group-hover:opacity-100">
+                        <?php if (count($mediaItems) > 1): ?>
+                    <button @click.stop="photoActive = (photoActive - 1 + <?php echo count($mediaItems); ?>) % <?php echo count($mediaItems); ?>" aria-label="<?= __('observation_page.prev_photo', 'Previous media') ?>" class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20 opacity-0 group-hover:opacity-100">
                                 <i data-lucide="chevron-left" class="w-5 h-5"></i>
                             </button>
-                    <button @click.stop="photoActive = (photoActive + 1) % <?php echo count($obs['photos']); ?>" aria-label="<?= __('observation_page.next_photo', 'Next photo') ?>" class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20 opacity-0 group-hover:opacity-100">
+                    <button @click.stop="photoActive = (photoActive + 1) % <?php echo count($mediaItems); ?>" aria-label="<?= __('observation_page.next_photo', 'Next media') ?>" class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-black transition z-20 opacity-0 group-hover:opacity-100">
                                 <i data-lucide="chevron-right" class="w-5 h-5"></i>
                             </button>
                             <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full z-20">
-                                <?php foreach ($obs['photos'] as $idx => $p): ?>
+                                <?php foreach ($mediaItems as $idx => $p): ?>
                                     <button @click.stop="photoActive = <?php echo $idx; ?>" class="w-2.5 h-2.5 rounded-full transition-all" :class="photoActive === <?php echo $idx; ?> ? 'bg-white scale-125' : 'bg-white/30 hover:bg-white/60'"></button>
                                 <?php endforeach; ?>
                             </div>
@@ -576,33 +675,52 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     <?php else: ?>
                         <div class="text-muted flex flex-col items-center">
                             <i data-lucide="image-off" class="w-12 h-12 mb-2"></i>
-                            <span class="text-xs"><?= __('observation_page.no_photo', 'No photo') ?></span>
+                            <span class="text-xs"><?= __('observation_page.no_photo', 'No media') ?></span>
                         </div>
                     <?php endif; ?>
                 </div>
 
                 <!-- Lightbox -->
                 <div x-show="lightbox" x-cloak x-transition.opacity class="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-2" role="dialog" aria-modal="true" aria-labelledby="obs-lightbox-title"
-                    @keydown.window.left.prevent="photoActive = (photoActive - 1 + <?php echo max(1, count($obs['photos'] ?? [])); ?>) % <?php echo max(1, count($obs['photos'] ?? [])); ?>"
-                    @keydown.window.right.prevent="photoActive = (photoActive + 1) % <?php echo max(1, count($obs['photos'] ?? [])); ?>"
+                    @keydown.window.left.prevent="photoActive = (photoActive - 1 + <?php echo max(1, count($mediaItems)); ?>) % <?php echo max(1, count($mediaItems)); ?>"
+                    @keydown.window.right.prevent="photoActive = (photoActive + 1) % <?php echo max(1, count($mediaItems)); ?>"
                     @keydown.window.escape.prevent="lightbox = false">
-                    <h2 id="obs-lightbox-title" class="sr-only"><?= __('observation_page.photo_gallery', 'Observation photos') ?></h2>
+                    <h2 id="obs-lightbox-title" class="sr-only"><?= __('observation_page.photo_gallery', 'Observation media') ?></h2>
                     <button @click.stop="lightbox = false" aria-label="<?= __('observation_page.close', 'Close') ?>" class="absolute top-4 right-4 text-white p-2 bg-white/10 rounded-full z-[101] hover:bg-white/20 transition">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
-                    <?php if (!empty($obs['photos'])): ?>
-                        <?php foreach ($obs['photos'] as $idx => $photo): ?>
-                            <img src="<?php echo htmlspecialchars($photo); ?>" x-show="photoActive === <?php echo $idx; ?>" alt="<?php echo htmlspecialchars(__('observation_page.photo_alt', 'Observation photo {index}', ['index' => $idx + 1])); ?>" class="max-w-full max-h-full object-contain pointer-events-none select-none">
+                    <?php if (!empty($mediaItems)): ?>
+                        <?php foreach ($mediaItems as $idx => $media): ?>
+                            <?php if (($media['type'] ?? '') === 'video'): ?>
+                                <div x-show="photoActive === <?php echo $idx; ?>" class="w-full h-full max-w-5xl max-h-[85vh]">
+                                    <iframe src="<?php echo htmlspecialchars((string)($media['iframe_url'] ?? '')); ?>"
+                                        title="<?php echo htmlspecialchars(__('observation_page.video_alt', 'Observation video {index}', ['index' => $idx + 1])); ?>"
+                                        class="w-full h-full"
+                                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                                        allowfullscreen></iframe>
+                                </div>
+                            <?php else: ?>
+                                <img src="<?php echo htmlspecialchars((string)($media['src'] ?? '')); ?>" x-show="photoActive === <?php echo $idx; ?>" alt="<?php echo htmlspecialchars(__('observation_page.photo_alt', 'Observation photo {index}', ['index' => $idx + 1])); ?>" class="max-w-full max-h-full object-contain pointer-events-none select-none">
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
 
                 <!-- Thumbnails -->
-                <?php if (!empty($obs['photos']) && count($obs['photos']) > 1): ?>
+                <?php if (!empty($mediaItems) && count($mediaItems) > 1): ?>
                     <div class="flex gap-2 overflow-x-auto scrollbar-hide mt-3">
-                        <?php foreach ($obs['photos'] as $idx => $photo): ?>
+                        <?php foreach ($mediaItems as $idx => $media): ?>
                             <button @click.stop="photoActive = <?php echo $idx; ?>" type="button" class="w-16 h-16 flex-shrink-0 rounded-xl overflow-hidden border-2 transition" :class="photoActive === <?php echo $idx; ?> ? 'border-primary scale-105' : 'border-transparent opacity-50'">
-                            <img src="<?php echo $photo; ?>" alt="<?php echo htmlspecialchars(__('observation_page.photo_alt', 'Observation photo {index}', ['index' => $idx + 1])); ?>" class="w-full h-full object-cover" loading="lazy">
+                            <?php if (($media['type'] ?? '') === 'video'): ?>
+                                <div class="relative w-full h-full">
+                                    <img src="<?php echo htmlspecialchars((string)($media['poster_url'] ?? '')); ?>" alt="<?php echo htmlspecialchars(__('observation_page.video_alt', 'Observation video {index}', ['index' => $idx + 1])); ?>" class="w-full h-full object-cover" loading="lazy">
+                                    <span class="absolute inset-0 flex items-center justify-center bg-black/20 text-white">
+                                        <i data-lucide="play" class="w-4 h-4"></i>
+                                    </span>
+                                </div>
+                            <?php else: ?>
+                                <img src="<?php echo htmlspecialchars((string)($media['src'] ?? '')); ?>" alt="<?php echo htmlspecialchars(__('observation_page.photo_alt', 'Observation photo {index}', ['index' => $idx + 1])); ?>" class="w-full h-full object-cover" loading="lazy">
+                            <?php endif; ?>
                             </button>
                         <?php endforeach; ?>
                     </div>

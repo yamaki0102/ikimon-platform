@@ -526,10 +526,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     <div class="me-eyebrow-strip">
       <span class="me-eyebrow-kicker">${escapeHtml(lang === "ja" ? "探索マップ" : lang === "es" ? "Mapa de exploración" : lang === "pt-BR" ? "Mapa de exploração" : "Explore Map")}</span>
       <span class="me-eyebrow-hint">${escapeHtml(lang === "ja"
-        ? "観察がどこに積み上がり、どこが空白か。地域を選び、レイヤーを重ねて、次に歩く場所を決める。"
-        : lang === "es" ? "Dónde se acumulan las observaciones y dónde no. Elige región, apila capas, decide el próximo paseo."
-        : lang === "pt-BR" ? "Onde as observações se acumulam e onde estão vazias. Escolha região, empilhe camadas, decida o próximo passeio."
-        : "Where observations stack up and where they're blank. Pick a region, stack layers, decide the next walk.")}</span>
+        ? "観察がどこに積み上がり、どこがまだ見られていないか。空白は不在と同じではない。地域を選び、レイヤーを重ねて、次に歩く場所を決める。"
+        : lang === "es" ? "Dónde se acumulan las observaciones y dónde la cobertura sigue siendo delgada. Vacío no es lo mismo que ausencia. Elige región, apila capas y decide el próximo paseo."
+        : lang === "pt-BR" ? "Onde as observações se acumulam e onde a cobertura ainda é fina. Vazio não é o mesmo que ausência. Escolha a região, empilhe camadas e decida a próxima caminhada."
+        : "Where observations stack up and where coverage is still thin. Blank is not the same as absence. Pick a region, stack layers, decide the next walk.")}</span>
     </div>
     ${crossChipsHtml}
     <div class="me-toolbar">

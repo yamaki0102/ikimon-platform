@@ -66,6 +66,15 @@ export async function recordSpecialistReview(input: SpecialistReviewInput) {
     );
 
     if (input.decision === "approve") {
+      // Tier 1 or 1.5 → 2 on first specialist approval
+      await client.query(
+        `update occurrences
+         set evidence_tier = 2, updated_at = now()
+         where occurrence_id = $1
+           and evidence_tier < 2`,
+        [occurrenceId],
+      );
+
       const legacyIdentificationKey = `v2_specialist:${occurrenceId}:${input.lane}:${input.actorUserId}`;
       await client.query(
         `insert into identifications (

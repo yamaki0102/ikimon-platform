@@ -23,6 +23,9 @@ type MainCopy = {
   hypothesisChecksLabel: string;
   hypothesisCapturesLabel: string;
   hypothesisReasonsLabel: string;
+  walkLabel: string;
+  walkNoActivity: string;
+  walkDistUnit: string;
 };
 
 const mainCopy: Record<SiteLang, MainCopy> = {
@@ -45,6 +48,9 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     hypothesisChecksLabel: "現地で確かめる",
     hypothesisCapturesLabel: "撮るなら",
     hypothesisReasonsLabel: "根拠",
+    walkLabel: "今日のさんぽ",
+    walkNoActivity: "まだ今日のさんぽ記録がありません",
+    walkDistUnit: "m",
   },
   en: {
     eyebrow: "Your notebook",
@@ -65,6 +71,9 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     hypothesisChecksLabel: "Check on the ground",
     hypothesisCapturesLabel: "If you shoot",
     hypothesisReasonsLabel: "Why",
+    walkLabel: "Today's walk",
+    walkNoActivity: "No walk recorded today yet",
+    walkDistUnit: "m",
   },
   es: {
     eyebrow: "Tu cuaderno",
@@ -85,6 +94,9 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     hypothesisChecksLabel: "Verifica en el sitio",
     hypothesisCapturesLabel: "Si disparas",
     hypothesisReasonsLabel: "Por qué",
+    walkLabel: "Caminata de hoy",
+    walkNoActivity: "No hay registro de caminata hoy",
+    walkDistUnit: "m",
   },
   "pt-BR": {
     eyebrow: "Seu caderno",
@@ -105,6 +117,9 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     hypothesisChecksLabel: "Verifique no campo",
     hypothesisCapturesLabel: "Se for fotografar",
     hypothesisReasonsLabel: "Por quê",
+    walkLabel: "Caminhada de hoje",
+    walkNoActivity: "Nenhum registro de caminhada hoje",
+    walkDistUnit: "m",
   },
 };
 
@@ -190,15 +205,20 @@ export function renderFieldNoteMain(
   })();
 
   const apiSiteBrief = withBasePath(basePath, "/api/v1/map/site-brief");
+  const apiWalkToday = withBasePath(basePath, "/api/v1/walk/today");
   const briefLang = lang === "en" ? "en" : "ja";
 
   return `<section class="section fn-main" aria-labelledby="fn-main-heading"
     data-api-site-brief="${escapeHtml(apiSiteBrief)}"
+    data-api-walk-today="${escapeHtml(apiWalkToday)}"
     data-brief-lang="${escapeHtml(briefLang)}"
     data-copy-loading="${escapeHtml(copy.hypothesisLoading)}"
     data-copy-checks="${escapeHtml(copy.hypothesisChecksLabel)}"
     data-copy-captures="${escapeHtml(copy.hypothesisCapturesLabel)}"
-    data-copy-reasons="${escapeHtml(copy.hypothesisReasonsLabel)}">
+    data-copy-reasons="${escapeHtml(copy.hypothesisReasonsLabel)}"
+    data-copy-walk-label="${escapeHtml(copy.walkLabel)}"
+    data-copy-walk-no-activity="${escapeHtml(copy.walkNoActivity)}"
+    data-copy-walk-dist-unit="${escapeHtml(copy.walkDistUnit)}">
     <div class="fn-main-card">
       <div class="fn-main-head">
         <div class="fn-main-head-copy">
@@ -215,6 +235,10 @@ export function renderFieldNoteMain(
         <div class="fn-subhead"><h3>${escapeHtml(copy.hypothesisLabel)}</h3></div>
         <div class="fn-hypothesis-card is-loading" id="fn-hypothesis-card">${escapeHtml(copy.hypothesisLoading)}</div>
       </div>
+      ${isLoggedIn ? `<div class="fn-walk-wrap" id="fn-walk-wrap" style="display:none">
+        <div class="fn-subhead"><h3 id="fn-walk-label">${escapeHtml(copy.walkLabel)}</h3></div>
+        <div class="fn-walk-card" id="fn-walk-card"></div>
+      </div>` : ""}
       ${myFeedSection}
       ${myPlacesSection}
       ${nearbySection}
@@ -258,6 +282,38 @@ export function renderFieldNoteMain(
       if (w) w.style.display = 'none';
     }, { timeout: 8000, maximumAge: 60000 });
   })();
+
+  // Walk today widget
+  (function () {
+    var section = document.querySelector('.fn-main[data-api-walk-today]');
+    if (!section) return;
+    var walkApi = section.getAttribute('data-api-walk-today');
+    var noActivity = section.getAttribute('data-copy-walk-no-activity') || '';
+    var distUnit = section.getAttribute('data-copy-walk-dist-unit') || 'm';
+    var wrap = document.getElementById('fn-walk-wrap');
+    var card = document.getElementById('fn-walk-card');
+    if (!wrap || !card || !walkApi) return;
+    fetch(walkApi, { credentials: 'same-origin' })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data || data.sessionCount === 0) {
+          card.textContent = noActivity;
+          return;
+        }
+        var dist = data.totalDistanceM >= 1000
+          ? (data.totalDistanceM / 1000).toFixed(1) + ' km'
+          : Math.round(data.totalDistanceM) + ' ' + distUnit;
+        var species = (data.topSpecies || []).slice(0, 3).join(' · ');
+        card.innerHTML =
+          '<div class="fn-walk-stats">' +
+          '<span class="fn-walk-stat">🚶 ' + dist + '</span>' +
+          '<span class="fn-walk-stat">🔍 ' + data.totalDetections + '</span>' +
+          '</div>' +
+          (species ? '<div class="fn-walk-species">' + species + '</div>' : '');
+        wrap.style.display = '';
+      })
+      .catch(function() {});
+  })();
   </script>`;
 }
 
@@ -292,6 +348,11 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-hyp-sublabel { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
   .fn-hyp-section ul { margin: 0; padding-left: 16px; }
   .fn-hyp-section li { margin-bottom: 2px; color: #334155; line-height: 1.6; }
+  .fn-walk-wrap { margin-top: 20px; padding-left: 18px; }
+  .fn-walk-card { padding: 14px 16px; border-radius: 16px; background: linear-gradient(135deg, rgba(14,165,233,.06), rgba(16,185,129,.06)); border: 1px solid rgba(14,165,233,.18); font-size: 13px; }
+  .fn-walk-stats { display: flex; gap: 16px; margin-bottom: 6px; }
+  .fn-walk-stat { font-size: 13px; font-weight: 800; color: #0f172a; }
+  .fn-walk-species { font-size: 11px; color: #047857; font-weight: 700; }
   .fn-place-row { display: grid; grid-template-columns: 1fr; gap: 10px; padding-left: 18px; }
   .fn-place-chip { padding: 10px 14px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 6px 14px rgba(15,23,42,.04); display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; font-size: 12px; transition: transform .15s ease; }
   .fn-place-chip:hover { transform: translateY(-2px); }

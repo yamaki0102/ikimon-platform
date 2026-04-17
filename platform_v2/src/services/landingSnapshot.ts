@@ -32,6 +32,7 @@ type FeedRow = {
   longitude: string | number | null;
   photo_url: string | null;
   identification_count: string;
+  evidence_tier: number | null;
 };
 
 const FEED_SQL_BASE = `
@@ -52,7 +53,8 @@ const FEED_SQL_BASE = `
       select count(*)::text
       from identifications i
       where i.occurrence_id = o.occurrence_id
-    ) as identification_count
+    ) as identification_count,
+    o.evidence_tier
   from occurrences o
   join visits v on v.visit_id = o.visit_id
   left join users u on u.user_id = v.user_id
@@ -94,6 +96,7 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     observerUserId: row.observer_user_id,
     observerAvatarUrl: normalizeAssetUrl(row.observer_avatar_url),
     entryType: "observation",
+    evidenceTier: row.evidence_tier != null ? Number(row.evidence_tier) : null,
   };
 }
 

@@ -10,6 +10,9 @@ import { registerOpsRoutes } from "./routes/ops.js";
 import { registerReadRoutes } from "./routes/read.js";
 import { registerWriteRoutes } from "./routes/write.js";
 import { registerUiKpiRoutes } from "./routes/uiKpi.js";
+import { registerGuideApiRoutes } from "./routes/guideApi.js";
+import { registerWalkApiRoutes } from "./routes/walkApi.js";
+import { registerResearchApiRoutes } from "./routes/researchApi.js";
 import { getSessionFromCookie } from "./services/authSession.js";
 import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
@@ -246,6 +249,145 @@ function landingCopy(lang: SiteLang) {
   return copy[lang];
 }
 
+function fieldLoopSectionCopy(lang: SiteLang) {
+  const copy = {
+    ja: {
+      eyebrow: "satellite to field loop",
+      title: "衛星で眺めて終わらせない。現地で何を見るべきかまで返す。",
+      lead: "ikimon の主案は、衛星画像そのものではなく、衛星から現地仮説を作り、Field Scan と Field Note に落として再訪まで回すことにある。ここで区別するのは、観測空白と、不在に近い証拠だ。",
+      primaryCta: "Field Loop の解説を見る",
+      secondaryCta: "Field Scan を開く",
+      loopTitle: "4-step loop",
+      principleTitle: "product principles",
+      boundaryTitle: "境界条件",
+      steps: [
+        {
+          title: "1. Satellite Layer",
+          body: "林縁、水際、湿地候補、遷移帯、人為圧の境界を読み、観察論点を先に立てる。",
+        },
+        {
+          title: "2. Field Hypothesis",
+          body: "この地点で確認すべき microhabitat と、撮るべき部位・残すべき文脈を 3 点に絞る。",
+        },
+        {
+          title: "3. Field Scan / AI Lens",
+          body: "種名断定ではなく、見えている特徴、不足証拠、次に欲しい 1 枚を返す。",
+        },
+        {
+          title: "4. Field Note / Revisit",
+          body: "habitat・moisture・edge type・human impact を構造化し、次回との差分を資産化する。",
+        },
+      ],
+      principles: [
+        "答えより目を育てる",
+        "種名より文脈を厚くする",
+        "空白と不在を混ぜない",
+        "差分と不確実性を正式なデータとして残す",
+      ],
+      boundaries: [
+        "空白 = まだ十分に見ていない",
+        "不在 = 努力量つきで初めて近づく",
+        "AI更新 = 検証済み知見だけ",
+      ],
+    },
+    en: {
+      eyebrow: "satellite to field loop",
+      title: "Do not stop at satellite imagery. Return what to check on site next.",
+      lead: "The next ikimon surface turns satellite context into field hypotheses, then carries them into Field Scan, Field Note, and revisit behavior. It keeps blank coverage separate from evidence of absence.",
+      primaryCta: "Read the Field Loop brief",
+      secondaryCta: "Open Field Scan",
+      loopTitle: "4-step loop",
+      principleTitle: "product principles",
+      boundaryTitle: "boundaries",
+      steps: [
+        { title: "1. Satellite Layer", body: "Read edges, water proximity, wetland hints, succession zones, and human disturbance before proposing species." },
+        { title: "2. Field Hypothesis", body: "Reduce the scene to three checks: which microhabitat to verify, what to photograph, and what context to save." },
+        { title: "3. Field Scan / AI Lens", body: "Return visible traits, missing evidence, and the next best capture instead of overclaiming certainty." },
+        { title: "4. Field Note / Revisit", body: "Store habitat, moisture, edge type, and human impact so seasonal differences become reviewable assets." },
+      ],
+      principles: [
+        "Train the eye, not just the answer",
+        "Thicken context before species certainty",
+        "Do not confuse blank coverage with absence",
+        "Treat uncertainty and deltas as first-class data",
+      ],
+      boundaries: [
+        "Blank = not yet observed enough",
+        "Absence = only after effort is recorded",
+        "Model updates = validated knowledge only",
+      ],
+    },
+    es: {
+      eyebrow: "satellite to field loop",
+      title: "No quedarse en la imagen satelital. Devolver qué mirar en campo.",
+      lead: "La siguiente capa de ikimon convierte el contexto satelital en hipótesis de campo y lo conecta con Escaneo, Nota de Campo y revisitas. Separa zonas en blanco de evidencia de ausencia.",
+      primaryCta: "Leer el resumen Field Loop",
+      secondaryCta: "Abrir Escaneo",
+      loopTitle: "bucle de 4 pasos",
+      principleTitle: "principios",
+      boundaryTitle: "límites",
+      steps: [
+        { title: "1. Satellite Layer", body: "Leer bordes, cercanía al agua, humedales posibles, sucesión y presión humana antes de sugerir especies." },
+        { title: "2. Field Hypothesis", body: "Reducir la escena a tres chequeos: microhábitat, foto clave y contexto que conviene guardar." },
+        { title: "3. Field Scan / AI Lens", body: "Devolver rasgos visibles, evidencia faltante y la siguiente captura útil en vez de fingir certeza." },
+        { title: "4. Field Note / Revisit", body: "Guardar hábitat, humedad, borde e impacto humano para volver con comparación estacional." },
+      ],
+      principles: [
+        "Entrenar la mirada antes que la respuesta",
+        "Más contexto antes de más certeza",
+        "No confundir vacío con ausencia",
+        "La incertidumbre y el delta también son datos",
+      ],
+      boundaries: [
+        "Vacío = todavía no observado lo suficiente",
+        "Ausencia = solo con esfuerzo registrado",
+        "Actualización de IA = solo conocimiento validado",
+      ],
+    },
+    "pt-BR": {
+      eyebrow: "satellite to field loop",
+      title: "Não parar na imagem de satélite. Devolver o que observar no local.",
+      lead: "A próxima camada do ikimon transforma contexto orbital em hipótese de campo e leva isso para Escaneamento, Nota de Campo e revisita. Ela separa vazio observacional de evidência de ausência.",
+      primaryCta: "Ler o resumo Field Loop",
+      secondaryCta: "Abrir Escaneamento",
+      loopTitle: "loop em 4 passos",
+      principleTitle: "princípios",
+      boundaryTitle: "limites",
+      steps: [
+        { title: "1. Satellite Layer", body: "Ler bordas, água próxima, indícios de área úmida, sucessão e pressão humana antes de sugerir espécies." },
+        { title: "2. Field Hypothesis", body: "Reduzir a cena a três checagens: microhabitat, foto-chave e contexto que precisa ser salvo." },
+        { title: "3. Field Scan / AI Lens", body: "Retornar traços visíveis, evidência faltante e a próxima captura útil, sem fingir certeza." },
+        { title: "4. Field Note / Revisit", body: "Salvar habitat, umidade, tipo de borda e impacto humano para comparar nas próximas visitas." },
+      ],
+      principles: [
+        "Treinar o olhar antes da resposta",
+        "Mais contexto antes de mais certeza",
+        "Não misturar vazio com ausência",
+        "Incerteza e delta também são dados",
+      ],
+      boundaries: [
+        "Vazio = ainda não observado o suficiente",
+        "Ausência = só com esforço registrado",
+        "Atualização de IA = apenas conhecimento validado",
+      ],
+    },
+  } satisfies Record<SiteLang, {
+    eyebrow: string;
+    title: string;
+    lead: string;
+    primaryCta: string;
+    secondaryCta: string;
+    loopTitle: string;
+    principleTitle: string;
+    boundaryTitle: string;
+    steps: Array<{ title: string; body: string }>;
+    principles: string[];
+    boundaries: string[];
+  }>;
+
+  return copy[lang];
+}
+
 function buildFlowLink(basePath: string, href: string, label: string, note: string): string {
   return `<a class="card" href="${escapeHtml(withBasePath(basePath, href))}">
     <div class="eyebrow">qa lane</div>
@@ -263,6 +405,7 @@ function buildLandingRootHtml(
   isDemoView: boolean,
 ): string {
   const copy = landingCopy(lang);
+  const fieldLoop = fieldLoopSectionCopy(lang);
   const isLoggedIn = Boolean(snapshot.viewerUserId);
 
   const stats = snapshot.stats;
@@ -322,6 +465,38 @@ function buildLandingRootHtml(
     ${toolCardsHtml}
   </section>`;
 
+  const fieldLoopSectionHtml = `<section class="section field-loop-section" aria-labelledby="field-loop-heading">
+    <div class="field-loop-shell">
+      <div class="field-loop-copy">
+        <div class="eyebrow">${escapeHtml(fieldLoop.eyebrow)}</div>
+        <h2 id="field-loop-heading">${escapeHtml(fieldLoop.title)}</h2>
+        <p>${escapeHtml(fieldLoop.lead)}</p>
+        <div class="actions" style="margin-top:18px">
+          <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(options.basePath, "/learn/field-loop"), lang))}">${escapeHtml(fieldLoop.primaryCta)}</a>
+          <a class="btn btn-ghost" href="${escapeHtml(appendLangToHref(withBasePath(options.basePath, "/scan"), lang))}">${escapeHtml(fieldLoop.secondaryCta)}</a>
+        </div>
+        <div class="field-loop-boundary-strip" aria-label="${escapeHtml(fieldLoop.boundaryTitle)}">
+          ${fieldLoop.boundaries.map((item) => `<span class="field-loop-boundary-chip">${escapeHtml(item)}</span>`).join("")}
+        </div>
+      </div>
+      <div class="field-loop-principles">
+        <div class="eyebrow">${escapeHtml(fieldLoop.principleTitle)}</div>
+        <ul class="field-loop-principle-list">
+          ${fieldLoop.principles.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+        </ul>
+      </div>
+    </div>
+    <div class="section-header" style="margin-top:24px">
+      <div>
+        <div class="eyebrow">${escapeHtml(fieldLoop.loopTitle)}</div>
+        <h3>${escapeHtml(lang === "ja" ? "衛星から再訪までを 1 本につなぐ" : "One connected flow from orbit to revisit")}</h3>
+      </div>
+    </div>
+    <div class="field-loop-grid">
+      ${fieldLoop.steps.map((step) => `<article class="card field-loop-card"><h3>${escapeHtml(step.title)}</h3><p>${escapeHtml(step.body)}</p></article>`).join("")}
+    </div>
+  </section>`;
+
   const bizSectionHtml = `<section class="section">
     <div class="grid">
       <div class="card">
@@ -348,6 +523,21 @@ function buildLandingRootHtml(
     DEMO_LOGIN_BANNER_STYLES,
     `
   .quick-nav-inner { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: none; }
+  .field-loop-section { position: relative; overflow: hidden; }
+  .field-loop-shell { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .95fr); gap: 18px; align-items: stretch; }
+  .field-loop-copy, .field-loop-principles { border-radius: 28px; padding: 26px; }
+  .field-loop-copy { background: radial-gradient(circle at top left, rgba(16,185,129,.18), transparent 44%), linear-gradient(180deg, #f8fffc 0%, #effaf4 100%); border: 1px solid rgba(16,185,129,.16); }
+  .field-loop-copy h2 { margin-top: 8px; font-size: clamp(26px, 3vw, 38px); line-height: 1.18; letter-spacing: -.03em; }
+  .field-loop-copy p { max-width: 58ch; }
+  .field-loop-boundary-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .field-loop-boundary-chip { display: inline-flex; align-items: center; min-height: 36px; padding: 8px 12px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 12px; font-weight: 800; letter-spacing: -.01em; }
+  .field-loop-principles { background: linear-gradient(180deg, #0f172a 0%, #111827 100%); color: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.08); }
+  .field-loop-principles .eyebrow { color: rgba(167,243,208,.92); }
+  .field-loop-principle-list { margin: 12px 0 0; padding-left: 18px; display: grid; gap: 12px; }
+  .field-loop-principle-list li { margin: 0; }
+  .field-loop-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 14px; }
+  .field-loop-card { min-height: 100%; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border: 1px solid rgba(15,23,42,.08); }
+  .field-loop-card h3 { margin: 0 0 10px; font-size: 17px; line-height: 1.35; letter-spacing: -.02em; }
   .tool-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-top: 16px; max-width: none; }
   .landing-tools .section-header,
   .landing-map .section-header { flex-direction: row; justify-content: space-between; align-items: flex-end; gap: 16px; }
@@ -364,12 +554,16 @@ function buildLandingRootHtml(
   .landing-hero-stat { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
   .landing-hero-stat::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.18); }
   @media (max-width: 860px) {
+    .field-loop-shell { grid-template-columns: 1fr; }
+    .field-loop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .fn-main-head { flex-direction: column; align-items: flex-start; justify-content: flex-start; }
     .fn-main-head-actions { align-items: flex-start; min-width: 0; width: 100%; }
     .fn-grid, .fn-grid-compact { grid-template-columns: repeat(2, minmax(0,1fr)); }
   }
   @media (max-width: 720px) {
     .tool-card-grid { grid-template-columns: 1fr; }
+    .field-loop-copy, .field-loop-principles { padding: 22px; }
+    .field-loop-grid { grid-template-columns: 1fr; }
     .landing-tools .section-header,
     .landing-map .section-header { flex-direction: column; align-items: flex-start; }
   }
@@ -424,6 +618,7 @@ function buildLandingRootHtml(
     belowHeroHtml: `${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}${renderQuickNav(options.basePath, lang)}`,
     extraStyles,
     body: `${renderTodayHabit(options.basePath, lang, snapshot)}
+${fieldLoopSectionHtml}
 ${renderRevisitFlow(options.basePath, lang, snapshot)}
 ${renderFieldNoteMain(options.basePath, lang, snapshot)}
 ${toolsSectionHtml}
@@ -690,6 +885,9 @@ export function buildApp() {
   void registerWriteRoutes(app);
   void registerUiKpiRoutes(app);
   void registerOpsRoutes(app);
+  void registerGuideApiRoutes(app);
+  void registerWalkApiRoutes(app);
+  void registerResearchApiRoutes(app);
 
   return app;
 }

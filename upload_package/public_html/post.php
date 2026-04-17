@@ -284,9 +284,10 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                     <!-- Hidden file inputs -->
                     <input type="file" accept="image/*" capture="environment" class="hidden" x-ref="cameraInput" @change="handleFiles">
                     <input type="file" multiple accept="image/*" class="hidden" x-ref="galleryInput" @change="handleFiles">
+                    <input type="file" accept="video/*" capture="environment" class="hidden" x-ref="videoInput" @change="handleVideoFile">
 
                     <div class="border-2 border-dashed border-border rounded-3xl p-6 text-center transition bg-surface hover:bg-white/5">
-                        <div x-show="photos.length === 0">
+                        <div x-show="photos.length === 0 && !videoAsset && !videoUploading && !videoProcessing">
                             <i data-lucide="camera" class="w-10 h-10 mx-auto mb-3 text-primary"></i>
                             <p class="text-sm font-bold mb-1 text-text" x-text="record_mode === 'surveyor_official' ? '<?= addslashes(__('post_page.photo_heading_official', 'You can leave an official record without a photo')) ?>' : '<?= addslashes(__('post_page.photo_heading_standard', 'Take or choose a living thing photo')) ?>'"></p>
                             <p class="text-xs text-muted mb-2" x-text="record_mode === 'surveyor_official' ? '<?= addslashes(__('post_page.photo_sub_official', 'If this is field confirmation only, continue to the form below. A photo helps reuse the record later if you have one.')) ?>' : '<?= addslashes(__('post_page.photo_sub_standard', 'A photo is enough to start. The name can come later.')) ?>'"></p>
@@ -306,6 +307,13 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                                         <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.7;"><?= __('post_page.choose_gallery_body', 'Upload a saved photo') ?></span>
                                     </div>
                                 </button>
+                                <button type="button" @click="$refs.videoInput.click()" class="m3-btn-tonal" style="padding:18px 24px;border-radius:var(--shape-xl);justify-content:flex-start;">
+                                    <i data-lucide="video" class="w-6 h-6" style="pointer-events:none;flex-shrink:0;"></i>
+                                    <div style="text-align:left;">
+                                        <span style="display:block;">🎥 15秒動画を残す</span>
+                                        <span style="display:block;font-size:var(--type-body-sm);font-weight:400;opacity:0.7;">端末でできるだけ圧縮して、そのまま証拠動画として残す</span>
+                                    </div>
+                                </button>
                                 <template x-if="record_mode === 'surveyor_official'">
                                     <button type="button" @click="ensureFormReady()" class="m3-btn-tonal" style="padding:18px 24px;border-radius:var(--shape-xl);justify-content:flex-start;">
                                         <i data-lucide="clipboard-check" class="w-6 h-6" style="pointer-events:none;flex-shrink:0;"></i>
@@ -321,6 +329,37 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                                         <?= __('post_page.note_only', 'Leave a note only') ?>
                                     </button>
                                 </template>
+                            </div>
+                        </div>
+
+                        <div x-show="videoAsset || videoUploading || videoProcessing || videoError" class="space-y-3">
+                            <div class="text-left rounded-2xl border border-border bg-base/60 p-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-24 h-24 rounded-2xl overflow-hidden bg-black flex items-center justify-center shrink-0">
+                                        <template x-if="videoPreview">
+                                            <video :src="videoPreview" class="w-full h-full object-cover" muted playsinline preload="metadata"></video>
+                                        </template>
+                                        <template x-if="!videoPreview">
+                                            <i data-lucide="video" class="w-8 h-8 text-white/70"></i>
+                                        </template>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm font-black text-text">短尺動画</span>
+                                            <span class="text-[10px] font-bold px-2 py-1 rounded-full bg-primary/10 text-primary">15秒以内</span>
+                                        </div>
+                                        <p class="mt-1 text-xs text-muted" x-show="videoProcessing">端末で圧縮できるか確認している…</p>
+                                        <p class="mt-1 text-xs text-muted" x-show="videoUploading" x-text="'Cloudflare Stream に直接送っている… ' + videoUploadProgress + '%'"></p>
+                                        <p class="mt-1 text-xs text-muted" x-show="videoAsset && !videoUploading && !videoProcessing" x-text="'アップロード済み / ' + Math.max(1, Math.round((videoAsset.durationMs || 0) / 1000)) + '秒'"></p>
+                                        <p class="mt-1 text-xs text-danger" x-show="videoError" x-text="videoError"></p>
+                                        <div class="mt-3 h-2 rounded-full bg-black/10 overflow-hidden" x-show="videoUploading">
+                                            <div class="h-full bg-primary transition-all" :style="'width:' + videoUploadProgress + '%'"></div>
+                                        </div>
+                                    </div>
+                                    <button type="button" @click="clearVideo()" class="w-10 h-10 rounded-full bg-black/5 text-faint hover:text-danger hover:bg-danger/10 transition flex items-center justify-center">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -373,6 +412,15 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                                     <i data-lucide="image" class="w-4 h-4"></i> <?= __('post_page.select', 'Select') ?>
                                 </button>
                             </div>
+                        </div>
+                        <div x-show="photos.length > 0 && !videoAsset && !videoUploading && !videoProcessing" class="mt-3">
+                            <button type="button" @click="$refs.videoInput.click()" class="w-full rounded-2xl border border-border px-4 py-3 text-left bg-base/50 hover:bg-base transition">
+                                <span class="flex items-center gap-2 text-sm font-bold text-text">
+                                    <i data-lucide="video" class="w-4 h-4 text-primary"></i>
+                                    ここに15秒動画も追加する
+                                </span>
+                                <span class="block mt-1 text-[11px] text-muted">写真に加えて、動きや鳴き声を証拠として残せる</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -448,13 +496,14 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                     </div>
 
                 </div>
-                <div x-show="photos.length > 0 || (canSurveyorOfficialPost && record_mode === 'surveyor_official')" x-transition class="mt-4">
+                <div x-show="photos.length > 0 || videoAsset || videoUploading || videoProcessing || (canSurveyorOfficialPost && record_mode === 'surveyor_official')" x-transition class="mt-4">
                     <button type="submit" :disabled="submitting || !canSubmit"
-                        class="m3-btn-filled"
+                        class="m3-btn-filled">
                         <i data-lucide="send" x-show="!submitting" class="w-5 h-5"></i>
                         <span x-show="!submitting">
                             <span x-text="record_mode === 'surveyor_official' ? '公式記録を残す' : '足跡を残す'"></span>
                             <span x-show="photos.length > 0" class="ml-1 text-sm opacity-80" x-text="'(' + photos.length + '枚)'"></span>
+                            <span x-show="videoAsset" class="ml-1 text-sm opacity-80">(+動画)</span>
                         </span>
                         <span x-show="submitting" class="flex items-center gap-2"><span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>送信中...</span>
                     </button>
@@ -930,6 +979,17 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                                     <p class="text-[10px] text-faint px-2 mt-1.5"><?= __('post_page.substrate_note', '🌍 Recording ground conditions creates data that can track environmental change 100 years from now.') ?></p>
                                 </div>
 
+                                <!-- Satellite Mismatch -->
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2 px-2">
+                                        <label class="block text-[10px] font-black text-faint uppercase tracking-widest"><?= __('post_page.mismatch_label', 'Satellite vs reality') ?></label>
+                                        <span class="text-[9px] text-faint bg-surface px-2 py-0.5 rounded-full"><?= __('post_page.optional', 'Optional') ?></span>
+                                    </div>
+                                    <textarea x-model="mismatch" rows="2"
+                                        class="w-full rounded-xl border border-border bg-surface text-sm px-3 py-2 text-body placeholder:text-faint resize-none focus:outline-none focus:ring-1 focus:ring-primary/40"
+                                        placeholder="<?= __('post_page.mismatch_placeholder', 'e.g. Predicted open water, but found dense reed bed') ?>"></textarea>
+                                    <p class="text-[10px] text-faint px-2 mt-1"><?= __('post_page.mismatch_note', '🛰️ Disagreements between satellite predictions and field reality are valuable scientific data.') ?></p>
+                                </div>
 
                                 <!-- Life Stage -->
                                 <div>

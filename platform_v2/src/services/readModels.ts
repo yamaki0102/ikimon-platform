@@ -564,6 +564,7 @@ export type LandingObservation = RecentObservation & {
   proposedName?: string | null;
   /** entryType="identification" のときの同定時刻。 */
   identifiedAt?: string | null;
+  evidenceTier?: number | null;
 };
 
 export type AmbientObserver = {

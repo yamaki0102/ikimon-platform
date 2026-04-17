@@ -250,6 +250,12 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         },
       ]) + rows([
         {
+          title: "Satellite-to-Field Loop",
+          body: "衛星文脈から現地仮説を作り、Field Scan と Field Note に落として再訪まで回す one-pager。空白と不在を混ぜない境界条件もここで固定する。",
+          actionHref: withBasePath(basePath, "/learn/field-loop"),
+          actionLabel: lang === "ja" ? "読む" : "Field Loop",
+        },
+        {
           title: "同定の考え方",
           body: "断定しない理由、次に見るべきポイント、再観察で精度を上げる方法。",
           actionHref: withBasePath(basePath, "/learn/identification-basics"),
@@ -268,6 +274,288 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       ]),
       "Learn",
       `<a class="inline-link" href="${escapeHtml(withBasePath(basePath, "/about"))}">ikimon について読む</a>`,
+    );
+  });
+
+  app.get("/learn/field-loop", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
+    const pageTitle = lang === "ja" ? "Field Loop | ikimon" : "Field Loop | ikimon";
+    const heroHeading = lang === "ja"
+      ? "フィールドループとは、不確かな観測を、段階的に解像度の高い知識へ育てていく ikimon.life の仕組みです。"
+      : "Field Loop turns uncertain observations into higher-resolution knowledge through a staged cycle.";
+    const heroLead = lang === "ja"
+      ? "観測は、その場で完璧に当てるためのものではありません。ikimon.life は、現場の発見を AI・市民・専門家・研究の循環で少しずつ高解像度化していきます。"
+      : "Observations do not need to start at species certainty. ikimon.life raises resolution over time through a loop across AI, citizens, experts, and research.";
+    const trustSentence = lang === "ja"
+      ? "AI は答えを決める役ではなく、候補を広げる役です。"
+      : "AI does not decide the final answer. It expands plausible candidates.";
+    const body = `<style>
+      .field-loop-page { display: grid; gap: 18px; }
+      .field-loop-block { border-radius: 28px; border: 1px solid rgba(15,23,42,.08); background: linear-gradient(180deg, #ffffff 0%, #fbfcf8 100%); padding: 26px; }
+      .field-loop-block h2 { margin: 6px 0 10px; font-size: clamp(22px, 2.6vw, 32px); line-height: 1.2; letter-spacing: -.03em; }
+      .field-loop-block h3 { margin: 0 0 8px; font-size: 18px; line-height: 1.35; letter-spacing: -.02em; }
+      .field-loop-block p { margin: 0; }
+      .field-loop-block .eyebrow { color: #3f6212; }
+      .field-loop-hero-preview { margin-top: 18px; display: grid; grid-template-columns: 1.3fr .95fr; gap: 16px; }
+      .field-loop-diagram, .field-loop-trust { border-radius: 22px; padding: 18px; }
+      .field-loop-diagram { background: linear-gradient(180deg, #f6fbf7 0%, #edf7ef 100%); border: 1px solid rgba(22,101,52,.12); }
+      .field-loop-ring { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+      .field-loop-ring span { display: flex; align-items: center; justify-content: center; min-height: 74px; border-radius: 18px; padding: 10px; text-align: center; font-size: 13px; font-weight: 800; line-height: 1.35; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+      .field-loop-trust { background: linear-gradient(180deg, #0f172a 0%, #111827 100%); color: rgba(255,255,255,.94); }
+      .field-loop-trust strong { display: block; margin-bottom: 8px; color: #bbf7d0; }
+      .field-loop-why { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+      .field-loop-column { border-radius: 20px; padding: 18px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+      .field-loop-loop { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+      .field-loop-node { position: relative; border-radius: 18px; padding: 16px 12px; min-height: 118px; background: #fff; border: 1px solid rgba(15,23,42,.1); font-size: 13px; line-height: 1.45; }
+      .field-loop-node strong { display: block; margin-bottom: 8px; font-size: 14px; }
+      .field-loop-node:not(:last-child)::after { content: "→"; position: absolute; right: -9px; top: 50%; transform: translateY(-50%); color: #65a30d; font-weight: 900; font-size: 18px; }
+      .field-loop-ladder { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 14px; }
+      .field-loop-ladder th, .field-loop-ladder td { padding: 14px 12px; vertical-align: top; border-bottom: 1px solid rgba(15,23,42,.08); text-align: left; }
+      .field-loop-ladder th { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #475569; }
+      .field-loop-ladder td:first-child { font-weight: 800; white-space: nowrap; }
+      .field-loop-roles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+      .field-loop-role { border-radius: 20px; padding: 18px; background: linear-gradient(180deg, #fcfcf7 0%, #f6f6ef 100%); border: 1px solid rgba(15,23,42,.08); }
+      .field-loop-role .role-icon { font-size: 22px; display: block; margin-bottom: 10px; }
+      .field-loop-role .role-label { display: block; margin-top: 10px; font-weight: 800; color: #166534; }
+      .field-loop-coarse-list, .field-loop-faq-list { display: grid; gap: 12px; margin-top: 18px; }
+      .field-loop-coarse-list li { margin-left: 20px; }
+      .field-loop-guardrail-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+      .field-loop-guardrail-chip { display: inline-flex; align-items: center; min-height: 36px; padding: 8px 12px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 12px; font-weight: 800; letter-spacing: -.01em; }
+      .field-loop-callout { margin-top: 18px; border-radius: 20px; padding: 16px 18px; background: linear-gradient(180deg, #f7fee7 0%, #ecfccb 100%); border: 1px solid rgba(101,163,13,.2); }
+      .field-loop-callout strong { display: block; margin-bottom: 6px; color: #3f6212; }
+      .field-loop-faq-row { border-radius: 18px; padding: 16px 18px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+      .field-loop-faq-row strong { display: block; margin-bottom: 6px; }
+      .field-loop-footer-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+      .field-loop-footer-note { margin-top: 14px; color: #475569; font-size: 14px; }
+      @media (max-width: 1080px) {
+        .field-loop-loop { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .field-loop-node:nth-child(4)::after { content: ""; }
+      }
+      @media (max-width: 860px) {
+        .field-loop-hero-preview,
+        .field-loop-why,
+        .field-loop-roles,
+        .field-loop-loop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 640px) {
+        .field-loop-block { padding: 22px; }
+        .field-loop-hero-preview,
+        .field-loop-why,
+        .field-loop-roles,
+        .field-loop-loop,
+        .field-loop-ring { grid-template-columns: 1fr; }
+        .field-loop-node:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -14px; transform: translateX(-50%); }
+      }
+    </style>
+    <div class="field-loop-page">
+      <section class="field-loop-block">
+        <div class="eyebrow">Block 1</div>
+        <h2>フィールドループ</h2>
+        <p>観測は、その場で完璧に当てるためのものではありません。<br>ikimon.life は、現場の発見を AI・市民・専門家・研究の循環で少しずつ高解像度化していきます。</p>
+        <div class="field-loop-hero-preview">
+          <div class="field-loop-diagram">
+            <strong>Loop preview</strong>
+            <p>観測を失わず、あとから解像度を上げるための staged evidence-upgrading system。</p>
+            <div class="field-loop-ring">
+              <span>観測を残す</span>
+              <span>候補を広げる</span>
+              <span>検証して絞る</span>
+              <span>知識へ更新する</span>
+            </div>
+          </div>
+          <div class="field-loop-trust">
+            <strong>Trust sentence</strong>
+            <p>AI は答えを決める役ではなく、候補を広げる役です。</p>
+          </div>
+        </div>
+        <div class="field-loop-guardrail-strip">
+          <span class="field-loop-guardrail-chip">種名が分からなくても観測には価値がある</span>
+          <span class="field-loop-guardrail-chip">AI同定は確定ではなく候補提示</span>
+          <span class="field-loop-guardrail-chip">専門家同定は重要観測の検証と基準管理を担う</span>
+          <span class="field-loop-guardrail-chip">研究資料化された知見だけが集合知とAI更新に入る</span>
+          <span class="field-loop-guardrail-chip">未確定は未確定のまま保持される</span>
+        </div>
+      </section>
+
+      <section class="field-loop-block">
+        <div class="eyebrow">Block 2</div>
+        <h2>Why It Exists</h2>
+        <div class="field-loop-why">
+          <article class="field-loop-column">
+            <h3>自然は多すぎる</h3>
+            <p>現地では、名前がすぐ出ない観測のほうが多い。それでも地域の変化や季節の気配は、そこでしか拾えない。</p>
+          </article>
+          <article class="field-loop-column">
+            <h3>専門家だけでは追いきれない</h3>
+            <p>重要観測の検証は専門家が担うべきだが、すべてを最初から専門家だけで処理する設計では広域・長期の観測を支えきれない。</p>
+          </article>
+          <article class="field-loop-column">
+            <h3>でも曖昧な観測を捨てるともったいない</h3>
+            <p>科・属レベルでも、分布、季節性、異変の兆し、観測空白地帯の把握には十分な価値がある。ここで見えるのはまず空白であり、いないことの断定ではない。</p>
+          </article>
+        </div>
+        <p style="margin-top:18px">だから ikimon.life は、最初から完璧な同定を求めるのでなく、観測を失わず、あとから解像度を上げられる構造を採用します。</p>
+      </section>
+
+      <section class="field-loop-block">
+        <div class="eyebrow">Block 3</div>
+        <h2>The Loop</h2>
+        <div class="field-loop-loop">
+          <article class="field-loop-node"><strong>1. 衛星データ・現地観測</strong>場所の文脈とその場の発見を起点にする。</article>
+          <article class="field-loop-node"><strong>2. フィールドスキャン / ガイド / ノート</strong>観測を失わず、証拠と文脈を残す。</article>
+          <article class="field-loop-node"><strong>3. AI同定・市民同定</strong>候補と仮説を広げ、絞り込みを進める。</article>
+          <article class="field-loop-node"><strong>4. 専門家同定</strong>重要観測を検証し、基準を管理する。</article>
+          <article class="field-loop-node"><strong>5. 研究資料化</strong>再利用できる形に整理し、証拠を固定する。</article>
+          <article class="field-loop-node"><strong>6. 集合知アップデート</strong>ガイドや知識基盤に反映する。</article>
+          <article class="field-loop-node"><strong>7. AIアップデート</strong>更新対象だけを使って次の候補提示を改善する。</article>
+        </div>
+        <p style="margin-top:18px">この循環により、同じ地域・同じ生きものについて、次の観測ほど見つけやすく、学びやすく、確かめやすくなります。</p>
+      </section>
+
+      <section class="field-loop-block">
+        <div class="eyebrow">Block 4</div>
+        <h2>Evidence Ladder</h2>
+        <p>使い道と確実性は同じではない。未確定を未確定のまま保持することで、 usefulness と certainty を切り分ける。</p>
+        <div class="field-loop-callout">
+          <strong>重要な境界</strong>
+          <p>観測空白は「まだ十分に見ていない」を意味する。「いない」に近い主張には、時期・時間帯・探索努力の記録を含む、より高い証拠条件が必要です。</p>
+        </div>
+        <table class="field-loop-ladder">
+          <thead>
+            <tr>
+              <th>Tier</th>
+              <th>Meaning</th>
+              <th>Useful for</th>
+              <th>Not used for</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>科・属レベル</td>
+              <td>まず群として捉える</td>
+              <td>分布、季節性、初学者参加、ホットスポット把握</td>
+              <td>稀少種の確定</td>
+            </tr>
+            <tr>
+              <td>種レベル候補</td>
+              <td>有力な仮説</td>
+              <td>学習、追加観察、レビュー優先順位付け</td>
+              <td>単独での確定判断</td>
+            </tr>
+            <tr>
+              <td>専門家確認</td>
+              <td>検証済み観測</td>
+              <td>重要観測の確定、基準管理</td>
+              <td>自動大量確定</td>
+            </tr>
+            <tr>
+              <td>研究資料 / 更新対象</td>
+              <td>再利用可能な証拠</td>
+              <td>ガイド更新、モデル更新、分析</td>
+              <td>生データの無差別投入</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="field-loop-block">
+        <div class="eyebrow">Block 5</div>
+        <h2>Who Does What</h2>
+        <div class="field-loop-roles">
+          <article class="field-loop-role">
+            <span class="role-icon">🧭</span>
+            <h3>観測者</h3>
+            <p>見つける人</p>
+            <span class="role-label">名前が分からなくても観測には価値がある</span>
+          </article>
+          <article class="field-loop-role">
+            <span class="role-icon">🛰️</span>
+            <h3>AI</h3>
+            <p>候補を広げる人ではなく、候補を示す道具</p>
+            <span class="role-label">確定ではなく候補提示</span>
+          </article>
+          <article class="field-loop-role">
+            <span class="role-icon">🧠</span>
+            <h3>市民同定者</h3>
+            <p>知識を持ち寄り、絞り込む人</p>
+            <span class="role-label">最終判定の代替ではない</span>
+          </article>
+          <article class="field-loop-role">
+            <span class="role-icon">🔬</span>
+            <h3>専門家</h3>
+            <p>基準を管理し、確かめる人</p>
+            <span class="role-label">重要観測の検証と基準管理を担う</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="field-loop-block">
+        <div class="eyebrow">Block 6</div>
+        <h2>Why Coarse Data Still Matters</h2>
+        <p>種まで分からない観測でも、科や属の情報が集まるだけで、地域の変化、季節の偏り、異変の兆し、観測の空白地帯は見えてきます。</p>
+        <div class="field-loop-callout">
+          <strong>空白と不在は別です</strong>
+          <p>ここでまず見えるのは「未観測」や「観測薄い」という空白です。「いない」に近い含意を持たせるには、いつ・どこで・どれだけ探したかという sampling effort が要ります。</p>
+        </div>
+        <ul class="field-loop-coarse-list">
+          <li>観測数を増やせる</li>
+          <li>初学者が参加しやすい</li>
+          <li>あとから解像度を上げられる</li>
+        </ul>
+        <p style="margin-top:18px">ただし、保全上重要な判断や稀少種の確定は、より高い証拠階層で扱います。</p>
+      </section>
+
+      <section class="field-loop-block">
+        <div class="eyebrow">Block 7</div>
+        <h2>Governance / Safety</h2>
+        <div class="field-loop-faq-list">
+          <div class="field-loop-faq-row">
+            <strong>AIが勝手に正解を決めるのですか？</strong>
+            <p>いいえ。AI同定は候補提示であり、確定ではありません。</p>
+          </div>
+          <div class="field-loop-faq-row">
+            <strong>多数決で種名が決まるのですか？</strong>
+            <p>いいえ。市民同定は知識形成に参加する層ですが、重要観測の確定は検証プロセスを通ります。</p>
+          </div>
+          <div class="field-loop-faq-row">
+            <strong>間違った観測も学習されるのですか？</strong>
+            <p>いいえ。更新対象に入るのは、整理・検証条件を満たした知見です。</p>
+          </div>
+          <div class="field-loop-faq-row">
+            <strong>記録がない場所は、その生きものがいない場所なのですか？</strong>
+            <p>いいえ。まず分かるのは未観測や観測薄い領域です。不在に近い判断には、探索努力の記録と、より高い証拠条件が必要です。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="field-loop-block">
+        <div class="eyebrow">Footer CTA</div>
+        <h2>次の一歩</h2>
+        <p>Field Loop は、AI が最後の審判になる仕組みではない。未確定を保持しながら、観測を失わず、役割分担のある検証と更新で知識解像度を上げる仕組みだ。</p>
+        <div class="field-loop-footer-actions">
+          <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">まずは名前が分からなくても観測する</a>
+          <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">フィールドループの考え方を詳しく見る</a>
+          <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/for-business/apply"))}">研究・教育・保全で連携したい</a>
+        </div>
+        <div class="field-loop-footer-note">
+          明示する前提:
+          種名が分からなくても観測には価値がある / AI同定は確定ではなく候補提示 / 市民同定は最終判定の代替ではない / 研究資料化された知見だけが集合知とAI更新に入る / 未確定は未確定のまま保持される / 観測空白と不在証拠は別である
+        </div>
+      </section>
+    </div>`;
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      pageTitle,
+      "Learn",
+      heroHeading,
+      heroLead,
+      body,
+      "Learn",
+      `<div class="note">${escapeHtml(trustSentence)}</div>`,
     );
   });
 
@@ -347,6 +635,10 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         {
           title: "5 軸評価モデル",
           body: "種の多様性 30%、保全価値 25%、データ信頼性 20%、分類群カバー率 15%、調査継続性 10% を掛け合わせて経時変化を見る。",
+        },
+        {
+          title: "観測空白と不在証拠",
+          body: "地図でまず見えるのは `未観測` や `観測薄い` 領域です。`いない` に近い判断をするには、時期・時間帯・探索努力を含む sampling effort と、より高い証拠条件が必要です。",
         },
         {
           title: "Open science stance",

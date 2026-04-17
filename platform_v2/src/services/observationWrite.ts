@@ -10,6 +10,8 @@ import {
   recordCompatibilityFailure,
   upsertAssetBlob,
 } from "./writeSupport.js";
+import { fetchSiteSignals, composeSiteBrief } from "./siteBrief.js";
+import { tryAutoPromoteToTier1_5 } from "./tierPromotion.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -348,6 +350,41 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   } finally {
     client.release();
   }
+
+  // Non-blocking: capture Site Brief snapshot at observation time.
+  // Failures silently drop — never block the observation write path.
+  void (async () => {
+    try {
+      const signals = await fetchSiteSignals(input.latitude, input.longitude);
+      const brief = composeSiteBrief(signals, "ja");
+      const fcPool = getPool();
+      const fcClient = await fcPool.connect();
+      try {
+        await fcClient.query(
+          `insert into field_context
+             (occurrence_id, lat, lng, hypothesis_id, hypothesis_label, hypothesis_confidence, signals, source_lang)
+           values ($1, $2, $3, $4, $5, $6, $7::jsonb, 'ja')
+           on conflict do nothing`,
+          [
+            occurrenceId,
+            input.latitude,
+            input.longitude,
+            brief.hypothesis.id,
+            brief.hypothesis.label,
+            brief.hypothesis.confidence,
+            JSON.stringify(signals),
+          ],
+        );
+      } finally {
+        fcClient.release();
+      }
+    } catch {
+      // intentionally swallowed
+    }
+  })();
+
+  // Non-blocking: try Tier 1 → 1.5 auto-promotion (AI conf ≥ 0.8 × regional record)
+  void tryAutoPromoteToTier1_5(occurrenceId).catch(() => undefined);
 
   const config = loadConfig();
   const compatibility = {

@@ -5,6 +5,7 @@ export type AppConfig = {
   port: number;
   databaseUrl?: string;
   privilegedWriteApiKey?: string;
+  geminiApiKey?: string;
   legacyDataRoot: string;
   legacyPublicRoot: string;
   legacyUploadsRoot: string;
@@ -56,6 +57,7 @@ export function loadConfig(): AppConfig {
     port: parsePort(process.env.PORT),
     databaseUrl: process.env.DATABASE_URL,
     privilegedWriteApiKey: process.env.V2_PRIVILEGED_WRITE_API_KEY?.trim() || undefined,
+    geminiApiKey: process.env.GEMINI_API_KEY?.trim() || undefined,
     legacyDataRoot: legacyRoots.legacyDataRoot,
     legacyPublicRoot: legacyRoots.publicRoot,
     legacyUploadsRoot: legacyRoots.uploadsRoot,
