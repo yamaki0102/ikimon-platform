@@ -61,16 +61,16 @@ function landingCopy(lang: SiteLang) {
     ja: {
       title: "ikimon — 歩いて、見つけて、ノートに残す",
       heroEyebrow: "feel the field.",
-      heroHeading: "いつもの散歩が、<span class=\"hero-emphasis\">冒険になる。</span>",
+      heroHeading: "いつもの散歩が、<br><span class=\"hero-emphasis\">冒険になる。</span>",
       heroHeadingPlain: "いつもの散歩が、冒険になる。",
-      heroLead: "AI ガイドが土地の声を読み上げ、地図が次の一歩を灯す。歩くほど、世界の解像度が上がっていく。",
+      heroLead: "AI が土地を読み、地図が次の一歩を灯す。歩くほど、同じ道がちがって見えてくる。",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("ja-JP")} 件の観察 · ${species.toLocaleString("ja-JP")} 種`,
       actionPrimaryLoggedIn: "ノートの続きを書く",
       actionPrimaryGuest: "ノートを始める",
       actionSecondary: "探索マップを見る",
-      toolSectionEyebrow: "ノートを支える入口",
-      toolSectionTitle: "再訪と記録を支える 2 つの補助線",
-      toolSectionLead: "主役はフィールドノート。フィールドガイドとフィールドスキャンは、次の 1 枚を書く理由を増やすために置いてある。",
+      toolSectionEyebrow: "ノートを育てる入口",
+      toolSectionTitle: "ノートに新しいページを書く理由を増やす 2 つの入口",
+      toolSectionLead: "主役はフィールドノート。フィールドガイドとフィールドスキャンは、次の 1 枚を書きたくなるための補助です。",
       tools: {
         lens: {
           eyebrow: "フィールドガイド",
@@ -253,8 +253,8 @@ function fieldLoopSectionCopy(lang: SiteLang) {
   const copy = {
     ja: {
       eyebrow: "satellite → field → loop",
-      title: "衛星でアタリをつけて、歩いて確かめて、ノートに書き留めていく。",
-      lead: "このループが回るたびに、同じ道がちがって見えてくる。観測の空白と、不在の証拠は、きちんと分けて扱う。",
+      title: "衛星で目星をつけ、歩いて確かめ、ノートに積んでいく。",
+      lead: "このループが回るたびに、同じ道がちがって見えてくる。観測の空白と不在の証拠は、きちんと分けて扱う。",
       primaryCta: "ループの詳細を見る",
       secondaryCta: "フィールドスキャン",
       loopTitle: "4 steps",
