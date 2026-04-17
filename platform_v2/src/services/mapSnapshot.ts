@@ -341,3 +341,94 @@ export async function getCoverageMesh(
     return empty;
   }
 }
+
+/**
+ * Trace lines — recent walk tracks from visit_track_points as GeoJSON
+ * LineStrings, so the map can draw "歩いた道" overlaid on observations.
+ * Only visits with ≥ 2 recorded points are included; very short single-point
+ * sessions are skipped. Results are capped at 300 visits (~100k points) for
+ * render performance.
+ */
+export async function getTraceLines(
+  filters: { year?: number; limit?: number } = {},
+): Promise<{
+  type: "FeatureCollection";
+  features: Array<{
+    type: "Feature";
+    geometry: { type: "LineString"; coordinates: [number, number][] };
+    properties: { visitId: string; observedAt: string; pointCount: number };
+  }>;
+}> {
+  const empty = { type: "FeatureCollection" as const, features: [] };
+  let pool;
+  try {
+    pool = getPool();
+  } catch {
+    return empty;
+  }
+
+  const maxVisits = Math.min(filters.limit ?? 200, 300);
+  const params: unknown[] = [];
+  const yearClause = filters.year
+    ? (params.push(filters.year), `and extract(year from v.observed_at) = $${params.length}`)
+    : "";
+
+  params.push(maxVisits);
+  const sql = `
+    with ranked_visits as (
+      select v.visit_id, v.observed_at, count(vtp.sequence_no) as pt_count
+      from visits v
+      join visit_track_points vtp on vtp.visit_id = v.visit_id
+      where vtp.point_latitude is not null and vtp.point_longitude is not null
+        ${yearClause}
+      group by v.visit_id, v.observed_at
+      having count(vtp.sequence_no) >= 2
+      order by v.observed_at desc
+      limit $${params.length}
+    )
+    select rv.visit_id, rv.observed_at::text, rv.pt_count,
+           vtp.sequence_no, vtp.point_latitude as lat, vtp.point_longitude as lng
+    from ranked_visits rv
+    join visit_track_points vtp on vtp.visit_id = rv.visit_id
+    order by rv.observed_at desc, rv.visit_id, vtp.sequence_no
+  `;
+
+  try {
+    const result = await pool.query<{
+      visit_id: string;
+      observed_at: string;
+      pt_count: string | number;
+      sequence_no: number;
+      lat: number;
+      lng: number;
+    }>(sql, params);
+
+    const visitMap = new Map<string, { observedAt: string; ptCount: number; coords: [number, number][] }>();
+    for (const row of result.rows) {
+      const lat = Number(row.lat);
+      const lng = Number(row.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      if (!visitMap.has(row.visit_id)) {
+        visitMap.set(row.visit_id, {
+          observedAt: String(row.observed_at),
+          ptCount: Number(row.pt_count),
+          coords: [],
+        });
+      }
+      visitMap.get(row.visit_id)!.coords.push([lng, lat]);
+    }
+
+    const features = [];
+    for (const [visitId, v] of visitMap) {
+      if (v.coords.length < 2) continue;
+      features.push({
+        type: "Feature" as const,
+        geometry: { type: "LineString" as const, coordinates: v.coords },
+        properties: { visitId, observedAt: v.observedAt, pointCount: v.coords.length },
+      });
+    }
+    return { type: "FeatureCollection", features };
+  } catch {
+    return empty;
+  }
+}

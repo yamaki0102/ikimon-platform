@@ -18,11 +18,36 @@
 
 export type OverlayCategory = "terrain" | "landcover" | "conservation";
 
+/**
+ * Tile source descriptor — union so future overlays can declare WMTS
+ * endpoints with time dimensions or bounding-box constraints without
+ * squashing them into a bare URL template string.
+ *
+ * - `xyz`: standard {z}/{x}/{y} (or {z}/{y}/{x}) raster tile service.
+ * - `wmts`: OGC WMTS; `time` can pin a specific dataset snapshot date.
+ */
+export type OverlaySource =
+  | { kind: "xyz"; url: string; bounds?: [number, number, number, number] }
+  | { kind: "wmts"; url: string; time?: string; bounds?: [number, number, number, number] };
+
+/** Resolve any OverlaySource (or a bare tiles URL) to a MapLibre tile template string. */
+export function resolveOverlayTiles(source: OverlaySource | string): string {
+  if (typeof source === "string") return source;
+  // For both xyz and wmts the url field already contains the {z}/{y}/{x}
+  // template that MapLibre expects — we just forward it.
+  return source.url;
+}
+
 export type OverlayDefinition = {
   id: string;
   category: OverlayCategory;
-  /** URL template with {z}/{x}/{y} placeholders. */
-  tiles: string;
+  /**
+   * Either a bare tile URL template (legacy) or a typed OverlaySource.
+   * When both `source` and `tiles` are present, `source` takes precedence.
+   */
+  source?: OverlaySource;
+  /** @deprecated Prefer `source`. Kept for backward compat. */
+  tiles?: string;
   tileSize?: number;
   attribution: string;
   minzoom?: number;
@@ -170,8 +195,14 @@ export const OVERLAYS: OverlayDefinition[] = [
   {
     id: "nasa_canopy",
     category: "landcover",
-    tiles:
-      "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GEDI_ISS_L3_Canopy_Height_Mean_RH100_201904-202303/default/2019-04-18/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png",
+    // Using typed `source` here to document that this is a WMTS endpoint
+    // with a fixed time snapshot (2019-04 dataset). When NASA releases a
+    // newer mosaic we only need to update `time` rather than the whole URL.
+    source: {
+      kind: "wmts",
+      url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GEDI_ISS_L3_Canopy_Height_Mean_RH100_201904-202303/default/2019-04-18/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png",
+      time: "2019-04-18",
+    },
     attribution: "NASA GEDI / Canopy Height (2019-2023)",
     maxzoom: 7,
     defaultOpacity: 0.45,
@@ -201,19 +232,25 @@ export type LocalizedOverlay = {
 };
 
 export function overlaysForLang(lang: "ja" | "en" | "es" | "pt-BR"): LocalizedOverlay[] {
-  return OVERLAYS.map((o) => ({
-    id: o.id,
-    category: o.category,
-    tiles: o.tiles,
-    tileSize: o.tileSize ?? 256,
-    attribution: o.attribution,
-    minzoom: o.minzoom,
-    maxzoom: o.maxzoom,
-    defaultOpacity: o.defaultOpacity ?? 0.65,
-    label: o.labels[lang]?.label ?? o.id,
-    note: o.labels[lang]?.note,
-    legendGradient: o.legendGradient,
-    legendLow: o.legendLow?.[lang],
-    legendHigh: o.legendHigh?.[lang],
-  }));
+  return OVERLAYS.flatMap((o) => {
+    const tileUrl = o.source
+      ? resolveOverlayTiles(o.source)
+      : o.tiles;
+    if (!tileUrl) return [];
+    return [{
+      id: o.id,
+      category: o.category,
+      tiles: tileUrl,
+      tileSize: o.tileSize ?? 256,
+      attribution: o.attribution,
+      minzoom: o.minzoom,
+      maxzoom: o.maxzoom,
+      defaultOpacity: o.defaultOpacity ?? 0.65,
+      label: o.labels[lang]?.label ?? o.id,
+      note: o.labels[lang]?.note,
+      legendGradient: o.legendGradient,
+      legendLow: o.legendLow?.[lang],
+      legendHigh: o.legendHigh?.[lang],
+    }];
+  });
 }

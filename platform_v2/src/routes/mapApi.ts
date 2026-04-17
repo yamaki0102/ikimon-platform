@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { getCoverageMesh, getMapObservations, type TaxonGroup } from "../services/mapSnapshot.js";
+import { getCoverageMesh, getMapObservations, getTraceLines, type TaxonGroup } from "../services/mapSnapshot.js";
+import { getSiteBrief, type BriefLang } from "../services/siteBrief.js";
 
 const ALLOWED_GROUPS: readonly TaxonGroup[] = [
   "insect",
@@ -61,5 +62,35 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "no-store");
     return collection;
+  });
+
+  app.get("/api/v1/map/traces", async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const year = parseInt32(q.year);
+    const limit = parseInt32(q.limit);
+    const collection = await getTraceLines({ year, limit: limit ?? 200 });
+    reply
+      .type("application/json; charset=utf-8")
+      .header("Cache-Control", "no-store");
+    return collection;
+  });
+
+  app.get("/api/v1/map/site-brief", async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const lat = Number(q.lat);
+    const lng = Number(q.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      reply.code(400).type("application/json; charset=utf-8");
+      return { error: "invalid_coords" };
+    }
+    const rawLang = typeof q.lang === "string" ? q.lang : "ja";
+    const lang: BriefLang = rawLang === "en" ? "en" : "ja";
+    const brief = await getSiteBrief(lat, lng, lang);
+    reply
+      .type("application/json; charset=utf-8")
+      // 1 hour browser + 24h CDN: signals change slowly, and the endpoint
+      // hits Overpass which we do not want to hammer per tap.
+      .header("Cache-Control", "public, max-age=3600, s-maxage=86400");
+    return brief;
   });
 }
