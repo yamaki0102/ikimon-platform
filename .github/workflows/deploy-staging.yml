@@ -68,8 +68,10 @@ jobs:
           host: 162.43.44.131
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GEMINI_API_KEY
           script_stop: false
           script: |
+            GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
             set +e
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
             if [ ! -d "$V2_DIR" ]; then
@@ -93,6 +95,10 @@ jobs:
               # ALLOW_QUERY_USER_ID=1 keeps the ?userId= QA override working on staging.
               # Production pm2 MUST NOT have this set (else anyone can impersonate).
               pm2 set ikimon-v2-staging-api:ALLOW_QUERY_USER_ID 1 2>/dev/null || true
+              if [ -n "$GEMINI_API_KEY" ]; then
+                pm2 set ikimon-v2-staging-api:GEMINI_API_KEY "$GEMINI_API_KEY" 2>/dev/null || true
+                echo "GEMINI_API_KEY injected into pm2 env"
+              fi
               export ALLOW_QUERY_USER_ID=1
               pm2 restart ikimon-v2-staging-api --update-env 2>/dev/null && echo "Restarted via pm2 (ALLOW_QUERY_USER_ID=1 for staging QA)" && restarted=1
             fi
@@ -208,7 +214,7 @@ jobs:
               fi
             done
             echo "== v2 lane (port 3200, internal) =="
-            for path in /healthz / /notes /lens /scan /map; do
+            for path in /healthz / /notes /lens /scan /map /guide /learn/field-loop /api/v1/research/occurrences; do
               STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Accept: text/html" "http://127.0.0.1:3200${path}")
               if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
                 echo "OK v2 ${path} -> $STATUS"
