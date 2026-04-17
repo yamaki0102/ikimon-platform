@@ -26,6 +26,7 @@ function layout(
   body: string,
   activeNavKey: string,
   afterActionsHtml?: string,
+  headingHtml?: string,
 ): string {
   const activeNav = activeNavLabel(activeNavKey, lang);
   const copy = layoutCopy(lang);
@@ -38,7 +39,7 @@ function layout(
     hero: {
       eyebrow,
       heading,
-      headingHtml: escapeHtml(heading),
+      headingHtml: headingHtml ?? escapeHtml(heading),
       lead,
       tone: "light",
       align: "center",
@@ -616,6 +617,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       body,
       "Learn",
       `<div class="note">${escapeHtml(trustSentence)}</div>`,
+      lang === "ja" ? "名前が分からなくても、<br>観測は始めていい。" : "You don&#39;t need a name.<br>Just start observing.",
     );
   });
 
@@ -684,6 +686,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
     </div>`,
       "Learn",
+      undefined,
+      "その場で名前が出なくて、<br>当然です。",
     );
   });
 
@@ -761,6 +765,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
     </div>`,
       "Learn",
+      undefined,
+      "ikimonが何をどう扱うか、<br>全部見せます。",
     );
   });
 
