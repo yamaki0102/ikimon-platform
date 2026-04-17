@@ -94,6 +94,101 @@ function activeNavLabel(nav: string, lang: SiteLang): string {
   return table[nav]?.[lang] ?? nav;
 }
 
+const FL_CSS = `<style>
+  .fl { max-width: 760px; margin: 0 auto; padding: 0 4px; }
+  .fl-sec { padding: 56px 0; border-bottom: 1px solid rgba(15,23,42,.08); }
+  .fl-sec:last-child { border-bottom: none; }
+  .fl-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #16a34a; margin-bottom: 12px; }
+  .fl-h2 { font-size: clamp(24px, 3vw, 36px); font-weight: 800; line-height: 1.25; letter-spacing: -.03em; color: #0f172a; margin: 0 0 20px; }
+  .fl-lead { font-size: 17px; line-height: 1.85; color: #374151; margin: 0 0 32px; }
+  .fl-body { font-size: 15px; line-height: 1.9; color: #4b5563; margin: 0 0 20px; }
+  .fl-body:last-child { margin-bottom: 0; }
+  .fl-cycle { display: flex; align-items: stretch; gap: 0; margin: 32px 0; }
+  .fl-cycle-step { flex: 1; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); padding: 20px 16px; text-align: center; font-size: 13px; font-weight: 700; line-height: 1.55; color: #1f2937; position: relative; }
+  .fl-cycle-step:first-child { border-radius: 16px 0 0 16px; }
+  .fl-cycle-step:last-child { border-radius: 0 16px 16px 0; }
+  .fl-cycle-step + .fl-cycle-step { border-left: none; }
+  .fl-cycle-step::after { content: "→"; position: absolute; right: -12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: #16a34a; font-weight: 900; z-index: 1; }
+  .fl-cycle-step:last-child::after { content: ""; }
+  .fl-cycle-num { display: block; font-size: 11px; font-weight: 800; color: #16a34a; letter-spacing: .06em; margin-bottom: 8px; }
+  .fl-trust { background: #0f172a; color: rgba(255,255,255,.88); border-radius: 16px; padding: 22px 28px; margin: 28px 0; font-size: 15px; line-height: 1.75; }
+  .fl-trust strong { color: #bbf7d0; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+  .fl-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
+  .fl-chip { display: inline-flex; align-items: center; padding: 9px 15px; border-radius: 999px; background: rgba(15,23,42,.05); border: 1px solid rgba(15,23,42,.08); font-size: 12.5px; font-weight: 700; color: #374151; line-height: 1.4; }
+  .fl-reasons { display: grid; gap: 28px; margin: 32px 0; }
+  .fl-reason { display: grid; grid-template-columns: 48px 1fr; gap: 20px; align-items: start; }
+  .fl-reason-num { font-size: 28px; font-weight: 900; color: #d1fae5; line-height: 1; padding-top: 2px; }
+  .fl-reason-body h3 { font-size: 16px; font-weight: 800; color: #111827; margin: 0 0 8px; line-height: 1.4; }
+  .fl-reason-body p { font-size: 14.5px; line-height: 1.85; color: #4b5563; margin: 0; }
+  .fl-steps { display: grid; gap: 0; margin: 32px 0; }
+  .fl-step { display: grid; grid-template-columns: 56px 1fr; gap: 0; position: relative; }
+  .fl-step-num { display: flex; flex-direction: column; align-items: center; }
+  .fl-step-num-badge { width: 36px; height: 36px; border-radius: 50%; background: #f0fdf4; border: 2px solid #16a34a; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #16a34a; flex-shrink: 0; }
+  .fl-step-num-line { flex: 1; width: 2px; background: linear-gradient(180deg, #bbf7d0 0%, #f0fdf4 100%); margin-top: 4px; }
+  .fl-step:last-child .fl-step-num-line { display: none; }
+  .fl-step-content { padding: 0 0 32px 20px; }
+  .fl-step:last-child .fl-step-content { padding-bottom: 0; }
+  .fl-step-content h3 { font-size: 15px; font-weight: 800; color: #111827; margin: 5px 0 6px; line-height: 1.4; }
+  .fl-step-content p { font-size: 14px; line-height: 1.85; color: #4b5563; margin: 0; }
+  .fl-step-badge-text { font-size: 10px; font-weight: 800; color: #16a34a; line-height: 1.1; text-align: center; padding: 0 2px; }
+  .fl-tiers { display: grid; gap: 14px; margin: 28px 0; }
+  .fl-tier { border-radius: 16px; padding: 22px 24px; display: grid; grid-template-columns: 130px 1fr 1fr; gap: 16px; align-items: start; border: 1px solid rgba(15,23,42,.08); }
+  .fl-tier-1 { background: #f8fafc; }
+  .fl-tier-2 { background: #f0fdf4; border-color: rgba(22,163,74,.12); }
+  .fl-tier-3 { background: #ecfdf5; border-color: rgba(22,163,74,.2); }
+  .fl-tier-4 { background: #dcfce7; border-color: rgba(22,163,74,.3); }
+  .fl-tier-name { font-size: 14px; font-weight: 800; color: #111827; line-height: 1.45; }
+  .fl-tier-meaning { font-size: 12px; font-weight: 600; color: #6b7280; margin-top: 4px; }
+  .fl-tier-col-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #9ca3af; margin-bottom: 6px; }
+  .fl-tier-col-body { font-size: 13px; line-height: 1.75; color: #374151; }
+  .fl-tier-col-no { font-size: 13px; line-height: 1.75; color: #9ca3af; }
+  .fl-callout { border-radius: 16px; padding: 22px 24px; background: linear-gradient(135deg, #f7fee7 0%, #ecfccb 100%); border: 1px solid rgba(101,163,13,.2); margin: 24px 0; }
+  .fl-callout strong { display: block; font-size: 13px; font-weight: 800; color: #3f6212; letter-spacing: .02em; margin-bottom: 8px; }
+  .fl-callout p { font-size: 14px; line-height: 1.85; color: #3f6212; margin: 0; }
+  .fl-info { border-radius: 16px; padding: 22px 24px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); margin: 24px 0; }
+  .fl-info strong { display: block; font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+  .fl-info p { font-size: 14px; line-height: 1.85; color: #4b5563; margin: 0; }
+  .fl-roles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 28px 0; }
+  .fl-role { border-radius: 16px; padding: 24px; background: #fafafa; border: 1px solid rgba(15,23,42,.07); }
+  .fl-role-icon { font-size: 24px; display: block; margin-bottom: 14px; }
+  .fl-role h3 { font-size: 16px; font-weight: 800; color: #111827; margin: 0 0 6px; }
+  .fl-role p { font-size: 13.5px; line-height: 1.8; color: #6b7280; margin: 0 0 14px; }
+  .fl-role-tag { display: inline-block; font-size: 12px; font-weight: 700; color: #166534; background: #dcfce7; border-radius: 8px; padding: 5px 10px; line-height: 1.4; }
+  .fl-benefits { list-style: none; margin: 20px 0; padding: 0; display: grid; gap: 10px; }
+  .fl-benefits li { display: flex; align-items: baseline; gap: 10px; font-size: 15px; line-height: 1.8; color: #374151; }
+  .fl-benefits li::before { content: "✓"; font-weight: 900; color: #16a34a; flex-shrink: 0; }
+  .fl-faq { display: grid; gap: 12px; margin: 28px 0; }
+  .fl-faq-item { border-radius: 14px; padding: 22px 24px; background: #f9fafb; border: 1px solid rgba(15,23,42,.07); }
+  .fl-faq-q { font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 10px; line-height: 1.5; }
+  .fl-faq-a { font-size: 14px; line-height: 1.85; color: #4b5563; margin: 0; }
+  .fl-refs { margin: 24px 0 0; padding: 24px; background: #f9fafb; border-radius: 14px; }
+  .fl-refs-label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #9ca3af; margin-bottom: 14px; }
+  .fl-refs ol { margin: 0; padding: 0 0 0 18px; display: grid; gap: 10px; }
+  .fl-refs li { font-size: 13px; line-height: 1.8; color: #6b7280; }
+  .fl-refs em { font-style: italic; }
+  .fl-cta-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 20px; }
+  .fl-premise { font-size: 12.5px; line-height: 1.9; color: #94a3b8; border-top: 1px solid rgba(15,23,42,.06); padding-top: 20px; margin-top: 4px; }
+  .fl-2col { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 28px 0; }
+  .fl-card { border-radius: 16px; padding: 24px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
+  .fl-card h3 { font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 10px; line-height: 1.4; }
+  .fl-card p { font-size: 14px; line-height: 1.85; color: #4b5563; margin: 0; }
+  .fl-divider { border: none; border-top: 1px solid rgba(15,23,42,.08); margin: 32px 0; }
+  @media (max-width: 640px) {
+    .fl-sec { padding: 40px 0; }
+    .fl-cycle { flex-direction: column; }
+    .fl-cycle-step { border-radius: 0 !important; border-left: 1px solid rgba(15,23,42,.08) !important; }
+    .fl-cycle-step:first-child { border-radius: 16px 16px 0 0 !important; }
+    .fl-cycle-step:last-child { border-radius: 0 0 16px 16px !important; }
+    .fl-cycle-step::after { content: "↓"; right: auto; left: 50%; bottom: -12px; top: auto; transform: translateX(-50%); }
+    .fl-tier { grid-template-columns: 1fr; gap: 12px; }
+    .fl-roles, .fl-2col { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 860px) {
+    .fl-tier { grid-template-columns: 140px 1fr; }
+    .fl-tier > *:last-child { grid-column: 1 / -1; }
+  }
+</style>`;
+
 // Break Krug AI-slop 3-col feature grid by making the first card featured
 // (double-width, accent left border, larger heading) and the rest plain.
 // Also drops the repeated "ikimon" eyebrow that all cards used to share.
@@ -290,120 +385,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
     const trustSentence = lang === "ja"
       ? "AI は答えを決める役ではなく、候補を広げる役です。"
       : "AI does not decide the final answer. It expands plausible candidates.";
-    const body = `<style>
-      /* ── layout ── */
-      .fl { max-width: 760px; margin: 0 auto; padding: 0 4px; }
-      .fl-sec { padding: 56px 0; border-bottom: 1px solid rgba(15,23,42,.08); }
-      .fl-sec:last-child { border-bottom: none; }
-
-      /* ── type ── */
-      .fl-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #16a34a; margin-bottom: 12px; }
-      .fl-h2 { font-size: clamp(24px, 3vw, 36px); font-weight: 800; line-height: 1.25; letter-spacing: -.03em; color: #0f172a; margin: 0 0 20px; }
-      .fl-lead { font-size: 17px; line-height: 1.85; color: #374151; margin: 0 0 32px; }
-      .fl-body { font-size: 15px; line-height: 1.9; color: #4b5563; margin: 0 0 20px; }
-      .fl-body:last-child { margin-bottom: 0; }
-
-      /* ── loop: 4-step cycle preview ── */
-      .fl-cycle { display: flex; align-items: stretch; gap: 0; margin: 32px 0; }
-      .fl-cycle-step { flex: 1; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); padding: 20px 16px; text-align: center; font-size: 13px; font-weight: 700; line-height: 1.55; color: #1f2937; position: relative; }
-      .fl-cycle-step:first-child { border-radius: 16px 0 0 16px; }
-      .fl-cycle-step:last-child { border-radius: 0 16px 16px 0; }
-      .fl-cycle-step + .fl-cycle-step { border-left: none; }
-      .fl-cycle-step::after { content: "→"; position: absolute; right: -12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: #16a34a; font-weight: 900; z-index: 1; }
-      .fl-cycle-step:last-child::after { content: ""; }
-      .fl-cycle-num { display: block; font-size: 11px; font-weight: 800; color: #16a34a; letter-spacing: .06em; margin-bottom: 8px; }
-
-      /* ── trust bar ── */
-      .fl-trust { background: #0f172a; color: rgba(255,255,255,.88); border-radius: 16px; padding: 22px 28px; margin: 28px 0; font-size: 15px; line-height: 1.75; }
-      .fl-trust strong { color: #bbf7d0; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; display: block; margin-bottom: 8px; }
-
-      /* ── chips ── */
-      .fl-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
-      .fl-chip { display: inline-flex; align-items: center; padding: 9px 15px; border-radius: 999px; background: rgba(15,23,42,.05); border: 1px solid rgba(15,23,42,.08); font-size: 12.5px; font-weight: 700; color: #374151; line-height: 1.4; }
-
-      /* ── numbered reasons ── */
-      .fl-reasons { display: grid; gap: 28px; margin: 32px 0; }
-      .fl-reason { display: grid; grid-template-columns: 48px 1fr; gap: 20px; align-items: start; }
-      .fl-reason-num { font-size: 28px; font-weight: 900; color: #d1fae5; line-height: 1; padding-top: 2px; }
-      .fl-reason-body h3 { font-size: 16px; font-weight: 800; color: #111827; margin: 0 0 8px; line-height: 1.4; }
-      .fl-reason-body p { font-size: 14.5px; line-height: 1.85; color: #4b5563; margin: 0; }
-
-      /* ── loop steps ── */
-      .fl-steps { display: grid; gap: 0; margin: 32px 0; }
-      .fl-step { display: grid; grid-template-columns: 56px 1fr; gap: 0; position: relative; }
-      .fl-step-num { display: flex; flex-direction: column; align-items: center; }
-      .fl-step-num-badge { width: 36px; height: 36px; border-radius: 50%; background: #f0fdf4; border: 2px solid #16a34a; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #16a34a; flex-shrink: 0; }
-      .fl-step-num-line { flex: 1; width: 2px; background: linear-gradient(180deg, #bbf7d0 0%, #f0fdf4 100%); margin-top: 4px; }
-      .fl-step:last-child .fl-step-num-line { display: none; }
-      .fl-step-content { padding: 0 0 32px 20px; }
-      .fl-step:last-child .fl-step-content { padding-bottom: 0; }
-      .fl-step-content h3 { font-size: 15px; font-weight: 800; color: #111827; margin: 5px 0 6px; line-height: 1.4; }
-      .fl-step-content p { font-size: 14px; line-height: 1.85; color: #4b5563; margin: 0; }
-
-      /* ── evidence tiers ── */
-      .fl-tiers { display: grid; gap: 14px; margin: 28px 0; }
-      .fl-tier { border-radius: 16px; padding: 22px 24px; display: grid; grid-template-columns: 130px 1fr 1fr; gap: 16px; align-items: start; border: 1px solid rgba(15,23,42,.08); }
-      .fl-tier-1 { background: #f8fafc; }
-      .fl-tier-2 { background: #f0fdf4; border-color: rgba(22,163,74,.12); }
-      .fl-tier-3 { background: #ecfdf5; border-color: rgba(22,163,74,.2); }
-      .fl-tier-4 { background: #dcfce7; border-color: rgba(22,163,74,.3); }
-      .fl-tier-name { font-size: 14px; font-weight: 800; color: #111827; line-height: 1.45; }
-      .fl-tier-meaning { font-size: 12px; font-weight: 600; color: #6b7280; margin-top: 4px; }
-      .fl-tier-col-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #9ca3af; margin-bottom: 6px; }
-      .fl-tier-col-body { font-size: 13px; line-height: 1.75; color: #374151; }
-      .fl-tier-col-no { font-size: 13px; line-height: 1.75; color: #9ca3af; }
-
-      /* ── callout ── */
-      .fl-callout { border-radius: 16px; padding: 22px 24px; background: linear-gradient(135deg, #f7fee7 0%, #ecfccb 100%); border: 1px solid rgba(101,163,13,.2); margin: 24px 0; }
-      .fl-callout strong { display: block; font-size: 13px; font-weight: 800; color: #3f6212; letter-spacing: .02em; margin-bottom: 8px; }
-      .fl-callout p { font-size: 14px; line-height: 1.85; color: #3f6212; margin: 0; }
-
-      /* ── roles ── */
-      .fl-roles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 28px 0; }
-      .fl-role { border-radius: 16px; padding: 24px; background: #fafafa; border: 1px solid rgba(15,23,42,.07); }
-      .fl-role-icon { font-size: 24px; display: block; margin-bottom: 14px; }
-      .fl-role h3 { font-size: 16px; font-weight: 800; color: #111827; margin: 0 0 6px; }
-      .fl-role p { font-size: 13.5px; line-height: 1.8; color: #6b7280; margin: 0 0 14px; }
-      .fl-role-tag { display: inline-block; font-size: 12px; font-weight: 700; color: #166534; background: #dcfce7; border-radius: 8px; padding: 5px 10px; line-height: 1.4; }
-
-      /* ── benefit list ── */
-      .fl-benefits { list-style: none; margin: 20px 0; padding: 0; display: grid; gap: 10px; }
-      .fl-benefits li { display: flex; align-items: baseline; gap: 10px; font-size: 15px; line-height: 1.8; color: #374151; }
-      .fl-benefits li::before { content: "✓"; font-weight: 900; color: #16a34a; flex-shrink: 0; }
-
-      /* ── faq ── */
-      .fl-faq { display: grid; gap: 12px; margin: 28px 0; }
-      .fl-faq-item { border-radius: 14px; padding: 22px 24px; background: #f9fafb; border: 1px solid rgba(15,23,42,.07); }
-      .fl-faq-q { font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 10px; line-height: 1.5; }
-      .fl-faq-a { font-size: 14px; line-height: 1.85; color: #4b5563; margin: 0; }
-
-      /* ── refs ── */
-      .fl-refs { margin: 24px 0 0; padding: 24px; background: #f9fafb; border-radius: 14px; }
-      .fl-refs-label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #9ca3af; margin-bottom: 14px; }
-      .fl-refs ol { margin: 0; padding: 0 0 0 18px; display: grid; gap: 10px; }
-      .fl-refs li { font-size: 13px; line-height: 1.8; color: #6b7280; }
-      .fl-refs em { font-style: italic; }
-
-      /* ── cta ── */
-      .fl-cta-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 20px; }
-      .fl-premise { font-size: 12.5px; line-height: 1.9; color: #94a3b8; border-top: 1px solid rgba(15,23,42,.06); padding-top: 20px; margin-top: 4px; }
-
-      /* ── responsive ── */
-      @media (max-width: 640px) {
-        .fl-sec { padding: 40px 0; }
-        .fl-cycle { flex-direction: column; }
-        .fl-cycle-step { border-radius: 0 !important; border-left: 1px solid rgba(15,23,42,.08) !important; }
-        .fl-cycle-step:first-child { border-radius: 16px 16px 0 0 !important; }
-        .fl-cycle-step:last-child { border-radius: 0 0 16px 16px !important; }
-        .fl-cycle-step::after { content: "↓"; right: auto; left: 50%; bottom: -12px; top: auto; transform: translateX(-50%); }
-        .fl-tier { grid-template-columns: 1fr; gap: 12px; }
-        .fl-roles { grid-template-columns: 1fr; }
-      }
-      @media (max-width: 860px) {
-        .fl-tier { grid-template-columns: 140px 1fr; }
-        .fl-tier > *:last-child { grid-column: 1 / -1; }
-      }
-    </style>
+    const body = `${FL_CSS}
     <div class="fl">
 
       <section class="fl-sec">
@@ -649,37 +631,58 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "Learn",
       "同定は、いきなり正解を断言することだけが目的ではありません。",
       "観察をまず残すこと、そのうえで AI が候補と次の手がかりを返すこと、専門家の同定はそれとは別の場所で扱うこと。この3つを混ぜないのが ikimon の方針です。",
-      cards([
-        {
-          title: "種まで絞り込めないとき",
-          body: "写真の角度、部位の写っていない部分、幼体や季節による姿の違い、近い仲間との共通点が多い種では、属までで止める方が正確なことがあります。",
-        },
-        {
-          title: "AI が返す候補の役割",
-          body: "AI は「正解」ではなく、候補の種・見分けるポイント・次に撮りたい部位を返します。最後に決めるのは観察者ご自身です。",
-        },
-        {
-          title: "専門家によるレビュー",
-          body: "より厳密な同定や確認は、専門家向けの別画面で扱います。日常の観察とは分けているので、一般のご利用では気にする必要はありません。",
-          href: withBasePath(basePath, "/specialist/id-workbench"),
-          label: "専門家向け画面を開く",
-        },
-      ]) + rows([
-        {
-          title: "撮り直しで確度が上がる例",
-          body: "葉の裏、翅の脈、腹部、花の付け根、全景と接写の組み合わせなど、決め手になる部位を追加すると候補を絞りやすくなります。",
-        },
-        {
-          title: "ikimon が返したいもの",
-          body: "種名だけでなく、まだ断定しない理由、似た候補、次に何を撮れば進むか、そしてその場所にまた行きたくなる理由。",
-        },
-        {
-          title: "最初の一歩",
-          body: "まず 1 件記録してみる。完璧な同定でなくて構いません。観察と再訪を重ねることで、少しずつ見えるものが変わっていきます。",
-          actionHref: withBasePath(basePath, "/record"),
-          actionLabel: "記録する",
-        },
-      ]),
+      `${FL_CSS}<div class="fl">
+
+      <section class="fl-sec">
+        <div class="fl-label">3つの前提</div>
+        <h2 class="fl-h2">名前が分からなくても、観察は始められる。</h2>
+        <p class="fl-lead">ikimon は「その場で正解を断言する」ことを求めません。観察を残し、候補を広げ、あとから確度を上げていく設計です。</p>
+        <div class="fl-reasons">
+          <div class="fl-reason">
+            <div class="fl-reason-num">01</div>
+            <div class="fl-reason-body">
+              <h3>種まで絞り込めないとき</h3>
+              <p>写真の角度、部位の写っていない部分、幼体や季節による姿の違い、近い仲間との共通点が多い種では、属までで止める方が正確なことがあります。</p>
+            </div>
+          </div>
+          <div class="fl-reason">
+            <div class="fl-reason-num">02</div>
+            <div class="fl-reason-body">
+              <h3>AI が返す候補の役割</h3>
+              <p>AI は「正解」ではなく、候補の種・見分けるポイント・次に撮りたい部位を返します。最後に決めるのは観察者ご自身です。</p>
+            </div>
+          </div>
+          <div class="fl-reason">
+            <div class="fl-reason-num">03</div>
+            <div class="fl-reason-body">
+              <h3>専門家によるレビュー</h3>
+              <p>より厳密な同定や確認は、専門家向けの別画面で扱います。日常の観察とは分けているので、一般のご利用では気にする必要はありません。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">確度の上げ方</div>
+        <h2 class="fl-h2">撮り直しで候補が絞れる</h2>
+        <p class="fl-body">葉の裏、翅の脈、腹部、花の付け根、全景と接写の組み合わせなど、決め手になる部位を追加すると候補を絞りやすくなります。</p>
+        <div class="fl-info">
+          <strong>ikimon が返したいもの</strong>
+          <p>種名だけでなく、まだ断定しない理由、似た候補、次に何を撮れば進むか、そしてその場所にまた行きたくなる理由。</p>
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">最初の一歩</div>
+        <h2 class="fl-h2">まず 1 件、記録してみる</h2>
+        <p class="fl-body">完璧な同定でなくて構いません。観察と再訪を重ねることで、少しずつ見えるものが変わっていきます。</p>
+        <div class="fl-cta-actions">
+          <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">観察を記録する</a>
+          <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench"))}">専門家向け画面を開く</a>
+        </div>
+      </section>
+
+    </div>`,
       "Learn",
     );
   });
@@ -696,39 +699,67 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "Learn",
       "透明性は、信頼のためだけでなく学びのためにも必要です。",
       "ikimon は観察データの取り扱い、希少種の位置保護、ライセンス、モニタリング参考インデックスの考え方を公開する。数値は環境の価値を断言するためではなく、継続観察の進み方を対話できるようにするために置く。",
-      cards([
-        {
-          title: "Data policy",
-          body: "ライブスキャン中の映像は AI 判定後に自動削除し、環境音は鳥類判定のためにのみ使う。投稿された観察は将来の open biodiversity data 連携も見据える。",
-        },
-        {
-          title: "Location handling",
-          body: "GPS は生態学的な精度を保ちつつ、希少種はマスク処理し、公開権限に応じて位置精度を制御する。",
-        },
-        {
-          title: "MRI",
-          body: "MRI は種の多様性、保全価値、データ信頼性、分類群カバー率、調査継続性の 5 軸を見る参考指標で、良し悪しの断定ではありません。",
-        },
-      ]) + rows([
-        {
-          title: "5 軸評価モデル",
-          body: "種の多様性 30%、保全価値 25%、データ信頼性 20%、分類群カバー率 15%、調査継続性 10% を掛け合わせて経時変化を見る。",
-        },
-        {
-          title: "観測空白と不在証拠",
-          body: "地図でまず見えるのは `未観測` や `観測薄い` 領域です。`いない` に近い判断をするには、時期・時間帯・探索努力を含む sampling effort と、より高い証拠条件が必要です。",
-        },
-        {
-          title: "Open science stance",
-          body: "市民科学データはブラックボックスの都合で閉じず、条件と限界を公開したうえで future archive として残す。",
-        },
-        {
-          title: "Business / public との関係",
-          body: "企業や自治体にとっても、指標は報告のためだけでなく、場所ごとの変化を見返す共通言語として使う。",
-          actionHref: withBasePath(basePath, "/for-business"),
-          actionLabel: "For business",
-        },
-      ]),
+      `${FL_CSS}<div class="fl">
+
+      <section class="fl-sec">
+        <div class="fl-label">データの扱い方</div>
+        <h2 class="fl-h2">3つの基本方針</h2>
+        <div class="fl-reasons">
+          <div class="fl-reason">
+            <div class="fl-reason-num">01</div>
+            <div class="fl-reason-body">
+              <h3>Data policy</h3>
+              <p>ライブスキャン中の映像は AI 判定後に自動削除し、環境音は鳥類判定のためにのみ使います。投稿された観察は将来の open biodiversity data 連携も見据えています。</p>
+            </div>
+          </div>
+          <div class="fl-reason">
+            <div class="fl-reason-num">02</div>
+            <div class="fl-reason-body">
+              <h3>Location handling</h3>
+              <p>GPS は生態学的な精度を保ちつつ、希少種はマスク処理し、公開権限に応じて位置精度を制御します。</p>
+            </div>
+          </div>
+          <div class="fl-reason">
+            <div class="fl-reason-num">03</div>
+            <div class="fl-reason-body">
+              <h3>MRI（モニタリング参考インデックス）</h3>
+              <p>MRI は種の多様性、保全価値、データ信頼性、分類群カバー率、調査継続性の 5 軸を見る参考指標で、良し悪しの断定ではありません。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">指標の詳細</div>
+        <h2 class="fl-h2">5 軸評価モデル</h2>
+        <p class="fl-body">種の多様性 30%、保全価値 25%、データ信頼性 20%、分類群カバー率 15%、調査継続性 10% を掛け合わせて経時変化を見ます。</p>
+        <div class="fl-callout">
+          <strong>観測空白と不在証拠</strong>
+          <p>地図でまず見えるのは「未観測」や「観測薄い」領域だと考えています。「いない」に近い判断をするには、時期・時間帯・探索努力を含む sampling effort と、より高い証拠条件が必要だと言われています。</p>
+        </div>
+        <div class="fl-2col">
+          <div class="fl-card">
+            <h3>Open science stance</h3>
+            <p>市民科学データはブラックボックスの都合で閉じず、条件と限界を公開したうえで future archive として残します。</p>
+          </div>
+          <div class="fl-card">
+            <h3>Business / public との関係</h3>
+            <p>企業や自治体にとっても、指標は報告のためだけでなく、場所ごとの変化を見返す共通言語として使います。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">連携</div>
+        <h2 class="fl-h2">組織での活用</h2>
+        <p class="fl-body">研究・教育・保全の現場で ikimon の観察インフラを活用したい場合は、法人向けページからご相談ください。</p>
+        <div class="fl-cta-actions">
+          <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/for-business"))}">For business</a>
+          <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/field-loop"))}">Field Loop を読む</a>
+        </div>
+      </section>
+
+    </div>`,
       "Learn",
     );
   });
@@ -745,39 +776,77 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "Learn",
       "観察体験を少しずつ積み上げてきました。",
       "ikimon は一度に全部を変えずに、歩いて・見つけて・書き残す体験が楽になる方向へ、小さく進化してきました。主な節目を時系列で残しておきます。",
-      cards([
-        {
-          title: "2026-04-08 | v0.10.1",
-          body: "v2 の public 面を、フィールドノート中心の導線へ寄せました。主役を record / notes / revisit に固定しています。",
-        },
-        {
-          title: "2026-04 | v0.10.0",
-          body: "フィールドスキャンで、次に歩く場所を考えるための map lane を整備しました。探索はノートに戻るための補助線として扱います。",
-        },
-        {
-          title: "2026-03-31 | v0.9.0",
-          body: "AIレンズの入口を追加しました。現時点では完成機能としてではなく、将来の walking-time guide へつながる入口として置いています。",
-        },
-        {
-          title: "2026-03 | v0.8.x",
-          body: "写真や音を含む観察の証拠を、あとから見返せる形で残す方向を強めました。入力の幅を広げるための基盤整備です。",
-        },
-        {
-          title: "2026-03 | v0.7.x",
-          body: "場所・再訪・個人の記録を中心に据えるための初期導線を整えました。探索系の機能は、この軸を支える位置に置いています。",
-        },
-      ]) + rows([
-        {
-          title: "どう読むと良いか",
-          body: "機能追加の履歴ではなく、「自分の学びが育つ」「みんなの観察が AI を育てる」「地域の記録として積み上がる」の 3 つの方向に近づいた順序として読んでいただけると幸いです。",
-        },
-        {
-          title: "実際に触ってみる",
-          body: "トップページから、記録・みつける・ホーム・観察の詳細まで、今の体験を一通り確認できます。",
-          actionHref: withBasePath(basePath, "/"),
-          actionLabel: "トップへ",
-        },
-      ]),
+      `${FL_CSS}<div class="fl">
+
+      <section class="fl-sec">
+        <div class="fl-label">リリース履歴</div>
+        <h2 class="fl-h2">小さく、着実に。</h2>
+        <p class="fl-lead">機能追加の履歴ではなく、「自分の学びが育つ」「みんなの観察が AI を育てる」「地域の記録として積み上がる」の 3 つの方向に近づいた順序として読んでいただけると幸いです。</p>
+        <div class="fl-steps">
+          <div class="fl-step">
+            <div class="fl-step-num">
+              <div class="fl-step-num-badge" style="font-size:9px;width:42px;border-radius:10px;"><span class="fl-step-badge-text">v0.10.1</span></div>
+              <div class="fl-step-num-line"></div>
+            </div>
+            <div class="fl-step-content">
+              <h3>2026-04-08 — フィールドノート中心の導線</h3>
+              <p>v2 の public 面を、フィールドノート中心の導線へ寄せました。主役を record / notes / revisit に固定しています。</p>
+            </div>
+          </div>
+          <div class="fl-step">
+            <div class="fl-step-num">
+              <div class="fl-step-num-badge" style="font-size:9px;width:42px;border-radius:10px;"><span class="fl-step-badge-text">v0.10.0</span></div>
+              <div class="fl-step-num-line"></div>
+            </div>
+            <div class="fl-step-content">
+              <h3>2026-04 — Map lane 整備</h3>
+              <p>フィールドスキャンで、次に歩く場所を考えるための map lane を整備しました。探索はノートに戻るための補助線として扱います。</p>
+            </div>
+          </div>
+          <div class="fl-step">
+            <div class="fl-step-num">
+              <div class="fl-step-num-badge" style="font-size:9px;width:42px;border-radius:10px;"><span class="fl-step-badge-text">v0.9.0</span></div>
+              <div class="fl-step-num-line"></div>
+            </div>
+            <div class="fl-step-content">
+              <h3>2026-03-31 — AIレンズ入口</h3>
+              <p>AIレンズの入口を追加しました。現時点では完成機能としてではなく、将来の walking-time guide へつながる入口として置いています。</p>
+            </div>
+          </div>
+          <div class="fl-step">
+            <div class="fl-step-num">
+              <div class="fl-step-num-badge" style="font-size:9px;width:42px;border-radius:10px;"><span class="fl-step-badge-text">v0.8.x</span></div>
+              <div class="fl-step-num-line"></div>
+            </div>
+            <div class="fl-step-content">
+              <h3>2026-03 — 証拠保存の強化</h3>
+              <p>写真や音を含む観察の証拠を、あとから見返せる形で残す方向を強めました。入力の幅を広げるための基盤整備です。</p>
+            </div>
+          </div>
+          <div class="fl-step">
+            <div class="fl-step-num">
+              <div class="fl-step-num-badge" style="font-size:9px;width:42px;border-radius:10px;"><span class="fl-step-badge-text">v0.7.x</span></div>
+              <div class="fl-step-num-line"></div>
+            </div>
+            <div class="fl-step-content">
+              <h3>2026-03 — 場所・再訪・記録の軸</h3>
+              <p>場所・再訪・個人の記録を中心に据えるための初期導線を整えました。探索系の機能は、この軸を支える位置に置いています。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">今の体験を確かめる</div>
+        <h2 class="fl-h2">実際に触ってみる</h2>
+        <p class="fl-body">トップページから、記録・みつける・ホーム・観察の詳細まで、今の体験を一通り確認できます。</p>
+        <div class="fl-cta-actions">
+          <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ</a>
+          <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/record"))}">観察を記録する</a>
+        </div>
+      </section>
+
+    </div>`,
       "Learn",
     );
   });
