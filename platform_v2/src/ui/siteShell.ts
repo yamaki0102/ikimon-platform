@@ -622,7 +622,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       text-wrap: pretty;
     }
     .hero-emphasis { white-space: nowrap; }
-    .hero-emphasis { color: #bbf7d0; }
+    .hero-emphasis { color: #10b981; }
     .hero-panel p {
       margin: 22px 0 0;
       max-width: 48ch;
