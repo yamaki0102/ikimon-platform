@@ -69,10 +69,15 @@ export function renderObservationCard(
   const timestamp = isIdentification ? (obs.identifiedAt ?? obs.observedAt) : obs.observedAt;
   const attribution = kind.attribution(obs.observerName || "");
 
+  const tier = obs.evidenceTier;
+  const tierBadge = tier != null
+    ? `<span class="obs-card-tier" title="Evidence Tier ${tier}">T${tier}</span>`
+    : "";
   return `<article class="obs-card${options.compact ? " is-compact" : ""}${isIdentification ? " is-identification" : ""}" data-entry-type="${escapeHtml(entryType)}">
     <a class="obs-card-media" href="${escapeHtml(appendLangToHref(detailHref, lang))}" aria-label="${escapeHtml(obs.displayName)}">
       ${photo}
       <span class="obs-card-kind">${escapeHtml(kind.badge)}</span>
+      ${tierBadge}
       <div class="obs-card-species">${escapeHtml(obs.displayName)}</div>
     </a>
     <div class="obs-card-meta">
@@ -124,6 +129,8 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card.is-compact .obs-card-media { aspect-ratio: 4 / 3; }
   .obs-card.is-compact .obs-card-meta { padding: 10px 12px 12px; }
   .obs-card-kind { position: absolute; left: 10px; top: 10px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.92); color: #0f172a; font-size: 11px; font-weight: 800; letter-spacing: .01em; box-shadow: 0 4px 10px rgba(15,23,42,.08); backdrop-filter: blur(6px); }
+  .obs-card-tier { position: absolute; right: 10px; top: 10px; padding: 3px 8px; border-radius: 999px; background: rgba(15,23,42,.62); color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .05em; backdrop-filter: blur(6px); }
+  .obs-card.is-identification .obs-card-tier { background: rgba(14,165,233,.7); }
   .obs-card.is-identification { border-color: rgba(14,165,233,.26); box-shadow: 0 6px 18px rgba(14,165,233,.12); }
   .obs-card.is-identification .obs-card-kind { background: linear-gradient(135deg, rgba(224,242,254,.96), rgba(236,253,245,.96)); color: #0369a1; }
   .obs-card.is-identification .obs-card-species { background: rgba(14,165,233,.86); }
