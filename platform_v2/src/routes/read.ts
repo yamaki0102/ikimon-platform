@@ -25,6 +25,7 @@ import {
   mapExplorerBootScript,
   renderMapExplorer,
 } from "../ui/mapExplorer.js";
+import { GUIDE_FLOW_STYLES, renderGuideFlow } from "../ui/guideFlow.js";
 
 type LayoutHero = {
   eyebrow: string;
@@ -1112,6 +1113,23 @@ ${mapExplorerBootScript({ basePath, lang })}`,
       footerNote: lang === "ja"
         ? "観察の広がりを、次に歩く理由に変える地図。"
         : "A map that turns the spread of observations into your next reason to walk.",
+    });
+  });
+
+  app.get("/guide", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    reply.type("text/html; charset=utf-8");
+    return renderSiteDocument({
+      basePath,
+      title: lang === "ja" ? "フィールドガイド | ikimon" : "Field Guide | ikimon",
+      activeNav: lang === "ja" ? "フィールドガイド" : "Field Guide",
+      lang,
+      extraStyles: GUIDE_FLOW_STYLES,
+      body: renderGuideFlow(basePath, lang),
+      footerNote: lang === "ja"
+        ? "映像と音声で、土地の物語を聴く。"
+        : "Listen to the land's story through video and sound.",
     });
   });
 }
