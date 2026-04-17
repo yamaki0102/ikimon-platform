@@ -964,16 +964,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: lang === "ja" ? "AIレンズ | ikimon" : "AI Lens | ikimon",
+      title: lang === "ja" ? "フィールドガイド | ikimon" : "Field Guide | ikimon",
       activeNav: lang === "ja" ? "ホーム" : "Home",
       lang,
       hero: {
-        eyebrow: lang === "ja" ? "記録の前で迷ったとき" : "When you need a hint before recording",
-        heading: lang === "ja" ? "🔍 AIレンズ" : "🔍 AI Lens",
-        headingHtml: lang === "ja" ? "🔍 AIレンズ" : "🔍 AI Lens",
+        eyebrow: lang === "ja" ? "歩きながら、世界を読み解く" : "Read the world around you as you walk",
+        heading: lang === "ja" ? "🔍 フィールドガイド" : "🔍 Field Guide",
+        headingHtml: lang === "ja" ? "🔍 フィールドガイド" : "🔍 Field Guide",
         lead: lang === "ja"
-          ? "名前が分からないままでも、観察を止めずに次の一歩を決めるための入口です。いまの v2 では、候補を断定する機能ではなく、記録へ進む判断を助けるページとして置いています。"
-          : "An entry point that helps you decide the next step without stopping the observation just because you do not know the name yet.",
+          ? "カメラをかざすと AI が映像と音声を解析して、生きもの・土地の歴史・建物・関わった人の歴史を音声で案内します。気づいたことはフィールドノートに自動で蓄積。"
+          : "Point your camera and the AI reads the scene aloud — wildlife, land history, buildings, and the people who shaped this place. Notes accumulate automatically.",
         tone: "light",
         align: "center",
         actions: [
@@ -1015,7 +1015,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "歩きながら探すなら" : "If you are looking for where to walk")}</div><h2>${escapeHtml(lang === "ja" ? "フィールドスキャンを見る" : "Open Field Scan")}</h2><p>${escapeHtml(lang === "ja" ? "名前のヒントではなく、次にどの場所へ向かうかを考えたいなら、スキャン側の方が合っています。" : "If the question is where to go next rather than what the name might be, Field Scan is a better fit.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "AIレンズが『この観察をどう残すか』を見る入口だとすれば、フィールドスキャンは『次にどこへ行くか』を見る入口です。" : "AI Lens asks how to save this observation; Field Scan asks where you should go next.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(mapHref)}">${escapeHtml(lang === "ja" ? "マップへ" : "Go to map")}</a></div></div></div>
         </div>
       </section>`,
-      footerNote: lang === "ja" ? "AIレンズは『断定』の画面ではなく、観察を止めずにノートへつなぐ入口です。" : "AI Lens is not for certainty. It is an entry that keeps the observation moving toward the notebook.",
+      footerNote: lang === "ja" ? "フィールドガイドは断定ではなく、土地を読み解きながら観察をノートへつなぐ入口です。" : "Field Guide is not about certainty. It reads the place around you and connects observations to your notebook.",
     });
   });
 

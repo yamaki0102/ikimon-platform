@@ -67,13 +67,13 @@ function landingCopy(lang: SiteLang) {
       actionSecondary: "探索マップを見る",
       toolSectionEyebrow: "ノートを支える入口",
       toolSectionTitle: "再訪と記録を支える 2 つの補助線",
-      toolSectionLead: "主役はフィールドノート。AIレンズとフィールドスキャンは、次の 1 枚を書く理由を増やすために置いてある。",
+      toolSectionLead: "主役はフィールドノート。フィールドガイドとフィールドスキャンは、次の 1 枚を書く理由を増やすために置いてある。",
       tools: {
         lens: {
-          eyebrow: "AIレンズ",
-          title: "歩きながら、AI が一緒に名前を探す",
-          body: "近くの生きものに、AI が候補を返す。あくまで補助線。最後に「これだ」と決めるのはあなた。",
-          cta: "AIレンズを見る",
+          eyebrow: "フィールドガイド",
+          title: "歩きながら、映像と音声でその場を読み解く",
+          body: "カメラをかざすと AI が周囲を解析して音声で案内する。生きもの・土地の歴史・建物の来歴まで。気づいたことはノートに自動で蓄積。",
+          cta: "フィールドガイドを見る",
           badge: "beta",
         },
         scan: {
@@ -107,13 +107,13 @@ function landingCopy(lang: SiteLang) {
       actionSecondary: "See the map",
       toolSectionEyebrow: "Inputs to your notebook",
       toolSectionTitle: "Two ways to feed the notebook",
-      toolSectionLead: "Field Note is the main feature. AI Lens and Field Scan are supporting inputs that make it easier to add another page.",
+      toolSectionLead: "Field Note is the core. Field Guide and Field Scan are supporting inputs that give you more reasons to add another page.",
       tools: {
         lens: {
-          eyebrow: "AI Lens",
-          title: "AI helps you find a name as you walk",
-          body: "AI suggests candidates for what is nearby. It is a guide, not the answer. You are the one who decides.",
-          cta: "See AI Lens",
+          eyebrow: "Field Guide",
+          title: "Walk with an AI guide reading the world around you",
+          body: "Point your camera and the AI reads the scene aloud — wildlife, land history, buildings, and the people who shaped the place. Notes accumulate automatically.",
+          cta: "See Field Guide",
           badge: "beta",
         },
         scan: {
@@ -386,7 +386,7 @@ function buildLandingRootHtml(
   // Putting chips above the CTAs keeps the visual cadence small→large→small without bouncing.
   const heroSupplementHtml = `<div class="hero-chip-row">
     <span class="hero-chip">${escapeHtml(lang === "ja" ? "主役はフィールドノート" : lang === "es" ? "El cuaderno es el centro" : lang === "pt-BR" ? "O caderno e o centro" : "Field Note first")}</span>
-    <span class="hero-chip">${escapeHtml(lang === "ja" ? "AIレンズは入口" : lang === "es" ? "La IA abre la puerta" : lang === "pt-BR" ? "A IA abre a porta" : "AI Lens opens the door")}</span>
+    <span class="hero-chip">${escapeHtml(lang === "ja" ? "フィールドガイドで土地を読む" : lang === "es" ? "Guía de Campo lee el lugar" : lang === "pt-BR" ? "Guia de Campo lê o lugar" : "Field Guide reads the place")}</span>
     <span class="hero-chip">${escapeHtml(lang === "ja" ? "地図で再訪理由が育つ" : lang === "es" ? "El mapa crea motivos para volver" : lang === "pt-BR" ? "O mapa cria motivos para voltar" : "Map grows revisit reasons")}</span>
   </div>`;
 

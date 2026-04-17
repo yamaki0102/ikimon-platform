@@ -18,6 +18,11 @@ type MainCopy = {
   ambientLabel: string;
   ambientEmpty: string;
   seeMore: string;
+  hypothesisLabel: string;
+  hypothesisLoading: string;
+  hypothesisChecksLabel: string;
+  hypothesisCapturesLabel: string;
+  hypothesisReasonsLabel: string;
 };
 
 const mainCopy: Record<SiteLang, MainCopy> = {
@@ -35,6 +40,11 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     ambientLabel: "同じ場所を歩いている人たち",
     ambientEmpty: "まだ誰もノートを開いていない。あなたが 1 件目になれる。",
     seeMore: "ノート全体を開く",
+    hypothesisLabel: "今日の仮説",
+    hypothesisLoading: "現在地を読み解き中…",
+    hypothesisChecksLabel: "現地で確かめる",
+    hypothesisCapturesLabel: "撮るなら",
+    hypothesisReasonsLabel: "根拠",
   },
   en: {
     eyebrow: "Your notebook",
@@ -50,6 +60,11 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     ambientLabel: "People walking the same places",
     ambientEmpty: "No one else has opened a page yet. You can be the first.",
     seeMore: "Open the full notebook",
+    hypothesisLabel: "Today's hypothesis",
+    hypothesisLoading: "Reading your location…",
+    hypothesisChecksLabel: "Check on the ground",
+    hypothesisCapturesLabel: "If you shoot",
+    hypothesisReasonsLabel: "Why",
   },
   es: {
     eyebrow: "Tu cuaderno",
@@ -65,6 +80,11 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     ambientLabel: "Personas caminando por los mismos lugares",
     ambientEmpty: "Nadie ha abierto una página todavía. Puedes ser la primera persona.",
     seeMore: "Abrir el cuaderno completo",
+    hypothesisLabel: "Hipótesis de hoy",
+    hypothesisLoading: "Leyendo tu ubicación…",
+    hypothesisChecksLabel: "Verifica en el sitio",
+    hypothesisCapturesLabel: "Si disparas",
+    hypothesisReasonsLabel: "Por qué",
   },
   "pt-BR": {
     eyebrow: "Seu caderno",
@@ -80,6 +100,11 @@ const mainCopy: Record<SiteLang, MainCopy> = {
     ambientLabel: "Pessoas caminhando pelos mesmos lugares",
     ambientEmpty: "Ninguém abriu uma página ainda. Você pode ser a primeira pessoa.",
     seeMore: "Abrir o caderno completo",
+    hypothesisLabel: "Hipótese de hoje",
+    hypothesisLoading: "Lendo sua localização…",
+    hypothesisChecksLabel: "Verifique no campo",
+    hypothesisCapturesLabel: "Se for fotografar",
+    hypothesisReasonsLabel: "Por quê",
   },
 };
 
@@ -164,7 +189,16 @@ export function renderFieldNoteMain(
     </div>`;
   })();
 
-  return `<section class="section fn-main" aria-labelledby="fn-main-heading">
+  const apiSiteBrief = withBasePath(basePath, "/api/v1/map/site-brief");
+  const briefLang = lang === "en" ? "en" : "ja";
+
+  return `<section class="section fn-main" aria-labelledby="fn-main-heading"
+    data-api-site-brief="${escapeHtml(apiSiteBrief)}"
+    data-brief-lang="${escapeHtml(briefLang)}"
+    data-copy-loading="${escapeHtml(copy.hypothesisLoading)}"
+    data-copy-checks="${escapeHtml(copy.hypothesisChecksLabel)}"
+    data-copy-captures="${escapeHtml(copy.hypothesisCapturesLabel)}"
+    data-copy-reasons="${escapeHtml(copy.hypothesisReasonsLabel)}">
     <div class="fn-main-card">
       <div class="fn-main-head">
         <div class="fn-main-head-copy">
@@ -177,12 +211,54 @@ export function renderFieldNoteMain(
           ${isLoggedIn ? `<a class="inline-link" href="${escapeHtml(notesHref)}">${escapeHtml(copy.seeMore)}</a>` : ""}
         </div>
       </div>
+      <div class="fn-hypothesis-wrap" id="fn-hypothesis-wrap">
+        <div class="fn-subhead"><h3>${escapeHtml(copy.hypothesisLabel)}</h3></div>
+        <div class="fn-hypothesis-card is-loading" id="fn-hypothesis-card">${escapeHtml(copy.hypothesisLoading)}</div>
+      </div>
       ${myFeedSection}
       ${myPlacesSection}
       ${nearbySection}
       ${ambientSection}
     </div>
-  </section>`;
+  </section>
+  <script>
+  (function () {
+    var section = document.querySelector('.fn-main[data-api-site-brief]');
+    if (!section || !navigator.geolocation) { var w = document.getElementById('fn-hypothesis-wrap'); if (w) w.style.display = 'none'; return; }
+    var api = section.getAttribute('data-api-site-brief');
+    var briefLang = section.getAttribute('data-brief-lang') || 'ja';
+    var copyChecks = section.getAttribute('data-copy-checks') || '';
+    var copyCaptures = section.getAttribute('data-copy-captures') || '';
+    var copyReasons = section.getAttribute('data-copy-reasons') || '';
+    var card = document.getElementById('fn-hypothesis-card');
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    function renderBrief(brief) {
+      if (!brief || !brief.hypothesis) { var w = document.getElementById('fn-hypothesis-wrap'); if (w) w.style.display = 'none'; return; }
+      var h = brief.hypothesis;
+      var confPct = Math.round((h.confidence || 0) * 100);
+      var checks = (brief.checks || []).map(function(c){ return '<li>' + esc(c) + '</li>'; }).join('');
+      var caps = (brief.captureHints || []).map(function(c){ return '<li>' + esc(c) + '</li>'; }).join('');
+      var reasons = (brief.reasons || []).slice(0, 2).map(function(r){ return '<li>' + esc(r) + '</li>'; }).join('');
+      if (card) card.innerHTML =
+        '<div class="fn-hyp-head"><span class="fn-hyp-label">' + esc(h.label) + '</span><span class="fn-hyp-conf">' + confPct + '%</span></div>' +
+        (checks ? '<div class="fn-hyp-section"><div class="fn-hyp-sublabel">' + esc(copyChecks) + '</div><ul>' + checks + '</ul></div>' : '') +
+        (caps ? '<div class="fn-hyp-section"><div class="fn-hyp-sublabel">' + esc(copyCaptures) + '</div><ul>' + caps + '</ul></div>' : '') +
+        (reasons ? '<div class="fn-hyp-section fn-hyp-reasons"><div class="fn-hyp-sublabel">' + esc(copyReasons) + '</div><ul>' + reasons + '</ul></div>' : '');
+      if (card) card.classList.remove('is-loading');
+    }
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      fetch(api + '?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&lang=' + encodeURIComponent(briefLang), { credentials: 'same-origin' })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(renderBrief)
+        .catch(function(){ var w = document.getElementById('fn-hypothesis-wrap'); if (w) w.style.display = 'none'; });
+    }, function() {
+      var w = document.getElementById('fn-hypothesis-wrap');
+      if (w) w.style.display = 'none';
+    }, { timeout: 8000, maximumAge: 60000 });
+  })();
+  </script>`;
 }
 
 export const FIELD_NOTE_MAIN_STYLES = `
@@ -205,6 +281,17 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-empty { margin-left: 18px; padding: 18px 22px; border-radius: 18px; background: rgba(248,250,252,.8); color: #64748b; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .fn-empty p { margin: 0; flex: 1 1 240px; }
   .fn-empty .btn { flex-shrink: 0; }
+  .fn-hypothesis-wrap { margin-top: 20px; padding-left: 18px; }
+  .fn-hypothesis-card { padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(16,185,129,.06) 0%, rgba(14,165,233,.06) 100%); border: 1px solid rgba(16,185,129,.18); font-size: 13px; }
+  .fn-hypothesis-card.is-loading { color: #94a3b8; font-style: italic; }
+  .fn-hyp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .fn-hyp-label { font-size: 14px; font-weight: 800; color: #0f172a; }
+  .fn-hyp-conf { font-size: 11px; font-weight: 700; color: #059669; background: rgba(16,185,129,.1); padding: 2px 8px; border-radius: 999px; }
+  .fn-hyp-section { margin-bottom: 10px; }
+  .fn-hyp-reasons { opacity: 0.7; }
+  .fn-hyp-sublabel { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
+  .fn-hyp-section ul { margin: 0; padding-left: 16px; }
+  .fn-hyp-section li { margin-bottom: 2px; color: #334155; line-height: 1.6; }
   .fn-place-row { display: grid; grid-template-columns: 1fr; gap: 10px; padding-left: 18px; }
   .fn-place-chip { padding: 10px 14px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 6px 14px rgba(15,23,42,.04); display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; font-size: 12px; transition: transform .15s ease; }
   .fn-place-chip:hover { transform: translateY(-2px); }

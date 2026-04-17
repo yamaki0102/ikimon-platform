@@ -31,7 +31,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
       chips: [
         { icon: ICON_BOOK_OPEN, label: "フィールドノート", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
         { icon: ICON_PEN_LINE, label: "1件記録する", href: withBasePath(basePath, "/record") },
-        { icon: ICON_SEARCH, label: "AIレンズ", href: withBasePath(basePath, "/lens") },
+        { icon: ICON_SEARCH, label: "フィールドガイド", href: withBasePath(basePath, "/lens") },
         { icon: ICON_RADAR, label: "フィールドスキャン", href: withBasePath(basePath, "/scan") },
         { icon: ICON_MAP, label: "探索マップ", href: withBasePath(basePath, "/map") },
       ],
@@ -41,7 +41,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
       chips: [
         { icon: ICON_BOOK_OPEN, label: "Field Note", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
         { icon: ICON_PEN_LINE, label: "Record one", href: withBasePath(basePath, "/record") },
-        { icon: ICON_SEARCH, label: "AI Lens", href: withBasePath(basePath, "/lens") },
+        { icon: ICON_SEARCH, label: "Field Guide", href: withBasePath(basePath, "/lens") },
         { icon: ICON_RADAR, label: "Field Scan", href: withBasePath(basePath, "/scan") },
         { icon: ICON_MAP, label: "Map", href: withBasePath(basePath, "/map") },
       ],
@@ -51,7 +51,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
       chips: [
         { icon: ICON_BOOK_OPEN, label: "Cuaderno", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
         { icon: ICON_PEN_LINE, label: "Registrar", href: withBasePath(basePath, "/record") },
-        { icon: ICON_SEARCH, label: "Lente IA", href: withBasePath(basePath, "/lens") },
+        { icon: ICON_SEARCH, label: "Guía de Campo", href: withBasePath(basePath, "/lens") },
         { icon: ICON_RADAR, label: "Escaneo", href: withBasePath(basePath, "/scan") },
         { icon: ICON_MAP, label: "Mapa", href: withBasePath(basePath, "/map") },
       ],
@@ -61,7 +61,7 @@ function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
       chips: [
         { icon: ICON_BOOK_OPEN, label: "Caderno", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
         { icon: ICON_PEN_LINE, label: "Registrar", href: withBasePath(basePath, "/record") },
-        { icon: ICON_SEARCH, label: "Lente IA", href: withBasePath(basePath, "/lens") },
+        { icon: ICON_SEARCH, label: "Guía de Campo", href: withBasePath(basePath, "/lens") },
         { icon: ICON_RADAR, label: "Escaneamento", href: withBasePath(basePath, "/scan") },
         { icon: ICON_MAP, label: "Mapa", href: withBasePath(basePath, "/map") },
       ],
