@@ -3,17 +3,9 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Auth.php';
-require_once __DIR__ . '/../../libs/CSRF.php';
 
 Auth::init();
-CSRF::validateRequest();
 $user = Auth::user();
-
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Method not allowed'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
-    exit;
-}
 
 // simple admin check
 if (!$user || !in_array($user['rank'] ?? '', ['Admin', 'Analyst', 'Specialist'])) {

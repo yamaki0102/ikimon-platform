@@ -454,34 +454,16 @@ function buildLandingRootHtml(
   </section>`;
 
   const fieldLoopSectionHtml = `<section class="section field-loop-section" aria-labelledby="field-loop-heading">
-    <div class="field-loop-shell">
-      <div class="field-loop-copy">
-        <div class="eyebrow">${escapeHtml(fieldLoop.eyebrow)}</div>
-        <h2 id="field-loop-heading">${escapeHtml(fieldLoop.title)}</h2>
-        <p>${escapeHtml(fieldLoop.lead)}</p>
-        <div class="actions" style="margin-top:18px">
-          <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(options.basePath, "/learn/field-loop"), lang))}">${escapeHtml(fieldLoop.primaryCta)}</a>
-          <a class="btn btn-ghost" href="${escapeHtml(appendLangToHref(withBasePath(options.basePath, "/scan"), lang))}">${escapeHtml(fieldLoop.secondaryCta)}</a>
-        </div>
-        <div class="field-loop-boundary-strip" aria-label="${escapeHtml(fieldLoop.boundaryTitle)}">
-          ${fieldLoop.boundaries.map((item) => `<span class="field-loop-boundary-chip">${escapeHtml(item)}</span>`).join("")}
-        </div>
+    <div class="field-loop-copy">
+      <div class="eyebrow">${escapeHtml(fieldLoop.eyebrow)}</div>
+      <h2 id="field-loop-heading">${escapeHtml(fieldLoop.title)}</h2>
+      <p>${escapeHtml(fieldLoop.lead)}</p>
+      <div class="field-loop-boundary-strip" aria-label="${escapeHtml(fieldLoop.boundaryTitle)}">
+        ${fieldLoop.boundaries.map((item) => `<span class="field-loop-boundary-chip">${escapeHtml(item)}</span>`).join("")}
       </div>
-      <div class="field-loop-principles">
-        <div class="eyebrow">${escapeHtml(fieldLoop.principleTitle)}</div>
-        <ul class="field-loop-principle-list">
-          ${fieldLoop.principles.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-        </ul>
+      <div class="actions" style="margin-top:20px">
+        <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(options.basePath, "/learn/field-loop"), lang))}">${escapeHtml(fieldLoop.primaryCta)}</a>
       </div>
-    </div>
-    <div class="section-header" style="margin-top:24px">
-      <div>
-        <div class="eyebrow">${escapeHtml(fieldLoop.loopTitle)}</div>
-        <h3>${escapeHtml(lang === "ja" ? "衛星から再訪までを 1 本につなぐ" : "One connected flow from orbit to revisit")}</h3>
-      </div>
-    </div>
-    <div class="field-loop-grid">
-      ${fieldLoop.steps.map((step) => `<article class="card field-loop-card"><h3>${escapeHtml(step.title)}</h3><p>${escapeHtml(step.body)}</p></article>`).join("")}
     </div>
   </section>`;
 
