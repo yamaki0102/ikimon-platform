@@ -11,6 +11,7 @@ import {
   upsertAssetBlob,
 } from "./writeSupport.js";
 import { fetchSiteSignals, composeSiteBrief } from "./siteBrief.js";
+import { tryAutoPromoteToTier1_5 } from "./tierPromotion.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -381,6 +382,9 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       // intentionally swallowed
     }
   })();
+
+  // Non-blocking: try Tier 1 → 1.5 auto-promotion (AI conf ≥ 0.8 × regional record)
+  void tryAutoPromoteToTier1_5(occurrenceId).catch(() => undefined);
 
   const config = loadConfig();
   const compatibility = {
