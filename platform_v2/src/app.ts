@@ -60,10 +60,10 @@ function landingCopy(lang: SiteLang) {
   const copy = {
     ja: {
       title: "ikimon — 歩いて、見つけて、ノートに残す",
-      heroEyebrow: "ikimon へようこそ",
-      heroHeading: "歩いて、見つけて、<span class=\"hero-emphasis\">ノートに残す。</span>",
-      heroHeadingPlain: "歩いて、見つけて、ノートに残す。",
-      heroLead: "いつもの道で見つけた生きものを、場所と季節ごとに残す。読み返すたび、同じ道の見え方が変わってくる。",
+      heroEyebrow: "feel the field.",
+      heroHeading: "いつもの散歩が、<span class=\"hero-emphasis\">冒険になる。</span>",
+      heroHeadingPlain: "いつもの散歩が、冒険になる。",
+      heroLead: "AI ガイドが土地の声を読み上げ、地図が次の一歩を灯す。歩くほど、世界の解像度が上がっていく。",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("ja-JP")} 件の観察 · ${species.toLocaleString("ja-JP")} 種`,
       actionPrimaryLoggedIn: "ノートの続きを書く",
       actionPrimaryGuest: "ノートを始める",
@@ -100,10 +100,10 @@ function landingCopy(lang: SiteLang) {
     },
     en: {
       title: "ikimon.life — Walk, find, write it in the notebook",
-      heroEyebrow: "Welcome to ikimon",
-      heroHeading: "Walk, find, <span class=\"hero-emphasis\">write it in the notebook.</span>",
-      heroHeadingPlain: "Walk, find, write it in the notebook.",
-      heroLead: "Save what you find on your usual walks, by place and season. The more you re-read it, the more the same path looks different.",
+      heroEyebrow: "feel the field.",
+      heroHeading: "Your usual walk <span class=\"hero-emphasis\">becomes an adventure.</span>",
+      heroHeadingPlain: "Your usual walk becomes an adventure.",
+      heroLead: "An AI guide reads the land aloud. The map lights up reasons to come back. Every step sharpens the world.",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("en-US")} observations · ${species.toLocaleString("en-US")} species`,
       actionPrimaryLoggedIn: "Keep writing",
       actionPrimaryGuest: "Start your notebook",
@@ -140,10 +140,10 @@ function landingCopy(lang: SiteLang) {
     },
     es: {
       title: "ikimon.life — Camina, descubre, escríbelo en el cuaderno",
-      heroEyebrow: "Bienvenido a ikimon",
-      heroHeading: "Camina, descubre, <span class=\"hero-emphasis\">escríbelo en el cuaderno.</span>",
-      heroHeadingPlain: "Camina, descubre, escríbelo en el cuaderno.",
-      heroLead: "Guarda lo que encuentras en tus paseos habituales, por lugar y por estación. Cuanto más lo relees, más distinto se ve el mismo camino.",
+      heroEyebrow: "feel the field.",
+      heroHeading: "Tu paseo de siempre <span class=\"hero-emphasis\">se vuelve una aventura.</span>",
+      heroHeadingPlain: "Tu paseo de siempre se vuelve una aventura.",
+      heroLead: "Una guía IA lee el territorio en voz alta. El mapa enciende razones para volver. Cada paso afila el mundo.",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("es-ES")} observaciones · ${species.toLocaleString("es-ES")} especies`,
       actionPrimaryLoggedIn: "Seguir escribiendo",
       actionPrimaryGuest: "Comenzar tu cuaderno",
@@ -180,10 +180,10 @@ function landingCopy(lang: SiteLang) {
     },
     "pt-BR": {
       title: "ikimon.life — Caminhe, descubra, escreva no caderno",
-      heroEyebrow: "Bem-vindo ao ikimon",
-      heroHeading: "Caminhe, descubra, <span class=\"hero-emphasis\">escreva no caderno.</span>",
-      heroHeadingPlain: "Caminhe, descubra, escreva no caderno.",
-      heroLead: "Guarde o que encontra nas suas caminhadas habituais, por lugar e por estação. Quanto mais você relê, mais o mesmo caminho parece diferente.",
+      heroEyebrow: "feel the field.",
+      heroHeading: "Sua caminhada de sempre <span class=\"hero-emphasis\">vira uma aventura.</span>",
+      heroHeadingPlain: "Sua caminhada de sempre vira uma aventura.",
+      heroLead: "Um guia IA lê a paisagem em voz alta. O mapa acende motivos para voltar. Cada passo afia o mundo.",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("pt-BR")} observações · ${species.toLocaleString("pt-BR")} espécies`,
       actionPrimaryLoggedIn: "Continuar escrevendo",
       actionPrimaryGuest: "Começar seu caderno",
@@ -579,9 +579,9 @@ function buildLandingRootHtml(
   // Hero rhythm: badge → h1 → lead → chips (small) → CTA (large) → stat pill (subtle).
   // Putting chips above the CTAs keeps the visual cadence small→large→small without bouncing.
   const heroSupplementHtml = `<div class="hero-chip-row">
-    <span class="hero-chip">${escapeHtml(lang === "ja" ? "主役はフィールドノート" : lang === "es" ? "El cuaderno es el centro" : lang === "pt-BR" ? "O caderno e o centro" : "Field Note first")}</span>
-    <span class="hero-chip">${escapeHtml(lang === "ja" ? "フィールドガイドで土地を読む" : lang === "es" ? "Guía de Campo lee el lugar" : lang === "pt-BR" ? "Guia de Campo lê o lugar" : "Field Guide reads the place")}</span>
-    <span class="hero-chip">${escapeHtml(lang === "ja" ? "地図で再訪理由が育つ" : lang === "es" ? "El mapa crea motivos para volver" : lang === "pt-BR" ? "O mapa cria motivos para voltar" : "Map grows revisit reasons")}</span>
+    <span class="hero-chip">${escapeHtml(lang === "ja" ? "AI ガイドが囁く" : lang === "es" ? "La IA susurra" : lang === "pt-BR" ? "A IA sussurra" : "AI guide whispers")}</span>
+    <span class="hero-chip">${escapeHtml(lang === "ja" ? "地図に次の一歩が灯る" : lang === "es" ? "El mapa enciende el próximo paso" : lang === "pt-BR" ? "O mapa acende o próximo passo" : "The map lights the next step")}</span>
+    <span class="hero-chip">${escapeHtml(lang === "ja" ? "歩くほど、世界が濃くなる" : lang === "es" ? "Cada paso, el mundo se vuelve más denso" : lang === "pt-BR" ? "Cada passo, o mundo fica mais denso" : "Every step, the world deepens")}</span>
   </div>`;
 
   const heroAfterActionsHtml = statLine
