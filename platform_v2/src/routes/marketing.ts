@@ -377,11 +377,11 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
     const lang = detectLangFromUrl(requestUrl(request));
     const pageTitle = lang === "ja" ? "Field Loop | ikimon" : "Field Loop | ikimon";
     const heroHeading = lang === "ja"
-      ? "フィールドループとは、不確かな観測を、段階的に解像度の高い知識へ育てていく ikimon.life の仕組みです。"
-      : "Field Loop turns uncertain observations into higher-resolution knowledge through a staged cycle.";
+      ? "名前が分からなくても、観測は始めていい。"
+      : "You don't need a name. Just start observing.";
     const heroLead = lang === "ja"
-      ? "観測は、その場で完璧に当てるためのものではありません。ikimon.life は、現場の発見を AI・市民・専門家・研究の循環で少しずつ高解像度化していきます。"
-      : "Observations do not need to start at species certainty. ikimon.life raises resolution over time through a loop across AI, citizens, experts, and research.";
+      ? "ikimon では、現場の発見を AI・市民・専門家・研究が循環して解像度を上げていく仕組みを「フィールドループ」と呼んでいます。その場で正解を出せなくても、観測には価値があります。"
+      : "ikimon calls this the Field Loop — a cycle where AI, citizens, experts, and research gradually raise the resolution of your observation. Certainty is not required at the start.";
     const trustSentence = lang === "ja"
       ? "AI は答えを決める役ではなく、候補を広げる役です。"
       : "AI does not decide the final answer. It expands plausible candidates.";
@@ -629,8 +629,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
       "Identification Basics | ikimon",
       "Learn",
-      "同定は、いきなり正解を断言することだけが目的ではありません。",
-      "観察をまず残すこと、そのうえで AI が候補と次の手がかりを返すこと、専門家の同定はそれとは別の場所で扱うこと。この3つを混ぜないのが ikimon の方針です。",
+      "その場で名前が出なくて、当然です。",
+      "ikimon では、観察を残す・AI が候補を返す・専門家が検証する、この3つを別の役割として分けて設計しています。混ぜないことが、同定の基本です。",
       `${FL_CSS}<div class="fl">
 
       <section class="fl-sec">
@@ -697,8 +697,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
       "Methodology | ikimon",
       "Learn",
-      "透明性は、信頼のためだけでなく学びのためにも必要です。",
-      "ikimon は観察データの取り扱い、希少種の位置保護、ライセンス、モニタリング参考インデックスの考え方を公開する。数値は環境の価値を断言するためではなく、継続観察の進み方を対話できるようにするために置く。",
+      "ikimon が何をどう扱うか、全部見せます。",
+      "データの取り扱い、希少種の位置保護、モニタリング参考指標の考え方を公開しています。数値は環境の価値を断言するためではなく、継続観察の対話をするために置いています。",
       `${FL_CSS}<div class="fl">
 
       <section class="fl-sec">
@@ -774,8 +774,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
       "Updates | ikimon",
       "Learn",
-      "観察体験を少しずつ積み上げてきました。",
-      "ikimon は一度に全部を変えずに、歩いて・見つけて・書き残す体験が楽になる方向へ、小さく進化してきました。主な節目を時系列で残しておきます。",
+      "少しずつ、確実に。",
+      "歩いて・見つけて・書き残す体験が楽になる方向へ、ikimon は小さく進化してきました。主な節目を時系列で残しています。",
       `${FL_CSS}<div class="fl">
 
       <section class="fl-sec">
