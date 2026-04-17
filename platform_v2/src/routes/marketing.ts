@@ -118,7 +118,7 @@ const FL_CSS = `<style>
   .fl-chip { display: inline-flex; align-items: center; padding: 9px 15px; border-radius: 999px; background: rgba(15,23,42,.05); border: 1px solid rgba(15,23,42,.08); font-size: 12.5px; font-weight: 700; color: #374151; line-height: 1.4; }
   .fl-reasons { display: grid; gap: 28px; margin: 32px 0; }
   .fl-reason { display: grid; grid-template-columns: 48px 1fr; gap: 20px; align-items: start; }
-  .fl-reason-num { font-size: 28px; font-weight: 900; color: #d1fae5; line-height: 1; padding-top: 2px; }
+  .fl-reason-num { font-size: 28px; font-weight: 900; color: #10b981; line-height: 1; padding-top: 2px; }
   .fl-reason-body h3 { font-size: 16px; font-weight: 800; color: #111827; margin: 0 0 8px; line-height: 1.4; }
   .fl-reason-body p { font-size: 14.5px; line-height: 1.85; color: #4b5563; margin: 0; }
   .fl-steps { display: grid; gap: 0; margin: 32px 0; }
