@@ -76,15 +76,24 @@ export type MapExplorerCopy = {
 // Bounding boxes for 1-tap region jumps. Kept identical across locales
 // (they're geographic bboxes, not translations).
 const REGION_BBOXES: Array<{ key: string; bounds: [number, number, number, number] }> = [
-  { key: "japan",      bounds: [122.9, 24.0, 146.0, 45.6] },
-  { key: "shizuoka",   bounds: [138.21, 34.90, 138.55, 35.17] },
-  { key: "shizuoka_pref", bounds: [137.47, 34.57, 139.16, 35.65] },
-  { key: "tokyo",      bounds: [139.58, 35.55, 139.92, 35.82] },
-  { key: "nagoya",     bounds: [136.80, 35.00, 137.05, 35.24] },
-  { key: "osaka",      bounds: [135.35, 34.55, 135.65, 34.78] },
-  { key: "kyoto",      bounds: [135.65, 34.92, 135.90, 35.10] },
-  { key: "fukuoka",    bounds: [130.30, 33.48, 130.55, 33.68] },
-  { key: "sapporo",    bounds: [141.25, 42.94, 141.50, 43.15] },
+  { key: "japan",         bounds: [122.9,   24.0,   146.0,  45.6  ] },
+  // 静岡県 — 全域 → 政令市 → 主要市の順
+  { key: "shizuoka_pref", bounds: [137.47,  34.57,  139.16, 35.65 ] },
+  { key: "hamamatsu",     bounds: [137.55,  34.61,  137.91, 34.85 ] }, // 浜松市（政令市）
+  { key: "shizuoka",      bounds: [138.21,  34.90,  138.55, 35.17 ] }, // 静岡市（政令市）
+  { key: "iwata",         bounds: [137.82,  34.69,  137.97, 34.80 ] }, // 磐田市
+  { key: "kakegawa",      bounds: [137.95,  34.71,  138.10, 34.84 ] }, // 掛川市
+  { key: "fukuroi",       bounds: [137.88,  34.71,  138.00, 34.81 ] }, // 袋井市
+  { key: "shimada",       bounds: [138.10,  34.79,  138.26, 34.93 ] }, // 島田市
+  { key: "fuji",          bounds: [138.60,  35.08,  138.80, 35.22 ] }, // 富士市
+  { key: "numazu",        bounds: [138.82,  35.06,  138.97, 35.17 ] }, // 沼津市
+  // 全国主要都市
+  { key: "tokyo",         bounds: [139.58,  35.55,  139.92, 35.82 ] },
+  { key: "nagoya",        bounds: [136.80,  35.00,  137.05, 35.24 ] },
+  { key: "osaka",         bounds: [135.35,  34.55,  135.65, 34.78 ] },
+  { key: "kyoto",         bounds: [135.65,  34.92,  135.90, 35.10 ] },
+  { key: "fukuoka",       bounds: [130.30,  33.48,  130.55, 33.68 ] },
+  { key: "sapporo",       bounds: [141.25,  42.94,  141.50, 43.15 ] },
 ];
 
 function regionPresets(labels: Record<string, string>): Array<{ key: string; label: string; bounds: [number, number, number, number] }> {
@@ -109,8 +118,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     regionFilterLabel: "地域",
     regionPresets: regionPresets({
       japan: "日本全体",
-      shizuoka: "静岡市",
       shizuoka_pref: "静岡県",
+      hamamatsu: "浜松市",
+      shizuoka: "静岡市",
+      iwata: "磐田市",
+      kakegawa: "掛川市",
+      fukuroi: "袋井市",
+      shimada: "島田市",
+      fuji: "富士市",
+      numazu: "沼津市",
       tokyo: "東京",
       nagoya: "名古屋",
       osaka: "大阪",
@@ -181,8 +197,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     regionFilterLabel: "Region",
     regionPresets: regionPresets({
       japan: "Japan",
-      shizuoka: "Shizuoka City",
       shizuoka_pref: "Shizuoka Pref.",
+      hamamatsu: "Hamamatsu",
+      shizuoka: "Shizuoka City",
+      iwata: "Iwata",
+      kakegawa: "Kakegawa",
+      fukuroi: "Fukuroi",
+      shimada: "Shimada",
+      fuji: "Fuji",
+      numazu: "Numazu",
       tokyo: "Tokyo",
       nagoya: "Nagoya",
       osaka: "Osaka",
@@ -253,8 +276,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     regionFilterLabel: "Región",
     regionPresets: regionPresets({
       japan: "Japón",
-      shizuoka: "Ciudad de Shizuoka",
       shizuoka_pref: "Pref. Shizuoka",
+      hamamatsu: "Hamamatsu",
+      shizuoka: "Ciudad de Shizuoka",
+      iwata: "Iwata",
+      kakegawa: "Kakegawa",
+      fukuroi: "Fukuroi",
+      shimada: "Shimada",
+      fuji: "Fuji",
+      numazu: "Numazu",
       tokyo: "Tokio",
       nagoya: "Nagoya",
       osaka: "Osaka",
@@ -325,8 +355,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     regionFilterLabel: "Região",
     regionPresets: regionPresets({
       japan: "Japão",
-      shizuoka: "Cidade de Shizuoka",
       shizuoka_pref: "Pref. Shizuoka",
+      hamamatsu: "Hamamatsu",
+      shizuoka: "Cidade de Shizuoka",
+      iwata: "Iwata",
+      kakegawa: "Kakegawa",
+      fukuroi: "Fukuroi",
+      shimada: "Shimada",
+      fuji: "Fuji",
+      numazu: "Numazu",
       tokyo: "Tóquio",
       nagoya: "Nagoya",
       osaka: "Osaka",
