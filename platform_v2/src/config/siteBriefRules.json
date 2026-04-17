@@ -1,0 +1,101 @@
+[
+  {
+    "id": "water_body",
+    "label_ja": "水域そのもの",
+    "label_en": "Open water",
+    "confidence": 0.85,
+    "when": { "landcover_here_any": ["water"] },
+    "reasons_ja": ["水面上の点"],
+    "reasons_en": ["Point is on open water"],
+    "checks_ja": ["岸辺の植生はどうか", "水鳥・水生昆虫の痕跡", "水の濁り・藻の有無"],
+    "checks_en": ["Shore vegetation", "Traces of water birds or aquatic insects", "Turbidity or algae"],
+    "captures_ja": ["岸から水面を1枚", "水際の植生を寄りで1枚"],
+    "captures_en": ["One shot from shore across the water", "One close-up of the waterline vegetation"]
+  },
+  {
+    "id": "wetland_edge",
+    "label_ja": "湿性林縁",
+    "label_en": "Wet forest edge",
+    "confidence": 0.7,
+    "when": {
+      "landcover_any": ["tree_cover", "shrubland", "wetland"],
+      "water_distance_m_lte": 120
+    },
+    "reasons_ja": ["樹林と水辺が近接", "低地の可能性"],
+    "reasons_en": ["Tree cover adjacent to water", "Low elevation hint"],
+    "checks_ja": ["ぬかるみの有無", "常緑低木の混じり方", "落葉層の厚み"],
+    "checks_en": ["Muddy ground", "Evergreen shrubs mixed in", "Leaf litter depth"],
+    "captures_ja": ["地表を1枚", "水際からの距離を分かるアングルで1枚"],
+    "captures_en": ["One shot of the ground", "One shot showing distance to water"]
+  },
+  {
+    "id": "forest_edge_open",
+    "label_ja": "林縁と開放地の境界",
+    "label_en": "Forest–open boundary",
+    "confidence": 0.7,
+    "when": {
+      "landcover_pair": [["tree_cover", "shrubland"], ["grassland", "cropland", "bare"]]
+    },
+    "reasons_ja": ["樹林と草地/農地が接している"],
+    "reasons_en": ["Tree cover meets grassland or cropland"],
+    "checks_ja": ["境界の植生遷移", "日当たりの差", "チョウ・ハチ類の動線"],
+    "checks_en": ["Vegetation transition at the edge", "Light contrast across the edge", "Butterfly/bee flight lines"],
+    "captures_ja": ["境界線を構図に入れた1枚"],
+    "captures_en": ["One shot framing the edge line"]
+  },
+  {
+    "id": "forest_interior",
+    "label_ja": "樹林の内部",
+    "label_en": "Forest interior",
+    "confidence": 0.6,
+    "when": {
+      "landcover_any": ["tree_cover"],
+      "water_distance_m_gt": 120
+    },
+    "reasons_ja": ["連続する樹林帯", "水辺からは距離あり"],
+    "reasons_en": ["Continuous tree cover", "Not near open water"],
+    "checks_ja": ["樹冠の粗密", "下層植生の厚さ", "地表の落葉層"],
+    "checks_en": ["Canopy density", "Understory thickness", "Leaf litter"],
+    "captures_ja": ["上方の樹冠を1枚", "足元の地表を1枚"],
+    "captures_en": ["One shot looking up at the canopy", "One shot of the ground underfoot"]
+  },
+  {
+    "id": "grassland_succession",
+    "label_ja": "草地と遷移帯",
+    "label_en": "Grassland / succession",
+    "confidence": 0.55,
+    "when": { "landcover_any": ["grassland", "shrubland"] },
+    "reasons_ja": ["草本優占", "撹乱後の遷移が進む可能性"],
+    "reasons_en": ["Herbaceous cover", "Likely succession after disturbance"],
+    "checks_ja": ["優占草本の種類", "低木の混入度", "人為的撹乱の痕跡"],
+    "checks_en": ["Dominant herbs", "Shrub invasion", "Signs of human disturbance"],
+    "captures_ja": ["群落を広角で1枚", "優占種の寄りで1枚"],
+    "captures_en": ["One wide-angle community shot", "One close-up of the dominant species"]
+  },
+  {
+    "id": "farmland",
+    "label_ja": "農地と縁",
+    "label_en": "Cropland and its edge",
+    "confidence": 0.5,
+    "when": { "landcover_any": ["cropland"] },
+    "reasons_ja": ["耕作地の影響下"],
+    "reasons_en": ["Inside or adjacent to cropland"],
+    "checks_ja": ["畦の植生", "水路の有無", "除草のタイミング痕跡"],
+    "checks_en": ["Hedge/bund vegetation", "Irrigation ditches", "Recent mowing signs"],
+    "captures_ja": ["畦・水路を入れた1枚"],
+    "captures_en": ["One shot including the bund or ditch"]
+  },
+  {
+    "id": "urban_seam",
+    "label_ja": "都市の裂け目",
+    "label_en": "Urban seam",
+    "confidence": 0.5,
+    "when": { "landcover_any": ["built_up"] },
+    "reasons_ja": ["人工被覆が優占", "街中に残る緑に注目"],
+    "reasons_en": ["Built-up dominates", "Green remnants in the urban fabric"],
+    "checks_ja": ["街路樹・植え込み", "建物裏の未管理地", "側溝・水路の生物相"],
+    "checks_en": ["Street trees and planters", "Unmanaged strips behind buildings", "Life in gutters and channels"],
+    "captures_ja": ["人工物と植物を同じ構図で1枚"],
+    "captures_en": ["One shot with built surface and plant in the same frame"]
+  }
+]
