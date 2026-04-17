@@ -11,6 +11,7 @@ import { registerReadRoutes } from "./routes/read.js";
 import { registerWriteRoutes } from "./routes/write.js";
 import { registerUiKpiRoutes } from "./routes/uiKpi.js";
 import { registerGuideApiRoutes } from "./routes/guideApi.js";
+import { registerWalkApiRoutes } from "./routes/walkApi.js";
 import { getSessionFromCookie } from "./services/authSession.js";
 import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
@@ -692,6 +693,7 @@ export function buildApp() {
   void registerUiKpiRoutes(app);
   void registerOpsRoutes(app);
   void registerGuideApiRoutes(app);
+  void registerWalkApiRoutes(app);
 
   return app;
 }
