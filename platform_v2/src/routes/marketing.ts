@@ -291,43 +291,52 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       ? "AI は答えを決める役ではなく、候補を広げる役です。"
       : "AI does not decide the final answer. It expands plausible candidates.";
     const body = `<style>
-      .field-loop-page { display: grid; gap: 18px; }
-      .field-loop-block { border-radius: 28px; border: 1px solid rgba(15,23,42,.08); background: linear-gradient(180deg, #ffffff 0%, #fbfcf8 100%); padding: 26px; }
-      .field-loop-block h2 { margin: 6px 0 10px; font-size: clamp(22px, 2.6vw, 32px); line-height: 1.2; letter-spacing: -.03em; }
-      .field-loop-block h3 { margin: 0 0 8px; font-size: 18px; line-height: 1.35; letter-spacing: -.02em; }
-      .field-loop-block p { margin: 0; }
-      .field-loop-block .eyebrow { color: #3f6212; }
-      .field-loop-hero-preview { margin-top: 18px; display: grid; grid-template-columns: 1.3fr .95fr; gap: 16px; }
-      .field-loop-diagram, .field-loop-trust { border-radius: 22px; padding: 18px; }
+      .field-loop-page { display: grid; gap: 24px; }
+      .field-loop-block { border-radius: 28px; border: 1px solid rgba(15,23,42,.08); background: linear-gradient(180deg, #ffffff 0%, #fbfcf8 100%); padding: 34px 32px; font-size: 15px; line-height: 1.85; color: #1f2937; }
+      .field-loop-block h2 { margin: 10px 0 18px; font-size: clamp(22px, 2.6vw, 32px); line-height: 1.3; letter-spacing: -.02em; }
+      .field-loop-block h3 { margin: 0 0 12px; font-size: 18px; line-height: 1.5; letter-spacing: -.01em; }
+      .field-loop-block p { margin: 0 0 14px; line-height: 1.9; }
+      .field-loop-block p:last-child { margin-bottom: 0; }
+      .field-loop-block .eyebrow { color: #3f6212; font-weight: 700; letter-spacing: .04em; margin-bottom: 4px; }
+      .field-loop-hero-preview { margin-top: 22px; display: grid; grid-template-columns: 1.3fr .95fr; gap: 20px; }
+      .field-loop-diagram, .field-loop-trust { border-radius: 22px; padding: 22px 24px; line-height: 1.8; }
       .field-loop-diagram { background: linear-gradient(180deg, #f6fbf7 0%, #edf7ef 100%); border: 1px solid rgba(22,101,52,.12); }
-      .field-loop-ring { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
-      .field-loop-ring span { display: flex; align-items: center; justify-content: center; min-height: 74px; border-radius: 18px; padding: 10px; text-align: center; font-size: 13px; font-weight: 800; line-height: 1.35; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+      .field-loop-diagram p { margin: 8px 0 0; }
+      .field-loop-ring { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+      .field-loop-ring span { display: flex; align-items: center; justify-content: center; min-height: 88px; border-radius: 18px; padding: 14px 10px; text-align: center; font-size: 13px; font-weight: 800; line-height: 1.55; background: #fff; border: 1px solid rgba(15,23,42,.08); }
       .field-loop-trust { background: linear-gradient(180deg, #0f172a 0%, #111827 100%); color: rgba(255,255,255,.94); }
-      .field-loop-trust strong { display: block; margin-bottom: 8px; color: #bbf7d0; }
-      .field-loop-why { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
-      .field-loop-column { border-radius: 20px; padding: 18px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
-      .field-loop-loop { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
-      .field-loop-node { position: relative; border-radius: 18px; padding: 16px 12px; min-height: 118px; background: #fff; border: 1px solid rgba(15,23,42,.1); font-size: 13px; line-height: 1.45; }
-      .field-loop-node strong { display: block; margin-bottom: 8px; font-size: 14px; }
+      .field-loop-trust strong { display: block; margin-bottom: 10px; color: #bbf7d0; }
+      .field-loop-trust p { margin: 0; }
+      .field-loop-why { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 22px; }
+      .field-loop-column { border-radius: 20px; padding: 22px 22px 20px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); line-height: 1.85; }
+      .field-loop-column p { margin: 0; }
+      .field-loop-loop { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+      .field-loop-node { position: relative; border-radius: 18px; padding: 20px 14px; min-height: 130px; background: #fff; border: 1px solid rgba(15,23,42,.1); font-size: 13px; line-height: 1.7; }
+      .field-loop-node strong { display: block; margin-bottom: 10px; font-size: 14px; line-height: 1.45; }
       .field-loop-node:not(:last-child)::after { content: "→"; position: absolute; right: -9px; top: 50%; transform: translateY(-50%); color: #65a30d; font-weight: 900; font-size: 18px; }
-      .field-loop-ladder { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 14px; }
-      .field-loop-ladder th, .field-loop-ladder td { padding: 14px 12px; vertical-align: top; border-bottom: 1px solid rgba(15,23,42,.08); text-align: left; }
+      .field-loop-ladder { width: 100%; border-collapse: collapse; margin-top: 22px; font-size: 14px; line-height: 1.75; }
+      .field-loop-ladder th, .field-loop-ladder td { padding: 18px 14px; vertical-align: top; border-bottom: 1px solid rgba(15,23,42,.08); text-align: left; }
       .field-loop-ladder th { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #475569; }
       .field-loop-ladder td:first-child { font-weight: 800; white-space: nowrap; }
-      .field-loop-roles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
-      .field-loop-role { border-radius: 20px; padding: 18px; background: linear-gradient(180deg, #fcfcf7 0%, #f6f6ef 100%); border: 1px solid rgba(15,23,42,.08); }
-      .field-loop-role .role-icon { font-size: 22px; display: block; margin-bottom: 10px; }
-      .field-loop-role .role-label { display: block; margin-top: 10px; font-weight: 800; color: #166534; }
-      .field-loop-coarse-list, .field-loop-faq-list { display: grid; gap: 12px; margin-top: 18px; }
-      .field-loop-coarse-list li { margin-left: 20px; }
-      .field-loop-guardrail-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
-      .field-loop-guardrail-chip { display: inline-flex; align-items: center; min-height: 36px; padding: 8px 12px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 12px; font-weight: 800; letter-spacing: -.01em; }
-      .field-loop-callout { margin-top: 18px; border-radius: 20px; padding: 16px 18px; background: linear-gradient(180deg, #f7fee7 0%, #ecfccb 100%); border: 1px solid rgba(101,163,13,.2); }
-      .field-loop-callout strong { display: block; margin-bottom: 6px; color: #3f6212; }
-      .field-loop-faq-row { border-radius: 18px; padding: 16px 18px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); }
-      .field-loop-faq-row strong { display: block; margin-bottom: 6px; }
-      .field-loop-footer-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
-      .field-loop-footer-note { margin-top: 14px; color: #475569; font-size: 14px; }
+      .field-loop-roles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-top: 22px; }
+      .field-loop-role { border-radius: 20px; padding: 22px; background: linear-gradient(180deg, #fcfcf7 0%, #f6f6ef 100%); border: 1px solid rgba(15,23,42,.08); line-height: 1.8; }
+      .field-loop-role p { margin: 0; }
+      .field-loop-role .role-icon { font-size: 22px; display: block; margin-bottom: 12px; }
+      .field-loop-role .role-label { display: block; margin-top: 14px; font-weight: 800; color: #166534; line-height: 1.55; }
+      .field-loop-coarse-list, .field-loop-faq-list { display: grid; gap: 14px; margin-top: 22px; }
+      .field-loop-coarse-list li { margin-left: 22px; line-height: 1.9; }
+      .field-loop-guardrail-strip { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+      .field-loop-guardrail-chip { display: inline-flex; align-items: center; min-height: 40px; padding: 10px 16px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 12.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.5; }
+      .field-loop-callout { margin-top: 22px; border-radius: 20px; padding: 20px 22px; background: linear-gradient(180deg, #f7fee7 0%, #ecfccb 100%); border: 1px solid rgba(101,163,13,.2); line-height: 1.85; }
+      .field-loop-callout strong { display: block; margin-bottom: 8px; color: #3f6212; }
+      .field-loop-callout p { margin: 0; }
+      .field-loop-faq-row { border-radius: 18px; padding: 20px 22px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); line-height: 1.85; }
+      .field-loop-faq-row strong { display: block; margin-bottom: 8px; }
+      .field-loop-faq-row p { margin: 0; }
+      .field-loop-footer-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 22px; }
+      .field-loop-footer-note { margin-top: 18px; color: #475569; font-size: 14px; line-height: 1.85; }
+      .field-loop-refs { display: grid; gap: 10px; margin-top: 18px; font-size: 13.5px; line-height: 1.75; color: #475569; }
+      .field-loop-refs li { margin-left: 20px; }
       @media (max-width: 1080px) {
         .field-loop-loop { grid-template-columns: repeat(4, minmax(0, 1fr)); }
         .field-loop-node:nth-child(4)::after { content: ""; }
@@ -384,15 +393,15 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         <div class="field-loop-why">
           <article class="field-loop-column">
             <h3>自然は多すぎる</h3>
-            <p>現地では、名前がすぐ出ない観測のほうが多い。それでも地域の変化や季節の気配は、そこでしか拾えない。</p>
+            <p>現地では、名前がすぐ出ない観測のほうが多い。それでも地域の変化や季節の気配は、そこでしか拾えないと私たちは考えています。</p>
           </article>
           <article class="field-loop-column">
             <h3>専門家だけでは追いきれない</h3>
-            <p>重要観測の検証は専門家が担うべきだが、すべてを最初から専門家だけで処理する設計では広域・長期の観測を支えきれない。</p>
+            <p>重要観測の検証は専門家が担うべきだと思っていますが、すべてを最初から専門家だけで処理する設計では広域・長期の観測を支えきれないと言われています<sup>[1]</sup>。</p>
           </article>
           <article class="field-loop-column">
             <h3>でも曖昧な観測を捨てるともったいない</h3>
-            <p>科・属レベルでも、分布、季節性、異変の兆し、観測空白地帯の把握には十分な価値がある。ここで見えるのはまず空白であり、いないことの断定ではない。</p>
+            <p>科・属レベルでも、分布、季節性、異変の兆し、観測空白地帯の把握には十分な価値があると言われています<sup>[2]</sup>。ここで見えるのはまず空白であり、いないことの断定ではないと考えています<sup>[3]</sup>。</p>
           </article>
         </div>
         <p style="margin-top:18px">だから ikimon.life は、最初から完璧な同定を求めるのでなく、観測を失わず、あとから解像度を上げられる構造を採用します。</p>
@@ -493,10 +502,10 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       <section class="field-loop-block">
         <div class="eyebrow">Block 6</div>
         <h2>Why Coarse Data Still Matters</h2>
-        <p>種まで分からない観測でも、科や属の情報が集まるだけで、地域の変化、季節の偏り、異変の兆し、観測の空白地帯は見えてきます。</p>
+        <p>種まで分からない観測でも、科や属の情報が集まるだけで、地域の変化、季節の偏り、異変の兆し、観測の空白地帯は見えてくると私たちは信じています<sup>[2]</sup>。</p>
         <div class="field-loop-callout">
           <strong>空白と不在は別です</strong>
-          <p>ここでまず見えるのは「未観測」や「観測薄い」という空白です。「いない」に近い含意を持たせるには、いつ・どこで・どれだけ探したかという sampling effort が要ります。</p>
+          <p>ここでまず見えるのは「未観測」や「観測薄い」という空白だと考えています。「いない」に近い含意を持たせるには、いつ・どこで・どれだけ探したかという sampling effort（探索努力量）が必要だと言われています<sup>[3]</sup>。</p>
         </div>
         <ul class="field-loop-coarse-list">
           <li>観測数を増やせる</li>
@@ -527,6 +536,17 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
             <p>いいえ。まず分かるのは未観測や観測薄い領域です。不在に近い判断には、探索努力の記録と、より高い証拠条件が必要です。</p>
           </div>
         </div>
+      </section>
+
+      <section class="field-loop-block">
+        <div class="eyebrow">References</div>
+        <h2>参照している考え方</h2>
+        <p>この設計は、以下の先行研究で示唆されている考え方に学びながら組み立てていると私たちは捉えています。個別の結論を断定するものではなく、方向性として参照しているものです。</p>
+        <ol class="field-loop-refs">
+          <li>[1] Chandler, M. et al. (2017). Contribution of citizen science towards international biodiversity monitoring. <em>Biological Conservation</em>, 213, 280–294. — 市民科学が広域・長期の生物多様性モニタリングを補完しうると言われています。</li>
+          <li>[2] Callaghan, C. T. et al. (2019). Improving big citizen science data: Moving beyond haphazard sampling. <em>PLOS Biology</em>, 17(6). — 粗い分類解像度でも分布・季節性の把握に寄与しうると言われています。</li>
+          <li>[3] MacKenzie, D. I. et al. (2002). Estimating site occupancy rates when detection probabilities are less than one. <em>Ecology</em>, 83(8), 2248–2255. — 未検出と不在は別概念として扱う必要があると言われています。</li>
+        </ol>
       </section>
 
       <section class="field-loop-block">
