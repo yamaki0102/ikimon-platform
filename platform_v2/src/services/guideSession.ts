@@ -85,10 +85,43 @@ export type GuideRecordInput = {
 };
 
 // In-process dedup store: sessionId → Map<sceneHash, lastSeenMs>
+// メモリリーク対策: DEDUP_SESSION_TTL_MS を超えた session は定期的に削除される。
+// 各 session 内の scene hash は DEDUP_COOLDOWN_MS を超えたら dedup 対象外になる。
 const dedupStore = new Map<string, Map<string, number>>();
 const DEDUP_COOLDOWN_MS = 30_000;
+const DEDUP_SESSION_TTL_MS = 6 * 60 * 60 * 1000; // 6時間無操作の session は破棄
+const DEDUP_GC_INTERVAL_MS = 15 * 60 * 1000; // 15分ごとに掃除
+const DEDUP_MAX_SESSIONS = 5_000; // 過剰流入時の上限
+
+let lastDedupGc = Date.now();
+
+function runDedupGc(): void {
+  const now = Date.now();
+  if (now - lastDedupGc < DEDUP_GC_INTERVAL_MS && dedupStore.size < DEDUP_MAX_SESSIONS) return;
+  lastDedupGc = now;
+  for (const [sid, sessionMap] of dedupStore) {
+    // session 内で最後に見た時刻
+    let maxSeen = 0;
+    for (const t of sessionMap.values()) if (t > maxSeen) maxSeen = t;
+    if (now - maxSeen > DEDUP_SESSION_TTL_MS) {
+      dedupStore.delete(sid);
+      continue;
+    }
+    // session 内の古い hash を削除
+    for (const [hash, t] of sessionMap) {
+      if (now - t > DEDUP_COOLDOWN_MS * 10) sessionMap.delete(hash);
+    }
+  }
+  // 上限超過時は古い順に落とす（粗い FIFO: Map は insertion order 保持）
+  while (dedupStore.size > DEDUP_MAX_SESSIONS) {
+    const first = dedupStore.keys().next().value;
+    if (first === undefined) break;
+    dedupStore.delete(first);
+  }
+}
 
 function checkDedup(sessionId: string, sceneHash: string): boolean {
+  runDedupGc();
   let sessionMap = dedupStore.get(sessionId);
   if (!sessionMap) {
     sessionMap = new Map();

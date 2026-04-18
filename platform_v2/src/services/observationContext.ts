@@ -65,8 +65,17 @@ export async function getObservationContext(
     // テーブル未存在等の場合はスキップ
   }
 
-  // audio_detections: segment が 同 visit_id / 同 session_id
+  // audio_detections: segment が 同 visit_id / 同 place_id のもの。
+  // visitId も placeId も null の場合は **一切検索しない**（以前は where false が全件返す IDOR リスクがあった）。
   let audioSessionsRecorded = 0;
+  if (!visitId && !placeId) {
+    return {
+      features,
+      environmentContexts: Array.from(envSet),
+      seasonalNotes: Array.from(noteSet),
+      audioSessionsRecorded,
+    };
+  }
   try {
     const audioRows = await pool.query<{
       detected_taxon: string;
@@ -77,16 +86,22 @@ export async function getObservationContext(
       `with sess as (
          select distinct s.segment_id
            from audio_segments s
-          where ${visitId ? "s.visit_id = $1 or " : ""}${placeId ? "s.place_id = $2 or " : ""}false
+          where ($1::text is not null and s.visit_id = $1)
+             or ($2::text is not null and s.place_id = $2)
        )
-       select d.detected_taxon, max(d.confidence) as confidence, (array_agg(d.provider order by d.confidence desc))[1] as provider,
-              (select count(distinct s.session_id) from audio_segments s where ${visitId ? "s.visit_id = $1" : "1=1"})::text as session_count
+       select d.detected_taxon,
+              max(d.confidence) as confidence,
+              (array_agg(d.provider order by d.confidence desc))[1] as provider,
+              (select count(distinct s.session_id)
+                 from audio_segments s
+                where ($1::text is not null and s.visit_id = $1)
+                   or ($2::text is not null and s.place_id = $2))::text as session_count
          from audio_detections d
          join sess on sess.segment_id = d.segment_id
         group by d.detected_taxon
         order by max(d.confidence) desc
         limit 20`,
-      [visitId ?? "", placeId ?? ""],
+      [visitId ?? null, placeId ?? null],
     );
     for (const r of audioRows.rows) {
       features.push({

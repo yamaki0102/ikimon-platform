@@ -51,6 +51,8 @@ function encodeSubjectMime(subject: string): string {
 
 function isValidEmail(email: string): boolean {
   if (!email) return false;
+  // CRLF / tab / null byte を含むアドレスはヘッダインジェクション対策で即拒否。
+  if (/[\r\n\t\0]/.test(email)) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
@@ -210,7 +212,9 @@ export async function submitContact(rawInput: ContactSubmitInput): Promise<Conta
   // 管理者通知
   const adminMail = buildAdminNotification(input, submissionId);
   const adminExtra: Record<string, string> = {};
-  if (adminMail.replyTo) adminExtra["Reply-To"] = adminMail.replyTo;
+  // Reply-To は isValidEmail で CRLF 排除済だが、念のため sanitizeHeaderValue を重ね掛け
+  // （defense-in-depth: 将来 isValidEmail の定義が弱くなっても守られる）。
+  if (adminMail.replyTo) adminExtra["Reply-To"] = sanitizeHeaderValue(adminMail.replyTo);
   const adminResult = await sendMailViaSendmail(ADMIN_TO, adminMail.subject, adminMail.body, adminExtra);
 
   // 自動返信（メール入力時のみ）
