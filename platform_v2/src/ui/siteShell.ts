@@ -1069,6 +1069,11 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       font: inherit;
     }
     code { font-family: ui-monospace, monospace; font-size: 13px; }
+    .onboarding-empty { padding: 48px 32px; text-align: center; border-radius: 28px; background: linear-gradient(180deg, #f8fffc, #effaf4); border: 1px solid rgba(16,185,129,.16); }
+    .onboarding-empty .eyebrow { display: inline-block; margin-bottom: 12px; }
+    .onboarding-empty h3 { margin: 0 0 12px; font-size: 22px; font-weight: 800; }
+    .onboarding-empty p { margin: 0 0 20px; color: #475569; max-width: 44ch; margin-inline: auto; }
+    .ver-tag { font-size: 11px; font-weight: 700; color: #94a3b8; margin-right: 6px; font-family: ui-monospace, monospace; }
     .site-footer { margin-top: 48px; border-top: 1px solid rgba(0,0,0,.04); background: #f8fafc; }
     .site-footer-inner { max-width: 1120px; margin: 0 auto; padding: 40px 24px 28px; }
     .site-footer-top {
