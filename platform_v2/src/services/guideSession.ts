@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { GoogleGenAI } from "@google/genai";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
@@ -13,6 +16,10 @@ export type SceneContext = {
   siteBriefLabel?: string | null;
   siteBriefSignals?: Record<string, unknown> | null;
   season?: string | null;
+  /** EXIF 撮影日時 ISO 8601。画像アップロード時に EXIF から抽出した値を渡す。 */
+  capturedAt?: string | null;
+  /** EXIF 方位角（0-360、北=0）。 */
+  azimuth?: number | null;
 };
 
 export type DetectedFeature = {
@@ -22,13 +29,46 @@ export type DetectedFeature = {
   note?: string;
 };
 
+export type PrimarySubject = {
+  name: string;
+  rank: "species" | "genus" | "family" | "lifeform" | "unknown";
+  confidence: number;
+};
+
 export type SceneResult = {
   summary: string;
   detectedSpecies: string[];
   detectedFeatures: DetectedFeature[];
+  primarySubject?: PrimarySubject;
+  environmentContext?: string;
+  seasonalNote?: string;
+  coexistingTaxa?: string[];
   isNew: boolean;
   sceneHash: string;
 };
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROMPT_PATH = resolve(__dirname, "../prompts/guide_scene.md");
+let CACHED_PROMPT_TEMPLATE: string | null = null;
+
+function loadPromptTemplate(): string {
+  if (CACHED_PROMPT_TEMPLATE !== null) return CACHED_PROMPT_TEMPLATE;
+  try {
+    CACHED_PROMPT_TEMPLATE = readFileSync(PROMPT_PATH, "utf-8");
+  } catch (err) {
+    // プロンプトファイルがないと Gemini 呼び出しが無意味な応答になるので明示的に失敗。
+    throw new Error(`guide_scene.md not found at ${PROMPT_PATH}: ${(err as Error).message}`);
+  }
+  return CACHED_PROMPT_TEMPLATE;
+}
+
+function renderPrompt(vars: Record<string, string>): string {
+  let out = loadPromptTemplate();
+  for (const [key, value] of Object.entries(vars)) {
+    out = out.split(`\${${key}}`).join(value);
+  }
+  return out;
+}
 
 export type GuideRecordInput = {
   sessionId: string;
@@ -97,29 +137,15 @@ export async function analyzeScene(opts: {
     });
   }
 
-  const season = opts.context.season ?? guessSeason();
-  const prompt = `あなたは野外生物多様性AIアシスタントです。
-この映像フレーム${opts.audioBase64 ? "と音声" : ""}を分析して、以下のJSON形式で回答してください。
-
-場所: 緯度${opts.context.lat.toFixed(4)} 経度${opts.context.lng.toFixed(4)}
-季節: ${season}
-仮説ラベル: ${opts.context.siteBriefLabel ?? "不明"}
-
-{
-  "summary": "シーンの簡潔な説明（日本語100字以内）",
-  "detectedSpecies": ["種名1", "種名2"],
-  "detectedFeatures": [
-    { "type": "species|vegetation|landform|structure|sound", "name": "名前", "confidence": 0.0-1.0, "note": "補足" }
-  ]
-}
-
-species: 可能性のある生物（断定しない）
-vegetation: 植生・植物群落
-landform: 地形・地物
-structure: 建物・人工物
-sound: 聞こえる音（音声ある場合）
-
-JSONのみ回答してください。`;
+  const season = opts.context.season ?? guessSeason(opts.context.capturedAt);
+  const prompt = renderPrompt({
+    lat: opts.context.lat.toFixed(5),
+    lng: opts.context.lng.toFixed(5),
+    capturedAt: opts.context.capturedAt ?? "不明",
+    azimuth: opts.context.azimuth != null ? `${opts.context.azimuth.toFixed(0)}°` : "不明",
+    season,
+    siteBriefLabel: opts.context.siteBriefLabel ?? "不明",
+  });
 
   parts.push({ text: prompt });
 
@@ -129,7 +155,15 @@ JSONのみ回答してください。`;
   });
 
   const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
-  let parsed: { summary?: string; detectedSpecies?: string[]; detectedFeatures?: DetectedFeature[] } = {};
+  let parsed: {
+    summary?: string;
+    detectedSpecies?: string[];
+    detectedFeatures?: DetectedFeature[];
+    primarySubject?: PrimarySubject;
+    environmentContext?: string;
+    seasonalNote?: string;
+    coexistingTaxa?: string[];
+  } = {};
   try {
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
@@ -137,9 +171,13 @@ JSONのみ回答してください。`;
     parsed = {};
   }
 
-  const summary = parsed.summary ?? rawText.slice(0, 100);
+  const summary = parsed.summary ?? rawText.slice(0, 120);
   const detectedSpecies = Array.isArray(parsed.detectedSpecies) ? parsed.detectedSpecies : [];
   const detectedFeatures = Array.isArray(parsed.detectedFeatures) ? parsed.detectedFeatures : [];
+  const primarySubject = parsed.primarySubject && typeof parsed.primarySubject.name === "string" ? parsed.primarySubject : undefined;
+  const environmentContext = typeof parsed.environmentContext === "string" ? parsed.environmentContext : undefined;
+  const seasonalNote = typeof parsed.seasonalNote === "string" ? parsed.seasonalNote : undefined;
+  const coexistingTaxa = Array.isArray(parsed.coexistingTaxa) ? parsed.coexistingTaxa : undefined;
 
   const sceneHash = createHash("sha256")
     .update(detectedSpecies.sort().join(",") + detectedFeatures.map((f) => f.name).sort().join(","))
@@ -148,7 +186,17 @@ JSONのみ回答してください。`;
 
   const isNew = checkDedup(opts.context.sessionId, sceneHash);
 
-  return { summary, detectedSpecies, detectedFeatures, isNew, sceneHash };
+  return {
+    summary,
+    detectedSpecies,
+    detectedFeatures,
+    primarySubject,
+    environmentContext,
+    seasonalNote,
+    coexistingTaxa,
+    isNew,
+    sceneHash,
+  };
 }
 
 /** Persist a guide record to the database. Returns the guide_record_id. */
@@ -182,8 +230,9 @@ export async function saveGuideRecord(input: GuideRecordInput): Promise<string> 
   }
 }
 
-function guessSeason(): string {
-  const month = new Date().getMonth() + 1;
+function guessSeason(capturedAt?: string | null): string {
+  const d = capturedAt ? new Date(capturedAt) : new Date();
+  const month = (isNaN(d.getTime()) ? new Date() : d).getMonth() + 1;
   if (month >= 3 && month <= 5) return "春";
   if (month >= 6 && month <= 8) return "夏";
   if (month >= 9 && month <= 11) return "秋";

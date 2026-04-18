@@ -43,6 +43,12 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     const userId = session?.userId ?? null;
 
+    const capturedAt = typeof body.capturedAt === "string" ? body.capturedAt : null;
+    const azimuthRaw = body.azimuth;
+    const azimuth = typeof azimuthRaw === "number" && Number.isFinite(azimuthRaw)
+      ? azimuthRaw
+      : (typeof azimuthRaw === "string" && azimuthRaw !== "" && Number.isFinite(Number(azimuthRaw)) ? Number(azimuthRaw) : null);
+
     const sceneResult = await analyzeScene({
       frameBase64: frame,
       audioBase64: typeof body.audio === "string" ? body.audio : null,
@@ -54,6 +60,8 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
         sessionId,
         userId,
         siteBriefLabel: typeof body.siteBriefLabel === "string" ? body.siteBriefLabel : null,
+        capturedAt,
+        azimuth,
       },
     });
 
@@ -76,6 +84,10 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
       summary: sceneResult.summary,
       detectedSpecies: sceneResult.detectedSpecies,
       detectedFeatures: sceneResult.detectedFeatures,
+      primarySubject: sceneResult.primarySubject,
+      environmentContext: sceneResult.environmentContext,
+      seasonalNote: sceneResult.seasonalNote,
+      coexistingTaxa: sceneResult.coexistingTaxa,
       isNew: sceneResult.isNew,
       sceneHash: sceneResult.sceneHash,
     });
