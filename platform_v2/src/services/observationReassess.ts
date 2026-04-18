@@ -195,8 +195,8 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
       place_id: string | null;
     }>(
       `SELECT to_char(v.observed_at, 'YYYY-MM-DD HH24:MI') AS observed_at,
-              coalesce(v.latitude, p.center_latitude) AS latitude,
-              coalesce(v.longitude, p.center_longitude) AS longitude,
+              coalesce(v.point_latitude, p.center_latitude) AS latitude,
+              coalesce(v.point_longitude, p.center_longitude) AS longitude,
               v.place_id
          FROM visits v LEFT JOIN places p ON p.place_id = v.place_id
         WHERE v.visit_id = $1 LIMIT 1`,
