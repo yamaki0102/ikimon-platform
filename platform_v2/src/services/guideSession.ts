@@ -183,7 +183,9 @@ export async function analyzeScene(opts: {
   parts.push({ text: prompt });
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
+    // gemini-2.0-flash は新規ユーザーに NOT_FOUND を返すようになった (2026-04)。
+    // マルチモーダル (画像+音声) 対応の Stable モデルに差し替え。
+    model: "gemini-2.5-flash",
     contents: [{ role: "user", parts }],
   });
 
