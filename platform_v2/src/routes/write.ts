@@ -13,6 +13,7 @@ import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { upsertUser, type UserUpsertInput } from "../services/userWrite.js";
 import { submitContact, type ContactSubmitInput } from "../services/contactSubmit.js";
+import { createVideoDirectUpload, markVideoReady } from "../services/videoUpload.js";
 import {
   assertObservationOwnedByUser,
   assertPrivilegedWriteAccess,
@@ -255,6 +256,58 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       };
     }
   });
+
+  // 動画アップロード（Cloudflare Stream Direct Creator Upload）。
+  // ユーザーのブラウザが直接 Cloudflare に PUT するので、サーバ帯域は消費しない。
+  // 認証必須（セッション or guest はダメ）。
+  app.post<{ Body: { maxDurationSeconds?: number; filename?: string; observationId?: string | null } }>(
+    "/api/v1/videos/direct-upload",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          reply.code(401);
+          return { ok: false, error: "session_required" };
+        }
+        const body = request.body ?? {};
+        const result = await createVideoDirectUpload({
+          actorId: session.userId,
+          maxDurationSeconds: body.maxDurationSeconds,
+          filename: body.filename,
+          observationId: body.observationId ?? null,
+        });
+        return { ok: true, ...result };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "video_upload_failed";
+        reply.code(message === "session_required" ? 401 : 500);
+        return { ok: false, error: message };
+      }
+    },
+  );
+
+  // アップロード完了を client から通知するルート。Cloudflare から Stream 本体情報を取得し、
+  // upload_status / duration / bytes を DB に反映する。フロント側で tus アップロード完了後に呼ぶ。
+  app.post<{ Params: { uid: string } }>(
+    "/api/v1/videos/:uid/finalize",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          reply.code(401);
+          return { ok: false, error: "session_required" };
+        }
+        const record = await markVideoReady(request.params.uid);
+        if (!record) {
+          reply.code(404);
+          return { ok: false, error: "video_not_found" };
+        }
+        return { ok: true, video: record };
+      } catch (error) {
+        reply.code(500);
+        return { ok: false, error: error instanceof Error ? error.message : "finalize_failed" };
+      }
+    },
+  );
 
   // /contact フォーム POST。認証不要、Gmail SMTP relay (msmtp) 経由で通知送信。
   // 原文は contact_submissions テーブルに保存される（メール到達と独立に原本確保）。

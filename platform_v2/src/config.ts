@@ -11,6 +11,11 @@ export type AppConfig = {
   legacyUploadsRoot: string;
   legacyMirrorRoot?: string;
   compatibilityWriteEnabled: boolean;
+  cloudflare?: {
+    accountId: string;
+    streamApiToken: string;
+    streamCustomerSubdomain: string;
+  };
 };
 
 function parsePort(rawPort: string | undefined): number {
@@ -52,6 +57,13 @@ export function loadConfig(): AppConfig {
     uploadsRoot: process.env.LEGACY_UPLOADS_ROOT,
     publicRoot: process.env.LEGACY_PUBLIC_ROOT,
   });
+  const cfAccount = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  const cfToken = process.env.CLOUDFLARE_STREAM_API_TOKEN?.trim();
+  const cfSubdomain = process.env.CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN?.trim();
+  const cloudflare = cfAccount && cfToken && cfSubdomain
+    ? { accountId: cfAccount, streamApiToken: cfToken, streamCustomerSubdomain: cfSubdomain }
+    : undefined;
+
   return {
     nodeEnv: process.env.NODE_ENV ?? "development",
     port: parsePort(process.env.PORT),
@@ -63,5 +75,6 @@ export function loadConfig(): AppConfig {
     legacyUploadsRoot: legacyRoots.uploadsRoot,
     legacyMirrorRoot: process.env.LEGACY_MIRROR_ROOT,
     compatibilityWriteEnabled: parseBoolean(process.env.COMPATIBILITY_WRITE_ENABLED, true),
+    cloudflare,
   };
 }
