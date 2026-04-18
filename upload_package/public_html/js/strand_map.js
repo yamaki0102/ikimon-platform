@@ -15,7 +15,6 @@ class StrandMap {
             zoom: 10,
             days: 30,
             siteId: null,
-            style: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             ...options
         };
         this.map = null;
@@ -35,12 +34,12 @@ class StrandMap {
         // Initialize MapLibre GL
         this.map = new maplibregl.Map({
             container: this.containerId,
-            style: {
+            style: (typeof IKIMON_MAP !== 'undefined') ? IKIMON_MAP.style('dark') : {
                 version: 8,
                 sources: {
                     'osm-tiles': {
                         type: 'raster',
-                        tiles: [this.options.style],
+                        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
                         tileSize: 256,
                         attribution: '&copy; OpenStreetMap contributors'
                     }

@@ -52,13 +52,36 @@ Extract the following information from the provided text into strict JSON format
       "description": "How to identify this species from others",
       "comparison_species": ["Species A", "Species B"]
     }
-  ]
+  ],
+  "identification_pitfalls": [
+    {
+      "pitfall": "A common misidentification trap or confusion point",
+      "affected_region": "Region where this is especially relevant (optional, null if global)"
+    }
+  ],
+  "hybridization_info": {
+    "known_hybrids": ["List of species that hybridize with the subject"],
+    "detection_difficulty": "easy or moderate or hard",
+    "notes": "How to detect hybrids, ploidy info, etc."
+  },
+  "photo_targets": [
+    {
+      "body_part": "Which part to photograph",
+      "reason": "Why this part is diagnostic",
+      "timing": "When to photograph (e.g., flowering, molting)"
+    }
+  ],
+  "taxonomy_notes": "Any notes on recent taxonomic revisions, splits, lumps, or reclassifications",
+  "cultural_significance": "Cultural, historical, or ethnobiological significance (null if none mentioned)"
 }
 
 IMPORTANT RULES:
 1. Return ONLY valid JSON, starting with { and ending with }.
 2. If the paper lacks this information, return empty arrays or nulls for the respective fields. Do not hallucinate.
 3. Be as scientifically accurate as possible based ONLY on the provided text.
+4. identification_pitfalls: Focus on cases where species are commonly confused, hybrids look like parents, or regional morphological variation causes errors.
+5. photo_targets: What a citizen scientist should photograph to enable expert identification.
+6. cultural_significance: Only extract if explicitly mentioned in the text.
 PROMPT;
 
 echo "Found " . count($papers) . " potential papers. Checking distillation queue...\n";
@@ -316,14 +339,21 @@ if ($processed > 0) {
                     $sourceTitle = $paper['title'] ?? '';
                     $claimInsert = $pdo->prepare("
                         INSERT OR IGNORE INTO claims
-                            (taxon_key, claim_type, claim_text, source_tier, doi, source_title, confidence)
-                        VALUES (:taxon, :type, :text, :tier, :doi, :title, :conf)
+                            (taxon_key, claim_type, claim_text, source_tier, doi, source_title, confidence, claim_hash)
+                        VALUES (:taxon, :type, :text, :tier, :doi, :title, :conf,
+                                lower(hex(randomblob(8))) || '-' || :hash_val)
                     ");
+                    // claim_hash を実行時に計算してバインドするヘルパー
+                    $execClaim = function(array $params) use ($claimInsert, $pdo): void {
+                        $hash = md5(($params[':taxon'] ?? '') . '|' . ($params[':type'] ?? '') . '|' . ($params[':text'] ?? ''));
+                        $params[':hash_val'] = $hash;
+                        try { $claimInsert->execute($params); } catch (\PDOException $e) { /* dup */ }
+                    };
 
                     // 生息地 claim
                     if (!empty($eco['habitat'])) {
                         $habitatText = is_array($eco['habitat']) ? implode('、', $eco['habitat']) : $eco['habitat'];
-                        $claimInsert->execute([
+                        $execClaim([
                             ':taxon' => $taxonKey,
                             ':type'  => 'habitat',
                             ':text'  => '生息地: ' . $habitatText,
@@ -339,7 +369,7 @@ if ($processed > 0) {
                         ? implode('、', $eco['active_season'])
                         : ($eco['active_season'] ?? '');
                     if ($season !== '') {
-                        $claimInsert->execute([
+                        $execClaim([
                             ':taxon' => $taxonKey,
                             ':type'  => 'season',
                             ':text'  => '活動時期: ' . $season,
@@ -352,7 +382,7 @@ if ($processed > 0) {
 
                     // 高度 claim
                     if (!empty($eco['altitude_range'])) {
-                        $claimInsert->execute([
+                        $execClaim([
                             ':taxon' => $taxonKey,
                             ':type'  => 'habitat',
                             ':text'  => '標高: ' . $eco['altitude_range'],
@@ -365,7 +395,7 @@ if ($processed > 0) {
 
                     // 備考 claim
                     if (!empty($eco['notes'])) {
-                        $claimInsert->execute([
+                        $execClaim([
                             ':taxon' => $taxonKey,
                             ':type'  => 'habitat',
                             ':text'  => $eco['notes'],
@@ -385,7 +415,7 @@ if ($processed > 0) {
                         if (!empty($idKey['comparison_species'])) {
                             $claimText .= '（比較種: ' . implode('、', $idKey['comparison_species']) . '）';
                         }
-                        $claimInsert->execute([
+                        $execClaim([
                             ':taxon' => $taxonKey,
                             ':type'  => 'morphology',
                             ':text'  => $claimText,
@@ -393,6 +423,98 @@ if ($processed > 0) {
                             ':doi'   => $doi,
                             ':title' => $sourceTitle,
                             ':conf'  => $confidence,
+                        ]);
+                    }
+
+                    // --- 新 claim_type: identification_pitfall ---
+                    $pitfalls = $data['identification_pitfalls'] ?? [];
+                    foreach ($pitfalls as $pf) {
+                        $pfText = $pf['pitfall'] ?? '';
+                        if (empty($pfText)) continue;
+                        $region = $pf['affected_region'] ?? null;
+                        $execClaim([
+                            ':taxon' => $taxonKey,
+                            ':type'  => 'identification_pitfall',
+                            ':text'  => $pfText,
+                            ':tier'  => $sourceTier,
+                            ':doi'   => $doi,
+                            ':title' => $sourceTitle,
+                            ':conf'  => $confidence,
+                        ]);
+                        if ($region) {
+                            $stmtRegion = $pdo->prepare("UPDATE claims SET region_scope = :region WHERE taxon_key = :taxon AND claim_type = 'identification_pitfall' AND claim_text = :text AND doi = :doi");
+                            $stmtRegion->execute([':region' => $region, ':taxon' => $taxonKey, ':text' => $pfText, ':doi' => $doi]);
+                        }
+                    }
+
+                    // --- 新 claim_type: hybridization ---
+                    $hybridInfo = $data['hybridization_info'] ?? [];
+                    if (!empty($hybridInfo['known_hybrids']) || !empty($hybridInfo['notes'])) {
+                        $hybridParts = [];
+                        if (!empty($hybridInfo['known_hybrids'])) {
+                            $hybridParts[] = '交雑種: ' . implode('、', $hybridInfo['known_hybrids']);
+                        }
+                        if (!empty($hybridInfo['detection_difficulty'])) {
+                            $hybridParts[] = '判別難易度: ' . $hybridInfo['detection_difficulty'];
+                        }
+                        if (!empty($hybridInfo['notes'])) {
+                            $hybridParts[] = $hybridInfo['notes'];
+                        }
+                        $execClaim([
+                            ':taxon' => $taxonKey,
+                            ':type'  => 'hybridization',
+                            ':text'  => implode('。', $hybridParts),
+                            ':tier'  => $sourceTier,
+                            ':doi'   => $doi,
+                            ':title' => $sourceTitle,
+                            ':conf'  => $confidence,
+                        ]);
+                    }
+
+                    // --- 新 claim_type: photo_target ---
+                    $photoTargets = $data['photo_targets'] ?? [];
+                    foreach ($photoTargets as $pt) {
+                        if (empty($pt['body_part']) || empty($pt['reason'])) continue;
+                        $ptText = $pt['body_part'] . ': ' . $pt['reason'];
+                        if (!empty($pt['timing'])) {
+                            $ptText .= '（時期: ' . $pt['timing'] . '）';
+                        }
+                        $execClaim([
+                            ':taxon' => $taxonKey,
+                            ':type'  => 'photo_target',
+                            ':text'  => $ptText,
+                            ':tier'  => $sourceTier,
+                            ':doi'   => $doi,
+                            ':title' => $sourceTitle,
+                            ':conf'  => $confidence,
+                        ]);
+                    }
+
+                    // --- 新 claim_type: taxonomy_note ---
+                    $taxonomyNotes = $data['taxonomy_notes'] ?? '';
+                    if (!empty($taxonomyNotes) && $taxonomyNotes !== 'null') {
+                        $execClaim([
+                            ':taxon' => $taxonKey,
+                            ':type'  => 'taxonomy_note',
+                            ':text'  => $taxonomyNotes,
+                            ':tier'  => $sourceTier,
+                            ':doi'   => $doi,
+                            ':title' => $sourceTitle,
+                            ':conf'  => $confidence * 0.9,
+                        ]);
+                    }
+
+                    // --- 新 claim_type: cultural ---
+                    $cultural = $data['cultural_significance'] ?? '';
+                    if (!empty($cultural) && $cultural !== 'null') {
+                        $execClaim([
+                            ':taxon' => $taxonKey,
+                            ':type'  => 'cultural',
+                            ':text'  => $cultural,
+                            ':tier'  => $sourceTier,
+                            ':doi'   => $doi,
+                            ':title' => $sourceTitle,
+                            ':conf'  => $confidence * 0.8,
                         ]);
                     }
 

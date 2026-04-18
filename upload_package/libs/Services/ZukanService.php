@@ -213,9 +213,26 @@ class ZukanService
 
         $total = count($species);
         $data = array_slice($species, $offset, $limit);
+
+        // Knowledge nuggets: claims から知識サマリを取得
+        $nuggets = [];
+        try {
+            $sciNames = array_filter(array_map(fn($s) => $s['scientific_name'] ?? '', $data));
+            if (!empty($sciNames)) {
+                require_once ROOT_DIR . 'libs/OmoikaneDB.php';
+                $odb = new OmoikaneDB();
+                $nuggets = $odb->getBatchNuggets(array_values(array_unique($sciNames)));
+            }
+        } catch (\Throwable $e) { /* non-fatal */ }
+
         $summaryMessages = self::summaryMessages();
         foreach ($data as &$item) {
-            $item['summary'] = self::buildSummary($item, $summaryMessages);
+            $sciName = $item['scientific_name'] ?? '';
+            if (isset($nuggets[$sciName])) {
+                $item['summary'] = $nuggets[$sciName]['text'];
+            } else {
+                $item['summary'] = self::buildSummary($item, $summaryMessages);
+            }
         }
         unset($item);
 

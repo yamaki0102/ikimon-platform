@@ -21,11 +21,14 @@ class EmbeddingStore
     private const BASE_DIR = 'embeddings';
     private const ROUND_PRECISION = 6; // decimal places for vector values (JSON mode)
 
-    /** Storage backend: 'json' (default) or 'binary' */
+    /** Storage backend: 'json' (default), 'binary', or 'sqlite' */
     private static string $backend = 'json';
 
-    /** Quantization format for binary backend */
+    /** Quantization format for binary/sqlite backend */
     private static string $quantFormat = VectorPacker::FORMAT_FLOAT32;
+
+    /** SQLite PDO instance (lazy-initialized) */
+    private static ?PDO $sqlitePdo = null;
 
     /** In-memory cache for loaded vector files (per-request) */
     private static array $cache = [];
@@ -75,9 +78,17 @@ class EmbeddingStore
 
     /**
      * Save an embedding vector.
+     * Routes to SQLite backend when configured.
      */
     public static function save(string $type, string $id, array $vector, array $meta = []): void
     {
+        // SQLite backend: quantize and store as BLOB
+        if (self::$backend === 'sqlite') {
+            self::saveSqlite($type, $id, $vector, $meta);
+            return;
+        }
+
+        // JSON backend (default)
         $store = self::loadStore($type);
 
         // Round vector values to reduce JSON size
@@ -134,6 +145,9 @@ class EmbeddingStore
      */
     public static function count(string $type): int
     {
+        if (self::$backend === 'sqlite') {
+            return self::countSqlite($type);
+        }
         $store = self::loadStore($type);
         return count($store['vectors'] ?? []);
     }
@@ -145,9 +159,14 @@ class EmbeddingStore
      * Returns [['id' => string, 'score' => float, ...meta], ...]
      *
      * Uses pre-computed norms when available (O(n) dot products only).
+     * Routes to SQLite backend when configured.
      */
     public static function search(array $queryVector, string $type, int $topK = 10, float $minScore = 0.3): array
     {
+        if (self::$backend === 'sqlite') {
+            return self::searchSqlite($queryVector, $type, $topK, $minScore);
+        }
+
         $store = self::loadStore($type);
         $vectors = $store['vectors'] ?? [];
 
@@ -372,5 +391,198 @@ class EmbeddingStore
 
         file_put_contents($outPath, json_encode($output, JSON_UNESCAPED_UNICODE), LOCK_EX);
         return $outPath;
+    }
+
+    // ─── SQLite Backend ─────────────────────────────────────────
+
+    /**
+     * Get or initialize the SQLite PDO for embedding storage.
+     * Table: embeddings (type, id, vector_blob, norm, meta_json, updated_at)
+     * 768-dim int8 = 782 bytes/vector vs 6KB+ in JSON → 7.5x compression
+     */
+    private static function getSqlitePdo(): PDO
+    {
+        if (self::$sqlitePdo !== null) return self::$sqlitePdo;
+
+        $dbPath = DATA_DIR . '/embeddings/vectors.sqlite3';
+        $dir = dirname($dbPath);
+        if (!file_exists($dir)) mkdir($dir, 0777, true);
+
+        $pdo = new PDO("sqlite:$dbPath", null, null, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+        $pdo->exec('PRAGMA journal_mode=WAL');
+        $pdo->exec('PRAGMA synchronous=NORMAL');
+        $pdo->exec('PRAGMA busy_timeout=30000');
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS embeddings (
+            type TEXT NOT NULL,
+            id TEXT NOT NULL,
+            vector_blob BLOB NOT NULL,
+            norm REAL NOT NULL,
+            quant_format TEXT NOT NULL DEFAULT 'i8',
+            meta_json TEXT DEFAULT '{}',
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (type, id)
+        )");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_emb_type ON embeddings(type)");
+
+        self::$sqlitePdo = $pdo;
+        return $pdo;
+    }
+
+    /**
+     * Save embedding to SQLite with quantization.
+     */
+    public static function saveSqlite(string $type, string $id, array $vector, array $meta = []): void
+    {
+        $pdo = self::getSqlitePdo();
+        $format = self::$quantFormat;
+        $blob = VectorPacker::pack($vector, $format);
+        $norm = VectorPacker::norm($vector);
+
+        $metaJson = json_encode($meta, JSON_UNESCAPED_UNICODE);
+        $now = date('c');
+
+        $stmt = $pdo->prepare(
+            "INSERT OR REPLACE INTO embeddings (type, id, vector_blob, norm, quant_format, meta_json, updated_at)
+             VALUES (:type, :id, :blob, :norm, :fmt, :meta, :now)"
+        );
+        $stmt->execute([
+            ':type' => $type,
+            ':id'   => $id,
+            ':blob' => $blob,
+            ':norm' => round($norm, 8),
+            ':fmt'  => $format,
+            ':meta' => $metaJson,
+            ':now'  => $now,
+        ]);
+    }
+
+    /**
+     * Search SQLite embeddings with cosine similarity (brute-force).
+     * Loads vectors in chunks to avoid memory explosion at 2.5M scale.
+     *
+     * @return array [['id' => string, 'score' => float, ...meta], ...]
+     */
+    public static function searchSqlite(array $queryVector, string $type, int $topK = 10, float $minScore = 0.3): array
+    {
+        $pdo = self::getSqlitePdo();
+        $queryNorm = VectorPacker::norm($queryVector);
+        if ($queryNorm == 0) return [];
+
+        $results = [];
+        $chunkSize = 5000;
+        $offset = 0;
+
+        do {
+            $stmt = $pdo->prepare(
+                "SELECT id, vector_blob, norm, meta_json FROM embeddings WHERE type = :type LIMIT :lim OFFSET :off"
+            );
+            $stmt->execute([':type' => $type, ':lim' => $chunkSize, ':off' => $offset]);
+            $rows = $stmt->fetchAll();
+
+            foreach ($rows as $row) {
+                $v = VectorPacker::unpack($row['vector_blob']);
+                $storedNorm = (float)$row['norm'];
+
+                $score = self::cosineSimilarityWithNorm($queryVector, $v, $queryNorm, $storedNorm);
+                if ($score >= $minScore) {
+                    $meta = json_decode($row['meta_json'], true) ?: [];
+                    $results[] = array_merge([
+                        'id' => $row['id'],
+                        'score' => round($score, 4),
+                    ], $meta);
+                }
+            }
+
+            $offset += $chunkSize;
+        } while (count($rows) === $chunkSize);
+
+        usort($results, fn($a, $b) => $b['score'] <=> $a['score']);
+        return array_slice($results, 0, $topK);
+    }
+
+    /**
+     * Get count of vectors in SQLite for a given type.
+     */
+    public static function countSqlite(string $type): int
+    {
+        $pdo = self::getSqlitePdo();
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM embeddings WHERE type = :type");
+        $stmt->execute([':type' => $type]);
+        return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * Migrate existing JSON store to SQLite with quantization.
+     *
+     * @param string $type     Store type (observations, species, etc.)
+     * @param string $format   Target quantization format
+     * @return int Number of vectors migrated
+     */
+    public static function migrateJsonToSqlite(string $type, string $format = VectorPacker::FORMAT_INT8): int
+    {
+        $store = self::loadStore($type);
+        $vectors = $store['vectors'] ?? [];
+        if (empty($vectors)) return 0;
+
+        $pdo = self::getSqlitePdo();
+        $stmt = $pdo->prepare(
+            "INSERT OR REPLACE INTO embeddings (type, id, vector_blob, norm, quant_format, meta_json, updated_at)
+             VALUES (:type, :id, :blob, :norm, :fmt, :meta, :now)"
+        );
+
+        $count = 0;
+        $pdo->beginTransaction();
+
+        foreach ($vectors as $id => $entry) {
+            $v = $entry['v'] ?? null;
+            if (!is_array($v)) continue;
+
+            $blob = VectorPacker::pack($v, $format);
+            $norm = $entry['norm'] ?? VectorPacker::norm($v);
+            $meta = $entry;
+            unset($meta['v'], $meta['norm']);
+
+            $stmt->execute([
+                ':type' => $type,
+                ':id'   => $id,
+                ':blob' => $blob,
+                ':norm' => round($norm, 8),
+                ':fmt'  => $format,
+                ':meta' => json_encode($meta, JSON_UNESCAPED_UNICODE),
+                ':now'  => $entry['updated_at'] ?? date('c'),
+            ]);
+            $count++;
+
+            if ($count % 1000 === 0) {
+                $pdo->commit();
+                $pdo->beginTransaction();
+            }
+        }
+
+        $pdo->commit();
+        return $count;
+    }
+
+    /**
+     * Get SQLite storage statistics.
+     */
+    public static function sqliteStats(): array
+    {
+        $pdo = self::getSqlitePdo();
+        $types = $pdo->query("SELECT type, COUNT(*) as cnt, SUM(LENGTH(vector_blob)) as bytes FROM embeddings GROUP BY type")->fetchAll();
+
+        $result = [];
+        foreach ($types as $row) {
+            $result[$row['type']] = [
+                'count' => (int)$row['cnt'],
+                'storage_mb' => round($row['bytes'] / 1048576, 2),
+                'avg_bytes_per_vector' => $row['cnt'] > 0 ? round($row['bytes'] / $row['cnt']) : 0,
+            ];
+        }
+        return $result;
     }
 }

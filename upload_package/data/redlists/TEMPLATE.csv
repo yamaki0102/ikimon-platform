@@ -1,0 +1,6 @@
+scientific_name,japanese_name,common_name_en,category,criteria,scope_level,country_code,region_code,municipality_code,scope_name,scope_name_en,scope_centroid_lat,scope_centroid_lng,parent_scope_name,scope_valid_from,scope_valid_until,scope_note,authority,source_url,assessment_year,version,taxon_group,taxon_group_en,notes
+Mauremys japonica,ニホンイシガメ,Japanese Pond Turtle,NT,,"national","JP",,,"日本","Japan",36.2048,138.2529,,,,,環境省レッドリスト,https://www.env.go.jp/nature/kisho/hozen/redlist/,2024,,爬虫類,Reptilia,
+Ursus arctos yesoensis,エゾヒグマ,Hokkaido Brown Bear,LP,,"subnational_1","JP","JP-01",,北海道,Hokkaido,43.0646,141.3468,日本,,,,北海道レッドデータブック,,2024,,哺乳類,Mammalia,
+Hynobius katoi,カトウサンショウウオ,Kato's Salamander,CR,B1ab(iii),"subnational_2","JP","JP-22","22130",浜松市,Hamamatsu City,34.7108,137.7261,静岡県,,,,浜松市版レッドデータブック,,2020,,両生類,Amphibia,天竜区のみに生息
+Ailurus fulgens,レッサーパンダ,Red Panda,EN,C1,"global",,,,Global,Global,,,,,,,"IUCN Red List",https://www.iucnredlist.org/,2024,2024.1,哺乳類,Mammalia,
+Lynx pardinus,,Iberian Lynx,EN,C1,"national","ES",,,"スペイン","Spain",40.4168,-3.7038,,,,,Ministerio para la Transicion Ecologica,,2023,,哺乳類,Mammalia,

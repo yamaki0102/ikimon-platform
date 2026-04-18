@@ -63,8 +63,7 @@ $meta_title = $editSite ? $editSite['name'] . ' を編集' : '新しいサイト
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <?php include __DIR__ . '/components/map_config.php'; ?>
 
     <!-- MapLibre GL Draw (Mapbox GL Draw fork for MapLibre) -->
     <script src="https://unpkg.com/@mapbox/mapbox-gl-draw@1.4.3/dist/mapbox-gl-draw.js"></script>
@@ -390,7 +389,7 @@ $meta_title = $editSite ? $editSite['name'] . ' を編集' : '新しいサイト
 
                         this.map = new maplibregl.Map({
                             container: 'editor-map',
-                            style: 'https://tile.openstreetmap.jp/styles/maptiler-basic-ja/style.json',
+                            style: IKIMON_MAP.style('light'),
                             center: editCenter,
                             zoom: <?php echo $editSite ? 15 : 13; ?>,
                             attributionControl: false

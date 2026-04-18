@@ -290,7 +290,7 @@ class CorporateManager
     public static function corporationHasFeature(?array $corporation, string $feature): bool
     {
         if (!$corporation) {
-            return true;
+            return false;
         }
 
         return self::planHasFeature((string)($corporation['plan'] ?? 'community'), $feature);
@@ -350,7 +350,7 @@ class CorporateManager
     {
         $plan = strtolower(trim($plan));
         return match ($plan) {
-            'community', 'free' => 'community',
+            'community', 'free', 'personal' => 'community',
             'public', 'pro' => 'public',
             default => 'community',
         };

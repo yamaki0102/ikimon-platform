@@ -161,6 +161,81 @@ class LibraryService
         return $papers;
     }
     /**
+     * Get papers by source (BHL, Plazi, OpenAlex, etc.) using TaxonPaperIndex + PaperStore
+     */
+    public static function getIndexedPapers(string $scientificName, ?string $source = null): array
+    {
+        if (empty($scientificName)) return [];
+
+        require_once __DIR__ . '/../TaxonPaperIndex.php';
+        require_once __DIR__ . '/../PaperStore.php';
+        require_once __DIR__ . '/../Indexer.php';
+
+        $dois = TaxonPaperIndex::getPapersForTaxon($scientificName);
+        $papers = [];
+        $seenDoi = [];
+
+        foreach ($dois as $doi) {
+            if (isset($seenDoi[$doi])) continue;
+            $seenDoi[$doi] = true;
+
+            // Skip DOIs not in the PaperStore index — avoids expensive full-dir scan
+            $indexEntry = Indexer::getFromIndex('library/papers_index', $doi);
+            if (empty($indexEntry)) continue;
+
+            $paper = PaperStore::findById($doi, 'doi');
+            if (!$paper) continue;
+
+            if ($source !== null && ($paper['source'] ?? '') !== $source) continue;
+
+            $papers[] = $paper;
+        }
+
+        return $papers;
+    }
+
+    /**
+     * Get J-GLOBAL search links for a taxon
+     */
+    public static function getJGlobalLinks(string $scientificName): array
+    {
+        if (empty($scientificName)) return [];
+
+        require_once __DIR__ . '/../TaxonPaperIndex.php';
+
+        $index = TaxonPaperIndex::getIndex();
+        $key = strtolower(trim($scientificName)) . ':jglobal';
+
+        return $index[$key] ?? [];
+    }
+
+    /**
+     * Get Japanese research institutions from OpenAlex paper authorships
+     */
+    public static function getJapaneseInstitutions(string $scientificName): array
+    {
+        if (empty($scientificName)) return [];
+
+        $papers = self::getIndexedPapers($scientificName, 'OpenAlex');
+        $institutions = [];
+        $seen = [];
+
+        foreach ($papers as $paper) {
+            foreach ($paper['institutions'] ?? [] as $inst) {
+                if (($inst['country'] ?? '') === 'JP') {
+                    $name = $inst['name'] ?? '';
+                    if ($name && !isset($seen[$name])) {
+                        $seen[$name] = true;
+                        $institutions[] = $name;
+                    }
+                }
+            }
+        }
+
+        return $institutions;
+    }
+
+    /**
      * Get distilled ecological constraints and identification keys for a taxon
      * Currently fetches approved distillations from the Omoikane SQLite database.
      */

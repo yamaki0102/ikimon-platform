@@ -46,6 +46,20 @@ $_hasPhoto    = !empty($_photos);
 $_obsComments = count($cardObs['identifications'] ?? []);
 
 $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', 'manabi' => '🔬'];
+$_nugget      = $cardNugget ?? null;
+$_distStatus  = null;
+if ($_sciName && class_exists('InvasiveAlertManager')) {
+    $_distStatus = InvasiveAlertManager::getDistributionStatus($_sciName);
+}
+$_nuggetIcons = [
+    'identification_pitfall' => '🔍',
+    'photo_target'           => '📷',
+    'ecology_trivia'         => '🌿',
+    'cultural'               => '📚',
+    'taxonomy_note'          => '🏷️',
+    'regional_variation'     => '🗺️',
+    'hybridization'          => '🧬',
+];
 ?>
 <article
     x-data='{ reactions: <?php echo $cardReactionsJson; ?>, total: <?php echo (int)$cardObsTotalReactions; ?>, scale: 1, menuOpen: false, loggedIn: <?php echo $cardLoggedIn ? 'true' : 'false'; ?> }'
@@ -89,12 +103,33 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
             <!-- 種名バッジ -->
             <?php if ($_hasId): ?>
                 <?php $_slug = $_taxon['slug'] ?? null; ?>
-                <a href="<?php echo $_slug ? 'species/' . urlencode($_slug) : 'species.php?taxon=' . urlencode($_speciesName ?? ''); ?>"
-                    onclick="event.stopPropagation()"
-                    class="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md flex items-center gap-1.5 border border-white/20 hover:bg-black/70 transition z-10 max-w-[calc(100%-3rem)] truncate">
-                    <i data-lucide="check-circle-2" class="w-3 h-3 text-green-400"></i>
-                    <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($_speciesName ?? ''); ?></span>
-                </a>
+                <div class="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 z-10 max-w-[calc(100%-3rem)]">
+                    <a href="<?php echo $_slug ? 'species/' . urlencode($_slug) : 'species.php?taxon=' . urlencode($_speciesName ?? ''); ?>"
+                        onclick="event.stopPropagation()"
+                        class="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md flex items-center gap-1.5 border border-white/20 hover:bg-black/70 transition truncate">
+                        <i data-lucide="check-circle-2" class="w-3 h-3 text-green-400"></i>
+                        <span class="text-xs font-bold text-white"><?php echo htmlspecialchars($_speciesName ?? ''); ?></span>
+                    </a>
+                    <?php if ($_distStatus): ?>
+                        <?php
+                        $_distLabel = match ($_distStatus['status']) {
+                            'native'     => '在来',
+                            'introduced' => '外来',
+                            'invasive'   => '侵略的外来',
+                            default      => null,
+                        };
+                        $_distColor = match ($_distStatus['status']) {
+                            'native'     => 'bg-emerald-500/80',
+                            'introduced' => 'bg-amber-500/80',
+                            'invasive'   => 'bg-red-500/80',
+                            default      => '',
+                        };
+                        ?>
+                        <?php if ($_distLabel): ?>
+                        <span class="px-1.5 py-0.5 rounded-full <?php echo $_distColor; ?> backdrop-blur-md text-[9px] font-bold text-white flex-shrink-0"><?php echo $_distLabel; ?></span>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </div>
             <?php else: ?>
                 <div class="absolute bottom-2 left-2 z-10">
                     <div class="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-2 border border-white/10">
@@ -104,6 +139,17 @@ $_reactTypes  = ['footprint' => '👣', 'like' => '✨', 'suteki' => '❤️', '
                 </div>
             <?php endif; ?>
         </div>
+
+        <!-- Knowledge Nugget -->
+        <?php if ($_nugget && $_hasId): ?>
+        <div class="px-4 pt-2.5 pb-1">
+            <div class="flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg" style="background:var(--md-surface-container);">
+                <span class="text-xs flex-shrink-0 mt-px"><?php echo $_nuggetIcons[$_nugget['type']] ?? '💡'; ?></span>
+                <p class="text-[11px] leading-relaxed text-muted line-clamp-2"><?php echo htmlspecialchars($_nugget['text']); ?></p>
+                <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full mt-1 <?php echo ($_nugget['tier'] ?? 'B') === 'A' ? 'bg-emerald-500' : 'bg-amber-400'; ?>" title="<?php echo ($_nugget['tier'] ?? 'B') === 'A' ? '査読論文に基づく' : '百科事典に基づく'; ?>"></span>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- リアクション + キャプション -->
         <?php echo _obs_card_actions($_obsId, $_reactTypes, $_obsComments, $_detailUrl); ?>

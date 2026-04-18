@@ -18,14 +18,7 @@ $meta_robots = 'noindex, nofollow, noarchive';
     }
     </script>
 
-    <!-- Leaflet Ecosystem -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" nonce="<?= CspNonce::attr() ?>"></script>
-
-    <!-- Leaflet MarkerCluster -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js" nonce="<?= CspNonce::attr() ?>"></script>
+    <?php include __DIR__ . '/components/map_config.php'; ?>
 
     <!-- CUSTOM FONTS -->
     <style>
@@ -358,45 +351,98 @@ $meta_robots = 'noindex, nofollow, noarchive';
             cachedData: [],
             currentFilter: 'all',
             map: null,
-            markersGroup: null
+            _mapLoaded: false
         };
 
         // --- 4. MAP INITIALIZATION ---
         function initMap() {
-            state.map = L.map('map', {
-                zoomControl: false
-            }).setView([36.2048, 138.2529], 5);
-
-            // CartoDB Dark Matter (High Performance)
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; CARTO',
-                subdomains: 'abcd',
-                maxZoom: 20
-            }).addTo(state.map);
-
-            // Leaflet.markercluster configured for Performance
-            state.markersGroup = L.markerClusterGroup({
-                showCoverageOnHover: false,
-                maxClusterRadius: 40, // Tighter clusters
-                spiderfyOnMaxZoom: true,
-                disableClusteringAtZoom: 17,
-                iconCreateFunction: function(cluster) {
-                    // Custom Cluster Icon for Sci-Fi Feel
-                    const count = cluster.getChildCount();
-                    let size = count < 10 ? 'sm' : count < 100 ? 'md' : 'lg';
-                    // High-Tech Hexagon or Glowing Orb
-                    return L.divIcon({
-                        html: `<div class="living-marker flex items-center justify-center w-full h-full bg-cyan-900/90 border border-cyan-400 rounded-full text-cyan-200 font-mono text-xs font-bold shadow-[0_0_15px_rgba(34,211,238,0.5)] backdrop-blur-sm">${count}</div>`,
-                        className: 'custom-cluster',
-                        iconSize: [40, 40]
-                    });
-                }
+            state.map = new maplibregl.Map({
+                container: 'map',
+                style: IKIMON_MAP.style('dark'),
+                center: [138.2529, 36.2048],
+                zoom: 5,
+                attributionControl: false
             });
-            state.map.addLayer(state.markersGroup);
 
-            // Map Click -> Close HUD
-            state.map.on('click', () => {
-                document.getElementById('infoPanel').classList.add('translate-y-full');
+            state.map.on('load', () => {
+                state._mapLoaded = true;
+
+                state.map.addSource('bio-points', {
+                    type: 'geojson',
+                    data: { type: 'FeatureCollection', features: [] },
+                    cluster: true,
+                    clusterMaxZoom: 16,
+                    clusterRadius: 40
+                });
+
+                state.map.addLayer({
+                    id: 'clusters',
+                    type: 'circle',
+                    source: 'bio-points',
+                    filter: ['has', 'point_count'],
+                    paint: {
+                        'circle-color': 'rgba(6,78,59,0.9)',
+                        'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 100, 26],
+                        'circle-stroke-width': 1,
+                        'circle-stroke-color': '#22d3ee'
+                    }
+                });
+
+                state.map.addLayer({
+                    id: 'cluster-count',
+                    type: 'symbol',
+                    source: 'bio-points',
+                    filter: ['has', 'point_count'],
+                    layout: {
+                        'text-field': '{point_count_abbreviated}',
+                        'text-size': 12
+                    },
+                    paint: {
+                        'text-color': '#a5f3fc'
+                    }
+                });
+
+                state.map.addLayer({
+                    id: 'unclustered-point',
+                    type: 'circle',
+                    source: 'bio-points',
+                    filter: ['!', ['has', 'point_count']],
+                    paint: {
+                        'circle-color': '#58a6ff',
+                        'circle-radius': 6,
+                        'circle-stroke-width': 1,
+                        'circle-stroke-color': '#58a6ff',
+                        'circle-opacity': 0.8
+                    }
+                });
+
+                state.map.on('click', 'clusters', (e) => {
+                    const features = state.map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+                    const clusterId = features[0].properties.cluster_id;
+                    state.map.getSource('bio-points').getClusterExpansionZoom(clusterId, (err, zoom) => {
+                        if (err) return;
+                        state.map.easeTo({ center: features[0].geometry.coordinates, zoom });
+                    });
+                });
+
+                state.map.on('click', 'unclustered-point', (e) => {
+                    const props = e.features[0].properties;
+                    const d = JSON.parse(props._raw);
+                    const tax = resolveTaxonomy(d.name);
+                    updateHUD(d, tax);
+                });
+
+                state.map.on('click', (e) => {
+                    const features = state.map.queryRenderedFeatures(e.point, { layers: ['clusters', 'unclustered-point'] });
+                    if (features.length === 0) {
+                        document.getElementById('infoPanel').classList.add('translate-y-full');
+                    }
+                });
+
+                state.map.on('mouseenter', 'clusters', () => { state.map.getCanvas().style.cursor = 'pointer'; });
+                state.map.on('mouseleave', 'clusters', () => { state.map.getCanvas().style.cursor = ''; });
+                state.map.on('mouseenter', 'unclustered-point', () => { state.map.getCanvas().style.cursor = 'pointer'; });
+                state.map.on('mouseleave', 'unclustered-point', () => { state.map.getCanvas().style.cursor = ''; });
             });
         }
 
@@ -461,35 +507,26 @@ $meta_robots = 'noindex, nofollow, noarchive';
         }
 
         function renderMarkers(filterType) {
-            state.markersGroup.clearLayers();
+            if (!state._mapLoaded) return;
 
-            const points = [];
+            const features = [];
             state.cachedData.forEach(data => {
                 if (!data.lat || !data.lng) return;
 
                 const tax = resolveTaxonomy(data.name);
-
-                // Client-side Filter
                 if (filterType !== 'all' && tax.type !== filterType) return;
 
-                const marker = L.circleMarker([data.lat, data.lng], {
-                    radius: 6,
-                    fillColor: "#58a6ff",
-                    color: "#58a6ff",
-                    weight: 1,
-                    opacity: 0.8,
-                    fillOpacity: 0.4
+                features.push({
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [data.lng, data.lat] },
+                    properties: { _raw: JSON.stringify(data) }
                 });
-
-                marker.on('click', (e) => {
-                    L.DomEvent.stopPropagation(e);
-                    updateHUD(data, tax);
-                });
-
-                points.push(marker);
             });
 
-            state.markersGroup.addLayers(points);
+            state.map.getSource('bio-points').setData({
+                type: 'FeatureCollection',
+                features
+            });
         }
 
         // --- 6. UI LOGIC ---

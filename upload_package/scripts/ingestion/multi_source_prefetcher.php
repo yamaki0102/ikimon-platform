@@ -1,23 +1,32 @@
 <?php
 
 /**
- * Multi-Source Literature Prefetcher v3.1 — SQLite Queue
- * 
+ * Multi-Source Literature Prefetcher v4.0 — SQLite Queue
+ *
  * GATE 1: GBIF Species Match (種名検証)
  *   - 有効な種/亜種のみ通過、科名・属名・ゴミはスキップ
  *   - canonical name と usageKey を付与
- * 
+ *
  * GATE 2: Multi-Source Literature Collection (文献収集)
- *   - Wikidata → 和名解決 + 多言語Wikipedia sitelink取得
- *   - Wikipedia JA (和名で検索)
- *   - Wikipedia EN (フルセクション取得)
- *   - Wikipedia 他言語 (Wikidataのsitelinkから)
- *   - GBIF Species Descriptions
- *   - GBIF Literature
- *   - Semantic Scholar
- *   - Crossref (fallback)
- * 
- * v3.1: Migrated from JSON file queue to SQLite ExtractionQueue
+ *   Wikipedia系 (10言語):
+ *     - Wikidata → 和名解決 + 多言語Wikipedia sitelink取得
+ *     - Wikipedia JA / EN / 他8言語
+ *   GBIF系:
+ *     - GBIF Species Descriptions (limit 15)
+ *     - GBIF Literature (limit 10)
+ *   学術論文 (NEW):
+ *     - OpenAlex      200M+論文・無料・要件なし
+ *     - PubMed/NCBI   生命科学・タクソノミー連携
+ *     - Europe PMC    ライフサイエンス40M+
+ *     - J-STAGE       日本語学術論文
+ *     - CiNii Research 国内学術論文・学位論文
+ *   その他:
+ *     - Semantic Scholar (limit 10)
+ *     - Crossref (limit 10)
+ *     - BHL / EOL
+ *     - iNaturalist taxon wiki description
+ *
+ * v4.0: 学術論文ソース大幅拡張 (OpenAlex/PubMed/EuropePMC/J-STAGE/CiNii追加)
  */
 
 require_once __DIR__ . '/../config/config.php';
@@ -225,7 +234,7 @@ while (true) {
 
         // --- STEP 4: GBIF Species Descriptions ---
         if ($usageKey) {
-            $dUrl = "https://api.gbif.org/v1/species/{$usageKey}/descriptions?limit=10";
+            $dUrl = "https://api.gbif.org/v1/species/{$usageKey}/descriptions?limit=20";
             $dJson = $httpGet($dUrl);
             if ($dJson) {
                 $dData = json_decode($dJson, true);
@@ -236,7 +245,7 @@ while (true) {
                     $dPageUrl = "https://www.gbif.org/species/{$usageKey}";
                     $addText('GBIF_Species', $dSrc, $dText, $dPageUrl);
                     $dCount++;
-                    if ($dCount >= 3) break;
+                    if ($dCount >= 15) break;
                 }
             }
 
@@ -260,7 +269,7 @@ while (true) {
         }
 
         // --- STEP 5: GBIF Literature ---
-        $glUrl = "https://api.gbif.org/v1/literature/search?q=" . urlencode($currentSearchTerm) . "&limit=3";
+        $glUrl = "https://api.gbif.org/v1/literature/search?q=" . urlencode('"' . $currentSearchTerm . '"') . "&limit=10";
         $glJson = $httpGet($glUrl);
         if ($glJson) {
             $glData = json_decode($glJson, true);
@@ -272,8 +281,158 @@ while (true) {
             }
         }
 
+        // --- STEP 5b: OpenAlex (200M+論文・無料・最大カバレッジ) ---
+        $oaUrl = "https://api.openalex.org/works?filter=title_and_abstract.search:" . urlencode('"' . $currentSearchTerm . '"')
+            . "&per_page=10&select=id,title,abstract_inverted_index,doi,publication_year,primary_location"
+            . "&mailto=admin@ikimon.life";
+        $oaJson = $httpGet($oaUrl);
+        if ($oaJson) {
+            $oaData = json_decode($oaJson, true);
+            foreach (($oaData['results'] ?? []) as $work) {
+                $title = $work['title'] ?? '';
+                $doi   = $work['doi'] ?? '';
+                $pUrl  = $doi ?: ($work['primary_location']['landing_page_url'] ?? '');
+                // abstract_inverted_index を平文に復元
+                $invIdx = $work['abstract_inverted_index'] ?? [];
+                if (!empty($invIdx)) {
+                    $words = [];
+                    foreach ($invIdx as $word => $positions) {
+                        foreach ($positions as $pos) {
+                            $words[(int)$pos] = $word;
+                        }
+                    }
+                    ksort($words);
+                    $abstract = implode(' ', $words);
+                    $addText('OpenAlex', $title, $abstract, $pUrl);
+                } elseif (mb_strlen($title) > 50) {
+                    $addText('OpenAlex', $title, $title, $pUrl);
+                }
+            }
+        }
+        echo "   OpenAlex: " . count(array_filter($collectedTexts, fn($t) => $t['source'] === 'OpenAlex')) . " papers\n";
+        usleep(200000);
+
+        // --- STEP 5c: PubMed / NCBI Entrez (生命科学・タクソノミー連携) ---
+        $pmSearch = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed"
+            . "&term=" . urlencode('"' . $currentSearchTerm . '"[TIAB]')
+            . "&retmax=10&retmode=json&usehistory=y"
+            . (defined('NCBI_API_KEY') && NCBI_API_KEY ? "&api_key=" . NCBI_API_KEY : '');
+        $pmSearchJson = $httpGet($pmSearch);
+        if ($pmSearchJson) {
+            $pmSearchData = json_decode($pmSearchJson, true);
+            $pmIds = $pmSearchData['esearchresult']['idlist'] ?? [];
+            if (!empty($pmIds)) {
+                $pmFetchUrl = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed"
+                    . "&id=" . implode(',', array_slice($pmIds, 0, 10))
+                    . "&retmode=text&rettype=abstract"
+                    . (defined('NCBI_API_KEY') && NCBI_API_KEY ? "&api_key=" . NCBI_API_KEY : '');
+                $pmAbstracts = $httpGet($pmFetchUrl);
+                if ($pmAbstracts) {
+                    // PubMed plain text abstracts: split on numbered blocks
+                    $blocks = preg_split('/\n\d+\. /', "\n" . $pmAbstracts);
+                    foreach (array_filter($blocks) as $block) {
+                        $lines = explode("\n", trim($block));
+                        $pmTitle = trim($lines[0] ?? '');
+                        $pmBody  = trim(implode(' ', array_slice($lines, 1)));
+                        if (mb_strlen($pmBody) > 50) {
+                            $pmUrl = "https://pubmed.ncbi.nlm.nih.gov/?term=" . urlencode($currentSearchTerm);
+                            $addText('PubMed', $pmTitle, $pmBody, $pmUrl);
+                        }
+                    }
+                }
+            }
+        }
+        echo "   PubMed: " . count(array_filter($collectedTexts, fn($t) => $t['source'] === 'PubMed')) . " papers\n";
+        usleep(350000); // NCBI 3req/sec without key
+
+        // --- STEP 5d: Europe PMC (ライフサイエンス40M+) ---
+        $epmcUrl = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+            . "?query=" . urlencode('"' . $currentSearchTerm . '"')
+            . "&resultType=core&pageSize=5&format=json&cursorMark=*";
+        $epmcJson = $httpGet($epmcUrl);
+        if ($epmcJson) {
+            $epmcData = json_decode($epmcJson, true);
+            foreach (($epmcData['resultList']['result'] ?? []) as $article) {
+                $abstract = $article['abstractText'] ?? '';
+                $title    = $article['title'] ?? '';
+                $doi      = $article['doi'] ?? '';
+                $pmid     = $article['pmid'] ?? '';
+                $pUrl     = $doi ? "https://doi.org/{$doi}" : ($pmid ? "https://pubmed.ncbi.nlm.nih.gov/{$pmid}/" : '');
+                $addText('EuropePMC', $title, $abstract, $pUrl);
+            }
+        }
+        echo "   EuropePMC: " . count(array_filter($collectedTexts, fn($t) => $t['source'] === 'EuropePMC')) . " papers\n";
+        usleep(200000);
+
+        // --- STEP 5e: J-STAGE (日本語学術論文) ---
+        $jstageUrl = "https://api.jstage.jst.go.jp/searchapi/do?service=3"
+            . "&text=" . urlencode($currentSearchTerm)
+            . (!empty($japaneseName) ? "+OR+" . urlencode($japaneseName) : '')
+            . "&pubyearfrom=2000&count=5";
+        $jstageXml = $httpGet($jstageUrl);
+        if ($jstageXml) {
+            try {
+                $jstageData = @simplexml_load_string($jstageXml);
+                if ($jstageData) {
+                    $ns = $jstageData->getNamespaces(true);
+                    $channel = $jstageData->channel ?? null;
+                    if ($channel) {
+                        foreach (($channel->item ?? []) as $item) {
+                            $jTitle    = (string)($item->title ?? '');
+                            $jAbstract = (string)($item->description ?? '');
+                            $jLink     = (string)($item->link ?? '');
+                            if (empty($jAbstract)) $jAbstract = $jTitle;
+                            $addText('J-STAGE', $jTitle, $jAbstract, $jLink);
+                        }
+                    }
+                }
+            } catch (\Throwable $e) { /* XML parse error */ }
+        }
+        echo "   J-STAGE: " . count(array_filter($collectedTexts, fn($t) => $t['source'] === 'J-STAGE')) . " papers\n";
+        usleep(300000);
+
+        // --- STEP 5f: CiNii Research (国内学術論文・学位論文) ---
+        $ciniiQuery = !empty($japaneseName) ? $japaneseName : $currentSearchTerm;
+        $ciniiUrl = "https://cir.nii.ac.jp/opensearch/all?q=" . urlencode($ciniiQuery) . "&format=json&count=5";
+        $ciniiJson = $httpGet($ciniiUrl);
+        if ($ciniiJson) {
+            $ciniiData = json_decode($ciniiJson, true);
+            foreach (($ciniiData['items'] ?? []) as $item) {
+                $cTitle    = $item['title'] ?? ($item['dc:title'] ?? '');
+                $cAbstract = $item['description'] ?? ($item['dc:description'] ?? '');
+                $cLink     = $item['link'] ?? ($item['@id'] ?? '');
+                if (is_array($cTitle)) $cTitle = implode(' ', $cTitle);
+                if (empty($cAbstract)) $cAbstract = $cTitle;
+                $addText('CiNii', $cTitle, $cAbstract, $cLink);
+            }
+        }
+        echo "   CiNii: " . count(array_filter($collectedTexts, fn($t) => $t['source'] === 'CiNii')) . " papers\n";
+        usleep(300000);
+
+        // --- STEP 5g: iNaturalist taxon wiki description ---
+        $inatSearchUrl = "https://api.inaturalist.org/v1/taxa?q=" . urlencode($currentSearchTerm) . "&rank=species&per_page=1";
+        $inatJson = $httpGet($inatSearchUrl);
+        if ($inatJson) {
+            $inatData = json_decode($inatJson, true);
+            $inatResult = $inatData['results'][0] ?? null;
+            if ($inatResult) {
+                $wikiDesc = $inatResult['wikipedia_summary'] ?? '';
+                $taxonId  = $inatResult['id'] ?? null;
+                $inatUrl  = $taxonId ? "https://www.inaturalist.org/taxa/{$taxonId}" : '';
+                if (!empty($wikiDesc)) {
+                    $addText('iNaturalist', $inatResult['name'] ?? $currentSearchTerm, $wikiDesc, $inatUrl);
+                }
+                // taxon_summary テキスト
+                $taxonDesc = $inatResult['taxon_summary']['summary'] ?? '';
+                if (!empty($taxonDesc)) {
+                    $addText('iNaturalist_Summary', $inatResult['name'] ?? $currentSearchTerm, $taxonDesc, $inatUrl);
+                }
+            }
+        }
+        usleep(200000);
+
         // --- STEP 6: Semantic Scholar ---
-        $s2Url = "https://api.semanticscholar.org/graph/v1/paper/search?query=" . urlencode($currentSearchTerm) . "&fields=title,abstract,year,url&limit=3";
+        $s2Url = "https://api.semanticscholar.org/graph/v1/paper/search?query=" . urlencode($currentSearchTerm) . "&fields=title,abstract,year,url&limit=10";
         $s2Json = $httpGet($s2Url);
         if ($s2Json) {
             $s2Data = json_decode($s2Json, true);
@@ -334,7 +493,7 @@ while (true) {
 
         // --- STEP 7: Crossref (always) ---
         if (true) {
-            $crUrl = "https://api.crossref.org/works?query=" . urlencode($currentSearchTerm) . "&select=title,abstract,DOI&rows=5";
+            $crUrl = "https://api.crossref.org/works?query.bibliographic=" . urlencode('"' . $currentSearchTerm . '"') . "&select=title,abstract,DOI&rows=10";
             $crJson = $httpGet($crUrl);
             if ($crJson) {
                 $crData = json_decode($crJson, true);

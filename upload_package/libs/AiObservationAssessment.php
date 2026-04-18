@@ -361,6 +361,16 @@ PROMPT;
             if ($ragSections !== '') {
                 $prompt .= "\n\n" . $ragSections;
             }
+
+            // photo_target claims があれば next_step ヒントとして注入
+            $photoTargets = array_filter(
+                $ragResult['chunks'],
+                fn($c) => ($c['source_type'] ?? '') === 'photo_target'
+            );
+            if (!empty($photoTargets)) {
+                $ptTexts = array_map(fn($c) => '・' . $c['text'], array_slice(array_values($photoTargets), 0, 3));
+                $prompt .= "\n\n【同定精度向上のための撮影ガイド（photo_target）】\n" . implode("\n", $ptTexts) . "\nnext_step は上記の撮影ガイドを参考に、観察者が次に撮ると良い具体的な部位を1文で示してください。";
+            }
         }
 
         if ($ragContext !== null) {

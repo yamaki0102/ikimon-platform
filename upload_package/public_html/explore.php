@@ -24,9 +24,7 @@ if (method_exists('Lang', 'current')) {
     $meta_description = __('explore_page.meta_description', 'Search nearby records and places, then find somewhere new to walk or revisit.');
     include __DIR__ . '/components/meta.php';
     ?>
-    <!-- MapLibre GL JS -->
-    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <style>
         [x-cloak] { display: none !important; }
 

@@ -132,7 +132,19 @@ $obs['identifications'] = array_values(array_filter(
 $obs['identifications'][] = $id_entry;
 
 // Update status and primary taxon based on consensus
+$prevStatus = $obs['status'] ?? '';
 BioUtils::updateConsensus($obs);
+
+// Tier 1 enqueue: 初回コンセンサス確定のみ（backfill・再計算による重複投入を防ぐ）
+if (($obs['status'] ?? '') === '種レベル研究用' && $prevStatus !== '種レベル研究用') {
+    try {
+        require_once ROOT_DIR . '/libs/LiteratureIngestionQueue.php';
+        $sciName = $obs['taxon']['scientific_name'] ?? '';
+        if ($sciName !== '') {
+            LiteratureIngestionQueue::getInstance()->enqueue($sciName, 1, 1.0);
+        }
+    } catch (\Throwable $_) {}
+}
 
 // Recalculate Data Quality Grade
 $obs['data_quality'] = DataQuality::calculate($obs);

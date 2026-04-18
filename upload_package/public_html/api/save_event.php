@@ -128,6 +128,24 @@ if (!empty($input['bingo_species']) && is_array($input['bingo_species'])) {
 }
 $bingoTemplateId = trim((string)($input['bingo_template_id'] ?? ($existing['bingo_template_id'] ?? '')));
 
+// --- 観察会拡張フィールド ---
+$subtitle = mb_substr(trim($input['subtitle'] ?? ($existing['subtitle'] ?? '')), 0, 200);
+$rainDecisionTime = trim($input['rain_decision_time'] ?? ($existing['rain_decision_time'] ?? ''));
+if ($rainDecisionTime && !preg_match('/^\d{2}:\d{2}$/', $rainDecisionTime)) $rainDecisionTime = '';
+$maxParticipants = (int)($input['max_participants'] ?? ($existing['max_participants'] ?? 0));
+$maxParticipants = max(0, min(9999, $maxParticipants));
+$registrationDeadline = trim($input['registration_deadline'] ?? ($existing['registration_deadline'] ?? ''));
+if ($registrationDeadline && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $registrationDeadline)) $registrationDeadline = '';
+$targetAge = trim($input['target_age'] ?? ($existing['target_age'] ?? ''));
+if (!in_array($targetAge, ['all', 'adult', 'family', 'children'], true)) $targetAge = '';
+$difficulty = trim($input['difficulty'] ?? ($existing['difficulty'] ?? ''));
+if (!in_array($difficulty, ['beginner', 'intermediate', 'advanced'], true)) $difficulty = '';
+$walkingDistance = mb_substr(trim($input['walking_distance'] ?? ($existing['walking_distance'] ?? '')), 0, 50);
+$equipment = mb_substr(trim($input['equipment'] ?? ($existing['equipment'] ?? '')), 0, 500);
+$rentalEquipment = mb_substr(trim($input['rental_equipment'] ?? ($existing['rental_equipment'] ?? '')), 0, 200);
+$eventCategory = trim($input['event_category'] ?? ($existing['event_category'] ?? ''));
+if (!in_array($eventCategory, ['general', 'beginner', 'family', 'theme', 'night', 'bioblitz', 'school'], true)) $eventCategory = '';
+
 $event = [
     'id'                  => $eventId ?: uniqid('evt_'),
     'event_code'          => $eventCode,
@@ -159,6 +177,16 @@ $event = [
     'enable_leaderboard'  => $enableLeaderboard,
     'event_type'          => $eventType,
     'cover_image'         => $coverImage !== '' ? $coverImage : null,
+    'subtitle'            => $subtitle,
+    'rain_decision_time'  => $rainDecisionTime,
+    'max_participants'    => $maxParticipants,
+    'registration_deadline' => $registrationDeadline ?: null,
+    'target_age'          => $targetAge,
+    'difficulty'          => $difficulty,
+    'walking_distance'    => $walkingDistance,
+    'equipment'           => $equipment,
+    'rental_equipment'    => $rentalEquipment,
+    'event_category'      => $eventCategory,
     'organizer_id'        => $user['id'],
     'organizer_name'      => $user['name'],
     'linked_observations' => $isEdit ? ($existing['linked_observations'] ?? []) : [],
@@ -174,7 +202,7 @@ if ($isEdit) {
     $editHistory = $existing['edit_history'];
 
     $changedFields = [];
-    $trackFields = ['title', 'event_date', 'start_time', 'end_time', 'memo', 'meeting_point', 'parking_info', 'rain_policy', 'precautions', 'event_code', 'grant_id', 'site_id', 'enable_bingo', 'enable_leaderboard', 'event_type', 'cover_image', 'bingo_template_id'];
+    $trackFields = ['title', 'event_date', 'start_time', 'end_time', 'memo', 'meeting_point', 'parking_info', 'rain_policy', 'precautions', 'event_code', 'grant_id', 'site_id', 'enable_bingo', 'enable_leaderboard', 'event_type', 'cover_image', 'bingo_template_id', 'subtitle', 'rain_decision_time', 'max_participants', 'registration_deadline', 'target_age', 'difficulty', 'walking_distance', 'equipment', 'rental_equipment', 'event_category'];
     foreach ($trackFields as $f) {
         $oldVal = trim($existing[$f] ?? '');
         $newVal = trim($event[$f] ?? '');

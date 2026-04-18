@@ -62,6 +62,23 @@ $uniqueSpecies = count(array_unique(array_filter(array_map(function ($o) {
 }, $allObs))));
 unset($allObs);
 
+// Knowledge nuggets: 1種1行の豆知識をフィードカードに表示
+$feedNuggets = [];
+if (!empty($latest_obs)) {
+    try {
+        require_once ROOT_DIR . 'libs/OmoikaneDB.php';
+        $sciNames = [];
+        foreach ($latest_obs as $_o) {
+            $sn = $_o['taxon']['scientific_name'] ?? '';
+            if ($sn) $sciNames[] = $sn;
+        }
+        if (!empty($sciNames)) {
+            $odb = new OmoikaneDB();
+            $feedNuggets = $odb->getBatchNuggets(array_unique($sciNames));
+        }
+    } catch (\Throwable $e) { /* non-fatal */ }
+}
+
 $todayState = $currentUser ? HabitEngine::getTodayState($currentUser['id']) : HabitEngine::getTodayState(null);
 $todayLabels = $todayState['labels'];
 $streakData = $todayState['streak'];
@@ -698,6 +715,7 @@ $homeUiText = [
                     $cardReactionsJson    = json_encode($obsReactions, JSON_HEX_TAG | JSON_HEX_AMP);
                     $cardObsTotalReactions = $obsTotalReactions;
                     $cardLoggedIn         = (bool)$currentUser;
+                    $cardNugget           = $feedNuggets[$obs['taxon']['scientific_name'] ?? ''] ?? null;
                     include PUBLIC_DIR . '/components/observation_feed_card.php';
                 ?>
                 <?php endforeach; ?>

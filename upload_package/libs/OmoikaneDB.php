@@ -59,7 +59,24 @@ class OmoikaneDB
         try {
             $this->pdo->exec("ALTER TABLE species ADD COLUMN japanese_name TEXT;");
         } catch (PDOException $e) { /* already exists */ }
+        try {
+            // knowledge_coverage: 'none' | 'basic' | 'rich'
+            // none  = claims 0件, basic = 1-4件, rich = 5件以上
+            $this->pdo->exec("ALTER TABLE species ADD COLUMN knowledge_coverage TEXT DEFAULT 'none';");
+        } catch (PDOException $e) { /* already exists */ }
+        // GBIF Backbone taxonomy hierarchy columns
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN kingdom TEXT;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN phylum TEXT;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN class_name TEXT;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN order_name TEXT;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN family TEXT;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN gbif_taxon_id INTEGER;"); } catch (PDOException $e) {}
+        try { $this->pdo->exec("ALTER TABLE species ADD COLUMN catalog_source TEXT DEFAULT 'gbif_backbone';"); } catch (PDOException $e) {}
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_japanese_name ON species(japanese_name);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_knowledge_coverage ON species(knowledge_coverage);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_species_gbif_taxon_id ON species(gbif_taxon_id);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_species_kingdom ON species(kingdom);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_species_family ON species(family);");
 
         // Table: ecological_constraints (The Searchable Dimensions)
         $this->pdo->exec("
@@ -127,39 +144,73 @@ class OmoikaneDB
         ");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_trust_score ON trust_scores(trust_score);");
 
-        // Table: papers (Phase 2 — 論文メタデータ。PaperStore JSON→SQLite移行)
+        // Table: papers — Schema v2 (paper_id as PK, doi as nullable unique index)
+        // Migration: if old schema (doi PK) exists and is empty, drop and recreate.
+        $papersHasOldSchema = false;
+        try {
+            $cols = $this->pdo->query("PRAGMA table_info(papers)")->fetchAll(\PDO::FETCH_ASSOC);
+            foreach ($cols as $col) {
+                if ($col['name'] === 'doi' && $col['pk'] == 1) {
+                    $papersHasOldSchema = true;
+                    break;
+                }
+            }
+        } catch (\Throwable $_) {}
+        if ($papersHasOldSchema) {
+            $count = (int)$this->pdo->query("SELECT COUNT(*) FROM papers")->fetchColumn();
+            if ($count === 0) {
+                $this->pdo->exec("DROP TABLE IF EXISTS paper_taxa");
+                $this->pdo->exec("DROP TABLE IF EXISTS papers");
+            }
+        }
         $this->pdo->exec("
             CREATE TABLE IF NOT EXISTS papers (
-                doi TEXT PRIMARY KEY,
-                title TEXT,
-                authors TEXT,
-                year INTEGER,
-                journal TEXT,
-                source TEXT DEFAULT 'gbif_lit',
-                abstract TEXT,
-                language TEXT DEFAULT 'ja',
-                url TEXT,
-                subjects TEXT,
-                ingested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                paper_id     TEXT PRIMARY KEY,
+                doi          TEXT UNIQUE,
+                external_ids TEXT NOT NULL DEFAULT '{}',
+                title        TEXT,
+                authors      TEXT,
+                year         INTEGER,
+                journal      TEXT,
+                source       TEXT DEFAULT 'unknown',
+                abstract     TEXT,
+                language     TEXT,
+                url          TEXT,
+                subjects     TEXT,
+                ingested_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
                 distilled_at DATETIME,
                 distill_status TEXT DEFAULT 'pending'
             )
         ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_doi ON papers(doi) WHERE doi IS NOT NULL;");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_year ON papers(year);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_source ON papers(source);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_papers_distill ON papers(distill_status);");
 
+        // Table: paper_aliases — DOI後付け判明時の別名統合
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS paper_aliases (
+                alias_id         TEXT NOT NULL,
+                alias_type       TEXT NOT NULL,
+                canonical_paper_id TEXT NOT NULL,
+                created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (alias_id, alias_type)
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_paper_aliases_canonical ON paper_aliases(canonical_paper_id);");
+
         // Table: paper_taxa (Phase 2 — 論文-種マッピング。TaxonPaperIndex JSON→SQLite移行)
         $this->pdo->exec("
             CREATE TABLE IF NOT EXISTS paper_taxa (
-                doi TEXT NOT NULL,
-                taxon_key TEXT NOT NULL,
+                paper_id   TEXT NOT NULL,
+                taxon_key  TEXT NOT NULL,
                 confidence REAL DEFAULT 1.0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (doi, taxon_key)
+                PRIMARY KEY (paper_id, taxon_key)
             )
         ");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_paper_taxa_taxon ON paper_taxa(taxon_key);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_paper_taxa_paper ON paper_taxa(paper_id);");
 
         // Table: distilled_knowledge (Phase 2 — 蒸留結果。生態制約 + 同定キー)
         $this->pdo->exec("
@@ -209,10 +260,234 @@ class OmoikaneDB
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_taxon ON claims(taxon_key);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_type ON claims(claim_type);");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_claims_tier ON claims(source_tier);");
+        // claim_hash: taxon_key + claim_type + claim_text の md5。重複 claim 防止に使う。
+        try {
+            $this->pdo->exec("ALTER TABLE claims ADD COLUMN claim_hash TEXT;");
+        } catch (PDOException $e) { /* already exists */ }
+        try {
+            $this->pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_claims_hash ON claims(claim_hash) WHERE claim_hash IS NOT NULL;");
+        } catch (PDOException $e) { /* already exists */ }
+
+        // Table: redlist_assessments — グローバル保全ステータス統合テーブル
+        //
+        // 設計原則:
+        //   1. MECE地理スコープ: global → regional → national → subnational_1 → subnational_2
+        //   2. 100年耐性: 行政コードは便宜。地理アンカー(重心座標)で永続的に位置を特定
+        //   3. 時点スナップショット: 行政区画名は評価時点の名称を保存（合併・分割を追跡可能）
+        //   4. IUCN準拠カテゴリ: EX/EW/CR/EN/VU/NT/LC/DD/NE + 地域拡張(LP)
+        //
+        // scope_level MECE階層:
+        //   'global'        — IUCN Red List (country_code=NULL)
+        //   'regional'      — EU Red Lists, ASEAN etc.
+        //   'national'      — 環境省, US ESA, etc.
+        //   'subnational_1' — 都道府県 / State / Province
+        //   'subnational_2' — 市区町村 / Municipality / County
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS redlist_assessments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                -- Taxon identification (multiple keys for resilience)
+                taxon_key INTEGER,
+                scientific_name TEXT NOT NULL,
+                japanese_name TEXT,
+                common_name_en TEXT,
+
+                -- IUCN-compatible assessment
+                category TEXT NOT NULL,
+                criteria TEXT,
+
+                -- MECE Geographic Scope (hierarchical)
+                scope_level TEXT NOT NULL,
+                country_code TEXT,
+                region_code TEXT,
+                municipality_code TEXT,
+
+                -- 100-year resilience: human-readable names + geographic anchor
+                scope_name TEXT NOT NULL,
+                scope_name_en TEXT,
+                scope_centroid_lat REAL,
+                scope_centroid_lng REAL,
+                parent_scope_name TEXT,
+                scope_valid_from TEXT,
+                scope_valid_until TEXT,
+                scope_note TEXT,
+
+                -- Source provenance
+                authority TEXT NOT NULL,
+                source_url TEXT,
+                assessment_year INTEGER,
+                version TEXT,
+
+                -- Taxonomy
+                taxon_group TEXT,
+                taxon_group_en TEXT,
+
+                -- Metadata
+                notes TEXT,
+                imported_at TEXT DEFAULT (datetime('now')),
+
+                -- Dedup key: computed on INSERT via import script
+                dedup_key TEXT UNIQUE
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_taxon_key ON redlist_assessments(taxon_key);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_sciname ON redlist_assessments(scientific_name);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_janame ON redlist_assessments(japanese_name);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_category ON redlist_assessments(category);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_scope ON redlist_assessments(scope_level, country_code);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_region ON redlist_assessments(region_code);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redlist_municipality ON redlist_assessments(municipality_code);");
+
+        // Table: taxon_synonyms — GBIF Backbone シノニム解決テーブル
+        // Taxon.tsv の非accepted行を格納。任意の旧名→現在のaccepted IDをローカルで即座に解決。
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS taxon_synonyms (
+                synonym_id INTEGER PRIMARY KEY,
+                accepted_id INTEGER NOT NULL,
+                synonym_name TEXT NOT NULL,
+                taxonomic_status TEXT NOT NULL,
+                backbone_version TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_syn_accepted ON taxon_synonyms(accepted_id);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_syn_name ON taxon_synonyms(synonym_name COLLATE NOCASE);");
+
+        // Table: vernacular_names — GBIF Backbone VernacularName.tsv
+        // 和名・英名等をローカルに保持。GBIF API呼び出しを排除。
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS vernacular_names (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gbif_taxon_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                language TEXT NOT NULL,
+                country TEXT,
+                source TEXT,
+                backbone_version TEXT NOT NULL,
+                UNIQUE(gbif_taxon_id, name, language)
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_vn_taxon ON vernacular_names(gbif_taxon_id);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_vn_name ON vernacular_names(name);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_vn_lang ON vernacular_names(language);");
+
+        // Table: taxon_distribution — GBIF Backbone Distribution.tsv
+        // 国別の在来/外来ステータス。
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS taxon_distribution (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gbif_taxon_id INTEGER NOT NULL,
+                location_id TEXT NOT NULL,
+                locality TEXT,
+                establishment_means TEXT,
+                backbone_version TEXT NOT NULL,
+                UNIQUE(gbif_taxon_id, location_id, establishment_means)
+            )
+        ");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_dist_taxon ON taxon_distribution(gbif_taxon_id);");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_dist_location ON taxon_distribution(location_id);");
     }
 
     public function getPDO()
     {
         return $this->pdo;
+    }
+
+    /**
+     * claims テーブルの件数に基づいて species.knowledge_coverage を更新する。
+     * none=0件, basic=1-4件, rich=5件以上。
+     * 引数は学名 or taxon_key (species.id の文字列表現)。
+     */
+    public function refreshKnowledgeCoverage(string $taxonKey): void
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT COUNT(*) FROM claims
+                WHERE taxon_key = :key
+                  AND claim_type IN ('identification_pitfall','photo_target','hybridization',
+                                     'cultural','ecology_trivia','taxonomy_note','regional_variation')
+            ");
+            $stmt->execute([':key' => $taxonKey]);
+            $count = (int)$stmt->fetchColumn();
+
+            $coverage = match(true) {
+                $count >= 5 => 'rich',
+                $count >= 1 => 'basic',
+                default     => 'none',
+            };
+
+            $this->pdo->prepare("
+                UPDATE species SET knowledge_coverage = :cov
+                WHERE scientific_name = :key OR CAST(id AS TEXT) = :key2
+            ")->execute([':cov' => $coverage, ':key' => $taxonKey, ':key2' => $taxonKey]);
+        } catch (\Throwable $e) {
+            // non-fatal
+        }
+    }
+
+    /**
+     * 複数種の「最良 claim」を一括取得する。
+     * フィード・図鑑カードで「1種1行の知識チップ」を効率的に表示するために使う。
+     *
+     * @param array $scientificNames ['Chelonia mydas', 'Passer montanus', ...]
+     * @param int $limit 1種あたりの claim 件数 (default: 1)
+     * @return array ['Chelonia mydas' => ['type'=>'ecology_trivia', 'text'=>'...', 'tier'=>'B', 'confidence'=>0.7], ...]
+     */
+    public function getBatchNuggets(array $scientificNames, int $limit = 1): array
+    {
+        if (empty($scientificNames)) return [];
+
+        $result = [];
+        try {
+            $placeholders = implode(',', array_fill(0, count($scientificNames), '?'));
+
+            $typePriority = "CASE claim_type
+                WHEN 'identification_pitfall' THEN 1
+                WHEN 'photo_target' THEN 2
+                WHEN 'ecology_trivia' THEN 3
+                WHEN 'cultural' THEN 4
+                WHEN 'taxonomy_note' THEN 5
+                WHEN 'regional_variation' THEN 6
+                WHEN 'hybridization' THEN 7
+                ELSE 99 END";
+
+            $sql = "SELECT taxon_key, claim_type, claim_text, source_tier, confidence
+                    FROM claims
+                    WHERE taxon_key IN ({$placeholders})
+                      AND claim_type IN ('identification_pitfall','photo_target','ecology_trivia',
+                                         'cultural','taxonomy_note','regional_variation','hybridization')
+                    ORDER BY taxon_key, {$typePriority}, confidence DESC";
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute(array_values($scientificNames));
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $counts = [];
+            foreach ($rows as $row) {
+                $key = $row['taxon_key'];
+                if (!isset($counts[$key])) $counts[$key] = 0;
+                if ($counts[$key] >= $limit) continue;
+                $counts[$key]++;
+
+                if ($limit === 1) {
+                    $result[$key] = [
+                        'type'       => $row['claim_type'],
+                        'text'       => $row['claim_text'],
+                        'tier'       => $row['source_tier'],
+                        'confidence' => (float)$row['confidence'],
+                    ];
+                } else {
+                    $result[$key][] = [
+                        'type'       => $row['claim_type'],
+                        'text'       => $row['claim_text'],
+                        'tier'       => $row['source_tier'],
+                        'confidence' => (float)$row['confidence'],
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            // non-fatal: claims are optional enhancement
+        }
+        return $result;
     }
 }

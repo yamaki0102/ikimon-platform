@@ -153,9 +153,7 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
     </style>
     <!-- EXIF.js for client-side extraction -->
     <!-- EXIF.js: Removed in favor of local js/exif-mini.js -->
-    <!-- Leaflet -->
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" rel="stylesheet" />
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <!-- Offline Manager -->
     <script src="<?= htmlspecialchars(Asset::versioned('/js/ToastManager.js')) ?>"></script>
     <script src="<?= htmlspecialchars(Asset::versioned('/js/OfflineManager.js')) ?>"></script>
@@ -1167,6 +1165,24 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                                 </div>
                                 <p class="text-[10px] text-amber-600 mt-2 leading-relaxed"><?= __('post_page.invasive_thanks', 'Recording sightings helps ecosystem conservation. Thank you for reporting it.') ?></p>
                             </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 次回のヒント (Knowledge Tips) -->
+                <template x-if="nextTimeTips.length > 0">
+                    <div class="rounded-2xl border border-primary/20 bg-primary-surface/30 p-4 mb-4 max-w-sm mx-auto text-left">
+                        <p class="text-[10px] font-black text-primary uppercase tracking-widest mb-2.5">次回のヒント</p>
+                        <div class="space-y-2">
+                            <template x-for="tip in nextTimeTips" :key="tip.label">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-sm flex-shrink-0 mt-px" x-text="tip.icon"></span>
+                                    <div class="min-w-0">
+                                        <p class="text-[10px] font-bold text-primary-dark" x-text="tip.label"></p>
+                                        <p class="text-xs text-text leading-relaxed mt-0.5" x-text="tip.text"></p>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </template>

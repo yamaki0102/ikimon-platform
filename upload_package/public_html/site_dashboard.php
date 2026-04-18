@@ -174,8 +174,7 @@ if ($stats) {
 
 <head>
     <?php include __DIR__ . '/components/meta.php'; ?>
-    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <style>
         /* Premium Dashboard Styles - Premium Light Theme (Cyber-Natural Aligned) */
         .glass-card {
@@ -1293,7 +1292,7 @@ if ($stats) {
 
                         this.map = new maplibregl.Map({
                             container: 'site-map',
-                            style: 'https://tile.openstreetmap.jp/styles/maptiler-basic-ja/style.json',
+                            style: IKIMON_MAP.style('light'),
                             center: center,
                             zoom: 15,
                             attributionControl: false

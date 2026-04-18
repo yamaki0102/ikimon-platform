@@ -17,8 +17,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
 
 <head>
     <?php include('components/meta.php'); ?>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+    <?php include __DIR__ . '/components/map_config.php'; ?>
     <style>
         .wizard-step {
             display: none;
@@ -346,6 +345,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         <div class="step-dot" :class="step >= 1 ? 'completed' : ''"></div>
         <div class="step-dot" :class="step >= 2 ? 'completed' : ''"></div>
         <div class="step-dot" :class="step >= 3 ? 'completed' : ''"></div>
+        <div class="step-dot" :class="step >= 4 ? 'completed' : ''"></div>
     </div>
 
     <div class="wizard-container">
@@ -435,71 +435,6 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                 </div>
             </div>
 
-            <div class="nav-buttons">
-                <button class="btn-back" @click="goStep(1)">← 戻る</button>
-                <button class="btn-next" @click="goStep(3)" :disabled="!eventDate">
-                    次へ →
-                </button>
-            </div>
-        </div>
-
-        <!-- ========== STEP 3: CONFIRM ========== -->
-        <div class="wizard-step" :class="step === 3 ? 'active' : ''">
-            <h2 class="text-lg font-black mb-1">✅ 確認</h2>
-            <p class="text-sm text-gray-400 mb-4">内容をチェックして作成！</p>
-
-            <div class="summary-card">
-                <div class="summary-row">
-                    <span class="icon">📍</span>
-                    <span x-text="locationName || '地図上の地点'"></span>
-                </div>
-                <div class="summary-row">
-                    <span class="icon">📅</span>
-                    <span x-text="formatDate()"></span>
-                </div>
-                <div class="summary-row">
-                    <span class="icon">⏰</span>
-                    <span x-text="startTime + ' 〜 ' + endTime"></span>
-                </div>
-                <div class="summary-row">
-                    <span class="icon">📡</span>
-                    <span x-text="'半径 ' + radiusM + 'm の投稿を自動集約'"></span>
-                </div>
-            </div>
-
-            <div class="form-field mt-4">
-                <label>タイトル（空欄なら自動生成）</label>
-                <input type="text" x-model="title" :placeholder="autoTitle()" maxlength="60">
-            </div>
-
-            <div class="form-field">
-                <label>メモ（任意・100字）</label>
-                <textarea x-model="memo" rows="2" maxlength="100" placeholder="簡単な説明など"></textarea>
-            </div>
-
-            <div class="form-field">
-                <label>🚩 集合場所（任意）</label>
-                <input type="text" x-model="meetingPoint" placeholder="例: ○○公園の駐車場前、バス停横の東屋" maxlength="200">
-                <div class="mt-2">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-xs text-gray-400">地図で集合地点をピン指定（タップで設定）</span>
-                        <template x-if="meetingLat">
-                            <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">📍 設定済み</span>
-                        </template>
-                    </div>
-                    <div id="meeting-map" class="meeting-map"></div>
-                    <div class="flex items-center gap-2 mt-1" x-show="meetingLat">
-                        <span class="text-xs text-gray-500" x-text="meetingLat ? meetingLat.toFixed(5) + ', ' + meetingLng.toFixed(5) : ''"></span>
-                        <button type="button" @click="clearMeetingPin()" class="text-xs text-red-400 hover:text-red-600">✕ クリア</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-field">
-                <label>🅿️ 駐車場（任意）</label>
-                <input type="text" x-model="parkingInfo" placeholder="例: 無料駐車場あり（30台）、最寄りコインP徒歩3分" maxlength="200">
-            </div>
-
             <div class="form-field">
                 <label>🌧️ 雨天時（任意）</label>
                 <select x-model="rainPolicy">
@@ -509,70 +444,227 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     <option value="rain_ok">雨天決行</option>
                 </select>
             </div>
+            <div class="form-field" x-show="rainPolicy">
+                <label>雨天判断時刻（任意）</label>
+                <input type="time" x-model="rainDecisionTime">
+            </div>
+            <div class="form-field">
+                <label>申込締切（任意）</label>
+                <input type="date" x-model="registrationDeadline" :min="today" :max="eventDate">
+            </div>
+
+            <div class="nav-buttons">
+                <button class="btn-back" @click="goStep(1)">← 戻る</button>
+                <button class="btn-next" @click="goStep(3)" :disabled="!eventDate">
+                    次へ →
+                </button>
+            </div>
+        </div>
+
+        <!-- ========== STEP 3: DETAILS ========== -->
+        <div class="wizard-step" :class="step === 3 ? 'active' : ''">
+            <h2 class="text-lg font-black mb-1">📝 詳細</h2>
+            <p class="text-sm text-gray-400 mb-4">すべて任意。後から編集もできるよ</p>
 
             <div class="form-field">
-                <label>⚠️ 注意事項（任意・500字）</label>
-                <textarea x-model="precautions" rows="3" maxlength="500" placeholder="例: 長靴推奨、虫除け持参、お子様連れOK"></textarea>
+                <label>タイトル（空欄なら自動生成）</label>
+                <input type="text" x-model="title" :placeholder="autoTitle()" maxlength="60">
             </div>
 
             <div class="form-field">
-                <label>見つけたい種（任意）</label>
-                <div class="flex gap-2">
-                    <input type="text" x-model="newSpecies" placeholder="種名を入力" maxlength="30"
-                        @keydown.enter.prevent="addSpecies()">
-                    <button @click="addSpecies()" class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-bold">追加</button>
+                <label>概要（任意）</label>
+                <input type="text" x-model="subtitle" placeholder="例: 春の水辺の生きもの観察" maxlength="200">
+            </div>
+
+            <div class="form-field">
+                <label>メモ（任意）</label>
+                <textarea x-model="memo" rows="2" maxlength="1000" placeholder="簡単な説明など"></textarea>
+            </div>
+
+            <!-- 折りたたみ: 場所・集合 -->
+            <button type="button" @click="showLocationDetails = !showLocationDetails"
+                class="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl text-sm font-bold text-gray-600 mt-2 mb-2">
+                <span>📍 場所・集合の詳細</span>
+                <span x-text="showLocationDetails ? '▲' : '▼'" class="text-xs"></span>
+            </button>
+            <div x-show="showLocationDetails" x-collapse>
+                <div class="form-field">
+                    <label>🚩 集合場所（任意）</label>
+                    <input type="text" x-model="meetingPoint" placeholder="例: ○○公園の駐車場前" maxlength="200">
+                    <div class="mt-2">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs text-gray-400">地図で集合地点をピン指定</span>
+                            <template x-if="meetingLat">
+                                <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">📍 設定済み</span>
+                            </template>
+                        </div>
+                        <div id="meeting-map" class="meeting-map"></div>
+                        <div class="flex items-center gap-2 mt-1" x-show="meetingLat">
+                            <span class="text-xs text-gray-500" x-text="meetingLat ? meetingLat.toFixed(5) + ', ' + meetingLng.toFixed(5) : ''"></span>
+                            <button type="button" @click="clearMeetingPin()" class="text-xs text-red-400 hover:text-red-600">✕ クリア</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="species-chips">
-                    <template x-for="(sp, i) in targetSpecies" :key="i">
-                        <span class="species-chip">
-                            <span x-text="sp"></span>
-                            <button @click="targetSpecies.splice(i, 1)">×</button>
+                <div class="form-field">
+                    <label>🅿️ 駐車場（任意）</label>
+                    <input type="text" x-model="parkingInfo" placeholder="例: 無料駐車場あり（30台）" maxlength="200">
+                </div>
+            </div>
+
+            <!-- 折りたたみ: 参加条件 -->
+            <button type="button" @click="showConditions = !showConditions"
+                class="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl text-sm font-bold text-gray-600 mb-2">
+                <span>👥 参加条件</span>
+                <span x-text="showConditions ? '▲' : '▼'" class="text-xs"></span>
+            </button>
+            <div x-show="showConditions" x-collapse>
+                <div class="form-field">
+                    <label>イベント種別</label>
+                    <select x-model="eventCategory">
+                        <option value="">未設定</option>
+                        <option value="general">観察会</option>
+                        <option value="beginner">初心者向け</option>
+                        <option value="family">親子向け</option>
+                        <option value="theme">テーマ観察会</option>
+                        <option value="night">夜間観察</option>
+                        <option value="bioblitz">BioBlitz</option>
+                        <option value="school">学校・団体調査</option>
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                    <div class="form-field">
+                        <label>対象年齢</label>
+                        <select x-model="targetAge">
+                            <option value="">未設定</option>
+                            <option value="all">全年齢</option>
+                            <option value="adult">大人向け</option>
+                            <option value="family">親子向け</option>
+                            <option value="children">子ども向け</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>難易度</label>
+                        <select x-model="difficulty">
+                            <option value="">未設定</option>
+                            <option value="beginner">初心者OK</option>
+                            <option value="intermediate">中級</option>
+                            <option value="advanced">上級</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>定員（0 = 無制限）</label>
+                    <input type="number" x-model.number="maxParticipants" min="0" max="9999" placeholder="0">
+                </div>
+                <div class="form-field">
+                    <label>歩行距離（任意）</label>
+                    <input type="text" x-model="walkingDistance" placeholder="例: 約2km" maxlength="50">
+                </div>
+                <div class="form-field">
+                    <label>持ち物（任意）</label>
+                    <textarea x-model="equipment" rows="2" maxlength="500" placeholder="例: 長靴、虫除け、飲み物、双眼鏡"></textarea>
+                </div>
+                <div class="form-field">
+                    <label>貸出機材（任意）</label>
+                    <input type="text" x-model="rentalEquipment" placeholder="例: ルーペ、図鑑" maxlength="200">
+                </div>
+            </div>
+
+            <!-- 折りたたみ: オプション機能 -->
+            <button type="button" @click="showOptions = !showOptions"
+                class="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl text-sm font-bold text-gray-600 mb-2">
+                <span>⚙️ オプション機能</span>
+                <span x-text="showOptions ? '▲' : '▼'" class="text-xs"></span>
+            </button>
+            <div x-show="showOptions" x-collapse>
+                <div class="form-field">
+                    <label>⚠️ 注意事項（任意）</label>
+                    <textarea x-model="precautions" rows="3" maxlength="500" placeholder="例: 長靴推奨、虫除け持参"></textarea>
+                </div>
+                <div class="form-field">
+                    <label>見つけたい種（任意）</label>
+                    <div class="flex gap-2">
+                        <input type="text" x-model="newSpecies" placeholder="種名を入力" maxlength="30"
+                            @keydown.enter.prevent="addSpecies()">
+                        <button @click="addSpecies()" class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-bold">追加</button>
+                    </div>
+                    <div class="species-chips">
+                        <template x-for="(sp, i) in targetSpecies" :key="i">
+                            <span class="species-chip">
+                                <span x-text="sp"></span>
+                                <button @click="targetSpecies.splice(i, 1)">×</button>
+                            </span>
+                        </template>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>参加方式</label>
+                    <select x-model="eventType">
+                        <option value="open">誰でも参加できる</option>
+                        <option value="invite">招待制</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" x-model="enableLeaderboard" class="mt-1">
+                        <span>
+                            <span class="block text-sm font-bold text-gray-700">ランキングを表示</span>
+                            <span class="block text-xs text-gray-400 mt-1">投稿数と種数を自動集計</span>
                         </span>
-                    </template>
+                    </label>
                 </div>
-            </div>
-
-            <div class="form-field">
-                <label>参加方式</label>
-                <select x-model="eventType">
-                    <option value="open">誰でも参加できる</option>
-                    <option value="invite">招待制</option>
-                </select>
-            </div>
-
-            <div class="form-field">
-                <label class="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" x-model="enableLeaderboard" class="mt-1">
-                    <span>
-                        <span class="block text-sm font-bold text-gray-700">イベント内ランキングを表示する</span>
-                        <span class="block text-xs text-gray-400 mt-1">投稿数と発見種数を自動集計します</span>
-                    </span>
-                </label>
-            </div>
-
-            <div class="form-field">
-                <label class="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" x-model="enableBingo" class="mt-1">
-                    <span>
-                        <span class="block text-sm font-bold text-gray-700">ビンゴカードを自動生成する</span>
-                        <span class="block text-xs text-gray-400 mt-1">開催地に紐づく記録から 3x3 ビンゴを作ります</span>
-                    </span>
-                </label>
-            </div>
-
-            <div class="form-field">
-                <label>助成金・プロジェクト紐付け（任意）</label>
-                <select x-model="grantId">
-                    <option value="">-- 指定なし --</option>
-                    <option value="ToG_Nature_2025">ToG: 地域の自然史編纂助成 (2025)</option>
-                    <option value="CSR_AcmeCorp_100">企業CSR: AcmeCorp 100年の森プロジェクト</option>
-                    <option value="30by30_Shizuoka">自治体: 静岡30by30コンソーシアム</option>
-                </select>
-                <p class="text-xs text-gray-400 mt-1">この観察会の記録が自動的に指定プロジェクトのレポートに集計されます。</p>
+                <div class="form-field">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" x-model="enableBingo" class="mt-1">
+                        <span>
+                            <span class="block text-sm font-bold text-gray-700">ビンゴカードを自動生成</span>
+                            <span class="block text-xs text-gray-400 mt-1">3x3 ビンゴを作ります</span>
+                        </span>
+                    </label>
+                </div>
+                <div class="form-field">
+                    <label>イベントコード（任意）</label>
+                    <div class="flex items-center gap-2">
+                        <input type="text" x-model="eventCode" placeholder="英数字 (例: AKAMIMI2023)"
+                            @input="eventCode = eventCode.toUpperCase().replace(/[^A-Z0-9]/g, '')">
+                        <span class="text-xs text-gray-400 shrink-0">参加者が調査時に<br>入力するコード</span>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label>助成金・プロジェクト紐付け（任意）</label>
+                    <select x-model="grantId">
+                        <option value="">-- 指定なし --</option>
+                        <option value="ToG_Nature_2025">ToG: 地域の自然史編纂助成 (2025)</option>
+                        <option value="CSR_AcmeCorp_100">企業CSR: AcmeCorp 100年の森プロジェクト</option>
+                        <option value="30by30_Shizuoka">自治体: 静岡30by30コンソーシアム</option>
+                    </select>
+                </div>
             </div>
 
             <div class="nav-buttons">
                 <button class="btn-back" @click="goStep(2)">← 戻る</button>
+                <button class="btn-next" @click="goStep(4)">次へ →</button>
+            </div>
+        </div>
+
+        <!-- ========== STEP 4: CONFIRM ========== -->
+        <div class="wizard-step" :class="step === 4 ? 'active' : ''">
+            <h2 class="text-lg font-black mb-1">✅ 確認</h2>
+            <p class="text-sm text-gray-400 mb-4">内容をチェックして作成！</p>
+
+            <div class="summary-card">
+                <div class="summary-row"><span class="icon">📍</span><span x-text="locationName || '地図上の地点'"></span></div>
+                <div class="summary-row"><span class="icon">📅</span><span x-text="formatDate()"></span></div>
+                <div class="summary-row"><span class="icon">⏰</span><span x-text="startTime + ' 〜 ' + endTime"></span></div>
+                <div class="summary-row"><span class="icon">📡</span><span x-text="'半径 ' + radiusM + 'm'"></span></div>
+                <div class="summary-row" x-show="title"><span class="icon">✏️</span><span x-text="title || autoTitle()"></span></div>
+                <div class="summary-row" x-show="eventCategory"><span class="icon">🏷️</span><span x-text="({general:'観察会',beginner:'初心者向け',family:'親子向け',theme:'テーマ観察会',night:'夜間観察',bioblitz:'BioBlitz',school:'学校・団体調査'})[eventCategory] || ''"></span></div>
+                <div class="summary-row" x-show="maxParticipants > 0"><span class="icon">👥</span><span x-text="'定員 ' + maxParticipants + '名'"></span></div>
+                <div class="summary-row" x-show="rainPolicy"><span class="icon">🌧️</span><span x-text="({cancel:'雨天中止',light_ok:'小雨決行',rain_ok:'雨天決行'})[rainPolicy] || ''"></span></div>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="btn-back" @click="goStep(3)">← 戻る</button>
                 <button class="btn-create" @click="createEvent()" :disabled="submitting">
                     <span x-show="!submitting">🎉 観察会をつくる！</span>
                     <span x-show="submitting" class="animate-pulse">作成中...</span>
@@ -581,24 +673,11 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
         </div>
 
         <!-- ========== SUCCESS ========== -->
-        <div class="wizard-step" :class="step === 4 ? 'active' : ''">
+        <div class="wizard-step" :class="step === 5 ? 'active' : ''">
             <div class="success-screen">
                 <div class="emoji">🎊</div>
                 <h2>観察会ができたよ！</h2>
                 <p class="text-sm text-gray-500 mb-6">URLをシェアすれば誰でも参加できる</p>
-
-                <label>注意事項（持ち物・服装など）</label>
-                <textarea x-model="precautions" rows="3" placeholder="長袖長ズボン推奨、飲み物持参など"></textarea>
-            </div>
-
-            <!-- Event Code -->
-            <div class="form-field">
-                <label>イベントコード（任意）</label>
-                <div class="flex items-center gap-2">
-                    <input type="text" x-model="eventCode" placeholder="英数字 (例: AKAMIMI2023)"
-                        @input="eventCode = eventCode.toUpperCase().replace(/[^A-Z0-9]/g, '')">
-                    <span class="text-xs text-gray-400 shrink-0">参加者が調査時に<br>入力するコード</span>
-                </div>
             </div>
 
             <div class="summary-card text-left mb-4">
@@ -643,7 +722,6 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                 meetingMarker: null,
                 parkingInfo: '',
                 rainPolicy: '',
-                rainPolicy: '',
                 precautions: '',
                 eventCode: '',
                 eventType: 'open',
@@ -652,6 +730,19 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                 enableLeaderboard: true,
                 targetSpecies: [],
                 newSpecies: '',
+                subtitle: '',
+                rainDecisionTime: '',
+                maxParticipants: 0,
+                registrationDeadline: '',
+                targetAge: '',
+                difficulty: '',
+                walkingDistance: '',
+                equipment: '',
+                rentalEquipment: '',
+                eventCategory: '',
+                showLocationDetails: false,
+                showConditions: false,
+                showOptions: false,
                 submitting: false,
                 createdId: '',
                 shareUrl: '',
@@ -670,6 +761,11 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                         if (typeof lucide !== 'undefined') lucide.createIcons();
                         this.initMap();
                     });
+                    this.$watch('showLocationDetails', (val) => {
+                        if (val && this.step === 3) {
+                            this.$nextTick(() => this.initMeetingMap());
+                        }
+                    });
                     this.loadSites();
                     // Default date to tomorrow
                     const tomorrow = new Date();
@@ -677,37 +773,49 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     this.eventDate = tomorrow.toISOString().slice(0, 10);
                 },
 
-                initMap() {
-                    // Default to user location or Japan center
-                    this.map = L.map('picker-map').setView([34.97, 138.38], 12);
-                    L.tileLayer('https://tile.openstreetmap.jp/{z}/{x}/{y}.png', {
-                        maxZoom: 19,
-                        attribution: '© OpenStreetMap'
-                    }).addTo(this.map);
-
-                    // Try geolocation
-                    if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(
-                            (pos) => {
-                                this.lat = pos.coords.latitude;
-                                this.lng = pos.coords.longitude;
-                                this.map.setView([this.lat, this.lng], 15);
-                                this.placeMarker();
-                            },
-                            (err) => {
-                                console.warn('Geolocation failed:', err.message);
-                            }, {
-                                enableHighAccuracy: true,
-                                timeout: 10000,
-                                maximumAge: 60000
-                            }
-                        );
+                _circleGeoJSON(lng, lat, radiusM) {
+                    const coords = [];
+                    const km = radiusM / 1000;
+                    for (let i = 0; i <= 64; i++) {
+                        const a = (i / 64) * 2 * Math.PI;
+                        const dx = km * Math.cos(a);
+                        const dy = km * Math.sin(a);
+                        coords.push([lng + dx / (111.320 * Math.cos(lat * Math.PI / 180)), lat + dy / 110.574]);
                     }
+                    return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] } };
+                },
 
-                    // Click to place marker
+                initMap() {
+                    this.map = new maplibregl.Map({
+                        container: 'picker-map',
+                        style: IKIMON_MAP.style('light'),
+                        center: [138.38, 34.97],
+                        zoom: 12
+                    });
+
+                    this.map.on('load', () => {
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(
+                                (pos) => {
+                                    this.lat = pos.coords.latitude;
+                                    this.lng = pos.coords.longitude;
+                                    this.map.jumpTo({ center: [this.lng, this.lat], zoom: 15 });
+                                    this.placeMarker();
+                                },
+                                (err) => {
+                                    console.warn('Geolocation failed:', err.message);
+                                }, {
+                                    enableHighAccuracy: true,
+                                    timeout: 10000,
+                                    maximumAge: 60000
+                                }
+                            );
+                        }
+                    });
+
                     this.map.on('click', (e) => {
-                        this.lat = Math.round(e.latlng.lat * 100000) / 100000;
-                        this.lng = Math.round(e.latlng.lng * 100000) / 100000;
+                        this.lat = Math.round(e.lngLat.lat * 100000) / 100000;
+                        this.lng = Math.round(e.lngLat.lng * 100000) / 100000;
                         this.placeMarker();
                     });
                 },
@@ -721,7 +829,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                         (pos) => {
                             this.lat = pos.coords.latitude;
                             this.lng = pos.coords.longitude;
-                            this.map.setView([this.lat, this.lng], 16);
+                            this.map.jumpTo({ center: [this.lng, this.lat], zoom: 16 });
                             this.placeMarker();
                         },
                         (err) => {
@@ -735,30 +843,28 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                 },
 
                 placeMarker() {
-                    if (this.marker) this.map.removeLayer(this.marker);
-                    if (this.circle) this.map.removeLayer(this.circle);
+                    if (this.marker) this.marker.remove();
 
-                    const pinIcon = L.divIcon({
-                        className: '',
-                        html: '<div style="font-size:28px;text-align:center;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))">📍</div>',
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 30]
-                    });
-                    this.marker = L.marker([this.lat, this.lng], {
-                        icon: pinIcon
-                    }).addTo(this.map);
-                    this.circle = L.circle([this.lat, this.lng], {
-                        radius: this.radiusM,
-                        color: '#10b981',
-                        fillColor: '#10b981',
-                        fillOpacity: 0.1,
-                        weight: 2
-                    }).addTo(this.map);
+                    const pinEl = document.createElement('div');
+                    pinEl.style.cssText = 'font-size:28px;text-align:center;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));pointer-events:none';
+                    pinEl.textContent = '📍';
+                    this.marker = new maplibregl.Marker({ element: pinEl })
+                        .setLngLat([this.lng, this.lat])
+                        .addTo(this.map);
+
+                    const circleData = this._circleGeoJSON(this.lng, this.lat, this.radiusM);
+                    if (this.map.getSource('picker-radius')) {
+                        this.map.getSource('picker-radius').setData(circleData);
+                    } else {
+                        this.map.addSource('picker-radius', { type: 'geojson', data: circleData });
+                        this.map.addLayer({ id: 'picker-radius-fill', type: 'fill', source: 'picker-radius', paint: { 'fill-color': '#10b981', 'fill-opacity': 0.1 } });
+                        this.map.addLayer({ id: 'picker-radius-line', type: 'line', source: 'picker-radius', paint: { 'line-color': '#10b981', 'line-width': 2 } });
+                    }
                 },
 
                 updateRadiusCircle() {
-                    if (this.circle) {
-                        this.circle.setRadius(this.radiusM);
+                    if (this.map && this.map.getSource('picker-radius') && this.lat) {
+                        this.map.getSource('picker-radius').setData(this._circleGeoJSON(this.lng, this.lat, this.radiusM));
                     }
                 },
 
@@ -781,7 +887,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     }
                     this.locationName = site.name || this.locationName;
                     this.radiusM = Math.max(this.radiusM, 500);
-                    this.map.setView([this.lat, this.lng], 15);
+                    this.map.jumpTo({ center: [this.lng, this.lat], zoom: 15 });
                     this.placeMarker();
                 },
 
@@ -820,7 +926,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     if (!this.locationName && parts.length > 0) {
                         this.locationName = parts[0].trim();
                     }
-                    this.map.setView([this.lat, this.lng], 16);
+                    this.map.jumpTo({ center: [this.lng, this.lat], zoom: 16 });
                     this.placeMarker();
                 },
 
@@ -828,10 +934,10 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     this.step = n;
                     if (n === 1) {
                         this.$nextTick(() => {
-                            if (this.map) this.map.invalidateSize();
+                            if (this.map) this.map.resize();
                         });
                     }
-                    if (n === 3) {
+                    if (n === 3 && this.showLocationDetails) {
                         this.$nextTick(() => {
                             this.initMeetingMap();
                         });
@@ -840,51 +946,54 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
 
                 initMeetingMap() {
                     if (this.meetingMap) {
-                        this.meetingMap.invalidateSize();
+                        this.meetingMap.resize();
                         return;
                     }
-                    const center = this.lat ? [this.lat, this.lng] : [34.97, 138.38];
-                    this.meetingMap = L.map('meeting-map').setView(center, this.lat ? 16 : 12);
-                    L.tileLayer('https://tile.openstreetmap.jp/{z}/{x}/{y}.png', {
-                        maxZoom: 19,
-                        attribution: '© OSM'
-                    }).addTo(this.meetingMap);
-                    // Show event area circle as reference
-                    if (this.lat) {
-                        L.circle([this.lat, this.lng], {
-                            radius: this.radiusM,
-                            color: '#10b981',
-                            fillColor: '#10b981',
-                            fillOpacity: 0.05,
-                            weight: 1,
-                            dashArray: '4'
-                        }).addTo(this.meetingMap);
-                    }
+                    const center = this.lat ? [this.lng, this.lat] : [138.38, 34.97];
+                    this.meetingMap = new maplibregl.Map({
+                        container: 'meeting-map',
+                        style: IKIMON_MAP.style('light'),
+                        center: center,
+                        zoom: this.lat ? 16 : 12
+                    });
+                    this.meetingMap.on('load', () => {
+                        if (this.lat) {
+                            this.meetingMap.addSource('meeting-ref-radius', {
+                                type: 'geojson',
+                                data: this._circleGeoJSON(this.lng, this.lat, this.radiusM)
+                            });
+                            this.meetingMap.addLayer({
+                                id: 'meeting-ref-fill', type: 'fill', source: 'meeting-ref-radius',
+                                paint: { 'fill-color': '#10b981', 'fill-opacity': 0.05 }
+                            });
+                            this.meetingMap.addLayer({
+                                id: 'meeting-ref-line', type: 'line', source: 'meeting-ref-radius',
+                                paint: { 'line-color': '#10b981', 'line-width': 1, 'line-dasharray': [4, 4] }
+                            });
+                        }
+                    });
                     this.meetingMap.on('click', (e) => {
-                        this.meetingLat = Math.round(e.latlng.lat * 100000) / 100000;
-                        this.meetingLng = Math.round(e.latlng.lng * 100000) / 100000;
+                        this.meetingLat = Math.round(e.lngLat.lat * 100000) / 100000;
+                        this.meetingLng = Math.round(e.lngLat.lng * 100000) / 100000;
                         this.placeMeetingMarker();
                     });
                 },
 
                 placeMeetingMarker() {
-                    if (this.meetingMarker) this.meetingMap.removeLayer(this.meetingMarker);
-                    const icon = L.divIcon({
-                        className: '',
-                        html: '<div style="font-size:24px;text-align:center;">🚩</div>',
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 28]
-                    });
-                    this.meetingMarker = L.marker([this.meetingLat, this.meetingLng], {
-                        icon
-                    }).addTo(this.meetingMap);
+                    if (this.meetingMarker) this.meetingMarker.remove();
+                    const flagEl = document.createElement('div');
+                    flagEl.style.cssText = 'font-size:24px;text-align:center;pointer-events:none';
+                    flagEl.textContent = '🚩';
+                    this.meetingMarker = new maplibregl.Marker({ element: flagEl })
+                        .setLngLat([this.meetingLng, this.meetingLat])
+                        .addTo(this.meetingMap);
                 },
 
                 clearMeetingPin() {
                     this.meetingLat = 0;
                     this.meetingLng = 0;
                     if (this.meetingMarker) {
-                        this.meetingMap.removeLayer(this.meetingMarker);
+                        this.meetingMarker.remove();
                         this.meetingMarker = null;
                     }
                 },
@@ -917,12 +1026,14 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                     try {
                         const body = {
                             title: this.title || '',
+                            subtitle: this.subtitle,
                             memo: this.memo,
                             meeting_point: this.meetingPoint,
                             meeting_lat: this.meetingLat || null,
                             meeting_lng: this.meetingLng || null,
                             parking_info: this.parkingInfo,
                             rain_policy: this.rainPolicy,
+                            rain_decision_time: this.rainDecisionTime,
                             precautions: this.precautions,
                             event_code: this.eventCode,
                             event_type: this.eventType,
@@ -933,6 +1044,14 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                             event_date: this.eventDate,
                             start_time: this.startTime,
                             end_time: this.endTime,
+                            max_participants: this.maxParticipants,
+                            registration_deadline: this.registrationDeadline,
+                            target_age: this.targetAge,
+                            difficulty: this.difficulty,
+                            walking_distance: this.walkingDistance,
+                            equipment: this.equipment,
+                            rental_equipment: this.rentalEquipment,
+                            event_category: this.eventCategory,
                             location: {
                                 type: this.selectedSiteId ? 'site' : 'custom',
                                 site_id: this.selectedSiteId || null,
@@ -959,7 +1078,7 @@ $meta_description = "30秒で観察会を作成。場所と日時を選ぶだけ
                             }
                             this.createdId = data.event.id;
                             this.shareUrl = window.location.origin + '/event_detail.php?id=' + this.createdId;
-                            this.step = 4;
+                            this.step = 5;
                         } else {
                             alert(data.message || '作成に失敗しました');
                         }

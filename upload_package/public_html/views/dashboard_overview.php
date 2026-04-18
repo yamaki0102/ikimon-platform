@@ -303,8 +303,7 @@ $latestObs = is_array($obsData) ? array_slice(array_reverse($obsData), 0, 6) : [
 </div>
 
 <!-- Map Logic Integration -->
-<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<?php include __DIR__ . '/../components/map_config.php'; ?>
 <script nonce="<?= CspNonce::attr() ?>">
     (function() {
         let map;
@@ -315,7 +314,7 @@ $latestObs = is_array($obsData) ? array_slice(array_reverse($obsData), 0, 6) : [
         function initMap() {
             if (map) return;
             // White Theme Map (Positron)
-            const styleUrl = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+            const styleUrl = IKIMON_MAP.style('light');
 
             try {
                 // Default center if no site data
