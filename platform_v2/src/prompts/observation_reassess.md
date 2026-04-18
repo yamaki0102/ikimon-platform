@@ -37,7 +37,14 @@
 - `geographic_context` — 緯度経度・季節から見た観察の妥当性や地理的特徴（例「浜松の海岸近くは該当種の分布北限」）。
 - `seasonal_context` — 季節・時期情報（例「4月中旬は蜂群れ始め」）。
 - `coexisting_taxa` — 主役以外に写り込む生きもの／植生。同定できた範囲で和名・属・科・生活形。**被写体として別 subject に昇格させたいものをここに。**
-  - 各要素: `{ "name": "...", "rank": "species|genus|family|lifeform", "confidence": 0.0-1.0, "note": "在来/外来など補足" }`
+  - 各要素: `{ "name": "...", "scientific_name": "...", "rank": "species|genus|family|lifeform", "confidence": 0.0-1.0, "note": "在来/外来など補足" }`
+- **`scientific_name` (学名) は GBIF Backbone Taxonomy との照合に使う。主種 (`recommended_taxon_name` に対応する `scientific_name` フィールド) と coexisting_taxa の各要素の両方で、`rank` に応じた学名を**必ず**入れる：
+  - `rank=species` → 二名法（属名 + 種小名、例: `Plagusia dentipes`）
+  - `rank=genus` → 属名のみ（例: `Myrmarachne`）
+  - `rank=family` → 科名（例: `Salticidae`）
+  - `rank=order` → 目名（例: `Araneae`）
+  - `rank=lifeform` → 空文字（学名無しで可）
+- 推測でも構わない。不明なら空文字。ただし和名と矛盾する学名は書くな。
 - `fun_fact` — 主種にまつわる短い豆知識（事実ベース・推測禁止）。
 - `fun_fact_grounded` — `fun_fact` が一般常識範囲の事実か (`true`) あるいは要出典 (`false`)。
 - `observer_boost` — 観察者に対する一言激励（内面用語・学術用語禁止、自然な日本語、30字以内）。
@@ -57,6 +64,7 @@
   "confidence_band": "high|medium|low",
   "recommended_rank": "species|genus|family|order|lifeform",
   "recommended_taxon_name": "ヒメスミレ",
+  "recommended_scientific_name": "Viola inconspicua",
   "best_specific_taxon_name": "ヒメスミレ",
   "narrative": "...",
   "simple_summary": "...",
@@ -73,7 +81,7 @@
   "geographic_context": "...",
   "seasonal_context": "...",
   "coexisting_taxa": [
-    {"name":"カラスノエンドウ","rank":"species","confidence":0.8,"note":"在来"}
+    {"name":"カラスノエンドウ","scientific_name":"Vicia sativa subsp. nigra","rank":"species","confidence":0.8,"note":"在来"}
   ]
 }
 ```

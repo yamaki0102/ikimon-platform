@@ -23,6 +23,7 @@ type GeminiJson = {
   confidence_band?: string;
   recommended_rank?: string;
   recommended_taxon_name?: string;
+  recommended_scientific_name?: string;
   best_specific_taxon_name?: string;
   narrative?: string;
   simple_summary?: string;
