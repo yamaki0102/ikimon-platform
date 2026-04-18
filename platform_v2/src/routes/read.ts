@@ -132,8 +132,10 @@ const OBSERVATION_DETAIL_STYLES = `
   @media (min-width: 960px) {
     .obs-layers-grid { grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
     .obs-layers-grid > .obs-layer { margin: 0 !important; }
-    /* 横長な Layer（同定リスト・場所の物語）は全幅 span。他は 1col */
-    .obs-layers-grid > .obs-layer-2, .obs-layers-grid > .obs-layer-3 { grid-column: 1 / -1; }
+    /* 全幅 span (優先度 高 or 内容が横長): 名前と分類 / この生きものについて / 場所の物語 */
+    .obs-layers-grid > .obs-layer-2,
+    .obs-layers-grid > .obs-layer-6,
+    .obs-layers-grid > .obs-layer-3 { grid-column: 1 / -1; }
   }
   .obs-layer { display: flex; flex-direction: column; gap: 14px; margin-bottom: 0; padding: 20px; border-radius: 18px; background: #fff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 1px 2px rgba(15,23,42,.03); }
   .obs-layer-title { margin: 0; font-size: 17px; font-weight: 900; color: #0f172a; letter-spacing: .01em; }
@@ -979,9 +981,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const contextBlock = (coexistingSection || soundsSection || envSection)
       ? `<section class="section obs-layer"><h2 class="obs-layer-title">写真と音声から拾えたこと</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
 
-    // PC で Layer 1-6 を 2 カラム配置して余白を埋める。スマホは縦並びのまま。
-    // hintBlock（絞り込みヒント）は必ず最上段全幅、ユーザーに早く届かせる。
-    const layersGrid = `<div class="obs-layers-grid">${layer1}${layer2}${layer3}${contextBlock}${ctaBlock}${layer6}</div>`;
+    // 表示優先順位:
+    //   1) hintBlock (いっしょに絞るためのメモ) — Hero 直下 全幅
+    //   2) layer2 (名前と分類) — 全幅
+    //   3) layer6 (この生きものについて — 豆知識) — ユーザー指示で ctaBlock より優先。全幅で目立たせる
+    //   4) layer3 (場所の物語) — 全幅
+    //   5) layer1 / contextBlock / ctaBlock は PC 2col で並ぶ
+    const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
     const detailBody = `${heroBlock}${hintBlock}${layersGrid}`;
 
     reply.type("text/html; charset=utf-8");
