@@ -31,8 +31,11 @@ $latest_obs = DataStore::getLatest('observations', 12, function ($item) use ($fi
     if (strpos($userName, 'E2E_') === 0) return false;
     if (preg_match('/^gues$/i', $userName)) return false;
     if (preg_match('/^Guest$/i', $userName)) return false;
-    $photo = $item['photos'][0] ?? '';
-    if (empty($photo) || strpos($photo, 'sample_') !== false) return false;
+    if (!empty($item['photo_missing'])) return false;
+    $photos = is_array($item['photos'] ?? null) ? array_values(array_filter($item['photos'], fn($p) => is_string($p) && $p !== '')) : [];
+    if (empty($photos)) return false;
+    $photo = $photos[0];
+    if (strpos($photo, 'sample_') !== false) return false;
     if (!preg_match('/^uploads\//', $photo)) return false;
 
     if ($filter === 'unidentified') {
@@ -688,6 +691,11 @@ $homeUiText = [
             <!-- Feed Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style="gap:var(--phi-lg)">
                 <?php foreach ($latest_obs as $obs):
+                    $src = $obs['source'] ?? 'post';
+                    if ($src === 'post' && (
+                        !empty($obs['photo_missing']) ||
+                        empty(array_filter(is_array($obs['photos'] ?? null) ? $obs['photos'] : [], fn($p) => is_string($p) && $p !== '' && str_starts_with($p, 'uploads/')))
+                    )) continue;
                     $obsReactDir = DATA_DIR . '/reactions/' . $obs['id'];
                     $obsReactTypes = ['footprint', 'like', 'suteki', 'manabi'];
                     $obsReactions = [];
