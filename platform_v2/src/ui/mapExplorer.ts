@@ -1139,7 +1139,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         ],
         'icon-size': 1,
         'icon-allow-overlap': true,
-        'icon-anchor': 'bottom',
+        'icon-anchor': 'center',
       },
     });
 
