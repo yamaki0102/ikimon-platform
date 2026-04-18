@@ -134,6 +134,8 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         metadata: {
           visitId: result.visitId,
           occurrenceId: result.occurrenceId,
+          occurrenceIds: result.occurrenceIds,
+          occurrenceCount: result.occurrenceIds.length,
           placeId: result.placeId,
           compatibilityAttempted: result.compatibility?.attempted ?? false,
           compatibilitySucceeded: result.compatibility?.succeeded ?? false,

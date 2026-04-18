@@ -166,6 +166,17 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-id-note { margin: 6px 0 0; color: #475569; font-size: 13px; line-height: 1.6; }
   .obs-empty { color: #94a3b8; font-size: 13.5px; text-align: center; padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px dashed rgba(15,23,42,.1); }
 
+  /* ADR-0004: 主種 + 共生種グリッド */
+  .obs-subjects { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 8px; }
+  .obs-subjects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .obs-subject-card { padding: 12px; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); display: flex; flex-direction: column; gap: 4px; }
+  .obs-subject-card.is-primary { background: linear-gradient(135deg, #ecfdf5, #f0fdf4); border-color: rgba(16,185,129,.25); }
+  .obs-subject-role { font-size: 10.5px; font-weight: 900; letter-spacing: .1em; color: #64748b; text-transform: uppercase; }
+  .obs-subject-card.is-primary .obs-subject-role { color: #047857; }
+  .obs-subject-name { font-size: 14.5px; font-weight: 900; color: #0f172a; line-height: 1.3; }
+  .obs-subject-rank { font-size: 11.5px; color: #64748b; font-weight: 700; }
+  .obs-subject-conf { font-size: 11px; font-weight: 800; color: #16a34a; }
+
   .obs-peers { margin: 0; padding: 10px 14px; background: rgba(168,85,247,.06); border-radius: 10px; font-size: 13px; color: #6b21a8; border: 1px solid rgba(168,85,247,.15); }
   .obs-nearby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
   .obs-nearby-card { display: flex; flex-direction: column; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); overflow: hidden; text-decoration: none; color: inherit; transition: transform .15s ease; }
@@ -866,6 +877,23 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            ${heavy.lineage.map((l) => `<span class="obs-lineage-item"><small>${escapeHtml(l.rank)}</small>${escapeHtml(l.name)}</span>`).join('<span class="obs-lineage-sep">›</span>')}
          </div>`
       : "";
+
+    // ADR-0004: 主種 + 共生種グリッド。2以上 subject があれば表示。
+    const subjectGrid = heavy && heavy.subjects.length >= 2
+      ? `<div class="obs-subjects">
+           <div class="obs-story-eyebrow">1枚に写ったほかの生きもの</div>
+           <div class="obs-subjects-grid">
+             ${heavy.subjects.map((s) => `
+               <div class="obs-subject-card${s.isPrimary ? " is-primary" : ""}" data-role="${escapeHtml(s.roleHint)}">
+                 <div class="obs-subject-role">${s.isPrimary ? "🎯 主被写体" : s.roleHint === "vegetation" ? "🌿 植生" : s.roleHint === "alt_candidate" ? "🔀 別候補" : "🐾 同時に居た"}</div>
+                 <div class="obs-subject-name">${escapeHtml(s.displayName)}</div>
+                 ${s.rank ? `<div class="obs-subject-rank">${escapeHtml(s.rank)}</div>` : ""}
+                 ${typeof s.confidence === "number" ? `<div class="obs-subject-conf">${Math.round(s.confidence * 100)}%</div>` : ""}
+               </div>`).join("")}
+           </div>
+           <p class="obs-ai-note">※ 1 回の観察に複数の生きものが写っている時、主被写体とそれ以外を分けて保存しています。</p>
+         </div>`
+      : "";
     const idsList = snapshot.identifications.length > 0
       ? `<ul class="obs-id-list">
            ${snapshot.identifications.map((item) => `
@@ -885,6 +913,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const layer2 = `
       <section class="section obs-layer obs-layer-2">
         <h2 class="obs-layer-title">名前と分類</h2>
+        ${subjectGrid}
         ${lineageChips}
         ${idsList}
         <p class="obs-ai-note">🤖 写真から Gemini が複数候補を自動提示しています。市民同定と組み合わせて、もっとも説明力のある名前に近づけます。</p>

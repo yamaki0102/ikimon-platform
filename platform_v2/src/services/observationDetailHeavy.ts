@@ -21,11 +21,24 @@ export type PeerObserver = {
   observationCount: number;
 };
 
+export type SiblingSubject = {
+  occurrenceId: string;
+  subjectIndex: number;
+  displayName: string;
+  scientificName: string | null;
+  vernacularName: string | null;
+  rank: string | null;
+  roleHint: string;
+  confidence: number | null;
+  isPrimary: boolean;
+};
+
 export type ObservationDetailHeavy = {
   lineage: LineageBreadcrumb[];
   nearby: NearbyObservation[];
   peers: PeerObserver[];
   seasonalHistory: Array<{ month: number; count: number }>;
+  subjects: SiblingSubject[];
 };
 
 /**
@@ -166,7 +179,44 @@ export async function getObservationDetailHeavy(
     }
   }
 
-  return { lineage, nearby, peers, seasonalHistory };
+  // ADR-0004: 同 visit の subjects 一覧 (subject_index 昇順、primary=0 が先頭)
+  const subjects: SiblingSubject[] = [];
+  if (visitId) {
+    try {
+      const rows = await pool.query<{
+        occurrence_id: string;
+        subject_index: number;
+        scientific_name: string | null;
+        vernacular_name: string | null;
+        taxon_rank: string | null;
+        confidence_score: string | null;
+        source_payload: Record<string, unknown> | null;
+      }>(
+        `SELECT occurrence_id, subject_index, scientific_name, vernacular_name, taxon_rank,
+                confidence_score::text, source_payload
+           FROM occurrences WHERE visit_id = $1 ORDER BY subject_index ASC`,
+        [visitId],
+      );
+      for (const r of rows.rows) {
+        const v2sub = ((r.source_payload ?? {}) as { v2_subject?: Record<string, unknown> }).v2_subject ?? {};
+        subjects.push({
+          occurrenceId: r.occurrence_id,
+          subjectIndex: r.subject_index,
+          displayName: r.vernacular_name || r.scientific_name || "Unresolved",
+          scientificName: r.scientific_name,
+          vernacularName: r.vernacular_name,
+          rank: r.taxon_rank,
+          roleHint: String((v2sub as { role_hint?: string }).role_hint ?? (r.subject_index === 0 ? "primary" : "coexisting")),
+          confidence: r.confidence_score != null ? Number(r.confidence_score) : null,
+          isPrimary: r.subject_index === 0,
+        });
+      }
+    } catch {
+      // no-op
+    }
+  }
+
+  return { lineage, nearby, peers, seasonalHistory, subjects };
 }
 
 function normalizeAssetUrl(raw: string | null): string | null {

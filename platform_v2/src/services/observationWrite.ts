@@ -21,6 +21,29 @@ type ObservationPhotoInput = {
   bytes?: number | null;
 };
 
+/**
+ * ADR-0004: 1 observation に複数 subject を並列で保存するための入力型。
+ * 画面内の主被写体 + 背景生物、もしくは AI の代替候補を別々の subject として扱う。
+ *
+ * `isPrimary: true` の subject は subject_index=0、compatibilityWriter と photo 紐付けの対象。
+ * それ以外は v2 DB のみに保存（DwC-compliant occurrence として成立させる）。
+ *
+ * `roleHint` は UI の意味論保持に使う：
+ *   - "primary"     写真の主被写体
+ *   - "coexisting"  同じ写真に写った別個体（host plant 等）
+ *   - "vegetation"  群落・生活形レベル
+ *   - "alt_candidate" 同じ被写体に対する代替 taxa 候補
+ */
+export type ObservationSubjectInput = {
+  scientificName?: string | null;
+  vernacularName?: string | null;
+  rank?: string | null;
+  confidence?: number | null;
+  isPrimary?: boolean;
+  roleHint?: "primary" | "coexisting" | "vegetation" | "alt_candidate";
+  note?: string | null;
+};
+
 export type ObservationUpsertInput = {
   observationId?: string;
   legacyObservationId?: string | null;
@@ -50,12 +73,17 @@ export type ObservationUpsertInput = {
     rank?: string | null;
   } | null;
   photos?: ObservationPhotoInput[];
+  /** ADR-0004: 複数 subject を並列で書き込みたい時に使う。未指定なら従来通り taxon から 1件作る。 */
+  subjects?: ObservationSubjectInput[];
   sourcePayload?: Record<string, unknown>;
 };
 
 export type ObservationWriteResult = {
   visitId: string;
+  /** primary (subject_index=0) の occurrence_id。後方互換用。 */
   occurrenceId: string;
+  /** 全 subject の occurrence_id。primary が先頭。 */
+  occurrenceIds: string[];
   placeId: string;
   compatibility: {
     attempted: boolean;
@@ -63,6 +91,42 @@ export type ObservationWriteResult = {
     error?: string;
   };
 };
+
+/** 入力 subjects から書き込む subject 配列を組み立て。taxon はある場合のみ primary の先頭に差し込む。 */
+function resolveSubjects(input: ObservationUpsertInput): ObservationSubjectInput[] {
+  const inputSubjects = Array.isArray(input.subjects) ? input.subjects : [];
+  const fromTaxon = input.taxon
+    ? ({
+        scientificName: input.taxon.scientificName ?? null,
+        vernacularName: input.taxon.vernacularName ?? null,
+        rank: input.taxon.rank ?? null,
+        isPrimary: true,
+        roleHint: "primary" as const,
+      } as ObservationSubjectInput)
+    : null;
+
+  // subjects 未指定: taxon 1件 or 完全な null subject 1件
+  if (inputSubjects.length === 0) {
+    return [fromTaxon ?? { isPrimary: true, roleHint: "primary" }];
+  }
+
+  // subjects 指定あり
+  const normalized = inputSubjects.map((s, i) => ({
+    ...s,
+    isPrimary: s.isPrimary ?? i === 0,
+  }));
+  const hasPrimary = normalized.some((s) => s.isPrimary);
+
+  if (!hasPrimary) {
+    // 明示 primary なし: taxon を先頭 primary として差し込む（taxon もなければ最初の subject を primary に昇格）
+    if (fromTaxon) return [fromTaxon, ...normalized];
+    normalized[0] = { ...normalized[0]!, isPrimary: true, roleHint: normalized[0]?.roleHint ?? "primary" };
+    return normalized;
+  }
+
+  // 既に primary あり: primary を先頭にソート
+  return [...normalized].sort((a, b) => Number(Boolean(b.isPrimary)) - Number(Boolean(a.isPrimary)));
+}
 
 function assertObservationInput(input: ObservationUpsertInput): void {
   if (!input.userId || input.userId.trim() === "") {
@@ -84,7 +148,9 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const pool = getPool();
   const client = await pool.connect();
   const visitId = input.observationId?.trim() || randomUUID();
+  const subjects = resolveSubjects(input);
   const occurrenceId = makeOccurrenceId(visitId, 0);
+  const occurrenceIds = subjects.map((_, i) => makeOccurrenceId(visitId, i));
   const placeId = buildPlaceId({
     siteId: input.siteId,
     latitude: input.latitude,
@@ -189,51 +255,76 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
       ],
     );
 
+    // ADR-0004: subjects[] を subject_index 0..N で並列に INSERT。primary=0、背景生物は 1,2,...。
+    // 同 visit_id に対して subjects 件数より多い古い occurrence があれば削除（掃除）。
     await client.query(
-      `insert into occurrences (
-          occurrence_id, visit_id, legacy_observation_id, subject_index, scientific_name, vernacular_name,
-          taxon_rank, basis_of_record, organism_origin, cultivation, occurrence_status,
-          evidence_tier, data_quality, quality_grade, ai_assessment_status, best_supported_descendant_taxon,
-          biome, substrate_tags, evidence_tags, source_payload, created_at, updated_at
-       ) values (
-          $1, $2, $3, 0, $4, $5, $6, 'HumanObservation', $7, $8, 'present',
-          1, $9, $10, $11, $12, $13, $14::jsonb, $15::jsonb, $16::jsonb, $17, now()
-       )
-       on conflict (occurrence_id) do update set
-          scientific_name = excluded.scientific_name,
-          vernacular_name = excluded.vernacular_name,
-          taxon_rank = excluded.taxon_rank,
-          organism_origin = excluded.organism_origin,
-          cultivation = excluded.cultivation,
-          data_quality = excluded.data_quality,
-          quality_grade = excluded.quality_grade,
-          ai_assessment_status = excluded.ai_assessment_status,
-          best_supported_descendant_taxon = excluded.best_supported_descendant_taxon,
-          biome = excluded.biome,
-          substrate_tags = excluded.substrate_tags,
-          evidence_tags = excluded.evidence_tags,
-          source_payload = excluded.source_payload,
-          updated_at = now()`,
-      [
-        occurrenceId,
-        visitId,
-        input.legacyObservationId ?? visitId,
-        input.taxon?.scientificName ?? null,
-        input.taxon?.vernacularName ?? null,
-        input.taxon?.rank ?? null,
-        input.organismOrigin ?? null,
-        input.cultivation ?? null,
-        input.dataQuality ?? null,
-        input.qualityGrade ?? null,
-        input.aiAssessmentStatus ?? null,
-        input.bestSupportedDescendantTaxon ?? null,
-        input.biome ?? null,
-        JSON.stringify(input.substrateTags ?? []),
-        JSON.stringify(input.evidenceTags ?? []),
-        JSON.stringify(input.sourcePayload ?? {}),
-        observedAt,
-      ],
+      `delete from occurrences where visit_id = $1 and subject_index >= $2`,
+      [visitId, subjects.length],
     );
+
+    for (let i = 0; i < subjects.length; i += 1) {
+      const subject = subjects[i]!;
+      const occId = occurrenceIds[i]!;
+      const occPayload = {
+        ...(input.sourcePayload ?? {}),
+        v2_subject: {
+          subject_index: i,
+          is_primary: Boolean(subject.isPrimary),
+          role_hint: subject.roleHint ?? (i === 0 ? "primary" : "coexisting"),
+          confidence: typeof subject.confidence === "number" ? subject.confidence : null,
+          note: subject.note ?? null,
+        },
+      };
+      await client.query(
+        `insert into occurrences (
+            occurrence_id, visit_id, legacy_observation_id, subject_index, scientific_name, vernacular_name,
+            taxon_rank, basis_of_record, organism_origin, cultivation, occurrence_status,
+            confidence_score, evidence_tier, data_quality, quality_grade, ai_assessment_status, best_supported_descendant_taxon,
+            biome, substrate_tags, evidence_tags, source_payload, created_at, updated_at
+         ) values (
+            $1, $2, $3, $4, $5, $6, $7, 'HumanObservation', $8, $9, 'present',
+            $10, 1, $11, $12, $13, $14, $15, $16::jsonb, $17::jsonb, $18::jsonb, $19, now()
+         )
+         on conflict (occurrence_id) do update set
+            subject_index = excluded.subject_index,
+            scientific_name = excluded.scientific_name,
+            vernacular_name = excluded.vernacular_name,
+            taxon_rank = excluded.taxon_rank,
+            organism_origin = excluded.organism_origin,
+            cultivation = excluded.cultivation,
+            confidence_score = excluded.confidence_score,
+            data_quality = excluded.data_quality,
+            quality_grade = excluded.quality_grade,
+            ai_assessment_status = excluded.ai_assessment_status,
+            best_supported_descendant_taxon = excluded.best_supported_descendant_taxon,
+            biome = excluded.biome,
+            substrate_tags = excluded.substrate_tags,
+            evidence_tags = excluded.evidence_tags,
+            source_payload = excluded.source_payload,
+            updated_at = now()`,
+        [
+          occId,
+          visitId,
+          input.legacyObservationId ?? visitId,
+          i,
+          subject.scientificName ?? null,
+          subject.vernacularName ?? null,
+          subject.rank ?? null,
+          i === 0 ? (input.organismOrigin ?? null) : null,
+          i === 0 ? (input.cultivation ?? null) : null,
+          typeof subject.confidence === "number" ? Math.max(0, Math.min(1, subject.confidence)) : null,
+          i === 0 ? (input.dataQuality ?? null) : null,
+          i === 0 ? (input.qualityGrade ?? null) : null,
+          i === 0 ? (input.aiAssessmentStatus ?? null) : null,
+          i === 0 ? (input.bestSupportedDescendantTaxon ?? null) : null,
+          i === 0 ? (input.biome ?? null) : null,
+          JSON.stringify(i === 0 ? (input.substrateTags ?? []) : []),
+          JSON.stringify(i === 0 ? (input.evidenceTags ?? []) : []),
+          JSON.stringify(occPayload),
+          observedAt,
+        ],
+      );
+    }
 
     const photos = Array.isArray(input.photos) ? input.photos : [];
     const legacyPhotoKeys = photos.map((photo, index) => `observation_photo:${visitId}:${index}:${photo.path}`);
@@ -416,6 +507,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   return {
     visitId,
     occurrenceId,
+    occurrenceIds,
     placeId,
     compatibility,
   };
