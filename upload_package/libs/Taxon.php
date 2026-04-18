@@ -91,9 +91,9 @@ class Taxon {
     }
     public static function getJapaneseName($taxon_key) {
         // Local lookup first (GBIF Backbone VernacularName.tsv)
-        if ($taxon_key && defined('ROOT_DIR') && file_exists(ROOT_DIR . 'libs/OmoikaneDB.php')) {
+        if ($taxon_key && defined('ROOT_DIR') && file_exists(ROOT_DIR . '/libs/OmoikaneDB.php')) {
             try {
-                require_once ROOT_DIR . 'libs/OmoikaneDB.php';
+                require_once ROOT_DIR . '/libs/OmoikaneDB.php';
                 $db = new OmoikaneDB();
                 $pdo = $db->getPDO();
                 $stmt = $pdo->prepare(

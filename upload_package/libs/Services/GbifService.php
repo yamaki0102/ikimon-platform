@@ -29,9 +29,9 @@ class GbifService
         if (empty($scientificName)) return null;
 
         // 0. Local synonym resolution (GBIF Backbone taxon_synonyms table)
-        if (defined('ROOT_DIR') && file_exists(ROOT_DIR . 'libs/OmoikaneDB.php')) {
+        if (defined('ROOT_DIR') && file_exists(ROOT_DIR . '/libs/OmoikaneDB.php')) {
             try {
-                require_once ROOT_DIR . 'libs/OmoikaneDB.php';
+                require_once ROOT_DIR . '/libs/OmoikaneDB.php';
                 $db = new OmoikaneDB();
                 $pdo = $db->getPDO();
                 $synStmt = $pdo->prepare(

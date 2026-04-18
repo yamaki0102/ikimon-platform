@@ -62,7 +62,7 @@ class InvasiveAlertManager
         if (isset($cache[$scientificName])) return $cache[$scientificName];
 
         try {
-            require_once ROOT_DIR . 'libs/OmoikaneDB.php';
+            require_once ROOT_DIR . '/libs/OmoikaneDB.php';
             $db = new OmoikaneDB();
             $pdo = $db->getPDO();
 

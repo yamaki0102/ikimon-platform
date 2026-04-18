@@ -66,7 +66,7 @@ unset($allObs);
 $feedNuggets = [];
 if (!empty($latest_obs)) {
     try {
-        require_once ROOT_DIR . 'libs/OmoikaneDB.php';
+        require_once ROOT_DIR . '/libs/OmoikaneDB.php';
         $sciNames = [];
         foreach ($latest_obs as $_o) {
             $sn = $_o['taxon']['scientific_name'] ?? '';
