@@ -252,10 +252,10 @@ function landingCopy(lang: SiteLang) {
 function fieldLoopSectionCopy(lang: SiteLang) {
   const copy = {
     ja: {
-      eyebrow: "satellite → field → loop",
-      title: "衛星で目星をつけ、歩いて確かめ、ノートに積んでいく。",
-      lead: "このループが回るたびに、同じ道がちがって見えてくる。観測の空白と不在の証拠は、きちんと分けて扱う。",
-      primaryCta: "ループの詳細を見る",
+      eyebrow: "ikimon の考え方",
+      title: "フィールドループ",
+      lead: "衛星で狙いをつけ、歩いて確かめ、ノートに積む。このサイクルを回すほど、同じ道がちがって見えてくる。",
+      primaryCta: "フィールドループを詳しく見る",
       secondaryCta: "フィールドスキャン",
       loopTitle: "4 steps",
       principleTitle: "こだわり",
@@ -279,10 +279,10 @@ function fieldLoopSectionCopy(lang: SiteLang) {
       ],
     },
     en: {
-      eyebrow: "satellite → field → loop",
-      title: "Aim from the satellite, check it on foot, and write it down in the notebook.",
-      lead: "Every turn of the loop, the same path starts looking different. Blank coverage and evidence of absence are kept clearly apart.",
-      primaryCta: "See the loop",
+      eyebrow: "how ikimon works",
+      title: "Field Loop",
+      lead: "Aim from the satellite, check it on foot, write it in the notebook. The more you run this cycle, the more the same path looks different.",
+      primaryCta: "Learn about Field Loop",
       secondaryCta: "Field Scan",
       loopTitle: "4 steps",
       principleTitle: "what we care about",
@@ -306,10 +306,10 @@ function fieldLoopSectionCopy(lang: SiteLang) {
       ],
     },
     es: {
-      eyebrow: "satellite → field → loop",
-      title: "Apuntamos desde el satélite, lo comprobamos a pie, y lo anotamos en el cuaderno.",
-      lead: "Con cada vuelta del bucle, el mismo camino empieza a verse distinto. Vacío y ausencia se mantienen claramente separados.",
-      primaryCta: "Ver el bucle",
+      eyebrow: "cómo funciona ikimon",
+      title: "Field Loop",
+      lead: "Apunta desde el satélite, compruébalo a pie, escríbelo en el cuaderno. Cuantas más vueltas le das al ciclo, más diferente parece el mismo camino.",
+      primaryCta: "Ver Field Loop en detalle",
       secondaryCta: "Escaneo de Campo",
       loopTitle: "4 pasos",
       principleTitle: "lo que importa",
@@ -333,10 +333,10 @@ function fieldLoopSectionCopy(lang: SiteLang) {
       ],
     },
     "pt-BR": {
-      eyebrow: "satellite → field → loop",
-      title: "A gente mira pelo satélite, confere a pé, e anota no caderno.",
-      lead: "A cada volta do loop, o mesmo caminho começa a parecer diferente. Vazio e ausência ficam claramente separados.",
-      primaryCta: "Ver o loop",
+      eyebrow: "como o ikimon funciona",
+      title: "Field Loop",
+      lead: "Mire pelo satélite, confira a pé, anote no caderno. Quanto mais você repete esse ciclo, mais diferente parece o mesmo caminho.",
+      primaryCta: "Ver o Field Loop em detalhes",
       secondaryCta: "Escaneamento",
       loopTitle: "4 passos",
       principleTitle: "o que importa",
@@ -458,9 +458,6 @@ function buildLandingRootHtml(
       <div class="eyebrow">${escapeHtml(fieldLoop.eyebrow)}</div>
       <h2 id="field-loop-heading">${escapeHtml(fieldLoop.title)}</h2>
       <p>${escapeHtml(fieldLoop.lead)}</p>
-      <div class="field-loop-boundary-strip" aria-label="${escapeHtml(fieldLoop.boundaryTitle)}">
-        ${fieldLoop.boundaries.map((item) => `<span class="field-loop-boundary-chip">${escapeHtml(item)}</span>`).join("")}
-      </div>
       <div class="actions" style="margin-top:20px">
         <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(options.basePath, "/learn/field-loop"), lang))}">${escapeHtml(fieldLoop.primaryCta)}</a>
       </div>
