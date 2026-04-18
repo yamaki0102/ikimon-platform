@@ -29,6 +29,7 @@ export type HomeSnapshot = {
 export type ObservationDetailSnapshot = {
   occurrenceId: string;
   visitId: string;
+  placeId: string | null;
   observerUserId: string | null;
   displayName: string;
   scientificName: string | null;
@@ -37,6 +38,8 @@ export type ObservationDetailSnapshot = {
   observerName: string;
   placeName: string;
   municipality: string | null;
+  latitude: number | null;
+  longitude: number | null;
   photoUrls: string[];
   identifications: Array<{
     proposedName: string;
@@ -282,6 +285,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
   const detailResult = await pool.query<{
     occurrence_id: string;
     visit_id: string;
+    place_id: string | null;
     observer_user_id: string | null;
     display_name: string | null;
     scientific_name: string | null;
@@ -290,10 +294,13 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     observer_name: string | null;
     place_name: string | null;
     municipality: string | null;
+    latitude: number | null;
+    longitude: number | null;
   }>(
     `select
         o.occurrence_id,
         o.visit_id,
+        v.place_id,
         v.user_id as observer_user_id,
         coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
         o.scientific_name,
@@ -301,7 +308,9 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         v.note,
         coalesce(u.display_name, 'Unknown observer') as observer_name,
         coalesce(p.canonical_name, 'Unknown place') as place_name,
-        coalesce(v.observed_municipality, p.municipality) as municipality
+        coalesce(v.observed_municipality, p.municipality) as municipality,
+        p.center_latitude as latitude,
+        p.center_longitude as longitude
      from occurrences o
      join visits v on v.visit_id = o.visit_id
      left join users u on u.user_id = v.user_id
@@ -353,6 +362,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
   return {
     occurrenceId: base.occurrence_id,
     visitId: base.visit_id,
+    placeId: base.place_id,
     observerUserId: base.observer_user_id,
     displayName: base.display_name ?? "Unresolved",
     scientificName: base.scientific_name,
@@ -361,6 +371,8 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     observerName: base.observer_name ?? "Unknown observer",
     placeName: base.place_name ?? "Unknown place",
     municipality: base.municipality,
+    latitude: base.latitude,
+    longitude: base.longitude,
     photoUrls: photosResult.rows.map((row) => normalizeAssetUrl(row.photo_url)).filter((value): value is string => Boolean(value)),
     identifications: identificationsResult.rows.map((row) => ({
       proposedName: row.proposed_name,

@@ -14,6 +14,7 @@ import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { upsertUser, type UserUpsertInput } from "../services/userWrite.js";
 import { submitContact, type ContactSubmitInput } from "../services/contactSubmit.js";
 import { createVideoDirectUpload, markVideoReady } from "../services/videoUpload.js";
+import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import {
   assertObservationOwnedByUser,
   assertPrivilegedWriteAccess,
@@ -305,6 +306,31 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       } catch (error) {
         reply.code(500);
         return { ok: false, error: error instanceof Error ? error.message : "finalize_failed" };
+      }
+    },
+  );
+
+  // 観察へのリアクション (like/helpful/curious/thanks) トグル。
+  // session 必須、同じ user が既にそのリアクションをしていれば削除、いなければ追加。
+  app.post<{ Params: { id: string; type: string } }>(
+    "/api/v1/observations/:id/reactions/:type",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          reply.code(401);
+          return { ok: false, error: "session_required" };
+        }
+        const type = request.params.type as ReactionType;
+        if (!isValidReactionType(type)) {
+          reply.code(400);
+          return { ok: false, error: "invalid_reaction_type" };
+        }
+        const result = await toggleReaction(request.params.id, session.userId, type);
+        return { ok: true, ...result };
+      } catch (error) {
+        reply.code(500);
+        return { ok: false, error: error instanceof Error ? error.message : "reaction_failed" };
       }
     },
   );

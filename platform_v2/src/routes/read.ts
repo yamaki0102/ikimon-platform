@@ -8,6 +8,10 @@ import { getLandingSnapshot } from "../services/landingSnapshot.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
 import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
+import { getReactionSummary, type ReactionType } from "../services/observationReactions.js";
+import { getObserverStats } from "../services/observerStats.js";
+import { getTaxonInsight } from "../services/taxonInsights.js";
+import { getObservationDetailHeavy } from "../services/observationDetailHeavy.js";
 import {
   getExploreSnapshot,
   getHomeSnapshot,
@@ -66,6 +70,125 @@ function layout(
 }
 
 /** Small inline "state" card for 401 / 404 states — replaces the old dark-hero div. */
+function seasonFromDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "不明";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "不明";
+  const m = d.getMonth() + 1;
+  if (m >= 3 && m <= 5) return "春";
+  if (m >= 6 && m <= 8) return "夏";
+  if (m >= 9 && m <= 11) return "秋";
+  return "冬";
+}
+
+function formatAbsolute(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${y}.${mo}.${da} ${hh}:${mi}`;
+}
+
+const OBSERVATION_DETAIL_STYLES = `
+  .obs-hero { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (min-width: 860px) { .obs-hero { grid-template-columns: 7fr 5fr; } }
+  .obs-hero-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); }
+  .obs-hero-gallery .is-main { grid-column: 1 / -1; aspect-ratio: 4/3; }
+  .obs-hero-gallery .is-thumb { aspect-ratio: 1/1; }
+  .obs-hero-photo { border: 0; padding: 0; background: none; overflow: hidden; cursor: zoom-in; position: relative; }
+  .obs-hero-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
+  .obs-hero-photo:hover img { transform: scale(1.04); }
+  .obs-hero-placeholder { aspect-ratio: 4/3; display: grid; place-items: center; text-align: center; font-weight: 800; color: #475569; background: repeating-linear-gradient(0deg, #f0fdf4 0 24px, #ecfdf5 24px 25px); border-radius: 20px; gap: 8px; }
+  .obs-hero-placeholder span:first-child { font-size: 40px; }
+  .obs-hero-meta { display: flex; flex-direction: column; gap: 14px; padding: 4px; }
+  .obs-hero-title { margin: 0; font-size: 28px; font-weight: 900; color: #0f172a; letter-spacing: -.02em; line-height: 1.15; }
+  .obs-hero-byline { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; color: #475569; font-size: 13px; }
+  .obs-hero-observer { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: #0f172a; text-decoration: none; }
+  .obs-hero-avatar { width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 14px; }
+  .obs-hero-when { font-weight: 700; }
+  .obs-hero-place::before { content: "📍 "; }
+  .obs-hero-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .obs-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 5px 12px; font-size: 11.5px; font-weight: 800; background: rgba(16,185,129,.1); color: #047857; border: 1px solid rgba(16,185,129,.2); }
+  .obs-badge-species { background: rgba(59,130,246,.08); color: #1d4ed8; border-color: rgba(59,130,246,.2); }
+  .obs-badge-nearby { background: rgba(168,85,247,.08); color: #7e22ce; border-color: rgba(168,85,247,.2); }
+  .obs-reaction-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .obs-reaction { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; font-weight: 700; font-size: 13px; color: #334155; cursor: pointer; transition: transform .12s ease, background .2s ease; }
+  .obs-reaction:hover { background: #f9fafb; transform: translateY(-1px); }
+  .obs-reaction.is-reacted { background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.3); color: #047857; }
+  .obs-reaction-count { background: rgba(15,23,42,.06); padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 800; }
+  .obs-reaction-label { display: none; }
+  @media (min-width: 640px) { .obs-reaction-label { display: inline; } }
+
+  .obs-layer { display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; padding: 20px; border-radius: 18px; background: #fff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 1px 2px rgba(15,23,42,.03); }
+  .obs-layer-title { margin: 0; font-size: 17px; font-weight: 900; color: #0f172a; letter-spacing: .01em; }
+  .obs-story-block { padding: 14px 16px; background: #f9fafb; border-radius: 12px; border: 1px solid rgba(15,23,42,.05); }
+  .obs-story-ai { background: linear-gradient(135deg, #ecfdf5, #f0fdf4); border-color: rgba(16,185,129,.15); }
+  .obs-story-eyebrow { font-size: 11px; font-weight: 900; color: #64748b; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 6px; }
+  .obs-story-block p { margin: 0 0 6px; color: #334155; font-size: 14px; line-height: 1.7; }
+  .obs-ai-note { display: block; margin-top: 6px; color: #94a3b8; font-size: 11.5px; font-weight: 600; }
+
+  .obs-footprint { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+  .obs-footprint-row { padding: 12px 14px; background: #fffbeb; border-radius: 12px; border: 1px solid rgba(245,158,11,.2); display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+  .obs-footprint-num { font-size: 22px; font-weight: 900; color: #b45309; letter-spacing: -.02em; }
+  .obs-footprint-label { font-size: 11.5px; color: #78716c; font-weight: 700; }
+
+  .obs-lineage { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; padding: 10px 12px; background: #f1f5f9; border-radius: 10px; font-size: 12.5px; }
+  .obs-lineage-item { display: inline-flex; flex-direction: column; gap: 1px; padding: 4px 10px; background: #fff; border-radius: 8px; border: 1px solid rgba(15,23,42,.08); font-weight: 800; color: #1e293b; }
+  .obs-lineage-item small { font-size: 9px; color: #94a3b8; letter-spacing: .08em; }
+  .obs-lineage-sep { color: #cbd5e1; font-weight: 700; }
+
+  .obs-id-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  .obs-id-item { display: flex; gap: 12px; padding: 12px 14px; background: #f8fafc; border-radius: 12px; border: 1px solid rgba(15,23,42,.05); }
+  .obs-id-avatar { width: 36px; height: 36px; border-radius: 50%; background: #3b82f6; color: #fff; display: grid; place-items: center; font-weight: 900; flex-shrink: 0; }
+  .obs-id-body { flex: 1; min-width: 0; }
+  .obs-id-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .obs-id-name { font-size: 15px; font-weight: 900; color: #0f172a; }
+  .obs-id-rank { background: rgba(59,130,246,.1); color: #1d4ed8; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; }
+  .obs-id-meta { font-size: 11.5px; color: #64748b; font-weight: 700; margin-top: 3px; }
+  .obs-id-note { margin: 6px 0 0; color: #475569; font-size: 13px; line-height: 1.6; }
+  .obs-empty { color: #94a3b8; font-size: 13.5px; text-align: center; padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px dashed rgba(15,23,42,.1); }
+
+  .obs-peers { margin: 0; padding: 10px 14px; background: rgba(168,85,247,.06); border-radius: 10px; font-size: 13px; color: #6b21a8; border: 1px solid rgba(168,85,247,.15); }
+  .obs-nearby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .obs-nearby-card { display: flex; flex-direction: column; border-radius: 12px; background: #fff; border: 1px solid rgba(15,23,42,.08); overflow: hidden; text-decoration: none; color: inherit; transition: transform .15s ease; }
+  .obs-nearby-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(15,23,42,.06); }
+  .obs-nearby-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+  .obs-nearby-nophoto { aspect-ratio: 4/3; display: grid; place-items: center; background: #f1f5f9; color: #94a3b8; font-size: 24px; }
+  .obs-nearby-body { padding: 8px 10px; }
+  .obs-nearby-name { font-weight: 800; font-size: 12.5px; color: #0f172a; margin-bottom: 2px; }
+  .obs-nearby-meta { font-size: 10.5px; color: #94a3b8; font-weight: 700; }
+
+  .obs-seasonal-wrap { padding: 10px 12px; background: #fffbeb; border-radius: 10px; }
+  .obs-seasonal { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; align-items: end; height: 60px; margin-top: 6px; }
+  .obs-seasonal-bar { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; font-size: 9px; color: #b45309; font-weight: 700; }
+  .obs-seasonal-bar::before { content: ""; display: block; width: 100%; height: var(--h, 0%); background: linear-gradient(180deg, #f59e0b, #fbbf24); border-radius: 3px 3px 0 0; min-height: 2px; }
+
+  .obs-cta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .obs-cta-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 12px; border-radius: 14px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1px solid rgba(16,185,129,.15); text-decoration: none; color: #064e3b; font-weight: 800; transition: transform .15s ease; }
+  .obs-cta-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(16,185,129,.12); }
+  .obs-cta-icon { font-size: 26px; }
+  .obs-cta-label { font-size: 13px; text-align: center; }
+
+  .obs-insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .obs-insight-item { padding: 14px 16px; background: #f8fafc; border-radius: 12px; border: 1px solid rgba(15,23,42,.05); }
+  .obs-insight-eye { font-size: 11px; font-weight: 900; color: #64748b; letter-spacing: .12em; margin-bottom: 6px; }
+  .obs-insight-item p { margin: 0; font-size: 13.5px; line-height: 1.7; color: #334155; }
+
+  .obs-fold { border-radius: 12px; background: #f9fafb; border: 1px solid rgba(15,23,42,.08); overflow: hidden; margin-bottom: 8px; }
+  .obs-fold > summary { padding: 12px 16px; font-weight: 800; color: #111827; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+  .obs-fold > summary::after { content: "+"; color: #9ca3af; font-size: 16px; margin-left: auto; }
+  .obs-fold[open] > summary::after { content: "−"; }
+  .obs-fold-count { background: rgba(15,23,42,.08); color: #475569; font-size: 10.5px; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+  .obs-chips { padding: 0 16px 14px; margin: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+  .obs-chip { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid rgba(15,23,42,.1); border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 700; color: #111827; }
+  .obs-chip-conf { color: #16a34a; font-weight: 800; font-size: 10.5px; }
+  .obs-chip-src { font-size: 11px; }
+`;
+
 function stateCard(eyebrow: string, title: string, body: string): string {
   return `<section class="section">
     <div class="card is-soft">
@@ -508,116 +631,263 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
     }
-    const photos = snapshot.photoUrls.map((url) => `<div class="obs-detail-photo"><img src="${escapeHtml(url)}" alt="${escapeHtml(snapshot.displayName)}" loading="lazy" onerror="this.closest('.obs-detail-photo').classList.add('is-broken');" /><span class="obs-detail-photo-fallback">📷 ${escapeHtml(snapshot.displayName)} / 写真なし</span></div>`).join("");
-    const ids = snapshot.identifications.map((item) => `
-      <div class="row">
-        <div>
-          <div style="font-weight:800">${escapeHtml(item.proposedName)}</div>
-          <div class="meta">${escapeHtml(item.actorName)} · ${escapeHtml(item.createdAt)}${item.proposedRank ? ` · ${escapeHtml(item.proposedRank)}` : ""}</div>
-          ${item.notes ? `<div class="meta">${escapeHtml(item.notes)}</div>` : ""}
-        </div>
-      </div>`).join("");
-    const unresolvedReason = snapshot.identifications.length === 0
-      ? "まだ正式な同定は付いていません。今は写真で分かる範囲で止めておくのが正しい状態です。"
-      : snapshot.scientificName
-        ? "候補は出ていますが、もう少し良い角度の写真や追加の観察があると根拠が厚くなります。"
-        : "候補はありますが、急いで種まで断定せず、もう一度観察するのが安心です。";
 
-    // Phase D: フィールドノート 3層構造。同 visit / 同 place の guide_records + audio_detections を折り畳み表示。
-    const obsContext = await getObservationContext(request.params.id, snapshot.visitId ?? null, null).catch(() => null);
+    const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const viewerUserId = viewerSession?.userId ?? null;
+
+    // 並列取得: context / heavy / reactions / observer stats / insight
+    const [obsContext, heavy, reactions, observerStats, insight] = await Promise.all([
+      getObservationContext(request.params.id, snapshot.visitId ?? null, null).catch(() => null),
+      getObservationDetailHeavy(request.params.id, snapshot.visitId ?? null, snapshot.placeId ?? null, viewerUserId).catch(() => null),
+      getReactionSummary(request.params.id, viewerUserId).catch(() => null),
+      viewerUserId
+        ? getObserverStats(viewerUserId, snapshot.placeId ?? null, request.params.id).catch(() => null)
+        : Promise.resolve(null),
+      snapshot.scientificName || snapshot.displayName
+        ? getTaxonInsight({
+            scientificName: snapshot.scientificName ?? "",
+            vernacularName: snapshot.displayName,
+            lat: snapshot.latitude ?? undefined,
+            lng: snapshot.longitude ?? undefined,
+            season: seasonFromDate(snapshot.observedAt),
+            lang: "ja",
+          }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+    // ===== Layer 0: ヒーロー =====
+    const photoGallery = snapshot.photoUrls.length > 0
+      ? `<div class="obs-hero-gallery" data-obs-gallery>
+           ${snapshot.photoUrls.map((url, i) => `
+             <button type="button" class="obs-hero-photo${i === 0 ? " is-main" : " is-thumb"}" data-obs-photo-index="${i}" data-obs-photo-src="${escapeHtml(url)}">
+               <img src="${escapeHtml(url)}" alt="${escapeHtml(snapshot.displayName)}" loading="${i === 0 ? "eager" : "lazy"}" />
+             </button>`).join("")}
+         </div>`
+      : `<div class="obs-hero-placeholder"><span>📷</span><span>${escapeHtml(snapshot.displayName)}</span><small>写真なし</small></div>`;
+
+    const badges: string[] = [];
+    if (snapshot.scientificName) badges.push(`<span class="obs-badge obs-badge-species">🔬 ${escapeHtml(snapshot.scientificName)}</span>`);
+    if (snapshot.identifications.length > 0) badges.push(`<span class="obs-badge obs-badge-consensus">🧭 同定 ${snapshot.identifications.length} 件</span>`);
+    if (heavy && heavy.nearby.length > 0) badges.push(`<span class="obs-badge obs-badge-nearby">📍 同地点 ${heavy.nearby.length} 件</span>`);
+
+    const REACTION_META: Record<ReactionType, { icon: string; label: string }> = {
+      like: { icon: "💚", label: "いいね" },
+      helpful: { icon: "✨", label: "参考になった" },
+      curious: { icon: "🧭", label: "興味あり" },
+      thanks: { icon: "🙏", label: "ありがとう" },
+    };
+    const reactionBar = reactions
+      ? `<div class="obs-reaction-bar" data-occurrence-id="${escapeHtml(request.params.id)}">
+           ${(["like", "helpful", "curious", "thanks"] as ReactionType[])
+             .map((t) => `
+               <button type="button" class="obs-reaction${reactions.viewerReacted[t] ? " is-reacted" : ""}"
+                       data-reaction-type="${t}"
+                       ${viewerUserId ? "" : 'data-login-required="1"'}>
+                 <span>${REACTION_META[t].icon}</span>
+                 <span class="obs-reaction-label">${REACTION_META[t].label}</span>
+                 <span class="obs-reaction-count">${reactions.counts[t]}</span>
+               </button>`)
+             .join("")}
+         </div>`
+      : "";
+
+    const heroBlock = `
+      <section class="section obs-hero">
+        <div class="obs-hero-media">${photoGallery}</div>
+        <div class="obs-hero-meta">
+          <h1 class="obs-hero-title">${escapeHtml(snapshot.displayName)}</h1>
+          <div class="obs-hero-byline">
+            <a class="obs-hero-observer" href="${escapeHtml(snapshot.observerUserId ? withBasePath(basePath, "/profile/" + encodeURIComponent(snapshot.observerUserId)) : "#")}">
+              <span class="obs-hero-avatar">${escapeHtml((snapshot.observerName || "?").slice(0, 1))}</span>
+              <span>${escapeHtml(snapshot.observerName || "観察者")}</span>
+            </a>
+            <span class="obs-hero-when">${escapeHtml(formatAbsolute(snapshot.observedAt))}</span>
+            <span class="obs-hero-place">${escapeHtml(snapshot.placeName || "場所情報なし")}</span>
+          </div>
+          ${badges.length > 0 ? `<div class="obs-hero-badges">${badges.join("")}</div>` : ""}
+          ${reactionBar}
+        </div>
+      </section>`;
+
+    // ===== Layer 1: 物語 =====
+    const ownerNote = snapshot.note
+      ? `<div class="obs-story-block">
+           <div class="obs-story-eyebrow">観察者のメモ</div>
+           <p>${escapeHtml(snapshot.note)}</p>
+         </div>`
+      : "";
+    const aiFirst = obsContext && (obsContext.environmentContexts.length > 0 || obsContext.seasonalNotes.length > 0)
+      ? `<div class="obs-story-block obs-story-ai">
+           <div class="obs-story-eyebrow">🤖 AI が読み取った様子</div>
+           ${obsContext.environmentContexts.map((e) => `<p>${escapeHtml(e)}</p>`).join("")}
+           ${obsContext.seasonalNotes.map((e) => `<p>${escapeHtml(e)}</p>`).join("")}
+           <small class="obs-ai-note">※ 上記は AI による自動解釈です。市民のみなさんの同定と合わせて確認してください。</small>
+         </div>`
+      : "";
+    const footprintCard = observerStats
+      ? `<div class="obs-footprint">
+           <div class="obs-footprint-row">
+             <span class="obs-footprint-num">#${observerStats.totalObservations}</span>
+             <span class="obs-footprint-label">あなたの累計記録</span>
+           </div>
+           <div class="obs-footprint-row">
+             <span class="obs-footprint-num">${observerStats.thisMonthObservations}</span>
+             <span class="obs-footprint-label">今月の記録</span>
+           </div>
+           ${observerStats.placeVisitCount > 1 ? `<div class="obs-footprint-row">
+             <span class="obs-footprint-num">${observerStats.placeVisitCount}</span>
+             <span class="obs-footprint-label">この場所に来た回数</span>
+           </div>` : ""}
+           ${observerStats.currentStreakDays > 1 ? `<div class="obs-footprint-row">
+             <span class="obs-footprint-num">${observerStats.currentStreakDays}</span>
+             <span class="obs-footprint-label">連続観察日数</span>
+           </div>` : ""}
+         </div>`
+      : "";
+    const layer1 = (ownerNote || aiFirst || footprintCard)
+      ? `<section class="section obs-layer obs-layer-1">
+           <h2 class="obs-layer-title">この記録について</h2>
+           <div class="obs-layer-body">${ownerNote}${aiFirst}${footprintCard}</div>
+         </section>`
+      : "";
+
+    // ===== Layer 2: 同定 =====
+    const lineageChips = heavy && heavy.lineage.length > 0
+      ? `<div class="obs-lineage">
+           ${heavy.lineage.map((l) => `<span class="obs-lineage-item"><small>${escapeHtml(l.rank)}</small>${escapeHtml(l.name)}</span>`).join('<span class="obs-lineage-sep">›</span>')}
+         </div>`
+      : "";
+    const idsList = snapshot.identifications.length > 0
+      ? `<ul class="obs-id-list">
+           ${snapshot.identifications.map((item) => `
+             <li class="obs-id-item">
+               <div class="obs-id-avatar">${escapeHtml((item.actorName || "?").slice(0, 1))}</div>
+               <div class="obs-id-body">
+                 <div class="obs-id-line">
+                   <span class="obs-id-name">${escapeHtml(item.proposedName)}</span>
+                   ${item.proposedRank ? `<span class="obs-id-rank">${escapeHtml(item.proposedRank)}</span>` : ""}
+                 </div>
+                 <div class="obs-id-meta">${escapeHtml(item.actorName)} · ${escapeHtml(item.createdAt)}</div>
+                 ${item.notes ? `<p class="obs-id-note">${escapeHtml(item.notes)}</p>` : ""}
+               </div>
+             </li>`).join("")}
+         </ul>`
+      : `<p class="obs-empty">まだ名前は確定していません。最初の提案者になれます。</p>`;
+    const layer2 = `
+      <section class="section obs-layer obs-layer-2">
+        <h2 class="obs-layer-title">名前と分類</h2>
+        ${lineageChips}
+        ${idsList}
+        <p class="obs-ai-note">🤖 写真から Gemini が複数候補を自動提示しています。市民同定と組み合わせて、もっとも説明力のある名前に近づけます。</p>
+      </section>`;
+
+    // ===== Layer 3: 場所の物語 =====
+    const nearbyCards = heavy && heavy.nearby.length > 0
+      ? `<div class="obs-nearby-grid">
+           ${heavy.nearby.map((n) => `
+             <a class="obs-nearby-card" href="${escapeHtml(withBasePath(basePath, "/observations/" + encodeURIComponent(n.occurrenceId)))}">
+               ${n.photoUrl ? `<img src="${escapeHtml(n.photoUrl)}" alt="${escapeHtml(n.displayName)}" loading="lazy" />` : '<div class="obs-nearby-nophoto">📷</div>'}
+               <div class="obs-nearby-body">
+                 <div class="obs-nearby-name">${escapeHtml(n.displayName)}</div>
+                 <div class="obs-nearby-meta">${escapeHtml(n.observerName)} · ${escapeHtml(n.observedAt)}</div>
+               </div>
+             </a>`).join("")}
+         </div>`
+      : "";
+    const peersLine = heavy && heavy.peers.length > 0
+      ? `<p class="obs-peers">この場所で観察した人は <strong>${heavy.peers.length}</strong> 人（${heavy.peers.map((p) => escapeHtml(p.displayName)).slice(0, 3).join(" / ")} 等）</p>`
+      : "";
+    const seasonalBar = heavy && heavy.seasonalHistory.length > 0
+      ? `<div class="obs-seasonal">
+           ${Array.from({ length: 12 }, (_, i) => {
+             const h = heavy.seasonalHistory.find((s) => s.month === i + 1);
+             const n = h ? h.count : 0;
+             const max = Math.max(...heavy.seasonalHistory.map((s) => s.count), 1);
+             return `<span class="obs-seasonal-bar" style="--h:${Math.round((n / max) * 100)}%" title="${i + 1}月: ${n}件"><small>${i + 1}</small></span>`;
+           }).join("")}
+         </div>`
+      : "";
+    const layer3 = (nearbyCards || peersLine || seasonalBar)
+      ? `<section class="section obs-layer obs-layer-3">
+           <h2 class="obs-layer-title">この場所の物語</h2>
+           ${peersLine}
+           ${nearbyCards}
+           ${seasonalBar ? `<div class="obs-seasonal-wrap"><div class="obs-story-eyebrow">同地点の月別観察数</div>${seasonalBar}</div>` : ""}
+         </section>`
+      : "";
+
+    // ===== Layer 5: CTA =====
+    const ctaBlock = `
+      <section class="section obs-layer obs-cta">
+        <h2 class="obs-layer-title">次の一歩</h2>
+        <div class="obs-cta-grid">
+          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/record"))}">
+            <span class="obs-cta-icon">📝</span>
+            <span class="obs-cta-label">似た場面を記録する</span>
+          </a>
+          ${snapshot.placeId ? `<a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/map"))}">
+            <span class="obs-cta-icon">🗺️</span>
+            <span class="obs-cta-label">同じ場所を地図で見る</span>
+          </a>` : ""}
+          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/explore"))}">
+            <span class="obs-cta-icon">🔍</span>
+            <span class="obs-cta-label">似た観察を探す</span>
+          </a>
+          <a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench"))}">
+            <span class="obs-cta-icon">🔬</span>
+            <span class="obs-cta-label">専門家の視点で見る</span>
+          </a>
+        </div>
+      </section>`;
+
+    // ===== Layer 6: 豆知識 =====
+    const insightBits: string[] = [];
+    if (insight && insight.etymology) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">📖 名前の由来</div><p>${escapeHtml(insight.etymology)}</p></div>`);
+    if (insight && insight.ecologyNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">🌿 生き方</div><p>${escapeHtml(insight.ecologyNote)}</p></div>`);
+    if (insight && insight.lookAlikeNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">🔍 似た仲間</div><p>${escapeHtml(insight.lookAlikeNote)}</p></div>`);
+    if (insight && insight.rarityNote) insightBits.push(`<div class="obs-insight-item"><div class="obs-insight-eye">📍 出会いやすさ</div><p>${escapeHtml(insight.rarityNote)}</p></div>`);
+    const layer6 = insightBits.length > 0
+      ? `<section class="section obs-layer obs-layer-6">
+           <h2 class="obs-layer-title">この生きものについて</h2>
+           <div class="obs-insight-grid">${insightBits.join("")}</div>
+           <p class="obs-ai-note">🤖 この記述は AI が自動生成した参考情報です。専門書も合わせてご確認ください。</p>
+         </section>`
+      : "";
+
+    // ===== コンテキスト折り畳み (Phase D 既存、保持) =====
     const grouped = obsContext ? groupFeaturesByLayer(obsContext.features) : { coexistingTaxa: [], environment: [], sounds: [] };
     const renderFeatureChips = (list: typeof grouped.coexistingTaxa): string =>
-      list
-        .map(
-          (f) => `<li class="obs-chip" title="${escapeHtml(f.note ?? "")}"><span class="obs-chip-name">${escapeHtml(f.name)}</span>${
-            typeof f.confidence === "number" ? `<span class="obs-chip-conf">${Math.round(f.confidence * 100)}%</span>` : ""
-          }<span class="obs-chip-src">${f.sourceKind === "audio" ? "🎤" : "📷"}</span></li>`,
-        )
-        .join("");
+      list.map((f) => `<li class="obs-chip" title="${escapeHtml(f.note ?? "")}"><span class="obs-chip-name">${escapeHtml(f.name)}</span>${
+        typeof f.confidence === "number" ? `<span class="obs-chip-conf">${Math.round(f.confidence * 100)}%</span>` : ""
+      }<span class="obs-chip-src">${f.sourceKind === "audio" ? "🎤" : "📷"}</span></li>`).join("");
     const coexistingSection = grouped.coexistingTaxa.length > 0
       ? `<details class="obs-fold" open>
            <summary>🌿 同地点の生きもの <span class="obs-fold-count">${grouped.coexistingTaxa.length}</span></summary>
-           <p class="meta obs-fold-hint">写真 (AI フィールドガイド) や音声が拾った主種以外の記録。属・科レベル含む。</p>
            <ul class="obs-chips">${renderFeatureChips(grouped.coexistingTaxa)}</ul>
-         </details>`
-      : "";
+         </details>` : "";
     const soundsSection = grouped.sounds.length > 0
-      ? `<details class="obs-fold">
-           <summary>🎤 音声で拾った生きもの <span class="obs-fold-count">${grouped.sounds.length}</span></summary>
-           <p class="meta obs-fold-hint">鳴き声・環境音の検出結果。将来の再同定用に位置情報付きで保存されている。</p>
-           <ul class="obs-chips">${renderFeatureChips(grouped.sounds)}</ul>
-         </details>`
-      : "";
-    const storyBits: string[] = [];
-    if (obsContext && obsContext.environmentContexts.length > 0) storyBits.push(...obsContext.environmentContexts.map((s) => `<p class="meta">${escapeHtml(s)}</p>`));
-    if (obsContext && obsContext.seasonalNotes.length > 0) storyBits.push(...obsContext.seasonalNotes.map((s) => `<p class="meta">${escapeHtml(s)}</p>`));
-    if (grouped.environment.length > 0) storyBits.push(`<ul class="obs-chips">${renderFeatureChips(grouped.environment)}</ul>`);
-    const storySection = storyBits.length > 0
-      ? `<details class="obs-fold">
-           <summary>🏞️ 場所の物語 <span class="obs-fold-count">${storyBits.length}</span></summary>
-           <p class="meta obs-fold-hint">EXIF・環境文脈・季節から推論されるその場所の状況。</p>
-           ${storyBits.join("")}
-         </details>`
-      : "";
-    const layerBlock = coexistingSection || soundsSection || storySection
-      ? `<section class="section obs-layer-block">${coexistingSection}${soundsSection}${storySection}</section>`
-      : "";
-    const retakeChecklist = [
-      "全身だけでなく、決め手になる部位をもう1枚撮る",
-      "同じ場所で時間を変えて再訪し、季節や行動差を取る",
-      snapshot.photoUrls.length > 0 ? "今ある写真と次回写真を比べて、何が増えたかを確認する" : "まずは1枚でも写真を追加して、根拠を残す",
-    ].map((item) => `<div class="row"><div>${escapeHtml(item)}</div></div>`).join("");
+      ? `<details class="obs-fold"><summary>🎤 音声で拾った <span class="obs-fold-count">${grouped.sounds.length}</span></summary><ul class="obs-chips">${renderFeatureChips(grouped.sounds)}</ul></details>` : "";
+    const envSection = grouped.environment.length > 0
+      ? `<details class="obs-fold"><summary>🏞️ 環境の情報 <span class="obs-fold-count">${grouped.environment.length}</span></summary><ul class="obs-chips">${renderFeatureChips(grouped.environment)}</ul></details>` : "";
+    const contextBlock = (coexistingSection || soundsSection || envSection)
+      ? `<section class="section obs-layer"><h2 class="obs-layer-title">写真と音声から拾えたこと</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
+
+    const detailBody = `${heroBlock}${layer1}${layer2}${layer3}${contextBlock}${ctaBlock}${layer6}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       `${snapshot.displayName} | ikimon`,
-      `${photos ? `<section class="section"><div class="obs-detail-gallery">${photos}</div></section>` : ""}
-      <section class="section">
-        <div class="grid">
-          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">今の状態</div><h2>無理に当て切らない理由</h2><p class="meta">${escapeHtml(unresolvedReason)}</p></div></div>
-          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">次の一歩</div><h2>次に撮ると進むこと</h2><div class="list">${retakeChecklist}</div></div></div>
-          <div class="card is-soft"><div class="card-body"><div class="eyebrow">学習資産</div><h2>今回の記録の意味</h2><p class="meta">場所の変化を後から比較するための前提情報であり、同時に future AI explanation の学習データ候補です。</p></div></div>
-        </div>
-      </section>
-      <section class="section">
-        <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">場所</div><h2>${escapeHtml(snapshot.placeName)}</h2><p class="meta">${escapeHtml(snapshot.municipality || "自治体不明")}</p></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">学名</div><h2>${escapeHtml(snapshot.scientificName || "未確定")}</h2><p class="meta">${escapeHtml(snapshot.note || "メモなし")}</p></div></div>
-        </div>
-      </section>
-      ${layerBlock}
-      <section class="section"><div class="section-header"><div><div class="eyebrow">名前の確定まで</div><h2>Identifications</h2></div></div><div class="list">${ids || '<div class="row"><div>まだ同定が付いていません。</div></div>'}</div></section>`,
+      detailBody,
       "みつける",
       {
-        eyebrow: "観察の詳細",
+        eyebrow: "観察",
         heading: escapeHtml(snapshot.displayName),
-        headingHtml: escapeHtml(snapshot.displayName),
-        lead: `${snapshot.placeName} · ${snapshot.observedAt} · ${snapshot.observerName} さんの観察`,
-        actions: [
-          { href: "/map", label: "マップで見る" },
-          ...(snapshot.observerUserId ? [{ href: `/profile/${encodeURIComponent(snapshot.observerUserId)}`, label: "観察者を見る", variant: "secondary" as const }] : []),
-        ],
+        headingHtml: "",
+        lead: "",
+        actions: [],
       },
-      `.obs-detail-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-       .obs-detail-photo { position: relative; aspect-ratio: 4/3; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); border: 1px solid rgba(15,23,42,.06); }
-       .obs-detail-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-       .obs-detail-photo-fallback { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 16px; color: #475569; font-size: 13px; font-weight: 700; background: repeating-linear-gradient(0deg, transparent 0 24px, rgba(15,23,42,.04) 24px 25px); }
-       .obs-detail-photo.is-broken img { display: none; }
-       .obs-detail-photo.is-broken .obs-detail-photo-fallback { display: flex; }
-       .obs-layer-block { display: grid; gap: 12px; }
-       .obs-fold { border-radius: 14px; background: #f9fafb; border: 1px solid rgba(15,23,42,.08); padding: 0; overflow: hidden; }
-       .obs-fold > summary { padding: 14px 18px; font-weight: 800; color: #111827; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; }
-       .obs-fold > summary::after { content: "+"; font-weight: 400; color: #9ca3af; font-size: 18px; }
-       .obs-fold[open] > summary::after { content: "−"; }
-       .obs-fold > summary::-webkit-details-marker { display: none; }
-       .obs-fold-count { background: rgba(15,23,42,.08); color: #475569; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: auto; }
-       .obs-fold-hint { padding: 0 18px; color: #6b7280; font-size: 12.5px; line-height: 1.7; margin: 2px 0 10px; }
-       .obs-fold .obs-chips { padding: 0 18px 16px; margin: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
-       .obs-chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid rgba(15,23,42,.1); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; color: #111827; }
-       .obs-chip-conf { color: #16a34a; font-weight: 800; font-size: 11px; }
-       .obs-chip-src { color: #6b7280; font-size: 11px; }
-      `,
+      OBSERVATION_DETAIL_STYLES,
     );
   });
 
