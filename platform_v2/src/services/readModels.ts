@@ -42,6 +42,13 @@ export type ObservationDetailSnapshot = {
   latitude: number | null;
   longitude: number | null;
   photoUrls: string[];
+  videoAssets: Array<{
+    providerUid: string;
+    iframeUrl: string;
+    thumbnailUrl: string | null;
+    watchUrl: string | null;
+    createdAt: string;
+  }>;
   identifications: Array<{
     proposedName: string;
     proposedRank: string | null;
@@ -341,6 +348,27 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     [base.occurrence_id],
   );
 
+  const videosResult = await pool.query<{
+    source_payload: Record<string, unknown> | null;
+    blob_source_payload: Record<string, unknown> | null;
+    public_url: string | null;
+    storage_path: string | null;
+    created_at: string;
+  }>(
+    `select
+        ea.source_payload,
+        ab.source_payload as blob_source_payload,
+        ab.public_url,
+        ab.storage_path,
+        ea.created_at::text
+     from evidence_assets ea
+     join asset_blobs ab on ab.blob_id = ea.blob_id
+     where ea.occurrence_id = $1
+       and ea.asset_role = 'observation_video'
+     order by ea.created_at desc`,
+    [base.occurrence_id],
+  );
+
   const identificationsResult = await pool.query<{
     proposed_name: string;
     proposed_rank: string | null;
@@ -378,6 +406,47 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     latitude: base.latitude,
     longitude: base.longitude,
     photoUrls: photosResult.rows.map((row) => normalizeAssetUrl(row.photo_url)).filter((value): value is string => Boolean(value)),
+    videoAssets: videosResult.rows
+      .map((row) => {
+        const payload = (row.source_payload && typeof row.source_payload === "object")
+          ? row.source_payload
+          : {};
+        const blobPayload = (row.blob_source_payload && typeof row.blob_source_payload === "object")
+          ? row.blob_source_payload
+          : {};
+        const iframeUrl =
+          typeof payload.iframe_url === "string"
+            ? payload.iframe_url
+            : typeof blobPayload.iframe_url === "string"
+              ? blobPayload.iframe_url
+              : "";
+        if (!iframeUrl) {
+          return null;
+        }
+        const watchUrlRaw =
+          typeof payload.watch_url === "string"
+            ? payload.watch_url
+            : typeof blobPayload.watch_url === "string"
+              ? blobPayload.watch_url
+              : row.public_url;
+        const thumbnailUrlRaw =
+          typeof payload.thumbnail_url === "string"
+            ? payload.thumbnail_url
+            : typeof blobPayload.thumbnail_url === "string"
+              ? blobPayload.thumbnail_url
+              : null;
+        return {
+          providerUid:
+            typeof payload.stream_uid === "string"
+              ? payload.stream_uid
+              : row.storage_path ?? "",
+          iframeUrl,
+          thumbnailUrl: normalizeAssetUrl(thumbnailUrlRaw),
+          watchUrl: normalizeAssetUrl(watchUrlRaw),
+          createdAt: row.created_at,
+        };
+      })
+      .filter((video): video is ObservationDetailSnapshot["videoAssets"][number] => Boolean(video)),
     identifications: identificationsResult.rows.map((row) => ({
       proposedName: row.proposed_name,
       proposedRank: row.proposed_rank,

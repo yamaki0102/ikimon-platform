@@ -68,8 +68,14 @@ export type MapExplorerCopy = {
   searchAriaLabel: string;
   searchNoResult: string;
   searchError: string;
+  searchResultSpecies: string;
+  searchResultPlace: string;
   locateLabel: string;
   locateError: string;
+  timelineAriaLabel: string;
+  shareLabel: string;
+  shareCopied: string;
+  shareError: string;
   taxonChips: TaxonGroupChip[];
 };
 
@@ -163,12 +169,18 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefCapturesLabel: "撮るなら",
     siteBriefLoading: "この地点を読み解き中…",
     siteBriefError: "手がかりが取れなかった。現地の直感を優先して。",
-    searchPlaceholder: "場所を探す（例: 静岡市 谷津山）",
-    searchAriaLabel: "地名検索",
+    searchPlaceholder: "場所 / 種を探す（例: 静岡市 谷津山、モンシロチョウ）",
+    searchAriaLabel: "場所または種を検索",
     searchNoResult: "見つからなかった。もう一語ゆるめてみる。",
     searchError: "検索に失敗した。しばらく待ってから試す。",
+    searchResultSpecies: "種",
+    searchResultPlace: "場所",
     locateLabel: "現在地へ",
     locateError: "現在地を取得できなかった。ブラウザの位置情報を許可してほしい。",
+    timelineAriaLabel: "年のタイムライン",
+    shareLabel: "この表示を共有",
+    shareCopied: "共有リンクをコピーした。",
+    shareError: "共有リンクを作れなかった。",
     taxonChips: [
       { value: "", label: "すべて", icon: "✨" },
       { value: "insect", label: "昆虫", icon: "🦋" },
@@ -242,12 +254,18 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefCapturesLabel: "If you shoot",
     siteBriefLoading: "Reading this place…",
     siteBriefError: "Could not read this place. Trust your field sense.",
-    searchPlaceholder: "Find a place (e.g. Shizuoka Yatsu-yama)",
-    searchAriaLabel: "Place search",
+    searchPlaceholder: "Find a place or species (e.g. Shizuoka, swallowtail)",
+    searchAriaLabel: "Search place or species",
     searchNoResult: "No match. Try a looser term.",
     searchError: "Search failed. Wait a moment and retry.",
+    searchResultSpecies: "Species",
+    searchResultPlace: "Place",
     locateLabel: "My location",
     locateError: "Could not get your location. Allow location in your browser.",
+    timelineAriaLabel: "Year timeline",
+    shareLabel: "Share this view",
+    shareCopied: "Share link copied.",
+    shareError: "Could not create a share link.",
     taxonChips: [
       { value: "", label: "All", icon: "✨" },
       { value: "insect", label: "Insects", icon: "🦋" },
@@ -321,12 +339,18 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefCapturesLabel: "Si disparas",
     siteBriefLoading: "Leyendo este lugar…",
     siteBriefError: "No pude leer este lugar. Confía en tu campo.",
-    searchPlaceholder: "Buscar lugar (p. ej. Shizuoka Yatsu-yama)",
-    searchAriaLabel: "Búsqueda de lugar",
+    searchPlaceholder: "Buscar lugar o especie (p. ej. Shizuoka, mariposa)",
+    searchAriaLabel: "Buscar lugar o especie",
     searchNoResult: "Sin resultados. Prueba con menos palabras.",
     searchError: "Fallo al buscar. Espera y reintenta.",
+    searchResultSpecies: "Especie",
+    searchResultPlace: "Lugar",
     locateLabel: "Mi ubicación",
     locateError: "No pude obtener tu ubicación. Permite la geolocalización en el navegador.",
+    timelineAriaLabel: "Línea de tiempo por año",
+    shareLabel: "Compartir esta vista",
+    shareCopied: "Enlace copiado.",
+    shareError: "No pude crear el enlace.",
     taxonChips: [
       { value: "", label: "Todo", icon: "✨" },
       { value: "insect", label: "Insectos", icon: "🦋" },
@@ -400,12 +424,18 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefCapturesLabel: "Se for fotografar",
     siteBriefLoading: "Lendo este lugar…",
     siteBriefError: "Não consegui ler este lugar. Confie no campo.",
-    searchPlaceholder: "Buscar local (ex.: Shizuoka Yatsu-yama)",
-    searchAriaLabel: "Busca de local",
+    searchPlaceholder: "Buscar local ou espécie (ex.: Shizuoka, borboleta)",
+    searchAriaLabel: "Buscar local ou espécie",
     searchNoResult: "Sem resultados. Tente um termo mais amplo.",
     searchError: "Falha na busca. Aguarde e tente novamente.",
+    searchResultSpecies: "Espécie",
+    searchResultPlace: "Lugar",
     locateLabel: "Minha localização",
     locateError: "Não foi possível obter sua localização. Permita a geolocalização no navegador.",
+    timelineAriaLabel: "Linha do tempo por ano",
+    shareLabel: "Compartilhar esta vista",
+    shareCopied: "Link copiado.",
+    shareError: "Não foi possível criar o link.",
     taxonChips: [
       { value: "", label: "Tudo", icon: "✨" },
       { value: "insect", label: "Insetos", icon: "🦋" },
@@ -440,6 +470,8 @@ function overlayPanelLabels(lang: SiteLang): {
 export function renderMapExplorer(props: MapExplorerProps): string {
   const lang = props.lang;
   const copy = MAP_EXPLORER_COPY[lang];
+  const yearTimelineValues = [...props.years].sort((a, b) => a - b);
+  const yearValuesJson = escapeHtml(JSON.stringify(yearTimelineValues));
   const overlays: LocalizedOverlay[] = overlaysForLang(lang);
   const overlayLabels = overlayPanelLabels(lang);
   const recordHref = appendLangToHref(withBasePath(props.basePath, "/record"), props.lang);
@@ -491,8 +523,11 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       data-bounds="${escapeHtml(r.bounds.join(","))}">${escapeHtml(r.label)}</button>`)
     .join("");
 
-  const yearOptionsHtml = [`<option value="">${escapeHtml(copy.yearAll)}</option>`]
-    .concat(props.years.map((y) => `<option value="${y}">${y}</option>`))
+  const yearScaleLabels = yearTimelineValues.length >= 3
+    ? [yearTimelineValues[0], yearTimelineValues[Math.floor(yearTimelineValues.length / 2)]!, yearTimelineValues[yearTimelineValues.length - 1]!]
+    : yearTimelineValues;
+  const yearScaleHtml = yearScaleLabels
+    .map((year) => `<span>${escapeHtml(String(year))}</span>`)
     .join("");
 
   const basemapOptions: Array<{ value: "standard" | "gsi" | "esri"; label: string }> = [
@@ -547,8 +582,24 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.seasonFilterLabel)}">${seasonChipsHtml}</div>
       </div>
       <div class="me-filter-group">
-        <label class="me-filter-label" for="me-year">${escapeHtml(copy.yearFilterLabel)}</label>
-        <select id="me-year" class="me-year-select">${yearOptionsHtml}</select>
+        <span class="me-filter-label">${escapeHtml(copy.yearFilterLabel)}</span>
+        <div class="me-time-controls">
+          <button type="button" class="me-chip me-year-all-chip is-active" id="me-year-all" aria-pressed="true">${escapeHtml(copy.yearAll)}</button>
+          <div class="me-time-slider-wrap">
+            <input
+              type="range"
+              id="me-year-range"
+              class="me-year-range"
+              data-year-values="${yearValuesJson}"
+              min="0"
+              max="${Math.max(yearTimelineValues.length - 1, 0)}"
+              value="${Math.max(yearTimelineValues.length - 1, 0)}"
+              aria-label="${escapeHtml(copy.timelineAriaLabel)}"
+            />
+            <div class="me-year-scale" aria-hidden="true">${yearScaleHtml}</div>
+          </div>
+          <output id="me-year-label" class="me-year-pill">${escapeHtml(copy.yearAll)}</output>
+        </div>
       </div>
       <div class="me-filter-group me-basemap-group">
         <span class="me-filter-label">${escapeHtml(copy.basemapLabel)}</span>
@@ -559,6 +610,9 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <input type="checkbox" id="me-trace-toggle" class="me-trace-toggle" />
           <span class="me-filter-label">${escapeHtml(lang === "ja" ? "軌跡" : lang === "es" ? "Trazas" : lang === "pt-BR" ? "Trilhas" : "Traces")}</span>
         </label>
+      </div>
+      <div class="me-filter-group">
+        <button type="button" class="me-share-btn" id="me-share-state">${escapeHtml(copy.shareLabel)}</button>
       </div>
     </div>
 
@@ -678,6 +732,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var sheetCloseEl = document.getElementById('me-bottom-close');
   var sideRecentEl = document.getElementById('me-side-recent');
   var sideClusterEl = document.getElementById('me-side-cluster');
+  var yearRangeEl = document.getElementById('me-year-range');
+  var yearLabelEl = document.getElementById('me-year-label');
+  var yearAllEl = document.getElementById('me-year-all');
+  var shareStateEl = document.getElementById('me-share-state');
   var apiObservations = root.getAttribute('data-api-observations') || '';
   var apiCoverage = root.getAttribute('data-api-coverage') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
@@ -705,9 +763,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     siteBriefError: copy.siteBriefError,
     searchNoResult: copy.searchNoResult,
     searchError: copy.searchError,
+    searchResultSpecies: copy.searchResultSpecies,
+    searchResultPlace: copy.searchResultPlace,
     locateError: copy.locateError,
+    yearAll: copy.yearAll,
+    shareCopied: copy.shareCopied,
+    shareError: copy.shareError,
   })};
   var SEARCH_LANG = ${JSON.stringify(props.lang)};
+  var YEAR_VALUES = [];
+  try {
+    YEAR_VALUES = JSON.parse((yearRangeEl && yearRangeEl.getAttribute('data-year-values')) || '[]');
+  } catch (_) { YEAR_VALUES = []; }
   var OBSERVATION_HREF_TPL = ${JSON.stringify(observationHrefTpl)};
   var RECORD_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/record"), props.lang))};
   var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang))};
@@ -747,12 +814,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     },
   };
 
+  var overlayCatalog = [];
+  try {
+    var catalogEl = document.querySelector('.me-overlay-list');
+    if (catalogEl) overlayCatalog = JSON.parse(catalogEl.getAttribute('data-overlay-catalog') || '[]');
+  } catch (_) { overlayCatalog = []; }
+  var overlayState = {};
+  overlayCatalog.forEach(function (o) { overlayState[o.id] = { enabled: false, opacity: o.defaultOpacity }; });
+
   var state = {
     tab: 'markers',
     taxonGroup: '',
     year: '',
     season: '',
     basemap: 'standard',
+    tracesVisible: false,
     map: null,
     rawFeatures: [],   // unfiltered
     features: [],      // season-filtered
@@ -784,6 +860,47 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
+  function formatYearLabel(year) { return year ? String(year) : COPY.yearAll; }
+  function syncYearUi() {
+    if (yearLabelEl) yearLabelEl.textContent = formatYearLabel(state.year);
+    if (yearAllEl) {
+      var allActive = !state.year;
+      yearAllEl.classList.toggle('is-active', allActive);
+      yearAllEl.setAttribute('aria-pressed', allActive ? 'true' : 'false');
+    }
+    if (yearRangeEl) {
+      if (!YEAR_VALUES.length) {
+        yearRangeEl.disabled = true;
+        return;
+      }
+      yearRangeEl.disabled = false;
+      var fallbackIndex = YEAR_VALUES.length - 1;
+      var selectedIndex = state.year ? YEAR_VALUES.indexOf(Number(state.year)) : fallbackIndex;
+      yearRangeEl.value = String(selectedIndex >= 0 ? selectedIndex : fallbackIndex);
+    }
+  }
+  function featureNameVariants(feature) {
+    var p = feature && feature.properties ? feature.properties : {};
+    return [p.displayName, p.vernacularName, p.scientificName]
+      .filter(Boolean)
+      .map(function (value) { return String(value); });
+  }
+  function fitToFeatureSet(features, options) {
+    if (!state.map || !features || !features.length) return;
+    if (features.length === 1) {
+      var one = features[0];
+      if (one && one.geometry && one.geometry.coordinates) {
+        state.map.easeTo({ center: one.geometry.coordinates, zoom: (options && options.zoom) || 13.6, duration: 420 });
+      }
+      if (options && options.openSheet) openBottomSheet(one);
+      return;
+    }
+    var bounds = new window.maplibregl.LngLatBounds();
+    features.forEach(function (feature) {
+      if (feature && feature.geometry && feature.geometry.coordinates) bounds.extend(feature.geometry.coordinates);
+    });
+    if (!bounds.isEmpty()) state.map.fitBounds(bounds, { padding: 56, maxZoom: 13.5, duration: 520 });
+  }
   function showLegend(lowLabel, highLabel, gradient) {
     if (!legendEl) return;
     legendEl.classList.remove('is-hidden');
@@ -1186,6 +1303,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     else setStatus(fmtStatsLabel(state.features.length, state.rawFeatures.length));
   }
 
+  function refreshYearDependentData() {
+    state.coverage = null;
+    if (state.map && state.map.getSource('coverage')) {
+      removeLayerIfExists(state.map, 'coverage-fill');
+      removeSourceIfExists(state.map, 'coverage');
+    }
+    loadObservations();
+    if (state.tab === 'coverage' && state.map) loadCoverage(state.map);
+    loadTraces();
+    saveMapState();
+  }
+
   function switchBasemap(key) {
     if (!state.map || !BASEMAPS[key]) return;
     var wasTab = state.tab;
@@ -1199,10 +1328,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
-  // ---- State persistence: URL hash + localStorage -------------------------
-  // Allows "静岡市 × 樹冠高 × 保全優先度" to be shared as a single link and
-  // restored without server round-trips. Hash-first; localStorage as fallback.
-  var STATE_STORAGE_KEY = 'ikimon-map-v1';
+  // ---- State persistence: query string + localStorage ---------------------
+  // Keeps map state shareable as a plain URL while preserving unrelated
+  // params like lang.
+  var STATE_STORAGE_KEY = 'ikimon-map-v2';
+  var MAP_STATE_KEYS = ['tab', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces'];
 
   function serializeMapState() {
     var parts = [];
@@ -1211,6 +1341,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (state.year) parts.push('year=' + encodeURIComponent(state.year));
     if (state.season) parts.push('season=' + encodeURIComponent(state.season));
     if (state.basemap && state.basemap !== 'standard') parts.push('bm=' + encodeURIComponent(state.basemap));
+    if (state.tracesVisible) parts.push('traces=1');
     var ovParts = [];
     overlayCatalog.forEach(function (o) {
       var s = overlayState[o.id];
@@ -1229,7 +1360,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var s = serializeMapState();
     try {
       if (window.history && window.history.replaceState) {
-        window.history.replaceState(null, '', s ? ('#' + s) : (window.location.pathname + window.location.search));
+        var url = new URL(window.location.href);
+        MAP_STATE_KEYS.forEach(function (key) { url.searchParams.delete(key); });
+        if (s) {
+          var mapParams = new URLSearchParams(s);
+          mapParams.forEach(function (value, key) { url.searchParams.set(key, value); });
+        }
+        var next = url.pathname + (url.search ? url.search : '');
+        window.history.replaceState(null, '', next + (url.hash || ''));
       }
       localStorage.setItem(STATE_STORAGE_KEY, s);
     } catch (_) {}
@@ -1238,13 +1376,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function parseStateString(raw) {
     var params = {};
     if (!raw) return params;
-    raw.replace(/^#/, '').split('&').forEach(function (pair) {
-      var eq = pair.indexOf('=');
-      if (eq < 1) return;
-      var k = decodeURIComponent(pair.slice(0, eq));
-      var v = decodeURIComponent(pair.slice(eq + 1));
-      params[k] = v;
-    });
+    var cleaned = raw.replace(/^[?#]/, '');
+    if (!cleaned) return params;
+    new URLSearchParams(cleaned).forEach(function (value, key) { params[key] = value; });
     return params;
   }
 
@@ -1255,6 +1389,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (params.year) state.year = params.year;
     if (params.season) state.season = params.season;
     if (params.bm && BASEMAPS[params.bm]) state.basemap = params.bm;
+    state.tracesVisible = params.traces === '1' || params.traces === 'true';
     if (params.lng && params.lat && params.z) {
       var lng2 = parseFloat(params.lng);
       var lat2 = parseFloat(params.lat);
@@ -1294,28 +1429,32 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       btn.classList.toggle('is-active', v === state.season);
       btn.setAttribute('aria-pressed', v === state.season ? 'true' : 'false');
     });
-    var yearSelR = document.getElementById('me-year');
-    if (yearSelR && state.year) yearSelR.value = state.year;
+    syncYearUi();
     document.querySelectorAll('input[name="me-basemap"]').forEach(function (inp) {
       inp.checked = inp.value === state.basemap;
       var opt = inp.closest ? inp.closest('.me-basemap-opt') : inp.parentElement;
       if (opt) opt.classList.toggle('is-active', inp.value === state.basemap);
     });
+    var traceToggleR = document.getElementById('me-trace-toggle');
+    if (traceToggleR) traceToggleR.checked = !!state.tracesVisible;
     document.querySelectorAll('.me-overlay-item').forEach(function (label) {
       var id = label.getAttribute('data-overlay-id');
       if (!id || !overlayState[id]) return;
       var toggle = label.querySelector('.me-overlay-toggle');
       var range = label.querySelector('.me-overlay-opacity-range');
       if (toggle) { toggle.checked = !!overlayState[id].enabled; }
-      if (overlayState[id].enabled) label.classList.add('is-on');
+      label.classList.toggle('is-on', !!overlayState[id].enabled);
       if (range && overlayState[id].opacity != null) range.value = String(overlayState[id].opacity);
     });
   }
 
-  // Restore from URL hash, then localStorage.
+  // Restore from query string, then hash, then localStorage.
   (function () {
-    var hash = window.location.hash;
-    var params = hash ? parseStateString(hash) : {};
+    var params = parseStateString(window.location.search);
+    if (!Object.keys(params).length) {
+      var hash = window.location.hash;
+      params = hash ? parseStateString(hash) : {};
+    }
     if (!Object.keys(params).length) {
       try { params = parseStateString(localStorage.getItem(STATE_STORAGE_KEY) || ''); } catch (_) {}
     }
@@ -1351,7 +1490,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function loadTraces() {
-    if (!apiTraces || !state.map || !tracesVisible) return;
+    if (!apiTraces || !state.map || !state.tracesVisible) return;
     var qs = '?limit=200';
     if (state.year) qs += '&year=' + encodeURIComponent(state.year);
     fetch(apiTraces + qs, { credentials: 'same-origin' })
@@ -1360,15 +1499,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .catch(function () {});
   }
 
-  // Trace toggle state
-  var tracesVisible = false;
   var traceToggleEl = document.getElementById('me-trace-toggle');
   if (traceToggleEl) {
     traceToggleEl.addEventListener('change', function () {
-      tracesVisible = !!traceToggleEl.checked;
+      state.tracesVisible = !!traceToggleEl.checked;
       if (state.map && state.map.getLayer('traces-line')) {
-        state.map.setLayoutProperty('traces-line', 'visibility', tracesVisible ? 'visible' : 'none');
-      } else if (tracesVisible) {
+        state.map.setLayoutProperty('traces-line', 'visibility', state.tracesVisible ? 'visible' : 'none');
+      } else if (state.tracesVisible) {
         loadTraces();
       }
       saveMapState();
@@ -1379,7 +1516,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var _origReapplyOverlays = reapplyOverlays;
   reapplyOverlays = function (map) {
     _origReapplyOverlays(map);
-    if (tracesVisible) loadTraces();
+    if (state.tracesVisible) loadTraces();
   };
 
   function hydrate() {
@@ -1440,16 +1577,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       saveMapState();
     });
   });
-  var yearSel = document.getElementById('me-year');
-  if (yearSel) {
-    yearSel.addEventListener('change', function () {
-      state.year = yearSel.value;
-      state.coverage = null; // invalidate so coverage refetches for new year
-      if (state.map && state.map.getSource('coverage')) { removeLayerIfExists(state.map, 'coverage-fill'); removeSourceIfExists(state.map, 'coverage'); }
-      loadObservations();
-      if (state.tab === 'coverage' && state.map) loadCoverage(state.map);
-      loadTraces();
-      saveMapState();
+  if (yearRangeEl) {
+    yearRangeEl.addEventListener('input', function () {
+      var nextYear = YEAR_VALUES[Number(yearRangeEl.value)];
+      if (!nextYear) return;
+      state.year = String(nextYear);
+      syncYearUi();
+    });
+    yearRangeEl.addEventListener('change', refreshYearDependentData);
+  }
+  if (yearAllEl) {
+    yearAllEl.addEventListener('click', function () {
+      state.year = '';
+      syncYearUi();
+      refreshYearDependentData();
     });
   }
   document.querySelectorAll('.me-tab').forEach(function (btn) {
@@ -1464,6 +1605,47 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       saveMapState();
     });
   });
+  if (shareStateEl) {
+    shareStateEl.addEventListener('click', function () {
+      saveMapState();
+      try {
+        var shareUrl = window.location.origin + window.location.pathname + window.location.search;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(shareUrl).then(function () {
+            setStatus(COPY.shareCopied);
+          }).catch(function () {
+            try {
+              var ta = document.createElement('textarea');
+              ta.value = shareUrl;
+              ta.setAttribute('readonly', 'readonly');
+              ta.style.position = 'absolute';
+              ta.style.left = '-9999px';
+              document.body.appendChild(ta);
+              ta.select();
+              var ok = document.execCommand('copy');
+              document.body.removeChild(ta);
+              setStatus(ok ? COPY.shareCopied : COPY.shareError);
+            } catch (_) {
+              setStatus(COPY.shareError);
+            }
+          });
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = shareUrl;
+          ta.setAttribute('readonly', 'readonly');
+          ta.style.position = 'absolute';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          var copied = document.execCommand('copy');
+          document.body.removeChild(ta);
+          setStatus(copied ? COPY.shareCopied : COPY.shareError);
+        }
+      } catch (_) {
+        setStatus(COPY.shareError);
+      }
+    });
+  }
   document.querySelectorAll('input[name="me-basemap"]').forEach(function (inp) {
     inp.addEventListener('change', function () {
       if (!inp.checked) return;
@@ -1499,38 +1681,160 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   });
 
-  // ---- Nominatim place search + locate-me --------------------------------
-  // Follows OSM usage policy: 1 req/sec, include a descriptive referer-ish
-  // identifier through the query, debounce keystrokes, and bias results to JP.
-  // If we outgrow Nominatim we can swap the fetch URL for a Mapbox/GSI endpoint
-  // without touching the UI.
+  // ---- Unified species + place search ------------------------------------
+  // Species hits are resolved locally from the currently visible observation
+  // set so they feel instant; place hits come from Nominatim and append below.
   var NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
   var searchInputEl = document.getElementById('me-search-input');
   var searchResultsEl = document.getElementById('me-search-results');
   var searchDebounce = null;
   var searchAbort = null;
+  var searchSeq = 0;
 
-  function runPlaceSearch(query) {
+  function normalizeSearchText(value) {
+    return String(value == null ? '' : value).trim().toLowerCase();
+  }
+
+  function closeSearchResults() {
     if (!searchResultsEl) return;
     searchResultsEl.innerHTML = '';
     searchResultsEl.classList.remove('is-open');
-    if (!query || query.trim().length < 2) return;
+  }
+
+  function renderSearchRows(rows) {
+    if (!searchResultsEl) return;
+    if (!rows || !rows.length) {
+      searchResultsEl.innerHTML = '<div class="me-search-empty">' + escapeHtml(COPY.searchNoResult) + '</div>';
+      searchResultsEl.classList.add('is-open');
+      return;
+    }
+    searchResultsEl.innerHTML = rows.map(function (row, idx) {
+      return '<button type="button" role="option" class="me-search-row" data-idx="' + idx + '">' +
+        '<span class="me-search-badge me-search-badge-' + escapeHtml(row.kind) + '">' + escapeHtml(row.badge) + '</span>' +
+        '<strong>' + escapeHtml(row.title) + '</strong>' +
+        (row.subtitle ? '<span>' + escapeHtml(row.subtitle) + '</span>' : '') +
+        '</button>';
+    }).join('');
+    searchResultsEl.classList.add('is-open');
+    searchResultsEl.querySelectorAll('.me-search-row').forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        var row = rows[i];
+        if (!row || typeof row.onSelect !== 'function') return;
+        row.onSelect();
+      });
+    });
+  }
+
+  function buildSpeciesSearchRows(query) {
+    var q = normalizeSearchText(query);
+    if (!q || q.length < 2) return [];
+    var speciesMap = {};
+    state.features.forEach(function (feature) {
+      var variants = featureNameVariants(feature);
+      if (!variants.length) return;
+      var matched = variants.some(function (name) { return normalizeSearchText(name).indexOf(q) !== -1; });
+      if (!matched) return;
+      var p = feature.properties || {};
+      var key = normalizeSearchText(p.displayName || variants[0]);
+      if (!speciesMap[key]) {
+        speciesMap[key] = {
+          kind: 'species',
+          badge: COPY.searchResultSpecies,
+          title: p.displayName || variants[0],
+          subtitle: [p.scientificName, p.municipality].filter(Boolean).join(' · '),
+          featureIds: [],
+          taxonGroup: p.taxonGroup || '',
+        };
+      }
+      speciesMap[key].featureIds.push(p.occurrenceId);
+    });
+    return Object.keys(speciesMap)
+      .map(function (key) { return speciesMap[key]; })
+      .sort(function (a, b) { return b.featureIds.length - a.featureIds.length; })
+      .slice(0, 5)
+      .map(function (row) {
+        var hitLabel = SEARCH_LANG === 'ja' ? '件'
+          : SEARCH_LANG === 'es' ? ' registros'
+          : SEARCH_LANG === 'pt-BR' ? ' registros'
+          : ' hits';
+        row.subtitle = row.subtitle
+          ? row.subtitle + ' · ' + row.featureIds.length + hitLabel
+          : row.featureIds.length + hitLabel;
+        row.onSelect = function () {
+          if (!state.map) return;
+          state.tab = 'markers';
+          syncUiFromState();
+          applyTab(state.map, state.tab);
+          var matches = state.features.filter(function (feature) {
+            var p = feature.properties || {};
+            return row.featureIds.indexOf(p.occurrenceId) !== -1;
+          });
+          fitToFeatureSet(matches, { zoom: 13.8, openSheet: matches.length === 1 });
+          if (searchInputEl) searchInputEl.value = row.title;
+          searchResultsEl.classList.remove('is-open');
+          saveMapState();
+        };
+        return row;
+      });
+  }
+
+  function buildPlaceSearchRows(rows) {
+    if (!Array.isArray(rows)) return [];
+    return rows.slice(0, 5).map(function (row) {
+      var name = row.display_name || row.name || '';
+      var cls = row.type || row.category || '';
+      return {
+        kind: 'place',
+        badge: COPY.searchResultPlace,
+        title: name,
+        subtitle: cls,
+        onSelect: function () {
+          if (!row || !state.map) return;
+          var lat = Number(row.lat);
+          var lng = Number(row.lon);
+          if (!isFinite(lat) || !isFinite(lng)) return;
+          if (row.boundingbox && row.boundingbox.length === 4) {
+            var b = row.boundingbox.map(Number);
+            if (b.every(isFinite)) {
+              state.map.fitBounds([[b[2], b[0]], [b[3], b[1]]], { padding: 48, maxZoom: 14, duration: 500 });
+            } else {
+              state.map.flyTo({ center: [lng, lat], zoom: 12, duration: 500 });
+            }
+          } else {
+            state.map.flyTo({ center: [lng, lat], zoom: 12, duration: 500 });
+          }
+          searchResultsEl.classList.remove('is-open');
+          if (searchInputEl) searchInputEl.value = row.display_name || '';
+          saveMapState();
+        },
+      };
+    });
+  }
+
+  function runUnifiedSearch(query) {
+    if (!searchResultsEl) return;
+    var trimmed = String(query || '').trim();
+    var seq = ++searchSeq;
+    var localRows = buildSpeciesSearchRows(trimmed);
+    if (!trimmed || trimmed.length < 2) {
+      closeSearchResults();
+      return;
+    }
+    if (localRows.length) renderSearchRows(localRows);
+    else closeSearchResults();
 
     if (searchAbort) { try { searchAbort.abort(); } catch(_) {} }
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     searchAbort = controller;
 
     var params = new URLSearchParams({
-      q: query.trim(),
+      q: trimmed,
       format: 'jsonv2',
-      limit: '8',
+      limit: '5',
       countrycodes: 'jp',
       'accept-language': SEARCH_LANG,
       addressdetails: '0',
     });
-    // Nominatim's free instance asks for a stable identifier — we pass one via
-    // the email param (the only non-UA way from a browser), pointing at the
-    // project rather than any individual user.
     params.set('email', 'ops@ikimon.life');
 
     fetch(NOMINATIM_URL + '?' + params.toString(), {
@@ -1539,45 +1843,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('nominatim ' + r.status)); })
       .then(function (rows) {
-        if (!Array.isArray(rows) || rows.length === 0) {
-          searchResultsEl.innerHTML = '<div class="me-search-empty">' + escapeHtml(COPY.searchNoResult) + '</div>';
-          searchResultsEl.classList.add('is-open');
+        if (seq !== searchSeq) return;
+        var merged = localRows.concat(buildPlaceSearchRows(rows));
+        if (!merged.length) {
+          renderSearchRows([]);
           return;
         }
-        searchResultsEl.innerHTML = rows.slice(0, 8).map(function (row, idx) {
-          var name = row.display_name || row.name || '';
-          var cls = row.type || row.category || '';
-          return '<button type="button" role="option" class="me-search-row" data-idx="' + idx + '">' +
-            '<strong>' + escapeHtml(name) + '</strong>' +
-            (cls ? '<span>' + escapeHtml(cls) + '</span>' : '') +
-            '</button>';
-        }).join('');
-        searchResultsEl.classList.add('is-open');
-        searchResultsEl.querySelectorAll('.me-search-row').forEach(function (btn, i) {
-          btn.addEventListener('click', function () {
-            var row = rows[i];
-            if (!row || !state.map) return;
-            var lat = Number(row.lat);
-            var lng = Number(row.lon);
-            if (!isFinite(lat) || !isFinite(lng)) return;
-            if (row.boundingbox && row.boundingbox.length === 4) {
-              var b = row.boundingbox.map(Number);
-              // Nominatim returns [south, north, west, east].
-              if (b.every(isFinite)) {
-                state.map.fitBounds([[b[2], b[0]], [b[3], b[1]]], { padding: 48, maxZoom: 14, duration: 500 });
-              } else {
-                state.map.flyTo({ center: [lng, lat], zoom: 12, duration: 500 });
-              }
-            } else {
-              state.map.flyTo({ center: [lng, lat], zoom: 12, duration: 500 });
-            }
-            searchResultsEl.classList.remove('is-open');
-            if (searchInputEl) searchInputEl.value = row.display_name || '';
-          });
-        });
+        renderSearchRows(merged.slice(0, 8));
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
+        if (seq !== searchSeq) return;
+        if (localRows.length) {
+          renderSearchRows(localRows);
+          return;
+        }
         searchResultsEl.innerHTML = '<div class="me-search-empty">' + escapeHtml(COPY.searchError) + '</div>';
         searchResultsEl.classList.add('is-open');
       });
@@ -1587,7 +1867,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     searchInputEl.addEventListener('input', function () {
       var q = searchInputEl.value;
       if (searchDebounce) clearTimeout(searchDebounce);
-      searchDebounce = setTimeout(function () { runPlaceSearch(q); }, 400);
+      searchDebounce = setTimeout(function () { runUnifiedSearch(q); }, 280);
+    });
+    searchInputEl.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || !searchResultsEl) return;
+      var first = searchResultsEl.querySelector('.me-search-row');
+      if (!first) return;
+      e.preventDefault();
+      first.click();
     });
     searchInputEl.addEventListener('focus', function () {
       if (searchResultsEl && searchResultsEl.childElementCount > 0) searchResultsEl.classList.add('is-open');
@@ -1633,13 +1920,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   // removes raster sources + layers on toggle, and updates raster-opacity
   // on slider change. Kept client-side so the server doesn't need to know
   // which overlays are currently visible.
-  var overlayCatalog = [];
-  try {
-    var catalogEl = document.querySelector('.me-overlay-list');
-    if (catalogEl) overlayCatalog = JSON.parse(catalogEl.getAttribute('data-overlay-catalog') || '[]');
-  } catch (_) { overlayCatalog = []; }
-  var overlayState = {};
-  overlayCatalog.forEach(function (o) { overlayState[o.id] = { enabled: false, opacity: o.defaultOpacity }; });
 
   function overlaySourceId(id) { return 'overlay-src-' + id; }
   function overlayLayerId(id) { return 'overlay-layer-' + id; }
@@ -1763,7 +2043,18 @@ export const MAP_EXPLORER_STYLES = `
   .me-chip:hover { border-color: rgba(16,185,129,.35); }
   .me-chip.is-active { background: linear-gradient(135deg, rgba(16,185,129,.16), rgba(14,165,233,.14)); border-color: rgba(16,185,129,.45); color: #065f46; }
   .me-chip-icon { font-size: 13px; }
-  .me-year-select { padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(15,23,42,.1); background: #fff; font-weight: 700; font-size: 13px; color: #0f172a; }
+  .me-time-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: min(100%, 360px); }
+  .me-time-slider-wrap { min-width: 180px; flex: 1 1 220px; display: flex; flex-direction: column; gap: 4px; }
+  .me-year-range { width: 100%; accent-color: #10b981; }
+  .me-year-scale { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; font-weight: 700; color: #94a3b8; }
+  .me-year-pill { min-width: 74px; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.05); font-weight: 800; font-size: 12px; color: #0f172a; text-align: center; }
+  .me-share-btn {
+    min-height: 38px; padding: 8px 12px; border-radius: 999px;
+    border: 1px solid rgba(14,165,233,.18); background: rgba(14,165,233,.08);
+    color: #075985; font-size: 12px; font-weight: 800; cursor: pointer;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .me-share-btn:hover { background: rgba(14,165,233,.14); border-color: rgba(14,165,233,.3); }
   .me-trace-toggle-label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
   .me-trace-toggle { width: 32px; height: 18px; appearance: none; background: rgba(15,23,42,.12); border-radius: 999px; position: relative; cursor: pointer; transition: background .2s ease; }
   .me-trace-toggle:checked { background: #0ea5e9; }
@@ -1896,6 +2187,13 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-search-row:last-child { border-bottom: 0; }
   .me-search-row:hover { background: rgba(236,253,245,.55); }
+  .me-search-row .me-search-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: fit-content; margin-bottom: 4px; padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
+  }
+  .me-search-row .me-search-badge-species { background: rgba(16,185,129,.14); color: #065f46; }
+  .me-search-row .me-search-badge-place { background: rgba(14,165,233,.12); color: #075985; }
   .me-search-row strong { font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: -.01em; }
   .me-search-row span { font-size: 11px; color: #64748b; }
   .me-search-empty { padding: 14px; font-size: 12px; color: #64748b; }
@@ -1969,6 +2267,16 @@ export const MAP_EXPLORER_STYLES = `
   .me-side-item span { font-size: 11px; color: #64748b; }
   .me-cluster-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 10px; background: rgba(248,250,252,.8); font-size: 12px; }
   .me-cluster-item strong { font-weight: 800; color: #059669; }
+  .me-chip:focus-visible,
+  .me-tab:focus-visible,
+  .me-search-row:focus-visible,
+  .me-share-btn:focus-visible,
+  .me-locate-fab:focus-visible,
+  .me-bottom-close:focus-visible,
+  .me-year-range:focus-visible {
+    outline: 3px solid rgba(14,165,233,.32);
+    outline-offset: 2px;
+  }
 
   @media (max-width: 900px) {
     .me-side { flex-direction: row; overflow-x: auto; }

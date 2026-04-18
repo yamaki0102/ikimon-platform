@@ -103,6 +103,13 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-hero-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 5px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); max-height: 620px; }
   .obs-hero-gallery .is-main { grid-column: 1 / -1; aspect-ratio: 4/3; max-height: 520px; }
   .obs-hero-gallery .is-thumb { aspect-ratio: 1/1; }
+  .obs-hero-media-stack { display: grid; gap: 10px; }
+  .obs-hero-photo-stack { display: grid; gap: 10px; }
+  .obs-hero-video { display: grid; gap: 8px; }
+  .obs-hero-video-frame { position: relative; width: 100%; padding-top: 56.25%; border-radius: 20px; overflow: hidden; background: #020617; }
+  .obs-hero-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+  .obs-hero-video-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; color: #334155; font-weight: 700; }
+  .obs-hero-video-meta a { color: #0369a1; text-decoration: underline; text-underline-offset: 2px; }
   .obs-hero-photo { border: 0; padding: 0; background: none; overflow: hidden; cursor: zoom-in; position: relative; }
   .obs-hero-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
   .obs-hero-photo:hover img { transform: scale(1.04); }
@@ -120,6 +127,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 5px 12px; font-size: 11.5px; font-weight: 800; background: rgba(16,185,129,.1); color: #047857; border: 1px solid rgba(16,185,129,.2); }
   .obs-badge-species { background: rgba(59,130,246,.08); color: #1d4ed8; border-color: rgba(59,130,246,.2); }
   .obs-badge-nearby { background: rgba(168,85,247,.08); color: #7e22ce; border-color: rgba(168,85,247,.2); }
+  .obs-badge-video { background: rgba(15,23,42,.08); color: #0f172a; border-color: rgba(15,23,42,.16); }
   .obs-reaction-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   .obs-reaction { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; font-weight: 700; font-size: 13px; color: #334155; cursor: pointer; transition: transform .12s ease, background .2s ease; }
   .obs-reaction:hover { background: #f9fafb; transform: translateY(-1px); }
@@ -326,7 +334,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <label class="record-field"><span class="record-label">生きもの名（分かれば）</span><input name="scientificName" type="text" placeholder="例: スズメ / Passer montanus" /></label>
               <label class="record-field"><span class="record-label">和名 / 通称</span><input name="vernacularName" type="text" placeholder="例: スズメ" /></label>
               <label class="record-field"><span class="record-label">確信度</span><input name="rank" type="text" value="species" placeholder="species / genus / family" /></label>
-              <label class="record-field record-field-wide record-photo-field"><span class="record-label">写真</span><input id="record-photo" name="photo" type="file" accept="image/*" /><span class="record-help">写真は観察の証拠として保存できます。未添付でも記録は残せます。</span></label>
+              <label class="record-field record-field-wide record-photo-field"><span class="record-label">写真 / 動画</span><input id="record-media" name="media" type="file" accept="image/*,video/*" /><span class="record-help">写真か動画を 1 つ選択できます。動画は 200MB / 60秒まで対応します。</span></label>
+              <div id="record-video-progress" class="record-video-progress" hidden aria-live="polite">
+                <div class="record-video-progress-head">
+                  <strong>動画アップロード進捗</strong>
+                  <button type="button" id="record-video-cancel" class="btn btn-ghost" disabled>キャンセル</button>
+                </div>
+                <progress id="record-video-progressbar" max="100" value="0" aria-label="動画アップロード進捗"></progress>
+                <div class="record-video-progress-meta">
+                  <span id="record-video-progress-label">0%</span>
+                  <span id="record-video-progress-bytes">0 MB / 0 MB</span>
+                </div>
+                <div id="record-video-live" class="record-video-live" aria-live="polite">動画を選ぶと進捗を表示します。</div>
+              </div>
               <div class="record-actions">
                 <button class="btn btn-solid" type="submit">観察を記録する</button>
                 <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes"))}">ノートへ戻る</a>
@@ -348,7 +368,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   <span id="record-preview-municipality">自治体未入力</span>
                   <span id="record-preview-coords">34.7108, 137.7261</span>
                 </div>
-                <div id="record-preview-photo" class="record-preview-photo is-empty">写真プレビュー</div>
+                <div id="record-preview-photo" class="record-preview-photo is-empty">写真 / 動画プレビュー</div>
               </div>
             </section>
             <section class="record-card record-guide-card">
@@ -370,6 +390,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           </aside>
         </div>
       </section>
+      <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.1.0/dist/tus.min.js" integrity="sha384-e14cNjQjd5R4CjmEtpwqhtz1Yr92mbPYc08UpfD17q3OEaOPNnZM0sxye7khgesI" crossorigin="anonymous"></script>
       <script>
         const basePath = ${JSON.stringify(basePath)};
         const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
@@ -382,13 +403,112 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const previewMunicipality = document.getElementById('record-preview-municipality');
         const previewCoords = document.getElementById('record-preview-coords');
         const previewPhoto = document.getElementById('record-preview-photo');
-        const photoInput = document.getElementById('record-photo');
+        const mediaInput = document.getElementById('record-media');
+        const videoProgressWrap = document.getElementById('record-video-progress');
+        const videoProgressBar = document.getElementById('record-video-progressbar');
+        const videoProgressLabel = document.getElementById('record-video-progress-label');
+        const videoProgressBytes = document.getElementById('record-video-progress-bytes');
+        const videoLive = document.getElementById('record-video-live');
+        const videoCancel = document.getElementById('record-video-cancel');
+        const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+        const MAX_VIDEO_SECONDS = 60;
+        let previewObjectUrl = '';
+        let activeTusUpload = null;
+        let cancelTusUpload = null;
+
         if (observedAt && !observedAt.value) {
           const now = new Date();
           observedAt.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
         }
-        const setStatus = (html) => { status.innerHTML = html; };
+
+        const setStatus = (html) => {
+          if (status) status.innerHTML = html;
+        };
+
+        const normalizeError = (error) => {
+          if (!error) return 'unknown_error';
+          if (typeof error === 'string') return error;
+          if (error && typeof error.message === 'string') return error.message;
+          return String(error);
+        };
+
+        const formatBytes = (bytes) => {
+          if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
+          const mb = bytes / (1024 * 1024);
+          if (mb >= 1024) return (mb / 1024).toFixed(2) + ' GB';
+          return mb.toFixed(1) + ' MB';
+        };
+
+        const isVideoFile = (file) => {
+          if (!file) return false;
+          const type = String(file.type || '').toLowerCase();
+          if (type.startsWith('video/')) return true;
+          return /\.(mp4|mov|m4v|webm|ogv|avi)$/i.test(String(file.name || ''));
+        };
+
+        const isImageFile = (file) => {
+          if (!file) return false;
+          const type = String(file.type || '').toLowerCase();
+          if (type.startsWith('image/')) return true;
+          return /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(String(file.name || ''));
+        };
+
+        const resetVideoProgress = () => {
+          if (videoProgressWrap) videoProgressWrap.hidden = true;
+          if (videoProgressBar) videoProgressBar.value = 0;
+          if (videoProgressLabel) videoProgressLabel.textContent = '0%';
+          if (videoProgressBytes) videoProgressBytes.textContent = '0 MB / 0 MB';
+          if (videoLive) videoLive.textContent = '動画を選ぶと進捗を表示します。';
+          if (videoCancel) videoCancel.disabled = true;
+          activeTusUpload = null;
+          cancelTusUpload = null;
+        };
+
+        const updateVideoProgress = (uploaded, total) => {
+          if (videoProgressWrap) videoProgressWrap.hidden = false;
+          const safeTotal = Number(total) > 0 ? Number(total) : 1;
+          const percent = Math.max(0, Math.min(100, Math.round((Number(uploaded) / safeTotal) * 100)));
+          if (videoProgressBar) videoProgressBar.value = percent;
+          if (videoProgressLabel) videoProgressLabel.textContent = percent + '%';
+          if (videoProgressBytes) videoProgressBytes.textContent = formatBytes(uploaded) + ' / ' + formatBytes(total);
+        };
+
+        const renderPreviewFile = (file) => {
+          if (!previewPhoto) return;
+          if (previewObjectUrl) {
+            URL.revokeObjectURL(previewObjectUrl);
+            previewObjectUrl = '';
+          }
+          if (!file) {
+            previewPhoto.className = 'record-preview-photo is-empty';
+            previewPhoto.innerHTML = '写真 / 動画プレビュー';
+            return;
+          }
+          if (isVideoFile(file)) {
+            previewObjectUrl = URL.createObjectURL(file);
+            previewPhoto.className = 'record-preview-photo';
+            previewPhoto.innerHTML = '<video controls playsinline muted preload="metadata" src="' + previewObjectUrl + '" aria-label="動画プレビュー"></video>';
+            return;
+          }
+          if (isImageFile(file)) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              previewPhoto.className = 'record-preview-photo';
+              previewPhoto.innerHTML = '<img src="' + String(reader.result || '') + '" alt="preview" />';
+            };
+            reader.onerror = () => {
+              previewPhoto.className = 'record-preview-photo is-empty';
+              previewPhoto.innerHTML = 'プレビュー読み込みに失敗しました。';
+            };
+            reader.readAsDataURL(file);
+            return;
+          }
+          previewPhoto.className = 'record-preview-photo is-empty';
+          previewPhoto.innerHTML = '対応していないファイル形式です。';
+        };
+
         const syncPreview = () => {
+          if (!form) return;
           const data = new FormData(form);
           const scientificName = String(data.get('scientificName') || '').trim();
           const vernacularName = String(data.get('vernacularName') || '').trim();
@@ -397,100 +517,279 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const latitude = String(data.get('latitude') || '').trim();
           const longitude = String(data.get('longitude') || '').trim();
           const observedAtValue = String(data.get('observedAt') || '').trim();
-          previewTitle.textContent = vernacularName || scientificName || '名前未確定の観察';
-          previewPlace.textContent = localityNote || '場所メモが入ると、あとから再訪理由として効きます。';
-          previewMunicipality.textContent = municipality || '自治体未入力';
-          previewCoords.textContent = latitude && longitude ? latitude + ', ' + longitude : '座標未入力';
-          previewDate.textContent = observedAtValue ? new Date(observedAtValue).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' }) : '今日';
+          if (previewTitle) previewTitle.textContent = vernacularName || scientificName || '名前未確定の観察';
+          if (previewPlace) previewPlace.textContent = localityNote || '場所メモが入ると、あとから再訪理由として効きます。';
+          if (previewMunicipality) previewMunicipality.textContent = municipality || '自治体未入力';
+          if (previewCoords) previewCoords.textContent = latitude && longitude ? latitude + ', ' + longitude : '座標未入力';
+          if (previewDate) {
+            previewDate.textContent = observedAtValue
+              ? new Date(observedAtValue).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })
+              : '今日';
+          }
         };
-        form.addEventListener('input', syncPreview);
-        if (photoInput && previewPhoto) {
-          photoInput.addEventListener('change', () => {
-            const file = photoInput.files && photoInput.files[0];
-            if (!file) {
-              previewPhoto.className = 'record-preview-photo is-empty';
-              previewPhoto.innerHTML = '写真プレビュー';
+
+        const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('file_read_failed'));
+          reader.readAsDataURL(file);
+        });
+
+        const validateVideoDuration = (file) => new Promise((resolve, reject) => {
+          const probe = document.createElement('video');
+          const objectUrl = URL.createObjectURL(file);
+          const cleanup = () => {
+            URL.revokeObjectURL(objectUrl);
+            probe.removeAttribute('src');
+          };
+          probe.preload = 'metadata';
+          probe.muted = true;
+          probe.playsInline = true;
+          probe.onloadedmetadata = () => {
+            const duration = Number(probe.duration);
+            cleanup();
+            if (!Number.isFinite(duration) || duration <= 0) {
+              reject(new Error('video_duration_unknown'));
               return;
             }
-            const reader = new FileReader();
-            reader.onload = () => {
-              previewPhoto.className = 'record-preview-photo';
-              previewPhoto.innerHTML = '<img src="' + String(reader.result || '') + '" alt="preview" />';
+            if (duration > MAX_VIDEO_SECONDS + 0.5) {
+              reject(new Error('video_duration_too_long'));
+              return;
+            }
+            resolve(duration);
+          };
+          probe.onerror = () => {
+            cleanup();
+            reject(new Error('video_metadata_read_failed'));
+          };
+          probe.src = objectUrl;
+        });
+
+        const uploadVideoWithTus = (directUploadUrl, file) =>
+          new Promise((resolve, reject) => {
+            if (!(window.tus && typeof window.tus.Upload === 'function')) {
+              reject(new Error('video_upload_library_unavailable'));
+              return;
+            }
+            let settled = false;
+            const finish = (error) => {
+              if (settled) return;
+              settled = true;
+              if (videoCancel) videoCancel.disabled = true;
+              activeTusUpload = null;
+              cancelTusUpload = null;
+              if (error) reject(error);
+              else resolve(true);
             };
-            reader.readAsDataURL(file);
+
+            const upload = new window.tus.Upload(file, {
+              uploadUrl: directUploadUrl,
+              chunkSize: 8 * 1024 * 1024,
+              retryDelays: [0, 1200, 3000, 5000, 9000],
+              removeFingerprintOnSuccess: true,
+              metadata: {
+                filename: file.name || 'upload.mp4',
+                filetype: file.type || 'video/mp4',
+              },
+              onProgress: (uploaded, total) => {
+                updateVideoProgress(uploaded, total);
+                if (videoLive) videoLive.textContent = '動画をアップロード中です。';
+              },
+              onError: (error) => {
+                finish(error instanceof Error ? error : new Error(String(error)));
+              },
+              onSuccess: () => {
+                if (videoLive) videoLive.textContent = '動画アップロードが完了しました。';
+                finish(null);
+              },
+            });
+
+            activeTusUpload = upload;
+            cancelTusUpload = () => {
+              upload.abort(true);
+              finish(new Error('video_upload_cancelled'));
+            };
+            if (videoCancel) videoCancel.disabled = false;
+            updateVideoProgress(0, file.size || 0);
+            upload.start();
+          });
+
+        if (form) {
+          form.addEventListener('input', syncPreview);
+        }
+        if (mediaInput) {
+          mediaInput.addEventListener('change', () => {
+            const file = mediaInput.files && mediaInput.files[0];
+            renderPreviewFile(file || null);
+            if (!file || !isVideoFile(file)) {
+              resetVideoProgress();
+            } else if (videoProgressWrap) {
+              videoProgressWrap.hidden = false;
+              if (videoLive) videoLive.textContent = '動画をアップロードできます。送信すると開始します。';
+            }
           });
         }
-        syncPreview();
-        form.addEventListener('submit', async (event) => {
-          event.preventDefault();
-          const data = new FormData(form);
-          const userId = form.dataset.userId || '';
-          const observationId = 'record-' + Date.now();
-          if (!userId) {
-            setStatus('<div class="row"><div>User context is missing.</div></div>');
-            return;
-          }
-          setStatus('<div class="row"><div>記録を送信中...</div></div>');
-          try {
-            const payload = {
-              observationId,
-              legacyObservationId: observationId,
-              userId,
-              observedAt: new Date(String(data.get('observedAt'))).toISOString(),
-              latitude: Number(data.get('latitude')),
-              longitude: Number(data.get('longitude')),
-              prefecture: 'Shizuoka',
-              municipality: String(data.get('municipality') || ''),
-              localityNote: String(data.get('localityNote') || ''),
-              note: '',
-              sourcePayload: { source: 'v2_web' },
-              taxon: {
-                scientificName: String(data.get('scientificName') || ''),
-                vernacularName: String(data.get('vernacularName') || ''),
-                rank: String(data.get('rank') || ''),
-              },
-            };
-            const observationResponse = await fetch(withBasePath('/api/v1/observations/upsert'), {
-              method: 'POST',
-              headers: { 'content-type': 'application/json', accept: 'application/json' },
-              body: JSON.stringify(payload),
-            });
-            const observationJson = await observationResponse.json();
-            if (!observationResponse.ok) {
-              throw new Error(observationJson.error || 'observation_upsert_failed');
+        if (videoCancel) {
+          videoCancel.addEventListener('click', () => {
+            if (typeof cancelTusUpload === 'function') {
+              cancelTusUpload();
+              setStatus('<div class="row"><div>動画アップロードをキャンセルしました。</div></div>');
             }
-            const file = data.get('photo');
-            if (file instanceof File && file.size > 0) {
-              const base64Data = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(String(reader.result || ''));
-                reader.onerror = () => reject(new Error('file_read_failed'));
-                reader.readAsDataURL(file);
-              });
-              const photoResponse = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(observationId) + '/photos/upload'), {
+          });
+        }
+
+        syncPreview();
+        resetVideoProgress();
+
+        if (form) {
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const data = new FormData(form);
+            const userId = form.dataset.userId || '';
+            const observationId = 'record-' + Date.now();
+            if (!userId) {
+              setStatus('<div class="row"><div>User context is missing.</div></div>');
+              return;
+            }
+            setStatus('<div class="row"><div>記録を送信中...</div></div>');
+            try {
+              const payload = {
+                observationId,
+                legacyObservationId: observationId,
+                userId,
+                observedAt: new Date(String(data.get('observedAt'))).toISOString(),
+                latitude: Number(data.get('latitude')),
+                longitude: Number(data.get('longitude')),
+                prefecture: 'Shizuoka',
+                municipality: String(data.get('municipality') || ''),
+                localityNote: String(data.get('localityNote') || ''),
+                note: '',
+                sourcePayload: { source: 'v2_web' },
+                taxon: {
+                  scientificName: String(data.get('scientificName') || ''),
+                  vernacularName: String(data.get('vernacularName') || ''),
+                  rank: String(data.get('rank') || ''),
+                },
+              };
+
+              const observationResponse = await fetch(withBasePath('/api/v1/observations/upsert'), {
                 method: 'POST',
                 headers: { 'content-type': 'application/json', accept: 'application/json' },
-                body: JSON.stringify({
-                  filename: file.name || 'upload.jpg',
-                  mimeType: file.type || 'image/jpeg',
-                  base64Data,
-                }),
+                credentials: 'include',
+                body: JSON.stringify(payload),
               });
-              const photoJson = await photoResponse.json();
-              if (!photoResponse.ok) {
-                throw new Error(photoJson.error || 'photo_upload_failed');
+              const observationJson = await observationResponse.json();
+              if (!observationResponse.ok || !observationJson.ok) {
+                throw new Error(observationJson.error || 'observation_upsert_failed');
               }
+              const detailId = String(observationJson.occurrenceId || observationId);
+
+              const media = data.get('media');
+              const mediaFile = media instanceof File && media.size > 0 ? media : null;
+              let extraStatus = '';
+
+              if (mediaFile) {
+                if (isImageFile(mediaFile)) {
+                  const base64Data = await readFileAsDataUrl(mediaFile);
+                  const photoResponse = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(detailId) + '/photos/upload'), {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json', accept: 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      filename: mediaFile.name || 'upload.jpg',
+                      mimeType: mediaFile.type || 'image/jpeg',
+                      base64Data,
+                    }),
+                  });
+                  const photoJson = await photoResponse.json();
+                  if (!photoResponse.ok || !photoJson.ok) {
+                    throw new Error(photoJson.error || 'photo_upload_failed');
+                  }
+                } else if (isVideoFile(mediaFile)) {
+                  if (mediaFile.size > MAX_VIDEO_BYTES) {
+                    throw new Error('video_file_too_large');
+                  }
+                  await validateVideoDuration(mediaFile);
+
+                  setStatus('<div class="row"><div>動画アップロード URL を発行しています...</div></div>');
+                  const issueResponse = await fetch(withBasePath('/api/v1/videos/direct-upload'), {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json', accept: 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      filename: mediaFile.name || 'upload.mp4',
+                      maxDurationSeconds: MAX_VIDEO_SECONDS,
+                      observationId: detailId,
+                    }),
+                  });
+                  const issueJson = await issueResponse.json();
+                  if (!issueResponse.ok || !issueJson.ok || !issueJson.uploadUrl || !issueJson.uid) {
+                    throw new Error(issueJson.error || 'video_issue_failed');
+                  }
+
+                  await uploadVideoWithTus(String(issueJson.uploadUrl), mediaFile);
+                  setStatus('<div class="row"><div>動画を観察へ紐づけています...</div></div>');
+
+                  const finalizeResponse = await fetch(withBasePath('/api/v1/videos/' + encodeURIComponent(String(issueJson.uid)) + '/finalize'), {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json', accept: 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      observationId: detailId,
+                    }),
+                  });
+                  const finalizeJson = await finalizeResponse.json();
+                  if (!finalizeResponse.ok || !finalizeJson.ok) {
+                    throw new Error(finalizeJson.error || 'video_finalize_failed');
+                  }
+
+                  try {
+                    const reassessVideoResponse = await fetch(withBasePath('/api/v1/observations/' + encodeURIComponent(detailId) + '/reassess-from-video'), {
+                      method: 'POST',
+                      credentials: 'include',
+                    });
+                    const reassessVideoJson = await reassessVideoResponse.json();
+                    if (reassessVideoResponse.ok && reassessVideoJson.ok) {
+                      extraStatus = '動画サムネイルの AI 解析も更新しました。';
+                    } else {
+                      extraStatus = '動画は保存済みです（AI 解析は詳細ページから再実行できます）。';
+                    }
+                  } catch (_error) {
+                    extraStatus = '動画は保存済みです（AI 解析は詳細ページから再実行できます）。';
+                  }
+                } else {
+                  throw new Error('unsupported_media_type');
+                }
+              }
+
+              const suffix = extraStatus
+                ? '<div class="meta" style="margin-top:6px">' + extraStatus + '</div>'
+                : '';
+              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + suffix + '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(detailId)) + '">観察を見る</a> · <a href="' + withBasePath('/notes') + '">ノートへ戻る</a></div></div></div>');
+              form.reset();
+              if (observedAt) {
+                const now = new Date();
+                observedAt.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+              }
+              renderPreviewFile(null);
+              syncPreview();
+              resetVideoProgress();
+            } catch (error) {
+              const message = normalizeError(error);
+              let userMessage = message;
+              if (message === 'video_file_too_large') userMessage = '動画サイズは 200MB 以下にしてください。';
+              if (message === 'video_duration_too_long') userMessage = '動画の長さは 60 秒以内にしてください。';
+              if (message === 'video_upload_cancelled') userMessage = '動画アップロードをキャンセルしました。';
+              if (message === 'video_metadata_read_failed' || message === 'video_duration_unknown') userMessage = '動画の長さを確認できませんでした。別の動画で試してください。';
+              if (message === 'unsupported_media_type') userMessage = '画像または動画ファイルを選択してください。';
+              setStatus('<div class="row"><div>送信に失敗しました。<div class="meta">' + userMessage + '</div></div></div>');
+            } finally {
+              if (videoCancel) videoCancel.disabled = true;
+              activeTusUpload = null;
+              cancelTusUpload = null;
             }
-            setStatus('<div class="row"><div><strong>記録を保存しました。</strong><div class="meta"><a href=\"' + withBasePath('/observations/' + encodeURIComponent(observationId)) + '\">観察を見る</a> · <a href=\"' + withBasePath('/notes') + '\">ノートへ戻る</a></div></div></div>');
-            form.reset();
-            if (observedAt) {
-              const now = new Date();
-              observedAt.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-            }
-          } catch (error) {
-            setStatus('<div class="row"><div>送信に失敗しました。<div class="meta">' + String(error.message || error) + '</div></div></div>');
-          }
-        });
+          });
+        }
       </script>`,
       "Record",
       {
@@ -521,6 +820,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-label { font-weight: 800; color: #0f172a; font-size: 14px; }
         .record-help { font-size: 12px; line-height: 1.6; color: #64748b; }
         .record-photo-field input[type="file"] { padding: 14px; border-style: dashed; }
+        .record-video-progress { grid-column: 1 / -1; padding: 14px 16px; border-radius: 16px; background: linear-gradient(180deg, rgba(14,165,233,.08), rgba(16,185,129,.08)); border: 1px solid rgba(14,165,233,.2); display: grid; gap: 8px; }
+        .record-video-progress-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .record-video-progress strong { font-size: 13px; color: #0f172a; }
+        .record-video-progress progress { width: 100%; height: 13px; }
+        .record-video-progress-meta { display: flex; justify-content: space-between; gap: 12px; color: #334155; font-size: 12px; font-weight: 700; }
+        .record-video-live { font-size: 12px; color: #0f766e; line-height: 1.5; }
         .record-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px; }
         .record-sidebar { display: grid; gap: 18px; }
         .record-preview-card h2, .record-guide-card h2 { margin: 10px 0 0; font-size: 22px; line-height: 1.3; }
@@ -543,6 +848,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-preview-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 14px; color: #334155; font-size: 13px; font-weight: 700; }
         .record-preview-photo { margin-top: 16px; min-height: 160px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(14,165,233,.12)); border: 1px solid rgba(14,165,233,.12); display: grid; place-items: center; color: #0f172a; font-weight: 800; }
         .record-preview-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .record-preview-photo video { width: 100%; height: 100%; display: block; object-fit: cover; background: #020617; }
         .record-preview-photo.is-empty { color: #475569; font-size: 13px; }
         @media (max-width: 720px) {
           .record-card { padding: 20px; border-radius: 24px; }
@@ -728,12 +1034,34 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                <img src="${escapeHtml(url)}" alt="${escapeHtml(snapshot.displayName)}" loading="${i === 0 ? "eager" : "lazy"}" />
              </button>`).join("")}
          </div>`
-      : `<div class="obs-hero-placeholder"><span>📷</span><span>${escapeHtml(snapshot.displayName)}</span><small>写真なし</small></div>`;
+      : "";
+    const primaryVideo = snapshot.videoAssets[0] ?? null;
+    const videoPlayer = primaryVideo
+      ? `<div class="obs-hero-video">
+           <div class="obs-hero-video-frame">
+             <iframe
+               src="${escapeHtml(primaryVideo.iframeUrl)}"
+               title="${escapeHtml(snapshot.displayName)} の動画"
+               loading="lazy"
+               allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+               allowfullscreen>
+             </iframe>
+           </div>
+           <div class="obs-hero-video-meta">
+             <strong>動画</strong>
+             ${primaryVideo.watchUrl ? `<a href="${escapeHtml(primaryVideo.watchUrl)}" target="_blank" rel="noopener noreferrer">別タブで開く</a>` : ""}
+           </div>
+         </div>`
+      : "";
+    const mediaBlock = (videoPlayer || photoGallery)
+      ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}</div>`
+      : `<div class="obs-hero-placeholder"><span>📷</span><span>${escapeHtml(snapshot.displayName)}</span><small>写真も動画もまだありません</small></div>`;
 
     const badges: string[] = [];
     if (snapshot.scientificName) badges.push(`<span class="obs-badge obs-badge-species">🔬 ${escapeHtml(snapshot.scientificName)}</span>`);
     if (snapshot.identifications.length > 0) badges.push(`<span class="obs-badge obs-badge-consensus">🧭 同定 ${snapshot.identifications.length} 件</span>`);
     if (heavy && heavy.nearby.length > 0) badges.push(`<span class="obs-badge obs-badge-nearby">📍 同地点 ${heavy.nearby.length} 件</span>`);
+    if (snapshot.videoAssets.length > 0) badges.push(`<span class="obs-badge obs-badge-video">🎬 動画あり</span>`);
 
     const REACTION_META: Record<ReactionType, { icon: string; label: string }> = {
       like: { icon: "💚", label: "いいね" },
@@ -758,7 +1086,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const heroBlock = `
       <section class="section obs-hero">
-        <div class="obs-hero-media">${photoGallery}</div>
+        <div class="obs-hero-media">${mediaBlock}</div>
         <div class="obs-hero-meta">
           <h1 class="obs-hero-title">${escapeHtml(snapshot.displayName)}</h1>
           <div class="obs-hero-byline">
@@ -1025,40 +1353,63 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     //   5) layer1 / contextBlock / ctaBlock は PC 2col で並ぶ
     const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
     const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
+    const reassessButtons: string[] = [];
+    if (isOwner) {
+      reassessButtons.push(
+        `<button type="button"
+                 class="obs-reassess-btn"
+                 data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(request.params.id) + "/reassess"))}"
+                 data-loading-text="再判定中…（写真を Gemini に渡しています）">🔄 写真から再判定</button>`,
+      );
+      if (snapshot.videoAssets.length > 0) {
+        reassessButtons.push(
+          `<button type="button"
+                   class="obs-reassess-btn"
+                   data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(request.params.id) + "/reassess-from-video"))}"
+                   data-loading-text="再判定中…（動画サムネイルを Gemini に渡しています）">🎬 動画から再判定</button>`,
+        );
+      }
+    }
     const reassessBlock = isOwner
       ? `<section class="section obs-reassess-row" aria-label="AI 再判定">
-           <button type="button" class="obs-reassess-btn" data-reassess-id="${escapeHtml(request.params.id)}">🔄 AI にもう一度見てもらう</button>
-           <span class="obs-reassess-hint">写真から主役とまわりに写る生きものを拾い直します（30秒ほど）。</span>
+           ${reassessButtons.join("")}
+           <span class="obs-reassess-hint">${snapshot.videoAssets.length > 0 ? "写真か動画サムネイルを使って判定を更新できます（30秒ほど）。" : "写真から主役とまわりに写る生きものを拾い直します（30秒ほど）。"}</span>
            <span class="obs-reassess-status" data-reassess-status hidden></span>
          </section>`
       : "";
     const reassessScript = isOwner
       ? `<script>(function(){
-           var btn = document.querySelector('.obs-reassess-btn[data-reassess-id]');
-           if (!btn) return;
+           var buttons = Array.prototype.slice.call(document.querySelectorAll('.obs-reassess-btn[data-reassess-endpoint]'));
+           if (!buttons.length) return;
            var statusEl = document.querySelector('[data-reassess-status]');
-           btn.addEventListener('click', function(){
-             var id = btn.getAttribute('data-reassess-id');
-             if (!id) return;
-             btn.disabled = true;
-             if (statusEl) { statusEl.hidden = false; statusEl.classList.remove('is-error'); statusEl.textContent = '再判定中…（写真を Gemini に渡しています）'; }
-             fetch('/api/v1/observations/' + encodeURIComponent(id) + '/reassess', { method: 'POST', credentials: 'include' })
-               .then(function(r){ return r.json().then(function(j){ return { ok: r.ok && j && j.ok, j: j }; }); })
-               .then(function(res){
-                 if (!res.ok) {
-                   if (statusEl) { statusEl.classList.add('is-error'); statusEl.textContent = '失敗: ' + ((res.j && res.j.error) || 'unknown_error'); }
-                   btn.disabled = false;
-                   return;
-                 }
-                 if (statusEl) { statusEl.textContent = '判定完了 — ページを更新します'; }
-                 setTimeout(function(){ window.location.reload(); }, 600);
-               })
-               .catch(function(e){
-                 if (statusEl) { statusEl.classList.add('is-error'); statusEl.textContent = '通信エラー: ' + (e && e.message || 'network'); }
-                 btn.disabled = false;
-               });
+           var setBusy = function(disabled) {
+             buttons.forEach(function(button){ button.disabled = disabled; });
+           };
+           buttons.forEach(function(btn){
+             btn.addEventListener('click', function(){
+               var endpoint = btn.getAttribute('data-reassess-endpoint');
+               if (!endpoint) return;
+               var loadingText = btn.getAttribute('data-loading-text') || '再判定中…';
+               setBusy(true);
+               if (statusEl) { statusEl.hidden = false; statusEl.classList.remove('is-error'); statusEl.textContent = loadingText; }
+               fetch(endpoint, { method: 'POST', credentials: 'include' })
+                .then(function(r){ return r.json().then(function(j){ return { ok: r.ok && j && j.ok, j: j }; }); })
+                .then(function(res){
+                  if (!res.ok) {
+                    if (statusEl) { statusEl.classList.add('is-error'); statusEl.textContent = '失敗: ' + ((res.j && res.j.error) || 'unknown_error'); }
+                    setBusy(false);
+                    return;
+                  }
+                  if (statusEl) { statusEl.textContent = '判定完了 — ページを更新します'; }
+                  setTimeout(function(){ window.location.reload(); }, 600);
+                })
+                .catch(function(e){
+                  if (statusEl) { statusEl.classList.add('is-error'); statusEl.textContent = '通信エラー: ' + (e && e.message || 'network'); }
+                  setBusy(false);
+                });
+             });
            });
-         })();</script>`
+          })();</script>`
       : "";
     const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${reassessScript}`;
 

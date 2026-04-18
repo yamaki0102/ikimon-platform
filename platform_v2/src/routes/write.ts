@@ -13,9 +13,10 @@ import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { upsertUser, type UserUpsertInput } from "../services/userWrite.js";
 import { submitContact, type ContactSubmitInput } from "../services/contactSubmit.js";
-import { createVideoDirectUpload, markVideoReady } from "../services/videoUpload.js";
+import { createVideoDirectUpload, finalizeVideoUpload } from "../services/videoUpload.js";
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
+import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
 import {
   assertObservationOwnedByUser,
   assertPrivilegedWriteAccess,
@@ -36,6 +37,9 @@ function errorStatus(error: unknown, fallback = 400): number {
     error.message === "specialist_role_required"
   ) {
     return 403;
+  }
+  if (error.message === "observation_not_found" || error.message === "video_not_found" || error.message === "observation_video_not_found") {
+    return 404;
   }
   return fallback;
 }
@@ -274,11 +278,15 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           return { ok: false, error: "session_required" };
         }
         const body = request.body ?? {};
+        const observationId = typeof body.observationId === "string" ? body.observationId.trim() : "";
+        if (observationId) {
+          await assertObservationOwnedByUser(observationId, session.userId);
+        }
         const result = await createVideoDirectUpload({
           actorId: session.userId,
           maxDurationSeconds: body.maxDurationSeconds,
           filename: body.filename,
-          observationId: body.observationId ?? null,
+          observationId: observationId || null,
         });
         return { ok: true, ...result };
       } catch (error) {
@@ -291,7 +299,10 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
 
   // アップロード完了を client から通知するルート。Cloudflare から Stream 本体情報を取得し、
   // upload_status / duration / bytes を DB に反映する。フロント側で tus アップロード完了後に呼ぶ。
-  app.post<{ Params: { uid: string } }>(
+  app.post<{
+    Params: { uid: string };
+    Body: { observationId?: string | null };
+  }>(
     "/api/v1/videos/:uid/finalize",
     async (request, reply) => {
       try {
@@ -300,14 +311,24 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
           reply.code(401);
           return { ok: false, error: "session_required" };
         }
-        const record = await markVideoReady(request.params.uid);
+        const observationId = typeof request.body?.observationId === "string"
+          ? request.body.observationId.trim()
+          : "";
+        if (observationId) {
+          await assertObservationOwnedByUser(observationId, session.userId);
+        }
+        const record = await finalizeVideoUpload({
+          uid: request.params.uid,
+          actorId: session.userId,
+          observationId: observationId || null,
+        });
         if (!record) {
           reply.code(404);
           return { ok: false, error: "video_not_found" };
         }
         return { ok: true, video: record };
       } catch (error) {
-        reply.code(500);
+        reply.code(errorStatus(error, 500));
         return { ok: false, error: error instanceof Error ? error.message : "finalize_failed" };
       }
     },
@@ -355,6 +376,28 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         return { ok: true, ...result };
       } catch (error) {
         const message = error instanceof Error ? error.message : "reassess_failed";
+        reply.code(errorStatus(error, 500));
+        return { ok: false, error: message };
+      }
+    },
+  );
+
+  // 観察 AI 再判定（動画サムネイル版）。session + owner only。
+  // Cloudflare Stream thumbnail(time=2s) を使って candidate を更新する。
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/observations/:id/reassess-from-video",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          reply.code(401);
+          return { ok: false, error: "session_required" };
+        }
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const result = await reassessFromVideoThumb(request.params.id);
+        return { ok: true, ...result };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "reassess_from_video_failed";
         reply.code(errorStatus(error, 500));
         return { ok: false, error: message };
       }

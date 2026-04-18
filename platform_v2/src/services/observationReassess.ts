@@ -22,6 +22,17 @@ export type ReassessResult = {
   modelUsed: string;
 };
 
+export type ReassessImageInput = {
+  mime: string;
+  b64: string;
+};
+
+export type ReassessObservationOptions = {
+  photos?: ReassessImageInput[];
+  promptVersion?: string;
+  sourceTag?: string;
+};
+
 type GeminiJson = {
   confidence_band?: string;
   recommended_rank?: string;
@@ -130,7 +141,7 @@ function getClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey: cfg.geminiApiKey });
 }
 
-async function runGemini(prompt: string, photos: Array<{ mime: string; b64: string }>): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
+async function runGemini(prompt: string, photos: ReassessImageInput[]): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
   const ai = getClient();
   const parts: Array<Record<string, unknown>> = photos.map((p) => ({
     inlineData: { mimeType: p.mime, data: p.b64 },
@@ -168,7 +179,10 @@ async function runGemini(prompt: string, photos: Array<{ mime: string; b64: stri
  * - ADR-0004: candidate → subject → occurrence のうち、AI 単独で昇格させないため、
  *   追加 occurrence は evidence_tier=0 / quality_grade=provisional 相当で confidence を記録。
  */
-export async function reassessObservation(occurrenceId: string): Promise<ReassessResult> {
+export async function reassessObservation(
+  occurrenceId: string,
+  options: ReassessObservationOptions = {},
+): Promise<ReassessResult> {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -208,8 +222,13 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
     );
     const vctx = visit.rows[0] ?? { observed_at: "", latitude: null, longitude: null, place_id: null };
 
-    // 3. 写真を最大3枚ロード
-    const photos = await loadPhotoBytes(client, occurrenceId, target.visit_id);
+    // 3. 入力画像（override） or DB 写真を最大3枚ロード
+    const overridePhotos = Array.isArray(options.photos)
+      ? options.photos.filter((p) => typeof p?.mime === "string" && p.mime.trim().startsWith("image/") && typeof p.b64 === "string" && p.b64.trim().length > 0)
+      : [];
+    const photos = overridePhotos.length > 0
+      ? overridePhotos
+      : await loadPhotoBytes(client, occurrenceId, target.visit_id);
     if (photos.length === 0) {
       throw new Error("no_photo_for_reassess");
     }
@@ -229,6 +248,9 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
     });
 
     const { parsed, modelUsed, rawText } = await runGemini(prompt, photos);
+    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v1";
+    const sourceTag = options.sourceTag?.trim() || "photo";
+    const sourcePayloadKey = sourceTag === "video_thumb" ? "v2_ai_reassess_video_thumb" : "v2_ai_reassess";
 
     const band = normalizeBand(parsed.confidence_band);
     const rank = normalizeRank(parsed.recommended_rank);
@@ -309,7 +331,7 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
         target.visit_id,
         band,
         modelUsed,
-        "observation_reassess.md/v1",
+        promptVersion,
         rank === "unknown" ? null : rank,
         recommendedName || null,
         bestSpecific || null,
@@ -360,7 +382,7 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
                 family = coalesce($10, family),
                 genus = coalesce($11, genus),
                 confidence_score = $12,
-                source_payload = coalesce(source_payload, '{}'::jsonb) || jsonb_build_object('v2_ai_reassess', jsonb_build_object('model', $13::text, 'assessment_id', $14::text))
+                source_payload = coalesce(source_payload, '{}'::jsonb) || jsonb_build_object($13::text, jsonb_build_object('model', $14::text, 'assessment_id', $15::text, 'source', $16::text))
           WHERE occurrence_id = $1`,
         [
           occurrenceId,
@@ -375,8 +397,10 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
           primaryLineage?.family ?? null,
           primaryLineage?.genus ?? null,
           confidenceScore,
+          sourcePayloadKey,
           modelUsed,
           assessmentId,
+          sourceTag,
         ],
       );
     }
@@ -435,7 +459,7 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
           JSON.stringify({
             v2_subject: {
               role_hint: "coexisting",
-              source: "ai_reassess",
+              source: sourceTag === "video_thumb" ? "ai_reassess_video_thumb" : "ai_reassess",
               assessment_id: assessmentId,
               note: c.note,
               gbif: {

@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto";
+import type { PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
+import { upsertAssetBlob } from "./writeSupport.js";
 
 const API_BASE = "https://api.cloudflare.com/client/v4/accounts/";
 const DEFAULT_MAX_DURATION_SECONDS = 15;
@@ -35,6 +38,22 @@ export type VideoRecord = {
   readyToStream: boolean;
   createdAt: string;
   uploadedAt: string | null;
+};
+
+export type FinalizeVideoUploadInput = {
+  uid: string;
+  actorId: string;
+  observationId?: string | null;
+};
+
+export type FinalizeVideoUploadResult = VideoRecord & {
+  occurrenceId: string | null;
+  visitId: string | null;
+};
+
+type ObservationTarget = {
+  occurrenceId: string;
+  visitId: string;
 };
 
 function cfConfigOrThrow() {
@@ -175,4 +194,167 @@ export async function markVideoReady(uid: string): Promise<VideoRecord | null> {
     // best-effort
   }
   return record;
+}
+
+async function resolveObservationTarget(client: PoolClient, observationId: string): Promise<ObservationTarget | null> {
+  const id = observationId.trim();
+  if (!id) {
+    return null;
+  }
+  const target = await client.query<{ occurrence_id: string; visit_id: string }>(
+    `select
+        o.occurrence_id,
+        v.visit_id
+     from visits v
+     join occurrences o on o.visit_id = v.visit_id
+     where (v.visit_id = $1 or v.legacy_observation_id = $1 or o.occurrence_id = $1)
+     order by o.subject_index asc, o.created_at asc
+     limit 1`,
+    [id],
+  );
+  const row = target.rows[0];
+  if (!row) {
+    return null;
+  }
+  return {
+    occurrenceId: row.occurrence_id,
+    visitId: row.visit_id,
+  };
+}
+
+function maxDurationFromRecord(record: VideoRecord): number {
+  const sec = Math.ceil(Math.max(1, record.durationMs) / 1000);
+  return Math.max(MIN_DURATION_SECONDS, Math.min(MAX_DURATION_SECONDS_HARD_CAP, sec));
+}
+
+export async function finalizeVideoUpload(input: FinalizeVideoUploadInput): Promise<FinalizeVideoUploadResult | null> {
+  const uid = input.uid.trim();
+  if (!uid) {
+    throw new Error("invalid_uid");
+  }
+  const record = await fetchVideoRecord(uid);
+  if (!record) {
+    return null;
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+
+    const current = await client.query<{ actor_id: string; observation_id: string | null }>(
+      `select actor_id, observation_id
+         from video_upload_requests
+        where stream_uid = $1
+        for update`,
+      [uid],
+    );
+    const issued = current.rows[0];
+    if (issued && issued.actor_id !== input.actorId) {
+      throw new Error("forbidden_video_owner");
+    }
+
+    const requestedObservationId = input.observationId?.trim() || issued?.observation_id || null;
+    const target = requestedObservationId ? await resolveObservationTarget(client, requestedObservationId) : null;
+    if (requestedObservationId && !target) {
+      throw new Error("observation_not_found");
+    }
+
+    const meta = {
+      source: "v2_video_finalize",
+      stream_uid: uid,
+      iframe_url: record.iframeUrl,
+      watch_url: record.watchUrl,
+      thumbnail_url: record.thumbnailUrl,
+      upload_status: record.uploadStatus,
+      ready_to_stream: record.readyToStream,
+      observation_id: requestedObservationId,
+    };
+
+    await client.query(
+      `insert into video_upload_requests (
+          stream_uid, actor_id, observation_id, upload_status, max_duration_seconds,
+          stream_duration_ms, stream_bytes, ready_to_stream, meta, created_at, updated_at
+       ) values (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, now(), now()
+       )
+       on conflict (stream_uid) do update set
+          observation_id = coalesce(excluded.observation_id, video_upload_requests.observation_id),
+          upload_status = excluded.upload_status,
+          stream_duration_ms = excluded.stream_duration_ms,
+          stream_bytes = excluded.stream_bytes,
+          ready_to_stream = excluded.ready_to_stream,
+          meta = coalesce(video_upload_requests.meta, '{}'::jsonb) || excluded.meta,
+          updated_at = now()`,
+      [
+        uid,
+        input.actorId,
+        requestedObservationId,
+        record.uploadStatus,
+        maxDurationFromRecord(record),
+        record.durationMs,
+        record.bytes,
+        record.readyToStream,
+        JSON.stringify(meta),
+      ],
+    );
+
+    const blobId = await upsertAssetBlob(client, {
+      storageBackend: "cloudflare_stream",
+      storagePath: uid,
+      mediaType: "video",
+      mimeType: "video/mp4",
+      publicUrl: record.watchUrl,
+      bytes: record.bytes > 0 ? record.bytes : null,
+      durationMs: record.durationMs > 0 ? record.durationMs : null,
+      sourcePayload: meta,
+    });
+
+    if (target) {
+      const legacyAssetKey = `observation_video:${target.visitId}:${uid}`;
+      const legacyRelativePath = `cloudflare_stream/${uid}`;
+      await client.query(
+        `insert into evidence_assets (
+            asset_id, blob_id, occurrence_id, visit_id, asset_role,
+            legacy_asset_key, legacy_relative_path, source_payload, captured_at
+         ) values (
+            $1::uuid, $2::uuid, $3, $4, 'observation_video',
+            $5, $6, $7::jsonb, $8::timestamptz
+         )
+         on conflict (legacy_asset_key) do update set
+            blob_id = excluded.blob_id,
+            occurrence_id = excluded.occurrence_id,
+            visit_id = excluded.visit_id,
+            legacy_relative_path = excluded.legacy_relative_path,
+            source_payload = excluded.source_payload,
+            captured_at = excluded.captured_at`,
+        [
+          randomUUID(),
+          blobId,
+          target.occurrenceId,
+          target.visitId,
+          legacyAssetKey,
+          legacyRelativePath,
+          JSON.stringify(meta),
+          record.uploadedAt,
+        ],
+      );
+    }
+
+    await client.query("commit");
+    return {
+      ...record,
+      occurrenceId: target?.occurrenceId ?? null,
+      visitId: target?.visitId ?? null,
+    };
+  } catch (error) {
+    try {
+      await client.query("rollback");
+    } catch {
+      // no-op
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 }
