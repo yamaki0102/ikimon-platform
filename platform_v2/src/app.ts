@@ -60,13 +60,13 @@ function landingCopy(lang: SiteLang) {
   const copy = {
     ja: {
       title: "ikimon — 歩いて、見つけて、ノートに残す",
-      heroEyebrow: "feel the field.",
+      heroEyebrow: "ikimon へようこそ",
       heroHeading: "いつもの散歩が、<br><span class=\"hero-emphasis\">冒険になる。</span>",
       heroHeadingPlain: "いつもの散歩が、冒険になる。",
-      heroLead: "AI が土地を読み、地図が次の一歩を灯す。歩くほど、同じ道がちがって見えてくる。",
+      heroLead: "写真を撮ると AI が候補を返す。地図が次に歩く場所を教えてくれる。記録が積むほど、同じ道がちがって見えてくる。",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("ja-JP")} 件の観察 · ${species.toLocaleString("ja-JP")} 種`,
       actionPrimaryLoggedIn: "ノートの続きを書く",
-      actionPrimaryGuest: "ノートを始める",
+      actionPrimaryGuest: "観察を始める",
       actionSecondary: "探索マップを見る",
       toolSectionEyebrow: "ノートを育てる入口",
       toolSectionTitle: "ノートに新しいページを書く理由を増やす 2 つの入口",
@@ -489,7 +489,7 @@ function buildLandingRootHtml(
     MENTOR_STRIP_STYLES,
     DEMO_LOGIN_BANNER_STYLES,
     `
-  .quick-nav-inner { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: none; }
+  .quick-nav-inner { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: none; }
   .field-loop-section { position: relative; overflow: hidden; }
   .field-loop-shell { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .95fr); gap: 18px; align-items: stretch; }
   .field-loop-copy, .field-loop-principles { border-radius: 28px; padding: 26px; }
@@ -543,17 +543,11 @@ function buildLandingRootHtml(
     `,
   ].join("\n");
 
-  // Hero rhythm: badge → h1 → lead → chips (small) → CTA (large) → stat pill (subtle).
-  // Putting chips above the CTAs keeps the visual cadence small→large→small without bouncing.
-  const heroSupplementHtml = `<div class="hero-chip-row">
-    <span class="hero-chip">${escapeHtml(lang === "ja" ? "AI ガイドが囁く" : lang === "es" ? "La IA susurra" : lang === "pt-BR" ? "A IA sussurra" : "AI guide whispers")}</span>
-    <span class="hero-chip">${escapeHtml(lang === "ja" ? "地図に次の一歩が灯る" : lang === "es" ? "El mapa enciende el próximo paso" : lang === "pt-BR" ? "O mapa acende o próximo passo" : "The map lights the next step")}</span>
-    <span class="hero-chip">${escapeHtml(lang === "ja" ? "歩くほど、世界が濃くなる" : lang === "es" ? "Cada paso, el mundo se vuelve más denso" : lang === "pt-BR" ? "Cada passo, o mundo fica mais denso" : "Every step, the world deepens")}</span>
-  </div>`;
-
-  const heroAfterActionsHtml = statLine
+  const heroSupplementHtml = statLine
     ? `<div class="landing-hero-stat">${escapeHtml(statLine)}</div>`
     : "";
+
+  const heroAfterActionsHtml = "";
 
   const heroActionsFinal = isLoggedIn
     ? [
@@ -580,18 +574,14 @@ function buildLandingRootHtml(
       align: "center",
       supplementHtml: heroSupplementHtml,
       actions: heroActionsFinal,
-      afterActionsHtml: heroAfterActionsHtml,
+      afterActionsHtml: "",
     },
     belowHeroHtml: `${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}${renderQuickNav(options.basePath, lang)}`,
     extraStyles,
-    body: `${renderTodayHabit(options.basePath, lang, snapshot)}
+    body: `${renderFieldNoteMain(options.basePath, lang, snapshot)}
 ${fieldLoopSectionHtml}
-${renderRevisitFlow(options.basePath, lang, snapshot)}
-${renderFieldNoteMain(options.basePath, lang, snapshot)}
 ${toolsSectionHtml}
 ${mapSectionHtml}
-${renderCommunityMeter(options.basePath, lang, snapshot)}
-${renderMentorStrip(options.basePath, lang)}
 ${bizSectionHtml}
 ${mapMiniBootScript()}`,
     footerNote: copy.footerNote,
