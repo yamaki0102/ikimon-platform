@@ -7,6 +7,7 @@ import { resolveViewer } from "../services/viewerIdentity.js";
 import { getLandingSnapshot } from "../services/landingSnapshot.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
+import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
 import {
   getExploreSnapshot,
   getHomeSnapshot,
@@ -521,6 +522,46 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : snapshot.scientificName
         ? "候補は出ていますが、もう少し良い角度の写真や追加の観察があると根拠が厚くなります。"
         : "候補はありますが、急いで種まで断定せず、もう一度観察するのが安心です。";
+
+    // Phase D: フィールドノート 3層構造。同 visit / 同 place の guide_records + audio_detections を折り畳み表示。
+    const obsContext = await getObservationContext(request.params.id, snapshot.visitId ?? null, null).catch(() => null);
+    const grouped = obsContext ? groupFeaturesByLayer(obsContext.features) : { coexistingTaxa: [], environment: [], sounds: [] };
+    const renderFeatureChips = (list: typeof grouped.coexistingTaxa): string =>
+      list
+        .map(
+          (f) => `<li class="obs-chip" title="${escapeHtml(f.note ?? "")}"><span class="obs-chip-name">${escapeHtml(f.name)}</span>${
+            typeof f.confidence === "number" ? `<span class="obs-chip-conf">${Math.round(f.confidence * 100)}%</span>` : ""
+          }<span class="obs-chip-src">${f.sourceKind === "audio" ? "🎤" : "📷"}</span></li>`,
+        )
+        .join("");
+    const coexistingSection = grouped.coexistingTaxa.length > 0
+      ? `<details class="obs-fold" open>
+           <summary>🌿 同地点の生きもの <span class="obs-fold-count">${grouped.coexistingTaxa.length}</span></summary>
+           <p class="meta obs-fold-hint">写真 (AI フィールドガイド) や音声が拾った主種以外の記録。属・科レベル含む。</p>
+           <ul class="obs-chips">${renderFeatureChips(grouped.coexistingTaxa)}</ul>
+         </details>`
+      : "";
+    const soundsSection = grouped.sounds.length > 0
+      ? `<details class="obs-fold">
+           <summary>🎤 音声で拾った生きもの <span class="obs-fold-count">${grouped.sounds.length}</span></summary>
+           <p class="meta obs-fold-hint">鳴き声・環境音の検出結果。将来の再同定用に位置情報付きで保存されている。</p>
+           <ul class="obs-chips">${renderFeatureChips(grouped.sounds)}</ul>
+         </details>`
+      : "";
+    const storyBits: string[] = [];
+    if (obsContext && obsContext.environmentContexts.length > 0) storyBits.push(...obsContext.environmentContexts.map((s) => `<p class="meta">${escapeHtml(s)}</p>`));
+    if (obsContext && obsContext.seasonalNotes.length > 0) storyBits.push(...obsContext.seasonalNotes.map((s) => `<p class="meta">${escapeHtml(s)}</p>`));
+    if (grouped.environment.length > 0) storyBits.push(`<ul class="obs-chips">${renderFeatureChips(grouped.environment)}</ul>`);
+    const storySection = storyBits.length > 0
+      ? `<details class="obs-fold">
+           <summary>🏞️ 場所の物語 <span class="obs-fold-count">${storyBits.length}</span></summary>
+           <p class="meta obs-fold-hint">EXIF・環境文脈・季節から推論されるその場所の状況。</p>
+           ${storyBits.join("")}
+         </details>`
+      : "";
+    const layerBlock = coexistingSection || soundsSection || storySection
+      ? `<section class="section obs-layer-block">${coexistingSection}${soundsSection}${storySection}</section>`
+      : "";
     const retakeChecklist = [
       "全身だけでなく、決め手になる部位をもう1枚撮る",
       "同じ場所で時間を変えて再訪し、季節や行動差を取る",
@@ -545,6 +586,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <div class="card"><div class="card-body"><div class="eyebrow">学名</div><h2>${escapeHtml(snapshot.scientificName || "未確定")}</h2><p class="meta">${escapeHtml(snapshot.note || "メモなし")}</p></div></div>
         </div>
       </section>
+      ${layerBlock}
       <section class="section"><div class="section-header"><div><div class="eyebrow">名前の確定まで</div><h2>Identifications</h2></div></div><div class="list">${ids || '<div class="row"><div>まだ同定が付いていません。</div></div>'}</div></section>`,
       "みつける",
       {
@@ -563,6 +605,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
        .obs-detail-photo-fallback { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 16px; color: #475569; font-size: 13px; font-weight: 700; background: repeating-linear-gradient(0deg, transparent 0 24px, rgba(15,23,42,.04) 24px 25px); }
        .obs-detail-photo.is-broken img { display: none; }
        .obs-detail-photo.is-broken .obs-detail-photo-fallback { display: flex; }
+       .obs-layer-block { display: grid; gap: 12px; }
+       .obs-fold { border-radius: 14px; background: #f9fafb; border: 1px solid rgba(15,23,42,.08); padding: 0; overflow: hidden; }
+       .obs-fold > summary { padding: 14px 18px; font-weight: 800; color: #111827; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; }
+       .obs-fold > summary::after { content: "+"; font-weight: 400; color: #9ca3af; font-size: 18px; }
+       .obs-fold[open] > summary::after { content: "−"; }
+       .obs-fold > summary::-webkit-details-marker { display: none; }
+       .obs-fold-count { background: rgba(15,23,42,.08); color: #475569; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: auto; }
+       .obs-fold-hint { padding: 0 18px; color: #6b7280; font-size: 12.5px; line-height: 1.7; margin: 2px 0 10px; }
+       .obs-fold .obs-chips { padding: 0 18px 16px; margin: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+       .obs-chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid rgba(15,23,42,.1); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; color: #111827; }
+       .obs-chip-conf { color: #16a34a; font-weight: 800; font-size: 11px; }
+       .obs-chip-src { color: #6b7280; font-size: 11px; }
       `,
     );
   });
