@@ -110,30 +110,31 @@ Auth::init();
             }
         }
 
-        /* ===== PC: Left Sidebar ===== */
+        /* ===== Desktop: Centered Bottom Sheet ===== */
         @media (min-width: 768px) {
             .cluster-panel {
-                top: 56px;
-                left: 0;
+                left: 50%;
+                right: auto;
                 bottom: 0;
-                width: 380px;
-                height: calc(100vh - 56px);
-                border-right: 1px solid var(--md-outline-variant);
-                box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
-                transform: translateX(-100%);
+                width: 520px;
+                height: auto;
+                max-height: 75vh;
+                border-radius: var(--shape-xl) var(--shape-xl) 0 0;
+                transform: translateX(-50%) translateY(100%);
+                border-right: none;
+                box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.15);
             }
 
             .cluster-panel.is-open {
-                transform: translateX(0);
+                transform: translateX(-50%) translateY(0);
             }
 
             .cluster-panel .sheet-handle {
-                display: none;
+                display: flex;
             }
 
             .cluster-panel .panel-header {
-                padding: 16px;
-                border-bottom: 1px solid var(--md-outline-variant);
+                padding: 4px 16px 12px;
             }
         }
 
@@ -274,7 +275,7 @@ Auth::init();
 
         .map-tab {
             flex: 1;
-            padding: 8px 8px;
+            padding: 4px 8px;
             border-radius: var(--shape-sm);
             font-size: 11px;
             font-weight: 700;
@@ -306,7 +307,7 @@ Auth::init();
             background: var(--md-surface-container);
             border: 1px solid var(--md-outline-variant);
             border-radius: var(--shape-xl);
-            padding: 12px;
+            padding: 8px;
             box-shadow: var(--elev-3);
             backdrop-filter: blur(10px);
         }
@@ -329,6 +330,14 @@ Auth::init();
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
             border: 1px solid var(--md-outline-variant);
             font-size: 11px;
+        }
+
+        @media (min-width: 768px) {
+            .heatmap-legend {
+                left: auto;
+                right: 80px;
+                bottom: 16px;
+            }
         }
 
         .heatmap-legend .gradient-bar {
@@ -389,22 +398,22 @@ Auth::init();
         document.body.classList.remove('js-loading');
     </script>
 
-    <main class="relative w-full h-[calc(100vh-theme(spacing.14))] md:h-screen overflow-hidden" x-data="mapExplorer()">
+    <main class="relative w-full h-screen overflow-hidden" x-data="mapExplorer()">
 
         <!-- Map -->
         <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
-        <!-- Floating UI: Search & Toggle -->
-        <div x-show="!showBottomSheet && !selectedObs" x-transition.opacity.duration.200ms class="absolute top-16 left-4 right-4 md:left-8 md:right-auto md:w-96 z-30 pointer-events-auto max-w-md md:max-w-none mx-auto md:mx-0 flex flex-col gap-2 map-floating-panel">
-            <p class="text-[11px] text-muted px-1">場所の広がりや活動の流れを地図で見る場所</p>
+        <!-- Search + Tabs Card: centered, just below nav -->
+        <div x-show="!showBottomSheet && !selectedObs" x-transition.opacity.duration.200ms
+             class="absolute top-[58px] left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[480px] md:w-full z-30 pointer-events-auto flex flex-col gap-1.5 map-floating-panel">
 
-            <!-- Tab Navigation -->
+            <!-- Tab Navigation (compact) -->
             <div class="map-tab-bar" role="tablist" aria-label="マップ表示タブ">
                 <button class="map-tab" role="tab" :aria-selected="activeTab === 'markers'" :class="{'active': activeTab === 'markers'}" @click="switchTab('markers')">
                     <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> マップ
                 </button>
                 <button class="map-tab" role="tab" :aria-selected="activeTab === 'heatmap'" :class="{'active': activeTab === 'heatmap'}" @click="switchTab('heatmap')">
-                    <i data-lucide="flame" class="w-3.5 h-3.5"></i> ストランドマップ
+                    <i data-lucide="flame" class="w-3.5 h-3.5"></i> ストランド
                 </button>
                 <button class="map-tab" role="tab" :aria-selected="activeTab === 'coverage'" :class="{'active': activeTab === 'coverage'}" @click="switchTab('coverage')">
                     <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i> 調査網羅
@@ -442,6 +451,11 @@ Auth::init();
                     </template>
                 </div>
             </div>
+        </div>
+
+        <!-- Filter Chips Row: separate overlay below search card -->
+        <div x-show="!showBottomSheet && !selectedObs" x-transition.opacity.duration.200ms
+             class="absolute top-[156px] left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[560px] md:w-full z-20 pointer-events-auto">
 
             <!-- Filter Chip Bar (markers tab) -->
             <div class="filter-chip-bar" x-show="activeTab === 'markers'" x-transition>
@@ -742,13 +756,13 @@ Auth::init();
         </div>
 
         <!-- My Location FAB -->
-        <button @click="locateMe()" class="absolute bottom-36 md:bottom-32 right-4 z-10 w-12 h-12 rounded-full shadow-xl flex items-center justify-center active:scale-90 transition group pointer-events-auto" style="background:var(--md-surface-container);color:var(--md-on-surface);box-shadow:var(--elev-3);">
+        <button @click="locateMe()" class="absolute bottom-[5.5rem] right-4 z-10 w-12 h-12 rounded-full shadow-xl flex items-center justify-center active:scale-90 transition group pointer-events-auto" style="background:var(--md-surface-container);color:var(--md-on-surface);box-shadow:var(--elev-3);">
             <i data-lucide="crosshair" class="group-hover:rotate-45 transition duration-500"></i>
             <span x-show="locating" class="absolute inset-0 rounded-full border-2 border-primary-light animate-ping"></span>
         </button>
 
         <!-- Layer Switcher FAB -->
-        <div class="absolute bottom-24 md:bottom-20 right-4 z-10 pointer-events-auto" @click.outside="showLayerMenu = false">
+        <div class="absolute bottom-[3.5rem] right-4 z-10 pointer-events-auto" @click.outside="showLayerMenu = false">
             <button @click="showLayerMenu = !showLayerMenu" class="w-10 h-10 rounded-full flex items-center justify-center transition active:scale-90" style="background:var(--md-surface-container);box-shadow:var(--elev-2);color:var(--md-on-surface-variant);">
                 <i data-lucide="layers" class="w-5 h-5"></i>
             </button>
@@ -766,7 +780,7 @@ Auth::init();
         </div>
 
         <!-- Signs FAB (Strand System) -->
-        <button @click="showSignModal = true" class="absolute bottom-[17rem] md:bottom-64 right-5 z-10 w-10 h-10 rounded-full bg-surface text-accent border border-accent/20 shadow-lg flex items-center justify-center active:scale-90 transition hover:bg-accent-surface pointer-events-auto">
+        <button @click="showSignModal = true" class="absolute bottom-[9rem] right-4 z-10 w-10 h-10 rounded-full bg-surface text-accent border border-accent/20 shadow-lg flex items-center justify-center active:scale-90 transition hover:bg-accent-surface pointer-events-auto">
             <i data-lucide="sticker" class="w-5 h-5"></i>
         </button>
 
@@ -805,7 +819,7 @@ Auth::init();
         </div>
 
         <!-- Add Spot Help FAB -->
-        <button @click="showAddSpotModal = true" class="absolute bottom-52 md:bottom-48 right-5 z-10 w-10 h-10 rounded-full bg-white/90 text-gray-600 shadow-lg flex items-center justify-center active:scale-90 transition hover:bg-white pointer-events-auto backdrop-blur-sm">
+        <button @click="showAddSpotModal = true" class="absolute bottom-[11rem] right-4 z-10 w-10 h-10 rounded-full bg-white/90 text-gray-600 shadow-lg flex items-center justify-center active:scale-90 transition hover:bg-white pointer-events-auto backdrop-blur-sm">
             <i data-lucide="map-pin" class="w-5 h-5 relative z-10"></i>
             <i data-lucide="plus" class="w-3 h-3 absolute top-1.5 right-1.5 text-blue-500 bg-white rounded-full z-20"></i>
         </button>
