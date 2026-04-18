@@ -182,12 +182,28 @@ export async function analyzeScene(opts: {
 
   parts.push({ text: prompt });
 
-  const response = await ai.models.generateContent({
-    // gemini-2.0-flash は新規ユーザーに NOT_FOUND を返すようになった (2026-04)。
-    // マルチモーダル (画像+音声) 対応の Stable モデルに差し替え。
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts }],
-  });
+  // Primary: gemini-3.1-flash-lite-preview (ユーザー指定の基本モデル)
+  // Fallback: gemini-2.5-flash-lite (503/UNAVAILABLE 時)
+  // 3.1-flash-lite-preview は Preview で quota 限定のため現在 503 が頻発する。
+  // 一時障害時に guide/scene 全体が止まらないよう自動フォールバック。
+  const MODELS = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash-lite"];
+  let response: Awaited<ReturnType<typeof ai.models.generateContent>> | null = null;
+  let lastErr: unknown = null;
+  for (const model of MODELS) {
+    try {
+      response = await ai.models.generateContent({
+        model,
+        contents: [{ role: "user", parts }],
+      });
+      break;
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      // 503/UNAVAILABLE/RESOURCE_EXHAUSTED は fallback
+      if (!/503|UNAVAILABLE|RESOURCE_EXHAUSTED|rate|quota/i.test(msg)) throw err;
+    }
+  }
+  if (!response) throw lastErr ?? new Error("gemini_all_models_failed");
 
   const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
   let parsed: {
