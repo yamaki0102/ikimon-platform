@@ -94,10 +94,13 @@ function formatAbsolute(dateStr: string | null | undefined): string {
 }
 
 const OBSERVATION_DETAIL_STYLES = `
-  .obs-hero { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; }
-  @media (min-width: 860px) { .obs-hero { grid-template-columns: 7fr 5fr; } }
-  .obs-hero-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); }
-  .obs-hero-gallery .is-main { grid-column: 1 / -1; aspect-ratio: 4/3; }
+  .obs-hero { display: grid; grid-template-columns: 1fr; gap: 18px; margin-bottom: 24px; }
+  @media (min-width: 860px) {
+    .obs-hero { grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr); align-items: start; gap: 28px; }
+    .obs-hero-meta { position: sticky; top: 16px; }
+  }
+  .obs-hero-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 5px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); max-height: 620px; }
+  .obs-hero-gallery .is-main { grid-column: 1 / -1; aspect-ratio: 4/3; max-height: 520px; }
   .obs-hero-gallery .is-thumb { aspect-ratio: 1/1; }
   .obs-hero-photo { border: 0; padding: 0; background: none; overflow: hidden; cursor: zoom-in; position: relative; }
   .obs-hero-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
@@ -108,7 +111,8 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-hero-title { margin: 0; font-size: 28px; font-weight: 900; color: #0f172a; letter-spacing: -.02em; line-height: 1.15; }
   .obs-hero-byline { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; color: #475569; font-size: 13px; }
   .obs-hero-observer { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: #0f172a; text-decoration: none; }
-  .obs-hero-avatar { width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 14px; }
+  .obs-hero-avatar { width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 14px; flex-shrink: 0; overflow: hidden; }
+  .obs-hero-avatar-img { background: transparent; object-fit: cover; }
   .obs-hero-when { font-weight: 700; }
   .obs-hero-place::before { content: "📍 "; }
   .obs-hero-badges { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -123,7 +127,14 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-reaction-label { display: none; }
   @media (min-width: 640px) { .obs-reaction-label { display: inline; } }
 
-  .obs-layer { display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; padding: 20px; border-radius: 18px; background: #fff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 1px 2px rgba(15,23,42,.03); }
+  .obs-layers-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+  @media (min-width: 960px) {
+    .obs-layers-grid { grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+    .obs-layers-grid > .obs-layer { margin: 0 !important; }
+    /* 横長な Layer（同定リスト・場所の物語）は全幅 span。他は 1col */
+    .obs-layers-grid > .obs-layer-2, .obs-layers-grid > .obs-layer-3 { grid-column: 1 / -1; }
+  }
+  .obs-layer { display: flex; flex-direction: column; gap: 14px; margin-bottom: 0; padding: 20px; border-radius: 18px; background: #fff; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 1px 2px rgba(15,23,42,.03); }
   .obs-layer-title { margin: 0; font-size: 17px; font-weight: 900; color: #0f172a; letter-spacing: .01em; }
   .obs-story-block { padding: 14px 16px; background: #f9fafb; border-radius: 12px; border: 1px solid rgba(15,23,42,.05); }
   .obs-story-ai { background: linear-gradient(135deg, #ecfdf5, #f0fdf4); border-color: rgba(16,185,129,.15); }
@@ -698,7 +709,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <h1 class="obs-hero-title">${escapeHtml(snapshot.displayName)}</h1>
           <div class="obs-hero-byline">
             <a class="obs-hero-observer" href="${escapeHtml(snapshot.observerUserId ? withBasePath(basePath, "/profile/" + encodeURIComponent(snapshot.observerUserId)) : "#")}">
-              <span class="obs-hero-avatar">${escapeHtml((snapshot.observerName || "?").slice(0, 1))}</span>
+              ${snapshot.observerAvatarUrl
+                ? `<img class="obs-hero-avatar obs-hero-avatar-img" src="${escapeHtml(snapshot.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'obs-hero-avatar',textContent:${JSON.stringify((snapshot.observerName || "?").slice(0, 1))}}))" />`
+                : `<span class="obs-hero-avatar">${escapeHtml((snapshot.observerName || "?").slice(0, 1))}</span>`}
               <span>${escapeHtml(snapshot.observerName || "観察者")}</span>
             </a>
             <span class="obs-hero-when">${escapeHtml(formatAbsolute(snapshot.observedAt))}</span>
@@ -872,7 +885,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const contextBlock = (coexistingSection || soundsSection || envSection)
       ? `<section class="section obs-layer"><h2 class="obs-layer-title">写真と音声から拾えたこと</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
 
-    const detailBody = `${heroBlock}${layer1}${layer2}${layer3}${contextBlock}${ctaBlock}${layer6}`;
+    // PC で Layer 1-6 を 2 カラム配置して余白を埋める。スマホは縦並びのまま。
+    const layersGrid = `<div class="obs-layers-grid">${layer1}${layer2}${layer3}${contextBlock}${ctaBlock}${layer6}</div>`;
+    const detailBody = `${heroBlock}${layersGrid}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(

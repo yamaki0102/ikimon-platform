@@ -31,6 +31,7 @@ export type ObservationDetailSnapshot = {
   visitId: string;
   placeId: string | null;
   observerUserId: string | null;
+  observerAvatarUrl: string | null;
   displayName: string;
   scientificName: string | null;
   observedAt: string;
@@ -287,6 +288,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     visit_id: string;
     place_id: string | null;
     observer_user_id: string | null;
+    observer_avatar_url: string | null;
     display_name: string | null;
     scientific_name: string | null;
     observed_at: string;
@@ -302,6 +304,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         o.visit_id,
         v.place_id,
         v.user_id as observer_user_id,
+        u.avatar_url as observer_avatar_url,
         coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
         o.scientific_name,
         v.observed_at::text,
@@ -364,6 +367,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     visitId: base.visit_id,
     placeId: base.place_id,
     observerUserId: base.observer_user_id,
+    observerAvatarUrl: base.observer_avatar_url,
     displayName: base.display_name ?? "Unresolved",
     scientificName: base.scientific_name,
     observedAt: base.observed_at,
