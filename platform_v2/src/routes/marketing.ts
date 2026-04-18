@@ -311,6 +311,13 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
           title: "結果として地域理解も深まる",
           body: "地域や組織への価値は大事ですが、それは place-first の観察ループが続いた結果として生まれるものだと考えています。",
         },
+      ]) + rows([
+        {
+          title: "まず 1 件、記録してみる",
+          body: "思想を読んだあとの最初の一歩。名前が分からなくても、場所とメモだけで残せる。",
+          actionHref: withBasePath(basePath, "/record"),
+          actionLabel: lang === "ja" ? "観察を記録する" : "Start recording",
+        },
       ]),
       "Learn",
       `<a class="inline-link" href="${escapeHtml(withBasePath(basePath, "/learn"))}">考え方を読む</a>`,
@@ -327,7 +334,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
       lang === "ja" ? "解説ガイド一覧 | ikimon" : "Learn | ikimon",
       lang === "ja" ? "解説ガイド" : "Learn",
-      "解説ガイド一覧",
+      lang === "ja" ? "ikimon をもっとよく使うために" : "Learn",
       "近い場所の記録をどう続けるか、断定しない同定をどう扱うか、記録をどんなアーカイブとして残すかを整理しています。",
       cards([
         {
@@ -616,7 +623,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       heroLead,
       body,
       "Learn",
-      `<div class="note">${escapeHtml(trustSentence)}</div>`,
+      `<div class="note">${escapeHtml(trustSentence)}</div><a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
       lang === "ja" ? "名前が分からなくても、<br>観測は始めていい。" : "You don&#39;t need a name.<br>Just start observing.",
     );
   });
@@ -686,7 +693,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
     </div>`,
       "Learn",
-      undefined,
+      `<a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
       "その場で名前が出なくて、<br>当然です。",
     );
   });
@@ -765,7 +772,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
     </div>`,
       "Learn",
-      undefined,
+      `<a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
       "ikimonが何をどう扱うか、<br>全部見せます。",
     );
   });
@@ -854,6 +861,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
     </div>`,
       "Learn",
+      `<a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
     );
   });
 
@@ -878,11 +886,11 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         { title: "データ・プライバシー", body: "何を預かり、何を公開し、どこを保護するかの考え方。" },
         { title: "科学データ・標本", body: "長期アーカイブと open biodiversity data への接続をどう考えるか。" },
       ]) + rows([
-        { title: "個人利用は申し込みが必要か", body: "個人利用は申込不要で、すぐに記録を始められます。" },
-        { title: "同定の進め方はどこで確認できるか", body: "同定の進め方と証拠の考え方は Identification Basics で確認できます。", actionHref: withBasePath(basePath, "/learn/identification-basics"), actionLabel: lang === "ja" ? "同定の考え方" : "Basics" },
-        { title: "データ・プライバシーはどこで確認できるか", body: "データ利用目的と公開範囲の考え方は Privacy で確認できます。", actionHref: withBasePath(basePath, "/privacy"), actionLabel: lang === "ja" ? "プライバシー" : "Privacy" },
-        { title: "AI支援の方針はどこで確認できるか", body: "AI候補の役割と限界は Methodology にまとめています。", actionHref: withBasePath(basePath, "/learn/methodology"), actionLabel: "Methodology" },
-        { title: "組織向けでは何が違うか", body: "場所単位で観察を始める導線、継続運用、必要な出力や相談のレーンが加わります。" },
+        { title: "Q: 個人利用は申し込みが必要ですか？", body: "A: 申込不要です。登録なしですぐに記録を始められます。" },
+        { title: "Q: 名前が分からなくても記録できますか？", body: "A: できます。場所・日時・写真だけでも記録になります。AI が候補を返し、あとから同定を進められます。", actionHref: withBasePath(basePath, "/learn/identification-basics"), actionLabel: lang === "ja" ? "同定の考え方" : "Basics" },
+        { title: "Q: データ・プライバシーはどうなっていますか？", body: "A: 記録の利用目的と公開範囲の考え方は Privacy で確認できます。", actionHref: withBasePath(basePath, "/privacy"), actionLabel: lang === "ja" ? "プライバシー" : "Privacy" },
+        { title: "Q: AI は本当に正解を返しますか？", body: "A: AI が返すのは候補と見分けのポイントです。断定はしません。最終的に決めるのは観察者です。", actionHref: withBasePath(basePath, "/learn/methodology"), actionLabel: "Methodology" },
+        { title: "Q: 組織向けでは個人利用と何が違いますか？", body: "A: 場所単位で観察を始める導線、継続運用、証跡レポートや相談のレーンが加わります。" },
       ]),
       "Learn",
     );
@@ -976,8 +984,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
       lang === "ja" ? "ikimon for Business — 組織で支える、近くの自然" : "For Business | ikimon",
       lang === "ja" ? "法人向け" : "For Business",
-      "自然共生サイトの観察を、すばやく始めて続けやすくする。",
-      "学校・自治体・企業が、敷地や地域の自然を place-first に記録し、初回観察会から継続運用まで立ち上げやすい導線を用意しています。",
+      "企業・自治体の敷地の自然を、記録して積み上げる。",
+      "学校・自治体・企業が、敷地や地域の自然を継続的に記録する仕組みを、初回観察会から運用まで立ち上げやすい導線で用意しています。",
       cards([
         {
           title: "まずは場所を立ち上げる",
@@ -1041,8 +1049,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "導入の始め方",
       "最初から重い契約を結ぶより、まずは場所単位で観察を始め、継続運用や出力が必要になった段階で追加する方針です。",
       rows([
-        { title: "まず無料で始める", body: "観察投稿、同定、図鑑、観察会の立ち上がりまでは無料で始められます。申込不要です。" },
-        { title: "必要になったら追加する", body: "全種リスト、CSV、証跡レポートなど、継続運用や調査報告に必要な機能を段階的に追加できます。" },
+        { title: "まず無料で始める", body: "記録・閲覧・マップ表示・初回観察会の立ち上げまでは無料で始められます。申込不要です。追加料金の発生する機能は導入後に相談ベースで選びます。" },
+        { title: "必要になったら追加する", body: "全種リスト、CSV出力、証跡レポートなど、継続運用や調査報告に必要な機能を段階的に追加できます。" },
         { title: "ご相談", body: "対象場所、初回観察会、無償提供の適用可否などは、下記から相談できます。", actionHref: withBasePath(basePath, "/for-business/apply"), actionLabel: "お問い合わせ" },
       ]),
       "For Business",
