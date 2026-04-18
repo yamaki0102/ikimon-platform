@@ -16,8 +16,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../config/config.php';
-require_once ROOT_DIR . 'libs/OmoikaneDB.php';
-require_once ROOT_DIR . 'libs/LiteratureIngestionQueue.php';
+require_once ROOT_DIR . '/libs/OmoikaneDB.php';
+require_once ROOT_DIR . '/libs/LiteratureIngestionQueue.php';
 
 $opts    = getopt('', ['force', 'dry-run', 'limit:']);
 $force   = isset($opts['force']);

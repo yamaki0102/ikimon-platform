@@ -21,13 +21,13 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../config/config.php';
-require_once ROOT_DIR . 'libs/LiteratureIngestionQueue.php';
-require_once ROOT_DIR . 'libs/LiteratureIngestionPipeline.php';
-require_once ROOT_DIR . 'libs/CrossRefClient.php';
-require_once ROOT_DIR . 'libs/JStageClient.php';
-require_once ROOT_DIR . 'libs/OmoikaneDB.php';
-require_once ROOT_DIR . 'libs/PaperStore.php';
-require_once ROOT_DIR . 'libs/TaxonPaperIndex.php';
+require_once ROOT_DIR . '/libs/LiteratureIngestionQueue.php';
+require_once ROOT_DIR . '/libs/LiteratureIngestionPipeline.php';
+require_once ROOT_DIR . '/libs/CrossRefClient.php';
+require_once ROOT_DIR . '/libs/JStageClient.php';
+require_once ROOT_DIR . '/libs/OmoikaneDB.php';
+require_once ROOT_DIR . '/libs/PaperStore.php';
+require_once ROOT_DIR . '/libs/TaxonPaperIndex.php';
 
 // === CLI 引数 ===
 $opts        = getopt('', ['limit:', 'tier-max:', 'reingest-stale:']);

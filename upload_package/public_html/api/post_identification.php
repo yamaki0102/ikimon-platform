@@ -137,7 +137,7 @@ BioUtils::updateConsensus($obs);
 // Tier 1 enqueue: 初回コンセンサス確定のみ（backfill・再計算による重複投入を防ぐ）
 if (($obs['status'] ?? '') === '種レベル研究用' && $prevStatus !== '種レベル研究用') {
     try {
-        require_once ROOT_DIR . 'libs/LiteratureIngestionQueue.php';
+        require_once ROOT_DIR . '/libs/LiteratureIngestionQueue.php';
         $sciName = $obs['taxon']['scientific_name'] ?? '';
         if ($sciName !== '') {
             LiteratureIngestionQueue::getInstance()->enqueue($sciName, 1, 1.0);
