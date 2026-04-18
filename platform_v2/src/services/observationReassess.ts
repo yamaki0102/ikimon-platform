@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { GoogleGenAI } from "@google/genai";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
+import { matchTaxon, matchTaxonBatch, type GbifMatch } from "./gbifBackboneMatch.js";
 import type { PoolClient } from "pg";
 
 export type ReassessResult = {
@@ -16,6 +17,8 @@ export type ReassessResult = {
   recommendedTaxonName: string;
   narrative: string;
   coexistingAdded: number;
+  gbifMatchedPrimary: boolean;
+  gbifMatchedCoexistingCount: number;
   modelUsed: string;
 };
 
@@ -39,7 +42,7 @@ type GeminiJson = {
   confirm_more?: string[];
   geographic_context?: string;
   seasonal_context?: string;
-  coexisting_taxa?: Array<{ name?: string; rank?: string; confidence?: number; note?: string }>;
+  coexisting_taxa?: Array<{ name?: string; scientific_name?: string; rank?: string; confidence?: number; note?: string }>;
 };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -230,6 +233,7 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
     const band = normalizeBand(parsed.confidence_band);
     const rank = normalizeRank(parsed.recommended_rank);
     const recommendedName = String(parsed.recommended_taxon_name ?? "").trim();
+    const recommendedScientificName = String(parsed.recommended_scientific_name ?? "").trim();
     const bestSpecific = String(parsed.best_specific_taxon_name ?? "").trim();
     const narrative = String(parsed.narrative ?? "").trim();
     const simple = String(parsed.simple_summary ?? "").trim();
@@ -238,7 +242,43 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
     const similar = Array.isArray(parsed.similar_taxa) ? parsed.similar_taxa.filter((x) => x && typeof x.name === "string" && x.name.trim().length > 0).map((x) => ({ name: x.name, rank: x.rank ?? "species" })) : [];
     const distinguishing = Array.isArray(parsed.distinguishing_tips) ? parsed.distinguishing_tips.filter((x) => typeof x === "string") : [];
     const confirmMore = Array.isArray(parsed.confirm_more) ? parsed.confirm_more.filter((x) => typeof x === "string") : [];
-    const coex = Array.isArray(parsed.coexisting_taxa) ? parsed.coexisting_taxa.filter((x) => x && typeof x.name === "string" && x.name.trim().length > 0) : [];
+    const coex = Array.isArray(parsed.coexisting_taxa)
+      ? parsed.coexisting_taxa.filter((x) => {
+          if (!x) return false;
+          const name = typeof x.name === "string" ? x.name.trim() : "";
+          const scientificName = typeof x.scientific_name === "string" ? x.scientific_name.trim() : "";
+          return name.length > 0 || scientificName.length > 0;
+        })
+      : [];
+
+    const primaryRankHint = rank === "unknown" ? null : rank;
+    const primaryMatchName = recommendedScientificName || recommendedName;
+    const coexPrepared = coex.map((c) => {
+      const vernacularName = String(c.name ?? "").trim();
+      const scientificName = String(c.scientific_name ?? "").trim();
+      const coRank = normalizeRank(c.rank);
+      const coConf =
+        typeof c.confidence === "number" && Number.isFinite(c.confidence)
+          ? Math.min(1, Math.max(0, c.confidence))
+          : 0.5;
+      return {
+        vernacularName,
+        scientificName,
+        matchName: scientificName || vernacularName,
+        rankHint: coRank === "unknown" ? null : coRank,
+        rank: coRank,
+        confidence: coConf,
+        note: c.note ?? null,
+      };
+    });
+
+    const [primaryGbifMatch, coexistingGbifMatches]: [GbifMatch, GbifMatch[]] = await Promise.all([
+      matchTaxon({ name: primaryMatchName, rank: primaryRankHint }),
+      matchTaxonBatch(coexPrepared.map((c) => ({ name: c.matchName, rank: c.rankHint }))),
+    ]);
+    const gbifMatchedPrimary = primaryGbifMatch.usageKey !== null;
+    const gbifMatchedCoexistingCount = coexistingGbifMatches.reduce((count, match) => (match.usageKey !== null ? count + 1 : count), 0);
+    const confidenceScore = band === "high" ? 0.85 : band === "medium" ? 0.6 : band === "low" ? 0.4 : 0.3;
 
     // 5. DB 反映
     await client.query("begin");
@@ -291,20 +331,50 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
       ],
     );
 
-    // 6. 主 occurrence の taxon 名が空なら AI 推定で埋める（AI単独昇格を避けるため taxon_rank は null）
-    if (!target.vernacular_name && !target.scientific_name && recommendedName) {
+    // 6. 主 occurrence の taxon 情報を AI 再判定で更新（null は既存値維持）
+    const primaryGbifUsageKey = primaryGbifMatch.usageKey;
+    const primaryTaxonConceptVersion = primaryGbifUsageKey !== null ? `gbif:${primaryGbifUsageKey}` : null;
+    const primaryLineage = primaryGbifUsageKey !== null ? primaryGbifMatch : null;
+    if (
+      recommendedName ||
+      recommendedScientificName ||
+      primaryRankHint ||
+      primaryTaxonConceptVersion ||
+      primaryLineage?.kingdom ||
+      primaryLineage?.phylum ||
+      primaryLineage?.className ||
+      primaryLineage?.orderName ||
+      primaryLineage?.family ||
+      primaryLineage?.genus
+    ) {
       await client.query(
         `UPDATE occurrences
-            SET vernacular_name = $2,
-                taxon_rank = coalesce(taxon_rank, $3),
-                confidence_score = $4,
-                source_payload = coalesce(source_payload, '{}'::jsonb) || jsonb_build_object('v2_ai_reassess', jsonb_build_object('model', $5::text, 'assessment_id', $6::text))
+            SET vernacular_name = coalesce($2, vernacular_name),
+                scientific_name = coalesce($3, scientific_name),
+                taxon_rank = coalesce($4, taxon_rank),
+                taxon_concept_version = coalesce($5, taxon_concept_version),
+                kingdom = coalesce($6, kingdom),
+                phylum = coalesce($7, phylum),
+                class_name = coalesce($8, class_name),
+                order_name = coalesce($9, order_name),
+                family = coalesce($10, family),
+                genus = coalesce($11, genus),
+                confidence_score = $12,
+                source_payload = coalesce(source_payload, '{}'::jsonb) || jsonb_build_object('v2_ai_reassess', jsonb_build_object('model', $13::text, 'assessment_id', $14::text))
           WHERE occurrence_id = $1`,
         [
           occurrenceId,
-          recommendedName,
-          rank === "unknown" ? null : rank,
-          band === "high" ? 0.85 : band === "medium" ? 0.6 : band === "low" ? 0.4 : 0.3,
+          recommendedName || null,
+          recommendedScientificName || null,
+          primaryRankHint,
+          primaryTaxonConceptVersion,
+          primaryLineage?.kingdom ?? null,
+          primaryLineage?.phylum ?? null,
+          primaryLineage?.className ?? null,
+          primaryLineage?.orderName ?? null,
+          primaryLineage?.family ?? null,
+          primaryLineage?.genus ?? null,
+          confidenceScore,
           modelUsed,
           assessmentId,
         ],
@@ -326,39 +396,58 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
     let nextIdx = (maxIdxRes.rows[0]?.max ?? 0) + 1;
     let coexAdded = 0;
 
-    for (const c of coex) {
-      const nm = (c.name ?? "").trim();
-      if (!nm) continue;
-      if (knownNames.has(nm.toLowerCase())) continue;
-      const coRank = normalizeRank(c.rank);
-      const coConf = typeof c.confidence === "number" && Number.isFinite(c.confidence) ? Math.min(1, Math.max(0, c.confidence)) : 0.5;
+    for (let idx = 0; idx < coexPrepared.length; idx += 1) {
+      const c = coexPrepared[idx];
+      if (!c) continue;
+      const dedupeName = (c.vernacularName || c.scientificName).toLowerCase();
+      if (!dedupeName) continue;
+      if (knownNames.has(dedupeName)) continue;
+
+      const coGbif = coexistingGbifMatches[idx];
+      const coGbifUsageKey = coGbif?.usageKey ?? null;
+      const coTaxonConceptVersion = coGbifUsageKey !== null ? `gbif:${coGbifUsageKey}` : null;
+      const coLineage = coGbifUsageKey !== null ? coGbif : null;
       const newOccId = `occ:${target.visit_id}:${nextIdx}`;
 
       await client.query(
         `INSERT INTO occurrences (
            occurrence_id, visit_id, subject_index,
-           vernacular_name, taxon_rank, confidence_score,
+           vernacular_name, scientific_name, taxon_rank, taxon_concept_version, confidence_score,
+           kingdom, phylum, class_name, order_name, family, genus,
            source_payload
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
          ON CONFLICT (occurrence_id) DO NOTHING`,
         [
           newOccId,
           target.visit_id,
           nextIdx,
-          nm,
-          coRank === "unknown" ? null : coRank,
-          coConf,
+          c.vernacularName || null,
+          c.scientificName || null,
+          c.rank === "unknown" ? null : c.rank,
+          coTaxonConceptVersion,
+          c.confidence,
+          coLineage?.kingdom ?? null,
+          coLineage?.phylum ?? null,
+          coLineage?.className ?? null,
+          coLineage?.orderName ?? null,
+          coLineage?.family ?? null,
+          coLineage?.genus ?? null,
           JSON.stringify({
             v2_subject: {
               role_hint: "coexisting",
               source: "ai_reassess",
               assessment_id: assessmentId,
-              note: c.note ?? null,
+              note: c.note,
+              gbif: {
+                usageKey: coGbifUsageKey,
+                matchType: coGbif?.matchType ?? "NONE",
+                confidence: coGbif?.confidence ?? null,
+              },
             },
           }),
         ],
       );
-      knownNames.add(nm.toLowerCase());
+      knownNames.add(dedupeName);
       nextIdx += 1;
       coexAdded += 1;
     }
@@ -372,6 +461,8 @@ export async function reassessObservation(occurrenceId: string): Promise<Reasses
       recommendedTaxonName: recommendedName,
       narrative,
       coexistingAdded: coexAdded,
+      gbifMatchedPrimary,
+      gbifMatchedCoexistingCount,
       modelUsed,
     };
   } catch (err) {
