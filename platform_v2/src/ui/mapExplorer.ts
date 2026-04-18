@@ -558,14 +558,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   </div>`;
 
   return `<section class="section me-section" aria-label="Map Explorer">
-    <div class="me-eyebrow-strip">
-      <span class="me-eyebrow-kicker">${escapeHtml(lang === "ja" ? "探索マップ" : lang === "es" ? "Mapa de exploración" : lang === "pt-BR" ? "Mapa de exploração" : "Explore Map")}</span>
-      <span class="me-eyebrow-hint">${escapeHtml(lang === "ja"
-        ? "観察がどこに積み上がり、どこがまだ見られていないか。空白は不在と同じではない。地域を選び、レイヤーを重ねて、次に歩く場所を決める。"
-        : lang === "es" ? "Dónde se acumulan las observaciones y dónde la cobertura sigue siendo delgada. Vacío no es lo mismo que ausencia. Elige región, apila capas y decide el próximo paseo."
-        : lang === "pt-BR" ? "Onde as observações se acumulam e onde a cobertura ainda é fina. Vazio não é o mesmo que ausência. Escolha a região, empilhe camadas e decida a próxima caminhada."
-        : "Where observations stack up and where coverage is still thin. Blank is not the same as absence. Pick a region, stack layers, decide the next walk.")}</span>
-    </div>
     ${crossChipsHtml}
     <div class="me-toolbar">
       <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}">
@@ -2003,48 +1995,44 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 }
 
 export const MAP_EXPLORER_STYLES = `
-  /* The /map page deliberately has no hero; this strip is a tiny,
-     1-line context row so the page doesn't open cold, but the map
-     still lands in the first viewport. */
-  .me-section { margin-top: 4px; }
-  .me-eyebrow-strip {
-    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-    padding: 8px 14px; border-radius: 12px;
-    background: linear-gradient(90deg, rgba(16,185,129,.06), rgba(14,165,233,.04));
-    border: 1px solid rgba(15,23,42,.04);
-    margin-bottom: 8px;
-  }
-  .me-eyebrow-kicker { font-weight: 900; font-size: 12px; color: #047857; letter-spacing: .08em; text-transform: uppercase; }
-  .me-eyebrow-hint { font-size: 12px; color: #475569; line-height: 1.5; flex: 1 1 260px; min-width: 0; }
+  /* Google Maps スタイル: マップ主役、コントロールは軽量オーバーレイ */
+  .me-section { margin-top: 0; }
+  .me-eyebrow-strip { display: none; }
   .me-cross-chips {
-    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-    margin-bottom: 14px; padding: 10px 14px; border-radius: 999px;
-    background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.06);
-    box-shadow: 0 4px 12px rgba(15,23,42,.04); font-size: 13px;
+    display: flex; flex-wrap: nowrap; gap: 6px; align-items: center;
+    margin-bottom: 4px; padding: 6px 14px; border-radius: 0;
+    background: rgba(255,255,255,.96); border-bottom: 1px solid rgba(15,23,42,.06);
+    font-size: 12px; overflow-x: auto; scrollbar-width: none;
   }
-  .me-cross-eyebrow { font-weight: 800; color: #0f172a; letter-spacing: -.01em; }
-  .me-cross-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(16,185,129,.08); color: #065f46; font-weight: 700; text-decoration: none; transition: background .15s ease; }
+  .me-cross-chips::-webkit-scrollbar { display: none; }
+  @media (max-width: 767px) { .me-cross-chips { display: none; } }
+  .me-cross-eyebrow { font-weight: 800; color: #0f172a; letter-spacing: -.01em; flex-shrink: 0; }
+  .me-cross-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: rgba(16,185,129,.08); color: #065f46; font-weight: 700; text-decoration: none; transition: background .15s ease; flex-shrink: 0; white-space: nowrap; }
   .me-cross-chip:hover { background: rgba(16,185,129,.16); }
 
   .me-toolbar {
-    display: grid; gap: 12px 18px; grid-template-columns: 1fr; margin-bottom: 14px;
-    padding: 14px 16px; border-radius: 20px;
+    display: flex; flex-direction: row; align-items: center; gap: 4px 10px;
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    margin-bottom: 6px; padding: 8px 14px; border-radius: 14px;
     background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.05);
-    box-shadow: 0 6px 16px rgba(15,23,42,.04);
+    box-shadow: 0 3px 8px rgba(15,23,42,.04);
+    -webkit-overflow-scrolling: touch;
   }
-  @media (min-width: 900px) { .me-toolbar { grid-template-columns: auto 1fr auto auto; align-items: center; } }
+  .me-toolbar::-webkit-scrollbar { display: none; }
+  @media (min-width: 900px) { .me-toolbar { gap: 4px 14px; } }
   .me-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(15,23,42,.04); }
   .me-tab { padding: 8px 14px; border-radius: 10px; border: 0; background: transparent; font-weight: 800; font-size: 13px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; }
   .me-tab.is-active { background: #fff; color: #0f172a; box-shadow: 0 4px 10px rgba(15,23,42,.08); }
-  .me-filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .me-filter-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
-  .me-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .me-filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; flex-shrink: 0; }
+  .me-filter-group + .me-filter-group { border-left: 1px solid rgba(15,23,42,.08); padding-left: 10px; }
+  .me-filter-label { display: none; }
+  .me-chip-row { display: flex; flex-wrap: nowrap; gap: 4px; }
   .me-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; font-weight: 700; font-size: 12px; color: #334155; cursor: pointer; transition: all .15s ease; }
   .me-chip:hover { border-color: rgba(16,185,129,.35); }
   .me-chip.is-active { background: linear-gradient(135deg, rgba(16,185,129,.16), rgba(14,165,233,.14)); border-color: rgba(16,185,129,.45); color: #065f46; }
   .me-chip-icon { font-size: 13px; }
-  .me-time-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: min(100%, 360px); }
-  .me-time-slider-wrap { min-width: 180px; flex: 1 1 220px; display: flex; flex-direction: column; gap: 4px; }
+  .me-time-controls { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; min-width: min(100%, 260px); }
+  .me-time-slider-wrap { min-width: 100px; flex: 1 1 140px; display: flex; flex-direction: column; gap: 2px; }
   .me-year-range { width: 100%; accent-color: #10b981; }
   .me-year-scale { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; font-weight: 700; color: #94a3b8; }
   .me-year-pill { min-width: 74px; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.05); font-weight: 800; font-size: 12px; color: #0f172a; text-align: center; }
@@ -2066,9 +2054,12 @@ export const MAP_EXPLORER_STYLES = `
   .me-basemap-opt span { display: inline-block; padding: 6px 10px; border-radius: 9px; font-weight: 700; font-size: 12px; color: #475569; transition: background .15s ease, color .15s ease; }
   .me-basemap-opt.is-active span { background: #fff; color: #0f172a; box-shadow: 0 3px 8px rgba(15,23,42,.08); }
 
-  /* Collapsed by default — region chips are useful but not first-screen
-     critical. A single click expands them. */
-  .me-region-bar {
+  /* Region bar and overlay panel: hidden to keep map prominent */
+  .me-region-bar { display: none; }
+  .me-overlay-panel { display: none; }
+
+  /* Hidden placeholder — keep selector for JS compat */
+  .me-region-bar-hidden {
     margin-bottom: 10px;
     border-radius: 14px;
     background: rgba(255,255,255,.88);
@@ -2142,13 +2133,13 @@ export const MAP_EXPLORER_STYLES = `
   .me-overlay-opacity-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; }
   .me-overlay-opacity-range { flex: 1; }
 
-  .me-main { display: grid; gap: 14px; grid-template-columns: 1fr; }
-  @media (min-width: 1080px) { .me-main { grid-template-columns: minmax(0, 1fr) 260px; } }
-  .me-map-wrap { position: relative; border-radius: 22px; overflow: hidden; background: linear-gradient(135deg,#ecfeff,#eff6ff); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 10px 24px rgba(15,23,42,.05); }
-  /* Map fills most of the first viewport on desktop — users came here to
-     see the map, not to read. The eyebrow + toolbar above it total about
-     ~180px, so 78vh lands the map edge-to-edge without clipping. */
-  .me-map { width: 100%; height: min(78vh, 760px); min-height: 480px; }
+  .me-main { display: grid; gap: 0; grid-template-columns: 1fr; }
+  @media (min-width: 1080px) { .me-main { grid-template-columns: 1fr; } }
+  .me-map-wrap { position: relative; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg,#ecfeff,#eff6ff); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 8px 20px rgba(15,23,42,.05); }
+  /* Map takes full remaining viewport — nav(56px) + cross-chips(desktop ~34px) + toolbar(~50px) + section margin */
+  .me-map { width: 100%; height: calc(100vh - 56px - 50px - 10px); min-height: 480px; }
+  @media (min-width: 768px) { .me-map { height: calc(100vh - 56px - 34px - 50px - 10px); } }
+  .me-side { display: none; }
   .me-map-status {
     position: absolute; right: 14px; top: 14px; z-index: 4;
     padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.82);
