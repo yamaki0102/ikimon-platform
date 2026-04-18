@@ -15,6 +15,7 @@ import { upsertUser, type UserUpsertInput } from "../services/userWrite.js";
 import { submitContact, type ContactSubmitInput } from "../services/contactSubmit.js";
 import { createVideoDirectUpload, markVideoReady } from "../services/videoUpload.js";
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
+import { reassessObservation } from "../services/observationReassess.js";
 import {
   assertObservationOwnedByUser,
   assertPrivilegedWriteAccess,
@@ -333,6 +334,29 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       } catch (error) {
         reply.code(500);
         return { ok: false, error: error instanceof Error ? error.message : "reaction_failed" };
+      }
+    },
+  );
+
+  // 観察 AI 再判定。session + owner only。
+  // 既存 observation_ai_assessments には履歴として残しつつ、新 assessment を追加。
+  // coexisting_taxa は subject_index ≥ 1 で occurrences に追加される（ADR-0004 準拠、AI 単独昇格なし）。
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/observations/:id/reassess",
+    async (request, reply) => {
+      try {
+        const session = await getSessionFromCookie(request.headers.cookie);
+        if (!session) {
+          reply.code(401);
+          return { ok: false, error: "session_required" };
+        }
+        await assertObservationOwnedByUser(request.params.id, session.userId);
+        const result = await reassessObservation(request.params.id);
+        return { ok: true, ...result };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "reassess_failed";
+        reply.code(errorStatus(error, 500));
+        return { ok: false, error: message };
       }
     },
   );

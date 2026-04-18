@@ -127,6 +127,13 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-reaction-count { background: rgba(15,23,42,.06); padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 800; }
   .obs-reaction-label { display: none; }
   @media (min-width: 640px) { .obs-reaction-label { display: inline; } }
+  .obs-reassess-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; background: linear-gradient(135deg, rgba(59,130,246,.08), rgba(16,185,129,.08)); border: 1px dashed rgba(59,130,246,.3); margin: 14px 0 0; }
+  .obs-reassess-btn { appearance: none; border: 0; border-radius: 999px; padding: 10px 18px; background: #111827; color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(15,23,42,.25); }
+  .obs-reassess-btn:hover { background: #1f2937; }
+  .obs-reassess-btn[disabled] { opacity: .6; cursor: progress; }
+  .obs-reassess-hint { color: #475569; font-size: 12px; line-height: 1.4; }
+  .obs-reassess-status { font-size: 12px; font-weight: 700; color: #047857; }
+  .obs-reassess-status.is-error { color: #b91c1c; }
 
   .obs-layers-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
   @media (min-width: 960px) {
@@ -1017,7 +1024,43 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     //   4) layer3 (場所の物語) — 全幅
     //   5) layer1 / contextBlock / ctaBlock は PC 2col で並ぶ
     const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
-    const detailBody = `${heroBlock}${hintBlock}${layersGrid}`;
+    const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
+    const reassessBlock = isOwner
+      ? `<section class="section obs-reassess-row" aria-label="AI 再判定">
+           <button type="button" class="obs-reassess-btn" data-reassess-id="${escapeHtml(request.params.id)}">🔄 AI にもう一度見てもらう</button>
+           <span class="obs-reassess-hint">写真から主役とまわりに写る生きものを拾い直します（30秒ほど）。</span>
+           <span class="obs-reassess-status" data-reassess-status hidden></span>
+         </section>`
+      : "";
+    const reassessScript = isOwner
+      ? `<script>(function(){
+           var btn = document.querySelector('.obs-reassess-btn[data-reassess-id]');
+           if (!btn) return;
+           var statusEl = document.querySelector('[data-reassess-status]');
+           btn.addEventListener('click', function(){
+             var id = btn.getAttribute('data-reassess-id');
+             if (!id) return;
+             btn.disabled = true;
+             if (statusEl) { statusEl.hidden = false; statusEl.classList.remove('is-error'); statusEl.textContent = '再判定中…（写真を Gemini に渡しています）'; }
+             fetch('/api/v1/observations/' + encodeURIComponent(id) + '/reassess', { method: 'POST', credentials: 'include' })
+               .then(function(r){ return r.json().then(function(j){ return { ok: r.ok && j && j.ok, j: j }; }); })
+               .then(function(res){
+                 if (!res.ok) {
+                   if (statusEl) { statusEl.classList.add('is-error'); statusEl.textContent = '失敗: ' + ((res.j && res.j.error) || 'unknown_error'); }
+                   btn.disabled = false;
+                   return;
+                 }
+                 if (statusEl) { statusEl.textContent = '判定完了 — ページを更新します'; }
+                 setTimeout(function(){ window.location.reload(); }, 600);
+               })
+               .catch(function(e){
+                 if (statusEl) { statusEl.classList.add('is-error'); statusEl.textContent = '通信エラー: ' + (e && e.message || 'network'); }
+                 btn.disabled = false;
+               });
+           });
+         })();</script>`
+      : "";
+    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${reassessScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
