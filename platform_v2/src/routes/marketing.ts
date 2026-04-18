@@ -374,6 +374,16 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
     ["/id_center.php", "/specialist/id-workbench"],
     ["/needs_id.php", "/specialist/id-workbench"],
     ["/review_queue.php", "/specialist/review-queue"],
+    // legacy PHP の観察図鑑 → v2 の生きもの探索 (/explore)
+    ["/zukan", "/explore"],
+    ["/zukan.php", "/explore"],
+    // trailing slash 正規化
+    ["/for-business/", "/for-business"],
+    ["/explore/", "/explore"],
+    ["/learn/", "/learn"],
+    ["/home/", "/home"],
+    ["/notes/", "/notes"],
+    ["/map/", "/map"],
   ]);
 
   for (const [legacyPath, targetPath] of redirectMap) {
