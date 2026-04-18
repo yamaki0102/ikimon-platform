@@ -125,13 +125,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             </div>
             <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" class="record-form">
               <label class="record-field record-field-wide"><span class="record-label">観察した日時</span><input id="observedAt" name="observedAt" type="datetime-local" required /></label>
-              <label class="record-field"><span class="record-label">緯度</span><input name="latitude" type="number" step="0.000001" value="34.7108" required /></label>
-              <label class="record-field"><span class="record-label">経度</span><input name="longitude" type="number" step="0.000001" value="137.7261" required /></label>
+              <div class="record-field record-field-wide record-gps-row">
+                <span class="record-label">現在地</span>
+                <button type="button" class="btn btn-ghost record-gps-btn" onclick="navigator.geolocation.getCurrentPosition(function(p){document.querySelector('[name=latitude]').value=p.coords.latitude.toFixed(6);document.querySelector('[name=longitude]').value=p.coords.longitude.toFixed(6);},function(){alert('位置情報の取得に失敗しました。手動で入力してください。')})">現在地を自動取得</button>
+                <div class="record-gps-inputs">
+                  <label class="record-field"><span class="record-label">緯度</span><input name="latitude" type="number" step="0.000001" placeholder="自動取得 or 手入力" required /></label>
+                  <label class="record-field"><span class="record-label">経度</span><input name="longitude" type="number" step="0.000001" placeholder="自動取得 or 手入力" required /></label>
+                </div>
+              </div>
               <label class="record-field"><span class="record-label">市区町村</span><input name="municipality" type="text" placeholder="例: 浜松市" /></label>
               <label class="record-field record-field-wide"><span class="record-label">場所のメモ</span><input name="localityNote" type="text" placeholder="例: 公園の入口付近 / 水辺の柵のそば" /></label>
-              <label class="record-field"><span class="record-label">学名 (分かれば)</span><input name="scientificName" type="text" placeholder="例: Passer montanus" /></label>
+              <label class="record-field"><span class="record-label">生きもの名（分かれば）</span><input name="scientificName" type="text" placeholder="例: スズメ / Passer montanus" /></label>
               <label class="record-field"><span class="record-label">和名 / 通称</span><input name="vernacularName" type="text" placeholder="例: スズメ" /></label>
-              <label class="record-field"><span class="record-label">分類の段階</span><input name="rank" type="text" value="species" /></label>
+              <label class="record-field"><span class="record-label">確信度</span><input name="rank" type="text" value="species" placeholder="species / genus / family" /></label>
               <label class="record-field record-field-wide record-photo-field"><span class="record-label">写真</span><input id="record-photo" name="photo" type="file" accept="image/*" /><span class="record-help">写真は観察の証拠として保存できます。未添付でも記録は残せます。</span></label>
               <div class="record-actions">
                 <button class="btn btn-solid" type="submit">観察を記録する</button>
@@ -412,7 +418,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       "みつける",
       {
         eyebrow: "みつける",
-        heading: "📡 次に歩く場所を探す",
+        heading: "次に歩く場所を探す",
         lead: "場所ごとの観察の積み重なりから、どこを再訪すると発見が増えそうかを見つけます。",
         actions: [
           { href: "/map", label: "マップで見る" },
@@ -539,7 +545,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <div class="card"><div class="card-body"><div class="eyebrow">学名</div><h2>${escapeHtml(snapshot.scientificName || "未確定")}</h2><p class="meta">${escapeHtml(snapshot.note || "メモなし")}</p></div></div>
         </div>
       </section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">同定の履歴</div><h2>Identifications</h2></div></div><div class="list">${ids || '<div class="row"><div>まだ同定が付いていません。</div></div>'}</div></section>`,
+      <section class="section"><div class="section-header"><div><div class="eyebrow">名前の確定まで</div><h2>Identifications</h2></div></div><div class="list">${ids || '<div class="row"><div>まだ同定が付いていません。</div></div>'}</div></section>`,
       "みつける",
       {
         eyebrow: "観察の詳細",
@@ -939,8 +945,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         ${isLoggedIn
           ? (ownCards
               ? `<div class="notes-grid">${ownCards}</div>`
-              : `<div class="card"><div class="card-body"><p class="meta">${escapeHtml(emptyCopy)}</p></div></div>`)
-          : `<div class="card"><div class="card-body"><p class="meta">${escapeHtml(lang === "ja" ? "ログインすると、あなたのノートがここに表示されます。" : "Sign in to see your own notebook here.")}</p></div></div>`}
+              : `<div class="onboarding-empty">
+                  <div class="eyebrow">${escapeHtml(lang === "ja" ? "まだ 0 ページ" : "0 pages so far")}</div>
+                  <h3>${escapeHtml(lang === "ja" ? "最初の 1 枚を書いてみる" : "Write your first page")}</h3>
+                  <p>${escapeHtml(lang === "ja" ? "名前が分からなくても大丈夫。場所とメモだけで、あとから読み返せる記録になります。" : "You don't need the name. Place and a note is enough to make something worth revisiting.")}</p>
+                  <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(lang === "ja" ? "観察を記録する" : "Record an observation")}</a>
+                </div>`)
+          : `<div class="onboarding-empty">
+              <div class="eyebrow">${escapeHtml(lang === "ja" ? "ゲスト" : "Guest")}</div>
+              <h3>${escapeHtml(lang === "ja" ? "ノートを始める" : "Start a notebook")}</h3>
+              <p>${escapeHtml(lang === "ja" ? "記録すると、あなた専用のフィールドノートがここに積み上がります。" : "Start recording and your personal field notebook will build up here.")}</p>
+              <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(lang === "ja" ? "観察を記録する" : "Record an observation")}</a>
+            </div>`}
       </section>
       <section class="section notes-page">
         <div class="notes-head"><div><h2>${escapeHtml(nearbyCopy)}</h2></div></div>
@@ -983,20 +999,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         ],
       },
       body: `<section class="section">
-        <div class="card has-accent is-soft">
-          <div class="card-body">
-            <div class="eyebrow">${escapeHtml(lang === "ja" ? "このページの役割" : "Role of this page")}</div>
-            <h2>${escapeHtml(lang === "ja" ? "名前が曖昧でも、観察を止めないための入口" : "An entry that keeps the observation moving even when the name is unclear")}</h2>
-            <p>${escapeHtml(lang === "ja"
-              ? "AIレンズは、いま見ている生きものをその場で断定するための画面ではありません。名前が分からないときに、まず証拠を残すか、あとで見返せるノートに進むかを決めるための補助線です。"
-              : "AI Lens is not a page that promises instant certainty. It helps you decide whether to save evidence now and move into the notebook flow.")}</p>
-            <p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja"
-              ? "ikimon が優先したいのは、立ち止まって考え込みすぎることではなく、観察の熱があるうちに場所・時刻・写真を失わずに残すことです。"
-              : "What matters first is not prolonged certainty but saving place, time, and evidence while the observation is still fresh.")}</p>
-          </div>
-        </div>
-      </section>
-      <section class="section">
         <div class="list">
           <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. まず写真かメモを残す" : "1. Save a photo or note first")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "分からなくても構いません。場所・時刻・見た印象を失わないことが先です。" : "Do not wait for certainty. Preserve place, time, and first impression.")}</div></div></div>
           <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. 候補より、見分けるポイントを見る" : "2. Look for distinguishing clues, not just a name")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "AI の価値は、候補そのものよりも『次に何を見れば前進するか』の整理にあります。" : "The useful part is not certainty but what to check next.")}</div></div></div>
@@ -1005,9 +1007,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </section>
       <section class="section">
         <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "道端で 10 秒だけ迷ったとき" : "When you hesitate for 10 seconds in the field")}</h2><p>${escapeHtml(lang === "ja" ? "立ち止まって調べ込むより、ひとまず記録して後で見返す方が良い場面に向いています。" : "Use it when it is better to keep moving and record first.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "たとえば、葉・翅・鳴き声のどれが決め手か分からないときに、まず『どこが曖昧か』を整理して記録へ送る使い方です。" : "Useful when you need to turn uncertainty into the next observable clue, then save it.")}</p></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Do not overexpect")}</div><h2>${escapeHtml(lang === "ja" ? "いまは断定画面ではない" : "This is not a certainty machine yet")}</h2><p>${escapeHtml(lang === "ja" ? "v2 では完成したリアルタイム同定体験ではなく、記録に進む判断を助ける説明面として置いています。" : "In v2 this is still an explanatory lane that supports recording decisions.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "つまり、ここで『正解』を取りに行くよりも、あとで見返したときに何が足りなかったかが分かる形を作る方が大事です。" : "The point is to preserve what is missing for later review rather than to force an instant answer.")}</p></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "記録して、あとで見返す" : "Record now and revisit later")}</h2><p>${escapeHtml(lang === "ja" ? "現時点では、場所・時刻・写真をノートへ残すのが最短です。" : "For now, the shortest path is to save place, time, and photo into the notebook.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "このページで迷いをほどいたら、record で 1 件にし、notes で読み返せる形へ移す。そこまでが一続きです。" : "Once the hesitation is resolved here, move it into record and notes as one continuous flow.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(recordHref)}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "道端で 10 秒だけ迷ったとき" : "When you hesitate for 10 seconds in the field")}</h2><p>${escapeHtml(lang === "ja" ? "立ち止まって調べ込むより、ひとまず記録して後で見返す方が良い場面に向いています。" : "Use it when it is better to keep moving and record first.")}</p></div></div>
+          <details class="card"><summary style="padding:16px 20px;cursor:pointer;font-weight:700">${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Limitations")}</summary><div class="card-body" style="padding-top:0"><p>${escapeHtml(lang === "ja" ? "v2 では完成したリアルタイム同定体験ではなく、記録に進む判断を助ける説明面として置いています。ここで正解を取りに行くより、あとで見返せる形を作ることが大事です。" : "In v2 this is still an explanatory lane that supports recording decisions rather than a finished real-time identification experience.")}</p></div></details>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "記録して、あとで見返す" : "Record now and revisit later")}</h2><p>${escapeHtml(lang === "ja" ? "場所・時刻・写真をノートへ残すのが最短です。" : "The shortest path is to save place, time, and photo into the notebook.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(recordHref)}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
         </div>
       </section>
       <section class="section">
@@ -1050,20 +1052,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         ],
       },
       body: `<section class="section">
-        <div class="card has-accent is-soft">
-          <div class="card-body">
-            <div class="eyebrow">${escapeHtml(lang === "ja" ? "このページの役割" : "Role of this page")}</div>
-            <h2>${escapeHtml(lang === "ja" ? "『どこを歩くか』を決めるためのページ" : "A page for deciding where to walk next")}</h2>
-            <p>${escapeHtml(lang === "ja"
-              ? "フィールドスキャンは、場所ごとの観察密度や最近の動きを見て、次に戻る場所を考えるための入口です。種名当てよりも、再訪の判断を助けることを優先しています。"
-              : "Field Scan prioritizes the question of where to return next, using place-level observation density and recent activity.")}</p>
-            <p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja"
-              ? "地図の見方を整えておくと、『今日はどこを歩くか』『前回行かなかった側へ寄るか』の判断が速くなります。"
-              : "This page is meant to shorten the decision about where today’s walk should go.")}</p>
-          </div>
-        </div>
-      </section>
-      <section class="section">
         <div class="list">
           <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. まず観察が積み上がっている場所を見る" : "1. See where observations are accumulating")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "マップで偏りや空白を見ると、次に歩く理由が見えてきます。" : "The map shows clusters and gaps that can become your next reason to walk.")}</div></div></div>
           <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. そこで何が見られているかをざっくり掴む" : "2. Get a rough sense of what is being seen there")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "ここでは精密な同定より、場所の気配をつかむことが目的です。" : "The goal here is a place-level signal, not precise identification.")}</div></div></div>
@@ -1073,7 +1061,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <section class="section">
         <div class="grid">
           <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "散歩のルートを決めたいとき" : "When choosing a walking route")}</h2><p>${escapeHtml(lang === "ja" ? "どこへ行けば前回と違うものが見えそうか、次の 20 分を決めるのに向いています。" : "Useful when deciding where the next 20 minutes of walking should go.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "たとえば、今日は水辺側へ寄るか、公園の奥まで入るか、住宅地の縁を回るかを決める前の判断材料になります。" : "It is a pre-route judgment layer rather than a final observation page.")}</p></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Do not overexpect")}</div><h2>${escapeHtml(lang === "ja" ? "ここで観察は完結しない" : "The observation does not end here")}</h2><p>${escapeHtml(lang === "ja" ? "スキャンだけで完了ではありません。実際の証拠とメモはノートへ戻して初めて残ります。" : "This is not the final storage place. Evidence and notes still belong in the notebook.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "つまり、スキャンは『下見』に近い役割です。実際に見たものを残す場は、record と notes にあります。" : "Think of scan as reconnaissance; the actual record still belongs in record and notes.")}</p></div></div>
+          <details class="card"><summary><div class="card-body"><strong>${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Do not overexpect")}</strong></div></summary><div class="card-body" style="padding-top:0"><p>${escapeHtml(lang === "ja" ? "スキャンだけで完了ではありません。実際の証拠とメモはノートへ戻して初めて残ります。" : "This is not the final storage place. Evidence and notes still belong in the notebook.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "つまり、スキャンは『下見』に近い役割です。実際に見たものを残す場は、record と notes にあります。" : "Think of scan as reconnaissance; the actual record still belongs in record and notes.")}</p></div></details>
           <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "マップで場所を決める" : "Choose the place on the map")}</h2><p>${escapeHtml(lang === "ja" ? "いま積み上がっている場所を見て、次の再訪先を決めてください。" : "Use the map to choose your next revisit spot.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "場所を決めたら、その場で 1 件残すところまで進めると、scan と notebook が初めてつながります。" : "Once you choose a place, connect scan to the notebook by saving at least one record there.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(mapHref)}">${escapeHtml(lang === "ja" ? "マップで見る" : "See on the map")}</a></div></div></div>
         </div>
       </section>
