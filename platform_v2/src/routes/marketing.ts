@@ -159,9 +159,14 @@ const FL_CSS = `<style>
   .fl-benefits li { display: flex; align-items: baseline; gap: 10px; font-size: 15px; line-height: 1.8; color: #374151; }
   .fl-benefits li::before { content: "✓"; font-weight: 900; color: #16a34a; flex-shrink: 0; }
   .fl-faq { display: grid; gap: 12px; margin: 28px 0; }
-  .fl-faq-item { border-radius: 14px; padding: 22px 24px; background: #f9fafb; border: 1px solid rgba(15,23,42,.07); }
-  .fl-faq-q { font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 10px; line-height: 1.5; }
+  .fl-faq-item { border-radius: 14px; background: #f9fafb; border: 1px solid rgba(15,23,42,.07); }
+  .fl-faq-q { font-size: 15px; font-weight: 800; color: #111827; margin: 0; line-height: 1.5; }
   .fl-faq-a { font-size: 14px; line-height: 1.85; color: #4b5563; margin: 0; }
+  details.fl-faq-item summary.fl-faq-q { padding: 20px 24px; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  details.fl-faq-item summary.fl-faq-q::-webkit-details-marker { display: none; }
+  details.fl-faq-item summary.fl-faq-q::after { content: "+"; font-size: 20px; font-weight: 400; color: #9ca3af; flex-shrink: 0; }
+  details.fl-faq-item[open] summary.fl-faq-q::after { content: "−"; }
+  details.fl-faq-item .fl-faq-a { padding: 0 24px 20px; border-top: 1px solid rgba(15,23,42,.06); padding-top: 14px; }
   .fl-refs { margin: 24px 0 0; padding: 24px; background: #f9fafb; border-radius: 14px; }
   .fl-refs-label { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #9ca3af; margin-bottom: 14px; }
   .fl-refs ol { margin: 0; padding: 0 0 0 18px; display: grid; gap: 10px; }
@@ -877,21 +882,54 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "FAQ",
       "よくある質問",
       "はじめての方、記録、同定、AI の役割、組織導入、データと公開範囲について、ikimon の前提を整理しています。",
-      cards([
-        { title: "はじめての方へ", body: "何から始めれば良いか、最初のステップをご案内します。" },
-        { title: "記録・投稿", body: "観察の記録方法、投稿時の注意点、写真の扱いについて。", href: withBasePath(basePath, "/record"), label: lang === "ja" ? "記録する" : "Record" },
-        { title: "同定・名前", body: "名前が分からない場合の進め方と、同定精度を上げるコツ。" },
-        { title: "AI支援機能", body: "AI は候補提示であり、正解確定マシンではないという前提。" },
-        { title: "企業・自治体向け", body: "自然共生サイトや観察導線を、どう小さく始めるか。", href: withBasePath(basePath, "/for-business"), label: lang === "ja" ? "法人向け" : "For Business" },
-        { title: "データ・プライバシー", body: "何を預かり、何を公開し、どこを保護するかの考え方。" },
-        { title: "科学データ・標本", body: "長期アーカイブと open biodiversity data への接続をどう考えるか。" },
-      ]) + rows([
-        { title: "Q: 個人利用は申し込みが必要ですか？", body: "A: 申込不要です。登録なしですぐに記録を始められます。" },
-        { title: "Q: 名前が分からなくても記録できますか？", body: "A: できます。場所・日時・写真だけでも記録になります。AI が候補を返し、あとから同定を進められます。", actionHref: withBasePath(basePath, "/learn/identification-basics"), actionLabel: lang === "ja" ? "同定の考え方" : "Basics" },
-        { title: "Q: データ・プライバシーはどうなっていますか？", body: "A: 記録の利用目的と公開範囲の考え方は Privacy で確認できます。", actionHref: withBasePath(basePath, "/privacy"), actionLabel: lang === "ja" ? "プライバシー" : "Privacy" },
-        { title: "Q: AI は本当に正解を返しますか？", body: "A: AI が返すのは候補と見分けのポイントです。断定はしません。最終的に決めるのは観察者です。", actionHref: withBasePath(basePath, "/learn/methodology"), actionLabel: "Methodology" },
-        { title: "Q: 組織向けでは個人利用と何が違いますか？", body: "A: 場所単位で観察を始める導線、継続運用、証跡レポートや相談のレーンが加わります。" },
-      ]),
+      `<section class="section">
+        <div class="section-header"><h2>はじめての方へ</h2></div>
+        <div class="fl-faq">
+          <details class="fl-faq-item"><summary class="fl-faq-q">ikimon とは何ですか？</summary><p class="fl-faq-a">散歩中に見つけた生き物を写真で記録し、AI とコミュニティが名前の特定を手伝ってくれるプラットフォームです。あなたの記録は長期の生態系データとして蓄積され、地域の生物多様性の把握や企業の環境報告にも活用されます。「見つけた → 撮った → 名前がわかった」この体験の連鎖が自然保全の力になります。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">登録や費用はかかりますか？</summary><p class="fl-faq-a">個人利用は登録不要・完全無料です。閲覧・記録・マップ・AI ヒントなど基本機能に制限はありません。企業・自治体向けに観察データを使ったレポートや組織管理が必要な場合は、有料プランがあります（Public プラン ¥39,800/月〜）。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">スマートフォンだけで使えますか？</summary><p class="fl-faq-a">はい。ブラウザだけで完結します。アプリのダウンロードは不要です。iPhone（Safari）・Android（Chrome）でホーム画面に追加すると、アプリのように使えます。山や森など電波が弱い場所では、写真と記録を端末に保存し、電波が戻ったら自動送信されます。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">子どもでも使えますか？</summary><p class="fl-faq-a">使えます。13 歳未満のお子さんは保護者の同意・見守りのもとでご利用ください。Google アカウントを使ってログインするため、Google の年齢制限ポリシーが適用されます。学校でのフィールドワーク・環境教育にも活用いただけます。教育目的での利用相談は contact@ikimon.life まで。</p></details>
+        </div>
+      </section>
+      <section class="section">
+        <div class="section-header"><h2>記録について</h2></div>
+        <div class="fl-faq">
+          <details class="fl-faq-item"><summary class="fl-faq-q">名前がわからなくても記録できますか？</summary><p class="fl-faq-a">できます。場所・日時・写真だけで記録になります。名前は空欄のまま投稿して OK。投稿後に AI がヒントを返し、コミュニティが同定を手伝ってくれます。「なんか気になる虫がいた」という記録が、のちに希少種の発見につながることがあります。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">どんな写真を撮ればいいですか？</summary><p class="fl-faq-a">「全体像」「特徴部分のアップ」「生息環境」の 3 枚が理想です。鳥なら体の模様・くちばし、昆虫なら翅の模様・触角、植物なら花・葉・茎がポイント。1 枚だけでも記録になります。定規や手を添えてサイズ感を示すと同定しやすくなります。暗い場所ではフラッシュより自然光が有効です。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">過去の写真も投稿できますか？</summary><p class="fl-faq-a">できます。EXIF 情報（撮影日時・GPS 座標）が残っている写真なら、日時と場所が自動入力されます。情報が消えている写真でも、おおよその日時と場所をメモ欄で補足すれば有用なデータになります。自分が撮影した写真に限ります（他人の写真の転載は禁止です）。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">私の 1 件の記録に意味はありますか？</summary><p class="fl-faq-a">あります。世界中で市民の 1 件の記録が新分布の発見や希少種の確認につながった事例があります。今日の「普通の記録」が、10 年後に「この場所にこの種がいた」という歴史的なデータになります。あなたの目とスマートフォンは、専門家が観察できない場所をカバーする唯一の手段です。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">こんな投稿は避けてください</summary><p class="fl-faq-a">AI 生成画像・他人が撮影した写真・生き物が写っていない写真・同じペットの繰り返し投稿・虚偽の位置情報や日時は避けてください。「自分が見て撮った・生き物が写っている・生き物を傷つけていない」の 3 点がクリアなら、名前がわからなくてもピントが甘くても投稿 OK です。</p></details>
+        </div>
+      </section>
+      <section class="section">
+        <div class="section-header"><h2>AI と同定について</h2></div>
+        <div class="fl-faq">
+          <details class="fl-faq-item"><summary class="fl-faq-q">AI は名前を自動で確定しますか？</summary><p class="fl-faq-a">しません。AI が返すのは候補と見分けのヒントです。名前の確定は複数ユーザーの加重合意（WE-Consensus）で決まります。投稿者 1 人だけの同定では確定せず、必ず他のユーザーの目が入る設計です。AI だけで「研究グレード」に昇格することはありません。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">投稿後に表示される「観察のヒント」とは何ですか？</summary><p class="fl-faq-a">投稿後に写真・場所・季節をもとに AI が自動生成するメモです。「いまはここまで絞れそう」「見分けのポイント」「次に確認すると良いこと」を示します。コミュニティ同定の票にはなりません。名前を断定するものではなく、あくまでヒントとして参考にしてください。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">間違った名前を付けてしまったらどうなりますか？</summary><p class="fl-faq-a">いつでも修正できます。間違いはコミュニティが一緒に修正してくれます。「モンシロチョウだと思ったらスジグロシロチョウだった」——この体験が観察力を磨きます。初心者もベテランも学びの途中です。間違いを恐れずに挑戦する姿勢をコミュニティは応援しています。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">「研究グレード」とは何ですか？</summary><p class="fl-faq-a">写真・日時・位置情報が揃い、コミュニティの加重合意率が 66.7% 以上に達した記録のステータスです。科・属レベルで安定した記録は「研究利用可」、種以下まで安定した記録は「種レベル研究用」として区別されます。研究グレードに達すると、将来的に GBIF（地球規模生物多様性情報機構）との連携対象になります。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">AI の提案はどのくらい正確ですか？</summary><p class="fl-faq-a">「参考情報」として設計しています。大きな分類群（チョウの仲間・甲虫の仲間）や特徴的な形態の種は得意です。近縁種の識別・幼虫・写真が暗い場合は精度が落ちます。AI が方向性を示し、コミュニティが正解を確定する——このバトンリレーが ikimon のデータ品質を支えています。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">投稿データが AI の学習に使われますか？</summary><p class="fl-faq-a">第三者の AI 企業には一切提供しません。AI クローラーによるスクレイピングも技術的にブロックしています。将来的に ikimon 自身のサービス改善（AI 同定精度の向上）に活用する可能性がありますが、その場合も外部に流出することはありません。データの主権はユーザーとikimon コミュニティにあります。</p></details>
+        </div>
+      </section>
+      <section class="section">
+        <div class="section-header"><h2>企業・自治体向け</h2></div>
+        <div class="fl-faq">
+          <details class="fl-faq-item"><summary class="fl-faq-q">法人向けは個人利用と何が違いますか？</summary><p class="fl-faq-a">サイト単位のダッシュボード・TNFD 参照レポートの自動生成・複数人の管理席が加わります。観察会の初回立ち上げから継続運用まで相談できます。個人利用（記録・閲覧・AI ヒント）は引き続き無料です。詳細は「法人向け」ページをご覧ください。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">TNFD レポートは自動生成できますか？</summary><p class="fl-faq-a">サイトダッシュボードから観測ベースの参考レポートを自動生成できます。確認種リスト・レッドリスト該当種・月次推移チャートを含み、TNFD の LEAP フレームに読み替えやすい構成です。重要な開示や意思決定には専門家レビューとの組み合わせを推奨します。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">費用はどのくらいかかりますか？</summary><p class="fl-faq-a">個人利用は無料です。法人向けは Public プラン（¥39,800/月・1 サイト・5 席）から始められます。複数拠点をまとめて管理する Portfolio プラン（¥99,000/月・5 サイト・20 席）もあります。まずは無料デモでダッシュボードとレポートをお試しください。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">自社の敷地だけのデータを見られますか？</summary><p class="fl-faq-a">できます。サイト登録機能で GeoJSON 形式の境界データをアップロードすると、敷地内の観察データのみを対象にしたダッシュボードとレポートが自動生成されます。複数サイトの登録・比較も可能です。GeoJSON の準備が難しい場合はサポートします。</p></details>
+        </div>
+      </section>
+      <section class="section">
+        <div class="section-header"><h2>データ・プライバシー</h2></div>
+        <div class="fl-faq">
+          <details class="fl-faq-item"><summary class="fl-faq-q">位置情報は公開されますか？</summary><p class="fl-faq-a">絶滅危惧種（環境省・都道府県レッドリスト該当種）の位置情報は自動でマスキングされ、詳細な場所が特定されない精度に落とされます。通常の記録も住所が特定されるような表示はしません。写真の EXIF 情報（GPS 座標）はアップロード時に自動除去されます。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">自分のデータを削除できますか？</summary><p class="fl-faq-a">できます。各観察記録の詳細ページからいつでも削除できます。削除するとデータベースから完全に除去されます（復元不可）。アカウント全体の削除は contact@ikimon.life までご連絡ください。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">データは他のプラットフォームと共有されますか？</summary><p class="fl-faq-a">研究グレードに達した高品質データを、将来的に GBIF（地球規模生物多様性情報機構）と連携する準備を進めています。SNS や広告目的での共有は一切しません。CC BY-NC ライセンスを選択した記録は GBIF 共有の対象外になります。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">投稿データのライセンスはどうなりますか？</summary><p class="fl-faq-a">投稿時に CC0・CC BY・CC BY-NC の 3 種類から選べます。デフォルトは CC BY（表示・改変・商用利用可）です。世界中の研究者がデータを活用できる形にするには CC BY が最適です。写真の著作権は投稿者に帰属し、ikimon が著作権を取得することはありません。</p></details>
+        </div>
+      </section>`,
       "Learn",
     );
   });
