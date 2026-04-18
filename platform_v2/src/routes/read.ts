@@ -12,6 +12,7 @@ import { getReactionSummary, type ReactionType } from "../services/observationRe
 import { getObserverStats } from "../services/observerStats.js";
 import { getTaxonInsight } from "../services/taxonInsights.js";
 import { getObservationDetailHeavy } from "../services/observationDetailHeavy.js";
+import { getLatestAiAssessment, confidenceLabel } from "../services/observationAiAssessment.js";
 import {
   getExploreSnapshot,
   getHomeSnapshot,
@@ -188,6 +189,38 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-insight-item { padding: 14px 16px; background: #f8fafc; border-radius: 12px; border: 1px solid rgba(15,23,42,.05); }
   .obs-insight-eye { font-size: 11px; font-weight: 900; color: #64748b; letter-spacing: .12em; margin-bottom: 6px; }
   .obs-insight-item p { margin: 0; font-size: 13.5px; line-height: 1.7; color: #334155; }
+
+  /* 観察のヒント (Layer 1 先頭・全幅・必ずユーザー目に入る上段) */
+  .obs-hint-section { display: flex; flex-direction: column; gap: 14px; padding: 22px 22px; margin-bottom: 24px; border-radius: 18px; border: 1px solid rgba(16,185,129,.18); background: linear-gradient(180deg, #f0fdf4, #ecfdf5); }
+  .obs-hint-section.is-medium { border-color: rgba(245,158,11,.22); background: linear-gradient(180deg, #fffbeb, #fef9c3); }
+  .obs-hint-section.is-low, .obs-hint-section.is-tent { border-color: rgba(239,68,68,.18); background: linear-gradient(180deg, #fef2f2, #fff1f2); }
+  .obs-hint-head { display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; }
+  .obs-hint-eyebrow { margin: 0 0 4px; font-size: 10.5px; font-weight: 900; letter-spacing: .16em; color: #64748b; text-transform: uppercase; }
+  .obs-hint-title { margin: 0; font-size: 17px; font-weight: 900; color: #0f172a; line-height: 1.45; }
+  .obs-hint-badge { flex-shrink: 0; padding: 5px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 900; background: rgba(16,185,129,.15); color: #065f46; border: 1px solid rgba(16,185,129,.3); white-space: nowrap; }
+  .obs-hint-section.is-medium .obs-hint-badge { background: rgba(245,158,11,.15); color: #92400e; border-color: rgba(245,158,11,.3); }
+  .obs-hint-section.is-low .obs-hint-badge, .obs-hint-section.is-tent .obs-hint-badge { background: rgba(239,68,68,.1); color: #991b1b; border-color: rgba(239,68,68,.25); }
+  .obs-hint-rec { display: inline-flex; align-items: baseline; gap: 10px; padding: 10px 14px; background: #fff; border-radius: 12px; border: 1px solid rgba(15,23,42,.08); align-self: flex-start; }
+  .obs-hint-rec-name { font-size: 18px; font-weight: 900; color: #0f172a; }
+  .obs-hint-rec-rank { font-size: 12px; font-weight: 700; color: #64748b; }
+  .obs-hint-best { margin: 0; font-size: 13.5px; color: #334155; padding: 10px 14px; background: rgba(255,255,255,.7); border-radius: 10px; border: 1px dashed rgba(15,23,42,.12); }
+  .obs-hint-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .obs-hint-sub { padding: 12px 14px; background: #fff; border-radius: 12px; border: 1px solid rgba(15,23,42,.06); }
+  .obs-hint-sub.obs-hint-boost { background: linear-gradient(135deg, #ecfdf5, #f0fdf4); border-color: rgba(16,185,129,.2); }
+  .obs-hint-eye { font-size: 10.5px; font-weight: 900; letter-spacing: .14em; color: #64748b; text-transform: uppercase; margin-bottom: 6px; }
+  .obs-hint-eye-note { margin-left: 6px; text-transform: none; letter-spacing: 0; font-weight: 700; color: #94a3b8; font-size: 10px; }
+  .obs-hint-eye-small { font-size: 10px; font-weight: 800; color: #94a3b8; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 4px; }
+  .obs-hint-sub p, .obs-hint-fun p { margin: 0; font-size: 13.5px; line-height: 1.7; color: #334155; }
+  .obs-hint-tags { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+  .obs-hint-tags li { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #fff; border: 1px solid rgba(15,23,42,.1); border-radius: 999px; font-size: 12px; font-weight: 700; color: #0f172a; }
+  .obs-hint-tags li small { color: #94a3b8; font-size: 10.5px; font-weight: 600; }
+  .obs-hint-fun { padding: 12px 14px; background: rgba(99,102,241,.08); border-radius: 12px; border: 1px solid rgba(99,102,241,.18); }
+  .obs-hint-similar { padding: 14px 16px; background: rgba(236,72,153,.06); border-radius: 12px; border: 1px solid rgba(236,72,153,.15); display: flex; flex-direction: column; gap: 8px; }
+  .obs-hint-inner { margin-top: 4px; }
+  .obs-hint-bul { margin: 0; padding-left: 16px; color: #334155; font-size: 13px; line-height: 1.7; }
+  .obs-hint-bul li { margin-bottom: 2px; }
+  .obs-hint-reminder { margin: 6px 0 0; font-size: 11px; color: #94a3b8; }
+  .obs-hint-foot { margin: 4px 0 0; font-size: 11.5px; color: #94a3b8; text-align: right; font-style: italic; }
 
   .obs-fold { border-radius: 12px; background: #f9fafb; border: 1px solid rgba(15,23,42,.08); overflow: hidden; margin-bottom: 8px; }
   .obs-fold > summary { padding: 12px 16px; font-weight: 800; color: #111827; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
@@ -646,8 +679,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     const viewerUserId = viewerSession?.userId ?? null;
 
-    // 並列取得: context / heavy / reactions / observer stats / insight
-    const [obsContext, heavy, reactions, observerStats, insight] = await Promise.all([
+    // 並列取得: context / heavy / reactions / observer stats / insight / AI assessment
+    const [obsContext, heavy, reactions, observerStats, insight, aiAssessment] = await Promise.all([
       getObservationContext(request.params.id, snapshot.visitId ?? null, null).catch(() => null),
       getObservationDetailHeavy(request.params.id, snapshot.visitId ?? null, snapshot.placeId ?? null, viewerUserId).catch(() => null),
       getReactionSummary(request.params.id, viewerUserId).catch(() => null),
@@ -664,6 +697,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             lang: "ja",
           }).catch(() => null)
         : Promise.resolve(null),
+      getLatestAiAssessment(request.params.id).catch(() => null),
     ]);
 
     // ===== Layer 0: ヒーロー =====
@@ -721,6 +755,66 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           ${reactionBar}
         </div>
       </section>`;
+
+    // ===== Layer 1 (最上段): 絞り込みヒント（legacy ai_assessments 由来） =====
+    const hintBlock = aiAssessment
+      ? (() => {
+          const band = aiAssessment.confidenceBand;
+          const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
+          const bandLabel = confidenceLabel(band);
+          const headline = aiAssessment.simpleSummary || aiAssessment.narrative || "";
+          const rec = aiAssessment.recommendedTaxonName
+            ? `<div class="obs-hint-rec"><span class="obs-hint-rec-name">${escapeHtml(aiAssessment.recommendedTaxonName)}</span>${aiAssessment.recommendedRank ? `<span class="obs-hint-rec-rank">${escapeHtml(aiAssessment.recommendedRank)}まで</span>` : ""}</div>`
+            : "";
+          const best = aiAssessment.bestSpecificTaxonName && aiAssessment.bestSpecificTaxonName !== aiAssessment.recommendedTaxonName
+            ? `<p class="obs-hint-best">候補の中では <strong>${escapeHtml(aiAssessment.bestSpecificTaxonName)}</strong> が有力</p>`
+            : "";
+          const clues = aiAssessment.diagnosticFeaturesSeen.length > 0
+            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">写真から拾えている手がかり</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul></div>`
+            : "";
+          const stop = aiAssessment.stopReason
+            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">ここで止めておく理由</div><p>${escapeHtml(aiAssessment.stopReason)}</p></div>`
+            : "";
+          const placeSeason = (aiAssessment.geographicContext || aiAssessment.seasonalContext)
+            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">場所と季節のヒント</div>${aiAssessment.geographicContext ? `<p>📍 ${escapeHtml(aiAssessment.geographicContext)}</p>` : ""}${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(aiAssessment.seasonalContext)}</p>` : ""}</div>`
+            : "";
+          const boost = aiAssessment.observerBoost
+            ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
+            : "";
+          const nextStep = aiAssessment.nextStepText
+            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">次にあると絞りやすいもの</div><p>${escapeHtml(aiAssessment.nextStepText)}</p></div>`
+            : "";
+          const funFact = aiAssessment.funFact
+            ? `<div class="obs-hint-fun">
+                 <div class="obs-hint-eye">ちょっとした豆知識</div>
+                 <p>${escapeHtml(aiAssessment.funFact)}</p>
+               </div>`
+            : "";
+          const similar = aiAssessment.similarTaxa.length > 0 || aiAssessment.distinguishingTips.length > 0 || aiAssessment.confirmMore.length > 0
+            ? `<div class="obs-hint-similar">
+                 <div class="obs-hint-eye">紛らわしい種 <span class="obs-hint-eye-note">AI参考</span></div>
+                 ${aiAssessment.similarTaxa.length > 0 ? `<ul class="obs-hint-tags">${aiAssessment.similarTaxa.map((t) => `<li>${escapeHtml(t.name)}${t.rank ? ` <small>(${escapeHtml(t.rank)})</small>` : ""}</li>`).join("")}</ul>` : ""}
+                 ${aiAssessment.distinguishingTips.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">見分け方のポイント</div><ul class="obs-hint-bul">${aiAssessment.distinguishingTips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul></div>` : ""}
+                 ${aiAssessment.confirmMore.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">さらに確認するなら</div><ul class="obs-hint-bul">${aiAssessment.confirmMore.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul></div>` : ""}
+                 <p class="obs-hint-reminder">※ AI による参考情報です。確証を得るには実物の観察や図鑑の確認をおすすめします。</p>
+               </div>`
+            : "";
+          return `<section class="section obs-hint-section ${bandClass}">
+            <div class="obs-hint-head">
+              <div>
+                <p class="obs-hint-eyebrow">いっしょに絞るためのメモ</p>
+                <h2 class="obs-hint-title">${escapeHtml(headline || "観察のヒント")}</h2>
+              </div>
+              <span class="obs-hint-badge">${escapeHtml(bandLabel)}</span>
+            </div>
+            ${rec}${best}
+            <div class="obs-hint-grid">${clues}${stop}${placeSeason}${boost}${nextStep}</div>
+            ${funFact}
+            ${similar}
+            <p class="obs-hint-foot">このメモは観察を次につなぐための参考情報です。コミュニティ同定の票には入りません。</p>
+          </section>`;
+        })()
+      : "";
 
     // ===== Layer 1: 物語 =====
     const ownerNote = snapshot.note
@@ -886,8 +980,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       ? `<section class="section obs-layer"><h2 class="obs-layer-title">写真と音声から拾えたこと</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
 
     // PC で Layer 1-6 を 2 カラム配置して余白を埋める。スマホは縦並びのまま。
+    // hintBlock（絞り込みヒント）は必ず最上段全幅、ユーザーに早く届かせる。
     const layersGrid = `<div class="obs-layers-grid">${layer1}${layer2}${layer3}${contextBlock}${ctaBlock}${layer6}</div>`;
-    const detailBody = `${heroBlock}${layersGrid}`;
+    const detailBody = `${heroBlock}${hintBlock}${layersGrid}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
