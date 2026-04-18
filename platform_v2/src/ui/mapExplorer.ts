@@ -1054,6 +1054,34 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
 
+  function loadMarkerImages(map) {
+    var SIZE = 36;
+    var HALF = SIZE / 2;
+    var configs = [
+      { id: 'bird',              color: '#f59e0b', emoji: '🐦' },
+      { id: 'insect',            color: '#f43f5e', emoji: '🦋' },
+      { id: 'plant',             color: '#10b981', emoji: '🌿' },
+      { id: 'amphibian_reptile', color: '#14b8a6', emoji: '🐸' },
+      { id: 'mammal',            color: '#8b5cf6', emoji: '🐾' },
+      { id: 'fungi',             color: '#a16207', emoji: '🍄' },
+      { id: 'other',             color: '#0ea5e9', emoji: '🔍' },
+    ];
+    configs.forEach(function(c) {
+      var canvas = document.createElement('canvas');
+      canvas.width = SIZE; canvas.height = SIZE;
+      var ctx = canvas.getContext('2d');
+      ctx.beginPath(); ctx.arc(HALF, HALF, HALF - 1, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.beginPath(); ctx.arc(HALF, HALF, HALF - 3, 0, Math.PI * 2);
+      ctx.fillStyle = c.color; ctx.fill();
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(c.emoji, HALF, HALF + 1);
+      var imageData = ctx.getImageData(0, 0, SIZE, SIZE);
+      map.addImage('marker-' + c.id, { width: SIZE, height: SIZE, data: imageData.data });
+    });
+  }
+
   function ensureObservationSource(map, features) {
     if (map.getSource('observations')) {
       map.getSource('observations').setData({ type: 'FeatureCollection', features: features });
@@ -1074,9 +1102,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       paint: {
         'circle-color': '#10b981',
         'circle-opacity': 0.72,
-        'circle-radius': ['step', ['get', 'point_count'], 14, 5, 18, 25, 24, 100, 30],
+        'circle-radius': ['step', ['get', 'point_count'], 18, 5, 24, 25, 30, 100, 38],
         'circle-stroke-color': '#fff',
-        'circle-stroke-width': 2,
+        'circle-stroke-width': 3,
       },
     });
     // Inner dot used as a subtle "cluster" visual cue. Avoided a symbol layer
@@ -1096,23 +1124,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
     map.addLayer({
       id: 'unclustered-point',
-      type: 'circle',
+      type: 'symbol',
       source: 'observations',
       filter: ['!', ['has', 'point_count']],
-      paint: {
-        'circle-color': [
-          'match', ['get', 'taxonGroup'],
-          'bird', '#f59e0b',
-          'insect', '#f43f5e',
-          'plant', '#10b981',
-          'amphibian_reptile', '#14b8a6',
-          'mammal', '#8b5cf6',
-          'fungi', '#a16207',
-          '#0ea5e9',
+      layout: {
+        'icon-image': ['match', ['get', 'taxonGroup'],
+          'bird',              'marker-bird',
+          'insect',            'marker-insect',
+          'plant',             'marker-plant',
+          'amphibian_reptile', 'marker-amphibian_reptile',
+          'mammal',            'marker-mammal',
+          'fungi',             'marker-fungi',
+                               'marker-other',
         ],
-        'circle-radius': 6,
-        'circle-stroke-color': '#fff',
-        'circle-stroke-width': 1.5,
+        'icon-size': 1,
+        'icon-allow-overlap': true,
+        'icon-anchor': 'bottom',
       },
     });
 
@@ -1522,6 +1549,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     state.map.on('load', function () {
+      loadMarkerImages(state.map);
       // Restore enabled overlays from URL/localStorage state before loading data.
       overlayCatalog.forEach(function (def) {
         if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(state.map, def);
@@ -2021,7 +2049,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-toolbar::-webkit-scrollbar { display: none; }
   @media (min-width: 900px) { .me-toolbar { gap: 4px 14px; } }
   .me-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(15,23,42,.04); }
-  .me-tab { padding: 8px 14px; border-radius: 10px; border: 0; background: transparent; font-weight: 800; font-size: 13px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; }
+  .me-tab { padding: 8px 14px; border-radius: 10px; border: 0; background: transparent; font-weight: 800; font-size: 13px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; white-space: nowrap; }
   .me-tab.is-active { background: #fff; color: #0f172a; box-shadow: 0 4px 10px rgba(15,23,42,.08); }
   .me-filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; flex-shrink: 0; }
   .me-filter-group + .me-filter-group { border-left: 1px solid rgba(15,23,42,.08); padding-left: 10px; }
@@ -2228,12 +2256,12 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-bottom-sheet.is-open { transform: translateY(0); opacity: 1; pointer-events: auto; }
   .me-bottom-close { position: absolute; right: 10px; top: 10px; width: 30px; height: 30px; border-radius: 999px; background: rgba(15,23,42,.06); border: 0; color: #475569; font-size: 18px; cursor: pointer; }
-  .me-bottom-photo { width: 100%; max-height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 10px; }
-  .me-bottom-meta { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
-  .me-bottom-meta strong { font-size: 15px; font-weight: 800; color: #0f172a; }
+  .me-bottom-photo { width: 100%; max-height: 220px; object-fit: cover; border-radius: 16px 16px 0 0; margin-bottom: 0; }
+  .me-bottom-meta { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; margin-top: 10px; }
+  .me-bottom-meta strong { font-size: 18px; font-weight: 800; color: #0f172a; }
   .me-bottom-meta span { font-size: 12px; color: #64748b; font-weight: 600; }
   .me-bottom-actions { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
-  .me-bottom-actions .btn { padding: 8px 14px; font-size: 13px; }
+  .me-bottom-actions .btn { padding: 10px 20px; font-size: 14px; font-weight: 800; }
 
   .me-site-brief { margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(14,165,233,.08)); border: 1px solid rgba(16,185,129,.22); }
   .me-site-brief.is-loading { color: #64748b; font-size: 12px; font-weight: 600; }
