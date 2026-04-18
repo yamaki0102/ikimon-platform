@@ -12,6 +12,7 @@ import { recordSpecialistReview, type SpecialistDecision, type SpecialistLane } 
 import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
 import { upsertUser, type UserUpsertInput } from "../services/userWrite.js";
+import { submitContact, type ContactSubmitInput } from "../services/contactSubmit.js";
 import {
   assertObservationOwnedByUser,
   assertPrivilegedWriteAccess,
@@ -252,6 +253,37 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
         ok: false,
         error: error instanceof Error ? error.message : "remember_token_revoke_failed",
       };
+    }
+  });
+
+  // /contact フォーム POST。認証不要、Gmail SMTP relay (msmtp) 経由で通知送信。
+  // 原文は contact_submissions テーブルに保存される（メール到達と独立に原本確保）。
+  app.post<{ Body: ContactSubmitInput }>("/api/v1/contact/submit", async (request, reply) => {
+    try {
+      const body = request.body ?? ({} as ContactSubmitInput);
+      const session = await getSessionFromCookie(request.headers.cookie).catch(() => null);
+      const result = await submitContact({
+        category: body.category,
+        name: body.name,
+        email: body.email,
+        organization: body.organization,
+        message: body.message,
+        sourceUrl: body.sourceUrl ?? (request.headers.referer as string | undefined),
+        userAgent: body.userAgent ?? (request.headers["user-agent"] as string | undefined),
+        ip: request.ip,
+        userId: session?.userId ?? null,
+      });
+      return {
+        ok: true,
+        submissionId: result.submissionId,
+        notificationSent: result.notificationSent,
+        autoReplySent: result.autoReplySent,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "contact_submit_failed";
+      const code = message === "invalid_category" || message === "message_too_short" || message === "invalid_email" ? 400 : 500;
+      reply.code(code);
+      return { ok: false, error: message };
     }
   });
 }

@@ -245,6 +245,111 @@ function rows(items: Array<{ title: string; body: string; actionHref?: string; a
     .join("")}</div></section>`;
 }
 
+function renderContactForm(_basePath: string): string {
+  // 認証不要フォーム。POST /api/v1/contact/submit に JSON 送信。
+  // JS 無効環境では送信できない旨を noscript で案内。
+  const categories = [
+    { value: "question",    label: "❓ 質問" },
+    { value: "bug",         label: "🐛 バグ報告" },
+    { value: "improvement", label: "💡 要望・提案" },
+    { value: "partnership", label: "🤝 導入・連携" },
+    { value: "media",       label: "📰 取材・メディア" },
+    { value: "deletion",    label: "🗑️ データ削除" },
+    { value: "other",       label: "💬 その他" },
+  ];
+  const optionsHtml = categories
+    .map((c) => `<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`)
+    .join("");
+
+  return `<section class="section">
+<style>
+  .cf-form { display: grid; gap: 14px; max-width: 640px; margin: 0 auto 32px; padding: 24px; border-radius: 16px; background: #f9fafb; border: 1px solid rgba(15,23,42,.08); }
+  .cf-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color: #111827; }
+  .cf-form input, .cf-form select, .cf-form textarea { padding: 10px 12px; border: 1px solid rgba(15,23,42,.15); border-radius: 10px; font-size: 14px; background: #fff; font-family: inherit; }
+  .cf-form textarea { min-height: 140px; resize: vertical; }
+  .cf-form .cf-required::after { content: " *"; color: #dc2626; }
+  .cf-form .cf-hint { font-size: 12px; color: #6b7280; font-weight: 400; }
+  .cf-form .cf-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .cf-form button[type=submit] { padding: 12px 22px; border-radius: 999px; border: none; background: #111827; color: #fff; font-size: 14px; font-weight: 800; cursor: pointer; }
+  .cf-form button[type=submit]:disabled { opacity: .5; cursor: not-allowed; }
+  .cf-form .cf-status { font-size: 13px; color: #4b5563; }
+  .cf-form .cf-status.cf-err { color: #dc2626; font-weight: 700; }
+  .cf-form .cf-status.cf-ok { color: #16a34a; font-weight: 700; }
+</style>
+<form class="cf-form" id="cf-form" onsubmit="return false;">
+  <label><span class="cf-required">カテゴリ</span>
+    <select name="category" required>${optionsHtml}</select>
+  </label>
+  <label><span class="cf-required">内容</span>
+    <textarea name="message" required minlength="5" maxlength="8000" placeholder="ご質問・ご要望・ご報告の内容を記入してください。"></textarea>
+    <span class="cf-hint">最低 5 文字・最大 8000 文字</span>
+  </label>
+  <label>お名前
+    <input name="name" type="text" maxlength="200" placeholder="任意" />
+  </label>
+  <label>組織名
+    <input name="organization" type="text" maxlength="200" placeholder="任意" />
+  </label>
+  <label>メールアドレス
+    <input name="email" type="email" maxlength="200" placeholder="返信を希望する場合は入力してください" />
+    <span class="cf-hint">入力すると受付自動返信が届きます（任意）</span>
+  </label>
+  <div class="cf-actions">
+    <button type="submit" id="cf-submit">送信する</button>
+    <span class="cf-status" id="cf-status"></span>
+  </div>
+  <noscript><p class="cf-status cf-err">JavaScript を有効にして送信してください。無効の場合は contact@ikimon.life へ直接メールでご連絡をお願いします。</p></noscript>
+</form>
+<script>
+(function(){
+  var form = document.getElementById('cf-form');
+  if (!form) return;
+  var btn = document.getElementById('cf-submit');
+  var status = document.getElementById('cf-status');
+  form.addEventListener('submit', async function(ev){
+    ev.preventDefault();
+    btn.disabled = true;
+    status.className = 'cf-status';
+    status.textContent = '送信中…';
+    var fd = new FormData(form);
+    var payload = {
+      category: fd.get('category') || 'question',
+      message: fd.get('message') || '',
+      name: fd.get('name') || '',
+      organization: fd.get('organization') || '',
+      email: fd.get('email') || '',
+      sourceUrl: location.href,
+      userAgent: navigator.userAgent
+    };
+    try {
+      var res = await fetch('/api/v1/contact/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'same-origin'
+      });
+      var data = await res.json().catch(function(){ return {}; });
+      if (res.ok && data && data.ok) {
+        status.className = 'cf-status cf-ok';
+        status.textContent = '送信しました。受付番号: ' + (data.submissionId || '').slice(0, 8) + '…';
+        form.reset();
+      } else {
+        status.className = 'cf-status cf-err';
+        var msg = (data && data.error) ? data.error : ('HTTP ' + res.status);
+        status.textContent = '送信できませんでした: ' + msg;
+      }
+    } catch(e) {
+      status.className = 'cf-status cf-err';
+      status.textContent = '送信できませんでした（ネットワークエラー）';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+</section>`;
+}
+
 export async function registerMarketingRoutes(app: FastifyInstance): Promise<void> {
   const redirectMap = new Map<string, string>([
     ["/index.php", "/"],
@@ -982,6 +1087,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
+    const formHtml = renderContactForm(basePath);
     return layout(
       basePath,
       lang,
@@ -990,14 +1096,10 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "Contact",
       "お問い合わせ",
       "ikimon に関するご質問や導入相談を受け付けています。個人利用と組織導入で窓口を分けています。",
-      rows([
-        {
-          title: "個人利用・データに関するお問い合わせ",
-          body: "ログイン、投稿、公開範囲、データ削除や取り扱いに関する相談はこちらからご連絡ください。",
-        },
+      formHtml + rows([
         {
           title: "法人・団体のお問い合わせ",
-          body: "企業・自治体・学校で、自然共生サイトや観察導線を始めたい場合はこちらです。",
+          body: "企業・自治体・学校で、自然共生サイトや観察導線を始めたい場合はこちらの導線もあります。",
           actionHref: withBasePath(basePath, "/for-business/apply"),
           actionLabel: "法人のお問い合わせ",
         },
@@ -1011,6 +1113,17 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "Learn",
     );
   });
+
+  app.post<{ Body: { category?: string; name?: string; email?: string; organization?: string; message?: string; sourceUrl?: string } }>(
+    "/contact",
+    async (_request, reply) => {
+      // フォームの action が /contact を指していても、クライアントの JS が fetch で /api/v1/contact/submit を使う。
+      // JS 無効環境のフォールバックとして、/contact への POST はエラーを返す（fetch を使うよう促す）。
+      reply.code(400);
+      reply.type("application/json");
+      return { ok: false, error: "use_api_endpoint", hint: "POST /api/v1/contact/submit" };
+    },
+  );
 
   app.get("/for-business", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
