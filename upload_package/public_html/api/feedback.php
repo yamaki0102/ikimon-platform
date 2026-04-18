@@ -160,7 +160,16 @@ function sendNotification(array $r): void {
              . "Content-Type: text/plain; charset=UTF-8\r\n"
              . $replyHeader;
 
-    @mail($to, $subject, $body, $headers);
+    $sent = mail($to, $subject, $body, $headers);
+    if (!$sent) {
+        error_log("feedback.php sendNotification failed id={$r['id']} to={$to}");
+        DataStore::append('feedback_errors', [
+            'id'         => $r['id'] ?? '',
+            'kind'       => 'notification',
+            'to'         => $to,
+            'failed_at'  => date('c'),
+        ]);
+    }
 }
 
 // ── 送信者への自動返信 ──
@@ -217,7 +226,16 @@ function sendAutoReply(array $r): void {
              . "Reply-To: noreply@ikimon.life\r\n"
              . "Content-Type: text/plain; charset=UTF-8\r\n";
 
-    @mail($r['email'], $subject, $body, $headers);
+    $sent = mail($r['email'], $subject, $body, $headers);
+    if (!$sent) {
+        error_log("feedback.php sendAutoReply failed id={$r['id']} to={$r['email']}");
+        DataStore::append('feedback_errors', [
+            'id'         => $r['id'] ?? '',
+            'kind'       => 'auto_reply',
+            'to'         => $r['email'] ?? '',
+            'failed_at'  => date('c'),
+        ]);
+    }
 }
 
 // ── SUMMARY.md 再構築 ──
