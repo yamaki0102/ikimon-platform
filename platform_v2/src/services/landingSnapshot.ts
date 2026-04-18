@@ -183,23 +183,23 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     };
   }
 
-  // Public feed (all observers), latest 12
+  // Public feed (all observers), latest 12 — photo-only (skip sketch/no-photo cards)
   let feedRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} order by v.observed_at desc limit 12`,
+      `${FEED_SQL_BASE} where photo.public_url is not null order by v.observed_at desc limit 12`,
     );
     feedRows = result.rows;
   } catch {
     feedRows = [];
   }
 
-  // Viewer own feed (if logged in) — own observations
+  // Viewer own feed (if logged in) — own observations, photo-only
   let myFeedRows: FeedRow[] = [];
   if (userId) {
     try {
       const result = await pool.query<FeedRow>(
-        `${FEED_SQL_BASE} where v.user_id = $1 order by v.observed_at desc limit 6`,
+        `${FEED_SQL_BASE} where v.user_id = $1 and photo.public_url is not null order by v.observed_at desc limit 6`,
         [userId],
       );
       myFeedRows = result.rows;
