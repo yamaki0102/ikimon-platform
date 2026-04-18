@@ -431,7 +431,7 @@ $contactJsText = [
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                csrf_token:   '<?= CSRF::token() ?>',
+                                csrf_token:   '<?= htmlspecialchars(CSRF::generate(), ENT_QUOTES, 'UTF-8') ?>',
                                 category:     this.category,
                                 description:  this.description,
                                 name:         this.name,
