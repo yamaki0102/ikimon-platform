@@ -42,19 +42,15 @@ async function expectDesktopSelectionOverlay(page: Page): Promise<void> {
   const mapWrap = page.locator(".me-map-wrap");
 
   await expect(selectionCard).toHaveClass(/is-visible/);
-  await expect(insightCard).toHaveClass(/is-visible/);
+  await expect(insightCard).not.toHaveClass(/is-visible/);
 
   const mapBox = await requiredBox("desktop map wrap", mapWrap);
   const selectionBox = await requiredBox("desktop place card", selectionCard);
-  const insightBox = await requiredBox("desktop insight card", insightCard);
 
   expect(selectionBox.x).toBeGreaterThanOrEqual(mapBox.x + 8);
   expect(selectionBox.y).toBeGreaterThanOrEqual(mapBox.y + 40);
   expect(selectionBox.x + selectionBox.width).toBeLessThanOrEqual(mapBox.x + mapBox.width * 0.56);
   expect(selectionBox.y + selectionBox.height).toBeLessThanOrEqual(mapBox.y + mapBox.height - 12);
-
-  expect(insightBox.x).toBeGreaterThanOrEqual(mapBox.x + 8);
-  expect(insightBox.y + insightBox.height).toBeLessThanOrEqual(mapBox.y + mapBox.height - 8);
   await expect(selectionCard.locator(".me-map-card")).toContainText(/\S+/);
 }
 
@@ -66,6 +62,47 @@ async function expectMobileBottomSheet(page: Page): Promise<void> {
   expect(sheetBox.height).toBeGreaterThan(220);
   expect(sheetBox.y).toBeGreaterThan(220);
   await expect(page.locator("#me-bottom-inner")).toContainText(/\S+/);
+}
+
+async function expectDesktopNeutralState(page: Page): Promise<void> {
+  await expect(page.locator("#me-map-selection-card")).not.toHaveClass(/is-visible/);
+  await expect(page.locator("#me-map-insight-card")).toHaveClass(/is-visible/);
+  await expect(page.locator(".me-result-row.is-active")).toHaveCount(0);
+}
+
+async function openBlankPlaceTarget(page: Page, isMobile: boolean): Promise<void> {
+  const canvas = page.locator("#map-explorer canvas").first();
+  const box = await requiredBox("map canvas", canvas);
+  const attempts = [
+    { x: box.x + box.width * 0.18, y: box.y + box.height * 0.22 },
+    { x: box.x + box.width * 0.2, y: box.y + box.height * 0.76 },
+    { x: box.x + box.width * 0.82, y: box.y + box.height * 0.24 },
+  ];
+
+  for (const point of attempts) {
+    await page.mouse.click(point.x, point.y);
+    if (isMobile) {
+      try {
+        await expect(page.locator("#me-bottom-sheet")).toHaveClass(/is-open/, { timeout: 1_500 });
+        if (await page.locator("#me-bottom-inner").getByText("フィールドガイド", { exact: false }).count()) {
+          return;
+        }
+      } catch {
+        // try next coordinate
+      }
+    } else {
+      try {
+        await expect(page.locator("#me-map-selection-card")).toHaveClass(/is-visible/, { timeout: 1_500 });
+        if (await page.locator("#me-map-selection-card").getByText("フィールドガイド", { exact: false }).count()) {
+          return;
+        }
+      } catch {
+        // try next coordinate
+      }
+    }
+  }
+
+  throw new Error("blank_place_target_not_found");
 }
 
 for (const profile of MAP_VIEWPORTS) {
@@ -87,6 +124,7 @@ for (const profile of MAP_VIEWPORTS) {
       await expectMobileMapDominance(page);
     } else {
       await expectDesktopMapDominance(page);
+      await expectDesktopNeutralState(page);
     }
 
     const statusBeforePan = (await sideStatus.textContent())?.trim() ?? "";
@@ -97,12 +135,24 @@ for (const profile of MAP_VIEWPORTS) {
         firstRow?.click();
       });
       await expectMobileBottomSheet(page);
+      await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドガイド");
+      await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドスキャン");
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
     } else {
       const firstRow = page.locator(".me-result-row").first();
       await firstRow.click();
       await expectDesktopSelectionOverlay(page);
+      await expect(page.locator("#me-map-selection-card")).not.toContainText("フィールドガイド");
+      await expect(page.locator("#me-map-selection-card")).not.toContainText("フィールドスキャン");
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
+    }
+
+    await openBlankPlaceTarget(page, !!profile.isMobile);
+    if (profile.isMobile) {
+      await expect(page.locator("#me-bottom-inner")).toContainText("フィールドガイド");
+      await expect(page.locator("#me-bottom-inner")).toContainText("フィールドスキャン");
+    } else {
+      await expect(page.locator("#me-map-selection-card")).toContainText("フィールドガイド");
     }
 
     await triggerPendingViewportSearch(page);

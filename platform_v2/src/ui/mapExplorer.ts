@@ -1124,6 +1124,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       mapInsightCardEl.classList.remove('is-visible');
       return;
     }
+    if (getSelectedContext()) {
+      mapInsightCardEl.innerHTML = '';
+      mapInsightCardEl.classList.remove('is-visible');
+      return;
+    }
     var summary = state.effortSummary;
     if (!summary) {
       mapInsightCardEl.innerHTML =
@@ -1246,13 +1251,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }
     var context = getSelectedContext();
     if (!context) {
-      selectedCardEl.innerHTML =
-        '<div class="me-map-card me-map-card-empty">' +
-          '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionPlaceLabel) + '</div>' +
-          '<strong class="me-map-card-title">' + escapeHtml(COPY.selectedFieldLabel) + '</strong>' +
-          '<span class="me-map-card-copy">' + escapeHtml(COPY.placeHint) + '</span>' +
-        '</div>';
-      selectedCardEl.classList.add('is-visible');
+      selectedCardEl.innerHTML = '';
+      selectedCardEl.classList.remove('is-visible');
       return;
     }
     var seq = ++siteBriefSeq;
@@ -1299,7 +1299,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         '<div class="me-selected-actions">' +
           '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.selectedCardLabel) + '</a>' +
           '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
-          '<a class="inline-link" href="' + LENS_HREF + '">' + escapeHtml(COPY.bottomSheetLens) + '</a>' +
         '</div>' +
         '<div id="me-selected-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
         '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
@@ -1381,8 +1380,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       '<div class="me-bottom-actions">' +
       '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.popupOpenLabel) + '</a>' +
       '<a class="inline-link" href="' + NOTES_HREF + '">' + escapeHtml(COPY.bottomSheetNotes) + '</a>' +
-      '<a class="inline-link" href="' + LENS_HREF + '">' + escapeHtml(COPY.bottomSheetLens) + '</a>' +
-      '<a class="inline-link" href="' + SCAN_HREF + '">' + escapeHtml(COPY.bottomSheetScan) + '</a>' +
       '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
       '</div>';
   }
@@ -1787,9 +1784,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (state.selectedOccurrenceId && !getSelectedFeature()) {
           state.selectedOccurrenceId = null;
           if (state.selectedPoint && state.selectedPoint.kind === 'observation') state.selectedPoint = null;
-        }
-        if (!state.selectedOccurrenceId && !state.selectedPoint && state.features[0] && !shouldUseBottomSheet()) {
-          state.selectedOccurrenceId = state.features[0].properties ? state.features[0].properties.occurrenceId : null;
         }
         renderResultList();
         renderSelectedCard();
