@@ -132,6 +132,9 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     const mapPage = await context.newPage();
     await waitForMapReady(mapPage, "/map");
     await expect(mapPage.getByTestId("map-result-list")).toContainText(fixture.historical.subjectLabel);
+    await mapPage.locator(".me-filter-toggle").click();
+    await expect(mapPage.locator(".me-filter-drawer")).toHaveAttribute("open", "");
+    await expect(mapPage.locator(".me-filter-panel")).toBeVisible();
     await mapPage.locator("#me-share-state").click();
     await expect.poll(() => new URL(mapPage.url()).searchParams.get("mp")).toBeNull();
 
