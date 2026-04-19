@@ -198,6 +198,7 @@ jobs:
     name: Verify Staging
     runs-on: ubuntu-latest
     needs: deploy
+    environment: staging
     steps:
       - name: Verify staging through SSH
         uses: appleboy/ssh-action@v1
