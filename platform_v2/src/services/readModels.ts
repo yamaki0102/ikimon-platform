@@ -535,7 +535,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         o.visit_id,
         v.place_id,
         v.user_id as observer_user_id,
-        u.avatar_url as observer_avatar_url,
+        avatar.public_url as observer_avatar_url,
         coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
         o.scientific_name,
         v.observed_at::text,
@@ -549,6 +549,12 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
      join visits v on v.visit_id = o.visit_id
      left join users u on u.user_id = v.user_id
      left join places p on p.place_id = v.place_id
+     left join lateral (
+       select coalesce(ab.public_url, ab.storage_path) as public_url
+       from asset_blobs ab
+       where ab.blob_id = u.avatar_asset_id
+       limit 1
+     ) avatar on true
      where o.occurrence_id = $1
         or v.visit_id = $1
         or o.legacy_observation_id = $1
@@ -633,7 +639,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     visitId: base.visit_id,
     placeId: base.place_id,
     observerUserId: base.observer_user_id,
-    observerAvatarUrl: base.observer_avatar_url,
+    observerAvatarUrl: normalizeAssetUrl(base.observer_avatar_url),
     displayName: base.display_name ?? "Unresolved",
     scientificName: base.scientific_name,
     observedAt: base.observed_at,

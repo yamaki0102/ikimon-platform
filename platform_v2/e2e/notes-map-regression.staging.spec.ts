@@ -146,6 +146,44 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     await context.close();
   });
 
+  test("map detail CTA opens observation detail without SQL 500", async ({ browser }) => {
+    const context = await newStagingContext(browser, {
+      slug: "notes-map-detail-regression",
+      viewport: { width: 1440, height: 960 },
+    });
+
+    const mapPage = await context.newPage();
+    await waitForMapReady(mapPage, "/map");
+
+    const targetRow = mapPage
+      .locator(".me-result-row")
+      .filter({ hasText: fixture.historical.subjectLabel })
+      .first();
+    await expect(targetRow).toBeVisible();
+    await targetRow.click();
+
+    const detailLink = mapPage.locator("#me-map-selection-card a.btn.btn-solid");
+    await expect(detailLink).toHaveText("詳細を見る");
+
+    await Promise.all([
+      mapPage.waitForURL((url) => {
+        return url.pathname.startsWith("/observations/") && url.searchParams.get("subject") === fixture.historical.occurrenceId;
+      }),
+      detailLink.click(),
+    ]);
+    await mapPage.waitForLoadState("domcontentloaded");
+
+    await expect(mapPage.locator("body")).toContainText(fixture.historical.subjectLabel);
+    await expect(mapPage.locator("body")).not.toContainText('{"statusCode":500');
+    await expect(mapPage.locator("body")).not.toContainText("列u.avatar_urlは存在しません");
+
+    const finalUrl = new URL(mapPage.url());
+    expect(finalUrl.pathname.startsWith("/observations/")).toBeTruthy();
+    expect(finalUrl.searchParams.get("subject")).toBe(fixture.historical.occurrenceId);
+
+    await context.close();
+  });
+
   test("cleanup route removes seeded fixtures from map API", async () => {
     await cleanupFixtures(api, writeKey, fixturePrefix);
     cleanedUp = true;
