@@ -806,8 +806,8 @@ export async function revokeReviewerAuthority(input: RevokeReviewerAuthorityInpu
            revoked_at = now(),
            updated_at = now(),
            source_payload = coalesce(source_payload, '{}'::jsonb) || jsonb_build_object(
-             'revokedByUserId', $2,
-             'revokeReason', $3,
+             'revokedByUserId', $2::text,
+             'revokeReason', $3::text,
              'revokedAt', now()::text
            )
        where authority_id = $1::uuid
