@@ -1,8 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
 import type { PoolClient } from "pg";
-import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { buildPlaceId, buildPlaceName, makeOccurrenceId, normalizeTimestamp, upsertAssetBlob } from "./writeSupport.js";
 
@@ -73,19 +70,12 @@ function assertFixturePrefix(value: string): string {
   return fixturePrefix;
 }
 
-function fixtureRootPath(fixturePrefix: string): string {
-  return path.join(loadConfig().legacyPublicRoot, "uploads", "staging-regression", fixturePrefix);
-}
-
 async function ensureFixturePhoto(fixturePrefix: string, kind: RegressionFixtureKind): Promise<FixturePhoto> {
   const buffer = Buffer.from(TINY_PNG_BASE64, "base64");
-  const storagePath = path.posix.join("uploads", "staging-regression", fixturePrefix, `${kind}.png`);
-  const absolutePath = path.join(loadConfig().legacyPublicRoot, ...storagePath.split("/"));
-  await mkdir(path.dirname(absolutePath), { recursive: true });
-  await writeFile(absolutePath, buffer);
+  const storagePath = `uploads/staging-regression/${fixturePrefix}/${kind}.png`;
   return {
     storagePath,
-    publicUrl: `/${storagePath}`,
+    publicUrl: "/assets/img/icon-192.png",
     sha256: createHash("sha256").update(buffer).digest("hex"),
     bytes: buffer.byteLength,
   };
@@ -319,7 +309,6 @@ export async function seedStagingRegressionFixtures(
   const client = await pool.connect();
   const userId = `${fixturePrefix}-observer`;
   const displayName = "Regression Field Note Observer";
-  const fixtureRoot = fixtureRootPath(fixturePrefix);
 
   try {
     const [manualPhoto, historicalPhoto, smokePhoto] = await Promise.all([
@@ -412,7 +401,6 @@ export async function seedStagingRegressionFixtures(
     };
   } catch (error) {
     await client.query("rollback").catch(() => undefined);
-    await rm(fixtureRoot, { recursive: true, force: true }).catch(() => undefined);
     throw error;
   } finally {
     client.release();
