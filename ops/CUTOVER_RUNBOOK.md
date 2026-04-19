@@ -2,14 +2,22 @@
 
 staging.ikimon.life (platform_v2 Node) → 本番 ikimon.life に切り替える手順。
 
-## 前提 (2026-04-18 Phase I 時点)
+## 前提 (2026-04-19 staging runtime refresh 後)
 
 - 本番 v2 サーバ: `pm2 ikimon-v2-production-api` (:3201, uptime 確認済)
-- staging v2: `pm2 ikimon-v2-staging-api` (:3200)
+- staging v2: `systemd ikimon-v2-staging.service` (:3200, env file `/etc/ikimon/staging-v2.env`)
 - `/ops/readiness` = **near_ready** (最高ランク、全 gates true)
 - 本番 DB (`ikimon_v2`): 103 users / 240 visits / 234 occurrences / 229 photos / 682 track points
 - parityVerified / deltaSyncHealthy / driftReportHealthy / compatibilityWriteWorking / rollbackSafetyWindowReady 全 true
 - 本番 DB に migration 0012-0014 適用済 (contact_submissions / video_upload_requests / audio_segments / audio_detections)
+
+## staging v2 の canonical runtime
+
+- unit reference: `ops/deploy/ikimon_v2_staging.service`
+- service user: `ikimon-staging`
+- deploy workflow secret: `V2_STAGING_DATABASE_URL`
+- staging browser verify secrets: `STAGING_BASIC_AUTH_USER`, `STAGING_BASIC_AUTH_PASS`
+- deploy-staging は `pre-flight` → `deploy` → `verify-ssh` → `verify-e2e` で止める
 
 ## カットオーバー前に必要な環境変数追加 (🚨 要対応)
 
