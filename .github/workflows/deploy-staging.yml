@@ -72,6 +72,7 @@ jobs:
           script: |
             GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
             V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
+            STAGING_DATABASE_URL='postgresql:///ikimon_v2_staging?host=%2Fvar%2Frun%2Fpostgresql'
             set +e
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
             if [ ! -d "$V2_DIR" ]; then
@@ -99,6 +100,7 @@ jobs:
               : > "$STAGING_ENV_FILE"
               chmod 600 "$STAGING_ENV_FILE"
               printf 'ALLOW_QUERY_USER_ID=1\n' >> "$STAGING_ENV_FILE"
+              printf 'DATABASE_URL=%s\n' "$STAGING_DATABASE_URL" >> "$STAGING_ENV_FILE"
               if [ -n "$GEMINI_API_KEY" ]; then
                 printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" >> "$STAGING_ENV_FILE"
                 echo "GEMINI_API_KEY written to systemd env file"
@@ -123,6 +125,8 @@ jobs:
               # ALLOW_QUERY_USER_ID=1 keeps the ?userId= QA override working on staging.
               # Production pm2 MUST NOT have this set (else anyone can impersonate).
               pm2 set ikimon-v2-staging-api:ALLOW_QUERY_USER_ID 1 >/dev/null 2>&1 || true
+              pm2 set ikimon-v2-staging-api:DATABASE_URL "$STAGING_DATABASE_URL" >/dev/null 2>&1 || true
+              echo "DATABASE_URL injected into pm2 env (ikimon_v2_staging)"
               if [ -n "$GEMINI_API_KEY" ]; then
                 pm2 set ikimon-v2-staging-api:GEMINI_API_KEY "$GEMINI_API_KEY" >/dev/null 2>&1 || true
                 echo "GEMINI_API_KEY injected into pm2 env"
@@ -134,6 +138,7 @@ jobs:
                 echo "WARN: V2_PRIVILEGED_WRITE_API_KEY missing; authority gate verify will fail"
               fi
               export ALLOW_QUERY_USER_ID=1
+              export DATABASE_URL="$STAGING_DATABASE_URL"
               export V2_PRIVILEGED_WRITE_API_KEY="$V2_PRIVILEGED_WRITE_API_KEY"
               pm2 restart ikimon-v2-staging-api --update-env 2>/dev/null && echo "Restarted via pm2 (ALLOW_QUERY_USER_ID=1 for staging QA)" && restarted=1
             fi
