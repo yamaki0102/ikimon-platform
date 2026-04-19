@@ -72,7 +72,7 @@ jobs:
           script: |
             GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
             V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
-            STAGING_DATABASE_URL='postgresql:///ikimon_v2_staging?host=%2Fvar%2Frun%2Fpostgresql'
+            STAGING_DATABASE_URL='postgresql://postgres@/ikimon_v2_staging?host=%2Fvar%2Frun%2Fpostgresql'
             set +e
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
             if [ ! -d "$V2_DIR" ]; then
