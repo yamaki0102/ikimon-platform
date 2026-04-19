@@ -972,6 +972,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var state = {
     tab: 'markers',
     role: 'mixed',
+    markerProfile: 'manual_only',
     taxonGroup: '',
     year: '',
     season: '',
@@ -1017,6 +1018,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
+  function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
   function formatYearLabel(year) { return year ? String(year) : COPY.yearAll; }
   function syncYearUi() {
     if (yearLabelEl) yearLabelEl.textContent = formatYearLabel(state.year);
@@ -1075,6 +1077,24 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function fmtStatsLabel(ret, tot) {
     return String(ret) + ' / ' + String(tot);
+  }
+
+  function fmtProvenanceMeta(stats) {
+    if (!stats || !stats.provenance) return '';
+    var visible = stats.provenance.visible || {};
+    var excluded = stats.provenance.excluded || {};
+    var sampleLabel = stats.provenance.sampled ? ('sample ' + String(stats.provenance.sampleSize || 0)) : 'full';
+    return [
+      'profile=' + String(stats.markerProfile || 'manual_only'),
+      'visible manual=' + String(visible.manual || 0),
+      'legacy=' + String(visible.legacy || 0),
+      'track=' + String(visible.track || 0),
+      'other=' + String(visible.other || 0),
+      'excluded legacy=' + String(excluded.legacy || 0),
+      'track=' + String(excluded.track || 0),
+      'other=' + String(excluded.other || 0),
+      sampleLabel,
+    ].join(' | ');
   }
 
   function shouldUseBottomSheet() {
@@ -1760,6 +1780,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function loadObservations() {
     if (!state.map) return;
     var qs = '?limit=1500';
+    if (state.markerProfile) qs += '&marker_profile=' + encodeURIComponent(state.markerProfile);
     if (state.taxonGroup) qs += '&taxon_group=' + encodeURIComponent(state.taxonGroup);
     if (state.year) qs += '&year=' + encodeURIComponent(state.year);
     var bbox = currentBboxString();
@@ -1792,11 +1813,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         } else {
           setStatus(fmtStatsLabel(state.features.length, totalAll));
         }
+        setStatusMeta(fmtProvenanceMeta(coll && coll.stats));
         state._fittedOnce = true;
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
         setStatus('—');
+        setStatusMeta('');
       });
   }
 
@@ -1813,7 +1836,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     renderSidePanels();
     applyTab(state.map, state.tab);
     if (state.features.length === 0) setStatus(COPY.empty);
-    else setStatus(fmtStatsLabel(state.features.length, state.rawFeatures.length));
+    else setStatus(fmtStatsLabel(state.features.length, (state.lastStats && state.lastStats.totalAll) || state.rawFeatures.length));
+    setStatusMeta(fmtProvenanceMeta(state.lastStats));
   }
 
   function refreshYearDependentData() {
@@ -1846,12 +1870,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   // Keeps map state shareable as a plain URL while preserving unrelated
   // params like lang.
   var STATE_STORAGE_KEY = 'ikimon-map-v2';
-  var MAP_STATE_KEYS = ['tab', 'role', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces'];
+  var MAP_STATE_KEYS = ['tab', 'role', 'mp', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces'];
 
   function serializeMapState() {
     var parts = [];
     if (state.tab && state.tab !== 'markers') parts.push('tab=' + encodeURIComponent(state.tab));
     if (state.role && state.role !== 'mixed') parts.push('role=' + encodeURIComponent(state.role));
+    if (state.markerProfile && state.markerProfile !== 'manual_only') parts.push('mp=' + encodeURIComponent(state.markerProfile));
     if (state.taxonGroup) parts.push('taxon=' + encodeURIComponent(state.taxonGroup));
     if (state.year) parts.push('year=' + encodeURIComponent(state.year));
     if (state.season) parts.push('season=' + encodeURIComponent(state.season));
@@ -1901,6 +1926,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!params || !Object.keys(params).length) return;
     if (params.tab) state.tab = params.tab === 'coverage' ? 'frontier' : params.tab;
     if (params.role) state.role = params.role;
+    if (params.mp === 'manual_only' || params.mp === 'trusted_only' || params.mp === 'all_research_artifacts') state.markerProfile = params.mp;
     if (params.taxon !== undefined) state.taxonGroup = params.taxon;
     if (params.year) state.year = params.year;
     if (params.season) state.season = params.season;

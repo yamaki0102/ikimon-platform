@@ -151,7 +151,7 @@
     "label_ja": "亜高山帯・高山帯",
     "label_en": "Subalpine / alpine zone",
     "confidence": 0.75,
-    "when": { "water_distance_m_gt": 300 },
+    "when": { "water_distance_m_gt": 300, "elevation_m_gte": 1200 },
     "reasons_ja": ["高標高帯の可能性（平地と異なる植生帯）", "短い生育期に特有の高山種が活動"],
     "reasons_en": ["Potentially high-elevation site with distinct vegetation belt", "Short growing season concentrates alpine specialists"],
     "checks_ja": ["矮性の木本・ハイマツの有無", "高山植物の花の状態", "雪田跡・礫地の範囲"],

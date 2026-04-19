@@ -57,6 +57,8 @@ type Rule = {
     landcover_pair?: [Landcover[], Landcover[]];
     water_distance_m_lte?: number;
     water_distance_m_gt?: number;
+    elevation_m_gte?: number;
+    elevation_m_lte?: number;
   };
   reasons_ja: string[];
   reasons_en: string[];
@@ -257,7 +259,13 @@ function ruleMatches(rule: Rule, s: SiteSignals): boolean {
     if (s.waterDistanceM == null || s.waterDistanceM > w.water_distance_m_lte) return false;
   }
   if (w.water_distance_m_gt != null) {
-    if (s.waterDistanceM != null && s.waterDistanceM <= w.water_distance_m_gt) return false;
+    if (s.waterDistanceM == null || s.waterDistanceM <= w.water_distance_m_gt) return false;
+  }
+  if (w.elevation_m_gte != null) {
+    if (s.elevationM == null || s.elevationM < w.elevation_m_gte) return false;
+  }
+  if (w.elevation_m_lte != null) {
+    if (s.elevationM == null || s.elevationM > w.elevation_m_lte) return false;
   }
   return true;
 }

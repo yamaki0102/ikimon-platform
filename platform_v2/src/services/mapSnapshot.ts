@@ -34,6 +34,13 @@ export type MapObservationFeatureCollection = {
   stats: {
     totalReturned: number;
     totalAll: number;
+    markerProfile: MarkerProfile;
+    provenance: {
+      sampled: boolean;
+      sampleSize: number;
+      visible: Record<ProvenanceBucket, number>;
+      excluded: Record<ProvenanceBucket, number>;
+    };
   };
 };
 
@@ -51,7 +58,11 @@ export type MapQueryFilters = {
   year?: number;
   bbox?: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
   limit?: number;
+  markerProfile?: MarkerProfile;
 };
+
+export type MarkerProfile = "manual_only" | "trusted_only" | "all_research_artifacts";
+export type ProvenanceBucket = "manual" | "legacy" | "track" | "other";
 
 // Kingdom / class-level latin prefixes or Japanese vernacular cues for each
 // coarse group. Order matters: first match wins. The list is intentionally
@@ -134,7 +145,41 @@ type FeedRow = {
   latitude: number | null;
   longitude: number | null;
   photo_url: string | null;
+  source_kind: string | null;
+  session_mode: string | null;
+  visit_mode: string | null;
+  quality_grade: string | null;
 };
+
+function emptyBucketCounts(): Record<ProvenanceBucket, number> {
+  return { manual: 0, legacy: 0, track: 0, other: 0 };
+}
+
+function classifyProvenance(row: Pick<FeedRow, "source_kind" | "session_mode" | "visit_mode">): ProvenanceBucket {
+  if (row.source_kind === "legacy_observation") return "legacy";
+  if (
+    row.source_kind === "legacy_track_session" ||
+    row.source_kind === "v2_track_session" ||
+    row.session_mode === "fieldscan" ||
+    row.visit_mode === "track"
+  ) {
+    return "track";
+  }
+  if (row.source_kind === "v2_observation" && row.session_mode === "standard" && row.visit_mode === "manual") {
+    return "manual";
+  }
+  return "other";
+}
+
+function markerProfileMatches(
+  row: Pick<FeedRow, "source_kind" | "session_mode" | "visit_mode" | "quality_grade">,
+  profile: MarkerProfile,
+): boolean {
+  const provenance = classifyProvenance(row);
+  if (profile === "all_research_artifacts") return provenance !== "track";
+  if (profile === "trusted_only") return provenance === "manual" && row.quality_grade === "research";
+  return provenance === "manual";
+}
 
 function normalizeAssetUrl(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -145,11 +190,26 @@ function normalizeAssetUrl(value: string | null | undefined): string | null {
 export async function getMapObservations(
   filters: MapQueryFilters,
 ): Promise<MapObservationFeatureCollection> {
+  const markerProfile = filters.markerProfile ?? "manual_only";
   let pool;
   try {
     pool = getPool();
   } catch {
-    return { type: "FeatureCollection", features: [], stats: { totalReturned: 0, totalAll: 0 } };
+    return {
+      type: "FeatureCollection",
+      features: [],
+      stats: {
+        totalReturned: 0,
+        totalAll: 0,
+        markerProfile,
+        provenance: {
+          sampled: false,
+          sampleSize: 0,
+          visible: emptyBucketCounts(),
+          excluded: emptyBucketCounts(),
+        },
+      },
+    };
   }
 
   const limit = Math.min(Math.max(filters.limit ?? 500, 1), 2000);
@@ -187,7 +247,11 @@ export async function getMapObservations(
       v.observed_at::text,
       coalesce(v.point_latitude, p.center_latitude) as latitude,
       coalesce(v.point_longitude, p.center_longitude) as longitude,
-      photo.public_url as photo_url
+      photo.public_url as photo_url,
+      v.source_kind,
+      v.session_mode,
+      v.visit_mode,
+      o.quality_grade
     from occurrences o
     join visits v on v.visit_id = o.visit_id
     left join users u on u.user_id = v.user_id
@@ -207,10 +271,19 @@ export async function getMapObservations(
   `;
 
   let features: MapObservationFeature[] = [];
+  const visibleBuckets = emptyBucketCounts();
+  const excludedBuckets = emptyBucketCounts();
   try {
     const result = await pool.query<FeedRow>(sql, params);
     features = result.rows
       .filter((row) => row.latitude !== null && row.longitude !== null)
+      .filter((row) => {
+        const bucket = classifyProvenance(row);
+        const include = markerProfileMatches(row, markerProfile);
+        if (include) visibleBuckets[bucket] += 1;
+        else excludedBuckets[bucket] += 1;
+        return include;
+      })
       .map((row) => {
         const lat = Number(row.latitude);
         const lng = Number(row.longitude);
@@ -247,13 +320,33 @@ export async function getMapObservations(
   // Count unfiltered total for stats.
   let totalAll = features.length;
   try {
+    const profileWhere =
+      markerProfile === "trusted_only"
+        ? `and v.source_kind = 'v2_observation'
+           and v.session_mode = 'standard'
+           and v.visit_mode = 'manual'
+           and o.quality_grade = 'research'`
+        : markerProfile === "all_research_artifacts"
+          ? `and not (
+               v.source_kind = 'legacy_track_session'
+               or v.source_kind = 'v2_track_session'
+               or v.session_mode = 'fieldscan'
+               or v.visit_mode = 'track'
+             )`
+          : `and v.source_kind = 'v2_observation'
+             and v.session_mode = 'standard'
+             and v.visit_mode = 'manual'`;
     const countRes = await pool.query<{ c: string }>(
       `select count(*)::text as c
          from occurrences o
          join visits v on v.visit_id = o.visit_id
          left join places p on p.place_id = v.place_id
          where coalesce(v.point_latitude, p.center_latitude) is not null
-           and coalesce(v.point_longitude, p.center_longitude) is not null`,
+           and coalesce(v.point_longitude, p.center_longitude) is not null
+           ${filters.year ? `and extract(year from v.observed_at) = ${Number(filters.year)}` : ""}
+           ${filters.bbox ? `and coalesce(v.point_longitude, p.center_longitude) between ${Number(filters.bbox[0])} and ${Number(filters.bbox[2])}
+           and coalesce(v.point_latitude, p.center_latitude) between ${Number(filters.bbox[1])} and ${Number(filters.bbox[3])}` : ""}
+           ${profileWhere}`,
     );
     totalAll = Number(countRes.rows[0]?.c ?? totalAll);
   } catch {
@@ -266,6 +359,13 @@ export async function getMapObservations(
     stats: {
       totalReturned: filtered.length,
       totalAll,
+      markerProfile,
+      provenance: {
+        sampled: true,
+        sampleSize: visibleBuckets.manual + visibleBuckets.legacy + visibleBuckets.track + visibleBuckets.other + excludedBuckets.manual + excludedBuckets.legacy + excludedBuckets.track + excludedBuckets.other,
+        visible: visibleBuckets,
+        excluded: excludedBuckets,
+      },
     },
   };
 }
