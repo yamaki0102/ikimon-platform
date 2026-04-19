@@ -125,8 +125,7 @@ test("authority admin grant/revoke gates expert lane", async ({ browser, playwri
   await adminPage.locator('#authority-grant-form button[type="submit"]').click();
 
   await expect(adminPage.locator("#authority-admin-status")).toContainText("Authority granted.");
-  await adminPage.waitForTimeout(1200);
-  await adminPage.reload({ waitUntil: "domcontentloaded" });
+  await adminPage.waitForLoadState("domcontentloaded");
 
   const authorityCard = adminPage.locator(".card.is-soft", { hasText: reviewerUserId }).first();
   await expect(authorityCard).toBeVisible();
@@ -140,7 +139,7 @@ test("authority admin grant/revoke gates expert lane", async ({ browser, playwri
   });
   await authorityCard.locator("[data-revoke-authority]").click();
   await expect(adminPage.locator("#authority-admin-status")).toContainText("Authority revoked.");
-  await adminPage.waitForTimeout(1200);
+  await adminPage.waitForLoadState("domcontentloaded");
 
   const revokedResponse = await reviewerPage.goto("/specialist/id-workbench?lane=expert-lane", { waitUntil: "domcontentloaded" });
   expect(revokedResponse?.status()).toBe(403);
