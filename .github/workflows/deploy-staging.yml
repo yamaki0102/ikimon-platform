@@ -72,13 +72,25 @@ jobs:
           script: |
             GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
             V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
-            STAGING_DATABASE_URL='postgresql://postgres@/ikimon_v2_staging?host=%2Fvar%2Frun%2Fpostgresql'
+            STAGING_DATABASE_URL='postgresql:///ikimon_v2_staging?host=%2Fvar%2Frun%2Fpostgresql'
             set +e
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
             if [ ! -d "$V2_DIR" ]; then
               echo "platform_v2 directory missing at $V2_DIR — skip v2 rebuild."
               exit 0
             fi
+            echo "== ensure root postgres role for staging pm2 peer auth =="
+            sudo -u postgres psql -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+            DO $$
+            BEGIN
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'root') THEN
+                CREATE ROLE root LOGIN SUPERUSER;
+              ELSE
+                ALTER ROLE root WITH LOGIN SUPERUSER;
+              END IF;
+            END
+            $$;
+            SQL
             cd "$V2_DIR"
             echo "== npm ci =="
             npm ci --silent || echo "WARN: npm ci failed (continuing)"
