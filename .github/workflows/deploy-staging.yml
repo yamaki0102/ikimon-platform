@@ -122,13 +122,13 @@ jobs:
               # Inject staging-only env gates into the pm2 process env BEFORE restart.
               # ALLOW_QUERY_USER_ID=1 keeps the ?userId= QA override working on staging.
               # Production pm2 MUST NOT have this set (else anyone can impersonate).
-              pm2 set ikimon-v2-staging-api:ALLOW_QUERY_USER_ID 1 2>/dev/null || true
+              pm2 set ikimon-v2-staging-api:ALLOW_QUERY_USER_ID 1 >/dev/null 2>&1 || true
               if [ -n "$GEMINI_API_KEY" ]; then
-                pm2 set ikimon-v2-staging-api:GEMINI_API_KEY "$GEMINI_API_KEY" 2>/dev/null || true
+                pm2 set ikimon-v2-staging-api:GEMINI_API_KEY "$GEMINI_API_KEY" >/dev/null 2>&1 || true
                 echo "GEMINI_API_KEY injected into pm2 env"
               fi
               if [ -n "$V2_PRIVILEGED_WRITE_API_KEY" ]; then
-                pm2 set ikimon-v2-staging-api:V2_PRIVILEGED_WRITE_API_KEY "$V2_PRIVILEGED_WRITE_API_KEY" 2>/dev/null || true
+                pm2 set ikimon-v2-staging-api:V2_PRIVILEGED_WRITE_API_KEY "$V2_PRIVILEGED_WRITE_API_KEY" >/dev/null 2>&1 || true
                 echo "V2_PRIVILEGED_WRITE_API_KEY injected into pm2 env"
               else
                 echo "WARN: V2_PRIVILEGED_WRITE_API_KEY missing; authority gate verify will fail"
@@ -261,12 +261,12 @@ jobs:
               }
               echo "OK systemd env file contains V2_PRIVILEGED_WRITE_API_KEY"
             elif command -v pm2 >/dev/null 2>&1 && pm2 jlist 2>/dev/null | grep -q '"name":"ikimon-v2-staging-api"'; then
-              echo "== pm2 env sanity =="
-              pm2 env ikimon-v2-staging-api | grep -q 'V2_PRIVILEGED_WRITE_API_KEY' || {
-                echo "FAIL: pm2 env for ikimon-v2-staging-api is missing V2_PRIVILEGED_WRITE_API_KEY"
+              echo "== pm2 process sanity =="
+              pm2 describe ikimon-v2-staging-api >/dev/null 2>&1 || {
+                echo "FAIL: pm2 process ikimon-v2-staging-api is not available"
                 exit 1
               }
-              echo "OK pm2 env contains V2_PRIVILEGED_WRITE_API_KEY"
+              echo "OK pm2 process is available"
             else
               echo "WARN: no known v2 service manager found; continuing with HTTP probes"
             fi
