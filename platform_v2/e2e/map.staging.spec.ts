@@ -1,72 +1,127 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import {
   DEFAULT_STAGING_MAP_PATH,
   MAP_VIEWPORTS,
-  expectMaskedScreenshot,
   maybeCaptureQaScreenshot,
   newStagingContext,
   triggerPendingViewportSearch,
   waitForMapReady,
 } from "./support/staging.js";
 
+async function requiredBox(name: string, locator: Locator) {
+  const box = await locator.boundingBox();
+  expect(box, `${name} should have a bounding box`).not.toBeNull();
+  return box!;
+}
+
+async function expectDesktopMapDominance(page: Page): Promise<void> {
+  const side = page.locator(".me-side");
+  const mapWrap = page.locator(".me-map-wrap");
+  await expect(side).toBeVisible();
+  await expect(mapWrap).toBeVisible();
+
+  const sideBox = await requiredBox("desktop result pane", side);
+  const mapBox = await requiredBox("desktop map wrap", mapWrap);
+  expect(mapBox.x).toBeGreaterThan(sideBox.x + sideBox.width - 4);
+  expect(mapBox.width).toBeGreaterThan(sideBox.width * 1.55);
+  expect(mapBox.height).toBeGreaterThan(620);
+}
+
+async function expectMobileMapDominance(page: Page): Promise<void> {
+  await expect(page.locator(".me-side")).toBeHidden();
+  const mapWrap = page.locator(".me-map-wrap");
+  await expect(mapWrap).toBeVisible();
+  const mapBox = await requiredBox("mobile map wrap", mapWrap);
+  expect(mapBox.width).toBeGreaterThan(340);
+  expect(mapBox.height).toBeGreaterThan(500);
+}
+
+async function expectDesktopSelectionOverlay(page: Page): Promise<void> {
+  const selectionCard = page.locator("#me-map-selection-card");
+  const insightCard = page.locator("#me-map-insight-card");
+  const mapWrap = page.locator(".me-map-wrap");
+
+  await expect(selectionCard).toHaveClass(/is-visible/);
+  await expect(insightCard).toHaveClass(/is-visible/);
+
+  const mapBox = await requiredBox("desktop map wrap", mapWrap);
+  const selectionBox = await requiredBox("desktop place card", selectionCard);
+  const insightBox = await requiredBox("desktop insight card", insightCard);
+
+  expect(selectionBox.x).toBeGreaterThanOrEqual(mapBox.x + 8);
+  expect(selectionBox.y).toBeGreaterThanOrEqual(mapBox.y + 40);
+  expect(selectionBox.x + selectionBox.width).toBeLessThanOrEqual(mapBox.x + mapBox.width * 0.56);
+  expect(selectionBox.y + selectionBox.height).toBeLessThanOrEqual(mapBox.y + mapBox.height - 12);
+
+  expect(insightBox.x).toBeGreaterThanOrEqual(mapBox.x + 8);
+  expect(insightBox.y + insightBox.height).toBeLessThanOrEqual(mapBox.y + mapBox.height - 8);
+  await expect(selectionCard.locator(".me-map-card")).toContainText(/\S+/);
+}
+
+async function expectMobileBottomSheet(page: Page): Promise<void> {
+  const sheet = page.locator("#me-bottom-sheet");
+  await expect(sheet).toHaveClass(/is-open/);
+  await expect(sheet).toHaveAttribute("aria-hidden", "false");
+  const sheetBox = await requiredBox("mobile bottom sheet", sheet);
+  expect(sheetBox.height).toBeGreaterThan(220);
+  expect(sheetBox.y).toBeGreaterThan(220);
+  await expect(page.locator("#me-bottom-inner")).toContainText(/\S+/);
+}
+
 for (const profile of MAP_VIEWPORTS) {
   test(`map shell QA flow (${profile.slug})`, async ({ browser }) => {
     const context = await newStagingContext(browser, profile);
     const page = await context.newPage();
-    const mapSection = page.locator(".me-section");
-    const dynamicMasks = [
-      page.locator("#map-explorer canvas"),
-      page.locator("#me-results-list"),
-      page.locator(".maplibregl-ctrl-attrib"),
-      page.locator(".maplibregl-ctrl-logo"),
-    ];
+    const resultRows = page.locator(".me-result-row");
+    const sideStatus = page.locator("#me-side-status");
 
     await waitForMapReady(page, DEFAULT_STAGING_MAP_PATH);
     await maybeCaptureQaScreenshot(page, `${profile.slug}-initial.jpg`);
-    await expectMaskedScreenshot(mapSection, `${profile.slug}-initial.png`, dynamicMasks);
+    await expect(page.locator(".me-topbar-primary")).toBeVisible();
+    await expect(page.locator(".me-topbar-secondary")).toBeVisible();
+    await expect(page.locator("#map-explorer")).toBeVisible();
+    const initialRowCount = await resultRows.count();
+    expect(initialRowCount).toBeGreaterThan(0);
+
+    if (profile.isMobile) {
+      await expectMobileMapDominance(page);
+    } else {
+      await expectDesktopMapDominance(page);
+    }
+
+    const statusBeforePan = (await sideStatus.textContent())?.trim() ?? "";
 
     if (profile.isMobile) {
       await page.evaluate(() => {
         const firstRow = document.querySelector<HTMLButtonElement>(".me-result-row");
         firstRow?.click();
       });
-      await expect(page.locator("#me-bottom-sheet.is-open")).toBeVisible();
+      await expectMobileBottomSheet(page);
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
-      await expectMaskedScreenshot(
-        page.locator("#me-bottom-sheet"),
-        `${profile.slug}-selected.png`,
-        [
-          page.locator(".me-bottom-photo"),
-          page.locator("#me-site-brief-slot"),
-        ],
-      );
     } else {
       const firstRow = page.locator(".me-result-row").first();
       await firstRow.click();
-      await expect(page.locator("#me-map-selection-card.is-visible")).toBeVisible();
+      await expectDesktopSelectionOverlay(page);
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
-      await expectMaskedScreenshot(
-        page.locator("#me-map-selection-card"),
-        `${profile.slug}-selected.png`,
-        [
-          page.locator(".me-selected-photo"),
-          page.locator("#me-selected-brief-slot"),
-        ],
-      );
     }
 
     await triggerPendingViewportSearch(page);
     await maybeCaptureQaScreenshot(page, `${profile.slug}-pending-search.jpg`);
     await expect(page.locator("#me-search-area-btn")).toContainText("この範囲で再検索");
+    expect((await sideStatus.textContent())?.trim() ?? "").toBe(statusBeforePan);
+    await page.locator("#me-search-area-btn").click();
+    await expect(page.locator("#me-search-area-btn")).toHaveClass(/is-hidden/);
+    if (profile.isMobile) {
+      await expect(page.locator("#me-bottom-sheet")).toHaveClass(/is-open/);
+    } else {
+      await expect(resultRows.first()).toBeVisible();
+    }
 
     await page.locator(".me-filter-toggle").click();
     await expect(page.locator(".me-filter-drawer")).toHaveAttribute("open", "");
+    await expect(page.locator(".me-filter-panel")).toBeVisible();
+    await expect(page.locator('input[name="me-basemap"][value="gsi"]')).toBeVisible();
     await maybeCaptureQaScreenshot(page, `${profile.slug}-filters.jpg`);
-    await expectMaskedScreenshot(
-      mapSection,
-      `${profile.slug}-filters.png`,
-      dynamicMasks,
-    );
 
     await context.close();
   });
