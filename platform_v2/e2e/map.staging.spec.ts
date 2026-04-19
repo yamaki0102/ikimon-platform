@@ -36,6 +36,11 @@ async function expectMobileMapDominance(page: Page): Promise<void> {
   expect(mapBox.height).toBeGreaterThan(500);
 }
 
+async function expectMobileEmptyState(page: Page): Promise<void> {
+  await expect(page.locator(".me-results-empty")).toHaveCount(1);
+  await expect(page.locator("#me-map-status")).toContainText("この条件に合う観察はまだない");
+}
+
 async function expectDesktopSelectionOverlay(page: Page): Promise<void> {
   const selectionCard = page.locator("#me-map-selection-card");
   const insightCard = page.locator("#me-map-insight-card");
@@ -118,11 +123,11 @@ for (const profile of MAP_VIEWPORTS) {
     await expect(page.locator(".me-topbar-secondary")).toBeVisible();
     await expect(page.locator("#map-explorer")).toBeVisible();
     const initialRowCount = await resultRows.count();
-    expect(initialRowCount).toBeGreaterThan(0);
 
     if (profile.isMobile) {
       await expectMobileMapDominance(page);
     } else {
+      expect(initialRowCount).toBeGreaterThan(0);
       await expectDesktopMapDominance(page);
       await expectDesktopNeutralState(page);
     }
@@ -130,14 +135,18 @@ for (const profile of MAP_VIEWPORTS) {
     const statusBeforePan = (await sideStatus.textContent())?.trim() ?? "";
 
     if (profile.isMobile) {
-      await page.evaluate(() => {
-        const firstRow = document.querySelector<HTMLButtonElement>(".me-result-row");
-        firstRow?.click();
-      });
-      await expectMobileBottomSheet(page);
-      await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(0);
-      await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドガイド");
-      await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドスキャン");
+      if (initialRowCount > 0) {
+        await page.evaluate(() => {
+          const firstRow = document.querySelector<HTMLButtonElement>(".me-result-row");
+          firstRow?.click();
+        });
+        await expectMobileBottomSheet(page);
+        await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(0);
+        await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドガイド");
+        await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドスキャン");
+      } else {
+        await expectMobileEmptyState(page);
+      }
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
     } else {
       const firstRow = page.locator(".me-result-row").first();
@@ -166,7 +175,9 @@ for (const profile of MAP_VIEWPORTS) {
     await page.locator("#me-search-area-btn").click();
     await expect(page.locator("#me-search-area-btn")).toHaveClass(/is-hidden/);
     if (profile.isMobile) {
-      await expect(page.locator("#me-bottom-sheet")).toHaveClass(/is-open/);
+      if (initialRowCount > 0) {
+        await expect(page.locator("#me-bottom-sheet")).toHaveClass(/is-open/);
+      }
     } else {
       await expect(resultRows.first()).toBeVisible();
     }

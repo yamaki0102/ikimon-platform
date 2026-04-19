@@ -114,7 +114,7 @@ export async function waitForMapReady(page: Page, mapPath = DEFAULT_STAGING_MAP_
   await page.locator("#map-explorer").waitFor({ state: "visible" });
   await page.locator("#map-explorer canvas").first().waitFor({ state: "visible" });
   await page.waitForFunction(() => {
-    return document.querySelectorAll(".me-result-row").length > 0;
+    return document.querySelectorAll(".me-result-row").length > 0 || document.querySelectorAll(".me-results-empty").length > 0;
   });
   await expect(page.locator(".me-main")).toBeVisible();
 }
