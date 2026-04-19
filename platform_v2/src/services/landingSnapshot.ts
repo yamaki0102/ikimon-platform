@@ -1,5 +1,6 @@
 import { getPool } from "../db.js";
 import { getHomeSnapshot } from "./readModels.js";
+import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
 import type {
   AmbientObserver,
   LandingHabitStats,
@@ -75,6 +76,32 @@ const FEED_SQL_BASE = `
     limit 1
   ) avatar on true
 `;
+
+const PUBLIC_READ_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "v.user_id",
+  visitIdColumn: "v.visit_id",
+  occurrenceIdColumn: "o.occurrence_id",
+  visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
+  occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
+});
+
+const AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "v.user_id",
+  visitIdColumn: "v.visit_id",
+  visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
+});
+
+const AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "v2.user_id",
+  visitIdColumn: "v2.visit_id",
+  occurrenceIdColumn: "o.occurrence_id",
+  visitSourceColumn: "coalesce(v2.source_payload->>'source', '')",
+  occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
+});
+
+const AMBIENT_USER_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "u.user_id",
+});
 
 function toLandingObservation(row: FeedRow): LandingObservation {
   const latRaw = row.latitude;
@@ -187,7 +214,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let feedRows: FeedRow[] = [];
   try {
     const result = await pool.query<FeedRow>(
-      `${FEED_SQL_BASE} where photo.public_url is not null order by v.observed_at desc limit 12`,
+      `${FEED_SQL_BASE} where photo.public_url is not null and ${PUBLIC_READ_FIXTURE_EXCLUSION_SQL} order by v.observed_at desc limit 12`,
     );
     feedRows = result.rows;
   } catch {
@@ -371,6 +398,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          select v.user_id, max(v.observed_at) as latest_observed_at
          from visits v
          where v.user_id = u.user_id
+           and ${AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL}
          group by v.user_id
        ) latest on true
        left join lateral (
@@ -378,6 +406,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          from occurrences o
          join visits v2 on v2.visit_id = o.visit_id
          where v2.user_id = u.user_id
+           and ${AMBIENT_OCCURRENCE_FIXTURE_EXCLUSION_SQL}
          order by v2.observed_at desc
          limit 1
        ) latest_obs on true
@@ -387,6 +416,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
          where ab.blob_id = u.avatar_asset_id
          limit 1
        ) avatar on true
+       where ${AMBIENT_USER_FIXTURE_EXCLUSION_SQL}
        order by latest.latest_observed_at desc
        limit 8`,
     );

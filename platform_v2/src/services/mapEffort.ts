@@ -346,6 +346,7 @@ async function fetchAudioPoints(filters: EffortFilters): Promise<ActivityPoint[]
     from audio_segments
     where lat is not null
       and lng is not null
+      and privacy_status = 'clean'
       ${clause}
   `;
   try {

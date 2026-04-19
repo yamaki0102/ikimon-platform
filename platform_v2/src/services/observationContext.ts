@@ -86,16 +86,22 @@ export async function getObservationContext(
       `with sess as (
          select distinct s.segment_id
            from audio_segments s
-          where ($1::text is not null and s.visit_id = $1)
-             or ($2::text is not null and s.place_id = $2)
+          where (
+                 ($1::text is not null and s.visit_id = $1)
+              or ($2::text is not null and s.place_id = $2)
+                )
+            and s.privacy_status = 'clean'
        )
        select d.detected_taxon,
               max(d.confidence) as confidence,
               (array_agg(d.provider order by d.confidence desc))[1] as provider,
               (select count(distinct s.session_id)
                  from audio_segments s
-                where ($1::text is not null and s.visit_id = $1)
-                   or ($2::text is not null and s.place_id = $2))::text as session_count
+                where (
+                       ($1::text is not null and s.visit_id = $1)
+                    or ($2::text is not null and s.place_id = $2)
+                      )
+                  and s.privacy_status = 'clean')::text as session_count
          from audio_detections d
          join sess on sess.segment_id = d.segment_id
         group by d.detected_taxon

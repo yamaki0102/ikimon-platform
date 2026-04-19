@@ -18,13 +18,23 @@ type JsonResponse = {
   headers: Headers;
 };
 
+type SmokeStep = {
+  name: string;
+  url: string;
+  payload: unknown;
+  method?: "GET";
+  validate: (payload: unknown) => string | null;
+  headers?: () => HeadersInit | undefined;
+  afterSuccess?: (response: JsonResponse) => void;
+};
+
 function parseArgs(argv: string[]): SmokeOptions {
   const now = new Date();
   const stamp = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}${String(now.getUTCHours()).padStart(2, "0")}${String(now.getUTCMinutes()).padStart(2, "0")}${String(now.getUTCSeconds()).padStart(2, "0")}`;
 
   const options: SmokeOptions = {
     baseUrl: process.env.V2_BASE_URL ?? "http://127.0.0.1:3200",
-    fixturePrefix: `smoke-${stamp}`,
+    fixturePrefix: `manual-occurrence-map-${stamp}`,
     privilegedWriteApiKey: process.env.V2_PRIVILEGED_WRITE_API_KEY ?? "",
     cleanup: true,
   };
@@ -108,6 +118,16 @@ function validateUserResponse(payload: unknown, expectedUserId: string): string 
   return null;
 }
 
+function validateSessionResponse(payload: unknown, expectedUserId: string): string | null {
+  if (!isRecord(payload) || payload.ok !== true) {
+    return "session response missing ok=true";
+  }
+  if (!isRecord(payload.session) || payload.session.userId !== expectedUserId) {
+    return "session response missing expected user";
+  }
+  return null;
+}
+
 function validateObservationResponse(payload: unknown): string | null {
   if (!isRecord(payload)) {
     return "observation response is not an object";
@@ -129,67 +149,18 @@ function validateMapContainsVisit(
   if (!isRecord(payload) || !Array.isArray(payload.features)) {
     return "map observations payload missing features";
   }
+
   const hit = payload.features.some((feature) => {
     if (!isRecord(feature) || !isRecord(feature.properties)) {
       return false;
     }
     return feature.properties.occurrenceId === expectedOccurrenceId || feature.properties.visitId === expectedVisitId;
   });
+
   if (!hit) {
     return `map observations missing visit ${expectedVisitId}`;
   }
-  return null;
-}
 
-function validatePhotoUploadResponse(payload: unknown): string | null {
-  if (!isRecord(payload)) {
-    return "photo upload response is not an object";
-  }
-  if (typeof payload.visitId !== "string" || typeof payload.occurrenceId !== "string") {
-    return "photo upload response missing ids";
-  }
-  if (typeof payload.relativePath !== "string" || typeof payload.publicUrl !== "string") {
-    return "photo upload response missing paths";
-  }
-  if (!isRecord(payload.compatibility) || typeof payload.compatibility.attempted !== "boolean") {
-    return "photo upload response missing compatibility";
-  }
-  return null;
-}
-
-function validateTrackResponse(payload: unknown, expectedPointCount: number): string | null {
-  if (!isRecord(payload)) {
-    return "track response is not an object";
-  }
-  if (typeof payload.visitId !== "string" || typeof payload.placeId !== "string") {
-    return "track response missing ids";
-  }
-  if (payload.pointCount !== expectedPointCount) {
-    return "track response pointCount mismatch";
-  }
-  if (!isRecord(payload.compatibility) || typeof payload.compatibility.attempted !== "boolean") {
-    return "track response missing compatibility";
-  }
-  return null;
-}
-
-function validateRememberTokenResponse(payload: unknown): string | null {
-  if (!isRecord(payload) || typeof payload.tokenHash !== "string") {
-    return "remember token response missing tokenHash";
-  }
-  if (!isRecord(payload.compatibility) || typeof payload.compatibility.attempted !== "boolean") {
-    return "remember token response missing compatibility";
-  }
-  return null;
-}
-
-function validateSessionResponse(payload: unknown, expectedUserId: string): string | null {
-  if (!isRecord(payload) || payload.ok !== true) {
-    return "session response missing ok=true";
-  }
-  if (!isRecord(payload.session) || payload.session.userId !== expectedUserId) {
-    return "session response missing expected user";
-  }
   return null;
 }
 
@@ -217,18 +188,14 @@ async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
   const userId = `${options.fixturePrefix}-user`;
-  const observationId = `${options.fixturePrefix}-obs`;
-  const noteOnlyObservationId = `${options.fixturePrefix}-note-only`;
-  const sessionId = `${options.fixturePrefix}-track`;
+  const observationId = `${options.fixturePrefix}-note-only`;
   const nowIso = new Date().toISOString();
-  const rawToken = `${options.fixturePrefix}-remember-token`;
-  const tinyPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK8QAAAAASUVORK5CYII=";
-  const noteOnlyLatitude = 34.7116;
-  const noteOnlyLongitude = 137.7274;
+  const latitude = 34.7116;
+  const longitude = 137.7274;
 
   const userPayload = {
     userId,
-    displayName: "Write Lane Smoke",
+    displayName: "Manual Occurrence Smoke",
     email: `${userId}@example.invalid`,
     roleName: "Observer",
     rankLabel: "観察者",
@@ -241,92 +208,39 @@ async function main(): Promise<void> {
     legacyObservationId: observationId,
     userId,
     observedAt: nowIso,
-    latitude: 34.7108,
-    longitude: 137.7261,
+    latitude,
+    longitude,
     prefecture: "Shizuoka",
     municipality: "Hamamatsu",
-    localityNote: "Staging write-lane smoke",
-    note: "write lane smoke observation",
-    siteId: "smoke-site",
-    siteName: "Staging Smoke Site",
-    dataQuality: "smoke",
-    qualityGrade: "casual",
-    evidenceTags: ["smoke"],
-    substrateTags: ["test"],
-    taxon: {
-      scientificName: "Passer montanus",
-      vernacularName: "Tree Sparrow",
-      rank: "species",
-    },
-    sourcePayload: {
-      source: "smoke_v2_write_lane",
-    },
-  };
-  const noteOnlyObservationPayload = {
-    observationId: noteOnlyObservationId,
-    legacyObservationId: noteOnlyObservationId,
-    userId,
-    observedAt: nowIso,
-    latitude: noteOnlyLatitude,
-    longitude: noteOnlyLongitude,
-    prefecture: "Shizuoka",
-    municipality: "Hamamatsu",
-    localityNote: "Staging write-lane smoke note-only",
-    note: "write lane note-only observation",
-    siteId: "smoke-note-only-site",
-    siteName: "Staging Smoke Note-only Site",
+    localityNote: "Manual occurrence smoke note-only",
+    note: "manual occurrence smoke note-only observation",
+    siteId: "manual-occurrence-smoke-site",
+    siteName: "Manual Occurrence Smoke Site",
     dataQuality: "smoke",
     qualityGrade: "casual",
     evidenceTags: ["smoke", "note-only"],
     substrateTags: ["test"],
     taxon: null,
     sourcePayload: {
-      source: "smoke_v2_write_lane",
+      source: "smoke_manual_occurrence_map",
       scenario: "note_only",
     },
   };
-  const noteOnlyMapUrl = `${baseUrl}/api/v1/map/observations?bbox=${[
-    noteOnlyLongitude - 0.01,
-    noteOnlyLatitude - 0.01,
-    noteOnlyLongitude + 0.01,
-    noteOnlyLatitude + 0.01,
-  ].join(",")}&limit=50&marker_profile=manual_only`;
 
-  const trackPayload = {
-    sessionId,
-    userId,
-    startedAt: nowIso,
-    updatedAt: nowIso,
-    municipality: "Hamamatsu",
-    prefecture: "Shizuoka",
-    distanceMeters: 125,
-    stepCount: 180,
-    points: [
-      {
-        latitude: 34.7108,
-        longitude: 137.7261,
-        accuracyMeters: 5,
-        timestamp: nowIso,
-      },
-      {
-        latitude: 34.711,
-        longitude: 137.7264,
-        accuracyMeters: 6,
-        timestamp: new Date(Date.now() + 30_000).toISOString(),
-      },
-    ],
-    sourcePayload: {
-      source: "smoke_v2_write_lane",
-    },
-  };
+  const mapUrl = `${baseUrl}/api/v1/map/observations?bbox=${[
+    longitude - 0.01,
+    latitude - 0.01,
+    longitude + 0.01,
+    latitude + 0.01,
+  ].join(",")}&limit=50&marker_profile=manual_only`;
 
   const checks: SmokeResult[] = [];
   let failed = false;
   let sessionCookie = "";
-  let noteOnlyOccurrenceId = "";
-  let noteOnlyVisitId = "";
+  let occurrenceId = "";
+  let visitId = "";
 
-  const steps = [
+  const steps: SmokeStep[] = [
     {
       name: "users/upsert",
       url: `${baseUrl}/api/v1/users/upsert`,
@@ -349,95 +263,25 @@ async function main(): Promise<void> {
       },
     },
     {
-      name: "auth/session/current",
-      url: `${baseUrl}/api/v1/auth/session`,
-      method: "GET",
-      payload: null,
-      validate: (payload: unknown) => validateSessionResponse(payload, userId),
-      headers: () => withSessionCookie(sessionCookie),
-    },
-    {
-      name: "auth/remember-tokens/issue",
-      url: `${baseUrl}/api/v1/auth/remember-tokens/issue`,
-      payload: {
-        userId,
-        rawToken,
-        expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
-        ipAddress: "127.0.0.1",
-        userAgent: "smoke-v2-write-lane",
-      },
-      validate: validateRememberTokenResponse,
-      headers: () => privilegedHeaders(options),
-    },
-    {
-      name: "observations/upsert",
-      url: `${baseUrl}/api/v1/observations/upsert`,
-      payload: observationPayload,
-      validate: validateObservationResponse,
-      headers: () => withSessionCookie(sessionCookie),
-    },
-    {
       name: "observations/upsert note-only",
       url: `${baseUrl}/api/v1/observations/upsert`,
-      payload: noteOnlyObservationPayload,
+      payload: observationPayload,
       validate: validateObservationResponse,
       headers: () => withSessionCookie(sessionCookie),
       afterSuccess: (response: JsonResponse) => {
         if (!isRecord(response.payload)) {
           return;
         }
-        noteOnlyOccurrenceId = typeof response.payload.occurrenceId === "string" ? response.payload.occurrenceId : "";
-        noteOnlyVisitId = typeof response.payload.visitId === "string" ? response.payload.visitId : "";
+        occurrenceId = typeof response.payload.occurrenceId === "string" ? response.payload.occurrenceId : "";
+        visitId = typeof response.payload.visitId === "string" ? response.payload.visitId : "";
       },
     },
     {
       name: "map/observations note-only",
-      url: noteOnlyMapUrl,
-      method: "GET",
+      url: mapUrl,
+      method: "GET" as const,
       payload: null,
-      validate: (payload: unknown) => validateMapContainsVisit(payload, noteOnlyOccurrenceId, noteOnlyVisitId),
-    },
-    {
-      name: "observations/photos/upload",
-      url: `${baseUrl}/api/v1/observations/${encodeURIComponent(observationId)}/photos/upload`,
-      payload: {
-        filename: "smoke-upload.png",
-        mimeType: "image/png",
-        base64Data: tinyPngBase64,
-      },
-      validate: validatePhotoUploadResponse,
-      headers: () => withSessionCookie(sessionCookie),
-    },
-    {
-      name: "tracks/upsert",
-      url: `${baseUrl}/api/v1/tracks/upsert`,
-      payload: trackPayload,
-      validate: (payload: unknown) => validateTrackResponse(payload, trackPayload.points.length),
-      headers: () => withSessionCookie(sessionCookie),
-    },
-    {
-      name: "auth/session/logout",
-      url: `${baseUrl}/api/v1/auth/session/logout`,
-      payload: {},
-      validate: (payload: unknown) => {
-        if (!isRecord(payload) || payload.revoked !== true) {
-          return "session logout did not revoke token";
-        }
-        return null;
-      },
-      headers: () => withSessionCookie(sessionCookie),
-      afterSuccess: () => {
-        sessionCookie = "";
-      },
-    },
-    {
-      name: "auth/remember-tokens/revoke",
-      url: `${baseUrl}/api/v1/auth/remember-tokens/revoke`,
-      payload: {
-        token: rawToken,
-      },
-      validate: validateRememberTokenResponse,
-      headers: () => privilegedHeaders(options),
+      validate: (payload: unknown) => validateMapContainsVisit(payload, occurrenceId, visitId),
     },
   ];
 
@@ -473,7 +317,7 @@ async function main(): Promise<void> {
         name: step.name,
         url: step.url,
         ok: false,
-        error: error instanceof Error ? error.message : "unknown_write_lane_failure",
+        error: error instanceof Error ? error.message : "unknown_manual_occurrence_map_failure",
       });
       failed = true;
     }

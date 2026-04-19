@@ -2103,7 +2103,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       {
         eyebrow: snapshot.rankLabel || "Observer",
         heading: snapshot.displayName,
-        headingHtml: escapeHtml(snapshot.displayName),
+        headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
         lead: `この人のフィールドノート — 最近の場所と観察を追う。`,
         actions: [
           { href: `/home?userId=${encodeURIComponent(snapshot.userId)}`, label: "このユーザーのホームを見る" },
@@ -2151,7 +2151,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       {
         eyebrow: "あなたのプロフィール",
         heading: snapshot.displayName,
-        headingHtml: escapeHtml(snapshot.displayName),
+        headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
         lead: `${snapshot.rankLabel || "Observer"} — あなたのフィールドノートと場所の記録。`,
         actions: [
           { href: "/notes", label: "ノートへ" },
@@ -3204,7 +3204,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           { href: "/map", label: lang === "ja" ? "マップで見る" : "See on the map", variant: "secondary" as const },
         ],
       },
-      body: `<section class="section notes-page">
+      body: `<section class="section notes-page" data-testid="notes-own">
         <div class="notes-head"><div><h2>${escapeHtml(myCopy)}</h2></div></div>
         ${isLoggedIn
           ? (ownCards
@@ -3222,7 +3222,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(lang === "ja" ? "観察を記録する" : "Record an observation")}</a>
             </div>`}
       </section>
-      <section class="section notes-page">
+      <section class="section notes-page" data-testid="notes-nearby">
         <div class="notes-head"><div><h2>${escapeHtml(nearbyCopy)}</h2></div></div>
         ${nearbyCards
           ? `<div class="notes-grid is-compact">${nearbyCards}</div>`

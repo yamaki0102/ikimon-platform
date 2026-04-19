@@ -30,6 +30,9 @@ import { createVideoDirectUpload, finalizeVideoUpload } from "../services/videoU
 import { toggleReaction, isValidReactionType, type ReactionType } from "../services/observationReactions.js";
 import { reassessObservation } from "../services/observationReassess.js";
 import { reassessFromVideoThumb } from "../services/reassessFromVideoThumb.js";
+import { cleanupStagingFixtures } from "../services/stagingFixtureCleanup.js";
+import { stagingFixtureOpsEnabled } from "../services/stagingFixtureGuard.js";
+import { seedStagingRegressionFixtures } from "../services/stagingRegressionFixtures.js";
 import {
   assertObservationOwnedByUser,
   assertPrivilegedWriteAccess,
@@ -484,6 +487,64 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: false,
         error: error instanceof Error ? error.message : "remember_token_revoke_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Body: {
+      fixturePrefix?: string | null;
+    };
+  }>("/api/v1/ops/staging/fixtures/seed-regression", async (request, reply) => {
+    try {
+      assertPrivilegedWriteAccess(request);
+      if (!stagingFixtureOpsEnabled()) {
+        throw new Error("staging_regression_seed_disabled");
+      }
+      const fixturePrefix = request.body?.fixturePrefix?.trim();
+      if (!fixturePrefix) {
+        throw new Error("fixture_prefix_required");
+      }
+      const fixture = await seedStagingRegressionFixtures({ fixturePrefix });
+      return {
+        ok: true,
+        fixture,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "staging_regression_seed_failed";
+      reply.code(message === "staging_regression_seed_disabled" ? 404 : errorStatus(error, 400));
+      return {
+        ok: false,
+        error: message,
+      };
+    }
+  });
+
+  app.post<{
+    Body: {
+      fixturePrefix?: string | null;
+      dryRun?: boolean;
+    };
+  }>("/api/v1/ops/staging/fixtures/cleanup", async (request, reply) => {
+    try {
+      assertPrivilegedWriteAccess(request);
+      if (!stagingFixtureOpsEnabled()) {
+        throw new Error("staging_fixture_cleanup_disabled");
+      }
+      const cleanup = await cleanupStagingFixtures({
+        fixturePrefix: request.body?.fixturePrefix ?? null,
+        dryRun: request.body?.dryRun ?? false,
+      });
+      return {
+        ok: true,
+        cleanup,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "staging_fixture_cleanup_failed";
+      reply.code(message === "staging_fixture_cleanup_disabled" ? 404 : errorStatus(error, 400));
+      return {
+        ok: false,
+        error: message,
       };
     }
   });

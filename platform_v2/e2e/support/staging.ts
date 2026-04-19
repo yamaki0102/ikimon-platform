@@ -14,6 +14,27 @@ import { expect } from "@playwright/test";
 export const DEFAULT_STAGING_MAP_PATH = "/map?bm=esri&lng=137.8589&lat=34.7219&z=10.6";
 export const STAGING_BASE_URL = process.env.STAGING_BASE_URL ?? "https://staging.ikimon.life";
 
+export type SeededRegressionFixture = {
+  visitId: string;
+  occurrenceId: string;
+  placeId: string;
+  subjectLabel: string;
+  observedAt: string;
+  sourceKind: string;
+  expectedVisibility: "manual_only" | "all_research_artifacts_only" | "excluded";
+};
+
+export type SeededRegressionFixtureBundle = {
+  fixturePrefix: string;
+  user: {
+    userId: string;
+    displayName: string;
+  };
+  manual: SeededRegressionFixture;
+  historical: SeededRegressionFixture;
+  smoke: SeededRegressionFixture;
+};
+
 export type ViewportProfile = {
   slug: string;
   viewport: { width: number; height: number };
@@ -79,6 +100,55 @@ export async function createStagingApiContext(playwright: Playwright): Promise<A
     ignoreHTTPSErrors: true,
     extraHTTPHeaders: authHeader ? { Authorization: authHeader } : undefined,
   });
+}
+
+type SeedRegressionResponse = {
+  ok: boolean;
+  error?: string;
+  fixture?: SeededRegressionFixtureBundle;
+};
+
+type CleanupResponse = {
+  ok: boolean;
+  error?: string;
+};
+
+export async function seedRegressionFixtures(
+  api: APIRequestContext,
+  writeKey: string,
+  fixturePrefix: string,
+): Promise<SeededRegressionFixtureBundle> {
+  const response = await api.post("/api/v1/ops/staging/fixtures/seed-regression", {
+    headers: {
+      "x-ikimon-write-key": writeKey,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    data: { fixturePrefix },
+  });
+  const payload = (await response.json()) as SeedRegressionResponse;
+  expect(response.ok(), payload.error ?? "seed_regression_failed").toBeTruthy();
+  expect(payload.ok, payload.error ?? "seed_regression_failed").toBeTruthy();
+  expect(payload.fixture).toBeTruthy();
+  return payload.fixture!;
+}
+
+export async function cleanupFixtures(
+  api: APIRequestContext,
+  writeKey: string,
+  fixturePrefix: string,
+): Promise<void> {
+  const response = await api.post("/api/v1/ops/staging/fixtures/cleanup", {
+    headers: {
+      "x-ikimon-write-key": writeKey,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    data: { fixturePrefix },
+  });
+  const payload = (await response.json()) as CleanupResponse;
+  expect(response.ok(), payload.error ?? "cleanup_fixtures_failed").toBeTruthy();
+  expect(payload.ok, payload.error ?? "cleanup_fixtures_failed").toBeTruthy();
 }
 
 function parseSetCookie(rawCookie: string): { name: string; value: string } {

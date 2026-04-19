@@ -785,7 +785,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
           <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
         </div>
-        <div class="me-results-list" id="me-results-list"></div>
+        <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
       </aside>
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}"></div>
@@ -972,7 +972,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var state = {
     tab: 'markers',
     role: 'mixed',
-    markerProfile: 'manual_only',
+    markerProfile: 'all_research_artifacts',
     taxonGroup: '',
     year: '',
     season: '',
@@ -1085,7 +1085,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var excluded = stats.provenance.excluded || {};
     var sampleLabel = stats.provenance.sampled ? ('sample ' + String(stats.provenance.sampleSize || 0)) : 'full';
     return [
-      'profile=' + String(stats.markerProfile || 'manual_only'),
+      'profile=' + String(stats.markerProfile || 'all_research_artifacts'),
       'visible manual=' + String(visible.manual || 0),
       'legacy=' + String(visible.legacy || 0),
       'track=' + String(visible.track || 0),
@@ -1876,7 +1876,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var parts = [];
     if (state.tab && state.tab !== 'markers') parts.push('tab=' + encodeURIComponent(state.tab));
     if (state.role && state.role !== 'mixed') parts.push('role=' + encodeURIComponent(state.role));
-    if (state.markerProfile && state.markerProfile !== 'manual_only') parts.push('mp=' + encodeURIComponent(state.markerProfile));
+    if (state.markerProfile && state.markerProfile !== 'all_research_artifacts') parts.push('mp=' + encodeURIComponent(state.markerProfile));
     if (state.taxonGroup) parts.push('taxon=' + encodeURIComponent(state.taxonGroup));
     if (state.year) parts.push('year=' + encodeURIComponent(state.year));
     if (state.season) parts.push('season=' + encodeURIComponent(state.season));

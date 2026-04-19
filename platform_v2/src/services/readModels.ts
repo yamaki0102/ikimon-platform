@@ -138,6 +138,89 @@ type VisitSubjectRow = {
   source_payload: Record<string, unknown> | null;
 };
 
+export type ManualVisitOccurrenceGap = {
+  visitId: string;
+  legacyObservationId: string | null;
+  userId: string | null;
+  observedAt: string;
+  note: string | null;
+};
+
+export type ManualVisitOccurrenceIntegrity = {
+  orphanVisitCount: number;
+  orphanVisits: ManualVisitOccurrenceGap[];
+};
+
+export async function getManualVisitOccurrenceIntegrity(
+  options: { limit?: number; userId?: string | null; visitId?: string | null } = {},
+): Promise<ManualVisitOccurrenceIntegrity> {
+  const pool = getPool();
+  const whereClauses = [
+    "v.source_kind = 'v2_observation'",
+    "coalesce(v.session_mode, '') = 'standard'",
+    "coalesce(v.visit_mode, 'manual') = 'manual'",
+    "not exists (select 1 from occurrences o where o.visit_id = v.visit_id)",
+  ];
+  const params: Array<string | number> = [];
+
+  if (options.userId) {
+    params.push(options.userId);
+    whereClauses.push(`v.user_id = $${params.length}`);
+  }
+  if (options.visitId) {
+    params.push(options.visitId);
+    whereClauses.push(`v.visit_id = $${params.length}`);
+  }
+
+  const baseSql = `
+    from visits v
+    where ${whereClauses.join(" and ")}
+  `;
+  const limitClause = typeof options.limit === "number" && options.limit > 0
+    ? (() => {
+        params.push(Math.trunc(options.limit));
+        return ` limit $${params.length}`;
+      })()
+    : "";
+
+  const [countResult, visitsResult] = await Promise.all([
+    pool.query<{ c: string }>(
+      `select count(*)::text as c
+         ${baseSql}`,
+      params.slice(0, params.length - (limitClause ? 1 : 0)),
+    ),
+    pool.query<{
+      visit_id: string;
+      legacy_observation_id: string | null;
+      user_id: string | null;
+      observed_at: string;
+      note: string | null;
+    }>(
+      `select
+          v.visit_id,
+          v.legacy_observation_id,
+          v.user_id,
+          v.observed_at::text as observed_at,
+          v.note
+         ${baseSql}
+         order by v.observed_at desc
+         ${limitClause}`,
+      params,
+    ),
+  ]);
+
+  return {
+    orphanVisitCount: Number(countResult.rows[0]?.c ?? 0),
+    orphanVisits: visitsResult.rows.map((row) => ({
+      visitId: row.visit_id,
+      legacyObservationId: row.legacy_observation_id,
+      userId: row.user_id,
+      observedAt: row.observed_at,
+      note: row.note,
+    })),
+  };
+}
+
 async function loadVisitSummaryObservations(
   limit: number,
   options: { userId?: string | null } = {},
@@ -292,6 +375,9 @@ async function loadVisitSummaryObservations(
     subjectsByVisit.set(row.visit_id, list);
   }
 
+  // Notes/profile stay visit-first on purpose. If a manual field note visit
+  // temporarily has no occurrence rows, UI can still render it here while
+  // integrity scripts detect and repair the gap for /map.
   return visitRows.rows.map((visitRow) => {
     const subjects = subjectsByVisit.get(visitRow.visit_id) ?? [];
     const stored = storedStateMap.get(visitRow.visit_id);

@@ -92,7 +92,14 @@ export type ObservationWriteResult = {
   };
 };
 
-/** 入力 subjects から書き込む subject 配列を組み立て。taxon はある場合のみ primary の先頭に差し込む。 */
+/**
+ * 入力 subjects から書き込む subject 配列を組み立てる。
+ *
+ * Contract:
+ * - manual Field Note は taxon 未設定でも primary subject を 1 件持つ
+ * - /notes は visit-first でも、/map は occurrence-first なので
+ *   ここで primary occurrence を欠かさないことが整合条件になる
+ */
 function resolveSubjects(input: ObservationUpsertInput): ObservationSubjectInput[] {
   const inputSubjects = Array.isArray(input.subjects) ? input.subjects : [];
   const fromTaxon = input.taxon
@@ -105,7 +112,8 @@ function resolveSubjects(input: ObservationUpsertInput): ObservationSubjectInput
       } as ObservationSubjectInput)
     : null;
 
-  // subjects 未指定: taxon 1件 or 完全な null subject 1件
+  // subjects 未指定: taxon 1件 or 完全な null primary 1件。
+  // note-only write でも occurrence を作るため、この fallback を崩さない。
   if (inputSubjects.length === 0) {
     return [fromTaxon ?? { isPrimary: true, roleHint: "primary" }];
   }
@@ -256,6 +264,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
     );
 
     // ADR-0004: subjects[] を subject_index 0..N で並列に INSERT。primary=0、背景生物は 1,2,...。
+    // manual Field Note と /map の整合のため、subject_index=0 の primary occurrence は常に必要。
     // 同 visit_id に対して subjects 件数より多い古い occurrence があれば削除（掃除）。
     await client.query(
       `delete from occurrences where visit_id = $1 and subject_index >= $2`,

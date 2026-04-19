@@ -1,7 +1,66 @@
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { getPool } from "../db.js";
+import { loadConfig } from "../config.js";
+import { getAudioStorageRoot } from "./fieldscanAudio.js";
+
+type AudioArchiveReadiness = {
+  migration0020Applied: boolean;
+  privateUploadsWritable: boolean;
+  privilegedWriteKeyPresent: boolean;
+  storageRoot: string;
+  privateUploadsError: string | null;
+};
+
+async function checkAudioArchiveReadiness(): Promise<AudioArchiveReadiness> {
+  const pool = getPool();
+  const config = loadConfig();
+  const storageRoot = getAudioStorageRoot();
+  const privateUploadsWritable = await checkWritableDirectory(storageRoot);
+  const schemaMigrationResult = await pool.query<{ present: boolean }>(
+    `select to_regclass('public.schema_migrations') is not null as present`,
+  );
+
+  let migration0020Applied = false;
+  if (schemaMigrationResult.rows[0]?.present) {
+    const migrationResult = await pool.query<{ applied: boolean }>(
+      `select exists(
+          select 1
+            from schema_migrations
+           where filename = $1
+       ) as applied`,
+      ["0020_audio_privacy_and_bundles.sql"],
+    );
+    migration0020Applied = Boolean(migrationResult.rows[0]?.applied);
+  }
+
+  return {
+    migration0020Applied,
+    privateUploadsWritable: privateUploadsWritable.ok,
+    privilegedWriteKeyPresent: Boolean(config.privilegedWriteApiKey),
+    storageRoot,
+    privateUploadsError: privateUploadsWritable.error,
+  };
+}
+
+async function checkWritableDirectory(targetDir: string): Promise<{ ok: boolean; error: string | null }> {
+  const probePath = path.join(targetDir, `.audio-archive-readiness-${process.pid}-${Date.now()}.tmp`);
+  try {
+    await mkdir(targetDir, { recursive: true });
+    await writeFile(probePath, "ok", { encoding: "utf8", flag: "w" });
+    await unlink(probePath);
+    return { ok: true, error: null };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "private_uploads_not_writable",
+    };
+  }
+}
 
 export async function getReadinessSnapshot() {
   const pool = getPool();
+  const audioArchive = await checkAudioArchiveReadiness();
 
   const countsResult = await pool.query<{
     users: string;
@@ -124,6 +183,10 @@ export async function getReadinessSnapshot() {
       latestDriftReportRun?.status === "succeeded" &&
       latestDriftSummary?.status === "healthy",
     compatibilityWriteWorking: latestCompatibilityWrite?.write_status === "succeeded",
+    audioArchiveReady:
+      audioArchive.migration0020Applied &&
+      audioArchive.privateUploadsWritable &&
+      audioArchive.privilegedWriteKeyPresent,
     rollbackSafetyWindowReady:
       (latestVerifyRun?.status === "succeeded" && latestVerifyMismatches === 0) &&
       (latestDeltaSyncRun?.status === "succeeded" || latestDeltaSyncRun?.status === "skipped") &&
@@ -143,6 +206,7 @@ export async function getReadinessSnapshot() {
       avatarAssets: Number(counts?.avatar_assets ?? 0),
       trackPoints: Number(counts?.track_points ?? 0),
     },
+    audioArchive,
     syncCursors: syncCursorResult.rows,
     recentRuns: runResult.rows.map((row) => ({
       ...row,

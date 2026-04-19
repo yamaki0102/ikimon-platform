@@ -1,4 +1,5 @@
 import { getPool } from "../db.js";
+import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
 
 /**
  * Map-layer-specific snapshot, separate from landingSnapshot because:
@@ -63,6 +64,20 @@ export type MapQueryFilters = {
 
 export type MarkerProfile = "manual_only" | "trusted_only" | "all_research_artifacts";
 export type ProvenanceBucket = "manual" | "legacy" | "track" | "other";
+
+const MAP_READ_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "v.user_id",
+  visitIdColumn: "v.visit_id",
+  occurrenceIdColumn: "o.occurrence_id",
+  visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
+  occurrenceSourceColumn: "coalesce(o.source_payload->>'source', '')",
+});
+
+const MAP_TRACE_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
+  userIdColumn: "v.user_id",
+  visitIdColumn: "v.visit_id",
+  visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
+});
 
 // Kingdom / class-level latin prefixes or Japanese vernacular cues for each
 // coarse group. Order matters: first match wins. The list is intentionally
@@ -190,7 +205,7 @@ function normalizeAssetUrl(value: string | null | undefined): string | null {
 export async function getMapObservations(
   filters: MapQueryFilters,
 ): Promise<MapObservationFeatureCollection> {
-  const markerProfile = filters.markerProfile ?? "manual_only";
+  const markerProfile = filters.markerProfile ?? "all_research_artifacts";
   let pool;
   try {
     pool = getPool();
@@ -216,6 +231,7 @@ export async function getMapObservations(
   const whereClauses: string[] = [
     "coalesce(v.point_latitude, p.center_latitude) is not null",
     "coalesce(v.point_longitude, p.center_longitude) is not null",
+    MAP_READ_FIXTURE_EXCLUSION_SQL,
   ];
   const params: unknown[] = [];
 
@@ -340,6 +356,7 @@ export async function getMapObservations(
          left join places p on p.place_id = v.place_id
          where coalesce(v.point_latitude, p.center_latitude) is not null
            and coalesce(v.point_longitude, p.center_longitude) is not null
+           and ${MAP_READ_FIXTURE_EXCLUSION_SQL}
            ${filters.year ? `and extract(year from v.observed_at) = ${Number(filters.year)}` : ""}
            ${filters.bbox ? `and coalesce(v.point_longitude, p.center_longitude) between ${Number(filters.bbox[0])} and ${Number(filters.bbox[2])}
            and coalesce(v.point_latitude, p.center_latitude) between ${Number(filters.bbox[1])} and ${Number(filters.bbox[3])}` : ""}
@@ -407,6 +424,7 @@ export async function getCoverageMesh(
     left join places p on p.place_id = v.place_id
     where coalesce(v.point_latitude, p.center_latitude) is not null
       and coalesce(v.point_longitude, p.center_longitude) is not null
+      and ${MAP_READ_FIXTURE_EXCLUSION_SQL}
       ${whereYear}
     group by lat_bin, lng_bin
     order by c desc
@@ -477,6 +495,7 @@ export async function getTraceLines(
       from visits v
       join visit_track_points vtp on vtp.visit_id = v.visit_id
       where vtp.point_latitude is not null and vtp.point_longitude is not null
+        and ${MAP_TRACE_FIXTURE_EXCLUSION_SQL}
         ${yearClause}
       group by v.visit_id, v.observed_at
       having count(vtp.sequence_no) >= 2
