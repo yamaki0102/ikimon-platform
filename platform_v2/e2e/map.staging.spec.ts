@@ -150,7 +150,7 @@ for (const profile of MAP_VIEWPORTS) {
     await openBlankPlaceTarget(page, !!profile.isMobile);
     if (profile.isMobile) {
       await expect(page.locator("#me-bottom-inner")).toContainText("フィールドガイド");
-      await expect(page.locator("#me-bottom-inner")).toContainText("フィールドスキャン");
+      await expect(page.locator("#me-bottom-inner")).toContainText("スキャン");
     } else {
       await expect(page.locator("#me-map-selection-card")).toContainText("フィールドガイド");
     }

@@ -1441,6 +1441,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     };
     renderResultList();
     renderSelectedCard();
+    renderSidePanels();
     if (state.map && options && options.focusMap !== false) {
       state.ignoreNextMoveEnd = true;
       state.map.easeTo({ center: feature.geometry.coordinates, zoom: Math.max(state.map.getZoom(), 13.4), duration: 420 });
@@ -1478,6 +1479,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       closeBottomSheet();
       renderResultList();
       renderSelectedCard();
+      renderSidePanels();
       return;
     }
     state.selectedPoint = { lat: lat, lng: lng, kind: 'place' };
@@ -1488,6 +1490,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: lat, lng: lng, kind: 'place' }) + '</div>';
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
+    renderSidePanels();
     fetchSiteBrief(lat, lng, seq, document.getElementById('me-site-brief-slot'));
   }
   function closeBottomSheet() {
