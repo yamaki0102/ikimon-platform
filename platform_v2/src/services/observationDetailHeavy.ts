@@ -30,6 +30,9 @@ export type SiblingSubject = {
   rank: string | null;
   roleHint: string;
   confidence: number | null;
+  identificationCount: number;
+  latestAssessmentBand: "high" | "medium" | "low" | "unknown" | null;
+  latestAssessmentGeneratedAt: string | null;
   isPrimary: boolean;
 };
 
@@ -197,8 +200,59 @@ export async function getObservationDetailHeavy(
            FROM occurrences WHERE visit_id = $1 ORDER BY subject_index ASC`,
         [visitId],
       );
+      const occurrenceIds = rows.rows.map((row) => row.occurrence_id);
+      const identificationCounts = new Map<string, number>();
+      if (occurrenceIds.length > 0) {
+        try {
+          const idRows = await pool.query<{ occurrence_id: string; n: string }>(
+            `SELECT occurrence_id, count(*)::text AS n
+               FROM identifications
+              WHERE occurrence_id = ANY($1::text[])
+              GROUP BY occurrence_id`,
+            [occurrenceIds],
+          );
+          for (const row of idRows.rows) {
+            identificationCounts.set(row.occurrence_id, Number(row.n));
+          }
+        } catch {
+          // identifications テーブルが未準備でも subjects 自体は返す
+        }
+      }
+
+      const latestAssessments = new Map<string, {
+        band: "high" | "medium" | "low" | "unknown" | null;
+        generatedAt: string | null;
+      }>();
+      if (occurrenceIds.length > 0) {
+        try {
+          const aiRows = await pool.query<{
+            occurrence_id: string;
+            confidence_band: string | null;
+            generated_at: string;
+          }>(
+            `SELECT DISTINCT ON (occurrence_id)
+                    occurrence_id,
+                    confidence_band,
+                    generated_at::text
+               FROM observation_ai_assessments
+              WHERE occurrence_id = ANY($1::text[])
+              ORDER BY occurrence_id, generated_at DESC`,
+            [occurrenceIds],
+          );
+          for (const row of aiRows.rows) {
+            latestAssessments.set(row.occurrence_id, {
+              band: normalizeAssessmentBand(row.confidence_band),
+              generatedAt: row.generated_at,
+            });
+          }
+        } catch {
+          // assessment テーブル未準備でも subjects 自体は返す
+        }
+      }
+
       for (const r of rows.rows) {
         const v2sub = ((r.source_payload ?? {}) as { v2_subject?: Record<string, unknown> }).v2_subject ?? {};
+        const latestAssessment = latestAssessments.get(r.occurrence_id);
         subjects.push({
           occurrenceId: r.occurrence_id,
           subjectIndex: r.subject_index,
@@ -208,6 +262,9 @@ export async function getObservationDetailHeavy(
           rank: r.taxon_rank,
           roleHint: String((v2sub as { role_hint?: string }).role_hint ?? (r.subject_index === 0 ? "primary" : "coexisting")),
           confidence: r.confidence_score != null ? Number(r.confidence_score) : null,
+          identificationCount: identificationCounts.get(r.occurrence_id) ?? 0,
+          latestAssessmentBand: latestAssessment?.band ?? null,
+          latestAssessmentGeneratedAt: latestAssessment?.generatedAt ?? null,
           isPrimary: r.subject_index === 0,
         });
       }
@@ -224,4 +281,13 @@ function normalizeAssetUrl(raw: string | null): string | null {
   if (/^https?:\/\//i.test(raw)) return raw;
   if (raw.startsWith("/")) return raw;
   return "/" + raw;
+}
+
+function normalizeAssessmentBand(
+  raw: string | null | undefined,
+): "high" | "medium" | "low" | "unknown" | null {
+  if (raw === "high" || raw === "medium" || raw === "low" || raw === "unknown") {
+    return raw;
+  }
+  return raw == null ? null : "unknown";
 }

@@ -1,6 +1,7 @@
 import { withBasePath } from "../httpBasePath.js";
 import type { SiteLang } from "../i18n.js";
 import { appendLangToHref } from "../i18n.js";
+import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import type { LandingObservation } from "../services/readModels.js";
 import { escapeHtml } from "./siteShell.js";
 
@@ -47,7 +48,10 @@ export function renderObservationCard(
   const entryType = obs.entryType ?? "observation";
   const kind = kindCopy[lang][entryType];
   const isIdentification = entryType === "identification";
-  const detailHref = withBasePath(basePath, `/observations/${encodeURIComponent(obs.occurrenceId)}`);
+  const detailHref = withBasePath(
+    basePath,
+    buildObservationDetailPath(obs.detailId ?? obs.visitId ?? obs.occurrenceId, obs.featuredOccurrenceId ?? obs.occurrenceId),
+  );
   const profileHref = obs.observerUserId
     ? withBasePath(basePath, `/profile/${encodeURIComponent(obs.observerUserId)}`)
     : null;
@@ -68,6 +72,24 @@ export function renderObservationCard(
   const placeLine = [obs.placeName, obs.municipality].filter(Boolean).join(" · ");
   const timestamp = isIdentification ? (obs.identifiedAt ?? obs.observedAt) : obs.observedAt;
   const attribution = kind.attribution(obs.observerName || "");
+  const multiBadge = obs.isMultiSubject
+    ? `<span class="obs-card-multi">${lang === "ja" ? `複数対象 ${obs.subjectCount ?? ""}`.trim() : "Multi-subject"}</span>`
+    : "";
+  const focusMeta = obs.isMultiSubject
+    ? `<div class="obs-card-focus">
+         <span class="obs-card-focus-label">${lang === "ja" ? "有力対象" : "Featured"}</span>
+         <strong>${escapeHtml(obs.featuredSubjectName ?? obs.displayName)}</strong>
+         ${obs.displayStability
+           ? `<span class="obs-card-stability is-${escapeHtml(obs.displayStability)}">${escapeHtml(
+             obs.displayStability === "locked"
+               ? (lang === "ja" ? "安定表示" : "Stable")
+               : obs.displayStability === "adaptive"
+                 ? (lang === "ja" ? "AI 既定" : "AI default")
+                 : (lang === "ja" ? "既定表示" : "Default"),
+           )}</span>`
+           : ""}
+       </div>`
+    : "";
 
   const tier = obs.evidenceTier;
   const tierBadge = tier != null
@@ -77,10 +99,12 @@ export function renderObservationCard(
     <a class="obs-card-media" href="${escapeHtml(appendLangToHref(detailHref, lang))}" aria-label="${escapeHtml(obs.displayName)}">
       ${photo}
       <span class="obs-card-kind">${escapeHtml(kind.badge)}</span>
+      ${multiBadge}
       ${tierBadge}
       <div class="obs-card-species">${escapeHtml(obs.displayName)}</div>
     </a>
     <div class="obs-card-meta">
+      ${focusMeta}
       <div class="obs-card-who">
         ${profileHref ? `<a class="obs-card-observer" href="${escapeHtml(appendLangToHref(profileHref, lang))}">${avatar}<span>${escapeHtml(attribution)}</span></a>` : `<span class="obs-card-observer">${avatar}<span>${escapeHtml(attribution)}</span></span>`}
         <time class="obs-card-when">${escapeHtml(formatObservedAt(timestamp, lang))}</time>
@@ -129,6 +153,13 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card.is-compact .obs-card-media { aspect-ratio: 4 / 3; }
   .obs-card.is-compact .obs-card-meta { padding: 10px 12px 12px; }
   .obs-card-kind { position: absolute; left: 10px; top: 10px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.92); color: #0f172a; font-size: 11px; font-weight: 800; letter-spacing: .01em; box-shadow: 0 4px 10px rgba(15,23,42,.08); backdrop-filter: blur(6px); }
+  .obs-card-multi { position: absolute; right: 10px; bottom: 46px; padding: 4px 10px; border-radius: 999px; background: rgba(2,132,199,.86); color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .05em; backdrop-filter: blur(6px); }
+  .obs-card-focus { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; color: #0f172a; }
+  .obs-card-focus-label { font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: #0369a1; }
+  .obs-card-focus strong { font-size: 12px; }
+  .obs-card-stability { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-weight: 800; background: rgba(15,23,42,.06); color: #334155; }
+  .obs-card-stability.is-locked { background: rgba(16,185,129,.12); color: #047857; }
+  .obs-card-stability.is-adaptive { background: rgba(59,130,246,.12); color: #1d4ed8; }
   .obs-card-tier { position: absolute; right: 10px; top: 10px; padding: 3px 8px; border-radius: 999px; background: rgba(15,23,42,.62); color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .05em; backdrop-filter: blur(6px); }
   .obs-card.is-identification .obs-card-tier { background: rgba(14,165,233,.7); }
   .obs-card.is-identification { border-color: rgba(14,165,233,.26); box-shadow: 0 6px 18px rgba(14,165,233,.12); }

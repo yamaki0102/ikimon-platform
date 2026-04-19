@@ -2,7 +2,23 @@ import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl } from "../i18n.js";
 import { getSessionFromCookie } from "../services/authSession.js";
-import { assertSpecialistSession } from "../services/writeGuards.js";
+import { buildObservationDetailPath } from "../services/observationDetailLink.js";
+import {
+  getReviewerAccessContext,
+  listRecentReviewerAuthorities,
+  listReviewerAuthorityAudit,
+  type ReviewerAuthority,
+  type ReviewerAuthorityAuditAction,
+  type ReviewerAuthorityAuditEntry,
+  type ReviewerAuthorityEvidenceType,
+} from "../services/reviewerAuthorities.js";
+import {
+  listAuthorityRecommendationsForUser,
+  listPendingAuthorityRecommendationsForReviewer,
+  type AuthorityRecommendation,
+  type AuthorityRecommendationSourceKind,
+  type AuthorityRecommendationStatus,
+} from "../services/authorityRecommendations.js";
 import { resolveViewer } from "../services/viewerIdentity.js";
 import { getLandingSnapshot } from "../services/landingSnapshot.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
@@ -11,8 +27,9 @@ import { getObservationContext, groupFeaturesByLayer } from "../services/observa
 import { getReactionSummary, type ReactionType } from "../services/observationReactions.js";
 import { getObserverStats } from "../services/observerStats.js";
 import { getTaxonInsight } from "../services/taxonInsights.js";
-import { getObservationDetailHeavy } from "../services/observationDetailHeavy.js";
-import { getLatestAiAssessment, confidenceLabel } from "../services/observationAiAssessment.js";
+import { getObservationDetailHeavy, type SiblingSubject } from "../services/observationDetailHeavy.js";
+import { confidenceLabel } from "../services/observationAiAssessment.js";
+import { getObservationVisitBundle, type ObservationVisitBundle, type ObservationVisitSubject } from "../services/observationVisitBundle.js";
 import {
   getExploreSnapshot,
   getHomeSnapshot,
@@ -20,6 +37,10 @@ import {
   getProfileSnapshot,
   getSpecialistSnapshot,
 } from "../services/readModels.js";
+import {
+  assertSpecialistAdminSession,
+  assertSpecialistSession,
+} from "../services/writeGuards.js";
 import {
   MAP_MINI_STYLES,
   mapMiniBootScript,
@@ -70,6 +91,170 @@ function layout(
   });
 }
 
+function authorityEvidenceLabel(evidenceType: ReviewerAuthorityEvidenceType): string {
+  switch (evidenceType) {
+    case "field_event":
+      return "観察会";
+    case "webinar":
+      return "ウェビナー";
+    case "literature":
+      return "論文・文献";
+    case "reference_owned":
+      return "図鑑・雑誌";
+    default:
+      return "その他";
+  }
+}
+
+function renderAuthoritySummaryChips(authorities: Awaited<ReturnType<typeof getReviewerAccessContext>>["activeAuthorities"]): string {
+  if (authorities.length === 0) {
+    return `<div class="meta">まだ分類群スコープは付与されていません。</div>`;
+  }
+
+  return `<div class="actions">${authorities
+    .map((authority) =>
+      `<span class="pill">${escapeHtml(authority.scopeTaxonName)}${authority.scopeTaxonRank ? ` · ${escapeHtml(authority.scopeTaxonRank)}` : ""}</span>`,
+    )
+    .join("")}</div>`;
+}
+
+function renderAuthorityCards(authorities: ReviewerAuthority[]): string {
+  if (authorities.length === 0) {
+    return `<div class="row"><div>まだ authority はありません。</div></div>`;
+  }
+
+  return authorities
+    .map((authority) => {
+      const evidence = authority.evidence.length > 0
+        ? authority.evidence.map((entry) =>
+            `<li>${escapeHtml(authorityEvidenceLabel(entry.evidenceType))} · ${escapeHtml(entry.title)}${entry.issuerName ? ` <span class="meta">(${escapeHtml(entry.issuerName)})</span>` : ""}</li>`,
+          ).join("")
+        : `<li>根拠未登録</li>`;
+      const statusLabel = authority.status === "active" ? "active" : "revoked";
+      return `
+        <div class="card is-soft">
+          <div class="card-body stack">
+            <div class="row">
+              <div>
+                <div style="font-weight:800">${escapeHtml(authority.scopeTaxonName)}</div>
+                <div class="meta">${escapeHtml(authority.scopeTaxonRank || "rank未設定")} · ${escapeHtml(authority.subjectUserId)}</div>
+              </div>
+              <span class="pill">${escapeHtml(statusLabel)}</span>
+            </div>
+            <div class="meta">付与: ${escapeHtml(authority.grantedAt)} / 理由: ${escapeHtml(authority.reason || "未記載")}</div>
+            <ul class="meta" style="margin:0;padding-left:18px">${evidence}</ul>
+            <div class="actions">
+              ${authority.status === "active"
+                ? `<button class="btn secondary" type="button" data-revoke-authority="${escapeHtml(authority.authorityId)}">Revoke</button>`
+                : ""}
+              <button class="btn secondary" type="button" data-add-evidence="${escapeHtml(authority.authorityId)}">Add evidence</button>
+            </div>
+          </div>
+        </div>`;
+    })
+    .join("");
+}
+
+function authorityRecommendationStatusLabel(status: AuthorityRecommendationStatus): string {
+  switch (status) {
+    case "pending":
+      return "pending";
+    case "granted":
+      return "granted";
+    case "rejected":
+      return "rejected";
+    case "revoked":
+      return "revoked";
+    default:
+      return status;
+  }
+}
+
+function authorityRecommendationSourceLabel(sourceKind: AuthorityRecommendationSourceKind): string {
+  return sourceKind === "ops_registered" ? "運営登録" : "自己申告";
+}
+
+function renderAuthorityAuditCards(entries: ReviewerAuthorityAuditEntry[]): string {
+  if (entries.length === 0) {
+    return `<div class="row"><div>監査ログはまだありません。</div></div>`;
+  }
+
+  return entries
+    .map((entry) => {
+      const evidence = entry.evidence.length > 0
+        ? entry.evidence.map((item) =>
+            `<li>${escapeHtml(authorityEvidenceLabel(item.evidenceType))} · ${escapeHtml(item.title)}${item.issuerName ? ` <span class="meta">(${escapeHtml(item.issuerName)})</span>` : ""}</li>`,
+          ).join("")
+        : `<li>根拠未登録</li>`;
+      return `
+        <div class="card is-soft">
+          <div class="card-body stack">
+            <div class="row">
+              <div>
+                <div style="font-weight:800">${escapeHtml(entry.scopeTaxonName || "scope未設定")}</div>
+                <div class="meta">${escapeHtml(entry.subjectDisplayName || entry.subjectUserId || "subject不明")} · ${escapeHtml(entry.action)}</div>
+              </div>
+              <span class="pill">${escapeHtml(entry.authorityStatus || "unknown")}</span>
+            </div>
+            <div class="meta">actor: ${escapeHtml(entry.actorDisplayName || entry.actorUserId || "system")} / created: ${escapeHtml(entry.createdAt)}</div>
+            <ul class="meta" style="margin:0;padding-left:18px">${evidence}</ul>
+            <details>
+              <summary style="cursor:pointer;font-weight:700">payload</summary>
+              <pre style="margin:12px 0 0;padding:12px;border-radius:14px;background:#0f172a;color:#e2e8f0;overflow:auto;font-size:12px;line-height:1.6">${escapeHtml(JSON.stringify(entry.payload, null, 2))}</pre>
+            </details>
+          </div>
+        </div>`;
+    })
+    .join("");
+}
+
+function renderAuthorityRecommendationCards(
+  recommendations: AuthorityRecommendation[],
+  options: {
+    currentUserId?: string | null;
+    showGrantActions?: boolean;
+    canReject?: boolean;
+  } = {},
+): string {
+  if (recommendations.length === 0) {
+    return `<div class="row"><div>recommendation はまだありません。</div></div>`;
+  }
+
+  return recommendations
+    .map((recommendation) => {
+      const evidence = recommendation.evidence.length > 0
+        ? recommendation.evidence.map((entry) =>
+            `<li>${escapeHtml(authorityEvidenceLabel(entry.evidenceType))} · ${escapeHtml(entry.title)}${entry.issuerName ? ` <span class="meta">(${escapeHtml(entry.issuerName)})</span>` : ""}</li>`,
+          ).join("")
+        : `<li>根拠未登録</li>`;
+      const subjectLabel = recommendation.subjectDisplayName || recommendation.subjectUserId;
+      const scopeLabel = `${recommendation.scopeTaxonName}${recommendation.scopeTaxonRank ? ` · ${recommendation.scopeTaxonRank}` : ""}`;
+      const ownership = options.currentUserId && options.currentUserId === recommendation.subjectUserId ? "あなた" : subjectLabel;
+      return `
+        <div class="card is-soft">
+          <div class="card-body stack">
+            <div class="row">
+              <div>
+                <div style="font-weight:800">${escapeHtml(scopeLabel)}</div>
+                <div class="meta">${escapeHtml(ownership || "user不明")} · ${escapeHtml(authorityRecommendationSourceLabel(recommendation.sourceKind))}</div>
+              </div>
+              <span class="pill">${escapeHtml(authorityRecommendationStatusLabel(recommendation.status))}</span>
+            </div>
+            <div class="meta">作成: ${escapeHtml(recommendation.createdAt)} / 推薦: ${escapeHtml(recommendation.recommendedByDisplayName || recommendation.recommendedByUserId || "未設定")}</div>
+            ${recommendation.resolutionNote ? `<div class="meta">解決メモ: ${escapeHtml(recommendation.resolutionNote)}</div>` : ""}
+            <ul class="meta" style="margin:0;padding-left:18px">${evidence}</ul>
+            ${(options.showGrantActions || options.canReject) && recommendation.status === "pending"
+              ? `<div class="actions">
+                  ${options.showGrantActions ? `<button class="btn" type="button" data-grant-recommendation="${escapeHtml(recommendation.recommendationId)}">Grant</button>` : ""}
+                  ${options.canReject ? `<button class="btn secondary" type="button" data-reject-recommendation="${escapeHtml(recommendation.recommendationId)}">Reject</button>` : ""}
+                </div>`
+              : ""}
+          </div>
+        </div>`;
+    })
+    .join("");
+}
+
 /** Small inline "state" card for 401 / 404 states — replaces the old dark-hero div. */
 function seasonFromDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "不明";
@@ -110,9 +295,14 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-hero-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
   .obs-hero-video-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; color: #334155; font-weight: 700; }
   .obs-hero-video-meta a { color: #0369a1; text-decoration: underline; text-underline-offset: 2px; }
+  .obs-region-video-note { color: #0369a1; font-size: 11px; font-weight: 800; }
   .obs-hero-photo { border: 0; padding: 0; background: none; overflow: hidden; cursor: zoom-in; position: relative; }
   .obs-hero-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
   .obs-hero-photo:hover img { transform: scale(1.04); }
+  .obs-region-layer { position: absolute; inset: 0; pointer-events: none; }
+  .obs-region-box { position: absolute; border: 2px solid rgba(14,165,233,.96); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(14,165,233,.08) inset, 0 0 0 1px rgba(255,255,255,.7); }
+  .obs-region-box-label { position: absolute; left: 0; top: -28px; display: inline-flex; padding: 4px 8px; border-radius: 999px; background: rgba(15,23,42,.86); color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; }
+  .obs-region-summary { margin: 0; color: #0369a1; font-size: 12px; font-weight: 800; }
   .obs-hero-placeholder { aspect-ratio: 4/3; display: grid; place-items: center; text-align: center; font-weight: 800; color: #475569; background: repeating-linear-gradient(0deg, #f0fdf4 0 24px, #ecfdf5 24px 25px); border-radius: 20px; gap: 8px; }
   .obs-hero-placeholder span:first-child { font-size: 40px; }
   .obs-hero-meta { display: flex; flex-direction: column; gap: 14px; padding: 4px; }
@@ -135,6 +325,39 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-reaction-count { background: rgba(15,23,42,.06); padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 800; }
   .obs-reaction-label { display: none; }
   @media (min-width: 640px) { .obs-reaction-label { display: inline; } }
+  .obs-focus { display: grid; gap: 12px; margin-top: 16px; padding: 16px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(236,253,245,.92)); border: 1px solid rgba(16,185,129,.18); box-shadow: 0 10px 28px rgba(16,185,129,.08); }
+  .obs-focus-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .obs-focus-title { margin: 0; font-size: 19px; font-weight: 900; color: #0f172a; line-height: 1.35; letter-spacing: -.01em; }
+  .obs-focus-copy { margin: 6px 0 0; font-size: 13px; line-height: 1.7; color: #475569; }
+  .obs-focus-pill { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(16,185,129,.12); color: #047857; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+  .obs-focus-featured { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 14px 16px; border-radius: 16px; background: #fff; border: 1px solid rgba(15,23,42,.08); }
+  .obs-focus-role { font-size: 10.5px; font-weight: 900; letter-spacing: .12em; color: #64748b; text-transform: uppercase; }
+  .obs-focus-name-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-top: 6px; }
+  .obs-focus-name { font-size: 24px; font-weight: 900; color: #0f172a; line-height: 1.2; letter-spacing: -.02em; }
+  .obs-focus-rank { font-size: 12px; font-weight: 800; color: #64748b; }
+  .obs-focus-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .obs-focus-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: #f8fafc; border: 1px solid rgba(15,23,42,.08); color: #334155; font-size: 11.5px; font-weight: 800; }
+  .obs-focus-open { display: inline-flex; align-items: center; justify-content: center; padding: 10px 16px; border-radius: 999px; text-decoration: none; background: #111827; color: #fff; font-size: 12.5px; font-weight: 900; white-space: nowrap; box-shadow: 0 6px 18px rgba(15,23,42,.16); }
+  .obs-focus-open:hover { background: #1f2937; }
+  .obs-focus-open.is-current { background: rgba(16,185,129,.12); color: #047857; box-shadow: none; }
+  .obs-focus-rail { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .obs-focus-card { display: flex; flex-direction: column; gap: 8px; padding: 13px 14px; border-radius: 14px; border: 1px solid rgba(15,23,42,.08); background: #fff; text-decoration: none; color: inherit; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+  .obs-focus-card:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(15,23,42,.08); }
+  .obs-focus-card.is-featured { border-color: rgba(16,185,129,.28); background: linear-gradient(135deg, #f0fdf4, #ffffff); }
+  .obs-focus-card.is-current { box-shadow: inset 0 0 0 2px rgba(59,130,246,.16); border-color: rgba(59,130,246,.24); }
+  .obs-focus-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .obs-focus-card-role { font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: #64748b; }
+  .obs-focus-card-state { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: rgba(16,185,129,.12); color: #047857; font-size: 10px; font-weight: 900; }
+  .obs-focus-card.is-current .obs-focus-card-state { background: rgba(59,130,246,.12); color: #1d4ed8; }
+  .obs-focus-card-name { font-size: 15px; font-weight: 900; color: #0f172a; line-height: 1.35; }
+  .obs-focus-card-meta { font-size: 11.5px; line-height: 1.6; color: #64748b; font-weight: 700; }
+  .obs-layer-note { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: rgba(59,130,246,.07); border: 1px solid rgba(59,130,246,.14); color: #334155; font-size: 13px; line-height: 1.7; }
+  @media (max-width: 720px) {
+    .obs-focus-featured { flex-direction: column; }
+    .obs-focus-open { width: 100%; }
+    .obs-focus-rail { display: flex; overflow-x: auto; padding-bottom: 2px; scroll-snap-type: x proximity; }
+    .obs-focus-card { min-width: 220px; scroll-snap-align: start; }
+  }
   .obs-reassess-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; background: linear-gradient(135deg, rgba(59,130,246,.08), rgba(16,185,129,.08)); border: 1px dashed rgba(59,130,246,.3); margin: 14px 0 0; }
   .obs-reassess-btn { appearance: none; border: 0; border-radius: 999px; padding: 10px 18px; background: #111827; color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(15,23,42,.25); }
   .obs-reassess-btn:hover { background: #1f2937; }
@@ -269,6 +492,321 @@ function stateCard(eyebrow: string, title: string, body: string): string {
       <p style="margin-top:8px;color:#475569;line-height:1.7">${body}</p>
     </div>
   </section>`;
+}
+
+type RankedSubject = SiblingSubject & {
+  focusScore: number;
+  focusReason: string;
+  roleLabel: string;
+};
+
+function subjectSpecificityScore(rank: string | null): number {
+  switch ((rank ?? "").toLowerCase()) {
+    case "species":
+      return 70;
+    case "subspecies":
+      return 62;
+    case "genus":
+      return 48;
+    case "family":
+      return 30;
+    case "order":
+      return 20;
+    case "class":
+      return 12;
+    case "lifeform":
+      return 8;
+    default:
+      return 10;
+  }
+}
+
+function subjectRoleLabel(subject: SiblingSubject): string {
+  if (subject.roleHint === "alt_candidate") return "別候補";
+  if (subject.roleHint === "vegetation") return "植生";
+  if (subject.isPrimary) return "最初に拾われた対象";
+  return "同じ観察の別対象";
+}
+
+function subjectPriorityScore(subject: SiblingSubject, currentOccurrenceId: string): number {
+  let score = 0;
+
+  if (subject.identificationCount > 0) {
+    score += 260 + Math.min(subject.identificationCount, 6) * 55;
+  }
+
+  if (typeof subject.confidence === "number") {
+    score += Math.round(subject.confidence * 70);
+  }
+
+  switch (subject.latestAssessmentBand) {
+    case "high":
+      score += 95;
+      break;
+    case "medium":
+      score += 58;
+      break;
+    case "low":
+      score += 28;
+      break;
+    case "unknown":
+      score += 8;
+      break;
+    default:
+      break;
+  }
+
+  score += subjectSpecificityScore(subject.rank);
+
+  if (subject.roleHint === "alt_candidate") {
+    score -= 45;
+  } else if (subject.roleHint === "vegetation") {
+    score -= 18;
+  } else if (subject.isPrimary) {
+    score += 6;
+  }
+
+  if (subject.occurrenceId === currentOccurrenceId) {
+    score += 4;
+  }
+
+  return score;
+}
+
+function subjectFocusReason(subject: SiblingSubject): string {
+  if (subject.identificationCount > 0) {
+    return `コミュニティ同定が ${subject.identificationCount} 件集まっている対象`;
+  }
+  if (subject.latestAssessmentBand === "high") {
+    return "AI が写真からかなり有力と見ている対象";
+  }
+  if (typeof subject.confidence === "number" && subject.confidence >= 0.75) {
+    return "写真由来の確率が高く、先に見たほうが理解しやすい対象";
+  }
+  if (subject.roleHint === "vegetation") {
+    return "背景ではなく環境手がかりとして読むと意味が出る対象";
+  }
+  if (subject.roleHint === "alt_candidate") {
+    return "同じ被写体を別の分類で見るための候補";
+  }
+  if (subject.isPrimary) {
+    return "最初の対象として保存されている";
+  }
+  return "同じ観察に写っている別対象";
+}
+
+function rankSiblingSubjects(subjects: SiblingSubject[], currentOccurrenceId: string): RankedSubject[] {
+  return subjects
+    .map((subject) => ({
+      ...subject,
+      focusScore: subjectPriorityScore(subject, currentOccurrenceId),
+      focusReason: subjectFocusReason(subject),
+      roleLabel: subjectRoleLabel(subject),
+    }))
+    .sort((a, b) => {
+      if (b.focusScore !== a.focusScore) return b.focusScore - a.focusScore;
+      if (b.identificationCount !== a.identificationCount) return b.identificationCount - a.identificationCount;
+      const specificityDelta = subjectSpecificityScore(b.rank) - subjectSpecificityScore(a.rank);
+      if (specificityDelta !== 0) return specificityDelta;
+      const bIsCurrent = b.occurrenceId === currentOccurrenceId ? 1 : 0;
+      const aIsCurrent = a.occurrenceId === currentOccurrenceId ? 1 : 0;
+      if (bIsCurrent !== aIsCurrent) return bIsCurrent - aIsCurrent;
+      if (Number(b.isPrimary) !== Number(a.isPrimary)) return Number(b.isPrimary) - Number(a.isPrimary);
+      return a.subjectIndex - b.subjectIndex;
+    });
+}
+
+function renderReactionBar(
+  reactions: Awaited<ReturnType<typeof getReactionSummary>> | null,
+  viewerUserId: string | null,
+  occurrenceId: string,
+): string {
+  const reactionMeta: Record<ReactionType, { icon: string; label: string }> = {
+    like: { icon: "💚", label: "いいね" },
+    helpful: { icon: "✨", label: "参考になった" },
+    curious: { icon: "🧭", label: "興味あり" },
+    thanks: { icon: "🙏", label: "ありがとう" },
+  };
+  return reactions
+    ? `<div class="obs-reaction-bar" data-occurrence-id="${escapeHtml(occurrenceId)}">
+         ${(["like", "helpful", "curious", "thanks"] as ReactionType[])
+           .map((type) => `
+             <button type="button" class="obs-reaction${reactions.viewerReacted[type] ? " is-reacted" : ""}"
+                     data-reaction-type="${type}"
+                     ${viewerUserId ? "" : 'data-login-required="1"'}>
+               <span>${reactionMeta[type].icon}</span>
+               <span class="obs-reaction-label">${reactionMeta[type].label}</span>
+               <span class="obs-reaction-count">${reactions.counts[type]}</span>
+             </button>`)
+           .join("")}
+       </div>`
+    : "";
+}
+
+function renderSubjectHint(subject: ObservationVisitSubject): string {
+  const aiAssessment = subject.aiAssessment;
+  if (!aiAssessment) {
+    return `<section class="section obs-hint-section is-tent">
+      <div class="obs-hint-head">
+        <div>
+          <p class="obs-hint-eyebrow">いっしょに絞るためのメモ</p>
+          <h2 class="obs-hint-title">${escapeHtml(subject.displayName)} にはまだ AI 参考情報がありません</h2>
+        </div>
+        <span class="obs-hint-badge">様子見</span>
+      </div>
+      <p class="obs-hint-foot">この対象は human / specialist の同定を待っています。別候補は下の折りたたみから確認できます。</p>
+    </section>`;
+  }
+
+  const band = aiAssessment.confidenceBand;
+  const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
+  const bandLabel = confidenceLabel(band);
+  const headline = aiAssessment.simpleSummary || aiAssessment.narrative || "";
+  const rec = aiAssessment.recommendedTaxonName
+    ? `<div class="obs-hint-rec"><span class="obs-hint-rec-name">${escapeHtml(aiAssessment.recommendedTaxonName)}</span>${aiAssessment.recommendedRank ? `<span class="obs-hint-rec-rank">${escapeHtml(aiAssessment.recommendedRank)}まで</span>` : ""}</div>`
+    : "";
+  const best = aiAssessment.bestSpecificTaxonName && aiAssessment.bestSpecificTaxonName !== aiAssessment.recommendedTaxonName
+    ? `<p class="obs-hint-best">候補の中では <strong>${escapeHtml(aiAssessment.bestSpecificTaxonName)}</strong> が有力</p>`
+    : "";
+  const clues = aiAssessment.diagnosticFeaturesSeen.length > 0
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">写真から拾えている手がかり</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}</ul></div>`
+    : "";
+  const stop = aiAssessment.stopReason
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">ここで止めておく理由</div><p>${escapeHtml(aiAssessment.stopReason)}</p></div>`
+    : "";
+  const placeSeason = (aiAssessment.geographicContext || aiAssessment.seasonalContext)
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">場所と季節のヒント</div>${aiAssessment.geographicContext ? `<p>📍 ${escapeHtml(aiAssessment.geographicContext)}</p>` : ""}${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(aiAssessment.seasonalContext)}</p>` : ""}</div>`
+    : "";
+  const boost = aiAssessment.observerBoost
+    ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
+    : "";
+  const nextStep = aiAssessment.nextStepText
+    ? `<div class="obs-hint-sub"><div class="obs-hint-eye">次にあると絞りやすいもの</div><p>${escapeHtml(aiAssessment.nextStepText)}</p></div>`
+    : "";
+  const funFact = aiAssessment.funFact
+    ? `<div class="obs-hint-fun"><div class="obs-hint-eye">ちょっとした豆知識</div><p>${escapeHtml(aiAssessment.funFact)}</p></div>`
+    : "";
+  const similar = aiAssessment.similarTaxa.length > 0 || aiAssessment.distinguishingTips.length > 0 || aiAssessment.confirmMore.length > 0
+    ? `<div class="obs-hint-similar">
+         <div class="obs-hint-eye">紛らわしい種 <span class="obs-hint-eye-note">AI参考</span></div>
+         ${aiAssessment.similarTaxa.length > 0 ? `<ul class="obs-hint-tags">${aiAssessment.similarTaxa.map((taxon) => `<li>${escapeHtml(taxon.name)}${taxon.rank ? ` <small>(${escapeHtml(taxon.rank)})</small>` : ""}</li>`).join("")}</ul>` : ""}
+         ${aiAssessment.distinguishingTips.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">見分け方のポイント</div><ul class="obs-hint-bul">${aiAssessment.distinguishingTips.map((tip) => `<li>${escapeHtml(tip)}</li>`).join("")}</ul></div>` : ""}
+         ${aiAssessment.confirmMore.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">さらに確認するなら</div><ul class="obs-hint-bul">${aiAssessment.confirmMore.map((tip) => `<li>${escapeHtml(tip)}</li>`).join("")}</ul></div>` : ""}
+         <p class="obs-hint-reminder">※ AI による参考情報です。確証を得るには実物の観察や図鑑の確認をおすすめします。</p>
+       </div>`
+    : "";
+  const runMeta = aiAssessment.pipelineVersion || aiAssessment.taxonomyVersion
+    ? `<p class="obs-hint-foot">run: ${escapeHtml(aiAssessment.pipelineVersion ?? "unknown")} / taxonomy: ${escapeHtml(aiAssessment.taxonomyVersion ?? "unknown")}</p>`
+    : `<p class="obs-hint-foot">このメモは観察を次につなぐための参考情報です。コミュニティ同定の票には入りません。</p>`;
+  return `<section class="section obs-hint-section ${bandClass}">
+    <div class="obs-hint-head">
+      <div>
+        <p class="obs-hint-eyebrow">いっしょに絞るためのメモ</p>
+        <h2 class="obs-hint-title">${escapeHtml(headline || "観察のヒント")}</h2>
+      </div>
+      <span class="obs-hint-badge">${escapeHtml(bandLabel)}</span>
+    </div>
+    ${rec}${best}
+    <div class="obs-hint-grid">${clues}${stop}${placeSeason}${boost}${nextStep}</div>
+    ${funFact}
+    ${similar}
+    ${runMeta}
+  </section>`;
+}
+
+function renderSubjectComparison(bundle: ObservationVisitBundle, subject: ObservationVisitSubject): string {
+  if (!bundle.selectedRun && !bundle.previousRun) {
+    return "";
+  }
+  const current = subject.aiAssessment;
+  const previous = subject.previousAiAssessment;
+  const currentText = current
+    ? `${current.recommendedTaxonName ?? subject.displayName} / ${confidenceLabel(current.confidenceBand)}`
+    : "この run では未評価";
+  const previousText = previous
+    ? `${previous.recommendedTaxonName ?? subject.displayName} / ${confidenceLabel(previous.confidenceBand)}`
+    : "比較用の前 run なし";
+  return `<details class="obs-fold">
+    <summary>🤖 AI の変化を見る <span class="obs-fold-count">${escapeHtml(bundle.selectedRun?.modelName ?? "run")}</span></summary>
+    <div class="obs-hint-sub">
+      <div class="obs-hint-eye">現在の解釈</div>
+      <p>${escapeHtml(currentText)}</p>
+      ${bundle.selectedRun ? `<p class="obs-hint-foot">run: ${escapeHtml(bundle.selectedRun.modelName)} / ${escapeHtml(bundle.selectedRun.generatedAt)}</p>` : ""}
+    </div>
+    <div class="obs-hint-sub">
+      <div class="obs-hint-eye">ひとつ前の解釈</div>
+      <p>${escapeHtml(previousText)}</p>
+      ${bundle.previousRun ? `<p class="obs-hint-foot">run: ${escapeHtml(bundle.previousRun.modelName)} / ${escapeHtml(bundle.previousRun.generatedAt)}</p>` : ""}
+    </div>
+  </details>`;
+}
+
+function renderAiCandidates(bundle: ObservationVisitBundle): string {
+  if (bundle.aiCandidates.length === 0) {
+    return "";
+  }
+  return `<details class="obs-fold">
+    <summary>🧪 AI が新しく見つけた候補 <span class="obs-fold-count">${bundle.aiCandidates.length}</span></summary>
+    <div class="obs-nearby-grid">
+      ${bundle.aiCandidates.map((candidate) => `
+        <div class="obs-nearby-card">
+          <div class="obs-nearby-body">
+            <div class="obs-nearby-name">${escapeHtml(candidate.displayName)}</div>
+            <div class="obs-nearby-meta">${escapeHtml([
+              candidate.rank,
+              typeof candidate.confidence === "number" ? `${Math.round(candidate.confidence * 100)}%` : null,
+              candidate.candidateStatus === "matched" && candidate.suggestedOccurrenceId ? "既存対象に対応" : "未採用候補",
+            ].filter(Boolean).join(" · "))}</div>
+            ${candidate.note ? `<p class="obs-id-note">${escapeHtml(candidate.note)}</p>` : ""}
+          </div>
+        </div>`).join("")}
+    </div>
+  </details>`;
+}
+
+function renderSubjectTaxonomy(
+  subject: ObservationVisitSubject,
+  featuredSubject: ObservationVisitSubject | null,
+  subjectCount: number,
+  bundle: ObservationVisitBundle,
+): string {
+  const lineageChips = subject.lineage.length > 0
+    ? `<div class="obs-lineage">
+         ${subject.lineage.map((lineage) => `<span class="obs-lineage-item"><small>${escapeHtml(lineage.rank)}</small>${escapeHtml(lineage.name)}</span>`).join('<span class="obs-lineage-sep">›</span>')}
+       </div>`
+    : "";
+  const layer2Title = subjectCount >= 2 ? "今見ている対象の名前と分類" : "名前と分類";
+  const layer2Note = featuredSubject && subject.occurrenceId !== featuredSubject.occurrenceId
+    ? `<p class="obs-layer-note">いまは <strong>${escapeHtml(subject.displayName)}</strong> の詳細を表示しています。既定では <strong>${escapeHtml(featuredSubject.displayName)}</strong> が前面ですが、上のレールからすぐ切り替えられます。</p>`
+    : bundle.lockedByHuman
+      ? `<p class="obs-layer-note">この観察の既定表示は human / specialist の判断を優先して固定しています。</p>`
+      : "";
+  const idsList = subject.identifications.length > 0
+    ? `<ul class="obs-id-list">
+         ${subject.identifications.map((item) => `
+           <li class="obs-id-item">
+             <div class="obs-id-avatar">${escapeHtml((item.actorName || "?").slice(0, 1))}</div>
+             <div class="obs-id-body">
+               <div class="obs-id-line">
+                 <span class="obs-id-name">${escapeHtml(item.proposedName)}</span>
+                 ${item.proposedRank ? `<span class="obs-id-rank">${escapeHtml(item.proposedRank)}</span>` : ""}
+               </div>
+               <div class="obs-id-meta">${escapeHtml(item.actorName)} · ${escapeHtml(item.createdAt)}</div>
+               ${item.notes ? `<p class="obs-id-note">${escapeHtml(item.notes)}</p>` : ""}
+             </div>
+           </li>`).join("")}
+       </ul>`
+    : `<p class="obs-empty">まだ名前は確定していません。最初の提案者になれます。</p>`;
+  return `
+    <section class="section obs-layer obs-layer-2">
+      <h2 class="obs-layer-title">${layer2Title}</h2>
+      ${layer2Note}
+      ${lineageChips}
+      ${idsList}
+      ${renderSubjectComparison(bundle, subject)}
+      ${renderAiCandidates(bundle)}
+      <p class="obs-ai-note">🤖 AI は履歴つきの参考情報として保持し、人の同定や専門家レビューが入ると表示の主役はそちらを優先します。</p>
+    </section>`;
 }
 
 function requestBasePath(request: { headers: Record<string, unknown> }): string {
@@ -868,6 +1406,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       renderObservationCard(basePath, lang, {
         occurrenceId: item.occurrenceId,
         visitId: item.visitId,
+        detailId: item.detailId,
+        featuredOccurrenceId: item.featuredOccurrenceId,
+        featuredSubjectName: item.featuredSubjectName,
+        subjectCount: item.subjectCount,
+        isMultiSubject: item.isMultiSubject,
+        featuredConfidenceBand: item.featuredConfidenceBand,
+        displayStability: item.displayStability,
         displayName: item.displayName,
         observedAt: item.observedAt,
         observerName: item.observerName,
@@ -937,6 +1482,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       renderObservationCard(basePath, lang, {
         occurrenceId: item.occurrenceId,
         visitId: item.visitId,
+        detailId: item.detailId,
+        featuredOccurrenceId: item.featuredOccurrenceId,
+        featuredSubjectName: item.featuredSubjectName,
+        subjectCount: item.subjectCount,
+        isMultiSubject: item.isMultiSubject,
+        featuredConfidenceBand: item.featuredConfidenceBand,
+        displayStability: item.displayStability,
         displayName: item.displayName,
         observedAt: item.observedAt,
         observerName: item.observerName,
@@ -994,24 +1546,44 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     );
   });
 
-  app.get<{ Params: { id: string } }>("/observations/:id", async (request, reply) => {
+  app.get<{ Params: { id: string }; Querystring: { subject?: string } }>("/observations/:id", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const snapshot = await getObservationDetailSnapshot(request.params.id);
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
+    const viewerUserId = viewerSession?.userId ?? null;
+    const bundle = await getObservationVisitBundle(request.params.id, request.query.subject);
+    if (!bundle) {
+      reply.code(404).type("text/html; charset=utf-8");
+      return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
+    }
+    const canonicalHref = appendLangToHref(
+      withBasePath(basePath, buildObservationDetailPath(bundle.visitId, bundle.canonicalSubjectId)),
+      lang,
+    );
+    if (request.params.id !== bundle.visitId || request.query.subject !== bundle.canonicalSubjectId) {
+      return reply.redirect(canonicalHref, 302);
+    }
+
+    const snapshot = await getObservationDetailSnapshot(bundle.canonicalSubjectId);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
       return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
     }
 
-    const viewerSession = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-    const viewerUserId = viewerSession?.userId ?? null;
+    const currentSubject = bundle.subjects.find((subject) => subject.occurrenceId === bundle.canonicalSubjectId) ?? bundle.subjects[0] ?? null;
+    const featuredSubject = bundle.subjects.find((subject) => subject.occurrenceId === bundle.featuredOccurrenceId) ?? bundle.subjects[0] ?? null;
+    const subjectCount = bundle.subjects.length;
+    if (!currentSubject || !featuredSubject) {
+      reply.code(404).type("text/html; charset=utf-8");
+      return layout(basePath, "Observation not found", stateCard("対象が見つかりません", "この観察の subject を表示できません", "subject 情報がまだ同期中の可能性があります。"), "みつける");
+    }
 
-    // 並列取得: context / heavy / reactions / observer stats / insight / AI assessment
-    const [obsContext, heavy, reactions, observerStats, insight, aiAssessment] = await Promise.all([
-      getObservationContext(request.params.id, snapshot.visitId ?? null, null).catch(() => null),
-      getObservationDetailHeavy(request.params.id, snapshot.visitId ?? null, snapshot.placeId ?? null, viewerUserId).catch(() => null),
-      getReactionSummary(request.params.id, viewerUserId).catch(() => null),
+    const [obsContext, heavy, reactions, observerStats, insight] = await Promise.all([
+      getObservationContext(bundle.canonicalSubjectId, snapshot.visitId ?? null, null).catch(() => null),
+      getObservationDetailHeavy(bundle.canonicalSubjectId, snapshot.visitId ?? null, snapshot.placeId ?? null, viewerUserId).catch(() => null),
+      subjectCount >= 2 ? Promise.resolve(null) : getReactionSummary(bundle.canonicalSubjectId, viewerUserId).catch(() => null),
       viewerUserId
-        ? getObserverStats(viewerUserId, snapshot.placeId ?? null, request.params.id).catch(() => null)
+        ? getObserverStats(viewerUserId, snapshot.placeId ?? null, bundle.canonicalSubjectId).catch(() => null)
         : Promise.resolve(null),
       snapshot.scientificName || snapshot.displayName
         ? getTaxonInsight({
@@ -1023,19 +1595,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             lang: "ja",
           }).catch(() => null)
         : Promise.resolve(null),
-      getLatestAiAssessment(request.params.id).catch(() => null),
     ]);
 
     // ===== Layer 0: ヒーロー =====
-    const photoGallery = snapshot.photoUrls.length > 0
+    const renderRegionBoxes = (assetId: string): string =>
+      currentSubject.regions
+        .filter((region) => region.assetId === assetId && region.rect)
+        .map((region) => {
+          const rect = region.rect;
+          if (!rect) return "";
+          return `<span class="obs-region-box"
+            style="left:${(rect.x * 100).toFixed(2)}%;top:${(rect.y * 100).toFixed(2)}%;width:${(rect.width * 100).toFixed(2)}%;height:${(rect.height * 100).toFixed(2)}%;">
+            ${region.note ? `<span class="obs-region-box-label">${escapeHtml(region.note)}</span>` : ""}
+          </span>`;
+        })
+        .join("");
+    const photoGallery = snapshot.photoAssets.length > 0
       ? `<div class="obs-hero-gallery" data-obs-gallery>
-           ${snapshot.photoUrls.map((url, i) => `
-             <button type="button" class="obs-hero-photo${i === 0 ? " is-main" : " is-thumb"}" data-obs-photo-index="${i}" data-obs-photo-src="${escapeHtml(url)}">
-               <img src="${escapeHtml(url)}" alt="${escapeHtml(snapshot.displayName)}" loading="${i === 0 ? "eager" : "lazy"}" />
+           ${snapshot.photoAssets.map((asset, i) => `
+             <button type="button" class="obs-hero-photo${i === 0 ? " is-main" : " is-thumb"}" data-obs-photo-index="${i}" data-obs-photo-src="${escapeHtml(asset.url)}">
+               <img src="${escapeHtml(asset.url)}" alt="${escapeHtml(snapshot.displayName)}" loading="${i === 0 ? "eager" : "lazy"}" />
+               <span class="obs-region-layer" data-region-layer="${escapeHtml(asset.assetId)}">${renderRegionBoxes(asset.assetId)}</span>
              </button>`).join("")}
          </div>`
       : "";
     const primaryVideo = snapshot.videoAssets[0] ?? null;
+    const videoRegion = primaryVideo ? currentSubject.regions.find((region) => region.assetId === primaryVideo.assetId) ?? null : null;
     const videoPlayer = primaryVideo
       ? `<div class="obs-hero-video">
            <div class="obs-hero-video-frame">
@@ -1049,46 +1634,108 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            </div>
            <div class="obs-hero-video-meta">
              <strong>動画</strong>
+             ${videoRegion ? `<span class="obs-region-video-note">AI が 2s 付近の対象位置を記録しています</span>` : ""}
              ${primaryVideo.watchUrl ? `<a href="${escapeHtml(primaryVideo.watchUrl)}" target="_blank" rel="noopener noreferrer">別タブで開く</a>` : ""}
            </div>
          </div>`
       : "";
     const mediaBlock = (videoPlayer || photoGallery)
-      ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}</div>`
+      ? `<div class="obs-hero-media-stack">${videoPlayer}${photoGallery ? `<div class="${videoPlayer ? "obs-hero-photo-stack" : ""}">${photoGallery}</div>` : ""}${currentSubject.regions.length > 0 ? `<p class="obs-region-summary" data-region-summary>AI が対象位置の参考矩形を重ねています。</p>` : `<p class="obs-region-summary" data-region-summary hidden></p>`}</div>`
       : `<div class="obs-hero-placeholder"><span>📷</span><span>${escapeHtml(snapshot.displayName)}</span><small>写真も動画もまだありません</small></div>`;
 
     const badges: string[] = [];
-    if (snapshot.scientificName) badges.push(`<span class="obs-badge obs-badge-species">🔬 ${escapeHtml(snapshot.scientificName)}</span>`);
-    if (snapshot.identifications.length > 0) badges.push(`<span class="obs-badge obs-badge-consensus">🧭 同定 ${snapshot.identifications.length} 件</span>`);
+    if (subjectCount >= 2) badges.push(`<span class="obs-badge obs-badge-species">🧩 ${subjectCount} 対象</span>`);
+    if (featuredSubject) badges.push(`<span class="obs-badge obs-badge-species">⭐ 有力 ${escapeHtml(featuredSubject.displayName)}</span>`);
+    if (currentSubject && featuredSubject && currentSubject.occurrenceId !== featuredSubject.occurrenceId) {
+      badges.push(`<span class="obs-badge obs-badge-nearby" data-current-subject-badge>👀 表示中 ${escapeHtml(currentSubject.displayName)}</span>`);
+    }
+    if (currentSubject.identificationCount > 0) badges.push(`<span class="obs-badge obs-badge-consensus">🧭 同定 ${currentSubject.identificationCount} 件</span>`);
     if (heavy && heavy.nearby.length > 0) badges.push(`<span class="obs-badge obs-badge-nearby">📍 同地点 ${heavy.nearby.length} 件</span>`);
     if (snapshot.videoAssets.length > 0) badges.push(`<span class="obs-badge obs-badge-video">🎬 動画あり</span>`);
 
-    const REACTION_META: Record<ReactionType, { icon: string; label: string }> = {
-      like: { icon: "💚", label: "いいね" },
-      helpful: { icon: "✨", label: "参考になった" },
-      curious: { icon: "🧭", label: "興味あり" },
-      thanks: { icon: "🙏", label: "ありがとう" },
-    };
-    const reactionBar = reactions
-      ? `<div class="obs-reaction-bar" data-occurrence-id="${escapeHtml(request.params.id)}">
-           ${(["like", "helpful", "curious", "thanks"] as ReactionType[])
-             .map((t) => `
-               <button type="button" class="obs-reaction${reactions.viewerReacted[t] ? " is-reacted" : ""}"
-                       data-reaction-type="${t}"
-                       ${viewerUserId ? "" : 'data-login-required="1"'}>
-                 <span>${REACTION_META[t].icon}</span>
-                 <span class="obs-reaction-label">${REACTION_META[t].label}</span>
-                 <span class="obs-reaction-count">${reactions.counts[t]}</span>
-               </button>`)
-             .join("")}
-         </div>`
+    const reactionBar = subjectCount >= 2 ? "" : renderReactionBar(reactions, viewerUserId, bundle.canonicalSubjectId);
+    const rankedSubjects = bundle.subjects;
+
+    const focusRailBlock = featuredSubject
+      ? (() => {
+          const focusHeading = currentSubject && currentSubject.occurrenceId !== featuredSubject.occurrenceId
+            ? `今見ている ${currentSubject.displayName} だけが主役とは限らず、${featuredSubject.displayName} がいちばん有力です。`
+            : `${featuredSubject.displayName} を先に見ると、この観察の意味をつかみやすいです。`;
+          const focusLead = `${bundle.selectedReason}。${subjectCount >= 2 ? "カードをタップすると、同定履歴・AIヒント・分類がその場で切り替わります。" : "この観察で見えている対象を、そのまま確かめられます。"}`;
+          const featuredChips: string[] = [];
+          if (featuredSubject.rank) featuredChips.push(`<span class="obs-focus-chip">${escapeHtml(featuredSubject.rank)}</span>`);
+          if (featuredSubject.scientificName) featuredChips.push(`<span class="obs-focus-chip">🔬 ${escapeHtml(featuredSubject.scientificName)}</span>`);
+          if (featuredSubject.identificationCount > 0) featuredChips.push(`<span class="obs-focus-chip">🧭 同定 ${featuredSubject.identificationCount} 件</span>`);
+          if (featuredSubject.latestAssessmentBand && featuredSubject.latestAssessmentBand !== "unknown") {
+            featuredChips.push(`<span class="obs-focus-chip">🤖 ${escapeHtml(confidenceLabel(featuredSubject.latestAssessmentBand))}</span>`);
+          } else if (typeof featuredSubject.confidence === "number") {
+            featuredChips.push(`<span class="obs-focus-chip">📷 ${Math.round(featuredSubject.confidence * 100)}%</span>`);
+          }
+          const cards = rankedSubjects.map((subject) => {
+            const subjectHref = appendLangToHref(
+              withBasePath(basePath, buildObservationDetailPath(bundle.visitId, subject.occurrenceId)),
+              lang,
+            );
+            const subjectMeta: string[] = [];
+            if (subject.rank) subjectMeta.push(subject.rank);
+            if (subject.identificationCount > 0) subjectMeta.push(`同定 ${subject.identificationCount} 件`);
+            else if (subject.latestAssessmentBand && subject.latestAssessmentBand !== "unknown") subjectMeta.push(`AI ${confidenceLabel(subject.latestAssessmentBand)}`);
+            else if (typeof subject.confidence === "number") subjectMeta.push(`${Math.round(subject.confidence * 100)}%`);
+            const stateLabel = subject.occurrenceId === bundle.canonicalSubjectId
+              ? "表示中"
+              : subject.occurrenceId === featuredSubject.occurrenceId
+                ? "有力"
+                : "";
+            return `<a class="obs-focus-card${subject.occurrenceId === featuredSubject.occurrenceId ? " is-featured" : ""}${subject.occurrenceId === bundle.canonicalSubjectId ? " is-current" : ""}"
+                     href="${escapeHtml(subjectHref)}"
+                     data-subject-switch="1"
+                     data-subject-id="${escapeHtml(subject.occurrenceId)}">
+              <div class="obs-focus-card-top">
+                <span class="obs-focus-card-role">${escapeHtml(subject.roleLabel)}</span>
+                ${stateLabel ? `<span class="obs-focus-card-state" data-subject-state>${escapeHtml(stateLabel)}</span>` : `<span class="obs-focus-card-state" data-subject-state hidden></span>`}
+              </div>
+              <div class="obs-focus-card-name">${escapeHtml(subject.displayName)}</div>
+              <div class="obs-focus-card-meta">${escapeHtml(subjectMeta.join(" · ") || subject.focusReason)}</div>
+            </a>`;
+          }).join("");
+          return `<div class="obs-focus">
+            <div class="obs-focus-head">
+              <div>
+                <div class="obs-story-eyebrow">この観察で見えている対象</div>
+                <h2 class="obs-focus-title">${escapeHtml(focusHeading)}</h2>
+                <p class="obs-focus-copy">${escapeHtml(focusLead)}</p>
+              </div>
+              <span class="obs-focus-pill">${subjectCount} 対象</span>
+            </div>
+            <div class="obs-focus-featured">
+              <div>
+                <div class="obs-focus-role">${escapeHtml(featuredSubject.roleLabel)}</div>
+                <div class="obs-focus-name-row">
+                  <span class="obs-focus-name">${escapeHtml(featuredSubject.displayName)}</span>
+                  ${featuredSubject.rank ? `<span class="obs-focus-rank">${escapeHtml(featuredSubject.rank)}</span>` : ""}
+                </div>
+                <div class="obs-focus-meta">${featuredChips.join("")}</div>
+              </div>
+              <span class="obs-focus-open${bundle.lockedByHuman ? " is-current" : ""}">${escapeHtml(
+                bundle.selectionSource === "specialist_lock"
+                  ? "専門家固定"
+                  : bundle.selectionSource === "human_consensus"
+                    ? "コミュニティ安定"
+                    : bundle.selectionSource === "latest_ai_default"
+                      ? "AI 既定"
+                      : "安定既定",
+              )}</span>
+            </div>
+            ${subjectCount > 1 ? `<div class="obs-focus-rail">${cards}</div>` : ""}
+          </div>`;
+        })()
       : "";
 
     const heroBlock = `
       <section class="section obs-hero">
         <div class="obs-hero-media">${mediaBlock}</div>
         <div class="obs-hero-meta">
-          <h1 class="obs-hero-title">${escapeHtml(snapshot.displayName)}</h1>
+          <h1 class="obs-hero-title">この観察で見えている生きもの</h1>
           <div class="obs-hero-byline">
             <a class="obs-hero-observer" href="${escapeHtml(snapshot.observerUserId ? withBasePath(basePath, "/profile/" + encodeURIComponent(snapshot.observerUserId)) : "#")}">
               ${snapshot.observerAvatarUrl
@@ -1101,68 +1748,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           </div>
           ${badges.length > 0 ? `<div class="obs-hero-badges">${badges.join("")}</div>` : ""}
           ${reactionBar}
+          ${focusRailBlock}
         </div>
       </section>`;
 
-    // ===== Layer 1 (最上段): 絞り込みヒント（legacy ai_assessments 由来） =====
-    const hintBlock = aiAssessment
-      ? (() => {
-          const band = aiAssessment.confidenceBand;
-          const bandClass = band === "high" ? "is-high" : band === "medium" ? "is-medium" : band === "low" ? "is-low" : "is-tent";
-          const bandLabel = confidenceLabel(band);
-          const headline = aiAssessment.simpleSummary || aiAssessment.narrative || "";
-          const rec = aiAssessment.recommendedTaxonName
-            ? `<div class="obs-hint-rec"><span class="obs-hint-rec-name">${escapeHtml(aiAssessment.recommendedTaxonName)}</span>${aiAssessment.recommendedRank ? `<span class="obs-hint-rec-rank">${escapeHtml(aiAssessment.recommendedRank)}まで</span>` : ""}</div>`
-            : "";
-          const best = aiAssessment.bestSpecificTaxonName && aiAssessment.bestSpecificTaxonName !== aiAssessment.recommendedTaxonName
-            ? `<p class="obs-hint-best">候補の中では <strong>${escapeHtml(aiAssessment.bestSpecificTaxonName)}</strong> が有力</p>`
-            : "";
-          const clues = aiAssessment.diagnosticFeaturesSeen.length > 0
-            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">写真から拾えている手がかり</div><ul class="obs-hint-tags">${aiAssessment.diagnosticFeaturesSeen.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul></div>`
-            : "";
-          const stop = aiAssessment.stopReason
-            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">ここで止めておく理由</div><p>${escapeHtml(aiAssessment.stopReason)}</p></div>`
-            : "";
-          const placeSeason = (aiAssessment.geographicContext || aiAssessment.seasonalContext)
-            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">場所と季節のヒント</div>${aiAssessment.geographicContext ? `<p>📍 ${escapeHtml(aiAssessment.geographicContext)}</p>` : ""}${aiAssessment.seasonalContext ? `<p>🗓 ${escapeHtml(aiAssessment.seasonalContext)}</p>` : ""}</div>`
-            : "";
-          const boost = aiAssessment.observerBoost
-            ? `<div class="obs-hint-sub obs-hint-boost"><div class="obs-hint-eye">この観察ですでに助かるところ</div><p>${escapeHtml(aiAssessment.observerBoost)}</p></div>`
-            : "";
-          const nextStep = aiAssessment.nextStepText
-            ? `<div class="obs-hint-sub"><div class="obs-hint-eye">次にあると絞りやすいもの</div><p>${escapeHtml(aiAssessment.nextStepText)}</p></div>`
-            : "";
-          const funFact = aiAssessment.funFact
-            ? `<div class="obs-hint-fun">
-                 <div class="obs-hint-eye">ちょっとした豆知識</div>
-                 <p>${escapeHtml(aiAssessment.funFact)}</p>
-               </div>`
-            : "";
-          const similar = aiAssessment.similarTaxa.length > 0 || aiAssessment.distinguishingTips.length > 0 || aiAssessment.confirmMore.length > 0
-            ? `<div class="obs-hint-similar">
-                 <div class="obs-hint-eye">紛らわしい種 <span class="obs-hint-eye-note">AI参考</span></div>
-                 ${aiAssessment.similarTaxa.length > 0 ? `<ul class="obs-hint-tags">${aiAssessment.similarTaxa.map((t) => `<li>${escapeHtml(t.name)}${t.rank ? ` <small>(${escapeHtml(t.rank)})</small>` : ""}</li>`).join("")}</ul>` : ""}
-                 ${aiAssessment.distinguishingTips.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">見分け方のポイント</div><ul class="obs-hint-bul">${aiAssessment.distinguishingTips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul></div>` : ""}
-                 ${aiAssessment.confirmMore.length > 0 ? `<div class="obs-hint-inner"><div class="obs-hint-eye-small">さらに確認するなら</div><ul class="obs-hint-bul">${aiAssessment.confirmMore.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ul></div>` : ""}
-                 <p class="obs-hint-reminder">※ AI による参考情報です。確証を得るには実物の観察や図鑑の確認をおすすめします。</p>
-               </div>`
-            : "";
-          return `<section class="section obs-hint-section ${bandClass}">
-            <div class="obs-hint-head">
-              <div>
-                <p class="obs-hint-eyebrow">いっしょに絞るためのメモ</p>
-                <h2 class="obs-hint-title">${escapeHtml(headline || "観察のヒント")}</h2>
-              </div>
-              <span class="obs-hint-badge">${escapeHtml(bandLabel)}</span>
-            </div>
-            ${rec}${best}
-            <div class="obs-hint-grid">${clues}${stop}${placeSeason}${boost}${nextStep}</div>
-            ${funFact}
-            ${similar}
-            <p class="obs-hint-foot">このメモは観察を次につなぐための参考情報です。コミュニティ同定の票には入りません。</p>
-          </section>`;
-        })()
-      : "";
+    const hintBlock = `<div data-obs-switch-hint>${renderSubjectHint(currentSubject)}</div>`;
 
     // ===== Layer 1: 物語 =====
     const ownerNote = snapshot.note
@@ -1207,58 +1797,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : "";
 
     // ===== Layer 2: 同定 =====
-    const lineageChips = heavy && heavy.lineage.length > 0
-      ? `<div class="obs-lineage">
-           ${heavy.lineage.map((l) => `<span class="obs-lineage-item"><small>${escapeHtml(l.rank)}</small>${escapeHtml(l.name)}</span>`).join('<span class="obs-lineage-sep">›</span>')}
-         </div>`
-      : "";
-
-    // ADR-0004: 主種 + 共生種グリッド。2以上 subject があれば表示。
-    const subjectGrid = heavy && heavy.subjects.length >= 2
-      ? `<div class="obs-subjects">
-           <div class="obs-story-eyebrow">1枚に写ったほかの生きもの</div>
-           <div class="obs-subjects-grid">
-             ${heavy.subjects.map((s) => `
-               <div class="obs-subject-card${s.isPrimary ? " is-primary" : ""}" data-role="${escapeHtml(s.roleHint)}">
-                 <div class="obs-subject-role">${s.isPrimary ? "🎯 主被写体" : s.roleHint === "vegetation" ? "🌿 植生" : s.roleHint === "alt_candidate" ? "🔀 別候補" : "🐾 同時に居た"}</div>
-                 <div class="obs-subject-name">${escapeHtml(s.displayName)}</div>
-                 ${s.rank ? `<div class="obs-subject-rank">${escapeHtml(s.rank)}</div>` : ""}
-                 ${typeof s.confidence === "number" ? `<div class="obs-subject-conf">${Math.round(s.confidence * 100)}%</div>` : ""}
-               </div>`).join("")}
-           </div>
-           <p class="obs-ai-note">※ 1 回の観察に複数の生きものが写っている時、主被写体とそれ以外を分けて保存しています。</p>
-         </div>`
-      : "";
-    const idsList = snapshot.identifications.length > 0
-      ? `<ul class="obs-id-list">
-           ${snapshot.identifications.map((item) => `
-             <li class="obs-id-item">
-               <div class="obs-id-avatar">${escapeHtml((item.actorName || "?").slice(0, 1))}</div>
-               <div class="obs-id-body">
-                 <div class="obs-id-line">
-                   <span class="obs-id-name">${escapeHtml(item.proposedName)}</span>
-                   ${item.proposedRank ? `<span class="obs-id-rank">${escapeHtml(item.proposedRank)}</span>` : ""}
-                 </div>
-                 <div class="obs-id-meta">${escapeHtml(item.actorName)} · ${escapeHtml(item.createdAt)}</div>
-                 ${item.notes ? `<p class="obs-id-note">${escapeHtml(item.notes)}</p>` : ""}
-               </div>
-             </li>`).join("")}
-         </ul>`
-      : `<p class="obs-empty">まだ名前は確定していません。最初の提案者になれます。</p>`;
-    const layer2 = `
-      <section class="section obs-layer obs-layer-2">
-        <h2 class="obs-layer-title">名前と分類</h2>
-        ${subjectGrid}
-        ${lineageChips}
-        ${idsList}
-        <p class="obs-ai-note">🤖 写真から Gemini が複数候補を自動提示しています。市民同定と組み合わせて、もっとも説明力のある名前に近づけます。</p>
-      </section>`;
+    const layer2 = `<div data-obs-switch-taxonomy>${renderSubjectTaxonomy(currentSubject, featuredSubject, subjectCount, bundle)}</div>`;
 
     // ===== Layer 3: 場所の物語 =====
     const nearbyCards = heavy && heavy.nearby.length > 0
       ? `<div class="obs-nearby-grid">
            ${heavy.nearby.map((n) => `
-             <a class="obs-nearby-card" href="${escapeHtml(withBasePath(basePath, "/observations/" + encodeURIComponent(n.occurrenceId)))}">
+             <a class="obs-nearby-card" href="${escapeHtml(appendLangToHref(withBasePath(basePath, buildObservationDetailPath(n.occurrenceId, n.occurrenceId)), lang))}">
                ${n.photoUrl ? `<img src="${escapeHtml(n.photoUrl)}" alt="${escapeHtml(n.displayName)}" loading="lazy" />` : '<div class="obs-nearby-nophoto">📷</div>'}
                <div class="obs-nearby-body">
                  <div class="obs-nearby-name">${escapeHtml(n.displayName)}</div>
@@ -1345,12 +1890,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const contextBlock = (coexistingSection || soundsSection || envSection)
       ? `<section class="section obs-layer"><h2 class="obs-layer-title">写真と音声から拾えたこと</h2>${coexistingSection}${soundsSection}${envSection}</section>` : "";
 
-    // 表示優先順位:
-    //   1) hintBlock (いっしょに絞るためのメモ) — Hero 直下 全幅
-    //   2) layer2 (名前と分類) — 全幅
-    //   3) layer6 (この生きものについて — 豆知識) — ユーザー指示で ctaBlock より優先。全幅で目立たせる
-    //   4) layer3 (場所の物語) — 全幅
-    //   5) layer1 / contextBlock / ctaBlock は PC 2col で並ぶ
+    const subjectTemplates = bundle.subjects.map((subject) => `
+      <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject)}</template>
+      <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>`).join("");
     const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
     const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
     const reassessButtons: string[] = [];
@@ -1358,14 +1900,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reassessButtons.push(
         `<button type="button"
                  class="obs-reassess-btn"
-                 data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(request.params.id) + "/reassess"))}"
+                 data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(bundle.visitId) + "/reassess"))}"
                  data-loading-text="再判定中…（写真を Gemini に渡しています）">🔄 写真から再判定</button>`,
       );
       if (snapshot.videoAssets.length > 0) {
         reassessButtons.push(
           `<button type="button"
                    class="obs-reassess-btn"
-                   data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(request.params.id) + "/reassess-from-video"))}"
+                   data-reassess-endpoint="${escapeHtml(withBasePath(basePath, "/api/v1/observations/" + encodeURIComponent(bundle.visitId) + "/reassess-from-video"))}"
                    data-loading-text="再判定中…（動画サムネイルを Gemini に渡しています）">🎬 動画から再判定</button>`,
         );
       }
@@ -1376,6 +1918,109 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            <span class="obs-reassess-hint">${snapshot.videoAssets.length > 0 ? "写真か動画サムネイルを使って判定を更新できます（30秒ほど）。" : "写真から主役とまわりに写る生きものを拾い直します（30秒ほど）。"}</span>
            <span class="obs-reassess-status" data-reassess-status hidden></span>
          </section>`
+      : "";
+    const subjectRegionMap = Object.fromEntries(
+      bundle.subjects.map((subject) => [
+        subject.occurrenceId,
+        subject.regions.map((region) => ({
+          assetId: region.assetId,
+          rect: region.rect,
+          note: region.note,
+        })),
+      ]),
+    );
+    const switchScript = subjectCount > 1
+      ? `<script>(function(){
+           var currentSubjectId = ${JSON.stringify(bundle.canonicalSubjectId)};
+           var featuredSubjectId = ${JSON.stringify(featuredSubject.occurrenceId)};
+           var regionMap = ${JSON.stringify(subjectRegionMap)};
+           var links = Array.prototype.slice.call(document.querySelectorAll('[data-subject-switch][data-subject-id]'));
+           var hintRoot = document.querySelector('[data-obs-switch-hint]');
+           var taxonomyRoot = document.querySelector('[data-obs-switch-taxonomy]');
+           var currentBadge = document.querySelector('[data-current-subject-badge]');
+           var selectTemplate = function(attr, subjectId){
+             return document.querySelector('template[' + attr + '="' + subjectId.replace(/"/g, '\\"') + '"]');
+           };
+           var renderRegions = function(subjectId){
+             Array.prototype.slice.call(document.querySelectorAll('[data-region-layer]')).forEach(function(layer){ layer.innerHTML = ''; });
+             var regions = regionMap[subjectId] || [];
+             regions.forEach(function(region){
+               if (!region || !region.rect || !region.assetId) return;
+               var layer = document.querySelector('[data-region-layer="' + region.assetId.replace(/"/g, '\\"') + '"]');
+               if (!layer) return;
+               var box = document.createElement('span');
+               box.className = 'obs-region-box';
+               box.style.left = (region.rect.x * 100) + '%';
+               box.style.top = (region.rect.y * 100) + '%';
+               box.style.width = (region.rect.width * 100) + '%';
+               box.style.height = (region.rect.height * 100) + '%';
+               if (region.note) {
+                 var label = document.createElement('span');
+                 label.className = 'obs-region-box-label';
+                 label.textContent = region.note;
+                 box.appendChild(label);
+               }
+               layer.appendChild(box);
+             });
+             var regionSummary = document.querySelector('[data-region-summary]');
+             if (regionSummary) {
+               regionSummary.hidden = regions.length === 0;
+               regionSummary.textContent = regions.length > 0 ? 'AI が対象位置の参考矩形を重ねています。' : '';
+             }
+           };
+           var updateStateLabels = function(subjectId){
+             links.forEach(function(link){
+               var isCurrent = link.getAttribute('data-subject-id') === subjectId;
+               link.classList.toggle('is-current', isCurrent);
+               var state = link.querySelector('[data-subject-state]');
+               if (!state) return;
+               if (isCurrent) {
+                 state.hidden = false;
+                 state.textContent = '表示中';
+               } else if (link.getAttribute('data-subject-id') === featuredSubjectId) {
+                 state.hidden = false;
+                 state.textContent = '有力';
+               } else {
+                 state.hidden = true;
+                 state.textContent = '';
+               }
+             });
+             if (currentBadge) {
+               currentBadge.hidden = subjectId === featuredSubjectId;
+               var active = links.find(function(link){ return link.getAttribute('data-subject-id') === subjectId; });
+               var nameEl = active ? active.querySelector('.obs-focus-card-name') : null;
+               currentBadge.textContent = nameEl ? ('👀 表示中 ' + nameEl.textContent) : '';
+             }
+           };
+           var renderSubject = function(subjectId, push){
+             var hintTemplate = selectTemplate('data-subject-hint-template', subjectId);
+             var taxonomyTemplate = selectTemplate('data-subject-taxonomy-template', subjectId);
+             if (hintRoot && hintTemplate) hintRoot.innerHTML = hintTemplate.innerHTML;
+             if (taxonomyRoot && taxonomyTemplate) taxonomyRoot.innerHTML = taxonomyTemplate.innerHTML;
+             renderRegions(subjectId);
+             updateStateLabels(subjectId);
+             currentSubjectId = subjectId;
+             if (push) {
+               var active = links.find(function(link){ return link.getAttribute('data-subject-id') === subjectId; });
+               if (active && active.href) history.pushState({ subject: subjectId }, '', active.href);
+             }
+           };
+           links.forEach(function(link){
+             link.addEventListener('click', function(event){
+               if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+               event.preventDefault();
+               var subjectId = link.getAttribute('data-subject-id');
+               if (!subjectId || subjectId === currentSubjectId) return;
+               renderSubject(subjectId, true);
+             });
+           });
+           window.addEventListener('popstate', function(){
+             var params = new URLSearchParams(window.location.search);
+             var subjectId = params.get('subject');
+             if (subjectId) renderSubject(subjectId, false);
+           });
+           renderSubject(currentSubjectId, false);
+         })();</script>`
       : "";
     const reassessScript = isOwner
       ? `<script>(function(){
@@ -1411,7 +2056,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            });
           })();</script>`
       : "";
-    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}${reassessScript}`;
+    const detailBody = `${heroBlock}${reassessBlock}${hintBlock}${layersGrid}<div hidden>${subjectTemplates}</div>${switchScript}${reassessScript}`;
 
     reply.type("text/html; charset=utf-8");
     return layout(
@@ -1419,13 +2064,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       `${snapshot.displayName} | ikimon`,
       detailBody,
       "みつける",
-      {
-        eyebrow: "観察",
-        heading: escapeHtml(snapshot.displayName),
-        headingHtml: "",
-        lead: "",
-        actions: [],
-      },
+      undefined,
       OBSERVATION_DETAIL_STYLES,
     );
   });
@@ -1446,7 +2085,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         <span class="pill">${place.visitCount} 回</span>
       </div>`).join("");
     const observations = snapshot.recentObservations.map((item) => `
-      <a class="row" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">
+      <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
@@ -1494,7 +2133,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         <span class="pill">${place.visitCount} 回</span>
       </div>`).join("");
     const observations = snapshot.recentObservations.map((item) => `
-      <a class="row" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">
+      <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
@@ -1522,11 +2161,238 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     );
   });
 
+  app.get("/api/v1/specialist/me/authorities", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        reply.code(401);
+        return {
+          ok: false,
+          error: "session_required",
+        };
+      }
+
+      const access = await getReviewerAccessContext(session.userId, session.roleName, session.rankLabel);
+      return {
+        ok: true,
+        globalRole: access.globalRole,
+        hasSpecialistAccess: access.hasSpecialistAccess,
+        authorities: access.activeAuthorities,
+      };
+    } catch (error) {
+      reply.code(400);
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "specialist_authorities_lookup_failed",
+      };
+    }
+  });
+
+  app.get("/api/v1/authority/recommendations/me", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        reply.code(401);
+        return {
+          ok: false,
+          error: "session_required",
+        };
+      }
+
+      const recommendations = await listAuthorityRecommendationsForUser(session.userId);
+      return {
+        ok: true,
+        recommendations,
+      };
+    } catch (error) {
+      reply.code(400);
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "authority_recommendations_lookup_failed",
+      };
+    }
+  });
+
+  app.get("/api/v1/specialist/recommendations/pending", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const resolvedSession = await assertSpecialistSession(session, session?.userId ?? "");
+      const recommendations = await listPendingAuthorityRecommendationsForReviewer({
+        actorUserId: resolvedSession.userId,
+        actorRoleName: resolvedSession.roleName,
+        actorRankLabel: resolvedSession.rankLabel,
+      });
+      return {
+        ok: true,
+        recommendations,
+      };
+    } catch (error) {
+      reply.code(error instanceof Error && error.message === "session_required" ? 401 : 403);
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "specialist_recommendations_lookup_failed",
+      };
+    }
+  });
+
+  app.get("/api/v1/specialist/authorities/audit", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      assertSpecialistAdminSession(session, session?.userId ?? "");
+      const query = (typeof request.query === "object" && request.query ? request.query : {}) as Record<string, unknown>;
+      const rawAction = typeof query.action === "string" ? query.action.trim() : "";
+      const rawStatus = typeof query.status === "string" ? query.status.trim() : "";
+      const recommendations = await listReviewerAuthorityAudit({
+        subjectUserId: typeof query.subjectUserId === "string" ? query.subjectUserId.trim() : null,
+        scopeTaxonName: typeof query.scopeTaxonName === "string" ? query.scopeTaxonName.trim() : null,
+        action: (rawAction === "grant" || rawAction === "revoke" || rawAction === "update")
+          ? rawAction as ReviewerAuthorityAuditAction
+          : null,
+        status: rawStatus === "active" || rawStatus === "revoked" ? rawStatus : null,
+        limit: typeof query.limit === "string" ? Number(query.limit) : undefined,
+      });
+      return {
+        ok: true,
+        audit: recommendations,
+      };
+    } catch (error) {
+      reply.code(error instanceof Error && error.message === "session_required" ? 401 : 403);
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "specialist_authority_audit_lookup_failed",
+      };
+    }
+  });
+
+  app.get("/authority/recommendations", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const session = await getSessionFromCookie(request.headers.cookie);
+    if (!session) {
+      reply.code(401).type("text/html; charset=utf-8");
+      return layout(
+        basePath,
+        "Authority recommendations",
+        stateCard(
+          "サインイン",
+          "authority recommendation の申請にはサインインが必要です",
+          `<p style="margin:0 0 12px">自分の学習証跡を積み上げて、分類群ごとの authority 候補として申請できます。</p>
+          <div class="actions" style="margin-top:16px">
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
+          </div>`,
+        ),
+        "ホーム",
+      );
+    }
+
+    const recommendations = await listAuthorityRecommendationsForUser(session.userId);
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      "Authority recommendations | ikimon",
+      `<section class="section"><div class="card"><div class="card-body">
+          <div class="row">
+            <div>
+              <div class="eyebrow">Self claim</div>
+              <h2>authority 候補として申請する</h2>
+            </div>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
+          </div>
+          <p class="meta">観察会・ウェビナー・論文・図鑑/雑誌などの学習証跡を添えて、自分の分類群スコープ recommendation を作成します。証跡だけでは自動昇格せず、同じ分類群 authority 保有者または運営の解決が必要です。</p>
+          <form id="authority-recommendation-form" class="stack" style="margin-top:14px">
+            <label class="stack"><span style="font-weight:700">Scope taxon name</span><input name="scopeTaxonName" type="text" placeholder="タンポポ属 / Taraxacum" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+              <label class="stack"><span style="font-weight:700">Scope taxon rank</span><input name="scopeTaxonRank" type="text" value="genus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">Scope taxon key</span><input name="scopeTaxonKey" type="text" placeholder="optional" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            </div>
+            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+              <label class="stack"><span style="font-weight:700">Evidence type</span>
+                <select name="evidenceType" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8">
+                  <option value="">なし</option>
+                  <option value="field_event">観察会</option>
+                  <option value="webinar">ウェビナー</option>
+                  <option value="literature">論文・文献</option>
+                  <option value="reference_owned">図鑑・雑誌</option>
+                  <option value="other">その他</option>
+                </select>
+              </label>
+              <label class="stack"><span style="font-weight:700">Evidence title</span><input name="evidenceTitle" type="text" placeholder="たんぽぽ観察会 2026-04-10" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">Issuer</span><input name="evidenceIssuer" type="text" placeholder="浜松たんぽぽ会" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">URL</span><input name="evidenceUrl" type="url" placeholder="https://..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            </div>
+            <label class="stack"><span style="font-weight:700">Evidence notes</span><textarea name="evidenceNotes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="どこで学び、何をベースに見分けているか"></textarea></label>
+            <div class="actions">
+              <button class="btn" type="submit">申請する</button>
+              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の全文を読む</a>
+            </div>
+          </form>
+          <div id="authority-recommendation-status" class="list" style="margin-top:14px"><div class="row"><div>Ready.</div></div></div>
+        </div></div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">My recommendations</div><h2>自分の申請状況</h2></div></div>${renderAuthorityRecommendationCards(recommendations, { currentUserId: session.userId })}</section>
+      <script>
+        const basePath = ${JSON.stringify(basePath)};
+        const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
+        const form = document.getElementById('authority-recommendation-form');
+        const status = document.getElementById('authority-recommendation-status');
+        const setStatus = (html) => { status.innerHTML = html; };
+        const reloadSoon = () => { window.setTimeout(() => window.location.reload(), 700); };
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const data = new FormData(form);
+          const evidenceType = String(data.get('evidenceType') || '').trim();
+          const evidenceTitle = String(data.get('evidenceTitle') || '').trim();
+          const payload = {
+            sourceKind: 'self_claim',
+            scopeTaxonName: String(data.get('scopeTaxonName') || '').trim(),
+            scopeTaxonRank: String(data.get('scopeTaxonRank') || '').trim() || null,
+            scopeTaxonKey: String(data.get('scopeTaxonKey') || '').trim() || null,
+            evidence: evidenceType && evidenceTitle ? [{
+              evidenceType,
+              title: evidenceTitle,
+              issuerName: String(data.get('evidenceIssuer') || '').trim() || null,
+              url: String(data.get('evidenceUrl') || '').trim() || null,
+              notes: String(data.get('evidenceNotes') || '').trim() || null,
+            }] : [],
+          };
+          if (!payload.scopeTaxonName) {
+            setStatus('<div class="row"><div>scopeTaxonName は必須です。</div></div>');
+            return;
+          }
+          setStatus('<div class="row"><div>Submitting recommendation...</div></div>');
+          const response = await fetch(withBasePath('/api/v1/authority/recommendations'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const json = await response.json();
+          if (!response.ok || json.ok === false) {
+            setStatus('<div class="row"><div>Submit failed.<div class="meta">' + String(json.error || 'authority_recommendation_create_failed') + '</div></div></div>');
+            return;
+          }
+          setStatus('<div class="row"><div><strong>Recommendation created.</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
+          reloadSoon();
+        });
+      </script>`,
+      "ホーム",
+      {
+        eyebrow: "市民から専門候補へ",
+        heading: "Authority Recommendations",
+        headingHtml: "Authority Recommendations",
+        lead: "自分が任せられる分類群を申請し、証跡を積み上げるための画面です。",
+        actions: [
+          { href: "/learn/authority-policy", label: "制度の説明" },
+          { href: "/specialist/recommendations", label: "推薦待ちを見る", variant: "secondary" as const },
+        ],
+      },
+    );
+  });
+
   app.get("/specialist/id-workbench", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const session = await getSessionFromCookie(request.headers.cookie);
     try {
-      assertSpecialistSession(session, session?.userId ?? "");
+      await assertSpecialistSession(session, session?.userId ?? "");
     } catch {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
@@ -1534,9 +2400,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         "Specialist access required",
         stateCard(
           "Specialist only",
-          "この画面は専門家ロール専用です",
-          `<p style="margin:0 0 12px">レビュー queue と同定 workbench は、サインイン済みの専門家アカウントからのみ閲覧できます。</p>
+          "この画面は authority 付与済み reviewer 向けです",
+          `<p style="margin:0 0 12px">レビュー queue と同定 workbench は、Admin / Analyst か、分類群 authority を持つ reviewer だけが入れます。制度の考え方と authority 候補になる道は説明ページにまとめています。</p>
           <div class="actions" style="margin-top:16px">
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
           </div>`,
         ),
@@ -1548,15 +2415,33 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : "";
     const lane = requestedLane === "public-claim" || requestedLane === "expert-lane" ? requestedLane : "default";
     const reviewerUserId = session?.userId ?? "";
-    const snapshot = await getSpecialistSnapshot(lane);
+    const access = await getReviewerAccessContext(reviewerUserId, session?.roleName, session?.rankLabel);
+    const snapshot = await getSpecialistSnapshot(lane, {
+      userId: reviewerUserId,
+      roleName: session?.roleName,
+      rankLabel: session?.rankLabel,
+    });
     const laneTitle =
       lane === "public-claim"
-        ? "Public Claim Lane"
+        ? "公開主張レーン"
         : lane === "expert-lane"
-          ? "Expert Lane"
-          : "Identification Workbench";
+          ? "専門確認レーン"
+          : "同定ワークベンチ";
+    const laneLead =
+      lane === "public-claim"
+        ? "authority-backed review を最終公開主張に進めるレーンです。ここでの approve だけが research/public claim 昇格候補になります。"
+        : lane === "expert-lane"
+          ? "分類群 authority を持つ reviewer が、公開前の確定レビューを付与するレーンです。"
+          : "分類群 authority を持つ reviewer が、自分の担当スコープで同定を進める作業画面です。";
+    const scopeSummary = renderAuthoritySummaryChips(access.activeAuthorities);
+    const scopeMeta = access.canManageAll
+      ? `<div class="meta">Analyst / Admin は全分類群にアクセスできます。authority を付けると reviewer の担当範囲も絞れます。</div>`
+      : `<div class="meta">表示中の queue は、あなたに付与された分類群 authority に一致する観察だけです。</div>`;
+    const manageAuthorityAction = access.canManageAll
+      ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>`
+      : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>`;
     const rows = snapshot.queue.map((item) => `
-      <a class="row" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">
+      <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
@@ -1569,16 +2454,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return layout(
       basePath,
       `${laneTitle} | ikimon`,
-      `<section class="section"><div class="card"><div class="card-body">
+      `<section class="section"><div class="card is-soft"><div class="card-body stack">
+          <div class="row">
+            <div>
+              <div class="eyebrow">Current scope</div>
+              <h2 style="margin:6px 0 0">担当できる分類群</h2>
+            </div>
+            ${manageAuthorityAction}
+          </div>
+          ${scopeSummary}
+          ${scopeMeta}
+        </div></div></section>
+      <section class="section"><div class="card"><div class="card-body">
           <div class="eyebrow">Action</div>
           <h2>Minimal specialist action</h2>
           <form id="specialist-review-form" class="stack" style="margin-top:14px">
             <input name="actorUserId" type="hidden" value="${escapeHtml(reviewerUserId)}" />
-            <div class="row"><div><strong>Signed in reviewer</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "specialist")}</span></div>
+            <div class="row"><div><strong>Signed in reviewer</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "reviewer")}</span></div>
             <label class="stack"><span style="font-weight:700">Occurrence ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-            <label class="stack"><span style="font-weight:700">Proposed name</span><input name="proposedName" type="text" placeholder="Scientific or common name" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            <label class="stack"><span style="font-weight:700">Proposed name</span><input name="proposedName" type="text" placeholder="Scientific or common name" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
             <label class="stack"><span style="font-weight:700">Proposed rank</span><input name="proposedRank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-            <label class="stack"><span style="font-weight:700">Note</span><textarea name="notes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8"></textarea></label>
+            <label class="stack"><span style="font-weight:700">Note</span><textarea name="notes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="どの根拠でこの同定にしたか"></textarea></label>
             <div class="actions">
               <button class="btn" type="button" data-decision="approve">Approve</button>
               <button class="btn secondary" type="button" data-decision="reject">Reject</button>
@@ -1608,12 +2504,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const data = new FormData(form);
             const occurrenceId = String(data.get('occurrenceId') || '');
             const actorUserId = String(data.get('actorUserId') || '');
-            const proposedName = String(data.get('proposedName') || '');
+            const proposedName = String(data.get('proposedName') || '').trim();
             const proposedRank = String(data.get('proposedRank') || '');
             const notes = String(data.get('notes') || '');
             const decision = button.getAttribute('data-decision');
             if (!occurrenceId || !actorUserId) {
               setStatus('<div class="row"><div>occurrenceId と actorUserId は必須です。</div></div>');
+              return;
+            }
+            if (decision === 'approve' && !proposedName) {
+              setStatus('<div class="row"><div>Approve には proposedName が必要です。</div></div>');
               return;
             }
             setStatus('<div class="row"><div>Submitting specialist review...</div></div>');
@@ -1627,7 +2527,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               setStatus('<div class="row"><div>Submit failed.<div class="meta">' + String(json.error || 'specialist_review_failed') + '</div></div></div>');
               return;
             }
-            setStatus('<div class="row"><div><strong>Review saved.</strong><div class="meta">' + String(json.decision || decision) + ' · ' + String(json.occurrenceId || occurrenceId) + '</div></div></div>');
+            const scope = json.authorityScope && json.authorityScope.scopeTaxonName
+              ? ' · ' + String(json.authorityScope.scopeTaxonName)
+              : '';
+            setStatus('<div class="row"><div><strong>Review saved.</strong><div class="meta">' + String(json.decision || decision) + ' · ' + String(json.reviewClass || 'plain_review') + scope + ' · ' + String(json.occurrenceId || occurrenceId) + '</div></div></div>');
           });
         });
       </script>`,
@@ -1636,10 +2539,471 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         eyebrow: "専門家向け",
         heading: laneTitle,
         headingHtml: escapeHtml(laneTitle),
-        lead: "観察の正式な同定や確認を行う、専門家向けの作業画面です。一般の方にはこの画面は表示されません。",
+        lead: laneLead,
         actions: [
+          { href: "/learn/authority-policy", label: "制度の説明" },
           { href: "/specialist/id-workbench?lane=public-claim", label: "公開同定" },
-          { href: "/specialist/id-workbench?lane=expert-lane", label: "Expert lane", variant: "secondary" as const },
+          { href: "/specialist/id-workbench?lane=expert-lane", label: "専門確認", variant: "secondary" as const },
+          { href: "/specialist/review-queue", label: "レビュー待ち", variant: "secondary" as const },
+        ],
+      },
+    );
+  });
+
+  app.get("/specialist/recommendations", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const session = await getSessionFromCookie(request.headers.cookie);
+    let resolvedSession;
+    try {
+      resolvedSession = await assertSpecialistSession(session, session?.userId ?? "");
+    } catch {
+      reply.code(403).type("text/html; charset=utf-8");
+      return layout(
+        basePath,
+        "Specialist access required",
+        stateCard(
+          "Specialist only",
+          "この画面は authority 付与済み reviewer 向けです",
+          `<p style="margin:0 0 12px">pending recommendation を解決できるのは、同じ分類群 scope の authority 保有者、または運営権限を持つアカウントです。</p>
+          <div class="actions" style="margin-top:16px">
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
+          </div>`,
+        ),
+        "ホーム",
+      );
+    }
+
+    const access = await getReviewerAccessContext(
+      resolvedSession.userId,
+      resolvedSession.roleName,
+      resolvedSession.rankLabel,
+    );
+    const pendingRecommendations = await listPendingAuthorityRecommendationsForReviewer({
+      actorUserId: resolvedSession.userId,
+      actorRoleName: resolvedSession.roleName,
+      actorRankLabel: resolvedSession.rankLabel,
+    });
+
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      "Specialist recommendations | ikimon",
+      `<section class="section"><div class="card is-soft"><div class="card-body stack">
+          <div class="row">
+            <div>
+              <div class="eyebrow">Current scope</div>
+              <h2 style="margin:6px 0 0">解決できる分類群</h2>
+            </div>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
+          </div>
+          ${renderAuthoritySummaryChips(access.activeAuthorities)}
+          <div class="meta">${access.canManageAll ? "Admin / Analyst は全 pending recommendation を横断で確認できます。" : "自分の authority scope に一致する pending recommendation だけが表示されます。"}</div>
+        </div></div></section>
+      ${access.canManageAll
+        ? `<section class="section"><div class="card"><div class="card-body">
+            <div class="eyebrow">Ops registered</div>
+            <h2>運営が pending recommendation を登録する</h2>
+            <form id="ops-recommendation-form" class="stack" style="margin-top:14px">
+              <label class="stack"><span style="font-weight:700">Subject user ID</span><input name="subjectUserId" type="text" placeholder="reviewer-user-id" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+              <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+                <label class="stack"><span style="font-weight:700">Scope taxon name</span><input name="scopeTaxonName" type="text" placeholder="タンポポ属 / Taraxacum" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+                <label class="stack"><span style="font-weight:700">Scope taxon rank</span><input name="scopeTaxonRank" type="text" value="genus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+                <label class="stack"><span style="font-weight:700">Scope taxon key</span><input name="scopeTaxonKey" type="text" placeholder="optional" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              </div>
+              <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+                <label class="stack"><span style="font-weight:700">Evidence type</span>
+                  <select name="evidenceType" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8">
+                    <option value="">なし</option>
+                    <option value="field_event">観察会</option>
+                    <option value="webinar">ウェビナー</option>
+                    <option value="literature">論文・文献</option>
+                    <option value="reference_owned">図鑑・雑誌</option>
+                    <option value="other">その他</option>
+                  </select>
+                </label>
+                <label class="stack"><span style="font-weight:700">Evidence title</span><input name="evidenceTitle" type="text" placeholder="たんぽぽ観察会 2026-04-10" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+                <label class="stack"><span style="font-weight:700">Issuer</span><input name="evidenceIssuer" type="text" placeholder="浜松たんぽぽ会" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+                <label class="stack"><span style="font-weight:700">URL</span><input name="evidenceUrl" type="url" placeholder="https://..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              </div>
+              <label class="stack"><span style="font-weight:700">Evidence notes</span><textarea name="evidenceNotes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="参加履歴・読んだ文献・保有資料など"></textarea></label>
+              <div class="actions">
+                <button class="btn" type="submit">Pending 登録</button>
+                <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>
+              </div>
+            </form>
+          </div></div></section>`
+        : ""}
+      <section class="section"><div class="section-header"><div><div class="eyebrow">Pending queue</div><h2>解決待ち recommendation</h2></div></div>${renderAuthorityRecommendationCards(pendingRecommendations, { showGrantActions: true, canReject: access.canManageAll })}</section>
+      <div id="specialist-recommendation-status" class="section"><div class="list"><div class="row"><div>Ready.</div></div></div></div>
+      <script>
+        const basePath = ${JSON.stringify(basePath)};
+        const actorUserId = ${JSON.stringify(resolvedSession.userId)};
+        const canReject = ${JSON.stringify(access.canManageAll)};
+        const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
+        const statusHost = document.getElementById('specialist-recommendation-status');
+        const setStatus = (html) => { statusHost.innerHTML = '<div class="list">' + html + '</div>'; };
+        const reloadSoon = () => { window.setTimeout(() => window.location.reload(), 700); };
+        document.querySelectorAll('[data-grant-recommendation]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const recommendationId = button.getAttribute('data-grant-recommendation');
+            const resolutionNote = window.prompt('Grant note (optional)', '') || null;
+            if (!recommendationId) return;
+            setStatus('<div class="row"><div>Granting recommendation...</div></div>');
+            const response = await fetch(withBasePath('/api/v1/specialist/recommendations/' + encodeURIComponent(recommendationId) + '/grant'), {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json', accept: 'application/json' },
+              body: JSON.stringify({ actorUserId, resolutionNote }),
+            });
+            const json = await response.json();
+            if (!response.ok || json.ok === false) {
+              setStatus('<div class="row"><div>Grant failed.<div class="meta">' + String(json.error || 'authority_recommendation_grant_failed') + '</div></div></div>');
+              return;
+            }
+            setStatus('<div class="row"><div><strong>Recommendation granted.</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
+            reloadSoon();
+          });
+        });
+        if (canReject) {
+          document.querySelectorAll('[data-reject-recommendation]').forEach((button) => {
+            button.addEventListener('click', async () => {
+              const recommendationId = button.getAttribute('data-reject-recommendation');
+              const resolutionNote = window.prompt('Reject reason を入力してください', 'needs more evidence');
+              if (!recommendationId || !resolutionNote) return;
+              setStatus('<div class="row"><div>Rejecting recommendation...</div></div>');
+              const response = await fetch(withBasePath('/api/v1/specialist/recommendations/' + encodeURIComponent(recommendationId) + '/reject'), {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'content-type': 'application/json', accept: 'application/json' },
+                body: JSON.stringify({ resolutionNote }),
+              });
+              const json = await response.json();
+              if (!response.ok || json.ok === false) {
+                setStatus('<div class="row"><div>Reject failed.<div class="meta">' + String(json.error || 'authority_recommendation_reject_failed') + '</div></div></div>');
+                return;
+              }
+              setStatus('<div class="row"><div><strong>Recommendation rejected.</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
+              reloadSoon();
+            });
+          });
+        }
+        const opsForm = document.getElementById('ops-recommendation-form');
+        if (opsForm) {
+          opsForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const data = new FormData(opsForm);
+            const evidenceType = String(data.get('evidenceType') || '').trim();
+            const evidenceTitle = String(data.get('evidenceTitle') || '').trim();
+            const payload = {
+              sourceKind: 'ops_registered',
+              subjectUserId: String(data.get('subjectUserId') || '').trim(),
+              scopeTaxonName: String(data.get('scopeTaxonName') || '').trim(),
+              scopeTaxonRank: String(data.get('scopeTaxonRank') || '').trim() || null,
+              scopeTaxonKey: String(data.get('scopeTaxonKey') || '').trim() || null,
+              evidence: evidenceType && evidenceTitle ? [{
+                evidenceType,
+                title: evidenceTitle,
+                issuerName: String(data.get('evidenceIssuer') || '').trim() || null,
+                url: String(data.get('evidenceUrl') || '').trim() || null,
+                notes: String(data.get('evidenceNotes') || '').trim() || null,
+              }] : [],
+            };
+            if (!payload.subjectUserId || !payload.scopeTaxonName) {
+              setStatus('<div class="row"><div>subjectUserId と scopeTaxonName は必須です。</div></div>');
+              return;
+            }
+            setStatus('<div class="row"><div>Creating pending recommendation...</div></div>');
+            const response = await fetch(withBasePath('/api/v1/authority/recommendations'), {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json', accept: 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            const json = await response.json();
+            if (!response.ok || json.ok === false) {
+              setStatus('<div class="row"><div>Create failed.<div class="meta">' + String(json.error || 'authority_recommendation_create_failed') + '</div></div></div>');
+              return;
+            }
+            setStatus('<div class="row"><div><strong>Pending recommendation created.</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
+            reloadSoon();
+          });
+        }
+      </script>`,
+      "ホーム",
+      {
+        eyebrow: "推薦ワークフロー",
+        heading: "Specialist Recommendations",
+        headingHtml: "Specialist Recommendations",
+        lead: "分類群 authority 候補を pending で受け取り、同じ scope の reviewer が grant するための画面です。",
+        actions: [
+          { href: "/learn/authority-policy", label: "制度の説明" },
+          { href: "/specialist/id-workbench?lane=expert-lane", label: "専門確認", variant: "secondary" as const },
+          { href: "/specialist/authority-admin", label: "Authority admin", variant: "secondary" as const },
+        ],
+      },
+    );
+  });
+
+  app.get("/specialist/authority-audit", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const session = await getSessionFromCookie(request.headers.cookie);
+    try {
+      assertSpecialistAdminSession(session, session?.userId ?? "");
+    } catch {
+      reply.code(403).type("text/html; charset=utf-8");
+      return layout(
+        basePath,
+        "Authority audit required",
+        stateCard(
+          "Admin only",
+          "authority 監査ログは Analyst / Admin 専用です",
+          `<p style="margin:0 0 12px">grant / revoke / update の痕跡は一般公開せず、運営が追跡できる面に閉じています。</p>
+          <div class="actions" style="margin-top:16px">
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin へ戻る</a>
+          </div>`,
+        ),
+        "ホーム",
+      );
+    }
+
+    const query = (typeof request.query === "object" && request.query ? request.query : {}) as Record<string, unknown>;
+    const subjectUserId = typeof query.subjectUserId === "string" ? query.subjectUserId.trim() : "";
+    const scopeTaxonName = typeof query.scopeTaxonName === "string" ? query.scopeTaxonName.trim() : "";
+    const action = typeof query.action === "string" ? query.action.trim() : "";
+    const status = typeof query.status === "string" ? query.status.trim() : "";
+    const audit = await listReviewerAuthorityAudit({
+      subjectUserId: subjectUserId || null,
+      scopeTaxonName: scopeTaxonName || null,
+      action: action === "grant" || action === "revoke" || action === "update" ? action as ReviewerAuthorityAuditAction : null,
+      status: status === "active" || status === "revoked" ? status : null,
+      limit: typeof query.limit === "string" ? Number(query.limit) : 60,
+    });
+
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      "Authority audit | ikimon",
+      `<section class="section"><div class="card"><div class="card-body">
+          <div class="row">
+            <div>
+              <div class="eyebrow">Filters</div>
+              <h2>grant / revoke / update を追う</h2>
+            </div>
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
+          </div>
+          <form class="stack" method="get" action="${escapeHtml(withBasePath(basePath, "/specialist/authority-audit"))}" style="margin-top:14px">
+            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+              <label class="stack"><span style="font-weight:700">Subject user ID</span><input name="subjectUserId" type="text" value="${escapeHtml(subjectUserId)}" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">Scope taxon name</span><input name="scopeTaxonName" type="text" value="${escapeHtml(scopeTaxonName)}" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">Action</span>
+                <select name="action" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8">
+                  <option value="">all</option>
+                  <option value="grant"${action === "grant" ? " selected" : ""}>grant</option>
+                  <option value="update"${action === "update" ? " selected" : ""}>update</option>
+                  <option value="revoke"${action === "revoke" ? " selected" : ""}>revoke</option>
+                </select>
+              </label>
+              <label class="stack"><span style="font-weight:700">Status</span>
+                <select name="status" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8">
+                  <option value="">all</option>
+                  <option value="active"${status === "active" ? " selected" : ""}>active</option>
+                  <option value="revoked"${status === "revoked" ? " selected" : ""}>revoked</option>
+                </select>
+              </label>
+            </div>
+            <div class="actions">
+              <button class="btn" type="submit">絞り込む</button>
+              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>
+            </div>
+          </form>
+        </div></div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">Recent-first</div><h2>authority audit</h2></div></div>${renderAuthorityAuditCards(audit)}</section>`,
+      "ホーム",
+      {
+        eyebrow: "運営の追跡面",
+        heading: "Authority Audit",
+        headingHtml: "Authority Audit",
+        lead: "誰が誰にどの根拠で authority を付与・更新・取消したかを、recent-first で確認する画面です。",
+        actions: [
+          { href: "/specialist/authority-admin", label: "Authority admin" },
+          { href: "/specialist/recommendations", label: "推薦待ち", variant: "secondary" as const },
+          { href: "/learn/authority-policy", label: "制度の説明", variant: "secondary" as const },
+        ],
+      },
+    );
+  });
+
+  app.get("/specialist/authority-admin", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const session = await getSessionFromCookie(request.headers.cookie);
+    try {
+      assertSpecialistAdminSession(session, session?.userId ?? "");
+    } catch {
+      reply.code(403).type("text/html; charset=utf-8");
+      return layout(
+        basePath,
+        "Authority admin required",
+        stateCard(
+          "Admin only",
+          "authority 管理は Analyst / Admin 専用です",
+          `<p style="margin:0 0 12px">grant / revoke / evidence 追加は運営権限を持つアカウントだけが実行できます。制度の考え方は公開ページにまとめています。</p>
+          <div class="actions" style="margin-top:16px">
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?lane=expert-lane"))}">専門確認へ戻る</a>
+          </div>`,
+        ),
+        "ホーム",
+      );
+    }
+
+    const authorities = await listRecentReviewerAuthorities(24);
+
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      "Authority Admin | ikimon",
+      `<section class="section"><div class="card"><div class="card-body">
+          <div class="eyebrow">Grant authority</div>
+          <h2>分類群 authority を付与する</h2>
+          <form id="authority-grant-form" class="stack" style="margin-top:14px">
+            <label class="stack"><span style="font-weight:700">Subject user ID</span><input name="subjectUserId" type="text" placeholder="reviewer-user-id" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <label class="stack"><span style="font-weight:700">Scope taxon name</span><input name="scopeTaxonName" type="text" placeholder="タンポポ属 / Taraxacum" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <label class="stack"><span style="font-weight:700">Scope taxon rank</span><input name="scopeTaxonRank" type="text" value="genus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            <label class="stack"><span style="font-weight:700">Scope taxon key</span><input name="scopeTaxonKey" type="text" placeholder="optional" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            <label class="stack"><span style="font-weight:700">Reason</span><textarea name="reason" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="例: たんぽぽ観察会で見分け方実習を完了"></textarea></label>
+            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+              <label class="stack"><span style="font-weight:700">Evidence type</span>
+                <select name="evidenceType" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8">
+                  <option value="">なし</option>
+                  <option value="field_event">観察会</option>
+                  <option value="webinar">ウェビナー</option>
+                  <option value="literature">論文・文献</option>
+                  <option value="reference_owned">図鑑・雑誌</option>
+                  <option value="other">その他</option>
+                </select>
+              </label>
+              <label class="stack"><span style="font-weight:700">Evidence title</span><input name="evidenceTitle" type="text" placeholder="たんぽぽ観察会 2026-04-01" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">Issuer</span><input name="evidenceIssuer" type="text" placeholder="浜松たんぽぽ会" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">URL</span><input name="evidenceUrl" type="url" placeholder="https://..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            </div>
+            <label class="stack"><span style="font-weight:700">Evidence notes</span><textarea name="evidenceNotes" rows="2" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="アフィリエイト URL などは sourcePayload 側に後から追記可能"></textarea></label>
+            <div class="actions">
+              <button class="btn" type="submit">Grant</button>
+              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-audit"))}">Audit を見る</a>
+              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?lane=expert-lane"))}">専門確認へ戻る</a>
+            </div>
+          </form>
+          <div id="authority-admin-status" class="list" style="margin-top:14px"><div class="row"><div>Ready.</div></div></div>
+        </div></div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">Recent authorities</div><h2>最近の grant / revoke</h2></div></div>${renderAuthorityCards(authorities)}</section>
+      <script>
+        const basePath = ${JSON.stringify(basePath)};
+        const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
+        const form = document.getElementById('authority-grant-form');
+        const status = document.getElementById('authority-admin-status');
+        const setStatus = (html) => { status.innerHTML = html; };
+        const reloadSoon = () => { window.setTimeout(() => window.location.reload(), 700); };
+
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const data = new FormData(form);
+          const evidenceType = String(data.get('evidenceType') || '').trim();
+          const evidenceTitle = String(data.get('evidenceTitle') || '').trim();
+          const payload = {
+            subjectUserId: String(data.get('subjectUserId') || '').trim(),
+            scopeTaxonName: String(data.get('scopeTaxonName') || '').trim(),
+            scopeTaxonRank: String(data.get('scopeTaxonRank') || '').trim() || null,
+            scopeTaxonKey: String(data.get('scopeTaxonKey') || '').trim() || null,
+            reason: String(data.get('reason') || '').trim() || null,
+            evidence: evidenceType && evidenceTitle ? [{
+              evidenceType,
+              title: evidenceTitle,
+              issuerName: String(data.get('evidenceIssuer') || '').trim() || null,
+              url: String(data.get('evidenceUrl') || '').trim() || null,
+              notes: String(data.get('evidenceNotes') || '').trim() || null,
+            }] : [],
+          };
+          if (!payload.subjectUserId || !payload.scopeTaxonName) {
+            setStatus('<div class="row"><div>subjectUserId と scopeTaxonName は必須です。</div></div>');
+            return;
+          }
+          setStatus('<div class="row"><div>Granting authority...</div></div>');
+          const response = await fetch(withBasePath('/api/v1/specialist/authorities/grant'), {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const json = await response.json();
+          if (!response.ok || json.ok === false) {
+            setStatus('<div class="row"><div>Grant failed.<div class="meta">' + String(json.error || 'specialist_authority_grant_failed') + '</div></div></div>');
+            return;
+          }
+          setStatus('<div class="row"><div><strong>Authority granted.</strong><div class="meta">' + String(json.authority && json.authority.scopeTaxonName || '') + ' → ' + String(json.authority && json.authority.subjectUserId || '') + '</div></div></div>');
+          reloadSoon();
+        });
+
+        document.querySelectorAll('[data-revoke-authority]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const authorityId = button.getAttribute('data-revoke-authority');
+            const reason = window.prompt('Revoke reason を入力してください', 'scope review completed');
+            if (!authorityId || !reason) return;
+            setStatus('<div class="row"><div>Revoking authority...</div></div>');
+            const response = await fetch(withBasePath('/api/v1/specialist/authorities/' + encodeURIComponent(authorityId) + '/revoke'), {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json', accept: 'application/json' },
+              body: JSON.stringify({ reason }),
+            });
+            const json = await response.json();
+            if (!response.ok || json.ok === false) {
+              setStatus('<div class="row"><div>Revoke failed.<div class="meta">' + String(json.error || 'specialist_authority_revoke_failed') + '</div></div></div>');
+              return;
+            }
+            setStatus('<div class="row"><div><strong>Authority revoked.</strong><div class="meta">' + String(json.authority && json.authority.scopeTaxonName || '') + '</div></div></div>');
+            reloadSoon();
+          });
+        });
+
+        document.querySelectorAll('[data-add-evidence]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const authorityId = button.getAttribute('data-add-evidence');
+            const evidenceType = window.prompt('Evidence type: field_event / webinar / literature / reference_owned / other', 'field_event');
+            if (!authorityId || !evidenceType) return;
+            const title = window.prompt('Evidence title', '');
+            if (!title) return;
+            const issuerName = window.prompt('Issuer name (optional)', '') || null;
+            const url = window.prompt('URL (optional)', '') || null;
+            const notes = window.prompt('Notes (optional)', '') || null;
+            setStatus('<div class="row"><div>Adding evidence...</div></div>');
+            const response = await fetch(withBasePath('/api/v1/specialist/authorities/' + encodeURIComponent(authorityId) + '/evidence'), {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json', accept: 'application/json' },
+              body: JSON.stringify({ evidenceType, title, issuerName, url, notes }),
+            });
+            const json = await response.json();
+            if (!response.ok || json.ok === false) {
+              setStatus('<div class="row"><div>Evidence add failed.<div class="meta">' + String(json.error || 'specialist_authority_evidence_failed') + '</div></div></div>');
+              return;
+            }
+            setStatus('<div class="row"><div><strong>Evidence added.</strong><div class="meta">' + String(json.authority && json.authority.scopeTaxonName || '') + '</div></div></div>');
+            reloadSoon();
+          });
+        });
+      </script>`,
+      "ホーム",
+      {
+        eyebrow: "運営者向け",
+        heading: "Authority Admin",
+        headingHtml: "Authority Admin",
+        lead: "分類群ごとの reviewer authority を付与・取消し、根拠 evidence を追記する最小管理画面です。",
+        actions: [
+          { href: "/learn/authority-policy", label: "制度の説明" },
+          { href: "/specialist/authority-audit", label: "Audit", variant: "secondary" as const },
+          { href: "/specialist/id-workbench?lane=expert-lane", label: "専門確認へ戻る" },
           { href: "/specialist/review-queue", label: "レビュー待ち", variant: "secondary" as const },
         ],
       },
@@ -1650,7 +3014,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const session = await getSessionFromCookie(request.headers.cookie);
     try {
-      assertSpecialistSession(session, session?.userId ?? "");
+      await assertSpecialistSession(session, session?.userId ?? "");
     } catch {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
@@ -1658,19 +3022,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         "Specialist access required",
         stateCard(
           "Specialist only",
-          "この画面は専門家ロール専用です",
-          `<p style="margin:0 0 12px">レビュー queue は一般公開しません。</p>
+          "この画面は authority 付与済み reviewer 向けです",
+          `<p style="margin:0 0 12px">review-queue は broad triage 面ですが、閲覧できるのは Admin / Analyst か、分類群 authority を持つ reviewer だけです。</p>
           <div class="actions" style="margin-top:16px">
+            <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
           </div>`,
         ),
         "ホーム",
       );
     }
-    const snapshot = await getSpecialistSnapshot("review-queue");
     const reviewerUserId = session?.userId ?? "";
+    const access = await getReviewerAccessContext(reviewerUserId, session?.roleName, session?.rankLabel);
+    const snapshot = await getSpecialistSnapshot("review-queue", {
+      userId: reviewerUserId,
+      roleName: session?.roleName,
+      rankLabel: session?.rankLabel,
+    });
+    const scopeSummary = renderAuthoritySummaryChips(access.activeAuthorities);
+    const scopeMeta = access.canManageAll
+      ? `<div class="meta">Analyst / Admin は全分類群の broad triage を確認できます。</div>`
+      : `<div class="meta">review-queue でも、あなたの authority scope に一致する観察だけが表示されます。</div>`;
+    const manageAuthorityAction = access.canManageAll
+      ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>`
+      : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>`;
     const rows = snapshot.queue.map((item) => `
-      <a class="row" href="${escapeHtml(withBasePath(basePath, `/observations/${encodeURIComponent(item.occurrenceId)}`))}">
+      <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
@@ -1683,14 +3060,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     return layout(
       basePath,
       "Review Queue | ikimon",
-      `<section class="section"><div class="card"><div class="card-body">
+      `<section class="section"><div class="card is-soft"><div class="card-body stack">
+          <div class="row">
+            <div>
+              <div class="eyebrow">Current scope</div>
+              <h2 style="margin:6px 0 0">この queue で見える分類群</h2>
+            </div>
+            ${manageAuthorityAction}
+          </div>
+          ${scopeSummary}
+          ${scopeMeta}
+        </div></div></section>
+      <section class="section"><div class="card"><div class="card-body">
           <div class="eyebrow">Action</div>
           <h2>Minimal review action</h2>
           <form id="review-queue-form" class="stack" style="margin-top:14px">
             <input name="actorUserId" type="hidden" value="${escapeHtml(reviewerUserId)}" />
-            <div class="row"><div><strong>Signed in reviewer</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "specialist")}</span></div>
+            <div class="row"><div><strong>Signed in reviewer</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "reviewer")}</span></div>
             <label class="stack"><span style="font-weight:700">Occurrence ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-            <label class="stack"><span style="font-weight:700">Note</span><textarea name="notes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8"></textarea></label>
+            <label class="stack"><span style="font-weight:700">Proposed name</span><input name="proposedName" type="text" placeholder="Approve 時に必須" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            <label class="stack"><span style="font-weight:700">Proposed rank</span><input name="proposedRank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            <label class="stack"><span style="font-weight:700">Note</span><textarea name="notes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="triage メモや差し戻し理由"></textarea></label>
             <div class="actions">
               <button class="btn" type="button" data-decision="approve">Approve</button>
               <button class="btn secondary" type="button" data-decision="reject">Reject</button>
@@ -1716,24 +3106,33 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const data = new FormData(form);
             const occurrenceId = String(data.get('occurrenceId') || '');
             const actorUserId = String(data.get('actorUserId') || '');
+            const proposedName = String(data.get('proposedName') || '').trim();
+            const proposedRank = String(data.get('proposedRank') || '');
             const notes = String(data.get('notes') || '');
             const decision = button.getAttribute('data-decision');
             if (!occurrenceId || !actorUserId) {
               setStatus('<div class="row"><div>occurrenceId と actorUserId は必須です。</div></div>');
               return;
             }
+            if (decision === 'approve' && !proposedName) {
+              setStatus('<div class="row"><div>Approve には proposedName が必要です。</div></div>');
+              return;
+            }
             setStatus('<div class="row"><div>Submitting review action...</div></div>');
             const response = await fetch(withBasePath('/api/v1/specialist/occurrences/' + encodeURIComponent(occurrenceId) + '/review'), {
               method: 'POST',
               headers: { 'content-type': 'application/json', accept: 'application/json' },
-              body: JSON.stringify({ actorUserId, lane: 'review-queue', decision, notes }),
+              body: JSON.stringify({ actorUserId, lane: 'review-queue', decision, proposedName, proposedRank, notes }),
             });
             const json = await response.json();
             if (!response.ok || json.ok === false) {
               setStatus('<div class="row"><div>Submit failed.<div class="meta">' + String(json.error || 'specialist_review_failed') + '</div></div></div>');
               return;
             }
-            setStatus('<div class="row"><div><strong>Review saved.</strong><div class="meta">' + String(json.decision || decision) + ' · ' + String(json.occurrenceId || occurrenceId) + '</div></div></div>');
+            const scope = json.authorityScope && json.authorityScope.scopeTaxonName
+              ? ' · ' + String(json.authorityScope.scopeTaxonName)
+              : '';
+            setStatus('<div class="row"><div><strong>Review saved.</strong><div class="meta">' + String(json.decision || decision) + ' · ' + String(json.reviewClass || 'plain_review') + scope + ' · ' + String(json.occurrenceId || occurrenceId) + '</div></div></div>');
           });
         });
       </script>`,
@@ -1742,10 +3141,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         eyebrow: "専門家向け",
         heading: "レビュー待ちの観察",
         headingHtml: "レビュー待ちの観察",
-        lead: "公開同定に進める前に、専門家が内容を確認するための画面です。",
+        lead: "broad triage 用の queue です。authority scope に一致する観察だけを開き、approve した内容は plain / authority-backed / admin-override として保存されます。",
         actions: [
-          { href: "/specialist/id-workbench?lane=expert-lane", label: "Expert lane" },
+          { href: "/learn/authority-policy", label: "制度の説明" },
+          { href: "/specialist/id-workbench?lane=expert-lane", label: "専門確認" },
           { href: "/specialist/id-workbench?lane=public-claim", label: "公開同定", variant: "secondary" as const },
+          { href: "/specialist/recommendations", label: "推薦待ち", variant: "secondary" as const },
         ],
       },
     );
@@ -1955,6 +3356,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       title: lang === "ja" ? "探索マップ | ikimon" : "Explore Map | ikimon",
       activeNav: lang === "ja" ? "ホーム" : "Home",
       lang,
+      shellClassName: "shell-bleed shell-map",
       extraStyles: MAP_EXPLORER_STYLES,
       // Deliberately no hero: a map page should land on the map, not on
       // a wall of text. The explorer component carries a tight eyebrow

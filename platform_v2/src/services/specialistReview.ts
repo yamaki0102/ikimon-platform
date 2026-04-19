@@ -1,4 +1,13 @@
 import { getPool } from "../db.js";
+import { ensureLegacyAiRunsForVisit, getLatestObservationAiRunForVisit } from "./observationAiRuns.js";
+import { deriveVisitDisplayState, upsertVisitDisplayState } from "./visitDisplayState.js";
+import { getVisitSubjectSummaries } from "./visitSubjects.js";
+import {
+  resolveAuthorityForReview,
+  type ReviewerAuthorityReviewClass,
+  type ReviewerAuthoritySnapshot,
+} from "./reviewerAuthorities.js";
+import { tryPromoteToTier3 } from "./tierPromotion.js";
 
 export type SpecialistDecision = "approve" | "reject" | "note";
 export type SpecialistLane = "default" | "public-claim" | "expert-lane" | "review-queue";
@@ -6,6 +15,8 @@ export type SpecialistLane = "default" | "public-claim" | "expert-lane" | "revie
 export type SpecialistReviewInput = {
   occurrenceId: string;
   actorUserId: string;
+  actorRoleName?: string | null;
+  actorRankLabel?: string | null;
   lane: SpecialistLane;
   decision: SpecialistDecision;
   proposedName?: string | null;
@@ -24,20 +35,48 @@ export async function recordSpecialistReview(input: SpecialistReviewInput) {
     throw new Error("proposedName is required for approve");
   }
 
+  const normalizedProposedName = (input.proposedName ?? "").trim() || null;
+  const normalizedProposedRank = (input.proposedRank ?? "").trim() || null;
+  const normalizedNotes = (input.notes ?? "").trim() || null;
+  const needsAuthority =
+    input.decision === "approve" && (input.lane === "expert-lane" || input.lane === "public-claim");
+
+  let authorityMatched = false;
+  let authorityScope: ReviewerAuthoritySnapshot | null = null;
+  let reviewClass: ReviewerAuthorityReviewClass = "plain_review";
+
+  if (input.decision === "approve" && normalizedProposedName) {
+    const resolution = await resolveAuthorityForReview({
+      actorUserId: input.actorUserId,
+      actorRoleName: input.actorRoleName,
+      actorRankLabel: input.actorRankLabel,
+      proposedName: normalizedProposedName,
+    });
+    authorityMatched = resolution.authorityMatched;
+    authorityScope = resolution.authorityScope;
+    reviewClass = resolution.reviewClass;
+  }
+
+  if (needsAuthority && reviewClass === "plain_review") {
+    throw new Error("specialist_authority_required");
+  }
+
   const pool = getPool();
   const client = await pool.connect();
   try {
     await client.query("begin");
 
-    const occurrenceResult = await client.query<{ occurrence_id: string }>(
+    const occurrenceResult = await client.query<{ occurrence_id: string; visit_id: string }>(
       `select occurrence_id
+              , visit_id
        from occurrences
        where occurrence_id = $1
        limit 1`,
       [input.occurrenceId],
     );
     const occurrenceId = occurrenceResult.rows[0]?.occurrence_id;
-    if (!occurrenceId) {
+    const visitId = occurrenceResult.rows[0]?.visit_id;
+    if (!occurrenceId || !visitId) {
       throw new Error("occurrence_not_found");
     }
 
@@ -45,9 +84,14 @@ export async function recordSpecialistReview(input: SpecialistReviewInput) {
       lane: input.lane,
       decision: input.decision,
       actorUserId: input.actorUserId,
-      proposedName: (input.proposedName ?? "").trim() || null,
-      proposedRank: (input.proposedRank ?? "").trim() || null,
-      notes: (input.notes ?? "").trim() || null,
+      actorRoleName: input.actorRoleName ?? null,
+      actorRankLabel: input.actorRankLabel ?? null,
+      proposedName: normalizedProposedName,
+      proposedRank: normalizedProposedRank,
+      notes: normalizedNotes,
+      authorityMatched,
+      authoritySnapshot: authorityScope,
+      reviewClass,
       updatedAt: new Date().toISOString(),
       source: "v2_specialist_review",
     };
@@ -66,14 +110,18 @@ export async function recordSpecialistReview(input: SpecialistReviewInput) {
     );
 
     if (input.decision === "approve") {
-      // Tier 1 or 1.5 → 2 on first specialist approval
-      await client.query(
-        `update occurrences
-         set evidence_tier = 2, updated_at = now()
-         where occurrence_id = $1
-           and evidence_tier < 2`,
-        [occurrenceId],
-      );
+      if (reviewClass === "authority_backed" || reviewClass === "admin_override") {
+        await client.query(
+          `update occurrences
+           set evidence_tier = case
+                 when coalesce(evidence_tier, 0) < 2 then 2
+                 else evidence_tier
+               end,
+               updated_at = now()
+           where occurrence_id = $1`,
+          [occurrenceId],
+        );
+      }
 
       const legacyIdentificationKey = `v2_specialist:${occurrenceId}:${input.lane}:${input.actorUserId}`;
       await client.query(
@@ -93,22 +141,40 @@ export async function recordSpecialistReview(input: SpecialistReviewInput) {
         [
           occurrenceId,
           input.actorUserId,
-          (input.proposedName ?? "").trim(),
-          (input.proposedRank ?? "").trim() || null,
+          normalizedProposedName,
+          normalizedProposedRank,
           legacyIdentificationKey,
-          (input.notes ?? "").trim() || null,
+          normalizedNotes,
           JSON.stringify(reviewPayload),
         ],
       );
     }
 
+    await ensureLegacyAiRunsForVisit(client, visitId);
+    const latestRun = await getLatestObservationAiRunForVisit(client, visitId);
+    const subjects = await getVisitSubjectSummaries(visitId, client);
+    const nextDisplayState = deriveVisitDisplayState(visitId, subjects, latestRun?.aiRunId ?? null);
+    await upsertVisitDisplayState(client, nextDisplayState);
+
     await client.query("commit");
+
+    if (
+      input.decision === "approve"
+      && input.lane === "public-claim"
+      && (reviewClass === "authority_backed" || reviewClass === "admin_override")
+    ) {
+      await tryPromoteToTier3(occurrenceId);
+    }
+
     return {
       ok: true,
       occurrenceId,
       lane: input.lane,
       decision: input.decision,
-      proposedName: (input.proposedName ?? "").trim() || null,
+      proposedName: normalizedProposedName,
+      authorityMatched,
+      authorityScope,
+      reviewClass,
     };
   } catch (error) {
     await client.query("rollback");

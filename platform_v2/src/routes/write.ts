@@ -8,6 +8,19 @@ import {
 import { issueRememberToken, revokeRememberToken } from "../services/rememberTokenWrite.js";
 import { uploadObservationPhoto, type ObservationPhotoUploadInput } from "../services/observationPhotoUpload.js";
 import { upsertObservation, type ObservationUpsertInput } from "../services/observationWrite.js";
+import {
+  addReviewerAuthorityEvidence,
+  grantReviewerAuthority,
+  revokeReviewerAuthority,
+  type ReviewerAuthorityEvidenceInput,
+} from "../services/reviewerAuthorities.js";
+import {
+  createAuthorityRecommendation,
+  grantAuthorityRecommendation,
+  rejectAuthorityRecommendation,
+  type AuthorityRecommendationEvidenceInput,
+  type AuthorityRecommendationSourceKind,
+} from "../services/authorityRecommendations.js";
 import { recordSpecialistReview, type SpecialistDecision, type SpecialistLane } from "../services/specialistReview.js";
 import { upsertTrack, type TrackUpsertInput } from "../services/trackWrite.js";
 import { recordUiKpiEvent } from "../services/uiKpi.js";
@@ -21,6 +34,7 @@ import {
   assertObservationOwnedByUser,
   assertPrivilegedWriteAccess,
   assertSessionUser,
+  assertSpecialistAdminSession,
   assertSpecialistSession,
 } from "../services/writeGuards.js";
 
@@ -34,12 +48,26 @@ function errorStatus(error: unknown, fallback = 400): number {
   if (
     error.message.startsWith("forbidden") ||
     error.message === "observation_not_owned" ||
-    error.message === "specialist_role_required"
+    error.message === "specialist_role_required" ||
+    error.message === "specialist_admin_required" ||
+    error.message === "specialist_authority_required" ||
+    error.message === "recommendation_grant_scope_required"
   ) {
     return 403;
   }
-  if (error.message === "observation_not_found" || error.message === "video_not_found" || error.message === "observation_video_not_found") {
+  if (
+    error.message === "observation_not_found" ||
+    error.message === "video_not_found" ||
+    error.message === "observation_video_not_found" ||
+    error.message === "authority_recommendation_not_found"
+  ) {
     return 404;
+  }
+  if (
+    error.message === "recommendation_not_needed_active_authority_exists" ||
+    error.message === "authority_recommendation_not_pending"
+  ) {
+    return 409;
   }
   return fallback;
 }
@@ -196,6 +224,112 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post<{
+    Body: {
+      subjectUserId?: string | null;
+      sourceKind: AuthorityRecommendationSourceKind;
+      scopeTaxonName: string;
+      scopeTaxonRank?: string | null;
+      scopeTaxonKey?: string | null;
+      evidence?: AuthorityRecommendationEvidenceInput[];
+      sourcePayload?: Record<string, unknown>;
+    };
+  }>("/api/v1/authority/recommendations", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      if (!session) {
+        throw new Error("session_required");
+      }
+
+      if (request.body.sourceKind === "ops_registered") {
+        assertSpecialistAdminSession(session, session.userId);
+      } else if (
+        request.body.sourceKind !== "self_claim" ||
+        (request.body.subjectUserId && request.body.subjectUserId.trim() && request.body.subjectUserId.trim() !== session.userId)
+      ) {
+        throw new Error("forbidden_recommendation_subject");
+      }
+
+      const recommendation = await createAuthorityRecommendation({
+        actorUserId: session.userId,
+        subjectUserId: request.body.subjectUserId ?? null,
+        sourceKind: request.body.sourceKind,
+        scopeTaxonName: request.body.scopeTaxonName,
+        scopeTaxonRank: request.body.scopeTaxonRank ?? null,
+        scopeTaxonKey: request.body.scopeTaxonKey ?? null,
+        evidence: request.body.evidence ?? [],
+        sourcePayload: request.body.sourcePayload ?? {},
+      });
+      return {
+        ok: true,
+        recommendation,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "authority_recommendation_create_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: {
+      actorUserId: string;
+      resolutionNote?: string | null;
+    };
+  }>("/api/v1/specialist/recommendations/:id/grant", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const resolvedSession = await assertSpecialistSession(session, request.body.actorUserId);
+      const result = await grantAuthorityRecommendation({
+        recommendationId: request.params.id,
+        actorUserId: resolvedSession.userId,
+        actorRoleName: resolvedSession.roleName,
+        actorRankLabel: resolvedSession.rankLabel,
+        resolutionNote: request.body.resolutionNote ?? null,
+      });
+      return {
+        ok: true,
+        ...result,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "authority_recommendation_grant_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: {
+      resolutionNote: string;
+    };
+  }>("/api/v1/specialist/recommendations/:id/reject", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      const recommendation = await rejectAuthorityRecommendation({
+        recommendationId: request.params.id,
+        actorUserId: resolvedSession.userId,
+        resolutionNote: request.body.resolutionNote,
+      });
+      return {
+        ok: true,
+        recommendation,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "authority_recommendation_reject_failed",
+      };
+    }
+  });
+
+  app.post<{
     Params: { id: string };
     Body: {
       actorUserId: string;
@@ -208,10 +342,12 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
   }>("/api/v1/specialist/occurrences/:id/review", async (request, reply) => {
     try {
       const session = await getSessionFromCookie(request.headers.cookie);
-      assertSpecialistSession(session, request.body.actorUserId);
+      const resolvedSession = await assertSpecialistSession(session, request.body.actorUserId);
       return await recordSpecialistReview({
         occurrenceId: request.params.id,
         actorUserId: request.body.actorUserId,
+        actorRoleName: resolvedSession.roleName,
+        actorRankLabel: resolvedSession.rankLabel,
         lane: request.body.lane,
         decision: request.body.decision,
         proposedName: request.body.proposedName ?? null,
@@ -223,6 +359,93 @@ export async function registerWriteRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: false,
         error: error instanceof Error ? error.message : "specialist_review_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Body: {
+      subjectUserId: string;
+      scopeTaxonName: string;
+      scopeTaxonRank?: string | null;
+      scopeTaxonKey?: string | null;
+      reason?: string | null;
+      evidence?: ReviewerAuthorityEvidenceInput[];
+    };
+  }>("/api/v1/specialist/authorities/grant", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      const authority = await grantReviewerAuthority({
+        subjectUserId: request.body.subjectUserId,
+        grantedByUserId: resolvedSession.userId,
+        scopeTaxonName: request.body.scopeTaxonName,
+        scopeTaxonRank: request.body.scopeTaxonRank ?? null,
+        scopeTaxonKey: request.body.scopeTaxonKey ?? null,
+        reason: request.body.reason ?? null,
+        evidence: request.body.evidence ?? [],
+      });
+      return {
+        ok: true,
+        authority,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "specialist_authority_grant_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: {
+      reason: string;
+    };
+  }>("/api/v1/specialist/authorities/:id/revoke", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      const authority = await revokeReviewerAuthority({
+        authorityId: request.params.id,
+        revokedByUserId: resolvedSession.userId,
+        reason: request.body.reason,
+      });
+      return {
+        ok: true,
+        authority,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "specialist_authority_revoke_failed",
+      };
+    }
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: ReviewerAuthorityEvidenceInput;
+  }>("/api/v1/specialist/authorities/:id/evidence", async (request, reply) => {
+    try {
+      const session = await getSessionFromCookie(request.headers.cookie);
+      const resolvedSession = assertSpecialistAdminSession(session, session?.userId ?? "");
+      const authority = await addReviewerAuthorityEvidence({
+        authorityId: request.params.id,
+        actorUserId: resolvedSession.userId,
+        evidence: request.body,
+      });
+      return {
+        ok: true,
+        authority,
+      };
+    } catch (error) {
+      reply.code(errorStatus(error, 400));
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "specialist_authority_evidence_failed",
       };
     }
   });

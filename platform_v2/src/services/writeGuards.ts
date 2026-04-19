@@ -3,6 +3,7 @@ import type { FastifyRequest } from "fastify";
 import { getPool } from "../db.js";
 import { loadConfig } from "../config.js";
 import type { SessionSnapshot } from "./authSession.js";
+import { getReviewerAccessContext, isAdminOrAnalystRole } from "./reviewerAuthorities.js";
 
 function readBearerToken(headerValue: string | string[] | undefined): string | null {
   const raw = Array.isArray(headerValue) ? headerValue[0] : headerValue;
@@ -59,11 +60,19 @@ export function assertSessionUser(session: SessionSnapshot | null, assertedUserI
   return session;
 }
 
-export function assertSpecialistSession(session: SessionSnapshot | null, actorUserId: string): SessionSnapshot {
+export async function assertSpecialistSession(session: SessionSnapshot | null, actorUserId: string): Promise<SessionSnapshot> {
   const resolved = assertSessionUser(session, actorUserId);
-  const candidates = [resolved.roleName, resolved.rankLabel ?? ""].map((value) => value.trim().toLowerCase());
-  if (!candidates.some((value) => ["admin", "analyst", "specialist"].includes(value))) {
+  const access = await getReviewerAccessContext(resolved.userId, resolved.roleName, resolved.rankLabel);
+  if (!access.hasSpecialistAccess) {
     throw new Error("specialist_role_required");
+  }
+  return resolved;
+}
+
+export function assertSpecialistAdminSession(session: SessionSnapshot | null, actorUserId: string): SessionSnapshot {
+  const resolved = assertSessionUser(session, actorUserId);
+  if (!isAdminOrAnalystRole(resolved.roleName, resolved.rankLabel)) {
+    throw new Error("specialist_admin_required");
   }
   return resolved;
 }

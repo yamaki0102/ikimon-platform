@@ -68,10 +68,11 @@ jobs:
           host: 162.43.44.131
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GEMINI_API_KEY
+          envs: GEMINI_API_KEY,V2_PRIVILEGED_WRITE_API_KEY
           script_stop: false
           script: |
             GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
+            V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
             set +e
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
             if [ ! -d "$V2_DIR" ]; then
@@ -99,7 +100,14 @@ jobs:
                 pm2 set ikimon-v2-staging-api:GEMINI_API_KEY "$GEMINI_API_KEY" 2>/dev/null || true
                 echo "GEMINI_API_KEY injected into pm2 env"
               fi
+              if [ -n "$V2_PRIVILEGED_WRITE_API_KEY" ]; then
+                pm2 set ikimon-v2-staging-api:V2_PRIVILEGED_WRITE_API_KEY "$V2_PRIVILEGED_WRITE_API_KEY" 2>/dev/null || true
+                echo "V2_PRIVILEGED_WRITE_API_KEY injected into pm2 env"
+              else
+                echo "WARN: V2_PRIVILEGED_WRITE_API_KEY missing; authority gate verify will fail"
+              fi
               export ALLOW_QUERY_USER_ID=1
+              export V2_PRIVILEGED_WRITE_API_KEY="$V2_PRIVILEGED_WRITE_API_KEY"
               pm2 restart ikimon-v2-staging-api --update-env 2>/dev/null && echo "Restarted via pm2 (ALLOW_QUERY_USER_ID=1 for staging QA)" && restarted=1
             fi
             if [ "$restarted" = "0" ]; then
@@ -197,7 +205,22 @@ jobs:
           host: 162.43.44.131
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: V2_PRIVILEGED_WRITE_API_KEY
           script: |
+            V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
+            V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            if [ -z "$V2_PRIVILEGED_WRITE_API_KEY" ]; then
+              echo "FAIL: V2_PRIVILEGED_WRITE_API_KEY missing in staging environment"
+              exit 1
+            fi
+            if command -v pm2 >/dev/null 2>&1; then
+              echo "== pm2 env sanity =="
+              pm2 env ikimon-v2-staging-api | grep -q 'V2_PRIVILEGED_WRITE_API_KEY' || {
+                echo "FAIL: pm2 env for ikimon-v2-staging-api is missing V2_PRIVILEGED_WRITE_API_KEY"
+                exit 1
+              }
+              echo "OK pm2 env contains V2_PRIVILEGED_WRITE_API_KEY"
+            fi
             echo "== PHP lane (port 8081, internal) =="
             for url in \
               http://127.0.0.1:8081/index.php \
@@ -227,7 +250,14 @@ jobs:
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" -k -H 'Host: staging.ikimon.life' https://127.0.0.1/ 2>/dev/null)
             if [ "$STATUS" = "401" ] || [ "$STATUS" = "200" ]; then
               echo "OK public / responds ($STATUS — 401 = basic auth guard, 200 = pre-auth cached session)"
-            else
-              echo "FAIL public / returned $STATUS"
-              exit 1
+              else
+                echo "FAIL public / returned $STATUS"
+                exit 1
+              fi
+            echo "== authority gate =="
+            if [ ! -x "$V2_DIR/scripts/ops/run_authority_gate.sh" ]; then
+              chmod +x "$V2_DIR/scripts/ops/run_authority_gate.sh"
             fi
+            export V2_PRIVILEGED_WRITE_API_KEY
+            export V2_BASE_URL=http://127.0.0.1:3200
+            bash "$V2_DIR/scripts/ops/run_authority_gate.sh"

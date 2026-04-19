@@ -464,6 +464,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         {
           title: "断定しない同定",
           body: "AI は候補、観察は証拠、レビューは別レーンという扱いを確認します。",
+          href: withBasePath(basePath, "/learn/authority-policy"),
+          label: lang === "ja" ? "制度を見る" : "Policy",
         },
         {
           title: "組織導入と長期アーカイブ",
@@ -483,6 +485,12 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
           body: "断定しない理由、次に見るべきポイント、再観察で精度を上げる方法。",
           actionHref: withBasePath(basePath, "/learn/identification-basics"),
           actionLabel: lang === "ja" ? "読む" : "Basics",
+        },
+        {
+          title: "同定 trust 制度",
+          body: "なぜ AI と市民同定だけでは research/public claim にしないのか、なぜ authority を分類群ごとに切るのか、推薦と監査を含めて公開します。",
+          actionHref: withBasePath(basePath, "/learn/authority-policy"),
+          actionLabel: lang === "ja" ? "制度を見る" : "Policy",
         },
         {
           title: "Methodology（方針）",
@@ -723,6 +731,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         <p class="fl-body">Field Loop は、AI が最後の審判になる仕組みではない。未確定を保持しながら、観測を失わず、役割分担のある検証と更新で知識解像度を上げる仕組みだ。</p>
         <div class="fl-cta-actions">
           <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">まずは名前が分からなくても観測する</a>
+          <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">同定 trust 制度を見る</a>
           <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">フィールドループの考え方を詳しく見る</a>
           <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/for-business/apply"))}">研究・教育・保全で連携したい</a>
         </div>
@@ -745,6 +754,141 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "Learn",
       `<div class="note">${escapeHtml(trustSentence)}</div><a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
       lang === "ja" ? "名前が分からなくても、<br>観測は始めていい。" : "You don&#39;t need a name.<br>Just start observing.",
+    );
+  });
+
+  app.get("/learn/authority-policy", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      "Authority Policy | ikimon",
+      "Learn",
+      "ikimon の同定 trust 制度",
+      "AI・市民・authority-backed reviewer・運営を混ぜずに扱うための制度です。なぜそうしているか、どうやって authority 候補になるか、どこまでが research/public claim なのかを公開します。",
+      `${FL_CSS}<div class="fl">
+      <section class="fl-sec">
+        <div class="fl-label">このページの目的</div>
+        <h2 class="fl-h2">同定の速さより、信頼の由来を残す。</h2>
+        <p class="fl-lead">ikimon は「AI がそう言った」「みんながそう思った」だけで research/public claim に進めない設計にしています。理由は、どの分類群で、誰が、どの根拠で任せられているかを追えないと、公開後の信頼が崩れるからです。</p>
+        <div class="fl-trust">
+          <strong>基本方針</strong>
+          AI と市民同定は候補を広げる層、authority-backed review は公開前の確度を担保する層、Admin / Analyst は制度運営と監査を担う層として分けます。
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">なぜ分けるか</div>
+        <h2 class="fl-h2">AI と市民同定だけでは、研究レベルにしない。</h2>
+        <div class="fl-reasons">
+          <div class="fl-reason">
+            <div class="fl-reason-num">01</div>
+            <div class="fl-reason-body">
+              <h3>AI は候補提示であって、責任主体ではない</h3>
+              <p>AI は方向性を示せますが、「この分類群の見分けは任せられる」と社会的に引き受ける主体ではありません。だから research/public claim の根拠に単独では使いません。</p>
+            </div>
+          </div>
+          <div class="fl-reason">
+            <div class="fl-reason-num">02</div>
+            <div class="fl-reason-body">
+              <h3>市民同定は価値があるが、最終公開の代替ではない</h3>
+              <p>市民同定は、候補を絞る・見分け方を学ぶ・レビュー優先順位を上げるために重要です。ただし「誰がこの分類群を引き受けたか」が曖昧なまま研究扱いにすると、誤同定時の説明責任が弱くなります。</p>
+            </div>
+          </div>
+          <div class="fl-reason">
+            <div class="fl-reason-num">03</div>
+            <div class="fl-reason-body">
+              <h3>公開主張には provenance が要る</h3>
+              <p>あとで「なぜこの観察をここまで上げたのか」を追えることが必要です。ikimon では review 時の authority snapshot と監査ログを残し、後から制度の外側に逃げないようにします。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">scope 設計</div>
+        <h2 class="fl-h2">authority を global role ではなく、分類群ごとに切る。</h2>
+        <p class="fl-body">「専門家だから全部任せる」ではなく、「タンポポ属なら任せられる」「この科なら見られる」という分類群スコープで権限を持たせます。これにより、UI に見える queue と、実際に approve できる範囲が一致します。</p>
+        <div class="fl-callout">
+          <strong>なぜ taxon scope なのか</strong>
+          <p>見分け方の熟達は分類群ごとに偏るからです。鳥に強い人がキノコも同じ精度で見られるとは限りません。ikimon は最初からその現実に合わせます。</p>
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">役割分担</div>
+        <h2 class="fl-h2">AI / 市民 / authority / 運営の4層</h2>
+        <div class="fl-roles">
+          <article class="fl-role"><span class="fl-role-icon">🛰️</span><h3>AI</h3><p>候補と見分けのポイントを返す層。</p><span class="fl-role-tag">確定はしない</span></article>
+          <article class="fl-role"><span class="fl-role-icon">🧭</span><h3>市民同定者</h3><p>候補を絞り、証拠を持ち寄る層。</p><span class="fl-role-tag">公開前の学習と絞り込み</span></article>
+          <article class="fl-role"><span class="fl-role-icon">🔬</span><h3>Authority-backed reviewer</h3><p>自分の分類群 scope で approve し、専門確認を付与する層。</p><span class="fl-role-tag">scope 内だけ任せる</span></article>
+          <article class="fl-role"><span class="fl-role-icon">🛠️</span><h3>Admin / Analyst</h3><p>制度の運営、manual grant/revoke、監査、例外処理を担う層。</p><span class="fl-role-tag">制度を閉じずに追跡する</span></article>
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">境界条件</div>
+        <h2 class="fl-h2">研究レベルと公開主張は同じではない。</h2>
+        <div class="fl-tiers">
+          <div class="fl-tier fl-tier-1">
+            <div><div class="fl-tier-name">AI / 市民同定</div><div class="fl-tier-meaning">候補層</div></div>
+            <div><div class="fl-tier-col-label">できること</div><div class="fl-tier-col-body">候補提示、絞り込み、追加観察の誘導、queue の優先度上げ</div></div>
+            <div><div class="fl-tier-col-label">できないこと</div><div class="fl-tier-col-no">単独で research/public claim 化</div></div>
+          </div>
+          <div class="fl-tier fl-tier-3">
+            <div><div class="fl-tier-name">Authority-backed review</div><div class="fl-tier-meaning">専門確認済み</div></div>
+            <div><div class="fl-tier-col-label">できること</div><div class="fl-tier-col-body">専門確認レーンで approve し、分類群 scope に基づく責任ある review を残す</div></div>
+            <div><div class="fl-tier-col-label">できないこと</div><div class="fl-tier-col-no">証拠不足のまま自動で研究公開すること</div></div>
+          </div>
+          <div class="fl-tier fl-tier-4">
+            <div><div class="fl-tier-name">Public claim / research candidate</div><div class="fl-tier-meaning">最終公開候補</div></div>
+            <div><div class="fl-tier-col-label">条件</div><div class="fl-tier-col-body">public-claim lane で authority-backed か admin override の approve が入り、媒体条件も満たすこと</div></div>
+            <div><div class="fl-tier-col-label">補足</div><div class="fl-tier-col-no">証拠が弱ければ authority-backed reviewed のまま止める</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">authority 候補になる道</div>
+        <h2 class="fl-h2">市民が専門候補になるには、証跡を積み上げる。</h2>
+        <p class="fl-body">観察会、ウェビナー、推薦論文、図鑑・雑誌の保有などは、どれも authority 候補になるための根拠になります。ただし、根拠があるだけで自動資格化はしません。どの分類群まで任せられるかを、既存 authority 保有者や運営が判断します。</p>
+        <div class="fl-steps">
+          <div class="fl-step"><div class="fl-step-num"><div class="fl-step-num-badge">1</div><div class="fl-step-num-line"></div></div><div class="fl-step-content"><h3>自己申告 or 運営登録</h3><p>本人が self claim を出すか、運営が観察会・読書証跡から pending recommendation を登録します。</p></div></div>
+          <div class="fl-step"><div class="fl-step-num"><div class="fl-step-num-badge">2</div><div class="fl-step-num-line"></div></div><div class="fl-step-content"><h3>証跡を添付</h3><p>観察会、ウェビナー、論文、図鑑/雑誌などを structured evidence として積みます。</p></div></div>
+          <div class="fl-step"><div class="fl-step-num"><div class="fl-step-num-badge">3</div><div class="fl-step-num-line"></div></div><div class="fl-step-content"><h3>same-scope reviewer が grant</h3><p>同じ分類群 scope の active authority 保有者が、任せられると判断したときだけ authority に変わります。</p></div></div>
+        </div>
+        <div class="fl-info">
+          <strong>重要</strong>
+          <p>雑誌や図鑑の保有、論文読了はそれだけで自動資格化しません。あくまで「何をベースに見分けているか」の根拠として積み上げます。将来的にアフィリエイト導線を付けても、この原則は変えません。</p>
+        </div>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">運営と監査</div>
+        <h2 class="fl-h2">grant / revoke / update は監査される。</h2>
+        <p class="fl-body">authority は裏で audit を残します。誰が誰に、どの scope を、どの根拠で付けたかを運営が追えるようにし、閉じたブラックボックスにしません。</p>
+        <ul class="fl-benefits">
+          <li>Admin / Analyst は manual grant / revoke と reject を持つ</li>
+          <li>review 時には authority snapshot を保存し、後で権限が変わっても当時の判断根拠を残す</li>
+          <li>監査ログは公開せず、運営面で追跡する</li>
+        </ul>
+      </section>
+
+      <section class="fl-sec">
+        <div class="fl-label">次の一歩</div>
+        <h2 class="fl-h2">制度を読んだあと、何をすればいいか</h2>
+        <div class="fl-cta-actions">
+          <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/authority/recommendations"))}">authority 候補を申請する</a>
+          <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/field-loop"))}">Field Loop に戻る</a>
+          <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/specialist/recommendations"))}">推薦待ちを見る</a>
+        </div>
+      </section>
+      </div>`,
+      "Learn",
+      `<a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
     );
   });
 
@@ -1018,11 +1162,12 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       </section>
       <section class="section">
         <div class="section-header"><h2>AI と同定について</h2></div>
+        <div class="card" style="margin-bottom:16px"><div class="card-body"><strong>同定の trust 制度を詳しく読む</strong><p style="margin:10px 0 0;color:#4b5563;line-height:1.8">なぜ AI と市民同定だけでは research/public claim にしないのか、なぜ authority を分類群ごとに切るのか、推薦と監査を含めて 1 ページにまとめています。</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a></div></div></div>
         <div class="fl-faq">
-          <details class="fl-faq-item"><summary class="fl-faq-q">AI は名前を自動で確定しますか？</summary><p class="fl-faq-a">しません。AI が返すのは候補と見分けのヒントです。名前の確定は複数ユーザーの加重合意（WE-Consensus）で決まります。投稿者 1 人だけの同定では確定せず、必ず他のユーザーの目が入る設計です。AI だけで「研究グレード」に昇格することはありません。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">AI は名前を自動で確定しますか？</summary><p class="fl-faq-a">しません。AI が返すのは候補と見分けのヒントです。AI 同定と市民同定は候補層として扱い、research/public claim に進めるには、分類群 authority を持つ reviewer の approve か、運営の明示的な override が必要です。制度の全体像は「同定 trust 制度」ページで公開しています。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">投稿後に表示される「観察のヒント」とは何ですか？</summary><p class="fl-faq-a">投稿後に写真・場所・季節をもとに AI が自動生成するメモです。「いまはここまで絞れそう」「見分けのポイント」「次に確認すると良いこと」を示します。コミュニティ同定の票にはなりません。名前を断定するものではなく、あくまでヒントとして参考にしてください。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">間違った名前を付けてしまったらどうなりますか？</summary><p class="fl-faq-a">いつでも修正できます。間違いはコミュニティが一緒に修正してくれます。「モンシロチョウだと思ったらスジグロシロチョウだった」——この体験が観察力を磨きます。初心者もベテランも学びの途中です。間違いを恐れずに挑戦する姿勢をコミュニティは応援しています。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q">「研究グレード」とは何ですか？</summary><p class="fl-faq-a">写真・日時・位置情報が揃い、コミュニティの加重合意率が 66.7% 以上に達した記録のステータスです。科・属レベルで安定した記録は「研究利用可」、種以下まで安定した記録は「種レベル研究用」として区別されます。研究グレードに達すると、将来的に GBIF（地球規模生物多様性情報機構）との連携対象になります。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">「研究グレード」とは何ですか？</summary><p class="fl-faq-a">ikimon では、AI 候補や市民同定だけで研究レベルに上げません。写真・日時・位置などの媒体条件に加え、public-claim lane で authority-backed review か admin override が入った観察だけが research/public claim 候補になります。証拠不足なら authority-backed reviewed のまま止め、研究公開とは分けます。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">AI の提案はどのくらい正確ですか？</summary><p class="fl-faq-a">「参考情報」として設計しています。大きな分類群（チョウの仲間・甲虫の仲間）や特徴的な形態の種は得意です。近縁種の識別・幼虫・写真が暗い場合は精度が落ちます。AI が方向性を示し、コミュニティが正解を確定する——このバトンリレーが ikimon のデータ品質を支えています。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">投稿データが AI の学習に使われますか？</summary><p class="fl-faq-a">第三者の AI 企業には一切提供しません。AI クローラーによるスクレイピングも技術的にブロックしています。将来的に ikimon 自身のサービス改善（AI 同定精度の向上）に活用する可能性がありますが、その場合も外部に流出することはありません。データの主権はユーザーとikimon コミュニティにあります。</p></details>
         </div>

@@ -28,6 +28,7 @@
     "smoke:v2-lane": "tsx src/scripts/smokeV2Lane.ts",
     "smoke:v2-read-lane": "tsx src/scripts/smokeV2ReadLane.ts",
     "smoke:v2-write-lane": "tsx src/scripts/smokeV2WriteLane.ts",
+    "smoke:specialist-authority": "tsx src/scripts/smokeSpecialistAuthority.ts",
     "smoke:site-brief": "tsx src/scripts/smokeSiteBrief.ts",
     "sync:legacy": "tsx src/scripts/syncLegacyDelta.ts",
     "write:legacy": "tsx src/scripts/writeLegacyCompatibility.ts",

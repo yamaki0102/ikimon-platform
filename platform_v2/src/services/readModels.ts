@@ -1,8 +1,21 @@
 import { getPool } from "../db.js";
+import { deriveVisitDisplayState } from "./visitDisplayState.js";
+import {
+  getReviewerAccessContext,
+  matchesAuthorityScope,
+  type ReviewerAuthorityAccessContext,
+} from "./reviewerAuthorities.js";
 
 type RecentObservation = {
   occurrenceId: string;
   visitId: string;
+  detailId?: string;
+  featuredOccurrenceId?: string | null;
+  featuredSubjectName?: string | null;
+  subjectCount?: number;
+  isMultiSubject?: boolean;
+  featuredConfidenceBand?: "high" | "medium" | "low" | "unknown" | null;
+  displayStability?: "locked" | "stable" | "adaptive" | null;
   displayName: string;
   observedAt: string;
   observerName: string;
@@ -41,8 +54,13 @@ export type ObservationDetailSnapshot = {
   municipality: string | null;
   latitude: number | null;
   longitude: number | null;
+  photoAssets: Array<{
+    assetId: string;
+    url: string;
+  }>;
   photoUrls: string[];
   videoAssets: Array<{
+    assetId: string;
     providerUid: string;
     iframeUrl: string;
     thumbnailUrl: string | null;
@@ -99,49 +117,229 @@ function normalizeAssetUrl(value: string | null): string | null {
   return `/${value.replace(/^\.?\//, "")}`;
 }
 
+type VisitCardRow = {
+  visit_id: string;
+  observed_at: string;
+  observer_name: string | null;
+  place_name: string | null;
+  municipality: string | null;
+  photo_url: string | null;
+};
+
+type VisitSubjectRow = {
+  occurrence_id: string;
+  visit_id: string;
+  subject_index: number;
+  display_name: string | null;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  taxon_rank: string | null;
+  confidence_score: string | null;
+  source_payload: Record<string, unknown> | null;
+};
+
+async function loadVisitSummaryObservations(
+  limit: number,
+  options: { userId?: string | null } = {},
+): Promise<RecentObservation[]> {
+  const pool = getPool();
+  const params: Array<string | number> = [];
+  const whereClauses: string[] = [];
+  if (options.userId) {
+    params.push(options.userId);
+    whereClauses.push(`v.user_id = $${params.length}`);
+  }
+  params.push(limit);
+  const visitRows = await pool.query<VisitCardRow>(
+    `SELECT v.visit_id,
+            v.observed_at::text,
+            coalesce(u.display_name, 'Unknown observer') AS observer_name,
+            coalesce(p.canonical_name, 'Unknown place') AS place_name,
+            coalesce(v.observed_municipality, p.municipality) AS municipality,
+            photo.public_url AS photo_url
+       FROM visits v
+       LEFT JOIN users u ON u.user_id = v.user_id
+       LEFT JOIN places p ON p.place_id = v.place_id
+       LEFT JOIN LATERAL (
+         SELECT coalesce(ab.public_url, ab.storage_path) AS public_url
+           FROM evidence_assets ea
+           JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
+          WHERE ea.visit_id = v.visit_id
+            AND ea.asset_role = 'observation_photo'
+          ORDER BY ea.created_at ASC
+          LIMIT 1
+       ) photo ON true
+       ${whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : ""}
+      ORDER BY v.observed_at DESC
+      LIMIT $${params.length}`,
+    params,
+  );
+  const visitIds = visitRows.rows.map((row) => row.visit_id);
+  if (visitIds.length === 0) {
+    return [];
+  }
+
+  const subjectRows = await pool.query<VisitSubjectRow>(
+    `SELECT occurrence_id,
+            visit_id,
+            subject_index,
+            coalesce(vernacular_name, scientific_name, 'Unresolved') AS display_name,
+            scientific_name,
+            vernacular_name,
+            taxon_rank,
+            confidence_score::text,
+            source_payload
+       FROM occurrences
+      WHERE visit_id = ANY($1::text[])
+      ORDER BY visit_id ASC, subject_index ASC, created_at ASC`,
+    [visitIds],
+  );
+  const occurrenceIds = subjectRows.rows.map((row) => row.occurrence_id);
+
+  const [idCounts, latestAssessments, storedDisplayStates] = await Promise.all([
+    occurrenceIds.length > 0
+      ? pool.query<{ occurrence_id: string; n: string }>(
+        `SELECT occurrence_id, count(*)::text AS n
+           FROM identifications
+          WHERE occurrence_id = ANY($1::text[])
+          GROUP BY occurrence_id`,
+        [occurrenceIds],
+      )
+      : Promise.resolve({ rows: [] }),
+    occurrenceIds.length > 0
+      ? pool.query<{ occurrence_id: string; confidence_band: string | null }>(
+        `SELECT DISTINCT ON (occurrence_id)
+                occurrence_id,
+                confidence_band
+           FROM observation_ai_assessments
+          WHERE occurrence_id = ANY($1::text[])
+          ORDER BY occurrence_id, generated_at DESC`,
+        [occurrenceIds],
+      )
+      : Promise.resolve({ rows: [] }),
+    pool.query<{
+      visit_id: string;
+      featured_occurrence_id: string | null;
+      selected_reason: string;
+      selection_source: "human_consensus" | "specialist_lock" | "system_stable" | "latest_ai_default";
+      locked_by_human: boolean;
+      derived_from_ai_run_id: string | null;
+      updated_at: string;
+    }>(
+      `SELECT visit_id,
+              featured_occurrence_id,
+              selected_reason,
+              selection_source,
+              locked_by_human,
+              derived_from_ai_run_id::text,
+              updated_at::text
+         FROM visit_display_state
+        WHERE visit_id = ANY($1::text[])`,
+      [visitIds],
+    ).catch(() => ({ rows: [] })),
+  ]);
+
+  const idCountMap = new Map<string, number>();
+  for (const row of idCounts.rows) {
+    idCountMap.set(row.occurrence_id, Number(row.n));
+  }
+  const latestAssessmentMap = new Map<string, "high" | "medium" | "low" | "unknown" | null>();
+  for (const row of latestAssessments.rows) {
+    latestAssessmentMap.set(
+      row.occurrence_id,
+      row.confidence_band === "high" || row.confidence_band === "medium" || row.confidence_band === "low"
+        ? row.confidence_band
+        : row.confidence_band == null
+          ? null
+          : "unknown",
+    );
+  }
+  const storedStateMap = new Map<string, typeof storedDisplayStates.rows[number]>();
+  for (const row of storedDisplayStates.rows) {
+    storedStateMap.set(row.visit_id, row);
+  }
+
+  const subjectsByVisit = new Map<string, Array<{
+    occurrenceId: string;
+    subjectIndex: number;
+    displayName: string;
+    scientificName: string | null;
+    rank: string | null;
+    roleHint: string;
+    confidence: number | null;
+    identificationCount: number;
+    latestAssessmentBand: "high" | "medium" | "low" | "unknown" | null;
+    isPrimary: boolean;
+    hasSpecialistApproval: boolean;
+  }>>();
+  for (const row of subjectRows.rows) {
+    const specialistPayload = ((row.source_payload ?? {}) as { specialist_review?: { decision?: string } }).specialist_review;
+    const v2SubjectPayload = ((row.source_payload ?? {}) as { v2_subject?: { role_hint?: string } }).v2_subject;
+    const list = subjectsByVisit.get(row.visit_id) ?? [];
+    list.push({
+      occurrenceId: row.occurrence_id,
+      subjectIndex: row.subject_index,
+      displayName: row.display_name ?? "Unresolved",
+      scientificName: row.scientific_name,
+      rank: row.taxon_rank,
+      roleHint: String(v2SubjectPayload?.role_hint ?? (row.subject_index === 0 ? "primary" : "coexisting")),
+      confidence: row.confidence_score != null ? Number(row.confidence_score) : null,
+      identificationCount: idCountMap.get(row.occurrence_id) ?? 0,
+      latestAssessmentBand: latestAssessmentMap.get(row.occurrence_id) ?? null,
+      isPrimary: row.subject_index === 0,
+      hasSpecialistApproval: specialistPayload?.decision === "approve",
+    });
+    subjectsByVisit.set(row.visit_id, list);
+  }
+
+  return visitRows.rows.map((visitRow) => {
+    const subjects = subjectsByVisit.get(visitRow.visit_id) ?? [];
+    const stored = storedStateMap.get(visitRow.visit_id);
+    const derived = deriveVisitDisplayState(visitRow.visit_id, subjects, stored?.derived_from_ai_run_id ?? null);
+    const displayState = stored
+      ? {
+          visitId: stored.visit_id,
+          featuredOccurrenceId: stored.featured_occurrence_id,
+          selectedReason: stored.selected_reason,
+          selectionSource: stored.selection_source,
+          lockedByHuman: stored.locked_by_human,
+          derivedFromAiRunId: stored.derived_from_ai_run_id,
+          updatedAt: stored.updated_at,
+          displayStability: stored.locked_by_human || stored.selection_source === "specialist_lock"
+            ? "locked" as const
+            : stored.selection_source === "latest_ai_default"
+              ? "adaptive" as const
+              : "stable" as const,
+        }
+      : derived;
+    const featuredSubject =
+      subjects.find((subject) => subject.occurrenceId === displayState.featuredOccurrenceId)
+      ?? subjects.find((subject) => subject.isPrimary)
+      ?? subjects[0];
+    return {
+      occurrenceId: featuredSubject?.occurrenceId ?? visitRow.visit_id,
+      visitId: visitRow.visit_id,
+      detailId: visitRow.visit_id,
+      featuredOccurrenceId: featuredSubject?.occurrenceId ?? null,
+      featuredSubjectName: featuredSubject?.displayName ?? null,
+      subjectCount: subjects.length,
+      isMultiSubject: subjects.length > 1,
+      featuredConfidenceBand: featuredSubject?.latestAssessmentBand ?? null,
+      displayStability: displayState.displayStability,
+      displayName: featuredSubject?.displayName ?? "Unresolved",
+      observedAt: visitRow.observed_at,
+      observerName: visitRow.observer_name ?? "Unknown observer",
+      placeName: visitRow.place_name ?? "Unknown place",
+      municipality: visitRow.municipality,
+      photoUrl: normalizeAssetUrl(visitRow.photo_url),
+      identificationCount: featuredSubject?.identificationCount ?? 0,
+    };
+  });
+}
+
 export async function getHomeSnapshot(userId: string | null): Promise<HomeSnapshot> {
   const pool = getPool();
-  const recentResult = await pool.query<{
-    occurrence_id: string;
-    visit_id: string;
-    display_name: string | null;
-    observed_at: string;
-    observer_name: string | null;
-    place_name: string | null;
-    municipality: string | null;
-    photo_url: string | null;
-    identification_count: string;
-  }>(
-    `select
-        o.occurrence_id,
-        o.visit_id,
-        coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
-        v.observed_at::text,
-        coalesce(u.display_name, 'Unknown observer') as observer_name,
-        coalesce(p.canonical_name, 'Unknown place') as place_name,
-        coalesce(v.observed_municipality, p.municipality) as municipality,
-        photo.public_url as photo_url,
-        (
-          select count(*)::text
-          from identifications i
-          where i.occurrence_id = o.occurrence_id
-        ) as identification_count
-     from occurrences o
-     join visits v on v.visit_id = o.visit_id
-     left join users u on u.user_id = v.user_id
-     left join places p on p.place_id = v.place_id
-     left join lateral (
-       select coalesce(ab.public_url, ab.storage_path) as public_url
-       from evidence_assets ea
-       join asset_blobs ab on ab.blob_id = ea.blob_id
-       where ea.occurrence_id = o.occurrence_id
-         and ea.asset_role = 'observation_photo'
-       order by ea.created_at asc
-       limit 1
-     ) photo on true
-     order by v.observed_at desc
-     limit 12`,
-  );
+  const recentObservations = await loadVisitSummaryObservations(12);
 
   let myPlaces: HomePlace[] = [];
   if (userId) {
@@ -178,64 +376,14 @@ export async function getHomeSnapshot(userId: string | null): Promise<HomeSnapsh
 
   return {
     viewerUserId: userId,
-    recentObservations: recentResult.rows.map((row) => ({
-      occurrenceId: row.occurrence_id,
-      visitId: row.visit_id,
-      displayName: row.display_name ?? "Unresolved",
-      observedAt: row.observed_at,
-      observerName: row.observer_name ?? "Unknown observer",
-      placeName: row.place_name ?? "Unknown place",
-      municipality: row.municipality,
-      photoUrl: normalizeAssetUrl(row.photo_url),
-      identificationCount: Number(row.identification_count),
-    })),
+    recentObservations,
     myPlaces,
   };
 }
 
 export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
   const pool = getPool();
-  const recentResult = await pool.query<{
-    occurrence_id: string;
-    visit_id: string;
-    display_name: string | null;
-    observed_at: string;
-    observer_name: string | null;
-    place_name: string | null;
-    municipality: string | null;
-    photo_url: string | null;
-    identification_count: string;
-  }>(
-    `select
-        o.occurrence_id,
-        o.visit_id,
-        coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
-        v.observed_at::text,
-        coalesce(u.display_name, 'Unknown observer') as observer_name,
-        coalesce(p.canonical_name, 'Unknown place') as place_name,
-        coalesce(v.observed_municipality, p.municipality) as municipality,
-        photo.public_url as photo_url,
-        (
-          select count(*)::text
-          from identifications i
-          where i.occurrence_id = o.occurrence_id
-        ) as identification_count
-     from occurrences o
-     join visits v on v.visit_id = o.visit_id
-     left join users u on u.user_id = v.user_id
-     left join places p on p.place_id = v.place_id
-     left join lateral (
-       select coalesce(ab.public_url, ab.storage_path) as public_url
-       from evidence_assets ea
-       join asset_blobs ab on ab.blob_id = ea.blob_id
-       where ea.occurrence_id = o.occurrence_id
-         and ea.asset_role = 'observation_photo'
-       order by ea.created_at asc
-       limit 1
-     ) photo on true
-     order by v.observed_at desc
-     limit 18`,
-  );
+  const recentObservations = await loadVisitSummaryObservations(18);
 
   const municipalitiesResult = await pool.query<{
     municipality: string | null;
@@ -266,17 +414,7 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
   );
 
   return {
-    recentObservations: recentResult.rows.map((row) => ({
-      occurrenceId: row.occurrence_id,
-      visitId: row.visit_id,
-      displayName: row.display_name ?? "Unresolved",
-      observedAt: row.observed_at,
-      observerName: row.observer_name ?? "Unknown observer",
-      placeName: row.place_name ?? "Unknown place",
-      municipality: row.municipality,
-      photoUrl: normalizeAssetUrl(row.photo_url),
-      identificationCount: Number(row.identification_count),
-    })),
+    recentObservations,
     municipalities: municipalitiesResult.rows.map((row) => ({
       municipality: row.municipality ?? "Municipality unknown",
       observationCount: Number(row.observation_count),
@@ -338,17 +476,19 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     return null;
   }
 
-  const photosResult = await pool.query<{ photo_url: string | null }>(
-    `select coalesce(ab.public_url, ab.storage_path) as photo_url
+  const photosResult = await pool.query<{ asset_id: string; photo_url: string | null }>(
+    `select ea.asset_id::text as asset_id,
+            coalesce(ab.public_url, ab.storage_path) as photo_url
      from evidence_assets ea
      join asset_blobs ab on ab.blob_id = ea.blob_id
-     where ea.occurrence_id = $1
+     where ea.visit_id = $1
        and ea.asset_role = 'observation_photo'
      order by ea.created_at asc`,
-    [base.occurrence_id],
+    [base.visit_id],
   );
 
   const videosResult = await pool.query<{
+    asset_id: string;
     source_payload: Record<string, unknown> | null;
     blob_source_payload: Record<string, unknown> | null;
     public_url: string | null;
@@ -356,6 +496,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     created_at: string;
   }>(
     `select
+        ea.asset_id::text as asset_id,
         ea.source_payload,
         ab.source_payload as blob_source_payload,
         ab.public_url,
@@ -363,10 +504,10 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         ea.created_at::text
      from evidence_assets ea
      join asset_blobs ab on ab.blob_id = ea.blob_id
-     where ea.occurrence_id = $1
+     where ea.visit_id = $1
        and ea.asset_role = 'observation_video'
      order by ea.created_at desc`,
-    [base.occurrence_id],
+    [base.visit_id],
   );
 
   const identificationsResult = await pool.query<{
@@ -390,6 +531,17 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     [base.occurrence_id],
   );
 
+  const photoAssets = photosResult.rows
+    .map((row) => {
+      const normalizedUrl = normalizeAssetUrl(row.photo_url);
+      if (!normalizedUrl) return null;
+      return {
+        assetId: row.asset_id,
+        url: normalizedUrl,
+      };
+    })
+    .filter((row): row is { assetId: string; url: string } => Boolean(row));
+
   return {
     occurrenceId: base.occurrence_id,
     visitId: base.visit_id,
@@ -405,7 +557,8 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     municipality: base.municipality,
     latitude: base.latitude,
     longitude: base.longitude,
-    photoUrls: photosResult.rows.map((row) => normalizeAssetUrl(row.photo_url)).filter((value): value is string => Boolean(value)),
+    photoAssets,
+    photoUrls: photoAssets.map((asset) => asset.url),
     videoAssets: videosResult.rows
       .map((row) => {
         const payload = (row.source_payload && typeof row.source_payload === "object")
@@ -436,6 +589,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
               ? blobPayload.thumbnail_url
               : null;
         return {
+          assetId: row.asset_id,
           providerUid:
             typeof payload.stream_uid === "string"
               ? payload.stream_uid
@@ -477,73 +631,29 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
   }
 
   const home = await getHomeSnapshot(userId);
-  const recentObservationsResult = await pool.query<{
-    occurrence_id: string;
-    visit_id: string;
-    display_name: string | null;
-    observed_at: string;
-    observer_name: string | null;
-    place_name: string | null;
-    municipality: string | null;
-    photo_url: string | null;
-    identification_count: string;
-  }>(
-    `select
-        o.occurrence_id,
-        o.visit_id,
-        coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
-        v.observed_at::text,
-        coalesce(u.display_name, 'Unknown observer') as observer_name,
-        coalesce(p.canonical_name, 'Unknown place') as place_name,
-        coalesce(v.observed_municipality, p.municipality) as municipality,
-        photo.public_url as photo_url,
-        (
-          select count(*)::text
-          from identifications i
-          where i.occurrence_id = o.occurrence_id
-        ) as identification_count
-     from occurrences o
-     join visits v on v.visit_id = o.visit_id
-     left join users u on u.user_id = v.user_id
-     left join places p on p.place_id = v.place_id
-     left join lateral (
-       select coalesce(ab.public_url, ab.storage_path) as public_url
-       from evidence_assets ea
-       join asset_blobs ab on ab.blob_id = ea.blob_id
-       where ea.occurrence_id = o.occurrence_id
-         and ea.asset_role = 'observation_photo'
-       order by ea.created_at asc
-       limit 1
-     ) photo on true
-     where v.user_id = $1
-     order by v.observed_at desc
-     limit 8`,
-    [userId],
-  );
+  const recentObservations = await loadVisitSummaryObservations(8, { userId });
 
   return {
     userId: user.user_id,
     displayName: user.display_name,
     rankLabel: user.rank_label,
     recentPlaces: home.myPlaces,
-    recentObservations: recentObservationsResult.rows.map((row) => ({
-      occurrenceId: row.occurrence_id,
-      visitId: row.visit_id,
-      displayName: row.display_name ?? "Unresolved",
-      observedAt: row.observed_at,
-      observerName: row.observer_name ?? "Unknown observer",
-      placeName: row.place_name ?? "Unknown place",
-      municipality: row.municipality,
-      photoUrl: normalizeAssetUrl(row.photo_url),
-      identificationCount: Number(row.identification_count),
-    })),
+    recentObservations,
   };
 }
 
 export async function getSpecialistSnapshot(
   lane: SpecialistSnapshot["lane"],
+  viewer?: {
+    userId: string;
+    roleName?: string | null;
+    rankLabel?: string | null;
+  },
 ): Promise<SpecialistSnapshot> {
   const pool = getPool();
+  const accessContext: ReviewerAuthorityAccessContext | null = viewer?.userId
+    ? await getReviewerAccessContext(viewer.userId, viewer.roleName, viewer.rankLabel)
+    : null;
   const [summaryResult, queueResult] = await Promise.all([
     pool.query<{
       total_occurrences: string;
@@ -567,6 +677,10 @@ export async function getSpecialistSnapshot(
       municipality: string | null;
       photo_url: string | null;
       identification_count: string;
+      scientific_name: string | null;
+      vernacular_name: string | null;
+      ai_taxon_name: string | null;
+      evidence_tier: string | null;
     }>(
       `select
           o.occurrence_id,
@@ -581,7 +695,11 @@ export async function getSpecialistSnapshot(
             select count(*)::text
             from identifications i
             where i.occurrence_id = o.occurrence_id
-          ) as identification_count
+          ) as identification_count,
+          o.scientific_name,
+          o.vernacular_name,
+          coalesce(ai.recommended_taxon_name, ai.best_specific_taxon_name) as ai_taxon_name,
+          o.evidence_tier::text
        from occurrences o
        join visits v on v.visit_id = o.visit_id
        left join users u on u.user_id = v.user_id
@@ -595,6 +713,19 @@ export async function getSpecialistSnapshot(
          order by ea.created_at asc
          limit 1
        ) photo on true
+       left join lateral (
+         select recommended_taxon_name, best_specific_taxon_name
+         from observation_ai_assessments a
+         where a.occurrence_id = o.occurrence_id
+         order by a.generated_at desc
+         limit 1
+       ) ai on true
+       where
+         case
+           when $1 = 'public-claim' then coalesce(o.evidence_tier, 0) >= 2 and coalesce(o.evidence_tier, 0) < 3
+           when $1 = 'expert-lane' then coalesce(o.evidence_tier, 0) < 2
+           else true
+         end
        order by
          case
            when $1 = 'expert-lane' then (
@@ -605,12 +736,32 @@ export async function getSpecialistSnapshot(
            else 0
          end asc,
          v.observed_at desc
-       limit 12`,
+       limit 60`,
       [lane],
     ),
   ]);
 
   const summary = summaryResult.rows[0];
+  const scopedRows = (() => {
+    if (!accessContext || accessContext.canManageAll) {
+      return queueResult.rows;
+    }
+
+    if (accessContext.activeAuthorities.length === 0) {
+      return [] as typeof queueResult.rows;
+    }
+
+    return queueResult.rows.filter((row) =>
+      accessContext.activeAuthorities.some((authority) =>
+        matchesAuthorityScope(authority, [
+          row.scientific_name,
+          row.vernacular_name,
+          row.ai_taxon_name,
+          row.display_name,
+        ]),
+      ),
+    );
+  })();
 
   return {
     lane,
@@ -620,7 +771,7 @@ export async function getSpecialistSnapshot(
       identificationCount: Number(summary?.identification_count ?? 0),
       observationPhotoAssets: Number(summary?.observation_photo_assets ?? 0),
     },
-    queue: queueResult.rows.map((row) => ({
+    queue: scopedRows.slice(0, 12).map((row) => ({
       occurrenceId: row.occurrence_id,
       visitId: row.visit_id,
       displayName: row.display_name ?? "Unresolved",

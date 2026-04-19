@@ -98,6 +98,36 @@ ssh ikimon-vps "STAGING_BRANCH=staging /var/www/ikimon.life-staging/deploy.sh"
 - uploads は repo 配下でなく `persistent/uploads` に置く
 - 本番 deploy 前に staging で UI / data / health check を通す
 
+## 固定IPバイパス
+
+固定回線からだけ `401` を外したい場合は、Basic Auth 自体は残したまま allowlist で迂回する。
+
+対象ファイル:
+
+- `/etc/nginx/ikimon-staging-allowlist.conf`
+
+初期状態では `scripts/provision_staging_from_production.ps1` が空の雛形を配置する。
+
+例:
+
+```nginx
+allow 203.0.113.10;
+allow 198.51.100.0/24;
+```
+
+反映:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+ルール:
+
+- 許可したIPからは `staging.ikimon.life` でも `401` なしで入れる
+- allowlist に入っていないアクセスは従来どおり Basic Auth を要求する
+- 動的IP回線は不向き。固定IPか CIDR が確定している回線だけ入れる
+
 ## 既知の注意点
 
 - staging は production の secret を複製するため、OAuth や外部 API は production と同じ資格情報を使う

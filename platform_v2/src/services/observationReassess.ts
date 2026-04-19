@@ -1,36 +1,59 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { dirname, resolve } from "node:path";
+import path, { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { GoogleGenAI } from "@google/genai";
+import type { PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
+import { createObservationAiRun, ensureLegacyAiRunsForVisit, getLatestObservationAiRunForVisit } from "./observationAiRuns.js";
 import { matchTaxon, matchTaxonBatch, type GbifMatch } from "./gbifBackboneMatch.js";
-import type { PoolClient } from "pg";
+import { getStoredVisitDisplayState, upsertVisitDisplayState, deriveVisitDisplayState } from "./visitDisplayState.js";
+import { getVisitSubjectSummaries } from "./visitSubjects.js";
 
 export type ReassessResult = {
+  aiRunId: string;
   assessmentId: string;
   occurrenceId: string;
+  visitId: string;
   confidenceBand: string;
   recommendedTaxonName: string;
   narrative: string;
-  coexistingAdded: number;
+  candidateCount: number;
+  regionCount: number;
   gbifMatchedPrimary: boolean;
   gbifMatchedCoexistingCount: number;
   modelUsed: string;
+  selectionSource: string;
+  featuredOccurrenceId: string | null;
 };
 
 export type ReassessImageInput = {
   mime: string;
   b64: string;
+  assetId?: string | null;
+  frameTimeMs?: number | null;
 };
 
 export type ReassessObservationOptions = {
   photos?: ReassessImageInput[];
   promptVersion?: string;
   sourceTag?: string;
+  triggeredBy?: string | null;
+};
+
+type GeminiRegion = {
+  asset_index?: number;
+  rect?: {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+  };
+  frame_time_ms?: number;
+  confidence?: number;
+  note?: string;
 };
 
 type GeminiJson = {
@@ -53,8 +76,46 @@ type GeminiJson = {
   confirm_more?: string[];
   geographic_context?: string;
   seasonal_context?: string;
-  coexisting_taxa?: Array<{ name?: string; scientific_name?: string; rank?: string; confidence?: number; note?: string }>;
+  recommended_media_regions?: GeminiRegion[];
+  coexisting_taxa?: Array<{
+    name?: string;
+    scientific_name?: string;
+    rank?: string;
+    confidence?: number;
+    note?: string;
+    media_regions?: GeminiRegion[];
+  }>;
 };
+
+type LoadedPhotoInput = ReassessImageInput & {
+  assetId: string | null;
+};
+
+type ResolvedObservationTarget = {
+  visitId: string;
+  selectedOccurrenceId: string;
+  primaryOccurrenceId: string;
+  selectedSubjectIndex: number;
+  vernacularName: string | null;
+  scientificName: string | null;
+  taxonRank: string | null;
+};
+
+type NormalizedRegion = {
+  assetIndex: number;
+  frameTimeMs: number | null;
+  confidence: number | null;
+  note: string | null;
+  rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+};
+
+const PIPELINE_VERSION = "observation-reassess/v2-durable";
+const TAXONOMY_VERSION = "gbif-backbone/current";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROMPT_PATH = resolve(__dirname, "../prompts/observation_reassess.md");
@@ -95,44 +156,160 @@ function normalizeBand(b: string | undefined): "high" | "medium" | "low" | "unkn
   return "unknown";
 }
 
-async function loadPhotoBytes(client: PoolClient, occurrenceId: string, visitId: string): Promise<Array<{ mime: string; b64: string }>> {
+function normalizeRectCandidate(region: GeminiRegion): NormalizedRegion | null {
+  const assetIndex = Number(region.asset_index);
+  if (!Number.isInteger(assetIndex) || assetIndex < 0) {
+    return null;
+  }
+  const rect = region.rect ?? {};
+  const x = Number(rect.x);
+  const y = Number(rect.y);
+  const width = Number(rect.width);
+  const height = Number(rect.height);
+  if (![x, y, width, height].every((value) => Number.isFinite(value))) {
+    return null;
+  }
+  if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > 1.001 || y + height > 1.001) {
+    return null;
+  }
+  const frameTimeMs = region.frame_time_ms == null ? null : Number(region.frame_time_ms);
+  const confidence = region.confidence == null ? null : Math.min(1, Math.max(0, Number(region.confidence)));
+  return {
+    assetIndex,
+    frameTimeMs: Number.isFinite(frameTimeMs ?? NaN) ? Math.max(0, Math.round(frameTimeMs ?? 0)) : null,
+    confidence: confidence != null && Number.isFinite(confidence) ? confidence : null,
+    note: typeof region.note === "string" && region.note.trim() ? region.note.trim() : null,
+    rect: { x, y, width, height },
+  };
+}
+
+function buildCandidateKey(vernacularName: string, scientificName: string, rank: string | null): string {
+  return [scientificName.trim().toLowerCase(), vernacularName.trim().toLowerCase(), String(rank ?? "").trim().toLowerCase()]
+    .filter((part) => part.length > 0)
+    .join("|");
+}
+
+function buildAssetFingerprint(sourceTag: string, photos: LoadedPhotoInput[]): string {
+  const hash = createHash("sha256");
+  hash.update(sourceTag);
+  for (const photo of photos) {
+    hash.update("|");
+    hash.update(photo.assetId ?? "inline");
+    hash.update(":");
+    hash.update(String(photo.frameTimeMs ?? ""));
+    hash.update(":");
+    hash.update(String(photo.b64.length));
+    hash.update(":");
+    hash.update(photo.b64.slice(0, 64));
+  }
+  return hash.digest("hex");
+}
+
+async function loadPhotoBytes(client: PoolClient, visitId: string): Promise<LoadedPhotoInput[]> {
   const rows = await client.query<{
+    asset_id: string;
     mime_type: string | null;
     storage_path: string | null;
     public_url: string | null;
   }>(
-    `SELECT ab.mime_type, ab.storage_path, ab.public_url
+    `SELECT ea.asset_id::text,
+            ab.mime_type,
+            ab.storage_path,
+            ab.public_url
        FROM evidence_assets ea
        JOIN asset_blobs ab ON ab.blob_id = ea.blob_id
-      WHERE (ea.occurrence_id = $1 OR ea.visit_id = $2)
+      WHERE ea.visit_id = $1
         AND ea.asset_role = 'observation_photo'
       ORDER BY ea.created_at ASC
       LIMIT 3`,
-    [occurrenceId, visitId],
+    [visitId],
   );
 
   const { legacyPublicRoot } = loadConfig();
-  const out: Array<{ mime: string; b64: string }> = [];
-  for (const r of rows.rows) {
+  const out: LoadedPhotoInput[] = [];
+  for (const row of rows.rows) {
     const candidates: string[] = [];
-    if (r.storage_path) {
-      if (path.isAbsolute(r.storage_path)) candidates.push(r.storage_path);
-      else candidates.push(path.join(legacyPublicRoot, r.storage_path));
+    if (row.storage_path) {
+      if (path.isAbsolute(row.storage_path)) candidates.push(row.storage_path);
+      else candidates.push(path.join(legacyPublicRoot, row.storage_path));
     }
-    if (r.public_url && !r.public_url.startsWith("http")) {
-      candidates.push(path.join(legacyPublicRoot, r.public_url.replace(/^\/+/, "")));
+    if (row.public_url && !row.public_url.startsWith("http")) {
+      candidates.push(path.join(legacyPublicRoot, row.public_url.replace(/^\/+/, "")));
     }
-    for (const p of candidates) {
+    for (const candidate of candidates) {
       try {
-        const buf = await readFile(p);
-        out.push({ mime: r.mime_type || "image/jpeg", b64: buf.toString("base64") });
+        const buf = await readFile(candidate);
+        out.push({
+          mime: row.mime_type || "image/jpeg",
+          b64: buf.toString("base64"),
+          assetId: row.asset_id,
+          frameTimeMs: null,
+        });
         break;
       } catch {
-        // next candidate
+        // continue
       }
     }
   }
   return out;
+}
+
+async function resolveObservationTarget(client: PoolClient, observationId: string): Promise<ResolvedObservationTarget | null> {
+  const result = await client.query<{
+    visit_id: string;
+    selected_occurrence_id: string | null;
+    primary_occurrence_id: string;
+    selected_subject_index: number | null;
+    vernacular_name: string | null;
+    scientific_name: string | null;
+    taxon_rank: string | null;
+  }>(
+    `WITH matched_visit AS (
+        SELECT visit_id
+          FROM visits
+         WHERE visit_id = $1
+            OR legacy_observation_id = $1
+        UNION
+        SELECT visit_id
+          FROM occurrences
+         WHERE occurrence_id = $1
+            OR legacy_observation_id = $1
+        LIMIT 1
+     )
+     SELECT v.visit_id,
+            selected.occurrence_id AS selected_occurrence_id,
+            primary_occurrence.occurrence_id AS primary_occurrence_id,
+            selected.subject_index AS selected_subject_index,
+            coalesce(selected.vernacular_name, primary_occurrence.vernacular_name) AS vernacular_name,
+            coalesce(selected.scientific_name, primary_occurrence.scientific_name) AS scientific_name,
+            coalesce(selected.taxon_rank, primary_occurrence.taxon_rank) AS taxon_rank
+       FROM matched_visit mv
+       JOIN visits v ON v.visit_id = mv.visit_id
+       JOIN occurrences primary_occurrence
+         ON primary_occurrence.visit_id = v.visit_id
+        AND primary_occurrence.subject_index = 0
+       LEFT JOIN LATERAL (
+         SELECT occurrence_id, subject_index, vernacular_name, scientific_name, taxon_rank
+           FROM occurrences
+          WHERE visit_id = v.visit_id
+            AND (occurrence_id = $1 OR legacy_observation_id = $1)
+          ORDER BY subject_index ASC
+          LIMIT 1
+       ) selected ON true
+      LIMIT 1`,
+    [observationId],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    visitId: row.visit_id,
+    selectedOccurrenceId: row.selected_occurrence_id ?? row.primary_occurrence_id,
+    primaryOccurrenceId: row.primary_occurrence_id,
+    selectedSubjectIndex: row.selected_subject_index ?? 0,
+    vernacularName: row.vernacular_name,
+    scientificName: row.scientific_name,
+    taxonRank: row.taxon_rank,
+  };
 }
 
 function getClient(): GoogleGenAI {
@@ -143,8 +320,8 @@ function getClient(): GoogleGenAI {
 
 async function runGemini(prompt: string, photos: ReassessImageInput[]): Promise<{ parsed: GeminiJson; modelUsed: string; rawText: string }> {
   const ai = getClient();
-  const parts: Array<Record<string, unknown>> = photos.map((p) => ({
-    inlineData: { mimeType: p.mime, data: p.b64 },
+  const parts: Array<Record<string, unknown>> = photos.map((photo) => ({
+    inlineData: { mimeType: photo.mime, data: photo.b64 },
   }));
   parts.push({ text: prompt });
 
@@ -156,16 +333,16 @@ async function runGemini(prompt: string, photos: ReassessImageInput[]): Promise<
       const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
       let parsed: GeminiJson = {};
       try {
-        const m = rawText.match(/\{[\s\S]*\}/);
-        if (m) parsed = JSON.parse(m[0]);
+        const matched = rawText.match(/\{[\s\S]*\}/);
+        if (matched) parsed = JSON.parse(matched[0]);
       } catch {
         parsed = {};
       }
       return { parsed, modelUsed: model, rawText };
-    } catch (err) {
-      lastErr = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!/503|UNAVAILABLE|RESOURCE_EXHAUSTED|rate|quota/i.test(msg)) throw err;
+    } catch (error) {
+      lastErr = error;
+      const msg = error instanceof Error ? error.message : String(error);
+      if (!/503|UNAVAILABLE|RESOURCE_EXHAUSTED|rate|quota/i.test(msg)) throw error;
     }
   }
   throw lastErr ?? new Error("gemini_all_models_failed");
@@ -173,39 +350,21 @@ async function runGemini(prompt: string, photos: ReassessImageInput[]): Promise<
 
 /**
  * 観察単位の AI 再判定。
- * - observation_ai_assessments に新 assessment を INSERT（旧 assessment は delete せず時系列で残す）
- * - 主 occurrence の recommended_taxon_name が空なら埋める
- * - coexisting_taxa を subject_index ≥ 1 の occurrences として追加（既存 coexisting と重複しないものだけ）
- * - ADR-0004: candidate → subject → occurrence のうち、AI 単独で昇格させないため、
- *   追加 occurrence は evidence_tier=0 / quality_grade=provisional 相当で confidence を記録。
+ * canonical occurrence は直接更新せず、immutable な ai_run / assessment / candidate / region を追記する。
+ * stable display state は human lock を維持しつつ、未確定 visit だけ最新 run を既定表示に使う。
  */
 export async function reassessObservation(
-  occurrenceId: string,
+  observationId: string,
   options: ReassessObservationOptions = {},
 ): Promise<ReassessResult> {
   const pool = getPool();
   const client = await pool.connect();
   try {
-    // 1. 対象 occurrence を取得
-    const occ = await client.query<{
-      occurrence_id: string;
-      visit_id: string;
-      subject_index: number;
-      vernacular_name: string | null;
-      scientific_name: string | null;
-      taxon_rank: string | null;
-    }>(
-      `SELECT occurrence_id, visit_id, subject_index, vernacular_name, scientific_name, taxon_rank
-         FROM occurrences WHERE occurrence_id = $1 LIMIT 1`,
-      [occurrenceId],
-    );
-    const target = occ.rows[0];
-    if (!target) throw new Error("occurrence_not_found");
-    if (target.subject_index !== 0) {
-      throw new Error("reassess_only_primary");
+    const target = await resolveObservationTarget(client, observationId);
+    if (!target) {
+      throw new Error("occurrence_not_found");
     }
 
-    // 2. visit のコンテキスト
     const visit = await client.query<{
       observed_at: string;
       latitude: number | null;
@@ -216,29 +375,39 @@ export async function reassessObservation(
               coalesce(v.point_latitude, p.center_latitude) AS latitude,
               coalesce(v.point_longitude, p.center_longitude) AS longitude,
               v.place_id
-         FROM visits v LEFT JOIN places p ON p.place_id = v.place_id
-        WHERE v.visit_id = $1 LIMIT 1`,
-      [target.visit_id],
+         FROM visits v
+         LEFT JOIN places p ON p.place_id = v.place_id
+        WHERE v.visit_id = $1
+        LIMIT 1`,
+      [target.visitId],
     );
     const vctx = visit.rows[0] ?? { observed_at: "", latitude: null, longitude: null, place_id: null };
 
-    // 3. 入力画像（override） or DB 写真を最大3枚ロード
     const overridePhotos = Array.isArray(options.photos)
-      ? options.photos.filter((p) => typeof p?.mime === "string" && p.mime.trim().startsWith("image/") && typeof p.b64 === "string" && p.b64.trim().length > 0)
+      ? options.photos
+          .filter((photo) =>
+            typeof photo?.mime === "string" &&
+            photo.mime.trim().startsWith("image/") &&
+            typeof photo.b64 === "string" &&
+            photo.b64.trim().length > 0,
+          )
+          .map((photo) => ({
+            ...photo,
+            assetId: photo.assetId ?? null,
+          }))
       : [];
     const photos = overridePhotos.length > 0
       ? overridePhotos
-      : await loadPhotoBytes(client, occurrenceId, target.visit_id);
+      : await loadPhotoBytes(client, target.visitId);
     if (photos.length === 0) {
       throw new Error("no_photo_for_reassess");
     }
 
-    // 4. Gemini
     const lat = vctx.latitude ?? 35.0;
     const lng = vctx.longitude ?? 138.0;
-    const existingLabel = target.vernacular_name || target.scientific_name || "未同定";
+    const existingLabel = target.vernacularName || target.scientificName || "未同定";
     const prompt = renderPrompt({
-      occurrenceId,
+      occurrenceId: target.primaryOccurrenceId,
       lat: lat.toFixed(5),
       lng: lng.toFixed(5),
       observedAt: vctx.observed_at || "不明",
@@ -248,9 +417,8 @@ export async function reassessObservation(
     });
 
     const { parsed, modelUsed, rawText } = await runGemini(prompt, photos);
-    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v1";
+    const promptVersion = options.promptVersion?.trim() || "observation_reassess.md/v2";
     const sourceTag = options.sourceTag?.trim() || "photo";
-    const sourcePayloadKey = sourceTag === "video_thumb" ? "v2_ai_reassess_video_thumb" : "v2_ai_reassess";
 
     const band = normalizeBand(parsed.confidence_band);
     const rank = normalizeRank(parsed.recommended_rank);
@@ -259,79 +427,153 @@ export async function reassessObservation(
     const bestSpecific = String(parsed.best_specific_taxon_name ?? "").trim();
     const narrative = String(parsed.narrative ?? "").trim();
     const simple = String(parsed.simple_summary ?? "").trim();
-    const diagFeatures = Array.isArray(parsed.diagnostic_features_seen) ? parsed.diagnostic_features_seen.filter((x) => typeof x === "string") : [];
-    const missing = Array.isArray(parsed.missing_evidence) ? parsed.missing_evidence.filter((x) => typeof x === "string") : [];
-    const similar = Array.isArray(parsed.similar_taxa) ? parsed.similar_taxa.filter((x) => x && typeof x.name === "string" && x.name.trim().length > 0).map((x) => ({ name: x.name, rank: x.rank ?? "species" })) : [];
-    const distinguishing = Array.isArray(parsed.distinguishing_tips) ? parsed.distinguishing_tips.filter((x) => typeof x === "string") : [];
-    const confirmMore = Array.isArray(parsed.confirm_more) ? parsed.confirm_more.filter((x) => typeof x === "string") : [];
-    const coex = Array.isArray(parsed.coexisting_taxa)
-      ? parsed.coexisting_taxa.filter((x) => {
-          if (!x) return false;
-          const name = typeof x.name === "string" ? x.name.trim() : "";
-          const scientificName = typeof x.scientific_name === "string" ? x.scientific_name.trim() : "";
+    const diagFeatures = Array.isArray(parsed.diagnostic_features_seen) ? parsed.diagnostic_features_seen.filter((value) => typeof value === "string") : [];
+    const missing = Array.isArray(parsed.missing_evidence) ? parsed.missing_evidence.filter((value) => typeof value === "string") : [];
+    const similar = Array.isArray(parsed.similar_taxa)
+      ? parsed.similar_taxa
+          .filter((value) => value && typeof value.name === "string" && value.name.trim().length > 0)
+          .map((value) => ({ name: value.name, rank: value.rank ?? "species" }))
+      : [];
+    const distinguishing = Array.isArray(parsed.distinguishing_tips) ? parsed.distinguishing_tips.filter((value) => typeof value === "string") : [];
+    const confirmMore = Array.isArray(parsed.confirm_more) ? parsed.confirm_more.filter((value) => typeof value === "string") : [];
+    const coexisting = Array.isArray(parsed.coexisting_taxa)
+      ? parsed.coexisting_taxa.filter((value) => {
+          if (!value) return false;
+          const name = typeof value.name === "string" ? value.name.trim() : "";
+          const scientificName = typeof value.scientific_name === "string" ? value.scientific_name.trim() : "";
           return name.length > 0 || scientificName.length > 0;
         })
       : [];
 
     const primaryRankHint = rank === "unknown" ? null : rank;
     const primaryMatchName = recommendedScientificName || recommendedName;
-    const coexPrepared = coex.map((c) => {
-      const vernacularName = String(c.name ?? "").trim();
-      const scientificName = String(c.scientific_name ?? "").trim();
-      const coRank = normalizeRank(c.rank);
-      const coConf =
-        typeof c.confidence === "number" && Number.isFinite(c.confidence)
-          ? Math.min(1, Math.max(0, c.confidence))
+    const preparedCandidates = coexisting.map((candidate) => {
+      const vernacularName = String(candidate.name ?? "").trim();
+      const scientificName = String(candidate.scientific_name ?? "").trim();
+      const normalizedRank = normalizeRank(candidate.rank);
+      const confidence =
+        typeof candidate.confidence === "number" && Number.isFinite(candidate.confidence)
+          ? Math.min(1, Math.max(0, candidate.confidence))
           : 0.5;
       return {
         vernacularName,
         scientificName,
         matchName: scientificName || vernacularName,
-        rankHint: coRank === "unknown" ? null : coRank,
-        rank: coRank,
-        confidence: coConf,
-        note: c.note ?? null,
+        rankHint: normalizedRank === "unknown" ? null : normalizedRank,
+        rank: normalizedRank,
+        confidence,
+        note: typeof candidate.note === "string" ? candidate.note.trim() : null,
+        regions: Array.isArray(candidate.media_regions)
+          ? candidate.media_regions.map(normalizeRectCandidate).filter((region): region is NormalizedRegion => Boolean(region))
+          : [],
       };
     });
 
-    const [primaryGbifMatch, coexistingGbifMatches]: [GbifMatch, GbifMatch[]] = await Promise.all([
+    const [primaryGbifMatch, coexistingGbifMatches] = await Promise.all([
       matchTaxon({ name: primaryMatchName, rank: primaryRankHint }),
-      matchTaxonBatch(coexPrepared.map((c) => ({ name: c.matchName, rank: c.rankHint }))),
+      matchTaxonBatch(preparedCandidates.map((candidate) => ({ name: candidate.matchName, rank: candidate.rankHint }))),
     ]);
     const gbifMatchedPrimary = primaryGbifMatch.usageKey !== null;
     const gbifMatchedCoexistingCount = coexistingGbifMatches.reduce((count, match) => (match.usageKey !== null ? count + 1 : count), 0);
-    const confidenceScore = band === "high" ? 0.85 : band === "medium" ? 0.6 : band === "low" ? 0.4 : 0.3;
+    const primaryRegions = Array.isArray(parsed.recommended_media_regions)
+      ? parsed.recommended_media_regions.map(normalizeRectCandidate).filter((region): region is NormalizedRegion => Boolean(region))
+      : [];
 
-    // 5. DB 反映
     await client.query("begin");
+    await ensureLegacyAiRunsForVisit(client, target.visitId);
+    const previousRun = await getLatestObservationAiRunForVisit(client, target.visitId);
+    const aiRun = await createObservationAiRun(client, {
+      visitId: target.visitId,
+      triggerOccurrenceId: target.primaryOccurrenceId,
+      pipelineVersion: PIPELINE_VERSION,
+      modelProvider: "google",
+      modelName: modelUsed,
+      modelVersion: modelUsed,
+      promptVersion,
+      taxonomyVersion: TAXONOMY_VERSION,
+      inputAssetFingerprint: buildAssetFingerprint(sourceTag, photos),
+      triggerKind: sourceTag === "video_thumb" ? "video_thumb_reassess" : "manual_reassess",
+      triggeredBy: options.triggeredBy ?? null,
+      supersedesRunId: previousRun?.aiRunId ?? null,
+      runStatus: "succeeded",
+      sourcePayload: {
+        sourceTag,
+        selectedOccurrenceId: target.selectedOccurrenceId,
+        photoCount: photos.length,
+      },
+    });
+
     const assessmentId = randomUUID();
     await client.query(
       `INSERT INTO observation_ai_assessments (
-         assessment_id, occurrence_id, visit_id,
-         confidence_band, model_used, prompt_version,
-         recommended_rank, recommended_taxon_name, best_specific_taxon_name,
-         narrative, simple_summary,
-         observer_boost, next_step_text, stop_reason,
-         fun_fact, fun_fact_grounded,
-         diagnostic_features_seen, missing_evidence, similar_taxa, distinguishing_tips, confirm_more,
-         geographic_context, seasonal_context, raw_json
+         assessment_id,
+         ai_run_id,
+         occurrence_id,
+         visit_id,
+         confidence_band,
+         model_used,
+         prompt_version,
+         pipeline_version,
+         taxonomy_version,
+         interpretation_status,
+         recommended_rank,
+         recommended_taxon_name,
+         best_specific_taxon_name,
+         narrative,
+         simple_summary,
+         observer_boost,
+         next_step_text,
+         stop_reason,
+         fun_fact,
+         fun_fact_grounded,
+         diagnostic_features_seen,
+         missing_evidence,
+         similar_taxa,
+         distinguishing_tips,
+         confirm_more,
+         geographic_context,
+         seasonal_context,
+         raw_json
        ) VALUES (
-         $1::uuid, $2, $3,
-         $4, $5, $6,
-         $7, $8, $9,
-         $10, $11,
-         $12, $13, $14,
-         $15, $16,
-         $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb, $21::jsonb,
-         $22, $23, $24::jsonb
+         $1::uuid,
+         $2::uuid,
+         $3,
+         $4,
+         $5,
+         $6,
+         $7,
+         $8,
+         $9,
+         'selected',
+         $10,
+         $11,
+         $12,
+         $13,
+         $14,
+         $15,
+         $16,
+         $17,
+         $18,
+         $19,
+         $20::jsonb,
+         $21::jsonb,
+         $22::jsonb,
+         $23::jsonb,
+         $24::jsonb,
+         $25,
+         $26,
+         $27::jsonb
        )`,
       [
         assessmentId,
-        occurrenceId,
-        target.visit_id,
+        aiRun.aiRunId,
+        target.primaryOccurrenceId,
+        target.visitId,
         band,
         modelUsed,
         promptVersion,
+        PIPELINE_VERSION,
+        TAXONOMY_VERSION,
         rank === "unknown" ? null : rank,
         recommendedName || null,
         bestSpecific || null,
@@ -349,149 +591,205 @@ export async function reassessObservation(
         JSON.stringify(confirmMore),
         String(parsed.geographic_context ?? "").trim(),
         String(parsed.seasonal_context ?? "").trim(),
-        JSON.stringify({ raw: rawText.slice(0, 4000), parsed }),
+        JSON.stringify({ raw: rawText.slice(0, 12000), parsed }),
       ],
     );
 
-    // 6. 主 occurrence の taxon 情報を AI 再判定で更新（null は既存値維持）
-    const primaryGbifUsageKey = primaryGbifMatch.usageKey;
-    const primaryTaxonConceptVersion = primaryGbifUsageKey !== null ? `gbif:${primaryGbifUsageKey}` : null;
-    const primaryLineage = primaryGbifUsageKey !== null ? primaryGbifMatch : null;
-    if (
-      recommendedName ||
-      recommendedScientificName ||
-      primaryRankHint ||
-      primaryTaxonConceptVersion ||
-      primaryLineage?.kingdom ||
-      primaryLineage?.phylum ||
-      primaryLineage?.className ||
-      primaryLineage?.orderName ||
-      primaryLineage?.family ||
-      primaryLineage?.genus
-    ) {
-      await client.query(
-        `UPDATE occurrences
-            SET vernacular_name = coalesce($2, vernacular_name),
-                scientific_name = coalesce($3, scientific_name),
-                taxon_rank = coalesce($4, taxon_rank),
-                taxon_concept_version = coalesce($5, taxon_concept_version),
-                kingdom = coalesce($6, kingdom),
-                phylum = coalesce($7, phylum),
-                class_name = coalesce($8, class_name),
-                order_name = coalesce($9, order_name),
-                family = coalesce($10, family),
-                genus = coalesce($11, genus),
-                confidence_score = $12,
-                source_payload = coalesce(source_payload, '{}'::jsonb) || jsonb_build_object($13::text, jsonb_build_object('model', $14::text, 'assessment_id', $15::text, 'source', $16::text))
-          WHERE occurrence_id = $1`,
-        [
-          occurrenceId,
-          recommendedName || null,
-          recommendedScientificName || null,
-          primaryRankHint,
-          primaryTaxonConceptVersion,
-          primaryLineage?.kingdom ?? null,
-          primaryLineage?.phylum ?? null,
-          primaryLineage?.className ?? null,
-          primaryLineage?.orderName ?? null,
-          primaryLineage?.family ?? null,
-          primaryLineage?.genus ?? null,
-          confidenceScore,
-          sourcePayloadKey,
-          modelUsed,
-          assessmentId,
-          sourceTag,
-        ],
-      );
+    const subjects = await getVisitSubjectSummaries(target.visitId, client);
+    const subjectByKey = new Map<string, { occurrenceId: string }>();
+    for (const subject of subjects) {
+      const subjectKey = buildCandidateKey(subject.vernacularName ?? "", subject.scientificName ?? "", subject.rank);
+      if (subjectKey) {
+        subjectByKey.set(subjectKey, { occurrenceId: subject.occurrenceId });
+      }
     }
 
-    // 7. coexisting_taxa を subject として追加（既存の subject_index ≥ 1 と重複名は除く）
-    const existingSubjects = await client.query<{ name: string }>(
-      `SELECT lower(coalesce(nullif(vernacular_name,''), scientific_name, '')) AS name
-         FROM occurrences WHERE visit_id = $1 AND subject_index >= 1`,
-      [target.visit_id],
-    );
-    const knownNames = new Set(existingSubjects.rows.map((r) => r.name).filter((n) => n.length > 0));
-
-    const maxIdxRes = await client.query<{ max: number | null }>(
-      `SELECT max(subject_index) AS max FROM occurrences WHERE visit_id = $1`,
-      [target.visit_id],
-    );
-    let nextIdx = (maxIdxRes.rows[0]?.max ?? 0) + 1;
-    let coexAdded = 0;
-
-    for (let idx = 0; idx < coexPrepared.length; idx += 1) {
-      const c = coexPrepared[idx];
-      if (!c) continue;
-      const dedupeName = (c.vernacularName || c.scientificName).toLowerCase();
-      if (!dedupeName) continue;
-      if (knownNames.has(dedupeName)) continue;
-
-      const coGbif = coexistingGbifMatches[idx];
-      const coGbifUsageKey = coGbif?.usageKey ?? null;
-      const coTaxonConceptVersion = coGbifUsageKey !== null ? `gbif:${coGbifUsageKey}` : null;
-      const coLineage = coGbifUsageKey !== null ? coGbif : null;
-      const newOccId = `occ:${target.visit_id}:${nextIdx}`;
-
+    let candidateCount = 0;
+    let regionCount = 0;
+    for (let index = 0; index < preparedCandidates.length; index += 1) {
+      const candidate = preparedCandidates[index];
+      if (!candidate) continue;
+      const gbif = coexistingGbifMatches[index];
+      const candidateKey = buildCandidateKey(candidate.vernacularName, candidate.scientificName, candidate.rankHint);
+      const matchedSubject = candidateKey ? subjectByKey.get(candidateKey) ?? null : null;
+      const candidateId = randomUUID();
       await client.query(
-        `INSERT INTO occurrences (
-           occurrence_id, visit_id, subject_index,
-           vernacular_name, scientific_name, taxon_rank, taxon_concept_version, confidence_score,
-           kingdom, phylum, class_name, order_name, family, genus,
-           source_payload
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
-         ON CONFLICT (occurrence_id) DO NOTHING`,
+        `INSERT INTO observation_ai_subject_candidates (
+           candidate_id,
+           ai_run_id,
+           visit_id,
+           suggested_occurrence_id,
+           candidate_key,
+           vernacular_name,
+           scientific_name,
+           taxon_rank,
+           confidence_score,
+           candidate_status,
+           note,
+           source_payload,
+           updated_at
+         ) VALUES (
+           $1::uuid,
+           $2::uuid,
+           $3,
+           $4,
+           $5,
+           $6,
+           $7,
+           $8,
+           $9,
+           $10,
+           $11,
+           $12::jsonb,
+           NOW()
+         )`,
         [
-          newOccId,
-          target.visit_id,
-          nextIdx,
-          c.vernacularName || null,
-          c.scientificName || null,
-          c.rank === "unknown" ? null : c.rank,
-          coTaxonConceptVersion,
-          c.confidence,
-          coLineage?.kingdom ?? null,
-          coLineage?.phylum ?? null,
-          coLineage?.className ?? null,
-          coLineage?.orderName ?? null,
-          coLineage?.family ?? null,
-          coLineage?.genus ?? null,
+          candidateId,
+          aiRun.aiRunId,
+          target.visitId,
+          matchedSubject?.occurrenceId ?? null,
+          candidateKey || `${candidate.vernacularName}:${index}`,
+          candidate.vernacularName || null,
+          candidate.scientificName || null,
+          candidate.rankHint,
+          candidate.confidence,
+          matchedSubject ? "matched" : "proposed",
+          candidate.note,
           JSON.stringify({
-            v2_subject: {
-              role_hint: "coexisting",
-              source: sourceTag === "video_thumb" ? "ai_reassess_video_thumb" : "ai_reassess",
-              assessment_id: assessmentId,
-              note: c.note,
-              gbif: {
-                usageKey: coGbifUsageKey,
-                matchType: coGbif?.matchType ?? "NONE",
-                confidence: coGbif?.confidence ?? null,
-              },
+            sourceTag,
+            gbif: {
+              usageKey: gbif?.usageKey ?? null,
+              matchType: gbif?.matchType ?? "NONE",
+              confidence: gbif?.confidence ?? null,
             },
           }),
         ],
       );
-      knownNames.add(dedupeName);
-      nextIdx += 1;
-      coexAdded += 1;
+      candidateCount += 1;
+
+      for (const region of candidate.regions) {
+        const photo = photos[region.assetIndex];
+        if (!photo?.assetId) continue;
+        await client.query(
+          `INSERT INTO subject_media_regions (
+             region_id,
+             ai_run_id,
+             occurrence_id,
+             candidate_id,
+             asset_id,
+             normalized_rect,
+             frame_time_ms,
+             confidence_score,
+             source_kind,
+             source_model,
+             source_payload
+           ) VALUES (
+             gen_random_uuid(),
+             $1::uuid,
+             $2,
+             $3::uuid,
+             $4::uuid,
+             $5::jsonb,
+             $6,
+             $7,
+             'ai',
+             $8,
+             $9::jsonb
+           )`,
+          [
+            aiRun.aiRunId,
+            matchedSubject?.occurrenceId ?? null,
+            candidateId,
+            photo.assetId,
+            JSON.stringify(region.rect),
+            region.frameTimeMs ?? photo.frameTimeMs ?? null,
+            region.confidence,
+            modelUsed,
+            JSON.stringify({
+              note: region.note,
+              sourceTag,
+              assetIndex: region.assetIndex,
+            }),
+          ],
+        );
+        regionCount += 1;
+      }
+    }
+
+    for (const region of primaryRegions) {
+      const photo = photos[region.assetIndex];
+      if (!photo?.assetId) continue;
+      await client.query(
+        `INSERT INTO subject_media_regions (
+           region_id,
+           ai_run_id,
+           occurrence_id,
+           asset_id,
+           normalized_rect,
+           frame_time_ms,
+           confidence_score,
+           source_kind,
+           source_model,
+           source_payload
+         ) VALUES (
+           gen_random_uuid(),
+           $1::uuid,
+           $2,
+           $3::uuid,
+           $4::jsonb,
+           $5,
+           $6,
+           'ai',
+           $7,
+           $8::jsonb
+         )`,
+        [
+          aiRun.aiRunId,
+          target.primaryOccurrenceId,
+          photo.assetId,
+          JSON.stringify(region.rect),
+          region.frameTimeMs ?? photo.frameTimeMs ?? null,
+          region.confidence,
+          modelUsed,
+          JSON.stringify({
+            note: region.note,
+            sourceTag,
+            assetIndex: region.assetIndex,
+          }),
+        ],
+      );
+      regionCount += 1;
+    }
+
+    const storedDisplayState = await getStoredVisitDisplayState(client, target.visitId).catch(() => null);
+    const latestSubjects = await getVisitSubjectSummaries(target.visitId, client);
+    let resolvedDisplayState = storedDisplayState;
+    if (!storedDisplayState || !storedDisplayState.lockedByHuman) {
+      resolvedDisplayState = deriveVisitDisplayState(target.visitId, latestSubjects, aiRun.aiRunId);
+      await upsertVisitDisplayState(client, resolvedDisplayState);
     }
 
     await client.query("commit");
 
     return {
+      aiRunId: aiRun.aiRunId,
       assessmentId,
-      occurrenceId,
+      occurrenceId: target.primaryOccurrenceId,
+      visitId: target.visitId,
       confidenceBand: band,
       recommendedTaxonName: recommendedName,
       narrative,
-      coexistingAdded: coexAdded,
+      candidateCount,
+      regionCount,
       gbifMatchedPrimary,
       gbifMatchedCoexistingCount,
       modelUsed,
+      selectionSource: resolvedDisplayState?.selectionSource ?? "system_stable",
+      featuredOccurrenceId: resolvedDisplayState?.featuredOccurrenceId ?? null,
     };
-  } catch (err) {
+  } catch (error) {
     try { await client.query("rollback"); } catch {}
-    throw err;
+    throw error;
   } finally {
     client.release();
   }

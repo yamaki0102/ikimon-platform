@@ -37,7 +37,11 @@
 - `geographic_context` — 緯度経度・季節から見た観察の妥当性や地理的特徴（例「浜松の海岸近くは該当種の分布北限」）。
 - `seasonal_context` — 季節・時期情報（例「4月中旬は蜂群れ始め」）。
 - `coexisting_taxa` — 主役以外に写り込む生きもの／植生。同定できた範囲で和名・属・科・生活形。**被写体として別 subject に昇格させたいものをここに。**
-  - 各要素: `{ "name": "...", "scientific_name": "...", "rank": "species|genus|family|lifeform", "confidence": 0.0-1.0, "note": "在来/外来など補足" }`
+  - 各要素: `{ "name": "...", "scientific_name": "...", "rank": "species|genus|family|lifeform", "confidence": 0.0-1.0, "note": "在来/外来など補足", "media_regions": [...] }`
+- `recommended_media_regions` — 主対象が画像のどこにあるかの概形。**分からなければ空配列でよい。** 各要素:
+  - `{ "asset_index": 0, "rect": { "x": 0.12, "y": 0.18, "width": 0.42, "height": 0.51 }, "frame_time_ms": 0, "confidence": 0.83, "note": "中央やや左" }`
+- `coexisting_taxa[].media_regions` — 副対象についても、分かる範囲で同じ形式の領域配列を返す。
+- `asset_index` は入力画像の 0 始まり index。`rect` は 0.0〜1.0 の正規化座標。`frame_time_ms` は静止画なら 0 または省略可。
 - **`scientific_name` (学名) は GBIF Backbone Taxonomy との照合に使う。主種 (`recommended_taxon_name` に対応する `scientific_name` フィールド) と coexisting_taxa の各要素の両方で、`rank` に応じた学名を**必ず**入れる：
   - `rank=species` → 二名法（属名 + 種小名、例: `Plagusia dentipes`）
   - `rank=genus` → 属名のみ（例: `Myrmarachne`）
@@ -80,8 +84,20 @@
   "confirm_more": ["...", "..."],
   "geographic_context": "...",
   "seasonal_context": "...",
+  "recommended_media_regions": [
+    {"asset_index":0,"rect":{"x":0.12,"y":0.18,"width":0.42,"height":0.51},"frame_time_ms":0,"confidence":0.83,"note":"主対象"}
+  ],
   "coexisting_taxa": [
-    {"name":"カラスノエンドウ","scientific_name":"Vicia sativa subsp. nigra","rank":"species","confidence":0.8,"note":"在来"}
+    {
+      "name":"カラスノエンドウ",
+      "scientific_name":"Vicia sativa subsp. nigra",
+      "rank":"species",
+      "confidence":0.8,
+      "note":"在来",
+      "media_regions":[
+        {"asset_index":0,"rect":{"x":0.58,"y":0.22,"width":0.23,"height":0.31},"frame_time_ms":0,"confidence":0.68,"note":"右上の葉群"}
+      ]
+    }
   ]
 }
 ```

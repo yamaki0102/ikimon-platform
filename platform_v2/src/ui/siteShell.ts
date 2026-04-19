@@ -33,6 +33,7 @@ export type SiteShellOptions = {
   footerNote?: string;
   lang?: SiteLang;
   currentPath?: string;
+  shellClassName?: string;
 };
 
 type ShellCopy = {
@@ -448,6 +449,14 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     a { color: inherit; text-decoration: none; }
     .site-shell { min-height: 100vh; }
     .shell { max-width: 1140px; margin: 0 auto; padding: 28px 24px 24px; }
+    .shell.shell-bleed {
+      max-width: none;
+      width: 100%;
+      padding: 22px clamp(16px, 2.4vw, 36px) 24px;
+    }
+    .shell.shell-map {
+      padding-top: 18px;
+    }
     .md-hidden { display: none; }
     .site-header { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(16px); background: rgba(249,255,254,.9); border-bottom: 1px solid rgba(0,0,0,.04); }
     .site-header-inner { max-width: 1180px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap; }
@@ -1102,6 +1111,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     @media (max-width: 720px) {
       .md-hidden { display: inline; }
       .shell { padding: 20px 18px 18px; }
+      .shell.shell-bleed,
+      .shell.shell-map { padding: 18px 14px 18px; }
       .site-header-inner { padding: 12px 18px; }
       .hero-panel { padding: 48px 24px 36px; border-radius: 26px; }
       .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); line-height: 1.24; max-width: 18ch; }
@@ -1128,7 +1139,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   <a class="skip-link" href="#main-content">${escapeHtml(skipLabel)}</a>
   <div class="site-shell">
     ${nav(options.basePath, lang, currentPath, options.activeNav)}
-    <main id="main-content" class="shell" tabindex="-1">
+    <main id="main-content" class="shell${options.shellClassName ? ` ${escapeHtml(options.shellClassName)}` : ""}" tabindex="-1">
       ${hero(options.basePath, options.hero)}
       ${options.belowHeroHtml ?? ""}
       ${options.body}

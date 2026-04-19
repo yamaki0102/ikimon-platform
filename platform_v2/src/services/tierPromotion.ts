@@ -66,7 +66,7 @@ export async function tryAutoPromoteToTier1_5(occurrenceId: string): Promise<boo
 
 /**
  * Tier 2 → 3 promotion.
- * Criteria: ≥2 specialist approvals AND has media.
+ * Criteria: ≥1 public-claim approval backed by authority/admin override AND has media.
  */
 export async function tryPromoteToTier3(occurrenceId: string): Promise<boolean> {
   const pool = getPool();
@@ -75,7 +75,11 @@ export async function tryPromoteToTier3(occurrenceId: string): Promise<boolean> 
     const result = await client.query<{ approval_count: string; has_media: boolean }>(
       `select
          (select count(*) from identifications
-          where occurrence_id = $1 and actor_kind = 'human' and is_current = true) as approval_count,
+          where occurrence_id = $1
+            and actor_kind = 'human'
+            and is_current = true
+            and coalesce(source_payload->>'lane', '') = 'public-claim'
+            and coalesce(source_payload->>'review_class', '') in ('authority_backed', 'admin_override')) as approval_count,
          exists(select 1 from evidence_assets where occurrence_id = $1) as has_media`,
       [occurrenceId],
     );
@@ -83,7 +87,7 @@ export async function tryPromoteToTier3(occurrenceId: string): Promise<boolean> 
     if (!row) return false;
 
     const approvals = Number(row.approval_count);
-    if (approvals < 2 || !row.has_media) return false;
+    if (approvals < 1 || !row.has_media) return false;
 
     await client.query(
       `update occurrences set evidence_tier = 3, updated_at = now()

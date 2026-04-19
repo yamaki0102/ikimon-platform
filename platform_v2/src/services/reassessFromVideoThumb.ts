@@ -3,6 +3,7 @@ import { reassessObservation, type ReassessResult } from "./observationReassess.
 
 type VideoThumbTarget = {
   occurrenceId: string;
+  assetId: string;
   thumbnailUrl: string;
 };
 
@@ -40,10 +41,12 @@ async function resolveVideoThumbTarget(observationId: string): Promise<VideoThum
   const pool = getPool();
   const result = await pool.query<{
     occurrence_id: string;
+    asset_id: string;
     thumbnail_url: string | null;
   }>(
     `select
         o.occurrence_id,
+        video.asset_id::text as asset_id,
         coalesce(
           video.asset_source_payload ->> 'thumbnail_url',
           video.blob_source_payload ->> 'thumbnail_url',
@@ -53,6 +56,7 @@ async function resolveVideoThumbTarget(observationId: string): Promise<VideoThum
      join visits v on v.visit_id = o.visit_id
      left join lateral (
        select
+         ea.asset_id,
          ea.source_payload as asset_source_payload,
          ab.source_payload as blob_source_payload,
          ab.public_url
@@ -74,6 +78,7 @@ async function resolveVideoThumbTarget(observationId: string): Promise<VideoThum
   }
   return {
     occurrenceId: row.occurrence_id,
+    assetId: row.asset_id,
     thumbnailUrl: row.thumbnail_url,
   };
 }
@@ -111,6 +116,8 @@ export async function reassessFromVideoThumb(observationId: string): Promise<Rea
       {
         mime: normalizeImageMime(response.headers.get("content-type")),
         b64: bytes.toString("base64"),
+        assetId: target.assetId,
+        frameTimeMs: 2000,
       },
     ],
     promptVersion: "observation_reassess.md/v1+video_thumb",

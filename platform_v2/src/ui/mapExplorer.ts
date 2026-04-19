@@ -110,7 +110,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
     tabMarkers: "観察ピン",
     tabHeatmap: "密度ヒート",
-    tabCoverage: "足跡メッシュ",
+    tabCoverage: "調査前進",
     tabAriaLabel: "マップの表示切替",
     taxonFilterLabel: "分類",
     yearFilterLabel: "年",
@@ -145,15 +145,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     basemapSatelliteGsi: "空撮（地理院）",
     basemapSatelliteEsri: "衛星（Esri）",
     legendLabel: "凡例",
-    coverageLegendLow: "まばら",
-    coverageLegendHigh: "積み上がる",
+    coverageLegendLow: "薄い",
+    coverageLegendHigh: "厚い",
     heatmapLegendLow: "薄い",
     heatmapLegendHigh: "濃い",
     loading: "読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
     empty: "この条件に合う観察はまだない。フィルタをゆるめるか、別の年を試す。",
-    sideRecentLabel: "最近の観察",
-    sideRevisitLabel: "積み上がっている場所",
+    sideRecentLabel: "自分の前進",
+    sideRevisitLabel: "地域の前進",
     crossEyebrow: "この場所で、次の 1 枚を書く",
     crossLensLabel: "フィールドガイドで見る",
     crossScanLabel: "フィールドスキャンで見る",
@@ -195,7 +195,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   en: {
     tabMarkers: "Pins",
     tabHeatmap: "Heatmap",
-    tabCoverage: "Coverage",
+    tabCoverage: "Frontier",
     tabAriaLabel: "Switch map view",
     taxonFilterLabel: "Group",
     yearFilterLabel: "Year",
@@ -230,15 +230,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     basemapSatelliteGsi: "Aerial (GSI)",
     basemapSatelliteEsri: "Satellite (Esri)",
     legendLabel: "Legend",
-    coverageLegendLow: "Few",
-    coverageLegendHigh: "Many",
+    coverageLegendLow: "Thin",
+    coverageLegendHigh: "Deep",
     heatmapLegendLow: "Low",
     heatmapLegendHigh: "High",
     loading: "Loading…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
     empty: "Nothing here yet — this could be your page to write.",
-    sideRecentLabel: "Recently recorded",
-    sideRevisitLabel: "Places that keep calling",
+    sideRecentLabel: "My progress",
+    sideRevisitLabel: "Area progress",
     crossEyebrow: "Your next page starts here",
     crossLensLabel: "Open Field Guide",
     crossScanLabel: "Open Field Scan",
@@ -280,7 +280,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   es: {
     tabMarkers: "Pines",
     tabHeatmap: "Mapa de calor",
-    tabCoverage: "Cobertura",
+    tabCoverage: "Frontera",
     tabAriaLabel: "Cambiar vista del mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Año",
@@ -315,15 +315,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     basemapSatelliteGsi: "Aérea (GSI)",
     basemapSatelliteEsri: "Satélite (Esri)",
     legendLabel: "Leyenda",
-    coverageLegendLow: "Pocos",
-    coverageLegendHigh: "Muchos",
+    coverageLegendLow: "Ligera",
+    coverageLegendHigh: "Gruesa",
     heatmapLegendLow: "Baja",
     heatmapLegendHigh: "Alta",
     loading: "Cargando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
     empty: "Aún no hay nada aquí — podrías ser el primero en registrar algo.",
-    sideRecentLabel: "Registros recientes",
-    sideRevisitLabel: "Lugares que siguen llamando",
+    sideRecentLabel: "Mi avance",
+    sideRevisitLabel: "Avance del área",
     crossEyebrow: "Tu próxima página empieza aquí",
     crossLensLabel: "Abrir Guía de Campo",
     crossScanLabel: "Abrir Escaneo",
@@ -365,7 +365,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   "pt-BR": {
     tabMarkers: "Pinos",
     tabHeatmap: "Mapa de calor",
-    tabCoverage: "Cobertura",
+    tabCoverage: "Fronteira",
     tabAriaLabel: "Alternar visão do mapa",
     taxonFilterLabel: "Grupo",
     yearFilterLabel: "Ano",
@@ -400,15 +400,15 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     basemapSatelliteGsi: "Aérea (GSI)",
     basemapSatelliteEsri: "Satélite (Esri)",
     legendLabel: "Legenda",
-    coverageLegendLow: "Poucos",
-    coverageLegendHigh: "Muitos",
+    coverageLegendLow: "Fina",
+    coverageLegendHigh: "Densa",
     heatmapLegendLow: "Baixa",
     heatmapLegendHigh: "Alta",
     loading: "Carregando…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
     empty: "Nada registrado aqui ainda — pode ser a sua vez de começar.",
-    sideRecentLabel: "Registros recentes",
-    sideRevisitLabel: "Lugares que continuam chamando",
+    sideRecentLabel: "Meu avanço",
+    sideRevisitLabel: "Avanço da área",
     crossEyebrow: "Sua próxima página começa aqui",
     crossLensLabel: "Abrir Guia de Campo",
     crossScanLabel: "Abrir Escaneamento",
@@ -467,9 +467,78 @@ function overlayPanelLabels(lang: SiteLang): {
   return { heading: "レイヤー", intro: "ベース地図の上に重ねて、行政 GIS × 市民観察 の視点を組み合わせる。", opacityLabel: "濃度" };
 }
 
+function ambientPanelLabels(lang: SiteLang): {
+  roleLabel: string;
+  roles: Array<{ value: "note" | "guide" | "scan" | "mixed"; label: string; icon: string }>;
+  selfLabel: string;
+  communityLabel: string;
+  frontierLabel: string;
+  roleCardLabel: string;
+} {
+  if (lang === "en") {
+    return {
+      roleLabel: "Role",
+      roles: [
+        { value: "note", label: "Note", icon: "📖" },
+        { value: "guide", label: "Guide", icon: "🔍" },
+        { value: "scan", label: "Scan", icon: "📡" },
+        { value: "mixed", label: "Mixed", icon: "🧭" },
+      ],
+      selfLabel: "My progress",
+      communityLabel: "Area progress",
+      frontierLabel: "Next frontier",
+      roleCardLabel: "Best role here",
+    };
+  }
+  if (lang === "es") {
+    return {
+      roleLabel: "Rol",
+      roles: [
+        { value: "note", label: "Nota", icon: "📖" },
+        { value: "guide", label: "Guía", icon: "🔍" },
+        { value: "scan", label: "Escaneo", icon: "📡" },
+        { value: "mixed", label: "Mixto", icon: "🧭" },
+      ],
+      selfLabel: "Mi avance",
+      communityLabel: "Avance del área",
+      frontierLabel: "Siguiente frontera",
+      roleCardLabel: "Mejor rol aquí",
+    };
+  }
+  if (lang === "pt-BR") {
+    return {
+      roleLabel: "Papel",
+      roles: [
+        { value: "note", label: "Nota", icon: "📖" },
+        { value: "guide", label: "Guia", icon: "🔍" },
+        { value: "scan", label: "Escanear", icon: "📡" },
+        { value: "mixed", label: "Misto", icon: "🧭" },
+      ],
+      selfLabel: "Meu avanço",
+      communityLabel: "Avanço da área",
+      frontierLabel: "Próxima fronteira",
+      roleCardLabel: "Melhor papel aqui",
+    };
+  }
+  return {
+    roleLabel: "役割",
+    roles: [
+      { value: "note", label: "Note", icon: "📖" },
+      { value: "guide", label: "Guide", icon: "🔍" },
+      { value: "scan", label: "Scan", icon: "📡" },
+      { value: "mixed", label: "Mixed", icon: "🧭" },
+    ],
+    selfLabel: "自分の前進",
+    communityLabel: "地域の前進",
+    frontierLabel: "次の frontier",
+    roleCardLabel: "この場所で最適な役割",
+  };
+}
+
 export function renderMapExplorer(props: MapExplorerProps): string {
   const lang = props.lang;
   const copy = MAP_EXPLORER_COPY[lang];
+  const ambientLabels = ambientPanelLabels(lang);
   const yearTimelineValues = [...props.years].sort((a, b) => a - b);
   const yearValuesJson = escapeHtml(JSON.stringify(yearTimelineValues));
   const overlays: LocalizedOverlay[] = overlaysForLang(lang);
@@ -479,9 +548,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const scanHref = appendLangToHref(withBasePath(props.basePath, "/scan"), props.lang);
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
-  const apiCoverage = withBasePath(props.basePath, "/api/v1/map/coverage");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
+  const apiFrontier = withBasePath(props.basePath, "/api/v1/map/frontier");
+  const apiEffortSummary = withBasePath(props.basePath, "/api/v1/map/effort-summary");
 
   const taxonChipsHtml = copy.taxonChips
     .map(
@@ -544,127 +614,45 @@ export function renderMapExplorer(props: MapExplorerProps): string {
     )
     .join("");
 
-  const crossChipsHtml = `<div class="me-cross-chips" aria-label="${escapeHtml(copy.crossEyebrow)}">
-    <span class="me-cross-eyebrow">${escapeHtml(copy.crossEyebrow)}</span>
-    <a class="me-cross-chip" href="${escapeHtml(lensHref)}" data-kpi-action="map:cross-lens">
-      <span aria-hidden="true">🔍</span> ${escapeHtml(copy.crossLensLabel)}
-    </a>
-    <a class="me-cross-chip" href="${escapeHtml(scanHref)}" data-kpi-action="map:cross-scan">
-      <span aria-hidden="true">📡</span> ${escapeHtml(copy.crossScanLabel)}
-    </a>
-    <a class="me-cross-chip" href="${escapeHtml(notesHref)}" data-kpi-action="map:cross-notes">
-      <span aria-hidden="true">📖</span> ${escapeHtml(copy.crossNotesLabel)}
-    </a>
-  </div>`;
+  const roleChipsHtml = ambientLabels.roles
+    .map(
+      (role, idx) => `<button
+        type="button"
+        class="me-chip me-role-chip${role.value === "mixed" || idx === ambientLabels.roles.length - 1 ? " is-active" : ""}"
+        data-role="${escapeHtml(role.value)}"
+        aria-pressed="${role.value === "mixed" || idx === ambientLabels.roles.length - 1 ? "true" : "false"}">
+        <span class="me-chip-icon" aria-hidden="true">${escapeHtml(role.icon)}</span>
+        <span>${escapeHtml(role.label)}</span>
+      </button>`,
+    )
+    .join("");
+
+  const filterToggleLabel = lang === "ja"
+    ? "フィルタ"
+    : lang === "es"
+      ? "Filtros"
+      : lang === "pt-BR"
+        ? "Filtros"
+        : "Filters";
+  const listHeading = lang === "ja"
+    ? "この範囲の観察"
+    : lang === "es"
+      ? "Observaciones en esta área"
+      : lang === "pt-BR"
+        ? "Observações nesta área"
+        : "Observations in this area";
+  const searchAreaLabel = lang === "ja"
+    ? "この範囲で再検索"
+    : lang === "es"
+      ? "Buscar en esta área"
+      : lang === "pt-BR"
+        ? "Buscar nesta área"
+        : "Search this area";
 
   return `<section class="section me-section" aria-label="Map Explorer">
-    ${crossChipsHtml}
-    <div class="me-toolbar">
-      <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}">
-        <button type="button" class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers">${escapeHtml(copy.tabMarkers)}</button>
-        <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="heatmap">${escapeHtml(copy.tabHeatmap)}</button>
-        <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="coverage">${escapeHtml(copy.tabCoverage)}</button>
-      </div>
-      <div class="me-filter-group">
-        <span class="me-filter-label">${escapeHtml(copy.taxonFilterLabel)}</span>
-        <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.taxonFilterLabel)}">${taxonChipsHtml}</div>
-      </div>
-      <div class="me-filter-group">
-        <span class="me-filter-label">${escapeHtml(copy.seasonFilterLabel)}</span>
-        <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.seasonFilterLabel)}">${seasonChipsHtml}</div>
-      </div>
-      <div class="me-filter-group">
-        <span class="me-filter-label">${escapeHtml(copy.yearFilterLabel)}</span>
-        <div class="me-time-controls">
-          <button type="button" class="me-chip me-year-all-chip is-active" id="me-year-all" aria-pressed="true">${escapeHtml(copy.yearAll)}</button>
-          <div class="me-time-slider-wrap">
-            <input
-              type="range"
-              id="me-year-range"
-              class="me-year-range"
-              data-year-values="${yearValuesJson}"
-              min="0"
-              max="${Math.max(yearTimelineValues.length - 1, 0)}"
-              value="${Math.max(yearTimelineValues.length - 1, 0)}"
-              aria-label="${escapeHtml(copy.timelineAriaLabel)}"
-            />
-            <div class="me-year-scale" aria-hidden="true">${yearScaleHtml}</div>
-          </div>
-          <output id="me-year-label" class="me-year-pill">${escapeHtml(copy.yearAll)}</output>
-        </div>
-      </div>
-      <div class="me-filter-group me-basemap-group">
-        <span class="me-filter-label">${escapeHtml(copy.basemapLabel)}</span>
-        <div class="me-basemap-row" role="group" aria-label="${escapeHtml(copy.basemapLabel)}">${basemapRadiosHtml}</div>
-      </div>
-      <div class="me-filter-group">
-        <label class="me-trace-toggle-label" title="${escapeHtml(lang === "ja" ? "歩いた軌跡を地図に重ねる" : lang === "es" ? "Mostrar rutas recorridas" : lang === "pt-BR" ? "Mostrar trilhas percorridas" : "Show walk traces")}">
-          <input type="checkbox" id="me-trace-toggle" class="me-trace-toggle" />
-          <span class="me-filter-label">${escapeHtml(lang === "ja" ? "軌跡" : lang === "es" ? "Trazas" : lang === "pt-BR" ? "Trilhas" : "Traces")}</span>
-        </label>
-      </div>
-      <div class="me-filter-group">
-        <button type="button" class="me-share-btn" id="me-share-state">${escapeHtml(copy.shareLabel)}</button>
-      </div>
-    </div>
-
-    <details class="me-region-bar" role="group" aria-label="${escapeHtml(copy.regionFilterLabel)}">
-      <summary class="me-region-summary"><span class="me-filter-label">${escapeHtml(copy.regionFilterLabel)}</span><span class="me-region-hint">${escapeHtml(lang === "ja" ? "日本全体 / 静岡市 / 東京 …" : "Japan / Shizuoka / Tokyo …")}</span></summary>
-      <div class="me-region-row">${regionChipsHtml}</div>
-    </details>
-
-    <details class="me-overlay-panel">
-      <summary class="me-overlay-summary">
-        <span class="me-overlay-heading">${escapeHtml(overlayLabels.heading)}</span>
-        <span class="me-overlay-intro">${escapeHtml(overlayLabels.intro)}</span>
-      </summary>
-      <div class="me-overlay-list" data-overlay-catalog='${escapeHtml(
-        JSON.stringify(overlays.map((o) => ({
-          id: o.id,
-          tiles: o.tiles,
-          tileSize: o.tileSize,
-          attribution: o.attribution,
-          minzoom: o.minzoom,
-          maxzoom: o.maxzoom,
-          defaultOpacity: o.defaultOpacity,
-        })))
-      )}'>
-        ${overlays
-          .map(
-            (o) => `<label class="me-overlay-item" data-overlay-id="${escapeHtml(o.id)}">
-              <div class="me-overlay-row">
-                <input type="checkbox" class="me-overlay-toggle" />
-                <span class="me-overlay-label">${escapeHtml(o.label)}</span>
-                <span class="me-overlay-category me-overlay-cat-${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
-              </div>
-              ${o.note ? `<p class="me-overlay-note">${escapeHtml(o.note)}</p>` : ""}
-              ${o.legendGradient ? `<div class="me-overlay-legend">
-                <span class="me-overlay-legend-low">${escapeHtml(o.legendLow ?? "")}</span>
-                <span class="me-overlay-legend-gradient" style="background:${escapeHtml(o.legendGradient)}"></span>
-                <span class="me-overlay-legend-high">${escapeHtml(o.legendHigh ?? "")}</span>
-              </div>` : ""}
-              <div class="me-overlay-opacity">
-                <span class="me-overlay-opacity-label">${escapeHtml(overlayLabels.opacityLabel)}</span>
-                <input
-                  type="range"
-                  class="me-overlay-opacity-range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value="${o.defaultOpacity.toString()}"
-                  aria-label="${escapeHtml(overlayLabels.opacityLabel)}: ${escapeHtml(o.label)}"
-                />
-              </div>
-            </label>`,
-          )
-          .join("")}
-      </div>
-    </details>
-
-    <div class="me-main">
-      <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-api-observations="${escapeHtml(apiObservations)}" data-api-coverage="${escapeHtml(apiCoverage)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}"></div>
-        <div class="me-search" role="search">
+    <div class="me-topbar">
+      <div class="me-topbar-primary">
+        <div class="me-search-shell" role="search">
           <span class="me-search-icon" aria-hidden="true">🔍</span>
           <input
             type="search"
@@ -677,6 +665,133 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           />
           <div id="me-search-results" class="me-search-results" role="listbox" aria-label="${escapeHtml(copy.searchAriaLabel)}"></div>
         </div>
+        <div class="me-tabs" role="tablist" aria-label="${escapeHtml(copy.tabAriaLabel)}">
+          <button type="button" class="me-tab is-active" role="tab" aria-selected="true" data-tab="markers">${escapeHtml(copy.tabMarkers)}</button>
+          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="heatmap">${escapeHtml(copy.tabHeatmap)}</button>
+          <button type="button" class="me-tab" role="tab" aria-selected="false" data-tab="frontier">${escapeHtml(copy.tabCoverage)}</button>
+        </div>
+      </div>
+      <div class="me-topbar-secondary">
+        <div class="me-filter-group me-filter-group-quick">
+          <span class="me-filter-label">${escapeHtml(copy.taxonFilterLabel)}</span>
+          <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.taxonFilterLabel)}">${taxonChipsHtml}</div>
+        </div>
+        <details class="me-filter-drawer">
+          <summary class="me-filter-toggle">${escapeHtml(filterToggleLabel)}</summary>
+          <div class="me-filter-panel">
+            <div class="me-filter-group">
+              <span class="me-filter-label">${escapeHtml(ambientLabels.roleLabel)}</span>
+              <div class="me-chip-row" role="group" aria-label="${escapeHtml(ambientLabels.roleLabel)}">${roleChipsHtml}</div>
+            </div>
+            <div class="me-filter-group">
+              <span class="me-filter-label">${escapeHtml(copy.seasonFilterLabel)}</span>
+              <div class="me-chip-row" role="group" aria-label="${escapeHtml(copy.seasonFilterLabel)}">${seasonChipsHtml}</div>
+            </div>
+            <div class="me-filter-group">
+              <span class="me-filter-label">${escapeHtml(copy.yearFilterLabel)}</span>
+              <div class="me-time-controls">
+                <button type="button" class="me-chip me-year-all-chip is-active" id="me-year-all" aria-pressed="true">${escapeHtml(copy.yearAll)}</button>
+                <div class="me-time-slider-wrap">
+                  <input
+                    type="range"
+                    id="me-year-range"
+                    class="me-year-range"
+                    data-year-values="${yearValuesJson}"
+                    min="0"
+                    max="${Math.max(yearTimelineValues.length - 1, 0)}"
+                    value="${Math.max(yearTimelineValues.length - 1, 0)}"
+                    aria-label="${escapeHtml(copy.timelineAriaLabel)}"
+                  />
+                  <div class="me-year-scale" aria-hidden="true">${yearScaleHtml}</div>
+                </div>
+                <output id="me-year-label" class="me-year-pill">${escapeHtml(copy.yearAll)}</output>
+              </div>
+            </div>
+            <div class="me-filter-group me-basemap-group">
+              <span class="me-filter-label">${escapeHtml(copy.basemapLabel)}</span>
+              <div class="me-basemap-row" role="group" aria-label="${escapeHtml(copy.basemapLabel)}">${basemapRadiosHtml}</div>
+            </div>
+            <div class="me-filter-group">
+              <label class="me-trace-toggle-label" title="${escapeHtml(lang === "ja" ? "歩いた軌跡を地図に重ねる" : lang === "es" ? "Mostrar rutas recorridas" : lang === "pt-BR" ? "Mostrar trilhas percorridas" : "Show walk traces")}">
+                <input type="checkbox" id="me-trace-toggle" class="me-trace-toggle" />
+                <span class="me-filter-label">${escapeHtml(lang === "ja" ? "軌跡" : lang === "es" ? "Trazas" : lang === "pt-BR" ? "Trilhas" : "Traces")}</span>
+              </label>
+            </div>
+            <details class="me-region-bar" role="group" aria-label="${escapeHtml(copy.regionFilterLabel)}">
+              <summary class="me-region-summary"><span class="me-filter-label">${escapeHtml(copy.regionFilterLabel)}</span><span class="me-region-hint">${escapeHtml(lang === "ja" ? "日本全体 / 静岡市 / 東京 …" : "Japan / Shizuoka / Tokyo …")}</span></summary>
+              <div class="me-region-row">${regionChipsHtml}</div>
+            </details>
+            <details class="me-overlay-panel">
+              <summary class="me-overlay-summary">
+                <span class="me-overlay-heading">${escapeHtml(overlayLabels.heading)}</span>
+                <span class="me-overlay-intro">${escapeHtml(overlayLabels.intro)}</span>
+              </summary>
+              <div class="me-overlay-list" data-overlay-catalog='${escapeHtml(
+                JSON.stringify(overlays.map((o) => ({
+                  id: o.id,
+                  tiles: o.tiles,
+                  tileSize: o.tileSize,
+                  attribution: o.attribution,
+                  minzoom: o.minzoom,
+                  maxzoom: o.maxzoom,
+                  defaultOpacity: o.defaultOpacity,
+                })))
+              )}'>
+                ${overlays
+                  .map(
+                    (o) => `<label class="me-overlay-item" data-overlay-id="${escapeHtml(o.id)}">
+                      <div class="me-overlay-row">
+                        <input type="checkbox" class="me-overlay-toggle" />
+                        <span class="me-overlay-label">${escapeHtml(o.label)}</span>
+                        <span class="me-overlay-category me-overlay-cat-${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
+                      </div>
+                      ${o.note ? `<p class="me-overlay-note">${escapeHtml(o.note)}</p>` : ""}
+                      ${o.legendGradient ? `<div class="me-overlay-legend">
+                        <span class="me-overlay-legend-low">${escapeHtml(o.legendLow ?? "")}</span>
+                        <span class="me-overlay-legend-gradient" style="background:${escapeHtml(o.legendGradient)}"></span>
+                        <span class="me-overlay-legend-high">${escapeHtml(o.legendHigh ?? "")}</span>
+                      </div>` : ""}
+                      <div class="me-overlay-opacity">
+                        <span class="me-overlay-opacity-label">${escapeHtml(overlayLabels.opacityLabel)}</span>
+                        <input
+                          type="range"
+                          class="me-overlay-opacity-range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value="${o.defaultOpacity.toString()}"
+                          aria-label="${escapeHtml(overlayLabels.opacityLabel)}: ${escapeHtml(o.label)}"
+                        />
+                      </div>
+                    </label>`,
+                  )
+                  .join("")}
+              </div>
+            </details>
+            <div class="me-filter-group me-filter-group-actions">
+              <a class="me-cross-chip" href="${escapeHtml(lensHref)}" data-kpi-action="map:cross-lens"><span aria-hidden="true">🔍</span>${escapeHtml(copy.crossLensLabel)}</a>
+              <a class="me-cross-chip" href="${escapeHtml(scanHref)}" data-kpi-action="map:cross-scan"><span aria-hidden="true">📡</span>${escapeHtml(copy.crossScanLabel)}</a>
+              <a class="me-cross-chip" href="${escapeHtml(notesHref)}" data-kpi-action="map:cross-notes"><span aria-hidden="true">📖</span>${escapeHtml(copy.crossNotesLabel)}</a>
+              <button type="button" class="me-share-btn" id="me-share-state">${escapeHtml(copy.shareLabel)}</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="me-main">
+      <aside class="me-side" aria-label="result panel">
+        <div class="me-side-head">
+          <h3 class="me-side-title">${escapeHtml(listHeading)}</h3>
+          <div class="me-side-subtitle" id="me-side-status">${escapeHtml(copy.loading)}</div>
+        </div>
+        <div class="me-results-list" id="me-results-list"></div>
+      </aside>
+      <div class="me-map-wrap">
+        <div id="map-explorer" class="me-map" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}"></div>
+        <div class="me-map-panel me-map-panel-selection" id="me-map-selection-card"></div>
+        <div class="me-map-panel me-map-panel-insight" id="me-map-insight-card"></div>
+        <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
         <button type="button" class="me-locate-fab" id="me-locate-fab" aria-label="${escapeHtml(copy.locateLabel)}" title="${escapeHtml(copy.locateLabel)}">
           <span aria-hidden="true">📍</span>
         </button>
@@ -691,22 +806,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <div class="me-bottom-inner" id="me-bottom-inner"></div>
         </div>
       </div>
-      <aside class="me-side" aria-label="side info">
-        <div class="me-side-card">
-          <h3 class="me-side-heading">${escapeHtml(copy.sideRecentLabel)}</h3>
-          <div class="me-side-list" id="me-side-recent"></div>
-        </div>
-        <div class="me-side-card">
-          <h3 class="me-side-heading">${escapeHtml(copy.sideRevisitLabel)}</h3>
-          <div class="me-side-list" id="me-side-cluster"></div>
-        </div>
-      </aside>
     </div>
   </section>`;
 }
 
 export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string }): string {
   const copy = MAP_EXPLORER_COPY[props.lang];
+  const ambient = ambientPanelLabels(props.lang);
   const observationHrefTpl = withBasePath(props.basePath, "/observations/__ID__") +
     "?lang=" + props.lang;
 
@@ -722,16 +828,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var sheetEl = document.getElementById('me-bottom-sheet');
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
-  var sideRecentEl = document.getElementById('me-side-recent');
-  var sideClusterEl = document.getElementById('me-side-cluster');
+  var sideStatusEl = document.getElementById('me-side-status');
+  var resultsListEl = document.getElementById('me-results-list');
+  var selectedCardEl = document.getElementById('me-map-selection-card');
+  var mapInsightCardEl = document.getElementById('me-map-insight-card');
   var yearRangeEl = document.getElementById('me-year-range');
   var yearLabelEl = document.getElementById('me-year-label');
   var yearAllEl = document.getElementById('me-year-all');
   var shareStateEl = document.getElementById('me-share-state');
+  var searchAreaBtnEl = document.getElementById('me-search-area-btn');
   var apiObservations = root.getAttribute('data-api-observations') || '';
-  var apiCoverage = root.getAttribute('data-api-coverage') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
   var apiTraces = root.getAttribute('data-api-traces') || '';
+  var apiFrontier = root.getAttribute('data-api-frontier') || '';
+  var apiEffortSummary = root.getAttribute('data-api-effort-summary') || '';
 
   var COPY = ${JSON.stringify({
     loading: copy.loading,
@@ -761,6 +871,51 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     yearAll: copy.yearAll,
     shareCopied: copy.shareCopied,
     shareError: copy.shareError,
+    selfLabel: ambient.selfLabel,
+    communityLabel: ambient.communityLabel,
+    frontierLabel: ambient.frontierLabel,
+    roleCardLabel: ambient.roleCardLabel,
+    roleLabel: ambient.roleLabel,
+    roleOptions: ambient.roles,
+    roleHintScan: props.lang === "ja" ? "空白を埋めるなら Scan" : props.lang === "es" ? "Si quieres abrir huecos, usa Escaneo" : props.lang === "pt-BR" ? "Se quer abrir vazios, use Escaneamento" : "Use Scan to open blank areas",
+    roleHintGuide: props.lang === "ja" ? "確度を上げるなら Guide" : props.lang === "es" ? "Usa Guía para subir la certeza" : props.lang === "pt-BR" ? "Use Guia para subir a certeza" : "Use Guide to raise certainty",
+    roleHintNote: props.lang === "ja" ? "比較可能にするなら Note" : props.lang === "es" ? "Usa Nota para hacer comparables los registros" : props.lang === "pt-BR" ? "Use Nota para tornar comparável" : "Use Note to make it revisitable",
+    roleHintMixed: props.lang === "ja" ? "今日は Mixed で小さく前進する" : props.lang === "es" ? "Hoy avanza poco a poco en modo mixto" : props.lang === "pt-BR" ? "Hoje avance em modo misto" : "Use Mixed for a quiet all-round step",
+    axis_scan_pass: props.lang === "ja" ? "Scan が薄い" : props.lang === "es" ? "Falta Escaneo" : props.lang === "pt-BR" ? "Falta Scan" : "Scan is thin",
+    axis_guide_scene: props.lang === "ja" ? "Guide が薄い" : props.lang === "es" ? "Falta Guía" : props.lang === "pt-BR" ? "Falta Guia" : "Guide is thin",
+    axis_revisit_note: props.lang === "ja" ? "Note が薄い" : props.lang === "es" ? "Falta Nota" : props.lang === "pt-BR" ? "Falta Nota" : "Note is thin",
+    contributorBand_0: props.lang === "ja" ? "まだ集計なし" : props.lang === "es" ? "Sin agregado aún" : props.lang === "pt-BR" ? "Sem agregado ainda" : "No aggregate yet",
+    contributorBand_1_2: props.lang === "ja" ? "1-2人ほど" : props.lang === "es" ? "1-2 personas" : props.lang === "pt-BR" ? "1-2 pessoas" : "about 1-2 people",
+    contributorBand_3_5: props.lang === "ja" ? "3-5人ほど" : props.lang === "es" ? "3-5 personas" : props.lang === "pt-BR" ? "3-5 pessoas" : "about 3-5 people",
+    contributorBand_6p: props.lang === "ja" ? "6人以上" : props.lang === "es" ? "6 o más" : props.lang === "pt-BR" ? "6 ou mais" : "6+ people",
+    winsLabel: props.lang === "ja" ? "前進" : props.lang === "es" ? "Avances" : props.lang === "pt-BR" ? "Avanços" : "wins",
+    revisitLabel: props.lang === "ja" ? "再訪地点" : props.lang === "es" ? "Revisitas" : props.lang === "pt-BR" ? "Revisitas" : "revisits",
+    communityStrengthLabel: props.lang === "ja" ? "最近厚くなった帯" : props.lang === "es" ? "Áreas reforzadas" : props.lang === "pt-BR" ? "Faixas fortalecidas" : "strengthened bands",
+    communityProgressLabel: props.lang === "ja" ? "共同前進" : props.lang === "es" ? "Progreso colectivo" : props.lang === "pt-BR" ? "Progresso coletivo" : "collective progress",
+    aggregateContributorLabel: props.lang === "ja" ? "集計された記録者" : props.lang === "es" ? "personas agregadas" : props.lang === "pt-BR" ? "pessoas agregadas" : "aggregated contributors",
+    frontierBlankLabel: props.lang === "ja" ? "薄い帯" : props.lang === "es" ? "bandas vacías" : props.lang === "pt-BR" ? "faixas vazias" : "blank bands",
+    frontierBuildingLabel: props.lang === "ja" ? "育ち始め" : props.lang === "es" ? "en construcción" : props.lang === "pt-BR" ? "em construção" : "building",
+    frontierRepeatableLabel: props.lang === "ja" ? "比較可能" : props.lang === "es" ? "comparables" : props.lang === "pt-BR" ? "comparáveis" : "repeatable",
+    frontierMatureLabel: props.lang === "ja" ? "厚い帯" : props.lang === "es" ? "maduras" : props.lang === "pt-BR" ? "maduras" : "mature",
+    campaign_scan_blank: props.lang === "ja" ? "空白帯をひとつ開く" : props.lang === "es" ? "Abrir una banda vacía" : props.lang === "pt-BR" ? "Abrir uma faixa vazia" : "Open one blank band",
+    campaign_guide_building: props.lang === "ja" ? "育ち始めの場所の確度を上げる" : props.lang === "es" ? "Subir la certeza de zonas en crecimiento" : props.lang === "pt-BR" ? "Aumentar a certeza das zonas em crescimento" : "Raise certainty in building areas",
+    campaign_note_repeatable: props.lang === "ja" ? "比較できる場所をもう一段厚くする" : props.lang === "es" ? "Hacer más densa una zona repetible" : props.lang === "pt-BR" ? "Tornar mais espessa uma zona repetível" : "Thicken one repeatable area",
+    campaign_mixed_frontier: props.lang === "ja" ? "静かに frontier を前に進める" : props.lang === "es" ? "Empujar la frontera con calma" : props.lang === "pt-BR" ? "Avançar a fronteira com calma" : "Quietly move the frontier forward",
+    remainingLabel: props.lang === "ja" ? "残り frontier" : props.lang === "es" ? "fronteras restantes" : props.lang === "pt-BR" ? "fronteiras restantes" : "frontier left",
+    aggregateModeNote: props.lang === "ja" ? "他ユーザー個別ではなく、地域の集計だけを表示中" : props.lang === "es" ? "Solo agregados del área, no personas concretas" : props.lang === "pt-BR" ? "Somente agregados da área, sem pessoas específicas" : "Area aggregate only, no individual people shown",
+    searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
+    resultHeading: props.lang === "ja" ? "この範囲の観察" : props.lang === "es" ? "Observaciones en esta área" : props.lang === "pt-BR" ? "Observações nesta área" : "Observations in this area",
+    resultCountLabel: props.lang === "ja" ? "件を表示中" : props.lang === "es" ? "resultados visibles" : props.lang === "pt-BR" ? "resultados visíveis" : "results visible",
+    movedHint: props.lang === "ja" ? "地図を動かした。結果を更新するには押す。" : props.lang === "es" ? "Moviste el mapa. Pulsa para actualizar resultados." : props.lang === "pt-BR" ? "Você moveu o mapa. Toque para atualizar." : "Map moved. Press to refresh results.",
+    selectHint: props.lang === "ja" ? "ピンか一覧を選ぶと、ここに写真と次の行動が出る。" : props.lang === "es" ? "Elige un pin o una fila para ver foto y siguiente acción." : props.lang === "pt-BR" ? "Escolha um pino ou item para ver foto e próxima ação." : "Pick a pin or row to see the photo and next action.",
+    placeHint: props.lang === "ja" ? "地図を押すと、その地点の仮説と次の行動をここに出す。" : props.lang === "es" ? "Toca el mapa para ver la hipótesis del lugar y la siguiente acción." : props.lang === "pt-BR" ? "Toque no mapa para ver a hipótese do lugar e a próxima ação." : "Tap the map to see the place hypothesis and next action.",
+    selectedCardLabel: props.lang === "ja" ? "詳細を見る" : props.lang === "es" ? "Ver detalle" : props.lang === "pt-BR" ? "Ver detalhes" : "Open detail",
+    selectedFieldLabel: props.lang === "ja" ? "この場所で次に見る" : props.lang === "es" ? "Qué mirar aquí" : props.lang === "pt-BR" ? "O que ver aqui" : "What to look for here",
+    selectedRoleLead: props.lang === "ja" ? "次は" : props.lang === "es" ? "Siguiente" : props.lang === "pt-BR" ? "Próximo" : "Next",
+    selectionObservationLabel: props.lang === "ja" ? "選択中の観察" : props.lang === "es" ? "Observación seleccionada" : props.lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
+    selectionPlaceLabel: props.lang === "ja" ? "この地点の place card" : props.lang === "es" ? "Tarjeta del lugar" : props.lang === "pt-BR" ? "Cartão do lugar" : "Place card",
+    insightHeading: props.lang === "ja" ? "静かな前進" : props.lang === "es" ? "Progreso tranquilo" : props.lang === "pt-BR" ? "Progresso calmo" : "Quiet progress",
+    insightSubhead: props.lang === "ja" ? "この viewport の厚みを一目で見る。" : props.lang === "es" ? "Cómo de densa está esta ventana." : props.lang === "pt-BR" ? "Quanto esta janela já acumulou." : "How this viewport is stacking up.",
   })};
   var SEARCH_LANG = ${JSON.stringify(props.lang)};
   var YEAR_VALUES = [];
@@ -816,6 +971,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   var state = {
     tab: 'markers',
+    role: 'mixed',
     taxonGroup: '',
     year: '',
     season: '',
@@ -824,8 +980,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     map: null,
     rawFeatures: [],   // unfiltered
     features: [],      // season-filtered
-    coverage: null,
+    frontier: null,
+    effortSummary: null,
+    selectedOccurrenceId: null,
+    selectedPoint: null,
+    lastStats: null,
+    lastSearchedBbox: '',
+    pendingViewportSearch: false,
+    ignoreNextMoveEnd: false,
     lastAbort: null,
+    frontierAbort: null,
+    effortAbort: null,
     _restoredCenter: null,
     _restoredZoom: null,
     _fittedOnce: false,
@@ -912,30 +1077,242 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return String(ret) + ' / ' + String(tot);
   }
 
-  function renderSideLists(features) {
-    if (!sideRecentEl || !sideClusterEl) return;
-    // Recent: first 8 sorted by observedAt desc (features already desc from API).
-    var recent = features.slice(0, 8);
-    sideRecentEl.innerHTML = recent.map(function (f) {
-      var p = f.properties;
-      var place = [p.placeName, p.municipality].filter(Boolean).join(' · ') || '—';
-      return '<a class="me-side-item" href="' + OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(p.occurrenceId)) + '">' +
-        '<strong>' + escapeHtml(p.displayName) + '</strong>' +
-        '<span>' + escapeHtml(place) + '</span>' +
-        '</a>';
-    }).join('');
+  function shouldUseBottomSheet() {
+    return !!(window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
+  }
 
-    // Cluster-by-municipality
-    var buckets = {};
-    for (var i = 0; i < features.length; i++) {
-      var key = features[i].properties.municipality || '—';
-      buckets[key] = (buckets[key] || 0) + 1;
+  function updateSearchAreaUi() {
+    if (!searchAreaBtnEl) return;
+    searchAreaBtnEl.classList.toggle('is-hidden', !state.pendingViewportSearch);
+    searchAreaBtnEl.textContent = state.pendingViewportSearch ? COPY.searchArea : COPY.searchArea;
+  }
+
+  function contributorBandLabel(band) {
+    if (band === '1-2') return COPY.contributorBand_1_2;
+    if (band === '3-5') return COPY.contributorBand_3_5;
+    if (band === '6+') return COPY.contributorBand_6p;
+    return COPY.contributorBand_0;
+  }
+
+  function progressPercent(value) {
+    return Math.round(Math.max(0, Math.min(1, Number(value || 0))) * 100);
+  }
+
+  function axisLabel(axis) {
+    return COPY[axis ? ('axis_' + axis) : 'axis_scan_pass'] || axis || '—';
+  }
+
+  function roleHintLabel(role) {
+    if (role === 'scan') return COPY.roleHintScan;
+    if (role === 'guide') return COPY.roleHintGuide;
+    if (role === 'note') return COPY.roleHintNote;
+    return COPY.roleHintMixed;
+  }
+
+  function roleLabel(role) {
+    var opts = Array.isArray(COPY.roleOptions) ? COPY.roleOptions : [];
+    for (var i = 0; i < opts.length; i += 1) {
+      if (opts[i] && opts[i].value === role) return opts[i].label;
     }
-    var bucketArr = Object.keys(buckets).map(function (k) { return { name: k, count: buckets[k] }; });
-    bucketArr.sort(function (a, b) { return b.count - a.count; });
-    sideClusterEl.innerHTML = bucketArr.slice(0, 6).map(function (b) {
-      return '<div class="me-cluster-item"><span>' + escapeHtml(b.name) + '</span><strong>' + b.count + '</strong></div>';
+    return role;
+  }
+
+  function renderSidePanels() {
+    if (!mapInsightCardEl) return;
+    if (shouldUseBottomSheet()) {
+      mapInsightCardEl.innerHTML = '';
+      mapInsightCardEl.classList.remove('is-visible');
+      return;
+    }
+    var summary = state.effortSummary;
+    if (!summary) {
+      mapInsightCardEl.innerHTML =
+        '<div class="me-map-card me-map-card-quiet">' +
+          '<div class="me-map-card-head">' +
+            '<div>' +
+              '<div class="me-map-card-kicker">' + escapeHtml(COPY.insightHeading) + '</div>' +
+              '<strong class="me-map-card-title">' + escapeHtml(COPY.insightHeading) + '</strong>' +
+              '<span class="me-map-card-copy">' + escapeHtml(COPY.insightSubhead) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="me-map-insight-grid">' +
+            '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.loading) + '</span><strong>—</strong><span>…</span></div>' +
+          '</div>' +
+        '</div>';
+      mapInsightCardEl.classList.add('is-visible');
+      return;
+    }
+
+    var ownCell = summary.myProgress
+      ? '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.selfLabel) + '</span><strong>' + summary.myProgress.winCount + ' ' + escapeHtml(COPY.winsLabel) + '</strong><span>' + escapeHtml(roleHintLabel(summary.myProgress.focusRole)) + ' · ' + summary.myProgress.revisitCount + ' ' + escapeHtml(COPY.revisitLabel) + '</span></div>'
+      : '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.selfLabel) + '</span><strong>' + escapeHtml(roleHintLabel('mixed')) + '</strong><span>' + escapeHtml(COPY.aggregateModeNote) + '</span></div>';
+    var communityCell =
+      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.communityLabel) + '</span><strong>' + summary.communityProgress.activeCellCount + '</strong><span>' + escapeHtml(contributorBandLabel(summary.communityProgress.contributorBand)) + ' · ' + progressPercent(summary.communityProgress.progressRatio) + '%</span></div>';
+    var frontierCell =
+      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.frontierLabel) + '</span><strong>' + summary.frontierRemaining.blankCount + ' / ' + summary.frontierRemaining.buildingCount + '</strong><span>' + escapeHtml(summary.frontierRemaining.topMissingAxes.map(axisLabel).join(' · ') || '—') + '</span></div>';
+    var nextCell =
+      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.roleCardLabel) + '</span><strong>' + escapeHtml(roleHintLabel(summary.campaignProgress.recommendedRole)) + '</strong><span>' + progressPercent(summary.campaignProgress.progressRatio) + '% · ' + summary.campaignProgress.remainingCount + ' ' + escapeHtml(COPY.remainingLabel) + '</span></div>';
+
+    mapInsightCardEl.innerHTML =
+      '<div class="me-map-card me-map-card-quiet">' +
+        '<div class="me-map-card-head">' +
+          '<div>' +
+            '<div class="me-map-card-kicker">' + escapeHtml(COPY.insightHeading) + '</div>' +
+            '<strong class="me-map-card-title">' + escapeHtml(COPY.insightHeading) + '</strong>' +
+            '<span class="me-map-card-copy">' + escapeHtml(COPY.insightSubhead) + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="me-map-insight-grid">' +
+          ownCell +
+          communityCell +
+          frontierCell +
+          nextCell +
+        '</div>' +
+      '</div>';
+    mapInsightCardEl.classList.add('is-visible');
+  }
+
+  function getSelectedFeature() {
+    if (!state.selectedOccurrenceId) return null;
+    for (var i = 0; i < state.features.length; i += 1) {
+      var feature = state.features[i];
+      if (feature && feature.properties && feature.properties.occurrenceId === state.selectedOccurrenceId) return feature;
+    }
+    return null;
+  }
+
+  function getSelectedContext() {
+    if (state.selectedPoint && state.selectedPoint.kind === 'place') return state.selectedPoint;
+    var feature = getSelectedFeature();
+    if (feature) {
+      return {
+        lat: Number(feature.geometry.coordinates[1]),
+        lng: Number(feature.geometry.coordinates[0]),
+        kind: 'observation',
+        feature: feature,
+      };
+    }
+    if (state.selectedPoint && state.selectedPoint.kind === 'observation' && state.selectedPoint.feature) {
+      return state.selectedPoint;
+    }
+    return null;
+  }
+
+  function renderResultList() {
+    if (!resultsListEl || !sideStatusEl) return;
+    var features = Array.isArray(state.features) ? state.features : [];
+    var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : features.length;
+    if (!features.length) {
+      sideStatusEl.textContent = COPY.empty;
+      resultsListEl.innerHTML = '<div class="me-results-empty">' + escapeHtml(COPY.empty) + '</div>';
+      return;
+    }
+    sideStatusEl.textContent = features.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll;
+    resultsListEl.innerHTML = features.slice(0, 120).map(function (feature) {
+      var p = feature.properties || {};
+      var active = p.occurrenceId === state.selectedOccurrenceId;
+      var date = p.observedAt ? String(p.observedAt).slice(0, 10) : '';
+      var place = [p.placeName, p.municipality].filter(Boolean).join(' · ') || '—';
+      var thumb = p.photoUrl
+        ? '<img class="me-result-thumb" src="' + escapeHtml(p.photoUrl) + '" alt="" loading="lazy" />'
+        : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
+      return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(p.occurrenceId || '') + '">' +
+        thumb +
+        '<span class="me-result-body">' +
+          '<strong>' + escapeHtml(p.displayName || 'Unresolved') + '</strong>' +
+          '<span>' + escapeHtml(place) + '</span>' +
+          (date ? '<span>' + escapeHtml(date) + '</span>' : '') +
+        '</span>' +
+      '</button>';
     }).join('');
+    resultsListEl.querySelectorAll('.me-result-row').forEach(function (rowEl) {
+      rowEl.addEventListener('click', function () {
+        var occurrenceId = rowEl.getAttribute('data-occurrence-id');
+        var feature = state.features.find(function (item) {
+          return item && item.properties && item.properties.occurrenceId === occurrenceId;
+        });
+        if (!feature) return;
+        selectObservation(feature, { focusMap: true, openSheet: shouldUseBottomSheet() });
+      });
+    });
+  }
+
+  function renderSelectedCard() {
+    if (!selectedCardEl) return;
+    if (shouldUseBottomSheet()) {
+      selectedCardEl.innerHTML = '';
+      selectedCardEl.classList.remove('is-visible');
+      return;
+    }
+    var context = getSelectedContext();
+    if (!context) {
+      selectedCardEl.innerHTML =
+        '<div class="me-map-card me-map-card-empty">' +
+          '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionPlaceLabel) + '</div>' +
+          '<strong class="me-map-card-title">' + escapeHtml(COPY.selectedFieldLabel) + '</strong>' +
+          '<span class="me-map-card-copy">' + escapeHtml(COPY.placeHint) + '</span>' +
+        '</div>';
+      selectedCardEl.classList.add('is-visible');
+      return;
+    }
+    var seq = ++siteBriefSeq;
+    if (context.kind === 'place') {
+      selectedCardEl.innerHTML =
+        '<div class="me-map-card">' +
+          '<div class="me-map-card-head">' +
+            '<div>' +
+              '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionPlaceLabel) + '</div>' +
+              '<strong class="me-map-card-title">' + escapeHtml(COPY.selectedFieldLabel) + '</strong>' +
+              '<span class="me-map-card-copy">' + escapeHtml(context.lat.toFixed(4) + ', ' + context.lng.toFixed(4)) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div id="me-selected-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+          renderPlaceActions() +
+          '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
+        '</div>';
+      selectedCardEl.classList.add('is-visible');
+      fetchSiteBrief(context.lat, context.lng, seq, document.getElementById('me-selected-brief-slot'));
+      return;
+    }
+    var feature = context.feature || getSelectedFeature();
+    if (!feature) {
+      selectedCardEl.innerHTML = '';
+      selectedCardEl.classList.remove('is-visible');
+      return;
+    }
+    var p = feature.properties || {};
+    var place = [p.placeName, p.municipality].filter(Boolean).join(' · ') || '—';
+    var photo = p.photoUrl
+      ? '<img class="me-selected-photo" src="' + escapeHtml(p.photoUrl) + '" alt="" loading="lazy" />'
+      : '';
+    var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(p.occurrenceId));
+    selectedCardEl.innerHTML =
+      '<div class="me-map-card">' +
+        photo +
+        '<div class="me-map-card-head">' +
+          '<div>' +
+            '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionObservationLabel) + '</div>' +
+            '<strong class="me-map-card-title">' + escapeHtml(p.displayName || 'Unresolved') + '</strong>' +
+            '<span class="me-map-card-copy">' + escapeHtml(place) + (p.observedAt ? ' · ' + escapeHtml(String(p.observedAt).slice(0, 10)) : '') + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="me-selected-actions">' +
+          '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.selectedCardLabel) + '</a>' +
+          '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
+          '<a class="inline-link" href="' + LENS_HREF + '">' + escapeHtml(COPY.bottomSheetLens) + '</a>' +
+        '</div>' +
+        '<div id="me-selected-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+        '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
+      '</div>';
+    selectedCardEl.classList.add('is-visible');
+    fetchSiteBrief(context.lat, context.lng, seq, document.getElementById('me-selected-brief-slot'));
+  }
+
+  function refreshSelectedAmbient() {
+    var slot = document.getElementById('me-selected-ambient-slot');
+    var context = getSelectedContext();
+    if (!slot || !context) return;
+    slot.innerHTML = renderSheetAmbient(context);
   }
 
   function escapeHtml(s) {
@@ -1019,16 +1396,75 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       '</div>';
   }
 
+  function findFrontierAt(lng, lat) {
+    if (!state.frontier || !Array.isArray(state.frontier.features)) return null;
+    for (var i = 0; i < state.frontier.features.length; i += 1) {
+      var feature = state.frontier.features[i];
+      var ring = feature && feature.geometry && feature.geometry.coordinates ? feature.geometry.coordinates[0] : null;
+      if (!ring || !ring[0] || !ring[2]) continue;
+      var minLng = Number(ring[0][0]);
+      var minLat = Number(ring[0][1]);
+      var maxLng = Number(ring[2][0]);
+      var maxLat = Number(ring[2][1]);
+      if (lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat) return feature;
+    }
+    return null;
+  }
+
+  function renderSheetAmbient(context) {
+    if (!context) return '';
+    var frontier = findFrontierAt(context.lng, context.lat);
+    var items = [];
+    if (frontier) {
+      items.push('<div class="me-sheet-card"><strong>' + escapeHtml(roleHintLabel(frontier.properties.recommendedRole)) + '</strong><span>' + escapeHtml((frontier.properties.missingAxes || []).map(axisLabel).join(' · ') || '—') + '</span></div>');
+      items.push('<div class="me-sheet-card"><strong>' + escapeHtml(COPY.communityProgressLabel) + ' ' + progressPercent(frontier.properties.communityGain) + '%</strong><span>' + frontier.properties.contributorCount + ' ' + escapeHtml(COPY.aggregateContributorLabel) + '</span></div>');
+    }
+    if (state.effortSummary && state.effortSummary.campaignProgress) {
+      items.push('<div class="me-sheet-card"><strong>' + progressPercent(state.effortSummary.campaignProgress.progressRatio) + '%</strong><span>' + escapeHtml(COPY['campaign_' + state.effortSummary.campaignProgress.labelKey]) + '</span></div>');
+    }
+    if (!items.length) return '';
+    return '<div class="me-sheet-ambient">' + items.join('') + '</div>';
+  }
+
+  function refreshSheetAmbient() {
+    if (!sheetInnerEl || !state.selectedPoint) return;
+    var slot = document.getElementById('me-sheet-ambient-slot');
+    if (!slot) return;
+    slot.innerHTML = renderSheetAmbient(state.selectedPoint);
+  }
+
+  function selectObservation(feature, options) {
+    if (!feature || !feature.properties) return;
+    state.selectedOccurrenceId = feature.properties.occurrenceId || null;
+    state.selectedPoint = {
+      lat: Number(feature.geometry.coordinates[1]),
+      lng: Number(feature.geometry.coordinates[0]),
+      kind: 'observation',
+      feature: feature,
+    };
+    renderResultList();
+    renderSelectedCard();
+    if (state.map && options && options.focusMap !== false) {
+      state.ignoreNextMoveEnd = true;
+      state.map.easeTo({ center: feature.geometry.coordinates, zoom: Math.max(state.map.getZoom(), 13.4), duration: 420 });
+    }
+    if (options && options.openSheet && shouldUseBottomSheet()) openBottomSheet(feature);
+    else if (!shouldUseBottomSheet()) closeBottomSheet();
+  }
+
   function openBottomSheet(feature) {
     if (!sheetEl || !sheetInnerEl) return;
+    if (!shouldUseBottomSheet()) return;
     var geom = feature.geometry;
     var coords = geom && geom.coordinates ? geom.coordinates : null;
     var lat = coords ? Number(coords[1]) : null;
     var lng = coords ? Number(coords[0]) : null;
+    state.selectedPoint = lat != null && lng != null ? { lat: lat, lng: lng, kind: 'observation', feature: feature } : null;
     var seq = ++siteBriefSeq;
     sheetInnerEl.innerHTML =
       '<div id="me-site-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
-      renderObservationActions(feature);
+      renderObservationActions(feature) +
+      '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: lat, lng: lng, kind: 'observation', feature: feature }) + '</div>';
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
     if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
@@ -1039,10 +1475,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function openPlaceSheet(lat, lng) {
     if (!sheetEl || !sheetInnerEl) return;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (!shouldUseBottomSheet()) {
+      state.selectedOccurrenceId = null;
+      state.selectedPoint = { lat: lat, lng: lng, kind: 'place' };
+      closeBottomSheet();
+      renderResultList();
+      renderSelectedCard();
+      return;
+    }
+    state.selectedPoint = { lat: lat, lng: lng, kind: 'place' };
     var seq = ++siteBriefSeq;
     sheetInnerEl.innerHTML =
       '<div id="me-site-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
-      renderPlaceActions();
+      renderPlaceActions() +
+      '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: lat, lng: lng, kind: 'place' }) + '</div>';
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
     fetchSiteBrief(lat, lng, seq, document.getElementById('me-site-brief-slot'));
@@ -1145,7 +1591,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
     map.on('click', 'unclustered-point', function (e) {
       if (!e.features || !e.features[0]) return;
-      openBottomSheet(e.features[0]);
+      selectObservation(e.features[0], { focusMap: false, openSheet: true });
     });
     map.on('click', 'clusters', function (e) {
       var fs = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
@@ -1173,7 +1619,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     // Show/hide layers based on active tab.
     var markerLayers = ['clusters', 'cluster-inner', 'unclustered-point'];
     var heatLayers = ['obs-heat'];
-    var coverageLayers = ['coverage-fill'];
+    var frontierLayers = ['frontier-fill'];
     var show = function (ids, visible) {
       ids.forEach(function (id) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
@@ -1181,16 +1627,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     };
     show(markerLayers, tab === 'markers');
     show(heatLayers, tab === 'heatmap');
-    show(coverageLayers, tab === 'coverage');
+    show(frontierLayers, tab === 'frontier');
 
     if (tab === 'heatmap') {
       ensureHeatmap(map);
       showLegend(COPY.heatmapLegendLow, COPY.heatmapLegendHigh,
         'linear-gradient(90deg, rgba(56,189,248,0.2), #0ea5e9 40%, #f59e0b 75%, #ef4444)');
-    } else if (tab === 'coverage') {
-      ensureCoverage(map);
+    } else if (tab === 'frontier') {
+      ensureFrontier(map);
       showLegend(COPY.coverageLegendLow, COPY.coverageLegendHigh,
-        'linear-gradient(90deg, rgba(16,185,129,0.18), #10b981 60%, #059669)');
+        'linear-gradient(90deg, rgba(148,163,184,0.14), rgba(14,165,233,0.28) 30%, rgba(16,185,129,0.4) 65%, rgba(5,150,105,0.72))');
     } else {
       hideLegend();
     }
@@ -1218,59 +1664,104 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
   }
 
-  function ensureCoverage(map) {
-    if (!state.coverage) {
-      loadCoverage(map);
+  function ensureFrontier(map) {
+    if (!state.frontier) {
+      loadFrontier(map);
       return;
     }
-    paintCoverage(map, state.coverage);
+    paintFrontier(map, state.frontier);
   }
 
-  function paintCoverage(map, collection) {
-    var sourceId = 'coverage';
-    var fillId = 'coverage-fill';
-    // Normalize opacity by count on the JS side so we never feed MapLibre
-    // a non-ascending interpolate (a bug we hit when max was tiny).
-    var max = Math.max(collection.maxCount || 1, 1);
-    var scaled = {
-      type: 'FeatureCollection',
-      features: (collection.features || []).map(function (f) {
-        var c = (f.properties && f.properties.count) || 0;
-        var op = 0.08 + 0.57 * Math.min(1, c / max);
-        return {
-          type: 'Feature',
-          geometry: f.geometry,
-          properties: Object.assign({}, f.properties, { op: op }),
-        };
-      }),
-    };
+  function paintFrontier(map, collection) {
+    var sourceId = 'frontier';
+    var fillId = 'frontier-fill';
     if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, { type: 'geojson', data: scaled });
+      map.addSource(sourceId, { type: 'geojson', data: collection });
       map.addLayer({
         id: fillId,
         type: 'fill',
         source: sourceId,
         paint: {
-          'fill-color': '#10b981',
-          'fill-opacity': ['get', 'op'],
-          'fill-outline-color': 'rgba(5,150,105,0.35)',
+          'fill-color': [
+            'match', ['get', 'stage'],
+            'blank', 'rgba(148,163,184,0.18)',
+            'building', 'rgba(14,165,233,0.28)',
+            'repeatable', 'rgba(16,185,129,0.42)',
+            'rgba(5,150,105,0.72)',
+          ],
+          'fill-opacity': [
+            'match', ['get', 'stage'],
+            'blank', 0.08,
+            'building', 0.18,
+            'repeatable', 0.3,
+            0.42,
+          ],
+          'fill-outline-color': 'rgba(15,23,42,0.12)',
         },
       });
+      map.on('click', 'frontier-fill', function (e) {
+        if (!e.features || !e.features[0]) return;
+        var ring = e.features[0].geometry && e.features[0].geometry.coordinates ? e.features[0].geometry.coordinates[0] : null;
+        if (!ring || !ring[0] || !ring[2]) return;
+        var centerLng = (Number(ring[0][0]) + Number(ring[2][0])) / 2;
+        var centerLat = (Number(ring[0][1]) + Number(ring[2][1])) / 2;
+        openPlaceSheet(centerLat, centerLng);
+      });
+      map.on('mouseenter', 'frontier-fill', function () { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', 'frontier-fill', function () { map.getCanvas().style.cursor = ''; });
     } else {
-      map.getSource(sourceId).setData(scaled);
+      map.getSource(sourceId).setData(collection);
     }
   }
 
-  function loadCoverage(map) {
-    var qs = '';
-    if (state.year) qs += (qs ? '&' : '?') + 'year=' + encodeURIComponent(state.year);
-    fetch(apiCoverage + qs, { credentials: 'same-origin' })
-      .then(function (r) { return r.json(); })
+  function currentBboxString() {
+    if (!state.map) return '';
+    var bounds = state.map.getBounds();
+    if (!bounds) return '';
+    return [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].map(function (n) { return Number(n).toFixed(5); }).join(',');
+  }
+
+  function loadFrontier(map) {
+    if (!apiFrontier) return;
+    if (state.frontierAbort) { try { state.frontierAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    state.frontierAbort = controller;
+    var qs = '?bbox=' + encodeURIComponent(currentBboxString());
+    if (state.year) qs += '&year=' + encodeURIComponent(state.year);
+    fetch(apiFrontier + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (coll) {
-        state.coverage = coll;
-        paintCoverage(map, coll);
+        if (!coll) return;
+        state.frontier = coll;
+        paintFrontier(map, coll);
+        refreshSheetAmbient();
+        refreshSelectedAmbient();
       })
-      .catch(function () {});
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+      });
+  }
+
+  function loadEffortSummary() {
+    if (!apiEffortSummary || !state.map) return;
+    var qs = '?bbox=' + encodeURIComponent(currentBboxString());
+    if (state.year) qs += '&year=' + encodeURIComponent(state.year);
+    if (state.role) qs += '&role=' + encodeURIComponent(state.role);
+    if (state.effortAbort) { try { state.effortAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    state.effortAbort = controller;
+    fetch(apiEffortSummary + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (summary) {
+        if (!summary) return;
+        state.effortSummary = summary;
+        renderSidePanels();
+        refreshSheetAmbient();
+        refreshSelectedAmbient();
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+      });
   }
 
   function loadObservations() {
@@ -1278,6 +1769,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var qs = '?limit=1500';
     if (state.taxonGroup) qs += '&taxon_group=' + encodeURIComponent(state.taxonGroup);
     if (state.year) qs += '&year=' + encodeURIComponent(state.year);
+    var bbox = currentBboxString();
+    if (bbox) qs += '&bbox=' + encodeURIComponent(bbox);
     setStatus(COPY.loading);
     if (state.lastAbort) { try { state.lastAbort.abort(); } catch(_) {} }
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
@@ -1287,8 +1780,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (coll) {
         state.rawFeatures = (coll && coll.features) || [];
         state.features = filterBySeason(state.rawFeatures, state.season);
+        state.lastStats = (coll && coll.stats) || null;
+        state.lastSearchedBbox = bbox;
+        state.pendingViewportSearch = false;
         ensureObservationSource(state.map, state.features);
-        renderSideLists(state.features);
+        if (state.selectedOccurrenceId && !getSelectedFeature()) {
+          state.selectedOccurrenceId = null;
+          if (state.selectedPoint && state.selectedPoint.kind === 'observation') state.selectedPoint = null;
+        }
+        if (!state.selectedOccurrenceId && !state.selectedPoint && state.features[0] && !shouldUseBottomSheet()) {
+          state.selectedOccurrenceId = state.features[0].properties ? state.features[0].properties.occurrenceId : null;
+        }
+        renderResultList();
+        renderSelectedCard();
+        renderSidePanels();
+        updateSearchAreaUi();
         applyTab(state.map, state.tab);
         var totalAll = (coll && coll.stats && coll.stats.totalAll) || state.rawFeatures.length;
         if (state.features.length === 0) {
@@ -1296,15 +1802,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         } else {
           setStatus(fmtStatsLabel(state.features.length, totalAll));
         }
-        // Fit bounds on first load only.
-        if (state.features.length > 0 && !state._fittedOnce) {
-          var bounds = new window.maplibregl.LngLatBounds();
-          state.features.forEach(function (f) {
-            if (f.geometry && f.geometry.coordinates) bounds.extend(f.geometry.coordinates);
-          });
-          if (!bounds.isEmpty()) state.map.fitBounds(bounds, { padding: 40, maxZoom: 11, duration: 350 });
-          state._fittedOnce = true;
-        }
+        state._fittedOnce = true;
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
@@ -1316,20 +1814,27 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.features = filterBySeason(state.rawFeatures, state.season);
     if (!state.map) return;
     ensureObservationSource(state.map, state.features);
-    renderSideLists(state.features);
+    if (state.selectedOccurrenceId && !getSelectedFeature()) {
+      state.selectedOccurrenceId = null;
+      if (state.selectedPoint && state.selectedPoint.kind === 'observation') state.selectedPoint = null;
+    }
+    renderResultList();
+    renderSelectedCard();
+    renderSidePanels();
     applyTab(state.map, state.tab);
     if (state.features.length === 0) setStatus(COPY.empty);
     else setStatus(fmtStatsLabel(state.features.length, state.rawFeatures.length));
   }
 
   function refreshYearDependentData() {
-    state.coverage = null;
-    if (state.map && state.map.getSource('coverage')) {
-      removeLayerIfExists(state.map, 'coverage-fill');
-      removeSourceIfExists(state.map, 'coverage');
+    state.frontier = null;
+    if (state.map && state.map.getSource('frontier')) {
+      removeLayerIfExists(state.map, 'frontier-fill');
+      removeSourceIfExists(state.map, 'frontier');
     }
     loadObservations();
-    if (state.tab === 'coverage' && state.map) loadCoverage(state.map);
+    if (state.map) loadFrontier(state.map);
+    loadEffortSummary();
     loadTraces();
     saveMapState();
   }
@@ -1342,7 +1847,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     // Re-add sources/layers after style load.
     state.map.once('style.load', function () {
       ensureObservationSource(state.map, state.features);
-      if (state.coverage) paintCoverage(state.map, state.coverage);
+      if (state.frontier) paintFrontier(state.map, state.frontier);
       applyTab(state.map, wasTab);
     });
   }
@@ -1351,11 +1856,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   // Keeps map state shareable as a plain URL while preserving unrelated
   // params like lang.
   var STATE_STORAGE_KEY = 'ikimon-map-v2';
-  var MAP_STATE_KEYS = ['tab', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces'];
+  var MAP_STATE_KEYS = ['tab', 'role', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces'];
 
   function serializeMapState() {
     var parts = [];
     if (state.tab && state.tab !== 'markers') parts.push('tab=' + encodeURIComponent(state.tab));
+    if (state.role && state.role !== 'mixed') parts.push('role=' + encodeURIComponent(state.role));
     if (state.taxonGroup) parts.push('taxon=' + encodeURIComponent(state.taxonGroup));
     if (state.year) parts.push('year=' + encodeURIComponent(state.year));
     if (state.season) parts.push('season=' + encodeURIComponent(state.season));
@@ -1403,7 +1909,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function applyRestoredParams(params) {
     if (!params || !Object.keys(params).length) return;
-    if (params.tab) state.tab = params.tab;
+    if (params.tab) state.tab = params.tab === 'coverage' ? 'frontier' : params.tab;
+    if (params.role) state.role = params.role;
     if (params.taxon !== undefined) state.taxonGroup = params.taxon;
     if (params.year) state.year = params.year;
     if (params.season) state.season = params.season;
@@ -1437,6 +1944,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var t = btn.getAttribute('data-tab');
       btn.classList.toggle('is-active', t === state.tab);
       btn.setAttribute('aria-selected', t === state.tab ? 'true' : 'false');
+    });
+    document.querySelectorAll('.me-role-chip').forEach(function (btn) {
+      var v = btn.getAttribute('data-role') || 'mixed';
+      btn.classList.toggle('is-active', v === state.role);
+      btn.setAttribute('aria-pressed', v === state.role ? 'true' : 'false');
     });
     document.querySelectorAll('.me-taxon-chip').forEach(function (btn) {
       var v = btn.getAttribute('data-taxon-group') || '';
@@ -1555,9 +2067,21 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(state.map, def);
       });
       loadObservations();
+      loadFrontier(state.map);
+      loadEffortSummary();
       loadTraces();
     });
-    state.map.on('moveend', saveMapState);
+    state.map.on('moveend', function () {
+      if (state.ignoreNextMoveEnd) {
+        state.ignoreNextMoveEnd = false;
+        saveMapState();
+        return;
+      }
+      saveMapState();
+      var bbox = currentBboxString();
+      state.pendingViewportSearch = !!bbox && bbox !== state.lastSearchedBbox;
+      updateSearchAreaUi();
+    });
     // Empty-point tap → Site Brief. Skip if the click hit an observation
     // layer (those have their own handlers via map.on('click', 'layer', ...)).
     state.map.on('click', function (e) {
@@ -1565,6 +2089,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       ['unclustered-point', 'clusters', 'cluster-inner'].forEach(function (id) {
         if (state.map.getLayer(id)) layers.push(id);
       });
+      if (state.map.getLayer('frontier-fill')) layers.push('frontier-fill');
       var hits = layers.length > 0 ? state.map.queryRenderedFeatures(e.point, { layers: layers }) : [];
       if (hits && hits.length > 0) return;
       openPlaceSheet(e.lngLat.lat, e.lngLat.lng);
@@ -1621,7 +2146,22 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         b.classList.toggle('is-active', b === btn);
         b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
       });
-      if (state.map) applyTab(state.map, state.tab);
+      if (state.map) {
+        applyTab(state.map, state.tab);
+        if (state.tab === 'frontier') loadFrontier(state.map);
+      }
+      saveMapState();
+    });
+  });
+  document.querySelectorAll('.me-role-chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var value = btn.getAttribute('data-role') || 'mixed';
+      state.role = value;
+      document.querySelectorAll('.me-role-chip').forEach(function (b) {
+        b.classList.toggle('is-active', b === btn);
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
+      loadEffortSummary();
       saveMapState();
     });
   });
@@ -1700,6 +2240,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
     });
   });
+  if (searchAreaBtnEl) {
+    searchAreaBtnEl.addEventListener('click', function () {
+      if (!state.map) return;
+      loadObservations();
+      loadFrontier(state.map);
+      loadEffortSummary();
+    });
+  }
 
   // ---- Unified species + place search ------------------------------------
   // Species hits are resolved locally from the currently visible observation
@@ -1789,7 +2337,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
             var p = feature.properties || {};
             return row.featureIds.indexOf(p.occurrenceId) !== -1;
           });
-          fitToFeatureSet(matches, { zoom: 13.8, openSheet: matches.length === 1 });
+          fitToFeatureSet(matches, { zoom: 13.8, openSheet: false });
+          if (matches.length === 1) selectObservation(matches[0], { focusMap: false, openSheet: true });
           if (searchInputEl) searchInputEl.value = row.title;
           searchResultsEl.classList.remove('is-open');
           saveMapState();
@@ -2023,44 +2572,77 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 }
 
 export const MAP_EXPLORER_STYLES = `
-  /* Google Maps スタイル: マップ主役、コントロールは軽量オーバーレイ */
-  .me-section { margin-top: 0; }
-  .me-eyebrow-strip { display: none; }
-  .me-cross-chips {
-    display: flex; flex-wrap: nowrap; gap: 6px; align-items: center;
-    margin-bottom: 4px; padding: 6px 14px; border-radius: 0;
-    background: rgba(255,255,255,.96); border-bottom: 1px solid rgba(15,23,42,.06);
-    font-size: 12px; overflow-x: auto; scrollbar-width: none;
+  .me-section {
+    --me-map-height: clamp(620px, calc(100vh - 172px), 980px);
+    margin-top: 0;
   }
-  .me-cross-chips::-webkit-scrollbar { display: none; }
-  @media (max-width: 767px) { .me-cross-chips { display: none; } }
-  .me-cross-eyebrow { font-weight: 800; color: #0f172a; letter-spacing: -.01em; flex-shrink: 0; }
-  .me-cross-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: rgba(16,185,129,.08); color: #065f46; font-weight: 700; text-decoration: none; transition: background .15s ease; flex-shrink: 0; white-space: nowrap; }
-  .me-cross-chip:hover { background: rgba(16,185,129,.16); }
-
-  .me-toolbar {
-    display: flex; flex-direction: row; align-items: center; gap: 4px 10px;
-    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
-    margin-bottom: 6px; padding: 8px 14px; border-radius: 14px;
-    background: rgba(255,255,255,.92); border: 1px solid rgba(15,23,42,.05);
-    box-shadow: 0 3px 8px rgba(15,23,42,.04);
-    -webkit-overflow-scrolling: touch;
+  .me-topbar {
+    display: grid;
+    gap: 14px 18px;
+    grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr);
+    align-items: start;
+    margin-bottom: 16px;
   }
-  .me-toolbar::-webkit-scrollbar { display: none; }
-  @media (min-width: 900px) { .me-toolbar { gap: 4px 14px; } }
+  .me-topbar-primary,
+  .me-topbar-secondary {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+  }
+  .me-topbar-secondary {
+    justify-content: space-between;
+  }
+  .me-search-shell {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 56px;
+    padding: 8px 12px 8px 16px;
+    border-radius: 20px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 10px 28px rgba(15,23,42,.08);
+  }
   .me-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(15,23,42,.04); }
-  .me-tab { padding: 8px 14px; border-radius: 10px; border: 0; background: transparent; font-weight: 800; font-size: 13px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; white-space: nowrap; }
+  .me-tab { min-height: 48px; padding: 8px 16px; border-radius: 12px; border: 0; background: transparent; font-weight: 800; font-size: 13px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; }
   .me-tab.is-active { background: #fff; color: #0f172a; box-shadow: 0 4px 10px rgba(15,23,42,.08); }
-  .me-filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; flex-shrink: 0; }
-  .me-filter-group + .me-filter-group { border-left: 1px solid rgba(15,23,42,.08); padding-left: 10px; }
-  .me-filter-label { display: none; }
-  .me-chip-row { display: flex; flex-wrap: nowrap; gap: 4px; }
-  .me-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; font-weight: 700; font-size: 12px; color: #334155; cursor: pointer; transition: all .15s ease; }
+  .me-filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .me-filter-group-quick { flex: 1 1 auto; min-height: 56px; padding: 4px 0; }
+  .me-filter-label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
+  .me-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .me-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.08); background: #fff; font-weight: 700; font-size: 12px; color: #334155; cursor: pointer; transition: all .15s ease; }
   .me-chip:hover { border-color: rgba(16,185,129,.35); }
   .me-chip.is-active { background: linear-gradient(135deg, rgba(16,185,129,.16), rgba(14,165,233,.14)); border-color: rgba(16,185,129,.45); color: #065f46; }
   .me-chip-icon { font-size: 13px; }
-  .me-time-controls { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; min-width: min(100%, 260px); }
-  .me-time-slider-wrap { min-width: 100px; flex: 1 1 140px; display: flex; flex-direction: column; gap: 2px; }
+  .me-filter-drawer { position: relative; flex: 0 0 auto; }
+  .me-filter-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 56px; min-width: 116px; padding: 0 18px;
+    border-radius: 16px; cursor: pointer; list-style: none;
+    background: #fff; border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 8px 24px rgba(15,23,42,.06);
+    font-size: 13px; font-weight: 800; color: #0f172a;
+  }
+  .me-filter-toggle::-webkit-details-marker { display: none; }
+  .me-filter-panel {
+    position: absolute; right: 0; top: calc(100% + 10px); z-index: 20;
+    width: min(92vw, 640px);
+    display: grid; gap: 14px;
+    padding: 16px;
+    border-radius: 24px;
+    background: rgba(255,255,255,.98);
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 20px 54px rgba(15,23,42,.16);
+  }
+  .me-filter-group-actions { justify-content: flex-start; }
+  .me-cross-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 12px; border-radius: 999px; background: rgba(16,185,129,.08); color: #065f46; font-weight: 700; text-decoration: none; transition: background .15s ease; }
+  .me-cross-chip:hover { background: rgba(16,185,129,.16); }
+  .me-time-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: min(100%, 360px); }
+  .me-time-slider-wrap { min-width: 180px; flex: 1 1 220px; display: flex; flex-direction: column; gap: 4px; }
   .me-year-range { width: 100%; accent-color: #10b981; }
   .me-year-scale { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; font-weight: 700; color: #94a3b8; }
   .me-year-pill { min-width: 74px; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.05); font-weight: 800; font-size: 12px; color: #0f172a; text-align: center; }
@@ -2082,13 +2664,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-basemap-opt span { display: inline-block; padding: 6px 10px; border-radius: 9px; font-weight: 700; font-size: 12px; color: #475569; transition: background .15s ease, color .15s ease; }
   .me-basemap-opt.is-active span { background: #fff; color: #0f172a; box-shadow: 0 3px 8px rgba(15,23,42,.08); }
 
-  /* Region bar and overlay panel: hidden to keep map prominent */
-  .me-region-bar { display: none; }
-  .me-overlay-panel { display: none; }
-
-  /* Hidden placeholder — keep selector for JS compat */
-  .me-region-bar-hidden {
-    margin-bottom: 10px;
+  .me-region-bar {
     border-radius: 14px;
     background: rgba(255,255,255,.88);
     border: 1px solid rgba(15,23,42,.05);
@@ -2107,11 +2683,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-region-chip:hover { border-color: rgba(14,165,233,.4); }
   .me-region-chip.is-active { background: linear-gradient(135deg, rgba(14,165,233,.18), rgba(16,185,129,.14)); border-color: rgba(14,165,233,.45); color: #075985; }
 
-  /* Overlay panel stays collapsed by default. Opening it is a
-     deliberate action, not something that walls the user off from the
-     map on first load. */
   .me-overlay-panel {
-    margin-bottom: 10px;
     padding: 0;
     border-radius: 14px;
     background: rgba(255,255,255,.94);
@@ -2161,13 +2733,104 @@ export const MAP_EXPLORER_STYLES = `
   .me-overlay-opacity-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; }
   .me-overlay-opacity-range { flex: 1; }
 
-  .me-main { display: grid; gap: 0; grid-template-columns: 1fr; }
-  @media (min-width: 1080px) { .me-main { grid-template-columns: 1fr; } }
-  .me-map-wrap { position: relative; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg,#ecfeff,#eff6ff); border: 1px solid rgba(15,23,42,.06); box-shadow: 0 8px 20px rgba(15,23,42,.05); }
-  /* Map takes full remaining viewport — nav(56px) + cross-chips(desktop ~34px) + toolbar(~50px) + section margin */
-  .me-map { width: 100%; height: calc(100vh - 56px - 50px - 10px); min-height: 480px; }
-  @media (min-width: 768px) { .me-map { height: calc(100vh - 56px - 34px - 50px - 10px); } }
-  .me-side { display: none; }
+  .me-main {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: clamp(320px, 24vw, 380px) minmax(0, 1fr);
+    align-items: start;
+  }
+  .me-map-wrap {
+    position: sticky;
+    top: 86px;
+    min-height: var(--me-map-height);
+    border-radius: 28px;
+    overflow: hidden;
+    background: linear-gradient(135deg,#ecfeff,#eff6ff);
+    border: 1px solid rgba(15,23,42,.06);
+    box-shadow: 0 18px 42px rgba(15,23,42,.08);
+  }
+  .me-map { width: 100%; height: var(--me-map-height); min-height: 620px; }
+  .me-map-panel {
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .me-map-panel.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .me-map-panel-selection {
+    top: 72px;
+    left: 18px;
+    width: clamp(280px, 28vw, 360px);
+    max-width: calc(100% - 36px);
+  }
+  .me-map-panel-selection .me-map-card {
+    max-height: calc(var(--me-map-height) - 96px);
+    overflow-y: auto;
+  }
+  .me-map-panel-insight {
+    left: 18px;
+    bottom: 18px;
+    width: min(420px, calc(100% - 108px));
+  }
+  .me-map-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 22px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(15,23,42,.08);
+    box-shadow: 0 18px 40px rgba(15,23,42,.14);
+    backdrop-filter: blur(16px);
+    pointer-events: auto;
+  }
+  .me-map-card-empty,
+  .me-map-card-quiet { gap: 10px; }
+  .me-map-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .me-map-card-kicker {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-bottom: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(14,165,233,.1);
+    color: #0369a1;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .me-map-card-title { display: block; font-size: 19px; line-height: 1.28; font-weight: 900; color: #0f172a; letter-spacing: -.02em; }
+  .me-map-card-copy { display: block; margin-top: 6px; font-size: 12px; line-height: 1.6; color: #64748b; font-weight: 700; }
+  .me-map-insight-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .me-map-insight-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 11px 12px;
+    border-radius: 16px;
+    background: rgba(248,250,252,.88);
+    border: 1px solid rgba(148,163,184,.14);
+  }
+  .me-map-insight-label {
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+  .me-map-insight-item strong { font-size: 14px; font-weight: 900; color: #0f172a; }
+  .me-map-insight-item span { font-size: 11px; line-height: 1.45; color: #64748b; }
   .me-map-status {
     position: absolute; right: 14px; top: 14px; z-index: 4;
     padding: 6px 12px; border-radius: 999px; background: rgba(15,23,42,.82);
@@ -2175,19 +2838,10 @@ export const MAP_EXPLORER_STYLES = `
     backdrop-filter: blur(8px);
   }
 
-  .me-search {
-    position: absolute; left: 14px; top: 14px; z-index: 5;
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 8px 6px 14px; border-radius: 999px;
-    background: rgba(255,255,255,.95); border: 1px solid rgba(15,23,42,.08);
-    box-shadow: 0 6px 18px rgba(15,23,42,.08);
-    min-width: 240px;
-    max-width: min(420px, 70%);
-  }
   .me-search-icon { font-size: 13px; color: #475569; }
   .me-search-input {
     flex: 1 1 auto; min-width: 0; border: 0; background: transparent;
-    padding: 6px 4px; font-size: 13px; font-weight: 600; color: #0f172a;
+    padding: 6px 4px; font-size: 14px; font-weight: 700; color: #0f172a;
     outline: none;
   }
   .me-search-input::placeholder { color: #94a3b8; }
@@ -2218,7 +2872,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-search-empty { padding: 14px; font-size: 12px; color: #64748b; }
 
   .me-locate-fab {
-    position: absolute; right: 14px; bottom: 120px; z-index: 5;
+    position: absolute; right: 14px; bottom: 84px; z-index: 5;
     width: 44px; height: 44px; border-radius: 999px; border: 0;
     background: #fff; color: #0f172a; cursor: pointer;
     box-shadow: 0 10px 24px rgba(15,23,42,.16);
@@ -2234,7 +2888,7 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 0 0 6px rgba(14,165,233,.28);
   }
   .me-legend {
-    position: absolute; left: 14px; bottom: 14px; z-index: 4;
+    position: absolute; right: 18px; bottom: 18px; z-index: 4;
     padding: 8px 12px; border-radius: 14px;
     background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.06);
     box-shadow: 0 8px 16px rgba(15,23,42,.1);
@@ -2244,6 +2898,24 @@ export const MAP_EXPLORER_STYLES = `
   .me-legend-label { color: #475569; letter-spacing: .1em; text-transform: uppercase; }
   .me-legend-gradient { width: 140px; height: 10px; border-radius: 999px; display: inline-block; }
   .me-legend-range { display: inline-flex; gap: 10px; color: #64748b; font-weight: 700; }
+  .me-search-area-btn {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    z-index: 5;
+    transform: translateX(-50%);
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(14,165,233,.22);
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 12px 30px rgba(15,23,42,.12);
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .me-search-area-btn.is-hidden { display: none; }
 
   .me-bottom-sheet {
     position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 5;
@@ -2262,6 +2934,10 @@ export const MAP_EXPLORER_STYLES = `
   .me-bottom-meta span { font-size: 12px; color: #64748b; font-weight: 600; }
   .me-bottom-actions { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
   .me-bottom-actions .btn { padding: 10px 20px; font-size: 14px; font-weight: 800; }
+  .me-sheet-ambient { display: grid; gap: 8px; margin-top: 12px; }
+  .me-sheet-card { padding: 10px 12px; border-radius: 14px; background: rgba(248,250,252,.94); border: 1px solid rgba(148,163,184,.16); display: flex; flex-direction: column; gap: 3px; }
+  .me-sheet-card strong { font-size: 12px; font-weight: 800; color: #0f172a; }
+  .me-sheet-card span { font-size: 11px; color: #64748b; line-height: 1.45; }
 
   .me-site-brief { margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(14,165,233,.08)); border: 1px solid rgba(16,185,129,.22); }
   .me-site-brief.is-loading { color: #64748b; font-size: 12px; font-weight: 600; }
@@ -2276,14 +2952,54 @@ export const MAP_EXPLORER_STYLES = `
   .me-site-brief ul li { font-size: 12px; color: #0f172a; line-height: 1.45; }
   .me-site-brief-reasons li { color: #475569; font-size: 11px; }
 
-  .me-side { display: flex; flex-direction: column; gap: 14px; }
-  .me-side-card { background: #fff; border: 1px solid rgba(15,23,42,.06); border-radius: 20px; padding: 14px 16px; box-shadow: 0 6px 16px rgba(15,23,42,.04); }
-  .me-side-heading { margin: 0 0 10px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #059669; }
-  .me-side-list { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
-  .me-side-item { padding: 8px 10px; border-radius: 12px; background: rgba(236,253,245,.4); border: 1px solid rgba(16,185,129,.12); text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 2px; }
-  .me-side-item:hover { background: rgba(236,253,245,.8); }
-  .me-side-item strong { font-size: 13px; font-weight: 800; color: #0f172a; }
-  .me-side-item span { font-size: 11px; color: #64748b; }
+  .me-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .me-side-head { padding: 4px 2px 0; }
+  .me-side-title { margin: 0; font-size: 22px; line-height: 1.15; font-weight: 900; color: #0f172a; letter-spacing: -.02em; }
+  .me-side-subtitle { margin-top: 6px; font-size: 12px; color: #64748b; font-weight: 700; }
+  .me-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: var(--me-map-height);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .me-result-row {
+    display: grid;
+    grid-template-columns: 92px minmax(0,1fr);
+    gap: 12px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid rgba(15,23,42,.06);
+    border-radius: 18px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 8px 20px rgba(15,23,42,.05);
+    text-align: left;
+    cursor: pointer;
+  }
+  .me-result-row.is-active { border-color: rgba(14,165,233,.28); box-shadow: 0 12px 28px rgba(14,165,233,.12); }
+  .me-result-thumb {
+    width: 92px;
+    height: 92px;
+    object-fit: cover;
+    border-radius: 14px;
+    background: rgba(241,245,249,.9);
+  }
+  .me-result-thumb-placeholder { display: grid; place-items: center; font-size: 28px; color: #64748b; }
+  .me-result-body { display: flex; flex-direction: column; justify-content: center; gap: 5px; min-width: 0; }
+  .me-result-body strong { font-size: 14px; font-weight: 900; color: #0f172a; letter-spacing: -.01em; }
+  .me-result-body span { font-size: 12px; color: #64748b; line-height: 1.4; }
+  .me-results-empty, .me-side-empty {
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.9);
+    border: 1px solid rgba(15,23,42,.06);
+    font-size: 13px;
+    color: #64748b;
+  }
+  .me-selected-photo { width: 100%; max-height: 220px; object-fit: cover; border-radius: 16px; margin-bottom: 2px; }
+  .me-selected-actions { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 12px; }
+  .me-selected-ambient { margin-top: 2px; }
   .me-cluster-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 10px; background: rgba(248,250,252,.8); font-size: 12px; }
   .me-cluster-item strong { font-weight: 800; color: #059669; }
   .me-chip:focus-visible,
@@ -2292,13 +3008,68 @@ export const MAP_EXPLORER_STYLES = `
   .me-share-btn:focus-visible,
   .me-locate-fab:focus-visible,
   .me-bottom-close:focus-visible,
-  .me-year-range:focus-visible {
+  .me-year-range:focus-visible,
+  .me-result-row:focus-visible,
+  .me-filter-toggle:focus-visible,
+  .me-search-area-btn:focus-visible {
     outline: 3px solid rgba(14,165,233,.32);
     outline-offset: 2px;
   }
 
+  @media (max-width: 1200px) {
+    .me-topbar {
+      grid-template-columns: 1fr;
+    }
+    .me-map-panel-selection {
+      width: clamp(260px, 34vw, 320px);
+    }
+    .me-map-panel-insight {
+      width: min(360px, calc(100% - 96px));
+    }
+  }
+
   @media (max-width: 900px) {
-    .me-side { flex-direction: row; overflow-x: auto; }
-    .me-side-card { min-width: 240px; flex-shrink: 0; }
+    .me-topbar-primary,
+    .me-topbar-secondary { flex-direction: column; }
+    .me-topbar-secondary { justify-content: flex-start; }
+    .me-tabs { width: fit-content; }
+    .me-filter-drawer { width: 100%; }
+    .me-filter-toggle { width: 100%; }
+    .me-filter-panel {
+      position: static;
+      width: auto;
+      margin-top: 10px;
+      box-shadow: 0 10px 24px rgba(15,23,42,.08);
+    }
+    .me-main {
+      grid-template-columns: 1fr;
+    }
+    .me-map-wrap {
+      position: relative;
+      top: auto;
+      order: 1;
+    }
+    .me-map { min-height: 72vh; height: 72vh; }
+    .me-map-panel {
+      display: none;
+    }
+    .me-side {
+      order: 2;
+      display: none;
+    }
+    .me-search-area-btn {
+      top: 72px;
+      width: max-content;
+      max-width: calc(100% - 28px);
+    }
+    .me-locate-fab { bottom: 96px; }
+    .me-bottom-sheet {
+      display: block;
+      border-radius: 22px 22px 0 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: 62%;
+    }
   }
 `;
