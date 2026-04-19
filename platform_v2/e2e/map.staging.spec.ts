@@ -135,6 +135,7 @@ for (const profile of MAP_VIEWPORTS) {
         firstRow?.click();
       });
       await expectMobileBottomSheet(page);
+      await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(0);
       await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドガイド");
       await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドスキャン");
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
@@ -142,6 +143,7 @@ for (const profile of MAP_VIEWPORTS) {
       const firstRow = page.locator(".me-result-row").first();
       await firstRow.click();
       await expectDesktopSelectionOverlay(page);
+      await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(0);
       await expect(page.locator("#me-map-selection-card")).not.toContainText("フィールドガイド");
       await expect(page.locator("#me-map-selection-card")).not.toContainText("フィールドスキャン");
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
@@ -149,9 +151,11 @@ for (const profile of MAP_VIEWPORTS) {
 
     await openBlankPlaceTarget(page, !!profile.isMobile);
     if (profile.isMobile) {
+      await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(1);
       await expect(page.locator("#me-bottom-inner")).toContainText("フィールドガイド");
       await expect(page.locator("#me-bottom-inner")).toContainText("スキャン");
     } else {
+      await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(1);
       await expect(page.locator("#me-map-selection-card")).toContainText("フィールドガイド");
     }
 

@@ -1255,8 +1255,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       selectedCardEl.classList.remove('is-visible');
       return;
     }
-    var seq = ++siteBriefSeq;
     if (context.kind === 'place') {
+      var seq = ++siteBriefSeq;
       selectedCardEl.innerHTML =
         '<div class="me-map-card">' +
           '<div class="me-map-card-head">' +
@@ -1300,11 +1300,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.selectedCardLabel) + '</a>' +
           '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
         '</div>' +
-        '<div id="me-selected-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
         '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
       '</div>';
     selectedCardEl.classList.add('is-visible');
-    fetchSiteBrief(context.lat, context.lng, seq, document.getElementById('me-selected-brief-slot'));
   }
 
   function refreshSelectedAmbient() {
@@ -1458,16 +1456,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var lat = coords ? Number(coords[1]) : null;
     var lng = coords ? Number(coords[0]) : null;
     state.selectedPoint = lat != null && lng != null ? { lat: lat, lng: lng, kind: 'observation', feature: feature } : null;
-    var seq = ++siteBriefSeq;
     sheetInnerEl.innerHTML =
-      '<div id="me-site-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
       renderObservationActions(feature) +
       '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: lat, lng: lng, kind: 'observation', feature: feature }) + '</div>';
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
-    if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
-      fetchSiteBrief(lat, lng, seq, document.getElementById('me-site-brief-slot'));
-    }
   }
 
   function openPlaceSheet(lat, lng) {
