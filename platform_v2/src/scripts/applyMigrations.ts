@@ -18,7 +18,7 @@ const DESTRUCTIVE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\balter\s+table\b[\s\S]*\bdrop\b/i, label: "ALTER TABLE ... DROP" },
   { pattern: /\btruncate\b/i, label: "TRUNCATE" },
   { pattern: /\bdelete\s+from\b/i, label: "DELETE FROM" },
-  { pattern: /\bupdate\b/i, label: "UPDATE" },
+  { pattern: /^\s*update\b/im, label: "UPDATE" },
 ];
 
 function checksumFor(content: string): string {
