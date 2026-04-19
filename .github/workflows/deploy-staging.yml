@@ -69,7 +69,6 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           envs: GEMINI_API_KEY,V2_PRIVILEGED_WRITE_API_KEY
-          script_stop: false
           script: |
             GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
             V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
@@ -86,11 +85,39 @@ jobs:
             npm run build || echo "WARN: build failed (continuing)"
             echo "== restart v2 service =="
             restarted=0
+            resolved_service=""
             for svc in ikimon-v2-staging.service ikimon-v2.service platform-v2-staging.service; do
               if systemctl list-unit-files "$svc" 2>/dev/null | grep -q "^$svc"; then
-                systemctl restart "$svc" && echo "Restarted via systemd: $svc" && restarted=1 && break
+                resolved_service="$svc"
+                break
               fi
             done
+            if [ -n "$resolved_service" ]; then
+              STAGING_ENV_DIR=/etc/ikimon
+              STAGING_ENV_FILE="$STAGING_ENV_DIR/staging-v2.env"
+              mkdir -p "$STAGING_ENV_DIR"
+              : > "$STAGING_ENV_FILE"
+              chmod 600 "$STAGING_ENV_FILE"
+              printf 'ALLOW_QUERY_USER_ID=1\n' >> "$STAGING_ENV_FILE"
+              if [ -n "$GEMINI_API_KEY" ]; then
+                printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" >> "$STAGING_ENV_FILE"
+                echo "GEMINI_API_KEY written to systemd env file"
+              fi
+              if [ -n "$V2_PRIVILEGED_WRITE_API_KEY" ]; then
+                printf 'V2_PRIVILEGED_WRITE_API_KEY=%s\n' "$V2_PRIVILEGED_WRITE_API_KEY" >> "$STAGING_ENV_FILE"
+                echo "V2_PRIVILEGED_WRITE_API_KEY written to systemd env file"
+              else
+                echo "WARN: V2_PRIVILEGED_WRITE_API_KEY missing; authority gate verify will fail"
+              fi
+              OVERRIDE_DIR="/etc/systemd/system/${resolved_service}.d"
+              mkdir -p "$OVERRIDE_DIR"
+              cat > "$OVERRIDE_DIR/ikimon-staging-env.conf" <<EOF
+            [Service]
+            EnvironmentFile=$STAGING_ENV_FILE
+            EOF
+              systemctl daemon-reload
+              systemctl restart "$resolved_service" && echo "Restarted via systemd: $resolved_service" && restarted=1
+            fi
             if [ "$restarted" = "0" ] && command -v pm2 >/dev/null 2>&1; then
               # Inject staging-only env gates into the pm2 process env BEFORE restart.
               # ALLOW_QUERY_USER_ID=1 keeps the ?userId= QA override working on staging.
@@ -210,17 +237,38 @@ jobs:
           script: |
             V2_PRIVILEGED_WRITE_API_KEY="${{ secrets.V2_PRIVILEGED_WRITE_API_KEY }}"
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
+            STAGING_ENV_FILE=/etc/ikimon/staging-v2.env
             if [ -z "$V2_PRIVILEGED_WRITE_API_KEY" ]; then
               echo "FAIL: V2_PRIVILEGED_WRITE_API_KEY missing in staging environment"
               exit 1
             fi
-            if command -v pm2 >/dev/null 2>&1; then
+            resolved_service=""
+            for svc in ikimon-v2-staging.service ikimon-v2.service platform-v2-staging.service; do
+              if systemctl list-unit-files "$svc" 2>/dev/null | grep -q "^$svc"; then
+                resolved_service="$svc"
+                break
+              fi
+            done
+            if [ -n "$resolved_service" ]; then
+              echo "== systemd env sanity =="
+              if [ ! -f "$STAGING_ENV_FILE" ] || ! grep -q '^V2_PRIVILEGED_WRITE_API_KEY=' "$STAGING_ENV_FILE"; then
+                echo "FAIL: $STAGING_ENV_FILE is missing V2_PRIVILEGED_WRITE_API_KEY"
+                exit 1
+              fi
+              systemctl is-active "$resolved_service" >/dev/null || {
+                echo "FAIL: systemd service $resolved_service is not active"
+                exit 1
+              }
+              echo "OK systemd env file contains V2_PRIVILEGED_WRITE_API_KEY"
+            elif command -v pm2 >/dev/null 2>&1 && pm2 jlist 2>/dev/null | grep -q '"name":"ikimon-v2-staging-api"'; then
               echo "== pm2 env sanity =="
               pm2 env ikimon-v2-staging-api | grep -q 'V2_PRIVILEGED_WRITE_API_KEY' || {
                 echo "FAIL: pm2 env for ikimon-v2-staging-api is missing V2_PRIVILEGED_WRITE_API_KEY"
                 exit 1
               }
               echo "OK pm2 env contains V2_PRIVILEGED_WRITE_API_KEY"
+            else
+              echo "WARN: no known v2 service manager found; continuing with HTTP probes"
             fi
             echo "== PHP lane (port 8081, internal) =="
             for url in \
