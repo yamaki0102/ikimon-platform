@@ -327,12 +327,9 @@ export async function getMapObservations(
            and v.visit_mode = 'manual'
            and o.quality_grade = 'research'`
         : markerProfile === "all_research_artifacts"
-          ? `and not (
-               v.source_kind = 'legacy_track_session'
-               or v.source_kind = 'v2_track_session'
-               or v.session_mode = 'fieldscan'
-               or v.visit_mode = 'track'
-             )`
+          ? `and coalesce(v.source_kind, '') not in ('legacy_track_session', 'v2_track_session')
+             and coalesce(v.session_mode, '') <> 'fieldscan'
+             and coalesce(v.visit_mode, '') <> 'track'`
           : `and v.source_kind = 'v2_observation'
              and v.session_mode = 'standard'
              and v.visit_mode = 'manual'`;
