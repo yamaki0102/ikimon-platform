@@ -40,6 +40,7 @@ type ShellCopy = {
   brandTagline: string;
   searchPlaceholder: string;
   searchLabel: string;
+  menu: string;
   nav: {
     home: string;
     explore: string;
@@ -79,6 +80,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     brandTagline: "Enjoy Nature",
     searchPlaceholder: "生きもの・場所を探す",
     searchLabel: "サイト内検索",
+    menu: "メニュー",
     nav: {
       home: "ホーム",
       explore: "みつける",
@@ -116,6 +118,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     brandTagline: "Keep nearby finds so you can revisit them, place by place.",
     searchPlaceholder: "Search species or places",
     searchLabel: "Site search",
+    menu: "Menu",
     nav: {
       home: "Home",
       explore: "Explore",
@@ -153,6 +156,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     brandTagline: "Guarda lo que encuentras cerca para volver a verlo por lugar.",
     searchPlaceholder: "Buscar especie o lugar",
     searchLabel: "Búsqueda del sitio",
+    menu: "Menú",
     nav: {
       home: "Inicio",
       explore: "Explorar",
@@ -190,6 +194,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     brandTagline: "Guarde o que encontra por perto para revisar depois, lugar por lugar.",
     searchPlaceholder: "Buscar espécie ou lugar",
     searchLabel: "Busca no site",
+    menu: "Menu",
     nav: {
       home: "Início",
       explore: "Explorar",
@@ -234,15 +239,58 @@ export function escapeHtml(value: string | null | undefined): string {
     .replaceAll("'", "&#39;");
 }
 
-function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: string): string {
+function buildNavLinks(basePath: string, lang: SiteLang, activeNav?: string): string {
   const copy = shellCopy[lang];
-  const brandMarkSrc = "/assets/img/icon-192.png";
   const links = [
     { href: withBasePath(basePath, "/"), label: copy.nav.home },
     { href: withBasePath(basePath, "/explore"), label: copy.nav.explore },
     { href: withBasePath(basePath, "/learn"), label: copy.nav.learn },
     { href: withBasePath(basePath, "/for-business"), label: copy.nav.business },
   ];
+
+  return links
+    .map((link) => {
+      const activeClass = activeNav === link.label ? " is-active" : "";
+      return `<a class="site-nav-link${activeClass}" href="${escapeHtml(appendLangToHref(link.href, lang))}">${escapeHtml(link.label)}</a>`;
+    })
+    .join("");
+}
+
+function renderSearchForm(basePath: string, copy: ShellCopy, className = ""): string {
+  const classes = ["site-search"];
+  if (className) {
+    classes.push(className);
+  }
+
+  return `<form class="${classes.join(" ")}" role="search" action="${escapeHtml(withBasePath(basePath, "/explore"))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
+    <span class="site-search-icon" aria-hidden="true">🔍</span>
+    <input class="site-search-input" type="search" name="q" placeholder="${escapeHtml(copy.searchPlaceholder)}" aria-label="${escapeHtml(copy.searchLabel)}" />
+  </form>`;
+}
+
+function renderLangSwitch(currentPath: string, lang: SiteLang, className = ""): string {
+  const classes = ["lang-switch"];
+  if (className) {
+    classes.push(className);
+  }
+
+  return `<div class="${classes.join(" ")}" aria-label="Language switcher">${supportedLanguages
+    .map((language) => {
+      const activeClass = language.code === lang ? " is-active" : "";
+      return `<a class="lang-switch-link${activeClass}" href="${escapeHtml(appendLangToHref(currentPath, language.code))}" hreflang="${escapeHtml(language.code)}" lang="${escapeHtml(language.code)}">${escapeHtml(language.shortLabel)}</a>`;
+    })
+    .join("")}</div>`;
+}
+
+function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: string): string {
+  const copy = shellCopy[lang];
+  const brandMarkSrc = "/assets/img/icon-192.png";
+  const navLinks = buildNavLinks(basePath, lang, activeNav);
+  const desktopSearch = renderSearchForm(basePath, copy, "site-search-desktop");
+  const mobileSearch = renderSearchForm(basePath, copy, "site-search-mobile");
+  const desktopLangSwitch = renderLangSwitch(currentPath, lang, "lang-switch-desktop");
+  const mobileLangSwitch = renderLangSwitch(currentPath, lang, "lang-switch-mobile");
+  const recordHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang));
 
   return `<header class="site-header">
     <div class="site-header-inner">
@@ -253,24 +301,27 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: 
           <small>${escapeHtml(copy.brandTagline)}</small>
         </span>
       </a>
-      <nav class="site-nav">${links
-        .map((link) => {
-          const activeClass = activeNav === link.label ? " is-active" : "";
-          return `<a class="site-nav-link${activeClass}" href="${escapeHtml(appendLangToHref(link.href, lang))}">${escapeHtml(link.label)}</a>`;
-        })
-        .join("")}</nav>
-      <form class="site-search" role="search" action="${escapeHtml(withBasePath(basePath, "/explore"))}" method="get" aria-label="${escapeHtml(copy.searchLabel)}">
-        <span class="site-search-icon" aria-hidden="true">🔍</span>
-        <input class="site-search-input" type="search" name="q" placeholder="${escapeHtml(copy.searchPlaceholder)}" aria-label="${escapeHtml(copy.searchLabel)}" />
-      </form>
-      <div class="site-header-actions">
-        <div class="lang-switch" aria-label="Language switcher">${supportedLanguages
-          .map((language) => {
-            const activeClass = language.code === lang ? " is-active" : "";
-            return `<a class="lang-switch-link${activeClass}" href="${escapeHtml(appendLangToHref(currentPath, language.code))}" hreflang="${escapeHtml(language.code)}" lang="${escapeHtml(language.code)}">${escapeHtml(language.shortLabel)}</a>`;
-          })
-          .join("")}</div>
-        <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/record"), lang))}">${escapeHtml(copy.record)}</a>
+      <nav class="site-nav site-nav-desktop">${navLinks}</nav>
+      ${desktopSearch}
+      <div class="site-header-actions site-header-actions-desktop">
+        ${desktopLangSwitch}
+        <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+      </div>
+      <div class="site-header-actions site-header-actions-mobile">
+        <a class="btn btn-solid site-record-link" href="${recordHref}">${escapeHtml(copy.record)}</a>
+        <details class="site-mobile-menu">
+          <summary class="site-mobile-menu-toggle">
+            <span class="site-mobile-menu-icon" aria-hidden="true"></span>
+            <span>${escapeHtml(copy.menu)}</span>
+          </summary>
+          <div class="site-mobile-menu-panel">
+            ${mobileSearch}
+            <nav class="site-nav site-nav-mobile">${navLinks}</nav>
+            <div class="site-mobile-menu-meta">
+              ${mobileLangSwitch}
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </header>`;
@@ -470,6 +521,8 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     .site-nav-link:hover { background: rgba(15,23,42,.04); }
     .site-nav-link.is-active { color: #0f172a; background: rgba(16,185,129,.08); }
     .site-header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .site-header-actions-mobile { display: none; }
+    .site-record-link { white-space: nowrap; }
     .site-search {
       display: inline-flex;
       align-items: center;
@@ -524,6 +577,9 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       background: linear-gradient(135deg, rgba(16,185,129,.14), rgba(14,165,233,.14));
       color: #0f172a;
     }
+    .site-mobile-menu { display: none; }
+    .site-mobile-menu-toggle { list-style: none; }
+    .site-mobile-menu-toggle::-webkit-details-marker { display: none; }
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 999px; font-weight: 800; border: 1px solid transparent; }
     .btn-solid { background: linear-gradient(135deg, #10b981, #0ea5e9); color: white; box-shadow: 0 10px 24px rgba(14,165,233,.18); }
     .btn-solid-on-light { background: linear-gradient(135deg, #10b981, #0ea5e9); color: white; box-shadow: 0 12px 26px rgba(14,165,233,.18); }
@@ -1110,10 +1166,138 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     }
     @media (max-width: 720px) {
       .md-hidden { display: inline; }
-      .shell { padding: 20px 18px 18px; }
+      .shell { padding: 16px 16px 18px; }
       .shell.shell-bleed,
-      .shell.shell-map { padding: 18px 14px 18px; }
-      .site-header-inner { padding: 12px 18px; }
+      .shell.shell-map { padding: 14px 12px 18px; }
+      .site-header-inner {
+        padding: 10px 14px;
+        gap: 12px;
+        flex-wrap: nowrap;
+        align-items: center;
+      }
+      .brand {
+        min-width: 0;
+        flex: 1 1 auto;
+        gap: 10px;
+      }
+      .brand-mark {
+        width: 36px;
+        height: 36px;
+        border-radius: 11px;
+      }
+      .brand strong { font-size: 14px; }
+      .brand small { display: none; }
+      .site-nav-desktop,
+      .site-search-desktop,
+      .site-header-actions-desktop { display: none; }
+      .site-header-actions-mobile {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 8px;
+      }
+      .site-record-link {
+        min-height: 40px;
+        padding: 10px 14px;
+        font-size: 13px;
+        box-shadow: 0 8px 18px rgba(14,165,233,.15);
+      }
+      .site-mobile-menu {
+        position: relative;
+        display: block;
+      }
+      .site-mobile-menu-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,.28);
+        background: rgba(255,255,255,.94);
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        user-select: none;
+        box-shadow: 0 8px 18px rgba(15,23,42,.06);
+      }
+      .site-mobile-menu-icon,
+      .site-mobile-menu-icon::before,
+      .site-mobile-menu-icon::after {
+        display: block;
+        width: 14px;
+        height: 2px;
+        border-radius: 999px;
+        background: currentColor;
+        transition: transform .16s ease, opacity .16s ease;
+      }
+      .site-mobile-menu-icon {
+        position: relative;
+      }
+      .site-mobile-menu-icon::before,
+      .site-mobile-menu-icon::after {
+        content: "";
+        position: absolute;
+        left: 0;
+      }
+      .site-mobile-menu-icon::before { top: -5px; }
+      .site-mobile-menu-icon::after { top: 5px; }
+      .site-mobile-menu[open] .site-mobile-menu-toggle {
+        background: #0f172a;
+        color: #ffffff;
+        border-color: #0f172a;
+      }
+      .site-mobile-menu[open] .site-mobile-menu-icon {
+        transform: rotate(45deg);
+      }
+      .site-mobile-menu[open] .site-mobile-menu-icon::before {
+        transform: rotate(90deg);
+        top: 0;
+      }
+      .site-mobile-menu[open] .site-mobile-menu-icon::after {
+        opacity: 0;
+      }
+      .site-mobile-menu-panel {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: min(340px, calc(100vw - 28px));
+        padding: 14px;
+        border-radius: 24px;
+        border: 1px solid rgba(148,163,184,.22);
+        background: rgba(255,255,255,.98);
+        box-shadow: 0 24px 48px rgba(15,23,42,.18);
+        display: grid;
+        gap: 12px;
+      }
+      .site-search-mobile {
+        display: inline-flex;
+        width: 100%;
+        max-width: none;
+        min-height: 42px;
+        padding: 4px 12px;
+      }
+      .site-nav-mobile {
+        display: grid;
+        gap: 8px;
+      }
+      .site-nav-mobile .site-nav-link {
+        justify-content: flex-start;
+        width: 100%;
+        min-height: 42px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: rgba(15,23,42,.04);
+      }
+      .site-mobile-menu-meta {
+        display: flex;
+        justify-content: flex-start;
+      }
+      .lang-switch-mobile {
+        max-width: 100%;
+        overflow-x: auto;
+      }
       .hero-panel { padding: 48px 24px 36px; border-radius: 26px; }
       .hero-panel h1 { font-size: clamp(28px, 9vw, 40px); line-height: 1.24; max-width: 18ch; }
       .hero-panel p { font-size: 16px; line-height: 1.85; max-width: 32ch; margin-top: 18px; }

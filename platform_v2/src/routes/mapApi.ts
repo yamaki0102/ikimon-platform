@@ -1,7 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { getEffortSummary, getFrontierMap, type EffortRole } from "../services/mapEffort.js";
-import { getCoverageMesh, getMapObservations, getTraceLines, type MarkerProfile, type TaxonGroup } from "../services/mapSnapshot.js";
+import {
+  getCoverageMesh,
+  getMapCells,
+  getMapObservations,
+  getTraceLines,
+  type MarkerProfile,
+  type SeasonFilter,
+  type TaxonGroup,
+} from "../services/mapSnapshot.js";
 import { getSiteBrief, type BriefLang } from "../services/siteBrief.js";
 
 const ALLOWED_GROUPS: readonly TaxonGroup[] = [
@@ -32,6 +40,12 @@ function parseInt32(raw: unknown): number | undefined {
   return Number.isFinite(n) ? Math.trunc(n) : undefined;
 }
 
+function parseFloat64(raw: unknown): number | undefined {
+  if (typeof raw !== "string" && typeof raw !== "number") return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 function parseRole(raw: unknown): EffortRole | undefined {
   if (typeof raw !== "string") return undefined;
   const value = raw.trim();
@@ -48,7 +62,42 @@ function parseMarkerProfile(raw: unknown): MarkerProfile | undefined {
     : undefined;
 }
 
+function parseSeason(raw: unknown): SeasonFilter | undefined {
+  if (typeof raw !== "string") return undefined;
+  const value = raw.trim();
+  return value === "spring" || value === "summer" || value === "autumn" || value === "winter"
+    ? value
+    : undefined;
+}
+
 export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/api/v1/map/cells", async (request, reply) => {
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const rawGroup = typeof q.taxon_group === "string" ? q.taxon_group.trim() : "";
+    const taxonGroup = (ALLOWED_GROUPS as readonly string[]).includes(rawGroup)
+      ? (rawGroup as TaxonGroup)
+      : undefined;
+    const year = parseInt32(q.year);
+    const bbox = parseBbox(q.bbox);
+    const zoom = parseFloat64(q.zoom);
+    const markerProfile = parseMarkerProfile(q.marker_profile);
+    const season = parseSeason(q.season);
+
+    const collection = await getMapCells({
+      taxonGroup,
+      year,
+      bbox,
+      zoom,
+      markerProfile,
+      season,
+    });
+
+    reply
+      .type("application/json; charset=utf-8")
+      .header("Cache-Control", "no-store");
+    return collection;
+  });
+
   app.get("/api/v1/map/observations", async (request, reply) => {
     const q = (request.query ?? {}) as Record<string, unknown>;
     const rawGroup = typeof q.taxon_group === "string" ? q.taxon_group.trim() : "";
@@ -58,15 +107,34 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     const year = parseInt32(q.year);
     const bbox = parseBbox(q.bbox);
     const limit = parseInt32(q.limit);
+    const zoom = parseFloat64(q.zoom);
     const markerProfile = parseMarkerProfile(q.marker_profile);
+    const season = parseSeason(q.season);
+    const cellId = typeof q.cell_id === "string" ? q.cell_id.trim() : "";
 
-    const collection = await getMapObservations({
-      taxonGroup,
-      year,
-      bbox,
-      limit,
-      markerProfile,
-    });
+    if (!cellId && !bbox) {
+      reply.code(400).type("application/json; charset=utf-8");
+      return { error: "missing_scope" };
+    }
+
+    const collection = cellId
+      ? await getMapObservations({
+          taxonGroup,
+          year,
+          limit,
+          markerProfile,
+          season,
+          cellId,
+        })
+      : await getMapObservations({
+          taxonGroup,
+          year,
+          bbox,
+          limit,
+          zoom,
+          markerProfile,
+          season,
+        });
 
     reply
       .type("application/json; charset=utf-8")

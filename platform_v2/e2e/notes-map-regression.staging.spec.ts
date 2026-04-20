@@ -11,12 +11,10 @@ import {
 } from "./support/staging.js";
 
 type MapObservationsPayload = {
-  features: Array<{
-    properties?: {
-      occurrenceId?: string;
-      visitId?: string;
-      displayName?: string;
-    };
+  items: Array<{
+    occurrenceId?: string;
+    visitId?: string;
+    displayName?: string;
   }>;
   stats?: {
     markerProfile?: string;
@@ -30,8 +28,8 @@ type RouteErrorPayload = {
 
 function collectOccurrenceIds(payload: MapObservationsPayload): Set<string> {
   return new Set(
-    payload.features
-      .map((feature) => feature.properties?.occurrenceId ?? "")
+    payload.items
+      .map((item) => item.occurrenceId ?? "")
       .filter(Boolean),
   );
 }
@@ -76,7 +74,8 @@ test.describe.serial("notes/map regression staging fixtures", () => {
   });
 
   test("map API excludes smoke fixtures and respects marker profiles", async () => {
-    const defaultResponse = await api.get("/api/v1/map/observations?limit=1500", {
+    const bbox = "122.9,24.0,146.0,45.6";
+    const defaultResponse = await api.get(`/api/v1/map/observations?bbox=${bbox}&limit=1500`, {
       headers: { accept: "application/json" },
     });
     expect(defaultResponse.ok()).toBeTruthy();
@@ -87,7 +86,7 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     expect(defaultIds.has(fixture.historical.occurrenceId)).toBeTruthy();
     expect(defaultIds.has(fixture.smoke.occurrenceId)).toBeFalsy();
 
-    const manualOnlyResponse = await api.get("/api/v1/map/observations?limit=1500&marker_profile=manual_only", {
+    const manualOnlyResponse = await api.get(`/api/v1/map/observations?bbox=${bbox}&limit=1500&marker_profile=manual_only`, {
       headers: { accept: "application/json" },
     });
     expect(manualOnlyResponse.ok()).toBeTruthy();
@@ -98,7 +97,7 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     expect(manualOnlyIds.has(fixture.historical.occurrenceId)).toBeFalsy();
     expect(manualOnlyIds.has(fixture.smoke.occurrenceId)).toBeFalsy();
 
-    const explicitAllResponse = await api.get("/api/v1/map/observations?limit=1500&marker_profile=all_research_artifacts", {
+    const explicitAllResponse = await api.get(`/api/v1/map/observations?bbox=${bbox}&limit=1500&marker_profile=all_research_artifacts`, {
       headers: { accept: "application/json" },
     });
     expect(explicitAllResponse.ok()).toBeTruthy();
@@ -146,11 +145,49 @@ test.describe.serial("notes/map regression staging fixtures", () => {
     await context.close();
   });
 
+  test("map detail CTA opens observation detail without SQL 500", async ({ browser }) => {
+    const context = await newStagingContext(browser, {
+      slug: "notes-map-detail-regression",
+      viewport: { width: 1440, height: 960 },
+    });
+
+    const mapPage = await context.newPage();
+    await waitForMapReady(mapPage, "/map");
+
+    const targetRow = mapPage
+      .locator(".me-result-row")
+      .filter({ hasText: fixture.historical.subjectLabel })
+      .first();
+    await expect(targetRow).toBeVisible();
+    await targetRow.click();
+
+    const detailLink = mapPage.locator("#me-map-selection-card a.btn.btn-solid");
+    await expect(detailLink).toHaveText("詳細を見る");
+
+    await Promise.all([
+      mapPage.waitForURL((url) => {
+        return url.pathname.startsWith("/observations/") && url.searchParams.get("subject") === fixture.historical.occurrenceId;
+      }),
+      detailLink.click(),
+    ]);
+    await mapPage.waitForLoadState("domcontentloaded");
+
+    await expect(mapPage.locator("body")).toContainText(fixture.historical.subjectLabel);
+    await expect(mapPage.locator("body")).not.toContainText('{"statusCode":500');
+    await expect(mapPage.locator("body")).not.toContainText("列u.avatar_urlは存在しません");
+
+    const finalUrl = new URL(mapPage.url());
+    expect(finalUrl.pathname.startsWith("/observations/")).toBeTruthy();
+    expect(finalUrl.searchParams.get("subject")).toBe(fixture.historical.occurrenceId);
+
+    await context.close();
+  });
+
   test("cleanup route removes seeded fixtures from map API", async () => {
     await cleanupFixtures(api, writeKey, fixturePrefix);
     cleanedUp = true;
 
-    const response = await api.get("/api/v1/map/observations?limit=1500&marker_profile=all_research_artifacts", {
+    const response = await api.get("/api/v1/map/observations?bbox=122.9,24.0,146.0,45.6&limit=1500&marker_profile=all_research_artifacts", {
       headers: { accept: "application/json" },
     });
     expect(response.ok()).toBeTruthy();

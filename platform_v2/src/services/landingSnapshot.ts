@@ -1,9 +1,17 @@
 import { getPool } from "../db.js";
 import { getHomeSnapshot } from "./readModels.js";
+import { buildObserverNameSql } from "./observerNameSql.js";
+import {
+  buildPublicCellGeometry,
+  buildPublicLocationSummary,
+  parsePublicCellId,
+  summarizePublicLocalitySet,
+} from "./publicLocation.js";
 import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
 import type {
   AmbientObserver,
   LandingHabitStats,
+  LandingMapPreviewCell,
   LandingObservation,
   LandingSnapshot,
   LandingStats,
@@ -29,12 +37,29 @@ type FeedRow = {
   observer_avatar_url: string | null;
   place_name: string | null;
   municipality: string | null;
+  prefecture: string | null;
   latitude: string | number | null;
   longitude: string | number | null;
   photo_url: string | null;
   identification_count: string;
   evidence_tier: number | null;
 };
+
+const FEED_OBSERVER_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "v.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "v.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Unknown observer",
+});
+
+const AMBIENT_OBSERVER_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "u.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "latest.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Observer",
+});
 
 const FEED_SQL_BASE = `
   select
@@ -43,10 +68,11 @@ const FEED_SQL_BASE = `
     coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
     v.observed_at::text,
     v.user_id as observer_user_id,
-    coalesce(u.display_name, 'Unknown observer') as observer_name,
+    ${FEED_OBSERVER_NAME_SQL} as observer_name,
     avatar.public_url as observer_avatar_url,
     coalesce(p.canonical_name, 'Unknown place') as place_name,
     coalesce(v.observed_municipality, p.municipality) as municipality,
+    coalesce(v.observed_prefecture, p.prefecture) as prefecture,
     coalesce(v.point_latitude, p.center_latitude) as latitude,
     coalesce(v.point_longitude, p.center_longitude) as longitude,
     photo.public_url as photo_url,
@@ -108,6 +134,8 @@ function toLandingObservation(row: FeedRow): LandingObservation {
   const lngRaw = row.longitude;
   const lat = latRaw === null || latRaw === undefined ? null : Number(latRaw);
   const lng = lngRaw === null || lngRaw === undefined ? null : Number(lngRaw);
+  const safeLat = lat !== null && Number.isFinite(lat) ? lat : null;
+  const safeLng = lng !== null && Number.isFinite(lng) ? lng : null;
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
@@ -116,10 +144,16 @@ function toLandingObservation(row: FeedRow): LandingObservation {
     observerName: row.observer_name ?? "Unknown observer",
     placeName: row.place_name ?? "Unknown place",
     municipality: row.municipality,
+    publicLocation: buildPublicLocationSummary({
+      municipality: row.municipality,
+      prefecture: row.prefecture,
+      latitude: safeLat,
+      longitude: safeLng,
+    }),
     photoUrl: normalizeAssetUrl(row.photo_url),
     identificationCount: Number(row.identification_count),
-    latitude: lat !== null && Number.isFinite(lat) ? lat : null,
-    longitude: lng !== null && Number.isFinite(lng) ? lng : null,
+    latitude: safeLat,
+    longitude: safeLng,
     observerUserId: row.observer_user_id,
     observerAvatarUrl: normalizeAssetUrl(row.observer_avatar_url),
     entryType: "observation",
@@ -141,6 +175,7 @@ type IdentificationRow = {
   observer_avatar_url: string | null;
   place_name: string | null;
   municipality: string | null;
+  prefecture: string | null;
   latitude: string | number | null;
   longitude: string | number | null;
   photo_url: string | null;
@@ -150,6 +185,8 @@ type IdentificationRow = {
 function toIdentificationEntry(row: IdentificationRow): LandingObservation {
   const lat = row.latitude === null || row.latitude === undefined ? null : Number(row.latitude);
   const lng = row.longitude === null || row.longitude === undefined ? null : Number(row.longitude);
+  const safeLat = lat !== null && Number.isFinite(lat) ? lat : null;
+  const safeLng = lng !== null && Number.isFinite(lng) ? lng : null;
   return {
     occurrenceId: row.occurrence_id,
     visitId: row.visit_id,
@@ -158,16 +195,71 @@ function toIdentificationEntry(row: IdentificationRow): LandingObservation {
     observerName: row.observer_name ?? "Unknown observer",
     placeName: row.place_name ?? "Unknown place",
     municipality: row.municipality,
+    publicLocation: buildPublicLocationSummary({
+      municipality: row.municipality,
+      prefecture: row.prefecture,
+      latitude: safeLat,
+      longitude: safeLng,
+    }),
     photoUrl: normalizeAssetUrl(row.photo_url),
     identificationCount: Number(row.identification_count),
-    latitude: lat !== null && Number.isFinite(lat) ? lat : null,
-    longitude: lng !== null && Number.isFinite(lng) ? lng : null,
+    latitude: safeLat,
+    longitude: safeLng,
     observerUserId: row.observer_user_id,
     observerAvatarUrl: normalizeAssetUrl(row.observer_avatar_url),
     entryType: "identification",
     proposedName: row.proposed_name,
     identifiedAt: row.created_at,
   };
+}
+
+function buildMapPreviewCells(rows: FeedRow[]): LandingMapPreviewCell[] {
+  const groups = new Map<string, {
+    count: number;
+    localityInputs: Array<{ municipality?: string | null; prefecture?: string | null }>;
+  }>();
+
+  for (const row of rows) {
+    const location = buildPublicLocationSummary({
+      municipality: row.municipality,
+      prefecture: row.prefecture,
+      latitude: row.latitude == null ? null : Number(row.latitude),
+      longitude: row.longitude == null ? null : Number(row.longitude),
+    });
+    if (!location.cellId) continue;
+    if (!groups.has(location.cellId)) {
+      groups.set(location.cellId, {
+        count: 0,
+        localityInputs: [],
+      });
+    }
+    const group = groups.get(location.cellId)!;
+    group.count += 1;
+    group.localityInputs.push({
+      municipality: row.municipality,
+      prefecture: row.prefecture,
+    });
+  }
+
+  return Array.from(groups.entries())
+    .map(([cellId, group]) => {
+      const parts = parsePublicCellId(cellId);
+      if (!parts) return null;
+      const geometry = buildPublicCellGeometry(parts);
+      const locality = summarizePublicLocalitySet(group.localityInputs);
+      return {
+        cellId,
+        label: locality.label,
+        count: group.count,
+        gridM: parts.gridM,
+        centroidLat: geometry.centroidLat,
+        centroidLng: geometry.centroidLng,
+        polygon: geometry.ring,
+      } satisfies LandingMapPreviewCell;
+    })
+    .filter((cell): cell is LandingMapPreviewCell => Boolean(cell))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 18);
 }
 
 /** Compute streak from a descending list of ISO date strings (YYYY-MM-DD). */
@@ -205,6 +297,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       feed: [],
       myFeed: [],
       myPlaces: [],
+      mapPreviewCells: [],
       ambient: [],
       habit: null,
     };
@@ -250,10 +343,11 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
            coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as observation_display_name,
            v.observed_at::text,
            v.user_id as observer_user_id,
-           coalesce(u.display_name, 'Unknown observer') as observer_name,
+           ${FEED_OBSERVER_NAME_SQL} as observer_name,
            avatar.public_url as observer_avatar_url,
            coalesce(p.canonical_name, 'Unknown place') as place_name,
            coalesce(v.observed_municipality, p.municipality) as municipality,
+           coalesce(v.observed_prefecture, p.prefecture) as prefecture,
            coalesce(v.point_latitude, p.center_latitude) as latitude,
            coalesce(v.point_longitude, p.center_longitude) as longitude,
            photo.public_url as photo_url,
@@ -389,17 +483,18 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     }>(
       `select
          u.user_id,
-         u.display_name,
+         ${AMBIENT_OBSERVER_NAME_SQL} as display_name,
          avatar.public_url as avatar_url,
          latest.latest_observed_at::text as latest_observed_at,
          latest_obs.display_name as latest_display_name
        from users u
        join lateral (
-         select v.user_id, max(v.observed_at) as latest_observed_at
+         select v.user_id, v.observed_at as latest_observed_at, v.source_payload
          from visits v
          where v.user_id = u.user_id
            and ${AMBIENT_VISIT_FIXTURE_EXCLUSION_SQL}
-         group by v.user_id
+         order by v.observed_at desc
+         limit 1
        ) latest on true
        left join lateral (
          select coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name
@@ -435,6 +530,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   // so that the "your notebook" stream shows both kinds of pages in one timeline.
   const ownObservationEntries = myFeedRows.map(toLandingObservation);
   const ownIdentificationEntries = myIdentificationRows.map(toIdentificationEntry);
+  const publicFeed = feedRows.map(toLandingObservation);
   const combined = [...ownObservationEntries, ...ownIdentificationEntries].sort((a, b) => {
     const aTs = (a.entryType === "identification" ? a.identifiedAt : a.observedAt) ?? "";
     const bTs = (b.entryType === "identification" ? b.identifiedAt : b.observedAt) ?? "";
@@ -444,9 +540,10 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   return {
     viewerUserId: userId,
     stats,
-    feed: feedRows.map(toLandingObservation),
+    feed: publicFeed,
     myFeed: combined.slice(0, 12),
     myPlaces,
+    mapPreviewCells: buildMapPreviewCells(feedRows),
     ambient,
     habit,
   };

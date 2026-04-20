@@ -21,9 +21,10 @@ import type { LandingSnapshot } from "./services/readModels.js";
 import { COMMUNITY_METER_STYLES, renderCommunityMeter } from "./ui/communityMeter.js";
 import { DEMO_LOGIN_BANNER_STYLES, renderDemoLoginBanner } from "./ui/demoLoginBanner.js";
 import { FIELD_NOTE_MAIN_STYLES, renderFieldNoteMain } from "./ui/fieldNoteMain.js";
-import { MAP_MINI_STYLES, mapMiniBootScript, renderMapMini, toMapPoints } from "./ui/mapMini.js";
+import { MAP_MINI_STYLES, mapMiniBootScript, renderMapMini, toMapMiniCells } from "./ui/mapMini.js";
 import { MENTOR_STRIP_STYLES, renderMentorStrip } from "./ui/mentorStrip.js";
 import { OBSERVATION_CARD_STYLES } from "./ui/observationCard.js";
+import { OFFICIAL_NOTICE_CARD_STYLES } from "./ui/officialNoticeCard.js";
 import { QUICK_NAV_STYLES, renderQuickNav } from "./ui/quickNav.js";
 import { REVISIT_FLOW_STYLES, renderRevisitFlow } from "./ui/revisitFlow.js";
 import { TODAY_HABIT_STYLES, renderTodayHabit } from "./ui/todayHabit.js";
@@ -402,8 +403,8 @@ function buildLandingRootHtml(
     ? copy.statLabel(stats.observationCount, stats.speciesCount)
     : "";
 
-  const mapPoints = toMapPoints(snapshot.feed);
   const mapHref = appendLangToHref(withBasePath(options.basePath, "/map"), lang);
+  const mapCells = toMapMiniCells(snapshot.mapPreviewCells, mapHref);
 
   const toolCardsHtml = `<div class="tool-card-grid">
     ${renderToolCard(options.basePath, lang, {
@@ -435,7 +436,7 @@ function buildLandingRootHtml(
       </div>
     </div>
     ${renderMapMini({
-      points: mapPoints,
+      cells: mapCells,
       mapHref,
       mapCtaLabel: copy.mapCta,
       emptyLabel: copy.mapEmpty,
@@ -483,6 +484,7 @@ function buildLandingRootHtml(
     TOOL_CARD_STYLES,
     MAP_MINI_STYLES,
     FIELD_NOTE_MAIN_STYLES,
+    OFFICIAL_NOTICE_CARD_STYLES,
     QUICK_NAV_STYLES,
     TODAY_HABIT_STYLES,
     REVISIT_FLOW_STYLES,

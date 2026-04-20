@@ -1,4 +1,5 @@
 import { getPool } from "../db.js";
+import { buildObserverNameSql } from "./observerNameSql.js";
 
 export type LineageBreadcrumb = {
   rank: string;
@@ -43,6 +44,22 @@ export type ObservationDetailHeavy = {
   seasonalHistory: Array<{ month: number; count: number }>;
   subjects: SiblingSubject[];
 };
+
+const DETAIL_OBSERVER_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "v.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "v.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Anonymous",
+});
+
+const DETAIL_PEER_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "peer.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "latest.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Observer",
+});
 
 /**
  * 観察詳細ページ Layer 3 (場所の物語) と Layer 4 (あなたの成長) を支えるデータ。
@@ -109,7 +126,7 @@ export async function getObservationDetailHeavy(
       }>(
         `SELECT o.occurrence_id,
                 coalesce(nullif(o.vernacular_name,''), o.scientific_name, 'Unresolved') AS display_name,
-                coalesce(u.display_name, 'Anonymous') AS observer_name,
+                ${DETAIL_OBSERVER_NAME_SQL} AS observer_name,
                 u.user_id AS observer_user_id,
                 to_char(v.observed_at, 'YYYY-MM-DD') AS observed_at,
                 (SELECT coalesce(ab.public_url, ab.storage_path)
@@ -145,12 +162,27 @@ export async function getObservationDetailHeavy(
   if (placeId) {
     try {
       const rows = await pool.query<{ user_id: string; display_name: string; n: string }>(
-        `SELECT v.user_id, u.display_name, count(*)::text AS n
-           FROM visits v JOIN users u ON u.user_id = v.user_id
-          WHERE v.place_id = $1
-            ${viewerUserId ? "AND v.user_id <> $2" : ""}
-          GROUP BY v.user_id, u.display_name
-          ORDER BY n::int DESC LIMIT 5`,
+        `SELECT peer.user_id,
+                ${DETAIL_PEER_NAME_SQL} AS display_name,
+                peer.n
+           FROM (
+             SELECT v.user_id, count(*)::text AS n
+               FROM visits v
+              WHERE v.place_id = $1
+                ${viewerUserId ? "AND v.user_id <> $2" : ""}
+              GROUP BY v.user_id
+           ) peer
+           JOIN users u ON u.user_id = peer.user_id
+           LEFT JOIN LATERAL (
+             SELECT v2.source_payload
+               FROM visits v2
+              WHERE v2.place_id = $1
+                AND v2.user_id = peer.user_id
+              ORDER BY v2.observed_at DESC
+              LIMIT 1
+           ) latest ON true
+          ORDER BY peer.n::int DESC
+          LIMIT 5`,
         viewerUserId ? [placeId, viewerUserId] : [placeId],
       );
       for (const r of rows.rows) {

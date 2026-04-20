@@ -1,4 +1,9 @@
 import { getPool } from "../db.js";
+import { buildObserverNameSql } from "./observerNameSql.js";
+import {
+  buildPublicLocationSummary,
+  type PublicLocationSummary,
+} from "./publicLocation.js";
 import { deriveVisitDisplayState } from "./visitDisplayState.js";
 import {
   getReviewerAccessContext,
@@ -21,6 +26,7 @@ type RecentObservation = {
   observerName: string;
   placeName: string;
   municipality: string | null;
+  publicLocation: PublicLocationSummary;
   photoUrl: string | null;
   identificationCount: number;
 };
@@ -52,6 +58,7 @@ export type ObservationDetailSnapshot = {
   observerName: string;
   placeName: string;
   municipality: string | null;
+  publicLocation: PublicLocationSummary;
   latitude: number | null;
   longitude: number | null;
   photoAssets: Array<{
@@ -117,12 +124,39 @@ function normalizeAssetUrl(value: string | null): string | null {
   return `/${value.replace(/^\.?\//, "")}`;
 }
 
+const VISIT_OBSERVER_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "v.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "v.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Unknown observer",
+});
+
+const IDENTIFICATION_ACTOR_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "i.actor_user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "i.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Community",
+});
+
+const PROFILE_DISPLAY_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "u.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "latest_visit.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Observer",
+});
+
 type VisitCardRow = {
   visit_id: string;
   observed_at: string;
   observer_name: string | null;
   place_name: string | null;
   municipality: string | null;
+  prefecture: string | null;
+  latitude: number | null;
+  longitude: number | null;
   photo_url: string | null;
 };
 
@@ -236,9 +270,12 @@ async function loadVisitSummaryObservations(
   const visitRows = await pool.query<VisitCardRow>(
     `SELECT v.visit_id,
             v.observed_at::text,
-            coalesce(u.display_name, 'Unknown observer') AS observer_name,
+            ${VISIT_OBSERVER_NAME_SQL} AS observer_name,
             coalesce(p.canonical_name, 'Unknown place') AS place_name,
             coalesce(v.observed_municipality, p.municipality) AS municipality,
+            coalesce(v.observed_prefecture, p.prefecture) AS prefecture,
+            coalesce(v.point_latitude, p.center_latitude) AS latitude,
+            coalesce(v.point_longitude, p.center_longitude) AS longitude,
             photo.public_url AS photo_url
        FROM visits v
        LEFT JOIN users u ON u.user_id = v.user_id
@@ -417,6 +454,12 @@ async function loadVisitSummaryObservations(
       observerName: visitRow.observer_name ?? "Unknown observer",
       placeName: visitRow.place_name ?? "Unknown place",
       municipality: visitRow.municipality,
+      publicLocation: buildPublicLocationSummary({
+        municipality: visitRow.municipality,
+        prefecture: visitRow.prefecture,
+        latitude: visitRow.latitude,
+        longitude: visitRow.longitude,
+      }),
       photoUrl: normalizeAssetUrl(visitRow.photo_url),
       identificationCount: featuredSubject?.identificationCount ?? 0,
     };
@@ -524,31 +567,39 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     scientific_name: string | null;
     observed_at: string;
     note: string | null;
-    observer_name: string | null;
-    place_name: string | null;
-    municipality: string | null;
-    latitude: number | null;
-    longitude: number | null;
+  observer_name: string | null;
+  place_name: string | null;
+  municipality: string | null;
+  prefecture: string | null;
+  latitude: number | null;
+  longitude: number | null;
   }>(
     `select
         o.occurrence_id,
         o.visit_id,
         v.place_id,
         v.user_id as observer_user_id,
-        u.avatar_url as observer_avatar_url,
+        avatar.public_url as observer_avatar_url,
         coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
         o.scientific_name,
         v.observed_at::text,
         v.note,
-        coalesce(u.display_name, 'Unknown observer') as observer_name,
+        ${VISIT_OBSERVER_NAME_SQL} as observer_name,
         coalesce(p.canonical_name, 'Unknown place') as place_name,
         coalesce(v.observed_municipality, p.municipality) as municipality,
-        p.center_latitude as latitude,
-        p.center_longitude as longitude
+        coalesce(v.observed_prefecture, p.prefecture) as prefecture,
+        coalesce(v.point_latitude, p.center_latitude) as latitude,
+        coalesce(v.point_longitude, p.center_longitude) as longitude
      from occurrences o
      join visits v on v.visit_id = o.visit_id
      left join users u on u.user_id = v.user_id
      left join places p on p.place_id = v.place_id
+     left join lateral (
+       select coalesce(ab.public_url, ab.storage_path) as public_url
+       from asset_blobs ab
+       where ab.blob_id = u.avatar_asset_id
+       limit 1
+     ) avatar on true
      where o.occurrence_id = $1
         or v.visit_id = $1
         or o.legacy_observation_id = $1
@@ -607,7 +658,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         i.proposed_name,
         i.proposed_rank,
         i.notes,
-        coalesce(u.display_name, 'Community') as actor_name,
+        ${IDENTIFICATION_ACTOR_NAME_SQL} as actor_name,
         i.created_at::text
      from identifications i
      left join users u on u.user_id = i.actor_user_id
@@ -633,7 +684,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     visitId: base.visit_id,
     placeId: base.place_id,
     observerUserId: base.observer_user_id,
-    observerAvatarUrl: base.observer_avatar_url,
+    observerAvatarUrl: normalizeAssetUrl(base.observer_avatar_url),
     displayName: base.display_name ?? "Unresolved",
     scientificName: base.scientific_name,
     observedAt: base.observed_at,
@@ -641,6 +692,12 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     observerName: base.observer_name ?? "Unknown observer",
     placeName: base.place_name ?? "Unknown place",
     municipality: base.municipality,
+    publicLocation: buildPublicLocationSummary({
+      municipality: base.municipality,
+      prefecture: base.prefecture,
+      latitude: base.latitude,
+      longitude: base.longitude,
+    }),
     latitude: base.latitude,
     longitude: base.longitude,
     photoAssets,
@@ -704,9 +761,19 @@ export async function getProfileSnapshot(userId: string): Promise<ProfileSnapsho
     display_name: string;
     rank_label: string | null;
   }>(
-    `select user_id, display_name, rank_label
-     from users
-     where user_id = $1
+    `select
+        u.user_id,
+        ${PROFILE_DISPLAY_NAME_SQL} as display_name,
+        u.rank_label
+     from users u
+     left join lateral (
+       select v.source_payload
+       from visits v
+       where v.user_id = u.user_id
+       order by v.observed_at desc
+       limit 1
+     ) latest_visit on true
+     where u.user_id = $1
      limit 1`,
     [userId],
   );
@@ -773,7 +840,7 @@ export async function getSpecialistSnapshot(
           o.visit_id,
           coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
           v.observed_at::text,
-          coalesce(u.display_name, 'Unknown observer') as observer_name,
+          ${VISIT_OBSERVER_NAME_SQL} as observer_name,
           coalesce(p.canonical_name, 'Unknown place') as place_name,
           coalesce(v.observed_municipality, p.municipality) as municipality,
           photo.public_url as photo_url,
@@ -865,6 +932,11 @@ export async function getSpecialistSnapshot(
       observerName: row.observer_name ?? "Unknown observer",
       placeName: row.place_name ?? "Unknown place",
       municipality: row.municipality,
+      publicLocation: buildPublicLocationSummary({
+        municipality: row.municipality,
+        latitude: null,
+        longitude: null,
+      }),
       photoUrl: normalizeAssetUrl(row.photo_url),
       identificationCount: Number(row.identification_count),
     })),
@@ -887,6 +959,16 @@ export type LandingObservation = RecentObservation & {
   /** entryType="identification" のときの同定時刻。 */
   identifiedAt?: string | null;
   evidenceTier?: number | null;
+};
+
+export type LandingMapPreviewCell = {
+  cellId: string;
+  label: string;
+  count: number;
+  gridM: number;
+  centroidLat: number;
+  centroidLng: number;
+  polygon: [number, number][];
 };
 
 export type AmbientObserver = {
@@ -927,6 +1009,7 @@ export type LandingSnapshot = {
   feed: LandingObservation[];
   myFeed: LandingObservation[];
   myPlaces: HomePlace[];
+  mapPreviewCells: LandingMapPreviewCell[];
   ambient: AmbientObserver[];
   habit: LandingHabitStats | null;
 };

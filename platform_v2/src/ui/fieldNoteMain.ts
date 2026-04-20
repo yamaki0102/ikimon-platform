@@ -2,6 +2,11 @@ import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import type { LandingSnapshot } from "../services/readModels.js";
 import { renderObservationCard } from "./observationCard.js";
+import {
+  buildOfficialNoticeClientRenderer,
+  getOfficialNoticeRenderCopy,
+  OFFICIAL_NOTICE_CARD_STYLES,
+} from "./officialNoticeCard.js";
 import { escapeHtml } from "./siteShell.js";
 
 type MainCopy = {
@@ -148,7 +153,7 @@ export function renderFieldNoteMain(
     }
     const cards = snapshot.myFeed
       .slice(0, 4)
-      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true }))
+      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true, locationMode: "owner" }))
       .join("");
     return `<div class="fn-subhead"><h3>${escapeHtml(copy.myNotebookLabel)}</h3></div>
       <div class="fn-grid fn-grid-compact">${cards}</div>`;
@@ -174,7 +179,7 @@ export function renderFieldNoteMain(
     }
     const cards = snapshot.feed
       .slice(0, 6)
-      .map((obs) => renderObservationCard(basePath, lang, obs))
+      .map((obs) => renderObservationCard(basePath, lang, obs, { locationMode: "public" }))
       .join("");
     return `<div class="fn-subhead"><h3>${escapeHtml(copy.nearbyLabel)}</h3></div>
       <div class="fn-grid">${cards}</div>`;
@@ -207,6 +212,7 @@ export function renderFieldNoteMain(
   const apiSiteBrief = withBasePath(basePath, "/api/v1/map/site-brief");
   const apiWalkToday = withBasePath(basePath, "/api/v1/walk/today");
   const briefLang = lang === "en" ? "en" : "ja";
+  const noticeCopy = getOfficialNoticeRenderCopy(lang);
 
   return `<section class="section fn-main" aria-labelledby="fn-main-heading"
     data-api-site-brief="${escapeHtml(apiSiteBrief)}"
@@ -234,6 +240,7 @@ export function renderFieldNoteMain(
       <div class="fn-hypothesis-wrap" id="fn-hypothesis-wrap">
         <div class="fn-subhead"><h3>${escapeHtml(copy.hypothesisLabel)}</h3></div>
         <div class="fn-hypothesis-card is-loading" id="fn-hypothesis-card">${escapeHtml(copy.hypothesisLoading)}</div>
+        <div class="fn-official-notice-slot" id="fn-official-notice-slot" style="display:none"></div>
       </div>
       ${isLoggedIn ? `<div class="fn-walk-wrap" id="fn-walk-wrap" style="display:none">
         <div class="fn-subhead"><h3 id="fn-walk-label">${escapeHtml(copy.walkLabel)}</h3></div>
@@ -255,6 +262,8 @@ export function renderFieldNoteMain(
     var copyCaptures = section.getAttribute('data-copy-captures') || '';
     var copyReasons = section.getAttribute('data-copy-reasons') || '';
     var card = document.getElementById('fn-hypothesis-card');
+    var noticeSlot = document.getElementById('fn-official-notice-slot');
+    ${buildOfficialNoticeClientRenderer("renderFieldNoteOfficialNotices", noticeCopy, { kpiNamespace: "fieldnote" })}
     function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
     function renderBrief(brief) {
       if (!brief || !brief.hypothesis) { var w = document.getElementById('fn-hypothesis-wrap'); if (w) w.style.display = 'none'; return; }
@@ -269,6 +278,11 @@ export function renderFieldNoteMain(
         (caps ? '<div class="fn-hyp-section"><div class="fn-hyp-sublabel">' + esc(copyCaptures) + '</div><ul>' + caps + '</ul></div>' : '') +
         (reasons ? '<div class="fn-hyp-section fn-hyp-reasons"><div class="fn-hyp-sublabel">' + esc(copyReasons) + '</div><ul>' + reasons + '</ul></div>' : '');
       if (card) card.classList.remove('is-loading');
+      if (noticeSlot) {
+        var noticeHtml = renderFieldNoteOfficialNotices(brief.officialNotices || []);
+        noticeSlot.innerHTML = noticeHtml;
+        noticeSlot.style.display = noticeHtml ? '' : 'none';
+      }
     }
     navigator.geolocation.getCurrentPosition(function(pos) {
       var lat = pos.coords.latitude;
@@ -340,6 +354,7 @@ export const FIELD_NOTE_MAIN_STYLES = `
   .fn-hypothesis-wrap { margin-top: 20px; padding-left: 18px; }
   .fn-hypothesis-card { padding: 16px 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(16,185,129,.06) 0%, rgba(14,165,233,.06) 100%); border: 1px solid rgba(16,185,129,.18); font-size: 13px; }
   .fn-hypothesis-card.is-loading { color: #94a3b8; font-style: italic; }
+  .fn-official-notice-slot { margin-top: 12px; }
   .fn-hyp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .fn-hyp-label { font-size: 14px; font-weight: 800; color: #0f172a; }
   .fn-hyp-conf { font-size: 11px; font-weight: 700; color: #059669; background: rgba(16,185,129,.1); padding: 2px 8px; border-radius: 999px; }
@@ -375,4 +390,5 @@ export const FIELD_NOTE_MAIN_STYLES = `
     .fn-subhead, .fn-grid, .fn-place-row, .fn-empty, .fn-ambient { padding-left: 0; }
     .fn-main-head-actions { align-items: flex-start; min-width: 0; width: 100%; }
   }
+  ${OFFICIAL_NOTICE_CARD_STYLES}
 `;

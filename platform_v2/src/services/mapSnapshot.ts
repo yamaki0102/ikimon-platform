@@ -1,49 +1,29 @@
 import { getPool } from "../db.js";
+import { buildObserverNameSql } from "./observerNameSql.js";
+import {
+  buildPublicCellGeometry,
+  buildPublicCellKeyParts,
+  formatPublicCellId,
+  parsePublicCellId,
+  pickPublicGridMeters,
+  radiusForGrid,
+  resolvePublicLocalityLabel,
+  summarizePublicLocalitySet,
+  type PublicCellKeyParts as CellKeyParts,
+  type PublicLocalityScope,
+} from "./publicLocation.js";
 import { buildStagingFixtureExclusionSql } from "./stagingFixtureGuard.js";
 
 /**
- * Map-layer-specific snapshot, separate from landingSnapshot because:
- *  - it fetches more rows (up to 2000) and supports bbox / year / taxon_group filters
- *  - it returns GeoJSON-ready shape so MapLibre can consume it directly
- *  - it computes a coarse taxon_group on the server using scientific_name / vernacular_name
- *    heuristics, mirroring the legacy `/api/get_observations.php?taxon_group=` behavior
- *    until a real taxa table lands.
+ * Public map snapshot for `/map`.
+ *
+ * The public map deliberately avoids exact points. It exposes:
+ *  - deterministic ambient cells for map rendering
+ *  - public-safe record lists for the current viewport or a selected cell
+ *
+ * Text labels use municipality / prefecture only. Exact coordinates and
+ * site-level names stay inside canonical storage and never leave the public API.
  */
-
-export type MapObservationFeature = {
-  type: "Feature";
-  geometry: { type: "Point"; coordinates: [number, number] };
-  properties: {
-    occurrenceId: string;
-    visitId: string;
-    displayName: string;
-    scientificName: string | null;
-    vernacularName: string | null;
-    observerName: string;
-    placeName: string;
-    municipality: string | null;
-    observedAt: string;
-    year: number | null;
-    taxonGroup: TaxonGroup;
-    photoUrl: string | null;
-  };
-};
-
-export type MapObservationFeatureCollection = {
-  type: "FeatureCollection";
-  features: MapObservationFeature[];
-  stats: {
-    totalReturned: number;
-    totalAll: number;
-    markerProfile: MarkerProfile;
-    provenance: {
-      sampled: boolean;
-      sampleSize: number;
-      visible: Record<ProvenanceBucket, number>;
-      excluded: Record<ProvenanceBucket, number>;
-    };
-  };
-};
 
 export type TaxonGroup =
   | "insect"
@@ -54,16 +34,135 @@ export type TaxonGroup =
   | "fungi"
   | "other";
 
+export type MarkerProfile = "manual_only" | "trusted_only" | "all_research_artifacts";
+export type ProvenanceBucket = "manual" | "legacy" | "track" | "other";
+export type SeasonFilter = "spring" | "summer" | "autumn" | "winter";
+
 export type MapQueryFilters = {
   taxonGroup?: TaxonGroup;
   year?: number;
-  bbox?: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
+  bbox?: [number, number, number, number];
   limit?: number;
   markerProfile?: MarkerProfile;
+  season?: SeasonFilter;
 };
 
-export type MarkerProfile = "manual_only" | "trusted_only" | "all_research_artifacts";
-export type ProvenanceBucket = "manual" | "legacy" | "track" | "other";
+export type PublicMapCellFeature = {
+  type: "Feature";
+  geometry: { type: "Polygon"; coordinates: [number, number][][] };
+  properties: {
+    cellId: string;
+    label: string;
+    scope: PublicLocalityScope;
+    gridM: number;
+    radiusM: number;
+    count: number;
+    latestObservedAt: string | null;
+    taxonMix: Partial<Record<TaxonGroup, number>>;
+    centroidLat: number;
+    centroidLng: number;
+  };
+};
+
+export type PublicMapCellFeatureCollection = {
+  type: "FeatureCollection";
+  features: PublicMapCellFeature[];
+  stats: {
+    totalReturned: number;
+    totalAll: number;
+    totalRecords: number;
+    markerProfile: MarkerProfile;
+    gridM: number;
+    provenance: {
+      sampled: boolean;
+      sampleSize: number;
+      visible: Record<ProvenanceBucket, number>;
+      excluded: Record<ProvenanceBucket, number>;
+    };
+  };
+};
+
+export type PublicMapObservationRecord = {
+  occurrenceId: string;
+  visitId: string;
+  displayName: string;
+  localityLabel: string;
+  observedAt: string;
+  photoUrl: string | null;
+  taxonGroup: TaxonGroup;
+  cellId: string;
+};
+
+export type PublicMapObservationList = {
+  items: PublicMapObservationRecord[];
+  stats: {
+    totalReturned: number;
+    totalAll: number;
+    markerProfile: MarkerProfile;
+    gridM: number;
+    selectedCellId: string | null;
+    provenance: {
+      sampled: boolean;
+      sampleSize: number;
+      visible: Record<ProvenanceBucket, number>;
+      excluded: Record<ProvenanceBucket, number>;
+    };
+  };
+};
+
+type PublicMapSourceRow = {
+  occurrence_id: string;
+  visit_id: string;
+  scientific_name: string | null;
+  vernacular_name: string | null;
+  display_name: string;
+  municipality: string | null;
+  prefecture: string | null;
+  observed_at: string;
+  latitude: number | null;
+  longitude: number | null;
+  photo_url: string | null;
+  source_kind: string | null;
+  session_mode: string | null;
+  visit_mode: string | null;
+  quality_grade: string | null;
+};
+
+type PublicMapPreparedRecord = {
+  occurrenceId: string;
+  visitId: string;
+  displayName: string;
+  observedAt: string;
+  latitude: number;
+  longitude: number;
+  municipality: string | null;
+  prefecture: string | null;
+  localityLabel: string;
+  localityScope: PublicLocalityScope;
+  photoUrl: string | null;
+  taxonGroup: TaxonGroup;
+  sourceKind: string | null;
+  sessionMode: string | null;
+  visitMode: string | null;
+  qualityGrade: string | null;
+};
+
+type PublicCellRecordFilter = {
+  cellId?: string;
+  zoom?: number;
+  limit?: number;
+};
+
+type PublicCellGroup = {
+  cellId: string;
+  gridM: number;
+  cellX: number;
+  cellY: number;
+  count: number;
+  latestObservedAt: string | null;
+  localityInputs: Array<{ municipality?: string | null; prefecture?: string | null }>;
+  taxonMix: Partial<Record<TaxonGroup, number>>;
+};
 
 const MAP_READ_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   userIdColumn: "v.user_id",
@@ -77,6 +176,14 @@ const MAP_TRACE_FIXTURE_EXCLUSION_SQL = buildStagingFixtureExclusionSql({
   userIdColumn: "v.user_id",
   visitIdColumn: "v.visit_id",
   visitSourceColumn: "coalesce(v.source_payload->>'source', '')",
+});
+
+const MAP_OBSERVER_NAME_SQL = buildObserverNameSql({
+  userIdExpr: "v.user_id",
+  displayNameExpr: "u.display_name",
+  sourcePayloadExpr: "v.source_payload",
+  guestFallback: "Guest",
+  defaultFallback: "Unknown observer",
 });
 
 // Kingdom / class-level latin prefixes or Japanese vernacular cues for each
@@ -147,30 +254,13 @@ export function inferTaxonGroup(
   return "other";
 }
 
-type FeedRow = {
-  occurrence_id: string;
-  visit_id: string;
-  scientific_name: string | null;
-  vernacular_name: string | null;
-  display_name: string;
-  observer_name: string;
-  place_name: string;
-  municipality: string | null;
-  observed_at: string;
-  latitude: number | null;
-  longitude: number | null;
-  photo_url: string | null;
-  source_kind: string | null;
-  session_mode: string | null;
-  visit_mode: string | null;
-  quality_grade: string | null;
-};
-
 function emptyBucketCounts(): Record<ProvenanceBucket, number> {
   return { manual: 0, legacy: 0, track: 0, other: 0 };
 }
 
-function classifyProvenance(row: Pick<FeedRow, "source_kind" | "session_mode" | "visit_mode">): ProvenanceBucket {
+function classifyProvenance(
+  row: Pick<PublicMapSourceRow, "source_kind" | "session_mode" | "visit_mode">,
+): ProvenanceBucket {
   if (row.source_kind === "legacy_observation") return "legacy";
   if (
     row.source_kind === "legacy_track_session" ||
@@ -187,7 +277,7 @@ function classifyProvenance(row: Pick<FeedRow, "source_kind" | "session_mode" | 
 }
 
 function markerProfileMatches(
-  row: Pick<FeedRow, "source_kind" | "session_mode" | "visit_mode" | "quality_grade">,
+  row: Pick<PublicMapSourceRow, "source_kind" | "session_mode" | "visit_mode" | "quality_grade">,
   profile: MarkerProfile,
 ): boolean {
   const provenance = classifyProvenance(row);
@@ -202,32 +292,48 @@ function normalizeAssetUrl(value: string | null | undefined): string | null {
   return `/${value.replace(/^\.?\//, "")}`;
 }
 
-export async function getMapObservations(
-  filters: MapQueryFilters,
-): Promise<MapObservationFeatureCollection> {
+function monthForSeason(season: SeasonFilter): number[] {
+  if (season === "spring") return [3, 4, 5];
+  if (season === "summer") return [6, 7, 8];
+  if (season === "autumn") return [9, 10, 11];
+  return [12, 1, 2];
+}
+
+function compareIsoDesc(a: string | null, b: string | null): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a < b ? 1 : a > b ? -1 : 0;
+}
+
+async function fetchPublicMapRows(filters: MapQueryFilters): Promise<{
+  rows: PublicMapPreparedRecord[];
+  markerProfile: MarkerProfile;
+  provenance: {
+    sampled: boolean;
+    sampleSize: number;
+    visible: Record<ProvenanceBucket, number>;
+    excluded: Record<ProvenanceBucket, number>;
+  };
+}> {
   const markerProfile = filters.markerProfile ?? "all_research_artifacts";
   let pool;
   try {
     pool = getPool();
   } catch {
     return {
-      type: "FeatureCollection",
-      features: [],
-      stats: {
-        totalReturned: 0,
-        totalAll: 0,
-        markerProfile,
-        provenance: {
-          sampled: false,
-          sampleSize: 0,
-          visible: emptyBucketCounts(),
-          excluded: emptyBucketCounts(),
-        },
+      rows: [],
+      markerProfile,
+      provenance: {
+        sampled: false,
+        sampleSize: 0,
+        visible: emptyBucketCounts(),
+        excluded: emptyBucketCounts(),
       },
     };
   }
 
-  const limit = Math.min(Math.max(filters.limit ?? 500, 1), 2000);
+  const limit = Math.min(Math.max(filters.limit ?? 2000, 1), 4000);
   const whereClauses: string[] = [
     "coalesce(v.point_latitude, p.center_latitude) is not null",
     "coalesce(v.point_longitude, p.center_longitude) is not null",
@@ -257,9 +363,9 @@ export async function getMapObservations(
       o.scientific_name,
       o.vernacular_name,
       coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
-      coalesce(u.display_name, 'Unknown observer') as observer_name,
-      coalesce(p.canonical_name, 'Unknown place') as place_name,
+      ${MAP_OBSERVER_NAME_SQL} as observer_name,
       coalesce(v.observed_municipality, p.municipality) as municipality,
+      coalesce(v.observed_prefecture, p.prefecture) as prefecture,
       v.observed_at::text,
       coalesce(v.point_latitude, p.center_latitude) as latitude,
       coalesce(v.point_longitude, p.center_longitude) as longitude,
@@ -286,12 +392,13 @@ export async function getMapObservations(
     limit ${limit}
   `;
 
-  let features: MapObservationFeature[] = [];
   const visibleBuckets = emptyBucketCounts();
   const excludedBuckets = emptyBucketCounts();
+  const seasonMonths = filters.season ? monthForSeason(filters.season) : null;
+
   try {
-    const result = await pool.query<FeedRow>(sql, params);
-    features = result.rows
+    const result = await pool.query<PublicMapSourceRow>(sql, params);
+    const rows = result.rows
       .filter((row) => row.latitude !== null && row.longitude !== null)
       .filter((row) => {
         const bucket = classifyProvenance(row);
@@ -301,78 +408,38 @@ export async function getMapObservations(
         return include;
       })
       .map((row) => {
-        const lat = Number(row.latitude);
-        const lng = Number(row.longitude);
-        const year = row.observed_at ? new Date(row.observed_at).getUTCFullYear() : null;
-        const group = inferTaxonGroup(row.scientific_name, row.vernacular_name);
+        const locality = resolvePublicLocalityLabel({
+          municipality: row.municipality,
+          prefecture: row.prefecture,
+        });
         return {
-          type: "Feature" as const,
-          geometry: { type: "Point" as const, coordinates: [lng, lat] as [number, number] },
-          properties: {
-            occurrenceId: row.occurrence_id,
-            visitId: row.visit_id,
-            displayName: row.display_name,
-            scientificName: row.scientific_name,
-            vernacularName: row.vernacular_name,
-            observerName: row.observer_name,
-            placeName: row.place_name,
-            municipality: row.municipality,
-            observedAt: row.observed_at,
-            year,
-            taxonGroup: group,
-            photoUrl: normalizeAssetUrl(row.photo_url),
-          },
-        };
+          occurrenceId: row.occurrence_id,
+          visitId: row.visit_id,
+          displayName: row.display_name,
+          observedAt: row.observed_at,
+          latitude: Number(row.latitude),
+          longitude: Number(row.longitude),
+          municipality: row.municipality,
+          prefecture: row.prefecture,
+          localityLabel: locality.label,
+          localityScope: locality.scope,
+          photoUrl: normalizeAssetUrl(row.photo_url),
+          taxonGroup: inferTaxonGroup(row.scientific_name, row.vernacular_name),
+          sourceKind: row.source_kind,
+          sessionMode: row.session_mode,
+          visitMode: row.visit_mode,
+          qualityGrade: row.quality_grade,
+        } satisfies PublicMapPreparedRecord;
+      })
+      .filter((row) => !filters.taxonGroup || row.taxonGroup === filters.taxonGroup)
+      .filter((row) => {
+        if (!seasonMonths) return true;
+        const month = new Date(row.observedAt).getUTCMonth() + 1;
+        return seasonMonths.includes(month);
       });
-  } catch {
-    features = [];
-  }
 
-  // Apply server-side taxon_group filter after inference.
-  const filtered = filters.taxonGroup
-    ? features.filter((f) => f.properties.taxonGroup === filters.taxonGroup)
-    : features;
-
-  // Count unfiltered total for stats.
-  let totalAll = features.length;
-  try {
-    const profileWhere =
-      markerProfile === "trusted_only"
-        ? `and v.source_kind = 'v2_observation'
-           and v.session_mode = 'standard'
-           and v.visit_mode = 'manual'
-           and o.quality_grade = 'research'`
-        : markerProfile === "all_research_artifacts"
-          ? `and coalesce(v.source_kind, '') not in ('legacy_track_session', 'v2_track_session')
-             and coalesce(v.session_mode, '') <> 'fieldscan'
-             and coalesce(v.visit_mode, '') <> 'track'`
-          : `and v.source_kind = 'v2_observation'
-             and v.session_mode = 'standard'
-             and v.visit_mode = 'manual'`;
-    const countRes = await pool.query<{ c: string }>(
-      `select count(*)::text as c
-         from occurrences o
-         join visits v on v.visit_id = o.visit_id
-         left join places p on p.place_id = v.place_id
-         where coalesce(v.point_latitude, p.center_latitude) is not null
-           and coalesce(v.point_longitude, p.center_longitude) is not null
-           and ${MAP_READ_FIXTURE_EXCLUSION_SQL}
-           ${filters.year ? `and extract(year from v.observed_at) = ${Number(filters.year)}` : ""}
-           ${filters.bbox ? `and coalesce(v.point_longitude, p.center_longitude) between ${Number(filters.bbox[0])} and ${Number(filters.bbox[2])}
-           and coalesce(v.point_latitude, p.center_latitude) between ${Number(filters.bbox[1])} and ${Number(filters.bbox[3])}` : ""}
-           ${profileWhere}`,
-    );
-    totalAll = Number(countRes.rows[0]?.c ?? totalAll);
-  } catch {
-    // keep fallback
-  }
-
-  return {
-    type: "FeatureCollection",
-    features: filtered,
-    stats: {
-      totalReturned: filtered.length,
-      totalAll,
+    return {
+      rows,
       markerProfile,
       provenance: {
         sampled: true,
@@ -380,8 +447,175 @@ export async function getMapObservations(
         visible: visibleBuckets,
         excluded: excludedBuckets,
       },
+    };
+  } catch {
+    return {
+      rows: [],
+      markerProfile,
+      provenance: {
+        sampled: true,
+        sampleSize: 0,
+        visible: visibleBuckets,
+        excluded: excludedBuckets,
+      },
+    };
+  }
+}
+
+export function buildPublicMapCells(
+  rows: PublicMapPreparedRecord[],
+  zoom?: number,
+): PublicMapCellFeatureCollection {
+  const gridM = pickPublicGridMeters(zoom);
+  const groups = new Map<string, PublicCellGroup>();
+
+  for (const row of rows) {
+    const cell = buildPublicCellKeyParts(row.latitude, row.longitude, gridM);
+    const cellId = formatPublicCellId(cell);
+    if (!groups.has(cellId)) {
+      groups.set(cellId, {
+        cellId,
+        gridM,
+        cellX: cell.cellX,
+        cellY: cell.cellY,
+        count: 0,
+        latestObservedAt: null,
+        localityInputs: [],
+        taxonMix: {},
+      });
+    }
+    const group = groups.get(cellId)!;
+    group.count += 1;
+    group.localityInputs.push({
+      municipality: row.municipality,
+      prefecture: row.prefecture,
+    });
+    if (!group.latestObservedAt || row.observedAt > group.latestObservedAt) {
+      group.latestObservedAt = row.observedAt;
+    }
+    group.taxonMix[row.taxonGroup] = (group.taxonMix[row.taxonGroup] ?? 0) + 1;
+  }
+
+  const features = Array.from(groups.values())
+    .sort((a, b) => (b.count - a.count) || compareIsoDesc(a.latestObservedAt, b.latestObservedAt))
+    .map((group) => {
+      const locality = summarizePublicLocalitySet(group.localityInputs);
+      const polygon = buildPublicCellGeometry(group);
+      return {
+        type: "Feature" as const,
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [polygon.ring],
+        },
+        properties: {
+          cellId: group.cellId,
+          label: locality.label,
+          scope: locality.scope,
+          gridM: group.gridM,
+          radiusM: radiusForGrid(group.gridM),
+          count: group.count,
+          latestObservedAt: group.latestObservedAt,
+          taxonMix: group.taxonMix,
+          centroidLat: polygon.centroidLat,
+          centroidLng: polygon.centroidLng,
+        },
+      };
+    });
+
+  return {
+    type: "FeatureCollection",
+    features,
+    stats: {
+      totalReturned: features.length,
+      totalAll: features.length,
+      totalRecords: rows.length,
+      markerProfile: "all_research_artifacts",
+      gridM,
+      provenance: {
+        sampled: true,
+        sampleSize: rows.length,
+        visible: emptyBucketCounts(),
+        excluded: emptyBucketCounts(),
+      },
     },
   };
+}
+
+export function buildPublicCellRecords(
+  rows: PublicMapPreparedRecord[],
+  filters: PublicCellRecordFilter = {},
+): PublicMapObservationList {
+  const parsedCellId = filters.cellId ? parsePublicCellId(filters.cellId) : null;
+  const gridM = parsedCellId?.gridM ?? pickPublicGridMeters(filters.zoom);
+  const targetCellId = parsedCellId ? formatPublicCellId(parsedCellId) : null;
+  const sorted = rows
+    .map((row) => {
+      const cellParts = buildPublicCellKeyParts(row.latitude, row.longitude, gridM);
+      return {
+        row,
+        cellId: formatPublicCellId(cellParts),
+      };
+    })
+    .filter((entry) => !targetCellId || entry.cellId === targetCellId)
+    .sort((a, b) => compareIsoDesc(a.row.observedAt, b.row.observedAt));
+
+  const items = sorted
+    .slice(0, Math.min(Math.max(filters.limit ?? 300, 1), 1200))
+    .map((entry) => ({
+      occurrenceId: entry.row.occurrenceId,
+      visitId: entry.row.visitId,
+      displayName: entry.row.displayName,
+      localityLabel: entry.row.localityLabel,
+      observedAt: entry.row.observedAt,
+      photoUrl: entry.row.photoUrl,
+      taxonGroup: entry.row.taxonGroup,
+      cellId: entry.cellId,
+    }));
+
+  return {
+    items,
+    stats: {
+      totalReturned: items.length,
+      totalAll: sorted.length,
+      markerProfile: "all_research_artifacts",
+      gridM,
+      selectedCellId: targetCellId,
+      provenance: {
+        sampled: true,
+        sampleSize: rows.length,
+        visible: emptyBucketCounts(),
+        excluded: emptyBucketCounts(),
+      },
+    },
+  };
+}
+
+export async function getMapCells(
+  filters: MapQueryFilters & { zoom?: number },
+): Promise<PublicMapCellFeatureCollection> {
+  const prepared = await fetchPublicMapRows(filters);
+  const collection = buildPublicMapCells(prepared.rows, filters.zoom);
+  collection.stats.markerProfile = prepared.markerProfile;
+  collection.stats.provenance = prepared.provenance;
+  return collection;
+}
+
+export async function getMapObservations(
+  filters: MapQueryFilters & { cellId?: string; zoom?: number },
+): Promise<PublicMapObservationList> {
+  const parsedCellId = filters.cellId ? parsePublicCellId(filters.cellId) : null;
+  const prepared = await fetchPublicMapRows({
+    ...filters,
+    bbox: filters.bbox ?? (parsedCellId ? buildPublicCellGeometry(parsedCellId).bounds : undefined),
+  });
+  const list = buildPublicCellRecords(prepared.rows, {
+    cellId: filters.cellId,
+    zoom: filters.zoom,
+    limit: filters.limit,
+  });
+  list.stats.markerProfile = prepared.markerProfile;
+  list.stats.provenance = prepared.provenance;
+  return list;
 }
 
 /**
@@ -409,9 +643,6 @@ export async function getCoverageMesh(
     return empty;
   }
 
-  // We group by a ~0.01 deg (~1.1 km) grid snap to avoid relying on mesh4
-  // populated on every place (sparse in legacy data). Cheap and visually
-  // close to the legacy mesh3/4 buckets.
   const whereYear = filters.year ? `and extract(year from v.observed_at) = $1` : "";
   const params: unknown[] = filters.year ? [filters.year] : [];
   const sql = `
@@ -535,12 +766,12 @@ export async function getTraceLines(
     }
 
     const features = [];
-    for (const [visitId, v] of visitMap) {
-      if (v.coords.length < 2) continue;
+    for (const [visitId, visit] of visitMap) {
+      if (visit.coords.length < 2) continue;
       features.push({
         type: "Feature" as const,
-        geometry: { type: "LineString" as const, coordinates: v.coords },
-        properties: { visitId, observedAt: v.observedAt, pointCount: v.coords.length },
+        geometry: { type: "LineString" as const, coordinates: visit.coords },
+        properties: { visitId, observedAt: visit.observedAt, pointCount: visit.coords.length },
       });
     }
     return { type: "FeatureCollection", features };

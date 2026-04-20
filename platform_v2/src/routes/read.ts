@@ -30,6 +30,7 @@ import { getTaxonInsight } from "../services/taxonInsights.js";
 import { getObservationDetailHeavy, type SiblingSubject } from "../services/observationDetailHeavy.js";
 import { confidenceLabel } from "../services/observationAiAssessment.js";
 import { getObservationVisitBundle, type ObservationVisitBundle, type ObservationVisitSubject } from "../services/observationVisitBundle.js";
+import { buildPublicMapCellHref } from "../services/publicLocation.js";
 import {
   getExploreSnapshot,
   getHomeSnapshot,
@@ -45,7 +46,7 @@ import {
   MAP_MINI_STYLES,
   mapMiniBootScript,
   renderMapMini,
-  toMapPoints,
+  toMapMiniCells,
 } from "../ui/mapMini.js";
 import {
   MAP_EXPLORER_STYLES,
@@ -1418,13 +1419,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         observerName: item.observerName,
         placeName: item.placeName,
         municipality: item.municipality,
+        publicLocation: item.publicLocation,
         photoUrl: item.photoUrl,
         identificationCount: item.identificationCount,
         latitude: null,
         longitude: null,
         observerUserId: null,
         observerAvatarUrl: null,
-      }),
+      }, { locationMode: "public" }),
     ).join("");
     const municipalities = snapshot.municipalities.map((item) => `
       <div class="row">
@@ -1494,13 +1496,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         observerName: item.observerName,
         placeName: item.placeName,
         municipality: item.municipality,
+        publicLocation: item.publicLocation,
         photoUrl: item.photoUrl,
         identificationCount: item.identificationCount,
         latitude: null,
         longitude: null,
         observerUserId: null,
         observerAvatarUrl: null,
-      }),
+      }, { locationMode: "public" }),
     ).join("");
     const myPlaces = snapshot.myPlaces.map((place) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, `/profile/${encodeURIComponent(snapshot.viewerUserId || "")}`))}">
@@ -1655,6 +1658,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const reactionBar = subjectCount >= 2 ? "" : renderReactionBar(reactions, viewerUserId, bundle.canonicalSubjectId);
     const rankedSubjects = bundle.subjects;
+    const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
+    const canSeeCanonicalLocation = isOwner || /admin/i.test(String(viewerSession?.roleName ?? ""));
+    const heroPlaceLabel = canSeeCanonicalLocation
+      ? (snapshot.placeName || "場所情報なし")
+      : (snapshot.publicLocation?.label || "位置をぼかしています");
+    const publicMapHref = buildPublicMapCellHref(withBasePath(basePath, "/map"), snapshot.publicLocation);
+    const detailMapHref = canSeeCanonicalLocation
+      ? withBasePath(basePath, "/map")
+      : publicMapHref;
 
     const focusRailBlock = featuredSubject
       ? (() => {
@@ -1744,7 +1756,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <span>${escapeHtml(snapshot.observerName || "観察者")}</span>
             </a>
             <span class="obs-hero-when">${escapeHtml(formatAbsolute(snapshot.observedAt))}</span>
-            <span class="obs-hero-place">${escapeHtml(snapshot.placeName || "場所情報なし")}</span>
+            <span class="obs-hero-place">${escapeHtml(heroPlaceLabel)}</span>
           </div>
           ${badges.length > 0 ? `<div class="obs-hero-badges">${badges.join("")}</div>` : ""}
           ${reactionBar}
@@ -1843,7 +1855,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             <span class="obs-cta-icon">📝</span>
             <span class="obs-cta-label">似た場面を記録する</span>
           </a>
-          ${snapshot.placeId ? `<a class="obs-cta-item" href="${escapeHtml(withBasePath(basePath, "/map"))}">
+          ${(snapshot.placeId || snapshot.publicLocation?.cellId) ? `<a class="obs-cta-item" href="${escapeHtml(detailMapHref)}">
             <span class="obs-cta-icon">🗺️</span>
             <span class="obs-cta-label">同じ場所を地図で見る</span>
           </a>` : ""}
@@ -1894,7 +1906,6 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <template data-subject-hint-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectHint(subject)}</template>
       <template data-subject-taxonomy-template="${escapeHtml(subject.occurrenceId)}">${renderSubjectTaxonomy(subject, featuredSubject, subjectCount, bundle)}</template>`).join("");
     const layersGrid = `<div class="obs-layers-grid">${layer2}${layer6}${layer3}${layer1}${contextBlock}${ctaBlock}</div>`;
-    const isOwner = !!viewerUserId && viewerUserId === snapshot.observerUserId;
     const reassessButtons: string[] = [];
     if (isOwner) {
       reassessButtons.push(
@@ -3164,11 +3175,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
     const isLoggedIn = Boolean(viewerUserId);
     const ownCards = snapshot.myFeed
-      .map((obs) => renderObservationCard(basePath, lang, obs))
+      .map((obs) => renderObservationCard(basePath, lang, obs, { locationMode: "owner" }))
       .join("");
     const nearbyCards = snapshot.feed
       .slice(0, 9)
-      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true }))
+      .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true, locationMode: "public" }))
       .join("");
 
     const emptyCopy = lang === "ja"
@@ -3391,5 +3402,5 @@ ${mapExplorerBootScript({ basePath, lang })}`,
 void MAP_MINI_STYLES;
 void mapMiniBootScript;
 void renderMapMini;
-void toMapPoints;
+void toMapMiniCells;
 void getLandingSnapshot;
