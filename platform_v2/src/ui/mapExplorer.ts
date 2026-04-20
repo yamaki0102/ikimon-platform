@@ -1,6 +1,11 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import { overlaysForLang, type LocalizedOverlay } from "../services/layerCatalog.js";
+import {
+  buildOfficialNoticeClientRenderer,
+  getOfficialNoticeRenderCopy,
+  OFFICIAL_NOTICE_CARD_STYLES,
+} from "./officialNoticeCard.js";
 import { escapeHtml } from "./siteShell.js";
 
 /**
@@ -8,7 +13,7 @@ import { escapeHtml } from "./siteShell.js";
  *
  * Server emits a shell (hero, filter bar, canvas, side panel, empty bottom sheet)
  * and a boot script that hydrates the MapLibre map client-side. Data comes from
- * /api/v1/map/observations and /api/v1/map/coverage, which the client refetches
+ * /api/v1/map/cells and /api/v1/map/observations, which the client refetches
  * whenever a filter / tab / basemap changes. No Alpine — plain vanilla JS to
  * keep the v2 SSR bundle lean.
  */
@@ -108,7 +113,7 @@ function regionPresets(labels: Record<string, string>): Array<{ key: string; lab
 
 export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
   ja: {
-    tabMarkers: "観察ピン",
+    tabMarkers: "観察エリア",
     tabHeatmap: "密度ヒート",
     tabCoverage: "調査前進",
     tabAriaLabel: "マップの表示切替",
@@ -193,7 +198,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   en: {
-    tabMarkers: "Pins",
+    tabMarkers: "Areas",
     tabHeatmap: "Heatmap",
     tabCoverage: "Frontier",
     tabAriaLabel: "Switch map view",
@@ -278,7 +283,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   es: {
-    tabMarkers: "Pines",
+    tabMarkers: "Áreas",
     tabHeatmap: "Mapa de calor",
     tabCoverage: "Frontera",
     tabAriaLabel: "Cambiar vista del mapa",
@@ -363,7 +368,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     ],
   },
   "pt-BR": {
-    tabMarkers: "Pinos",
+    tabMarkers: "Áreas",
     tabHeatmap: "Mapa de calor",
     tabCoverage: "Fronteira",
     tabAriaLabel: "Alternar visão do mapa",
@@ -547,6 +552,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   const notesHref = appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang);
   const lensHref = appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang);
   const scanHref = appendLangToHref(withBasePath(props.basePath, "/scan"), props.lang);
+  const apiCells = withBasePath(props.basePath, "/api/v1/map/cells");
   const apiObservations = withBasePath(props.basePath, "/api/v1/map/observations");
   const apiSiteBrief = withBasePath(props.basePath, "/api/v1/map/site-brief");
   const apiTraces = withBasePath(props.basePath, "/api/v1/map/traces");
@@ -788,7 +794,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}"></div>
+        <div id="map-explorer" class="me-map" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}"></div>
         <div class="me-map-panel me-map-panel-selection" id="me-map-selection-card"></div>
         <div class="me-map-panel me-map-panel-insight" id="me-map-insight-card"></div>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
@@ -813,6 +819,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
 export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string }): string {
   const copy = MAP_EXPLORER_COPY[props.lang];
   const ambient = ambientPanelLabels(props.lang);
+  const noticeCopy = getOfficialNoticeRenderCopy(props.lang);
   const observationHrefTpl = withBasePath(props.basePath, "/observations/__ID__") +
     "?lang=" + props.lang;
 
@@ -837,6 +844,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var yearAllEl = document.getElementById('me-year-all');
   var shareStateEl = document.getElementById('me-share-state');
   var searchAreaBtnEl = document.getElementById('me-search-area-btn');
+  var apiCells = root.getAttribute('data-api-cells') || '';
   var apiObservations = root.getAttribute('data-api-observations') || '';
   var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
   var apiTraces = root.getAttribute('data-api-traces') || '';
@@ -907,7 +915,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     resultHeading: props.lang === "ja" ? "この範囲の観察" : props.lang === "es" ? "Observaciones en esta área" : props.lang === "pt-BR" ? "Observações nesta área" : "Observations in this area",
     resultCountLabel: props.lang === "ja" ? "件を表示中" : props.lang === "es" ? "resultados visibles" : props.lang === "pt-BR" ? "resultados visíveis" : "results visible",
     movedHint: props.lang === "ja" ? "地図を動かした。結果を更新するには押す。" : props.lang === "es" ? "Moviste el mapa. Pulsa para actualizar resultados." : props.lang === "pt-BR" ? "Você moveu o mapa. Toque para atualizar." : "Map moved. Press to refresh results.",
-    selectHint: props.lang === "ja" ? "ピンか一覧を選ぶと、ここに写真と次の行動が出る。" : props.lang === "es" ? "Elige un pin o una fila para ver foto y siguiente acción." : props.lang === "pt-BR" ? "Escolha um pino ou item para ver foto e próxima ação." : "Pick a pin or row to see the photo and next action.",
+    selectHint: props.lang === "ja" ? "エリアか一覧を選ぶと、ここに写真と次の行動が出る。" : props.lang === "es" ? "Elige un área o una fila para ver foto y siguiente acción." : props.lang === "pt-BR" ? "Escolha uma área ou item para ver foto e próxima ação." : "Pick an area or row to see the photo and next action.",
     placeHint: props.lang === "ja" ? "地図を押すと、その地点の仮説と次の行動をここに出す。" : props.lang === "es" ? "Toca el mapa para ver la hipótesis del lugar y la siguiente acción." : props.lang === "pt-BR" ? "Toque no mapa para ver a hipótese do lugar e a próxima ação." : "Tap the map to see the place hypothesis and next action.",
     selectedCardLabel: props.lang === "ja" ? "詳細を見る" : props.lang === "es" ? "Ver detalle" : props.lang === "pt-BR" ? "Ver detalhes" : "Open detail",
     selectedFieldLabel: props.lang === "ja" ? "この場所で次に見る" : props.lang === "es" ? "Qué mirar aquí" : props.lang === "pt-BR" ? "O que ver aqui" : "What to look for here",
@@ -927,6 +935,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/notes"), props.lang))};
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
   var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/scan"), props.lang))};
+  ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", noticeCopy, { kpiNamespace: "map" })}
 
   var MAPLIBRE_CSS_SRI = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
   var MAPLIBRE_JS_SRI  = 'sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj';
@@ -979,43 +988,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     basemap: 'standard',
     tracesVisible: false,
     map: null,
-    rawFeatures: [],   // unfiltered
-    features: [],      // season-filtered
+    features: [],
+    records: [],
     frontier: null,
     effortSummary: null,
     selectedOccurrenceId: null,
+    selectedCellId: null,
     selectedPoint: null,
     lastStats: null,
+    lastCellStats: null,
     lastSearchedBbox: '',
     pendingViewportSearch: false,
     ignoreNextMoveEnd: false,
     lastAbort: null,
+    recordAbort: null,
     frontierAbort: null,
     effortAbort: null,
     _restoredCenter: null,
     _restoredZoom: null,
+    _restoredCellId: null,
     _fittedOnce: false,
     _meMarker: null,
   };
-
-  // Month ranges per season. Using 3/6/9/12 as the season boundaries
-  // keeps the UX simple even if meteorologists prefer finer splits.
-  var SEASON_MONTHS = {
-    spring: [3, 4, 5],
-    summer: [6, 7, 8],
-    autumn: [9, 10, 11],
-    winter: [12, 1, 2],
-  };
-  function filterBySeason(features, season) {
-    if (!season || !SEASON_MONTHS[season]) return features.slice();
-    var months = SEASON_MONTHS[season];
-    return features.filter(function (f) {
-      var ts = f.properties && f.properties.observedAt;
-      if (!ts) return false;
-      var m = new Date(ts).getMonth() + 1;
-      return months.indexOf(m) !== -1;
-    });
-  }
 
   function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
   function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
@@ -1038,27 +1032,27 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       yearRangeEl.value = String(selectedIndex >= 0 ? selectedIndex : fallbackIndex);
     }
   }
-  function featureNameVariants(feature) {
-    var p = feature && feature.properties ? feature.properties : {};
-    return [p.displayName, p.vernacularName, p.scientificName]
+  function recordNameVariants(record) {
+    return [record && record.displayName]
       .filter(Boolean)
       .map(function (value) { return String(value); });
   }
-  function fitToFeatureSet(features, options) {
+  function maxZoomForGrid(gridM) {
+    if (!isFinite(gridM) || gridM <= 1000) return 13.2;
+    if (gridM <= 3000) return 11.8;
+    return 10.1;
+  }
+  function fitToCellSet(features, options) {
     if (!state.map || !features || !features.length) return;
-    if (features.length === 1) {
-      var one = features[0];
-      if (one && one.geometry && one.geometry.coordinates) {
-        state.map.easeTo({ center: one.geometry.coordinates, zoom: (options && options.zoom) || 13.6, duration: 420 });
-      }
-      if (options && options.openSheet) openBottomSheet(one);
-      return;
-    }
     var bounds = new window.maplibregl.LngLatBounds();
     features.forEach(function (feature) {
-      if (feature && feature.geometry && feature.geometry.coordinates) bounds.extend(feature.geometry.coordinates);
+      var ring = feature && feature.geometry && feature.geometry.coordinates ? feature.geometry.coordinates[0] : null;
+      if (!ring || !ring.length) return;
+      ring.forEach(function (coord) { bounds.extend(coord); });
     });
-    if (!bounds.isEmpty()) state.map.fitBounds(bounds, { padding: 56, maxZoom: 13.5, duration: 520 });
+    var single = features.length === 1 ? features[0] : null;
+    var maxZoom = single && single.properties ? maxZoomForGrid(Number(single.properties.gridM)) : 12.2;
+    if (!bounds.isEmpty()) state.map.fitBounds(bounds, { padding: 56, maxZoom: maxZoom, duration: 520 });
   }
   function showLegend(lowLabel, highLabel, gradient) {
     if (!legendEl) return;
@@ -1197,27 +1191,60 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     mapInsightCardEl.classList.add('is-visible');
   }
 
-  function getSelectedFeature() {
-    if (!state.selectedOccurrenceId) return null;
+  function findCellFeatureById(cellId) {
+    if (!cellId) return null;
     for (var i = 0; i < state.features.length; i += 1) {
       var feature = state.features[i];
-      if (feature && feature.properties && feature.properties.occurrenceId === state.selectedOccurrenceId) return feature;
+      if (feature && feature.properties && feature.properties.cellId === cellId) return feature;
     }
     return null;
   }
 
+  function getSelectedCellFeature() {
+    return findCellFeatureById(state.selectedCellId);
+  }
+
+  function getSelectedRecord() {
+    if (!state.selectedOccurrenceId) return null;
+    for (var i = 0; i < state.records.length; i += 1) {
+      var record = state.records[i];
+      if (record && record.occurrenceId === state.selectedOccurrenceId) return record;
+    }
+    return null;
+  }
+
+  function cellCenter(feature) {
+    var p = feature && feature.properties ? feature.properties : {};
+    return {
+      lat: Number(p.centroidLat),
+      lng: Number(p.centroidLng),
+    };
+  }
+
   function getSelectedContext() {
     if (state.selectedPoint && state.selectedPoint.kind === 'place') return state.selectedPoint;
-    var feature = getSelectedFeature();
-    if (feature) {
+    var cellFeature = getSelectedCellFeature();
+    var record = getSelectedRecord();
+    if (record && cellFeature) {
+      var center = cellCenter(cellFeature);
       return {
-        lat: Number(feature.geometry.coordinates[1]),
-        lng: Number(feature.geometry.coordinates[0]),
+        lat: center.lat,
+        lng: center.lng,
         kind: 'observation',
-        feature: feature,
+        cellFeature: cellFeature,
+        record: record,
       };
     }
-    if (state.selectedPoint && state.selectedPoint.kind === 'observation' && state.selectedPoint.feature) {
+    if (cellFeature) {
+      var cell = cellCenter(cellFeature);
+      return {
+        lat: cell.lat,
+        lng: cell.lng,
+        kind: 'cell',
+        cellFeature: cellFeature,
+      };
+    }
+    if (state.selectedPoint && (state.selectedPoint.kind === 'observation' || state.selectedPoint.kind === 'cell')) {
       return state.selectedPoint;
     }
     return null;
@@ -1225,27 +1252,25 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function renderResultList() {
     if (!resultsListEl || !sideStatusEl) return;
-    var features = Array.isArray(state.features) ? state.features : [];
-    var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : features.length;
-    if (!features.length) {
+    var records = Array.isArray(state.records) ? state.records : [];
+    var totalAll = state.lastStats && Number.isFinite(state.lastStats.totalAll) ? state.lastStats.totalAll : records.length;
+    if (!records.length) {
       sideStatusEl.textContent = COPY.empty;
       resultsListEl.innerHTML = '<div class="me-results-empty">' + escapeHtml(COPY.empty) + '</div>';
       return;
     }
-    sideStatusEl.textContent = features.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll;
-    resultsListEl.innerHTML = features.slice(0, 120).map(function (feature) {
-      var p = feature.properties || {};
-      var active = p.occurrenceId === state.selectedOccurrenceId;
-      var date = p.observedAt ? String(p.observedAt).slice(0, 10) : '';
-      var place = [p.placeName, p.municipality].filter(Boolean).join(' · ') || '—';
-      var thumb = p.photoUrl
-        ? '<img class="me-result-thumb" src="' + escapeHtml(p.photoUrl) + '" alt="" loading="lazy" />'
+    sideStatusEl.textContent = records.length + ' ' + COPY.resultCountLabel + ' · ' + totalAll;
+    resultsListEl.innerHTML = records.slice(0, 120).map(function (record) {
+      var active = record.occurrenceId === state.selectedOccurrenceId;
+      var date = record.observedAt ? String(record.observedAt).slice(0, 10) : '';
+      var thumb = record.photoUrl
+        ? '<img class="me-result-thumb" src="' + escapeHtml(record.photoUrl) + '" alt="" loading="lazy" />'
         : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
-      return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(p.occurrenceId || '') + '">' +
+      return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '">' +
         thumb +
         '<span class="me-result-body">' +
-          '<strong>' + escapeHtml(p.displayName || 'Unresolved') + '</strong>' +
-          '<span>' + escapeHtml(place) + '</span>' +
+          '<strong>' + escapeHtml(record.displayName || 'Unresolved') + '</strong>' +
+          '<span>' + escapeHtml(record.localityLabel || '—') + '</span>' +
           (date ? '<span>' + escapeHtml(date) + '</span>' : '') +
         '</span>' +
       '</button>';
@@ -1253,11 +1278,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     resultsListEl.querySelectorAll('.me-result-row').forEach(function (rowEl) {
       rowEl.addEventListener('click', function () {
         var occurrenceId = rowEl.getAttribute('data-occurrence-id');
-        var feature = state.features.find(function (item) {
-          return item && item.properties && item.properties.occurrenceId === occurrenceId;
+        var record = state.records.find(function (item) {
+          return item && item.occurrenceId === occurrenceId;
         });
-        if (!feature) return;
-        selectObservation(feature, { focusMap: true, openSheet: shouldUseBottomSheet() });
+        if (!record) return;
+        selectRecord(record, { focusMap: true, openSheet: shouldUseBottomSheet() });
       });
     });
   }
@@ -1294,26 +1319,47 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       fetchSiteBrief(context.lat, context.lng, seq, document.getElementById('me-selected-brief-slot'));
       return;
     }
-    var feature = context.feature || getSelectedFeature();
-    if (!feature) {
+    if (context.kind === 'cell') {
+      var feature = context.cellFeature;
+      var cellProps = feature && feature.properties ? feature.properties : {};
+      var countLabel = Number(cellProps.count || 0) + ' ' + COPY.resultCountLabel;
+      var latest = cellProps.latestObservedAt ? String(cellProps.latestObservedAt).slice(0, 10) : '';
+      var cellSeq = ++siteBriefSeq;
+      selectedCardEl.innerHTML =
+        '<div class="me-map-card">' +
+          '<div class="me-map-card-head">' +
+            '<div>' +
+              '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionPlaceLabel) + '</div>' +
+              '<strong class="me-map-card-title">' + escapeHtml(cellProps.label || '—') + '</strong>' +
+              '<span class="me-map-card-copy">' + escapeHtml(countLabel) + (latest ? ' · ' + escapeHtml(latest) : '') + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div id="me-selected-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+          renderPlaceActions() +
+          '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
+        '</div>';
+      selectedCardEl.classList.add('is-visible');
+      fetchSiteBrief(context.lat, context.lng, cellSeq, document.getElementById('me-selected-brief-slot'));
+      return;
+    }
+    var record = context.record || getSelectedRecord();
+    if (!record) {
       selectedCardEl.innerHTML = '';
       selectedCardEl.classList.remove('is-visible');
       return;
     }
-    var p = feature.properties || {};
-    var place = [p.placeName, p.municipality].filter(Boolean).join(' · ') || '—';
-    var photo = p.photoUrl
-      ? '<img class="me-selected-photo" src="' + escapeHtml(p.photoUrl) + '" alt="" loading="lazy" />'
+    var photo = record.photoUrl
+      ? '<img class="me-selected-photo" src="' + escapeHtml(record.photoUrl) + '" alt="" loading="lazy" />'
       : '';
-    var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(p.occurrenceId));
+    var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
     selectedCardEl.innerHTML =
       '<div class="me-map-card">' +
         photo +
         '<div class="me-map-card-head">' +
           '<div>' +
             '<div class="me-map-card-kicker">' + escapeHtml(COPY.selectionObservationLabel) + '</div>' +
-            '<strong class="me-map-card-title">' + escapeHtml(p.displayName || 'Unresolved') + '</strong>' +
-            '<span class="me-map-card-copy">' + escapeHtml(place) + (p.observedAt ? ' · ' + escapeHtml(String(p.observedAt).slice(0, 10)) : '') + '</span>' +
+            '<strong class="me-map-card-title">' + escapeHtml(record.displayName || 'Unresolved') + '</strong>' +
+            '<span class="me-map-card-copy">' + escapeHtml(record.localityLabel || '—') + (record.observedAt ? ' · ' + escapeHtml(String(record.observedAt).slice(0, 10)) : '') + '</span>' +
           '</div>' +
         '</div>' +
         '<div class="me-selected-actions">' +
@@ -1356,6 +1402,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var caps = (brief.captureHints || []).map(function (c) {
       return '<li>' + escapeHtml(c) + '</li>';
     }).join('');
+    var notices = renderMapOfficialNotices(brief.officialNotices || []);
     return '<div class="me-site-brief">' +
       '<div class="me-site-brief-head">' +
         '<span class="me-site-brief-label">' + escapeHtml(h.label) + '</span>' +
@@ -1365,7 +1412,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       (checks ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefChecksLabel) + '</div><ul>' + checks + '</ul></div>' : '') +
       (reasons ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefReasonsLabel) + '</div><ul class="me-site-brief-reasons">' + reasons + '</ul></div>' : '') +
       (caps ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefCapturesLabel) + '</div><ul>' + caps + '</ul></div>' : '') +
-      '</div>';
+      '</div>' + notices;
   }
 
   function fetchSiteBrief(lat, lng, seq, target) {
@@ -1384,19 +1431,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
   }
 
-  function renderObservationActions(feature) {
-    var p = feature.properties;
-    var place = [p.placeName, p.municipality].filter(Boolean).join(' · ') || '—';
-    var photo = p.photoUrl ? '<img class="me-bottom-photo" src="' + escapeHtml(p.photoUrl) + '" alt="" loading="lazy" />' : '';
-    var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(p.occurrenceId));
+  function renderObservationActions(record) {
+    var photo = record.photoUrl ? '<img class="me-bottom-photo" src="' + escapeHtml(record.photoUrl) + '" alt="" loading="lazy" />' : '';
+    var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
     return photo +
       '<div class="me-bottom-meta">' +
-      '<strong>' + escapeHtml(p.displayName) + '</strong>' +
-      '<span>' + escapeHtml(place) + '</span>' +
-      (p.observedAt ? '<span>' + escapeHtml(String(p.observedAt).slice(0, 10)) + '</span>' : '') +
+      '<strong>' + escapeHtml(record.displayName) + '</strong>' +
+      '<span>' + escapeHtml(record.localityLabel || '—') + '</span>' +
+      (record.observedAt ? '<span>' + escapeHtml(String(record.observedAt).slice(0, 10)) + '</span>' : '') +
       '</div>' +
       '<div class="me-bottom-actions">' +
-      '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.popupOpenLabel) + '</a>' +
+        '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.popupOpenLabel) + '</a>' +
       '<a class="inline-link" href="' + NOTES_HREF + '">' + escapeHtml(COPY.bottomSheetNotes) + '</a>' +
       '<a class="inline-link" href="' + RECORD_HREF + '">' + escapeHtml(COPY.bottomSheetRecord) + '</a>' +
       '</div>';
@@ -1448,54 +1493,132 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     slot.innerHTML = renderSheetAmbient(state.selectedPoint);
   }
 
-  function selectObservation(feature, options) {
+  function focusCellFeature(feature) {
+    if (!state.map || !feature) return;
+    state.ignoreNextMoveEnd = true;
+    fitToCellSet([feature], { openSheet: false });
+  }
+
+  function highlightSelectedCell() {
+    if (!state.map) return;
+    var filter = state.selectedCellId
+      ? ['==', ['get', 'cellId'], state.selectedCellId]
+      : ['==', ['get', 'cellId'], '__none__'];
+    ['observation-cell-selected', 'obs-cell-heat-selected'].forEach(function (layerId) {
+      if (state.map.getLayer(layerId)) state.map.setFilter(layerId, filter);
+    });
+  }
+
+  function selectCell(feature, options) {
     if (!feature || !feature.properties) return;
-    state.selectedOccurrenceId = feature.properties.occurrenceId || null;
+    state.selectedCellId = feature.properties.cellId || null;
+    state._restoredCellId = null;
+    state.selectedOccurrenceId = null;
+    var center = cellCenter(feature);
     state.selectedPoint = {
-      lat: Number(feature.geometry.coordinates[1]),
-      lng: Number(feature.geometry.coordinates[0]),
-      kind: 'observation',
-      feature: feature,
+      lat: center.lat,
+      lng: center.lng,
+      kind: 'cell',
+      cellFeature: feature,
     };
+    highlightSelectedCell();
+    renderSelectedCard();
+    renderSidePanels();
+    if (state.map && options && options.focusMap !== false) focusCellFeature(feature);
+    loadRecords(state.selectedCellId ? { cellId: state.selectedCellId } : null);
+    if (options && options.openSheet && shouldUseBottomSheet()) openCellSheet(feature);
+    else if (!shouldUseBottomSheet()) closeBottomSheet();
+    saveMapState();
+  }
+
+  function selectRecord(record, options) {
+    if (!record) return;
+    state.selectedOccurrenceId = record.occurrenceId || null;
+    state.selectedCellId = record.cellId || null;
+    var feature = getSelectedCellFeature();
+    if (state.selectedCellId && (!feature || feature.properties.cellId !== state.selectedCellId)) {
+      for (var i = 0; i < state.features.length; i += 1) {
+        if (state.features[i] && state.features[i].properties && state.features[i].properties.cellId === state.selectedCellId) {
+          feature = state.features[i];
+          break;
+        }
+      }
+    }
+    if (!feature) return;
+    var center = cellCenter(feature);
+    state.selectedPoint = {
+      lat: center.lat,
+      lng: center.lng,
+      kind: 'observation',
+      cellFeature: feature,
+      record: record,
+    };
+    highlightSelectedCell();
     renderResultList();
     renderSelectedCard();
     renderSidePanels();
-    if (state.map && options && options.focusMap !== false) {
-      state.ignoreNextMoveEnd = true;
-      state.map.easeTo({ center: feature.geometry.coordinates, zoom: Math.max(state.map.getZoom(), 13.4), duration: 420 });
+    if (state.map && options && options.focusMap !== false) focusCellFeature(feature);
+    if (state.lastStats && state.lastStats.selectedCellId !== state.selectedCellId) {
+      loadRecords({ cellId: state.selectedCellId });
     }
-    if (options && options.openSheet && shouldUseBottomSheet()) openBottomSheet(feature);
+    if (options && options.openSheet && shouldUseBottomSheet()) openBottomSheet(record);
     else if (!shouldUseBottomSheet()) closeBottomSheet();
+    saveMapState();
   }
 
-  function openBottomSheet(feature) {
+  function openBottomSheet(record) {
     if (!sheetEl || !sheetInnerEl) return;
     if (!shouldUseBottomSheet()) return;
-    var geom = feature.geometry;
-    var coords = geom && geom.coordinates ? geom.coordinates : null;
-    var lat = coords ? Number(coords[1]) : null;
-    var lng = coords ? Number(coords[0]) : null;
-    state.selectedPoint = lat != null && lng != null ? { lat: lat, lng: lng, kind: 'observation', feature: feature } : null;
+    var feature = getSelectedCellFeature();
+    var center = feature ? cellCenter(feature) : { lat: null, lng: null };
+    state.selectedPoint = (center.lat != null && center.lng != null)
+      ? { lat: center.lat, lng: center.lng, kind: 'observation', cellFeature: feature, record: record }
+      : null;
     sheetInnerEl.innerHTML =
-      renderObservationActions(feature) +
-      '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: lat, lng: lng, kind: 'observation', feature: feature }) + '</div>';
+      renderObservationActions(record) +
+      '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: center.lat, lng: center.lng, kind: 'observation', cellFeature: feature, record: record }) + '</div>';
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.add('is-open');
+  }
+
+  function openCellSheet(feature) {
+    if (!sheetEl || !sheetInnerEl || !feature || !feature.properties) return;
+    if (!shouldUseBottomSheet()) return;
+    var center = cellCenter(feature);
+    state.selectedPoint = { lat: center.lat, lng: center.lng, kind: 'cell', cellFeature: feature };
+    var seq = ++siteBriefSeq;
+    var p = feature.properties || {};
+    sheetInnerEl.innerHTML =
+      '<div class="me-bottom-meta">' +
+        '<strong>' + escapeHtml(p.label || '—') + '</strong>' +
+        '<span>' + escapeHtml(String(p.count || 0) + ' ' + COPY.resultCountLabel) + '</span>' +
+        (p.latestObservedAt ? '<span>' + escapeHtml(String(p.latestObservedAt).slice(0, 10)) + '</span>' : '') +
+      '</div>' +
+      '<div id="me-site-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+      renderPlaceActions() +
+      '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: center.lat, lng: center.lng, kind: 'cell', cellFeature: feature }) + '</div>';
+    sheetEl.setAttribute('aria-hidden', 'false');
+    sheetEl.classList.add('is-open');
+    fetchSiteBrief(center.lat, center.lng, seq, document.getElementById('me-site-brief-slot'));
   }
 
   function openPlaceSheet(lat, lng) {
     if (!sheetEl || !sheetInnerEl) return;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    state.selectedOccurrenceId = null;
+    state.selectedCellId = null;
     if (!shouldUseBottomSheet()) {
-      state.selectedOccurrenceId = null;
       state.selectedPoint = { lat: lat, lng: lng, kind: 'place' };
+      highlightSelectedCell();
       closeBottomSheet();
       renderResultList();
       renderSelectedCard();
       renderSidePanels();
+      saveMapState();
       return;
     }
     state.selectedPoint = { lat: lat, lng: lng, kind: 'place' };
+    highlightSelectedCell();
     var seq = ++siteBriefSeq;
     sheetInnerEl.innerHTML =
       '<div id="me-site-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
@@ -1505,6 +1628,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetEl.classList.add('is-open');
     renderSidePanels();
     fetchSiteBrief(lat, lng, seq, document.getElementById('me-site-brief-slot'));
+    saveMapState();
   }
   function closeBottomSheet() {
     if (!sheetEl) return;
@@ -1513,112 +1637,81 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
 
-  function loadMarkerImages(map) {
-    var SIZE = 36;
-    var HALF = SIZE / 2;
-    var configs = [
-      { id: 'bird',              color: '#f59e0b', emoji: '🐦' },
-      { id: 'insect',            color: '#f43f5e', emoji: '🦋' },
-      { id: 'plant',             color: '#10b981', emoji: '🌿' },
-      { id: 'amphibian_reptile', color: '#14b8a6', emoji: '🐸' },
-      { id: 'mammal',            color: '#8b5cf6', emoji: '🐾' },
-      { id: 'fungi',             color: '#a16207', emoji: '🍄' },
-      { id: 'other',             color: '#0ea5e9', emoji: '🔍' },
-    ];
-    configs.forEach(function(c) {
-      var canvas = document.createElement('canvas');
-      canvas.width = SIZE; canvas.height = SIZE;
-      var ctx = canvas.getContext('2d');
-      ctx.beginPath(); ctx.arc(HALF, HALF, HALF - 1, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff'; ctx.fill();
-      ctx.beginPath(); ctx.arc(HALF, HALF, HALF - 3, 0, Math.PI * 2);
-      ctx.fillStyle = c.color; ctx.fill();
-      ctx.font = '16px sans-serif';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(c.emoji, HALF, HALF + 1);
-      var imageData = ctx.getImageData(0, 0, SIZE, SIZE);
-      map.addImage('marker-' + c.id, { width: SIZE, height: SIZE, data: imageData.data });
-    });
-  }
-
-  function ensureObservationSource(map, features) {
-    if (map.getSource('observations')) {
-      map.getSource('observations').setData({ type: 'FeatureCollection', features: features });
+  function ensureCellSource(map, features) {
+    var sourceId = 'observations';
+    if (map.getSource(sourceId)) {
+      map.getSource(sourceId).setData({ type: 'FeatureCollection', features: features });
+      highlightSelectedCell();
       return;
     }
-    map.addSource('observations', {
+    map.addSource(sourceId, {
       type: 'geojson',
       data: { type: 'FeatureCollection', features: features },
-      cluster: true,
-      clusterMaxZoom: 13,
-      clusterRadius: 48,
     });
     map.addLayer({
-      id: 'clusters',
-      type: 'circle',
-      source: 'observations',
-      filter: ['has', 'point_count'],
+      id: 'observation-cell-fill',
+      type: 'fill',
+      source: sourceId,
       paint: {
-        'circle-color': '#10b981',
-        'circle-opacity': 0.72,
-        'circle-radius': ['step', ['get', 'point_count'], 18, 5, 24, 25, 30, 100, 38],
-        'circle-stroke-color': '#fff',
-        'circle-stroke-width': 3,
-      },
-    });
-    // Inner dot used as a subtle "cluster" visual cue. Avoided a symbol layer
-    // with text-field because our raster basemaps don't ship a "glyphs" URL,
-    // which MapLibre requires for text rendering. The outer circle already
-    // communicates cluster presence and size; hover/click reveals the count.
-    map.addLayer({
-      id: 'cluster-inner',
-      type: 'circle',
-      source: 'observations',
-      filter: ['has', 'point_count'],
-      paint: {
-        'circle-color': '#047857',
-        'circle-opacity': 0.9,
-        'circle-radius': ['step', ['get', 'point_count'], 4, 5, 5, 25, 6, 100, 7],
+        'fill-color': 'rgba(14,165,233,0.24)',
+        'fill-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 1, 0.12, 4, 0.18, 12, 0.28],
       },
     });
     map.addLayer({
-      id: 'unclustered-point',
-      type: 'symbol',
-      source: 'observations',
-      filter: ['!', ['has', 'point_count']],
-      layout: {
-        'icon-image': ['match', ['get', 'taxonGroup'],
-          'bird',              'marker-bird',
-          'insect',            'marker-insect',
-          'plant',             'marker-plant',
-          'amphibian_reptile', 'marker-amphibian_reptile',
-          'mammal',            'marker-mammal',
-          'fungi',             'marker-fungi',
-                               'marker-other',
+      id: 'observation-cell-outline',
+      type: 'line',
+      source: sourceId,
+      paint: {
+        'line-color': 'rgba(14,165,233,0.55)',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 12, 1.4],
+      },
+    });
+    map.addLayer({
+      id: 'observation-cell-selected',
+      type: 'line',
+      source: sourceId,
+      filter: ['==', ['get', 'cellId'], '__none__'],
+      paint: {
+        'line-color': 'rgba(5,150,105,0.96)',
+        'line-width': 3,
+      },
+    });
+    map.addLayer({
+      id: 'obs-cell-heat',
+      type: 'fill',
+      source: sourceId,
+      layout: { visibility: 'none' },
+      paint: {
+        'fill-color': [
+          'interpolate', ['linear'], ['coalesce', ['get', 'count'], 0],
+          0, 'rgba(56,189,248,0.08)',
+          2, 'rgba(14,165,233,0.22)',
+          6, 'rgba(245,158,11,0.42)',
+          12, 'rgba(239,68,68,0.6)',
         ],
-        'icon-size': 1,
-        'icon-allow-overlap': true,
-        'icon-anchor': 'center',
+        'fill-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 0], 0, 0.08, 2, 0.14, 6, 0.26, 12, 0.36],
       },
     });
-
-    map.on('click', 'unclustered-point', function (e) {
-      if (!e.features || !e.features[0]) return;
-      selectObservation(e.features[0], { focusMap: false, openSheet: true });
+    map.addLayer({
+      id: 'obs-cell-heat-selected',
+      type: 'line',
+      source: sourceId,
+      layout: { visibility: 'none' },
+      filter: ['==', ['get', 'cellId'], '__none__'],
+      paint: {
+        'line-color': 'rgba(255,255,255,0.96)',
+        'line-width': 2.4,
+      },
     });
-    map.on('click', 'clusters', function (e) {
-      var fs = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
-      if (!fs[0]) return;
-      var clusterId = fs[0].properties.cluster_id;
-      map.getSource('observations').getClusterExpansionZoom(clusterId, function (err, zoom) {
-        if (err) return;
-        map.easeTo({ center: fs[0].geometry.coordinates, zoom: zoom });
+    ['observation-cell-fill', 'observation-cell-outline', 'obs-cell-heat'].forEach(function (layerId) {
+      map.on('click', layerId, function (e) {
+        if (!e.features || !e.features[0]) return;
+        selectCell(e.features[0], { focusMap: false, openSheet: true });
       });
+      map.on('mouseenter', layerId, function () { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', layerId, function () { map.getCanvas().style.cursor = ''; });
     });
-    map.on('mouseenter', 'unclustered-point', function () { map.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'unclustered-point', function () { map.getCanvas().style.cursor = ''; });
-    map.on('mouseenter', 'clusters', function () { map.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'clusters', function () { map.getCanvas().style.cursor = ''; });
+    highlightSelectedCell();
   }
 
   function removeLayerIfExists(map, id) {
@@ -1630,8 +1723,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function applyTab(map, tab) {
     // Show/hide layers based on active tab.
-    var markerLayers = ['clusters', 'cluster-inner', 'unclustered-point'];
-    var heatLayers = ['obs-heat'];
+    var markerLayers = ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-selected'];
+    var heatLayers = ['obs-cell-heat', 'obs-cell-heat-selected'];
     var frontierLayers = ['frontier-fill'];
     var show = function (ids, visible) {
       ids.forEach(function (id) {
@@ -1656,25 +1749,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function ensureHeatmap(map) {
-    if (map.getLayer('obs-heat')) return;
-    map.addLayer({
-      id: 'obs-heat',
-      type: 'heatmap',
-      source: 'observations',
-      filter: ['!', ['has', 'point_count']],
-      paint: {
-        'heatmap-weight': 1,
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 7, 0.6, 12, 1.4],
-        'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
-          0, 'rgba(56,189,248,0)',
-          0.2, 'rgba(56,189,248,0.25)',
-          0.45, 'rgba(14,165,233,0.45)',
-          0.7, 'rgba(245,158,11,0.6)',
-          1, 'rgba(239,68,68,0.85)'],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 7, 16, 12, 32],
-        'heatmap-opacity': 0.75,
-      },
-    });
+    highlightSelectedCell();
   }
 
   function ensureFrontier(map) {
@@ -1777,44 +1852,110 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
   }
 
-  function loadObservations() {
+  function loadCells() {
+    if (!state.map) return;
+    var bbox = currentBboxString();
+    if (!bbox) return;
+    var qs = '?bbox=' + encodeURIComponent(bbox);
+    qs += '&zoom=' + encodeURIComponent(state.map.getZoom().toFixed(2));
+    if (state.markerProfile) qs += '&marker_profile=' + encodeURIComponent(state.markerProfile);
+    if (state.taxonGroup) qs += '&taxon_group=' + encodeURIComponent(state.taxonGroup);
+    if (state.year) qs += '&year=' + encodeURIComponent(state.year);
+    if (state.season) qs += '&season=' + encodeURIComponent(state.season);
+    if (state.lastAbort) { try { state.lastAbort.abort(); } catch (_) {} }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    state.lastAbort = controller;
+    fetch(apiCells + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('cells ' + r.status)); })
+      .then(function (coll) {
+        state.features = (coll && coll.features) || [];
+        state.lastCellStats = (coll && coll.stats) || null;
+        state.lastSearchedBbox = bbox;
+        state.pendingViewportSearch = false;
+        ensureCellSource(state.map, state.features);
+        if (state.selectedCellId && !findCellFeatureById(state.selectedCellId)) {
+          state.selectedOccurrenceId = null;
+          state.selectedCellId = null;
+          if (state.selectedPoint && state.selectedPoint.kind !== 'place') state.selectedPoint = null;
+          closeBottomSheet();
+        }
+        if (state._restoredCellId) {
+          var restoredFeature = findCellFeatureById(state._restoredCellId);
+          if (restoredFeature) {
+            updateSearchAreaUi();
+            applyTab(state.map, state.tab);
+            state._fittedOnce = true;
+            selectCell(restoredFeature, { focusMap: false, openSheet: shouldUseBottomSheet() });
+            return;
+          }
+        }
+        renderSelectedCard();
+        renderSidePanels();
+        updateSearchAreaUi();
+        applyTab(state.map, state.tab);
+        state._fittedOnce = true;
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+      });
+  }
+
+  function loadRecords(scope) {
     if (!state.map) return;
     var qs = '?limit=1500';
     if (state.markerProfile) qs += '&marker_profile=' + encodeURIComponent(state.markerProfile);
     if (state.taxonGroup) qs += '&taxon_group=' + encodeURIComponent(state.taxonGroup);
     if (state.year) qs += '&year=' + encodeURIComponent(state.year);
-    var bbox = currentBboxString();
-    if (bbox) qs += '&bbox=' + encodeURIComponent(bbox);
+    if (state.season) qs += '&season=' + encodeURIComponent(state.season);
+    if (scope && scope.cellId) {
+      qs += '&cell_id=' + encodeURIComponent(scope.cellId);
+    } else {
+      var bbox = currentBboxString();
+      if (!bbox) return;
+      qs += '&bbox=' + encodeURIComponent(bbox);
+      qs += '&zoom=' + encodeURIComponent(state.map.getZoom().toFixed(2));
+      state.lastSearchedBbox = bbox;
+      state.pendingViewportSearch = false;
+    }
     setStatus(COPY.loading);
-    if (state.lastAbort) { try { state.lastAbort.abort(); } catch(_) {} }
+    if (state.recordAbort) { try { state.recordAbort.abort(); } catch (_) {} }
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    state.lastAbort = controller;
+    state.recordAbort = controller;
     fetch(apiObservations + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
-      .then(function (r) { return r.json(); })
-      .then(function (coll) {
-        state.rawFeatures = (coll && coll.features) || [];
-        state.features = filterBySeason(state.rawFeatures, state.season);
-        state.lastStats = (coll && coll.stats) || null;
-        state.lastSearchedBbox = bbox;
-        state.pendingViewportSearch = false;
-        ensureObservationSource(state.map, state.features);
-        if (state.selectedOccurrenceId && !getSelectedFeature()) {
-          state.selectedOccurrenceId = null;
-          if (state.selectedPoint && state.selectedPoint.kind === 'observation') state.selectedPoint = null;
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('records ' + r.status)); })
+      .then(function (list) {
+        state.records = (list && list.items) || [];
+        state.lastStats = (list && list.stats) || null;
+        if (state.selectedOccurrenceId) {
+          var selectedRecord = getSelectedRecord();
+          if (!selectedRecord) {
+            state.selectedOccurrenceId = null;
+            if (state.selectedCellId) {
+              var fallbackCell = findCellFeatureById(state.selectedCellId);
+              if (fallbackCell) {
+                var center = cellCenter(fallbackCell);
+                state.selectedPoint = {
+                  lat: center.lat,
+                  lng: center.lng,
+                  kind: 'cell',
+                  cellFeature: fallbackCell,
+                };
+              } else if (state.selectedPoint && state.selectedPoint.kind === 'observation') {
+                state.selectedPoint = null;
+              }
+            } else if (state.selectedPoint && state.selectedPoint.kind === 'observation') {
+              state.selectedPoint = null;
+            }
+          }
         }
         renderResultList();
         renderSelectedCard();
         renderSidePanels();
         updateSearchAreaUi();
-        applyTab(state.map, state.tab);
-        var totalAll = (coll && coll.stats && coll.stats.totalAll) || state.rawFeatures.length;
-        if (state.features.length === 0) {
-          setStatus(COPY.empty);
-        } else {
-          setStatus(fmtStatsLabel(state.features.length, totalAll));
-        }
-        setStatusMeta(fmtProvenanceMeta(coll && coll.stats));
-        state._fittedOnce = true;
+        var totalAll = (list && list.stats && list.stats.totalAll) || state.records.length;
+        if (!state.records.length) setStatus(COPY.empty);
+        else setStatus(fmtStatsLabel(state.records.length, totalAll));
+        setStatusMeta(fmtProvenanceMeta(list && list.stats));
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
@@ -1823,21 +1964,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       });
   }
 
-  function applySeasonLocal() {
-    state.features = filterBySeason(state.rawFeatures, state.season);
-    if (!state.map) return;
-    ensureObservationSource(state.map, state.features);
-    if (state.selectedOccurrenceId && !getSelectedFeature()) {
-      state.selectedOccurrenceId = null;
-      if (state.selectedPoint && state.selectedPoint.kind === 'observation') state.selectedPoint = null;
-    }
-    renderResultList();
-    renderSelectedCard();
-    renderSidePanels();
-    applyTab(state.map, state.tab);
-    if (state.features.length === 0) setStatus(COPY.empty);
-    else setStatus(fmtStatsLabel(state.features.length, (state.lastStats && state.lastStats.totalAll) || state.rawFeatures.length));
-    setStatusMeta(fmtProvenanceMeta(state.lastStats));
+  function refreshMapData() {
+    loadCells();
+    loadRecords(null);
   }
 
   function refreshYearDependentData() {
@@ -1846,7 +1975,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       removeLayerIfExists(state.map, 'frontier-fill');
       removeSourceIfExists(state.map, 'frontier');
     }
-    loadObservations();
+    refreshMapData();
     if (state.map) loadFrontier(state.map);
     loadEffortSummary();
     loadTraces();
@@ -1858,10 +1987,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var wasTab = state.tab;
     state.basemap = key;
     state.map.setStyle(BASEMAPS[key]);
-    // Re-add sources/layers after style load.
     state.map.once('style.load', function () {
-      ensureObservationSource(state.map, state.features);
+      ensureCellSource(state.map, state.features);
       if (state.frontier) paintFrontier(state.map, state.frontier);
+      highlightSelectedCell();
       applyTab(state.map, wasTab);
     });
   }
@@ -1870,7 +1999,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   // Keeps map state shareable as a plain URL while preserving unrelated
   // params like lang.
   var STATE_STORAGE_KEY = 'ikimon-map-v2';
-  var MAP_STATE_KEYS = ['tab', 'role', 'mp', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces'];
+  var MAP_STATE_KEYS = ['tab', 'role', 'mp', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces', 'cell'];
 
   function serializeMapState() {
     var parts = [];
@@ -1882,6 +2011,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (state.season) parts.push('season=' + encodeURIComponent(state.season));
     if (state.basemap && state.basemap !== 'standard') parts.push('bm=' + encodeURIComponent(state.basemap));
     if (state.tracesVisible) parts.push('traces=1');
+    if (state.selectedCellId) parts.push('cell=' + encodeURIComponent(state.selectedCellId));
     var ovParts = [];
     overlayCatalog.forEach(function (o) {
       var s = overlayState[o.id];
@@ -1932,6 +2062,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (params.season) state.season = params.season;
     if (params.bm && BASEMAPS[params.bm]) state.basemap = params.bm;
     state.tracesVisible = params.traces === '1' || params.traces === 'true';
+    if (params.cell) state._restoredCellId = params.cell;
     if (params.lng && params.lat && params.z) {
       var lng2 = parseFloat(params.lng);
       var lat2 = parseFloat(params.lat);
@@ -2019,9 +2150,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     map.addSource(srcId, { type: 'geojson', data: coll });
-    // Insert below observation pins so markers stay readable.
-    var insertBefore = map.getLayer('clusters') ? 'clusters'
-      : map.getLayer('unclustered-point') ? 'unclustered-point'
+    // Insert below observation cells so the privacy layer stays visually primary.
+    var insertBefore = map.getLayer('observation-cell-selected') ? 'observation-cell-selected'
+      : map.getLayer('observation-cell-fill') ? 'observation-cell-fill'
       : undefined;
     map.addLayer({
       id: layerId,
@@ -2077,12 +2208,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     state.map.on('load', function () {
-      loadMarkerImages(state.map);
       // Restore enabled overlays from URL/localStorage state before loading data.
       overlayCatalog.forEach(function (def) {
         if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(state.map, def);
       });
-      loadObservations();
+      refreshMapData();
       loadFrontier(state.map);
       loadEffortSummary();
       loadTraces();
@@ -2102,7 +2232,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     // layer (those have their own handlers via map.on('click', 'layer', ...)).
     state.map.on('click', function (e) {
       var layers = [];
-      ['unclustered-point', 'clusters', 'cluster-inner'].forEach(function (id) {
+      ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-selected', 'obs-cell-heat', 'obs-cell-heat-selected'].forEach(function (id) {
         if (state.map.getLayer(id)) layers.push(id);
       });
       if (state.map.getLayer('frontier-fill')) layers.push('frontier-fill');
@@ -2134,7 +2264,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         b.classList.toggle('is-active', b === btn);
         b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
       });
-      loadObservations();
+      refreshMapData();
       saveMapState();
     });
   });
@@ -2241,7 +2371,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         b.classList.toggle('is-active', b === btn);
         b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
       });
-      applySeasonLocal();
+      refreshMapData();
+      if (state.map) loadFrontier(state.map);
+      loadEffortSummary();
       saveMapState();
     });
   });
@@ -2259,7 +2391,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   if (searchAreaBtnEl) {
     searchAreaBtnEl.addEventListener('click', function () {
       if (!state.map) return;
-      loadObservations();
+      refreshMapData();
       loadFrontier(state.map);
       loadEffortSummary();
     });
@@ -2313,28 +2445,29 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var q = normalizeSearchText(query);
     if (!q || q.length < 2) return [];
     var speciesMap = {};
-    state.features.forEach(function (feature) {
-      var variants = featureNameVariants(feature);
+    state.records.forEach(function (record) {
+      var variants = recordNameVariants(record);
       if (!variants.length) return;
       var matched = variants.some(function (name) { return normalizeSearchText(name).indexOf(q) !== -1; });
       if (!matched) return;
-      var p = feature.properties || {};
-      var key = normalizeSearchText(p.displayName || variants[0]);
+      var key = normalizeSearchText(record.displayName || variants[0]);
       if (!speciesMap[key]) {
         speciesMap[key] = {
           kind: 'species',
           badge: COPY.searchResultSpecies,
-          title: p.displayName || variants[0],
-          subtitle: [p.scientificName, p.municipality].filter(Boolean).join(' · '),
-          featureIds: [],
-          taxonGroup: p.taxonGroup || '',
+          title: record.displayName || variants[0],
+          subtitle: record.localityLabel || '',
+          occurrenceIds: [],
+          cellIds: {},
+          taxonGroup: record.taxonGroup || '',
         };
       }
-      speciesMap[key].featureIds.push(p.occurrenceId);
+      speciesMap[key].occurrenceIds.push(record.occurrenceId);
+      if (record.cellId) speciesMap[key].cellIds[record.cellId] = true;
     });
     return Object.keys(speciesMap)
       .map(function (key) { return speciesMap[key]; })
-      .sort(function (a, b) { return b.featureIds.length - a.featureIds.length; })
+      .sort(function (a, b) { return b.occurrenceIds.length - a.occurrenceIds.length; })
       .slice(0, 5)
       .map(function (row) {
         var hitLabel = SEARCH_LANG === 'ja' ? '件'
@@ -2342,19 +2475,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           : SEARCH_LANG === 'pt-BR' ? ' registros'
           : ' hits';
         row.subtitle = row.subtitle
-          ? row.subtitle + ' · ' + row.featureIds.length + hitLabel
-          : row.featureIds.length + hitLabel;
+          ? row.subtitle + ' · ' + row.occurrenceIds.length + hitLabel
+          : row.occurrenceIds.length + hitLabel;
         row.onSelect = function () {
           if (!state.map) return;
           state.tab = 'markers';
           syncUiFromState();
           applyTab(state.map, state.tab);
-          var matches = state.features.filter(function (feature) {
-            var p = feature.properties || {};
-            return row.featureIds.indexOf(p.occurrenceId) !== -1;
+          var matches = state.records.filter(function (record) {
+            return row.occurrenceIds.indexOf(record.occurrenceId) !== -1;
           });
-          fitToFeatureSet(matches, { zoom: 13.8, openSheet: false });
-          if (matches.length === 1) selectObservation(matches[0], { focusMap: false, openSheet: true });
+          var seenCells = {};
+          var matchingCells = [];
+          matches.forEach(function (record) {
+            if (!record || !record.cellId || seenCells[record.cellId]) return;
+            var feature = findCellFeatureById(record.cellId);
+            if (!feature) return;
+            seenCells[record.cellId] = true;
+            matchingCells.push(feature);
+          });
+          if (matchingCells.length) fitToCellSet(matchingCells, { openSheet: false });
+          if (matches.length === 1) selectRecord(matches[0], { focusMap: false, openSheet: true });
+          else if (matchingCells.length === 1) selectCell(matchingCells[0], { focusMap: false, openSheet: true });
           if (searchInputEl) searchInputEl.value = row.title;
           searchResultsEl.classList.remove('is-open');
           saveMapState();
@@ -2520,11 +2662,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         minzoom: def.minzoom || 0,
         maxzoom: def.maxzoom || 22,
       });
-      // Insert below the observation layers so pins stay on top.
+      // Insert below the observation cells so the privacy layer remains primary.
       var firstObsLayer = null;
-      if (map.getLayer('clusters')) firstObsLayer = 'clusters';
-      else if (map.getLayer('unclustered-point')) firstObsLayer = 'unclustered-point';
-      else if (map.getLayer('obs-heat')) firstObsLayer = 'obs-heat';
+      if (map.getLayer('observation-cell-fill')) firstObsLayer = 'observation-cell-fill';
+      else if (map.getLayer('obs-cell-heat')) firstObsLayer = 'obs-cell-heat';
       map.addLayer({
         id: overlayLayerId(def.id),
         type: 'raster',
@@ -2967,6 +3108,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-site-brief ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
   .me-site-brief ul li { font-size: 12px; color: #0f172a; line-height: 1.45; }
   .me-site-brief-reasons li { color: #475569; font-size: 11px; }
+  ${OFFICIAL_NOTICE_CARD_STYLES}
 
   .me-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
   .me-side-head { padding: 4px 2px 0; }

@@ -141,24 +141,55 @@ function validateObservationResponse(payload: unknown): string | null {
   return null;
 }
 
+function validateMapCells(payload: unknown): string | null {
+  if (!isRecord(payload) || payload.type !== "FeatureCollection" || !Array.isArray(payload.features)) {
+    return "map cells payload missing feature collection";
+  }
+
+  if (!payload.features.length) {
+    return "map cells payload returned no cells";
+  }
+
+  const first = payload.features[0];
+  if (!isRecord(first) || !isRecord(first.geometry) || first.geometry.type !== "Polygon") {
+    return "map cells payload should expose polygon cells";
+  }
+  if (!isRecord(first.properties) || typeof first.properties.cellId !== "string") {
+    return "map cells payload missing cellId";
+  }
+  if (typeof first.properties.label !== "string" || typeof first.properties.gridM !== "number") {
+    return "map cells payload missing privacy props";
+  }
+
+  return null;
+}
+
 function validateMapContainsVisit(
   payload: unknown,
   expectedOccurrenceId: string,
   expectedVisitId: string,
 ): string | null {
-  if (!isRecord(payload) || !Array.isArray(payload.features)) {
-    return "map observations payload missing features";
+  if (!isRecord(payload) || !Array.isArray(payload.items)) {
+    return "map observations payload missing items";
   }
 
-  const hit = payload.features.some((feature) => {
-    if (!isRecord(feature) || !isRecord(feature.properties)) {
+  const hit = payload.items.some((item) => {
+    if (!isRecord(item)) {
       return false;
     }
-    return feature.properties.occurrenceId === expectedOccurrenceId || feature.properties.visitId === expectedVisitId;
+    return item.occurrenceId === expectedOccurrenceId || item.visitId === expectedVisitId;
   });
 
   if (!hit) {
     return `map observations missing visit ${expectedVisitId}`;
+  }
+
+  const leaked = payload.items.some((item) => {
+    if (!isRecord(item)) return false;
+    return "lat" in item || "lng" in item || "placeName" in item || "siteName" in item;
+  });
+  if (leaked) {
+    return "map observations leaked exact or site-level location fields";
   }
 
   return null;
@@ -227,12 +258,19 @@ async function main(): Promise<void> {
     },
   };
 
+  const mapCellsUrl = `${baseUrl}/api/v1/map/cells?bbox=${[
+    longitude - 0.01,
+    latitude - 0.01,
+    longitude + 0.01,
+    latitude + 0.01,
+  ].join(",")}&zoom=13&marker_profile=manual_only`;
+
   const mapUrl = `${baseUrl}/api/v1/map/observations?bbox=${[
     longitude - 0.01,
     latitude - 0.01,
     longitude + 0.01,
     latitude + 0.01,
-  ].join(",")}&limit=50&marker_profile=manual_only`;
+  ].join(",")}&zoom=13&limit=50&marker_profile=manual_only`;
 
   const checks: SmokeResult[] = [];
   let failed = false;
@@ -275,6 +313,13 @@ async function main(): Promise<void> {
         occurrenceId = typeof response.payload.occurrenceId === "string" ? response.payload.occurrenceId : "";
         visitId = typeof response.payload.visitId === "string" ? response.payload.visitId : "";
       },
+    },
+    {
+      name: "map/cells note-only",
+      url: mapCellsUrl,
+      method: "GET" as const,
+      payload: null,
+      validate: validateMapCells,
     },
     {
       name: "map/observations note-only",

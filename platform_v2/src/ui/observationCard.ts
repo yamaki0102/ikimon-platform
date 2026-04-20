@@ -43,7 +43,7 @@ export function renderObservationCard(
   basePath: string,
   lang: SiteLang,
   obs: LandingObservation,
-  options: { compact?: boolean } = {},
+  options: { compact?: boolean; locationMode?: "public" | "owner" } = {},
 ): string {
   const entryType = obs.entryType ?? "observation";
   const kind = kindCopy[lang][entryType];
@@ -69,7 +69,10 @@ export function renderObservationCard(
   const photo = obs.photoUrl
     ? `<img class="obs-card-photo" src="${escapeHtml(obs.photoUrl)}" alt="${escapeHtml(obs.displayName)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
     : sketchFallback;
-  const placeLine = [obs.placeName, obs.municipality].filter(Boolean).join(" · ");
+  const locationMode = options.locationMode ?? "public";
+  const placeLine = locationMode === "owner"
+    ? [obs.placeName, obs.municipality].filter(Boolean).join(" · ")
+    : obs.publicLocation?.label || "位置をぼかしています";
   const timestamp = isIdentification ? (obs.identifiedAt ?? obs.observedAt) : obs.observedAt;
   const attribution = kind.attribution(obs.observerName || "");
   const multiBadge = obs.isMultiSubject

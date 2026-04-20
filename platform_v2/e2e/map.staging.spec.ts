@@ -201,11 +201,15 @@ test("map share state survives reload", async ({ browser }) => {
   await page.getByRole("tab", { name: "調査前進" }).click();
   await page.locator(".me-filter-toggle").click();
   await page.locator('input[name="me-basemap"][value="gsi"]').check({ force: true });
+  await page.getByTestId("map-result-list").locator(".me-result-row").first().click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("cell")).not.toBeNull();
   await page.locator("#me-share-state").click();
 
   await expect.poll(() => new URL(page.url()).searchParams.get("taxon")).toBe("bird");
   await expect.poll(() => new URL(page.url()).searchParams.get("tab")).toBe("frontier");
   await expect.poll(() => new URL(page.url()).searchParams.get("bm")).toBe("gsi");
+  const selectedCell = new URL(page.url()).searchParams.get("cell");
+  expect(selectedCell).not.toBeNull();
 
   const sharedUrl = page.url();
   const restoredPage = await context.newPage();
@@ -213,6 +217,7 @@ test("map share state survives reload", async ({ browser }) => {
   await expect(restoredPage.locator('.me-taxon-chip.is-active[data-taxon-group="bird"]')).toBeVisible();
   await expect(restoredPage.locator('.me-tab.is-active[data-tab="frontier"]')).toBeVisible();
   await expect(restoredPage.locator('.me-basemap-opt.is-active input[value="gsi"]')).toBeChecked();
+  await expect(restoredPage.locator(".me-result-row.is-active")).toHaveCount(1);
 
   await context.close();
 });
