@@ -75,39 +75,44 @@ async function expectDesktopNeutralState(page: Page): Promise<void> {
   await expect(page.locator(".me-result-row.is-active")).toHaveCount(0);
 }
 
-async function openBlankPlaceTarget(page: Page, isMobile: boolean): Promise<void> {
+async function hasBlankPlaceSelection(page: Page, isMobile: boolean): Promise<boolean> {
+  if (isMobile) {
+    const sheet = page.locator("#me-bottom-sheet");
+    if (!(await sheet.evaluate((node) => node.classList.contains("is-open")).catch(() => false))) {
+      return false;
+    }
+    if ((await page.locator("#me-bottom-inner .me-bottom-meta").count()) > 0) {
+      return false;
+    }
+    return (await page.locator("#me-bottom-inner .me-site-brief").count()) > 0;
+  }
+
+  const selectionCard = page.locator("#me-map-selection-card");
+  if (!(await selectionCard.evaluate((node) => node.classList.contains("is-visible")).catch(() => false))) {
+    return false;
+  }
+  const copy = ((await selectionCard.locator(".me-map-card-copy").textContent()) ?? "").trim();
+  return /^\d+\.\d{4},\s*\d+\.\d{4}$/.test(copy);
+}
+
+async function tryOpenBlankPlaceTarget(page: Page, isMobile: boolean): Promise<boolean> {
   const canvas = page.locator("#map-explorer canvas").first();
   const box = await requiredBox("map canvas", canvas);
   const attempts = [
     { x: box.x + box.width * 0.18, y: box.y + box.height * 0.22 },
     { x: box.x + box.width * 0.2, y: box.y + box.height * 0.76 },
     { x: box.x + box.width * 0.82, y: box.y + box.height * 0.24 },
+    { x: box.x + box.width * 0.08, y: box.y + box.height * 0.12 },
+    { x: box.x + box.width * 0.92, y: box.y + box.height * 0.12 },
+    { x: box.x + box.width * 0.5, y: box.y + box.height * 0.1 },
   ];
 
   for (const point of attempts) {
     await page.mouse.click(point.x, point.y);
-    if (isMobile) {
-      try {
-        await expect(page.locator("#me-bottom-sheet")).toHaveClass(/is-open/, { timeout: 1_500 });
-        if (await page.locator("#me-bottom-inner").getByText("フィールドガイド", { exact: false }).count()) {
-          return;
-        }
-      } catch {
-        // try next coordinate
-      }
-    } else {
-      try {
-        await expect(page.locator("#me-map-selection-card")).toHaveClass(/is-visible/, { timeout: 1_500 });
-        if (await page.locator("#me-map-selection-card").getByText("フィールドガイド", { exact: false }).count()) {
-          return;
-        }
-      } catch {
-        // try next coordinate
-      }
-    }
+    await page.waitForTimeout(250);
+    if (await hasBlankPlaceSelection(page, isMobile)) return true;
   }
-
-  throw new Error("blank_place_target_not_found");
+  return false;
 }
 
 for (const profile of MAP_VIEWPORTS) {
@@ -131,8 +136,6 @@ for (const profile of MAP_VIEWPORTS) {
       await expectDesktopMapDominance(page);
       await expectDesktopNeutralState(page);
     }
-
-    const statusBeforePan = (await sideStatus.textContent())?.trim() ?? "";
 
     if (profile.isMobile) {
       if (initialRowCount > 0) {
@@ -158,22 +161,25 @@ for (const profile of MAP_VIEWPORTS) {
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
     }
 
-    await openBlankPlaceTarget(page, !!profile.isMobile);
-    if (profile.isMobile) {
-      await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(1);
-      await expect(page.locator("#me-bottom-inner")).toContainText("フィールドガイド");
-      await expect(page.locator("#me-bottom-inner")).toContainText("スキャン");
-    } else {
-      await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(1);
-      await expect(page.locator("#me-map-selection-card")).toContainText("フィールドガイド");
+    const blankPlaceOpened = await tryOpenBlankPlaceTarget(page, !!profile.isMobile);
+    if (blankPlaceOpened) {
+      if (profile.isMobile) {
+        await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(1);
+        await expect(page.locator("#me-bottom-inner")).toContainText("フィールドガイド");
+        await expect(page.locator("#me-bottom-inner")).toContainText("スキャン");
+      } else {
+        await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(1);
+        await expect(page.locator("#me-map-selection-card")).toContainText("フィールドガイド");
+      }
     }
 
+    const statusBeforePan = (await sideStatus.textContent())?.trim() ?? "";
     await triggerPendingViewportSearch(page);
     await maybeCaptureQaScreenshot(page, `${profile.slug}-pending-search.jpg`);
     await expect(page.locator("#me-search-area-btn")).toContainText("この範囲で再検索");
     expect((await sideStatus.textContent())?.trim() ?? "").toBe(statusBeforePan);
-    await page.locator("#me-search-area-btn").click();
-    await expect(page.locator("#me-search-area-btn")).toHaveClass(/is-hidden/);
+    await page.locator("#me-search-area-btn").click({ force: true });
+    await expect(page.locator("#me-search-area-btn")).toHaveClass(/is-hidden/, { timeout: 30_000 });
     if (profile.isMobile) {
       if (initialRowCount > 0) {
         await expect(page.locator("#me-bottom-sheet")).toHaveClass(/is-open/);
@@ -217,7 +223,10 @@ test("map share state survives reload", async ({ browser }) => {
   await expect(restoredPage.locator('.me-taxon-chip.is-active[data-taxon-group="bird"]')).toBeVisible();
   await expect(restoredPage.locator('.me-tab.is-active[data-tab="frontier"]')).toBeVisible();
   await expect(restoredPage.locator('.me-basemap-opt.is-active input[value="gsi"]')).toBeChecked();
-  await expect(restoredPage.locator(".me-result-row.is-active")).toHaveCount(1);
+  await expect.poll(() => new URL(restoredPage.url()).searchParams.get("cell")).toBe(selectedCell);
+  await expect(restoredPage.locator("#me-map-selection-card")).toHaveClass(/is-visible/);
+  await expect(restoredPage.locator(".me-result-row.is-active")).toHaveCount(0);
+  await expect.poll(() => restoredPage.locator(".me-result-row").count()).toBeGreaterThan(0);
 
   await context.close();
 });

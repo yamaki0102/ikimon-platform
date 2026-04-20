@@ -2391,6 +2391,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   if (searchAreaBtnEl) {
     searchAreaBtnEl.addEventListener('click', function () {
       if (!state.map) return;
+      var bbox = currentBboxString();
+      if (bbox) state.lastSearchedBbox = bbox;
+      state.pendingViewportSearch = false;
+      updateSearchAreaUi();
       refreshMapData();
       loadFrontier(state.map);
       loadEffortSummary();
