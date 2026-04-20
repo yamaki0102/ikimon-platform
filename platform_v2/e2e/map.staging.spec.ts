@@ -209,13 +209,14 @@ test("map share state survives reload", async ({ browser }) => {
   await page.locator('input[name="me-basemap"][value="gsi"]').check({ force: true });
   await page.getByTestId("map-result-list").locator(".me-result-row").first().click();
   await expect.poll(() => new URL(page.url()).searchParams.get("cell")).not.toBeNull();
+  const selectedCell = await page.evaluate(() => new URL(window.location.href).searchParams.get("cell"));
+  expect(selectedCell).not.toBeNull();
   await page.locator("#me-share-state").click();
 
   await expect.poll(() => new URL(page.url()).searchParams.get("taxon")).toBe("bird");
   await expect.poll(() => new URL(page.url()).searchParams.get("tab")).toBe("frontier");
   await expect.poll(() => new URL(page.url()).searchParams.get("bm")).toBe("gsi");
-  const selectedCell = new URL(page.url()).searchParams.get("cell");
-  expect(selectedCell).not.toBeNull();
+  await expect.poll(() => new URL(page.url()).searchParams.get("cell")).toBe(selectedCell);
 
   const sharedUrl = page.url();
   const restoredPage = await context.newPage();
