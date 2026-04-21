@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildApp } from "../app.js";
 
-test("field loop page exposes long-form positioning without external platform names", async () => {
+test("field loop page ja renders the reader-facing definition without external platform names", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -12,16 +12,18 @@ test("field loop page exposes long-form positioning without external platform na
 
     assert.equal(response.statusCode, 200);
     const body = response.body;
-    assert.match(body, /place-first observatory/);
-    assert.match(body, /regional entry service/);
-    assert.match(body, /absence/);
-    assert.match(body, /trend/);
-    assert.match(body, /authority/);
-    assert.match(body, /なぜ ikimon はこの形を取るのか/);
+    assert.match(body, /フィールドループとは/);
+    assert.match(body, /粗い衛星/);
+    assert.match(body, /知の基盤/);
+    assert.match(body, /循環/);
+    assert.match(body, /市民の一致/);
     assert.doesNotMatch(body, /iNaturalist/i);
     assert.doesNotMatch(body, /いきものログ/);
     assert.doesNotMatch(body, /eBird/i);
     assert.doesNotMatch(body, /Pl@ntNet/i);
+    assert.doesNotMatch(body, /このページについて/);
+    assert.doesNotMatch(body, /このページの前提/);
+    assert.doesNotMatch(body, /市民同定は価値があるが/);
     assert.ok((body.match(/https:\/\/doi\.org\//g) ?? []).length >= 10);
   } finally {
     await app.close();

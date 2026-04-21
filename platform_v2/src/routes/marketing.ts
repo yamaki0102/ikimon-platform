@@ -377,16 +377,34 @@ const GLOSSARY_JA: GlossaryEntry[] = [
     context: "ikimon は AI を「助手席」として扱います。運転するのは人です。",
   },
   {
+    term: "提案（同定）",
+    aka: "proposal / suggestion",
+    plain: "観察に名前の見立てを書くこと。AI が出す候補も、市民が書く見立ても、ここに含まれます。",
+    context: "粒度は自由。種名までの提案を止めるしくみは設けていません。",
+  },
+  {
+    term: "強い候補",
+    aka: "community support",
+    plain: "複数の人の同定が一致した段階の見立て。ざっくりした分類なら、そのまま正式に残ることもあります。",
+    context: "種レベルで「強い候補」だけでは、自動的に研究・公開用途にはしません。細かい種名の公開は、任された人の確認を通します。",
+  },
+  {
     term: "人の確認",
     aka: "review / authority-backed review",
     plain: "観察が公開情報として使われる前に、経験のある人や任された人が通す確認プロセス。",
-    context: "AI だけで公開判定しないのは、最終的な責任を人に置くためです。",
+    context: "AI や市民の一致だけで公開判定しないのは、最終的な責任を人に置くためだと考えています。",
   },
   {
     term: "任された人",
     aka: "authority",
-    plain: "分類群や地域ごとに、確認を任されている経験者や専門家。",
-    context: "AI と一般の同定との間にある中間レイヤー。公開前の責任を引き受けます。",
+    plain: "分類群や地域ごとに、細かい種名の確認を任されている経験者や専門家。",
+    context: "全部を任せるのではなく、分類群の担当範囲を決めて任せます。",
+  },
+  {
+    term: "大きな分類（粗い分類）",
+    aka: "coarse rank",
+    plain: "科・属・種群など、種よりひとつ上の大きなまとまりで残す同定。分類群によって「ちょうどいい粗さ」は違います。",
+    context: "「確信は持てないけど、このグループまでは確実」という残し方ができます。市民の一致で正式に残せるのは、この層までを原則としています。",
   },
   {
     term: "公開前提の記録",
@@ -576,12 +594,12 @@ function renderFieldLoopBody(basePath: string, lang: SiteLang): string {
     {
       id: "identification-layers",
       label: "",
-      title: "同定は、AI と人と専門家で重ねたい",
+      title: "同定は、粒度で担当を分けたい",
       paragraphs: [
-        "集まったデータに名前をつける工程も、1 層で済ませたくありません。AI が候補を広げ、市民の同定が候補を絞り、分類群を任された専門家が公開前に通す。そんな重ね方を目指しています。",
-        "それぞれ違う強みがあると考えていて、組み合わせることで速さと確度を同時に保てるのではないか、と思っています。AI 単独での公開判定はしないつもりです。",
+        "名前をつける工程は、ざっくりと細かいで担当を分けて考えています。AI は候補を広げ、市民の一致は強い候補を作り、細かい種名の公開判定だけ、分類群を任された人が通す。そんな重ね方が良いのではないか、と思っています。",
+        "提案そのものは、どの粒度でも自由です。種名までの見立てを市民が書くのは止めません。止めるのは、確認なしで自動的に公開用途になることだけ、と考えています。",
       ],
-      chips: ["AI が候補を広げる", "市民が候補を絞る", "専門家が確認する"],
+      chips: ["AI が候補を広げる", "市民の一致で強い候補に", "細かい種名は任された人が確認"],
     },
     {
       id: "knowledge-base",
@@ -1027,41 +1045,42 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "Authority Policy | ikimon",
       "Learn",
       "ikimon の同定の信頼のしくみ",
-      "AI・市民・任された確認者・運営を混ぜずに扱うためのしくみです。なぜそうしているか、どうやって任された人の候補になるか、どこまでが研究・公開用途なのかを公開します。",
+      "同定は、粒度ごとに担当を分けて扱っています。ざっくりは市民で、細かい種名は任された人で、最後の公開判定だけ媒体条件を満たしたものを進めます。誰が・どの分類群で・何を根拠に任せられているかを、見える形で残します。",
       `${FL_CSS}<div class="fl">
       <section class="fl-sec">
         <div class="fl-label">このページの目的</div>
         <h2 class="fl-h2">同定の速さより、信頼の由来を残す。</h2>
-        <p class="fl-lead">ikimon は「AI がそう言った」「みんながそう思った」だけで研究・公開用途に進めない設計にしています。理由は、どの分類群で、誰が、どの根拠で任せられているかを追えないと、公開後の信頼が崩れるからです。</p>
+        <p class="fl-lead">ikimon は、同定を「出す」「一致する」「確認する」「公開する」の 4 段で扱っています。AI と市民の一致で止めるものと、任された人の確認が要るものを分けるのは、どの分類群で、誰が、どの根拠で引き受けたかを、あとから追えるようにするためです。</p>
         <div class="fl-trust">
           <strong>基本方針</strong>
-          AI と市民同定は候補を広げる層、任された人の確認は公開前の確度を担保する層、運営は制度全体の監査を担う層として分けます。
+          AI は候補を広げる層、市民の一致は強い候補を作る層、任された人は公開前の確度を担保する層、運営は制度全体の監査を担う層です。
         </div>
       </section>
 
       <section class="fl-sec">
-        <div class="fl-label">なぜ分けるか</div>
-        <h2 class="fl-h2">AI と市民同定だけでは、研究レベルにしない。</h2>
+        <div class="fl-label">粒度の考え方</div>
+        <h2 class="fl-h2">ざっくりは自分。細かいのは詳しい人。</h2>
+        <p class="fl-lead">提案は自由です。どんな観察にも、種名までの見立てを書いて構いません。ただし「提案」と「正式に残る」「公開用途で使う」は、段を分けて扱っています。</p>
         <div class="fl-reasons">
           <div class="fl-reason">
             <div class="fl-reason-num">01</div>
             <div class="fl-reason-body">
-              <h3>AI は候補を出す役で、責任を持つ主体ではない</h3>
-              <p>AI は方向性を示せますが、「この分類群の見分けは任せられる」と社会的に引き受ける主体ではありません。だから研究・公開用途の根拠に単独では使いません。</p>
+              <h3>提案はどの粒度でも自由</h3>
+              <p>市民の誰でも、どの観察にも、種名までの見立てを提案できます。AI もそうです。この層に制限はかけていません。間違っていても、のちに皆で正せるほうが健全だと考えています。</p>
             </div>
           </div>
           <div class="fl-reason">
             <div class="fl-reason-num">02</div>
             <div class="fl-reason-body">
-              <h3>市民同定は価値があるが、最終公開の代替ではない</h3>
-              <p>市民同定は、候補を絞る・見分け方を学ぶ・確認の優先順位を上げるために重要です。ただし「誰がこの分類群を引き受けたか」が曖昧なまま研究扱いにすると、誤同定時の説明責任が弱くなります。</p>
+              <h3>市民の一致は、強い候補になる</h3>
+              <p>複数の人が同じ見立てをしたとき、その同定は「強い候補」として積み上がります。ざっくりした分類なら、そのまま正式に残せることもあります。ただし、それだけで自動的に研究・公開用途（リサーチグレード）になることはありません。</p>
             </div>
           </div>
           <div class="fl-reason">
             <div class="fl-reason-num">03</div>
             <div class="fl-reason-body">
-              <h3>公開するには「どこからの情報か」を残す必要がある</h3>
-              <p>あとで「なぜこの観察をここまで上げたのか」を追えることが必要です。ikimon では確認時の権限スナップショットと監査ログを残し、後からしくみの外側に逃げないようにします。</p>
+              <h3>細かい種名の公開は、任された人が通す</h3>
+              <p>種レベルで「公開用途の主張」として扱うときは、分類群を任された人の確認を経るようにしています。提案や一致そのものは止めません。止めるのは、確認なしで自動公開することだけです。</p>
             </div>
           </div>
         </div>
@@ -1082,7 +1101,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         <h2 class="fl-h2">AI / 市民 / 任された人 / 運営の 4 層</h2>
         <div class="fl-roles">
           <article class="fl-role"><span class="fl-role-icon">🛰️</span><h3>AI</h3><p>候補と見分けのポイントを返す層。</p><span class="fl-role-tag">確定はしない</span></article>
-          <article class="fl-role"><span class="fl-role-icon">🧭</span><h3>市民同定者</h3><p>候補を絞り、証拠を持ち寄る層。</p><span class="fl-role-tag">公開前の学習と絞り込み</span></article>
+          <article class="fl-role"><span class="fl-role-icon">🧭</span><h3>市民同定者</h3><p>候補を絞り、ざっくりの分類を一致で固めていく層。</p><span class="fl-role-tag">強い候補を作る</span></article>
           <article class="fl-role"><span class="fl-role-icon">🔬</span><h3>任された確認者</h3><p>自分の担当する分類群で承認し、専門確認を付与する層。</p><span class="fl-role-tag">担当範囲内だけ任せる</span></article>
           <article class="fl-role"><span class="fl-role-icon">🛠️</span><h3>運営</h3><p>しくみの運営、権限の付与・取り消し、監査、例外処理を担う層。</p><span class="fl-role-tag">しくみを閉じずに追跡する</span></article>
         </div>
@@ -1090,12 +1109,17 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
       <section class="fl-sec">
         <div class="fl-label">境界条件</div>
-        <h2 class="fl-h2">研究レベルと公開主張は同じではない。</h2>
+        <h2 class="fl-h2">提案・強い候補・専門確認・公開は、段を分ける。</h2>
         <div class="fl-tiers">
           <div class="fl-tier fl-tier-1">
-            <div><div class="fl-tier-name">AI / 市民同定</div><div class="fl-tier-meaning">候補層</div></div>
-            <div><div class="fl-tier-col-label">できること</div><div class="fl-tier-col-body">候補提示、絞り込み、追加観察の誘導、確認待ちの優先度上げ</div></div>
-            <div><div class="fl-tier-col-label">できないこと</div><div class="fl-tier-col-no">単独で研究・公開用途にすること</div></div>
+            <div><div class="fl-tier-name">AI の候補 / 市民の提案</div><div class="fl-tier-meaning">提案層</div></div>
+            <div><div class="fl-tier-col-label">できること</div><div class="fl-tier-col-body">どの粒度でも提案を出せる。種名の見立てを書いてよい。</div></div>
+            <div><div class="fl-tier-col-label">できないこと</div><div class="fl-tier-col-no">単独で正式ラベルや公開用途になること</div></div>
+          </div>
+          <div class="fl-tier fl-tier-1">
+            <div><div class="fl-tier-name">市民の一致</div><div class="fl-tier-meaning">強い候補</div></div>
+            <div><div class="fl-tier-col-label">できること</div><div class="fl-tier-col-body">複数の一致で「強い候補」になる。ざっくりの分類なら正式に残ることもある。</div></div>
+            <div><div class="fl-tier-col-label">できないこと</div><div class="fl-tier-col-no">種レベルでそのまま公開用途（リサーチグレード）になること</div></div>
           </div>
           <div class="fl-tier fl-tier-3">
             <div><div class="fl-tier-name">任された人の確認</div><div class="fl-tier-meaning">専門確認済み</div></div>
@@ -1421,13 +1445,14 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       </section>
       <section class="section">
         <div class="section-header"><h2>AI と同定について</h2></div>
-        <div class="card" style="margin-bottom:16px"><div class="card-body"><strong>同定の信頼のしくみを詳しく読む</strong><p style="margin:10px 0 0;color:#4b5563;line-height:1.8">なぜ AI とみんなの同定だけでは研究・公開用途にしないのか、なぜ任された人を分類群ごとに置くのか、推薦と監査を含めて 1 ページにまとめています。</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">しくみの説明を見る</a></div></div></div>
+        <div class="card" style="margin-bottom:16px"><div class="card-body"><strong>同定の信頼のしくみを詳しく読む</strong><p style="margin:10px 0 0;color:#4b5563;line-height:1.8">誰が・どの分類群で・どの粒度までを引き受けているのか、推薦と監査を含めて 1 ページにまとめています。</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">しくみの説明を見る</a></div></div></div>
         <div class="fl-faq">
-          <details class="fl-faq-item"><summary class="fl-faq-q">AI は名前を自動で確定しますか？</summary><p class="fl-faq-a">しません。AI が返すのは候補と見分けのヒントです。AI と市民同定は候補層として扱い、研究・公開用途に進めるには、分類群ごとに任された人の確認か、運営の明示的な判断が必要です。しくみの全体像は「同定の信頼」ページで公開しています。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">市民は種名まで提案できますか？</summary><p class="fl-faq-a">できます。どの観察にも、誰でも、種名までの見立てを書いて構いません。提案の粒度に制限はかけていません。複数の人の同定が一致すれば「強い候補」になります。ざっくりした分類（科・属・種群など）はそのまま正式に残ることもあります。細かい種名を「研究・公開用途」で扱うときは、分類群を任された人の確認を通します。提案そのものを止めることはしません。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">AI は名前を自動で確定しますか？</summary><p class="fl-faq-a">しません。AI が返すのは候補と見分けのヒントです。研究・公開用途に進めるには、分類群ごとに任された人の確認か、運営の明示的な判断が必要になります。しくみの全体像は「同定の信頼」ページで公開しています。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">投稿後に表示される「観察のヒント」とは何ですか？</summary><p class="fl-faq-a">投稿後に写真・場所・季節をもとに AI が自動生成するメモです。「いまはここまで絞れそう」「見分けのポイント」「次に確認すると良いこと」を示します。コミュニティ同定の票にはなりません。名前を断定するものではなく、あくまでヒントとして参考にしてください。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">間違った名前を付けてしまったらどうなりますか？</summary><p class="fl-faq-a">いつでも修正できます。間違いはコミュニティが一緒に修正してくれます。「モンシロチョウだと思ったらスジグロシロチョウだった」——この体験が観察力を磨きます。初心者もベテランも学びの途中です。間違いを恐れずに挑戦する姿勢をコミュニティは応援しています。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q">「研究グレード」とは何ですか？</summary><p class="fl-faq-a">ikimon では、AI 候補や市民同定だけで研究レベルに上げません。写真・日時・位置などの媒体条件に加え、公開前提のレーンで、任された人の確認か運営判断が入った観察だけが研究・公開候補になります。証拠不足ならそのまま止めて、研究公開とは分けます。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q">AI の提案はどのくらい正確ですか？</summary><p class="fl-faq-a">「参考情報」として設計しています。得意不得意はありますが、そもそも公開前提の主張の根拠に単独では使いません。AI は方向性を示し、人の確認と、任された人の確認が公開前の確度を支えます。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">「研究グレード」とは何ですか？</summary><p class="fl-faq-a">ikimon では、AI 候補や市民の一致だけで研究レベルに自動で上げることはしていません。写真・日時・位置などの媒体条件に加え、公開前提のレーンで、任された人の確認か運営判断が入った観察だけが研究・公開候補になります。市民の同定そのものを否定しているわけではなく、細かい種名の公開判定にだけ、追加の確認を入れている形です。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">AI の提案はどのくらい正確ですか？</summary><p class="fl-faq-a">「参考情報」として設計しています。得意不得意はありますが、公開前提の主張の根拠に単独では使いません。AI は方向性を示し、市民の一致で候補を強め、任された人の確認が公開前の確度を支えます。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q"><code>いない</code> や <code>増えた</code> は分かりますか？</summary><p class="fl-faq-a">条件付きです。ikimon では「まだ見ていない」と「不在」を混ぜません。どれだけ歩いたか・手順・範囲を残していないデータに対して、サービス側が「いない」「増えた」を強く言うことはしません。「見つからなかった」も、公開時点では手順の注記としてだけ扱います。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">投稿データが AI の学習に使われますか？</summary><p class="fl-faq-a">第三者の AI 企業には一切提供しません。AI クローラーによるスクレイピングも技術的にブロックしています。将来的に ikimon 自身のサービス改善（AI 同定精度の向上）に活用する可能性がありますが、その場合も外部に流出することはありません。データの主権はユーザーとikimon コミュニティにあります。</p></details>
         </div>
