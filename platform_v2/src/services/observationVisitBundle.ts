@@ -47,6 +47,7 @@ export type ObservationVisitSubject = RankedSubject<VisitSubjectSummary> & {
   identifications: Array<{
     proposedName: string;
     proposedRank: string | null;
+    acceptedRank: string | null;
     notes: string | null;
     actorName: string;
     createdAt: string;
@@ -321,6 +322,7 @@ export async function getObservationVisitBundle(
         occurrence_id: string;
         proposed_name: string;
         proposed_rank: string | null;
+        accepted_rank: string | null;
         notes: string | null;
         actor_name: string | null;
         created_at: string;
@@ -328,6 +330,7 @@ export async function getObservationVisitBundle(
         `SELECT i.occurrence_id,
                 i.proposed_name,
                 i.proposed_rank,
+                i.accepted_rank,
                 i.notes,
                 coalesce(u.display_name, 'Community') AS actor_name,
                 i.created_at::text
@@ -415,6 +418,7 @@ export async function getObservationVisitBundle(
       list.push({
         proposedName: row.proposed_name,
         proposedRank: row.proposed_rank,
+        acceptedRank: row.accepted_rank,
         notes: row.notes,
         actorName: row.actor_name ?? "Community",
         createdAt: row.created_at,

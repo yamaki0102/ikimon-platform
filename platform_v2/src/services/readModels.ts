@@ -86,6 +86,7 @@ export type ObservationDetailSnapshot = {
   identifications: Array<{
     proposedName: string;
     proposedRank: string | null;
+    acceptedRank: string | null;
     notes: string | null;
     actorName: string;
     createdAt: string;
@@ -678,6 +679,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
   const identificationsResult = await pool.query<{
     proposed_name: string;
     proposed_rank: string | null;
+    accepted_rank: string | null;
     notes: string | null;
     actor_name: string | null;
     created_at: string;
@@ -685,6 +687,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     `select
         i.proposed_name,
         i.proposed_rank,
+        i.accepted_rank,
         i.notes,
         ${IDENTIFICATION_ACTOR_NAME_SQL} as actor_name,
         i.created_at::text
@@ -784,6 +787,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     identifications: identificationsResult.rows.map((row) => ({
       proposedName: row.proposed_name,
       proposedRank: row.proposed_rank,
+      acceptedRank: row.accepted_rank,
       notes: row.notes,
       actorName: row.actor_name ?? "Community",
       createdAt: row.created_at,

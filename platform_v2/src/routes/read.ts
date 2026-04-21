@@ -93,6 +93,24 @@ function layout(
   });
 }
 
+function rankLabelJa(rank: string): string {
+  const table: Record<string, string> = {
+    kingdom: "界",
+    phylum: "門",
+    class: "綱",
+    order: "目",
+    family: "科",
+    subfamily: "亜科",
+    tribe: "族",
+    genus: "属",
+    subgenus: "亜属",
+    species_group: "種群",
+    species: "種",
+    subspecies: "亜種",
+  };
+  return table[rank.toLowerCase()] ?? rank;
+}
+
 function authorityEvidenceLabel(evidenceType: ReviewerAuthorityEvidenceType): string {
   switch (evidenceType) {
     case "field_event":
@@ -414,6 +432,7 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-id-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
   .obs-id-name { font-size: 15px; font-weight: 900; color: #0f172a; }
   .obs-id-rank { background: rgba(59,130,246,.1); color: #1d4ed8; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; }
+  .obs-id-accepted { background: rgba(16,185,129,.14); color: #047857; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; border: 1px solid rgba(16,185,129,.3); }
   .obs-id-meta { font-size: 11.5px; color: #64748b; font-weight: 700; margin-top: 3px; }
   .obs-id-note { margin: 6px 0 0; color: #475569; font-size: 13px; line-height: 1.6; }
   .obs-empty { color: #94a3b8; font-size: 13.5px; text-align: center; padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px dashed rgba(15,23,42,.1); }
@@ -804,6 +823,7 @@ function renderSubjectTaxonomy(
                <div class="obs-id-line">
                  <span class="obs-id-name">${escapeHtml(item.proposedName)}</span>
                  ${item.proposedRank ? `<span class="obs-id-rank">${escapeHtml(item.proposedRank)}</span>` : ""}
+                 ${item.acceptedRank ? `<span class="obs-id-accepted">✓ ${escapeHtml(rankLabelJa(item.acceptedRank))}で確定</span>` : ""}
                </div>
                <div class="obs-id-meta">${escapeHtml(item.actorName)} · ${escapeHtml(item.createdAt)}</div>
                ${item.notes ? `<p class="obs-id-note">${escapeHtml(item.notes)}</p>` : ""}
