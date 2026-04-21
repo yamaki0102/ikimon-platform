@@ -13,10 +13,10 @@ test("field loop page ja renders the reader-facing definition without external p
     assert.equal(response.statusCode, 200);
     const body = response.body;
     assert.match(body, /フィールドループとは/);
-    assert.match(body, /粗い衛星/);
-    assert.match(body, /知の基盤/);
+    assert.match(body, /同じ場所に何度か関わる/);
+    assert.match(body, /また歩く/);
     assert.match(body, /循環/);
-    assert.match(body, /市民の一致/);
+    assert.match(body, /AI はどこで役立つのか/);
     assert.doesNotMatch(body, /iNaturalist/i);
     assert.doesNotMatch(body, /いきものログ/);
     assert.doesNotMatch(body, /eBird/i);
@@ -55,7 +55,8 @@ test("learn index frames the service in plain language", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /このサービスの考え方/);
+    assert.match(response.body, /まずは 3 ページで全体が分かる/);
+    assert.match(response.body, /団体で考えているとき/);
     assert.match(response.body, /更新を見る/);
   } finally {
     await app.close();
