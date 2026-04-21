@@ -564,102 +564,79 @@ function renderFieldLoopBody(basePath: string, lang: SiteLang): string {
 
   const sections: FieldLoopSection[] = [
     {
-      id: "field-loop-in-5-min",
-      label: "はじめに",
-      title: "5 分でわかるフィールドループ",
-      lead: "むずかしい話は後まわし。まずは、ikimon が考える「散歩のループ」を 3 ステップで見てほしい。",
+      id: "data-streams",
+      label: "",
+      title: "ひとつの場所を、いろんな解像度で見たい",
       paragraphs: [
-        "街の近所でも、旅先でも、自然の観察は <strong>観察する → 記録する → 読み返す</strong> の 3 ステップで回ります。この 3 つがぐるりと一周するたび、同じ道が少しずつ違って見えるようになる。これが「フィールドループ」です。",
-        "1 つ目の <strong>観察する</strong> は、普段の散歩のついでで OK。虫でも花でも空でも、「あ、これ」と目に留まったものを 1 枚だけ撮る。専門知識はいりません。",
-        "2 つ目の <strong>記録する</strong> は、その場でノートに残すこと。日時・場所・ひと言メモが自動で付きます。名前が分からなくても、AI がヒントを返してくれる。答えを決めるのは人。",
-        "3 つ目の <strong>読み返す</strong> が、実はいちばん効くところ。同じ場所を翌週・翌月・翌年に歩くと、ノートが「前はいた」「今日はいない」を教えてくれる。これで季節の差分や、場所の変化が見えてきます。",
+        "ikimon が集めたいのは、1 種類のデータではありません。粗い衛星の画像で広く当たりをつけ、車や徒歩で現地へ近づき、散歩の途中の映像と音声、そして市民が残すフィールドノート。解像度の違うデータが、同じ場所に重なっていくといいな、と考えています。",
+        "粗いものは広く、細かいものは深く。両方が揃ってはじめて、場所の状態が見えてくるのではないか、と思っています。",
       ],
-      chips: ["観察する", "記録する", "読み返す"],
-      callout: {
-        title: "AI は助手席。運転するのは人。",
-        body: "AI は候補を示したり、見どころを教えてくれる伴走者です。「これは何？」に正解を断定するのではなく、「次に何を見ればいいか」を返す。最終判断と公開は、いつでも人が決めます。",
-      },
+      chips: ["衛星", "移動（車・徒歩）", "映像・音声", "フィールドノート"],
     },
     {
-      id: "why-this-matters",
-      label: "大事なこと",
-      title: "同じ道が、違って見えてくる",
-      lead: "記録は未来の自分へのメッセージです。1 回の観察だけでは見えないものが、積み重ねると見えてくる。",
+      id: "identification-layers",
+      label: "",
+      title: "同定は、AI と人と専門家で重ねたい",
       paragraphs: [
-        "フィールドループの価値は、1 回では出ません。同じ場所を何度か歩いて、ノートを読み返したときに、「あ、この場所は春はこうで、夏はこうなる」という時間の厚みが生まれます。",
-        "地元の人には、いつもの散歩道を何度も楽しめる新しい視点を。旅で訪れる人には、その土地で 1 回だけ寄る理由と、また来たくなる理由を。ikimon が作りたいのは、この 2 つの入り口です。",
-        "このあと、なぜこの形を選んだのか、どこまでが私たちの約束でどこからがそうでないかを、もう少し詳しく説明していきます。読み飛ばしても、ループ自体は回せます。",
+        "集まったデータに名前をつける工程も、1 層で済ませたくありません。AI が候補を広げ、市民の同定が候補を絞り、分類群を任された専門家が公開前に通す。そんな重ね方を目指しています。",
+        "それぞれ違う強みがあると考えていて、組み合わせることで速さと確度を同時に保てるのではないか、と思っています。AI 単独での公開判定はしないつもりです。",
       ],
+      chips: ["AI が候補を広げる", "市民が候補を絞る", "専門家が確認する"],
     },
     {
-      id: "what-this-field-achieved",
-      label: "背景 1",
-      title: "市民の観察は、自然の見方を変えてきた",
-      lead: "「生きものの記録を、みんなで開く」という動きは、研究や保全の土台を押し広げてきました。",
+      id: "knowledge-base",
+      label: "",
+      title: "集まったデータが、次の観察を賢くするはず",
       paragraphs: [
-        "ここ 20 年で、スマホと共有サービスが普及し、生きものの記録は「詳しい人がノートに書くもの」から「誰でも撮って、みんなで磨くもの」へ変わりました<sup>[1][2][3]</sup>。投稿のハードルが下がったことで、分布・季節性・変化の兆しといった現象が、研究者より先に市民の手で共有されるようになっています。",
-        "その広がりは、研究や保全に役立つだけでなく、「自然を見る力」を社会の基礎技能に戻す効果がありました<sup>[2][3]</sup>。生物の記録は、専門家だけのものから、みんなで使える公共のしくみに近づいています。",
-        "ただし、このしくみは 1 つではありません。広く集めるもの、みんなで名前を絞り込むもの、計画的に測り続けるもの、AI が候補を出すもの。それぞれ得意な問いが違います。",
+        "観察・同定・確認を重ねたデータは、「知の基盤」として少しずつ積み上がっていく、と考えています。どこで何が見られやすいか、季節でどう変わるか、どの場所が手薄か。そういった輪郭が、回すほど明らかになっていくのではないでしょうか。",
+        "知の基盤が育つと、次の観察も賢くなるはずです。衛星で当たりをつける精度が上がり、AI の候補提示が土地に合ったものになり、市民が撮るべき 1 枚の狙いも定まっていく。工程そのものが改善していくイメージです。",
+        "「データが基盤を育て、基盤が工程を改善し、工程がさらに良いデータを生む」。この循環こそが、ikimon の考えるフィールドループです。1 回で完結するものではなく、回せば回すほど効いてくる、と考えています。",
       ],
     },
     {
-      id: "what-gets-harder-at-scale",
-      label: "背景 2",
-      title: "参加が広がると、読み方に注意が必要になる",
-      lead: "量が増えたからといって、なんでも比べられるようになるわけではありません。むしろ、どう読むかが重要になります。",
+      id: "where-you-fit",
+      label: "",
+      title: "あなたの 1 枚が、循環の起点になる",
       paragraphs: [
-        "観察は、場所・季節・種類・人によって均等には集まりません<sup>[6][8]</sup>。よく行かれる公園、見つけやすい種、休日、撮りやすい対象に偏るのは、参加型の記録として自然なことです。",
-        "2026 年の研究では、普段の散歩の延長で観察する人と、目的を持って観察に出る人では、どこで何を記録するかが大きく違うことが示されました<sup>[8]</sup>。データのかたよりは、参加者の数だけでなく、参加のしかたからも生まれます。",
-        "比較のためには「どれだけ歩いたか」の記録（どのくらいの時間・距離・範囲を見たか）が欠かせません。これが欠けていると、「見つかっていない」は「まだ見ていない」なのか「本当にいない」のか区別できないからです<sup>[6][9][12]</sup>。",
+        "「名前が分からない」「写真が甘い」でも大丈夫だと考えています。気になったもの、気になった場所の 1 枚をノートに残すこと、それ自体が循環の入口になるはずです。",
+        "地元の人には、いつもの散歩道が何度も楽しめる場所に。旅で来た人には、今ここに寄る理由と、また来たい理由に。この 2 つの入り口を、ikimon は丁寧に作っていきたいと思っています。",
       ],
       callout: {
         title: "「見つかっていない」と「いない」は別",
-        body: "地図に点がないことは、まずは「まだ十分に探していない」と考えるのが安全。「いない」と言い切るには、どれだけ歩いたかの記録や、決まった手順での観察が必要になります。",
+        body: "地図に点がないことは、まず「まだ十分に探していない」と読むのが安全だ、と言われています。「いない」と言い切るには、どれだけ歩いたか・どんな手順で探したかの記録が必要になる、と考えています。",
       },
     },
     {
-      id: "boundaries-after-ai",
-      label: "背景 3",
-      title: "AI が伴走する時代の、境界のひき方",
-      lead: "AI が入ると記録しやすくなる分、どこまでが候補で、どこからが人の判断かを、はっきり示す必要が出てきました。",
+      id: "promises",
+      label: "",
+      title: "ikimon の約束、約束しないこと",
       paragraphs: [
-        "AI が候補を返してくれると、記録は格段にラクになります。その一方で、速さだけを求めると、学習と信頼が同時に薄くなるという研究も出ています<sup>[7][10][11]</sup>。",
-        "人と AI が別の視点を保ったまま対話するような設計では、双方の精度と学習がむしろ伸びることも示されました<sup>[11]</sup>。ikimon は、この方向を選んでいます。",
-        "AI は候補を出し、理解を助ける役。人の同定が集まって知識が往復する場が community、公開前に任された人が確認するのが authority、そのあと公開前提で扱うのが public の順番。段差を混ぜないことが、AI 時代の誠実さだと考えています。",
-      ],
-    },
-    {
-      id: "the-job-ikimon-takes",
-      label: "ikimon の選択",
-      title: "ikimon が引き受ける仕事",
-      lead: "最大の広域データベースを目指すのではなく、場所と再訪、そして責任のラインを、1 つの体験にまとめる。",
-      paragraphs: [
-        "ikimon が深く作りたいのは 2 つ。地元の人が同じ場所に戻ってノートを積み上げる体験と、旅で来た人に「ここに寄る理由」と「また来たい理由」を返す体験です。",
-        "そのために、その場の 1 枚と、比較したい調査のための観察を、きちんと分けて扱います。比較したいときには、どれだけ歩いたか・どういう手順で見たか・どこまでを見たかを残す。その場の 1 枚は、消費で終わらせず、次に来る理由へつなげる。",
-        "場所が主語になると、記録は点ではなく、その場所に戻るための文脈になります<sup>[4][5]</sup>。世界一広く集めることより、同じ場所をもう一度見たくなる構造を重くしたい。これが ikimon の選択です。",
-      ],
-      chips: ["場所を主語に", "再訪を設計に", "手順は必要な時だけ", "任された人の確認を見える形で"],
-    },
-    {
-      id: "promises-and-non-promises",
-      label: "約束",
-      title: "ikimon の約束と、まだ約束しないこと",
-      lead: "できることより先に、言いすぎない線を見せます。これがページの本当の目的。",
-      paragraphs: [
-        "約束するのは、観察をなくさず、あとから比較できる形で残すこと。AI をヒント役にとどめること。任された人の確認が見える形になっていること。「不在」や「増減」を条件がそろわないまま言わないこと。",
-        "まだ約束しないのは、AI 単独の最終判定、条件不足のデータから「減った」「いない」と言い切ること、手順のない観察から不在を主張すること、どんな記録も自動で研究品質になるという期待。",
-        "「なんでもできる生物サービス」ではなく、「この場所を、また見に来る理由を作る」に絞ります。",
+        "「なんでもできる生物サービス」を目指しているわけではありません。「この場所を、また見に来る理由を作り、循環を回す」ことに絞っています。",
       ],
       cards: [
         {
           title: "約束すること",
-          body: "場所の記憶を残すこと、旅先の 1 枚を再訪の理由に変えること、比較したい観察では手順を残すこと、任された人の確認を見える形にすること。",
+          body: "観察をなくさず、あとから比較できる形で残す。AI はヒント役にとどめる。人と専門家の確認を見える形にする。条件が揃わない「不在」や「増減」は言わない。",
         },
         {
-          title: "まだ約束しないこと",
-          body: "AI 単独で最終判定すること、条件不足で不在や増減を言い切ること、すべての記録を自動で研究用途に流すこと、なんでもできる万能な生物プラットフォームになること。",
+          title: "約束しないこと",
+          body: "AI 単独の最終判定。条件不足のデータからの「減った」「いない」の断言。手順のない観察からの不在主張。どんな記録も自動で研究品質になるという期待。",
         },
       ],
+    },
+  ];
+  const backgroundSections: Array<{ title: string; body: string }> = [
+    {
+      title: "市民の観察が、自然の見方を変えてきた",
+      body: "ここ 20 年でスマホと共有サービスが普及し、生物の記録は「詳しい人がノートに書くもの」から「誰でも撮って、みんなで磨くもの」へ変わりました<sup>[1][2][3]</sup>。分布・季節性・変化の兆しといった現象が、研究者より先に市民の手で共有されるようになっています。",
+    },
+    {
+      title: "量が増えるほど、読み方に注意が要る",
+      body: "観察は場所・季節・種類・人によって均等には集まりません<sup>[6][8]</sup>。2026 年の研究では、普段の散歩の延長で観察する人と、目的を持って観察に出る人では、どこで何を記録するかが大きく違うと示されました<sup>[8]</sup>。「どれだけ歩いたか」の記録がないと、「見つかっていない」が「まだ見ていない」なのか「本当にいない」のか区別できません<sup>[6][9][12]</sup>。",
+    },
+    {
+      title: "AI が入ると、境界のひき方が大事になる",
+      body: "AI が候補を返してくれると記録は格段にラクになる一方、速さだけを求めると学習と信頼が薄くなるという研究もあります<sup>[7][10][11]</sup>。人と AI が別の視点を保ったまま対話する設計では、双方の精度と学習が伸びることも示されました<sup>[11]</sup>。ikimon はこの方向を選んでいます。",
     },
   ];
   const references: FieldLoopReference[] = [
@@ -679,43 +656,32 @@ function renderFieldLoopBody(basePath: string, lang: SiteLang): string {
 
   return `${FL_CSS}
   <div class="fl">
-    <section class="fl-sec" id="outline">
-      <div class="fl-label">このページについて</div>
-      <h2 class="fl-h2">初めての人は、最初の 2 節だけでも OK</h2>
-      <p class="fl-lead">上半分は「散歩のループを 3 ステップで」。下半分は「なぜこの形を選んだか」の深掘りです。読み飛ばしても、ループ自体は回せます。</p>
-      <div class="fl-trust">
-        <strong>このページの前提</strong>
-        他のサービスや方式を批判するためのページではありません。広く集める仕事と、同じ場所に戻ってノートを積み上げる仕事は、敵対ではなく分業だと考えています。
-      </div>
-      ${renderFieldLoopOutline(sections)}
-    </section>
     ${sections
       .map(
         (section) => `<section class="fl-sec" id="${escapeHtml(section.id)}">
-          <div class="fl-label">${escapeHtml(section.label)}</div>
           <h2 class="fl-h2">${escapeHtml(section.title)}</h2>
           ${section.lead ? `<p class="fl-lead">${section.lead}</p>` : ""}
           ${section.paragraphs.map((paragraph) => `<p class="fl-body">${paragraph}</p>`).join("")}
           ${section.callout ? `<div class="fl-callout"><strong>${escapeHtml(section.callout.title)}</strong><p>${escapeHtml(section.callout.body)}</p></div>` : ""}
-          ${section.debates ? renderFieldLoopDebates(section.debates) : ""}
           ${section.chips ? `<div class="fl-chips">${section.chips.map((chip) => `<span class="fl-chip">${escapeHtml(chip)}</span>`).join("")}</div>` : ""}
           ${section.cards ? renderFieldLoopCards(section.cards) : ""}
         </section>`,
       )
       .join("")}
-    <details class="fl-sec"><summary class="fl-label" style="cursor:pointer;">参考文献（クリックで展開）</summary>
+    <details class="fl-sec" style="margin-top:16px;"><summary class="fl-label" style="cursor:pointer;">このフィールドループを支えている研究の流れ</summary>
+      <p class="fl-body" style="margin-top:16px;">フィールドループという考え方は、ikimon が一から思いついたものではありません。この領域で積み上がってきた研究の流れを、私たちなりに読んで整理したものです。以下はその背景のメモです。</p>
+      ${backgroundSections.map((bg) => `<div style="margin-top:20px;"><strong style="font-size:15px;">${escapeHtml(bg.title)}</strong><p class="fl-body" style="margin-top:8px;">${bg.body}</p></div>`).join("")}
+    </details>
+    <details class="fl-sec"><summary class="fl-label" style="cursor:pointer;">参考文献</summary>
       ${renderFieldLoopReferences("このページで参照している主要文献", references)}
     </details>
     <section class="fl-sec">
-      <div class="fl-label">次に読む</div>
-      <h2 class="fl-h2">制度と方法論も続けて見る</h2>
-      <p class="fl-body">このページは立ち位置の説明です。同定の信頼のしくみは <a href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">信頼のしくみ</a>、データの扱いと約束の範囲は <a href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">方法論</a> にまとめています。用語は <a href="${escapeHtml(withBasePath(basePath, "/learn/glossary"))}">用語集</a> で確認できます。</p>
+      <h2 class="fl-h2">次に読む</h2>
+      <p class="fl-body">同定の信頼のしくみは <a href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">信頼のしくみ</a>、データの扱いと約束の範囲は <a href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">方法論</a> にまとめています。用語は <a href="${escapeHtml(withBasePath(basePath, "/learn/glossary"))}">用語集</a> で確認できます。</p>
       <div class="fl-cta-actions">
         <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">まずは観察を残す</a>
-        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">信頼のしくみを見る</a>
         <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/glossary"))}">用語集</a>
       </div>
-      <p class="fl-premise">私たちが引く境界 — AI はヒント役 / 人の確認が入ってから公開 / 「未観測」と「不在」は分ける / 増減は条件がそろった時だけ / 場所と再訪に重心を置く</p>
     </section>
   </div>`;
 }
@@ -1004,10 +970,10 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
     const lang = detectLangFromUrl(requestUrl(request));
     const pageTitle = lang === "ja" ? "フィールドループとは | ikimon" : "Why ikimon takes this shape | ikimon";
     const heroHeading = lang === "ja"
-      ? "いつもの散歩が、少しずつ違って見えてくる。"
+      ? "フィールドループとは"
       : "Why ikimon takes this shape.";
     const heroLead = lang === "ja"
-      ? "観察して、記録して、読み返す。この 3 つが一周するたび、同じ道が違って見えてくる。ikimon の考える「フィールドループ」を、5 分で理解できる形にまとめました。"
+      ? "衛星から見る、歩いて確かめる、映像と音で拾う、みんなで同定する、専門家が確認する。集まったデータが「知の基盤」を厚くし、その基盤が次の観察を賢くしていく。こんな循環を ikimon ではフィールドループと呼んでいます。"
       : "ikimon is not trying to be every kind of biodiversity platform at once. This page explains the job it chooses and the boundaries it keeps visible.";
     const body = renderFieldLoopBody(basePath, lang);
     reply.type("text/html; charset=utf-8");
@@ -1021,8 +987,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       heroLead,
       body,
       "Learn",
-      `<div class="note">${escapeHtml(lang === "ja" ? "初めての人は、最初の 2 節だけでも十分です。" : "This page is about ikimon's responsibility boundary, not opposition.")}</div><a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
-      lang === "ja" ? "いつもの散歩が、<br>少しずつ違って見えてくる。" : "Why ikimon takes<br>this shape.",
+      `<a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
+      lang === "ja" ? "フィールドループとは" : "Why ikimon takes<br>this shape.",
     );
   });
 
