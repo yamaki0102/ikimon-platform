@@ -6,6 +6,7 @@ import {
   getOfficialNoticeRenderCopy,
   OFFICIAL_NOTICE_CARD_STYLES,
 } from "./officialNoticeCard.js";
+import { MAP_EXPLORER_STATE_RUNTIME } from "./mapExplorerState.js";
 import { escapeHtml } from "./siteShell.js";
 
 /**
@@ -1033,6 +1034,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     insightHeading: props.lang === "ja" ? "静かな前進" : props.lang === "es" ? "Progreso tranquilo" : props.lang === "pt-BR" ? "Progresso calmo" : "Quiet progress",
     insightSubhead: props.lang === "ja" ? "この viewport の厚みを一目で見る。" : props.lang === "es" ? "Cómo de densa está esta ventana." : props.lang === "pt-BR" ? "Quanto esta janela já acumulou." : "How this viewport is stacking up.",
   })};
+  ${MAP_EXPLORER_STATE_RUNTIME}
   var SEARCH_LANG = ${JSON.stringify(props.lang)};
   var YEAR_VALUES = [];
   try {
@@ -1113,6 +1115,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     recordAbort: null,
     frontierAbort: null,
     effortAbort: null,
+    _cellsRequestSeq: 0,
+    _cellsAppliedSeq: 0,
+    _recordsRequestSeq: 0,
+    _recordsAppliedSeq: 0,
     _restoredCenter: null,
     _restoredZoom: null,
     _restoredCellId: null,
@@ -2018,18 +2024,31 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (state.season) qs += '&season=' + encodeURIComponent(state.season);
     if (state.lastAbort) { try { state.lastAbort.abort(); } catch (_) {} }
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var requestSeq = state._cellsRequestSeq + 1;
+    state._cellsRequestSeq = requestSeq;
     state.lastAbort = controller;
     fetch(apiCells + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('cells ' + r.status)); })
       .then(function (coll) {
+        if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._cellsRequestSeq)) return;
+        state._cellsAppliedSeq = requestSeq;
         state.features = (coll && coll.features) || [];
         state.lastCellStats = (coll && coll.stats) || null;
         state.lastSearchedBbox = bbox;
         state.pendingViewportSearch = false;
         ensureCellSource(state.map, state.features);
-        if (state.selectedCellId && !findCellFeatureById(state.selectedCellId)) {
+        var availableCellIds = state.features.map(function (feature) {
+          return feature && feature.properties ? feature.properties.cellId || null : null;
+        }).filter(function (cellId) { return !!cellId; });
+        var selectionOutcome = MapExplorerStateHelpers.reconcileSelectedCellAfterCellsResponse({
+          selectedCellId: state.selectedCellId,
+          availableCellIds: availableCellIds,
+          responseSeq: requestSeq,
+          latestRequestSeq: state._cellsRequestSeq,
+        });
+        if (selectionOutcome.clearSelectedPoint) {
           state.selectedOccurrenceId = null;
-          state.selectedCellId = null;
+          state.selectedCellId = selectionOutcome.selectedCellId;
           if (state.selectedPoint && state.selectedPoint.kind !== 'place') state.selectedPoint = null;
           closeBottomSheet();
         }
@@ -2074,10 +2093,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     setStatus(COPY.loading);
     if (state.recordAbort) { try { state.recordAbort.abort(); } catch (_) {} }
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var requestSeq = state._recordsRequestSeq + 1;
+    state._recordsRequestSeq = requestSeq;
     state.recordAbort = controller;
     fetch(apiObservations + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('records ' + r.status)); })
       .then(function (list) {
+        if (!MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) return;
+        state._recordsAppliedSeq = requestSeq;
         state.records = (list && list.items) || [];
         state.lastStats = (list && list.stats) || null;
         if (state.selectedOccurrenceId) {
@@ -2153,32 +2176,44 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   // Keeps map state shareable as a plain URL while preserving unrelated
   // params like lang.
   var STATE_STORAGE_KEY = 'ikimon-map-v2';
-  var MAP_STATE_KEYS = ['tab', 'role', 'actor', 'mp', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces', 'cell'];
+  var MAP_STATE_KEYS = MapExplorerStateHelpers.MAP_STATE_KEYS.slice();
 
-  function serializeMapState() {
-    var parts = [];
-    if (state.tab && state.tab !== 'markers') parts.push('tab=' + encodeURIComponent(state.tab));
-    if (state.role && state.role !== 'mixed') parts.push('role=' + encodeURIComponent(state.role));
-    if (state.actorClass && state.actorClass !== 'all') parts.push('actor=' + encodeURIComponent(state.actorClass));
-    if (state.markerProfile && state.markerProfile !== 'all_research_artifacts') parts.push('mp=' + encodeURIComponent(state.markerProfile));
-    if (state.taxonGroup) parts.push('taxon=' + encodeURIComponent(state.taxonGroup));
-    if (state.year) parts.push('year=' + encodeURIComponent(state.year));
-    if (state.season) parts.push('season=' + encodeURIComponent(state.season));
-    if (state.basemap && state.basemap !== 'standard') parts.push('bm=' + encodeURIComponent(state.basemap));
-    if (state.tracesVisible) parts.push('traces=1');
-    if (state.selectedCellId) parts.push('cell=' + encodeURIComponent(state.selectedCellId));
-    var ovParts = [];
+  function currentOverlayShareState() {
+    var overlays = [];
     overlayCatalog.forEach(function (o) {
       var s = overlayState[o.id];
-      if (s && s.enabled) ovParts.push(o.id + ':' + parseFloat(s.opacity).toFixed(2));
+      overlays.push({
+        id: o.id,
+        enabled: !!(s && s.enabled),
+        opacity: s && typeof s.opacity === 'number' ? s.opacity : null,
+      });
     });
-    if (ovParts.length) parts.push('ov=' + encodeURIComponent(ovParts.join(',')));
+    return overlays;
+  }
+
+  function serializeMapState() {
+    var center = null;
+    var zoom = null;
     if (state.map) {
       var c = state.map.getCenter();
-      var z = state.map.getZoom();
-      parts.push('lng=' + c.lng.toFixed(4) + '&lat=' + c.lat.toFixed(4) + '&z=' + z.toFixed(1));
+      center = { lng: c.lng, lat: c.lat };
+      zoom = state.map.getZoom();
     }
-    return parts.join('&');
+    return MapExplorerStateHelpers.serializeSharedMapState({
+      tab: state.tab,
+      role: state.role,
+      actorClass: state.actorClass,
+      markerProfile: state.markerProfile,
+      taxonGroup: state.taxonGroup,
+      year: state.year,
+      season: state.season,
+      basemap: state.basemap,
+      tracesVisible: state.tracesVisible,
+      selectedCellId: state.selectedCellId,
+      overlays: currentOverlayShareState(),
+      center: center,
+      zoom: zoom,
+    });
   }
 
   function saveMapState() {

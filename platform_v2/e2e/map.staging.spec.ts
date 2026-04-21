@@ -211,6 +211,8 @@ test("map share state survives reload", async ({ browser }) => {
   await expect.poll(() => new URL(page.url()).searchParams.get("cell")).not.toBeNull();
   const selectedCell = await page.evaluate(() => new URL(window.location.href).searchParams.get("cell"));
   expect(selectedCell).not.toBeNull();
+  await page.waitForTimeout(900);
+  await expect.poll(() => new URL(page.url()).searchParams.get("cell")).toBe(selectedCell);
   await page.locator("#me-share-state").click();
 
   await expect.poll(() => new URL(page.url()).searchParams.get("taxon")).toBe("bird");
