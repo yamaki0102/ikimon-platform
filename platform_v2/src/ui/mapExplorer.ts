@@ -1455,7 +1455,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
               '<span class="me-map-card-copy">' + escapeHtml(context.lat.toFixed(4) + ', ' + context.lng.toFixed(4)) + '</span>' +
             '</div>' +
           '</div>' +
-          '<div id="me-selected-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+          '<div id="me-selected-brief-slot" class="me-site-brief-slot is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
           renderPlaceActions() +
           '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
         '</div>';
@@ -1478,7 +1478,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
               '<span class="me-map-card-copy">' + escapeHtml(countLabel) + (latest ? ' · ' + escapeHtml(latest) : '') + '</span>' +
             '</div>' +
           '</div>' +
-          '<div id="me-selected-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+          '<div id="me-selected-brief-slot" class="me-site-brief-slot is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
           renderPlaceActions() +
           '<div id="me-selected-ambient-slot" class="me-selected-ambient">' + renderSheetAmbient(context) + '</div>' +
         '</div>';
@@ -1602,10 +1602,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       .then(function (brief) {
         if (seq !== siteBriefSeq) return; // stale
         if (!target) return;
+        target.classList.remove('is-loading');
         target.innerHTML = renderSiteBriefCard(brief);
       })
       .catch(function () {
         if (seq !== siteBriefSeq || !target) return;
+        target.classList.remove('is-loading');
         target.innerHTML = '<div class="me-site-brief me-site-brief-error">' + escapeHtml(COPY.siteBriefError) + '</div>';
       });
   }
@@ -1773,7 +1775,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         '<span>' + escapeHtml(String(p.count || 0) + ' ' + COPY.resultCountLabel) + '</span>' +
         (p.latestObservedAt ? '<span>' + escapeHtml(String(p.latestObservedAt).slice(0, 10)) + '</span>' : '') +
       '</div>' +
-      '<div id="me-site-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+      '<div id="me-site-brief-slot" class="me-site-brief-slot is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
       renderPlaceActions() +
       '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: center.lat, lng: center.lng, kind: 'cell', cellFeature: feature }) + '</div>';
     sheetEl.setAttribute('aria-hidden', 'false');
@@ -1800,7 +1802,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     highlightSelectedCell();
     var seq = ++siteBriefSeq;
     sheetInnerEl.innerHTML =
-      '<div id="me-site-brief-slot" class="me-site-brief is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
+      '<div id="me-site-brief-slot" class="me-site-brief-slot is-loading">' + escapeHtml(COPY.siteBriefLoading) + '</div>' +
       renderPlaceActions() +
       '<div id="me-sheet-ambient-slot">' + renderSheetAmbient({ lat: lat, lng: lng, kind: 'place' }) + '</div>';
     sheetEl.setAttribute('aria-hidden', 'false');
@@ -3345,6 +3347,8 @@ export const MAP_EXPLORER_STYLES = `
   .me-sheet-card span { font-size: 11px; color: #64748b; line-height: 1.45; }
 
   .me-site-brief { margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(14,165,233,.08)); border: 1px solid rgba(16,185,129,.22); }
+  .me-site-brief-slot { margin-bottom: 14px; }
+  .me-site-brief-slot.is-loading { padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(14,165,233,.08)); border: 1px solid rgba(16,185,129,.22); color: #64748b; font-size: 12px; font-weight: 600; }
   .me-site-brief.is-loading { color: #64748b; font-size: 12px; font-weight: 600; }
   .me-site-brief-error { color: #b91c1c; font-size: 12px; font-weight: 600; background: rgba(254,226,226,.5); border-color: rgba(220,38,38,.2); }
   .me-site-brief-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }

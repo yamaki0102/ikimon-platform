@@ -25,6 +25,8 @@
     "import:tracks": "tsx src/scripts/importTrackSessions.ts",
     "verify:legacy": "tsx src/scripts/verifyLegacyParity.ts",
     "verify:production-shadow": "tsx src/scripts/verifyProductionShadowParity.ts",
+    "backfill:authority-rank": "tsx src/scripts/backfillAuthorityRank.ts",
+    "report:replacement-readiness": "tsx src/scripts/replacementReadinessReport.ts",
     "materialize:legacy-verify-snapshot": "tsx src/scripts/materializeLegacyVerifySnapshot.ts",
     "report:legacy-drift": "tsx src/scripts/reportLegacyDrift.ts",
     "smoke:v2-lane": "tsx src/scripts/smokeV2Lane.ts",
