@@ -1,5 +1,6 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
+import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
 import type { LandingSnapshot } from "../services/readModels.js";
 import { renderObservationCard } from "./observationCard.js";
 import {
@@ -35,26 +36,26 @@ type MainCopy = {
 
 const mainCopy: Record<SiteLang, MainCopy> = {
   ja: {
-    eyebrow: "あなたの 1 冊",
-    heading: "フィールドノート",
-    lead: "歩いて見つけた生きものと場所、他の人の観察につけた同定も、1 冊のノートに積み上げる。読み返すたび、同じ道が違って見えてくる。",
-    myNotebookLabel: "最近のページ（観察 + 同定）",
-    myNotebookEmpty: "まだノートは真っ白。観察か、他の人の観察への同定を書き込めば、ここから積み上がっていく。",
+    eyebrow: "あなたのノート",
+    heading: "見つけたことを、あとで見返せる",
+    lead: "歩いて見つけたことを 1 冊のノートに残します。読み返すたび、同じ道が少し違って見えてきます。",
+    myNotebookLabel: "最近の記録",
+    myNotebookEmpty: "まだ何も書かれていません。最初の 1 件を残すと、ここから積み上がります。",
     myPlacesLabel: "よく歩く場所",
     nearbyLabel: "近くで見つかっているもの",
-    nearbyEmpty: "近くの観察はまだない。あなたが 1 枚書けば、この場所のノートが育ち始める。",
-    ctaLoggedIn: "続きを書く",
-    ctaGuest: "最初の 1 枚を書く",
-    ambientLabel: "同じ場所を歩いている人たち",
-    ambientEmpty: "まだ誰もノートを開いていない。あなたが 1 件目になれる。",
-    seeMore: "ノート全体を開く",
-    hypothesisLabel: "今日の仮説",
+    nearbyEmpty: "近くの記録はまだありません。あなたの 1 件が、この場所の最初のページになります。",
+    ctaLoggedIn: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
+    ctaGuest: JA_PUBLIC_SHARED_COPY.cta.record,
+    ambientLabel: "同じ場所を歩いている人",
+    ambientEmpty: "まだ誰も書いていません。あなたが 1 件目になれます。",
+    seeMore: JA_PUBLIC_SHARED_COPY.cta.openNotebook,
+    hypothesisLabel: "この場所で見てみる",
     hypothesisLoading: "現在地を読み解き中…",
     hypothesisChecksLabel: "現地で確かめる",
     hypothesisCapturesLabel: "撮るなら",
     hypothesisReasonsLabel: "根拠",
-    walkLabel: "今日のさんぽ",
-    walkNoActivity: "まだ今日のさんぽ記録がありません",
+    walkLabel: "今日の記録",
+    walkNoActivity: "まだ今日の記録がありません",
     walkDistUnit: "m",
   },
   en: {

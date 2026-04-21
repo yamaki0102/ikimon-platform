@@ -30,7 +30,7 @@ test("field loop page ja renders the reader-facing definition without external p
   }
 });
 
-test("about page sends readers to the field-loop reasoning page", async () => {
+test("about page sends readers to the learn hub", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -39,14 +39,14 @@ test("about page sends readers to the field-loop reasoning page", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /この形の理由を読む/);
-    assert.match(response.body, /\/learn\/field-loop/);
+    assert.match(response.body, /使い方と考え方を見る/);
+    assert.match(response.body, /\/learn/);
   } finally {
     await app.close();
   }
 });
 
-test("learn index frames field loop as the long-form positioning page", async () => {
+test("learn index frames the service in plain language", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -55,8 +55,8 @@ test("learn index frames field loop as the long-form positioning page", async ()
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /Field Loop \/ 変遷と立ち位置/);
-    assert.match(response.body, /長文でまとめた思想ページ/);
+    assert.match(response.body, /このサービスの考え方/);
+    assert.match(response.body, /更新を見る/);
   } finally {
     await app.close();
   }
