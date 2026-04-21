@@ -37,6 +37,7 @@ test("general and group-help pages use the updated ja entry copy", async () => {
     assert.equal(about.statusCode, 200);
     assert.match(about.body, /いつもの散歩が、また来たい理由に変わる/);
     assert.match(about.body, /FAQを見る/);
+    assert.match(about.body, /読み返せる記録/);
 
     const business = await app.inject({ method: "GET", url: "/for-business?lang=ja" });
     assert.equal(business.statusCode, 200);
@@ -51,6 +52,19 @@ test("general and group-help pages use the updated ja entry copy", async () => {
     assert.equal(businessStatus.statusCode, 200);
     assert.doesNotMatch(businessStatus.body, /readiness/i);
     assert.doesNotMatch(businessStatus.body, /rollback/i);
+  } finally {
+    await app.close();
+  }
+});
+
+test("faq page answers beginner and group setup questions in plain language", async () => {
+  const app = buildApp();
+  try {
+    const faq = await app.inject({ method: "GET", url: "/faq?lang=ja" });
+    assert.equal(faq.statusCode, 200);
+    assert.match(faq.body, /1 件だけでも意味がありますか？/);
+    assert.match(faq.body, /旅先の記録にも向いていますか？/);
+    assert.match(faq.body, /まずは「どこで始めたいか」/);
   } finally {
     await app.close();
   }
