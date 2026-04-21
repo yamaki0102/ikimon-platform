@@ -145,8 +145,8 @@ for (const profile of MAP_VIEWPORTS) {
         });
         await expectMobileBottomSheet(page);
         await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(0);
-        await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドガイド");
-        await expect(page.locator("#me-bottom-inner")).not.toContainText("フィールドスキャン");
+        await expect(page.locator("#me-bottom-inner")).not.toContainText("その場で調べる");
+        await expect(page.locator("#me-bottom-inner")).not.toContainText("次の場所を探す");
       } else {
         await expectMobileEmptyState(page);
       }
@@ -156,8 +156,8 @@ for (const profile of MAP_VIEWPORTS) {
       await firstRow.click();
       await expectDesktopSelectionOverlay(page);
       await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(0);
-      await expect(page.locator("#me-map-selection-card")).not.toContainText("フィールドガイド");
-      await expect(page.locator("#me-map-selection-card")).not.toContainText("フィールドスキャン");
+      await expect(page.locator("#me-map-selection-card")).not.toContainText("その場で調べる");
+      await expect(page.locator("#me-map-selection-card")).not.toContainText("次の場所を探す");
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
     }
 
@@ -165,11 +165,12 @@ for (const profile of MAP_VIEWPORTS) {
     if (blankPlaceOpened) {
       if (profile.isMobile) {
         await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(1);
-        await expect(page.locator("#me-bottom-inner")).toContainText("フィールドガイド");
-        await expect(page.locator("#me-bottom-inner")).toContainText("スキャン");
+        await expect(page.locator("#me-bottom-inner")).toContainText("その場で調べる");
+        await expect(page.locator("#me-bottom-inner")).toContainText("次の場所を探す");
       } else {
         await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(1);
-        await expect(page.locator("#me-map-selection-card")).toContainText("フィールドガイド");
+        await expect(page.locator("#me-map-selection-card")).toContainText("その場で調べる");
+        await expect(page.locator("#me-map-selection-card")).toContainText("次の場所を探す");
       }
     }
 
