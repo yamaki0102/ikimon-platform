@@ -269,7 +269,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           source_kind, source_payload, created_at, updated_at
        ) values (
           $1, $2, $3, $4, $5, 'standard', $6, $7, $8, $9, $10, $11,
-          $12, $13, $14, $15, $16, 'v2_observation', $17::jsonb, $18, now()
+          $12, $13, $14, $15, $16, $17, 'v2_observation', $18::jsonb, $19, now()
        )
        on conflict (visit_id) do update set
           legacy_observation_id = excluded.legacy_observation_id,
