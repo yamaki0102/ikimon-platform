@@ -30,7 +30,7 @@ test("field loop page ja renders the reader-facing definition without external p
   }
 });
 
-test("about page sends readers to the learn hub", async () => {
+test("about page explains the service in reader-facing terms and sends readers to the learn hub", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -39,6 +39,8 @@ test("about page sends readers to the learn hub", async () => {
     });
 
     assert.equal(response.statusCode, 200);
+    assert.match(response.body, /だれのためのサービスか/);
+    assert.match(response.body, /なぜ再訪が価値になるか/);
     assert.match(response.body, /使い方と考え方を見る/);
     assert.match(response.body, /\/learn/);
   } finally {
@@ -55,7 +57,9 @@ test("learn index frames the service in plain language", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /まずは 3 ページで全体が分かる/);
+    assert.match(response.body, /はじめてならこの順番/);
+    assert.match(response.body, /名前が分からないときの基本/);
+    assert.match(response.body, /迷ったら、まず次の 3 ページで全体をつかんでください/);
     assert.match(response.body, /団体で考えているとき/);
     assert.match(response.body, /更新を見る/);
   } finally {
