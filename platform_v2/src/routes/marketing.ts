@@ -1150,6 +1150,27 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       </section>
 
       <section class="fl-sec">
+        <div class="fl-label">粒度ごとの境界（原則と例外）</div>
+        <h2 class="fl-h2">市民の一致で「正式に残せる」粒度は、分類群ごとに違う。</h2>
+        <p class="fl-body">原則は属（genus）まで。属止めなら、複数の人の一致で accepted_rank として残せます。ただし、分類群ごとに「ちょうどいい粗さ」は違うので、例外を置いています。</p>
+        <div class="fl-tiers" style="margin-top:16px;">
+          <div class="fl-tier fl-tier-1">
+            <div><div class="fl-tier-name">原則（大半の分類群）</div><div class="fl-tier-meaning">属まで</div></div>
+            <div><div class="fl-tier-col-label">例</div><div class="fl-tier-col-body">多くの植物、コウチュウ目、ハナバチ類など</div></div>
+          </div>
+          <div class="fl-tier fl-tier-3">
+            <div><div class="fl-tier-name">例外（種まで可）</div><div class="fl-tier-meaning">鳥類・哺乳類・両爬</div></div>
+            <div><div class="fl-tier-col-label">理由</div><div class="fl-tier-col-body">国内種数が限定的で、形態識別が比較的安定しているため。ただし研究・公開用途への昇格には、引き続き任された人の確認が必要。</div></div>
+          </div>
+          <div class="fl-tier fl-tier-1">
+            <div><div class="fl-tier-name">例外（属より上で止める）</div><div class="fl-tier-meaning">菌類・多くの昆虫類</div></div>
+            <div><div class="fl-tier-col-label">例</div><div class="fl-tier-col-body">菌類は科まで、昆虫類の多くは亜科まで</div></div>
+          </div>
+        </div>
+        <p class="fl-body" style="margin-top:16px;">例外の初期値は暫定です。実データと専門家のフィードバックで調整します。例外の追加には、同じ分類群を担当する人 2 名以上の賛同と、運営の承認が要ります。</p>
+      </section>
+
+      <section class="fl-sec">
         <div class="fl-label">運営と監査</div>
         <h2 class="fl-h2">grant / revoke / update は監査される。</h2>
         <p class="fl-body">authority は裏で audit を残します。誰が誰に、どの scope を、どの根拠で付けたかを運営が追えるようにし、閉じたブラックボックスにしません。</p>
