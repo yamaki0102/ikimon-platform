@@ -339,6 +339,145 @@ function renderFieldLoopReferences(title: string, refs: FieldLoopReference[]): s
   </section>`;
 }
 
+type GlossaryEntry = { term: string; aka?: string; plain: string; context?: string };
+
+const GLOSSARY_JA: GlossaryEntry[] = [
+  {
+    term: "フィールドループ",
+    plain: "「観察する → 記録する → 読み返す」の 3 ステップをぐるりと一周する、ikimon が勧める散歩と記録のサイクル。",
+    context: "同じ場所で何周か回すと、季節の差分や場所の変化が見えてきます。",
+  },
+  {
+    term: "場所の記憶",
+    aka: "place memory",
+    plain: "同じ場所に何度か通うことで、その場所に積み上がっていく観察ノートの厚み。",
+    context: "1 回の観察では読めない、時間をかけて育つ文脈のこと。",
+  },
+  {
+    term: "なぜここか / なぜ今か",
+    aka: "why here / why now",
+    plain: "この場所に寄る理由、今寄る意味。地図の偏りと季節の差分から返される手がかり。",
+    context: "フィールドスキャンで、訪問先を選ぶときに使う入口です。",
+  },
+  {
+    term: "また来る理由",
+    aka: "next revisit hook",
+    plain: "1 回の訪問を、次にまた来るための理由につなげる仕掛け。",
+    context: "旅先の 1 枚を、その場限りの消費で終わらせないための設計です。",
+  },
+  {
+    term: "1 回の訪問で残せること",
+    aka: "one-visit contribution",
+    plain: "旅行などで一度だけ寄るときに、その場所に残していける観察や手がかり。",
+  },
+  {
+    term: "AI ヒント / AI 伴走",
+    aka: "AI copilot",
+    plain: "候補を出したり、次に何を見ればいいかを返す AI の役割。最終判断は人がする前提。",
+    context: "ikimon は AI を「助手席」として扱います。運転するのは人です。",
+  },
+  {
+    term: "人の確認",
+    aka: "review / authority-backed review",
+    plain: "観察が公開情報として使われる前に、経験のある人や任された人が通す確認プロセス。",
+    context: "AI だけで公開判定しないのは、最終的な責任を人に置くためです。",
+  },
+  {
+    term: "任された人",
+    aka: "authority",
+    plain: "分類群や地域ごとに、確認を任されている経験者や専門家。",
+    context: "AI と一般の同定との間にある中間レイヤー。公開前の責任を引き受けます。",
+  },
+  {
+    term: "公開前提の記録",
+    aka: "public claim",
+    plain: "研究や公的な場で使える品質として、公開を前提に扱う記録のレーン。",
+    context: "AI 候補のままや、人の確認が済む前の記録は、このレーンには載せません。",
+  },
+  {
+    term: "未観測",
+    aka: "blank",
+    plain: "「まだ十分に探していない」状態。地図に点がないことと同じ意味。",
+    context: "「不在」と混ぜないことが、ikimon の基本姿勢です。",
+  },
+  {
+    term: "不在",
+    aka: "absence",
+    plain: "「探したけれど、そこにはいなかった」状態。主張するにはどれだけ歩いたかの記録が必要。",
+    context: "未観測との区別は、データを読むときの最重要ポイントです。",
+  },
+  {
+    term: "どれだけ歩いたか",
+    aka: "sampling effort",
+    plain: "観察に費やした時間・距離・範囲の記録。比較や不在主張をするときの前提になります。",
+  },
+  {
+    term: "手順",
+    aka: "protocol",
+    plain: "比較したい観察で、同じ条件で記録するために決めておく段取り。",
+    context: "ふだんの散歩では不要。本格的に比較したい観察のときだけ使います。",
+  },
+  {
+    term: "その場の 1 枚",
+    aka: "quick capture",
+    plain: "計画せず、散歩の途中で「あ、これ」と撮る 1 枚。ikimon の基本の入口。",
+  },
+  {
+    term: "場所を見守る取り組み",
+    aka: "place stewardship",
+    plain: "学校・自治体・企業などが、地域の場所を継続的に観察し、記録を積み上げていく取り組み。",
+    context: "ikimon の法人向けは、ここを支える入口として設計しています。",
+  },
+];
+
+const GLOSSARY_EN: GlossaryEntry[] = [
+  { term: "Field Loop", plain: "Observe → Record → Revisit. One cycle of ikimon's walking and recording loop." },
+  { term: "place memory", plain: "The thickness of context that builds up when the same place is walked and recorded again and again." },
+  { term: "why here / why now", plain: "Reasons to stop here and reasons to stop now, returned from map bias and seasonal gaps." },
+  { term: "next revisit hook", plain: "A hook that turns one visit into a reason to come back." },
+  { term: "AI copilot", plain: "AI as a passenger-seat helper that returns candidates and clues. Humans still decide." },
+  { term: "review", plain: "A human check step before a record is treated as public." },
+  { term: "authority", plain: "Trusted humans who hold the review responsibility for specific taxa or regions." },
+  { term: "public claim", plain: "A record lane that is treated as publishable — only after human review." },
+  { term: "blank vs absence", plain: "Blank = not yet observed. Absence = looked for but not found, and requires effort to claim." },
+  { term: "sampling effort", plain: "How much time, distance, and coverage was spent. Needed to make comparison claims." },
+  { term: "protocol", plain: "A decided procedure used when you want comparable observations." },
+  { term: "place stewardship", plain: "Institutional care for a place, carried by schools, municipalities, or local partners." },
+];
+
+function renderGlossaryBody(basePath: string, lang: SiteLang): string {
+  const list = lang === "ja" ? GLOSSARY_JA : GLOSSARY_EN;
+  const introJa = `このページは、ikimon の説明の中で出てくる言葉を、できるだけやさしく並べたものです。本文で詰まったら、ここへ戻ってくるだけで十分です。`;
+  const introEn = `A plain-language glossary of the words ikimon uses. Come back here whenever you need.`;
+  const entries = list
+    .map(
+      (e) => `<section class="fl-sec" id="term-${escapeHtml(e.aka ?? e.term)
+        .replace(/\s+/g, "-")
+        .replace(/[^A-Za-z0-9-]/g, "")
+        .toLowerCase() || escapeHtml(e.term)}">
+        <h3 class="fl-h2" style="font-size:20px;">${escapeHtml(e.term)}${e.aka ? ` <small style="font-size:13px;font-weight:500;color:#64748b;">（${escapeHtml(e.aka)}）</small>` : ""}</h3>
+        <p class="fl-body">${escapeHtml(e.plain)}</p>
+        ${e.context ? `<p class="fl-body" style="color:#475569;">${escapeHtml(e.context)}</p>` : ""}
+      </section>`,
+    )
+    .join("");
+  return `${FL_CSS}
+  <div class="fl">
+    <section class="fl-sec">
+      <p class="fl-lead">${escapeHtml(lang === "ja" ? introJa : introEn)}</p>
+    </section>
+    ${entries}
+    <section class="fl-sec">
+      <div class="fl-label">${lang === "ja" ? "次に読む" : "Next"}</div>
+      <h2 class="fl-h2">${lang === "ja" ? "もう少し深く知りたいとき" : "If you want to go deeper"}</h2>
+      <div class="fl-cta-actions">
+        <a class="btn btn-solid" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/field-loop"), lang))}">${lang === "ja" ? "フィールドループを読む" : "Read Field Loop"}</a>
+        <a class="btn btn-ghost" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn/authority-policy"), lang))}">${lang === "ja" ? "信頼のしくみを見る" : "Trust policy"}</a>
+      </div>
+    </section>
+  </div>`;
+}
+
 function renderFieldLoopBody(basePath: string, lang: SiteLang): string {
   if (lang !== "ja") {
     const sections: FieldLoopSection[] = [
@@ -425,122 +564,100 @@ function renderFieldLoopBody(basePath: string, lang: SiteLang): string {
 
   const sections: FieldLoopSection[] = [
     {
-      id: "what-this-field-achieved",
-      label: "Chapter 1",
-      title: "この領域は何を達成してきたか",
-      lead: "生きものの記録を開くことは、単に投稿数を増やすことではありませんでした。誰が自然を見られるか、誰が記録に参加できるか、その前提そのものを広げてきた変化でした。",
+      id: "field-loop-in-5-min",
+      label: "はじめに",
+      title: "5 分でわかるフィールドループ",
+      lead: "むずかしい話は後まわし。まずは、ikimon が考える「散歩のループ」を 3 ステップで見てほしい。",
       paragraphs: [
-        "この領域は、市民が見たものを広く集めることで、専門家だけでは届かなかった空間と時間の解像度を押し広げてきました<sup>[1][2][3]</sup>。投稿の敷居が下がったことで、分布、季節性、初出、異変の兆しのような現象は、研究者が単独で取りに行くより先に共有されるようになりました。",
-        "その価値は大きい。大量の観察は、研究や保全に資するだけでなく、自然を見る人を増やし、見ること自体を社会の基礎技能に戻しました<sup>[2][3]</sup>。生物記録は、専門家の専有物ではなく、参加可能な公共インフラへ近づいてきたと言えます。",
-        "ただし、この領域は一枚岩ではありません。広域投稿型、共同同定型、構造化モニタリング型、AI補助型は、同じ『生きものを見る』でも、強い問いが違います。ikimon はその違いを隠さずに設計したいと考えています。",
+        "街の近所でも、旅先でも、自然の観察は <strong>観察する → 記録する → 読み返す</strong> の 3 ステップで回ります。この 3 つがぐるりと一周するたび、同じ道が少しずつ違って見えるようになる。これが「フィールドループ」です。",
+        "1 つ目の <strong>観察する</strong> は、普段の散歩のついでで OK。虫でも花でも空でも、「あ、これ」と目に留まったものを 1 枚だけ撮る。専門知識はいりません。",
+        "2 つ目の <strong>記録する</strong> は、その場でノートに残すこと。日時・場所・ひと言メモが自動で付きます。名前が分からなくても、AI がヒントを返してくれる。答えを決めるのは人。",
+        "3 つ目の <strong>読み返す</strong> が、実はいちばん効くところ。同じ場所を翌週・翌月・翌年に歩くと、ノートが「前はいた」「今日はいない」を教えてくれる。これで季節の差分や、場所の変化が見えてきます。",
       ],
-      debates: [
-        {
-          title: "観察量と比較可能性",
-          body: "量が増えるほど見えるものは増える。一方で、比較できることが自動で増えるわけではない。空間解像度に強い設計と、時系列比較に強い設計は、同じではありません。",
-        },
+      chips: ["観察する", "記録する", "読み返す"],
+      callout: {
+        title: "AI は助手席。運転するのは人。",
+        body: "AI は候補を示したり、見どころを教えてくれる伴走者です。「これは何？」に正解を断定するのではなく、「次に何を見ればいいか」を返す。最終判断と公開は、いつでも人が決めます。",
+      },
+    },
+    {
+      id: "why-this-matters",
+      label: "大事なこと",
+      title: "同じ道が、違って見えてくる",
+      lead: "記録は未来の自分へのメッセージです。1 回の観察だけでは見えないものが、積み重ねると見えてくる。",
+      paragraphs: [
+        "フィールドループの価値は、1 回では出ません。同じ場所を何度か歩いて、ノートを読み返したときに、「あ、この場所は春はこうで、夏はこうなる」という時間の厚みが生まれます。",
+        "地元の人には、いつもの散歩道を何度も楽しめる新しい視点を。旅で訪れる人には、その土地で 1 回だけ寄る理由と、また来たくなる理由を。ikimon が作りたいのは、この 2 つの入り口です。",
+        "このあと、なぜこの形を選んだのか、どこまでが私たちの約束でどこからがそうでないかを、もう少し詳しく説明していきます。読み飛ばしても、ループ自体は回せます。",
       ],
     },
     {
-      id: "what-digitalization-changed",
-      label: "Chapter 2",
-      title: "デジタル化で何が変わったか",
-      lead: "デジタル化が変えたのは、投稿の速さだけではありません。記録、共有、フィードバック、再利用が一つの流れになったことです。",
+      id: "what-this-field-achieved",
+      label: "背景 1",
+      title: "市民の観察は、自然の見方を変えてきた",
+      lead: "「生きものの記録を、みんなで開く」という動きは、研究や保全の土台を押し広げてきました。",
       paragraphs: [
-        "スマートフォン、位置情報、共有コメント、公開データ基盤、そして画像認識の進歩によって、生物記録は『詳しい人がノートに書くもの』から『その場で撮り、あとから共同で解像度を上げるもの』へ変わりました<sup>[2][10]</sup>。",
-        "この変化で重要になったのは、unstructured と structured を二項対立で見るのでなく、連続体として扱うことです。自由投稿に近い入口も、checklist や protocol を持つ観察も、同じエコシステムの中に共存しうると整理されています<sup>[6]</sup>。",
-        "AI も同じです。自動化は入口を下げますが、優れたプロダクトは『判定を肩代わりする』より『次に何を見るかを返す』方向で価値を出します<sup>[10][11]</sup>。ikimon が AI を copilot と呼ぶのは、この流れを踏まえているからです。",
+        "ここ 20 年で、スマホと共有サービスが普及し、生きものの記録は「詳しい人がノートに書くもの」から「誰でも撮って、みんなで磨くもの」へ変わりました<sup>[1][2][3]</sup>。投稿のハードルが下がったことで、分布・季節性・変化の兆しといった現象が、研究者より先に市民の手で共有されるようになっています。",
+        "その広がりは、研究や保全に役立つだけでなく、「自然を見る力」を社会の基礎技能に戻す効果がありました<sup>[2][3]</sup>。生物の記録は、専門家だけのものから、みんなで使える公共のしくみに近づいています。",
+        "ただし、このしくみは 1 つではありません。広く集めるもの、みんなで名前を絞り込むもの、計画的に測り続けるもの、AI が候補を出すもの。それぞれ得意な問いが違います。",
       ],
-      chips: ["広域投稿型", "共同同定型", "構造化モニタリング型", "AI補助型"],
     },
     {
       id: "what-gets-harder-at-scale",
-      label: "Chapter 3",
-      title: "量が増えるほど難しくなったこと",
-      lead: "参加が広がるほど、データの価値が消えるわけではありません。むしろ、どの条件で読めるのかを、以前より丁寧に区別しなければならなくなります。",
+      label: "背景 2",
+      title: "参加が広がると、読み方に注意が必要になる",
+      lead: "量が増えたからといって、なんでも比べられるようになるわけではありません。むしろ、どう読むかが重要になります。",
       paragraphs: [
-        "量が増えると、難しさも露わになります。観察は空間・時間・分類群・観察者に対して均質に集まりません<sup>[6][8]</sup>。よく見られる場所、見つけやすい種、休日の自然地、写真を撮りやすい対象に寄るのは、デジタル化した参加型記録の自然な帰結です。",
-        "2026年の研究では、日常の延長で観察する人と、能動的に観察に出る人では、どこで何を記録するかがかなり違うことが示されました<sup>[8]</sup>。つまり、データの偏りは『参加者の多さ』だけでなく、『参加のされ方』からも生まれます。",
-        "さらに、比較可能性は努力量の記録なしには立ち上がりません。いつ、どこで、どれだけ探したかが分からないままでは、blank はまず未観測であって、不在とは限りません<sup>[6][9]</sup>。2026年の recent synthesis も、グローバルな利用では data-generating process を理解し、空間・時間・観察者の異質性を前提に解釈すべきだと整理しています<sup>[12]</sup>。",
-        "検証も同じで、投稿量が増えるほど、写真の質、証拠の厚み、レビュー負荷、説明責任の分配が中心課題になります<sup>[7]</sup>。量の問題は、最終的に trust の問題へ戻ってきます。",
+        "観察は、場所・季節・種類・人によって均等には集まりません<sup>[6][8]</sup>。よく行かれる公園、見つけやすい種、休日、撮りやすい対象に偏るのは、参加型の記録として自然なことです。",
+        "2026 年の研究では、普段の散歩の延長で観察する人と、目的を持って観察に出る人では、どこで何を記録するかが大きく違うことが示されました<sup>[8]</sup>。データのかたよりは、参加者の数だけでなく、参加のしかたからも生まれます。",
+        "比較のためには「どれだけ歩いたか」の記録（どのくらいの時間・距離・範囲を見たか）が欠かせません。これが欠けていると、「見つかっていない」は「まだ見ていない」なのか「本当にいない」のか区別できないからです<sup>[6][9][12]</sup>。",
       ],
       callout: {
-        title: "blank と absence は別です",
-        body: "見つかっていないことは、まず未観測や観測薄い領域を意味します。不在に近い主張には sampling effort と protocol が要ります。",
+        title: "「見つかっていない」と「いない」は別",
+        body: "地図に点がないことは、まずは「まだ十分に探していない」と考えるのが安全。「いない」と言い切るには、どれだけ歩いたかの記録や、決まった手順での観察が必要になります。",
       },
-      debates: [
-        {
-          title: "共同同定と説明責任",
-          body: "多人数の同定は候補を絞るのに強い。しかし、公開主張には『誰がどの根拠で引き受けたか』という provenance が別途必要になります。",
-        },
-        {
-          title: "観測空白と不在主張",
-          body: "地図に点がないことは、まだ十分に見ていないことと区別しなければならない。absence を語る条件は、presence を語る条件より重いのです。",
-        },
-      ],
     },
     {
       id: "boundaries-after-ai",
-      label: "Chapter 4",
-      title: "AI が入口を下げたあと、むしろ重要になった境界",
-      lead: "AI があると記録しやすくなります。だからこそ、どこまでが候補で、どこからが判断なのかを、プロダクト側が明示しなければなりません。",
+      label: "背景 3",
+      title: "AI が伴走する時代の、境界のひき方",
+      lead: "AI が入ると記録しやすくなる分、どこまでが候補で、どこからが人の判断かを、はっきり示す必要が出てきました。",
       paragraphs: [
-        "AI が入口を下げたあと、むしろ重要になったのは境界です。どこまでが suggestion で、どこからが review で、どこからが public claim なのか。この境界が曖昧だと、速さは出ても、学習と信頼が同時に痩せます<sup>[7][10][11]</sup>。",
-        "自動識別アプリの研究は、この領域がすでに大衆的であることを示しています<sup>[10]</sup>。一方で、dialogic な設計では、人と AI が独立した視点を持ったまま協働することで、双方の精度と学習が伸びうることも示されました<sup>[11]</sup>。",
-        "だから ikimon は、AI judge ではなく AI copilot を取ります。AI は候補提示と理解支援、community は知識の往復、authority は公開前の責任ある確認、public claim はその先のレーンです。段差を混ぜないことが、AI 時代の最低限の礼儀だと私たちは考えています。",
-      ],
-      debates: [
-        {
-          title: "AI自動化と学習機会",
-          body: "入口を下げる AI は価値がある。ただし、答えだけを返す AI は観察者の視力を奪いやすい。ikimon は『何を見るべきか』を返す側に寄せます。",
-        },
+        "AI が候補を返してくれると、記録は格段にラクになります。その一方で、速さだけを求めると、学習と信頼が同時に薄くなるという研究も出ています<sup>[7][10][11]</sup>。",
+        "人と AI が別の視点を保ったまま対話するような設計では、双方の精度と学習がむしろ伸びることも示されました<sup>[11]</sup>。ikimon は、この方向を選んでいます。",
+        "AI は候補を出し、理解を助ける役。人の同定が集まって知識が往復する場が community、公開前に任された人が確認するのが authority、そのあと公開前提で扱うのが public の順番。段差を混ぜないことが、AI 時代の誠実さだと考えています。",
       ],
     },
     {
       id: "the-job-ikimon-takes",
-      label: "Chapter 5",
-      title: "ikimon が引き受ける別の仕事",
-      lead: "ikimon が最適化したいのは、最大の広域データ基盤になることではありません。place と再訪と責任境界を、一つの体験にすることです。",
+      label: "ikimon の選択",
+      title: "ikimon が引き受ける仕事",
+      lead: "最大の広域データベースを目指すのではなく、場所と再訪、そして責任のラインを、1 つの体験にまとめる。",
       paragraphs: [
-        "ikimon が引き受けたいのは、最大の広域データ基盤になることではありません。私たちが深く作るのは、地元の人が同じ場所に戻り、place memory を積み上げる <code>place-first observatory</code> と、外から来る人に地方を訪れる理由と再訪理由を返す <code>regional entry service</code> です。",
-        "この違いは UI の話だけではなく、データの意味の話でもあります。ikimon は quick capture と survey を分け、比べたい visit では effort、checklist、scope、revisit reason を残します。旅先の 1 枚も、その場限りの消費で終わらせず、次にまた来る hook に変えることを狙います。",
-        "place が主語になると、記録は単なる点でなく、その場所に戻るための文脈になります。ここで重いのは、世界一広く集めることより、同じ場所をもう一度見に来たくなる構造です<sup>[4][5]</sup>。",
+        "ikimon が深く作りたいのは 2 つ。地元の人が同じ場所に戻ってノートを積み上げる体験と、旅で来た人に「ここに寄る理由」と「また来たい理由」を返す体験です。",
+        "そのために、その場の 1 枚と、比較したい調査のための観察を、きちんと分けて扱います。比較したいときには、どれだけ歩いたか・どういう手順で見たか・どこまでを見たかを残す。その場の 1 枚は、消費で終わらせず、次に来る理由へつなげる。",
+        "場所が主語になると、記録は点ではなく、その場所に戻るための文脈になります<sup>[4][5]</sup>。世界一広く集めることより、同じ場所をもう一度見たくなる構造を重くしたい。これが ikimon の選択です。",
       ],
-      callout: {
-        title: "ikimon の重心",
-        body: "place / revisit / protocol / authority を、公開面の主語として維持します。",
-      },
-      chips: ["place-first observatory", "regional entry service", "survey protocol", "authority-backed review"],
-    },
-    {
-      id: "why-this-is-not-opposition",
-      label: "Chapter 6",
-      title: "既存アプローチと敵対しない理由",
-      lead: "違うのは、態度ではなく担当する仕事です。広く集めることと、同じ場所へ戻る理由を作ることは、どちらも必要ですが、同じ設計ではありません。",
-      paragraphs: [
-        "この立場は、既存アプローチへの反論ではありません。広く集める仕事、共同で名前に近づく仕事、厳密な比較を作る仕事、学校や地域で継続的に測る仕事は、それぞれ必要です。",
-        "ikimon が選んでいるのは、その中で『place と再訪と責任境界』を主役にすることです。広域収集に強い仕組みがあるからこそ、ikimon は地方の現場で、『次にここへ来る理由』と『同じ場所を見続ける意味』に集中できます。",
-        "向いている問いが違う。だから敵対ではなく、分業です。私たちは、他の方式を否定するのでなく、自分たちがどこに責任を持つかを明示したいだけです。",
-      ],
+      chips: ["場所を主語に", "再訪を設計に", "手順は必要な時だけ", "任された人の確認を見える形で"],
     },
     {
       id: "promises-and-non-promises",
-      label: "Chapter 7",
-      title: "ikimon が約束すること / まだ約束しないこと",
-      lead: "このページの本当の目的は、思想紹介ではなく責任境界の公開です。できることより先に、言いすぎない線を見せます。",
+      label: "約束",
+      title: "ikimon の約束と、まだ約束しないこと",
+      lead: "できることより先に、言いすぎない線を見せます。これがページの本当の目的。",
       paragraphs: [
-        "ikimon が約束するのは、観測を失わず、後から比較できる形で残すこと。AI を候補提示に留め、authority を visible にし、absence と trend を条件未達のまま言いすぎないことです。",
-        "まだ約束しないのは、AI 単独の最終判定、条件未達データからの増減断言、protocol を持たない不在主張、あらゆる記録がそのまま研究品質になるという期待です。",
-        "このページを長くしたのは、機能説明ではなく責任境界の説明が必要だと思っているからです。ikimon は『なんでもできる生物サービス』を目指さず、『この場所を、また見に来る理由を作る』ことを、はっきり選びます。",
+        "約束するのは、観察をなくさず、あとから比較できる形で残すこと。AI をヒント役にとどめること。任された人の確認が見える形になっていること。「不在」や「増減」を条件がそろわないまま言わないこと。",
+        "まだ約束しないのは、AI 単独の最終判定、条件不足のデータから「減った」「いない」と言い切ること、手順のない観察から不在を主張すること、どんな記録も自動で研究品質になるという期待。",
+        "「なんでもできる生物サービス」ではなく、「この場所を、また見に来る理由を作る」に絞ります。",
       ],
       cards: [
         {
-          title: "ikimon が約束すること",
-          body: "place memory、旅先の 1 枚を再訪理由へ返すこと、survey では protocol を残すこと、authority-backed な trust lane を visible にすること。",
+          title: "約束すること",
+          body: "場所の記憶を残すこと、旅先の 1 枚を再訪の理由に変えること、比較したい観察では手順を残すこと、任された人の確認を見える形にすること。",
         },
         {
-          title: "ikimon がまだ約束しないこと",
-          body: "AI 単独の final truth、条件未達データからの absence / trend 主張、全記録の自動 research 化、何でもできる万能な生物プラットフォーム化。",
+          title: "まだ約束しないこと",
+          body: "AI 単独で最終判定すること、条件不足で不在や増減を言い切ること、すべての記録を自動で研究用途に流すこと、なんでもできる万能な生物プラットフォームになること。",
         },
       ],
     },
@@ -563,12 +680,12 @@ function renderFieldLoopBody(basePath: string, lang: SiteLang): string {
   return `${FL_CSS}
   <div class="fl">
     <section class="fl-sec" id="outline">
-      <div class="fl-label">Outline</div>
-      <h2 class="fl-h2">このページで扱うこと</h2>
-      <p class="fl-lead">既存のやり方を名指しで批判するのではなく、生物記録サービスが何を達成し、どこで難しさを抱え、ikimon がどの仕事を引き受けるのかを、論文ベースで言葉にし直します。</p>
+      <div class="fl-label">このページについて</div>
+      <h2 class="fl-h2">初めての人は、最初の 2 節だけでも OK</h2>
+      <p class="fl-lead">上半分は「散歩のループを 3 ステップで」。下半分は「なぜこの形を選んだか」の深掘りです。読み飛ばしても、ループ自体は回せます。</p>
       <div class="fl-trust">
         <strong>このページの前提</strong>
-        これは他の方式への反論ではなく、ikimon がどこに責任を持つかを公開するためのページです。広く集める仕事と、place memory を作る仕事は、敵対ではなく分業だと私たちは考えています。
+        他のサービスや方式を批判するためのページではありません。広く集める仕事と、同じ場所に戻ってノートを積み上げる仕事は、敵対ではなく分業だと考えています。
       </div>
       ${renderFieldLoopOutline(sections)}
     </section>
@@ -586,17 +703,19 @@ function renderFieldLoopBody(basePath: string, lang: SiteLang): string {
         </section>`,
       )
       .join("")}
-    ${renderFieldLoopReferences("このページで参照している主要文献", references)}
+    <details class="fl-sec"><summary class="fl-label" style="cursor:pointer;">参考文献（クリックで展開）</summary>
+      ${renderFieldLoopReferences("このページで参照している主要文献", references)}
+    </details>
     <section class="fl-sec">
-      <div class="fl-label">Next</div>
-      <h2 class="fl-h2">制度と方法論を続けて見る</h2>
-      <p class="fl-body">このページは立ち位置の説明です。運用レベルの trust 制度は <code>Authority Policy</code>、データの扱いと非約束範囲は <code>Methodology</code> に分けています。</p>
+      <div class="fl-label">次に読む</div>
+      <h2 class="fl-h2">制度と方法論も続けて見る</h2>
+      <p class="fl-body">このページは立ち位置の説明です。同定の信頼のしくみは <a href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">信頼のしくみ</a>、データの扱いと約束の範囲は <a href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">方法論</a> にまとめています。用語は <a href="${escapeHtml(withBasePath(basePath, "/learn/glossary"))}">用語集</a> で確認できます。</p>
       <div class="fl-cta-actions">
         <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">まずは観察を残す</a>
-        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">同定 trust 制度を見る</a>
-        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/methodology"))}">Methodology を読む</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">信頼のしくみを見る</a>
+        <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/learn/glossary"))}">用語集</a>
       </div>
-      <p class="fl-premise">明示する境界 — AI は候補提示と理解支援 / community support と authority-backed を混ぜない / blank と absence は分ける / trend は条件未達データに対して言いすぎない / ikimon は place と再訪に重心を置く</p>
+      <p class="fl-premise">私たちが引く境界 — AI はヒント役 / 人の確認が入ってから公開 / 「未観測」と「不在」は分ける / 増減は条件がそろった時だけ / 場所と再訪に重心を置く</p>
     </section>
   </div>`;
 }
@@ -762,43 +881,43 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       lang === "ja" ? "ikimonについて" : "About",
       "近くの自然と旅先の場所を、また来たくなる理由に変える。",
       lang === "ja"
-        ? "ikimon は、地元の人がいつもの場所を育てる `place-first observatory` であり、外から来る人に地方を訪れる理由と再訪理由を返す `regional entry service` でもあります。広域収集の仕事と place memory の仕事は敵対ではなく、解く問いが違うと考えています。"
+        ? "ikimon は、地元の人がいつもの場所を育てるためのサービスであり、外から来る人に地方を訪れる理由と再訪理由を返すサービスでもあります。広く集める仕事と、場所の記憶を積み上げる仕事は敵対ではなく、解く問いが違うと考えています。"
         : "ikimon is a place-first observatory for locals and a regional entry service that gives travelers reasons to visit and return.",
       cards([
         {
-          title: "主役は local core",
-          body: "いちばん深く作っているのは、その場所の近くで暮らし、同じ場所に戻り続ける人の体験です。place memory が積み上がる設計を中心にしています。",
+          title: "主役は地元の人",
+          body: "いちばん深く作っているのは、その場所の近くで暮らし、同じ場所に戻り続ける人の体験です。場所の記憶が積み上がる設計を中心にしています。",
         },
         {
           title: "旅先の 1 枚も、再訪理由に変える",
-          body: "旅先で撮った偶発的な 1 枚を、その場限りの投稿で終わらせず、また来たい理由や近くの別 place に続く hook に変えることも重要な約束です。",
+          body: "旅先で撮った偶発的な 1 枚を、その場限りの投稿で終わらせず、また来たい理由や、近くの別の場所へ続く手がかりに変えることも重要な約束です。",
         },
         {
-          title: "AI は copilot であって、審判ではない",
-          body: "AI は候補提示と理解支援を担います。何を見ればいいかを絞るための役であり、名前を自動で確定する役ではありません。",
+          title: "AI は伴走役で、審判ではない",
+          body: "AI は候補と理解のヒントを返します。何を見ればいいかを絞るための役であり、名前を自動で確定する役ではありません。",
         },
         {
-          title: "trust lane を分ける",
-          body: "AI suggestion、Community support、Authority-backed、Public claim を混ぜません。public claim は authority-backed review を通る前提で扱います。",
+          title: "信頼のレーンを分ける",
+          body: "AI のヒント、みんなの同定、任された人の確認、公開前提の主張、この 4 つを混ぜません。公開前提は、任された人の確認を通る前提で扱います。",
         },
         {
-          title: "断定より、証拠と protocol を残す",
-          body: "quick capture と survey を分け、比べたい visit では effort / checklist / scope を残します。あとで読み返して比較できることを優先します。",
+          title: "断定より、証拠と手順を残す",
+          body: "その場の 1 枚と、比較したい観察を分け、比較したい観察には「どれだけ歩いたか」「手順」「範囲」を残します。あとで読み返して比較できることを優先します。",
         },
         {
-          title: "absence / trend は言いすぎない",
-          body: "観測空白と不在を混ぜません。条件未達のデータに対して、`いない` や `増えた` をサービス側が強く言わない境界を守ります。",
+          title: "不在や増減は言いすぎない",
+          body: "「まだ見ていない」と「不在」を混ぜません。条件が揃っていないデータに対して、サービス側が「いない」「増えた」を強く言わない境界を守ります。",
         },
       ]) + rows([
         {
-          title: "まずは quick capture か survey で 1 件残す",
-          body: "名前が分からなくても始められます。近くの場所でも、旅先でも、まず 1 件を place memory に変えてください。",
+          title: "まずは 1 件残す",
+          body: "名前が分からなくても始められます。近くの場所でも、旅先でも、まず 1 件を場所の記憶に変えてください。",
           actionHref: withBasePath(basePath, "/record"),
           actionLabel: lang === "ja" ? "観察を記録する" : "Start recording",
         },
         {
-          title: "trust と非約束範囲を確認する",
-          body: "AI の役割、public claim 条件、absence / trend をまだ約束しない理由を FAQ で明示しています。",
+          title: "信頼の範囲と、約束しないことを確認する",
+          body: "AI の役割、公開前提の条件、不在や増減をまだ約束しない理由を FAQ で明示しています。",
           actionHref: withBasePath(basePath, "/faq"),
           actionLabel: lang === "ja" ? "FAQ を読む" : "FAQ",
         },
@@ -853,10 +972,16 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
           actionLabel: lang === "ja" ? "読む" : "Basics",
         },
         {
-          title: "同定 trust 制度",
-          body: "なぜ AI と市民同定だけでは research/public claim にしないのか、なぜ authority を分類群ごとに切るのか、推薦と監査を含めて公開します。",
+          title: "同定の信頼のしくみ",
+          body: "なぜ AI とみんなの同定だけでは研究・公開用途にしないのか、なぜ任された人を分類群ごとに置くのか、推薦と監査を含めて公開します。",
           actionHref: withBasePath(basePath, "/learn/authority-policy"),
-          actionLabel: lang === "ja" ? "制度を見る" : "Policy",
+          actionLabel: lang === "ja" ? "しくみを見る" : "Policy",
+        },
+        {
+          title: "用語集",
+          body: "ikimon の説明で出てくる言葉を、やさしくまとめた一覧。本文で詰まったらここへ。",
+          actionHref: withBasePath(basePath, "/learn/glossary"),
+          actionLabel: lang === "ja" ? "用語を見る" : "Glossary",
         },
         {
           title: "Methodology（方針）",
@@ -877,12 +1002,12 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
   app.get("/learn/field-loop", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(requestUrl(request));
-    const pageTitle = lang === "ja" ? "なぜ ikimon はこの形を取るのか | ikimon" : "Why ikimon takes this shape | ikimon";
+    const pageTitle = lang === "ja" ? "フィールドループとは | ikimon" : "Why ikimon takes this shape | ikimon";
     const heroHeading = lang === "ja"
-      ? "なぜ ikimon は、この形を取るのか。"
+      ? "いつもの散歩が、少しずつ違って見えてくる。"
       : "Why ikimon takes this shape.";
     const heroLead = lang === "ja"
-      ? "生物記録サービスはこの十数年で大きく進化しました。ikimon は、その流れを否定するのでなく、どの仕事を引き受け、どこで言いすぎないかを、論文と変遷を踏まえて公開します。"
+      ? "観察して、記録して、読み返す。この 3 つが一周するたび、同じ道が違って見えてくる。ikimon の考える「フィールドループ」を、5 分で理解できる形にまとめました。"
       : "ikimon is not trying to be every kind of biodiversity platform at once. This page explains the job it chooses and the boundaries it keeps visible.";
     const body = renderFieldLoopBody(basePath, lang);
     reply.type("text/html; charset=utf-8");
@@ -896,8 +1021,32 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       heroLead,
       body,
       "Learn",
-      `<div class="note">${escapeHtml(lang === "ja" ? "これは他の方式への反論ではなく、ikimon の責任境界を公開するページです。" : "This page is about ikimon's responsibility boundary, not opposition.")}</div><a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
-      lang === "ja" ? "なぜ ikimon は、<br>この形を取るのか。" : "Why ikimon takes<br>this shape.",
+      `<div class="note">${escapeHtml(lang === "ja" ? "初めての人は、最初の 2 節だけでも十分です。" : "This page is about ikimon's responsibility boundary, not opposition.")}</div><a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
+      lang === "ja" ? "いつもの散歩が、<br>少しずつ違って見えてくる。" : "Why ikimon takes<br>this shape.",
+    );
+  });
+
+  app.get("/learn/glossary", async (request, reply) => {
+    const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(requestUrl(request));
+    const pageTitle = lang === "ja" ? "用語集 | ikimon" : "Glossary | ikimon";
+    const heroHeading = lang === "ja" ? "用語集" : "Glossary";
+    const heroLead = lang === "ja"
+      ? "ikimon の説明で出てくる言葉を、ざっくりと一覧にしました。詰まったらこのページに戻ってきてください。"
+      : "A plain-language glossary of the words ikimon uses. Come back here whenever you need.";
+    const body = renderGlossaryBody(basePath, lang);
+    reply.type("text/html; charset=utf-8");
+    return layout(
+      basePath,
+      lang,
+      requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
+      pageTitle,
+      lang === "ja" ? "読む" : "Learn",
+      heroHeading,
+      heroLead,
+      body,
+      "Learn",
+      `<a class="inline-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/learn"), lang))}">← ${lang === "ja" ? "解説一覧" : "Learn"}</a>`,
     );
   });
 
@@ -911,16 +1060,16 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
       "Authority Policy | ikimon",
       "Learn",
-      "ikimon の同定 trust 制度",
-      "AI・市民・authority-backed reviewer・運営を混ぜずに扱うための制度です。なぜそうしているか、どうやって authority 候補になるか、どこまでが research/public claim なのかを公開します。",
+      "ikimon の同定の信頼のしくみ",
+      "AI・市民・任された確認者・運営を混ぜずに扱うためのしくみです。なぜそうしているか、どうやって任された人の候補になるか、どこまでが研究・公開用途なのかを公開します。",
       `${FL_CSS}<div class="fl">
       <section class="fl-sec">
         <div class="fl-label">このページの目的</div>
         <h2 class="fl-h2">同定の速さより、信頼の由来を残す。</h2>
-        <p class="fl-lead">ikimon は「AI がそう言った」「みんながそう思った」だけで research/public claim に進めない設計にしています。理由は、どの分類群で、誰が、どの根拠で任せられているかを追えないと、公開後の信頼が崩れるからです。</p>
+        <p class="fl-lead">ikimon は「AI がそう言った」「みんながそう思った」だけで研究・公開用途に進めない設計にしています。理由は、どの分類群で、誰が、どの根拠で任せられているかを追えないと、公開後の信頼が崩れるからです。</p>
         <div class="fl-trust">
           <strong>基本方針</strong>
-          AI と市民同定は候補を広げる層、authority-backed review は公開前の確度を担保する層、Admin / Analyst は制度運営と監査を担う層として分けます。
+          AI と市民同定は候補を広げる層、任された人の確認は公開前の確度を担保する層、運営は制度全体の監査を担う層として分けます。
         </div>
       </section>
 
@@ -931,22 +1080,22 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
           <div class="fl-reason">
             <div class="fl-reason-num">01</div>
             <div class="fl-reason-body">
-              <h3>AI は候補提示であって、責任主体ではない</h3>
-              <p>AI は方向性を示せますが、「この分類群の見分けは任せられる」と社会的に引き受ける主体ではありません。だから research/public claim の根拠に単独では使いません。</p>
+              <h3>AI は候補を出す役で、責任を持つ主体ではない</h3>
+              <p>AI は方向性を示せますが、「この分類群の見分けは任せられる」と社会的に引き受ける主体ではありません。だから研究・公開用途の根拠に単独では使いません。</p>
             </div>
           </div>
           <div class="fl-reason">
             <div class="fl-reason-num">02</div>
             <div class="fl-reason-body">
               <h3>市民同定は価値があるが、最終公開の代替ではない</h3>
-              <p>市民同定は、候補を絞る・見分け方を学ぶ・レビュー優先順位を上げるために重要です。ただし「誰がこの分類群を引き受けたか」が曖昧なまま研究扱いにすると、誤同定時の説明責任が弱くなります。</p>
+              <p>市民同定は、候補を絞る・見分け方を学ぶ・確認の優先順位を上げるために重要です。ただし「誰がこの分類群を引き受けたか」が曖昧なまま研究扱いにすると、誤同定時の説明責任が弱くなります。</p>
             </div>
           </div>
           <div class="fl-reason">
             <div class="fl-reason-num">03</div>
             <div class="fl-reason-body">
-              <h3>公開主張には provenance が要る</h3>
-              <p>あとで「なぜこの観察をここまで上げたのか」を追えることが必要です。ikimon では review 時の authority snapshot と監査ログを残し、後から制度の外側に逃げないようにします。</p>
+              <h3>公開するには「どこからの情報か」を残す必要がある</h3>
+              <p>あとで「なぜこの観察をここまで上げたのか」を追えることが必要です。ikimon では確認時の権限スナップショットと監査ログを残し、後からしくみの外側に逃げないようにします。</p>
             </div>
           </div>
         </div>
@@ -954,22 +1103,22 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
 
       <section class="fl-sec">
         <div class="fl-label">scope 設計</div>
-        <h2 class="fl-h2">authority を global role ではなく、分類群ごとに切る。</h2>
-        <p class="fl-body">「専門家だから全部任せる」ではなく、「タンポポ属なら任せられる」「この科なら見られる」という分類群スコープで権限を持たせます。これにより、UI に見える queue と、実際に approve できる範囲が一致します。</p>
+        <h2 class="fl-h2">確認権限は、全体ではなく分類群ごとに切る。</h2>
+        <p class="fl-body">「専門家だから全部任せる」ではなく、「タンポポ属なら任せられる」「この科なら見られる」という分類群の範囲で権限を持たせます。これにより、画面に見える確認待ちの一覧と、実際に承認できる範囲が一致します。</p>
         <div class="fl-callout">
-          <strong>なぜ taxon scope なのか</strong>
+          <strong>なぜ分類群ごとなのか</strong>
           <p>見分け方の熟達は分類群ごとに偏るからです。鳥に強い人がキノコも同じ精度で見られるとは限りません。ikimon は最初からその現実に合わせます。</p>
         </div>
       </section>
 
       <section class="fl-sec">
         <div class="fl-label">役割分担</div>
-        <h2 class="fl-h2">AI / 市民 / authority / 運営の4層</h2>
+        <h2 class="fl-h2">AI / 市民 / 任された人 / 運営の 4 層</h2>
         <div class="fl-roles">
           <article class="fl-role"><span class="fl-role-icon">🛰️</span><h3>AI</h3><p>候補と見分けのポイントを返す層。</p><span class="fl-role-tag">確定はしない</span></article>
           <article class="fl-role"><span class="fl-role-icon">🧭</span><h3>市民同定者</h3><p>候補を絞り、証拠を持ち寄る層。</p><span class="fl-role-tag">公開前の学習と絞り込み</span></article>
-          <article class="fl-role"><span class="fl-role-icon">🔬</span><h3>Authority-backed reviewer</h3><p>自分の分類群 scope で approve し、専門確認を付与する層。</p><span class="fl-role-tag">scope 内だけ任せる</span></article>
-          <article class="fl-role"><span class="fl-role-icon">🛠️</span><h3>Admin / Analyst</h3><p>制度の運営、manual grant/revoke、監査、例外処理を担う層。</p><span class="fl-role-tag">制度を閉じずに追跡する</span></article>
+          <article class="fl-role"><span class="fl-role-icon">🔬</span><h3>任された確認者</h3><p>自分の担当する分類群で承認し、専門確認を付与する層。</p><span class="fl-role-tag">担当範囲内だけ任せる</span></article>
+          <article class="fl-role"><span class="fl-role-icon">🛠️</span><h3>運営</h3><p>しくみの運営、権限の付与・取り消し、監査、例外処理を担う層。</p><span class="fl-role-tag">しくみを閉じずに追跡する</span></article>
         </div>
       </section>
 
@@ -979,18 +1128,18 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         <div class="fl-tiers">
           <div class="fl-tier fl-tier-1">
             <div><div class="fl-tier-name">AI / 市民同定</div><div class="fl-tier-meaning">候補層</div></div>
-            <div><div class="fl-tier-col-label">できること</div><div class="fl-tier-col-body">候補提示、絞り込み、追加観察の誘導、queue の優先度上げ</div></div>
-            <div><div class="fl-tier-col-label">できないこと</div><div class="fl-tier-col-no">単独で research/public claim 化</div></div>
+            <div><div class="fl-tier-col-label">できること</div><div class="fl-tier-col-body">候補提示、絞り込み、追加観察の誘導、確認待ちの優先度上げ</div></div>
+            <div><div class="fl-tier-col-label">できないこと</div><div class="fl-tier-col-no">単独で研究・公開用途にすること</div></div>
           </div>
           <div class="fl-tier fl-tier-3">
-            <div><div class="fl-tier-name">Authority-backed review</div><div class="fl-tier-meaning">専門確認済み</div></div>
-            <div><div class="fl-tier-col-label">できること</div><div class="fl-tier-col-body">専門確認レーンで approve し、分類群 scope に基づく責任ある review を残す</div></div>
+            <div><div class="fl-tier-name">任された人の確認</div><div class="fl-tier-meaning">専門確認済み</div></div>
+            <div><div class="fl-tier-col-label">できること</div><div class="fl-tier-col-body">専門確認レーンで承認し、分類群の担当範囲に基づく責任ある確認を残す</div></div>
             <div><div class="fl-tier-col-label">できないこと</div><div class="fl-tier-col-no">証拠不足のまま自動で研究公開すること</div></div>
           </div>
           <div class="fl-tier fl-tier-4">
-            <div><div class="fl-tier-name">Public claim / research candidate</div><div class="fl-tier-meaning">最終公開候補</div></div>
-            <div><div class="fl-tier-col-label">条件</div><div class="fl-tier-col-body">public-claim lane で authority-backed か admin override の approve が入り、媒体条件も満たすこと</div></div>
-            <div><div class="fl-tier-col-label">補足</div><div class="fl-tier-col-no">証拠が弱ければ authority-backed reviewed のまま止める</div></div>
+            <div><div class="fl-tier-name">公開前提 / 研究候補</div><div class="fl-tier-meaning">最終公開候補</div></div>
+            <div><div class="fl-tier-col-label">条件</div><div class="fl-tier-col-body">公開前提のレーンで、任された人の承認または運営の明示的な承認が入り、媒体条件も満たすこと</div></div>
+            <div><div class="fl-tier-col-label">補足</div><div class="fl-tier-col-no">証拠が弱ければ、専門確認済みのまま止める</div></div>
           </div>
         </div>
       </section>
@@ -1284,12 +1433,12 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       lang === "ja" ? "よくある質問 | ikimon" : "FAQ | ikimon",
       "FAQ",
       "よくある質問",
-      "はじめての方、local core、traveler loop、同定 trust、AI の役割、組織導入、データと公開範囲について、ikimon の前提を整理しています。",
+      "はじめての方、地元の人の使い方、旅先での使い方、同定の信頼、AI の役割、組織導入、データと公開範囲について、ikimon の前提を整理しています。",
       `<section class="section">
         <div class="section-header"><h2>はじめての方へ</h2></div>
         <div class="fl-faq">
-          <details class="fl-faq-item"><summary class="fl-faq-q">ikimon とは何ですか？</summary><p class="fl-faq-a">ikimon は、地元の人が近くの自然との関係を深める <code>place-first observatory</code> であり、外から来る人に地方を訪れる理由と再訪理由を返す <code>regional entry service</code> でもあります。AI は候補提示と理解支援を担いますが、名前や public claim を自動で確定するサービスではありません。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q">登録や費用はかかりますか？</summary><p class="fl-faq-a">個人利用は登録不要・無料です。閲覧・記録・マップ・AI ヒントなどの基本導線をそのまま使えます。企業・自治体との連携は、deep workspace を前提にせず、place stewardship や regional partnership の相談から始めます。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">ikimon とは何ですか？</summary><p class="fl-faq-a">ikimon は、地元の人が近くの自然との関係を深めるためのサービスであり、外から来る人に地方を訪れる理由と再訪理由を返すサービスでもあります。AI は候補とヒントを返しますが、名前や公開用途の判定を自動で確定するサービスではありません。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">登録や費用はかかりますか？</summary><p class="fl-faq-a">個人利用は登録不要・無料です。閲覧・記録・マップ・AI ヒントなどの基本導線をそのまま使えます。企業・自治体との連携は、専用の業務画面を先に約束するのではなく、地域で場所を見守る取り組みや地域連携の相談から始めます。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">スマートフォンだけで使えますか？</summary><p class="fl-faq-a">はい。ブラウザだけで完結します。アプリのダウンロードは不要です。iPhone（Safari）・Android（Chrome）でホーム画面に追加すると、アプリのように使えます。山や森など電波が弱い場所では、写真と記録を端末に保存し、電波が戻ったら自動送信されます。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">子どもでも使えますか？</summary><p class="fl-faq-a">使えます。13 歳未満のお子さんは保護者の同意・見守りのもとでご利用ください。Google アカウントを使ってログインするため、Google の年齢制限ポリシーが適用されます。学校でのフィールドワーク・環境教育にも活用いただけます。教育目的での利用相談は contact@ikimon.life まで。</p></details>
         </div>
@@ -1297,33 +1446,33 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       <section class="section">
         <div class="section-header"><h2>記録について</h2></div>
         <div class="fl-faq">
-          <details class="fl-faq-item"><summary class="fl-faq-q">名前がわからなくても記録できますか？</summary><p class="fl-faq-a">できます。場所・日時・写真だけでも記録になります。quick capture で残してもいいし、あとで比べたい visit は survey として effort / checklist / scope を付けて残せます。名前は空欄のままでも構いません。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">名前がわからなくても記録できますか？</summary><p class="fl-faq-a">できます。場所・日時・写真だけでも記録になります。その場の 1 枚として残してもいいし、あとで比べたい観察はどれだけ歩いたか・手順・範囲を付けて残せます。名前は空欄のままでも構いません。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">どんな写真を撮ればいいですか？</summary><p class="fl-faq-a">「全体像」「特徴部分のアップ」「生息環境」の 3 枚が理想です。鳥なら体の模様・くちばし、昆虫なら翅の模様・触角、植物なら花・葉・茎がポイント。1 枚だけでも記録になります。定規や手を添えてサイズ感を示すと同定しやすくなります。暗い場所ではフラッシュより自然光が有効です。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">過去の写真も投稿できますか？</summary><p class="fl-faq-a">できます。EXIF 情報（撮影日時・GPS 座標）が残っている写真なら、日時と場所が自動入力されます。情報が消えている写真でも、おおよその日時と場所をメモ欄で補足すれば有用なデータになります。自分が撮影した写真に限ります（他人の写真の転載は禁止です）。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q">私の 1 件の記録に意味はありますか？</summary><p class="fl-faq-a">あります。地元の人にとっては place memory の 1 行になり、旅で来た人にとっては次にまた来る理由の種になります。ただし、1 件だけで増減や不在まで強く言うことはしません。まずは後から読み返せる観察として残すことを優先します。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">私の 1 件の記録に意味はありますか？</summary><p class="fl-faq-a">あります。地元の人にとっては場所の記憶の 1 行になり、旅で来た人にとっては次にまた来る理由の種になります。ただし、1 件だけで増減や不在まで強く言うことはしません。まずは後から読み返せる観察として残すことを優先します。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">こんな投稿は避けてください</summary><p class="fl-faq-a">AI 生成画像・他人が撮影した写真・生き物が写っていない写真・同じペットの繰り返し投稿・虚偽の位置情報や日時は避けてください。「自分が見て撮った・生き物が写っている・生き物を傷つけていない」の 3 点がクリアなら、名前がわからなくてもピントが甘くても投稿 OK です。</p></details>
         </div>
       </section>
       <section class="section">
         <div class="section-header"><h2>AI と同定について</h2></div>
-        <div class="card" style="margin-bottom:16px"><div class="card-body"><strong>同定の trust 制度を詳しく読む</strong><p style="margin:10px 0 0;color:#4b5563;line-height:1.8">なぜ AI と市民同定だけでは research/public claim にしないのか、なぜ authority を分類群ごとに切るのか、推薦と監査を含めて 1 ページにまとめています。</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a></div></div></div>
+        <div class="card" style="margin-bottom:16px"><div class="card-body"><strong>同定の信頼のしくみを詳しく読む</strong><p style="margin:10px 0 0;color:#4b5563;line-height:1.8">なぜ AI とみんなの同定だけでは研究・公開用途にしないのか、なぜ任された人を分類群ごとに置くのか、推薦と監査を含めて 1 ページにまとめています。</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">しくみの説明を見る</a></div></div></div>
         <div class="fl-faq">
-          <details class="fl-faq-item"><summary class="fl-faq-q">AI は名前を自動で確定しますか？</summary><p class="fl-faq-a">しません。AI が返すのは候補と見分けのヒントです。AI 同定と市民同定は候補層として扱い、research/public claim に進めるには、分類群 authority を持つ reviewer の approve か、運営の明示的な override が必要です。制度の全体像は「同定 trust 制度」ページで公開しています。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">AI は名前を自動で確定しますか？</summary><p class="fl-faq-a">しません。AI が返すのは候補と見分けのヒントです。AI と市民同定は候補層として扱い、研究・公開用途に進めるには、分類群ごとに任された人の確認か、運営の明示的な判断が必要です。しくみの全体像は「同定の信頼」ページで公開しています。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">投稿後に表示される「観察のヒント」とは何ですか？</summary><p class="fl-faq-a">投稿後に写真・場所・季節をもとに AI が自動生成するメモです。「いまはここまで絞れそう」「見分けのポイント」「次に確認すると良いこと」を示します。コミュニティ同定の票にはなりません。名前を断定するものではなく、あくまでヒントとして参考にしてください。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">間違った名前を付けてしまったらどうなりますか？</summary><p class="fl-faq-a">いつでも修正できます。間違いはコミュニティが一緒に修正してくれます。「モンシロチョウだと思ったらスジグロシロチョウだった」——この体験が観察力を磨きます。初心者もベテランも学びの途中です。間違いを恐れずに挑戦する姿勢をコミュニティは応援しています。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q">「研究グレード」とは何ですか？</summary><p class="fl-faq-a">ikimon では、AI 候補や市民同定だけで研究レベルに上げません。写真・日時・位置などの媒体条件に加え、public-claim lane で authority-backed review か admin override が入った観察だけが research/public claim 候補になります。証拠不足なら authority-backed reviewed のまま止め、研究公開とは分けます。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q">AI の提案はどのくらい正確ですか？</summary><p class="fl-faq-a">「参考情報」として設計しています。得意不得意はありますが、そもそも public claim の根拠に単独では使いません。AI は方向性を示し、人の review と authority-backed review が公開前の確度を支えます。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q"><code>いない</code> や <code>増えた</code> は分かりますか？</summary><p class="fl-faq-a">条件付きです。ikimon では観測空白と不在を混ぜません。survey で effort / checklist / scope を残していないデータに対して、サービス側が <code>いない</code> や <code>増えた</code> を強く言うことはしません。<code>no target detected</code> も open 時点では protocol note only として扱います。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">「研究グレード」とは何ですか？</summary><p class="fl-faq-a">ikimon では、AI 候補や市民同定だけで研究レベルに上げません。写真・日時・位置などの媒体条件に加え、公開前提のレーンで、任された人の確認か運営判断が入った観察だけが研究・公開候補になります。証拠不足ならそのまま止めて、研究公開とは分けます。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">AI の提案はどのくらい正確ですか？</summary><p class="fl-faq-a">「参考情報」として設計しています。得意不得意はありますが、そもそも公開前提の主張の根拠に単独では使いません。AI は方向性を示し、人の確認と、任された人の確認が公開前の確度を支えます。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q"><code>いない</code> や <code>増えた</code> は分かりますか？</summary><p class="fl-faq-a">条件付きです。ikimon では「まだ見ていない」と「不在」を混ぜません。どれだけ歩いたか・手順・範囲を残していないデータに対して、サービス側が「いない」「増えた」を強く言うことはしません。「見つからなかった」も、公開時点では手順の注記としてだけ扱います。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">投稿データが AI の学習に使われますか？</summary><p class="fl-faq-a">第三者の AI 企業には一切提供しません。AI クローラーによるスクレイピングも技術的にブロックしています。将来的に ikimon 自身のサービス改善（AI 同定精度の向上）に活用する可能性がありますが、その場合も外部に流出することはありません。データの主権はユーザーとikimon コミュニティにあります。</p></details>
         </div>
       </section>
       <section class="section">
         <div class="section-header"><h2>企業・自治体向け</h2></div>
         <div class="fl-faq">
-          <details class="fl-faq-item"><summary class="fl-faq-q">法人向けは個人利用と何が違いますか？</summary><p class="fl-faq-a">公開時点での違いは、deep な専用 workspace より、地域や組織の place stewardship を立ち上げる相談導線があることです。観察会、地域導線、記録の続け方、authority-backed review とのつなぎ方を一緒に設計できます。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q">地域側にはどう説明すればよいですか？</summary><p class="fl-faq-a"><code>ikimon は訪問理由と再訪理由を作る器であり、地域の自然や場所の文脈を place stewardship に変える入口です</code> と説明するのが基本です。観光万能アプリでも、研究ダッシュボード万能アプリでもない、と最初に伝える方が誤解が少なくなります。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">法人向けは個人利用と何が違いますか？</summary><p class="fl-faq-a">公開時点での違いは、深い専用の業務画面を先に約束するより、地域や組織で「場所を見守る取り組み」を立ち上げる相談導線があることです。観察会、地域導線、記録の続け方、任された人の確認とのつなぎ方を一緒に設計できます。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">地域側にはどう説明すればよいですか？</summary><p class="fl-faq-a">「ikimon は訪問理由と再訪理由を作る器であり、地域の自然や場所の文脈を、場所を見守る取り組みに変える入口です」と説明するのが基本です。観光万能アプリでも、研究ダッシュボード万能アプリでもない、と最初に伝える方が誤解が少なくなります。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">費用はどのくらいかかりますか？</summary><p class="fl-faq-a">個人利用は無料です。法人・自治体連携は、対象場所、初回導線、継続体制の重さによって変わるため、まず相談ベースで始めます。公開時点では、固定料金より導線設計を優先しています。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q">自社や地域の場所だけで始められますか？</summary><p class="fl-faq-a">始められます。まずは対象 place を決め、そこで最初の記録と再訪理由を立ち上げるところから始めます。境界や deep 管理画面を整えるのは、その loop が回り始めてからで構いません。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">自社や地域の場所だけで始められますか？</summary><p class="fl-faq-a">始められます。まずは対象の場所を決め、そこで最初の記録と再訪理由を立ち上げるところから始めます。境界や専用の業務画面を整えるのは、そのサイクルが回り始めてからで構いません。</p></details>
         </div>
       </section>
       <section class="section">
@@ -1331,7 +1480,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         <div class="fl-faq">
           <details class="fl-faq-item"><summary class="fl-faq-q">位置情報は公開されますか？</summary><p class="fl-faq-a">絶滅危惧種（環境省・都道府県レッドリスト該当種）の位置情報は自動でマスキングされ、詳細な場所が特定されない精度に落とされます。通常の記録も住所が特定されるような表示はしません。写真の EXIF 情報（GPS 座標）はアップロード時に自動除去されます。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">自分のデータを削除できますか？</summary><p class="fl-faq-a">できます。各観察記録の詳細ページからいつでも削除できます。削除するとデータベースから完全に除去されます（復元不可）。アカウント全体の削除は contact@ikimon.life までご連絡ください。</p></details>
-          <details class="fl-faq-item"><summary class="fl-faq-q">データは他のプラットフォームと共有されますか？</summary><p class="fl-faq-a">SNS や広告目的での共有はしません。将来的な open biodiversity data 連携は検討していますが、authority-backed review や媒体条件など、公開に足る条件を満たしたものだけを対象にします。条件未達データを trend や absence の根拠として外に押し出すことはしません。</p></details>
+          <details class="fl-faq-item"><summary class="fl-faq-q">データは他のプラットフォームと共有されますか？</summary><p class="fl-faq-a">SNS や広告目的での共有はしません。将来的なオープンな生物多様性データ連携は検討していますが、任された人の確認や媒体条件など、公開に足る条件を満たしたものだけを対象にします。条件を満たさないデータを、増減や不在の根拠として外に押し出すことはしません。</p></details>
           <details class="fl-faq-item"><summary class="fl-faq-q">投稿データのライセンスはどうなりますか？</summary><p class="fl-faq-a">投稿時に CC0・CC BY・CC BY-NC の 3 種類から選べます。デフォルトは CC BY（表示・改変・商用利用可）です。世界中の研究者がデータを活用できる形にするには CC BY が最適です。写真の著作権は投稿者に帰属し、ikimon が著作権を取得することはありません。</p></details>
         </div>
       </section>`,
@@ -1436,7 +1585,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       lang === "ja" ? "ikimon for Business — 訪問理由と再訪理由を育てる地域連携 | ikimon" : "For Business | ikimon",
       lang === "ja" ? "法人向け" : "For Business",
       "訪問理由と再訪理由を育てる、地域連携の入口。",
-      "学校・自治体・企業・地域事業者に対して、ikimon は deep workspace を先に約束するのではなく、place stewardship と repeatable observation loop を立ち上げる導線として公開します。",
+      "学校・自治体・企業・地域事業者に対して、ikimon は専用の業務画面を先に約束するのではなく、地域で場所を見守る取り組みと、繰り返せる観察のサイクルを立ち上げる導線として公開します。",
       cards([
         {
           title: "まずは place を立ち上げる",
@@ -1455,12 +1604,12 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
           label: lang === "ja" ? "料金を見る" : "Pricing",
         },
         {
-          title: "place stewardship を作る",
-          body: "初回の観察会や現地導線を通じて、その場所にまた来る理由を残します。分析より先に、現場で loop が回ることを優先します。",
+          title: "場所を見守る取り組みを作る",
+          body: "初回の観察会や現地導線を通じて、その場所にまた来る理由を残します。分析より先に、現場でサイクルが回ることを優先します。",
         },
         {
-          title: "natural capital practice の入口",
-          body: "welfare 訴求ではなく、地域の place stewardship や natural capital practice の入口として扱います。報告や分析は、その後に乗せます。",
+          title: "自然資本の取り組みの入口",
+          body: "福祉的な訴求ではなく、地域で場所を見守る取り組みや、自然資本の取り組みの入口として扱います。報告や分析は、その後に乗せます。",
         },
         {
           title: "よくある質問",
@@ -1476,8 +1625,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         },
       ]) + rows([
         {
-          title: "なぜ deep workspace を先に約束しないのか",
-          body: "公開時点の完成ラインは、地域側が `訪問理由と再訪理由を作る器` だと理解できることです。まずは入口と loop を正しく立ち上げます。",
+          title: "なぜ専用の業務画面を先に約束しないのか",
+          body: "公開時点の完成ラインは、地域側が「訪問理由と再訪理由を作る器」だと理解できることです。まずは入口とサイクルを正しく立ち上げます。",
           actionHref: withBasePath(basePath, "/for-business/pricing"),
           actionLabel: lang === "ja" ? "詳しく見る" : "Learn more",
         },
@@ -1500,8 +1649,8 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "連携の始め方",
       "最初から重い契約を結ぶより、まずは place 単位で訪問理由と再訪導線を立ち上げ、必要な運用だけを段階的に足す方針です。",
       rows([
-        { title: "まず入口を合わせる", body: "公開時点では、地域や組織が place stewardship / regional partnership / natural capital practice のどこで使うかを揃えるところから始めます。" },
-        { title: "必要になったら追加する", body: "継続運用、出力、専門 review 連携などは、現場で loop が回り始めてから段階的に追加します。" },
+        { title: "まず入口を合わせる", body: "公開時点では、地域や組織が「場所を見守る取り組み」「地域連携」「自然資本の取り組み」のどこで使うかを揃えるところから始めます。" },
+        { title: "必要になったら追加する", body: "継続運用、出力、専門家の確認との連携などは、現場でサイクルが回り始めてから段階的に追加します。" },
         { title: "ご相談", body: "対象場所、初回観察会、無償提供の適用可否などは、下記から相談できます。", actionHref: withBasePath(basePath, "/for-business/apply"), actionLabel: "お問い合わせ" },
       ]),
       "For Business",
@@ -1522,7 +1671,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "営業用の別画面ではなく、実際の public lane を見ていただきます。どのように place を立ち上げ、訪問理由と再訪理由を返すかを把握できます。",
       rows([
         { title: "場所の広がりを見る", body: "どの場所に観察が積み重なっているかだけでなく、なぜ今そこへ行くかの読み方を確認できます。", actionHref: withBasePath(basePath, "/map"), actionLabel: "マップへ" },
-        { title: "最初の 1 件を記録する", body: "quick capture / survey を使い分けて、場所・時刻・写真を place memory にする流れを確認できます。", actionHref: withBasePath(basePath, "/record"), actionLabel: "記録画面へ" },
+        { title: "最初の 1 件を記録する", body: "その場の 1 枚と、比較したい観察を使い分けて、場所・時刻・写真を「場所の記憶」にする流れを確認できます。", actionHref: withBasePath(basePath, "/record"), actionLabel: "記録画面へ" },
         { title: "運用 readiness を見る", body: "サービスの健全性と切替 readiness を確認できるページです。", actionHref: withBasePath(basePath, "/ops/readiness"), actionLabel: "運用状況へ" },
       ]),
       "For Business",

@@ -21,6 +21,7 @@ import {
 } from "../services/authorityRecommendations.js";
 import { resolveViewer } from "../services/viewerIdentity.js";
 import { getLandingSnapshot } from "../services/landingSnapshot.js";
+import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
 import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
@@ -989,13 +990,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               </div>
             </section>
             <section class="record-card">
-              <div class="eyebrow">Trust lane</div>
+              <div class="eyebrow">信頼のレーン</div>
               <h2>名前は 4 層で扱う</h2>
               <div class="list">
-                <div class="row"><div><strong>AI suggestion</strong><div class="meta">候補と見分けのヒント。これだけで公式確定にしない。</div></div></div>
-                <div class="row"><div><strong>Community support</strong><div class="meta">人の同定が集まる段階。まだ public claim ではない。</div></div></div>
-                <div class="row"><div><strong>Authority-backed</strong><div class="meta">分類群 authority を持つ reviewer が承認する段階。</div></div></div>
-                <div class="row"><div><strong>Public claim</strong><div class="meta">authority-backed review と媒体条件を満たした公開主張候補。</div></div></div>
+                <div class="row"><div><strong>AI のヒント</strong><div class="meta">候補と見分けのヒント。これだけで公式確定にしない。</div></div></div>
+                <div class="row"><div><strong>みんなの同定</strong><div class="meta">人の同定が集まる段階。まだ公開前提ではない。</div></div></div>
+                <div class="row"><div><strong>任された人の確認</strong><div class="meta">分類群の担当権限を持つ確認者が承認する段階。</div></div></div>
+                <div class="row"><div><strong>公開前提の主張</strong><div class="meta">任された人の確認と媒体条件を満たした公開候補。</div></div></div>
               </div>
             </section>
             <section class="record-card">
@@ -1641,7 +1642,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       {
         eyebrow: "みつける",
         heading: "次に歩く場所を探す",
-        lead: "近くの再訪候補も、旅先で 1 回だけ寄る価値も、場所ごとの積み重なりから見つけます。ここは `why here / why now` の入口です。",
+        lead: "近くの再訪候補も、旅先で 1 回だけ寄る価値も、場所ごとの積み重なりから見つけます。ここは「なぜここか／なぜ今か」を読み取る入口です。",
         actions: [
           { href: "/map", label: "マップで見る" },
           { href: "/notes", label: "ノートに戻る", variant: "secondary" as const },
@@ -1860,17 +1861,17 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               : "";
     const trustLead =
       trustStage === "public_claim"
-        ? "authority-backed review と媒体条件を満たし、public claim 候補まで進んでいます。"
+        ? "任された人の確認と媒体条件を満たし、公開前提の候補まで進んでいます。"
         : trustStage === "authority_backed"
-          ? "community の先で authority-backed review が入り、公開前の確度を担保している段階です。"
+          ? "みんなの同定の先で、任された人の確認が入り、公開前の確度を担保している段階です。"
           : trustStage === "community_support"
             ? "AI 候補だけではなく、人の同定が集まっている段階です。"
-            : "いま見えている名前は仮説レイヤーです。AI と人の review で上がっていきます。";
+            : "いま見えている名前は仮の候補です。AI と人の確認で上がっていきます。";
     const trustSteps = [
-      { id: "ai_suggestion", label: "AI suggestion", meta: "候補と見分けのヒント" },
-      { id: "community_support", label: "Community support", meta: "人の同定が集まる" },
-      { id: "authority_backed", label: "Authority-backed", meta: "分類群 authority が承認" },
-      { id: "public_claim", label: "Public claim", meta: "公開主張レーンに進める" },
+      { id: "ai_suggestion", label: "AI のヒント", meta: "候補と見分けのヒント" },
+      { id: "community_support", label: "みんなの同定", meta: "人の同定が集まる" },
+      { id: "authority_backed", label: "任された人の確認", meta: "分類群の担当権限を持つ人が承認" },
+      { id: "public_claim", label: "公開前提", meta: "公開用途の候補に進める" },
     ];
     const targetTaxaScopeLabel = (() => {
       const scope = (snapshot.targetTaxaScope ?? "").trim();
@@ -1896,11 +1897,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             if (snapshot.distanceMeters != null) protocolChips.push(`<span class="obs-focus-chip">📏 ${Math.round(snapshot.distanceMeters)} m</span>`);
             if (snapshot.revisitReason) protocolChips.push(`<span class="obs-focus-chip">↺ ${escapeHtml(snapshot.revisitReason)}</span>`);
             const boundaryNote = snapshot.surveyResult === "no_detection_note" || snapshot.absenceSemantics === "protocol_note_only"
-              ? "この visit は `no target detected` を不在主張としては扱っていません。protocol note only のまま保持しています。"
-              : "survey として effort / checklist / scope を残した visit です。比較可能性を上げるための記録で、増減や不在をここだけで断定しません。";
+              ? "この観察は「見つからなかった」を不在の主張としては扱っていません。手順の注記としてだけ保持しています。"
+              : "比較したい観察として、どれだけ歩いたか・手順・範囲を残した記録です。比較の精度を上げるための記録で、増減や不在をここだけで断定しません。";
             return `<div class="obs-story-block">
-              <div class="obs-story-eyebrow">Survey protocol</div>
-              <p>この記録は quick capture ではなく、あとで比べられるように protocol を付けて残した visit です。</p>
+              <div class="obs-story-eyebrow">観察の手順</div>
+              <p>この記録はその場の 1 枚ではなく、あとで比べられるように手順を付けて残した観察です。</p>
               ${protocolChips.length > 0 ? `<div class="obs-focus-meta">${protocolChips.join("")}</div>` : ""}
               ${surveyResultLabel ? `<p style="margin-top:10px">${escapeHtml(surveyResultLabel)}</p>` : ""}
               <small class="obs-ai-note">${escapeHtml(boundaryNote)}</small>
@@ -2081,7 +2082,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       ? `<div class="obs-nearby-grid">
            ${heavy.nearby.map((n) => `
              <a class="obs-nearby-card" href="${escapeHtml(appendLangToHref(withBasePath(basePath, buildObservationDetailPath(n.occurrenceId, n.occurrenceId)), lang))}">
-               ${n.photoUrl ? `<img src="${escapeHtml(n.photoUrl)}" alt="${escapeHtml(n.displayName)}" loading="lazy" />` : '<div class="obs-nearby-nophoto">📷</div>'}
+               ${n.photoUrl ? `<img src="${escapeHtml(toThumbnailUrl(n.photoUrl, "sm") ?? n.photoUrl)}" alt="${escapeHtml(n.displayName)}" loading="lazy" decoding="async" onerror="this.outerHTML='&lt;div class=&quot;obs-nearby-nophoto&quot;&gt;\u{1f4f7}&lt;/div&gt;'" />` : '<div class="obs-nearby-nophoto">📷</div>'}
                <div class="obs-nearby-body">
                  <div class="obs-nearby-name">${escapeHtml(n.displayName)}</div>
                  <div class="obs-nearby-meta">${escapeHtml(n.observerName)} · ${escapeHtml(n.observedAt)}</div>
@@ -2705,10 +2706,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           : "同定ワークベンチ";
     const laneLead =
       lane === "public-claim"
-        ? "authority-backed review を最終公開主張に進めるレーンです。ここでの approve だけが research/public claim 昇格候補になります。"
+        ? "任された人の確認を、最終的な公開前提の主張に進めるレーンです。ここでの承認だけが、研究・公開の候補に進みます。"
         : lane === "expert-lane"
-          ? "分類群 authority を持つ reviewer が、公開前の確定レビューを付与するレーンです。"
-          : "分類群 authority を持つ reviewer が、自分の担当スコープで同定を進める作業画面です。";
+          ? "分類群の担当権限を持つ確認者が、公開前の確定レビューを付与するレーンです。"
+          : "分類群の担当権限を持つ確認者が、自分の担当範囲で同定を進める作業画面です。";
     const scopeSummary = renderAuthoritySummaryChips(access.activeAuthorities);
     const scopeMeta = access.canManageAll
       ? `<div class="meta">Analyst / Admin は全分類群にアクセスできます。authority を付けると reviewer の担当範囲も絞れます。</div>`
@@ -3417,7 +3418,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         eyebrow: "専門家向け",
         heading: "レビュー待ちの観察",
         headingHtml: "レビュー待ちの観察",
-        lead: "broad triage 用の queue です。authority scope に一致する観察だけを開き、approve した内容は plain / authority-backed / admin-override として保存されます。",
+        lead: "広く振り分け用の確認待ちリストです。あなたの担当権限に一致する観察だけを開き、承認した内容は「通常」「任された人の確認」「運営の判断」として保存されます。",
         actions: [
           { href: "/learn/authority-policy", label: "制度の説明" },
           { href: "/specialist/id-workbench?lane=expert-lane", label: "専門確認" },
@@ -3582,7 +3583,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         heading: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
         headingHtml: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
         lead: lang === "ja"
-          ? "近くの再訪候補も、旅先で今ここに寄る理由も、このページで決めます。`why here / why now / one-visit contribution / next revisit hook` を地図の偏りから返す入口です。"
+          ? "近くの再訪候補も、旅先で今ここに寄る理由も、このページで決めます。「なぜここか」「なぜ今か」「1 回の訪問で残せること」「次に来る理由」を地図の偏りから返す入口です。"
           : "Use this page to find a reason to return somewhere you have walked before. Check the map and decide where to go next.",
         tone: "light",
         align: "center",
@@ -3593,8 +3594,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       },
       body: `<section class="section">
         <div class="list">
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. 地図で why here を見る" : "1. See why here on the map")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "記録が多い場所・少ない場所の偏り、季節、主体レンズから、行く理由が立つ場所を見つけます。" : "Clusters and gaps on the map show you where to go next.")}</div></div></div>
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. why now / one-visit contribution を読む" : "2. Read why now and what one visit can add")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "細かい名前より先に、その場所がいま薄いのか、再訪で厚くすべきかを見ます。" : "Focus on the feel of the place, not precise identification.")}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. 地図で「なぜここか」を見る" : "1. See why here on the map")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "記録が多い場所・少ない場所の偏り、季節、主体レンズから、行く理由が立つ場所を見つけます。" : "Clusters and gaps on the map show you where to go next.")}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. 「なぜ今か」「1 回の訪問で残せること」を読む" : "2. Read why now and what one visit can add")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "細かい名前より先に、その場所がいま薄いのか、再訪で厚くすべきかを見ます。" : "Focus on the feel of the place, not precise identification.")}</div></div></div>
           <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "3. 歩く場所が決まったら、実際の観察を record 画面で記録する" : "3. Once you decide where to go, record observations in the record screen")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "このページには記録を保存する機能がありません。旅先の 1 回の寄り道でも、次の再訪理由になるよう record に残してください。" : "This page does not save records. Use the record screen to save what you actually observe.")}</div></div></div>
         </div>
       </section>
