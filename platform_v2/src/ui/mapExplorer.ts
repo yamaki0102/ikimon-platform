@@ -880,7 +880,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <div class="me-results-list" id="me-results-list" data-testid="map-result-list"></div>
       </aside>
       <div class="me-map-wrap">
-        <div id="map-explorer" class="me-map" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}"></div>
+        <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}"></div>
         <div class="me-map-panel me-map-panel-selection" id="me-map-selection-card"></div>
         <div class="me-map-panel me-map-panel-insight" id="me-map-insight-card"></div>
         <button type="button" class="me-search-area-btn is-hidden" id="me-search-area-btn">${escapeHtml(searchAreaLabel)}</button>
@@ -1216,6 +1216,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     searchAreaBtnEl.textContent = state.pendingViewportSearch ? COPY.searchArea : COPY.searchArea;
   }
 
+  function hasPendingMapResults() {
+    return state._cellsRequestSeq !== state._cellsAppliedSeq || state._recordsRequestSeq !== state._recordsAppliedSeq;
+  }
+
+  function updatePendingMapResultsState() {
+    var pending = hasPendingMapResults();
+    if (root) root.setAttribute('data-results-pending', pending ? '1' : '0');
+    if (root) root.setAttribute('aria-busy', pending ? 'true' : 'false');
+    if (resultsListEl) resultsListEl.setAttribute('aria-busy', pending ? 'true' : 'false');
+  }
+
+  updatePendingMapResultsState();
+
   function contributorBandLabel(band) {
     if (band === '1-2') return COPY.contributorBand_1_2;
     if (band === '3-5') return COPY.contributorBand_3_5;
@@ -1407,6 +1420,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }).join('');
     resultsListEl.querySelectorAll('.me-result-row').forEach(function (rowEl) {
       rowEl.addEventListener('click', function () {
+        if (hasPendingMapResults()) return;
         var occurrenceId = rowEl.getAttribute('data-occurrence-id');
         var record = state.records.find(function (item) {
           return item && item.occurrenceId === occurrenceId;
@@ -1863,6 +1877,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     });
     ['observation-cell-fill', 'observation-cell-outline', 'obs-cell-heat'].forEach(function (layerId) {
       map.on('click', layerId, function (e) {
+        if (hasPendingMapResults()) return;
         if (!e.features || !e.features[0]) return;
         selectCell(e.features[0], { focusMap: false, openSheet: true });
       });
@@ -2027,6 +2042,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var requestSeq = state._cellsRequestSeq + 1;
     state._cellsRequestSeq = requestSeq;
     state.lastAbort = controller;
+    updatePendingMapResultsState();
     fetch(apiCells + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('cells ' + r.status)); })
       .then(function (coll) {
@@ -2052,6 +2068,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           if (state.selectedPoint && state.selectedPoint.kind !== 'place') state.selectedPoint = null;
           closeBottomSheet();
         }
+        updatePendingMapResultsState();
         if (state._restoredCellId) {
           var restoredFeature = findCellFeatureById(state._restoredCellId);
           if (restoredFeature) {
@@ -2070,6 +2087,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
+        if (MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._cellsRequestSeq)) {
+          state._cellsAppliedSeq = requestSeq;
+          updatePendingMapResultsState();
+        }
       });
   }
 
@@ -2096,6 +2117,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var requestSeq = state._recordsRequestSeq + 1;
     state._recordsRequestSeq = requestSeq;
     state.recordAbort = controller;
+    updatePendingMapResultsState();
     fetch(apiObservations + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('records ' + r.status)); })
       .then(function (list) {
@@ -2128,6 +2150,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         renderResultList();
         renderSelectedCard();
         renderSidePanels();
+        updatePendingMapResultsState();
         updateSearchAreaUi();
         var totalAll = (list && list.stats && list.stats.totalAll) || state.records.length;
         if (!state.records.length) setStatus(COPY.empty);
@@ -2136,6 +2159,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
+        if (MapExplorerStateHelpers.shouldApplyAsyncResponse(requestSeq, state._recordsRequestSeq)) {
+          state._recordsAppliedSeq = requestSeq;
+          updatePendingMapResultsState();
+        }
         setStatus('—');
         setStatusMeta('');
       });

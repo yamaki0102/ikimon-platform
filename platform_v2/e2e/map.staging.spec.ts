@@ -207,10 +207,12 @@ test("map share state survives reload", async ({ browser }) => {
   await page.getByRole("tab", { name: "調査前進" }).click();
   await page.locator(".me-filter-toggle").click();
   await page.locator('input[name="me-basemap"][value="gsi"]').check({ force: true });
+  await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0");
   await page.getByTestId("map-result-list").locator(".me-result-row").first().click();
   await expect.poll(() => new URL(page.url()).searchParams.get("cell")).not.toBeNull();
   const selectedCell = await page.evaluate(() => new URL(window.location.href).searchParams.get("cell"));
   expect(selectedCell).not.toBeNull();
+  await expect(page.locator("#map-explorer")).toHaveAttribute("data-results-pending", "0");
   await page.waitForTimeout(900);
   await expect.poll(() => new URL(page.url()).searchParams.get("cell")).toBe(selectedCell);
   await page.locator("#me-share-state").click();
