@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
-import { appendLangToHref, detectLangFromUrl } from "../i18n.js";
+import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
+import { getShortCopy } from "../content/index.js";
+import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import {
@@ -64,6 +66,26 @@ type LayoutHero = {
   actions?: Array<{ href: string; label: string; variant?: "primary" | "secondary" }>;
 };
 
+type PublicSharedCopy = {
+  cta: {
+    record: string;
+    openNotebook: string;
+    openMap: string;
+  };
+  ai: {
+    support: string;
+  };
+};
+
+type PublicRouteCard = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  meta?: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+};
+
 function layout(
   basePath: string,
   title: string,
@@ -91,6 +113,24 @@ function layout(
     extraStyles,
     footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
   });
+}
+
+function renderPublicRouteCardGrid(
+  cards: PublicRouteCard[],
+  basePath: string,
+  lang: SiteLang,
+  ctaClass: "btn btn-solid" | "inline-link",
+): string {
+  return `<div class="grid">${cards
+    .map((card) => {
+      const ctaHref = card.ctaHref ? appendLangToHref(withBasePath(basePath, card.ctaHref), lang) : "";
+      const ctaHtml = card.ctaHref && card.ctaLabel
+        ? `<div class="actions" style="margin-top:12px"><a class="${ctaClass}" href="${escapeHtml(ctaHref)}">${escapeHtml(card.ctaLabel)}</a></div>`
+        : "";
+      const metaHtml = card.meta ? `<p class="meta" style="margin-top:10px">${escapeHtml(card.meta)}</p>` : "";
+      return `<div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(card.eyebrow)}</div><h2>${escapeHtml(card.title)}</h2><p>${escapeHtml(card.body)}</p>${metaHtml}${ctaHtml}</div></div>`;
+    })
+    .join("")}</div>`;
 }
 
 function rankLabelJa(rank: string): string {
@@ -850,6 +890,8 @@ function requestBasePath(request: { headers: Record<string, unknown> }): string 
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/record", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const recordPageCopy = getShortCopy<any>(lang, "public", "read.record");
     const session = await getSessionFromCookie(request.headers.cookie);
     const resolution = resolveViewer(request.query, session);
     const viewerUserId = resolution.viewerUserId ?? "";
@@ -876,18 +918,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "ikimon v2 record",
+      recordPageCopy.title,
       `<section class="record-page">
         <div class="record-shell">
           <section class="record-card record-sheet">
             <div class="record-card-head">
               <div>
-                <div class="eyebrow" id="record-mode-eyebrow">Quick capture</div>
-                <h2>観察を 1 ページとして残す</h2>
-                <p class="meta" id="record-mode-lead">場所・時刻・名前の仮説を最小入力で残し、あとからノートで育てる前提の入力画面です。</p>
+                <div class="eyebrow" id="record-mode-eyebrow">ふだんの記録</div>
+                <h2>見つけたことを、その場で残す</h2>
+                <p class="meta" id="record-mode-lead">場所・時間・気づいたことを、まず 1 件残すための画面です。名前が分からなくても始められます。</p>
               </div>
               <div class="record-session-pill">
-                <span class="record-session-label">Signed in</span>
+                <span class="record-session-label">ログイン中</span>
                 <strong>${escapeHtml(viewerUserId)}</strong>
               </div>
             </div>
@@ -896,12 +938,12 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <span class="record-label">記録モード</span>
                 <div class="record-mode-grid" role="group" aria-label="記録モード">
                   <button type="button" class="record-mode-chip is-active" data-record-mode="quick">
-                    <strong>Quick capture</strong>
-                    <span>最小入力で field note を残す</span>
+                    <strong>ふだんの記録</strong>
+                    <span>いつもの散歩で見つけたことを残す</span>
                   </button>
                   <button type="button" class="record-mode-chip" data-record-mode="survey">
-                    <strong>Survey</strong>
-                    <span>effort / checklist / scope を残す</span>
+                    <strong>しっかり記録</strong>
+                    <span>比べたい観察の条件も一緒に残す</span>
                   </button>
                 </div>
                 <input type="hidden" name="recordMode" value="quick" />
@@ -924,42 +966,42 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <div class="record-survey-box">
                   <div class="record-survey-head">
                     <div>
-                      <span class="record-label">Survey protocol</span>
-                      <p class="record-help">trend や不在に近い含意を持たせる前提のメモです。Quick capture と混ぜません。</p>
+                      <span class="record-label">比べるための記録</span>
+                      <p class="record-help">同じ場所を見比べたいときの追加入力です。ふだんの記録とは分けて残します。</p>
                     </div>
-                    <span class="record-survey-pill">survey</span>
+                    <span class="record-survey-pill">比較用</span>
                   </div>
                   <div class="record-survey-grid">
                     <label class="record-field">
-                      <span class="record-label">Checklist completion</span>
+                      <span class="record-label">どこまで見たか</span>
                       <select name="checklistCompletion" data-survey-required disabled>
-                        <option value="complete">Complete checklist</option>
-                        <option value="partial">Partial / target-only</option>
+                        <option value="complete">ひと通り見た</option>
+                        <option value="partial">気になるものだけ見た</option>
                       </select>
                     </label>
                     <label class="record-field">
-                      <span class="record-label">Target taxa scope</span>
-                      <input name="targetTaxaScope" type="text" placeholder="例: birds / waterside plants / spring butterflies" data-survey-required disabled />
+                      <span class="record-label">何を見たかったか</span>
+                      <input name="targetTaxaScope" type="text" placeholder="例: 水辺の鳥 / 春のチョウ / 公園の花" data-survey-required disabled />
                     </label>
                     <label class="record-field">
-                      <span class="record-label">Effort minutes</span>
+                      <span class="record-label">見た時間（分）</span>
                       <input name="effortMinutes" type="number" min="1" step="1" placeholder="20" data-survey-required disabled />
                     </label>
                     <label class="record-field">
-                      <span class="record-label">Survey result</span>
+                      <span class="record-label">今回の結果</span>
                       <select name="surveyResult" disabled>
-                        <option value="present">Present evidence collected</option>
-                        <option value="no_detection_note">No target detected (protocol note only)</option>
+                        <option value="present">見つけて記録した</option>
+                        <option value="no_detection_note">見つからなかったメモだけ残す</option>
                       </select>
                     </label>
                     <label class="record-field record-field-wide">
-                      <span class="record-label">Revisit reason</span>
-                      <textarea name="revisitReason" rows="3" placeholder="例: 先月の note と比べたい / 同じ水路で外来種を追いたい" data-survey-required disabled></textarea>
+                      <span class="record-label">また見に行きたい理由</span>
+                      <textarea name="revisitReason" rows="3" placeholder="例: 先月と比べたい / 同じ水路の変化を見たい" data-survey-required disabled></textarea>
                     </label>
                   </div>
                   <div class="record-survey-caution">
                     <strong>未観測と不在は別です。</strong>
-                    <span><code>no target detected</code> は protocol note として残し、absence の断定には使いません。</span>
+                    <span>「見つからなかった」はメモとして残しますが、「いない」と言い切る材料には使いません。</span>
                   </div>
                 </div>
               </div>
@@ -977,18 +1019,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 <div id="record-video-live" class="record-video-live" aria-live="polite">動画を選ぶと進捗を表示します。</div>
               </div>
               <div class="record-actions">
-                <button class="btn btn-solid" type="submit">観察を記録する</button>
-                <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes"))}">ノートへ戻る</a>
+                <button class="btn btn-solid" type="submit">${JA_PUBLIC_SHARED_COPY.cta.record}</button>
+                <a class="btn btn-ghost" href="${escapeHtml(withBasePath(basePath, "/notes"))}">${JA_PUBLIC_SHARED_COPY.cta.openNotebook}</a>
               </div>
             </form>
           </section>
           <aside class="record-sidebar">
             <section class="record-card record-preview-card">
-              <div class="eyebrow">Notebook preview</div>
-              <h2>この記録が残る形</h2>
+              <div class="eyebrow">記録の見え方</div>
+              <h2>あとで見返すと、こう残る</h2>
               <div class="record-preview">
                 <div class="record-preview-topline">
-                  <span id="record-preview-kicker" class="record-preview-kicker">field note</span>
+                  <span id="record-preview-kicker" class="record-preview-kicker">ふだんの記録</span>
                   <span id="record-preview-date">今日</span>
                 </div>
                 <h3 id="record-preview-title">名前未確定の観察</h3>
@@ -1001,7 +1043,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               </div>
             </section>
             <section class="record-card record-guide-card">
-              <div class="eyebrow">Why this matters</div>
+              <div class="eyebrow">この 1 件の意味</div>
               <h2>この 1 件が効く理由</h2>
               <div class="list">
                 <div class="row"><div><strong>再訪理由が残る</strong><div class="meta">場所メモと日時が、次に同じ道を歩く理由になる。</div></div></div>
@@ -1011,16 +1053,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             </section>
             <section class="record-card">
               <div class="eyebrow">信頼のレーン</div>
-              <h2>名前は 4 層で扱う</h2>
+              <h2>名前は、段を分けて確かめる</h2>
               <div class="list">
-                <div class="row"><div><strong>AI のヒント</strong><div class="meta">候補と見分けのヒント。これだけで公式確定にはしない。</div></div></div>
-                <div class="row"><div><strong>みんなの同定</strong><div class="meta">人の一致で「強い候補」になる。大きな分類なら正式に残ることもある。</div></div></div>
+                <div class="row"><div><strong>AI のヒント</strong><div class="meta">${JA_PUBLIC_SHARED_COPY.ai.support}</div></div></div>
+                <div class="row"><div><strong>みんなの見立て</strong><div class="meta">人の一致で「強い候補」になる。大きな分類なら正式に残ることもある。</div></div></div>
                 <div class="row"><div><strong>任された人の確認</strong><div class="meta">分類群の担当権限を持つ確認者が、細かい種名を通す段階。</div></div></div>
-                <div class="row"><div><strong>公開前提の主張</strong><div class="meta">任された人の確認と媒体条件を満たした公開候補。</div></div></div>
+                <div class="row"><div><strong>公開前の確認</strong><div class="meta">確認と証拠がそろったものだけ、外に出す前提で扱う。</div></div></div>
               </div>
             </section>
             <section class="record-card">
-              <div class="eyebrow">Status</div>
+              <div class="eyebrow">送信状況</div>
               <h2>送信ステータス</h2>
               <div id="record-status" class="list" style="margin-top:16px">
                 <div class="row"><div>入力が完了したら送信してください。</div></div>
@@ -1075,13 +1117,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const syncModeUi = () => {
           const survey = isSurveyMode();
-          if (modeEyebrow) modeEyebrow.textContent = survey ? 'Survey' : 'Quick capture';
+          if (modeEyebrow) modeEyebrow.textContent = survey ? 'しっかり記録' : 'ふだんの記録';
           if (modeLead) {
             modeLead.textContent = survey
-              ? 'effort・checklist・scope を残して、比較可能な visit として保存する入力画面です。'
-              : '場所・時刻・名前の仮説を最小入力で残し、あとからノートで育てる前提の入力画面です。';
+              ? '見た条件も一緒に残して、あとで比べやすくするための入力です。'
+              : '場所・時間・気づいたことを、まず 1 件残すための入力です。';
           }
-          if (previewKicker) previewKicker.textContent = survey ? 'survey visit' : 'field note';
+          if (previewKicker) previewKicker.textContent = survey ? 'しっかり記録' : 'ふだんの記録';
           if (surveyFieldsWrap) surveyFieldsWrap.hidden = !survey;
           surveyRequiredFields.forEach((field) => {
             field.disabled = !survey;
@@ -1193,7 +1235,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           if (previewTitle) previewTitle.textContent = vernacularName || scientificName || '名前未確定の観察';
           if (previewPlace) {
             previewPlace.textContent = survey
-              ? (revisitReason || targetTaxaScope || localityNote || 'revisit reason と target scope が入ると、比較可能な visit として残ります。')
+              ? (revisitReason || targetTaxaScope || localityNote || 'また見に行きたい理由や見たかったものを書くと、あとで比べやすくなります。')
               : (localityNote || '場所メモが入ると、あとから再訪理由として効きます。');
           }
           if (previewMunicipality) previewMunicipality.textContent = municipality || '自治体未入力';
@@ -1334,7 +1376,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const userId = form.dataset.userId || '';
             const observationId = 'record-' + Date.now();
             if (!userId) {
-              setStatus('<div class="row"><div>User context is missing.</div></div>');
+              setStatus('<div class="row"><div>ログイン情報を確認できませんでした。ページを開き直してから、もう一度お試しください。</div></div>');
               return;
             }
             setStatus('<div class="row"><div>記録を送信中...</div></div>');
@@ -1488,7 +1530,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               const suffix = extraStatus
                 ? '<div class="meta" style="margin-top:6px">' + extraStatus + '</div>'
                 : '';
-              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + suffix + '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(detailId)) + '">観察を見る</a> · <a href="' + withBasePath('/notes') + '">ノートへ戻る</a></div></div></div>');
+              setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + suffix + '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(detailId)) + '">観察を見る</a> · <a href="' + withBasePath('/notes') + '">ノートを見る</a></div></div></div>');
               form.reset();
               if (modeInput) modeInput.value = 'quick';
               if (observedAt) {
@@ -1507,9 +1549,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (message === 'video_upload_cancelled') userMessage = '動画アップロードをキャンセルしました。';
               if (message === 'video_metadata_read_failed' || message === 'video_duration_unknown') userMessage = '動画の長さを確認できませんでした。別の動画で試してください。';
               if (message === 'unsupported_media_type') userMessage = '画像または動画ファイルを選択してください。';
-              if (message === 'survey_target_scope_required') userMessage = 'Survey mode では target taxa scope を入力してください。';
-              if (message === 'survey_effort_required') userMessage = 'Survey mode では effort minutes を入力してください。';
-              if (message === 'survey_revisit_reason_required') userMessage = 'Survey mode では revisit reason を入力してください。';
+              if (message === 'survey_target_scope_required') userMessage = 'しっかり記録では、何を見たかったかを入力してください。';
+              if (message === 'survey_effort_required') userMessage = 'しっかり記録では、見た時間を入力してください。';
+              if (message === 'survey_revisit_reason_required') userMessage = 'しっかり記録では、また見に行きたい理由を入力してください。';
               setStatus('<div class="row"><div>送信に失敗しました。<div class="meta">' + userMessage + '</div></div></div>');
             } finally {
               if (videoCancel) videoCancel.disabled = true;
@@ -1521,9 +1563,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </script>`,
       "Record",
       {
-        eyebrow: "記録する",
-        heading: "今日の 1 ページを書く",
-        lead: "観察した場所・時刻・気づいた生きものを、そのまま 1 件のノートに残します。まずは再訪できる形で残すことを優先します。",
+        eyebrow: recordPageCopy.hero.eyebrow,
+        heading: recordPageCopy.hero.heading,
+        lead: recordPageCopy.hero.lead,
         actions: [
           { href: queryUserId ? `/home?userId=${encodeURIComponent(viewerUserId)}` : "/home", label: "ホーム" },
           { href: "/explore", label: "みつける", variant: "secondary" as const },
@@ -1604,6 +1646,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/explore", async (_request, reply) => {
     const basePath = requestBasePath(_request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((_request as unknown as { url?: string }).url ?? ""));
+    const explorePageCopy = getShortCopy<any>(lang, "public", "read.explore");
     const snapshot = await getExploreSnapshot();
     const cards = snapshot.recentObservations.map((item) =>
       renderObservationCard(basePath, lang, {
@@ -1634,7 +1677,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <div class="row">
         <div>
           <div style="font-weight:800">${escapeHtml(item.municipality)}</div>
-          <div class="meta">観察クラスター</div>
+          <div class="meta">最近のまとまり</div>
         </div>
         <span class="pill">${item.observationCount} 件</span>
       </div>`).join("");
@@ -1642,7 +1685,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <div class="row">
         <div>
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
-          <div class="meta">よく観察されている種</div>
+          <div class="meta">この場所で見つかっているもの</div>
         </div>
         <span class="pill">${item.observationCount} 件</span>
       </div>`).join("");
@@ -1650,22 +1693,22 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "みつける | ikimon",
+      explorePageCopy.title,
       `<section class="section">
         <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">また見に行ける場所</div><div class="list">${municipalities || '<div class="row"><div>まだ場所データがありません。</div></div>'}</div></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">その場所らしさを作る生きもの</div><div class="list">${taxa || '<div class="row"><div>まだ種データがありません。</div></div>'}</div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(explorePageCopy.sections.placesEyebrow)}</div><div class="list">${municipalities || `<div class="row"><div>${escapeHtml(explorePageCopy.sections.placesEmpty)}</div></div>`}</div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(explorePageCopy.sections.taxaEyebrow)}</div><div class="list">${taxa || `<div class="row"><div>${escapeHtml(explorePageCopy.sections.taxaEmpty)}</div></div>`}</div></div></div>
         </div>
       </section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">直近の観察</div><h2>次に歩く理由を探す</h2></div></div><div class="explore-grid">${cards || '<div class="card"><div class="card-body">まだ観察がありません。</div></div>'}</div></section>`,
-      "みつける",
+      <section class="section"><div class="section-header"><div><div class="eyebrow">${escapeHtml(explorePageCopy.sections.recentEyebrow)}</div><h2>${escapeHtml(explorePageCopy.sections.recentTitle)}</h2></div></div><div class="explore-grid">${cards || `<div class="card"><div class="card-body">${escapeHtml(explorePageCopy.sections.recentEmpty)}</div></div>`}</div></section>`,
+      explorePageCopy.activeNav,
       {
-        eyebrow: "みつける",
-        heading: "次に歩く場所を探す",
-        lead: "近くの再訪候補も、旅先で 1 回だけ寄る価値も、場所ごとの積み重なりから見つけます。ここは「なぜここか／なぜ今か」を読み取る入口です。",
+        eyebrow: explorePageCopy.hero.eyebrow,
+        heading: explorePageCopy.hero.heading,
+        lead: explorePageCopy.hero.lead,
         actions: [
-          { href: "/map", label: "マップで見る" },
-          { href: "/notes", label: "ノートに戻る", variant: "secondary" as const },
+          { href: "/map", label: JA_PUBLIC_SHARED_COPY.cta.openMap },
+          { href: "/notes", label: JA_PUBLIC_SHARED_COPY.cta.openNotebook, variant: "secondary" as const },
         ],
       },
       `${OBSERVATION_CARD_STYLES}
@@ -2563,6 +2606,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/authority/recommendations", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const authorityRecommendationCopy = getShortCopy<any>(lang, "specialist", "authorityRecommendations.hero");
     const session = await getSessionFromCookie(request.headers.cookie);
     if (!session) {
       reply.code(401).type("text/html; charset=utf-8");
@@ -2673,20 +2718,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </script>`,
       "ホーム",
       {
-        eyebrow: "市民から専門候補へ",
-        heading: "Authority Recommendations",
-        headingHtml: "Authority Recommendations",
-        lead: "自分が任せられる分類群を申請し、証跡を積み上げるための画面です。",
-        actions: [
-          { href: "/learn/authority-policy", label: "制度の説明" },
-          { href: "/specialist/recommendations", label: "推薦待ちを見る", variant: "secondary" as const },
-        ],
+        eyebrow: authorityRecommendationCopy.eyebrow,
+        heading: authorityRecommendationCopy.heading,
+        headingHtml: authorityRecommendationCopy.heading,
+        lead: authorityRecommendationCopy.lead,
+        actions: authorityRecommendationCopy.actions,
       },
     );
   });
 
   app.get("/specialist/id-workbench", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const session = await getSessionFromCookie(request.headers.cookie);
     try {
       await assertSpecialistSession(session, session?.userId ?? "");
@@ -2718,18 +2761,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       roleName: session?.roleName,
       rankLabel: session?.rankLabel,
     });
+    const workbenchCopy = getShortCopy<any>(lang, "specialist", "idWorkbench.hero");
     const laneTitle =
       lane === "public-claim"
-        ? "公開主張レーン"
+        ? workbenchCopy.publicClaim.heading
         : lane === "expert-lane"
-          ? "専門確認レーン"
-          : "同定ワークベンチ";
+          ? workbenchCopy.expertLane.heading
+          : workbenchCopy.default.heading;
     const laneLead =
       lane === "public-claim"
-        ? "任された人の確認を、最終的な公開前提の主張に進めるレーンです。ここでの承認だけが、研究・公開の候補に進みます。"
+        ? workbenchCopy.publicClaim.lead
         : lane === "expert-lane"
-          ? "分類群の担当権限を持つ確認者が、公開前の確定レビューを付与するレーンです。"
-          : "分類群の担当権限を持つ確認者が、自分の担当範囲で同定を進める作業画面です。";
+          ? workbenchCopy.expertLane.lead
+          : workbenchCopy.default.lead;
     const scopeSummary = renderAuthoritySummaryChips(access.activeAuthorities);
     const scopeMeta = access.canManageAll
       ? `<div class="meta">Analyst / Admin は全分類群にアクセスできます。authority を付けると reviewer の担当範囲も絞れます。</div>`
@@ -2833,22 +2877,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </script>`,
       "ホーム",
       {
-        eyebrow: "専門家向け",
+        eyebrow: workbenchCopy.eyebrow,
         heading: laneTitle,
         headingHtml: escapeHtml(laneTitle),
         lead: laneLead,
-        actions: [
-          { href: "/learn/authority-policy", label: "制度の説明" },
-          { href: "/specialist/id-workbench?lane=public-claim", label: "公開同定" },
-          { href: "/specialist/id-workbench?lane=expert-lane", label: "専門確認", variant: "secondary" as const },
-          { href: "/specialist/review-queue", label: "レビュー待ち", variant: "secondary" as const },
-        ],
+        actions: workbenchCopy.actions,
       },
     );
   });
 
   app.get("/specialist/recommendations", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const recommendationsCopy = getShortCopy<any>(lang, "specialist", "recommendations.hero");
     const session = await getSessionFromCookie(request.headers.cookie);
     let resolvedSession;
     try {
@@ -3029,21 +3070,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </script>`,
       "ホーム",
       {
-        eyebrow: "推薦ワークフロー",
-        heading: "Specialist Recommendations",
-        headingHtml: "Specialist Recommendations",
-        lead: "分類群 authority 候補を pending で受け取り、同じ scope の reviewer が grant するための画面です。",
-        actions: [
-          { href: "/learn/authority-policy", label: "制度の説明" },
-          { href: "/specialist/id-workbench?lane=expert-lane", label: "専門確認", variant: "secondary" as const },
-          { href: "/specialist/authority-admin", label: "Authority admin", variant: "secondary" as const },
-        ],
+        eyebrow: recommendationsCopy.eyebrow,
+        heading: recommendationsCopy.heading,
+        headingHtml: recommendationsCopy.heading,
+        lead: recommendationsCopy.lead,
+        actions: recommendationsCopy.actions,
       },
     );
   });
 
   app.get("/specialist/authority-audit", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const auditCopy = getShortCopy<any>(lang, "specialist", "authorityAudit.hero");
     const session = await getSessionFromCookie(request.headers.cookie);
     try {
       assertSpecialistAdminSession(session, session?.userId ?? "");
@@ -3119,21 +3158,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <section class="section"><div class="section-header"><div><div class="eyebrow">Recent-first</div><h2>authority audit</h2></div></div>${renderAuthorityAuditCards(audit)}</section>`,
       "ホーム",
       {
-        eyebrow: "運営の追跡面",
-        heading: "Authority Audit",
-        headingHtml: "Authority Audit",
-        lead: "誰が誰にどの根拠で authority を付与・更新・取消したかを、recent-first で確認する画面です。",
-        actions: [
-          { href: "/specialist/authority-admin", label: "Authority admin" },
-          { href: "/specialist/recommendations", label: "推薦待ち", variant: "secondary" as const },
-          { href: "/learn/authority-policy", label: "制度の説明", variant: "secondary" as const },
-        ],
+        eyebrow: auditCopy.eyebrow,
+        heading: auditCopy.heading,
+        headingHtml: auditCopy.heading,
+        lead: auditCopy.lead,
+        actions: auditCopy.actions,
       },
     );
   });
 
   app.get("/specialist/authority-admin", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const authorityAdminCopy = getShortCopy<any>(lang, "specialist", "authorityAdmin.hero");
     const session = await getSessionFromCookie(request.headers.cookie);
     try {
       assertSpecialistAdminSession(session, session?.userId ?? "");
@@ -3293,22 +3330,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </script>`,
       "ホーム",
       {
-        eyebrow: "運営者向け",
-        heading: "Authority Admin",
-        headingHtml: "Authority Admin",
-        lead: "分類群ごとの reviewer authority を付与・取消し、根拠 evidence を追記する最小管理画面です。",
-        actions: [
-          { href: "/learn/authority-policy", label: "制度の説明" },
-          { href: "/specialist/authority-audit", label: "Audit", variant: "secondary" as const },
-          { href: "/specialist/id-workbench?lane=expert-lane", label: "専門確認へ戻る" },
-          { href: "/specialist/review-queue", label: "レビュー待ち", variant: "secondary" as const },
-        ],
+        eyebrow: authorityAdminCopy.eyebrow,
+        heading: authorityAdminCopy.heading,
+        headingHtml: authorityAdminCopy.heading,
+        lead: authorityAdminCopy.lead,
+        actions: authorityAdminCopy.actions,
       },
     );
   });
 
   app.get("/specialist/review-queue", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const reviewQueueCopy = getShortCopy<any>(lang, "specialist", "reviewQueue.hero");
     const session = await getSessionFromCookie(request.headers.cookie);
     try {
       await assertSpecialistSession(session, session?.userId ?? "");
@@ -3435,16 +3469,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </script>`,
       "ホーム",
       {
-        eyebrow: "専門家向け",
-        heading: "レビュー待ちの観察",
-        headingHtml: "レビュー待ちの観察",
-        lead: "広く振り分け用の確認待ちリストです。あなたの担当権限に一致する観察だけを開き、承認した内容は「通常」「任された人の確認」「運営の判断」として保存されます。",
-        actions: [
-          { href: "/learn/authority-policy", label: "制度の説明" },
-          { href: "/specialist/id-workbench?lane=expert-lane", label: "専門確認" },
-          { href: "/specialist/id-workbench?lane=public-claim", label: "公開同定", variant: "secondary" as const },
-          { href: "/specialist/recommendations", label: "推薦待ち", variant: "secondary" as const },
-        ],
+        eyebrow: reviewQueueCopy.eyebrow,
+        heading: reviewQueueCopy.heading,
+        headingHtml: reviewQueueCopy.heading,
+        lead: reviewQueueCopy.lead,
+        actions: reviewQueueCopy.actions,
       },
     );
   });
@@ -3455,6 +3484,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/notes", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const notesPageCopy = getShortCopy<any>(lang, "public", "read.notes");
+    const sharedCopy = getShortCopy<PublicSharedCopy>(lang, "shared", "publicShared");
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
     const snapshot = await getLandingSnapshot(viewerUserId);
@@ -3468,17 +3499,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       .map((obs) => renderObservationCard(basePath, lang, obs, { compact: true, locationMode: "public" }))
       .join("");
 
-    const emptyCopy = lang === "ja"
-      ? "まだノートは真っ白です。1 件記録すると、あなたの観察がここに積み上がります。"
-      : "The notebook is blank. Record one observation to stack pages here.";
-    const nearbyCopy = lang === "ja" ? "近くで書かれているノート" : "Nearby pages";
-    const myCopy = lang === "ja" ? "あなたのノート" : "Your pages";
+    const emptyCopy = notesPageCopy.sections.nearbyEmpty;
+    const nearbyCopy = notesPageCopy.sections.nearbyTitle;
+    const myCopy = notesPageCopy.sections.ownTitle;
 
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: lang === "ja" ? "フィールドノート | ikimon" : "Field Note | ikimon",
-      activeNav: lang === "ja" ? "ホーム" : "Home",
+      title: notesPageCopy.title,
+      activeNav: notesPageCopy.activeNav,
       lang,
       extraStyles: `${OBSERVATION_CARD_STYLES}
         .notes-page { margin-top: 24px; }
@@ -3488,17 +3517,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .notes-grid.is-compact { grid-template-columns: 1fr; gap: 12px; }
       `,
       hero: {
-        eyebrow: lang === "ja" ? "あなたの 1 冊" : "Your notebook",
-        heading: lang === "ja" ? "📖 フィールドノート" : "📖 Field Note",
-        headingHtml: lang === "ja" ? "📖 フィールドノート" : "📖 Field Note",
-        lead: lang === "ja"
-          ? "あなたの観察が積み上がるノート。あとから読み返すほど、同じ道が違って見えてきます。"
-          : "Your notebook where observations stack up. The more you re-read it, the more the same path changes.",
+        eyebrow: notesPageCopy.hero.eyebrow,
+        heading: notesPageCopy.hero.heading,
+        headingHtml: notesPageCopy.hero.heading,
+        lead: notesPageCopy.hero.lead,
         tone: "light",
         align: "center",
         actions: [
-          { href: "/record", label: lang === "ja" ? "続きを書く" : "Keep writing" },
-          { href: "/map", label: lang === "ja" ? "マップで見る" : "See on the map", variant: "secondary" as const },
+          { href: "/record", label: sharedCopy.cta.record },
+          { href: "/map", label: sharedCopy.cta.openMap, variant: "secondary" as const },
         ],
       },
       body: `<section class="section notes-page" data-testid="notes-own">
@@ -3507,16 +3534,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           ? (ownCards
               ? `<div class="notes-grid">${ownCards}</div>`
               : `<div class="onboarding-empty">
-                  <div class="eyebrow">${escapeHtml(lang === "ja" ? "まだ 0 ページ" : "0 pages so far")}</div>
-                  <h3>${escapeHtml(lang === "ja" ? "最初の 1 枚を書いてみる" : "Write your first page")}</h3>
-                  <p>${escapeHtml(lang === "ja" ? "名前が分からなくても大丈夫。場所とメモだけで、あとから読み返せる記録になります。" : "You don't need the name. Place and a note is enough to make something worth revisiting.")}</p>
-                  <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(lang === "ja" ? "観察を記録する" : "Record an observation")}</a>
+                  <div class="eyebrow">${escapeHtml(notesPageCopy.sections.loggedInEyebrow)}</div>
+                  <h3>${escapeHtml(notesPageCopy.sections.loggedInTitle)}</h3>
+                  <p>${escapeHtml(notesPageCopy.sections.loggedInBody)}</p>
+                  <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(sharedCopy.cta.record)}</a>
                 </div>`)
           : `<div class="onboarding-empty">
-              <div class="eyebrow">${escapeHtml(lang === "ja" ? "ゲスト" : "Guest")}</div>
-              <h3>${escapeHtml(lang === "ja" ? "ノートを始める" : "Start a notebook")}</h3>
-              <p>${escapeHtml(lang === "ja" ? "記録すると、あなた専用のフィールドノートがここに積み上がります。" : "Start recording and your personal field notebook will build up here.")}</p>
-              <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(lang === "ja" ? "観察を記録する" : "Record an observation")}</a>
+              <div class="eyebrow">${escapeHtml(notesPageCopy.sections.guestEyebrow)}</div>
+              <h3>${escapeHtml(notesPageCopy.sections.guestTitle)}</h3>
+              <p>${escapeHtml(notesPageCopy.sections.guestBody)}</p>
+              <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(sharedCopy.cta.record)}</a>
             </div>`}
       </section>
       <section class="section notes-page" data-testid="notes-nearby">
@@ -3525,7 +3552,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           ? `<div class="notes-grid is-compact">${nearbyCards}</div>`
           : `<div class="card"><div class="card-body"><p class="meta">${escapeHtml(emptyCopy)}</p></div></div>`}
       </section>`,
-      footerNote: lang === "ja" ? "フィールドノート — 歩いて、見つけて、1 冊に残す。" : "Field Note — walk, find, write it in one notebook.",
+      footerNote: notesPageCopy.footerNote,
     });
   });
 
@@ -3535,51 +3562,35 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/lens", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const recordHref = appendLangToHref(withBasePath(basePath, "/record"), lang);
-    const notesHref = appendLangToHref(withBasePath(basePath, "/notes"), lang);
-    const mapHref = appendLangToHref(withBasePath(basePath, "/map"), lang);
+    const lensPageCopy = getShortCopy<any>(lang, "public", "read.lens");
+    const sharedCopy = getShortCopy<PublicSharedCopy>(lang, "shared", "publicShared");
 
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: lang === "ja" ? "フィールドガイド | ikimon" : "Field Guide | ikimon",
-      activeNav: lang === "ja" ? "ホーム" : "Home",
+      title: lensPageCopy.title,
+      activeNav: lensPageCopy.activeNav,
       lang,
       hero: {
-        eyebrow: lang === "ja" ? "歩きながら、世界を読み解く" : "Read the world around you as you walk",
-        heading: lang === "ja" ? "🔍 フィールドガイド" : "🔍 Field Guide",
-        headingHtml: lang === "ja" ? "🔍 フィールドガイド" : "🔍 Field Guide",
-        lead: lang === "ja"
-          ? "散歩中でも旅先でも、気になったものにカメラを向けると AI が候補と見分けの手がかりを返します。ここで確定はせず、その場の 1 枚を record に渡すための入口です。"
-          : "Point your camera at anything that catches your eye — the AI will offer clues. Even without a name, you can save the photo and location as a record.",
+        eyebrow: lensPageCopy.hero.eyebrow,
+        heading: lensPageCopy.hero.heading,
+        headingHtml: lensPageCopy.hero.heading,
+        lead: lensPageCopy.hero.lead,
         tone: "light",
         align: "center",
         actions: [
-          { href: "/record", label: lang === "ja" ? "このまま記録する" : "Record this now" },
-          { href: "/notes", label: lang === "ja" ? "ノートへ戻る" : "Back to Field Note", variant: "secondary" as const },
+          { href: "/record", label: sharedCopy.cta.record },
+          { href: "/notes", label: sharedCopy.cta.openNotebook, variant: "secondary" as const },
         ],
       },
       body: `<section class="section">
         <div class="list">
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. まず写真かメモを残す" : "1. Save a photo or note first")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "分からなくても構いません。場所・時刻・見た印象を失わないことが先です。" : "Do not wait for certainty. Preserve place, time, and first impression.")}</div></div></div>
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. AI が出した名前より『次に何を確認すればいいか』を見る" : "2. Look for what to check next, not just the name")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "名前が合っているかどうかより、次に確認すべきポイントを絞るのがここの使い方です。" : "The useful part is not certainty but what to check next.")}</div></div></div>
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "3. 気づいたことを record 画面で記録として残す" : "3. Save the observation in the record screen")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "このページだけでは記録は保存されません。旅先の 1 枚も、いつもの場所の 1 枚も、record 画面で 1 件にまとめて残してください。" : "This page does not save records. Save your photo and location in the record screen.")}</div></div></div>
+          ${lensPageCopy.steps.map((step: { title: string; body: string }) => `<div class="row"><div><strong>${escapeHtml(step.title)}</strong><div class="meta">${escapeHtml(step.body)}</div></div></div>`).join("")}
         </div>
       </section>
-      <section class="section">
-        <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "道端でも旅先でも、その場の 1 枚を逃したくないとき" : "When you do not want to lose the moment in the field")}</h2><p>${escapeHtml(lang === "ja" ? "その場で調べ込むより、とりあえず記録しておいて後から比較したいときに向いています。local core の入口でも、traveler loop の入口でもあります。" : "Use it when it is better to keep moving and look it up later.")}</p></div></div>
-          <details class="card"><summary style="padding:16px 20px;cursor:pointer;font-weight:700">${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Limitations")}</summary><div class="card-body" style="padding-top:0"><p>${escapeHtml(lang === "ja" ? "正確な名前を自動で確定する機能ではありません。候補と手がかりを返す補助として使ってください。public claim は authority-backed review を通ります。" : "This does not automatically confirm a name. Use it as a hint, not a verdict. Names are confirmed by the community.")}</p></div></details>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "写真と場所を record 画面で残す" : "Save photo and location in the record screen")}</h2><p>${escapeHtml(lang === "ja" ? "このページ単体では記録は残りません。場所・時刻・写真は record 画面で 1 件にまとめてください。" : "This page does not save records. Go to the record screen to save place, time, and photo.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(recordHref)}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
-        </div>
-      </section>
-      <section class="section">
-        <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "記録の置き場所" : "Where records live")}</div><h2>${escapeHtml(lang === "ja" ? "このページで記録は完結しない" : "This page does not complete the record")}</h2><p>${escapeHtml(lang === "ja" ? "散歩中に見たものは、record 画面で写真・場所・メモを 1 件にまとめて残します。そこに残った記録が、あとで読み返せる観察になります。" : "Save what you saw in the record screen — photo, location, and note together. That is what becomes a revisitable observation.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "記録を残す場所は record、積み重ねて読み返す場所は notes です。" : "Record is where you save. Notes is where you revisit.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(notesHref)}">${escapeHtml(lang === "ja" ? "記録一覧を見る" : "View notes")}</a></div></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "どこを歩くか迷っているなら" : "Not sure where to walk?")}</div><h2>${escapeHtml(lang === "ja" ? "先に地図で場所を選ぶ" : "Choose a place on the map first")}</h2><p>${escapeHtml(lang === "ja" ? "名前を調べるより先に、どこを歩くか決まっていないなら地図で確認してから出発する方がスムーズです。" : "If you have not decided where to walk yet, checking the map first makes things smoother.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "このページが『その場で見たものを調べる入口』なら、地図は『次にどこへ行くかを決める入口』です。" : "This page is for identifying what you see. The map is for deciding where to go next.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(mapHref)}">${escapeHtml(lang === "ja" ? "マップで場所を見る" : "See on the map")}</a></div></div></div>
-        </div>
-      </section>`,
-      footerNote: lang === "ja" ? "カメラで見たものを AI が分析します。名前の確定より、まずその場の記録を残すことを優先してください。" : "The AI analyzes what your camera sees. Prioritize saving the record over getting the name right.",
+      <section class="section">${renderPublicRouteCardGrid(lensPageCopy.guidanceCards as PublicRouteCard[], basePath, lang, "btn btn-solid")}</section>
+      <section class="section">${renderPublicRouteCardGrid(lensPageCopy.followupCards as PublicRouteCard[], basePath, lang, "inline-link")}</section>`,
+      footerNote: lensPageCopy.footerNote,
     });
   });
 
@@ -3589,50 +3600,35 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/scan", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const mapHref = appendLangToHref(withBasePath(basePath, "/map"), lang);
-    const exploreHref = appendLangToHref(withBasePath(basePath, "/explore"), lang);
+    const scanPageCopy = getShortCopy<any>(lang, "public", "read.scan");
+    const sharedCopy = getShortCopy<PublicSharedCopy>(lang, "shared", "publicShared");
 
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: lang === "ja" ? "フィールドスキャン | ikimon" : "Field Scan | ikimon",
-      activeNav: lang === "ja" ? "ホーム" : "Home",
+      title: scanPageCopy.title,
+      activeNav: scanPageCopy.activeNav,
       lang,
       hero: {
-        eyebrow: lang === "ja" ? "次にどこへ行くか決める" : "Decide where to go next",
-        heading: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
-        headingHtml: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
-        lead: lang === "ja"
-          ? "近くの再訪候補も、旅先で今ここに寄る理由も、このページで決めます。「なぜここか」「なぜ今か」「1 回の訪問で残せること」「次に来る理由」を地図の偏りから返す入口です。"
-          : "Use this page to find a reason to return somewhere you have walked before. Check the map and decide where to go next.",
+        eyebrow: scanPageCopy.hero.eyebrow,
+        heading: scanPageCopy.hero.heading,
+        headingHtml: scanPageCopy.hero.heading,
+        lead: scanPageCopy.hero.lead,
         tone: "light",
         align: "center",
         actions: [
-          { href: "/map", label: lang === "ja" ? "マップで見る" : "See on the map" },
-          { href: "/notes", label: lang === "ja" ? "ノートへ戻る" : "Back to notebook", variant: "secondary" as const },
+          { href: "/map", label: sharedCopy.cta.openMap },
+          { href: "/notes", label: sharedCopy.cta.openNotebook, variant: "secondary" as const },
         ],
       },
       body: `<section class="section">
         <div class="list">
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. 地図で「なぜここか」を見る" : "1. See why here on the map")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "記録が多い場所・少ない場所の偏り、季節、主体レンズから、行く理由が立つ場所を見つけます。" : "Clusters and gaps on the map show you where to go next.")}</div></div></div>
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. 「なぜ今か」「1 回の訪問で残せること」を読む" : "2. Read why now and what one visit can add")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "細かい名前より先に、その場所がいま薄いのか、再訪で厚くすべきかを見ます。" : "Focus on the feel of the place, not precise identification.")}</div></div></div>
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "3. 歩く場所が決まったら、実際の観察を record 画面で記録する" : "3. Once you decide where to go, record observations in the record screen")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "このページには記録を保存する機能がありません。旅先の 1 回の寄り道でも、次の再訪理由になるよう record に残してください。" : "This page does not save records. Use the record screen to save what you actually observe.")}</div></div></div>
+          ${scanPageCopy.steps.map((step: { title: string; body: string }) => `<div class="row"><div><strong>${escapeHtml(step.title)}</strong><div class="meta">${escapeHtml(step.body)}</div></div></div>`).join("")}
         </div>
       </section>
-      <section class="section">
-        <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "今日どこを歩くか迷っているとき" : "When you are not sure where to walk today")}</h2><p>${escapeHtml(lang === "ja" ? "前に行ったことがある場所にまた行く理由を見つけたいときにも、旅先で今ここに寄る価値を見つけたいときにも向いています。" : "Use it when you want a reason to return somewhere, or to decide where to spend the next 20 minutes.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "たとえば、水辺に 1 回寄る価値があるのか、住宅地の縁を再訪して差分を見るべきかを、ここで判断できます。" : "Decide today — waterside, deep park, or neighborhood edge — before you set out.")}</p></div></div>
-          <details class="card"><summary><div class="card-body"><strong>${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Limitations")}</strong></div></summary><div class="card-body" style="padding-top:0"><p>${escapeHtml(lang === "ja" ? "このページには記録を保存する機能がありません。場所を決める入口として使い、実際の観察は record 画面で残してください。" : "This page does not save records. Use it to choose a place, then record your observations in the record screen.")}</p></div></details>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "マップで場所を決めて、そこで記録する" : "Pick a place on the map, then go record")}</h2><p>${escapeHtml(lang === "ja" ? "行き先が決まったら、実際にその場所を歩いて record 画面で 1 件記録してください。その 1 件を、次にまた来たい理由へつなげます。" : "Once you choose a place, go there and save at least one observation in the record screen.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(mapHref)}">${escapeHtml(lang === "ja" ? "マップで見る" : "See on the map")}</a></div></div></div>
-        </div>
-      </section>
-      <section class="section">
-        <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "使い方の流れ" : "How it fits in")}</div><h2>${escapeHtml(lang === "ja" ? "場所を決めて、そこで実際に記録する" : "Choose a place, then go record there")}</h2><p>${escapeHtml(lang === "ja" ? "ここで気になる場所を見つけたら、次のステップはその場所を実際に歩いて観察を 1 件残すことです。" : "Once you find an interesting place here, the next step is to walk there and save an observation.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "場所を決める → 歩く → 記録する。この順番がikimon の基本的な使い方です。" : "Choose a place → walk → record. That is the basic flow.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(exploreHref)}">${escapeHtml(lang === "ja" ? "場所と種の広がりを見る" : "Browse place and species spread")}</a></div></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "実際に残すなら" : "Ready to record?")}</div><h2>${escapeHtml(lang === "ja" ? "record 画面で写真と場所を残す" : "Save photo and location in the record screen")}</h2><p>${escapeHtml(lang === "ja" ? "場所が決まったら、その場の写真・時刻・メモを record 画面で 1 件にまとめてください。" : "Once you choose a place, save the photo, time, and note in the record screen.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "ここで場所を決め、record で記録し、records に積み上げる。この繰り返しが散歩を観察に変えます。" : "Choose here, record there, accumulate in notes — the cycle that turns walks into observations.")}</p><div class="actions" style="margin-top:12px"><a class="inline-link" href="${escapeHtml(withBasePath(basePath, "/record"))}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
-        </div>
-      </section>`,
-      footerNote: lang === "ja" ? "次の散歩先を決めるためのページです。記録そのものは record 画面で残してください。" : "Use this page to decide where to walk next. Save your actual observations in the record screen.",
+      <section class="section">${renderPublicRouteCardGrid(scanPageCopy.guidanceCards as PublicRouteCard[], basePath, lang, "btn btn-solid")}</section>
+      <section class="section">${renderPublicRouteCardGrid(scanPageCopy.followupCards as PublicRouteCard[], basePath, lang, "inline-link")}</section>`,
+      footerNote: scanPageCopy.footerNote,
     });
   });
 
@@ -3642,6 +3638,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/map", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const mapPageCopy = getShortCopy<any>(lang, "public", "read.map");
 
     const currentYear = new Date().getFullYear();
     const years: number[] = [];
@@ -3650,8 +3647,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: lang === "ja" ? "探索マップ | ikimon" : "Explore Map | ikimon",
-      activeNav: lang === "ja" ? "ホーム" : "Home",
+      title: mapPageCopy.title,
+      activeNav: mapPageCopy.activeNav,
       lang,
       shellClassName: "shell-bleed shell-map",
       extraStyles: MAP_EXPLORER_STYLES,
@@ -3660,26 +3657,23 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       // strip at the top so context is still one line away.
       body: `${renderMapExplorer({ basePath, lang, years })}
 ${mapExplorerBootScript({ basePath, lang })}`,
-      footerNote: lang === "ja"
-        ? "観察の広がりを、次に歩く理由に変える地図。"
-        : "A map that turns the spread of observations into your next reason to walk.",
+      footerNote: mapPageCopy.footerNote,
     });
   });
 
   app.get("/guide", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const guidePageCopy = getShortCopy<any>(lang, "public", "read.guide");
     reply.type("text/html; charset=utf-8");
     return renderSiteDocument({
       basePath,
-      title: lang === "ja" ? "フィールドガイド | ikimon" : "Field Guide | ikimon",
-      activeNav: lang === "ja" ? "フィールドガイド" : "Field Guide",
+      title: guidePageCopy.title,
+      activeNav: guidePageCopy.activeNav,
       lang,
       extraStyles: GUIDE_FLOW_STYLES,
       body: renderGuideFlow(basePath, lang),
-      footerNote: lang === "ja"
-        ? "映像と音声で、土地の物語を聴く。"
-        : "Listen to the land's story through video and sound.",
+      footerNote: guidePageCopy.footerNote,
     });
   });
 }

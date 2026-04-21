@@ -1,0 +1,66 @@
+{
+  "publicShared": {
+    "cta": {
+      "record": "Registrar",
+      "startObservation": "Empezar el cuaderno",
+      "openNotebook": "Cuaderno",
+      "openMap": "Ver el mapa",
+      "readFaq": "Ver FAQ",
+      "openGuide": "Guía de campo",
+      "openScan": "Escaneo",
+      "openAbout": "Sobre ikimon",
+      "openGroupHelp": "Para organizaciones",
+      "contact": "Contacto"
+    },
+    "business": {
+      "nav": "Para organizaciones"
+    }
+  },
+  "shell": {
+    "brandTagline": "Guarda lo que encuentras cerca para volver a verlo por lugar.",
+    "skipToContent": "Saltar al contenido",
+    "searchPlaceholder": "Buscar especie o lugar",
+    "searchLabel": "Búsqueda del sitio",
+    "menu": "Menú",
+    "nav": {
+      "home": "Inicio",
+      "explore": "Explorar",
+      "learn": "Aprender",
+      "business": "Para organizaciones"
+    },
+    "record": "Registrar",
+    "footer": {
+      "tagline": "Guarda lo que encuentras cerca y revísalo más tarde.",
+      "start": "Empezar",
+      "startLinks": {
+        "discover": "Explorar",
+        "record": "Registrar",
+        "places": "Mis lugares"
+      },
+      "learn": "Aprender",
+      "learnLinks": {
+        "guides": "Guías",
+        "about": "Acerca de",
+        "faq": "Preguntas frecuentes",
+        "updates": "Actualizaciones"
+      },
+      "trust": "Confianza",
+      "trustLinks": {
+        "business": "Para organizaciones",
+        "contact": "Contacto",
+        "terms": "Términos",
+        "privacy": "Privacidad"
+      }
+    }
+  },
+  "quickNav": {
+    "ariaLabel": "Rutas principales del cuaderno",
+    "labels": {
+      "notes": "Cuaderno",
+      "record": "Registrar",
+      "lens": "Guía de campo",
+      "scan": "Escaneo",
+      "map": "Mapa"
+    }
+  }
+}

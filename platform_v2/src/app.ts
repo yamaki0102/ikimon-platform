@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import { getPool } from "./db.js";
 import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "./i18n.js";
+import { getShortCopy } from "./content/index.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerLegacyAssetRoutes } from "./routes/legacyAssets.js";
 import { registerMapApiRoutes } from "./routes/mapApi.js";
@@ -44,6 +45,30 @@ type PreviewContext = {
   };
 };
 
+type QASiteMapCopy = {
+  title: string;
+  hero: {
+    eyebrow: string;
+    heading: string;
+    lead: string;
+    actions: Array<{ href: string; label: string; variant?: "primary" | "secondary" }>;
+  };
+  sections: Array<{
+    eyebrow: string;
+    title: string;
+    lead: string;
+    cards: Array<{ href: string; label: string; note: string }>;
+    note?: string;
+  }>;
+  checklist: {
+    eyebrow: string;
+    title: string;
+    lead: string;
+    items: Array<{ title: string; body: string }>;
+  };
+  footerNote: string;
+};
+
 function requestUrl(request: { url?: string; raw?: { url?: string } }): string {
   return String(request.raw?.url ?? request.url ?? "");
 }
@@ -52,12 +77,9 @@ function requestCurrentPath(request: { headers: Record<string, unknown>; url?: s
   return withBasePath(getForwardedBasePath(request.headers), requestUrl(request));
 }
 
-const localizedNavHome: Record<SiteLang, string> = {
-  ja: "ホーム",
-  en: "Home",
-  es: "Inicio",
-  "pt-BR": "Início",
-};
+function localizedNavHome(lang: SiteLang): string {
+  return getShortCopy<string>(lang, "shared", "shell.nav.home");
+}
 
 
 function buildFlowLink(basePath: string, href: string, label: string, note: string): string {
@@ -252,7 +274,7 @@ function buildLandingRootHtml(
   return renderSiteDocument({
     basePath: options.basePath,
     title: copy.title,
-    activeNav: localizedNavHome[lang],
+    activeNav: localizedNavHome(lang),
     lang,
     currentPath,
     hero: {
@@ -279,6 +301,7 @@ ${mapMiniBootScript()}`,
 }
 
 function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath: string): string {
+  const copy = getShortCopy<QASiteMapCopy>(lang, "ops", "qaSiteMap");
   const recordHref = options.userId
     ? `/record?userId=${encodeURIComponent(options.userId)}`
     : "/record";
@@ -291,113 +314,59 @@ function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath
   const detailHref = options.occurrenceId
     ? `/observations/${encodeURIComponent(options.occurrenceId)}`
     : "/explore";
-
-  return renderSiteDocument({
-    basePath: options.basePath,
-    title: "サイトマップ (運用向け) | ikimon",
-    activeNav: localizedNavHome[lang],
-    lang,
-    currentPath,
-    hero: {
-      eyebrow: "staging qa",
-      heading: "ページ遷移と確認面を、1枚で把握する。",
-      lead: "本番リハーサル前の人間確認用マップです。デザイン確認だけでなく、どの導線がどこへ繋がるか、どこが 401/redirect/JSON になるかまで staging 上で一巡できます。",
-      actions: [
-        { href: "/", label: "Preview top" },
-        { href: recordHref, label: "Start at record", variant: "secondary" },
-        { href: "/for-business", label: "Check business", variant: "secondary" },
-      ],
-    },
-    body: `<section class="section">
+  const sectionHrefs: string[][] = [
+    [recordHref, detailHref, homeHref, profileHref, "/explore"],
+    copy.sections[1]?.cards.map((card) => card.href) ?? [],
+    copy.sections[2]?.cards.map((card) => card.href) ?? [],
+    copy.sections[3]?.cards.map((card) => card.href) ?? [],
+  ];
+  const heroActions = copy.hero.actions.map((action, index) => ({
+    href: index === 1 ? recordHref : action.href,
+    label: action.label,
+    variant: action.variant,
+  }));
+  const sectionsHtml = copy.sections
+    .map((section, sectionIndex) => `<section class="section">
       <div class="section-header">
         <div>
-          <div class="eyebrow">flow 1</div>
-          <h2>Core User Journey</h2>
-          <p>記録して、詳細を見て、プロフィールと explore で再訪理由を確認する主導線。</p>
+          <div class="eyebrow">${escapeHtml(section.eyebrow)}</div>
+          <h2>${escapeHtml(section.title)}</h2>
+          <p>${escapeHtml(section.lead)}</p>
         </div>
       </div>
       <div class="grid">
-        ${buildFlowLink(options.basePath, recordHref, "Record", options.userId ? "staging user 付きで観察追加を確認。" : "user context が無いと 401 になる。")}
-        ${buildFlowLink(options.basePath, detailHref, "Observation Detail", options.occurrenceId ? "最新 observation の詳細と identification を確認。" : "fixture が無い場合は explore に退避。")}
-        ${buildFlowLink(options.basePath, homeHref, "Home", options.userId ? "My places と recent observations を確認。" : "userId が無い場合は共通 home shell を確認。")}
-        ${buildFlowLink(options.basePath, profileHref, "Profile", options.userId ? "同じ user の places / observations を確認。" : "session か userId 前提の画面。")}
-        ${buildFlowLink(options.basePath, "/explore", "Explore", "横断の一覧面。municipality / top taxa / recent observations を確認。")}
+        ${section.cards.map((card, cardIndex) => buildFlowLink(options.basePath, sectionHrefs[sectionIndex]?.[cardIndex] ?? card.href, card.label, card.note)).join("")}
       </div>
-      <div class="note">推奨確認順: <code>Record → Observation Detail → Home → Profile → Explore</code></div>
-    </section>
-
-    <section class="section">
+      ${section.note ? `<div class="note">${escapeHtml(section.note)}</div>` : ""}
+    </section>`)
+    .join("");
+  const checklistHtml = `<section class="section">
       <div class="section-header">
         <div>
-          <div class="eyebrow">flow 2</div>
-          <h2>Public / Trust / Business</h2>
-          <p>公開面の印象と、business 導線が old PHP URL に落ちず v2 で閉じるかを見る。</p>
-        </div>
-      </div>
-      <div class="grid">
-        ${buildFlowLink(options.basePath, "/about", "About", "思想、動機設計、Collective AI Growth Loop の見せ方を確認。")}
-        ${buildFlowLink(options.basePath, "/faq", "FAQ", "個人利用、Public、v2 確認範囲の FAQ を確認。")}
-        ${buildFlowLink(options.basePath, "/privacy", "Privacy", "trust page の最低限表示を確認。")}
-        ${buildFlowLink(options.basePath, "/terms", "Terms", "利用条件の最低限表示を確認。")}
-        ${buildFlowLink(options.basePath, "/contact", "Contact", "contact から business apply に繋がるか確認。")}
-        ${buildFlowLink(options.basePath, "/for-business", "For Business", "business の親ページ。pricing / demo / status / apply へ分岐。")}
-        ${buildFlowLink(options.basePath, "/for-business/pricing", "Pricing", "Community と Public の差が読めるか確認。")}
-        ${buildFlowLink(options.basePath, "/for-business/demo", "Demo", "Explore / Record / Readiness の業務確認導線。")}
-        ${buildFlowLink(options.basePath, "/for-business/status", "Status", "readiness の業務向け説明面。")}
-        ${buildFlowLink(options.basePath, "/for-business/apply", "Apply", "導入相談の固定面。フォーム置換前の見せ方を確認。")}
-      </div>
-      <div class="note">redirect check も重要です。<code>/about.php</code>, <code>/for-business.php</code>, <code>/for-business/apply.php</code> が v2 path に寄るか確認対象です。</div>
-    </section>
-
-    <section class="section">
-      <div class="section-header">
-        <div>
-          <div class="eyebrow">flow 3</div>
-          <h2>Specialist Review</h2>
-          <p>thin entry ではなく、review read/action が v2 側で回るかを見る。</p>
-        </div>
-      </div>
-      <div class="grid">
-        ${buildFlowLink(options.basePath, "/specialist/id-workbench", "ID Workbench", "default lane の queue と action form を確認。")}
-        ${buildFlowLink(options.basePath, "/specialist/id-workbench?lane=public-claim", "Public Claim Lane", "public claim 用 lane 表示を確認。")}
-        ${buildFlowLink(options.basePath, "/specialist/id-workbench?lane=expert-lane", "Expert Lane", "expert lane の queue と action を確認。")}
-        ${buildFlowLink(options.basePath, "/specialist/review-queue", "Review Queue", "review sample と approve / reject / note を確認。")}
-      </div>
-      <div class="note">旧 URL の <code>/id_workbench.php</code> と <code>/review_queue.php</code> は redirect 確認対象です。</div>
-    </section>
-
-    <section class="section">
-      <div class="section-header">
-        <div>
-          <div class="eyebrow">flow 4</div>
-          <h2>Ops / Release Gate</h2>
-          <p>人間のデザイン確認と、切替前判定面を混ぜずに見る。</p>
-        </div>
-      </div>
-      <div class="grid">
-        ${buildFlowLink(options.basePath, "/ops/readiness", "Ops Readiness", "near_ready / drift / rollback safety の確認。")}
-        ${buildFlowLink(options.basePath, "/healthz", "Health", "service health endpoint の確認。")}
-      </div>
-      <div class="note">ブラウザ確認はこの page map と public/core/specialist を優先し、JSON endpoint は最後に health/readiness だけ見れば十分です。</div>
-    </section>
-
-    <section class="section">
-      <div class="section-header">
-        <div>
-          <div class="eyebrow">checklist</div>
-          <h2>人間確認で見るべきこと</h2>
-          <p>MECE に漏れなく、リハーサル前に潰すべき観点だけ絞る。</p>
+          <div class="eyebrow">${escapeHtml(copy.checklist.eyebrow)}</div>
+          <h2>${escapeHtml(copy.checklist.title)}</h2>
+          <p>${escapeHtml(copy.checklist.lead)}</p>
         </div>
       </div>
       <div class="list">
-        <div class="row"><strong>Visual</strong><div class="meta">hero / card / button の崩れ、英日混在、CTA 密度、モバイル幅での詰まり。</div></div>
-        <div class="row"><strong>Transition</strong><div class="meta">主要導線が 200 / redirect / 401 の想定どおりか。迷子導線や dead end がないか。</div></div>
-        <div class="row"><strong>State</strong><div class="meta">userId あり/なし、occurrence あり/なしで説明不足や壊れ方が雑でないか。</div></div>
-        <div class="row"><strong>Legacy drift</strong><div class="meta">旧 PHP URL が v2 に寄るか。公開導線から PHP surface に着地しないか。</div></div>
-        <div class="row"><strong>Release gate</strong><div class="meta">最後に <code>/ops/readiness</code> と <code>/healthz</code> を見て、デザイン確認と運用確認を切り分ける。</div></div>
+        ${copy.checklist.items.map((item) => `<div class="row"><strong>${escapeHtml(item.title)}</strong><div class="meta">${escapeHtml(item.body)}</div></div>`).join("")}
       </div>
-    </section>`,
-    footerNote: "staging walkthrough for full-page QA. use this after the shared shell migration to inspect actual website movement and visual consistency.",
+    </section>`;
+
+  return renderSiteDocument({
+    basePath: options.basePath,
+    title: copy.title,
+    activeNav: localizedNavHome(lang),
+    lang,
+    currentPath,
+    hero: {
+      eyebrow: copy.hero.eyebrow,
+      heading: copy.hero.heading,
+      lead: copy.hero.lead,
+      actions: heroActions,
+    },
+    body: `${sectionsHtml}${checklistHtml}`,
+    footerNote: copy.footerNote,
   });
 }
 

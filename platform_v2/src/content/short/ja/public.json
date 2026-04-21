@@ -1,0 +1,413 @@
+{
+  "landing": {
+    "title": "ikimon — 歩いて、見つけて、ノートに残す",
+    "heroEyebrow": "近くの自然を楽しむノート",
+    "heroHeadingPlain": "いつもの散歩が、冒険になる。",
+    "heroHeadingLine1": "いつもの散歩が、",
+    "heroHeadingEmphasis": "冒険になる。",
+    "heroLead": "近くの自然がちょっとおもしろくなる。旅先の 1 枚が、また来たい理由になる。AI は候補を出し、見分けるヒントを返します。記録の主役は人の観察です。",
+    "heroPromiseChips": [
+      "近くの自然がちょっとおもしろくなる",
+      "旅先の1枚が、また来たい理由になる"
+    ],
+    "numberLocale": "ja-JP",
+    "statLabelTemplateId": "observations_species",
+    "toolSectionEyebrow": "ノートを育てる入口",
+    "toolSectionTitle": "迷ったときは、この 2 つから始める",
+    "toolSectionLead": "その場で気になったものを調べる入口と、次にどこを歩くか決める入口です。どちらも、あとで記録を残しやすくするためにあります。",
+    "tools": {
+      "lens": {
+        "eyebrow": "フィールドガイド",
+        "title": "その場で気になったものを、すぐ調べる",
+        "body": "カメラを向けると、AI が候補と見分けるヒントを返します。名前を決めきる場ではなく、その場の気づきを記録につなげる入口です。",
+        "badge": "beta"
+      },
+      "scan": {
+        "eyebrow": "フィールドスキャン",
+        "title": "次に歩く場所を、地図から探す",
+        "body": "近くでも旅先でも、いま行く理由とまた行きたくなる理由を探します。場所のかたよりや季節の違いから、次の 1 件につながる場所を見つける入口です。",
+        "badge": "v0.10"
+      }
+    },
+    "mapSectionEyebrow": "場所のノート",
+    "mapSectionTitle": "また行きたくなる場所を、地図で振り返る",
+    "mapSectionLead": "近くの散歩道にも、旅先の寄り道にも、次に歩く理由があります。地図は、どこで何が見つかっているかをやさしく読む入口です。",
+    "mapEmpty": "まだ地図に載せる観察がありません"
+  },
+  "fieldLoop": {
+    "eyebrow": "ikimon の使い方",
+    "title": "見つけて、記録して、また歩く",
+    "lead": "その場で気づいて、ノートに残して、また同じ場所を歩く。続けるほど、近くの自然が少しずつ分かってきます。",
+    "primaryCta": "この使い方を見る",
+    "loopTitle": "4 steps",
+    "principleTitle": "こだわり",
+    "boundaryTitle": "言葉の約束",
+    "steps": [
+      { "title": "1. 衛星で狙いをつける", "body": "林縁や水際、湿地、遷移帯。怪しい場所を、家を出る前に見つけておく。" },
+      { "title": "2. 3 つに絞っていく", "body": "どの小さな生息場所を確かめるか、どこを撮るか、何を書き留めるかを、先に決めておく。" },
+      { "title": "3. AI は断定しない", "body": "見えた特徴と、足りない証拠と、次に撮るといい 1 枚を教えてくれる。" },
+      { "title": "4. 差分が積もっていく", "body": "季節ごとの違いが積み重なって、また来たくなる理由が育っていく。" }
+    ],
+    "principles": [
+      "答えより、目を育てていく。",
+      "種名より、文脈を厚くしていく。",
+      "空白と不在を、いっしょにしない。",
+      "不確実性も、きちんとデータとして残しておく。"
+    ],
+    "boundaries": [
+      "空白 = まだ見ていない",
+      "不在 = 努力量とセットで",
+      "AI更新 = 検証済みだけ"
+    ]
+  },
+  "marketing": {
+    "pages": {
+      "about": {
+        "title": "ikimonについて — いつもの散歩が、また来たい理由に変わる | ikimon",
+        "eyebrow": "ikimonについて",
+        "heading": "いつもの散歩が、また来たい理由に変わる。",
+        "lead": "近くの自然がちょっとおもしろくなる。旅先の 1 枚が、また来たい理由になる。AI は候補を出し、見分けるヒントを返します。記録の主役は人の観察です。",
+        "activeNav": "learn",
+        "bodyPageId": "about",
+        "afterActions": [
+          { "href": "/learn", "label": "使い方と考え方を見る" },
+          { "href": "/faq", "label": "FAQを見る" }
+        ]
+      },
+      "learnIndex": {
+        "title": "使い方と考え方 | ikimon",
+        "eyebrow": "解説ガイド",
+        "heading": "使い方と考え方",
+        "lead": "はじめて使う人向けの使い方から、名前の確かめ方、データの扱いまで、必要なことだけをまとめています。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-index"
+      },
+      "learnFieldLoop": {
+        "title": "フィールドループとは | ikimon",
+        "eyebrow": "読む",
+        "heading": "フィールドループとは",
+        "lead": "ikimon は、見つける、記録する、また歩くをくり返しやすくするためのサービスです。このページでは、その考え方を少し詳しく説明します。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-field-loop",
+        "afterActions": [
+          { "href": "/learn", "label": "解説一覧へ戻る" }
+        ]
+      },
+      "learnGlossary": {
+        "title": "用語集 | ikimon",
+        "eyebrow": "読む",
+        "heading": "用語集",
+        "lead": "ikimon の説明で出てくる言葉を、ざっくりと一覧にしました。詰まったらこのページに戻ってきてください。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-glossary"
+      },
+      "learnAuthorityPolicy": {
+        "title": "Authority Policy | ikimon",
+        "eyebrow": "読む",
+        "heading": "ikimon の同定の信頼のしくみ",
+        "lead": "同定は、粒度ごとに担当を分けて扱っています。ざっくりは市民で、細かい種名は任された人で、最後の公開判定だけ媒体条件を満たしたものを進めます。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-authority-policy"
+      },
+      "learnIdentificationBasics": {
+        "title": "同定の基本 | ikimon",
+        "eyebrow": "読む",
+        "heading": "名前が分からないときの基本",
+        "lead": "その場で全部決めなくても、あとで確かめやすい記録は残せます。写真とメモの取り方を、やさしい前提でまとめています。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-identification-basics"
+      },
+      "learnMethodology": {
+        "title": "データの扱い | ikimon",
+        "eyebrow": "読む",
+        "heading": "データの扱いと、言いすぎない線引き",
+        "lead": "位置情報、公開範囲、AI と人の役割、そしてサービスとして言わないこと。誤読を減らすための前提をまとめています。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-methodology"
+      },
+      "learnUpdates": {
+        "title": "アップデート | ikimon",
+        "eyebrow": "読む",
+        "heading": "アップデート",
+        "lead": "何が変わったかを、使いやすさと再訪しやすさの変化としてまとめています。",
+        "activeNav": "learn",
+        "bodyPageId": "learn-updates"
+      },
+      "faq": {
+        "title": "FAQ | ikimon",
+        "eyebrow": "よくある質問",
+        "heading": "よくある質問",
+        "lead": "個人で使うときに迷いやすい点と、団体で始める前に確認したい点をまとめています。",
+        "activeNav": "learn",
+        "bodyPageId": "faq"
+      },
+      "privacy": {
+        "title": "Privacy Policy | ikimon",
+        "eyebrow": "Trust",
+        "heading": "プライバシーポリシー",
+        "lead": "記録を残すために必要なデータを扱いながら、希少種や個人の行動が見えすぎないよう公開範囲を分けています。",
+        "activeNav": "learn",
+        "bodyPageId": "privacy"
+      },
+      "terms": {
+        "title": "Terms | ikimon",
+        "eyebrow": "Trust",
+        "heading": "利用規約",
+        "lead": "安全に記録を残し、他の人や生きものに不利益が出ないように使っていただくための要点です。",
+        "activeNav": "learn",
+        "bodyPageId": "terms"
+      },
+      "contact": {
+        "title": "Contact | ikimon",
+        "eyebrow": "Contact",
+        "heading": "お問い合わせ",
+        "lead": "ikimon に関するご質問を受け付けています。個人の利用相談を基本にしつつ、学校や地域で使いたい方向けの窓口も案内しています。",
+        "activeNav": "learn",
+        "bodyPageId": "contact"
+      },
+      "forBusiness": {
+        "title": "団体相談 | ikimon",
+        "eyebrow": "地域で使いたい方へ",
+        "heading": "学校や地域で始めたいときの相談窓口",
+        "lead": "専用画面を売るより先に、どこでどう始めるかを一緒に整える入口です。個人向けの使い方はそのまま残しつつ、団体の始め方だけを短く案内します。",
+        "activeNav": "business",
+        "bodyPageId": "for-business",
+        "afterActions": [
+          { "href": "/contact", "label": "お問い合わせする" }
+        ]
+      },
+      "forBusinessPricing": {
+        "title": "For Business Pricing | ikimon",
+        "eyebrow": "団体相談",
+        "heading": "連携の始め方",
+        "lead": "最初から重い契約を結ぶより、まずは場所ごとに始めて、必要な運用だけを段階的に足す方針です。",
+        "activeNav": "business",
+        "bodyPageId": "for-business-pricing"
+      },
+      "forBusinessDemo": {
+        "title": "For Business Demo | ikimon",
+        "eyebrow": "団体相談",
+        "heading": "実際の画面で、始め方を確認する",
+        "lead": "営業用の別画面ではなく、実際に公開している画面を見ていただきます。どこでどう始めるかを把握しやすくするためのページです。",
+        "activeNav": "business",
+        "bodyPageId": "for-business-demo"
+      },
+      "forBusinessStatus": {
+        "title": "For Business Status | ikimon",
+        "eyebrow": "団体相談",
+        "heading": "相談前に知っておきたいこと",
+        "lead": "団体向けは、専用画面の販売より先に、どこでどう始めるかを整理する段階です。今できることと、これから整えることをまとめています。",
+        "activeNav": "business",
+        "bodyPageId": "for-business-status"
+      },
+      "forBusinessApply": {
+        "title": "For Business Apply | ikimon",
+        "eyebrow": "団体相談",
+        "heading": "学校や地域で始めたいときの相談窓口",
+        "lead": "導入相談、共同実証、対象場所の選定、初回観察導線の設計などを受け付けています。個人利用と無料開始には申し込み不要です。",
+        "activeNav": "business",
+        "bodyPageId": "for-business-apply"
+      }
+    }
+  },
+  "contactForm": {
+    "categories": [
+      { "value": "question", "label": "❓ 質問" },
+      { "value": "bug", "label": "🐛 バグ報告" },
+      { "value": "improvement", "label": "💡 要望・提案" },
+      { "value": "partnership", "label": "🤝 導入・連携" },
+      { "value": "media", "label": "📰 取材・メディア" },
+      { "value": "deletion", "label": "🗑️ データ削除" },
+      { "value": "other", "label": "💬 その他" }
+    ],
+    "fields": {
+      "category": "カテゴリ",
+      "message": "内容",
+      "messagePlaceholder": "ご質問・ご要望・ご報告の内容を記入してください。",
+      "messageHint": "最低 5 文字・最大 8000 文字",
+      "name": "お名前",
+      "namePlaceholder": "任意",
+      "organization": "組織名",
+      "organizationPlaceholder": "任意",
+      "email": "メールアドレス",
+      "emailPlaceholder": "返信を希望する場合は入力してください",
+      "emailHint": "入力すると受付自動返信が届きます（任意）"
+    },
+    "submit": "送信する",
+    "noscript": "JavaScript を有効にして送信してください。無効の場合は contact@ikimon.life へ直接メールでご連絡をお願いします。",
+    "status": {
+      "loading": "送信中…",
+      "successPrefix": "送信しました。受付番号: ",
+      "successSuffix": "…",
+      "errorPrefix": "送信できませんでした: ",
+      "network": "送信できませんでした（ネットワークエラー）"
+    }
+  },
+  "read": {
+    "record": {
+      "title": "記録する | ikimon",
+      "activeNav": "記録する",
+      "footerNote": "いつもの道で見つけた自然を、あとで見返せる形に残す。",
+      "hero": {
+        "eyebrow": "記録する",
+        "heading": "今日の 1 ページを書く",
+        "lead": "観察した場所・時刻・気づいた生きものを、そのまま 1 件のノートに残します。まずは再訪できる形で残すことを優先します。"
+      }
+    },
+    "explore": {
+      "title": "みつける | ikimon",
+      "activeNav": "みつける",
+      "footerNote": "歩いて見つけた自然を、あとで見返せる形に残す。",
+      "hero": {
+        "eyebrow": "みつける",
+        "heading": "次に歩く場所を探す",
+        "lead": "近くの再訪候補も、旅先で少し寄り道する場所も、場所ごとの積み重なりから探せます。今日はどこを見るかを決める入口です。"
+      },
+      "sections": {
+        "placesEyebrow": "また歩きたくなる場所",
+        "placesEmpty": "まだ場所データがありません。",
+        "taxaEyebrow": "この場所で見つかっているもの",
+        "taxaEmpty": "まだ種データがありません。",
+        "recentEyebrow": "最近の記録",
+        "recentTitle": "今日の散歩先を探す",
+        "recentEmpty": "まだ観察がありません。"
+      }
+    },
+    "notes": {
+      "title": "フィールドノート | ikimon",
+      "activeNav": "ホーム",
+      "footerNote": "歩いて見つけた自然を、あとで見返せる形に残す。",
+      "hero": {
+        "eyebrow": "あなたのノート",
+        "heading": "見つけたことを、あとで見返せる",
+        "lead": "いつもの散歩でも旅先でも、残した記録がここにまとまります。あとで開くと、また行きたくなる理由が見えてきます。"
+      },
+      "sections": {
+        "ownTitle": "あなたのノート",
+        "nearbyTitle": "近くの記録",
+        "nearbyEmpty": "まだ近くの記録はありません。最初の 1 件が入ると、ここから読み返せるようになります。",
+        "loggedInEyebrow": "まだ 0 ページ",
+        "loggedInTitle": "最初の 1 件を残してみる",
+        "loggedInBody": "名前が分からなくても大丈夫です。場所とひとことだけで、あとから見返せる記録になります。",
+        "guestEyebrow": "ゲスト",
+        "guestTitle": "ノートをはじめる",
+        "guestBody": "1 件記録すると、あなたのノートがここから育ち始めます。"
+      }
+    },
+    "lens": {
+      "title": "その場で調べる | ikimon",
+      "activeNav": "ホーム",
+      "footerNote": "AI は候補と見分けるヒントを返します。決めるのは人です。",
+      "hero": {
+        "eyebrow": "その場で調べる",
+        "heading": "気になったものを、その場で確かめる",
+        "lead": "散歩中でも旅先でも、気になったものにカメラを向けると AI が候補と見分けるヒントを返します。ここで決めきらなくて大丈夫です。まずはその場の 1 枚を残すための入口です。"
+      },
+      "steps": [
+        { "title": "1. まず写真かメモを残す", "body": "分からなくても構いません。場所・時刻・見た印象を失わないことが先です。" },
+        { "title": "2. AI が出した名前より『次に何を確認すればいいか』を見る", "body": "名前が合っているかどうかより、次に確認すべきポイントを絞るのがここの使い方です。" },
+        { "title": "3. 気づいたことを記録する", "body": "このページだけでは記録は保存されません。旅先の 1 枚も、いつもの場所の 1 枚も、記録画面で 1 件にまとめて残してください。" }
+      ],
+      "guidanceCards": [
+        {
+          "eyebrow": "向いている場面",
+          "title": "道ばたでも旅先でも、その場の 1 枚を逃したくないとき",
+          "body": "その場で答えを決めるより、まず残してあとで見比べたいときに向いています。"
+        },
+        {
+          "eyebrow": "期待しすぎないこと",
+          "title": "AI はヒント役。決めるのは人です。",
+          "body": "AI は候補を出し、見分けるヒントを返します。名前を自動で決めることはしません。"
+        },
+        {
+          "eyebrow": "次の一歩",
+          "title": "写真と場所を、記録として残す",
+          "body": "このページだけでは記録は残りません。場所・時刻・写真は記録画面で 1 件にまとめてください。",
+          "ctaHref": "/record",
+          "ctaLabel": "記録する"
+        }
+      ],
+      "followupCards": [
+        {
+          "eyebrow": "記録の置き場所",
+          "title": "ここで見つけたことは、ノートに残る",
+          "body": "散歩中に見たものは、記録画面で写真・場所・メモを 1 件にまとめます。残した記録が、あとで見返せるノートになります。",
+          "meta": "記録する場所と、読み返す場所を分けています。",
+          "ctaHref": "/notes",
+          "ctaLabel": "ノートを見る"
+        },
+        {
+          "eyebrow": "どこを歩くか迷っているなら",
+          "title": "先に地図で場所を選ぶ",
+          "body": "名前を調べる前に、今日はどこを歩くかを決めたいなら、先に地図を開く方が早いです。",
+          "meta": "ここは『その場で確かめる入口』、地図は『次の場所を選ぶ入口』です。",
+          "ctaHref": "/map",
+          "ctaLabel": "マップを見る"
+        }
+      ]
+    },
+    "scan": {
+      "title": "次の場所を探す | ikimon",
+      "activeNav": "ホーム",
+      "footerNote": "次の散歩先を決めるページです。見つけたことは記録画面で残してください。",
+      "hero": {
+        "eyebrow": "次の場所を探す",
+        "heading": "今日どこを歩くか、地図から決める",
+        "lead": "近くの再訪候補も、旅先で少し寄り道する場所も、このページで探します。『なぜここか』『なぜ今か』を地図から読み取って、次の 1 件につなげます。"
+      },
+      "steps": [
+        { "title": "1. 地図で『なぜここか』を見る", "body": "記録が多い場所・少ない場所の偏り、季節、主体レンズから、行く理由が立つ場所を見つけます。" },
+        { "title": "2. 『なぜ今か』を読む", "body": "細かい名前より先に、その場所が今どう面白いかを見ます。" },
+        { "title": "3. 歩く場所が決まったら記録する", "body": "このページでは記録は保存されません。実際に見たことは記録画面で残してください。" }
+      ],
+      "guidanceCards": [
+        {
+          "eyebrow": "向いている場面",
+          "title": "今日どこを歩くか迷っているとき",
+          "body": "前に行った場所へまた行く理由を見つけたいときにも、旅先で少し寄る場所を決めたいときにも向いています。",
+          "meta": "水辺に寄るか、公園の縁を歩くか。出発前の迷いをここで減らします。"
+        },
+        {
+          "eyebrow": "期待しすぎないこと",
+          "title": "このページでは記録は保存されません",
+          "body": "場所を決める入口として使い、実際の観察は記録画面で残してください。"
+        },
+        {
+          "eyebrow": "次の一歩",
+          "title": "場所を決めて、そこで 1 件残す",
+          "body": "行き先が決まったら、その場所を歩いて 1 件記録してください。その 1 件が、次にまた来たい理由になります。",
+          "ctaHref": "/map",
+          "ctaLabel": "マップを見る"
+        }
+      ],
+      "followupCards": [
+        {
+          "eyebrow": "使い方の流れ",
+          "title": "場所を決めて、そこで記録する",
+          "body": "ここで気になる場所を見つけたら、次はその場所を実際に歩いて 1 件残すことです。",
+          "meta": "場所を決める → 歩く → 記録する。この順番が基本です。",
+          "ctaHref": "/explore",
+          "ctaLabel": "いま出ている記録を見る"
+        },
+        {
+          "eyebrow": "実際に残すなら",
+          "title": "写真と場所を、記録として残す",
+          "body": "場所が決まったら、その場の写真・時刻・メモを記録画面で 1 件にまとめてください。",
+          "meta": "ここで場所を決め、記録し、ノートで見返す。この繰り返しが散歩を観察に変えます。",
+          "ctaHref": "/record",
+          "ctaLabel": "記録する"
+        }
+      ]
+    },
+    "map": {
+      "title": "探索マップ | ikimon",
+      "activeNav": "ホーム",
+      "footerNote": "観察の広がりを、次に歩く理由に変える地図。"
+    },
+    "guide": {
+      "title": "フィールドガイド | ikimon",
+      "activeNav": "フィールドガイド",
+      "footerNote": "映像と音声で、土地の物語を聴く。"
+    }
+  }
+}
