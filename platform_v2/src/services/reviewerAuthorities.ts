@@ -1,4 +1,5 @@
 import { getPool } from "../db.js";
+import { isRankAtOrFinerThan, normalizeRank } from "./taxonRank.js";
 
 export type ReviewerAuthorityEvidenceType =
   | "field_event"
@@ -563,12 +564,30 @@ export async function getReviewerAccessContext(
 export function matchesAuthorityScope(
   authority: ReviewerAuthoritySnapshot,
   candidateTaxa: Array<string | null | undefined>,
+  proposedRank?: string | null,
 ): boolean {
   const normalizedCandidates = candidateTaxa
     .map((value) => normalizeText(value))
     .filter((value) => value.length > 0);
 
   if (normalizedCandidates.length === 0) {
+    return false;
+  }
+
+  // Rank-aware gate (§4 of identification_granularity_policy.md).
+  //
+  // When both the authority and the caller supply a rank, refuse to match
+  // if the proposal is coarser than the authority's scope. A genus-scoped
+  // authority may approve its own genus or a species within it, but must
+  // not approve family-level identifications.
+  //
+  // Compat: when the authority has no scope_taxon_rank, or proposedRank is
+  // not provided, keep the legacy name-only behaviour so existing rows and
+  // call sites continue to work. Backfill of scope_taxon_rank happens out
+  // of band; see docs/policy/identification_granularity_policy.md §4.1.
+  const scopeRank = normalizeRank(authority.scopeTaxonRank);
+  const proposalRank = normalizeRank(proposedRank);
+  if (scopeRank && proposalRank && !isRankAtOrFinerThan(proposalRank, scopeRank)) {
     return false;
   }
 
@@ -611,6 +630,7 @@ export async function resolveAuthorityForReview(input: {
   actorRoleName?: string | null;
   actorRankLabel?: string | null;
   proposedName: string;
+  proposedRank?: string | null;
 }): Promise<ReviewerAuthorityResolution> {
   const accessContext = await getReviewerAccessContext(
     input.actorUserId,
@@ -619,7 +639,7 @@ export async function resolveAuthorityForReview(input: {
   );
 
   const matched = accessContext.activeAuthorities.find((authority) =>
-    matchesAuthorityScope(authority, [input.proposedName]),
+    matchesAuthorityScope(authority, [input.proposedName], input.proposedRank ?? null),
   ) ?? null;
 
   if (matched) {

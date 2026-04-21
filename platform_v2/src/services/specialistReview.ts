@@ -51,6 +51,7 @@ export async function recordSpecialistReview(input: SpecialistReviewInput) {
       actorRoleName: input.actorRoleName,
       actorRankLabel: input.actorRankLabel,
       proposedName: normalizedProposedName,
+      proposedRank: normalizedProposedRank,
     });
     authorityMatched = resolution.authorityMatched;
     authorityScope = resolution.authorityScope;
