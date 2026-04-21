@@ -1,0 +1,89 @@
+{
+  "publicShared": {
+    "cta": {
+      "record": "記録する",
+      "startObservation": "観察を始める",
+      "openNotebook": "ノートを見る",
+      "openMap": "マップを見る",
+      "readFaq": "FAQを見る",
+      "openGuide": "その場で調べる",
+      "openScan": "次の場所を探す",
+      "openAbout": "このサービスについて見る",
+      "openGroupHelp": "団体相談を見る",
+      "contact": "お問い合わせする"
+    },
+    "labels": {
+      "notebook": "ノート",
+      "hint": "ヒント",
+      "revisit": "また行きたくなる理由",
+      "groupHelp": "団体相談",
+      "groupHelpLong": "地域で使いたい方へ"
+    },
+    "ai": {
+      "short": "AI はヒント役。決めるのは人です。",
+      "support": "AI は候補を出し、見分けるヒントを返します。名前を自動で決めることはしません。",
+      "supportLong": "AI は候補と見分けるヒントを返します。記録の主役は人の観察です。"
+    },
+    "business": {
+      "nav": "団体相談",
+      "eyebrow": "地域で使いたい方へ",
+      "title": "学校や地域で始めたいときの相談窓口",
+      "body": "法人・団体向けは、専用画面を売る前に、どこでどう始めるかを一緒に整える入口です。",
+      "cta": "団体相談を見る"
+    }
+  },
+  "shell": {
+    "brandTagline": "近くの自然が、ちょっとおもしろくなる",
+    "skipToContent": "本文へスキップ",
+    "searchPlaceholder": "生きものや場所を探す",
+    "searchLabel": "サイト内検索",
+    "menu": "メニュー",
+    "nav": {
+      "home": "ホーム",
+      "explore": "みつける",
+      "learn": "読む",
+      "business": "団体相談"
+    },
+    "record": "記録する",
+    "footer": {
+      "tagline": "歩いて見つけた自然を、あとで見返せる形に残す。",
+      "start": "はじめる",
+      "startLinks": {
+        "discover": "みつける",
+        "record": "記録する",
+        "places": "ノートを見る"
+      },
+      "learn": "読む",
+      "learnLinks": {
+        "guides": "使い方を見る",
+        "about": "ikimon について",
+        "faq": "よくある質問",
+        "updates": "アップデート"
+      },
+      "trust": "安心と案内",
+      "trustLinks": {
+        "business": "団体相談",
+        "contact": "お問い合わせ",
+        "terms": "利用規約",
+        "privacy": "プライバシー"
+      },
+      "copyright": "© 2024-2026 ikimon Project.",
+      "revisit": ""
+    }
+  },
+  "quickNav": {
+    "ariaLabel": "主な入口",
+    "labels": {
+      "notes": "ノートを見る",
+      "record": "記録する",
+      "lens": "その場で調べる",
+      "scan": "次の場所を探す",
+      "map": "マップを見る"
+    }
+  },
+  "footerNotes": {
+    "landing": "歩いて、見つけて、ノートに残す。",
+    "public": "歩いて見つけた自然を、あとで見返せる形に残す。",
+    "qa": "staging walkthrough for full-page QA. use this after the shared shell migration to inspect actual website movement and visual consistency."
+  }
+}

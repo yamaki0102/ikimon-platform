@@ -1,0 +1,82 @@
+{
+  "publicShared": {
+    "cta": {
+      "record": "Record",
+      "startObservation": "Start your notebook",
+      "openNotebook": "Field Note",
+      "openMap": "See the map",
+      "readFaq": "See FAQ",
+      "openGuide": "Field Guide",
+      "openScan": "Field Scan",
+      "openAbout": "About ikimon",
+      "openGroupHelp": "For Business",
+      "contact": "Contact"
+    },
+    "labels": {
+      "notebook": "Notebook",
+      "hint": "Hint",
+      "revisit": "Reason to return",
+      "groupHelp": "For Business",
+      "groupHelpLong": "For organizations"
+    },
+    "ai": {
+      "short": "AI suggests. People decide.",
+      "support": "AI offers candidates and clues. It does not automatically confirm a name.",
+      "supportLong": "AI offers candidates and clues. Human observation stays at the center of the record."
+    },
+    "business": {
+      "nav": "For Business",
+      "eyebrow": "For organizations",
+      "title": "A contact point for schools and local groups",
+      "body": "Before we promise a heavy workspace, we help teams decide where and how to start on the ground.",
+      "cta": "For Business"
+    }
+  },
+  "shell": {
+    "brandTagline": "Keep nearby finds so you can revisit them, place by place.",
+    "skipToContent": "Skip to content",
+    "searchPlaceholder": "Search species or places",
+    "searchLabel": "Site search",
+    "menu": "Menu",
+    "nav": {
+      "home": "Home",
+      "explore": "Explore",
+      "learn": "Learn",
+      "business": "For Business"
+    },
+    "record": "Record",
+    "footer": {
+      "tagline": "Save what you find nearby and revisit it later.",
+      "start": "Start",
+      "startLinks": {
+        "discover": "Explore",
+        "record": "Record",
+        "places": "My Places"
+      },
+      "learn": "Learn",
+      "learnLinks": {
+        "guides": "Guides",
+        "about": "About",
+        "faq": "FAQ",
+        "updates": "Updates"
+      },
+      "trust": "Trust",
+      "trustLinks": {
+        "business": "For Business",
+        "contact": "Contact",
+        "terms": "Terms",
+        "privacy": "Privacy"
+      }
+    }
+  },
+  "quickNav": {
+    "ariaLabel": "Primary notebook routes",
+    "labels": {
+      "notes": "Field Note",
+      "record": "Record one",
+      "lens": "Field Guide",
+      "scan": "Field Scan",
+      "map": "Map"
+    }
+  }
+}

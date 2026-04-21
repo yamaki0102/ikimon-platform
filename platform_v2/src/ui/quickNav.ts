@@ -1,5 +1,6 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
+import { getShortCopy } from "../content/index.js";
 import { escapeHtml } from "./siteShell.js";
 
 // Lucide icons inlined as SVG (https://lucide.dev) — chosen over CDN to keep SSR
@@ -24,46 +25,58 @@ type QuickNavCopy = {
   chips: QuickNavChip[];
 };
 
+type QuickNavLabels = {
+  notes: string;
+  record: string;
+  lens: string;
+  scan: string;
+  map: string;
+};
+
 function chips(basePath: string): Record<SiteLang, QuickNavCopy> {
+  const jaLabels = getShortCopy<QuickNavLabels>("ja", "shared", "quickNav.labels");
+  const enLabels = getShortCopy<QuickNavLabels>("en", "shared", "quickNav.labels");
+  const esLabels = getShortCopy<QuickNavLabels>("es", "shared", "quickNav.labels");
+  const ptBRLabels = getShortCopy<QuickNavLabels>("pt-BR", "shared", "quickNav.labels");
   return {
     ja: {
-      ariaLabel: "フィールドノートの主要導線",
+      ariaLabel: getShortCopy<string>("ja", "shared", "quickNav.ariaLabel"),
       chips: [
-        { icon: ICON_BOOK_OPEN, label: "フィールドノート", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
-        { icon: ICON_PEN_LINE, label: "1件記録する", href: withBasePath(basePath, "/record") },
-        { icon: ICON_SEARCH, label: "フィールドガイド", href: withBasePath(basePath, "/guide") },
-        { icon: ICON_RADAR, label: "フィールドスキャン", href: withBasePath(basePath, "/scan") },
-        { icon: ICON_MAP, label: "探索マップ", href: withBasePath(basePath, "/map") },
+        { icon: ICON_BOOK_OPEN, label: jaLabels.notes, href: withBasePath(basePath, "/notes"), emphasis: "primary" },
+        { icon: ICON_PEN_LINE, label: jaLabels.record, href: withBasePath(basePath, "/record") },
+        { icon: ICON_SEARCH, label: jaLabels.lens, href: withBasePath(basePath, "/lens") },
+        { icon: ICON_RADAR, label: jaLabels.scan, href: withBasePath(basePath, "/scan") },
+        { icon: ICON_MAP, label: jaLabels.map, href: withBasePath(basePath, "/map") },
       ],
     },
     en: {
-      ariaLabel: "Primary notebook routes",
+      ariaLabel: getShortCopy<string>("en", "shared", "quickNav.ariaLabel"),
       chips: [
-        { icon: ICON_BOOK_OPEN, label: "Field Note", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
-        { icon: ICON_PEN_LINE, label: "Record one", href: withBasePath(basePath, "/record") },
-        { icon: ICON_SEARCH, label: "Field Guide", href: withBasePath(basePath, "/guide") },
-        { icon: ICON_RADAR, label: "Field Scan", href: withBasePath(basePath, "/scan") },
-        { icon: ICON_MAP, label: "Map", href: withBasePath(basePath, "/map") },
+        { icon: ICON_BOOK_OPEN, label: enLabels.notes, href: withBasePath(basePath, "/notes"), emphasis: "primary" },
+        { icon: ICON_PEN_LINE, label: enLabels.record, href: withBasePath(basePath, "/record") },
+        { icon: ICON_SEARCH, label: enLabels.lens, href: withBasePath(basePath, "/guide") },
+        { icon: ICON_RADAR, label: enLabels.scan, href: withBasePath(basePath, "/scan") },
+        { icon: ICON_MAP, label: enLabels.map, href: withBasePath(basePath, "/map") },
       ],
     },
     es: {
-      ariaLabel: "Rutas principales del cuaderno",
+      ariaLabel: getShortCopy<string>("es", "shared", "quickNav.ariaLabel"),
       chips: [
-        { icon: ICON_BOOK_OPEN, label: "Cuaderno", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
-        { icon: ICON_PEN_LINE, label: "Registrar", href: withBasePath(basePath, "/record") },
-        { icon: ICON_SEARCH, label: "Guía de Campo", href: withBasePath(basePath, "/guide") },
-        { icon: ICON_RADAR, label: "Escaneo", href: withBasePath(basePath, "/scan") },
-        { icon: ICON_MAP, label: "Mapa", href: withBasePath(basePath, "/map") },
+        { icon: ICON_BOOK_OPEN, label: esLabels.notes, href: withBasePath(basePath, "/notes"), emphasis: "primary" },
+        { icon: ICON_PEN_LINE, label: esLabels.record, href: withBasePath(basePath, "/record") },
+        { icon: ICON_SEARCH, label: esLabels.lens, href: withBasePath(basePath, "/guide") },
+        { icon: ICON_RADAR, label: esLabels.scan, href: withBasePath(basePath, "/scan") },
+        { icon: ICON_MAP, label: esLabels.map, href: withBasePath(basePath, "/map") },
       ],
     },
     "pt-BR": {
-      ariaLabel: "Rotas principais do caderno",
+      ariaLabel: getShortCopy<string>("pt-BR", "shared", "quickNav.ariaLabel"),
       chips: [
-        { icon: ICON_BOOK_OPEN, label: "Caderno", href: withBasePath(basePath, "/notes"), emphasis: "primary" },
-        { icon: ICON_PEN_LINE, label: "Registrar", href: withBasePath(basePath, "/record") },
-        { icon: ICON_SEARCH, label: "Guia de Campo", href: withBasePath(basePath, "/guide") },
-        { icon: ICON_RADAR, label: "Escaneamento", href: withBasePath(basePath, "/scan") },
-        { icon: ICON_MAP, label: "Mapa", href: withBasePath(basePath, "/map") },
+        { icon: ICON_BOOK_OPEN, label: ptBRLabels.notes, href: withBasePath(basePath, "/notes"), emphasis: "primary" },
+        { icon: ICON_PEN_LINE, label: ptBRLabels.record, href: withBasePath(basePath, "/record") },
+        { icon: ICON_SEARCH, label: ptBRLabels.lens, href: withBasePath(basePath, "/guide") },
+        { icon: ICON_RADAR, label: ptBRLabels.scan, href: withBasePath(basePath, "/scan") },
+        { icon: ICON_MAP, label: ptBRLabels.map, href: withBasePath(basePath, "/map") },
       ],
     },
   };

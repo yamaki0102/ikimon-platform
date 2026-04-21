@@ -1,5 +1,6 @@
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
+import { getShortCopy } from "../content/index.js";
 
 export type SiteAction = {
   href: string;
@@ -38,6 +39,7 @@ export type SiteShellOptions = {
 
 type ShellCopy = {
   brandTagline: string;
+  skipToContent: string;
   searchPlaceholder: string;
   searchLabel: string;
   menu: string;
@@ -75,160 +77,9 @@ type ShellCopy = {
   };
 };
 
-const shellCopy: Record<SiteLang, ShellCopy> = {
-  ja: {
-    brandTagline: "Enjoy Nature",
-    searchPlaceholder: "生きもの・場所を探す",
-    searchLabel: "サイト内検索",
-    menu: "メニュー",
-    nav: {
-      home: "ホーム",
-      explore: "みつける",
-      learn: "読む",
-      business: "法人向け",
-    },
-    record: "記録する",
-    footer: {
-      tagline: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
-      start: "はじめる",
-      startLinks: {
-        discover: "みつける",
-        record: "記録する",
-        places: "自分の場所",
-      },
-      learn: "読む",
-      learnLinks: {
-        guides: "ガイド一覧",
-        about: "ikimon について",
-        faq: "よくある質問",
-        updates: "アップデート",
-      },
-      trust: "安心と案内",
-      trustLinks: {
-        business: "法人向け",
-        contact: "お問い合わせ",
-        terms: "利用規約",
-        privacy: "プライバシー",
-      },
-      copyright: "© 2024-2026 ikimon Project.",
-      revisit: "",
-    },
-  },
-  en: {
-    brandTagline: "Keep nearby finds so you can revisit them, place by place.",
-    searchPlaceholder: "Search species or places",
-    searchLabel: "Site search",
-    menu: "Menu",
-    nav: {
-      home: "Home",
-      explore: "Explore",
-      learn: "Learn",
-      business: "For Business",
-    },
-    record: "Record",
-    footer: {
-      tagline: "Save what you find nearby and revisit it later.",
-      start: "Start",
-      startLinks: {
-        discover: "Explore",
-        record: "Record",
-        places: "My Places",
-      },
-      learn: "Learn",
-      learnLinks: {
-        guides: "Guides",
-        about: "About",
-        faq: "FAQ",
-        updates: "Updates",
-      },
-      trust: "Trust",
-      trustLinks: {
-        business: "For Business",
-        contact: "Contact",
-        terms: "Terms",
-        privacy: "Privacy",
-      },
-      copyright: "© 2024-2026 ikimon Project.",
-      revisit: "",
-    },
-  },
-  es: {
-    brandTagline: "Guarda lo que encuentras cerca para volver a verlo por lugar.",
-    searchPlaceholder: "Buscar especie o lugar",
-    searchLabel: "Búsqueda del sitio",
-    menu: "Menú",
-    nav: {
-      home: "Inicio",
-      explore: "Explorar",
-      learn: "Aprender",
-      business: "Para organizaciones",
-    },
-    record: "Registrar",
-    footer: {
-      tagline: "Guarda lo que encuentras cerca y revísalo más tarde.",
-      start: "Empezar",
-      startLinks: {
-        discover: "Explorar",
-        record: "Registrar",
-        places: "Mis lugares",
-      },
-      learn: "Aprender",
-      learnLinks: {
-        guides: "Guías",
-        about: "Acerca de",
-        faq: "Preguntas frecuentes",
-        updates: "Actualizaciones",
-      },
-      trust: "Confianza",
-      trustLinks: {
-        business: "Para organizaciones",
-        contact: "Contacto",
-        terms: "Términos",
-        privacy: "Privacidad",
-      },
-      copyright: "© 2024-2026 ikimon Project.",
-      revisit: "",
-    },
-  },
-  "pt-BR": {
-    brandTagline: "Guarde o que encontra por perto para revisar depois, lugar por lugar.",
-    searchPlaceholder: "Buscar espécie ou lugar",
-    searchLabel: "Busca no site",
-    menu: "Menu",
-    nav: {
-      home: "Início",
-      explore: "Explorar",
-      learn: "Aprender",
-      business: "Para organizações",
-    },
-    record: "Registrar",
-    footer: {
-      tagline: "Salve o que encontrar por perto e reveja mais tarde.",
-      start: "Começar",
-      startLinks: {
-        discover: "Explorar",
-        record: "Registrar",
-        places: "Meus lugares",
-      },
-      learn: "Aprender",
-      learnLinks: {
-        guides: "Guias",
-        about: "Sobre",
-        faq: "Perguntas frequentes",
-        updates: "Atualizações",
-      },
-      trust: "Confiança",
-      trustLinks: {
-        business: "Para organizações",
-        contact: "Contato",
-        terms: "Termos",
-        privacy: "Privacidade",
-      },
-      copyright: "© 2024-2026 ikimon Project.",
-      revisit: "",
-    },
-  },
-};
+function shellCopyFor(lang: SiteLang): ShellCopy {
+  return getShortCopy<ShellCopy>(lang, "shared", "shell");
+}
 
 export function escapeHtml(value: string | null | undefined): string {
   return String(value ?? "")
@@ -240,7 +91,7 @@ export function escapeHtml(value: string | null | undefined): string {
 }
 
 function buildNavLinks(basePath: string, lang: SiteLang, activeNav?: string): string {
-  const copy = shellCopy[lang];
+  const copy = shellCopyFor(lang);
   const links = [
     { href: withBasePath(basePath, "/"), label: copy.nav.home },
     { href: withBasePath(basePath, "/explore"), label: copy.nav.explore },
@@ -283,7 +134,7 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, className = ""): 
 }
 
 function nav(basePath: string, lang: SiteLang, currentPath: string, activeNav?: string): string {
-  const copy = shellCopy[lang];
+  const copy = shellCopyFor(lang);
   const brandMarkSrc = "/assets/img/icon-192.png";
   const navLinks = buildNavLinks(basePath, lang, activeNav);
   const desktopSearch = renderSearchForm(basePath, copy, "site-search-desktop");
@@ -351,7 +202,7 @@ function hero(basePath: string, content?: SiteHero): string {
 }
 
 function footer(basePath: string, lang: SiteLang, footerNote?: string): string {
-  const copy = shellCopy[lang];
+  const copy = shellCopyFor(lang);
   const note = footerNote ?? copy.footer.tagline;
   return `<footer class="site-footer">
     <div class="site-footer-inner">
@@ -405,14 +256,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   const lang = options.lang ?? "ja";
   const currentPath = options.currentPath ?? withBasePath(options.basePath, "/");
   const uiKpiEndpoint = withBasePath(options.basePath, "/api/v1/ui-kpi/events");
-  const skipLabel =
-    lang === "ja"
-      ? "本文へスキップ"
-      : lang === "es"
-        ? "Saltar al contenido"
-        : lang === "pt-BR"
-          ? "Pular para o conteúdo"
-          : "Skip to content";
+  const skipLabel = shellCopyFor(lang).skipToContent;
   const uiKpiScript = `<script>
 (function () {
   const endpoint = ${JSON.stringify(uiKpiEndpoint)};
