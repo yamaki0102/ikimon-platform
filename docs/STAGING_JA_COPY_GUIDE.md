@@ -65,6 +65,20 @@
   - 約束を裏切らないための説明責任を持つ
   - 理由、境界線、次の一歩を本文で回収する
 
+## done 行の基準
+
+- `lead は約束`
+  - 1 画面目で読み手に返す価値を短く言う
+- `本文は説明責任`
+  - 理由、線引き、次の一歩を本文で回収する
+- `done 行は tokenized promise/obligation`
+  - review matrix の `first-screen promise` と `body obligation` は ` / ` 区切りの短い概念トークンで固定する
+- `done 行の成立条件`
+  - 対応する `lead` と `longform` が更新済み
+  - 赤入れ review doc が存在する
+  - route 回帰と content guard が通る
+  - staging 目視で `1画面目の約束 -> 本文の説明責任` がつながっている
+
 ## ページ深度別ルール
 
 ### 入口面
