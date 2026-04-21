@@ -70,6 +70,28 @@ test("faq page answers beginner and group setup questions in plain language", as
   }
 });
 
+test("learn explanation pages keep the updated ja depth promises", async () => {
+  const app = buildApp();
+  try {
+    const fieldLoop = await app.inject({ method: "GET", url: "/learn/field-loop?lang=ja" });
+    assert.equal(fieldLoop.statusCode, 200);
+    assert.match(fieldLoop.body, /なぜ 1 件で言い切らないのか/);
+    assert.match(fieldLoop.body, /同じ場所に戻ると何が増えるのか/);
+
+    const authority = await app.inject({ method: "GET", url: "/learn/authority-policy?lang=ja" });
+    assert.equal(authority.statusCode, 200);
+    assert.match(authority.body, /どこで慎重さが必要になるのか/);
+    assert.match(authority.body, /ふだん使うときはどう読めばよいか/);
+
+    const methodology = await app.inject({ method: "GET", url: "/learn/methodology?lang=ja" });
+    assert.equal(methodology.statusCode, 200);
+    assert.match(methodology.body, /場所を残す理由/);
+    assert.match(methodology.body, /見ていないことを言い切らない理由/);
+  } finally {
+    await app.close();
+  }
+});
+
 test("contact page renders content-backed form copy", async () => {
   const app = buildApp();
   try {
