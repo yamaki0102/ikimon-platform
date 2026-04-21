@@ -993,9 +993,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <div class="eyebrow">信頼のレーン</div>
               <h2>名前は 4 層で扱う</h2>
               <div class="list">
-                <div class="row"><div><strong>AI のヒント</strong><div class="meta">候補と見分けのヒント。これだけで公式確定にしない。</div></div></div>
-                <div class="row"><div><strong>みんなの同定</strong><div class="meta">人の同定が集まる段階。まだ公開前提ではない。</div></div></div>
-                <div class="row"><div><strong>任された人の確認</strong><div class="meta">分類群の担当権限を持つ確認者が承認する段階。</div></div></div>
+                <div class="row"><div><strong>AI のヒント</strong><div class="meta">候補と見分けのヒント。これだけで公式確定にはしない。</div></div></div>
+                <div class="row"><div><strong>みんなの同定</strong><div class="meta">人の一致で「強い候補」になる。大きな分類なら正式に残ることもある。</div></div></div>
+                <div class="row"><div><strong>任された人の確認</strong><div class="meta">分類群の担当権限を持つ確認者が、細かい種名を通す段階。</div></div></div>
                 <div class="row"><div><strong>公開前提の主張</strong><div class="meta">任された人の確認と媒体条件を満たした公開候補。</div></div></div>
               </div>
             </section>
@@ -1863,14 +1863,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       trustStage === "public_claim"
         ? "任された人の確認と媒体条件を満たし、公開前提の候補まで進んでいます。"
         : trustStage === "authority_backed"
-          ? "みんなの同定の先で、任された人の確認が入り、公開前の確度を担保している段階です。"
+          ? "分類群を任された人の確認が入り、公開前の確度を担保している段階です。"
           : trustStage === "community_support"
-            ? "AI 候補だけではなく、人の同定が集まっている段階です。"
-            : "いま見えている名前は仮の候補です。AI と人の確認で上がっていきます。";
+            ? "人の一致で「強い候補」になっている段階です。大きな分類なら正式に残ります。細かい種名の公開判定には、もう一段（任された人の確認）を通します。"
+            : "いま見えている名前は仮の候補です。AI が出すヒントと人の確認で、段を上がっていきます。";
     const trustSteps = [
       { id: "ai_suggestion", label: "AI のヒント", meta: "候補と見分けのヒント" },
-      { id: "community_support", label: "みんなの同定", meta: "人の同定が集まる" },
-      { id: "authority_backed", label: "任された人の確認", meta: "分類群の担当権限を持つ人が承認" },
+      { id: "community_support", label: "みんなの同定", meta: "一致で「強い候補」に" },
+      { id: "authority_backed", label: "任された人の確認", meta: "細かい種名を通す段" },
       { id: "public_claim", label: "公開前提", meta: "公開用途の候補に進める" },
     ];
     const targetTaxaScopeLabel = (() => {
