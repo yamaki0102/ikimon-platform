@@ -16,6 +16,7 @@
  */
 
 require_once LIBS_DIR . '/ObservationSourceHelper.php';
+require_once LIBS_DIR . '/PrivacyFilter.php';
 require_once __DIR__ . '/observation_feed_card_helpers.php';
 
 $_src     = ObservationSourceHelper::getSource($cardObs);
@@ -40,7 +41,8 @@ $_userName    = $cardObs['user_display_name']
     ?? substr($cardObs['user_id'] ?? '?', 0, 4);
 $_avatar      = $cardObs['user_avatar'] ?? '/assets/img/default-avatar.svg';
 $_timeAgo     = BioUtils::timeAgo($cardObs['observed_at'] ?? $cardObs['created_at'] ?? 'now');
-$_place       = htmlspecialchars($cardObs['municipality'] ?? ($cardObs['location']['name'] ?? ''));
+$_publicLocation = is_array($cardObs['public_location'] ?? null) ? $cardObs['public_location'] : PrivacyFilter::buildPublicLocationSummary($cardObs);
+$_place       = htmlspecialchars((string)($_publicLocation['label'] ?? ($cardObs['location_name'] ?? '')));
 $_photos      = $cardObs['photos'] ?? [];
 $_hasPhoto    = !empty($_photos);
 $_obsComments = count($cardObs['identifications'] ?? []);

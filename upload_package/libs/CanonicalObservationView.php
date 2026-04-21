@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/CanonicalStore.php';
+require_once __DIR__ . '/ThumbnailGenerator.php';
 
 class CanonicalObservationView
 {
@@ -11,7 +12,7 @@ class CanonicalObservationView
                 'enabled' => false,
                 'source' => 'json_only',
             ];
-            return $observation;
+            return self::attachDerivedMedia($observation);
         }
 
         $originalId = (string)($observation['id'] ?? '');
@@ -20,7 +21,7 @@ class CanonicalObservationView
                 'enabled' => false,
                 'source' => 'json_only',
             ];
-            return $observation;
+            return self::attachDerivedMedia($observation);
         }
 
         $aggregate = CanonicalStore::getObservationAggregateByOriginalObservationId($originalId);
@@ -29,7 +30,7 @@ class CanonicalObservationView
                 'enabled' => false,
                 'source' => 'json_only',
             ];
-            return $observation;
+            return self::attachDerivedMedia($observation);
         }
 
         $merged = $observation;
@@ -138,6 +139,72 @@ class CanonicalObservationView
             'coordinate_precision' => $privacyAccess['coordinate_precision'] ?? null,
         ];
 
-        return $merged;
+        return self::attachDerivedMedia($merged);
+    }
+
+    private static function attachDerivedMedia(array $observation): array
+    {
+        $photos = [];
+        foreach (($observation['photos'] ?? []) as $photo) {
+            if (is_string($photo) && $photo !== '') {
+                $photos[] = $photo;
+                continue;
+            }
+
+            if (!is_array($photo)) {
+                continue;
+            }
+
+            $candidate = (string)($photo['path'] ?? $photo['url'] ?? '');
+            if ($candidate === '') {
+                continue;
+            }
+
+            if (!preg_match('#^(https?:)?//#i', $candidate)) {
+                $candidate = ltrim($candidate, '/');
+            }
+
+            $photos[] = $candidate;
+        }
+
+        $observation['photos'] = $photos;
+
+        $primaryPhoto = $photos[0] ?? null;
+        $observation['thumbnail_url'] = is_string($primaryPhoto) && $primaryPhoto !== ''
+            ? self::resolveDisplayPhotoPath($primaryPhoto, 'sm')
+            : null;
+        $observation['preview_photo_url'] = is_string($primaryPhoto) && $primaryPhoto !== ''
+            ? self::resolveDisplayPhotoPath($primaryPhoto, 'md')
+            : null;
+
+        if (is_array($observation['media_assets'] ?? null)) {
+            $observation['media_assets'] = array_values(array_map(
+                static function (array $asset): array {
+                    if (($asset['media_type'] ?? '') !== 'photo') {
+                        return $asset;
+                    }
+
+                    $mediaPath = (string)($asset['media_path'] ?? '');
+                    if ($mediaPath === '') {
+                        return $asset;
+                    }
+
+                    $asset['thumbnail_url'] = self::resolveDisplayPhotoPath($mediaPath, 'sm');
+                    return $asset;
+                },
+                array_values(array_filter($observation['media_assets'], 'is_array'))
+            ));
+        }
+
+        return $observation;
+    }
+
+    private static function resolveDisplayPhotoPath(string $photoPath, string $suffix): string
+    {
+        if (preg_match('#^(https?:)?//#i', $photoPath)) {
+            return $photoPath;
+        }
+
+        return ThumbnailGenerator::resolve($photoPath, $suffix);
     }
 }

@@ -573,7 +573,7 @@ Auth::init();
                     </div>
                     <!-- Photo -->
                     <div class="relative">
-                        <img :src="selectedObs.photos && selectedObs.photos[0] ? selectedObs.photos[0] : 'assets/img/placeholder.png'"
+                        <img :src="previewPhoto(selectedObs)"
                             :alt="selectedObs.taxon ? selectedObs.taxon.name : '観察写真'"
                             class="obs-detail-photo" loading="lazy">
                         <!-- Status badge overlay -->
@@ -594,7 +594,7 @@ Auth::init();
                             </span>
                             <span class="meta-item">
                                 <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
-                                <span x-text="selectedObs.place_name || selectedObs.location?.name || ''"></span>
+                                <span x-text="locationLabel(selectedObs)"></span>
                             </span>
                             <span class="meta-item" x-show="selectedObs.user_name">
                                 <i data-lucide="user" class="w-3.5 h-3.5"></i>
@@ -726,8 +726,8 @@ Auth::init();
             <!-- Observation List -->
             <div class="panel-list" id="panelList">
                 <template x-for="obs in clusterItems" :key="obs.id">
-                    <div @click="selectedObs = obs; showBottomSheet = false; if(map && obs.lat && obs.lng) { map.flyTo({center: [obs.lng, obs.lat], zoom: 15, offset: [0, -100]}); }" class="panel-item cursor-pointer">
-                        <img :src="obs.photos && obs.photos[0] ? obs.photos[0] : 'assets/img/placeholder.png'"
+                    <div @click="focusObservation(obs)" class="panel-item cursor-pointer">
+                        <img :src="thumbnailPhoto(obs)"
                             :alt="obs.taxon ? obs.taxon.name : '観察写真'"
                             class="w-14 h-14 rounded-xl object-cover bg-bg-faint border border-border flex-shrink-0"
                             loading="lazy">
@@ -745,6 +745,7 @@ Auth::init();
                                     :class="obs.status === 'Research Grade' ? 'bg-primary-surface text-primary' : 'bg-warning-surface text-warning'"
                                     x-text="obs.status || 'Needs ID'"></span>
                             </div>
+                            <p class="text-token-xs text-muted truncate mt-1" x-text="locationLabel(obs)"></p>
                         </div>
                         <i data-lucide="chevron-right" class="w-4 h-4 text-border flex-shrink-0"></i>
                     </div>
@@ -951,6 +952,209 @@ Auth::init();
                     this.$watch('activeTab', (tab) => {
                         this.$nextTick(() => lucide.createIcons());
                     });
+                    this.$watch('selectedObs', () => {
+                        this.updateSelectedObservationArea();
+                    });
+                },
+
+                thumbnailPhoto(obs) {
+                    if (!obs) return 'assets/img/placeholder.png';
+                    return obs.thumbnail_url || this.previewPhoto(obs);
+                },
+
+                previewPhoto(obs) {
+                    if (!obs) return 'assets/img/placeholder.png';
+                    return obs.preview_photo_url || obs.thumbnail_url || (obs.photos && obs.photos[0]) || 'assets/img/placeholder.png';
+                },
+
+                publicLocation(obs) {
+                    if (!obs || typeof obs !== 'object') return null;
+                    return (obs.public_location && typeof obs.public_location === 'object') ? obs.public_location : null;
+                },
+
+                locationLabel(obs) {
+                    if (!obs) return '';
+                    const publicLocation = this.publicLocation(obs);
+                    return publicLocation?.label
+                        || obs.location_name
+                        || obs.place_name
+                        || obs.municipality
+                        || obs.prefecture
+                        || obs.location?.name
+                        || '';
+                },
+
+                observationCenter(obs) {
+                    const publicLocation = this.publicLocation(obs);
+                    const lat = Number(publicLocation?.lat ?? obs?.lat);
+                    const lng = Number(publicLocation?.lng ?? obs?.lng);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                        return null;
+                    }
+
+                    return {
+                        lat,
+                        lng,
+                    };
+                },
+
+                privacyGridSize(obs) {
+                    const publicLocation = this.publicLocation(obs);
+                    const gridM = Number(publicLocation?.grid_m ?? obs?.grid_m ?? 0);
+                    return Number.isFinite(gridM) && gridM > 0 ? gridM : null;
+                },
+
+                privacyRadiusM(obs) {
+                    const publicLocation = this.publicLocation(obs);
+                    const radiusM = Number(publicLocation?.radius_m ?? obs?.obscured_radius ?? 0);
+                    if (Number.isFinite(radiusM) && radiusM > 0) {
+                        return radiusM;
+                    }
+
+                    const gridM = this.privacyGridSize(obs);
+                    return gridM ? gridM / 2 : null;
+                },
+
+                canShowPublicArea(obs) {
+                    const publicLocation = this.publicLocation(obs);
+                    if (publicLocation?.is_hidden) {
+                        return false;
+                    }
+
+                    return this.observationCenter(obs) !== null && this.privacyRadiusM(obs) !== null;
+                },
+
+                focusObservation(obs) {
+                    this.selectedObs = obs;
+                    this.showBottomSheet = false;
+
+                    if (!this.map) {
+                        return;
+                    }
+
+                    const center = this.observationCenter(obs);
+                    if (!center) {
+                        return;
+                    }
+
+                    this.map.flyTo({
+                        center: [center.lng, center.lat],
+                        zoom: this.safeObservationZoom(obs),
+                        offset: [0, -100],
+                        speed: 1.2,
+                        essential: true
+                    });
+                },
+
+                safeObservationZoom(obs) {
+                    const center = this.observationCenter(obs);
+                    const radiusM = this.privacyRadiusM(obs);
+                    if (!center || !radiusM) {
+                        return Math.min(this.map?.getZoom?.() ?? 12, 14);
+                    }
+
+                    const cosLat = Math.max(Math.cos(center.lat * Math.PI / 180), 0.25);
+                    const targetDiameterPx = 180;
+                    const zoom = Math.log2((156543.03392 * cosLat * targetDiameterPx) / (radiusM * 2));
+                    return Math.max(8, Math.min(14, zoom));
+                },
+
+                offsetLngLat(lng, lat, eastM, northM) {
+                    const latOffset = northM / 111320;
+                    const lngDivisor = Math.max(Math.cos(lat * Math.PI / 180) * 111320, 1);
+                    const lngOffset = eastM / lngDivisor;
+                    return [lng + lngOffset, lat + latOffset];
+                },
+
+                buildObservationAreaFeature(obs) {
+                    if (!this.canShowPublicArea(obs)) {
+                        return null;
+                    }
+
+                    const center = this.observationCenter(obs);
+                    const halfSizeM = (this.privacyGridSize(obs) ?? (this.privacyRadiusM(obs) * 2)) / 2;
+                    const ring = [
+                        this.offsetLngLat(center.lng, center.lat, -halfSizeM, -halfSizeM),
+                        this.offsetLngLat(center.lng, center.lat, halfSizeM, -halfSizeM),
+                        this.offsetLngLat(center.lng, center.lat, halfSizeM, halfSizeM),
+                        this.offsetLngLat(center.lng, center.lat, -halfSizeM, halfSizeM),
+                        this.offsetLngLat(center.lng, center.lat, -halfSizeM, -halfSizeM),
+                    ];
+
+                    return {
+                        type: 'Feature',
+                        properties: {
+                            id: obs?.id || '',
+                            label: this.locationLabel(obs),
+                        },
+                        geometry: {
+                            type: 'Polygon',
+                            coordinates: [ring],
+                        },
+                    };
+                },
+
+                emptyFeatureCollection() {
+                    return {
+                        type: 'FeatureCollection',
+                        features: [],
+                    };
+                },
+
+                ensureSelectedObservationAreaLayers() {
+                    if (!this.map) return;
+
+                    if (!this.map.getSource('selected-observation-area')) {
+                        this.map.addSource('selected-observation-area', {
+                            type: 'geojson',
+                            data: this.emptyFeatureCollection(),
+                        });
+                    }
+
+                    if (!this.map.getLayer('selected-observation-area-fill')) {
+                        this.map.addLayer({
+                            id: 'selected-observation-area-fill',
+                            type: 'fill',
+                            source: 'selected-observation-area',
+                            paint: {
+                                'fill-color': '#10b981',
+                                'fill-opacity': 0.14,
+                            },
+                        });
+                    }
+
+                    if (!this.map.getLayer('selected-observation-area-outline')) {
+                        this.map.addLayer({
+                            id: 'selected-observation-area-outline',
+                            type: 'line',
+                            source: 'selected-observation-area',
+                            paint: {
+                                'line-color': '#059669',
+                                'line-width': 2,
+                                'line-opacity': 0.75,
+                                'line-dasharray': [2, 2],
+                            },
+                        });
+                    }
+                },
+
+                updateSelectedObservationArea() {
+                    if (!this.map) return;
+
+                    this.ensureSelectedObservationAreaLayers();
+                    const source = this.map.getSource('selected-observation-area');
+                    if (!source) return;
+
+                    const feature = this.buildObservationAreaFeature(this.selectedObs);
+                    source.setData(feature ? {
+                        type: 'FeatureCollection',
+                        features: [feature],
+                    } : this.emptyFeatureCollection());
+                },
+
+                canRenderPhotoMarker(obs) {
+                    const publicLocation = this.publicLocation(obs);
+                    return publicLocation?.display_mode !== 'area' && !publicLocation?.is_hidden;
                 },
 
                 switchTab(tab) {
@@ -1520,6 +1724,7 @@ Auth::init();
                             clusterMaxZoom: 14, // Stop clustering at zoom 14 (showing individual photos)
                             clusterRadius: 50
                         });
+                        this.ensureSelectedObservationAreaLayers();
 
                         // Strand System: Exploration Traces (Visualizing other researchers)
                         // Mocking some paths around Hamamatsu to simulate "Net Trails"
@@ -1661,12 +1866,7 @@ Auth::init();
                         this.map.on('click', 'unclustered-point', (e) => {
                             const props = e.features[0].properties;
                             const obsData = typeof props.obsData === 'string' ? JSON.parse(props.obsData) : props.obsData;
-                            this.selectedObs = obsData;
-                            this.map.flyTo({
-                                center: e.features[0].geometry.coordinates,
-                                zoom: Math.max(this.map.getZoom(), 15),
-                                offset: [0, -100]
-                            });
+                            this.focusObservation(obsData);
                         });
 
                         this.map.on('mouseenter', 'unclustered-point', () => {
@@ -1705,22 +1905,28 @@ Auth::init();
 
                     const geojson = {
                         type: 'FeatureCollection',
-                        features: this.items.map(obs => ({
-                            type: 'Feature',
-                            properties: {
-                                id: obs.id,
-                                photo: obs.photos && obs.photos[0],
-                                // Pass entire obs for preview (serialize roughly or just ID)
-                                obsData: obs
-                            },
-                            geometry: {
-                                type: 'Point',
-                                coordinates: [parseFloat(obs.lng), parseFloat(obs.lat)]
-                            }
-                        }))
+                        features: this.items
+                            .filter(obs => this.observationCenter(obs) !== null)
+                            .map(obs => {
+                                const center = this.observationCenter(obs);
+                                return {
+                                    type: 'Feature',
+                                    properties: {
+                                        id: obs.id,
+                                        photo: this.thumbnailPhoto(obs),
+                                        // Pass entire obs for preview (serialize roughly or just ID)
+                                        obsData: obs
+                                    },
+                                    geometry: {
+                                        type: 'Point',
+                                        coordinates: [center.lng, center.lat]
+                                    }
+                                };
+                            })
                     };
 
                     this.map.getSource('observations').setData(geojson);
+                    this.updateSelectedObservationArea();
                 },
 
                 updateMarkers() {
@@ -1728,7 +1934,7 @@ Auth::init();
 
                     // Only show photo markers at zoom >= 15 (few points visible)
                     const zoom = this.map.getZoom();
-                    if (zoom < 15) {
+                    if (zoom < 15 || !this.items.some(obs => this.canRenderPhotoMarker(obs))) {
                         // Remove all DOM markers at low zoom, GPU layers handle it
                         Object.keys(this.markers).forEach(id => {
                             this.markers[id].remove();
@@ -1756,6 +1962,8 @@ Auth::init();
                     features.forEach(f => {
                         const id = f.properties.id;
                         if (this.markers[id]) return;
+                        const obsData = typeof f.properties.obsData === 'string' ? JSON.parse(f.properties.obsData) : f.properties.obsData;
+                        if (!this.canRenderPhotoMarker(obsData)) return;
 
                         const el = document.createElement('div');
                         el.className = 'w-8 h-8 rounded-full shadow-xl cursor-pointer';
@@ -1768,13 +1976,7 @@ Auth::init();
 
                         el.addEventListener('click', (e) => {
                             e.stopPropagation();
-                            const obsData = typeof f.properties.obsData === 'string' ? JSON.parse(f.properties.obsData) : f.properties.obsData;
-                            this.selectedObs = obsData;
-                            this.map.flyTo({
-                                center: f.geometry.coordinates,
-                                zoom: 15,
-                                offset: [0, -100]
-                            });
+                            this.focusObservation(obsData);
                         });
 
                         const m = new maplibregl.Marker({
@@ -1824,6 +2026,7 @@ Auth::init();
                                 clusterMaxZoom: 14,
                                 clusterRadius: 50
                             });
+                            this.ensureSelectedObservationAreaLayers();
                             this.map.addLayer({
                                 id: 'clusters',
                                 type: 'circle',
@@ -1885,12 +2088,7 @@ Auth::init();
                             this.map.on('click', 'unclustered-point', (e) => {
                                 const props = e.features[0].properties;
                                 const obsData = typeof props.obsData === 'string' ? JSON.parse(props.obsData) : props.obsData;
-                                this.selectedObs = obsData;
-                                this.map.flyTo({
-                                    center: e.features[0].geometry.coordinates,
-                                    zoom: Math.max(this.map.getZoom(), 15),
-                                    offset: [0, -100]
-                                });
+                                this.focusObservation(obsData);
                             });
                             this.map.on('mouseenter', 'clusters', () => this.map.getCanvas().style.cursor = 'pointer');
                             this.map.on('mouseleave', 'clusters', () => this.map.getCanvas().style.cursor = '');
@@ -1898,6 +2096,7 @@ Auth::init();
                             this.map.on('mouseleave', 'unclustered-point', () => this.map.getCanvas().style.cursor = '');
                         }
                         this.updateSource();
+                        this.updateSelectedObservationArea();
                         // Re-init biodiversity layers after style change
                         if (this._biodiversityLoaded) {
                             this._biodiversityLoaded = false;

@@ -9,6 +9,7 @@ export type VisitSubjectSummary = SubjectRankInput & {
   vernacularName: string | null;
   latestAssessmentGeneratedAt: string | null;
   hasSpecialistApproval: boolean;
+  evidenceTier: number | null;
 };
 
 function normalizeAssessmentBand(raw: string | null | undefined): AssessmentBand {
@@ -34,6 +35,7 @@ export async function getVisitSubjectSummaries(
     vernacular_name: string | null;
     taxon_rank: string | null;
     confidence_score: string | null;
+    evidence_tier: string | null;
     source_payload: Record<string, unknown> | null;
   }>(
     `SELECT occurrence_id,
@@ -43,6 +45,7 @@ export async function getVisitSubjectSummaries(
             vernacular_name,
             taxon_rank,
             confidence_score::text,
+            evidence_tier::text,
             source_payload
        FROM occurrences
       WHERE visit_id = $1
@@ -109,6 +112,7 @@ export async function getVisitSubjectSummaries(
       latestAssessmentBand: latestAssessment?.band ?? null,
       latestAssessmentGeneratedAt: latestAssessment?.generatedAt ?? null,
       hasSpecialistApproval: specialistPayload?.decision === "approve",
+      evidenceTier: row.evidence_tier != null ? Number(row.evidence_tier) : null,
       isPrimary: row.subject_index === 0,
     };
   });

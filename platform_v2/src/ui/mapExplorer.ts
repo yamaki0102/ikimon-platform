@@ -67,6 +67,10 @@ export type MapExplorerCopy = {
   siteBriefReasonsLabel: string;
   siteBriefChecksLabel: string;
   siteBriefCapturesLabel: string;
+  siteBriefWhyHereLabel: string;
+  siteBriefWhyNowLabel: string;
+  siteBriefOneVisitLabel: string;
+  siteBriefNextHookLabel: string;
   siteBriefLoading: string;
   siteBriefError: string;
   searchPlaceholder: string;
@@ -172,6 +176,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "根拠",
     siteBriefChecksLabel: "現地で確かめる",
     siteBriefCapturesLabel: "撮るなら",
+    siteBriefWhyHereLabel: "why here",
+    siteBriefWhyNowLabel: "why now",
+    siteBriefOneVisitLabel: "one-visit contribution",
+    siteBriefNextHookLabel: "next revisit hook",
     siteBriefLoading: "この地点を読み解き中…",
     siteBriefError: "手がかりが取れなかった。現地の直感を優先して。",
     searchPlaceholder: "場所 / 種を探す（例: 静岡市 谷津山、モンシロチョウ）",
@@ -257,6 +265,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "Why",
     siteBriefChecksLabel: "Check on the ground",
     siteBriefCapturesLabel: "If you shoot",
+    siteBriefWhyHereLabel: "why here",
+    siteBriefWhyNowLabel: "why now",
+    siteBriefOneVisitLabel: "one-visit contribution",
+    siteBriefNextHookLabel: "next revisit hook",
     siteBriefLoading: "Reading this place…",
     siteBriefError: "Could not read this place. Trust your field sense.",
     searchPlaceholder: "Find a place or species (e.g. Shizuoka, swallowtail)",
@@ -342,6 +354,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "Por qué",
     siteBriefChecksLabel: "Verifica en el sitio",
     siteBriefCapturesLabel: "Si disparas",
+    siteBriefWhyHereLabel: "por qué aquí",
+    siteBriefWhyNowLabel: "por qué ahora",
+    siteBriefOneVisitLabel: "aporte de una visita",
+    siteBriefNextHookLabel: "gancho para volver",
     siteBriefLoading: "Leyendo este lugar…",
     siteBriefError: "No pude leer este lugar. Confía en tu campo.",
     searchPlaceholder: "Buscar lugar o especie (p. ej. Shizuoka, mariposa)",
@@ -427,6 +443,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "Porquê",
     siteBriefChecksLabel: "Verifique no campo",
     siteBriefCapturesLabel: "Se for fotografar",
+    siteBriefWhyHereLabel: "por que aqui",
+    siteBriefWhyNowLabel: "por que agora",
+    siteBriefOneVisitLabel: "contribuição de uma visita",
+    siteBriefNextHookLabel: "gancho para voltar",
     siteBriefLoading: "Lendo este lugar…",
     siteBriefError: "Não consegui ler este lugar. Confie no campo.",
     searchPlaceholder: "Buscar local ou espécie (ex.: Shizuoka, borboleta)",
@@ -540,10 +560,59 @@ function ambientPanelLabels(lang: SiteLang): {
   };
 }
 
+function actorPanelLabels(lang: SiteLang): {
+  actorLabel: string;
+  actors: Array<{ value: "all" | "local_steward" | "traveler" | "casual"; label: string; icon: string }>;
+} {
+  if (lang === "en") {
+    return {
+      actorLabel: "Actor lens",
+      actors: [
+        { value: "all", label: "All", icon: "🧭" },
+        { value: "local_steward", label: "Local steward", icon: "🏡" },
+        { value: "traveler", label: "Traveler", icon: "🧳" },
+        { value: "casual", label: "Casual", icon: "🚶" },
+      ],
+    };
+  }
+  if (lang === "es") {
+    return {
+      actorLabel: "Lente de actor",
+      actors: [
+        { value: "all", label: "Todo", icon: "🧭" },
+        { value: "local_steward", label: "Cuidador local", icon: "🏡" },
+        { value: "traveler", label: "Viajero", icon: "🧳" },
+        { value: "casual", label: "Casual", icon: "🚶" },
+      ],
+    };
+  }
+  if (lang === "pt-BR") {
+    return {
+      actorLabel: "Lente do ator",
+      actors: [
+        { value: "all", label: "Tudo", icon: "🧭" },
+        { value: "local_steward", label: "Guardião local", icon: "🏡" },
+        { value: "traveler", label: "Viajante", icon: "🧳" },
+        { value: "casual", label: "Casual", icon: "🚶" },
+      ],
+    };
+  }
+  return {
+    actorLabel: "見る主体",
+    actors: [
+      { value: "all", label: "All", icon: "🧭" },
+      { value: "local_steward", label: "Local steward", icon: "🏡" },
+      { value: "traveler", label: "Traveler", icon: "🧳" },
+      { value: "casual", label: "Casual", icon: "🚶" },
+    ],
+  };
+}
+
 export function renderMapExplorer(props: MapExplorerProps): string {
   const lang = props.lang;
   const copy = MAP_EXPLORER_COPY[lang];
   const ambientLabels = ambientPanelLabels(lang);
+  const actorLabels = actorPanelLabels(lang);
   const yearTimelineValues = [...props.years].sort((a, b) => a - b);
   const yearValuesJson = escapeHtml(JSON.stringify(yearTimelineValues));
   const overlays: LocalizedOverlay[] = overlaysForLang(lang);
@@ -632,6 +701,18 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </button>`,
     )
     .join("");
+  const actorChipsHtml = actorLabels.actors
+    .map(
+      (actor, idx) => `<button
+        type="button"
+        class="me-chip me-actor-chip${actor.value === "all" || idx === 0 ? " is-active" : ""}"
+        data-actor-class="${escapeHtml(actor.value)}"
+        aria-pressed="${actor.value === "all" || idx === 0 ? "true" : "false"}">
+        <span aria-hidden="true">${escapeHtml(actor.icon)}</span>
+        ${escapeHtml(actor.label)}
+      </button>`,
+    )
+    .join("");
 
   const filterToggleLabel = lang === "ja"
     ? "フィルタ"
@@ -688,6 +769,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
             <div class="me-filter-group">
               <span class="me-filter-label">${escapeHtml(ambientLabels.roleLabel)}</span>
               <div class="me-chip-row" role="group" aria-label="${escapeHtml(ambientLabels.roleLabel)}">${roleChipsHtml}</div>
+            </div>
+            <div class="me-filter-group">
+              <span class="me-filter-label">${escapeHtml(actorLabels.actorLabel)}</span>
+              <div class="me-chip-row" role="group" aria-label="${escapeHtml(actorLabels.actorLabel)}">${actorChipsHtml}</div>
             </div>
             <div class="me-filter-group">
               <span class="me-filter-label">${escapeHtml(copy.seasonFilterLabel)}</span>
@@ -819,6 +904,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
 export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string }): string {
   const copy = MAP_EXPLORER_COPY[props.lang];
   const ambient = ambientPanelLabels(props.lang);
+  const actor = actorPanelLabels(props.lang);
   const noticeCopy = getOfficialNoticeRenderCopy(props.lang);
   const observationHrefTpl = withBasePath(props.basePath, "/observations/__ID__") +
     "?lang=" + props.lang;
@@ -869,8 +955,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
     siteBriefChecksLabel: copy.siteBriefChecksLabel,
     siteBriefCapturesLabel: copy.siteBriefCapturesLabel,
+    siteBriefWhyHereLabel: copy.siteBriefWhyHereLabel,
+    siteBriefWhyNowLabel: copy.siteBriefWhyNowLabel,
+    siteBriefOneVisitLabel: copy.siteBriefOneVisitLabel,
+    siteBriefNextHookLabel: copy.siteBriefNextHookLabel,
     siteBriefLoading: copy.siteBriefLoading,
     siteBriefError: copy.siteBriefError,
+    loopHookTravelerFallback: props.lang === "ja" ? "今回の 1 回を、次の寄り道の理由に変える" : props.lang === "es" ? "Convierte esta visita en motivo para volver" : props.lang === "pt-BR" ? "Transforme esta visita em motivo para voltar" : "Turn this one visit into a reason to return",
+    loopHookLocalFallback: props.lang === "ja" ? "次にまた見に来る理由を 1 行残す" : props.lang === "es" ? "Deja una razón breve para volver" : props.lang === "pt-BR" ? "Deixe um motivo curto para voltar" : "Leave one short reason to return",
+    loopHookLocalPrefix: props.lang === "ja" ? "次は " : props.lang === "es" ? "Lo siguiente: " : props.lang === "pt-BR" ? "Próximo: " : "Next: ",
     searchNoResult: copy.searchNoResult,
     searchError: copy.searchError,
     searchResultSpecies: copy.searchResultSpecies,
@@ -885,6 +978,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     roleCardLabel: ambient.roleCardLabel,
     roleLabel: ambient.roleLabel,
     roleOptions: ambient.roles,
+    actorLabel: actor.actorLabel,
+    actorOptions: actor.actors,
+    actorLensLabel: props.lang === "ja" ? "主体レンズ" : props.lang === "es" ? "Lente elegido" : props.lang === "pt-BR" ? "Lente ativa" : "Active lens",
+    actor_all: props.lang === "ja" ? "全体" : props.lang === "es" ? "Todo" : props.lang === "pt-BR" ? "Tudo" : "All",
+    actor_local_steward: props.lang === "ja" ? "地元 steward" : props.lang === "es" ? "Cuidador local" : props.lang === "pt-BR" ? "Guardião local" : "Local steward",
+    actor_traveler: props.lang === "ja" ? "Traveler" : props.lang === "es" ? "Viajero" : props.lang === "pt-BR" ? "Viajante" : "Traveler",
+    actor_casual: props.lang === "ja" ? "Casual" : props.lang === "es" ? "Casual" : props.lang === "pt-BR" ? "Casual" : "Casual",
+    actorHint_all: props.lang === "ja" ? "地図全体の frontier を見る" : props.lang === "es" ? "Mirar la frontera total" : props.lang === "pt-BR" ? "Ver a fronteira total" : "Look at the whole frontier",
+    actorHint_local_steward: props.lang === "ja" ? "同じ場所を育てる前提で見る" : props.lang === "es" ? "Mirar para volver y cuidar" : props.lang === "pt-BR" ? "Olhar para voltar e cuidar" : "Look as someone who will return",
+    actorHint_traveler: props.lang === "ja" ? "一度の訪問で開ける空白を探す" : props.lang === "es" ? "Buscar huecos para una sola visita" : props.lang === "pt-BR" ? "Buscar vazios de visita única" : "Look for gaps to open in one visit",
+    actorHint_casual: props.lang === "ja" ? "生活動線の近くで埋められる薄い帯を見る" : props.lang === "es" ? "Ver huecos cercanos a la rutina" : props.lang === "pt-BR" ? "Ver lacunas perto da rotina" : "Look for nearby routine gaps",
     roleHintScan: props.lang === "ja" ? "空白を埋めるなら Scan" : props.lang === "es" ? "Si quieres abrir huecos, usa Escaneo" : props.lang === "pt-BR" ? "Se quer abrir vazios, use Escaneamento" : "Use Scan to open blank areas",
     roleHintGuide: props.lang === "ja" ? "確度を上げるなら Guide" : props.lang === "es" ? "Usa Guía para subir la certeza" : props.lang === "pt-BR" ? "Use Guia para subir a certeza" : "Use Guide to raise certainty",
     roleHintNote: props.lang === "ja" ? "比較可能にするなら Note" : props.lang === "es" ? "Usa Nota para hacer comparables los registros" : props.lang === "pt-BR" ? "Use Nota para tornar comparável" : "Use Note to make it revisitable",
@@ -909,6 +1013,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     campaign_guide_building: props.lang === "ja" ? "育ち始めの場所の確度を上げる" : props.lang === "es" ? "Subir la certeza de zonas en crecimiento" : props.lang === "pt-BR" ? "Aumentar a certeza das zonas em crescimento" : "Raise certainty in building areas",
     campaign_note_repeatable: props.lang === "ja" ? "比較できる場所をもう一段厚くする" : props.lang === "es" ? "Hacer más densa una zona repetible" : props.lang === "pt-BR" ? "Tornar mais espessa uma zona repetível" : "Thicken one repeatable area",
     campaign_mixed_frontier: props.lang === "ja" ? "静かに frontier を前に進める" : props.lang === "es" ? "Empujar la frontera con calma" : props.lang === "pt-BR" ? "Avançar a fronteira com calma" : "Quietly move the frontier forward",
+    priorityCueLabel: props.lang === "ja" ? "priority" : props.lang === "es" ? "prioridad" : props.lang === "pt-BR" ? "prioridade" : "priority",
+    priority_steady_revisit: props.lang === "ja" ? "再訪で厚くする" : props.lang === "es" ? "Engrosar con revisitas" : props.lang === "pt-BR" ? "Espessar com revisitas" : "Thicken by revisiting",
+    priority_fresh_gap: props.lang === "ja" ? "新しい空白を開く" : props.lang === "es" ? "Abrir un hueco nuevo" : props.lang === "pt-BR" ? "Abrir um vazio novo" : "Open a fresh gap",
+    priority_nearby_gap: props.lang === "ja" ? "近場の薄い帯を埋める" : props.lang === "es" ? "Cubrir huecos cercanos" : props.lang === "pt-BR" ? "Cobrir lacunas próximas" : "Fill a nearby thin band",
     remainingLabel: props.lang === "ja" ? "残り frontier" : props.lang === "es" ? "fronteras restantes" : props.lang === "pt-BR" ? "fronteiras restantes" : "frontier left",
     aggregateModeNote: props.lang === "ja" ? "他ユーザー個別ではなく、地域の集計だけを表示中" : props.lang === "es" ? "Solo agregados del área, no personas concretas" : props.lang === "pt-BR" ? "Somente agregados da área, sem pessoas específicas" : "Area aggregate only, no individual people shown",
     searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
@@ -981,6 +1089,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var state = {
     tab: 'markers',
     role: 'mixed',
+    actorClass: 'all',
     markerProfile: 'all_research_artifacts',
     taxonGroup: '',
     year: '',
@@ -1123,6 +1232,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return COPY.roleHintMixed;
   }
 
+  function actorLabel(actorClass) {
+    return COPY['actor_' + actorClass] || COPY.actor_all;
+  }
+
+  function actorHintLabel(actorClass) {
+    return COPY['actorHint_' + actorClass] || COPY.actorHint_all;
+  }
+
+  function priorityCueLabel(priorityCue) {
+    return COPY['priority_' + priorityCue] || COPY.priority_fresh_gap;
+  }
+
   function roleLabel(role) {
     var opts = Array.isArray(COPY.roleOptions) ? COPY.roleOptions : [];
     for (var i = 0; i < opts.length; i += 1) {
@@ -1165,12 +1286,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var ownCell = summary.myProgress
       ? '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.selfLabel) + '</span><strong>' + summary.myProgress.winCount + ' ' + escapeHtml(COPY.winsLabel) + '</strong><span>' + escapeHtml(roleHintLabel(summary.myProgress.focusRole)) + ' · ' + summary.myProgress.revisitCount + ' ' + escapeHtml(COPY.revisitLabel) + '</span></div>'
       : '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.selfLabel) + '</span><strong>' + escapeHtml(roleHintLabel('mixed')) + '</strong><span>' + escapeHtml(COPY.aggregateModeNote) + '</span></div>';
+    var actorCell =
+      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.actorLensLabel) + '</span><strong>' + escapeHtml(actorLabel(summary.actorLens.actorClass)) + '</strong><span>' + escapeHtml(actorHintLabel(summary.actorLens.actorClass)) + ' · ' + String(summary.actorLens.matchingContributorCount) + '</span></div>';
     var communityCell =
       '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.communityLabel) + '</span><strong>' + summary.communityProgress.activeCellCount + '</strong><span>' + escapeHtml(contributorBandLabel(summary.communityProgress.contributorBand)) + ' · ' + progressPercent(summary.communityProgress.progressRatio) + '%</span></div>';
     var frontierCell =
-      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.frontierLabel) + '</span><strong>' + summary.frontierRemaining.blankCount + ' / ' + summary.frontierRemaining.buildingCount + '</strong><span>' + escapeHtml(summary.frontierRemaining.topMissingAxes.map(axisLabel).join(' · ') || '—') + '</span></div>';
+      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.frontierLabel) + '</span><strong>' + summary.frontierRemaining.blankCount + ' / ' + summary.frontierRemaining.buildingCount + '</strong><span>' + escapeHtml(summary.frontierRemaining.topMissingAxes.map(axisLabel).join(' · ') || '—') + ' · ' + escapeHtml(priorityCueLabel(summary.frontierRemaining.priorityCue)) + '</span></div>';
     var nextCell =
-      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.roleCardLabel) + '</span><strong>' + escapeHtml(roleHintLabel(summary.campaignProgress.recommendedRole)) + '</strong><span>' + progressPercent(summary.campaignProgress.progressRatio) + '% · ' + summary.campaignProgress.remainingCount + ' ' + escapeHtml(COPY.remainingLabel) + '</span></div>';
+      '<div class="me-map-insight-item"><span class="me-map-insight-label">' + escapeHtml(COPY.roleCardLabel) + '</span><strong>' + escapeHtml(roleHintLabel(summary.campaignProgress.recommendedRole)) + '</strong><span>' + escapeHtml(priorityCueLabel(summary.campaignProgress.priorityCue)) + ' · ' + summary.campaignProgress.remainingCount + ' ' + escapeHtml(COPY.remainingLabel) + '</span></div>';
 
     mapInsightCardEl.innerHTML =
       '<div class="me-map-card me-map-card-quiet">' +
@@ -1183,6 +1306,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         '</div>' +
         '<div class="me-map-insight-grid">' +
           ownCell +
+          actorCell +
           communityCell +
           frontierCell +
           nextCell +
@@ -1403,11 +1527,39 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return '<li>' + escapeHtml(c) + '</li>';
     }).join('');
     var notices = renderMapOfficialNotices(brief.officialNotices || []);
+    var context = getSelectedContext();
+    var frontier = context ? findFrontierAt(context.lng, context.lat) : null;
+    var missingAxes = frontier && frontier.properties && Array.isArray(frontier.properties.missingAxes)
+      ? frontier.properties.missingAxes.map(axisLabel).join(' · ')
+      : '';
+    var whyHere = (brief.reasons && brief.reasons[0]) || h.label;
+    var whyNow = frontier && frontier.properties
+      ? priorityCueLabel(frontier.properties.priorityCue)
+      : (brief.checks && brief.checks[0]) || h.label;
+    var oneVisit = frontier && frontier.properties
+      ? roleHintLabel(frontier.properties.recommendedRole) + (missingAxes ? ' · ' + missingAxes : '')
+      : (brief.captureHints && brief.captureHints[0]) || h.label;
+    var nextHook = state.effortSummary && state.effortSummary.actorLens && state.effortSummary.actorLens.actorClass === 'traveler'
+      ? (frontier && frontier.properties
+          ? priorityCueLabel(frontier.properties.priorityCue) + (missingAxes ? ' · ' + missingAxes : '')
+          : COPY.loopHookTravelerFallback)
+      : (frontier && frontier.properties
+          ? COPY.loopHookLocalPrefix + priorityCueLabel(frontier.properties.priorityCue)
+          : COPY.loopHookLocalFallback);
+    var loopCards = [
+      { label: COPY.siteBriefWhyHereLabel, body: whyHere },
+      { label: COPY.siteBriefWhyNowLabel, body: whyNow },
+      { label: COPY.siteBriefOneVisitLabel, body: oneVisit },
+      { label: COPY.siteBriefNextHookLabel, body: nextHook },
+    ].map(function (item) {
+      return '<div class="me-site-brief-loop-card"><div class="me-site-brief-loop-label">' + escapeHtml(item.label) + '</div><div class="me-site-brief-loop-body">' + escapeHtml(item.body) + '</div></div>';
+    }).join('');
     return '<div class="me-site-brief">' +
       '<div class="me-site-brief-head">' +
         '<span class="me-site-brief-label">' + escapeHtml(h.label) + '</span>' +
         '<span class="me-site-brief-conf" title="confidence">' + confPct + '%</span>' +
       '</div>' +
+      '<div class="me-site-brief-loop-grid">' + loopCards + '</div>' +
       '<div class="me-site-brief-heading">' + escapeHtml(COPY.siteBriefHeading) + '</div>' +
       (checks ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefChecksLabel) + '</div><ul>' + checks + '</ul></div>' : '') +
       (reasons ? '<div class="me-site-brief-section"><div class="me-site-brief-sublabel">' + escapeHtml(COPY.siteBriefReasonsLabel) + '</div><ul class="me-site-brief-reasons">' + reasons + '</ul></div>' : '') +
@@ -1476,11 +1628,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var frontier = findFrontierAt(context.lng, context.lat);
     var items = [];
     if (frontier) {
-      items.push('<div class="me-sheet-card"><strong>' + escapeHtml(roleHintLabel(frontier.properties.recommendedRole)) + '</strong><span>' + escapeHtml((frontier.properties.missingAxes || []).map(axisLabel).join(' · ') || '—') + '</span></div>');
+      items.push('<div class="me-sheet-card"><strong>' + escapeHtml(roleHintLabel(frontier.properties.recommendedRole)) + '</strong><span>' + escapeHtml((frontier.properties.missingAxes || []).map(axisLabel).join(' · ') || '—') + ' · ' + escapeHtml(priorityCueLabel(frontier.properties.priorityCue)) + '</span></div>');
       items.push('<div class="me-sheet-card"><strong>' + escapeHtml(COPY.communityProgressLabel) + ' ' + progressPercent(frontier.properties.communityGain) + '%</strong><span>' + frontier.properties.contributorCount + ' ' + escapeHtml(COPY.aggregateContributorLabel) + '</span></div>');
     }
     if (state.effortSummary && state.effortSummary.campaignProgress) {
-      items.push('<div class="me-sheet-card"><strong>' + progressPercent(state.effortSummary.campaignProgress.progressRatio) + '%</strong><span>' + escapeHtml(COPY['campaign_' + state.effortSummary.campaignProgress.labelKey]) + '</span></div>');
+      items.push('<div class="me-sheet-card"><strong>' + escapeHtml(actorLabel(state.effortSummary.actorLens.actorClass)) + '</strong><span>' + escapeHtml(COPY['campaign_' + state.effortSummary.campaignProgress.labelKey]) + ' · ' + escapeHtml(priorityCueLabel(state.effortSummary.campaignProgress.priorityCue)) + '</span></div>');
     }
     if (!items.length) return '';
     return '<div class="me-sheet-ambient">' + items.join('') + '</div>';
@@ -1816,6 +1968,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     state.frontierAbort = controller;
     var qs = '?bbox=' + encodeURIComponent(currentBboxString());
     if (state.year) qs += '&year=' + encodeURIComponent(state.year);
+    if (state.actorClass && state.actorClass !== 'all') qs += '&actor_class=' + encodeURIComponent(state.actorClass);
     fetch(apiFrontier + qs, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (coll) {
@@ -1835,6 +1988,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var qs = '?bbox=' + encodeURIComponent(currentBboxString());
     if (state.year) qs += '&year=' + encodeURIComponent(state.year);
     if (state.role) qs += '&role=' + encodeURIComponent(state.role);
+    if (state.actorClass && state.actorClass !== 'all') qs += '&actor_class=' + encodeURIComponent(state.actorClass);
     if (state.effortAbort) { try { state.effortAbort.abort(); } catch (_) {} }
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     state.effortAbort = controller;
@@ -1999,12 +2153,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   // Keeps map state shareable as a plain URL while preserving unrelated
   // params like lang.
   var STATE_STORAGE_KEY = 'ikimon-map-v2';
-  var MAP_STATE_KEYS = ['tab', 'role', 'mp', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces', 'cell'];
+  var MAP_STATE_KEYS = ['tab', 'role', 'actor', 'mp', 'taxon', 'year', 'season', 'bm', 'ov', 'lng', 'lat', 'z', 'traces', 'cell'];
 
   function serializeMapState() {
     var parts = [];
     if (state.tab && state.tab !== 'markers') parts.push('tab=' + encodeURIComponent(state.tab));
     if (state.role && state.role !== 'mixed') parts.push('role=' + encodeURIComponent(state.role));
+    if (state.actorClass && state.actorClass !== 'all') parts.push('actor=' + encodeURIComponent(state.actorClass));
     if (state.markerProfile && state.markerProfile !== 'all_research_artifacts') parts.push('mp=' + encodeURIComponent(state.markerProfile));
     if (state.taxonGroup) parts.push('taxon=' + encodeURIComponent(state.taxonGroup));
     if (state.year) parts.push('year=' + encodeURIComponent(state.year));
@@ -2056,6 +2211,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!params || !Object.keys(params).length) return;
     if (params.tab) state.tab = params.tab === 'coverage' ? 'frontier' : params.tab;
     if (params.role) state.role = params.role;
+    if (params.actor) state.actorClass = params.actor;
     if (params.mp === 'manual_only' || params.mp === 'trusted_only' || params.mp === 'all_research_artifacts') state.markerProfile = params.mp;
     if (params.taxon !== undefined) state.taxonGroup = params.taxon;
     if (params.year) state.year = params.year;
@@ -2096,6 +2252,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var v = btn.getAttribute('data-role') || 'mixed';
       btn.classList.toggle('is-active', v === state.role);
       btn.setAttribute('aria-pressed', v === state.role ? 'true' : 'false');
+    });
+    document.querySelectorAll('.me-actor-chip').forEach(function (btn) {
+      var v = btn.getAttribute('data-actor-class') || 'all';
+      btn.classList.toggle('is-active', v === state.actorClass);
+      btn.setAttribute('aria-pressed', v === state.actorClass ? 'true' : 'false');
     });
     document.querySelectorAll('.me-taxon-chip').forEach(function (btn) {
       var v = btn.getAttribute('data-taxon-group') || '';
@@ -2307,6 +2468,20 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         b.classList.toggle('is-active', b === btn);
         b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
       });
+      loadEffortSummary();
+      saveMapState();
+    });
+  });
+  document.querySelectorAll('.me-actor-chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var value = btn.getAttribute('data-actor-class') || 'all';
+      state.actorClass = value;
+      document.querySelectorAll('.me-actor-chip').forEach(function (b) {
+        b.classList.toggle('is-active', b === btn);
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
+      refreshMapData();
+      if (state.map && state.tab === 'frontier') loadFrontier(state.map);
       loadEffortSummary();
       saveMapState();
     });
@@ -3106,12 +3281,19 @@ export const MAP_EXPLORER_STYLES = `
   .me-site-brief-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
   .me-site-brief-label { font-size: 14px; font-weight: 800; color: #064e3b; }
   .me-site-brief-conf { font-size: 11px; font-weight: 800; color: #047857; background: rgba(16,185,129,.18); padding: 2px 8px; border-radius: 999px; }
+  .me-site-brief-loop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .me-site-brief-loop-card { padding: 10px 11px; border-radius: 12px; background: rgba(255,255,255,.9); border: 1px solid rgba(15,23,42,.08); display: grid; gap: 4px; }
+  .me-site-brief-loop-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; }
+  .me-site-brief-loop-body { font-size: 11.5px; line-height: 1.45; color: #0f172a; font-weight: 700; }
   .me-site-brief-heading { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #059669; margin-bottom: 6px; }
   .me-site-brief-section { margin-top: 6px; }
   .me-site-brief-sublabel { font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
   .me-site-brief ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
   .me-site-brief ul li { font-size: 12px; color: #0f172a; line-height: 1.45; }
   .me-site-brief-reasons li { color: #475569; font-size: 11px; }
+  @media (max-width: 520px) {
+    .me-site-brief-loop-grid { grid-template-columns: 1fr; }
+  }
   ${OFFICIAL_NOTICE_CARD_STYLES}
 
   .me-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }

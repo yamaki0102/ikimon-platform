@@ -318,6 +318,8 @@ $metadataHistory = array_values(array_filter(
 // Privacy-aware display coordinates
 $isOwner = $currentUser && ($currentUser['id'] === ($obs['user_id'] ?? ''));
 $filteredObs = PrivacyFilter::autoFilter($obs);
+$publicLocationSummary = PrivacyFilter::buildPublicLocationSummary($obs);
+$publicLocationName = (string)($publicLocationSummary['label'] ?? ($obs['municipality'] ?? ($obs['prefecture'] ?? __('observation_page.location_hidden', 'Location hidden'))));
 $displayLatRaw = $filteredObs['latitude'] ?? $filteredObs['lat'] ?? $obs['lat'] ?? null;
 $displayLngRaw = $filteredObs['longitude'] ?? $filteredObs['lng'] ?? $obs['lng'] ?? null;
 $displayLat = is_numeric($displayLatRaw) ? (float)$displayLatRaw : null;
@@ -343,9 +345,7 @@ $revisitBody = $myFieldName
     : __('observation_page.revisit_body_default', 'One more dated record from the same place makes it easier to compare season, condition, and review progress later.');
 
 // Obscure location
-$location = $hasDisplayCoordinates
-    ? BioUtils::getObscuredLocation($displayLat, $displayLng, null)
-    : ($obs['municipality'] ?? ($obs['prefecture'] ?? __('observation_page.location_hidden', 'Location hidden')));
+$location = $publicLocationName;
 
 // Check Red List & Invasive
 $redlist = $taxon_key ? RedList::check($taxon_key) : null;
@@ -510,13 +510,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
     <?php include __DIR__ . '/components/map_config.php'; ?>
 </head>
 
-<body class="js-loading font-body min-h-screen antialiased" style="background:var(--md-surface);color:var(--md-on-surface);" x-data="{ idModalOpen: false, photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, locationName: '<?php echo htmlspecialchars($obs['municipality'] ?? ($obs['prefecture'] ?? ''), ENT_QUOTES); ?>' }" x-init="
-    <?php if ($hasDisplayCoordinates): ?>
-    fetch('https://nominatim.openstreetmap.org/reverse?lat=<?php echo round($displayLat, 2); ?>&lon=<?php echo round($displayLng, 2); ?>&format=json&accept-language=<?php echo rawurlencode($documentLang); ?>&zoom=10')
-        .then(r => r.json())
-        .then(d => { if (d.address) { const city = d.address.city || d.address.town || d.address.village || d.address.county || ''; const state = d.address.state || ''; locationName = city ? city + (state ? ', ' + state : '') : (state || locationName); } })
-        .catch(() => {});
-    <?php endif; ?>
+<body class="js-loading font-body min-h-screen antialiased" style="background:var(--md-surface);color:var(--md-on-surface);" x-data="{ idModalOpen: false, photoActive: 0, lightbox: false, touchStart: 0, touchEnd: 0, locationName: '<?php echo htmlspecialchars($publicLocationName, ENT_QUOTES); ?>' }" x-init="
     },
     async submitAgree(target) {
         if(!confirm('<?= addslashes(__('observation_page.agree_confirm_prefix', 'Agree with \"{name}\"?')) ?>'.replace('{name}', target.name) + '\n<?= addslashes(__('observation_page.agree_confirm_note', '(Your agreement affects the trust level of this record.)')) ?>')) return;
@@ -737,8 +731,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <div class="text-sm font-bold text-text leading-none"><?php echo htmlspecialchars($observerName); ?></div>
                             <div class="text-token-xs text-muted mt-0.5">
                                 <?php echo date('Y年m月d日 H:i', strtotime($obs['observed_at'] ?? $obs['created_at'] ?? 'now')); ?>
-                                <?php if (!empty($obs['location']['name'])): ?>
-                                    · <?php echo htmlspecialchars($obs['location']['name']); ?>
+                                <?php if ($publicLocationName !== ''): ?>
+                                    · <?php echo htmlspecialchars($publicLocationName); ?>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -748,7 +742,7 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                     </p>
                 </div>
 
-                <?php if ($managedContextType !== '' || !empty($managedContext['site_name']) || $organismOrigin !== ''): ?>
+                <?php if ($managedContextType !== '' || $organismOrigin !== ''): ?>
                     <section style="background:var(--md-surface-container);border-radius:var(--shape-xl);padding:1rem;box-shadow:var(--elev-1);">
                         <div class="flex items-center justify-between gap-3 mb-3">
                             <div>
@@ -767,14 +761,8 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                             <div style="background:var(--md-surface-container-low);border-radius:var(--shape-md);padding:0.75rem;">
                                 <p class="text-[10px] font-black text-faint uppercase tracking-widest mb-1"><?= __('observation_page.facility_context', 'Facility context') ?></p>
                                 <p class="font-bold text-text"><?php echo htmlspecialchars($managedContextLabelMap[$managedContextType] ?? ($managedContextType !== '' ? $managedContextType : __('observation_page.none', 'None'))); ?></p>
-                                <?php if (!empty($managedContext['site_name'])): ?>
-                                    <p class="text-xs text-muted mt-1"><?php echo htmlspecialchars($managedContext['site_name']); ?></p>
-                                <?php endif; ?>
                             </div>
                         </div>
-                        <?php if (!empty($managedContext['note'])): ?>
-                            <p class="mt-3 text-sm text-muted leading-relaxed"><?php echo htmlspecialchars($managedContext['note']); ?></p>
-                        <?php endif; ?>
                         <p class="mt-3 text-[11px] text-faint"><?= __('observation_page.context_note', 'Even inside facilities, wild individuals are stored as wild. Facility context is preserved separately from field distribution so provenance can be traced 100 years from now.') ?></p>
                     </section>
                 <?php endif; ?>
@@ -1675,6 +1663,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                                     <?php
                                                     $parts = [];
                                                     foreach (($proposal['changes'] ?? []) as $field => $change) {
+                                                        if (in_array($field, ['managed_site_name', 'managed_context_note'], true)) {
+                                                            continue;
+                                                        }
                                                         $label = $fieldLabels[$field] ?? $field;
                                                         $parts[] = $label . ' → ' . (($change['to'] ?? '') === '' ? __('observation_page.unset', 'Unset') : (string)($change['to'] ?? ''));
                                                     }
@@ -1738,6 +1729,9 @@ $meta_canonical = 'https://ikimon.life/observation_detail.php?id=' . urlencode($
                                             };
                                             $changes = [];
                                             foreach (($history['changes'] ?? []) as $field => $change) {
+                                                if (in_array($field, ['managed_site_name', 'managed_context_note'], true)) {
+                                                    continue;
+                                                }
                                                 $fieldMap = [
                                                     'biome' => __('observation_page.field_biome', 'Biome'),
                                                     'organism_origin' => __('observation_page.field_origin', 'Origin'),

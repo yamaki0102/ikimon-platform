@@ -55,6 +55,15 @@ export type ObservationDetailSnapshot = {
   scientificName: string | null;
   observedAt: string;
   note: string | null;
+  visitMode: string | null;
+  completeChecklistFlag: boolean;
+  targetTaxaScope: string | null;
+  effortMinutes: number | null;
+  distanceMeters: number | null;
+  recordMode: string | null;
+  surveyResult: string | null;
+  absenceSemantics: string | null;
+  revisitReason: string | null;
   observerName: string;
   placeName: string;
   municipality: string | null;
@@ -192,7 +201,7 @@ export async function getManualVisitOccurrenceIntegrity(
   const whereClauses = [
     "v.source_kind = 'v2_observation'",
     "coalesce(v.session_mode, '') = 'standard'",
-    "coalesce(v.visit_mode, 'manual') = 'manual'",
+    "coalesce(v.visit_mode, 'manual') in ('manual', 'survey')",
     "not exists (select 1 from occurrences o where o.visit_id = v.visit_id)",
   ];
   const params: Array<string | number> = [];
@@ -567,12 +576,18 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     scientific_name: string | null;
     observed_at: string;
     note: string | null;
-  observer_name: string | null;
-  place_name: string | null;
-  municipality: string | null;
-  prefecture: string | null;
-  latitude: number | null;
-  longitude: number | null;
+    visit_mode: string | null;
+    complete_checklist_flag: boolean | null;
+    target_taxa_scope: string | null;
+    effort_minutes: number | null;
+    distance_meters: number | null;
+    source_payload: Record<string, unknown> | null;
+    observer_name: string | null;
+    place_name: string | null;
+    municipality: string | null;
+    prefecture: string | null;
+    latitude: number | null;
+    longitude: number | null;
   }>(
     `select
         o.occurrence_id,
@@ -584,6 +599,12 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
         o.scientific_name,
         v.observed_at::text,
         v.note,
+        v.visit_mode,
+        v.complete_checklist_flag,
+        v.target_taxa_scope,
+        v.effort_minutes,
+        v.distance_meters,
+        v.source_payload,
         ${VISIT_OBSERVER_NAME_SQL} as observer_name,
         coalesce(p.canonical_name, 'Unknown place') as place_name,
         coalesce(v.observed_municipality, p.municipality) as municipality,
@@ -612,6 +633,13 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
   if (!base) {
     return null;
   }
+  const visitPayload = (base.source_payload && typeof base.source_payload === "object")
+    ? base.source_payload
+    : {};
+  const recordMode = typeof visitPayload.record_mode === "string" ? visitPayload.record_mode : null;
+  const surveyResult = typeof visitPayload.survey_result === "string" ? visitPayload.survey_result : null;
+  const absenceSemantics = typeof visitPayload.absence_semantics === "string" ? visitPayload.absence_semantics : null;
+  const revisitReason = typeof visitPayload.revisit_reason === "string" ? visitPayload.revisit_reason : null;
 
   const photosResult = await pool.query<{ asset_id: string; photo_url: string | null }>(
     `select ea.asset_id::text as asset_id,
@@ -689,6 +717,15 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     scientificName: base.scientific_name,
     observedAt: base.observed_at,
     note: base.note,
+    visitMode: base.visit_mode,
+    completeChecklistFlag: Boolean(base.complete_checklist_flag),
+    targetTaxaScope: base.target_taxa_scope,
+    effortMinutes: base.effort_minutes != null ? Number(base.effort_minutes) : null,
+    distanceMeters: base.distance_meters != null ? Number(base.distance_meters) : null,
+    recordMode,
+    surveyResult,
+    absenceSemantics,
+    revisitReason,
     observerName: base.observer_name ?? "Unknown observer",
     placeName: base.place_name ?? "Unknown place",
     municipality: base.municipality,

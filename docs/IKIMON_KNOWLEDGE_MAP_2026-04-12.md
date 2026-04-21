@@ -119,6 +119,13 @@
   - 現在の重大ギャップを一覧化
   - とくに `正本の分裂`, `多言語の後付け`, `media = asset 化不足`, `学校運用モデル欠如` が重要
 
+### 3.6 iNaturalist 批判への返答境界
+
+- `docs/review/ikimon_inaturalist_critique_response_boundary_2026-04-20.md`
+  - 2026 年の iNaturalist 関連批判を `集める / 配る / 確かめる / 語る` に分解した review
+  - `platform_v2 staging` がどこまで返せているか、どこまで返すべきかを固定
+  - `quick capture vs survey`, actor lens frontier, trust lane, absence/trend の境界判断はここを使う
+
 ---
 
 ## 4. アーキテクチャ / 移行の正本

@@ -65,38 +65,43 @@ function landingCopy(lang: SiteLang) {
       heroEyebrow: "ikimon へようこそ",
       heroHeading: "いつもの散歩が、<br><span class=\"hero-emphasis\">冒険になる。</span>",
       heroHeadingPlain: "いつもの散歩が、冒険になる。",
-      heroLead: "写真を撮ると AI が候補を返す。地図が次に歩く場所を教えてくれる。記録が積むほど、同じ道がちがって見えてくる。",
+      heroLead: "近くの自然がちょっとおもしろくなる。旅先の 1 枚が、また来たい理由になる。AI は候補と理解支援を担い、記録と再訪の主役は人の観察です。",
+      heroPromiseChips: [
+        "近くの自然がちょっとおもしろくなる",
+        "旅先の1枚が、また来たい理由になる",
+        "AI は候補提示。public claim は人の review を通す",
+      ],
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("ja-JP")} 件の観察 · ${species.toLocaleString("ja-JP")} 種`,
       actionPrimaryLoggedIn: "ノートの続きを書く",
       actionPrimaryGuest: "観察を始める",
       actionSecondary: "探索マップを見る",
       toolSectionEyebrow: "ノートを育てる入口",
       toolSectionTitle: "ノートに新しいページを書く理由を増やす 2 つの入口",
-      toolSectionLead: "主役はフィールドノート。フィールドガイドとフィールドスキャンは、次の 1 枚を書きたくなるための補助です。",
+      toolSectionLead: "主役はフィールドノート。フィールドガイドはその場で見る目を助け、フィールドスキャンは次に行く理由と、また来る理由を返します。",
       tools: {
         lens: {
           eyebrow: "フィールドガイド",
           title: "歩きながら、映像と音声でその場を読み解く",
-          body: "カメラをかざすと AI が周囲を解析して音声で案内する。生きもの・土地の歴史・建物の来歴まで。気づいたことはノートに自動で蓄積。",
+          body: "カメラをかざすと AI が周囲の手がかりを返す。正解を決めるのではなく、次に何を見ればいいかを絞り、その場の 1 枚を記録につなぐ。",
           cta: "フィールドガイドを見る",
           badge: "beta",
         },
         scan: {
           eyebrow: "フィールドスキャン",
-          title: "近くの場所が、いま何を抱えているか",
-          body: "今いる場所の周りで、どんな生きものが記録されてきたかを地図で見られる。次に歩く道を選ぶときに。",
+          title: "次に行く理由と、また来る理由を地図で拾う",
+          body: "近くの再訪候補も、旅先で 1 回だけ寄る価値も、地図の偏りと季節から見つける。`why here / why now / 次の再訪 hook` を返す入口。",
           cta: "フィールドスキャンを見る",
           badge: "v0.10",
         },
       },
       mapSectionEyebrow: "場所のノート",
       mapSectionTitle: "また行きたくなる場所を、地図で振り返る",
-      mapSectionLead: "観察が、どの場所にどう積み重なっているか。同じ場所が季節でどう動くか。次に歩く理由を、地図のなかから探せる。",
+      mapSectionLead: "地元の人には近い場所の再訪理由を、旅で来た人には今ここに寄る理由と次の再訪 hook を返す。地図は、観察の偏りと季節の差分を読む入口です。",
       mapCta: "マップを開く",
       mapEmpty: "まだ地図に載せる観察がありません",
       bizEyebrow: "企業・自治体の方へ",
-      bizTitle: "場所のノートを、組織の自然インフラに",
-      bizBody: "学校・自治体・企業で、自然共生サイトの観察を続けるための共有ノートとして使える。導入の相談から運用まで、必要な分だけ手伝う。",
+      bizTitle: "訪問理由と再訪理由を育てる、地域連携の入口に",
+      bizBody: "学校・自治体・企業には、深い業務画面より先に、場所の観察を始めて続ける導線を用意する。ikimon は地域の place stewardship を支える入口として使う。",
       bizCta: "法人向けページへ",
       footerNote: "歩いて、見つけて、ノートに残す。",
     },
@@ -105,38 +110,43 @@ function landingCopy(lang: SiteLang) {
       heroEyebrow: "feel the field.",
       heroHeading: "Your usual walk <span class=\"hero-emphasis\">becomes an adventure.</span>",
       heroHeadingPlain: "Your usual walk becomes an adventure.",
-      heroLead: "An AI guide reads the land aloud. The map lights up reasons to come back. Every step sharpens the world.",
+      heroLead: "Nearby nature becomes a little more interesting. A travel photo becomes a reason to come back. AI supports clues and understanding, while people remain responsible for observation and review.",
+      heroPromiseChips: [
+        "Nearby nature gets a little more interesting",
+        "One travel photo becomes a reason to return",
+        "AI suggests; public claims still go through human review",
+      ],
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("en-US")} observations · ${species.toLocaleString("en-US")} species`,
       actionPrimaryLoggedIn: "Keep writing",
       actionPrimaryGuest: "Start your notebook",
       actionSecondary: "See the map",
       toolSectionEyebrow: "Inputs to your notebook",
       toolSectionTitle: "Two ways to feed the notebook",
-      toolSectionLead: "Field Note is the core. Field Guide and Field Scan are supporting inputs that give you more reasons to add another page.",
+      toolSectionLead: "Field Note is the core. Field Guide helps you see better on site, and Field Scan returns reasons to go now and reasons to come back later.",
       tools: {
         lens: {
           eyebrow: "Field Guide",
           title: "Walk with an AI guide reading the world around you",
-          body: "Point your camera and the AI reads the scene aloud — wildlife, land history, buildings, and the people who shaped the place. Notes accumulate automatically.",
+          body: "Point your camera and the AI narrows what to check next. It is a support layer, not the final answer, and helps turn the moment into a record.",
           cta: "See Field Guide",
           badge: "beta",
         },
         scan: {
           eyebrow: "Field Scan",
-          title: "What the place around you has held",
-          body: "See on the map which species have been recorded around here. A way to choose which path to walk next.",
+          title: "Find reasons to go now and reasons to return",
+          body: "Use map bias, seasonality, and gaps to understand why here, why now, what one visit can add, and what could bring you back again.",
           cta: "See Field Scan",
           badge: "v0.10",
         },
       },
       mapSectionEyebrow: "Place notebook",
       mapSectionTitle: "Revisit places worth walking again, on the map",
-      mapSectionLead: "How observations stack at each place. How a place shifts with the season. Find the next reason to walk inside the map.",
+      mapSectionLead: "For locals, it returns revisit reasons. For travelers, it returns reasons to stop here now and hooks to come back later.",
       mapCta: "Open the full map",
       mapEmpty: "No observations on the map yet",
       bizEyebrow: "For organizations",
-      bizTitle: "Place notebooks as nature infrastructure for your team",
-      bizBody: "A shared notebook for schools, municipalities, and companies to keep observing protected and nature-positive sites. From onboarding to running it, we help only as much as is needed.",
+      bizTitle: "A regional partnership entry built around reasons to visit and return",
+      bizBody: "For schools, municipalities, and companies, ikimon starts with place stewardship and repeatable observation loops before any deep workspace promise.",
       bizCta: "For Business",
       footerNote: "ikimon.life v2 — Walk, find, write it in the notebook.",
     },
@@ -145,38 +155,43 @@ function landingCopy(lang: SiteLang) {
       heroEyebrow: "feel the field.",
       heroHeading: "Tu paseo de siempre <span class=\"hero-emphasis\">se vuelve una aventura.</span>",
       heroHeadingPlain: "Tu paseo de siempre se vuelve una aventura.",
-      heroLead: "Una guía IA lee el territorio en voz alta. El mapa enciende razones para volver. Cada paso afila el mundo.",
+      heroLead: "La naturaleza cercana se vuelve un poco más interesante. Una foto de viaje puede convertirse en motivo para volver. La IA ayuda con pistas; la observación y la revisión siguen siendo humanas.",
+      heroPromiseChips: [
+        "La naturaleza cercana se vuelve más interesante",
+        "Una foto de viaje se convierte en motivo para volver",
+        "La IA sugiere; la revisión humana decide lo público",
+      ],
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("es-ES")} observaciones · ${species.toLocaleString("es-ES")} especies`,
       actionPrimaryLoggedIn: "Seguir escribiendo",
       actionPrimaryGuest: "Comenzar tu cuaderno",
       actionSecondary: "Ver el mapa",
       toolSectionEyebrow: "Entradas al cuaderno",
       toolSectionTitle: "Dos formas de alimentar el cuaderno",
-      toolSectionLead: "El cuaderno es la función principal. Lente IA y Escaneo son entradas de apoyo para añadir una página más fácil.",
+      toolSectionLead: "El cuaderno es el núcleo. La Guía ayuda a mirar mejor y el Escaneo devuelve razones para ir ahora y volver después.",
       tools: {
         lens: {
           eyebrow: "Lente IA",
           title: "La IA te ayuda a encontrar un nombre mientras caminas",
-          body: "La IA propone candidatos para lo que está cerca. Es una guía, no la respuesta. Quien decide eres tú.",
+          body: "La IA propone qué revisar después. Es una ayuda, no la respuesta final, y convierte el momento en un registro útil.",
           cta: "Ver Lente IA",
           badge: "beta",
         },
         scan: {
           eyebrow: "Escaneo de campo",
-          title: "Lo que el lugar a tu alrededor ha sostenido",
-          body: "Mira en el mapa qué especies se han registrado por aquí. Una forma de elegir qué camino caminar después.",
+          title: "Razones para ir ahora y volver después",
+          body: "Lee sesgos, estaciones y huecos del mapa para entender por qué aquí, por qué ahora y qué podría darte una próxima vuelta.",
           cta: "Ver Escaneo",
           badge: "v0.10",
         },
       },
       mapSectionEyebrow: "Cuaderno del lugar",
       mapSectionTitle: "Vuelve a lugares que vale la pena recorrer, en el mapa",
-      mapSectionLead: "Cómo se acumulan las observaciones en cada lugar. Cómo un lugar cambia con la estación. Encuentra dentro del mapa la próxima razón para caminar.",
+      mapSectionLead: "Para gente local devuelve motivos de revisita; para viajeros devuelve motivos para parar aquí ahora y volver más tarde.",
       mapCta: "Abrir el mapa",
       mapEmpty: "Aún no hay observaciones en el mapa",
       bizEyebrow: "Para organizaciones",
-      bizTitle: "Cuadernos del lugar como infraestructura natural de tu equipo",
-      bizBody: "Un cuaderno compartido para escuelas, municipios y empresas que necesitan seguir observando sitios protegidos y nature-positive. Desde la puesta en marcha hasta la operación, ayudamos solo lo necesario.",
+      bizTitle: "Entrada de colaboración regional basada en razones para visitar y volver",
+      bizBody: "Para escuelas, municipios y empresas, ikimon empieza con place stewardship y bucles de observación repetibles antes de prometer un workspace profundo.",
       bizCta: "Para organizaciones",
       footerNote: "ikimon.life v2 — Camina, descubre, escríbelo en el cuaderno.",
     },
@@ -185,38 +200,43 @@ function landingCopy(lang: SiteLang) {
       heroEyebrow: "feel the field.",
       heroHeading: "Sua caminhada de sempre <span class=\"hero-emphasis\">vira uma aventura.</span>",
       heroHeadingPlain: "Sua caminhada de sempre vira uma aventura.",
-      heroLead: "Um guia IA lê a paisagem em voz alta. O mapa acende motivos para voltar. Cada passo afia o mundo.",
+      heroLead: "A natureza próxima fica um pouco mais interessante. Uma foto de viagem pode virar motivo para voltar. A IA ajuda com pistas; observação e revisão continuam humanas.",
+      heroPromiseChips: [
+        "A natureza próxima fica mais interessante",
+        "Uma foto de viagem vira motivo para voltar",
+        "A IA sugere; a revisão humana decide o público",
+      ],
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("pt-BR")} observações · ${species.toLocaleString("pt-BR")} espécies`,
       actionPrimaryLoggedIn: "Continuar escrevendo",
       actionPrimaryGuest: "Começar seu caderno",
       actionSecondary: "Ver o mapa",
       toolSectionEyebrow: "Entradas no caderno",
       toolSectionTitle: "Duas formas de alimentar o caderno",
-      toolSectionLead: "O caderno é a função principal. Lente IA e Escaneamento são entradas de apoio para adicionar mais páginas.",
+      toolSectionLead: "O caderno é o núcleo. O Guia ajuda a ver melhor no local e o Escaneamento devolve motivos para ir agora e voltar depois.",
       tools: {
         lens: {
           eyebrow: "Lente IA",
           title: "A IA ajuda a achar um nome enquanto você caminha",
-          body: "A IA sugere candidatos para o que está por perto. É um guia, não a resposta. Quem decide é você.",
+          body: "A IA sugere o que verificar em seguida. É apoio, não resposta final, e ajuda a transformar o momento em registro.",
           cta: "Ver Lente IA",
           badge: "beta",
         },
         scan: {
           eyebrow: "Escaneamento de campo",
-          title: "O que o lugar ao seu redor já abrigou",
-          body: "Veja no mapa quais espécies já foram registradas por aqui. Um jeito de escolher qual caminho seguir em seguida.",
+          title: "Motivos para ir agora e voltar depois",
+          body: "Leia vieses, estações e lacunas do mapa para entender por que aqui, por que agora e o que pode virar o próximo retorno.",
           cta: "Ver Escaneamento",
           badge: "v0.10",
         },
       },
       mapSectionEyebrow: "Caderno do lugar",
       mapSectionTitle: "Volte a lugares que valem outra caminhada, no mapa",
-      mapSectionLead: "Como as observações se acumulam em cada lugar. Como o lugar muda com a estação. Encontre dentro do mapa o próximo motivo para caminhar.",
+      mapSectionLead: "Para quem mora perto, devolve motivos de revisita. Para viajantes, devolve motivo para parar agora e um gancho para voltar depois.",
       mapCta: "Abrir o mapa completo",
       mapEmpty: "Ainda não há observações no mapa",
       bizEyebrow: "Para organizações",
-      bizTitle: "Cadernos do lugar como infraestrutura natural do seu time",
-      bizBody: "Um caderno compartilhado para escolas, prefeituras e empresas que precisam continuar observando sites protegidos e nature-positive. Da entrada até a operação, ajudamos só o necessário.",
+      bizTitle: "Entrada de parceria regional baseada em motivos para visitar e voltar",
+      bizBody: "Para escolas, prefeituras e empresas, o ikimon começa com place stewardship e laços repetíveis de observação antes de prometer um workspace profundo.",
       bizCta: "Para organizações",
       footerNote: "ikimon.life v2 — Caminhe, descubra, escreva no caderno.",
     },
@@ -226,6 +246,7 @@ function landingCopy(lang: SiteLang) {
     heroHeading: string;
     heroHeadingPlain: string;
     heroLead: string;
+    heroPromiseChips: string[];
     statLabel: (obs: number, species: number) => string;
     actionPrimaryLoggedIn: string;
     actionPrimaryGuest: string;
@@ -523,6 +544,8 @@ function buildLandingRootHtml(
   }
   .landing-hero-stat { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
   .landing-hero-stat::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.18); }
+  .landing-hero-promise-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; }
+  .landing-hero-promise-chip { display: inline-flex; align-items: center; min-height: 38px; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 12px; font-weight: 800; letter-spacing: -.01em; box-shadow: 0 10px 22px rgba(15,23,42,.05); }
   @media (max-width: 860px) {
     .field-loop-shell { grid-template-columns: 1fr; }
     .field-loop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -550,7 +573,9 @@ function buildLandingRootHtml(
     ? `<div class="landing-hero-stat">${escapeHtml(statLine)}</div>`
     : "";
 
-  const heroAfterActionsHtml = "";
+  const heroAfterActionsHtml = copy.heroPromiseChips.length > 0
+    ? `<div class="landing-hero-promise-strip">${copy.heroPromiseChips.map((chip) => `<span class="landing-hero-promise-chip">${escapeHtml(chip)}</span>`).join("")}</div>`
+    : "";
 
   const heroActionsFinal = isLoggedIn
     ? [
@@ -577,7 +602,7 @@ function buildLandingRootHtml(
       align: "center",
       supplementHtml: heroSupplementHtml,
       actions: heroActionsFinal,
-      afterActionsHtml: "",
+      afterActionsHtml: heroAfterActionsHtml,
     },
     belowHeroHtml: `${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}${renderQuickNav(options.basePath, lang)}`,
     extraStyles,

@@ -240,7 +240,7 @@ if (method_exists('Lang', 'current')) {
                             <p x-show="aiHintMeta(obs)" class="text-[10px] text-white/80 mt-1 truncate" x-text="aiHintMeta(obs)"></p>
                             <div class="flex items-center gap-1 mt-1 opacity-70">
                                 <i data-lucide="map-pin" class="w-3 h-3"></i>
-                                <span class="text-[10px] truncate" x-text="obs.municipality || (obs.location ? obs.location.name : '')"></span>
+                                <span class="text-[10px] truncate" x-text="locationLabel(obs)"></span>
                             </div>
                         </div>
                         <!-- Status Dot -->
@@ -398,6 +398,17 @@ if (method_exists('Lang', 'current')) {
                         return '<?php echo addslashes(__('explore_page.rank_hint', '{rank} hint available')); ?>'.replace('{rank}', rankMap[rank]);
                     }
                     return '';
+                },
+
+                locationLabel(obs) {
+                    if (!obs) return '';
+                    return obs.public_location?.label
+                        || obs.location_name
+                        || obs.place_name
+                        || obs.municipality
+                        || obs.prefecture
+                        || (obs.location ? obs.location.name : '')
+                        || '';
                 },
 
                 async tryAutoLoadScanRecs() {

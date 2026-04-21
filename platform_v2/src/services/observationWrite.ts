@@ -75,6 +75,12 @@ export type ObservationUpsertInput = {
   photos?: ObservationPhotoInput[];
   /** ADR-0004: 複数 subject を並列で書き込みたい時に使う。未指定なら従来通り taxon から 1件作る。 */
   subjects?: ObservationSubjectInput[];
+  visitMode?: "manual" | "survey" | null;
+  completeChecklistFlag?: boolean;
+  targetTaxaScope?: string | null;
+  effortMinutes?: number | null;
+  distanceMeters?: number | null;
+  revisitReason?: string | null;
   sourcePayload?: Record<string, unknown>;
 };
 
@@ -150,6 +156,21 @@ function assertObservationInput(input: ObservationUpsertInput): void {
   }
 }
 
+function normalizeOptionalText(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized === "" ? null : normalized;
+}
+
+function normalizeOptionalNumber(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+  return value;
+}
+
 export async function upsertObservation(input: ObservationUpsertInput): Promise<ObservationWriteResult> {
   assertObservationInput(input);
 
@@ -159,6 +180,18 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
   const subjects = resolveSubjects(input);
   const occurrenceId = makeOccurrenceId(visitId, 0);
   const occurrenceIds = subjects.map((_, i) => makeOccurrenceId(visitId, i));
+  const visitMode = input.visitMode === "survey" ? "survey" : "manual";
+  const completeChecklistFlag = visitMode === "survey" ? Boolean(input.completeChecklistFlag) : false;
+  const targetTaxaScope = visitMode === "survey"
+    ? normalizeOptionalText(input.targetTaxaScope)
+    : null;
+  const effortMinutes = visitMode === "survey"
+    ? normalizeOptionalNumber(input.effortMinutes)
+    : null;
+  const distanceMeters = normalizeOptionalNumber(input.distanceMeters);
+  const revisitReason = visitMode === "survey"
+    ? normalizeOptionalText(input.revisitReason)
+    : null;
   const placeId = buildPlaceId({
     siteId: input.siteId,
     latitude: input.latitude,
@@ -216,26 +249,38 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
           source: "v2_write_api",
           site_id: input.siteId ?? null,
           site_name: input.siteName ?? null,
+          record_mode: visitMode,
         }),
         observedAt,
       ],
     );
 
+    const visitSourcePayload = {
+      ...(input.sourcePayload ?? {}),
+      record_mode: visitMode,
+      revisit_reason: revisitReason,
+    };
+
     await client.query(
       `insert into visits (
           visit_id, legacy_observation_id, place_id, user_id, observed_at, session_mode, visit_mode,
-          complete_checklist_flag, target_taxa_scope, point_latitude, point_longitude,
+          complete_checklist_flag, target_taxa_scope, effort_minutes, distance_meters, point_latitude, point_longitude,
           observed_country, observed_prefecture, observed_municipality, locality_note, note,
           source_kind, source_payload, created_at, updated_at
        ) values (
-          $1, $2, $3, $4, $5, 'standard', 'manual', false, null, $6, $7,
-          $8, $9, $10, $11, $12, 'v2_observation', $13::jsonb, $14, now()
+          $1, $2, $3, $4, $5, 'standard', $6, $7, $8, $9, $10, $11,
+          $12, $13, $14, $15, $16, 'v2_observation', $17::jsonb, $18, now()
        )
        on conflict (visit_id) do update set
           legacy_observation_id = excluded.legacy_observation_id,
           place_id = excluded.place_id,
           user_id = excluded.user_id,
           observed_at = excluded.observed_at,
+          visit_mode = excluded.visit_mode,
+          complete_checklist_flag = excluded.complete_checklist_flag,
+          target_taxa_scope = excluded.target_taxa_scope,
+          effort_minutes = excluded.effort_minutes,
+          distance_meters = excluded.distance_meters,
           point_latitude = excluded.point_latitude,
           point_longitude = excluded.point_longitude,
           observed_country = excluded.observed_country,
@@ -251,6 +296,11 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         placeId,
         input.userId,
         observedAt,
+        visitMode,
+        completeChecklistFlag,
+        targetTaxaScope,
+        effortMinutes,
+        distanceMeters,
         input.latitude,
         input.longitude,
         input.country ?? "JP",
@@ -258,7 +308,7 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
         input.municipality ?? null,
         input.localityNote ?? null,
         input.note ?? null,
-        JSON.stringify(input.sourcePayload ?? {}),
+        JSON.stringify(visitSourcePayload),
         observedAt,
       ],
     );

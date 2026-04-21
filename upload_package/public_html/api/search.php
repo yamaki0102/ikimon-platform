@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../libs/TaxonSearchService.php';
 require_once __DIR__ . '/../../libs/SiteManager.php';
 require_once __DIR__ . '/../../libs/DataStore.php';
 require_once __DIR__ . '/../../libs/Cache.php';
+require_once __DIR__ . '/../../libs/PrivacyFilter.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -87,15 +88,19 @@ try {
         $observations = DataStore::fetchAll('observations');
 
         foreach ($observations as $obs) {
-            $placeName = $obs['place_name'] ?? ($obs['location']['name'] ?? '');
+            $placeName = PrivacyFilter::resolvePublicLocationLabel($obs);
             if (!$placeName) continue;
 
             $placeKey = mb_strtolower($placeName);
             if (!isset($placeIndex[$placeKey])) {
+                $publicLocation = PrivacyFilter::buildPublicLocationSummary($obs);
+                if (!empty($publicLocation['is_hidden']) || !is_numeric($publicLocation['lat'] ?? null) || !is_numeric($publicLocation['lng'] ?? null)) {
+                    continue;
+                }
                 $placeIndex[$placeKey] = [
                     'name' => $placeName,
-                    'lat'  => (float)($obs['lat'] ?? ($obs['location']['lat'] ?? 0)),
-                    'lng'  => (float)($obs['lng'] ?? ($obs['location']['lon'] ?? 0)),
+                    'lat'  => (float)$publicLocation['lat'],
+                    'lng'  => (float)$publicLocation['lng'],
                 ];
             }
         }

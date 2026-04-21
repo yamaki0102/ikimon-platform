@@ -587,8 +587,8 @@ $meta_description = __('post_page.meta_description', 'Save what you found nearby
                             <div class="flex items-center gap-2">
                                 <label class="text-[10px] font-black text-faint uppercase tracking-widest leading-tight"><?= __('post_page.visibility_label', 'Visibility') ?></label>
                                 <select x-model="locationGranularity" class="flex-1 text-xs font-bold bg-surface border border-border rounded-xl px-3 py-2 focus:outline-none focus:border-primary appearance-none">
-                                    <option value="exact"><?= __('post_page.visibility_exact', '📍 Detailed (default)') ?></option>
-                                    <option value="municipality"><?= __('post_page.visibility_municipality', '🏘️ Municipality level') ?></option>
+                                    <option value="exact"><?= __('post_page.visibility_exact', '📍 Detailed') ?></option>
+                                    <option value="municipality"><?= __('post_page.visibility_municipality', '🏘️ Municipality level (default)') ?></option>
                                     <option value="prefecture"><?= __('post_page.visibility_prefecture', '🗾 Prefecture level') ?></option>
                                     <option value="hidden"><?= __('post_page.visibility_hidden', '🔒 Hide location') ?></option>
                                 </select>

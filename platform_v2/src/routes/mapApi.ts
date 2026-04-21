@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { getSessionFromCookie } from "../services/authSession.js";
-import { getEffortSummary, getFrontierMap, type EffortRole } from "../services/mapEffort.js";
+import { getEffortSummary, getFrontierMap, type EffortActorClass, type EffortRole } from "../services/mapEffort.js";
 import {
   getCoverageMesh,
   getMapCells,
@@ -50,6 +50,14 @@ function parseRole(raw: unknown): EffortRole | undefined {
   if (typeof raw !== "string") return undefined;
   const value = raw.trim();
   return value === "note" || value === "guide" || value === "scan" || value === "mixed"
+    ? value
+    : undefined;
+}
+
+function parseActorClass(raw: unknown): EffortActorClass | undefined {
+  if (typeof raw !== "string") return undefined;
+  const value = raw.trim();
+  return value === "all" || value === "local_steward" || value === "traveler" || value === "casual"
     ? value
     : undefined;
 }
@@ -184,7 +192,8 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     const q = (request.query ?? {}) as Record<string, unknown>;
     const bbox = parseBbox(q.bbox);
     const year = parseInt32(q.year);
-    const collection = await getFrontierMap({ bbox, year });
+    const actorClass = parseActorClass(q.actor_class);
+    const collection = await getFrontierMap({ bbox, year, actorClass });
     reply
       .type("application/json; charset=utf-8")
       .header("Cache-Control", "no-store");
@@ -196,12 +205,14 @@ export async function registerMapApiRoutes(app: FastifyInstance): Promise<void> 
     const bbox = parseBbox(q.bbox);
     const year = parseInt32(q.year);
     const role = parseRole(q.role);
+    const actorClass = parseActorClass(q.actor_class);
     const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     const summary = await getEffortSummary({
       bbox,
       year,
       userId: session?.userId ?? null,
       role,
+      actorClass,
     });
     reply
       .type("application/json; charset=utf-8")

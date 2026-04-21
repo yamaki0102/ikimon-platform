@@ -3,10 +3,12 @@ import { getPool } from "../db.js";
 export type EffortRole = "note" | "guide" | "scan" | "mixed";
 export type FrontierStage = "blank" | "building" | "repeatable" | "mature";
 export type MapBbox = [number, number, number, number];
+export type EffortActorClass = "all" | "local_steward" | "traveler" | "casual";
+export type FrontierPriorityCue = "steady_revisit" | "fresh_gap" | "nearby_gap";
 
 type ActivityKind = "note" | "guide" | "scan" | "audio";
 
-type ActivityPoint = {
+export type EffortActivityPoint = {
   kind: ActivityKind;
   lat: number;
   lng: number;
@@ -14,6 +16,8 @@ type ActivityPoint = {
   timestamp: string;
   placeKey: string;
 };
+
+type ActivityPoint = EffortActivityPoint;
 
 type VisitPointRow = {
   lat: number | null;
@@ -64,6 +68,7 @@ export type FrontierFeature = {
   properties: {
     stage: FrontierStage;
     recommendedRole: EffortRole;
+    priorityCue: FrontierPriorityCue;
     missingAxes: string[];
     communityGain: number;
     contributorCount: number;
@@ -87,6 +92,11 @@ export type FrontierFeatureCollection = {
 
 export type EffortSummary = {
   communityPresenceMode: "aggregate_only";
+  actorLens: {
+    actorClass: EffortActorClass;
+    matchingContributorCount: number;
+    estimatedFrom: "behavioral_inference";
+  };
   myProgress: null | {
     roleBreakdown: { note: number; guide: number; scan: number };
     revisitCount: number;
@@ -106,12 +116,14 @@ export type EffortSummary = {
     matureCount: number;
     topMissingAxes: string[];
     recommendedRole: EffortRole;
+    priorityCue: FrontierPriorityCue;
   };
   campaignProgress: {
     labelKey: "scan_blank" | "guide_building" | "note_repeatable" | "mixed_frontier";
     progressRatio: number;
     remainingCount: number;
     recommendedRole: EffortRole;
+    priorityCue: FrontierPriorityCue;
   };
 };
 
@@ -119,6 +131,7 @@ type EffortFilters = {
   bbox?: MapBbox;
   year?: number;
   role?: EffortRole;
+  actorClass?: EffortActorClass;
 };
 
 function chooseGridStep(bbox: MapBbox): number {
@@ -241,14 +254,45 @@ function missingAxesForCell(cell: CellStat): string[] {
   return missing;
 }
 
-function recommendedRoleForCell(cell: CellStat): EffortRole {
+function priorityCueForCell(cell: CellStat, actorClass: EffortActorClass): FrontierPriorityCue {
+  if (actorClass === "local_steward") {
+    return "steady_revisit";
+  }
+  if (actorClass === "traveler") {
+    return "fresh_gap";
+  }
+  if (actorClass === "casual") {
+    return cell.noteCount > 0 || cell.guideCount > 0 ? "nearby_gap" : "fresh_gap";
+  }
+  return cell.noteCount < 2 || cell.uniqueDays.size < 2 ? "steady_revisit" : "fresh_gap";
+}
+
+function recommendedRoleForCell(cell: CellStat, actorClass: EffortActorClass): EffortRole {
+  if (actorClass === "local_steward") {
+    if (cell.noteCount < 2 || cell.uniqueDays.size < 2) return "note";
+    if (cell.guideCount === 0 && cell.noteCount > 0) return "guide";
+    if (cell.scanCount + cell.audioCount === 0) return "scan";
+    return "mixed";
+  }
+  if (actorClass === "traveler") {
+    if (cell.scanCount + cell.audioCount === 0) return "scan";
+    if (cell.guideCount === 0) return "guide";
+    if (cell.noteCount < 1) return "note";
+    return "mixed";
+  }
+  if (actorClass === "casual") {
+    if (cell.guideCount === 0 && cell.noteCount > 0) return "guide";
+    if (cell.noteCount < 1) return "note";
+    if (cell.scanCount + cell.audioCount === 0) return "scan";
+    return "mixed";
+  }
   if (cell.scanCount + cell.audioCount === 0) return "scan";
   if (cell.guideCount === 0 && cell.noteCount > 0) return "guide";
   if (cell.noteCount < 2 || cell.uniqueDays.size < 2) return "note";
   return "mixed";
 }
 
-function cellToFeature(cell: CellStat): FrontierFeature {
+function cellToFeature(cell: CellStat, actorClass: EffortActorClass): FrontierFeature {
   const stage = stageForCell(cell);
   const missingAxes = missingAxesForCell(cell);
   const activityCount = cell.noteCount + cell.guideCount + cell.scanCount + cell.audioCount;
@@ -266,7 +310,8 @@ function cellToFeature(cell: CellStat): FrontierFeature {
     },
     properties: {
       stage,
-      recommendedRole: recommendedRoleForCell(cell),
+      recommendedRole: recommendedRoleForCell(cell, actorClass),
+      priorityCue: priorityCueForCell(cell, actorClass),
       missingAxes,
       communityGain: Math.min(1, Number((activityCount / 8).toFixed(3))),
       contributorCount: cell.userIds.size,
@@ -283,8 +328,6 @@ function cellToFeature(cell: CellStat): FrontierFeature {
 
 async function fetchVisitPoints(kind: "note" | "scan", filters: EffortFilters): Promise<ActivityPoint[]> {
   const pool = getPool();
-  const sessionMode = kind === "note" ? "standard" : "fieldscan";
-  const visitMode = kind === "note" ? "manual" : "track";
   const { clause, params } = bboxWhere(
     "coalesce(v.point_latitude, p.center_latitude)",
     "coalesce(v.point_longitude, p.center_longitude)",
@@ -304,8 +347,9 @@ async function fetchVisitPoints(kind: "note" | "scan", filters: EffortFilters): 
     left join places p on p.place_id = v.place_id
     where coalesce(v.point_latitude, p.center_latitude) is not null
       and coalesce(v.point_longitude, p.center_longitude) is not null
-      and v.session_mode = '${sessionMode}'
-      and v.visit_mode = '${visitMode}'
+      and ${kind === "note"
+        ? "coalesce(v.session_mode, '') = 'standard' and coalesce(v.visit_mode, 'manual') <> 'track'"
+        : "coalesce(v.session_mode, '') = 'fieldscan' and coalesce(v.visit_mode, '') = 'track'"}
       ${clause}
   `;
   try {
@@ -367,6 +411,88 @@ async function fetchActivities(filters: EffortFilters): Promise<ActivityPoint[]>
     fetchAudioPoints(filters),
   ]);
   return [...notes, ...scans, ...guides, ...audios];
+}
+
+type ActorMetrics = {
+  totalActivities: number;
+  uniqueDays: number;
+  distinctPlaces: number;
+  revisitPlaces: number;
+};
+
+function actorMetricsForPoints(points: ActivityPoint[]): ActorMetrics {
+  const daySet = new Set<string>();
+  const placeCounts = new Map<string, number>();
+  for (const point of points) {
+    const day = toIsoDay(point.timestamp);
+    if (day) daySet.add(day);
+    placeCounts.set(point.placeKey, (placeCounts.get(point.placeKey) ?? 0) + 1);
+  }
+  return {
+    totalActivities: points.length,
+    uniqueDays: daySet.size,
+    distinctPlaces: placeCounts.size,
+    revisitPlaces: Array.from(placeCounts.values()).filter((count) => count >= 2).length,
+  };
+}
+
+export function classifyActorClassFromMetrics(metrics: ActorMetrics): EffortActorClass {
+  if (metrics.totalActivities <= 3 && metrics.uniqueDays <= 2) {
+    return "casual";
+  }
+  if (
+    metrics.revisitPlaces >= 2 ||
+    (metrics.revisitPlaces >= 1 && metrics.uniqueDays >= 3) ||
+    (metrics.revisitPlaces >= 1 && metrics.distinctPlaces <= 4)
+  ) {
+    return "local_steward";
+  }
+  if (
+    metrics.distinctPlaces >= 4 &&
+    metrics.revisitPlaces === 0 &&
+    metrics.uniqueDays <= 3
+  ) {
+    return "traveler";
+  }
+  return metrics.revisitPlaces >= 1 ? "local_steward" : "casual";
+}
+
+export function classifyEffortActors(activities: EffortActivityPoint[]): Record<string, EffortActorClass> {
+  const byUser = new Map<string, ActivityPoint[]>();
+  for (const point of activities) {
+    if (!point.userId) continue;
+    const list = byUser.get(point.userId) ?? [];
+    list.push(point);
+    byUser.set(point.userId, list);
+  }
+  const result: Record<string, EffortActorClass> = {};
+  for (const [userId, points] of byUser.entries()) {
+    result[userId] = classifyActorClassFromMetrics(actorMetricsForPoints(points));
+  }
+  return result;
+}
+
+function filterActivitiesByActorClass(
+  activities: ActivityPoint[],
+  actorClass: EffortActorClass,
+): { activities: ActivityPoint[]; matchingContributorCount: number } {
+  if (actorClass === "all") {
+    return {
+      activities,
+      matchingContributorCount: new Set(
+        activities.map((activity) => activity.userId).filter((userId): userId is string => Boolean(userId)),
+      ).size,
+    };
+  }
+  const actorIndex = classifyEffortActors(activities);
+  const matchingUsers = Object.entries(actorIndex)
+    .filter(([, value]) => value === actorClass)
+    .map(([userId]) => userId);
+  const userSet = new Set(matchingUsers);
+  return {
+    activities: activities.filter((activity) => activity.userId !== null && userSet.has(activity.userId)),
+    matchingContributorCount: userSet.size,
+  };
 }
 
 function buildCellStats(bbox: MapBbox, activities: ActivityPoint[]): { cells: CellStat[]; gridStep: number } {
@@ -466,9 +592,54 @@ function campaignLabelKey(role: EffortRole, counts: { blank: number; building: n
   return "mixed_frontier";
 }
 
-function buildFrontierCollection(bbox: MapBbox, activities: ActivityPoint[]): FrontierFeatureCollection {
+function frontierPriorityCue(actorClass: EffortActorClass, role: EffortRole): FrontierPriorityCue {
+  if (actorClass === "local_steward") return "steady_revisit";
+  if (actorClass === "traveler") return "fresh_gap";
+  if (actorClass === "casual") return role === "guide" || role === "note" ? "nearby_gap" : "fresh_gap";
+  return role === "note" ? "steady_revisit" : "fresh_gap";
+}
+
+function actorCandidateScore(feature: FrontierFeature, actorClass: EffortActorClass): number {
+  const { stage, activityCount, contributorCount, missingAxes } = feature.properties;
+  const hasRevisitGap = missingAxes.includes("revisit_note");
+  const hasGuideGap = missingAxes.includes("guide_scene");
+  const hasScanGap = missingAxes.includes("scan_pass");
+  if (actorClass === "local_steward") {
+    return (stage === "repeatable" ? 6 : stage === "building" ? 5 : stage === "blank" ? 2 : 1)
+      + (activityCount > 0 ? 3 : 0)
+      + (hasRevisitGap ? 2 : 0)
+      + (hasGuideGap ? 1 : 0);
+  }
+  if (actorClass === "traveler") {
+    return (stage === "blank" ? 6 : stage === "building" ? 4 : 1)
+      + (activityCount === 0 ? 2 : 0)
+      + (hasScanGap ? 2 : 0)
+      + (contributorCount <= 1 ? 1 : 0);
+  }
+  if (actorClass === "casual") {
+    return (stage === "building" ? 6 : stage === "blank" ? 3 : 1)
+      + (activityCount > 0 && activityCount <= 3 ? 2 : 0)
+      + (contributorCount <= 2 ? 2 : 0)
+      + (hasGuideGap ? 2 : 0);
+  }
+  return (stage === "blank" ? 5 : stage === "building" ? 4 : stage === "repeatable" ? 3 : 1)
+    + (hasScanGap ? 2 : 0)
+    + (hasRevisitGap ? 1 : 0);
+}
+
+function prioritizedFrontierCandidates(features: FrontierFeature[], actorClass: EffortActorClass): FrontierFeature[] {
+  const candidates = features.filter((feature) => feature.properties.stage === "blank" || feature.properties.stage === "building");
+  const ranked = [...candidates].sort((left, right) => actorCandidateScore(right, actorClass) - actorCandidateScore(left, actorClass));
+  return ranked.slice(0, Math.max(1, Math.min(ranked.length, 24)));
+}
+
+function buildFrontierCollection(
+  bbox: MapBbox,
+  activities: ActivityPoint[],
+  actorClass: EffortActorClass,
+): FrontierFeatureCollection {
   const { cells, gridStep } = buildCellStats(bbox, activities);
-  const features = cells.map(cellToFeature);
+  const features = cells.map((cell) => cellToFeature(cell, actorClass));
   const counts = features.reduce(
     (acc, feature) => {
       acc[feature.properties.stage] += 1;
@@ -497,14 +668,19 @@ export async function getFrontierMap(filters: EffortFilters): Promise<FrontierFe
       meta: { gridStep: 0, blankCount: 0, buildingCount: 0, repeatableCount: 0, matureCount: 0 },
     };
   }
-  const activities = await fetchActivities(filters);
-  return buildFrontierCollection(filters.bbox, activities);
+  const actorClass = filters.actorClass ?? "all";
+  const rawActivities = await fetchActivities(filters);
+  const scoped = filterActivitiesByActorClass(rawActivities, actorClass);
+  return buildFrontierCollection(filters.bbox, scoped.activities, actorClass);
 }
 
 export async function getEffortSummary(filters: EffortFilters & { userId?: string | null }): Promise<EffortSummary> {
-  const activities = filters.bbox ? await fetchActivities(filters) : [];
+  const actorClass = filters.actorClass ?? "all";
+  const rawActivities = filters.bbox ? await fetchActivities(filters) : [];
+  const scoped = filterActivitiesByActorClass(rawActivities, actorClass);
+  const activities = scoped.activities;
   const frontier = filters.bbox
-    ? buildFrontierCollection(filters.bbox, activities)
+    ? buildFrontierCollection(filters.bbox, activities, actorClass)
     : {
         type: "FeatureCollection" as const,
         features: [],
@@ -514,13 +690,19 @@ export async function getEffortSummary(filters: EffortFilters & { userId?: strin
   const strengthenedCellCount = activeFeatures.filter((feature) => feature.properties.lastSeen && (Date.now() - Date.parse(feature.properties.lastSeen)) / 86400000 <= 30).length;
   const contributorCount = new Set(activities.map((activity) => activity.userId).filter((userId): userId is string => Boolean(userId))).size;
   const counts = frontier.meta;
-  const frontierCandidates = frontier.features.filter((feature) => feature.properties.stage === "blank" || feature.properties.stage === "building");
+  const frontierCandidates = prioritizedFrontierCandidates(frontier.features, actorClass);
   const recommendedRole = recommendedRoleFromFeatures(frontierCandidates, filters.role);
+  const priorityCue = frontierPriorityCue(actorClass, recommendedRole);
   const progressDenominator = Math.max(1, counts.buildingCount + counts.repeatableCount + counts.matureCount);
   const progressRatio = Number(((counts.repeatableCount + counts.matureCount) / progressDenominator).toFixed(3));
 
   return {
     communityPresenceMode: "aggregate_only",
+    actorLens: {
+      actorClass,
+      matchingContributorCount: scoped.matchingContributorCount,
+      estimatedFrom: "behavioral_inference",
+    },
     myProgress: summarizeMine(filters.userId ?? null, activities),
     communityProgress: {
       contributorBand: contributorBandFor(contributorCount),
@@ -535,6 +717,7 @@ export async function getEffortSummary(filters: EffortFilters & { userId?: strin
       matureCount: counts.matureCount,
       topMissingAxes: topMissingAxesFromFeatures(frontierCandidates),
       recommendedRole,
+      priorityCue,
     },
     campaignProgress: {
       labelKey: campaignLabelKey(recommendedRole, {
@@ -545,6 +728,7 @@ export async function getEffortSummary(filters: EffortFilters & { userId?: strin
       progressRatio,
       remainingCount: counts.blankCount + counts.buildingCount,
       recommendedRole,
+      priorityCue,
     },
   };
 }
