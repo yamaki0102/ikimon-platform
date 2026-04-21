@@ -1,7 +1,10 @@
 import type { FastifyInstance } from "fastify";
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import sharp from "sharp";
 import { loadConfig } from "../config.js";
+import { THUMBNAIL_PRESET_SIZES, type ThumbnailPreset } from "../services/thumbnailUrl.js";
 
 /**
  * Legacy asset pass-through.
@@ -120,5 +123,66 @@ export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<v
       .type(file.mime)
       .header("Cache-Control", "public, max-age=86400")
       .send(file.data);
+  });
+
+  const thumbCache = new Map<string, { data: Buffer; etag: string }>();
+  const THUMB_CACHE_MAX = 256;
+  const IMAGE_EXT_RE = /\.(jpe?g|png|webp|gif)$/i;
+
+  app.get<{ Params: { preset: string; "*": string } }>("/thumb/:preset/*", async (request, reply) => {
+    const preset = request.params.preset as ThumbnailPreset;
+    const rel = request.params["*"] ?? "";
+    const width = THUMBNAIL_PRESET_SIZES[preset];
+    if (!width) {
+      reply.code(404).type("text/plain").send("not found");
+      return;
+    }
+    if (!rel || rel.includes("..") || !IMAGE_EXT_RE.test(rel)) {
+      reply.code(404).type("text/plain").send("not found");
+      return;
+    }
+    const cacheKey = preset + ":" + rel;
+    const cached = thumbCache.get(cacheKey);
+    if (cached) {
+      if (request.headers["if-none-match"] === cached.etag) {
+        reply.code(304).send();
+        return;
+      }
+      reply
+        .type("image/webp")
+        .header("Cache-Control", "public, max-age=31536000, immutable")
+        .header("ETag", cached.etag)
+        .send(cached.data);
+      return;
+    }
+    const src = await serveFileFromRoot(loadConfig().legacyUploadsRoot, rel);
+    if (!src) {
+      reply.code(404).type("text/plain").send("not found");
+      return;
+    }
+    try {
+      const data = await sharp(src.data, { failOn: "none" })
+        .rotate()
+        .resize({ width, height: width, fit: "cover", withoutEnlargement: true })
+        .webp({ quality: 72, effort: 4 })
+        .toBuffer();
+      const etag = '"' + createHash("sha1").update(data).digest("base64url") + '"';
+      if (thumbCache.size >= THUMB_CACHE_MAX) {
+        const oldestKey = thumbCache.keys().next().value;
+        if (oldestKey !== undefined) thumbCache.delete(oldestKey);
+      }
+      thumbCache.set(cacheKey, { data, etag });
+      reply
+        .type("image/webp")
+        .header("Cache-Control", "public, max-age=31536000, immutable")
+        .header("ETag", etag)
+        .send(data);
+    } catch (err) {
+      request.log.warn({ err, rel, preset }, "thumbnail generation failed");
+      reply
+        .type(src.mime)
+        .header("Cache-Control", "public, max-age=3600")
+        .send(src.data);
+    }
   });
 }

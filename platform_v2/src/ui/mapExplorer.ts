@@ -177,10 +177,10 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefReasonsLabel: "根拠",
     siteBriefChecksLabel: "現地で確かめる",
     siteBriefCapturesLabel: "撮るなら",
-    siteBriefWhyHereLabel: "why here",
-    siteBriefWhyNowLabel: "why now",
-    siteBriefOneVisitLabel: "one-visit contribution",
-    siteBriefNextHookLabel: "next revisit hook",
+    siteBriefWhyHereLabel: "なぜここか",
+    siteBriefWhyNowLabel: "なぜ今か",
+    siteBriefOneVisitLabel: "1 回の訪問で残せること",
+    siteBriefNextHookLabel: "次に来る理由",
     siteBriefLoading: "この地点を読み解き中…",
     siteBriefError: "手がかりが取れなかった。現地の直感を優先して。",
     searchPlaceholder: "場所 / 種を探す（例: 静岡市 谷津山、モンシロチョウ）",
@@ -1407,7 +1407,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       var active = record.occurrenceId === state.selectedOccurrenceId;
       var date = record.observedAt ? String(record.observedAt).slice(0, 10) : '';
       var thumb = record.photoUrl
-        ? '<img class="me-result-thumb" src="' + escapeHtml(record.photoUrl) + '" alt="" loading="lazy" />'
+        ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="92" height="92" loading="lazy" decoding="async" fetchpriority="low" onerror="this.outerHTML=&quot;<div class=\\&quot;me-result-thumb me-result-thumb-placeholder\\&quot;>\ud83c\udf3f</div>&quot;" />'
         : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
       return '<button type="button" class="me-result-row' + (active ? ' is-active' : '') + '" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '">' +
         thumb +
@@ -1493,7 +1493,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return;
     }
     var photo = record.photoUrl
-      ? '<img class="me-selected-photo" src="' + escapeHtml(record.photoUrl) + '" alt="" loading="lazy" />'
+      ? '<img class="me-selected-photo" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />'
       : '';
     var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
     selectedCardEl.innerHTML =
@@ -1525,6 +1525,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function toThumbUrl(url, preset) {
+    if (!url) return url;
+    var m = /^\\/(uploads|data\\/uploads)\\/(.+\\.(?:jpe?g|png|webp|gif))$/i.exec(url);
+    if (!m) return url;
+    return '/thumb/' + preset + '/' + m[2];
   }
 
   // Track the latest Site Brief fetch so older requests can't paint over a
@@ -1604,7 +1611,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function renderObservationActions(record) {
-    var photo = record.photoUrl ? '<img class="me-bottom-photo" src="' + escapeHtml(record.photoUrl) + '" alt="" loading="lazy" />' : '';
+    var photo = record.photoUrl ? '<img class="me-bottom-photo" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />' : '';
     var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
     return photo +
       '<div class="me-bottom-meta">' +
