@@ -270,7 +270,7 @@ function classifyProvenance(
   ) {
     return "track";
   }
-  if (row.source_kind === "v2_observation" && row.session_mode === "standard" && row.visit_mode === "manual") {
+  if (row.source_kind === "v2_observation" && row.session_mode === "standard" && row.visit_mode !== "track") {
     return "manual";
   }
   return "other";

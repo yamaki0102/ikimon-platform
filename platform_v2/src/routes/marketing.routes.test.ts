@@ -1,0 +1,77 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { buildApp } from "../app.js";
+
+test("field loop page exposes long-form positioning without external platform names", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/learn/field-loop?lang=ja",
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = response.body;
+    assert.match(body, /place-first observatory/);
+    assert.match(body, /regional entry service/);
+    assert.match(body, /absence/);
+    assert.match(body, /trend/);
+    assert.match(body, /authority/);
+    assert.match(body, /なぜ ikimon はこの形を取るのか/);
+    assert.doesNotMatch(body, /iNaturalist/i);
+    assert.doesNotMatch(body, /いきものログ/);
+    assert.doesNotMatch(body, /eBird/i);
+    assert.doesNotMatch(body, /Pl@ntNet/i);
+    assert.ok((body.match(/https:\/\/doi\.org\//g) ?? []).length >= 10);
+  } finally {
+    await app.close();
+  }
+});
+
+test("about page sends readers to the field-loop reasoning page", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/about?lang=ja",
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /この形の理由を読む/);
+    assert.match(response.body, /\/learn\/field-loop/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("learn index frames field loop as the long-form positioning page", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/learn?lang=ja",
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /Field Loop \/ 変遷と立ち位置/);
+    assert.match(response.body, /長文でまとめた思想ページ/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("field loop keeps a minimal english fallback", async () => {
+  const app = buildApp();
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/learn/field-loop?lang=en",
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.body, /Why ikimon takes this shape/);
+    assert.match(response.body, /place-first observatory/);
+  } finally {
+    await app.close();
+  }
+});

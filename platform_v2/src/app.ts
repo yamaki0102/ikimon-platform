@@ -17,6 +17,7 @@ import { registerFieldscanApiRoutes } from "./routes/fieldscanApi.js";
 import { getSessionFromCookie } from "./services/authSession.js";
 import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
+import { formatStatLabel, getStrings } from "./i18n/index.js";
 import type { LandingSnapshot } from "./services/readModels.js";
 import { COMMUNITY_METER_STYLES, renderCommunityMeter } from "./ui/communityMeter.js";
 import { DEMO_LOGIN_BANNER_STYLES, renderDemoLoginBanner } from "./ui/demoLoginBanner.js";
@@ -58,325 +59,6 @@ const localizedNavHome: Record<SiteLang, string> = {
   "pt-BR": "Início",
 };
 
-function landingCopy(lang: SiteLang) {
-  const copy = {
-    ja: {
-      title: "ikimon — 歩いて、見つけて、ノートに残す",
-      heroEyebrow: "ikimon へようこそ",
-      heroHeading: "いつもの散歩が、<br><span class=\"hero-emphasis\">冒険になる。</span>",
-      heroHeadingPlain: "いつもの散歩が、冒険になる。",
-      heroLead: "写真を撮ると AI が候補を返す。地図が次に歩く場所を教えてくれる。記録が積むほど、同じ道がちがって見えてくる。",
-      statLabel: (obs: number, species: number) => `${obs.toLocaleString("ja-JP")} 件の観察 · ${species.toLocaleString("ja-JP")} 種`,
-      actionPrimaryLoggedIn: "ノートの続きを書く",
-      actionPrimaryGuest: "観察を始める",
-      actionSecondary: "探索マップを見る",
-      toolSectionEyebrow: "ノートを育てる入口",
-      toolSectionTitle: "ノートに新しいページを書く理由を増やす 2 つの入口",
-      toolSectionLead: "主役はフィールドノート。フィールドガイドとフィールドスキャンは、次の 1 枚を書きたくなるための補助です。",
-      tools: {
-        lens: {
-          eyebrow: "フィールドガイド",
-          title: "歩きながら、映像と音声でその場を読み解く",
-          body: "カメラをかざすと AI が周囲を解析して音声で案内する。生きもの・土地の歴史・建物の来歴まで。気づいたことはノートに自動で蓄積。",
-          cta: "フィールドガイドを見る",
-          badge: "beta",
-        },
-        scan: {
-          eyebrow: "フィールドスキャン",
-          title: "近くの場所が、いま何を抱えているか",
-          body: "今いる場所の周りで、どんな生きものが記録されてきたかを地図で見られる。次に歩く道を選ぶときに。",
-          cta: "フィールドスキャンを見る",
-          badge: "v0.10",
-        },
-      },
-      mapSectionEyebrow: "場所のノート",
-      mapSectionTitle: "また行きたくなる場所を、地図で振り返る",
-      mapSectionLead: "観察が、どの場所にどう積み重なっているか。同じ場所が季節でどう動くか。次に歩く理由を、地図のなかから探せる。",
-      mapCta: "マップを開く",
-      mapEmpty: "まだ地図に載せる観察がありません",
-      bizEyebrow: "企業・自治体の方へ",
-      bizTitle: "場所のノートを、組織の自然インフラに",
-      bizBody: "学校・自治体・企業で、自然共生サイトの観察を続けるための共有ノートとして使える。導入の相談から運用まで、必要な分だけ手伝う。",
-      bizCta: "法人向けページへ",
-      footerNote: "歩いて、見つけて、ノートに残す。",
-    },
-    en: {
-      title: "ikimon.life — Walk, find, write it in the notebook",
-      heroEyebrow: "feel the field.",
-      heroHeading: "Your usual walk <span class=\"hero-emphasis\">becomes an adventure.</span>",
-      heroHeadingPlain: "Your usual walk becomes an adventure.",
-      heroLead: "An AI guide reads the land aloud. The map lights up reasons to come back. Every step sharpens the world.",
-      statLabel: (obs: number, species: number) => `${obs.toLocaleString("en-US")} observations · ${species.toLocaleString("en-US")} species`,
-      actionPrimaryLoggedIn: "Keep writing",
-      actionPrimaryGuest: "Start your notebook",
-      actionSecondary: "See the map",
-      toolSectionEyebrow: "Inputs to your notebook",
-      toolSectionTitle: "Two ways to feed the notebook",
-      toolSectionLead: "Field Note is the core. Field Guide and Field Scan are supporting inputs that give you more reasons to add another page.",
-      tools: {
-        lens: {
-          eyebrow: "Field Guide",
-          title: "Walk with an AI guide reading the world around you",
-          body: "Point your camera and the AI reads the scene aloud — wildlife, land history, buildings, and the people who shaped the place. Notes accumulate automatically.",
-          cta: "See Field Guide",
-          badge: "beta",
-        },
-        scan: {
-          eyebrow: "Field Scan",
-          title: "What the place around you has held",
-          body: "See on the map which species have been recorded around here. A way to choose which path to walk next.",
-          cta: "See Field Scan",
-          badge: "v0.10",
-        },
-      },
-      mapSectionEyebrow: "Place notebook",
-      mapSectionTitle: "Revisit places worth walking again, on the map",
-      mapSectionLead: "How observations stack at each place. How a place shifts with the season. Find the next reason to walk inside the map.",
-      mapCta: "Open the full map",
-      mapEmpty: "No observations on the map yet",
-      bizEyebrow: "For organizations",
-      bizTitle: "Place notebooks as nature infrastructure for your team",
-      bizBody: "A shared notebook for schools, municipalities, and companies to keep observing protected and nature-positive sites. From onboarding to running it, we help only as much as is needed.",
-      bizCta: "For Business",
-      footerNote: "ikimon.life v2 — Walk, find, write it in the notebook.",
-    },
-    es: {
-      title: "ikimon.life — Camina, descubre, escríbelo en el cuaderno",
-      heroEyebrow: "feel the field.",
-      heroHeading: "Tu paseo de siempre <span class=\"hero-emphasis\">se vuelve una aventura.</span>",
-      heroHeadingPlain: "Tu paseo de siempre se vuelve una aventura.",
-      heroLead: "Una guía IA lee el territorio en voz alta. El mapa enciende razones para volver. Cada paso afila el mundo.",
-      statLabel: (obs: number, species: number) => `${obs.toLocaleString("es-ES")} observaciones · ${species.toLocaleString("es-ES")} especies`,
-      actionPrimaryLoggedIn: "Seguir escribiendo",
-      actionPrimaryGuest: "Comenzar tu cuaderno",
-      actionSecondary: "Ver el mapa",
-      toolSectionEyebrow: "Entradas al cuaderno",
-      toolSectionTitle: "Dos formas de alimentar el cuaderno",
-      toolSectionLead: "El cuaderno es la función principal. Lente IA y Escaneo son entradas de apoyo para añadir una página más fácil.",
-      tools: {
-        lens: {
-          eyebrow: "Lente IA",
-          title: "La IA te ayuda a encontrar un nombre mientras caminas",
-          body: "La IA propone candidatos para lo que está cerca. Es una guía, no la respuesta. Quien decide eres tú.",
-          cta: "Ver Lente IA",
-          badge: "beta",
-        },
-        scan: {
-          eyebrow: "Escaneo de campo",
-          title: "Lo que el lugar a tu alrededor ha sostenido",
-          body: "Mira en el mapa qué especies se han registrado por aquí. Una forma de elegir qué camino caminar después.",
-          cta: "Ver Escaneo",
-          badge: "v0.10",
-        },
-      },
-      mapSectionEyebrow: "Cuaderno del lugar",
-      mapSectionTitle: "Vuelve a lugares que vale la pena recorrer, en el mapa",
-      mapSectionLead: "Cómo se acumulan las observaciones en cada lugar. Cómo un lugar cambia con la estación. Encuentra dentro del mapa la próxima razón para caminar.",
-      mapCta: "Abrir el mapa",
-      mapEmpty: "Aún no hay observaciones en el mapa",
-      bizEyebrow: "Para organizaciones",
-      bizTitle: "Cuadernos del lugar como infraestructura natural de tu equipo",
-      bizBody: "Un cuaderno compartido para escuelas, municipios y empresas que necesitan seguir observando sitios protegidos y nature-positive. Desde la puesta en marcha hasta la operación, ayudamos solo lo necesario.",
-      bizCta: "Para organizaciones",
-      footerNote: "ikimon.life v2 — Camina, descubre, escríbelo en el cuaderno.",
-    },
-    "pt-BR": {
-      title: "ikimon.life — Caminhe, descubra, escreva no caderno",
-      heroEyebrow: "feel the field.",
-      heroHeading: "Sua caminhada de sempre <span class=\"hero-emphasis\">vira uma aventura.</span>",
-      heroHeadingPlain: "Sua caminhada de sempre vira uma aventura.",
-      heroLead: "Um guia IA lê a paisagem em voz alta. O mapa acende motivos para voltar. Cada passo afia o mundo.",
-      statLabel: (obs: number, species: number) => `${obs.toLocaleString("pt-BR")} observações · ${species.toLocaleString("pt-BR")} espécies`,
-      actionPrimaryLoggedIn: "Continuar escrevendo",
-      actionPrimaryGuest: "Começar seu caderno",
-      actionSecondary: "Ver o mapa",
-      toolSectionEyebrow: "Entradas no caderno",
-      toolSectionTitle: "Duas formas de alimentar o caderno",
-      toolSectionLead: "O caderno é a função principal. Lente IA e Escaneamento são entradas de apoio para adicionar mais páginas.",
-      tools: {
-        lens: {
-          eyebrow: "Lente IA",
-          title: "A IA ajuda a achar um nome enquanto você caminha",
-          body: "A IA sugere candidatos para o que está por perto. É um guia, não a resposta. Quem decide é você.",
-          cta: "Ver Lente IA",
-          badge: "beta",
-        },
-        scan: {
-          eyebrow: "Escaneamento de campo",
-          title: "O que o lugar ao seu redor já abrigou",
-          body: "Veja no mapa quais espécies já foram registradas por aqui. Um jeito de escolher qual caminho seguir em seguida.",
-          cta: "Ver Escaneamento",
-          badge: "v0.10",
-        },
-      },
-      mapSectionEyebrow: "Caderno do lugar",
-      mapSectionTitle: "Volte a lugares que valem outra caminhada, no mapa",
-      mapSectionLead: "Como as observações se acumulam em cada lugar. Como o lugar muda com a estação. Encontre dentro do mapa o próximo motivo para caminhar.",
-      mapCta: "Abrir o mapa completo",
-      mapEmpty: "Ainda não há observações no mapa",
-      bizEyebrow: "Para organizações",
-      bizTitle: "Cadernos do lugar como infraestrutura natural do seu time",
-      bizBody: "Um caderno compartilhado para escolas, prefeituras e empresas que precisam continuar observando sites protegidos e nature-positive. Da entrada até a operação, ajudamos só o necessário.",
-      bizCta: "Para organizações",
-      footerNote: "ikimon.life v2 — Caminhe, descubra, escreva no caderno.",
-    },
-  } satisfies Record<SiteLang, {
-    title: string;
-    heroEyebrow: string;
-    heroHeading: string;
-    heroHeadingPlain: string;
-    heroLead: string;
-    statLabel: (obs: number, species: number) => string;
-    actionPrimaryLoggedIn: string;
-    actionPrimaryGuest: string;
-    actionSecondary: string;
-    toolSectionEyebrow: string;
-    toolSectionTitle: string;
-    toolSectionLead: string;
-    tools: {
-      lens: { eyebrow: string; title: string; body: string; cta: string; badge: string };
-      scan: { eyebrow: string; title: string; body: string; cta: string; badge: string };
-    };
-    mapSectionEyebrow: string;
-    mapSectionTitle: string;
-    mapSectionLead: string;
-    mapCta: string;
-    mapEmpty: string;
-    bizEyebrow: string;
-    bizTitle: string;
-    bizBody: string;
-    bizCta: string;
-    footerNote: string;
-  }>;
-  return copy[lang];
-}
-
-function fieldLoopSectionCopy(lang: SiteLang) {
-  const copy = {
-    ja: {
-      eyebrow: "ikimon の考え方",
-      title: "フィールドループ",
-      lead: "衛星で狙いをつけ、歩いて確かめ、ノートに積む。このサイクルを回すほど、同じ道がちがって見えてくる。",
-      primaryCta: "フィールドループを詳しく見る",
-      secondaryCta: "フィールドスキャン",
-      loopTitle: "4 steps",
-      principleTitle: "こだわり",
-      boundaryTitle: "言葉の約束",
-      steps: [
-        { title: "1. 衛星で狙いをつける", body: "林縁や水際、湿地、遷移帯。怪しい場所を、家を出る前に見つけておく。" },
-        { title: "2. 3 つに絞っていく", body: "どの microhabitat を確かめるか、どこを撮るか、何を書き留めるかを、先に決めておく。" },
-        { title: "3. AI は断定しない", body: "見えた特徴と、足りない証拠と、次に撮るといい 1 枚を教えてくれる。" },
-        { title: "4. 差分が積もっていく", body: "季節ごとの違いが積み重なって、また来たくなる理由が育っていく。" },
-      ],
-      principles: [
-        "答えより、目を育てていく。",
-        "種名より、文脈を厚くしていく。",
-        "空白と不在を、いっしょにしない。",
-        "不確実性も、きちんとデータとして残しておく。",
-      ],
-      boundaries: [
-        "空白 = まだ見ていない",
-        "不在 = 努力量とセットで",
-        "AI更新 = 検証済みだけ",
-      ],
-    },
-    en: {
-      eyebrow: "how ikimon works",
-      title: "Field Loop",
-      lead: "Aim from the satellite, check it on foot, write it in the notebook. The more you run this cycle, the more the same path looks different.",
-      primaryCta: "Learn about Field Loop",
-      secondaryCta: "Field Scan",
-      loopTitle: "4 steps",
-      principleTitle: "what we care about",
-      boundaryTitle: "our words",
-      steps: [
-        { title: "1. Aim from the satellite", body: "Edges, water, wetlands, succession zones — find the suspicious places before you leave home." },
-        { title: "2. Narrow it down to three", body: "Decide which microhabitat to verify, what to photograph, and what context to write down." },
-        { title: "3. The AI never overclaims", body: "It tells you what it saw, what evidence is missing, and which shot is worth taking next." },
-        { title: "4. The deltas pile up", body: "Season by season, the differences stack, and a reason to come back keeps growing." },
-      ],
-      principles: [
-        "We train the eye, not just the answer.",
-        "We thicken the context before we push for certainty.",
-        "We never blur blank with absent.",
-        "We keep uncertainty and deltas as data, too.",
-      ],
-      boundaries: [
-        "Blank = not yet observed",
-        "Absence = only with effort logged",
-        "Model updates = validated only",
-      ],
-    },
-    es: {
-      eyebrow: "cómo funciona ikimon",
-      title: "Field Loop",
-      lead: "Apunta desde el satélite, compruébalo a pie, escríbelo en el cuaderno. Cuantas más vueltas le das al ciclo, más diferente parece el mismo camino.",
-      primaryCta: "Ver Field Loop en detalle",
-      secondaryCta: "Escaneo de Campo",
-      loopTitle: "4 pasos",
-      principleTitle: "lo que importa",
-      boundaryTitle: "nuestras palabras",
-      steps: [
-        { title: "1. Apuntar desde el satélite", body: "Bordes, agua, humedales, zonas de sucesión: encuentra los lugares sospechosos antes de salir de casa." },
-        { title: "2. Reducirlo a tres", body: "Decide qué microhábitat vas a verificar, qué foto vas a tomar y qué contexto vas a anotar." },
-        { title: "3. La IA nunca afirma de más", body: "Te dice qué se ve, qué evidencia falta y cuál es la próxima foto que conviene tomar." },
-        { title: "4. Los deltas se acumulan", body: "Estación a estación, las diferencias se apilan, y crece un motivo para volver." },
-      ],
-      principles: [
-        "Entrenamos la mirada, no solo la respuesta.",
-        "Engordamos el contexto antes de pedir certeza.",
-        "Nunca confundimos vacío con ausencia.",
-        "Tratamos la incertidumbre y los deltas también como datos.",
-      ],
-      boundaries: [
-        "Vacío = aún no observado",
-        "Ausencia = solo con esfuerzo registrado",
-        "Actualización de IA = solo validado",
-      ],
-    },
-    "pt-BR": {
-      eyebrow: "como o ikimon funciona",
-      title: "Field Loop",
-      lead: "Mire pelo satélite, confira a pé, anote no caderno. Quanto mais você repete esse ciclo, mais diferente parece o mesmo caminho.",
-      primaryCta: "Ver o Field Loop em detalhes",
-      secondaryCta: "Escaneamento",
-      loopTitle: "4 passos",
-      principleTitle: "o que importa",
-      boundaryTitle: "nossas palavras",
-      steps: [
-        { title: "1. Mirar pelo satélite", body: "Bordas, água, áreas úmidas, zonas de sucessão: ache os lugares suspeitos antes de sair de casa." },
-        { title: "2. Reduzir a três", body: "Decide qual microhabitat vai verificar, qual foto vai tirar e qual contexto vai anotar." },
-        { title: "3. A IA nunca afirma demais", body: "Ela diz o que viu, qual evidência falta, e qual é a próxima foto que vale a pena tirar." },
-        { title: "4. Os deltas se acumulam", body: "Estação após estação, as diferenças vão empilhando, e cresce um motivo para voltar." },
-      ],
-      principles: [
-        "Treinamos o olhar, não só a resposta.",
-        "Engrossamos o contexto antes de cobrar certeza.",
-        "Nunca misturamos vazio com ausência.",
-        "Tratamos incerteza e deltas como dados também.",
-      ],
-      boundaries: [
-        "Vazio = ainda não observado",
-        "Ausência = só com esforço registrado",
-        "Atualização de IA = apenas validado",
-      ],
-    },
-  } satisfies Record<SiteLang, {
-    eyebrow: string;
-    title: string;
-    lead: string;
-    primaryCta: string;
-    secondaryCta: string;
-    loopTitle: string;
-    principleTitle: string;
-    boundaryTitle: string;
-    steps: Array<{ title: string; body: string }>;
-    principles: string[];
-    boundaries: string[];
-  }>;
-
-  return copy[lang];
-}
 
 function buildFlowLink(basePath: string, href: string, label: string, note: string): string {
   return `<a class="card" href="${escapeHtml(withBasePath(basePath, href))}">
@@ -394,13 +76,14 @@ function buildLandingRootHtml(
   snapshot: LandingSnapshot,
   isDemoView: boolean,
 ): string {
-  const copy = landingCopy(lang);
-  const fieldLoop = fieldLoopSectionCopy(lang);
+  const strings = getStrings(lang);
+  const copy = strings.landing;
+  const fieldLoop = strings.fieldLoop;
   const isLoggedIn = Boolean(snapshot.viewerUserId);
 
   const stats = snapshot.stats;
   const statLine = stats.observationCount > 0
-    ? copy.statLabel(stats.observationCount, stats.speciesCount)
+    ? formatStatLabel(lang, stats.observationCount, stats.speciesCount)
     : "";
 
   const mapHref = appendLangToHref(withBasePath(options.basePath, "/map"), lang);
@@ -523,6 +206,8 @@ function buildLandingRootHtml(
   }
   .landing-hero-stat { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(15,23,42,.06); color: #0f172a; font-size: 13px; font-weight: 800; letter-spacing: -.01em; }
   .landing-hero-stat::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.18); }
+  .landing-hero-promise-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; }
+  .landing-hero-promise-chip { display: inline-flex; align-items: center; min-height: 38px; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.88); border: 1px solid rgba(15,23,42,.08); color: #0f172a; font-size: 12px; font-weight: 800; letter-spacing: -.01em; box-shadow: 0 10px 22px rgba(15,23,42,.05); }
   @media (max-width: 860px) {
     .field-loop-shell { grid-template-columns: 1fr; }
     .field-loop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -550,7 +235,9 @@ function buildLandingRootHtml(
     ? `<div class="landing-hero-stat">${escapeHtml(statLine)}</div>`
     : "";
 
-  const heroAfterActionsHtml = "";
+  const heroAfterActionsHtml = copy.heroPromiseChips.length > 0
+    ? `<div class="landing-hero-promise-strip">${copy.heroPromiseChips.map((chip) => `<span class="landing-hero-promise-chip">${escapeHtml(chip)}</span>`).join("")}</div>`
+    : "";
 
   const heroActionsFinal = isLoggedIn
     ? [
@@ -577,7 +264,7 @@ function buildLandingRootHtml(
       align: "center",
       supplementHtml: heroSupplementHtml,
       actions: heroActionsFinal,
-      afterActionsHtml: "",
+      afterActionsHtml: heroAfterActionsHtml,
     },
     belowHeroHtml: `${renderDemoLoginBanner(options.basePath, lang, { demoUserId: options.userId, isDemoView })}${renderQuickNav(options.basePath, lang)}`,
     extraStyles,

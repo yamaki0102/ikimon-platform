@@ -1,6 +1,6 @@
 # ikimon.life — 知識OS 統一概要
 
-更新日: 2026-04-16  
+更新日: 2026-04-20
 対象: Claude / Codex / antigravity など、すべてのエージェント
 
 > **このファイルは入口であり、単独の最終正本ではない。**
@@ -139,7 +139,10 @@ platform_v2/src/
 │   └── uiKpi.ts             UI KPI events
 ├── services/
 │   ├── authSession.ts       cookie session
+│   ├── observationWrite.ts  quick capture / survey write lane
+│   ├── mapEffort.ts         frontier / effort summary / actor lens
 │   ├── specialistReview.ts  専門家レビュー
+│   ├── visitSubjects.ts     trust lane summary
 │   ├── readiness.ts         cutover gate 集約
 │   └── writeGuards.ts       write / specialist 権限制御
 └── scripts/                 移行スクリプト (import*/verify*)
@@ -148,6 +151,9 @@ platform_v2/src/
 **現状の理解**:
 - v2 は `read-only` ではない。staging lane では minimal write lane / photo upload / session lane まで実測済み
 - ただし **本番正本はまだ legacy 側**。cutover までは rollback / compatibility を前提に扱う
+- `staging /record` は `quick capture` と `survey` を分離し、survey 側で `effort / checklist / scope / revisit reason` を取る方向に入った
+- map は `actor lens` を持ち、`local steward / traveler / casual` ごとに frontier を変える入口ができた
+- observation detail は `AI suggestion -> community support -> authority-backed -> public claim` を段差つきで見せる
 - 切替判断は `docs/architecture/ikimon_v2_cutover_readiness_checklist_2026-04-12.md` と
   `docs/architecture/ikimon_v2_final_cutover_runbook_2026-04-15.md` を参照する
 
@@ -260,7 +266,7 @@ platform_v2/src/routes/                  v2 APIルート
 
 ---
 
-## 11. 現時点の注意点（2026-04-16）
+## 11. 現時点の注意点（2026-04-20）
 
 - staging の正式 URL は `https://staging.ikimon.life/`
 - staging の `/` は v2、`/legacy/` は PHP rollback lane
@@ -269,5 +275,7 @@ platform_v2/src/routes/                  v2 APIルート
   - 一般 write: cookie session の本人のみ
   - specialist: session + specialist role
   - 特権 API (`session issue / user upsert / remember-token issue/revoke`): `V2_PRIVILEGED_WRITE_API_KEY` 必須
+- `survey` は比較可能性を高める入口だが、まだ `absence claim` や `trend-ready claim` ではない
+- iNaturalist 批判への返答境界は `docs/review/ikimon_inaturalist_critique_response_boundary_2026-04-20.md` を参照する
 
 この4点を知らずに v2 を触ると、実装・運用・検証のどこかで判断を誤る。

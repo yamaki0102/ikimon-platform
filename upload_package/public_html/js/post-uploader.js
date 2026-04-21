@@ -91,7 +91,7 @@ function uploader() {
         individual_count: null,
         record_mode: 'standard',
         lightMode: false,
-        locationGranularity: 'exact',
+        locationGranularity: 'municipality',
         canSurveyorOfficialPost: config.canSurveyorOfficialPost ?? false,
         aiSuggestions: [],
         aiSelectedIndices: [],
@@ -462,7 +462,7 @@ function uploader() {
             this.individual_count = null;
             this.record_mode = 'standard';
             this.lightMode = false;
-            this.locationGranularity = 'exact';
+            this.locationGranularity = 'municipality';
             this.showDetails = false;
             this.submitting = false;
             this.success = false;

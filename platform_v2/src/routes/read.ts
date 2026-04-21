@@ -21,6 +21,7 @@ import {
 } from "../services/authorityRecommendations.js";
 import { resolveViewer } from "../services/viewerIdentity.js";
 import { getLandingSnapshot } from "../services/landingSnapshot.js";
+import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
 import { getObservationContext, groupFeaturesByLayer } from "../services/observationContext.js";
@@ -319,6 +320,18 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-badge-species { background: rgba(59,130,246,.08); color: #1d4ed8; border-color: rgba(59,130,246,.2); }
   .obs-badge-nearby { background: rgba(168,85,247,.08); color: #7e22ce; border-color: rgba(168,85,247,.2); }
   .obs-badge-video { background: rgba(15,23,42,.08); color: #0f172a; border-color: rgba(15,23,42,.16); }
+  .obs-trust-ladder { display: grid; gap: 10px; padding: 14px 16px; border-radius: 18px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(239,246,255,.92)); border: 1px solid rgba(59,130,246,.14); box-shadow: 0 10px 24px rgba(59,130,246,.06); }
+  .obs-trust-head { display: grid; gap: 4px; }
+  .obs-trust-head strong { font-size: 15px; color: #0f172a; }
+  .obs-trust-head p { margin: 0; font-size: 12.5px; line-height: 1.7; color: #475569; }
+  .obs-trust-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .obs-trust-step { display: grid; gap: 6px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.72); border: 1px solid rgba(15,23,42,.08); }
+  .obs-trust-step.is-reached { border-color: rgba(16,185,129,.24); background: linear-gradient(135deg, rgba(240,253,244,.96), rgba(255,255,255,.98)); }
+  .obs-trust-step.is-current { box-shadow: inset 0 0 0 1px rgba(59,130,246,.2); }
+  .obs-trust-step-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .obs-trust-step-label { font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: #0f172a; }
+  .obs-trust-step-pill { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; background: rgba(59,130,246,.12); color: #1d4ed8; font-size: 10px; font-weight: 900; }
+  .obs-trust-step-meta { font-size: 11.5px; line-height: 1.6; color: #64748b; font-weight: 700; }
   .obs-reaction-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   .obs-reaction { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(15,23,42,.1); background: #fff; font-weight: 700; font-size: 13px; color: #334155; cursor: pointer; transition: transform .12s ease, background .2s ease; }
   .obs-reaction:hover { background: #f9fafb; transform: translateY(-1px); }
@@ -849,9 +862,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <section class="record-card record-sheet">
             <div class="record-card-head">
               <div>
-                <div class="eyebrow">Quick capture</div>
+                <div class="eyebrow" id="record-mode-eyebrow">Quick capture</div>
                 <h2>観察を 1 ページとして残す</h2>
-                <p class="meta">場所・時刻・名前の仮説を最小入力で残し、あとからノートで育てる前提の入力画面です。</p>
+                <p class="meta" id="record-mode-lead">場所・時刻・名前の仮説を最小入力で残し、あとからノートで育てる前提の入力画面です。</p>
               </div>
               <div class="record-session-pill">
                 <span class="record-session-label">Signed in</span>
@@ -859,6 +872,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               </div>
             </div>
             <form id="record-form" data-user-id="${escapeHtml(viewerUserId)}" class="record-form">
+              <div class="record-field record-field-wide record-mode-switch">
+                <span class="record-label">記録モード</span>
+                <div class="record-mode-grid" role="group" aria-label="記録モード">
+                  <button type="button" class="record-mode-chip is-active" data-record-mode="quick">
+                    <strong>Quick capture</strong>
+                    <span>最小入力で field note を残す</span>
+                  </button>
+                  <button type="button" class="record-mode-chip" data-record-mode="survey">
+                    <strong>Survey</strong>
+                    <span>effort / checklist / scope を残す</span>
+                  </button>
+                </div>
+                <input type="hidden" name="recordMode" value="quick" />
+              </div>
               <label class="record-field record-field-wide"><span class="record-label">観察した日時</span><input id="observedAt" name="observedAt" type="datetime-local" required /></label>
               <div class="record-field record-field-wide record-gps-row">
                 <span class="record-label">現在地</span>
@@ -873,6 +900,49 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <label class="record-field"><span class="record-label">生きもの名（分かれば）</span><input name="scientificName" type="text" placeholder="例: スズメ / Passer montanus" /></label>
               <label class="record-field"><span class="record-label">和名 / 通称</span><input name="vernacularName" type="text" placeholder="例: スズメ" /></label>
               <label class="record-field"><span class="record-label">確信度</span><input name="rank" type="text" value="species" placeholder="species / genus / family" /></label>
+              <div class="record-field record-field-wide record-survey-fields" data-survey-only hidden>
+                <div class="record-survey-box">
+                  <div class="record-survey-head">
+                    <div>
+                      <span class="record-label">Survey protocol</span>
+                      <p class="record-help">trend や不在に近い含意を持たせる前提のメモです。Quick capture と混ぜません。</p>
+                    </div>
+                    <span class="record-survey-pill">survey</span>
+                  </div>
+                  <div class="record-survey-grid">
+                    <label class="record-field">
+                      <span class="record-label">Checklist completion</span>
+                      <select name="checklistCompletion" data-survey-required disabled>
+                        <option value="complete">Complete checklist</option>
+                        <option value="partial">Partial / target-only</option>
+                      </select>
+                    </label>
+                    <label class="record-field">
+                      <span class="record-label">Target taxa scope</span>
+                      <input name="targetTaxaScope" type="text" placeholder="例: birds / waterside plants / spring butterflies" data-survey-required disabled />
+                    </label>
+                    <label class="record-field">
+                      <span class="record-label">Effort minutes</span>
+                      <input name="effortMinutes" type="number" min="1" step="1" placeholder="20" data-survey-required disabled />
+                    </label>
+                    <label class="record-field">
+                      <span class="record-label">Survey result</span>
+                      <select name="surveyResult" disabled>
+                        <option value="present">Present evidence collected</option>
+                        <option value="no_detection_note">No target detected (protocol note only)</option>
+                      </select>
+                    </label>
+                    <label class="record-field record-field-wide">
+                      <span class="record-label">Revisit reason</span>
+                      <textarea name="revisitReason" rows="3" placeholder="例: 先月の note と比べたい / 同じ水路で外来種を追いたい" data-survey-required disabled></textarea>
+                    </label>
+                  </div>
+                  <div class="record-survey-caution">
+                    <strong>未観測と不在は別です。</strong>
+                    <span><code>no target detected</code> は protocol note として残し、absence の断定には使いません。</span>
+                  </div>
+                </div>
+              </div>
               <label class="record-field record-field-wide record-photo-field"><span class="record-label">写真 / 動画</span><input id="record-media" name="media" type="file" accept="image/*,video/*" /><span class="record-help">写真か動画を 1 つ選択できます。動画は 200MB / 60秒まで対応します。</span></label>
               <div id="record-video-progress" class="record-video-progress" hidden aria-live="polite">
                 <div class="record-video-progress-head">
@@ -898,7 +968,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               <h2>この記録が残る形</h2>
               <div class="record-preview">
                 <div class="record-preview-topline">
-                  <span class="record-preview-kicker">field note</span>
+                  <span id="record-preview-kicker" class="record-preview-kicker">field note</span>
                   <span id="record-preview-date">今日</span>
                 </div>
                 <h3 id="record-preview-title">名前未確定の観察</h3>
@@ -920,6 +990,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               </div>
             </section>
             <section class="record-card">
+              <div class="eyebrow">信頼のレーン</div>
+              <h2>名前は 4 層で扱う</h2>
+              <div class="list">
+                <div class="row"><div><strong>AI のヒント</strong><div class="meta">候補と見分けのヒント。これだけで公式確定にしない。</div></div></div>
+                <div class="row"><div><strong>みんなの同定</strong><div class="meta">人の同定が集まる段階。まだ公開前提ではない。</div></div></div>
+                <div class="row"><div><strong>任された人の確認</strong><div class="meta">分類群の担当権限を持つ確認者が承認する段階。</div></div></div>
+                <div class="row"><div><strong>公開前提の主張</strong><div class="meta">任された人の確認と媒体条件を満たした公開候補。</div></div></div>
+              </div>
+            </section>
+            <section class="record-card">
               <div class="eyebrow">Status</div>
               <h2>送信ステータス</h2>
               <div id="record-status" class="list" style="margin-top:16px">
@@ -936,7 +1016,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const form = document.getElementById('record-form');
         const status = document.getElementById('record-status');
         const observedAt = document.getElementById('observedAt');
+        const modeEyebrow = document.getElementById('record-mode-eyebrow');
+        const modeLead = document.getElementById('record-mode-lead');
+        const modeInput = form ? form.querySelector('[name=recordMode]') : null;
+        const modeButtons = form ? Array.from(form.querySelectorAll('[data-record-mode]')) : [];
+        const surveyFieldsWrap = form ? form.querySelector('[data-survey-only]') : null;
+        const surveyRequiredFields = form ? Array.from(form.querySelectorAll('[data-survey-required]')) : [];
         const previewDate = document.getElementById('record-preview-date');
+        const previewKicker = document.getElementById('record-preview-kicker');
         const previewTitle = document.getElementById('record-preview-title');
         const previewPlace = document.getElementById('record-preview-place');
         const previewMunicipality = document.getElementById('record-preview-municipality');
@@ -962,6 +1049,30 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const setStatus = (html) => {
           if (status) status.innerHTML = html;
+        };
+
+        const isSurveyMode = () => modeInput && modeInput.value === 'survey';
+
+        const syncModeUi = () => {
+          const survey = isSurveyMode();
+          if (modeEyebrow) modeEyebrow.textContent = survey ? 'Survey' : 'Quick capture';
+          if (modeLead) {
+            modeLead.textContent = survey
+              ? 'effort・checklist・scope を残して、比較可能な visit として保存する入力画面です。'
+              : '場所・時刻・名前の仮説を最小入力で残し、あとからノートで育てる前提の入力画面です。';
+          }
+          if (previewKicker) previewKicker.textContent = survey ? 'survey visit' : 'field note';
+          if (surveyFieldsWrap) surveyFieldsWrap.hidden = !survey;
+          surveyRequiredFields.forEach((field) => {
+            field.disabled = !survey;
+            if (survey) field.setAttribute('required', 'required');
+            else field.removeAttribute('required');
+          });
+          modeButtons.forEach((button) => {
+            const active = button.getAttribute('data-record-mode') === (modeInput ? modeInput.value : 'quick');
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          });
         };
 
         const normalizeError = (error) => {
@@ -1049,15 +1160,22 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         const syncPreview = () => {
           if (!form) return;
           const data = new FormData(form);
+          const survey = String(data.get('recordMode') || '') === 'survey';
           const scientificName = String(data.get('scientificName') || '').trim();
           const vernacularName = String(data.get('vernacularName') || '').trim();
           const localityNote = String(data.get('localityNote') || '').trim();
           const municipality = String(data.get('municipality') || '').trim();
+          const revisitReason = String(data.get('revisitReason') || '').trim();
+          const targetTaxaScope = String(data.get('targetTaxaScope') || '').trim();
           const latitude = String(data.get('latitude') || '').trim();
           const longitude = String(data.get('longitude') || '').trim();
           const observedAtValue = String(data.get('observedAt') || '').trim();
           if (previewTitle) previewTitle.textContent = vernacularName || scientificName || '名前未確定の観察';
-          if (previewPlace) previewPlace.textContent = localityNote || '場所メモが入ると、あとから再訪理由として効きます。';
+          if (previewPlace) {
+            previewPlace.textContent = survey
+              ? (revisitReason || targetTaxaScope || localityNote || 'revisit reason と target scope が入ると、比較可能な visit として残ります。')
+              : (localityNote || '場所メモが入ると、あとから再訪理由として効きます。');
+          }
           if (previewMunicipality) previewMunicipality.textContent = municipality || '自治体未入力';
           if (previewCoords) previewCoords.textContent = latitude && longitude ? latitude + ', ' + longitude : '座標未入力';
           if (previewDate) {
@@ -1156,6 +1274,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         if (form) {
           form.addEventListener('input', syncPreview);
         }
+        modeButtons.forEach((button) => {
+          button.addEventListener('click', () => {
+            if (!modeInput) return;
+            modeInput.value = button.getAttribute('data-record-mode') || 'quick';
+            syncModeUi();
+            syncPreview();
+          });
+        });
         if (mediaInput) {
           mediaInput.addEventListener('change', () => {
             const file = mediaInput.files && mediaInput.files[0];
@@ -1178,6 +1304,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         }
 
         syncPreview();
+        syncModeUi();
         resetVideoProgress();
 
         if (form) {
@@ -1192,6 +1319,29 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             }
             setStatus('<div class="row"><div>記録を送信中...</div></div>');
             try {
+              const recordMode = String(data.get('recordMode') || 'quick') === 'survey' ? 'survey' : 'quick';
+              const checklistCompletion = String(data.get('checklistCompletion') || 'complete');
+              const targetTaxaScope = String(data.get('targetTaxaScope') || '').trim();
+              const effortMinutes = Number(data.get('effortMinutes'));
+              const revisitReason = String(data.get('revisitReason') || '').trim();
+              const surveyResult = String(data.get('surveyResult') || 'present');
+              if (recordMode === 'survey') {
+                if (!targetTaxaScope) {
+                  throw new Error('survey_target_scope_required');
+                }
+                if (!Number.isFinite(effortMinutes) || effortMinutes <= 0) {
+                  throw new Error('survey_effort_required');
+                }
+                if (!revisitReason) {
+                  throw new Error('survey_revisit_reason_required');
+                }
+              }
+              const speciesNote = recordMode === 'survey'
+                ? '[survey] ' + revisitReason + (surveyResult === 'no_detection_note' ? ' / no target detected protocol note' : '')
+                : '';
+              const scientificName = String(data.get('scientificName') || '').trim();
+              const vernacularName = String(data.get('vernacularName') || '').trim();
+              const rank = String(data.get('rank') || '').trim();
               const payload = {
                 observationId,
                 legacyObservationId: observationId,
@@ -1202,13 +1352,27 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 prefecture: 'Shizuoka',
                 municipality: String(data.get('municipality') || ''),
                 localityNote: String(data.get('localityNote') || ''),
-                note: '',
-                sourcePayload: { source: 'v2_web' },
-                taxon: {
-                  scientificName: String(data.get('scientificName') || ''),
-                  vernacularName: String(data.get('vernacularName') || ''),
-                  rank: String(data.get('rank') || ''),
+                note: speciesNote,
+                visitMode: recordMode === 'survey' ? 'survey' : 'manual',
+                completeChecklistFlag: recordMode === 'survey' ? checklistCompletion === 'complete' : false,
+                targetTaxaScope: recordMode === 'survey' ? targetTaxaScope : null,
+                effortMinutes: recordMode === 'survey' ? effortMinutes : null,
+                revisitReason: recordMode === 'survey' ? revisitReason : null,
+                sourcePayload: {
+                  source: 'v2_web',
+                  record_mode: recordMode,
+                  survey_result: recordMode === 'survey' ? surveyResult : null,
+                  absence_semantics: recordMode === 'survey' && surveyResult === 'no_detection_note'
+                    ? 'protocol_note_only'
+                    : null,
                 },
+                taxon: scientificName || vernacularName
+                  ? {
+                      scientificName,
+                      vernacularName,
+                      rank,
+                    }
+                  : null,
               };
 
               const observationResponse = await fetch(withBasePath('/api/v1/observations/upsert'), {
@@ -1306,11 +1470,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                 : '';
               setStatus('<div class="row"><div><strong>記録を保存しました。</strong>' + suffix + '<div class="meta"><a href="' + withBasePath('/observations/' + encodeURIComponent(detailId)) + '">観察を見る</a> · <a href="' + withBasePath('/notes') + '">ノートへ戻る</a></div></div></div>');
               form.reset();
+              if (modeInput) modeInput.value = 'quick';
               if (observedAt) {
                 const now = new Date();
                 observedAt.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
               }
               renderPreviewFile(null);
+              syncModeUi();
               syncPreview();
               resetVideoProgress();
             } catch (error) {
@@ -1321,6 +1487,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               if (message === 'video_upload_cancelled') userMessage = '動画アップロードをキャンセルしました。';
               if (message === 'video_metadata_read_failed' || message === 'video_duration_unknown') userMessage = '動画の長さを確認できませんでした。別の動画で試してください。';
               if (message === 'unsupported_media_type') userMessage = '画像または動画ファイルを選択してください。';
+              if (message === 'survey_target_scope_required') userMessage = 'Survey mode では target taxa scope を入力してください。';
+              if (message === 'survey_effort_required') userMessage = 'Survey mode では effort minutes を入力してください。';
+              if (message === 'survey_revisit_reason_required') userMessage = 'Survey mode では revisit reason を入力してください。';
               setStatus('<div class="row"><div>送信に失敗しました。<div class="meta">' + userMessage + '</div></div></div>');
             } finally {
               if (videoCancel) videoCancel.disabled = true;
@@ -1358,6 +1527,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         .record-field-wide { grid-column: 1 / -1; }
         .record-label { font-weight: 800; color: #0f172a; font-size: 14px; }
         .record-help { font-size: 12px; line-height: 1.6; color: #64748b; }
+        .record-mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .record-mode-chip { display: grid; gap: 4px; text-align: left; padding: 14px 16px; border-radius: 18px; border: 1px solid rgba(15,23,42,.1); background: rgba(255,255,255,.84); color: #0f172a; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+        .record-mode-chip strong { font-size: 14px; }
+        .record-mode-chip span { font-size: 12px; line-height: 1.6; color: #64748b; font-weight: 700; }
+        .record-mode-chip.is-active { border-color: rgba(14,165,233,.36); box-shadow: 0 10px 24px rgba(14,165,233,.1); transform: translateY(-1px); }
+        .record-survey-box { display: grid; gap: 14px; padding: 18px; border-radius: 20px; background: linear-gradient(135deg, rgba(14,165,233,.08), rgba(16,185,129,.08)); border: 1px solid rgba(14,165,233,.18); }
+        .record-survey-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+        .record-survey-pill { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border-radius: 999px; background: rgba(15,23,42,.08); color: #0f172a; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+        .record-survey-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .record-survey-caution { display: grid; gap: 4px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.78); border: 1px solid rgba(15,23,42,.08); }
+        .record-survey-caution strong { color: #0f172a; font-size: 13px; }
+        .record-survey-caution span { color: #475569; font-size: 12px; line-height: 1.7; font-weight: 700; }
         .record-photo-field input[type="file"] { padding: 14px; border-style: dashed; }
         .record-video-progress { grid-column: 1 / -1; padding: 14px 16px; border-radius: 16px; background: linear-gradient(180deg, rgba(14,165,233,.08), rgba(16,185,129,.08)); border: 1px solid rgba(14,165,233,.2); display: grid; gap: 8px; }
         .record-video-progress-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -1392,6 +1573,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         @media (max-width: 720px) {
           .record-card { padding: 20px; border-radius: 24px; }
           .record-form { grid-template-columns: 1fr; padding-left: 0; }
+          .record-mode-grid, .record-survey-grid { grid-template-columns: 1fr; }
           .record-card-head { padding-left: 0; }
           .record-sheet::after, .record-preview::after { display: none; }
         }
@@ -1452,7 +1634,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       `<section class="section">
         <div class="grid">
           <div class="card"><div class="card-body"><div class="eyebrow">また見に行ける場所</div><div class="list">${municipalities || '<div class="row"><div>まだ場所データがありません。</div></div>'}</div></div></div>
-          <div class="card"><div class="card-body"><div class="eyebrow">そこで目立つ生きもの</div><div class="list">${taxa || '<div class="row"><div>まだ種データがありません。</div></div>'}</div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">その場所らしさを作る生きもの</div><div class="list">${taxa || '<div class="row"><div>まだ種データがありません。</div></div>'}</div></div></div>
         </div>
       </section>
       <section class="section"><div class="section-header"><div><div class="eyebrow">直近の観察</div><h2>次に歩く理由を探す</h2></div></div><div class="explore-grid">${cards || '<div class="card"><div class="card-body">まだ観察がありません。</div></div>'}</div></section>`,
@@ -1460,7 +1642,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       {
         eyebrow: "みつける",
         heading: "次に歩く場所を探す",
-        lead: "場所ごとの観察の積み重なりから、どこを再訪すると発見が増えそうかを見つけます。",
+        lead: "近くの再訪候補も、旅先で 1 回だけ寄る価値も、場所ごとの積み重なりから見つけます。ここは「なぜここか／なぜ今か」を読み取る入口です。",
         actions: [
           { href: "/map", label: "マップで見る" },
           { href: "/notes", label: "ノートに戻る", variant: "secondary" as const },
@@ -1667,6 +1849,89 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const detailMapHref = canSeeCanonicalLocation
       ? withBasePath(basePath, "/map")
       : publicMapHref;
+    const trustStage =
+      (currentSubject.evidenceTier ?? 0) >= 3
+        ? "public_claim"
+        : currentSubject.hasSpecialistApproval
+          ? "authority_backed"
+          : currentSubject.identificationCount > 0
+            ? "community_support"
+            : currentSubject.latestAssessmentBand && currentSubject.latestAssessmentBand !== "unknown"
+              ? "ai_suggestion"
+              : "";
+    const trustLead =
+      trustStage === "public_claim"
+        ? "任された人の確認と媒体条件を満たし、公開前提の候補まで進んでいます。"
+        : trustStage === "authority_backed"
+          ? "みんなの同定の先で、任された人の確認が入り、公開前の確度を担保している段階です。"
+          : trustStage === "community_support"
+            ? "AI 候補だけではなく、人の同定が集まっている段階です。"
+            : "いま見えている名前は仮の候補です。AI と人の確認で上がっていきます。";
+    const trustSteps = [
+      { id: "ai_suggestion", label: "AI のヒント", meta: "候補と見分けのヒント" },
+      { id: "community_support", label: "みんなの同定", meta: "人の同定が集まる" },
+      { id: "authority_backed", label: "任された人の確認", meta: "分類群の担当権限を持つ人が承認" },
+      { id: "public_claim", label: "公開前提", meta: "公開用途の候補に進める" },
+    ];
+    const targetTaxaScopeLabel = (() => {
+      const scope = (snapshot.targetTaxaScope ?? "").trim();
+      if (!scope) return null;
+      if (scope === "all_observed_taxa") return "対象: 見つかったものを広く残す";
+      if (scope === "plants") return "対象: 植物";
+      if (scope === "birds") return "対象: 鳥類";
+      if (scope === "insects") return "対象: 昆虫";
+      return `対象: ${scope}`;
+    })();
+    const surveyResultLabel = snapshot.surveyResult === "no_detection_note"
+      ? "今回は対象が見つからなかったメモ"
+      : snapshot.surveyResult === "detected"
+        ? "今回は対象を記録"
+        : null;
+    const surveySummary =
+      snapshot.visitMode === "survey"
+        ? (() => {
+            const protocolChips: string[] = [];
+            protocolChips.push(`<span class="obs-focus-chip">${snapshot.completeChecklistFlag ? "complete checklist" : "partial checklist"}</span>`);
+            if (targetTaxaScopeLabel) protocolChips.push(`<span class="obs-focus-chip">${escapeHtml(targetTaxaScopeLabel)}</span>`);
+            if (snapshot.effortMinutes != null) protocolChips.push(`<span class="obs-focus-chip">⏱️ ${snapshot.effortMinutes} 分</span>`);
+            if (snapshot.distanceMeters != null) protocolChips.push(`<span class="obs-focus-chip">📏 ${Math.round(snapshot.distanceMeters)} m</span>`);
+            if (snapshot.revisitReason) protocolChips.push(`<span class="obs-focus-chip">↺ ${escapeHtml(snapshot.revisitReason)}</span>`);
+            const boundaryNote = snapshot.surveyResult === "no_detection_note" || snapshot.absenceSemantics === "protocol_note_only"
+              ? "この観察は「見つからなかった」を不在の主張としては扱っていません。手順の注記としてだけ保持しています。"
+              : "比較したい観察として、どれだけ歩いたか・手順・範囲を残した記録です。比較の精度を上げるための記録で、増減や不在をここだけで断定しません。";
+            return `<div class="obs-story-block">
+              <div class="obs-story-eyebrow">観察の手順</div>
+              <p>この記録はその場の 1 枚ではなく、あとで比べられるように手順を付けて残した観察です。</p>
+              ${protocolChips.length > 0 ? `<div class="obs-focus-meta">${protocolChips.join("")}</div>` : ""}
+              ${surveyResultLabel ? `<p style="margin-top:10px">${escapeHtml(surveyResultLabel)}</p>` : ""}
+              <small class="obs-ai-note">${escapeHtml(boundaryNote)}</small>
+            </div>`;
+          })()
+        : "";
+    const trustLadderBlock = `<div class="obs-trust-ladder">
+      <div class="obs-trust-head">
+        <div class="obs-story-eyebrow">Trust lane</div>
+        <strong>この名前がどこまで進んでいるか</strong>
+        <p>${escapeHtml(trustLead)}</p>
+      </div>
+      <div class="obs-trust-steps">
+        ${trustSteps.map((step) => {
+          const current =
+            trustStage === step.id
+            || (trustStage === "public_claim" && (step.id === "authority_backed" || step.id === "community_support" || step.id === "ai_suggestion"))
+            || (trustStage === "authority_backed" && (step.id === "community_support" || step.id === "ai_suggestion"))
+            || (trustStage === "community_support" && step.id === "ai_suggestion");
+          const isCurrent = trustStage === step.id;
+          return `<div class="obs-trust-step${current ? " is-reached" : ""}${isCurrent ? " is-current" : ""}">
+            <div class="obs-trust-step-top">
+              <span class="obs-trust-step-label">${escapeHtml(step.label)}</span>
+              ${isCurrent ? `<span class="obs-trust-step-pill">現在地</span>` : ""}
+            </div>
+            <div class="obs-trust-step-meta">${escapeHtml(step.meta)}</div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`;
 
     const focusRailBlock = featuredSubject
       ? (() => {
@@ -1759,6 +2024,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             <span class="obs-hero-place">${escapeHtml(heroPlaceLabel)}</span>
           </div>
           ${badges.length > 0 ? `<div class="obs-hero-badges">${badges.join("")}</div>` : ""}
+          ${trustLadderBlock}
           ${reactionBar}
           ${focusRailBlock}
         </div>
@@ -1801,10 +2067,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            </div>` : ""}
          </div>`
       : "";
-    const layer1 = (ownerNote || aiFirst || footprintCard)
+    const layer1 = (surveySummary || ownerNote || aiFirst || footprintCard)
       ? `<section class="section obs-layer obs-layer-1">
            <h2 class="obs-layer-title">この記録について</h2>
-           <div class="obs-layer-body">${ownerNote}${aiFirst}${footprintCard}</div>
+           <div class="obs-layer-body">${surveySummary}${ownerNote}${aiFirst}${footprintCard}</div>
          </section>`
       : "";
 
@@ -1816,7 +2082,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       ? `<div class="obs-nearby-grid">
            ${heavy.nearby.map((n) => `
              <a class="obs-nearby-card" href="${escapeHtml(appendLangToHref(withBasePath(basePath, buildObservationDetailPath(n.occurrenceId, n.occurrenceId)), lang))}">
-               ${n.photoUrl ? `<img src="${escapeHtml(n.photoUrl)}" alt="${escapeHtml(n.displayName)}" loading="lazy" />` : '<div class="obs-nearby-nophoto">📷</div>'}
+               ${n.photoUrl ? `<img src="${escapeHtml(toThumbnailUrl(n.photoUrl, "sm") ?? n.photoUrl)}" alt="${escapeHtml(n.displayName)}" loading="lazy" decoding="async" onerror="this.outerHTML='&lt;div class=&quot;obs-nearby-nophoto&quot;&gt;\u{1f4f7}&lt;/div&gt;'" />` : '<div class="obs-nearby-nophoto">📷</div>'}
                <div class="obs-nearby-body">
                  <div class="obs-nearby-name">${escapeHtml(n.displayName)}</div>
                  <div class="obs-nearby-meta">${escapeHtml(n.observerName)} · ${escapeHtml(n.observedAt)}</div>
@@ -2440,10 +2706,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           : "同定ワークベンチ";
     const laneLead =
       lane === "public-claim"
-        ? "authority-backed review を最終公開主張に進めるレーンです。ここでの approve だけが research/public claim 昇格候補になります。"
+        ? "任された人の確認を、最終的な公開前提の主張に進めるレーンです。ここでの承認だけが、研究・公開の候補に進みます。"
         : lane === "expert-lane"
-          ? "分類群 authority を持つ reviewer が、公開前の確定レビューを付与するレーンです。"
-          : "分類群 authority を持つ reviewer が、自分の担当スコープで同定を進める作業画面です。";
+          ? "分類群の担当権限を持つ確認者が、公開前の確定レビューを付与するレーンです。"
+          : "分類群の担当権限を持つ確認者が、自分の担当範囲で同定を進める作業画面です。";
     const scopeSummary = renderAuthoritySummaryChips(access.activeAuthorities);
     const scopeMeta = access.canManageAll
       ? `<div class="meta">Analyst / Admin は全分類群にアクセスできます。authority を付けると reviewer の担当範囲も絞れます。</div>`
@@ -3152,7 +3418,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         eyebrow: "専門家向け",
         heading: "レビュー待ちの観察",
         headingHtml: "レビュー待ちの観察",
-        lead: "broad triage 用の queue です。authority scope に一致する観察だけを開き、approve した内容は plain / authority-backed / admin-override として保存されます。",
+        lead: "広く振り分け用の確認待ちリストです。あなたの担当権限に一致する観察だけを開き、承認した内容は「通常」「任された人の確認」「運営の判断」として保存されます。",
         actions: [
           { href: "/learn/authority-policy", label: "制度の説明" },
           { href: "/specialist/id-workbench?lane=expert-lane", label: "専門確認" },
@@ -3264,7 +3530,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         heading: lang === "ja" ? "🔍 フィールドガイド" : "🔍 Field Guide",
         headingHtml: lang === "ja" ? "🔍 フィールドガイド" : "🔍 Field Guide",
         lead: lang === "ja"
-          ? "散歩中に気になったものにカメラを向けると、AI が何かを教えてくれます。名前が分からなくても、その場で写真と場所を記録として残せます。"
+          ? "散歩中でも旅先でも、気になったものにカメラを向けると AI が候補と見分けの手がかりを返します。ここで確定はせず、その場の 1 枚を record に渡すための入口です。"
           : "Point your camera at anything that catches your eye — the AI will offer clues. Even without a name, you can save the photo and location as a record.",
         tone: "light",
         align: "center",
@@ -3277,13 +3543,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         <div class="list">
           <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. まず写真かメモを残す" : "1. Save a photo or note first")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "分からなくても構いません。場所・時刻・見た印象を失わないことが先です。" : "Do not wait for certainty. Preserve place, time, and first impression.")}</div></div></div>
           <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. AI が出した名前より『次に何を確認すればいいか』を見る" : "2. Look for what to check next, not just the name")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "名前が合っているかどうかより、次に確認すべきポイントを絞るのがここの使い方です。" : "The useful part is not certainty but what to check next.")}</div></div></div>
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "3. 気づいたことを record 画面で記録として残す" : "3. Save the observation in the record screen")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "このページだけでは記録は保存されません。写真と場所は record 画面で 1 件にまとめて残してください。" : "This page does not save records. Save your photo and location in the record screen.")}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "3. 気づいたことを record 画面で記録として残す" : "3. Save the observation in the record screen")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "このページだけでは記録は保存されません。旅先の 1 枚も、いつもの場所の 1 枚も、record 画面で 1 件にまとめて残してください。" : "This page does not save records. Save your photo and location in the record screen.")}</div></div></div>
         </div>
       </section>
       <section class="section">
         <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "道端で名前が気になったとき" : "When you wonder what something is in the field")}</h2><p>${escapeHtml(lang === "ja" ? "その場で調べ込むより、とりあえず記録しておいて後から確認したいときに向いています。" : "Use it when it is better to keep moving and look it up later.")}</p></div></div>
-          <details class="card"><summary style="padding:16px 20px;cursor:pointer;font-weight:700">${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Limitations")}</summary><div class="card-body" style="padding-top:0"><p>${escapeHtml(lang === "ja" ? "正確な名前を自動で確定する機能ではありません。候補と手がかりを返す補助として使ってください。名前の確定はコミュニティの合意で決まります。" : "This does not automatically confirm a name. Use it as a hint, not a verdict. Names are confirmed by the community.")}</p></div></details>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "道端でも旅先でも、その場の 1 枚を逃したくないとき" : "When you do not want to lose the moment in the field")}</h2><p>${escapeHtml(lang === "ja" ? "その場で調べ込むより、とりあえず記録しておいて後から比較したいときに向いています。local core の入口でも、traveler loop の入口でもあります。" : "Use it when it is better to keep moving and look it up later.")}</p></div></div>
+          <details class="card"><summary style="padding:16px 20px;cursor:pointer;font-weight:700">${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Limitations")}</summary><div class="card-body" style="padding-top:0"><p>${escapeHtml(lang === "ja" ? "正確な名前を自動で確定する機能ではありません。候補と手がかりを返す補助として使ってください。public claim は authority-backed review を通ります。" : "This does not automatically confirm a name. Use it as a hint, not a verdict. Names are confirmed by the community.")}</p></div></details>
           <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "写真と場所を record 画面で残す" : "Save photo and location in the record screen")}</h2><p>${escapeHtml(lang === "ja" ? "このページ単体では記録は残りません。場所・時刻・写真は record 画面で 1 件にまとめてください。" : "This page does not save records. Go to the record screen to save place, time, and photo.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(recordHref)}">${escapeHtml(lang === "ja" ? "記録する" : "Record")}</a></div></div></div>
         </div>
       </section>
@@ -3317,7 +3583,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         heading: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
         headingHtml: lang === "ja" ? "📡 フィールドスキャン" : "📡 Field Scan",
         lead: lang === "ja"
-          ? "以前歩いたことがある場所に、また行く理由を見つけるためのページです。地図で記録が積み上がっている場所を確認して、次の散歩先を決めます。"
+          ? "近くの再訪候補も、旅先で今ここに寄る理由も、このページで決めます。「なぜここか」「なぜ今か」「1 回の訪問で残せること」「次に来る理由」を地図の偏りから返す入口です。"
           : "Use this page to find a reason to return somewhere you have walked before. Check the map and decide where to go next.",
         tone: "light",
         align: "center",
@@ -3328,16 +3594,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       },
       body: `<section class="section">
         <div class="list">
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. 地図でどの場所に記録が多いか見る" : "1. See which places have the most records on the map")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "記録が多い場所・少ない場所の偏りから、次に歩く候補が見つかります。" : "Clusters and gaps on the map show you where to go next.")}</div></div></div>
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. そこで何が見られているかをざっくり確認する" : "2. Get a rough sense of what has been seen there")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "細かい名前より、その場所の雰囲気をつかむ感覚で見てください。" : "Focus on the feel of the place, not precise identification.")}</div></div></div>
-          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "3. 歩く場所が決まったら、実際の観察を record 画面で記録する" : "3. Once you decide where to go, record observations in the record screen")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "このページには記録を保存する機能がありません。実際に歩いて見たものは record 画面で残してください。" : "This page does not save records. Use the record screen to save what you actually observe.")}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "1. 地図で「なぜここか」を見る" : "1. See why here on the map")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "記録が多い場所・少ない場所の偏り、季節、主体レンズから、行く理由が立つ場所を見つけます。" : "Clusters and gaps on the map show you where to go next.")}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "2. 「なぜ今か」「1 回の訪問で残せること」を読む" : "2. Read why now and what one visit can add")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "細かい名前より先に、その場所がいま薄いのか、再訪で厚くすべきかを見ます。" : "Focus on the feel of the place, not precise identification.")}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml(lang === "ja" ? "3. 歩く場所が決まったら、実際の観察を record 画面で記録する" : "3. Once you decide where to go, record observations in the record screen")}</strong><div class="meta">${escapeHtml(lang === "ja" ? "このページには記録を保存する機能がありません。旅先の 1 回の寄り道でも、次の再訪理由になるよう record に残してください。" : "This page does not save records. Use the record screen to save what you actually observe.")}</div></div></div>
         </div>
       </section>
       <section class="section">
         <div class="grid">
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "今日どこを歩くか迷っているとき" : "When you are not sure where to walk today")}</h2><p>${escapeHtml(lang === "ja" ? "前に行ったことがある場所にまた行く理由を見つけたいとき、次の 20 分をどこで過ごすか決めるのに向いています。" : "Use it when you want a reason to return somewhere, or to decide where to spend the next 20 minutes.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "たとえば、今日は水辺側へ寄るか、公園の奥まで入るか、住宅地の縁を回るかを、ここで確認してから出発できます。" : "Decide today — waterside, deep park, or neighborhood edge — before you set out.")}</p></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "向いている場面" : "Best for")}</div><h2>${escapeHtml(lang === "ja" ? "今日どこを歩くか迷っているとき" : "When you are not sure where to walk today")}</h2><p>${escapeHtml(lang === "ja" ? "前に行ったことがある場所にまた行く理由を見つけたいときにも、旅先で今ここに寄る価値を見つけたいときにも向いています。" : "Use it when you want a reason to return somewhere, or to decide where to spend the next 20 minutes.")}</p><p class="meta" style="margin-top:10px">${escapeHtml(lang === "ja" ? "たとえば、水辺に 1 回寄る価値があるのか、住宅地の縁を再訪して差分を見るべきかを、ここで判断できます。" : "Decide today — waterside, deep park, or neighborhood edge — before you set out.")}</p></div></div>
           <details class="card"><summary><div class="card-body"><strong>${escapeHtml(lang === "ja" ? "期待しすぎないこと" : "Limitations")}</strong></div></summary><div class="card-body" style="padding-top:0"><p>${escapeHtml(lang === "ja" ? "このページには記録を保存する機能がありません。場所を決める入口として使い、実際の観察は record 画面で残してください。" : "This page does not save records. Use it to choose a place, then record your observations in the record screen.")}</p></div></details>
-          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "マップで場所を決めて、そこで記録する" : "Pick a place on the map, then go record")}</h2><p>${escapeHtml(lang === "ja" ? "行き先が決まったら、実際にその場所を歩いて record 画面で 1 件記録してください。" : "Once you choose a place, go there and save at least one observation in the record screen.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(mapHref)}">${escapeHtml(lang === "ja" ? "マップで見る" : "See on the map")}</a></div></div></div>
+          <div class="card"><div class="card-body"><div class="eyebrow">${escapeHtml(lang === "ja" ? "次の一歩" : "Next step")}</div><h2>${escapeHtml(lang === "ja" ? "マップで場所を決めて、そこで記録する" : "Pick a place on the map, then go record")}</h2><p>${escapeHtml(lang === "ja" ? "行き先が決まったら、実際にその場所を歩いて record 画面で 1 件記録してください。その 1 件を、次にまた来たい理由へつなげます。" : "Once you choose a place, go there and save at least one observation in the record screen.")}</p><div class="actions" style="margin-top:12px"><a class="btn btn-solid" href="${escapeHtml(mapHref)}">${escapeHtml(lang === "ja" ? "マップで見る" : "See on the map")}</a></div></div></div>
         </div>
       </section>
       <section class="section">

@@ -669,7 +669,7 @@ if (!$currentUser) {
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="min-w-0">
                                         <p class="text-token-xs font-bold text-[var(--color-text)] truncate" x-text="displayName(item)"></p>
-                                        <p class="text-token-xs text-[var(--color-text-muted)] truncate" x-text="item.municipality || (item.location ? item.location.name : '場所情報なし')"></p>
+                                        <p class="text-token-xs text-[var(--color-text-muted)] truncate" x-text="locationLabel(item) || '場所情報なし'"></p>
                                     </div>
                                     <span class="text-token-xs text-[var(--color-text-faint)] shrink-0" x-text="formatDate(item.observed_at)"></span>
                                 </div>
@@ -753,7 +753,7 @@ if (!$currentUser) {
                     <div class="p-4 space-y-4">
                         <div class="workbench-meta-card rounded-2xl p-3 text-token-xs text-[var(--color-text-muted)] space-y-1.5">
                             <p class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3 h-3"></i> <span x-text="formatDate(activeItem.observed_at)"></span></p>
-                            <p class="flex items-center gap-1.5" x-show="activeItem.municipality || activeItem.location"><i data-lucide="map-pin" class="w-3 h-3"></i> <span x-text="activeItem.municipality || (activeItem.location ? activeItem.location.name : '')"></span></p>
+                            <p class="flex items-center gap-1.5" x-show="locationLabel(activeItem)"><i data-lucide="map-pin" class="w-3 h-3"></i> <span x-text="locationLabel(activeItem)"></span></p>
                             <p class="flex items-center gap-1.5"><i data-lucide="user" class="w-3 h-3"></i> <span x-text="activeItem.user_name || '匿名'"></span></p>
                         </div>
 
@@ -936,7 +936,7 @@ if (!$currentUser) {
             <div class="flex items-start gap-3">
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-black text-[var(--color-text)] truncate" x-text="displayName(activeItem)"></p>
-                    <p class="text-token-xs text-[var(--color-text-muted)] truncate" x-text="(activeItem?.municipality || '') + (activeItem?.observed_at ? ' · ' + formatDate(activeItem.observed_at) : '')"></p>
+                    <p class="text-token-xs text-[var(--color-text-muted)] truncate" x-text="(locationLabel(activeItem) || '') + (activeItem?.observed_at ? ' · ' + formatDate(activeItem.observed_at) : '')"></p>
                     <p class="text-token-xs text-[var(--color-text-faint)] truncate" x-text="activeItem?.identifications?.length ? activeItem.identifications.length + '件の同定あり' : '最初の同定を待っています'"></p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
@@ -1250,11 +1250,23 @@ if (!$currentUser) {
                         || ai?.recommended_taxon?.scientific_name
                         || '';
                     if (scientificName) parts.push(scientificName);
-                    if (item.municipality) parts.push(item.municipality);
+                    const location = this.locationLabel(item);
+                    if (location) parts.push(location);
                     if (parts.length === 0 && ai?.simple_summary) {
                         return ai.simple_summary;
                     }
                     return parts.join(' · ') || 'この場で写真を見比べながら同定できます';
+                },
+
+                locationLabel(item) {
+                    if (!item) return '';
+                    return item.public_location?.label
+                        || item.location_name
+                        || item.place_name
+                        || item.municipality
+                        || item.prefecture
+                        || (item.location ? item.location.name : '')
+                        || '';
                 },
 
                 photoCounter(item, photoIndex = 0) {
@@ -1465,7 +1477,7 @@ if (!$currentUser) {
                         items = items.filter(i => {
                             const name = i.taxon ? (i.taxon.name || '').toLowerCase() : '';
                             const sci = i.taxon ? (i.taxon.scientific_name || '').toLowerCase() : '';
-                            const loc = (i.municipality || (i.location ? i.location.name : '') || '').toLowerCase();
+                            const loc = this.locationLabel(i).toLowerCase();
                             const ai = this.latestAiAssessment(i);
                             const aiCandidates = [
                                 ...(ai && Array.isArray(ai.provider_candidates) ? ai.provider_candidates.map(c => (c && c.label ? c.label : '')) : []),

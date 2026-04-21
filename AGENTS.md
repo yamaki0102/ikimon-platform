@@ -1,6 +1,6 @@
 # ikimon.life — Agent Guide
 
-Citizen-science biodiversity platform. Japanese UI, PHP backend, Alpine.js frontend.
+Citizen-science biodiversity platform. Hybrid runtime: legacy PHP app (`upload_package/`) + v2 Node app (`platform_v2/`).
 
 > **共通ルール・デプロイ方針・SSHサーバー構成は `~/.codex/AGENTS.md` を参照。**
 > **（管理元: `antigravity/.agent/global/AGENTS.global.md`）**
@@ -9,10 +9,18 @@ Citizen-science biodiversity platform. Japanese UI, PHP backend, Alpine.js front
 > → `docs/IKIMON_KNOWLEDGE_MAP_2026-04-12.md` → `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` → `docs/KNOWLEDGE_OS_OVERVIEW.md` の順で読む
 > → overview 更新要否は `powershell -ExecutionPolicy Bypass -File .\scripts\check_knowledge_os_overview_sync.ps1` で確認する
 
+## Staging Fast Path
+
+- `staging.ikimon.life` の通常ルート `/` は **`platform_v2` Node runtime**。staging の UI / map / API 調査は **まず `platform_v2/` から入る**
+- legacy PHP (`upload_package/`) は **`/legacy/` 配下のみ**。ユーザーが明示的に `legacy` / `PHP` と言わない限り、staging 相談で最初に触らない
+- staging の正準根拠は `ops/CUTOVER_RUNBOOK.md` と `ops/deploy/staging_ikimon_life_tls_reference.conf`
+- `staging` とだけ言われた場合のデフォルト解釈は **`platform_v2 staging`**。`upload_package` ではない
+
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
+| Staging primary | Node.js (`platform_v2`) |
 | Backend | PHP 8.2 (vanilla, no framework) |
 | Frontend | Alpine.js 3.14.9 + Tailwind CSS (CDN) + Lucide Icons 0.477.0 |
 | Maps | MapLibre GL JS + OpenStreetMap tiles |

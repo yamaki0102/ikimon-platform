@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import sharp from "sharp";
 import { buildApp } from "../app.js";
 
 async function withEnv(
@@ -72,6 +73,62 @@ test("legacy asset routes serve uploads from the legacy uploads root", async () 
           assert.equal(legacyAliasResponse.statusCode, 200);
           assert.match(String(legacyAliasResponse.headers["content-type"] ?? ""), /^image\/jpeg/);
           assert.equal(legacyAliasResponse.body, "jpeg-bits");
+        } finally {
+          await app.close();
+        }
+      },
+    );
+  } finally {
+    await rm(sandboxRoot, { recursive: true, force: true });
+  }
+});
+
+test("thumb route resizes image and blocks invalid preset / traversal", async () => {
+  const sandboxRoot = await mkdtemp(path.join(tmpdir(), "ikimon-thumb-"));
+  const uploadsRoot = path.join(sandboxRoot, "uploads");
+  await mkdir(path.join(uploadsRoot, "photos"), { recursive: true });
+  const sourcePng = await sharp({
+    create: { width: 1000, height: 1000, channels: 3, background: { r: 120, g: 180, b: 90 } },
+  })
+    .png()
+    .toBuffer();
+  await writeFile(path.join(uploadsRoot, "photos", "big.png"), sourcePng);
+
+  try {
+    await withEnv(
+      {
+        LEGACY_PUBLIC_ROOT: path.join(sandboxRoot, "public"),
+        LEGACY_UPLOADS_ROOT: uploadsRoot,
+      },
+      async () => {
+        const app = buildApp();
+        try {
+          const thumbResponse = await app.inject({
+            method: "GET",
+            url: "/thumb/sm/photos/big.png",
+          });
+          assert.equal(thumbResponse.statusCode, 200);
+          assert.equal(thumbResponse.headers["content-type"], "image/webp");
+          assert.ok(thumbResponse.rawPayload.length < sourcePng.length);
+          const meta = await sharp(thumbResponse.rawPayload).metadata();
+          assert.equal(meta.format, "webp");
+          assert.ok(meta.width && meta.width <= 192);
+
+          const cachedResponse = await app.inject({
+            method: "GET",
+            url: "/thumb/sm/photos/big.png",
+            headers: { "if-none-match": String(thumbResponse.headers.etag ?? "") },
+          });
+          assert.equal(cachedResponse.statusCode, 304);
+
+          const badPreset = await app.inject({ method: "GET", url: "/thumb/xxl/photos/big.png" });
+          assert.equal(badPreset.statusCode, 404);
+
+          const traversal = await app.inject({ method: "GET", url: "/thumb/sm/../secret.txt" });
+          assert.equal(traversal.statusCode, 404);
+
+          const nonImageExt = await app.inject({ method: "GET", url: "/thumb/sm/photos/big.txt" });
+          assert.equal(nonImageExt.statusCode, 404);
         } finally {
           await app.close();
         }

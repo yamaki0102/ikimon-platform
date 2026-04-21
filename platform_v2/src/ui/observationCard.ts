@@ -3,6 +3,7 @@ import type { SiteLang } from "../i18n.js";
 import { appendLangToHref } from "../i18n.js";
 import { buildObservationDetailPath } from "../services/observationDetailLink.js";
 import type { LandingObservation } from "../services/readModels.js";
+import { toThumbnailUrl } from "../services/thumbnailUrl.js";
 import { escapeHtml } from "./siteShell.js";
 
 function formatObservedAt(raw: string, lang: SiteLang): string {
@@ -67,7 +68,7 @@ export function renderObservationCard(
     <span class="obs-card-sketch-note">${lang === "ja" ? "写真なし" : lang === "es" ? "Sin foto" : lang === "pt-BR" ? "Sem foto" : "No photo"}</span>
   </div>`;
   const photo = obs.photoUrl
-    ? `<img class="obs-card-photo" src="${escapeHtml(obs.photoUrl)}" alt="${escapeHtml(obs.displayName)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
+    ? `<img class="obs-card-photo" src="${escapeHtml(toThumbnailUrl(obs.photoUrl, "md") ?? obs.photoUrl)}" alt="${escapeHtml(obs.displayName)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
     : sketchFallback;
   const locationMode = options.locationMode ?? "public";
   const placeLine = locationMode === "owner"

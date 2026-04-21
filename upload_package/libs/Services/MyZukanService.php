@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../DataStore.php';
 require_once __DIR__ . '/../RedList.php';
 require_once __DIR__ . '/../MyFieldManager.php';
+require_once __DIR__ . '/../PrivacyFilter.php';
 
 class MyZukanService
 {
@@ -463,10 +464,7 @@ class MyZukanService
 
     private static function locationLabel(array $obs): string
     {
-        if (!empty($obs['location']['name'])) return $obs['location']['name'];
-        if (!empty($obs['municipality'])) return $obs['municipality'];
-        if (!empty($obs['prefecture'])) return $obs['prefecture'];
-        return '';
+        return PrivacyFilter::resolvePublicLocationLabel($obs);
     }
 
     private static function matchWalkSession(string $obsDate, array $tracks): ?array
