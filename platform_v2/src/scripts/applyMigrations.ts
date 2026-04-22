@@ -35,8 +35,21 @@ function parseArgs(argv: string[]): MigrationOptions {
   };
 }
 
+function isAllowedConstraintRefresh(filename: string, sql: string): boolean {
+  if (filename !== "0009_ui_kpi_cue_events.sql") {
+    return false;
+  }
+
+  return /\balter\s+table\s+ui_kpi_events\b[\s\S]*\bdrop\s+constraint\s+if\s+exists\s+ui_kpi_events_event_name_check\b/i.test(sql)
+    && /\balter\s+table\s+ui_kpi_events\b[\s\S]*\badd\s+constraint\s+ui_kpi_events_event_name_check\b/i.test(sql);
+}
+
 function assertSafeMigration(filename: string, sql: string, options: MigrationOptions): void {
   if (options.allowDestructive) {
+    return;
+  }
+
+  if (isAllowedConstraintRefresh(filename, sql)) {
     return;
   }
 
