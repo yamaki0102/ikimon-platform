@@ -102,7 +102,7 @@ test("authority admin grant/revoke gates expert lane", async ({ browser, playwri
 
   const deniedResponse = await reviewerPage.goto("/specialist/id-workbench?lane=expert-lane", { waitUntil: "domcontentloaded" });
   expect(deniedResponse?.status()).toBe(403);
-  await expect(reviewerPage.getByText("authority 付与済み reviewer 向け", { exact: false })).toBeVisible();
+  await expect(reviewerPage.getByText("この画面は、確認権限が付与されている人向けです。", { exact: false })).toBeVisible();
 
   const adminContext = await newStagingContext(browser, {
     slug: "authority-admin",
@@ -124,7 +124,7 @@ test("authority admin grant/revoke gates expert lane", async ({ browser, playwri
   await adminPage.locator('#authority-grant-form [name="evidenceIssuer"]').fill("Playwright QA");
   await adminPage.locator('#authority-grant-form button[type="submit"]').click();
 
-  await expect(adminPage.locator("#authority-admin-status")).toContainText("Authority granted.");
+  await expect(adminPage.locator("#authority-admin-status")).toContainText("付与しました。");
   await adminPage.waitForLoadState("domcontentloaded");
 
   const authorityCard = adminPage.locator(".card.is-soft", { hasText: reviewerUserId }).first();
@@ -138,12 +138,12 @@ test("authority admin grant/revoke gates expert lane", async ({ browser, playwri
     await dialog.accept("playwright revoke");
   });
   await authorityCard.locator("[data-revoke-authority]").click();
-  await expect(adminPage.locator("#authority-admin-status")).toContainText("Authority revoked.");
+  await expect(adminPage.locator("#authority-admin-status")).toContainText("取消しました。");
   await adminPage.waitForLoadState("domcontentloaded");
 
   const revokedResponse = await reviewerPage.goto("/specialist/id-workbench?lane=expert-lane", { waitUntil: "domcontentloaded" });
   expect(revokedResponse?.status()).toBe(403);
-  await expect(reviewerPage.getByText("authority 付与済み reviewer 向け", { exact: false })).toBeVisible();
+  await expect(reviewerPage.getByText("この画面は、確認権限が付与されている人向けです。", { exact: false })).toBeVisible();
 
   await api.dispose();
   await reviewerContext.close();
