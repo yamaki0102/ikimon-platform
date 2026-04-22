@@ -24,8 +24,8 @@ type GuideCopy = {
 
 const COPY: Record<SiteLang, GuideCopy> = {
   ja: {
-    title: "フィールドガイド",
-    subtitle: "常時映像・音声を分析し、土地の物語をガイドします",
+    title: "その場で調べるガイド",
+    subtitle: "見えているものや周りの音から、候補と次に確かめる点を返します",
     startBtn: "ガイドを開始する",
     stopBtn: "停止する",
     langLabel: "言語",
@@ -37,12 +37,12 @@ const COPY: Record<SiteLang, GuideCopy> = {
       { id: "people_history", label: "👤 人の歴史" },
     ],
     recordBtn: "この発見を記録する",
-    reviewTitle: "今日の気づき",
+    reviewTitle: "今回の気づき",
     noRecords: "まだ記録がありません",
     permissionDenied: "カメラ・マイクへのアクセスが必要です",
-    analysing: "解析中…",
+    analysing: "候補を整理しています…",
     playing: "▶ ガイド音声を再生中",
-    privacyNotice: "人の声が入った音声は保存しません",
+    privacyNotice: "人の声を含む音声は保存しません",
     audioTitle: "今回の音の記録",
     audioEmpty: "自然音のまとまりはまだありません",
     audioSkipped: "一部の音声はプライバシー保護のため保存していません",

@@ -14,23 +14,9 @@ const migratedFiles = [
   "platform_v2/src/ui/siteShell.ts",
 ];
 
-const explicitAllowlist = [
-  "platform_v2/src/routes/fieldscanApi.ts",
-  "platform_v2/src/routes/read.ts",
-  "platform_v2/src/routes/walkApi.ts",
-  "platform_v2/src/routes/write.ts",
-  "platform_v2/src/ui/communityMeter.ts",
-  "platform_v2/src/ui/demoLoginBanner.ts",
-  "platform_v2/src/ui/fieldNoteMain.ts",
-  "platform_v2/src/ui/guideFlow.ts",
-  "platform_v2/src/ui/mapExplorer.ts",
-  "platform_v2/src/ui/mapMini.ts",
-  "platform_v2/src/ui/mentorStrip.ts",
-  "platform_v2/src/ui/observationCard.ts",
-  "platform_v2/src/ui/officialNoticeCard.ts",
-  "platform_v2/src/ui/revisitFlow.ts",
-  "platform_v2/src/ui/todayHabit.ts",
-];
+const policy = JSON.parse(
+  readFileSync(fileURLToPath(new URL("./humanWritingPolicy.json", import.meta.url)), "utf8"),
+) as { directJapaneseAllowlist: string[] };
 
 function normalizePath(path: string): string {
   return path.replaceAll("\\", "/");
@@ -71,5 +57,5 @@ test("route and ui files with direct Japanese remain on an explicit allowlist", 
     .map((filePath) => normalizePath(`platform_v2/${relative(platformRootPath, filePath)}`))
     .sort();
 
-  assert.deepEqual(actual, explicitAllowlist.slice().sort());
+  assert.deepEqual(actual, policy.directJapaneseAllowlist.slice().sort());
 });

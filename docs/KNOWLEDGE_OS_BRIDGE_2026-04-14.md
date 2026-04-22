@@ -1,6 +1,6 @@
 # Knowledge OS Bridge (ChatGPT export → 運用正本)
 
-更新日: 2026-04-14
+更新日: 2026-04-22
 
 目的:
 - `E:\Projects\f4051...` の ChatGPT エクスポート由来知識を、実運用で迷わない形に固定する
@@ -17,12 +17,18 @@
   - `C:\Users\YAMAKI\.codex\knowledge\decision_intelligence_os\artifacts\registries\user_rejected_patterns.md`
   - `C:\Users\YAMAKI\.codex\knowledge\decision_intelligence_os\artifacts\registries\project_operating_contexts.md`
   - `C:\Users\YAMAKI\.codex\knowledge\decision_intelligence_os\artifacts\registries\local_business_constraints.md`
+  - `C:\Users\YAMAKI\.codex\knowledge\decision_intelligence_os\artifacts\notes\japanese_human_web_writing_and_ai_smell.md`
+  - `C:\Users\YAMAKI\.codex\knowledge\decision_intelligence_os\artifacts\decisions\human_product_copy_operating_rules.md`
 
 ### B. ドメイン正本（ikimon）
 - ikimon Biodiversity OS:
   - `C:\Users\YAMAKI\.codex\knowledge\ikimon_biodiversity_os\artifacts\overview.md`
   - `...\artifacts\domains\ikimon_product_strategy.md`
   - `...\artifacts\notes\ikimon_identification_system_master_note.md`
+- repo docs:
+  - `E:\Projects\03_ikimon.life_Product\docs\STAGING_JA_COPY_GUIDE.md`
+  - `E:\Projects\03_ikimon.life_Product\docs\research\2026-04-22-human-web-writing-and-ai-smell-synthesis.md`
+  - `E:\Projects\03_ikimon.life_Product\docs\review\2026-04-22-production-copy-harvest.md`
 
 ### C. Draft（一次抽出 staging。直接の最終判断には使わない）
 - ChatGPT export staging:
@@ -69,7 +75,10 @@
 2. `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md`
 3. `ikimon_biodiversity_os/artifacts/domains/ikimon_product_strategy.md`
 4. `ikimon_biodiversity_os/artifacts/notes/ikimon_identification_system_master_note.md`
-5. `docs/STAGING_RUNBOOK.md` / `docs/DEPLOYMENT.md`（実行系）
+5. `docs/STAGING_JA_COPY_GUIDE.md`（文章ルールと page depth）
+6. `docs/research/2026-04-22-human-web-writing-and-ai-smell-synthesis.md`
+7. `docs/review/2026-04-22-production-copy-harvest.md`
+8. `docs/STAGING_RUNBOOK.md` / `docs/DEPLOYMENT.md`（実行系）
 
 ---
 

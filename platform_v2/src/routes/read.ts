@@ -166,9 +166,41 @@ function authorityEvidenceLabel(evidenceType: ReviewerAuthorityEvidenceType): st
   }
 }
 
+function authorityStatusLabel(status: "active" | "revoked"): string {
+  return status === "active" ? "有効" : "取消し済み";
+}
+
+function authorityRecommendationDecisionLabel(status: AuthorityRecommendationStatus): string {
+  switch (status) {
+    case "pending":
+      return "確認待ち";
+    case "granted":
+      return "付与済み";
+    case "rejected":
+      return "差し戻し";
+    case "revoked":
+      return "取消し";
+    default:
+      return status;
+  }
+}
+
+function authorityAuditActionLabel(action: ReviewerAuthorityAuditAction): string {
+  switch (action) {
+    case "grant":
+      return "付与";
+    case "revoke":
+      return "取消し";
+    case "update":
+      return "更新";
+    default:
+      return action;
+  }
+}
+
 function renderAuthoritySummaryChips(authorities: Awaited<ReturnType<typeof getReviewerAccessContext>>["activeAuthorities"]): string {
   if (authorities.length === 0) {
-    return `<div class="meta">まだ分類群スコープは付与されていません。</div>`;
+    return `<div class="meta">まだ担当分類群はありません。</div>`;
   }
 
   return `<div class="actions">${authorities
@@ -180,7 +212,7 @@ function renderAuthoritySummaryChips(authorities: Awaited<ReturnType<typeof getR
 
 function renderAuthorityCards(authorities: ReviewerAuthority[]): string {
   if (authorities.length === 0) {
-    return `<div class="row"><div>まだ authority はありません。</div></div>`;
+    return `<div class="row"><div>まだ担当分類群はありません。</div></div>`;
   }
 
   return authorities
@@ -190,14 +222,14 @@ function renderAuthorityCards(authorities: ReviewerAuthority[]): string {
             `<li>${escapeHtml(authorityEvidenceLabel(entry.evidenceType))} · ${escapeHtml(entry.title)}${entry.issuerName ? ` <span class="meta">(${escapeHtml(entry.issuerName)})</span>` : ""}</li>`,
           ).join("")
         : `<li>根拠未登録</li>`;
-      const statusLabel = authority.status === "active" ? "active" : "revoked";
+      const statusLabel = authorityStatusLabel(authority.status);
       return `
         <div class="card is-soft">
           <div class="card-body stack">
             <div class="row">
               <div>
                 <div style="font-weight:800">${escapeHtml(authority.scopeTaxonName)}</div>
-                <div class="meta">${escapeHtml(authority.scopeTaxonRank || "rank未設定")} · ${escapeHtml(authority.subjectUserId)}</div>
+                <div class="meta">${escapeHtml(authority.scopeTaxonRank || "ランク未設定")} · ${escapeHtml(authority.subjectUserId)}</div>
               </div>
               <span class="pill">${escapeHtml(statusLabel)}</span>
             </div>
@@ -205,9 +237,9 @@ function renderAuthorityCards(authorities: ReviewerAuthority[]): string {
             <ul class="meta" style="margin:0;padding-left:18px">${evidence}</ul>
             <div class="actions">
               ${authority.status === "active"
-                ? `<button class="btn secondary" type="button" data-revoke-authority="${escapeHtml(authority.authorityId)}">Revoke</button>`
+                ? `<button class="btn secondary" type="button" data-revoke-authority="${escapeHtml(authority.authorityId)}">取消す</button>`
                 : ""}
-              <button class="btn secondary" type="button" data-add-evidence="${escapeHtml(authority.authorityId)}">Add evidence</button>
+              <button class="btn secondary" type="button" data-add-evidence="${escapeHtml(authority.authorityId)}">根拠を追加する</button>
             </div>
           </div>
         </div>`;
@@ -216,18 +248,7 @@ function renderAuthorityCards(authorities: ReviewerAuthority[]): string {
 }
 
 function authorityRecommendationStatusLabel(status: AuthorityRecommendationStatus): string {
-  switch (status) {
-    case "pending":
-      return "pending";
-    case "granted":
-      return "granted";
-    case "rejected":
-      return "rejected";
-    case "revoked":
-      return "revoked";
-    default:
-      return status;
-  }
+  return authorityRecommendationDecisionLabel(status);
 }
 
 function authorityRecommendationSourceLabel(sourceKind: AuthorityRecommendationSourceKind): string {
@@ -251,15 +272,15 @@ function renderAuthorityAuditCards(entries: ReviewerAuthorityAuditEntry[]): stri
           <div class="card-body stack">
             <div class="row">
               <div>
-                <div style="font-weight:800">${escapeHtml(entry.scopeTaxonName || "scope未設定")}</div>
-                <div class="meta">${escapeHtml(entry.subjectDisplayName || entry.subjectUserId || "subject不明")} · ${escapeHtml(entry.action)}</div>
+                <div style="font-weight:800">${escapeHtml(entry.scopeTaxonName || "対象未設定")}</div>
+                <div class="meta">${escapeHtml(entry.subjectDisplayName || entry.subjectUserId || "対象不明")} · ${escapeHtml(authorityAuditActionLabel(entry.action))}</div>
               </div>
-              <span class="pill">${escapeHtml(entry.authorityStatus || "unknown")}</span>
+              <span class="pill">${escapeHtml(entry.authorityStatus === "active" || entry.authorityStatus === "revoked" ? authorityStatusLabel(entry.authorityStatus) : "不明")}</span>
             </div>
-            <div class="meta">actor: ${escapeHtml(entry.actorDisplayName || entry.actorUserId || "system")} / created: ${escapeHtml(entry.createdAt)}</div>
+            <div class="meta">操作した人: ${escapeHtml(entry.actorDisplayName || entry.actorUserId || "システム")} / 作成: ${escapeHtml(entry.createdAt)}</div>
             <ul class="meta" style="margin:0;padding-left:18px">${evidence}</ul>
             <details>
-              <summary style="cursor:pointer;font-weight:700">payload</summary>
+              <summary style="cursor:pointer;font-weight:700">詳細データ</summary>
               <pre style="margin:12px 0 0;padding:12px;border-radius:14px;background:#0f172a;color:#e2e8f0;overflow:auto;font-size:12px;line-height:1.6">${escapeHtml(JSON.stringify(entry.payload, null, 2))}</pre>
             </details>
           </div>
@@ -277,7 +298,7 @@ function renderAuthorityRecommendationCards(
   } = {},
 ): string {
   if (recommendations.length === 0) {
-    return `<div class="row"><div>recommendation はまだありません。</div></div>`;
+    return `<div class="row"><div>申請や確認待ちはまだありません。</div></div>`;
   }
 
   return recommendations
@@ -296,7 +317,7 @@ function renderAuthorityRecommendationCards(
             <div class="row">
               <div>
                 <div style="font-weight:800">${escapeHtml(scopeLabel)}</div>
-                <div class="meta">${escapeHtml(ownership || "user不明")} · ${escapeHtml(authorityRecommendationSourceLabel(recommendation.sourceKind))}</div>
+                <div class="meta">${escapeHtml(ownership || "ユーザー不明")} · ${escapeHtml(authorityRecommendationSourceLabel(recommendation.sourceKind))}</div>
               </div>
               <span class="pill">${escapeHtml(authorityRecommendationStatusLabel(recommendation.status))}</span>
             </div>
@@ -305,8 +326,8 @@ function renderAuthorityRecommendationCards(
             <ul class="meta" style="margin:0;padding-left:18px">${evidence}</ul>
             ${(options.showGrantActions || options.canReject) && recommendation.status === "pending"
               ? `<div class="actions">
-                  ${options.showGrantActions ? `<button class="btn" type="button" data-grant-recommendation="${escapeHtml(recommendation.recommendationId)}">Grant</button>` : ""}
-                  ${options.canReject ? `<button class="btn secondary" type="button" data-reject-recommendation="${escapeHtml(recommendation.recommendationId)}">Reject</button>` : ""}
+                  ${options.showGrantActions ? `<button class="btn" type="button" data-grant-recommendation="${escapeHtml(recommendation.recommendationId)}">付与する</button>` : ""}
+                  ${options.canReject ? `<button class="btn secondary" type="button" data-reject-recommendation="${escapeHtml(recommendation.recommendationId)}">差し戻す</button>` : ""}
                 </div>`
               : ""}
           </div>
@@ -727,7 +748,7 @@ function renderSubjectHint(subject: ObservationVisitSubject): string {
         </div>
         <span class="obs-hint-badge">様子見</span>
       </div>
-      <p class="obs-hint-foot">この対象は human / specialist の同定を待っています。別候補は下の折りたたみから確認できます。</p>
+      <p class="obs-hint-foot">この対象は、みんなの見立てや詳しい人の確認を待っています。別の候補は下の折りたたみから確認できます。</p>
     </section>`;
   }
 
@@ -852,7 +873,7 @@ function renderSubjectTaxonomy(
   const layer2Note = featuredSubject && subject.occurrenceId !== featuredSubject.occurrenceId
     ? `<p class="obs-layer-note">いまは <strong>${escapeHtml(subject.displayName)}</strong> の詳細を表示しています。既定では <strong>${escapeHtml(featuredSubject.displayName)}</strong> が前面ですが、上のレールからすぐ切り替えられます。</p>`
     : bundle.lockedByHuman
-      ? `<p class="obs-layer-note">この観察の既定表示は human / specialist の判断を優先して固定しています。</p>`
+      ? `<p class="obs-layer-note">この観察の既定表示は、みんなの見立てや詳しい人の確認を優先して固定しています。</p>`
       : "";
   const idsList = subject.identifications.length > 0
     ? `<ul class="obs-id-list">
@@ -1760,10 +1781,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       </a>`).join("");
     const revisitCue = snapshot.myPlaces[0]
       ? `${snapshot.myPlaces[0].placeName} を起点に、前回の記録と今季の変化を見返せます。`
-      : "まず1件記録すると、場所ごとの再訪理由が育ち始めます。";
+      : "まず 1 件記録すると、場所ごとに見返す理由がここに並び始めます。";
     const growthCue = snapshot.recentObservations[0]
       ? `${snapshot.recentObservations[0].displayName} のような最近の観察から、前回より細かく見られた点を積み上げます。`
-      : "観察履歴がたまるほど、前回からの成長と見分けポイントが読み返しやすくなります。";
+      : "観察履歴がたまるほど、前回との違いと見分けポイントを読み返しやすくなります。";
 
     reply.type("text/html; charset=utf-8");
     return layout(
@@ -1954,7 +1975,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       snapshot.visitMode === "survey"
         ? (() => {
             const protocolChips: string[] = [];
-            protocolChips.push(`<span class="obs-focus-chip">${snapshot.completeChecklistFlag ? "complete checklist" : "partial checklist"}</span>`);
+            protocolChips.push(`<span class="obs-focus-chip">${snapshot.completeChecklistFlag ? "見たものを広く残す手順" : "一部を重点的に見る手順"}</span>`);
             if (targetTaxaScopeLabel) protocolChips.push(`<span class="obs-focus-chip">${escapeHtml(targetTaxaScopeLabel)}</span>`);
             if (snapshot.effortMinutes != null) protocolChips.push(`<span class="obs-focus-chip">⏱️ ${snapshot.effortMinutes} 分</span>`);
             if (snapshot.distanceMeters != null) protocolChips.push(`<span class="obs-focus-chip">📏 ${Math.round(snapshot.distanceMeters)} m</span>`);
@@ -2168,7 +2189,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       : "";
     const layer3 = (nearbyCards || peersLine || seasonalBar)
       ? `<section class="section obs-layer obs-layer-3">
-           <h2 class="obs-layer-title">この場所の物語</h2>
+           <h2 class="obs-layer-title">この場所を見直す手がかり</h2>
            ${peersLine}
            ${nearbyCards}
            ${seasonalBar ? `<div class="obs-seasonal-wrap"><div class="obs-story-eyebrow">同地点の月別観察数</div>${seasonalBar}</div>` : ""}
@@ -2414,7 +2435,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const snapshot = await getProfileSnapshot(request.params.userId);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "Profile not found", stateCard("プロフィールなし", "このユーザーは見つかりません", "リンクが古い、または非公開の可能性があります。"), "ホーム");
+      return layout(basePath, "プロフィールが見つかりません", stateCard("プロフィールなし", "このユーザーは見つかりません", "リンクが古いか、公開されていない可能性があります。"), "ホーム");
     }
     const places = snapshot.recentPlaces.map((place) => `
       <div class="row">
@@ -2430,21 +2451,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
         </div>
-        <span class="pill">${item.identificationCount} ids</span>
+        <span class="pill">${item.identificationCount} 件の見立て</span>
       </a>`).join("");
 
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       `${snapshot.displayName} | ikimon`,
-      `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
+      `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の場所</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
       <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`,
       "ホーム",
       {
-        eyebrow: snapshot.rankLabel || "Observer",
+        eyebrow: snapshot.rankLabel || "観察者",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: `この人のフィールドノート — 最近の場所と観察を追う。`,
+        lead: `この人が最近歩いた場所と、残している観察を見返すページです。`,
         actions: [
           { href: `/home?userId=${encodeURIComponent(snapshot.userId)}`, label: "このユーザーのホームを見る" },
         ],
@@ -2462,7 +2483,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const snapshot = await getProfileSnapshot(session.userId);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "Profile not found", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "観察を 1 件でも記録するとプロフィールが育ち始めます。"), "ホーム");
+      return layout(basePath, "プロフィールがありません", stateCard("プロフィールなし", "まだ公開できるプロフィールがありません", "観察を 1 件でも記録すると、ここに場所と観察が並びます。"), "ホーム");
     }
     const places = snapshot.recentPlaces.map((place) => `
       <div class="row">
@@ -2478,21 +2499,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
         </div>
-        <span class="pill">${item.identificationCount} ids</span>
+        <span class="pill">${item.identificationCount} 件の見立て</span>
       </a>`).join("");
 
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       `${snapshot.displayName} | ikimon`,
-      `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の My places</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
+      `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>最近の場所</h2></div></div><div class="list">${places || '<div class="row"><div>まだ場所の記録はありません。</div></div>'}</div></section>
       <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="list">${observations || '<div class="row"><div>まだ観察はありません。</div></div>'}</div></section>`,
       "ホーム",
       {
         eyebrow: "あなたのプロフィール",
         heading: snapshot.displayName,
         headingHtml: `<span data-testid="profile-heading">${escapeHtml(snapshot.displayName)}</span>`,
-        lead: `${snapshot.rankLabel || "Observer"} — あなたのフィールドノートと場所の記録。`,
+        lead: `${snapshot.rankLabel || "観察者"}として残した場所と観察を見返すページです。`,
         actions: [
           { href: "/notes", label: "ノートへ" },
           { href: "/home", label: "ホームへ", variant: "secondary" as const },
@@ -2613,11 +2634,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(401).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "Authority recommendations",
+        "確認権限の申請 | ikimon",
         stateCard(
           "サインイン",
-          "authority recommendation の申請にはサインインが必要です",
-          `<p style="margin:0 0 12px">自分の学習証跡を積み上げて、分類群ごとの authority 候補として申請できます。</p>
+          "確認権限の申請にはサインインが必要です。",
+          `<p style="margin:0 0 12px">自分が継続して見ている分類群について、根拠を添えて申請できます。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
@@ -2631,24 +2652,24 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Authority recommendations | ikimon",
+      "確認権限の申請 | ikimon",
       `<section class="section"><div class="card"><div class="card-body">
           <div class="row">
             <div>
-              <div class="eyebrow">Self claim</div>
-              <h2>authority 候補として申請する</h2>
+              <div class="eyebrow">自分の申請</div>
+              <h2>担当分類群の確認権限を申請する</h2>
             </div>
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
           </div>
-          <p class="meta">観察会・ウェビナー・論文・図鑑/雑誌などの学習証跡を添えて、自分の分類群スコープ recommendation を作成します。証跡だけでは自動昇格せず、同じ分類群 authority 保有者または運営の解決が必要です。</p>
+          <p class="meta">観察会、ウェビナー、論文、図鑑などの学習証跡を添えて、担当したい分類群を申請します。証跡だけで自動付与はされず、既存の担当者または運営が確認します。</p>
           <form id="authority-recommendation-form" class="stack" style="margin-top:14px">
-            <label class="stack"><span style="font-weight:700">Scope taxon name</span><input name="scopeTaxonName" type="text" placeholder="タンポポ属 / Taraxacum" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <label class="stack"><span style="font-weight:700">対象分類群名</span><input name="scopeTaxonName" type="text" placeholder="タンポポ属 / Taraxacum" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
             <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-              <label class="stack"><span style="font-weight:700">Scope taxon rank</span><input name="scopeTaxonRank" type="text" value="genus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">Scope taxon key</span><input name="scopeTaxonKey" type="text" placeholder="optional" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">分類ランク</span><input name="scopeTaxonRank" type="text" value="genus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">分類群キー</span><input name="scopeTaxonKey" type="text" placeholder="任意" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
             </div>
             <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-              <label class="stack"><span style="font-weight:700">Evidence type</span>
+              <label class="stack"><span style="font-weight:700">根拠の種類</span>
                 <select name="evidenceType" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8">
                   <option value="">なし</option>
                   <option value="field_event">観察会</option>
@@ -2658,19 +2679,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   <option value="other">その他</option>
                 </select>
               </label>
-              <label class="stack"><span style="font-weight:700">Evidence title</span><input name="evidenceTitle" type="text" placeholder="たんぽぽ観察会 2026-04-10" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">Issuer</span><input name="evidenceIssuer" type="text" placeholder="浜松たんぽぽ会" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">根拠のタイトル</span><input name="evidenceTitle" type="text" placeholder="たんぽぽ観察会 2026-04-10" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">主催・発行元</span><input name="evidenceIssuer" type="text" placeholder="浜松たんぽぽ会" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
               <label class="stack"><span style="font-weight:700">URL</span><input name="evidenceUrl" type="url" placeholder="https://..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
             </div>
-            <label class="stack"><span style="font-weight:700">Evidence notes</span><textarea name="evidenceNotes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="どこで学び、何をベースに見分けているか"></textarea></label>
+            <label class="stack"><span style="font-weight:700">補足メモ</span><textarea name="evidenceNotes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="どこで学び、何を手がかりに見分けているか"></textarea></label>
             <div class="actions">
               <button class="btn" type="submit">申請する</button>
               <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の全文を読む</a>
             </div>
           </form>
-          <div id="authority-recommendation-status" class="list" style="margin-top:14px"><div class="row"><div>Ready.</div></div></div>
+          <div id="authority-recommendation-status" class="list" style="margin-top:14px"><div class="row"><div>入力できます。</div></div></div>
         </div></div></section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">My recommendations</div><h2>自分の申請状況</h2></div></div>${renderAuthorityRecommendationCards(recommendations, { currentUserId: session.userId })}</section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">自分の申請</div><h2>自分の申請状況</h2></div></div>${renderAuthorityRecommendationCards(recommendations, { currentUserId: session.userId })}</section>
       <script>
         const basePath = ${JSON.stringify(basePath)};
         const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
@@ -2700,7 +2721,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             setStatus('<div class="row"><div>scopeTaxonName は必須です。</div></div>');
             return;
           }
-          setStatus('<div class="row"><div>Submitting recommendation...</div></div>');
+          setStatus('<div class="row"><div>申請を送信しています…</div></div>');
           const response = await fetch(withBasePath('/api/v1/authority/recommendations'), {
             method: 'POST',
             credentials: 'include',
@@ -2709,10 +2730,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           });
           const json = await response.json();
           if (!response.ok || json.ok === false) {
-            setStatus('<div class="row"><div>Submit failed.<div class="meta">' + String(json.error || 'authority_recommendation_create_failed') + '</div></div></div>');
+            setStatus('<div class="row"><div>送信できませんでした。<div class="meta">' + String(json.error || 'authority_recommendation_create_failed') + '</div></div></div>');
             return;
           }
-          setStatus('<div class="row"><div><strong>Recommendation created.</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
+          setStatus('<div class="row"><div><strong>申請を登録しました。</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
           reloadSoon();
         });
       </script>`,
@@ -2737,11 +2758,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "Specialist access required",
+        "専門確認の権限が必要です",
         stateCard(
-          "Specialist only",
-          "この画面は authority 付与済み reviewer 向けです",
-          `<p style="margin:0 0 12px">レビュー queue と同定 workbench は、Admin / Analyst か、分類群 authority を持つ reviewer だけが入れます。制度の考え方と authority 候補になる道は説明ページにまとめています。</p>
+          "権限が必要です",
+          "この画面は、確認権限が付与されている人向けです。",
+          `<p style="margin:0 0 12px">レビュー待ち一覧や確認レーンを開けるのは、運営権限を持つ人か、分類群ごとの確認権限を持つ人だけです。制度の考え方と申請の流れは説明ページにまとめています。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
@@ -2776,19 +2797,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           : workbenchCopy.default.lead;
     const scopeSummary = renderAuthoritySummaryChips(access.activeAuthorities);
     const scopeMeta = access.canManageAll
-      ? `<div class="meta">Analyst / Admin は全分類群にアクセスできます。authority を付けると reviewer の担当範囲も絞れます。</div>`
-      : `<div class="meta">表示中の queue は、あなたに付与された分類群 authority に一致する観察だけです。</div>`;
+      ? `<div class="meta">運営権限がある場合は、全分類群の確認にアクセスできます。確認権限を付けると、担当範囲もあとから追いやすくなります。</div>`
+      : `<div class="meta">表示中の一覧は、あなたに付与された分類群に当てはまる観察だけです。</div>`;
     const manageAuthorityAction = access.canManageAll
-      ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>`
+      ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">権限管理を見る</a>`
       : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>`;
     const rows = snapshot.queue.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
-          <div class="meta">${escapeHtml(item.observerName)} · ${escapeHtml(item.municipality || "Municipality unknown")}</div>
+          <div class="meta">${escapeHtml(item.observerName)} · ${escapeHtml(item.municipality || "地域不明")}</div>
         </div>
-        <span class="pill">${item.identificationCount} ids</span>
+        <span class="pill">${item.identificationCount} 件の見立て</span>
       </a>`).join("");
 
     reply.type("text/html; charset=utf-8");
@@ -2798,7 +2819,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       `<section class="section"><div class="card is-soft"><div class="card-body stack">
           <div class="row">
             <div>
-              <div class="eyebrow">Current scope</div>
+              <div class="eyebrow">現在の担当範囲</div>
               <h2 style="margin:6px 0 0">担当できる分類群</h2>
             </div>
             ${manageAuthorityAction}
@@ -2807,32 +2828,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           ${scopeMeta}
         </div></div></section>
       <section class="section"><div class="card"><div class="card-body">
-          <div class="eyebrow">Action</div>
-          <h2>Minimal specialist action</h2>
+          <div class="eyebrow">操作</div>
+          <h2>この画面でできる最小操作</h2>
           <form id="specialist-review-form" class="stack" style="margin-top:14px">
             <input name="actorUserId" type="hidden" value="${escapeHtml(reviewerUserId)}" />
-            <div class="row"><div><strong>Signed in reviewer</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "reviewer")}</span></div>
-            <label class="stack"><span style="font-weight:700">Occurrence ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-            <label class="stack"><span style="font-weight:700">Proposed name</span><input name="proposedName" type="text" placeholder="Scientific or common name" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-            <label class="stack"><span style="font-weight:700">Proposed rank</span><input name="proposedRank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-            <label class="stack"><span style="font-weight:700">Note</span><textarea name="notes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="どの根拠でこの同定にしたか"></textarea></label>
+            <div class="row"><div><strong>操作する人</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "確認者")}</span></div>
+            <label class="stack"><span style="font-weight:700">記録 ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <label class="stack"><span style="font-weight:700">候補名</span><input name="proposedName" type="text" placeholder="和名または学名" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <label class="stack"><span style="font-weight:700">分類ランク</span><input name="proposedRank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            <label class="stack"><span style="font-weight:700">メモ</span><textarea name="notes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="何を根拠にこう判断したか"></textarea></label>
             <div class="actions">
-              <button class="btn" type="button" data-decision="approve">Approve</button>
-              <button class="btn secondary" type="button" data-decision="reject">Reject</button>
-              <button class="btn secondary" type="button" data-decision="note">Note</button>
+              <button class="btn" type="button" data-decision="approve">承認する</button>
+              <button class="btn secondary" type="button" data-decision="reject">差し戻す</button>
+              <button class="btn secondary" type="button" data-decision="note">メモだけ残す</button>
             </div>
           </form>
-          <div id="specialist-review-status" class="list" style="margin-top:14px"><div class="row"><div>Ready.</div></div></div>
+          <div id="specialist-review-status" class="list" style="margin-top:14px"><div class="row"><div>入力できます。</div></div></div>
         </div></div>
       </section>
       <section class="section">
         <div class="grid">
-          <div class="card is-soft"><div class="card-body"><div class="eyebrow">Summary</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">unresolved occurrences / ${snapshot.summary.totalOccurrences} total</p></div></div>
-          <div class="card is-soft"><div class="card-body"><div class="eyebrow">Identifications</div><h2>${snapshot.summary.identificationCount}</h2><p class="meta">current identification rows in v2</p></div></div>
-          <div class="card is-soft"><div class="card-body"><div class="eyebrow">Observation photos</div><h2>${snapshot.summary.observationPhotoAssets}</h2><p class="meta">photo assets available for review</p></div></div>
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">未解決</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">未解決 ${snapshot.summary.unresolvedOccurrences} 件 / 全体 ${snapshot.summary.totalOccurrences} 件</p></div></div>
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">見立て</div><h2>${snapshot.summary.identificationCount}</h2><p class="meta">現在登録されている見立ての総数</p></div></div>
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">写真</div><h2>${snapshot.summary.observationPhotoAssets}</h2><p class="meta">確認に使える写真の数</p></div></div>
         </div>
       </section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">Queue</div><h2>レビュー待ちの観察</h2></div></div><div class="list">${rows || '<div class="row"><div>キューに観察はありません。</div></div>'}</div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">待ち一覧</div><h2>レビュー待ちの観察</h2></div></div><div class="list">${rows || '<div class="row"><div>キューに観察はありません。</div></div>'}</div></section>
       <script>
         const basePath = ${JSON.stringify(basePath)};
         const lane = ${JSON.stringify(lane)};
@@ -2850,14 +2871,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const notes = String(data.get('notes') || '');
             const decision = button.getAttribute('data-decision');
             if (!occurrenceId || !actorUserId) {
-              setStatus('<div class="row"><div>occurrenceId と actorUserId は必須です。</div></div>');
+              setStatus('<div class="row"><div>記録 ID と操作する人は必須です。</div></div>');
               return;
             }
             if (decision === 'approve' && !proposedName) {
-              setStatus('<div class="row"><div>Approve には proposedName が必要です。</div></div>');
+              setStatus('<div class="row"><div>承認するときは候補名が必要です。</div></div>');
               return;
             }
-            setStatus('<div class="row"><div>Submitting specialist review...</div></div>');
+            setStatus('<div class="row"><div>確認結果を送信しています…</div></div>');
             const response = await fetch(withBasePath('/api/v1/specialist/occurrences/' + encodeURIComponent(occurrenceId) + '/review'), {
               method: 'POST',
               headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -2865,13 +2886,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             });
             const json = await response.json();
             if (!response.ok || json.ok === false) {
-              setStatus('<div class="row"><div>Submit failed.<div class="meta">' + String(json.error || 'specialist_review_failed') + '</div></div></div>');
+              setStatus('<div class="row"><div>送信できませんでした。<div class="meta">' + String(json.error || 'specialist_review_failed') + '</div></div></div>');
               return;
             }
+            const decisionLabel = decision === 'approve'
+              ? '承認'
+              : decision === 'reject'
+                ? '差し戻し'
+                : 'メモ';
             const scope = json.authorityScope && json.authorityScope.scopeTaxonName
               ? ' · ' + String(json.authorityScope.scopeTaxonName)
               : '';
-            setStatus('<div class="row"><div><strong>Review saved.</strong><div class="meta">' + String(json.decision || decision) + ' · ' + String(json.reviewClass || 'plain_review') + scope + ' · ' + String(json.occurrenceId || occurrenceId) + '</div></div></div>');
+            const reviewClassLabel = String(json.reviewClass || 'plain_review') === 'plain_review'
+              ? '通常確認'
+              : String(json.reviewClass || 'plain_review');
+            setStatus('<div class="row"><div><strong>確認結果を保存しました。</strong><div class="meta">' + decisionLabel + ' · ' + reviewClassLabel + scope + ' · ' + String(json.occurrenceId || occurrenceId) + '</div></div></div>');
           });
         });
       </script>`,
@@ -2898,11 +2927,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "Specialist access required",
+        "専門確認の権限が必要です",
         stateCard(
-          "Specialist only",
-          "この画面は authority 付与済み reviewer 向けです",
-          `<p style="margin:0 0 12px">pending recommendation を解決できるのは、同じ分類群 scope の authority 保有者、または運営権限を持つアカウントです。</p>
+          "権限が必要です",
+          "この画面は、確認権限が付与されている人向けです。",
+          `<p style="margin:0 0 12px">申請を承認したり差し戻したりできるのは、同じ分類群の確認権限を持つ人、または運営権限を持つ人だけです。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
@@ -2926,31 +2955,31 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Specialist recommendations | ikimon",
+      "申請一覧 | ikimon",
       `<section class="section"><div class="card is-soft"><div class="card-body stack">
           <div class="row">
             <div>
-              <div class="eyebrow">Current scope</div>
+              <div class="eyebrow">現在の担当範囲</div>
               <h2 style="margin:6px 0 0">解決できる分類群</h2>
             </div>
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
           </div>
           ${renderAuthoritySummaryChips(access.activeAuthorities)}
-          <div class="meta">${access.canManageAll ? "Admin / Analyst は全 pending recommendation を横断で確認できます。" : "自分の authority scope に一致する pending recommendation だけが表示されます。"}</div>
+          <div class="meta">${access.canManageAll ? "運営権限がある場合は、すべての申請待ちを確認できます。" : "自分の確認範囲に一致する申請だけが表示されます。"}</div>
         </div></div></section>
       ${access.canManageAll
         ? `<section class="section"><div class="card"><div class="card-body">
-            <div class="eyebrow">Ops registered</div>
-            <h2>運営が pending recommendation を登録する</h2>
+            <div class="eyebrow">運営登録</div>
+            <h2>運営側で申請待ちを登録する</h2>
             <form id="ops-recommendation-form" class="stack" style="margin-top:14px">
-              <label class="stack"><span style="font-weight:700">Subject user ID</span><input name="subjectUserId" type="text" placeholder="reviewer-user-id" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+              <label class="stack"><span style="font-weight:700">対象ユーザー ID</span><input name="subjectUserId" type="text" placeholder="user-123" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
               <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-                <label class="stack"><span style="font-weight:700">Scope taxon name</span><input name="scopeTaxonName" type="text" placeholder="タンポポ属 / Taraxacum" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-                <label class="stack"><span style="font-weight:700">Scope taxon rank</span><input name="scopeTaxonRank" type="text" value="genus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-                <label class="stack"><span style="font-weight:700">Scope taxon key</span><input name="scopeTaxonKey" type="text" placeholder="optional" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+                <label class="stack"><span style="font-weight:700">対象分類群名</span><input name="scopeTaxonName" type="text" placeholder="タンポポ属 / Taraxacum" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+                <label class="stack"><span style="font-weight:700">分類ランク</span><input name="scopeTaxonRank" type="text" value="genus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+                <label class="stack"><span style="font-weight:700">分類群キー</span><input name="scopeTaxonKey" type="text" placeholder="任意" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
               </div>
               <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-                <label class="stack"><span style="font-weight:700">Evidence type</span>
+                <label class="stack"><span style="font-weight:700">根拠の種類</span>
                   <select name="evidenceType" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8">
                     <option value="">なし</option>
                     <option value="field_event">観察会</option>
@@ -2960,20 +2989,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                     <option value="other">その他</option>
                   </select>
                 </label>
-                <label class="stack"><span style="font-weight:700">Evidence title</span><input name="evidenceTitle" type="text" placeholder="たんぽぽ観察会 2026-04-10" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-                <label class="stack"><span style="font-weight:700">Issuer</span><input name="evidenceIssuer" type="text" placeholder="浜松たんぽぽ会" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+                <label class="stack"><span style="font-weight:700">根拠の題名</span><input name="evidenceTitle" type="text" placeholder="たんぽぽ観察会 2026-04-10" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+                <label class="stack"><span style="font-weight:700">発行元・主催</span><input name="evidenceIssuer" type="text" placeholder="浜松たんぽぽ会" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
                 <label class="stack"><span style="font-weight:700">URL</span><input name="evidenceUrl" type="url" placeholder="https://..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
               </div>
-              <label class="stack"><span style="font-weight:700">Evidence notes</span><textarea name="evidenceNotes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="参加履歴・読んだ文献・保有資料など"></textarea></label>
+              <label class="stack"><span style="font-weight:700">補足メモ</span><textarea name="evidenceNotes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="参加履歴・読んだ文献・保有資料など"></textarea></label>
               <div class="actions">
-                <button class="btn" type="submit">Pending 登録</button>
-                <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>
+                <button class="btn" type="submit">申請待ちとして登録する</button>
+                <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">権限管理を見る</a>
               </div>
             </form>
           </div></div></section>`
         : ""}
-      <section class="section"><div class="section-header"><div><div class="eyebrow">Pending queue</div><h2>解決待ち recommendation</h2></div></div>${renderAuthorityRecommendationCards(pendingRecommendations, { showGrantActions: true, canReject: access.canManageAll })}</section>
-      <div id="specialist-recommendation-status" class="section"><div class="list"><div class="row"><div>Ready.</div></div></div></div>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">申請待ち</div><h2>解決待ちの申請</h2></div></div>${renderAuthorityRecommendationCards(pendingRecommendations, { showGrantActions: true, canReject: access.canManageAll })}</section>
+      <div id="specialist-recommendation-status" class="section"><div class="list"><div class="row"><div>操作できます。</div></div></div></div>
       <script>
         const basePath = ${JSON.stringify(basePath)};
         const actorUserId = ${JSON.stringify(resolvedSession.userId)};
@@ -2985,9 +3014,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         document.querySelectorAll('[data-grant-recommendation]').forEach((button) => {
           button.addEventListener('click', async () => {
             const recommendationId = button.getAttribute('data-grant-recommendation');
-            const resolutionNote = window.prompt('Grant note (optional)', '') || null;
+            const resolutionNote = window.prompt('付与メモ（任意）', '') || null;
             if (!recommendationId) return;
-            setStatus('<div class="row"><div>Granting recommendation...</div></div>');
+            setStatus('<div class="row"><div>付与しています…</div></div>');
             const response = await fetch(withBasePath('/api/v1/specialist/recommendations/' + encodeURIComponent(recommendationId) + '/grant'), {
               method: 'POST',
               credentials: 'include',
@@ -2996,10 +3025,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             });
             const json = await response.json();
             if (!response.ok || json.ok === false) {
-              setStatus('<div class="row"><div>Grant failed.<div class="meta">' + String(json.error || 'authority_recommendation_grant_failed') + '</div></div></div>');
+              setStatus('<div class="row"><div>付与できませんでした。<div class="meta">' + String(json.error || 'authority_recommendation_grant_failed') + '</div></div></div>');
               return;
             }
-            setStatus('<div class="row"><div><strong>Recommendation granted.</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
+            setStatus('<div class="row"><div><strong>付与しました。</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
             reloadSoon();
           });
         });
@@ -3007,9 +3036,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           document.querySelectorAll('[data-reject-recommendation]').forEach((button) => {
             button.addEventListener('click', async () => {
               const recommendationId = button.getAttribute('data-reject-recommendation');
-              const resolutionNote = window.prompt('Reject reason を入力してください', 'needs more evidence');
+              const resolutionNote = window.prompt('差し戻し理由を入力してください', '根拠が不足しています');
               if (!recommendationId || !resolutionNote) return;
-              setStatus('<div class="row"><div>Rejecting recommendation...</div></div>');
+              setStatus('<div class="row"><div>差し戻しています…</div></div>');
               const response = await fetch(withBasePath('/api/v1/specialist/recommendations/' + encodeURIComponent(recommendationId) + '/reject'), {
                 method: 'POST',
                 credentials: 'include',
@@ -3018,10 +3047,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               });
               const json = await response.json();
               if (!response.ok || json.ok === false) {
-                setStatus('<div class="row"><div>Reject failed.<div class="meta">' + String(json.error || 'authority_recommendation_reject_failed') + '</div></div></div>');
+                setStatus('<div class="row"><div>差し戻せませんでした。<div class="meta">' + String(json.error || 'authority_recommendation_reject_failed') + '</div></div></div>');
                 return;
               }
-              setStatus('<div class="row"><div><strong>Recommendation rejected.</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
+              setStatus('<div class="row"><div><strong>差し戻しました。</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
               reloadSoon();
             });
           });
@@ -3051,7 +3080,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               setStatus('<div class="row"><div>subjectUserId と scopeTaxonName は必須です。</div></div>');
               return;
             }
-            setStatus('<div class="row"><div>Creating pending recommendation...</div></div>');
+            setStatus('<div class="row"><div>申請待ちを登録しています…</div></div>');
             const response = await fetch(withBasePath('/api/v1/authority/recommendations'), {
               method: 'POST',
               credentials: 'include',
@@ -3060,10 +3089,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             });
             const json = await response.json();
             if (!response.ok || json.ok === false) {
-              setStatus('<div class="row"><div>Create failed.<div class="meta">' + String(json.error || 'authority_recommendation_create_failed') + '</div></div></div>');
+              setStatus('<div class="row"><div>登録できませんでした。<div class="meta">' + String(json.error || 'authority_recommendation_create_failed') + '</div></div></div>');
               return;
             }
-            setStatus('<div class="row"><div><strong>Pending recommendation created.</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
+            setStatus('<div class="row"><div><strong>申請待ちを登録しました。</strong><div class="meta">' + String(json.recommendation && json.recommendation.scopeTaxonName || '') + '</div></div></div>');
             reloadSoon();
           });
         }
@@ -3090,14 +3119,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "Authority audit required",
+        "監査記録の権限が必要です",
         stateCard(
-          "Admin only",
-          "authority 監査ログは Analyst / Admin 専用です",
-          `<p style="margin:0 0 12px">grant / revoke / update の痕跡は一般公開せず、運営が追跡できる面に閉じています。</p>
+          "運営権限が必要です",
+          "監査記録は運営権限を持つ人だけが見られます。",
+          `<p style="margin:0 0 12px">付与、取消し、更新の履歴は一般公開せず、運営が追跡できる画面にまとめています。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
-            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin へ戻る</a>
+            <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">権限管理へ戻る</a>
           </div>`,
         ),
         "ホーム",
@@ -3120,42 +3149,42 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Authority audit | ikimon",
+      "監査記録 | ikimon",
       `<section class="section"><div class="card"><div class="card-body">
           <div class="row">
             <div>
-              <div class="eyebrow">Filters</div>
-              <h2>grant / revoke / update を追う</h2>
+              <div class="eyebrow">絞り込み</div>
+              <h2>付与と変更の記録を追う</h2>
             </div>
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>
           </div>
           <form class="stack" method="get" action="${escapeHtml(withBasePath(basePath, "/specialist/authority-audit"))}" style="margin-top:14px">
             <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-              <label class="stack"><span style="font-weight:700">Subject user ID</span><input name="subjectUserId" type="text" value="${escapeHtml(subjectUserId)}" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">Scope taxon name</span><input name="scopeTaxonName" type="text" value="${escapeHtml(scopeTaxonName)}" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">Action</span>
+              <label class="stack"><span style="font-weight:700">対象ユーザー ID</span><input name="subjectUserId" type="text" value="${escapeHtml(subjectUserId)}" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">分類群名</span><input name="scopeTaxonName" type="text" value="${escapeHtml(scopeTaxonName)}" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">操作</span>
                 <select name="action" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8">
-                  <option value="">all</option>
-                  <option value="grant"${action === "grant" ? " selected" : ""}>grant</option>
-                  <option value="update"${action === "update" ? " selected" : ""}>update</option>
-                  <option value="revoke"${action === "revoke" ? " selected" : ""}>revoke</option>
+                  <option value="">すべて</option>
+                  <option value="grant"${action === "grant" ? " selected" : ""}>付与</option>
+                  <option value="update"${action === "update" ? " selected" : ""}>更新</option>
+                  <option value="revoke"${action === "revoke" ? " selected" : ""}>取消し</option>
                 </select>
               </label>
-              <label class="stack"><span style="font-weight:700">Status</span>
+              <label class="stack"><span style="font-weight:700">状態</span>
                 <select name="status" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8">
-                  <option value="">all</option>
-                  <option value="active"${status === "active" ? " selected" : ""}>active</option>
-                  <option value="revoked"${status === "revoked" ? " selected" : ""}>revoked</option>
+                  <option value="">すべて</option>
+                  <option value="active"${status === "active" ? " selected" : ""}>有効</option>
+                  <option value="revoked"${status === "revoked" ? " selected" : ""}>取消し済み</option>
                 </select>
               </label>
             </div>
             <div class="actions">
               <button class="btn" type="submit">絞り込む</button>
-              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>
+              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">権限管理を見る</a>
             </div>
           </form>
         </div></div></section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">Recent-first</div><h2>authority audit</h2></div></div>${renderAuthorityAuditCards(audit)}</section>`,
+      <section class="section"><div class="section-header"><div><div class="eyebrow">新しい順</div><h2>監査記録</h2></div></div>${renderAuthorityAuditCards(audit)}</section>`,
       "ホーム",
       {
         eyebrow: auditCopy.eyebrow,
@@ -3178,11 +3207,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "Authority admin required",
+        "権限管理の権限が必要です",
         stateCard(
-          "Admin only",
-          "authority 管理は Analyst / Admin 専用です",
-          `<p style="margin:0 0 12px">grant / revoke / evidence 追加は運営権限を持つアカウントだけが実行できます。制度の考え方は公開ページにまとめています。</p>
+          "運営権限が必要です",
+          "権限管理は運営権限を持つ人だけが使えます。",
+          `<p style="margin:0 0 12px">付与、取消し、根拠追加は運営権限を持つアカウントだけが実行できます。制度の考え方は公開ページにまとめています。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?lane=expert-lane"))}">専門確認へ戻る</a>
@@ -3197,18 +3226,18 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Authority Admin | ikimon",
+      "権限管理 | ikimon",
       `<section class="section"><div class="card"><div class="card-body">
-          <div class="eyebrow">Grant authority</div>
-          <h2>分類群 authority を付与する</h2>
+          <div class="eyebrow">権限付与</div>
+          <h2>分類群ごとの確認権限を付与する</h2>
           <form id="authority-grant-form" class="stack" style="margin-top:14px">
-            <label class="stack"><span style="font-weight:700">Subject user ID</span><input name="subjectUserId" type="text" placeholder="reviewer-user-id" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-            <label class="stack"><span style="font-weight:700">Scope taxon name</span><input name="scopeTaxonName" type="text" placeholder="タンポポ属 / Taraxacum" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-            <label class="stack"><span style="font-weight:700">Scope taxon rank</span><input name="scopeTaxonRank" type="text" value="genus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-            <label class="stack"><span style="font-weight:700">Scope taxon key</span><input name="scopeTaxonKey" type="text" placeholder="optional" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-            <label class="stack"><span style="font-weight:700">Reason</span><textarea name="reason" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="例: たんぽぽ観察会で見分け方実習を完了"></textarea></label>
+            <label class="stack"><span style="font-weight:700">対象ユーザー ID</span><input name="subjectUserId" type="text" placeholder="user-123" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <label class="stack"><span style="font-weight:700">対象分類群名</span><input name="scopeTaxonName" type="text" placeholder="タンポポ属 / Taraxacum" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <label class="stack"><span style="font-weight:700">分類ランク</span><input name="scopeTaxonRank" type="text" value="genus" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            <label class="stack"><span style="font-weight:700">分類群キー</span><input name="scopeTaxonKey" type="text" placeholder="任意" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            <label class="stack"><span style="font-weight:700">付与理由</span><textarea name="reason" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="例: たんぽぽ観察会で見分け方実習を完了"></textarea></label>
             <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-              <label class="stack"><span style="font-weight:700">Evidence type</span>
+              <label class="stack"><span style="font-weight:700">根拠の種類</span>
                 <select name="evidenceType" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8">
                   <option value="">なし</option>
                   <option value="field_event">観察会</option>
@@ -3218,20 +3247,20 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
                   <option value="other">その他</option>
                 </select>
               </label>
-              <label class="stack"><span style="font-weight:700">Evidence title</span><input name="evidenceTitle" type="text" placeholder="たんぽぽ観察会 2026-04-01" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-              <label class="stack"><span style="font-weight:700">Issuer</span><input name="evidenceIssuer" type="text" placeholder="浜松たんぽぽ会" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">根拠の題名</span><input name="evidenceTitle" type="text" placeholder="たんぽぽ観察会 2026-04-01" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+              <label class="stack"><span style="font-weight:700">発行元・主催</span><input name="evidenceIssuer" type="text" placeholder="浜松たんぽぽ会" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
               <label class="stack"><span style="font-weight:700">URL</span><input name="evidenceUrl" type="url" placeholder="https://..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
             </div>
-            <label class="stack"><span style="font-weight:700">Evidence notes</span><textarea name="evidenceNotes" rows="2" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="アフィリエイト URL などは sourcePayload 側に後から追記可能"></textarea></label>
+            <label class="stack"><span style="font-weight:700">補足メモ</span><textarea name="evidenceNotes" rows="2" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="観察会、文献、保有資料などの補足"></textarea></label>
             <div class="actions">
-              <button class="btn" type="submit">Grant</button>
-              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-audit"))}">Audit を見る</a>
+              <button class="btn" type="submit">付与する</button>
+              <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-audit"))}">監査記録を見る</a>
               <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/id-workbench?lane=expert-lane"))}">専門確認へ戻る</a>
             </div>
           </form>
-          <div id="authority-admin-status" class="list" style="margin-top:14px"><div class="row"><div>Ready.</div></div></div>
+          <div id="authority-admin-status" class="list" style="margin-top:14px"><div class="row"><div>入力できます。</div></div></div>
         </div></div></section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">Recent authorities</div><h2>最近の grant / revoke</h2></div></div>${renderAuthorityCards(authorities)}</section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">最近の権限変更</div><h2>最近の付与と取消し</h2></div></div>${renderAuthorityCards(authorities)}</section>
       <script>
         const basePath = ${JSON.stringify(basePath)};
         const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
@@ -3263,7 +3292,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             setStatus('<div class="row"><div>subjectUserId と scopeTaxonName は必須です。</div></div>');
             return;
           }
-          setStatus('<div class="row"><div>Granting authority...</div></div>');
+          setStatus('<div class="row"><div>権限を付与しています…</div></div>');
           const response = await fetch(withBasePath('/api/v1/specialist/authorities/grant'), {
             method: 'POST',
             credentials: 'include',
@@ -3272,19 +3301,19 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           });
           const json = await response.json();
           if (!response.ok || json.ok === false) {
-            setStatus('<div class="row"><div>Grant failed.<div class="meta">' + String(json.error || 'specialist_authority_grant_failed') + '</div></div></div>');
+            setStatus('<div class="row"><div>付与できませんでした。<div class="meta">' + String(json.error || 'specialist_authority_grant_failed') + '</div></div></div>');
             return;
           }
-          setStatus('<div class="row"><div><strong>Authority granted.</strong><div class="meta">' + String(json.authority && json.authority.scopeTaxonName || '') + ' → ' + String(json.authority && json.authority.subjectUserId || '') + '</div></div></div>');
+          setStatus('<div class="row"><div><strong>付与しました。</strong><div class="meta">' + String(json.authority && json.authority.scopeTaxonName || '') + ' → ' + String(json.authority && json.authority.subjectUserId || '') + '</div></div></div>');
           reloadSoon();
         });
 
         document.querySelectorAll('[data-revoke-authority]').forEach((button) => {
           button.addEventListener('click', async () => {
             const authorityId = button.getAttribute('data-revoke-authority');
-            const reason = window.prompt('Revoke reason を入力してください', 'scope review completed');
+            const reason = window.prompt('取消し理由を入力してください', '担当範囲の見直し');
             if (!authorityId || !reason) return;
-            setStatus('<div class="row"><div>Revoking authority...</div></div>');
+            setStatus('<div class="row"><div>取消しています…</div></div>');
             const response = await fetch(withBasePath('/api/v1/specialist/authorities/' + encodeURIComponent(authorityId) + '/revoke'), {
               method: 'POST',
               credentials: 'include',
@@ -3293,10 +3322,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             });
             const json = await response.json();
             if (!response.ok || json.ok === false) {
-              setStatus('<div class="row"><div>Revoke failed.<div class="meta">' + String(json.error || 'specialist_authority_revoke_failed') + '</div></div></div>');
+              setStatus('<div class="row"><div>取消せませんでした。<div class="meta">' + String(json.error || 'specialist_authority_revoke_failed') + '</div></div></div>');
               return;
             }
-            setStatus('<div class="row"><div><strong>Authority revoked.</strong><div class="meta">' + String(json.authority && json.authority.scopeTaxonName || '') + '</div></div></div>');
+            setStatus('<div class="row"><div><strong>取消しました。</strong><div class="meta">' + String(json.authority && json.authority.scopeTaxonName || '') + '</div></div></div>');
             reloadSoon();
           });
         });
@@ -3304,14 +3333,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         document.querySelectorAll('[data-add-evidence]').forEach((button) => {
           button.addEventListener('click', async () => {
             const authorityId = button.getAttribute('data-add-evidence');
-            const evidenceType = window.prompt('Evidence type: field_event / webinar / literature / reference_owned / other', 'field_event');
+            const evidenceType = window.prompt('根拠の種類を入力してください: field_event / webinar / literature / reference_owned / other', 'field_event');
             if (!authorityId || !evidenceType) return;
-            const title = window.prompt('Evidence title', '');
+            const title = window.prompt('根拠の題名', '');
             if (!title) return;
-            const issuerName = window.prompt('Issuer name (optional)', '') || null;
-            const url = window.prompt('URL (optional)', '') || null;
-            const notes = window.prompt('Notes (optional)', '') || null;
-            setStatus('<div class="row"><div>Adding evidence...</div></div>');
+            const issuerName = window.prompt('発行元・主催（任意）', '') || null;
+            const url = window.prompt('URL（任意）', '') || null;
+            const notes = window.prompt('補足メモ（任意）', '') || null;
+            setStatus('<div class="row"><div>根拠を追加しています…</div></div>');
             const response = await fetch(withBasePath('/api/v1/specialist/authorities/' + encodeURIComponent(authorityId) + '/evidence'), {
               method: 'POST',
               credentials: 'include',
@@ -3320,10 +3349,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             });
             const json = await response.json();
             if (!response.ok || json.ok === false) {
-              setStatus('<div class="row"><div>Evidence add failed.<div class="meta">' + String(json.error || 'specialist_authority_evidence_failed') + '</div></div></div>');
+              setStatus('<div class="row"><div>根拠を追加できませんでした。<div class="meta">' + String(json.error || 'specialist_authority_evidence_failed') + '</div></div></div>');
               return;
             }
-            setStatus('<div class="row"><div><strong>Evidence added.</strong><div class="meta">' + String(json.authority && json.authority.scopeTaxonName || '') + '</div></div></div>');
+            setStatus('<div class="row"><div><strong>根拠を追加しました。</strong><div class="meta">' + String(json.authority && json.authority.scopeTaxonName || '') + '</div></div></div>');
             reloadSoon();
           });
         });
@@ -3350,11 +3379,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       reply.code(403).type("text/html; charset=utf-8");
       return layout(
         basePath,
-        "Specialist access required",
+        "専門確認の権限が必要です",
         stateCard(
-          "Specialist only",
-          "この画面は authority 付与済み reviewer 向けです",
-          `<p style="margin:0 0 12px">review-queue は broad triage 面ですが、閲覧できるのは Admin / Analyst か、分類群 authority を持つ reviewer だけです。</p>
+          "権限が必要です",
+          "この画面は、確認権限を持つ人向けです。",
+          `<p style="margin:0 0 12px">確認待ち一覧は、運営または担当分類群を持つ人だけが見られます。</p>
           <div class="actions" style="margin-top:16px">
             <a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明を見る</a>
             <a class="btn btn-solid" href="${escapeHtml(withBasePath(basePath, "/"))}">トップへ戻る</a>
@@ -3372,30 +3401,30 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     });
     const scopeSummary = renderAuthoritySummaryChips(access.activeAuthorities);
     const scopeMeta = access.canManageAll
-      ? `<div class="meta">Analyst / Admin は全分類群の broad triage を確認できます。</div>`
-      : `<div class="meta">review-queue でも、あなたの authority scope に一致する観察だけが表示されます。</div>`;
+      ? `<div class="meta">運営権限がある人は、全分類群の確認待ちを見られます。</div>`
+      : `<div class="meta">ここには、あなたの担当分類群に当てはまる観察だけが表示されます。</div>`;
     const manageAuthorityAction = access.canManageAll
-      ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">Authority admin</a>`
+      ? `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/specialist/authority-admin"))}">権限管理を見る</a>`
       : `<a class="btn secondary" href="${escapeHtml(withBasePath(basePath, "/learn/authority-policy"))}">制度の説明</a>`;
     const rows = snapshot.queue.map((item) => `
       <a class="row" href="${escapeHtml(withBasePath(basePath, buildObservationDetailPath(item.detailId ?? item.visitId ?? item.occurrenceId, item.featuredOccurrenceId ?? item.occurrenceId)))}">
         <div>
           <div style="font-weight:800">${escapeHtml(item.displayName)}</div>
           <div class="meta">${escapeHtml(item.placeName)} · ${escapeHtml(item.observedAt)}</div>
-          <div class="meta">${escapeHtml(item.observerName)} · ${item.identificationCount} ids</div>
+          <div class="meta">${escapeHtml(item.observerName)} · ${item.identificationCount} 件の見立て</div>
         </div>
-        <span class="pill">Open</span>
+        <span class="pill">開く</span>
       </a>`).join("");
 
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
-      "Review Queue | ikimon",
+      "確認待ち一覧 | ikimon",
       `<section class="section"><div class="card is-soft"><div class="card-body stack">
           <div class="row">
             <div>
-              <div class="eyebrow">Current scope</div>
-              <h2 style="margin:6px 0 0">この queue で見える分類群</h2>
+              <div class="eyebrow">現在の担当範囲</div>
+              <h2 style="margin:6px 0 0">この一覧で確認できる分類群</h2>
             </div>
             ${manageAuthorityAction}
           </div>
@@ -3403,29 +3432,29 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           ${scopeMeta}
         </div></div></section>
       <section class="section"><div class="card"><div class="card-body">
-          <div class="eyebrow">Action</div>
-          <h2>Minimal review action</h2>
+          <div class="eyebrow">操作</div>
+          <h2>この画面でできる最小操作</h2>
           <form id="review-queue-form" class="stack" style="margin-top:14px">
             <input name="actorUserId" type="hidden" value="${escapeHtml(reviewerUserId)}" />
-            <div class="row"><div><strong>Signed in reviewer</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "reviewer")}</span></div>
-            <label class="stack"><span style="font-weight:700">Occurrence ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
-            <label class="stack"><span style="font-weight:700">Proposed name</span><input name="proposedName" type="text" placeholder="Approve 時に必須" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-            <label class="stack"><span style="font-weight:700">Proposed rank</span><input name="proposedRank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
-            <label class="stack"><span style="font-weight:700">Note</span><textarea name="notes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="triage メモや差し戻し理由"></textarea></label>
+            <div class="row"><div><strong>操作する人</strong><div class="meta">${escapeHtml(reviewerUserId)}</div></div><span class="pill">${escapeHtml(session?.rankLabel || session?.roleName || "reviewer")}</span></div>
+            <label class="stack"><span style="font-weight:700">記録 ID</span><input name="occurrenceId" type="text" placeholder="occ:..." style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" required /></label>
+            <label class="stack"><span style="font-weight:700">候補名</span><input name="proposedName" type="text" placeholder="承認するときは必須" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            <label class="stack"><span style="font-weight:700">分類ランク</span><input name="proposedRank" type="text" value="species" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" /></label>
+            <label class="stack"><span style="font-weight:700">メモ</span><textarea name="notes" rows="3" style="padding:12px;border-radius:14px;border:1px solid #d8e6d8" placeholder="確認メモや差し戻し理由"></textarea></label>
             <div class="actions">
-              <button class="btn" type="button" data-decision="approve">Approve</button>
-              <button class="btn secondary" type="button" data-decision="reject">Reject</button>
-              <button class="btn secondary" type="button" data-decision="note">Note</button>
+              <button class="btn" type="button" data-decision="approve">承認する</button>
+              <button class="btn secondary" type="button" data-decision="reject">差し戻す</button>
+              <button class="btn secondary" type="button" data-decision="note">メモだけ残す</button>
             </div>
           </form>
-          <div id="review-queue-status" class="list" style="margin-top:14px"><div class="row"><div>Ready.</div></div></div>
+          <div id="review-queue-status" class="list" style="margin-top:14px"><div class="row"><div>入力できます。</div></div></div>
         </div></div>
       </section>
       <section class="section"><div class="grid">
-        <div class="card is-soft"><div class="card-body"><div class="eyebrow">Queue size</div><h2>${snapshot.queue.length}</h2><p class="meta">review shell に表示中の observation sample</p></div></div>
-        <div class="card is-soft"><div class="card-body"><div class="eyebrow">Unresolved</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">unresolved occurrences across v2</p></div></div>
+        <div class="card is-soft"><div class="card-body"><div class="eyebrow">表示中の件数</div><h2>${snapshot.queue.length}</h2><p class="meta">いまこの画面に出している確認待ちです。</p></div></div>
+        <div class="card is-soft"><div class="card-body"><div class="eyebrow">未解決の観察</div><h2>${snapshot.summary.unresolvedOccurrences}</h2><p class="meta">v2 全体で、まだ確定していない観察です。</p></div></div>
       </div></section>
-      <section class="section"><div class="section-header"><div><div class="eyebrow">Review sample</div><h2>レビュー対象</h2></div></div><div class="list">${rows || '<div class="row"><div>キューに観察はありません。</div></div>'}</div></section>
+      <section class="section"><div class="section-header"><div><div class="eyebrow">確認待ち</div><h2>いま見えている観察</h2></div></div><div class="list">${rows || '<div class="row"><div>キューに観察はありません。</div></div>'}</div></section>
       <script>
         const basePath = ${JSON.stringify(basePath)};
         const withBasePath = (path) => basePath ? basePath + (path.startsWith('/') ? path : '/' + path) : path;
@@ -3442,14 +3471,14 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             const notes = String(data.get('notes') || '');
             const decision = button.getAttribute('data-decision');
             if (!occurrenceId || !actorUserId) {
-              setStatus('<div class="row"><div>occurrenceId と actorUserId は必須です。</div></div>');
+              setStatus('<div class="row"><div>記録 ID と操作する人は必須です。</div></div>');
               return;
             }
             if (decision === 'approve' && !proposedName) {
-              setStatus('<div class="row"><div>Approve には proposedName が必要です。</div></div>');
+              setStatus('<div class="row"><div>承認するときは候補名が必要です。</div></div>');
               return;
             }
-            setStatus('<div class="row"><div>Submitting review action...</div></div>');
+            setStatus('<div class="row"><div>確認結果を送信しています…</div></div>');
             const response = await fetch(withBasePath('/api/v1/specialist/occurrences/' + encodeURIComponent(occurrenceId) + '/review'), {
               method: 'POST',
               headers: { 'content-type': 'application/json', accept: 'application/json' },
@@ -3457,13 +3486,21 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             });
             const json = await response.json();
             if (!response.ok || json.ok === false) {
-              setStatus('<div class="row"><div>Submit failed.<div class="meta">' + String(json.error || 'specialist_review_failed') + '</div></div></div>');
+              setStatus('<div class="row"><div>送信できませんでした。<div class="meta">' + String(json.error || 'specialist_review_failed') + '</div></div></div>');
               return;
             }
+            const decisionLabel = decision === 'approve'
+              ? '承認'
+              : decision === 'reject'
+                ? '差し戻し'
+                : 'メモ';
             const scope = json.authorityScope && json.authorityScope.scopeTaxonName
               ? ' · ' + String(json.authorityScope.scopeTaxonName)
               : '';
-            setStatus('<div class="row"><div><strong>Review saved.</strong><div class="meta">' + String(json.decision || decision) + ' · ' + String(json.reviewClass || 'plain_review') + scope + ' · ' + String(json.occurrenceId || occurrenceId) + '</div></div></div>');
+            const reviewClassLabel = String(json.reviewClass || 'plain_review') === 'plain_review'
+              ? '通常確認'
+              : String(json.reviewClass || 'plain_review');
+            setStatus('<div class="row"><div><strong>確認結果を保存しました。</strong><div class="meta">' + decisionLabel + ' · ' + reviewClassLabel + scope + ' · ' + String(json.occurrenceId || occurrenceId) + '</div></div></div>');
           });
         });
       </script>`,

@@ -20,12 +20,12 @@ type RevisitCopy = {
 
 const copyByLang: Record<SiteLang, RevisitCopy> = {
   ja: {
-    eyebrow: "再訪の入口",
-    heading: "前回の場所で、季節はもう動いている。",
-    lead: "同じ場所を歩き直すたび、ノートは分厚くなる。最近歩いた場所と、しばらくぶりの場所を並べた。",
-    freshLabel: "最近歩いた場所",
-    staleLabel: "しばらくぶりの場所",
-    visitCountSuffix: (count) => `${count} 回歩いた`,
+    eyebrow: "また見る場所",
+    heading: "前回の場所を、もう一度見る。",
+    lead: "最近歩いた場所と、しばらく行っていない場所を並べています。次にどこへ行くか決めるための一覧です。",
+    freshLabel: "最近行った場所",
+    staleLabel: "間が空いた場所",
+    visitCountSuffix: (count) => `${count} 回記録`,
     daysAgo: (n) => `${n} 日前`,
     todayLabel: "今日",
     yesterdayLabel: "きのう",

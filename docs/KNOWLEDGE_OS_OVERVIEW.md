@@ -1,6 +1,6 @@
 # ikimon.life — 知識OS 統一概要
 
-更新日: 2026-04-20
+更新日: 2026-04-22
 対象: Claude / Codex / antigravity など、すべてのエージェント
 
 > **このファイルは入口であり、単独の最終正本ではない。**
@@ -220,9 +220,12 @@ platform_v2/src/routes/                  v2 APIルート
 2. `docs/IKIMON_MASTER_STATUS_AND_PLAN_2026-04-12.md` — 現在地と計画
 3. **このファイル** (`docs/KNOWLEDGE_OS_OVERVIEW.md`) — 用語と層の入口整理
 4. `docs/KNOWLEDGE_OS_BRIDGE_2026-04-14.md` — `.codex/knowledge` と repo docs の橋渡し
-5. `docs/architecture/ADR-001-canonical-source-of-truth.md` — Canonical設計
-6. `docs/architecture/adr-005-evidence-tier.md` — Evidence Tier仕様
-7. `docs/STAGING_RUNBOOK.md` / `docs/DEPLOYMENT.md` — 実行手順
+5. `docs/STAGING_JA_COPY_GUIDE.md` — `platform_v2` 日本語文章の運用正典
+6. `docs/research/2026-04-22-human-web-writing-and-ai-smell-synthesis.md` — 人間筆致 copy の研究要約
+7. `docs/review/2026-04-22-production-copy-harvest.md` — production から何を拾い何を捨てるか
+8. `docs/architecture/ADR-001-canonical-source-of-truth.md` — Canonical設計
+9. `docs/architecture/adr-005-evidence-tier.md` — Evidence Tier仕様
+10. `docs/STAGING_RUNBOOK.md` / `docs/DEPLOYMENT.md` — 実行手順
 
 ### v2 / cutover を触る場合の追加順
 
@@ -279,3 +282,13 @@ platform_v2/src/routes/                  v2 APIルート
 - iNaturalist 批判への返答境界は `docs/review/ikimon_inaturalist_critique_response_boundary_2026-04-20.md` を参照する
 
 この4点を知らずに v2 を触ると、実装・運用・検証のどこかで判断を誤る。
+
+---
+
+## 12. コピー運用の注意点（2026-04-22）
+
+- `platform_v2` の日本語 copy は `具体・平明・責任境界が見える` を正典にする
+- current production は source material であり、正典ではない
+- production から拾うのは `具体性 / FAQ の問い方 / 無料範囲の説明責任 / 用途整理`
+- production から持ち込まないのは `詩的 hero / AI 過剰訴求 / 旧 pricing / 混在 audience`
+- guardrail は `humanWritingGuard`, `copyDepthGuard`, `directStringGuard` の 3 つで固定する

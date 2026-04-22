@@ -47,6 +47,8 @@ type PreviewContext = {
 
 type QASiteMapCopy = {
   title: string;
+  cardEyebrow: string;
+  openLabel: string;
   hero: {
     eyebrow: string;
     heading: string;
@@ -82,12 +84,12 @@ function localizedNavHome(lang: SiteLang): string {
 }
 
 
-function buildFlowLink(basePath: string, href: string, label: string, note: string): string {
+function buildFlowLink(basePath: string, href: string, label: string, note: string, cardEyebrow: string, openLabel: string): string {
   return `<a class="card" href="${escapeHtml(withBasePath(basePath, href))}">
-    <div class="eyebrow">qa lane</div>
+    <div class="eyebrow">${escapeHtml(cardEyebrow)}</div>
     <h2>${escapeHtml(label)}</h2>
     <p>${escapeHtml(note)}</p>
-    <span>Open</span>
+    <span>${escapeHtml(openLabel)}</span>
   </a>`;
 }
 
@@ -335,7 +337,7 @@ function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath
         </div>
       </div>
       <div class="grid">
-        ${section.cards.map((card, cardIndex) => buildFlowLink(options.basePath, sectionHrefs[sectionIndex]?.[cardIndex] ?? card.href, card.label, card.note)).join("")}
+        ${section.cards.map((card, cardIndex) => buildFlowLink(options.basePath, sectionHrefs[sectionIndex]?.[cardIndex] ?? card.href, card.label, card.note, copy.cardEyebrow, copy.openLabel)).join("")}
       </div>
       ${section.note ? `<div class="note">${escapeHtml(section.note)}</div>` : ""}
     </section>`)

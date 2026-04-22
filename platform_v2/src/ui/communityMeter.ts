@@ -15,9 +15,9 @@ type CommunityMeterCopy = {
 
 const copyByLang: Record<SiteLang, CommunityMeterCopy> = {
   ja: {
-    eyebrow: "ノートが育てているもの",
-    heading: "あなたが書いた1ページが、地図と AI を育てている。",
-    lead: "ひとつの観察は、それだけで意味があります。同時に、それが集まると、場所と季節を読むための共通の地図になります。",
+    eyebrow: "記録が集まると",
+    heading: "1 件ずつ増えると、場所と季節が読みやすくなる。",
+    lead: "ひとつの観察だけでも意味があります。件数が増えると、どこで何が見つかりやすいか、いつ見返すとよいかが分かりやすくなります。",
     observationLabel: "観察",
     speciesLabel: "種",
     placeLabel: "場所",

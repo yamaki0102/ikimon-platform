@@ -179,6 +179,8 @@ type JsonPublicCopy = {
 type JsonOpsCopy = {
   qaSiteMap: {
     title: string;
+    cardEyebrow: string;
+    openLabel: string;
     hero: JsonHero;
     sections: Array<{
       eyebrow: string;
@@ -488,6 +490,8 @@ function validateOpsNamespace(value: JsonObject): void {
   assertObject(value.qaSiteMap, "ops.qaSiteMap");
   assertObject(value.qaSiteMap.hero, "ops.qaSiteMap.hero");
   assertString(value.qaSiteMap.title, "ops.qaSiteMap.title");
+  assertString(value.qaSiteMap.cardEyebrow, "ops.qaSiteMap.cardEyebrow");
+  assertString(value.qaSiteMap.openLabel, "ops.qaSiteMap.openLabel");
   assertString(value.qaSiteMap.hero.eyebrow, "ops.qaSiteMap.hero.eyebrow");
   assertString(value.qaSiteMap.hero.heading, "ops.qaSiteMap.hero.heading");
   assertString(value.qaSiteMap.hero.lead, "ops.qaSiteMap.hero.lead");
