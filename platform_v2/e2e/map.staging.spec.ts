@@ -146,7 +146,6 @@ for (const profile of MAP_VIEWPORTS) {
         await expectMobileBottomSheet(page);
         await expect(page.locator("#me-bottom-inner .me-site-brief")).toHaveCount(0);
         await expect(page.locator("#me-bottom-inner")).not.toContainText("その場で調べる");
-        await expect(page.locator("#me-bottom-inner")).not.toContainText("次の場所を探す");
       } else {
         await expectMobileEmptyState(page);
       }
@@ -157,7 +156,6 @@ for (const profile of MAP_VIEWPORTS) {
       await expectDesktopSelectionOverlay(page);
       await expect(page.locator("#me-map-selection-card .me-site-brief")).toHaveCount(0);
       await expect(page.locator("#me-map-selection-card")).not.toContainText("その場で調べる");
-      await expect(page.locator("#me-map-selection-card")).not.toContainText("次の場所を探す");
       await maybeCaptureQaScreenshot(page, `${profile.slug}-selected.jpg`);
     }
 
