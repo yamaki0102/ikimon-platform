@@ -13,6 +13,7 @@ import { getSessionFromCookie } from "./services/authSession.js";
 import { resolveViewer } from "./services/viewerIdentity.js";
 import { getLandingSnapshot } from "./services/landingSnapshot.js";
 import type { LandingSnapshot } from "./services/readModels.js";
+import { AMBIENT_CUE_CARD_STYLES, renderAmbientCueDeck, renderInvitationCard, renderPhotoHintCard } from "./ui/ambientCueCards.js";
 import { FIELD_NOTE_MAIN_STYLES, renderFieldNoteMain } from "./ui/fieldNoteMain.js";
 import { MAP_MINI_STYLES, mapMiniBootScript, renderMapMini, toMapPoints } from "./ui/mapMini.js";
 import { OBSERVATION_CARD_STYLES } from "./ui/observationCard.js";
@@ -54,80 +55,80 @@ function landingCopy(lang: SiteLang) {
       heroEyebrow: "ikimon へようこそ",
       heroHeading: "歩いて、見つけて、<span class=\"hero-emphasis\">ノートに残す。</span>",
       heroHeadingPlain: "歩いて、見つけて、ノートに残す。",
-      heroLead: "散歩 × 生きもの観察で、自然を守りながら健康に。あなたの一歩が科学データになる。",
+      heroLead: "散歩道や旅先で見つけた自然を、未来の自分やほかの人につながるノートにする。",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("ja-JP")} 件の観察 · ${species.toLocaleString("ja-JP")} 種`,
       actionPrimaryLoggedIn: "ノートの続きを書く",
       actionPrimaryGuest: "ノートを始める",
       actionSecondary: "探索マップを見る",
       toolSectionEyebrow: "もっと観察を楽しむ",
       toolSectionTitle: "ノートをもっと楽しむための 2 つの機能",
-      toolSectionLead: "名前が分からなくても、どこに行けば発見があるか分からなくても大丈夫。AI と地図がそっとサポートします。",
+      toolSectionLead: "名前がまだ分からなくても大丈夫。AI は答えを押しつけず、次にどこを見ると面白いかをそっと支えます。",
       tools: {
         lens: {
           eyebrow: "AIレンズ",
-          title: "撮った瞬間、名前の候補が分かる",
-          body: "名前を知らなくても、写真を 1 枚撮れば AI が候補を返します。気になった生きものをすぐ書き残せます。",
+          title: "撮ったあとに、見どころのヒントが返る",
+          body: "名前を知らなくても、写真を 1 枚撮れば AI が候補と見分けのヒントを返します。最終的に決めるのはあなたです。",
           cta: "AIレンズを見る",
           badge: "beta",
         },
         scan: {
           eyebrow: "フィールドスキャン",
-          title: "歩きながら、近くの生きものが分かる",
-          body: "今いる場所の近くで、どんな生きものが見つかっているかを地図上で確認できます。散歩のルート選びに。",
+          title: "歩きながら、その場所の空気感をつかむ",
+          body: "今いる場所の近くで、どんな観察が重なっているかを地図で見られます。次に見てみたい場所を探す入口に。",
           cta: "フィールドスキャンを見る",
           badge: "v0.10",
         },
       },
       mapSectionEyebrow: "マップで見る",
       mapSectionTitle: "観察した場所を、地図で振り返る",
-      mapSectionLead: "あなたと他の方が記録した観察が、どの場所に積み重なっているかを地図で確認できます。",
+      mapSectionLead: "あなたと他の人の観察が、どんな場所でつながっているかを地図で確認できます。",
       mapCta: "マップを開く",
       mapEmpty: "まだ地図に載せる観察がありません",
       bizEyebrow: "法人・団体のみなさまへ",
       bizTitle: "🏢 学校・自治体・企業での導入",
-      bizBody: "観察会の運営から報告書の出力まで、組織でご活用いただけるプランをご用意しています。",
+      bizBody: "観察会の運営から比較レポートの共有まで、組織で使いやすい導線を整えています。",
       bizCta: "法人向けページへ",
-      footerNote: "歩いて、見つけて、ノートに残す。",
+      footerNote: "見つけたことが、あとで自分やほかの人につながっていく。",
     },
     en: {
       title: "ikimon.life — Walk, find, write it in the notebook",
       heroEyebrow: "Welcome to ikimon",
       heroHeading: "Walk, find, <span class=\"hero-emphasis\">write it in the notebook.</span>",
       heroHeadingPlain: "Walk, find, write it in the notebook.",
-      heroLead: "Walks + species observation protect nature while keeping you healthy. Your footstep becomes science data.",
+      heroLead: "Turn what you notice on a walk or a trip into pages that connect to your future self and other visitors.",
       statLabel: (obs: number, species: number) => `${obs.toLocaleString("en-US")} observations · ${species.toLocaleString("en-US")} species`,
       actionPrimaryLoggedIn: "Keep writing",
       actionPrimaryGuest: "Start your notebook",
       actionSecondary: "See the map",
       toolSectionEyebrow: "Inputs to your notebook",
       toolSectionTitle: "Two ways to feed the notebook",
-      toolSectionLead: "Field Note is the main feature. AI Lens and Field Scan are supporting inputs that make it easier to add another page.",
+      toolSectionLead: "Field Note stays at the center. AI Lens and Field Scan gently point out what might be worth noticing next.",
       tools: {
         lens: {
           eyebrow: "AI Lens",
-          title: "Get AI candidates the moment you shoot",
-          body: "You do not need the name yet. AI returns candidate species so you can start the first line of a note.",
+          title: "Get gentle hints after you shoot",
+          body: "You do not need the name yet. AI returns candidates and visible clues without taking the final decision away from you.",
           cta: "See AI Lens",
           badge: "beta",
         },
         scan: {
           eyebrow: "Field Scan",
-          title: "Pick up the signal of species while walking",
-          body: "The map suggests the next place to add to your notebook as a recommended survey area.",
+          title: "Read the atmosphere of a place while walking",
+          body: "The map helps you see where observations overlap nearby, so the next page can start naturally.",
           cta: "See Field Scan",
           badge: "v0.10",
         },
       },
       mapSectionEyebrow: "Explore map",
       mapSectionTitle: "See where your notebook has been on the map",
-      mapSectionLead: "The map shows where you and others have stacked pages.",
+      mapSectionLead: "The map shows where your pages can connect with other people's pages.",
       mapCta: "Open the full map",
       mapEmpty: "No observations on the map yet",
       bizEyebrow: "For Business",
       bizTitle: "For teams and organizations",
-      bizBody: "Organize place-based nature records in a format that is easy to revisit later.",
+      bizBody: "Organize place-based nature records in a format that is easy to compare and share.",
       bizCta: "For Business",
-      footerNote: "ikimon.life v2 — Walk, find, write it in the notebook.",
+      footerNote: "ikimon.life v2 — Let what you notice connect later.",
     },
     es: {
       title: "ikimon.life — Camina, descubre, escríbelo en el cuaderno",
@@ -165,9 +166,9 @@ function landingCopy(lang: SiteLang) {
       mapEmpty: "Aún no hay observaciones en el mapa",
       bizEyebrow: "Para organizaciones",
       bizTitle: "Para equipos y organizaciones",
-      bizBody: "Ordena registros naturales por lugar para revisarlos más tarde con facilidad.",
+      bizBody: "Ordena registros naturales por lugar en un formato fácil de comparar y compartir.",
       bizCta: "Para organizaciones",
-      footerNote: "ikimon.life v2 — Camina, descubre, escríbelo en el cuaderno.",
+      footerNote: "ikimon.life v2 — Deja que lo que descubres se conecte después.",
     },
     "pt-BR": {
       title: "ikimon.life — Caminhe, descubra, escreva no caderno",
@@ -205,9 +206,9 @@ function landingCopy(lang: SiteLang) {
       mapEmpty: "Ainda não há observações no mapa",
       bizEyebrow: "Para organizações",
       bizTitle: "Para equipes e organizações",
-      bizBody: "Organize registros naturais por lugar em um formato fácil de revisitar depois.",
+      bizBody: "Organize registros naturais por lugar em um formato fácil de comparar e compartilhar.",
       bizCta: "Para organizações",
-      footerNote: "ikimon.life v2 — Caminhe, descubra, escreva no caderno.",
+      footerNote: "ikimon.life v2 — Deixe o que você encontra se conectar depois.",
     },
   } satisfies Record<SiteLang, {
     title: string;
@@ -247,6 +248,49 @@ function buildFlowLink(basePath: string, href: string, label: string, note: stri
     <p>${escapeHtml(note)}</p>
     <span>Open</span>
   </a>`;
+}
+
+function buildLandingCueSectionHtml(
+  basePath: string,
+  lang: SiteLang,
+  snapshot: LandingSnapshot,
+): string {
+  const primaryActionHref = snapshot.viewerUserId ? "/notes" : "/record";
+  const primaryActionLabel = snapshot.viewerUserId
+    ? (lang === "ja" ? "ノートを見る" : "Open notes")
+    : (lang === "ja" ? "1 件残す" : "Record one page");
+  return renderAmbientCueDeck({
+    basePath,
+    lang,
+    surface: "landing",
+    sectionEyebrow: lang === "ja" ? "つながりのヒント" : "Gentle cues",
+    sectionTitle: lang === "ja" ? "やってみるなら、こんな見方から始められる" : "If you want to try, these are easy places to start",
+    cards: [
+      renderInvitationCard(basePath, lang, {
+        cueId: "landing-primary",
+        surface: "landing",
+        eyebrow: lang === "ja" ? "前回のつづき" : "Pick up the thread",
+        invitation: snapshot.primaryInvitation,
+        action: { href: primaryActionHref, label: primaryActionLabel, eventName: "same_place_link_created" },
+      }),
+      ...(snapshot.secondaryInvitation
+        ? [renderInvitationCard(basePath, lang, {
+          cueId: "landing-secondary",
+          surface: "landing",
+          eyebrow: lang === "ja" ? "ほかの人とつながる" : "Connect with others",
+          invitation: snapshot.secondaryInvitation,
+          action: { href: "/map", label: lang === "ja" ? "地図で見る" : "See on the map", eventName: "cue_opened" },
+        })]
+        : []),
+      renderPhotoHintCard(basePath, lang, {
+        cueId: "landing-photo",
+        surface: "landing",
+        eyebrow: lang === "ja" ? "撮り方のヒント" : "Photo hint",
+        photoHint: snapshot.photoHint,
+        action: { href: "/record", label: lang === "ja" ? "1 件残す" : "Record one page", eventName: "cue_opened" },
+      }),
+    ],
+  });
 }
 
 function buildLandingRootHtml(
@@ -329,6 +373,7 @@ function buildLandingRootHtml(
   </section>`;
 
   const extraStyles = [
+    AMBIENT_CUE_CARD_STYLES,
     OBSERVATION_CARD_STYLES,
     TOOL_CARD_STYLES,
     MAP_MINI_STYLES,
@@ -375,7 +420,8 @@ function buildLandingRootHtml(
     },
     belowHeroHtml: renderQuickNav(options.basePath, lang),
     extraStyles,
-    body: `${renderFieldNoteMain(options.basePath, lang, snapshot)}
+    body: `${buildLandingCueSectionHtml(options.basePath, lang, snapshot)}
+${renderFieldNoteMain(options.basePath, lang, snapshot)}
 ${toolsSectionHtml}
 ${mapSectionHtml}
 ${bizSectionHtml}
@@ -419,7 +465,7 @@ function buildQASiteMapHtml(options: PreviewContext, lang: SiteLang, currentPath
         <div>
           <div class="eyebrow">flow 1</div>
           <h2>Core User Journey</h2>
-          <p>記録して、詳細を見て、プロフィールと explore で再訪理由を確認する主導線。</p>
+          <p>記録して、詳細を見て、プロフィールと explore でつづきのヒントを確認する主導線。</p>
         </div>
       </div>
       <div class="grid">
@@ -605,7 +651,7 @@ export function buildApp() {
       const lang = detectLangFromUrl(requestUrl(request));
       const session = await getSessionFromCookie(request.headers.cookie);
       const { viewerUserId } = resolveViewer(request.query, session);
-      const snapshot = await getLandingSnapshot(viewerUserId);
+      const snapshot = await getLandingSnapshot(viewerUserId, lang);
       reply.type("text/html; charset=utf-8");
       return buildLandingRootHtml(
         context,

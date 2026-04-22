@@ -1,8 +1,21 @@
 import { getPool } from "../db.js";
 
-const EVENT_NAMES = new Set(["first_action", "task_completion"] as const);
+const EVENT_NAMES = new Set([
+  "first_action",
+  "task_completion",
+  "cue_seen",
+  "cue_opened",
+  "cue_dismissed",
+  "same_place_link_created",
+] as const);
 
-type UiKpiEventName = "first_action" | "task_completion";
+type UiKpiEventName =
+  | "first_action"
+  | "task_completion"
+  | "cue_seen"
+  | "cue_opened"
+  | "cue_dismissed"
+  | "same_place_link_created";
 
 type RecordUiKpiEventInput = {
   eventName: UiKpiEventName;

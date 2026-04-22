@@ -86,7 +86,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     },
     record: "記録する",
     footer: {
-      tagline: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
+      tagline: "見つけたことが、あとで自分やほかの人につながっていく。",
       start: "はじめる",
       startLinks: {
         discover: "みつける",
@@ -112,7 +112,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     },
   },
   en: {
-    brandTagline: "Keep nearby finds so you can revisit them, place by place.",
+    brandTagline: "Let nearby finds connect later, for you and for others.",
     searchPlaceholder: "Search species or places",
     searchLabel: "Site search",
     nav: {
@@ -123,7 +123,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     },
     record: "Record",
     footer: {
-      tagline: "Save what you find nearby and revisit it later.",
+      tagline: "Let what you notice nearby connect later.",
       start: "Start",
       startLinks: {
         discover: "Explore",
@@ -149,7 +149,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     },
   },
   es: {
-    brandTagline: "Guarda lo que encuentras cerca para volver a verlo por lugar.",
+    brandTagline: "Deja que lo que encuentras cerca se conecte después.",
     searchPlaceholder: "Buscar especie o lugar",
     searchLabel: "Búsqueda del sitio",
     nav: {
@@ -160,7 +160,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     },
     record: "Registrar",
     footer: {
-      tagline: "Guarda lo que encuentras cerca y revísalo más tarde.",
+      tagline: "Deja que lo que notas cerca conecte más tarde.",
       start: "Empezar",
       startLinks: {
         discover: "Explorar",
@@ -186,7 +186,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     },
   },
   "pt-BR": {
-    brandTagline: "Guarde o que encontra por perto para revisar depois, lugar por lugar.",
+    brandTagline: "Deixe o que encontra por perto se conectar depois.",
     searchPlaceholder: "Buscar espécie ou lugar",
     searchLabel: "Busca no site",
     nav: {
@@ -197,7 +197,7 @@ const shellCopy: Record<SiteLang, ShellCopy> = {
     },
     record: "Registrar",
     footer: {
-      tagline: "Salve o que encontrar por perto e reveja mais tarde.",
+      tagline: "Deixe o que você nota por perto se conectar depois.",
       start: "Começar",
       startLinks: {
         discover: "Explorar",
@@ -405,6 +405,75 @@ export function renderSiteDocument(options: SiteShellOptions): string {
       send(actionKey, routeKey);
     }, { capture: true, passive: true });
   } catch (_) {}
+})();
+</script>`;
+  const ambientCueScript = `<script>
+(function () {
+  const endpoint = ${JSON.stringify(uiKpiEndpoint)};
+  const pagePath = location.pathname + location.search;
+  const send = (eventName, card, acted) => {
+    if (!card) return;
+    const cueKind = card.getAttribute('data-cue-kind') || '';
+    const basisType = card.getAttribute('data-basis-type') || '';
+    const surface = card.getAttribute('data-cue-surface') || pagePath;
+    const cueId = card.getAttribute('data-cue-id') || cueKind || 'cue';
+    const seenKey = 'ikimon:v2:cue:' + eventName + ':' + pagePath + ':' + cueId;
+    if (eventName === 'cue_seen') {
+      try {
+        if (sessionStorage.getItem(seenKey) === '1') return;
+        sessionStorage.setItem(seenKey, '1');
+      } catch (_) {}
+    }
+    const payload = {
+      eventName,
+      pagePath,
+      routeKey: surface,
+      actionKey: cueKind || eventName,
+      metadata: {
+        cueKind,
+        basisType,
+        surface,
+        acted,
+        lang: document.documentElement.lang || 'ja',
+        ts: new Date().toISOString(),
+      },
+    };
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+      credentials: 'same-origin',
+    }).catch(() => undefined);
+  };
+
+  const cards = Array.from(document.querySelectorAll('[data-cue-kind]'));
+  if (cards.length === 0) return;
+
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          send('cue_seen', entry.target, false);
+          observer.unobserve(entry.target);
+        }
+      }
+    }, { threshold: 0.45 });
+    cards.forEach((card) => observer.observe(card));
+  } else {
+    cards.forEach((card) => send('cue_seen', card, false));
+  }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target.closest('[data-cue-action]') : null;
+    if (!target) return;
+    const card = target.closest('[data-cue-kind]');
+    const action = target.getAttribute('data-cue-action') || 'cue_opened';
+    send(action, card, action !== 'cue_dismissed');
+    if (action === 'cue_dismissed' && card instanceof HTMLElement) {
+      card.style.display = 'none';
+    }
+  }, { capture: true });
 })();
 </script>`;
   return `<!doctype html>
@@ -1131,6 +1200,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     ${footer(options.basePath, lang, options.footerNote)}
   </div>
   ${uiKpiScript}
+  ${ambientCueScript}
 </body>
 </html>`;
 }

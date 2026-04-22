@@ -1,4 +1,6 @@
 import { getPool } from "../db.js";
+import type { SiteLang } from "../i18n.js";
+import { buildLandingCueSet } from "./ambientInvitations.js";
 import { getHomeSnapshot } from "./readModels.js";
 import type {
   AmbientObserver,
@@ -139,11 +141,19 @@ function toIdentificationEntry(row: IdentificationRow): LandingObservation {
   };
 }
 
-export async function getLandingSnapshot(userId: string | null): Promise<LandingSnapshot> {
+export async function getLandingSnapshot(userId: string | null, lang: SiteLang = "ja"): Promise<LandingSnapshot> {
   let pool;
   try {
     pool = getPool();
   } catch {
+    const cues = buildLandingCueSet(lang, {
+      primaryPlaceName: null,
+      primaryPlaceVisits: 0,
+      recentDisplayName: null,
+      recentPlaceName: null,
+      ambientObserverCount: 0,
+      ambientDisplayName: null,
+    });
     return {
       viewerUserId: userId,
       stats: { observationCount: 0, speciesCount: 0, placeCount: 0 },
@@ -151,6 +161,9 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
       myFeed: [],
       myPlaces: [],
       ambient: [],
+      primaryInvitation: cues.primaryInvitation,
+      secondaryInvitation: cues.secondaryInvitation,
+      photoHint: cues.photoHint,
     };
   }
 
@@ -241,7 +254,7 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
   let myPlaces: LandingSnapshot["myPlaces"] = [];
   if (userId) {
     try {
-      const home = await getHomeSnapshot(userId);
+      const home = await getHomeSnapshot(userId, lang);
       myPlaces = home.myPlaces;
     } catch {
       myPlaces = [];
@@ -334,6 +347,15 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     return bTs.localeCompare(aTs);
   });
 
+  const cues = buildLandingCueSet(lang, {
+    primaryPlaceName: myPlaces[0]?.placeName ?? null,
+    primaryPlaceVisits: myPlaces[0]?.visitCount ?? 0,
+    recentDisplayName: feedRows[0]?.display_name ?? null,
+    recentPlaceName: feedRows[0]?.place_name ?? null,
+    ambientObserverCount: ambient.length,
+    ambientDisplayName: ambient[0]?.latestDisplayName ?? null,
+  });
+
   return {
     viewerUserId: userId,
     stats,
@@ -341,5 +363,8 @@ export async function getLandingSnapshot(userId: string | null): Promise<Landing
     myFeed: combined.slice(0, 12),
     myPlaces,
     ambient,
+    primaryInvitation: cues.primaryInvitation,
+    secondaryInvitation: cues.secondaryInvitation,
+    photoHint: cues.photoHint,
   };
 }

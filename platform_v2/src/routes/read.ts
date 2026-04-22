@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
-import { appendLangToHref, detectLangFromUrl } from "../i18n.js";
+import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
 import { getSessionFromCookie } from "../services/authSession.js";
 import { resolveViewer } from "../services/viewerIdentity.js";
 import { getLandingSnapshot } from "../services/landingSnapshot.js";
+import { AMBIENT_CUE_CARD_STYLES, renderAmbientCueDeck, renderInvitationCard, renderPhotoHintCard } from "../ui/ambientCueCards.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 import { OBSERVATION_CARD_STYLES, renderObservationCard } from "../ui/observationCard.js";
 import {
@@ -35,11 +36,16 @@ function layout(
   activeNav: string,
   hero?: LayoutHero,
   extraStyles?: string,
+  lang: SiteLang = "ja",
+  currentPath?: string,
+  footerNote?: string,
 ): string {
   return renderSiteDocument({
     basePath,
     title,
     activeNav,
+    lang,
+    currentPath,
     body,
     hero: hero
       ? {
@@ -53,7 +59,7 @@ function layout(
         }
       : undefined,
     extraStyles,
-    footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
+    footerNote: footerNote ?? "見つけたことが、あとで自分やほかの人につながっていく。",
   });
 }
 
@@ -72,9 +78,41 @@ function requestBasePath(request: { headers: Record<string, unknown> }): string 
   return getForwardedBasePath(request.headers);
 }
 
+function requestCurrentPath(request: { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }): string {
+  return withBasePath(getForwardedBasePath(request.headers), String(request.raw?.url ?? request.url ?? ""));
+}
+
+function renderCueDeckHtml(
+  basePath: string,
+  lang: SiteLang,
+  surface: "home" | "observation_detail",
+  options: {
+    primary: Parameters<typeof renderInvitationCard>[2];
+    secondary?: Parameters<typeof renderInvitationCard>[2] | null;
+    photo: Parameters<typeof renderPhotoHintCard>[2];
+    sectionEyebrow: string;
+    sectionTitle: string;
+  },
+): string {
+  return renderAmbientCueDeck({
+    basePath,
+    lang,
+    surface,
+    sectionEyebrow: options.sectionEyebrow,
+    sectionTitle: options.sectionTitle,
+    cards: [
+      renderInvitationCard(basePath, lang, options.primary),
+      ...(options.secondary ? [renderInvitationCard(basePath, lang, options.secondary)] : []),
+      renderPhotoHintCard(basePath, lang, options.photo),
+    ],
+  });
+}
+
 export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/record", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const currentPath = requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
     const session = await getSessionFromCookie(request.headers.cookie);
     const resolution = resolveViewer(request.query, session);
     const viewerUserId = resolution.viewerUserId ?? "";
@@ -95,6 +133,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           ${process.env.ALLOW_QUERY_USER_ID === "1" ? `<p class="meta" style="margin-top:16px;font-size:12px;color:#94a3b8">staging QA: <code>${escapeHtml(withBasePath(basePath, "/record?userId=..."))}</code></p>` : ""}`,
         ),
         "Record",
+        undefined,
+        undefined,
+        lang,
+        currentPath,
       );
     }
 
@@ -122,9 +164,13 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         </div>
         <div class="card">
           <div class="card-body">
-            <div class="eyebrow">サインイン中</div>
-            <div class="title">${escapeHtml(viewerUserId)}</div>
-            <div class="meta">サインインしたセッションで記録を送信します。</div>
+            <div class="eyebrow">撮り方のヒント</div>
+            <div class="title">同じあたりから 1 枚あると、あとで見比べやすい</div>
+            <div class="meta">完璧な固定点でなくて大丈夫です。全景 1 枚と、気になった部分 1 枚があると、未来の自分や別の人にも伝わりやすくなります。</div>
+            <div class="list" style="margin-top:16px">
+              <div class="row"><div>分からなくても先に残して大丈夫。AI は「ここを見ると進みやすい」を返します。</div></div>
+              <div class="row"><div>散歩道でも旅先でも、気になった向きに少し寄せてもう 1 枚あると十分です。</div></div>
+            </div>
             <div id="record-status" class="list" style="margin-top:16px">
               <div class="row"><div>入力が完了したら送信してください。</div></div>
             </div>
@@ -217,12 +263,15 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       {
         eyebrow: "記録する",
         heading: "今日の 1 ページを書く",
-        lead: "観察した場所・時刻・気づいた生きものを、そのまま 1 件のノートに残します。同定候補は AIレンズが補助します。",
+        lead: "観察した場所・時刻・気づいた生きものを、そのまま 1 件のノートに残します。AI は答えを決めず、次に見ると面白いポイントを補助します。",
         actions: [
           { href: queryUserId ? `/home?userId=${encodeURIComponent(viewerUserId)}` : "/home", label: "ホーム" },
           { href: "/explore", label: "みつける", variant: "secondary" as const },
         ],
       },
+      undefined,
+      lang,
+      currentPath,
     );
   });
 
@@ -296,9 +345,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/home", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const currentPath = requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
-    const snapshot = await getHomeSnapshot(viewerUserId);
+    const snapshot = await getHomeSnapshot(viewerUserId, lang);
     const cards = snapshot.recentObservations.map((item) =>
       renderObservationCard(basePath, lang, {
         occurrenceId: item.occurrenceId,
@@ -324,50 +374,70 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         </div>
         <span class="pill">${place.visitCount} 回</span>
       </a>`).join("");
-    const revisitCue = snapshot.myPlaces[0]
-      ? `${snapshot.myPlaces[0].placeName} を起点に、前回の記録と今季の変化を見返せます。`
-      : "まず1件記録すると、場所ごとの再訪理由が育ち始めます。";
-    const growthCue = snapshot.recentObservations[0]
-      ? `${snapshot.recentObservations[0].displayName} のような最近の観察から、前回より細かく見られた点を積み上げます。`
-      : "観察履歴がたまるほど、前回からの成長と見分けポイントが読み返しやすくなります。";
+    const cueDeck = renderCueDeckHtml(basePath, lang, "home", {
+      sectionEyebrow: "つづきのヒント",
+      sectionTitle: "やってみるなら、このへんから始めやすい",
+      primary: {
+        cueId: "home-primary",
+        surface: "home",
+        eyebrow: "前回のつづき",
+        invitation: snapshot.primaryInvitation,
+        action: { href: "/notes", label: "ノートを見る", eventName: "same_place_link_created" },
+      },
+      secondary: snapshot.secondaryInvitation
+        ? {
+          cueId: "home-secondary",
+          surface: "home",
+          eyebrow: "つながりの視点",
+          invitation: snapshot.secondaryInvitation,
+          action: { href: "/map", label: "地図で見る", eventName: "cue_opened" },
+        }
+        : null,
+      photo: {
+        cueId: "home-photo",
+        surface: "home",
+        eyebrow: "撮り方のヒント",
+        photoHint: snapshot.photoHint,
+        action: { href: "/record", label: "1 件残す", eventName: "cue_opened" },
+      },
+    });
 
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       "ホーム | ikimon",
-      `<section class="section">
-        <div class="grid">
-          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">今回の学び</div><h2>前回より見えた点</h2><p class="meta">${escapeHtml(growthCue)}</p></div></div>
-          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">また行く理由</div><h2>次に訪れる場所</h2><p class="meta">${escapeHtml(revisitCue)}</p></div></div>
-          <div class="card is-soft"><div class="card-body"><div class="eyebrow">みんなへの貢献</div><h2>Collective AI</h2><p class="meta">改善された観察と見分けの根拠は、将来の候補提示と explanation を良くする学習資産になります。</p></div></div>
-        </div>
-      </section>
+      `${cueDeck}
       ${snapshot.viewerUserId ? `<section class="section"><div class="section-header"><div><div class="eyebrow">よく歩く場所</div><h2>My places</h2></div></div><div class="list">${myPlaces || '<div class="row"><div>まだ記録した場所はありません。</div></div>'}</div></section>` : ""}
       <section class="section"><div class="section-header"><div><div class="eyebrow">ノート</div><h2>最近の観察</h2></div></div><div class="home-grid">${cards}</div></section>`,
       "ホーム",
       {
-        eyebrow: "my field mentor",
-        heading: "前回より、少し見えるようになるホーム",
-        lead: "前回からの気づきと、また行きたくなる場所をお届けするページです。",
+        eyebrow: "前回のつづき",
+        heading: "いつもの道にも、つづきがある",
+        lead: "前回の 1 枚や、ほかの人の 1 枚から、次に見てみたくなる視点をやわらかく返すホームです。",
         actions: [
           { href: "/notes", label: "ノートへ" },
           { href: "/record", label: "1 件記録する", variant: "secondary" as const },
         ],
       },
-      `${OBSERVATION_CARD_STYLES}
+      `${AMBIENT_CUE_CARD_STYLES}
+        ${OBSERVATION_CARD_STYLES}
         .home-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
         @media (max-width: 860px) { .home-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
         @media (max-width: 480px) { .home-grid { grid-template-columns: 1fr; } }
       `,
+      lang,
+      currentPath,
     );
   });
 
   app.get<{ Params: { id: string } }>("/observations/:id", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
-    const snapshot = await getObservationDetailSnapshot(request.params.id);
+    const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
+    const currentPath = requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } });
+    const snapshot = await getObservationDetailSnapshot(request.params.id, lang);
     if (!snapshot) {
       reply.code(404).type("text/html; charset=utf-8");
-      return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける");
+      return layout(basePath, "Observation not found", stateCard("見つかりません", "この観察はまだ取得できません", "リンクが古い、または観察が削除されている可能性があります。"), "みつける", undefined, undefined, lang, currentPath);
     }
     const photos = snapshot.photoUrls.map((url) => `<div class="obs-detail-photo"><img src="${escapeHtml(url)}" alt="${escapeHtml(snapshot.displayName)}" loading="lazy" onerror="this.closest('.obs-detail-photo').classList.add('is-broken');" /><span class="obs-detail-photo-fallback">📷 ${escapeHtml(snapshot.displayName)} / 写真なし</span></div>`).join("");
     const ids = snapshot.identifications.map((item) => `
@@ -379,15 +449,37 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         </div>
       </div>`).join("");
     const unresolvedReason = snapshot.identifications.length === 0
-      ? "まだ正式な同定は付いていません。今は写真で分かる範囲で止めておくのが正しい状態です。"
+      ? "まだ正式な同定が付いていなくても問題ありません。今は写真で分かる範囲を残しておく段階です。"
       : snapshot.scientificName
-        ? "候補は出ていますが、もう少し良い角度の写真や追加の観察があると根拠が厚くなります。"
-        : "候補はありますが、急いで種まで断定せず、もう一度観察するのが安心です。";
-    const retakeChecklist = [
-      "全身だけでなく、決め手になる部位をもう1枚撮る",
-      "同じ場所で時間を変えて再訪し、季節や行動差を取る",
-      snapshot.photoUrls.length > 0 ? "今ある写真と次回写真を比べて、何が増えたかを確認する" : "まずは1枚でも写真を追加して、根拠を残す",
-    ].map((item) => `<div class="row"><div>${escapeHtml(item)}</div></div>`).join("");
+        ? "候補は見えてきています。もう 1 枚あると、どこが決め手だったかをあとで読みやすくできます。"
+        : "候補はありますが、急いで決め切らなくて大丈夫です。次に見るポイントが分かれば前に進めます。";
+    const cueDeck = renderCueDeckHtml(basePath, lang, "observation_detail", {
+      sectionEyebrow: "この記録のつづき",
+      sectionTitle: "この 1 件から、次に見てみるなら",
+      primary: {
+        cueId: "observation-primary",
+        surface: "observation_detail",
+        eyebrow: "この記録がつながる先",
+        invitation: snapshot.primaryInvitation,
+        action: { href: "/map", label: "地図で見る", eventName: "same_place_link_created" },
+      },
+      secondary: snapshot.secondaryInvitation
+        ? {
+          cueId: "observation-secondary",
+          surface: "observation_detail",
+          eyebrow: "別のタイミングの価値",
+          invitation: snapshot.secondaryInvitation,
+          action: { href: "/explore", label: "近くの観察を見る", eventName: "cue_opened" },
+        }
+        : null,
+      photo: {
+        cueId: "observation-photo",
+        surface: "observation_detail",
+        eyebrow: "撮り方のヒント",
+        photoHint: snapshot.photoHint,
+        action: { href: "/record", label: "似た 1 枚を残す", eventName: "cue_opened" },
+      },
+    });
 
     reply.type("text/html; charset=utf-8");
     return layout(
@@ -397,10 +489,11 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       <section class="section">
         <div class="grid">
           <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">今の状態</div><h2>無理に当て切らない理由</h2><p class="meta">${escapeHtml(unresolvedReason)}</p></div></div>
-          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">次の一歩</div><h2>次に撮ると進むこと</h2><div class="list">${retakeChecklist}</div></div></div>
-          <div class="card is-soft"><div class="card-body"><div class="eyebrow">学習資産</div><h2>今回の記録の意味</h2><p class="meta">場所の変化を後から比較するための前提情報であり、同時に future AI explanation の学習データ候補です。</p></div></div>
+          <div class="card has-accent is-soft"><div class="card-body"><div class="eyebrow">この場所の広がり</div><h2>同じ場所の記録</h2><p class="meta">${escapeHtml(snapshot.samePlaceObservationCount > 0 ? `${snapshot.placeName} には ${snapshot.samePlaceObservationCount} 件の記録があります。重ねて見ると、その場所らしさが見えやすくなります。` : "この場所の記録はまだ少なめです。最初の 1 件として残る価値があります。")}</p></div></div>
+          <div class="card is-soft"><div class="card-body"><div class="eyebrow">AI の役割</div><h2>答えではなくヒント</h2><p class="meta">AI は「ここを見て」「この特徴に注目して」と返す役割にとどまります。最後に決めるのは人です。</p></div></div>
         </div>
       </section>
+      ${cueDeck}
       <section class="section">
         <div class="grid">
           <div class="card"><div class="card-body"><div class="eyebrow">場所</div><h2>${escapeHtml(snapshot.placeName)}</h2><p class="meta">${escapeHtml(snapshot.municipality || "自治体不明")}</p></div></div>
@@ -419,13 +512,16 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           ...(snapshot.observerUserId ? [{ href: `/profile/${encodeURIComponent(snapshot.observerUserId)}`, label: "観察者を見る", variant: "secondary" as const }] : []),
         ],
       },
-      `.obs-detail-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+      `${AMBIENT_CUE_CARD_STYLES}
+       .obs-detail-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
        .obs-detail-photo { position: relative; aspect-ratio: 4/3; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg,#ecfdf5,#e0f2fe); border: 1px solid rgba(15,23,42,.06); }
        .obs-detail-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
        .obs-detail-photo-fallback { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 16px; color: #475569; font-size: 13px; font-weight: 700; background: repeating-linear-gradient(0deg, transparent 0 24px, rgba(15,23,42,.04) 24px 25px); }
        .obs-detail-photo.is-broken img { display: none; }
        .obs-detail-photo.is-broken .obs-detail-photo-fallback { display: flex; }
       `,
+      lang,
+      currentPath,
     );
   });
 
@@ -716,7 +812,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
     const session = await getSessionFromCookie(request.headers.cookie);
     const { viewerUserId } = resolveViewer(request.query, session);
-    const snapshot = await getLandingSnapshot(viewerUserId);
+    const snapshot = await getLandingSnapshot(viewerUserId, lang);
 
     const isLoggedIn = Boolean(viewerUserId);
     const ownCards = snapshot.myFeed
@@ -753,8 +849,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         heading: lang === "ja" ? "📖 フィールドノート" : "📖 Field Note",
         headingHtml: lang === "ja" ? "📖 フィールドノート" : "📖 Field Note",
         lead: lang === "ja"
-          ? "あなたの観察が積み上がるノート。あとから読み返すほど、同じ道が違って見えてきます。"
-          : "Your notebook where observations stack up. The more you re-read it, the more the same path changes.",
+          ? "あなたの観察が積み上がるノート。あとで見返すと、同じ道でも季節や視点の違いが見えやすくなります。"
+          : "Your notebook where observations stack up. Looking back later makes seasonal and angle differences easier to notice.",
         tone: "light",
         align: "center",
         actions: [
@@ -865,7 +961,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
   app.get("/map", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(String((request as unknown as { url?: string }).url ?? ""));
-    const snapshot = await getLandingSnapshot(null);
+    const snapshot = await getLandingSnapshot(null, lang);
     const points = toMapPoints(snapshot.feed);
     const notesHref = appendLangToHref(withBasePath(basePath, "/notes"), lang);
 
@@ -968,7 +1064,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         </div>
       </section>
       ${mapMiniBootScript("ikimon-map-full")}`,
-      footerNote: lang === "ja" ? "観察の広がりを、あとで見返せる地図として残す。" : "Keep the spread of observations as a map you can revisit.",
+      footerNote: lang === "ja" ? "観察の広がりを、自分やほかの人とつながる地図として残す。" : "Keep the spread of observations as a map that connects people and places later.",
     });
   });
 }

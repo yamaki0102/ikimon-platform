@@ -57,28 +57,28 @@ function layoutCopy(lang: SiteLang): { record: string; explore: string; business
         record: "Record",
         explore: "Explore",
         business: "For Business",
-        footerNote: "Save what you find nearby and review it later, place by place.",
+        footerNote: "Let what you notice nearby connect later.",
       };
     case "es":
       return {
         record: "Registrar",
         explore: "Explorar",
         business: "Para organizaciones",
-        footerNote: "Guarda lo que encuentras cerca y revísalo después, lugar por lugar.",
+        footerNote: "Deja que lo que notas cerca conecte más tarde.",
       };
     case "pt-BR":
       return {
         record: "Registrar",
         explore: "Explorar",
         business: "Para organizações",
-        footerNote: "Guarde o que encontra por perto e reveja depois, lugar por lugar.",
+        footerNote: "Deixe o que você nota por perto se conectar depois.",
       };
     default:
       return {
         record: "記録する",
         explore: "みつける",
         business: "法人向け",
-        footerNote: "いつもの道で見つけた自然を、あとで見返せる形に残す。",
+        footerNote: "見つけたことが、あとで自分やほかの人につながっていく。",
       };
   }
 }
@@ -258,31 +258,31 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       lang === "ja" ? "ikimonの想い — 自然が、子どもとまちを結ぶ | ikimon" : "About | ikimon",
       lang === "ja" ? "ikimonについて" : "About",
       "自然が、子どもとまちを結ぶ。",
-      "原体験から始まった、小さな自然観察をまちの営みにつなげるためのプロジェクトです。",
+      "小さな自然観察を、やらされる行動ではなく、暮らしや旅の中で自然につながる営みにしていくためのプロジェクトです。",
       cards([
         {
-          title: "原体験",
-          body: "幼少期の小さな発見が、自然との距離を縮め、学びの入口になります。",
+          title: "いつもの散歩道にも、つづきがある",
+          body: "特別な遠出でなくても、毎日通る道の 1 枚が、あとで季節や時間の違いを感じる入口になります。",
+        },
+        {
+          title: "旅先の 1 枚も、別の来訪者とつながる",
+          body: "ある人が撮った景色に、別の人が違う季節や時間に 1 枚重ねる。その重なり自体に価値があります。",
+        },
+        {
+          title: "AI は答えを押しつけない",
+          body: "ikimon の AI は「ここを見て」「この特徴に注目して」とヒントを返す役割にとどまります。最後に決めるのは人です。",
+        },
+        {
+          title: "見方が 1 つ増えるだけでいい",
+          body: "散歩や旅行を観測義務に変えるのではなく、既にある行動に視点を 1 つ足す。そのくらいの温度感を大切にしています。",
         },
         {
           title: "まちの解像度が上がると、愛着も上がる",
-          body: "近所の緑地や道端での観察が積み上がると、地域の見え方が変わっていきます。",
+          body: "近所の緑地や道端を見比べる材料が少しずつ増えると、地域の見え方そのものが変わっていきます。",
         },
         {
-          title: "なぜ、地域創生なのか",
-          body: "自然を記録して見返す行為が、地域の関係人口と継続的な関わりを生みます。",
-        },
-        {
-          title: "子どもだけじゃない。大人もイキイキしていないと",
-          body: "世代を問わず、自然との接点があることで日常の楽しさと学びが増えます。",
-        },
-        {
-          title: "消滅可能性自治体",
-          body: "地域の魅力を再発見し、地元に目を向けるきっかけを増やすことが重要です。",
-        },
-        {
-          title: "持続可能なかたち",
-          body: "一過性のイベントではなく、記録と再訪の循環を続けられる設計を重視しています。",
+          title: "続ける理由は、外から押しつけない",
+          body: "続けたくなるかどうかは、本人の発見や手応えから生まれるべきだと考えています。ikimon はその下支えをします。",
         },
       ]),
       "Learn",
@@ -301,15 +301,15 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       lang === "ja" ? "解説ガイド一覧 | ikimon" : "Learn | ikimon",
       lang === "ja" ? "解説ガイド" : "Learn",
       "解説ガイド一覧",
-      "自然と社会、健康と学び、組織導入と分析まで、ikimonの読みものを分野ごとに整理しています。",
+      "自然と社会、健康と学び、そして「同じような場所や構図の 1 枚にどんな価値があるか」を、具体例から読めるように整理しています。",
       cards([
         {
-          title: "自然と社会",
-          body: "地域の自然観察が、暮らしやまちづくりにどうつながるかを解説します。",
+          title: "いつもの散歩道で見えてくること",
+          body: "同じ道でも、季節や時間で何が変わるのか。身近な場所の 1 枚が持つ意味を解説します。",
         },
         {
-          title: "健康と学び",
-          body: "観察活動が健康・教育・継続学習に与える価値を紹介します。",
+          title: "旅先や別の来訪者とつながる記録",
+          body: "違う人が違うタイミングで同じ場所を撮ることに、なぜ価値があるのかを整理します。",
         },
         {
           title: "組織導入と分析",
@@ -320,7 +320,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       ]) + rows([
         {
           title: "同定の考え方",
-          body: "断定しない理由、次に見るべきポイント、再観察で精度を上げる方法。",
+          body: "断定しない理由、次に見るべきポイント、そして AI がどこまでヒント役に徹するか。",
           actionHref: withBasePath(basePath, "/learn/identification-basics"),
           actionLabel: lang === "ja" ? "読む" : "Basics",
         },
@@ -332,7 +332,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         },
         {
           title: "アップデート",
-          body: "機能追加を単なる更新履歴ではなく、観察体験の進化として整理。",
+          body: "機能追加を単なる更新履歴ではなく、観察体験の温度感がどう整ってきたかとして整理。",
         },
       ]),
       "Learn",
@@ -351,7 +351,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       "Identification Basics | ikimon",
       "Learn",
       "同定は、いきなり正解を断言することだけが目的ではありません。",
-      "観察をまず残すこと、そのうえで AI が候補と次の手がかりを返すこと、専門家の同定はそれとは別の場所で扱うこと。この3つを混ぜないのが ikimon の方針です。",
+      "観察をまず残すこと、そのうえで AI が候補と次の手がかりを返すこと、専門家の同定はそれとは別の場所で扱うこと。この 3 つを混ぜないのが ikimon の方針です。",
       cards([
         {
           title: "種まで絞り込めないとき",
@@ -359,7 +359,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
         },
         {
           title: "AI が返す候補の役割",
-          body: "AI は「正解」ではなく、候補の種・見分けるポイント・次に撮りたい部位を返します。最後に決めるのは観察者ご自身です。",
+          body: "AI は「正解」ではなく、候補の種・見分けるポイント・次に撮ると分かりやすい部位を返します。最後に決めるのは観察者ご自身です。",
         },
         {
           title: "専門家によるレビュー",
@@ -370,15 +370,15 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       ]) + rows([
         {
           title: "撮り直しで確度が上がる例",
-          body: "葉の裏、翅の脈、腹部、花の付け根、全景と接写の組み合わせなど、決め手になる部位を追加すると候補を絞りやすくなります。",
+          body: "葉の裏、翅の脈、腹部、花の付け根、全景と接写の組み合わせなど、決め手になる部位が 1 枚増えるだけで候補を絞りやすくなります。",
         },
         {
           title: "ikimon が返したいもの",
-          body: "種名だけでなく、まだ断定しない理由、似た候補、次に何を撮れば進むか、そしてその場所にまた行きたくなる理由。",
+          body: "種名だけでなく、まだ断定しない理由、似た候補、次に何を撮れば進みやすいか、そして同じ場所の 1 枚にどんな意味があるか。",
         },
         {
           title: "最初の一歩",
-          body: "まず 1 件記録してみる。完璧な同定でなくて構いません。観察と再訪を重ねることで、少しずつ見えるものが変わっていきます。",
+          body: "まず 1 件記録してみる。完璧な同定でなくて構いません。あとで見返せる 1 枚があるだけで、次に見たいポイントが生まれます。",
           actionHref: withBasePath(basePath, "/record"),
           actionLabel: "記録する",
         },

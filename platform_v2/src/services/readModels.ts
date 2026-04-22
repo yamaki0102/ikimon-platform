@@ -1,4 +1,11 @@
 import { getPool } from "../db.js";
+import type { SiteLang } from "../i18n.js";
+import {
+  buildHomeCueSet,
+  buildObservationCueSet,
+  type AmbientInvitation,
+  type PhotoHint,
+} from "./ambientInvitations.js";
 
 type RecentObservation = {
   occurrenceId: string;
@@ -24,6 +31,9 @@ export type HomeSnapshot = {
   viewerUserId: string | null;
   recentObservations: RecentObservation[];
   myPlaces: HomePlace[];
+  primaryInvitation: AmbientInvitation;
+  secondaryInvitation: AmbientInvitation | null;
+  photoHint: PhotoHint;
 };
 
 export type ObservationDetailSnapshot = {
@@ -38,6 +48,8 @@ export type ObservationDetailSnapshot = {
   placeName: string;
   municipality: string | null;
   photoUrls: string[];
+  samePlaceObservationCount: number;
+  samePlaceOtherObserverCount: number;
   identifications: Array<{
     proposedName: string;
     proposedRank: string | null;
@@ -45,6 +57,9 @@ export type ObservationDetailSnapshot = {
     actorName: string;
     createdAt: string;
   }>;
+  primaryInvitation: AmbientInvitation;
+  secondaryInvitation: AmbientInvitation | null;
+  photoHint: PhotoHint;
 };
 
 export type ProfileSnapshot = {
@@ -88,7 +103,7 @@ function normalizeAssetUrl(value: string | null): string | null {
   return `/${value.replace(/^\.?\//, "")}`;
 }
 
-export async function getHomeSnapshot(userId: string | null): Promise<HomeSnapshot> {
+export async function getHomeSnapshot(userId: string | null, lang: SiteLang = "ja"): Promise<HomeSnapshot> {
   const pool = getPool();
   const recentResult = await pool.query<{
     occurrence_id: string;
@@ -165,20 +180,33 @@ export async function getHomeSnapshot(userId: string | null): Promise<HomeSnapsh
     }));
   }
 
+  const recentObservations = recentResult.rows.map((row) => ({
+    occurrenceId: row.occurrence_id,
+    visitId: row.visit_id,
+    displayName: row.display_name ?? "Unresolved",
+    observedAt: row.observed_at,
+    observerName: row.observer_name ?? "Unknown observer",
+    placeName: row.place_name ?? "Unknown place",
+    municipality: row.municipality,
+    photoUrl: normalizeAssetUrl(row.photo_url),
+    identificationCount: Number(row.identification_count),
+  }));
+
+  const cues = buildHomeCueSet(lang, {
+    primaryPlaceName: myPlaces[0]?.placeName ?? null,
+    primaryPlaceVisits: myPlaces[0]?.visitCount ?? 0,
+    recentDisplayName: recentObservations[0]?.displayName ?? null,
+    recentPlaceName: recentObservations[0]?.placeName ?? null,
+    nearbyObserverCount: recentObservations.length,
+  });
+
   return {
     viewerUserId: userId,
-    recentObservations: recentResult.rows.map((row) => ({
-      occurrenceId: row.occurrence_id,
-      visitId: row.visit_id,
-      displayName: row.display_name ?? "Unresolved",
-      observedAt: row.observed_at,
-      observerName: row.observer_name ?? "Unknown observer",
-      placeName: row.place_name ?? "Unknown place",
-      municipality: row.municipality,
-      photoUrl: normalizeAssetUrl(row.photo_url),
-      identificationCount: Number(row.identification_count),
-    })),
+    recentObservations,
     myPlaces,
+    primaryInvitation: cues.primaryInvitation,
+    secondaryInvitation: cues.secondaryInvitation,
+    photoHint: cues.photoHint,
   };
 }
 
@@ -277,11 +305,12 @@ export async function getExploreSnapshot(): Promise<ExploreSnapshot> {
   };
 }
 
-export async function getObservationDetailSnapshot(id: string): Promise<ObservationDetailSnapshot | null> {
+export async function getObservationDetailSnapshot(id: string, lang: SiteLang = "ja"): Promise<ObservationDetailSnapshot | null> {
   const pool = getPool();
   const detailResult = await pool.query<{
     occurrence_id: string;
     visit_id: string;
+    place_id: string | null;
     observer_user_id: string | null;
     display_name: string | null;
     scientific_name: string | null;
@@ -294,6 +323,7 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     `select
         o.occurrence_id,
         o.visit_id,
+        v.place_id,
         v.user_id as observer_user_id,
         coalesce(o.vernacular_name, o.scientific_name, 'Unresolved') as display_name,
         o.scientific_name,
@@ -350,6 +380,48 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     [base.occurrence_id],
   );
 
+  let samePlaceObservationCount = 0;
+  let samePlaceOtherObserverCount = 0;
+  if (base.place_id) {
+    const placeStatsResult = await pool.query<{
+      observation_count: string;
+      other_observer_count: string;
+    }>(
+      `select
+          count(*)::text as observation_count,
+          count(distinct v.user_id) filter (
+            where v.user_id is not null
+              and ($2::text is null or v.user_id <> $2)
+          )::text as other_observer_count
+       from occurrences o
+       join visits v on v.visit_id = o.visit_id
+       where v.place_id = $1`,
+      [base.place_id, base.observer_user_id],
+    );
+
+    samePlaceObservationCount = Number(placeStatsResult.rows[0]?.observation_count ?? 0);
+    samePlaceOtherObserverCount = Number(placeStatsResult.rows[0]?.other_observer_count ?? 0);
+  }
+
+  const photoUrls = photosResult.rows.map((row) => normalizeAssetUrl(row.photo_url)).filter((value): value is string => Boolean(value));
+  const identifications = identificationsResult.rows.map((row) => ({
+    proposedName: row.proposed_name,
+    proposedRank: row.proposed_rank,
+    notes: row.notes,
+    actorName: row.actor_name ?? "Community",
+    createdAt: row.created_at,
+  }));
+
+  const cues = buildObservationCueSet(lang, {
+    displayName: base.display_name ?? "Unresolved",
+    placeName: base.place_name ?? "Unknown place",
+    identificationCount: identifications.length,
+    hasScientificName: Boolean(base.scientific_name),
+    photoCount: photoUrls.length,
+    samePlaceObservationCount,
+    samePlaceOtherObserverCount,
+  });
+
   return {
     occurrenceId: base.occurrence_id,
     visitId: base.visit_id,
@@ -361,14 +433,13 @@ export async function getObservationDetailSnapshot(id: string): Promise<Observat
     observerName: base.observer_name ?? "Unknown observer",
     placeName: base.place_name ?? "Unknown place",
     municipality: base.municipality,
-    photoUrls: photosResult.rows.map((row) => normalizeAssetUrl(row.photo_url)).filter((value): value is string => Boolean(value)),
-    identifications: identificationsResult.rows.map((row) => ({
-      proposedName: row.proposed_name,
-      proposedRank: row.proposed_rank,
-      notes: row.notes,
-      actorName: row.actor_name ?? "Community",
-      createdAt: row.created_at,
-    })),
+    photoUrls,
+    samePlaceObservationCount,
+    samePlaceOtherObserverCount,
+    identifications,
+    primaryInvitation: cues.primaryInvitation,
+    secondaryInvitation: cues.secondaryInvitation,
+    photoHint: cues.photoHint,
   };
 }
 
@@ -587,4 +658,7 @@ export type LandingSnapshot = {
   myFeed: LandingObservation[];
   myPlaces: HomePlace[];
   ambient: AmbientObserver[];
+  primaryInvitation: AmbientInvitation;
+  secondaryInvitation: AmbientInvitation | null;
+  photoHint: PhotoHint;
 };
