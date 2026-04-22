@@ -115,6 +115,7 @@ async function main() {
   if (!options.skipReadSmoke && options.baseUrl) {
     await runNpmScript("smoke:v2-lane", readSmokeArgs);
     await runNpmScript("smoke:v2-read-lane", readSmokeArgs);
+    await runNpmScript("smoke:v2-monitoring-lane", readSmokeArgs);
   }
   if (!options.skipWriteSmoke && options.baseUrl) {
     await runNpmScript("smoke:v2-write-lane", writeSmokeArgs);

@@ -4,6 +4,7 @@ import { getForwardedBasePath, withBasePath } from "./httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "./i18n.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerMarketingRoutes } from "./routes/marketing.js";
+import { registerMonitoringRoutes } from "./routes/monitoring.js";
 import { registerOpsRoutes } from "./routes/ops.js";
 import { registerReadRoutes } from "./routes/read.js";
 import { registerWriteRoutes } from "./routes/write.js";
@@ -630,6 +631,7 @@ export function buildApp() {
 
   void registerHealthRoutes(app);
   void registerMarketingRoutes(app);
+  void registerMonitoringRoutes(app);
   void registerReadRoutes(app);
   void registerWriteRoutes(app);
   void registerUiKpiRoutes(app);

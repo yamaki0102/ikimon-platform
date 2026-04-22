@@ -68,19 +68,21 @@ jobs:
           host: 162.43.44.131
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
-          script_stop: false
           script: |
-            set +e
+            set -euo pipefail
+            export DATABASE_URL="${DATABASE_URL:-postgresql:///ikimon_v2_staging?host=%2Fvar%2Frun%2Fpostgresql}"
             V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
             if [ ! -d "$V2_DIR" ]; then
-              echo "platform_v2 directory missing at $V2_DIR — skip v2 rebuild."
-              exit 0
+              echo "platform_v2 directory missing at $V2_DIR"
+              exit 1
             fi
             cd "$V2_DIR"
             echo "== npm ci =="
-            npm ci --silent || echo "WARN: npm ci failed (continuing)"
+            npm ci --silent
+            echo "== npm run migrate =="
+            npm run migrate
             echo "== npm run build =="
-            npm run build || echo "WARN: build failed (continuing)"
+            npm run build
             echo "== restart v2 service =="
             restarted=0
             for svc in ikimon-v2-staging.service ikimon-v2.service platform-v2-staging.service; do
@@ -97,18 +99,24 @@ jobs:
               pm2 restart ikimon-v2-staging-api --update-env 2>/dev/null && echo "Restarted via pm2 (ALLOW_QUERY_USER_ID=1 for staging QA)" && restarted=1
             fi
             if [ "$restarted" = "0" ]; then
-              echo "WARN: no known v2 service manager reacted. Manual restart may be required."
+              echo "No known v2 service manager reacted."
+              exit 1
             fi
             echo "== v2 health probe =="
+            ready=0
             for i in 1 2 3 4 5 6 7 8 9 10; do
               code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3200/healthz 2>/dev/null)
               if [ "$code" = "200" ]; then
                 echo "v2 healthz OK"
+                ready=1
                 break
               fi
               sleep 1
             done
-            exit 0
+            if [ "$ready" != "1" ]; then
+              echo "v2 healthz did not return 200 after restart"
+              exit 1
+            fi
 
       - name: Sync staging nginx (v2 primary, PHP on /legacy/)
         uses: appleboy/ssh-action@v1
@@ -192,6 +200,8 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -euo pipefail
+            V2_DIR=/var/www/ikimon.life-staging/repo/platform_v2
             echo "== PHP lane (port 8081, internal) =="
             for url in \
               http://127.0.0.1:8081/index.php \
@@ -208,7 +218,7 @@ jobs:
               fi
             done
             echo "== v2 lane (port 3200, internal) =="
-            for path in /healthz / /notes /lens /scan /map; do
+            for path in /healthz / /notes /lens /scan /map /ops/digitized-books /ops/digitized-books/data /ops/digitized-books/rag-data; do
               STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Accept: text/html" "http://127.0.0.1:3200${path}")
               if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
                 echo "OK v2 ${path} -> $STATUS"
@@ -217,11 +227,40 @@ jobs:
                 exit 1
               fi
             done
-            echo "== public routing sanity (basic-auth protected, loopback without creds returns 401 which is expected) =="
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -k -H 'Host: staging.ikimon.life' https://127.0.0.1/ 2>/dev/null)
-            if [ "$STATUS" = "401" ] || [ "$STATUS" = "200" ]; then
-              echo "OK public / responds ($STATUS — 401 = basic auth guard, 200 = pre-auth cached session)"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:3200/ops/digitized-books/data")
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
+              echo "OK health check http://127.0.0.1:3200/ops/digitized-books/data -> $STATUS"
             else
-              echo "FAIL public / returned $STATUS"
+              echo "FAIL health check http://127.0.0.1:3200/ops/digitized-books/data -> $STATUS"
               exit 1
             fi
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:3200/ops/digitized-books/rag-data")
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
+              echo "OK health check http://127.0.0.1:3200/ops/digitized-books/rag-data -> $STATUS"
+            else
+              echo "FAIL health check http://127.0.0.1:3200/ops/digitized-books/rag-data -> $STATUS"
+              exit 1
+            fi
+            echo "== public routing sanity (basic-auth protected, loopback without creds returns 401 which is expected) =="
+            for path in / /ops/digitized-books; do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" -k -H 'Host: staging.ikimon.life' "https://127.0.0.1${path}" 2>/dev/null)
+              if [ "$STATUS" = "401" ] || [ "$STATUS" = "200" ]; then
+                echo "OK public ${path} responds ($STATUS — 401 = basic auth guard, 200 = pre-auth cached session)"
+              else
+                echo "FAIL public ${path} returned $STATUS"
+                exit 1
+              fi
+            done
+            echo "== monitoring schema migration =="
+            MIGRATION_COUNT=$(sudo -u postgres psql -d ikimon_v2_staging -Atqc "select count(*) from schema_migrations where filename = '0007_monitoring_poc.sql'")
+            if [ "$MIGRATION_COUNT" != "1" ]; then
+              echo "FAIL monitoring migration record missing"
+              exit 1
+            fi
+            if [ ! -d "$V2_DIR" ]; then
+              echo "FAIL platform_v2 directory missing at $V2_DIR"
+              exit 1
+            fi
+            echo "== monitoring smoke =="
+            cd "$V2_DIR"
+            npm run smoke:v2-monitoring-lane -- --base-url=http://127.0.0.1:3200

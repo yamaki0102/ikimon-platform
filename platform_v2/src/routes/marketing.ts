@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, type SiteLang } from "../i18n.js";
+import { getMonitoringPocSnapshot, type MonitoringPocSnapshot } from "../services/monitoringPoc.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
 
 function requestBasePath(request: { headers: Record<string, unknown> }): string {
@@ -142,6 +143,74 @@ function rows(items: Array<{ title: string; body: string; actionHref?: string; a
       </div>`,
     )
     .join("")}</div></section>`;
+}
+
+function businessHeroActions(basePath: string, lang: SiteLang): string {
+  const applyHref = appendLangToHref(withBasePath(basePath, "/for-business/apply"), lang);
+  const demoHref = appendLangToHref(withBasePath(basePath, "/for-business/demo"), lang);
+  return `<div class="actions">
+    <a class="btn btn-solid" data-kpi-action="for_business_apply" href="${escapeHtml(applyHref)}">${escapeHtml("Apply")}</a>
+    <a class="btn btn-ghost-on-dark" data-kpi-action="for_business_demo" href="${escapeHtml(demoHref)}">${escapeHtml("Demo")}</a>
+  </div>`;
+}
+
+function renderMonitoringDemoBody(snapshot: MonitoringPocSnapshot, lang: SiteLang): string {
+  const firstReport = snapshot.comparisonReports[0];
+  const plotRows = snapshot.plotRegistry
+    .slice(0, 3)
+    .map(
+      (plot) => `<div class="row">
+        <div>
+          <strong>${escapeHtml(`${plot.plotCode} / ${plot.plotName}`)}</strong>
+          <div class="meta">${escapeHtml(plot.baselineForestType ?? (lang === "ja" ? "森林タイプ未設定" : "Forest type pending"))}</div>
+          <div class="meta">${escapeHtml(plot.imageryContext.note ?? (lang === "ja" ? "既存画像を背景文脈に使用" : "Existing imagery as context only"))}</div>
+        </div>
+        <div class="pill">${escapeHtml(plot.latestProtocolCode ?? (lang === "ja" ? "baseline" : "baseline"))}</div>
+      </div>`,
+    )
+    .join("");
+
+  const reportBlock = firstReport
+    ? `<section class="section">
+        <div class="section-header"><div><div class="eyebrow">${escapeHtml(lang === "ja" ? "比較レポート例" : "Sample report")}</div><h2>${escapeHtml(firstReport.plotLabel)}</h2></div></div>
+        <div class="list">
+          <div class="row"><div><strong>${escapeHtml("Field evidence")}</strong><div class="meta">${escapeHtml(firstReport.fieldEvidence.fieldNoteSummary ?? (lang === "ja" ? "未記録" : "Pending"))}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml("Site condition")}</strong><div class="meta">${escapeHtml(firstReport.siteCondition.latest ?? (lang === "ja" ? "未記録" : "Pending"))}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml("Revisit diff")}</strong><div class="meta">${escapeHtml(firstReport.revisitDiff.summary)}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml("Imagery context")}</strong><div class="meta">${escapeHtml(firstReport.imageryContext.note ?? (lang === "ja" ? "地図・航空写真は背景文脈のみ" : "Map and air photo stay in the context lane"))}</div></div></div>
+          <div class="row"><div><strong>${escapeHtml("Next action")}</strong><div class="meta">${escapeHtml(firstReport.nextAction ?? (lang === "ja" ? "未設定" : "Pending"))}</div></div></div>
+        </div>
+      </section>`
+    : "";
+
+  return rows([
+    {
+      title: lang === "ja" ? "Step 1. site と plot を決める" : "Step 1. Choose the site and plots",
+      body:
+        lang === "ja"
+          ? "固定プロットを 1-3 本に絞り、既存の地図・航空写真で固定点と境界の当たりをつけます。"
+          : "Limit the first PoC to 1-3 fixed plots, then use existing map and air-photo context to anchor points and boundaries.",
+    },
+    {
+      title: lang === "ja" ? "Step 2. visit ごとに証拠を束ねる" : "Step 2. Bundle evidence per visit",
+      body:
+        lang === "ja"
+          ? "field note / field scan / fixed-point photo を 1 visit に束ね、欠損を見える化します。"
+          : "Bundle field note, field scan, and fixed-point photo into one visit and make gaps explicit.",
+    },
+    {
+      title: lang === "ja" ? "Step 3. baseline / revisit / next action を共有する" : "Step 3. Share baseline, revisit, and next action",
+      body:
+        lang === "ja"
+          ? "比較レポートは、比較可能か・次に何を見るかを決めるための道具です。"
+          : "The comparison report is there to decide whether the plot is comparable and what to inspect next.",
+    },
+  ]) + `<section class="section"><div class="section-header"><div><div class="eyebrow">${escapeHtml(lang === "ja" ? "plot registry" : "Plot registry")}</div><h2>${escapeHtml(snapshot.site.placeName)}</h2></div></div><div class="list">${plotRows || `<div class="row"><div>${escapeHtml(lang === "ja" ? "plot がまだありません。" : "No plots yet.")}</div></div>`}</div></section>` + reportBlock + rows(
+    snapshot.guardrails.map((item) => ({
+      title: lang === "ja" ? "Guardrail" : "Guardrail",
+      body: item,
+    })),
+  );
 }
 
 export async function registerMarketingRoutes(app: FastifyInstance): Promise<void> {
@@ -518,81 +587,102 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
   app.get("/for-business", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(requestUrl(request));
+    const isJa = lang === "ja";
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       lang,
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
-      lang === "ja" ? "ikimon for Business — 組織で支える、近くの自然" : "For Business | ikimon",
-      lang === "ja" ? "法人向け" : "For Business",
-      "観察会や地域の記録を、続けやすくする。",
-      "観察記録の収集から、報告書の出力まで。学校・自治体・企業で継続運用しやすい導線を用意しています。",
+      isJa ? "ikimon for Business — 固定プロット再訪モニタリング PoC | ikimon" : "For Business | ikimon",
+      isJa ? "法人向け" : "For Business",
+      isJa ? "固定プロットの再訪モニタリングを、すぐ始める。" : "Start fixed-plot revisit monitoring quickly.",
+      isJa
+        ? "現地調査を主、地図と航空写真を補助にして、拠点の変化を継続比較しやすくします。"
+        : "Keep field work in the lead, use existing map and air-photo context as support, and make site changes easier to compare over time.",
       cards([
         {
-          title: "観察記録の収集から、報告書の出力まで",
-          body: "現場の記録を集め、整理し、共有・報告につなげるまでを一つの流れで支援します。",
-          href: withBasePath(basePath, "/for-business/demo"),
-          label: lang === "ja" ? "デモを見る" : "Demo",
+          title: isJa ? "固定プロット比較" : "Fixed-plot comparison",
+          body: isJa
+            ? "site 配下で plot を決め、baseline と revisit を同じ単位で見返せるようにします。"
+            : "Anchor the PoC to explicit plots under one site, then compare baseline and revisit on the same unit.",
+          href: appendLangToHref(withBasePath(basePath, "/for-business/demo"), lang),
+          label: "Demo",
         },
         {
-          title: "どんな団体を想定しているか",
-          body: "自治体、学校、企業、NPOなど、地域で自然観察を継続したい組織を対象にしています。",
+          title: isJa ? "再訪しやすい記録設計" : "Revisit-ready record design",
+          body: isJa
+            ? "field note / field scan / fixed-point photo を 1 visit に束ね、比較不能な欠損を先に見える化します。"
+            : "Bundle field note, field scan, and fixed-point photo into one visit, then expose missing evidence before it causes confusion.",
         },
         {
-          title: "プランの設計について",
-          body: "Community / Public の違いと、運用段階に応じた導入ステップを確認できます。",
-          href: withBasePath(basePath, "/for-business/pricing"),
-          label: lang === "ja" ? "料金を見る" : "Pricing",
-        },
-        {
-          title: "3つのプラン",
-          body: "導入規模や目的に応じて、段階的に選べる構成。",
-        },
-        {
-          title: "なぜこの料金設計なのか",
-          body: "継続運用と現場負担のバランスを優先した設計です。",
-        },
-        {
-          title: "よくある質問",
-          body: "導入前に確認したい点を先に整理できます。",
-          href: withBasePath(basePath, "/faq"),
-          label: "FAQ",
-        },
-        {
-          title: "導入相談も、共同実証の相談も歓迎しています。",
-          body: "要件整理、試験導入、共同実証までお気軽に相談ください。",
-          href: withBasePath(basePath, "/for-business/apply"),
-          label: lang === "ja" ? "相談する" : "Apply",
+          title: isJa ? "共有しやすい比較レポート" : "Shareable comparison report",
+          body: isJa
+            ? "初回ベースライン、再訪比較、次回調査計画を 1 枚にまとめ、炭素量の約束を混ぜません。"
+            : "Keep baseline, revisit diff, and next survey plan in one report without turning the v1 promise into a carbon service.",
         },
       ]) + rows([
         {
-          title: "料金設計の背景",
-          body: "継続運用と現場負担のバランスを優先した設計思想を確認できます。",
-          actionHref: withBasePath(basePath, "/for-business/pricing"),
-          actionLabel: lang === "ja" ? "設計思想" : "Pricing rationale",
+          title: isJa ? "Step 1. site と plot を決める" : "Step 1. Choose the site and plots",
+          body: isJa
+            ? "1 拠点に対して 1-3 plot を決め、固定点と再訪の前提を最初に揃えます。"
+            : "Fix the first PoC to 1 site and 1-3 plots, then agree on fixed points and revisit rules first.",
+        },
+        {
+          title: isJa ? "Step 2. visit ごとに証拠を束ねる" : "Step 2. Bundle evidence per visit",
+          body: isJa
+            ? "現地で残した証拠を 1 visit に集め、比較できる状態かをその場で判断します。"
+            : "Bundle field evidence per visit so the team can judge comparability on the spot.",
+          actionHref: appendLangToHref(withBasePath(basePath, "/for-business/demo"), lang),
+          actionLabel: "Demo",
+        },
+        {
+          title: isJa ? "v1 でやらないこと" : "What v1 does not do",
+          body: isJa
+            ? "正式炭素量、衛星だけの変化判定、plot 値の site 全体外挿は約束しません。"
+            : "V1 does not promise official carbon, satellite-only change detection, or site-wide extrapolation from plot values.",
         },
       ]),
       "For Business",
-      `<a class="inline-link" href="${escapeHtml(withBasePath(basePath, "/contact"))}">問い合わせる</a>`,
+      businessHeroActions(basePath, lang),
     );
   });
 
   app.get("/for-business/pricing", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(requestUrl(request));
+    const isJa = lang === "ja";
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
       lang,
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
-      "For Business Pricing | ikimon",
+      "For Business Scope | ikimon",
       "For Business",
-      "プランと料金のご案内",
-      "まずは無料でお試しいただき、調査や報告で追加機能が必要になった段階で有料プランをご検討いただけます。現在のご利用状況と必要な出力をおうかがいしながら、最適な構成をご提案します。",
+      isJa ? "PoC で先に固定する範囲" : "Scope to lock before the PoC",
+      isJa
+        ? "最初に決めるのは価格表よりも、1 site・1-3 plot・baseline / revisit / next action が回るかどうかです。"
+        : "Before price discussions, lock the unit: 1 site, 1-3 plots, and whether baseline / revisit / next action can run cleanly.",
       rows([
-        { title: "コミュニティ(無料)", body: "観察投稿、同定、図鑑、観察会への参加までを無料でご利用いただけます。お申し込みは不要です。" },
-        { title: "パブリック(有料)", body: "全種リスト、CSV 出力、証跡レポートなど、調査・報告のために必要な機能を揃えた有料プランです。" },
-        { title: "ご相談", body: "導入の設計や、学校・自治体などへの無償提供の対象については、下記よりお気軽にお問い合わせください。", actionHref: withBasePath(basePath, "/for-business/apply"), actionLabel: "お問い合わせ" },
+        {
+          title: isJa ? "PoC の基本単位" : "Core PoC unit",
+          body: isJa
+            ? "1 site + 1-3 plot + 初回ベースライン + 再訪比較レポート + 次回調査計画。"
+            : "1 site + 1-3 plots + baseline + revisit report + next survey plan.",
+        },
+        {
+          title: isJa ? "この段階で含めないもの" : "Explicitly out of scope",
+          body: isJa
+            ? "正式炭素量、NDVI/EVI、衛星だけの変化判定、site 全体スコアは v1 に入れません。"
+            : "Official carbon, NDVI/EVI, satellite-only change detection, and site-wide scoring stay out of v1.",
+        },
+        {
+          title: isJa ? "見積りの考え方" : "How quoting works",
+          body: isJa
+            ? "site 数、plot 数、再訪頻度、共有レポートの粒度で個別に決めます。まずは Apply で前提を整理します。"
+            : "Quote by site count, plot count, revisit cadence, and report depth. Start by aligning the assumptions via Apply.",
+          actionHref: appendLangToHref(withBasePath(basePath, "/for-business/apply"), lang),
+          actionLabel: "Apply",
+        },
       ]),
       "For Business",
     );
@@ -601,6 +691,11 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
   app.get("/for-business/demo", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(requestUrl(request));
+    const isJa = lang === "ja";
+    const snapshot = await getMonitoringPocSnapshot(undefined, {
+      allowFixture: true,
+      preferFixtureWhenEmpty: true,
+    });
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
@@ -608,20 +703,20 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
       "For Business Demo | ikimon",
       "For Business",
-      "実際の画面でお確かめください",
-      "専用の営業デモではなく、実際にお使いいただく画面を触っていただく形でご案内しています。下記からご覧いただくと、実務での使い方のイメージが掴めます。",
-      rows([
-        { title: "観察を広く見る", body: "最近の観察と場所ごとのまとまりを確認できます。", actionHref: withBasePath(basePath, "/explore"), actionLabel: "みつける画面へ" },
-        { title: "記録する画面", body: "写真と位置から観察を 1 件記録するまでの流れをご確認いただけます。", actionHref: withBasePath(basePath, "/record"), actionLabel: "記録画面へ" },
-        { title: "運用状況の確認", body: "サービスの健全性とデータ整合性を確認できるページです。", actionHref: withBasePath(basePath, "/ops/readiness"), actionLabel: "運用状況へ" },
-      ]),
+      isJa ? "固定プロット PoC の見え方" : "How the fixed-plot PoC looks",
+      isJa
+        ? "営業専用の演出ではなく、plot registry / visit protocol / comparison report payload を同じ流れで見せます。"
+        : "Instead of a sales-only mock, this demo shows the plot registry, visit protocol, and comparison report payload on the same flow.",
+      renderMonitoringDemoBody(snapshot, lang),
       "For Business",
+      businessHeroActions(basePath, lang),
     );
   });
 
   app.get("/for-business/status", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(requestUrl(request));
+    const isJa = lang === "ja";
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
@@ -629,12 +724,29 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
       "For Business Status | ikimon",
       "For Business",
-      "サービスの状況",
-      "ikimon の稼働状況とデータの健全性をご確認いただけます。公開環境での最新状況を定期的に更新しています。",
+      isJa ? "v1 の boundary" : "V1 boundary",
+      isJa
+        ? "何が ready で、何を次 gate に送るかをここで固定します。"
+        : "This is where the team fixes what is ready now and what stays behind the next gate.",
       rows([
-        { title: "データの整合性", body: "従来システムとの比較チェック、および本番想定でのリハーサルを複数回実施し、いずれも問題なく完了しています。" },
-        { title: "運用面の準備", body: "本番切替に向けた各種チェックを進めており、現時点では予定どおり準備が整っています。" },
-        { title: "次の予定", body: "旧サイトのページを順次新しい画面に切り替えていきます。切替後は従来ページもしばらくバックアップとして残します。" },
+        {
+          title: isJa ? "Ready now" : "Ready now",
+          body: isJa
+            ? "固定プロット比較、再訪しやすい記録設計、比較レポート共有までは v1 の約束にできます。"
+            : "Fixed-plot comparison, revisit-ready records, and shareable comparison reports are inside the v1 promise.",
+        },
+        {
+          title: isJa ? "Not in v1" : "Not in v1",
+          body: isJa
+            ? "正式炭素量、衛星だけの変化判定、plot 値の site 全体外挿はこの段階で出しません。"
+            : "Official carbon, satellite-only change detection, and site-wide extrapolation from plot values stay out of this release.",
+        },
+        {
+          title: isJa ? "Next gate" : "Next gate",
+          body: isJa
+            ? "構造化 tree census を internal lane に足し、そこで初めて carbon proxy の研究実証 gate を開きます。"
+            : "The next gate adds structured tree census to the internal lane before any carbon-proxy research claim opens.",
+        },
       ]),
       "For Business",
     );
@@ -643,6 +755,7 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
   app.get("/for-business/apply", async (request, reply) => {
     const basePath = requestBasePath(request as unknown as { headers: Record<string, unknown> });
     const lang = detectLangFromUrl(requestUrl(request));
+    const isJa = lang === "ja";
     reply.type("text/html; charset=utf-8");
     return layout(
       basePath,
@@ -650,15 +763,42 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
       requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string } }),
       "For Business Apply | ikimon",
       "For Business",
-      "法人・団体のお問い合わせ",
-      "ご導入のご相談、共同での実証、ご要望などを受け付けています。個人のご利用・無料コミュニティプランはお申し込み不要です。",
+      isJa ? "1 拠点の初回モニタリングを始める" : "Start the first site-level monitoring PoC",
+      isJa
+        ? "相談時点で必要なのは site 情報と、何を再訪比較したいかだけです。炭素量前提の要件はこの PoC の対象外です。"
+        : "At the Apply step, all we need is the target site and what the team wants to revisit and compare. Carbon-first requirements stay out of this PoC.",
       rows([
-        { title: "お問い合わせの種類", body: "ご導入のご相談、共同実証のご提案、機能改善のご要望など、該当するものをお知らせください。" },
-        { title: "対象となる場所", body: "観察を実施したい敷地、公園・緑地、拠点周辺など、対象のエリアをお教えください。" },
-        { title: "ご希望のプラン", body: "無料のコミュニティから始められるか、調査・報告用のパブリックをご希望かをお知らせください。" },
-        { title: "次のステップ", body: "ご連絡フォームをご用意するまで、下記の総合お問い合わせから受け付けております。", actionHref: withBasePath(basePath, "/contact"), actionLabel: "お問い合わせへ" },
+        {
+          title: isJa ? "Step 1. 対象 site" : "Step 1. Target site",
+          body: isJa
+            ? "敷地、公園、緑地、拠点周辺など、最初に 1 site を決めます。"
+            : "Pick the first site: a facility, park, green patch, or nearby grounds.",
+        },
+        {
+          title: isJa ? "Step 2. 何を再訪比較したいか" : "Step 2. What to revisit and compare",
+          body: isJa
+            ? "林縁の変化、管理介入前後、季節差など、比較したい問いを 1 本に絞ります。"
+            : "Narrow the first question to one thread: edge changes, before/after management, or seasonal differences.",
+          actionHref: appendLangToHref(withBasePath(basePath, "/for-business/demo"), lang),
+          actionLabel: "Demo",
+        },
+        {
+          title: isJa ? "Step 3. 欲しい成果物" : "Step 3. Output needed",
+          body: isJa
+            ? "初回ベースライン、再訪比較レポート、次回調査計画の 3 点で足りるかを確認します。"
+            : "Confirm whether the first baseline, revisit report, and next survey plan are enough for the team.",
+        },
+        {
+          title: isJa ? "次のステップ" : "Next step",
+          body: isJa
+            ? "ご相談フォーム準備中のため、現状は総合お問い合わせから受け付けています。"
+            : "The dedicated form is still being replaced, so use the main contact route for now.",
+          actionHref: appendLangToHref(withBasePath(basePath, "/contact"), lang),
+          actionLabel: isJa ? "お問い合わせへ" : "Contact",
+        },
       ]),
       "For Business",
+      businessHeroActions(basePath, lang),
     );
   });
 }
