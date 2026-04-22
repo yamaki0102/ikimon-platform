@@ -145,6 +145,44 @@ function rows(items: Array<{ title: string; body: string; actionHref?: string; a
     .join("")}</div></section>`;
 }
 
+function editorialSections(
+  items: Array<{
+    eyebrow?: string;
+    title: string;
+    lead?: string;
+    paragraphs: string[];
+    bullets?: string[];
+    actionHref?: string;
+    actionLabel?: string;
+  }>,
+): string {
+  if (items.length === 0) return "";
+  return `<section class="section mkt-editorial">
+    <style>
+      .mkt-editorial .stack { display: grid; gap: 18px; }
+      .mkt-editorial .block { padding: 24px 28px; }
+      .mkt-editorial .block h2 { margin: 8px 0 12px; font-size: clamp(22px, 2vw, 28px); line-height: 1.35; letter-spacing: -.02em; color: #0f172a; }
+      .mkt-editorial .lead { margin: 0 0 14px; font-size: 15px; font-weight: 700; line-height: 1.7; color: #1e293b; }
+      .mkt-editorial .block p { margin: 0 0 12px; font-size: 15px; line-height: 1.8; color: #475569; }
+      .mkt-editorial .block p:last-child { margin-bottom: 0; }
+      .mkt-editorial .block ul { margin: 14px 0 0 18px; padding: 0; display: grid; gap: 8px; color: #475569; }
+      .mkt-editorial .block li { line-height: 1.7; }
+    </style>
+    <div class="stack">${items
+      .map(
+        (item) => `<article class="card is-soft block">
+          ${item.eyebrow ? `<div class="eyebrow">${escapeHtml(item.eyebrow)}</div>` : ""}
+          <h2>${escapeHtml(item.title)}</h2>
+          ${item.lead ? `<p class="lead">${escapeHtml(item.lead)}</p>` : ""}
+          ${item.paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
+          ${item.bullets?.length ? `<ul>${item.bullets.map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join("")}</ul>` : ""}
+          ${item.actionHref ? `<div class="actions" style="margin-top:14px"><a class="btn btn-ghost" href="${escapeHtml(item.actionHref)}">${escapeHtml(item.actionLabel ?? "Open")}</a></div>` : ""}
+        </article>`,
+      )
+      .join("")}</div>
+  </section>`;
+}
+
 function businessHeroActions(basePath: string, lang: SiteLang): string {
   const applyHref = appendLangToHref(withBasePath(basePath, "/for-business/apply"), lang);
   const demoHref = appendLangToHref(withBasePath(basePath, "/for-business/demo"), lang);
@@ -284,7 +322,59 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
           title: "続ける理由は、外から押しつけない",
           body: "続けたくなるかどうかは、本人の発見や手応えから生まれるべきだと考えています。ikimon はその下支えをします。",
         },
-      ]),
+      ]) +
+        editorialSections([
+          {
+            eyebrow: "Place-first",
+            title: "なぜ同じ場所や同じあたりの 1 枚に価値があるのか",
+            lead: "比較の義務があるからではなく、前回のつづきや場所の変化が見えやすくなるからです。",
+            paragraphs: [
+              "いつもの散歩道なら、前に気づかなかった花の時期や、木陰の雰囲気、鳥の集まり方の違いが見えてきます。毎回きっちり同じ構図でなくても、同じあたりから 1 枚あるだけで、あとから見比べる入口になります。",
+              "旅先でも価値の出方は同じです。ある旅行者が春に残した景色に、別の旅行者が秋の光や水の量を重ねると、その場所の厚みが増します。1 人が何度も通わなくても、場所の記録はつながっていきます。",
+              "ikimon が大事にしたいのは、\"比較のために撮るべき\" という圧ではなく、\"この 1 枚があるとあとで面白い\" という気づきです。価値はあとから見返したときに立ち上がることが多いので、最初から完璧さを要求しません。",
+            ],
+          },
+          {
+            eyebrow: "AI as hint",
+            title: "AI は、観察のつづきを一緒に考える役割にとどめる",
+            lead: "AI が返すのは命令ではなく、候補・理由・次の一手です。",
+            paragraphs: [
+              "たとえば写真から種を断言できないときも、ikimon は \"ここがまだ写っていない\" \"この候補同士はここを見ると分かれやすい\" といったヒントを返します。正解を上から置くより、観察者が次に判断しやすくなることを優先します。",
+              "同じ場所の記録についても、AI は \"今度また通るなら同じあたりから 1 枚あると違いが見えやすい\" のように小さな提案だけを出します。やるかどうかは本人が決める前提で、強制や点数化はしません。",
+              "専門家による正式な確認が必要な場面は別 lane に分けます。日常の観察、AI の候補、専門家レビューの責任境界を混ぜないことが、押しつけ感を減らしつつ信頼を保つ条件だと考えています。",
+            ],
+          },
+          {
+            eyebrow: "Why it stays gentle",
+            title: "続ける理由は、発見と手応えのほうから育てる",
+            lead: "続けること自体を褒めるより、前より分かる・前より見える感覚を返すほうを重視します。",
+            paragraphs: [
+              "散歩や旅行を、ミッションやノルマの連続にすると長続きしません。ikimon は streak や義務感より、\"この前より見分けられた\" \"この場所の空気が読めるようになった\" という小さな自己効力感を大切にします。",
+              "そのために必要なのは、大きな説教よりも、いまの記録から自然に言える次のヒントです。葉の裏を撮る、全景を足す、同じあたりからもう 1 枚撮る。そういう無理のない提案を積み重ねます。",
+              "だから About でも、公益や監視の話を最初に置きません。まずは自分の散歩や旅が少し豊かになること。その先に、ほかの人や未来の自分とつながる意味が出てくる順番を守ります。",
+            ],
+            actionHref: withBasePath(basePath, "/learn/identification-basics"),
+            actionLabel: "撮り方と同定の考え方を読む",
+          },
+        ]) +
+        rows([
+          {
+            title: "同じ場所の 1 枚が役立つ場面",
+            body: "いつもの散歩道、学校や職場の近く、旅先の遊歩道、公園の池、毎年通る神社や海辺。再訪でも別の来訪者でも、場所の記録はつながります。",
+          },
+          {
+            title: "まず何を読むと良いか",
+            body: "撮り方・断定しない理由・AI の役割から読み始めると、ikimon の温度感がつかみやすくなります。",
+            actionHref: withBasePath(basePath, "/learn/identification-basics"),
+            actionLabel: "同定の考え方へ",
+          },
+          {
+            title: "データと公開の考え方",
+            body: "位置情報、公開範囲、AI と専門家の責任境界は Methodology に整理しています。",
+            actionHref: withBasePath(basePath, "/learn/methodology"),
+            actionLabel: "Methodology",
+          },
+        ]),
       "Learn",
       `<a class="inline-link" href="${escapeHtml(withBasePath(basePath, "/learn"))}">考え方を読む</a>`,
     );
@@ -317,24 +407,70 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
           href: withBasePath(basePath, "/for-business"),
           label: lang === "ja" ? "法人向け" : "For Business",
         },
-      ]) + rows([
-        {
-          title: "同定の考え方",
-          body: "断定しない理由、次に見るべきポイント、そして AI がどこまでヒント役に徹するか。",
-          actionHref: withBasePath(basePath, "/learn/identification-basics"),
-          actionLabel: lang === "ja" ? "読む" : "Basics",
-        },
-        {
-          title: "Methodology（方針）",
-          body: "データ方針、位置情報の扱い、公開の前提と限界。",
-          actionHref: withBasePath(basePath, "/learn/methodology"),
-          actionLabel: lang === "ja" ? "確認する" : "Methodology",
-        },
-        {
-          title: "アップデート",
-          body: "機能追加を単なる更新履歴ではなく、観察体験の温度感がどう整ってきたかとして整理。",
-        },
-      ]),
+      ]) +
+        editorialSections([
+          {
+            eyebrow: "Learn cluster",
+            title: "Learn は、理解を深めるための層として残す",
+            lead: "入口の主役ではないが、ikimon を信用して使い続けるためにはここが必要です。",
+            paragraphs: [
+              "ここでは、同じ場所の記録がなぜ意味を持つのか、AI がどこまでヒント役に徹するのか、そしてデータがどう扱われるのかを、順番に読めるようにします。トップの勢いだけでは伝わりきらない前提を、押しつけずに補うのが Learn の役目です。",
+              "コンテンツマーケティングとしても、Learn は単なる記事置き場ではありません。初学者の不安を減らし、ikimon の思想と責任境界を伝え、検索から来た人にも \"ここは何を大切にしているサービスか\" が分かる状態を作ります。",
+              "だから、短いスローガンだけで終わらせません。読むと判断しやすくなる、撮りやすくなる、次に何を見ればいいか分かる。その実用性がある説明だけを残していきます。",
+            ],
+          },
+          {
+            eyebrow: "Concrete scenes",
+            title: "このガイド群が扱うのは、机上の理念より現地で起きる迷いです",
+            lead: "散歩中・旅行中・あとで見返すときの迷いに答える構成に寄せます。",
+            paragraphs: [
+              "いつもの散歩道なら、\"また同じところを撮る意味はあるのか\" という迷いがあります。Learn では、同じ構図を義務にせず、同じあたりから 1 枚あると何が見えてくるかを具体例で伝えます。",
+              "旅行なら、\"一度しか行かないけれど記録する意味はあるのか\" という問いが出ます。そこで、別の来訪者や未来の自分の記録とつながる価値を説明します。",
+              "同定が難しいときは、\"なぜ種まで行けないのか\" と \"次にどこを撮れば進むのか\" が分からないまま終わりがちです。AI の候補表示だけでなく、その理由と次の一手まで読めるようにします。",
+            ],
+          },
+          {
+            eyebrow: "What to read first",
+            title: "最初に読むべきものは、種名辞典ではなく撮り方と考え方です",
+            lead: "知識を増やす前に、観察が前進しやすくなる順番を優先します。",
+            paragraphs: [
+              "ikimon の Learn は encyclopedia ではなく、field mentor に近い面です。まずは撮り方、AI の役割、断定しない理由を押さえる。そのあとで Methodology や法人向けの説明に進むほうが自然です。",
+              "この順番にしておくと、説明が長くても押しつけになりにくい。なぜなら、読むことで \"今の自分が少しやりやすくなる\" からです。役に立たない長文は置かず、次の行動につながるものだけを残します。",
+            ],
+          },
+        ]) +
+        rows([
+          {
+            title: "同定の考え方",
+            body: "断定しない理由、次に見るべきポイント、そして AI がどこまでヒント役に徹するか。",
+            actionHref: withBasePath(basePath, "/learn/identification-basics"),
+            actionLabel: lang === "ja" ? "読む" : "Basics",
+          },
+          {
+            title: "ikimon の想い",
+            body: "同じ場所の 1 枚、旅先で残す 1 枚、そして押しつけない継続設計の考え方をまとめています。",
+            actionHref: withBasePath(basePath, "/about"),
+            actionLabel: lang === "ja" ? "About" : "About",
+          },
+          {
+            title: "Methodology（方針）",
+            body: "データ方針、位置情報の扱い、公開の前提と限界。",
+            actionHref: withBasePath(basePath, "/learn/methodology"),
+            actionLabel: lang === "ja" ? "確認する" : "Methodology",
+          },
+          {
+            title: "アップデート",
+            body: "機能追加を単なる更新履歴ではなく、観察体験の温度感がどう整ってきたかとして整理。",
+            actionHref: withBasePath(basePath, "/learn/updates"),
+            actionLabel: lang === "ja" ? "見る" : "Updates",
+          },
+          {
+            title: "組織導入と分析",
+            body: "市民向けの動機づけとは分けて、 monitoring と report の導線を法人向けに整理しています。",
+            actionHref: withBasePath(basePath, "/for-business"),
+            actionLabel: lang === "ja" ? "法人向け" : "For Business",
+          },
+        ]),
       "Learn",
       `<a class="inline-link" href="${escapeHtml(withBasePath(basePath, "/about"))}">ikimon について読む</a>`,
     );
@@ -367,22 +503,60 @@ export async function registerMarketingRoutes(app: FastifyInstance): Promise<voi
           href: withBasePath(basePath, "/specialist/id-workbench"),
           label: "専門家向け画面を開く",
         },
-      ]) + rows([
-        {
-          title: "撮り直しで確度が上がる例",
-          body: "葉の裏、翅の脈、腹部、花の付け根、全景と接写の組み合わせなど、決め手になる部位が 1 枚増えるだけで候補を絞りやすくなります。",
-        },
-        {
-          title: "ikimon が返したいもの",
-          body: "種名だけでなく、まだ断定しない理由、似た候補、次に何を撮れば進みやすいか、そして同じ場所の 1 枚にどんな意味があるか。",
-        },
-        {
-          title: "最初の一歩",
-          body: "まず 1 件記録してみる。完璧な同定でなくて構いません。あとで見返せる 1 枚があるだけで、次に見たいポイントが生まれます。",
-          actionHref: withBasePath(basePath, "/record"),
-          actionLabel: "記録する",
-        },
-      ]),
+      ]) +
+        editorialSections([
+          {
+            eyebrow: "Start with evidence",
+            title: "まず残す。断定は、そのあとでいい",
+            lead: "最初の 1 枚に求めるのは完璧さより、あとで考えられる材料です。",
+            paragraphs: [
+              "野外では、光の向き、動き、距離、葉陰、幼体か成体かといった条件で、どうしても写りきらない部分が出ます。その場で種まで決まらないのは珍しいことではありません。",
+              "だから ikimon は、\"今はここまで\" を前向きに扱います。属までで止める、候補を数個に絞る、追加で見るべき部位を知る。その積み重ねのほうが、無理に断言するより信頼できます。",
+              "同じ場所をまた通るなら、同じあたりからもう 1 枚あるだけで前回の疑問が解けることがあります。再訪は義務ではありませんが、前回のつづきを自分で拾いやすくする方法として提案できます。",
+            ],
+          },
+          {
+            eyebrow: "How to shoot",
+            title: "撮るなら、全景・本体・決め手の 3 層を意識すると進みやすい",
+            lead: "全部を完璧に撮る必要はありません。どの層が足りないかが分かるだけでも次につながります。",
+            paragraphs: [
+              "全景は、どこにいたかを教えてくれます。葉の上なのか、水辺なのか、木の幹なのか。周辺の環境は、候補を考えるときの大きな手がかりです。",
+              "本体の全体像は、形や大きさの見当を付けるために役立ちます。さらに余裕があれば、翅の脈、葉の裏、花の付け根、腹部、樹皮の質感など、決め手になる部位を足します。",
+            ],
+            bullets: [
+              "1 枚目は、見つけた場所ごと残すつもりで全景を撮る",
+              "2 枚目は、体全体や葉全体が入るように寄る",
+              "3 枚目は、迷っている候補を分けそうな部位を撮る",
+              "もう一度通るなら、同じあたりから 1 枚足しておくと見比べやすい",
+            ],
+          },
+          {
+            eyebrow: "AI boundary",
+            title: "AI が返すのは、候補と理由と次の一手まで",
+            lead: "AI を答えとして使うのではなく、観察を前に進めるヒントとして使います。",
+            paragraphs: [
+              "ikimon の AI は、似た候補の違い、まだ足りない証拠、次に撮ると進みやすい部位を返します。ここが production の学習ヒントと同じ大前提です。",
+              "一方で、正式な確定や専門的なレビューが必要な場面は別 lane で扱います。観察者の画面では、\"一緒に絞る\" ことに徹し、責任を曖昧にしません。",
+              "だから、AI が候補を返しても焦る必要はありません。候補と理由を読み、やってみたくなれば追加で撮る。そのくらいの距離感で十分です。",
+            ],
+          },
+        ]) +
+        rows([
+          {
+            title: "撮り直しで確度が上がる例",
+            body: "葉の裏、翅の脈、腹部、花の付け根、全景と接写の組み合わせなど、決め手になる部位が 1 枚増えるだけで候補を絞りやすくなります。",
+          },
+          {
+            title: "ikimon が返したいもの",
+            body: "種名だけでなく、まだ断定しない理由、似た候補、次に何を撮れば進みやすいか、そして同じ場所の 1 枚にどんな意味があるか。",
+          },
+          {
+            title: "最初の一歩",
+            body: "まず 1 件記録してみる。完璧な同定でなくて構いません。あとで見返せる 1 枚があるだけで、次に見たいポイントが生まれます。",
+            actionHref: withBasePath(basePath, "/record"),
+            actionLabel: "記録する",
+          },
+        ]),
       "Learn",
     );
   });
