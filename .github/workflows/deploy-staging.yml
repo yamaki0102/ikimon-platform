@@ -252,8 +252,8 @@ jobs:
               fi
             done
             echo "== monitoring schema migration =="
-            MIGRATION_COUNT=$(sudo -u postgres psql -d ikimon_v2_staging -Atqc "select count(*) from schema_migrations where filename = '0007_monitoring_poc.sql'")
-            if [ "$MIGRATION_COUNT" != "1" ]; then
+            MIGRATION_COUNT=$(sudo -u postgres psql -d ikimon_v2_staging -Atqc "select count(*) from schema_migrations where filename in ('0007_monitoring_poc.sql', '0008_monitoring_poc_permissions.sql')")
+            if [ "$MIGRATION_COUNT" != "2" ]; then
               echo "FAIL monitoring migration record missing"
               exit 1
             fi

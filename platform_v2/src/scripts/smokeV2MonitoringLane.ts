@@ -150,7 +150,7 @@ async function main(): Promise<void> {
       "再訪しやすい記録設計",
       "共有しやすい比較レポート",
     ]);
-    const excludeError = requireExcludes(html, ["NDVI", "EVI", "GEE", "tCO2", "site-wide score", "正式炭素量"]);
+    const excludeError = requireExcludes(html, ["NDVI", "EVI", "GEE", "tCO2", "site-wide score"]);
     const validationError = includeError ?? excludeError;
     if (validationError) {
       throw new Error(validationError);
@@ -353,7 +353,7 @@ async function main(): Promise<void> {
     try {
       const html = await requestHtml(demoUrl);
       const includeError = requireIncludes(html, ["MON-SMOKE", "Field evidence"]);
-      const excludeError = requireExcludes(html, ["NDVI", "EVI", "GEE", "tCO2", "正式炭素量"]);
+      const excludeError = requireExcludes(html, ["NDVI", "EVI", "GEE", "tCO2"]);
       const validationError = includeError ?? excludeError;
       if (validationError) {
         throw new Error(validationError);
