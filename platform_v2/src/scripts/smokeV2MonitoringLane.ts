@@ -41,6 +41,11 @@ function baseUrlWithPath(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, "")}${path}`;
 }
 
+function withLang(path: string, lang: string): string {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}lang=${encodeURIComponent(lang)}`;
+}
+
 function slugify(value: string): string {
   const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   return slug.slice(0, 48) || "place";
@@ -103,8 +108,8 @@ async function main(): Promise<void> {
   let failed = false;
 
   const placesUrl = baseUrlWithPath(options.baseUrl, "/api/v1/monitoring/places");
-  const businessUrl = baseUrlWithPath(options.baseUrl, "/for-business");
-  const applyUrl = baseUrlWithPath(options.baseUrl, "/for-business/apply");
+  const businessUrl = baseUrlWithPath(options.baseUrl, withLang("/for-business", "ja"));
+  const applyUrl = baseUrlWithPath(options.baseUrl, withLang("/for-business/apply", "ja"));
   let placeId = "";
   let plotId = "";
   let plotVisitId = "";
@@ -349,10 +354,10 @@ async function main(): Promise<void> {
       failed = true;
     }
 
-    const demoUrl = baseUrlWithPath(options.baseUrl, "/for-business/demo");
+    const demoUrl = baseUrlWithPath(options.baseUrl, withLang("/for-business/demo", "ja"));
     try {
       const html = await requestHtml(demoUrl);
-      const includeError = requireIncludes(html, ["MON-SMOKE", "Field evidence"]);
+      const includeError = requireIncludes(html, ["MON-SMOKE", "現地の証拠", "固定プロット一覧", "次の一手"]);
       const excludeError = requireExcludes(html, ["NDVI", "EVI", "GEE", "tCO2"]);
       const validationError = includeError ?? excludeError;
       if (validationError) {
